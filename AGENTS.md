@@ -1,7 +1,7 @@
 # IC Auth Agent Instructions
 
 Apply [DRAGGINZGAME.md](DRAGGINZGAME.md), adopted from Shared Tooling revision
-`75a8a60f49cec11d3f6aecab5c977029c42cc549` and recorded in
+`db039347d2372b877c1c46dcdd2b5c3aa9412009` and recorded in
 [.shared-tooling.snapshot](.shared-tooling.snapshot). Read
 [the current handoff](docs/status/current.md) before implementation.
 
@@ -40,26 +40,38 @@ Apply [DRAGGINZGAME.md](DRAGGINZGAME.md), adopted from Shared Tooling revision
   certification-root publication. Library operations must not secretly write a
   global certification root or allocate conflicting stable-memory regions.
 - Use published `ic-host-*` for applicable local file, artifact and process
-  mechanics. Keep these native host dependencies in `apps/tooling/`, outside
-  both protocol libraries. Release identity and upload/retry policy stay here.
+  mechanics. Native host tooling belongs in `apps/tooling/` and test infrastructure
+  in unpublished `apps/qualification/`, outside both protocol libraries.
+  Release identity and upload/retry policy stay here.
 - Wallet login must not use SIWS/ic-siws, require a Solana transaction or depend
   on RPC. Use established signature primitives; do not implement cryptography.
 - Identity mappings, controller authority, delegated session lifetime and
   recovery policy are service contracts. Do not import Canic's reinstall-only
   lifecycle policy into this identity service.
 
+## Qualification tooling
+
+- Native canister qualification uses published `ic-testkit` for typed calls,
+  bounded startup and its upstream runtime re-export. Do not add a direct
+  `pocket-ic` dependency. The consumer-owned `ci/ic-auth-tools.tsv` selects the
+  server matching testkit's locked client; keep the shared default matrix intact.
+  Changing that pairing requires successful certification, upgrade and ingress
+  qualification. Testkit and native host dependencies stay outside both libraries.
+
 ## Validation and delivery
 
 - See [developer setup](docs/development.md) for the implemented command surface.
   Focused Rust checks are `make test-types`, `make test-protocol`, `make test-signatures`,
   `make test-signature-store`, `make test-tokens`, `make test-sessions`,
-  `make test-host-tooling`, `make check-wasm` and `make clippy`; `make ci` is the
+  `make test-host-tooling`, `make test-qualification`, `make check-wasm` and `make clippy`; `make ci` is the
   explicit complete gate. `make test-release-runner` checks the adopted runner
   with substituted effects.
-  Both libraries are published at `0.1.5` with contracts, encoding and optional
-  IC signature/token/session machinery. The working tree adds bounded signature
-  preparation/retrieval with explicit host certification composition.
-  Stable host adoption and wallet login remain
+  Both libraries are published at `0.1.6` with contracts, encoding and optional
+  IC signature/token/session machinery, including bounded signature preparation.
+  The internal IC Testkit fixture exercises actual certification, composed roots,
+  protected metadata upgrades and signed ingress with fresh session keys.
+  It is not a wallet login provider or stable session backend.
+  Stable library host adoption and wallet login remain
   unimplemented. Host stores must commit session/replay changes atomically and
   advance protected generation with authority changes.
 - `make publish-dry-run` checks both package builds using live registry metadata

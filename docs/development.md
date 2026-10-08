@@ -1,8 +1,9 @@
 # Rust development
 
-The virtual root owns two libraries and the unpublished native application in
-`apps/tooling/`, dependency selections, lints and one lockfile. The current manifest
-version is `0.1.5`, tagged as `v0.1.5`; both libraries are published on crates.io.
+The virtual root owns two libraries, unpublished native tooling in `apps/tooling/`
+and the internal host/runner in `apps/qualification/`, plus dependency selections,
+lints and one lockfile. The current manifest version is `0.1.6`, tagged as
+`v0.1.6`; both libraries are published on crates.io.
 Rust `1.99.0` matches the inspected
 Canic toolchain; `rust-toolchain.toml` is the sole toolchain selection. No lower
 MSRV is claimed. Linux x86_64 is the initially exercised host.
@@ -52,8 +53,10 @@ establish independent formatting qualification.
 | `make test-tokens` | Complete real secp256k1/BLS proof chains, signed binding and protected authority/window/scope rejection |
 | `make test-sessions` | Atomic admission/replay failure, exact retry, live authority invalidation, bounded pruning and quotas using real token proofs |
 | `make test-host-tooling` | Native file-operation CLI: bounded input, exact digest output, no-follow reads and preserved create-only evidence |
+| `make test-qualification` | Build the internal Wasm host; verify real certificates, root composition, upgrades and authenticated ingress through `ic-testkit` with the checked server |
+| `make build-qualification-canister` | Build the internal host's release Wasm without starting a server |
 | `make check-wasm` | Compile-check both libraries and signature verification/preparation, token and session capabilities for `wasm32-unknown-unknown` |
-| `make clippy` | Lint the two libraries and native application, including test targets and all features |
+| `make clippy` | Lint the libraries, native tooling/qualification and Wasm host with their selected targets |
 | `make metadata` | Validate the selected locked graph offline |
 | `make check-boundaries` | Inspect default, signature verification/preparation, token and session transitive dependency graphs |
 | `make fmt` / `make fmt-check` | Shared manifest sorting followed by Rust formatting |
@@ -96,22 +99,26 @@ transaction; they do not qualify stable canister storage or lifecycle. The
 Preparation tests additionally cover host-owned certification composition and
 bounded retrieval retention; see [the preparation contract](signature-preparation.md).
 They do not qualify an actual canister's root publication or query/upgrade lifecycle.
+The separate [IC Testkit command](ic-testkit-qualification.md) exercises those host
+paths and real signed ingress. It obtains the verified server from the local IC
+bundle, checks exact client/server alignment and retains state beneath `target/`.
+It does not qualify browser/wallet login or a durable session backend.
 
 ## Releases and publication
 
 ```sh
-make release-patch                 # current compatible batch: 0.1.5 -> 0.1.6
-make release-minor                 # pre-1.0 breaking increment: 0.1.5 -> 0.2.0
-make release-major                 # explicit major decision: 0.1.5 -> 1.0.0
+make release-patch                 # current compatible batch: 0.1.6 -> 0.1.7
+make release-minor                 # pre-1.0 breaking increment: 0.1.6 -> 0.2.0
+make release-major                 # explicit major decision: 0.1.6 -> 1.0.0
 make release-resume VERSION=X.Y.Z   # reconcile the exact saved attempt
 make publish-dry-run               # validate packages without upload
 make publish                       # upload a clean, delivered tagged release
 ```
 
-The undated `0.1.6` draft records compatible optional signature preparation and
-retrieval with host-owned certification composition. Existing encoding,
-verification and session APIs and signed bytes are unchanged. Released `0.1.5`
-contains the session engine and Shared Tooling 0.1.26 release runner.
+The undated `0.1.7` draft records internal PocketIC qualification and current
+Shared Tooling adoption. Existing encoding, signature, token and session APIs
+and signed bytes are unchanged. Released `0.1.6` contains signature preparation;
+the new native SDK/CDK dependencies belong only to the qualification apps.
 The earlier `0.1.2` rename used the maintainer's explicitly selected exception
 to the usual pre-1.0 minor requirement; later changes follow the normal
 [shared release contract](releases.md). Commit the implementation

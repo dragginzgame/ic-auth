@@ -13,6 +13,13 @@ unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR
 export GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null
 mkdir "$fixture/repo"
 git -C "$root" archive HEAD | tar -xf - -C "$fixture/repo"
+# Qualify the actual adopted snapshot, including additions not committed yet.
+bash "$root/scripts/ci/verify-shared-tooling-snapshot.sh"
+while IFS=$'\t' read -r record _digest _mode path; do
+    [[ "$record" == file ]] || continue
+    mkdir -p "$fixture/repo/$(dirname "$path")"
+    cp -p "$root/$path" "$fixture/repo/$path"
+done < "$root/.shared-tooling.snapshot"
 # Use the complete working package trees so package moves and import changes
 # are tested together, rather than mixing current manifests with archived code.
 rm -rf "$fixture/repo/crates"
@@ -20,9 +27,11 @@ cp -Rp "$root/crates" "$fixture/repo/crates"
 rm -rf "$fixture/repo/apps"
 cp -Rp "$root/apps" "$fixture/repo/apps"
 overlays=(Makefile Cargo.toml Cargo.lock CHANGELOG.md .shared-tooling.snapshot
+    ci/ic-auth-tools.tsv
     scripts/release/metadata.sh scripts/release/publish.sh scripts/release/test-tools.sh
     scripts/release/rewrite-manifest.pl
     scripts/dev/run-host-tooling.sh
+    scripts/dev/test-qualification.sh
     scripts/ci/check-release-tag.sh scripts/ci/rewrite-local-lock-versions.pl)
 for path in "${overlays[@]}"; do
     mkdir -p "$fixture/repo/$(dirname "$path")"
@@ -34,7 +43,10 @@ cd "$fixture/repo"
 initial="$(bash scripts/ci/read-cargo-workspace-version.sh --stable Cargo.toml)"
 if [[ "$initial" != 0.1.0 ]]; then
     perl scripts/release/rewrite-manifest.pl Cargo.toml "$initial" 0.1.0 > "$fixture/manifest"
-    perl scripts/ci/rewrite-local-lock-versions.pl Cargo.lock "$initial" 0.1.0 ic-auth ic-auth-protocol-types ic-auth-tooling > "$fixture/lock"
+    yq -p toml -o json '.' Cargo.lock | jq -r '.package[] | select(.source == null) | .name' > "$fixture/local-packages"
+    local_packages=()
+    while IFS= read -r package; do local_packages+=("$package"); done < "$fixture/local-packages"
+    perl scripts/ci/rewrite-local-lock-versions.pl Cargo.lock "$initial" 0.1.0 "${local_packages[@]}" > "$fixture/lock"
     cp "$fixture/manifest" Cargo.toml
     cp "$fixture/lock" Cargo.lock
 fi

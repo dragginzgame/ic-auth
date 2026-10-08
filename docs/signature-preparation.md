@@ -1,7 +1,7 @@
 # IC canister-signature preparation and retrieval
 
-The working tree adds optional `canister-signature-preparation` and
-`ic_auth::signature_store` for the pending `0.1.6` release. This capability is
+Optional `canister-signature-preparation` and `ic_auth::signature_store` are
+published in `0.1.6`. This capability is
 independent of `canister-signature-verification`, token verification and sessions.
 Encoding-only consumers select neither signature feature.
 
@@ -123,8 +123,10 @@ with multiple host branches, changed messages, stale certificates, inclusive
 limits, retention, duplicate preparation, bounded cleanup and failure atomicity.
 Default and preparation-only graphs compile for Wasm and pass dependency guards;
 all-feature tests also exercise existing token/session capabilities.
-These are pure mechanism checks. Real canister publication, query timing,
-upgrade restoration and IC ingress delegation still require a host/PocketIC
-qualification under the [accepted design](design/extraction.md) and
+These are pure mechanism checks. The separate internal
+[IC Testkit fixture](ic-testkit-qualification.md) exercises actual host publication,
+query certificates, protected metadata upgrades and signed ingress. It does not
+qualify a production wallet service or stable signature restoration.
+The [accepted design](design/extraction.md) and
 [Canic #491](https://github.com/dragginzgame/canic/issues/491). Canic's active
 implementation is unchanged; adoption requires a separately authorized change.

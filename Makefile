@@ -1,6 +1,7 @@
 .DEFAULT_GOAL := help
 
 include ci/tool-versions.env
+IC_TOOL_PINS := $(CURDIR)/ci/ic-auth-tools.tsv
 include make/tools.mk
 
 # Keep Cargo artifacts in this checkout, including CI and hook invocations.
@@ -15,7 +16,7 @@ export RELEASE_REMOTE RELEASE_BRANCH
         test-types test-protocol test-signatures test-signature-store test-tokens test-sessions check-wasm clippy check-boundaries \
         check-snapshot check-dependency-pins check-doc-links ci \
         publish publish-dry-run check-package-licenses test-release-tools \
-        test-host-tooling test-release-runner test-evidence-archive \
+        test-host-tooling test-qualification build-qualification-canister test-release-runner test-evidence-archive \
         release-patch release-minor release-major release-resume \
         release-version release-preflight release-verify release-prepare-version \
         release-prepared-check release-files release-commit-check \
@@ -23,7 +24,7 @@ export RELEASE_REMOTE RELEASE_BRANCH
 
 help:
 	@echo 'Setup: install-tools, tools-check, install-hooks, fetch'
-	@echo 'Focused checks: test-types, test-protocol, test-signatures, test-signature-store, test-tokens, test-sessions, test-host-tooling, check-wasm, clippy, metadata'
+	@echo 'Focused checks: test-types, test-protocol, test-signatures, test-signature-store, test-tokens, test-sessions, test-host-tooling, test-qualification, check-wasm, clippy, metadata'
 	@echo 'Formatting: fmt, fmt-check'
 	@echo 'Governance: check-snapshot, check-dependency-pins, check-doc-links, check-boundaries'
 	@echo 'Complete CI gate (explicit only): ci'
@@ -80,7 +81,14 @@ check-wasm:
 	cargo check --locked --offline -p ic-auth --features sessions --target wasm32-unknown-unknown
 
 clippy:
-	cargo clippy --locked --offline -p ic-auth-protocol-types -p ic-auth -p ic-auth-tooling --all-targets --all-features -- -D warnings
+	cargo clippy --locked --offline -p ic-auth-protocol-types -p ic-auth -p ic-auth-tooling -p ic-auth-qualification --all-targets --all-features -- -D warnings
+	cargo clippy --locked --offline -p ic-auth-qualification-canister --target wasm32-unknown-unknown -- -D warnings
+
+build-qualification-canister:
+	cargo build --locked --offline -p ic-auth-qualification-canister --target wasm32-unknown-unknown --release
+
+test-qualification: build-qualification-canister
+	bash scripts/dev/test-qualification.sh
 
 check-boundaries:
 	bash scripts/ci/check-auth-boundaries.sh
@@ -95,7 +103,7 @@ check-doc-links:
 	@rg --files -g '*.md' -0 | xargs -0 perl scripts/ci/check-documentation-links.pl --root "$(CURDIR)"
 
 ci:
-	+bash scripts/ci/run-validation-targets.sh --fail-fast check-snapshot check-dependency-pins check-doc-links fmt-check metadata check-boundaries test-types test-protocol test-signatures test-signature-store test-tokens test-sessions test-host-tooling check-wasm clippy publish-dry-run test-release-tools test-release-runner test-evidence-archive
+	+bash scripts/ci/run-validation-targets.sh --fail-fast check-snapshot check-dependency-pins check-doc-links fmt-check metadata check-boundaries test-types test-protocol test-signatures test-signature-store test-tokens test-sessions test-host-tooling test-qualification check-wasm clippy publish-dry-run test-release-tools test-release-runner test-evidence-archive
 
 check-package-licenses:
 	@cmp LICENSE crates/ic-auth-protocol-types/LICENSE

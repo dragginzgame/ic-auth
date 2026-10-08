@@ -1,5 +1,11 @@
 [workspace]
-members = ["apps/tooling", "crates/ic-auth", "crates/ic-auth-protocol-types"]
+members = [
+    "apps/qualification/canister",
+    "apps/qualification/runner",
+    "apps/tooling",
+    "crates/ic-auth",
+    "crates/ic-auth-protocol-types",
+]
 resolver = "3"
 
 [workspace.package]
@@ -11,12 +17,16 @@ repository = "https://github.com/dragginzgame/ic-auth"
 
 [workspace.dependencies]
 candid = { version = "0.10", default-features = false }
+ic-agent = { version = "0.49.2", default-features = false }
+ic-auth = { path = "crates/ic-auth" }
 ic-auth-protocol-types = { version = "0.1.6", path = "crates/ic-auth-protocol-types" }
 ic-canister-sig-creation = "1.3.1"
+ic-cdk = "0.20.3"
 ic-certification = "3.2"
-ic-host-artifacts = { version = "0.7", default-features = false }
-ic-host-fs = { version = "0.7", default-features = false }
+ic-host-artifacts = { version = "0.8", default-features = false }
+ic-host-fs = { version = "0.8", default-features = false }
 ic-signature-verification = "0.3"
+ic-testkit = "0.25"
 ic-verify-bls-signature = { version = "0.6", default-features = false, features = ["alloc"] }
 k256 = { version = "0.13.4", default-features = false, features = ["ecdsa"] }
 leb128 = "0.2"
@@ -25,6 +35,7 @@ serde_bytes = "0.11"
 serde_cbor = "0.11"
 sha2 = "0.10"
 thiserror = "2"
+tokio = { version = "1", features = ["rt-multi-thread"] }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

@@ -1,0 +1,22 @@
+[package]
+name = "ic-auth-qualification-canister"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+description = "Internal canister host for IC Auth qualification"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+candid.workspace = true
+ic-auth = { workspace = true, features = ["canister-signature-preparation"] }
+ic-auth-protocol-types.workspace = true
+ic-cdk.workspace = true
+ic-certification.workspace = true
+serde.workspace = true
+
+[lints]
+workspace = true

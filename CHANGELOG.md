@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.7]
+
+- Add internal `ic-testkit` qualification for composed certification, protected
+  metadata upgrades and real signed ingress. Fresh session keys retain the same
+  fixture principal; invalid delegations and non-owner operations are rejected.
+  The fixture does not implement wallet login or a stable session backend.
+- Adopt current Shared Tooling for physical script paths and complete failure
+  evidence, including Rust tool builds; keep release fixtures aligned with the
+  actual snapshot and complete workspace package set.
+  [shared #67](https://github.com/dragginzgame/shared-tooling/issues/67),
+  [shared #68](https://github.com/dragginzgame/shared-tooling/issues/68).
+
 ## [0.1.6] - 2026-10-08
 
 - Add optional bounded canister-signature preparation and retrieval with exact

@@ -3,9 +3,9 @@
 The maintainer accepted the larger Canic authentication extraction, selected the
 name `ic-auth`, and confirmed `/home/adam/projects/ic-auth` as the local repository.
 
-The current committed release is `70082ae2481f9aa6e8c5c34cf2ebb8fc2fbbd794`
-(`0.1.5`) on `main`, with annotated tag `v0.1.5`; both remote identities were
-verified during this batch. Both libraries' `0.1.5` registry checksums match
+The current committed release is `b135ab02cced773f1dc9823cc57c07c873a0b099`
+(`0.1.6`) on `main`, with annotated tag `v0.1.6`; both remote identities were
+verified during this batch. Both libraries' `0.1.6` registry checksums match
 the retained publication intent for that exact source/tag. The maintainer
 executed the release and publication. The original bootstrap was
 `7a03102e52b7a400588530997a9f7fb91c83de9d` (`0.1.0`).
@@ -22,21 +22,178 @@ records this batch without closing the larger extraction.
 
 The virtual Rust workspace contains `ic-auth-protocol-types`, `ic-auth` and the
 unpublished native application in `apps/tooling/`, with one lockfile, root-owned
-dependency selections and current manifest version `0.1.5`.
+dependency selections and current manifest version `0.1.6`.
 The passive token/proof contracts and canonical encoding are adapted from the
 clean Canic source at `e286b3fd98460c98670336853f80658a920966e0`; see the
 [source review](../design/canic-source-review.md) for exact ownership and API
 adaptations. Both packages now allow crates.io publication of their implemented
 contracts/encoding, with inherited repository/README metadata and matching MIT
-notices in the package payloads. Released `0.1.5` includes optional complete token
-and IC signature verification, plus session/replay machinery. The working tree
-adds bounded signature preparation/retrieval and host-owned certification
-composition for pending `0.1.6`.
+notices in the package payloads. Released `0.1.6` includes optional complete token
+and IC signature verification, session/replay machinery and bounded signature
+preparation/retrieval. The working tree adds internal canister/runner packages
+under `apps/qualification/`, for pending `0.1.7`.
 There is no stable canister adapter, wallet endpoint or TypeScript client yet.
 Canic adoption has not
 occurred; no sibling repository was modified.
 
-## Current signature preparation/retrieval batch
+## Current IC Testkit adoption
+
+The maintainer required `ic-testkit` as the canister test infrastructure. The
+working qualification package now selects published `ic-testkit` 0.25 and uses
+its runtime re-export, typed Candid calls, IC Host file reader and bounded startup
+with retained server stdout/stderr. The direct `pocket-ic` declaration and exact
+pin exception were removed; no authentication library API or signed bytes changed.
+Both complete certificate/lifecycle and signed-ingress scenarios are retained.
+
+The command is now `make test-qualification`; its wrapper and documentation are
+`scripts/dev/test-qualification.sh` and
+[the IC Testkit contract](../ic-testkit-qualification.md). There is no alias for
+the earlier uncommitted command. `ci/ic-auth-tools.tsv` is the consumer-owned
+matrix: PocketIC 16.1.0 matches testkit's transitive client, while other tools keep
+the shared defaults. Official release metadata verified all three archive hashes;
+the immutable shared matrix/snapshot remains unchanged. Make setup, checks and
+the offline qualification wrapper all select the consumer matrix. No test-time
+download or alternative server discovery is enabled.
+
+Published testkit 0.25.0 is unyanked, checksum
+`1757127736e1d3bd4e6abe4d49017cfa75e2cdd7f9b07cb6a634a789c87e8c8f`.
+Its package source revision and observed remote main are
+`6b6d2cfe7f4c3e7a204a0c18beb6edb8895007b4`. The sibling's dirty files were
+read-only and excluded. The concurrent Host fs/artifact update to 0.8.1 is preserved;
+all four selected Host packages now use 0.8.1 from source
+`973f00a029dd873c242a4d06e9f8d2d5172ff0df`. Qualification
+dependencies remain confined to the unpublished native runner.
+
+Both full scenarios pass through testkit with the checked 16.1.0 server
+(`final-qualification.log`, retained state
+`target/portable-fixtures/qualification.VRqUsc`), including CDPATH-sensitive wrapper
+invocation. Strict native/Wasm Clippy passes (`qualification.log`). Local tool,
+formatting, snapshot, pinning/inheritance, link, metadata and library-boundary
+checks pass, as do the four native file-operation tests (`final-checks.log`).
+ShellCheck and local/mocked release fixtures pass (`shellcheck.log`,
+`final-release-fixtures.log`); the fixture copies the consumer matrix and new
+wrapper along with the complete local packages. Both public package dry-runs
+build successfully without uploads (`package-dry-run.log`). All four Host 0.8.1
+registry checksums match the final lock and are unyanked (`ic-host-*-registry.json`).
+Final source, lock, both matrices, snapshot, Wasm and package archive identities
+are recorded in `target/testkit-adoption/source-identities.sha256`.
+An initial formatting check
+found the longer renamed command string, and a later link check found the old
+document path; both were corrected before final checks. Server stdout/stderr
+are retained separately per instance. Native macOS execution of these changed
+sources awaits the configured CI jobs; no complete local CI gate was run.
+
+Evidence from the earlier direct-PocketIC implementation below is historical;
+its source identity list does not attest these changed files. Current adoption
+evidence is retained separately under `target/testkit-adoption/`. Versions remain
+0.1.6 with pending 0.1.7 notes; no commit, release or publication is authorized by
+this correction.
+
+## Earlier direct PocketIC qualification batch
+
+`make test-pocketic` builds the unpublished qualification host and tests real
+certification, root composition, expiry cleanup and protected metadata upgrades.
+The host uses actual runtime caller/time/certificate values, controller-only
+signing and one certification root containing assets, signatures and status.
+The native runner uses the PocketIC instance's network key and the real library
+verifier. Its independent resource canister checks an installation-protected
+owner after ingress authentication. See the
+[qualification contract](../ic-testkit-qualification.md).
+
+The HTTP gateway scenario uses the IC agent's canonical delegation encoding and
+real signed requests. Fresh Ed25519 session keys retain the same fixed fixture
+principal across signer/resource upgrades. The replica rejects wrong targets,
+changed signed expiration, wrong session keys and expired delegations. Valid
+non-owner and anonymous requests reach the application guard and are denied,
+separately from replica credential rejection. Previously issued, unexpired
+delegations still authenticate after pending leaves are reset; clearing the
+store is not revocation. Stable owner/branch metadata survives the fixture's
+upgrade; this is not a stable session or signature-restoration adapter.
+
+Both integration scenarios pass on Linux (`final-strict-qualification.log`), with retained
+instance state under `target/portable-fixtures/pocketic.*`. The wrapper checks
+the complete pinned IC bundle and locked client/server alignment before any
+server execution; both PocketIC selections are 16.0.0. Negative ingress assertions
+require HTTP 400/403 and the corresponding target/signature/expiration refusal;
+transport failures cannot satisfy them. An initial strict assertion expected 403
+for target rejection; the server correctly returns 400 for that case
+(`strict-rejection-qualification.log`). The final run checks both supported
+authentication rejection codes and specific reasons, and retains state in
+`target/portable-fixtures/pocketic.kJbtc7`.
+The first attempt lacked
+an NNS subnet and correctly had no network root (`initial-pocketic.log`). Adding
+that required trust-root subnet fixed the fixture, without changing library
+verification. Intermediate and final successful logs remain separate.
+
+The IC agent 0.49.2/CDK 0.20.3/PocketIC dependencies are confined to unpublished
+applications. Bounded no-follow Wasm reading uses `ic-host-fs`. PocketIC owns its
+server protocol/process behavior. Its 16.0.0 package pins `thiserror` 2.0.18, so
+workspace resolution necessarily selects that patch instead of 2.0.21. Existing
+type/encoding/signature/token/session and native tooling focused tests pass with
+the resulting lock, as do every selected Wasm graph, metadata, dependency guards
+and strict native/Wasm Clippy (`focused-rust.log`, `final-clippy.log`). No full
+local CI/workspace gate was run. Final fixture-only source cleanup removed an
+unused direct upstream signing dependency; metadata, both PocketIC scenarios and
+strict native/Wasm Clippy passed again afterward (`final-strict-qualification.log`).
+
+The initial user-changed Host 0.7.2 lock entries were preserved, followed by a
+concurrent root/lock selection of Host 0.8.0. Live registry records match those
+final fs/artifact entries; their packaged source revision is
+`fc74f679c7503ef9dd2db8fbd893c5c5907c72c4`. Focused Clippy/native file tests and
+the final PocketIC execution use 0.8.0. Its process cleanup API break is outside
+this repository's selected fs/artifact usage; no local public contract changed.
+The initial qualification executions used 0.7.2 and are not relabelled.
+
+Shared Tooling source `db039347d2372b877c1c46dcdd2b5c3aa9412009` (VERSION 0.1.27)
+matches remote main. An isolated clean copy exported committed bytes, excluding
+the sibling's uncommitted edits. The canonical 65-file snapshot includes the
+failure-evidence selector and PocketIC alignment/binary helpers. Default tool
+retention remains full; no CI compaction option was selected. The source-owned
+host evidence fixture passed against an isolated copied tool bundle, including
+the actual collector (`selector-fixtures.log`). An earlier invocation omitted
+required arguments and was refused (`upstream-evidence-selector.log`). This is
+producer/helper evidence, not hosted GitHub artifact-roundtrip qualification.
+
+Release fixtures now copy the actual adopted snapshot and discover every local
+workspace package before synthetic version rewriting. Local/mocked publication,
+runner and archive fixtures pass (`portable-fixtures.log`); warnings there come
+from deliberate substitute Make recipes, not duplicate production recipes.
+They perform no real repository release or registry upload.
+
+Formatting, the 65-file snapshot, dependency pinning/root inheritance and local
+links pass (`governance.log`). The exact SDK pin was initially refused by the
+dependency guard; its client/server compatibility requirement is now documented
+in `AGENTS.md` and scoped in `ci/dependency-pinning-exceptions.json`.
+ShellCheck passes for the new wrapper and changed consumer release fixture
+(`shellcheck.log`); that fixture passes again with the exception overlay
+(`final-release-fixtures.log`). Both public package dry-runs build successfully
+using live registry metadata, without upload (`package-dry-run.log`). The GitHub
+description remains consistent with the independent authentication libraries
+(`repository-description.json`). Final source, lock, snapshot and Wasm identities
+are retained in `target/pocketic-qualification/source-identities.sha256`.
+
+Live 0.1.6 registry checksums match its receipt: protocol types
+`fad377ac63ecda737ec1636d79690729fc07b6b5f2d749262ed294b412645bec`, auth
+`7eb9c82e1657c68bc9127ba02142a9d04c0c9e2e691a53fd837ef4a701521ddf`.
+Both maintainer-triggered 0.1.6
+[CI](https://github.com/dragginzgame/ic-auth/actions/runs/37782819316)
+[runs](https://github.com/dragginzgame/ic-auth/actions/runs/37782819222)
+completed successfully. This qualifies that released source on the configured
+hosts, not the new uncommitted fixture on macOS.
+
+The selected next version is 0.1.7: new commands/internal qualification and
+shared tooling adoption are compatible; public auth APIs, signed bytes and
+default dependency boundaries are unchanged. Manifest versions stay 0.1.6.
+No commit, push, release, publication, production deployment or sibling adoption
+was performed. Wallet service policies, wallet proofs/browser login and durable
+session adoption remain separate. Older evidence below retains its original
+source/selection wording and absent target files are historical references.
+
+## Earlier signature preparation/retrieval batch (released in 0.1.6)
+
+The following records preparation against 0.1.5 before the maintainer's 0.1.6
+release/publication above; pending-version and qualification statements below
+describe that earlier evidence.
 
 Optional `canister-signature-preparation` exposes a bounded volatile
 `SignatureStore`, independently of verification/token/session features. It

@@ -71,8 +71,8 @@ trace those generated contracts and producer/consumer fixtures coherently with
 [Canic #354](https://github.com/dragginzgame/canic/issues/354). No Canic source was
 removed, aliased or redirected. Until that adoption, Canic retains its active
 implementation. The contracts/encoding, signature and complete token capabilities
-are published independently, with sessions included in `0.1.5`. The subsequent
-signature preparation addition below remains unpublished.
+are published independently, with sessions included in `0.1.5` and signature
+preparation in `0.1.6`. The internal qualification apps below are unpublished.
 A1 is not claimed complete, and the larger extraction is still partial.
 
 The qualification findings named by #491 remain unresolved by the encoding move. In
@@ -190,3 +190,24 @@ not revoke proofs already issued. The reference store is volatile and has no
 durable restore codec; root publication, query timing, upgrades and actual IC
 ingress delegation need host/PocketIC qualification. The compatible pending
 version is `0.1.6`; canonical Canic consumer adoption remains separately scoped.
+
+## Subsequent canister/PocketIC qualification
+
+The internal host/runner under `apps/qualification/` exercises the published
+library against an actual canister runtime. The host owns clock/caller acquisition,
+controller signing guards, stable metadata and composed root publication; no
+effect moved into the pure libraries. It resets pending signatures on upgrade
+while preserving protected owner/branch metadata and other certified owners.
+
+The [qualification contract](../ic-testkit-qualification.md) records real query
+certificates, subnet/network verification, composed branches and authenticated
+ingress. The IC agent owns standard delegation request-ID encoding and session-key
+signing; the replica checks expiration, targets and signed bytes. New session
+keys retain one fixed fixture identity across signer/resource upgrades. Already
+issued delegations remain valid until their signed expiry; authenticated callers
+still need independent resource ownership.
+
+This qualifies the fixture lifecycle and library/host composition on local Linux,
+not wallet login, a stable session backend, a browser client, Canic adoption or
+a production service. Canic's active implementation and its retirement obligations
+remain unchanged. No sibling source was edited.
