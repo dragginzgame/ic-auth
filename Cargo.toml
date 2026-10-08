@@ -1,0 +1,18 @@
+[workspace]
+members = ["crates/ic-auth", "crates/ic-auth-types"]
+resolver = "3"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+
+[workspace.dependencies]
+candid = { version = "0.10", default-features = false }
+ic-auth-types = { path = "crates/ic-auth-types" }
+serde = { version = "1", features = ["derive"] }
+sha2 = "0.10"
+thiserror = "2"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"

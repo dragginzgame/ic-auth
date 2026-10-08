@@ -1,0 +1,6 @@
+/target/
+/.tools/
+/node_modules/
+**/node_modules/
+/.shared-tooling-refresh.*/
+.DS_Store
