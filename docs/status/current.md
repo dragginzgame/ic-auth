@@ -3,11 +3,11 @@
 The maintainer accepted the larger Canic authentication extraction, selected the
 name `ic-auth`, and confirmed `/home/adam/projects/ic-auth` as the local repository.
 
-The local Git repository is initialized on `main` with no commits.
+The committed bootstrap is `7a03102e52b7a400588530997a9f7fb91c83de9d` (`0.1.0`) on
+`main`; the remote branch was verified at that same commit during this batch.
 The public remote [dragginzgame/ic-auth](https://github.com/dragginzgame/ic-auth)
 was created at the maintainer's request and is configured as `origin` using
-`https://github.com/dragginzgame/ic-auth.git`. The remote is empty; no source push
-has occurred.
+`https://github.com/dragginzgame/ic-auth.git`.
 The accepted [design](../design/extraction.md) covers signatures, application
 tokens and local sessions, plus an independent Solana wallet-auth service.
 [Canic #491](https://github.com/dragginzgame/canic/issues/491) remains the existing
@@ -21,11 +21,13 @@ lockfile, root-owned dependency selections and initial local version `0.1.0`.
 The passive token/proof contracts and canonical encoding are adapted from the
 clean Canic source at `e286b3fd98460c98670336853f80658a920966e0`; see the
 [source review](../design/canic-source-review.md) for exact ownership and API
-adaptations. Both packages have `publish = false`. There is no token verifier,
+adaptations. Both packages now allow crates.io publication of their implemented
+contracts/encoding, with inherited repository/README metadata and matching MIT
+notices in the package payloads. They remain unpublished. There is no token verifier,
 session engine, wallet endpoint or TypeScript client yet. Canic adoption has not
 occurred; no sibling repository was modified.
 
-The engineering snapshot contains 56 committed Shared Tooling files from
+The engineering snapshot contains 58 committed Shared Tooling files from
 `2687f26317952c43c685f7f799ed09288dc10a67`. It was exported from a clean temporary
 clone, preserving the source checkout's unrelated uncommitted work. The snapshot
 verifier passed during installation. The expanded snapshot supplies shared
@@ -34,6 +36,8 @@ Rust and IC tools are installed in this checkout and `make tools-check` passed
 on Linux x86_64. Tool installation output is retained at
 `/tmp/ic-auth-install-tools.log`; installation build output remains under
 `.tools/rust/build/`. The repository-local formatting hook is enabled.
+The added upstream helpers provide exact release-tag checks and byte-preserving
+local lock-version transformation from the same adopted revision.
 
 This starts A1 and the encoding portion of A3 without claiming either complete.
 Protocol `Fleet` labels and signed domains remain unchanged. Auth role parsing
@@ -50,19 +54,41 @@ formatting, snapshot integrity and local links. Initial Clippy validation found 
 constant-size iterator lint; it was corrected and the check passed. No full CI,
 PocketIC, live verification, service or downstream-adoption evidence is claimed.
 
-The dependency declaration checker correctly rejects the actual bootstrap's
-untracked lockfile. It passed with root inheritance enabled in an isolated staged
-copy at `/tmp/ic-auth-pinning.uGjpA0`; the user's real index remains untouched.
-The standard release entry points passed the shared substitute-runner routing
-check, which has no release effects. Hook activation and normal `fmt-check` passed;
-the full hook-adoption fixture needs a committed baseline and was not run here.
+The current local batch implements the maintainer-requested release/publication
+commands, tracked by [IC Auth #1](https://github.com/dragginzgame/ic-auth/issues/1).
+The shared runner now has working direct-delivery metadata and validation adapters
+for patch/minor/major/resume. It retains complete-gate receipts and checks exact
+selected commits, narrowly owned metadata, annotated tags and atomic branch/tag
+delivery. Publication requires a clean, tagged, pushed release and verifies
+crates.io archive checksums with retained intent before each upload.
 
-The pending `0.1.0` changelog records the initial implementation, not a finalized
-or published release. There is no earlier release to increment. Release preflight
-is intentionally blocked pending an initial release identity and qualified
-delivery/metadata adapters. No commit, source push, release, package publication
-or deployment occurred. See [development](../development.md) for actual commands
-and their boundaries.
+Current focused checks cover real metadata transforms and local bare-remote
+releases with a substitute complete gate, plus mocked registry/upload transport.
+They exercise gate failure, staged source rejection, candidate conflicts, all
+three increments, interrupted preparation, exact resume, dirty/untagged publish,
+unknown registry state, checksum conflicts and lost-upload-reply reconciliation.
+Fixtures and failed attempts remain under `target/release-tools.*/`. Package dry
+runs use real Cargo and registry metadata, build both distributable crates and
+abort upload. No live release or registry write is claimed by those checks.
+Dependency pinning/root inheritance now pass against the tracked real lockfile;
+formatting, locked metadata, shell/Perl checks, license copies, snapshot integrity
+and local links are checked for this batch. The previous 17 auth tests remain
+bootstrap evidence; no full CI or PocketIC run was added to this local tooling task.
+
+Strictly offline attempts failed for unavailable registry metadata and Cargo's
+staged-dependency checksum error; the first metadata fixture exposed yq's inability
+to emit complete TOML. The implementation uses an explicit registry-aware dry
+run and narrowly checked byte-preserving manifest edits. The interrupted-write
+fixture also exposed an expected-receipt path error, which was corrected before
+the recovery checks passed. Raw attempts are retained under `target/` and in
+`/tmp/ic-auth-*-dry-run*.log` and `/tmp/ic-auth-release-tools.log`.
+
+The pending `0.1.1` changelog carries the entire initial batch and new tooling.
+It is the first patch increment from the committed `0.1.0` manifest, not a claim
+of finalized `0.1.0` release history. There are no tags or published packages.
+This command-implementation batch is uncommitted; it made no source push, live
+release, package upload or deployment. See [development](../development.md) for
+actual command effects, prerequisites and recovery boundaries.
 
 Documentation closeout identified the wallet-service contract decisions explicitly
 in the design: application identity scoping, credential linking/recovery, distinct

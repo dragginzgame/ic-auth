@@ -13,7 +13,8 @@ contract. The libraries and reference service must not depend on either project.
 The Rust workspace implements passive token/proof contracts, validated protocol
 identifiers and canonical signed encoding extracted from Canic. **It does not yet
 verify tokens, admit sessions or provide wallet login.** Hashing a token is not
-authentication. Both packages are unpublished and have publication disabled.
+authentication. Both packages are unpublished; their manifests and the guarded
+publication command now support crates.io delivery of these implemented APIs.
 
 Canic still runs its existing implementation. Its adapter adoption and removal of
 superseded code require a separately authorized Canic change.

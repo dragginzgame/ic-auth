@@ -3,8 +3,10 @@ name = "ic-auth"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+readme.workspace = true
+repository.workspace = true
 description = "Canonical application authentication protocol encoding"
-publish = false
+publish = ["crates-io"]
 
 [dependencies]
 ic-auth-types.workspace = true

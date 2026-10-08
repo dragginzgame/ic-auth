@@ -52,6 +52,12 @@ Apply [DRAGGINZGAME.md](DRAGGINZGAME.md), adopted from Shared Tooling revision
   `make check-wasm` and `make clippy`; `make ci` is the explicit complete gate.
   Both crates remain unpublished extraction candidates. Canonical hashing is
   not proof verification or authenticated admission.
+- `make publish-dry-run` checks both package builds using live registry metadata
+  without uploading. `make test-release-tools` uses local bare remotes and mocked
+  upload/registry transport. The three release targets share the complete gate
+  and direct-delivery runner; `make publish` requires a clean, exactly tagged and
+  pushed release. Running those effectful commands still requires explicit
+  release/publication authority.
 
 - For design/governance work, check local links, ownership consistency, snapshot
   integrity and the diff. Do not run Rust or portable script suites for prose.

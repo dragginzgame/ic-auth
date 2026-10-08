@@ -58,3 +58,5 @@ file	40f31a19d6115411ebffe7c26e3ed30b8af7eead10dd4830de8d5a9312291222	x	scripts/
 file	565fa7a05f48615963fd5f2472eef140d51181cdf847b4db0048ea9bc4fc2dac	x	scripts/ci/run-validation-targets.sh
 file	5dd38585740657f98f655c15c4f617ca05dc4b6304e0925675a44376ec33309b	x	scripts/ci/check-release-commands.sh
 file	6bbdb81bfe4b69311e57529866ccac2d8394de1452479c656ef9b7dd2a69e529	x	scripts/ci/check-formatting-hooks.sh
+file	236f9b2d7fe391a73d03cfe355c0d26fa73de8db1553c7e670f7b19aeb65d086	x	scripts/ci/rewrite-local-lock-versions.pl
+file	d7b179f9ceaec6e11c690c975b61f91bedc80526415f71571615064db14f0c9c	x	scripts/ci/check-release-tag.sh

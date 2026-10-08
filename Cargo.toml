@@ -6,10 +6,12 @@ resolver = "3"
 version = "0.1.0"
 edition = "2024"
 license = "MIT"
+readme = "README.md"
+repository = "https://github.com/dragginzgame/ic-auth"
 
 [workspace.dependencies]
 candid = { version = "0.10", default-features = false }
-ic-auth-types = { path = "crates/ic-auth-types" }
+ic-auth-types = { version = "0.1.0", path = "crates/ic-auth-types" }
 serde = { version = "1", features = ["derive"] }
 sha2 = "0.10"
 thiserror = "2"

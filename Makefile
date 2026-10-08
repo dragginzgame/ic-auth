@@ -9,12 +9,16 @@ export RUSTUP_AUTO_INSTALL := 0
 RELEASE_REMOTE ?= origin
 RELEASE_BRANCH ?= main
 export RELEASE_DELIVERY := direct
+export RELEASE_REMOTE RELEASE_BRANCH
 
 .PHONY: help install-hooks format-tools-check fmt fmt-check fetch metadata \
         test-types test-protocol check-wasm clippy check-boundaries \
         check-snapshot check-dependency-pins check-doc-links ci \
+        publish publish-dry-run check-package-licenses test-release-tools \
         release-patch release-minor release-major release-resume \
-        release-version release-preflight
+        release-version release-preflight release-verify release-prepare-version \
+        release-prepared-check release-files release-commit-check \
+        release-committed-check release-tagged-check release-push-check
 
 help:
 	@echo 'Setup: install-tools, tools-check, install-hooks, fetch'
@@ -22,7 +26,8 @@ help:
 	@echo 'Formatting: fmt, fmt-check'
 	@echo 'Governance: check-snapshot, check-dependency-pins, check-doc-links, check-boundaries'
 	@echo 'Complete CI gate (explicit only): ci'
-	@echo 'Release entry points: release-patch, release-minor, release-major (bootstrap blocked)'
+	@echo 'Releases: release-patch, release-minor, release-major; recovery: release-resume VERSION=X.Y.Z'
+	@echo 'Crates.io: publish; local checks without upload: publish-dry-run, test-release-tools'
 
 install-tools: install-rust-tools
 tools-check: rust-tools-check
@@ -41,7 +46,7 @@ fmt-check: format-tools-check
 	cargo sort --workspace --check
 	cargo fmt --all -- --check
 
-# Explicit network/cache preparation; validation never fetches or unlocks.
+# Explicit selected-cache preparation; ordinary Rust checks remain offline.
 fetch:
 	cargo fetch --locked
 
@@ -73,7 +78,20 @@ check-doc-links:
 	@rg --files -g '*.md' -0 | xargs -0 perl scripts/ci/check-documentation-links.pl --root "$(CURDIR)"
 
 ci:
-	+bash scripts/ci/run-validation-targets.sh --fail-fast check-snapshot check-dependency-pins check-doc-links fmt-check metadata check-boundaries test-types test-protocol check-wasm clippy
+	+bash scripts/ci/run-validation-targets.sh --fail-fast check-snapshot check-dependency-pins check-doc-links fmt-check metadata check-boundaries test-types test-protocol check-wasm clippy publish-dry-run test-release-tools
+
+check-package-licenses:
+	@cmp LICENSE crates/ic-auth-types/LICENSE
+	@cmp LICENSE crates/ic-auth/LICENSE
+
+publish-dry-run: check-package-licenses
+	cargo publish --dry-run --locked --registry crates-io --allow-dirty -p ic-auth-types -p ic-auth
+
+publish:
+	bash scripts/release/publish.sh
+
+test-release-tools:
+	bash scripts/release/test-tools.sh
 
 ifneq ($(word 2,$(filter release-patch release-minor release-major release-resume,$(MAKECMDGOALS))),)
 $(error Select exactly one release target)
@@ -88,9 +106,9 @@ release-resume:
 release-version:
 	@bash scripts/ci/read-cargo-workspace-version.sh --stable Cargo.toml
 
-# There is no finalized release base, remote or approved delivery destination.
-# Keep the shared entry points fail-closed until that separate release boundary
-# supplies and qualifies the remaining metadata/delivery adapters.
-release-preflight:
-	@echo 'Release unavailable: local bootstrap has no finalized release base or qualified delivery adapters. See docs/development.md.' >&2
-	@exit 1
+release-preflight release-prepare-version release-prepared-check release-files \
+release-commit-check release-committed-check release-tagged-check release-push-check:
+	@bash scripts/release/metadata.sh "$(@:release-%=%)"
+
+release-verify:
+	+@bash scripts/release/metadata.sh verify
