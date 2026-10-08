@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.1.3]
+
+- Add optional IC canister-signature verification with protected signer, seed
+  and network trust inputs, bounded proof decoding and host-controlled certificate
+  freshness. Use DFINITY's cryptography; preserve Canic's signed domains.
+  Complete token verification and session admission remain pending.
+- Adopt Shared Tooling 0.1.25, including final release/tag rechecks, hardened
+  evidence archive paths and
+  confirmed remote-tracking reconciliation. Use published `ic-host-fs` and
+  `ic-host-artifacts` for bounded file identities and durable publication
+  evidence. Encoding-only dependency graphs and signed-byte contracts are unchanged.
+  [#1](https://github.com/dragginzgame/ic-auth/issues/1)
+- Configure the complete CI gate on Linux and macOS Intel/Apple Silicon,
+  with retained failure evidence. Native macOS qualification awaits those jobs.
+
 ## [0.1.2] - 2026-10-08
 
 ### Breaking

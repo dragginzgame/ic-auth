@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Shared companions: scripts/ci/check-make-execution.sh scripts/ci/next-release-version.sh
 set -euo pipefail
 
 # Canonical ordering and Git effects; consumer targets own metadata and gates.
@@ -212,6 +213,7 @@ assert_release_commit() {
     [[ "$index_tree" =~ ^[0-9a-f]{40,64}$ && "$(git rev-parse "$release_commit^{tree}")" == "$index_tree" ]] || fail 'release commit tree differs from the exact staged release'
     git merge-base --is-ancestor "$release_commit" HEAD || fail 'release commit is not an ancestor of the selected branch'
     [[ "$("$make_bin" --no-print-directory -s release-version)" == "$candidate" ]] || fail 'release metadata no longer matches the candidate'
+    git diff --cached --quiet HEAD -- || fail 'release index differs from the committed payload'
     git diff --quiet HEAD -- || fail 'release worktree differs from the committed payload'
     untracked="$(git ls-files --others --exclude-standard)" || fail 'cannot inventory untracked release source'
     [[ -z "$untracked" ]] || fail 'release worktree has untracked source'
@@ -233,6 +235,44 @@ read_remote_refs() {
             *) fail 'remote ref output contains an unexpected identity' ;;
         esac
     done <<< "$refs"
+}
+# URL-form delivery deliberately bypasses mutable remote-name resolution. Git
+# does not refresh that remote's tracking ref, so carry the confirmed observation
+# back to the matching configured upstream without another network operation.
+refresh_release_tracking() {
+    local upstream tracking_remote tracking_source tracking_ref tracking_head
+    local fetch_destination current_upstream
+    if ! upstream="$(git for-each-ref --format='%(upstream:remotename)%09%(upstream:remoteref)%09%(upstream)' -- "refs/heads/$branch")"; then
+        echo 'release delivered; local upstream could not be inspected; fetch to refresh Git status' >&2
+        return 0
+    fi
+    IFS=$'\t' read -r tracking_remote tracking_source tracking_ref <<< "$upstream"
+    [[ "$tracking_remote" == "$remote" && "$tracking_source" == "refs/heads/$branch" && "$tracking_ref" == refs/remotes/* ]] || return 0
+    if ! fetch_destination="$(git remote get-url --all "$remote")" || [[ "$fetch_destination" != "$destination" ]]; then
+        echo 'release delivered; upstream fetch destination differs; fetch to refresh Git status' >&2
+        return 0
+    fi
+    if git symbolic-ref --quiet "$tracking_ref" >/dev/null 2>&1; then
+        echo 'release delivered; symbolic tracking ref preserved; fetch to refresh Git status' >&2
+        return 0
+    fi
+    if tracking_head="$(git show-ref --verify --hash "$tracking_ref" 2>/dev/null)"; then
+        [[ "$tracking_head" != "$remote_head" ]] || return 0
+        if ! git merge-base --is-ancestor "$tracking_head" "$remote_head"; then
+            echo 'release delivered; newer or divergent tracking ref preserved; fetch to reconcile Git status' >&2
+            return 0
+        fi
+    else
+        tracking_head="${remote_head//[0-9a-f]/0}"
+    fi
+    # A changed mapping/destination or a concurrent ref update is not permission
+    # to overwrite another local observation or repeat an already delivered push.
+    current_upstream="$(git for-each-ref --format='%(upstream:remotename)%09%(upstream:remoteref)%09%(upstream)' -- "refs/heads/$branch")" || return 0
+    [[ "$current_upstream" == "$upstream" && "$(git remote get-url --all "$remote")" == "$fetch_destination" ]] || return 0
+    assert_destination
+    if ! git update-ref --no-deref -m "release: observed $remote/$branch" "$tracking_ref" "$remote_head" "$tracking_head"; then
+        echo 'release delivered; tracking refresh failed or raced; fetch to refresh Git status' >&2
+    fi
 }
 while true; do
     select_release
@@ -339,10 +379,13 @@ while true; do
             push)
                 assert_release_commit
                 assert_release_tag
+                local_tag="$(git rev-parse "refs/tags/v$candidate")"
                 hook release-push-check
+                assert_release_commit
+                assert_release_tag
+                [[ "$(git rev-parse "refs/tags/v$candidate")" == "$local_tag" ]] || fail 'release tag changed during its final check'
                 assert_destination
                 local_head="$release_commit"
-                local_tag="$(git rev-parse "refs/tags/v$candidate")"
                 read_remote_refs
                 # A confirmed descendant already includes this release. Preserve that
                 # branch tip when publishing a missing tag; never rewind it.
@@ -373,6 +416,14 @@ while true; do
         [[ "$remote_tag" == "$(git rev-parse "refs/tags/v$candidate")" ]] || fail 'completed PR release tag no longer matches its destination'
     else
         assert_release_commit
+        assert_release_tag
+        assert_destination
+        read_remote_refs
+        [[ "$remote_tag" == "$(git rev-parse "refs/tags/v$candidate")" ]] || fail 'completed release tag no longer matches its destination'
+        if [[ -z "$remote_head" ]] || ! git merge-base --is-ancestor "$release_commit" "$remote_head"; then
+            fail 'completed release is absent from the observed branch history; fetch and reconcile'
+        fi
+        refresh_release_tracking
     fi
     printf 'Release %s completed; retained plan: %s\n' "$candidate" "$plan"
     [[ "$delivery" == direct && "$followup" == yes ]] || break

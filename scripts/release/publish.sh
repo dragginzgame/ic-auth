@@ -45,7 +45,7 @@ hashes=()
 for package in "${packages[@]}"; do
     archive="${CARGO_TARGET_DIR:-$PWD/target}/package/$package-$version.crate"
     [[ -f "$archive" && ! -L "$archive" ]] || fail "missing package archive: $archive"
-    hashes+=("$(sha256sum "$archive" | cut -d ' ' -f 1)")
+    hashes+=("$(bash scripts/dev/run-host-tooling.sh hash-file "$archive" 67108864)")
 done
 jq -n --arg source "$source" --arg version "$version" --arg tag "$tag" \
     --arg types "${hashes[0]}" --arg auth "${hashes[1]}" \
@@ -58,7 +58,7 @@ if [[ -e "$plan" || -L "$plan" ]]; then
 else
     # Intent precedes every registry effect. Retries retain the same source,
     # registry, exact version and archive checksums.
-    cp "$candidate" "$plan"
+    bash scripts/dev/run-host-tooling.sh create-private "$candidate" "$plan" 65536
 fi
 observe() {
     local package="$1" checksum="$2" status observed
@@ -85,7 +85,10 @@ for index in "${!packages[@]}"; do
     dispatched="$state/$version-$package.dispatched"
     [[ ! -e "$dispatched" ]] || fail "previous $package upload is unresolved; retain intent and wait for registry confirmation before retrying"
     assert_source
-    printf '%s\n' "$source" "$checksum" > "$dispatched"
+    marker="$logs/$package.dispatched"
+    printf '%s\n' "$source" "$checksum" > "$marker"
+    bash scripts/dev/run-host-tooling.sh create-private "$marker" "$dispatched" 1024
+    assert_source
     status=0
     step cargo publish --locked --registry crates-io -p "$package" || status=$?
     # A lost reply or Cargo index-propagation timeout does not prove failure.

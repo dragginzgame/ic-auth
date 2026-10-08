@@ -1,10 +1,17 @@
 # Rust development
 
-The virtual root owns both packages, dependency selections, lints and the single
-lockfile. The current manifest version is `0.1.1`, tagged as `v0.1.1`; our packages
-have not been published. Both libraries select crates.io. Rust `1.99.0` matches the inspected
+The virtual root owns two libraries and the unpublished native application in
+`apps/tooling/`, dependency selections, lints and one lockfile. The current manifest
+version is `0.1.2`, tagged as `v0.1.2`; both libraries are published on crates.io.
+Rust `1.99.0` matches the inspected
 Canic toolchain; `rust-toolchain.toml` is the sole toolchain selection. No lower
 MSRV is claimed. Linux x86_64 is the initially exercised host.
+
+The supported host matrix is Linux x86_64 and macOS 15 on Intel and Apple Silicon.
+CI runs the same complete gate on `ubuntu-24.04`, `macos-15-intel` and `macos-15`.
+Native macOS qualification for this batch remains pending those jobs. Shared
+Tooling's [host prerequisites](supported-hosts.md) apply, including Bash 3.2+,
+GNU Make, rustup, Git and standard Unix setup utilities.
 
 ## Setup
 
@@ -40,16 +47,20 @@ establish independent formatting qualification.
 | --- | --- |
 | `make test-types` | Identifier rejection and Candid wire compatibility |
 | `make test-protocol` | Canonical encoding, signed vectors, ordering and size rejection |
-| `make check-wasm` | Compile-check both libraries for `wasm32-unknown-unknown` |
-| `make clippy` | Lint these two packages and their test targets |
+| `make test-signatures` | Real BLS-signed IC fixtures, signer/seed/root rejection, certificate freshness and bounded decoding |
+| `make test-host-tooling` | Native file-operation CLI: bounded input, exact digest output, no-follow reads and preserved create-only evidence |
+| `make check-wasm` | Compile-check both libraries and the optional signature capability for `wasm32-unknown-unknown` |
+| `make clippy` | Lint the two libraries and native application, including test targets and all features |
 | `make metadata` | Validate the selected locked graph offline |
-| `make check-boundaries` | Inspect actual transitive default dependency graphs |
+| `make check-boundaries` | Inspect default and signature-selected transitive dependency graphs |
 | `make fmt` / `make fmt-check` | Shared manifest sorting followed by Rust formatting |
 | `make check-snapshot` | Verify the adopted shared files and modes |
 | `make check-dependency-pins` | Check declarations, lockfile tracking and root inheritance |
 | `make check-doc-links` | Check local Markdown targets |
 | `make publish-dry-run` | Build both distributable libraries without uploading; requires registry metadata access |
 | `make test-release-tools` | Exercise release/recovery and publication rejection/retry using local and mocked effects |
+| `make test-release-runner` | Adopted Shared Tooling runner regression fixtures with substituted release effects |
+| `make test-evidence-archive` | Adopted evidence archive fixtures: retained files, symlinks and literal paths |
 
 `make ci` is the complete configured gate, reserved for explicit requests and CI.
 It uses the shared validation logger and retains failures. The workflow prepares
@@ -63,29 +74,34 @@ multi-package check fails when a staged dependency has no resolved checksum.
 It never uploads packages. It is part of the complete CI/release gate; release
 logs remain under `.git/release-state/validation-logs/`.
 
-These checks do not establish cryptographic verification, authenticated session
-admission, PocketIC behavior, service upgrades or independent consumer adoption.
-Those checks belong with the corresponding implementation.
+CI stores validation logs and local fixture evidence under
+`target/portable-fixtures/`. Failed jobs use the adopted retention action and
+archiver; downloaded artifacts contain `evidence.tar.gz`. Extract that archive
+to inspect the retained files. This layout does not erase prior evidence under
+`target/release-tools.*/`.
+
+Signature tests exercise real cryptography with deterministic fixture trust keys,
+including root/subnet chains, and preserve Canic's signature-domain bytes. They
+do not establish live network trust, complete application-token verification,
+session admission, PocketIC behavior, service upgrades or independent consumer
+adoption. See the [signature API and trust contract](signatures.md).
 
 ## Releases and publication
 
 ```sh
-make release-patch                 # maintainer-selected rename exception: 0.1.1 -> 0.1.2
-make release-minor                 # normal pre-1.0 breaking increment: 0.1.1 -> 0.2.0
-make release-major                 # explicit major decision: 0.1.1 -> 1.0.0
+make release-patch                 # current compatible batch: 0.1.2 -> 0.1.3
+make release-minor                 # pre-1.0 breaking increment: 0.1.2 -> 0.2.0
+make release-major                 # explicit major decision: 0.1.2 -> 1.0.0
 make release-resume VERSION=X.Y.Z   # reconcile the exact saved attempt
 make publish-dry-run               # validate packages without upload
 make publish                       # upload a clean, delivered tagged release
 ```
 
-The undated `0.1.2` draft records the breaking types-package rename from
-`ic-auth-types` to `ic-auth-protocol-types`. Consumers must update their Cargo
-dependency and import `ic_auth_protocol_types`; wire contracts are unchanged.
-The maintainer explicitly selected `0.1.2`, an exception scoped to this rename
-and to the baseline's usual pre-1.0 minor requirement. Use the patch target for
-this selected candidate; subsequent changes follow the normal
-[shared release contract](releases.md). This selection authorizes changelog
-preparation, not release execution. Commit the implementation
+The undated `0.1.3` draft records compatible Shared Tooling/host utility adoption
+and optional signature verification. Existing encoding APIs and bytes are unchanged.
+The earlier `0.1.2` rename used the maintainer's explicitly selected exception
+to the usual pre-1.0 minor requirement; later changes follow the normal
+[shared release contract](releases.md). Commit the implementation
 before executing a release; only pending notes may be dirty at ordinary preflight.
 
 All three release targets use the adopted runner, the same `make ci` gate and
@@ -93,7 +109,7 @@ direct delivery to `origin/main` by default. `RELEASE_REMOTE` and `RELEASE_BRANC
 select another already-authorized destination. PR delivery is not qualified here.
 Preflight admits staged and unstaged paths independently and fetches only the
 selected lockfile. Preparation changes the root version, the inherited internal
-dependency requirement, the two local lock entries and the candidate notes.
+dependency requirement, all three local lock entries and the candidate notes.
 It adds `release-validation.json`, binding the complete gate to the validated
 source, lockfile, original notes and selected release identity. External dependency
 selections remain byte-for-byte unchanged. The canonical root version is replaced
@@ -123,6 +139,22 @@ effect independently before reconciling the retained intent. Publication logs an
 archives remain in `target/`; no cleanup, GitHub Release object or deployment is
 implicit. See [Cargo publication](https://doc.rust-lang.org/cargo/commands/cargo-publish.html)
 for credentials, dry-run and index-propagation semantics.
+
+`scripts/dev/run-host-tooling.sh` runs the unpublished utility through locked,
+offline Cargo with output in this checkout. File identities use
+`ic-host-artifacts::artifact::Sha256Digest`; no-follow regular reads and durable
+private-file publication use `ic-host-fs`. The caller supplies finite byte limits:
+8 MiB for lockfiles, 64 MiB for package archives, 1 MiB for validation receipts,
+64 KiB for publication intent and 1 KiB for dispatch markers. These are local
+tooling limits, not authentication protocol limits. The publication lock and
+registry uncertainty policy remain owned by the release/publication scripts.
+
+Receipt reconciliation uses the adopted portable checksum helper, because an
+interrupted preparation can temporarily leave incompatible manifest/lock versions
+and cannot rebuild the workspace utility. Normal validation and publication use
+the Rust utility. Shared Bash tooling remains canonical for process dispatch and
+Git release orchestration; no current Candid-extraction or process-capture call
+justifies adding `ic-host-tools` or `ic-host-process` to this application.
 
 The attempted `0.1.1` publication stopped before dispatch because the existing
 `ic_auth_types 0.1.1` archive has a different checksum. That crate belongs to a

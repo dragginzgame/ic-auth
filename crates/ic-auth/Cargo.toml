@@ -5,13 +5,35 @@ edition.workspace = true
 license.workspace = true
 readme.workspace = true
 repository.workspace = true
-description = "Canonical application authentication protocol encoding"
+description = "Application authentication protocol encoding and optional IC signature verification"
 publish = ["crates-io"]
+
+[features]
+default = []
+canister-signature-verification = [
+    "dep:ic-canister-sig-creation",
+    "dep:ic-certification",
+    "dep:ic-signature-verification",
+    "dep:leb128",
+    "dep:serde",
+    "dep:serde_bytes",
+    "dep:serde_cbor",
+]
 
 [dependencies]
 ic-auth-protocol-types.workspace = true
+ic-canister-sig-creation = { workspace = true, optional = true }
+ic-certification = { workspace = true, optional = true }
+ic-signature-verification = { workspace = true, optional = true }
+leb128 = { workspace = true, optional = true }
+serde = { workspace = true, optional = true }
+serde_bytes = { workspace = true, optional = true }
+serde_cbor = { workspace = true, optional = true }
 sha2.workspace = true
 thiserror.workspace = true
+
+[dev-dependencies]
+ic-verify-bls-signature.workspace = true
 
 [lints]
 workspace = true

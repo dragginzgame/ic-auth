@@ -103,6 +103,15 @@ The runner rechecks that selection after validation and before push, rejecting
 changed or additional URLs. Observation and dispatch both use the captured URL,
 so a later remote-name change cannot redirect the push.
 
+URL-form push does not refresh named remote-tracking refs. After direct delivery
+or completed resume verifies the exact remote tag and branch history, the runner
+refreshes the selected branch's matching configured upstream from that observation.
+Git derives the mapping, including custom fetch refspecs; fetch and push destinations
+must agree. The conditional local update preserves newer/divergent or concurrently
+changed tracking values and never dereferences a symbolic tracking ref. Other
+upstreams remain untouched. Local inspection/update failure reports a fetch remedy
+without repeating commit, tag or push; it does not undo confirmed delivery.
+
 `--no-follow-tags` disables implicit annotated-tag publication, including a
 configured `push.followTags`. Both refspecs are explicit: push the selected branch
 and this release's tag, without publishing other local tags. `--atomic` requires
@@ -115,6 +124,16 @@ next release is pushed. If the remote branch already contains the older release,
 preserve its verified tip when atomically publishing a missing tag. Never rewind
 the branch. Unknown or diverged remote history stops with a fetch/reconciliation
 diagnostic; remote inspection failure does not authorize replay.
+
+After `release-push-check`, both delivery policies recheck the committed payload
+and require the selected annotated tag object to remain unchanged, including its
+annotation. Direct delivery also checks the index independently of working files.
+A completed direct resume verifies the local tag, exact remote tag object and
+that the observed branch still contains the release commit. A known descendant
+tip is valid; missing tags, conflicting history or unavailable observations stop
+completion without recreating or pushing anything. Fetch unknown branch history
+and reconcile actual conflicts before retrying; retain the completed plan and
+earlier evidence.
 
 ## Makefile example
 
@@ -241,7 +260,10 @@ release. PR recovery never starts a follow-up increment in the same invocation.
 
 Adoption requires authenticated `gh`, jq, a Git version supporting `switch`,
 `worktree` and `fetch --no-write-fetch-head`, and the sourced
-`scripts/ci/release-pr.sh` beside the runner. The initial implementation accepts
+`scripts/ci/release-pr.sh` beside the runner. PR lookup uses `gh api --paginate`
+and jq to read every response page; it does not require the newer GitHub CLI
+`--slurp` option. Failed, incomplete or malformed queries stop reconciliation
+before another external effect. The initial implementation accepts
 explicit github.com HTTPS/SSH push URLs and same-repository PRs; fork heads and
 GitHub Enterprise destinations are outside this contract. Run from an ordinary
 checkout without inherited Git directory, worktree, index or object-store overrides.

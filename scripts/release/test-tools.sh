@@ -6,8 +6,8 @@ set -euo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)"
 export PATH="$root/.tools/host/bin:$root/.tools/rust/bin:$PATH"
 export CARGO_NET_OFFLINE=true RUSTUP_AUTO_INSTALL=0
-mkdir -p "$root/target"
-fixture="$(mktemp -d "$root/target/release-tools.XXXXXX")"
+mkdir -p "$root/target/portable-fixtures"
+fixture="$(mktemp -d "$root/target/portable-fixtures/release-tools.XXXXXX")"
 echo "Release/publication fixture evidence: $fixture"
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR
 export GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null
@@ -17,9 +17,12 @@ git -C "$root" archive HEAD | tar -xf - -C "$fixture/repo"
 # are tested together, rather than mixing current manifests with archived code.
 rm -rf "$fixture/repo/crates"
 cp -Rp "$root/crates" "$fixture/repo/crates"
+rm -rf "$fixture/repo/apps"
+cp -Rp "$root/apps" "$fixture/repo/apps"
 overlays=(Makefile Cargo.toml Cargo.lock CHANGELOG.md .shared-tooling.snapshot
     scripts/release/metadata.sh scripts/release/publish.sh scripts/release/test-tools.sh
     scripts/release/rewrite-manifest.pl
+    scripts/dev/run-host-tooling.sh
     scripts/ci/check-release-tag.sh scripts/ci/rewrite-local-lock-versions.pl)
 for path in "${overlays[@]}"; do
     mkdir -p "$fixture/repo/$(dirname "$path")"
@@ -31,7 +34,7 @@ cd "$fixture/repo"
 initial="$(bash scripts/ci/read-cargo-workspace-version.sh --stable Cargo.toml)"
 if [[ "$initial" != 0.1.0 ]]; then
     perl scripts/release/rewrite-manifest.pl Cargo.toml "$initial" 0.1.0 > "$fixture/manifest"
-    perl scripts/ci/rewrite-local-lock-versions.pl Cargo.lock "$initial" 0.1.0 ic-auth ic-auth-protocol-types > "$fixture/lock"
+    perl scripts/ci/rewrite-local-lock-versions.pl Cargo.lock "$initial" 0.1.0 ic-auth ic-auth-protocol-types ic-auth-tooling > "$fixture/lock"
     cp "$fixture/manifest" Cargo.toml
     cp "$fixture/lock" Cargo.lock
 fi
@@ -95,6 +98,12 @@ cat > "$fixture/bin/cargo" <<'SH'
 #!/usr/bin/env bash
 set -euo pipefail
 case "$1" in
+    run)
+        if [[ "$FIXTURE_MODE" == marker-source-change && " $* " == *' create-private '* ]]; then
+            git commit --allow-empty -qm 'Concurrent fixture marker source'
+        fi
+        exec "$FIXTURE_CARGO" "$@"
+        ;;
     package)
         mkdir -p "$CARGO_TARGET_DIR/package"
         printf types > "$CARGO_TARGET_DIR/package/ic-auth-protocol-types-0.1.1.crate"
@@ -125,7 +134,7 @@ case "$FIXTURE_MODE" in
         printf 200 ;;
     *)
         if [[ -f "$FIXTURE_LOG/observed-$package" ]]; then
-            checksum="$(sha256sum "$CARGO_TARGET_DIR/package/$package-0.1.1.crate" | cut -d ' ' -f 1)"
+            checksum="$(bash scripts/dev/run-host-tooling.sh hash-file "$CARGO_TARGET_DIR/package/$package-0.1.1.crate" 67108864)"
             jq -n --arg checksum "$checksum" '{version:{num:"0.1.1",checksum:$checksum}}' > "$output"
             printf 200
         else printf 404; fi
@@ -139,6 +148,13 @@ if bash scripts/release/publish.sh > "$fixture/unknown.log" 2>&1; then exit 1; f
 export FIXTURE_MODE=conflict
 if bash scripts/release/publish.sh > "$fixture/conflict.log" 2>&1; then exit 1; fi
 [[ ! -f "$fixture/uploads" ]]
+export FIXTURE_MODE=marker-source-change
+if bash scripts/release/publish.sh > "$fixture/marker-source-change.log" 2>&1; then exit 1; fi
+[[ ! -f "$fixture/uploads" ]]
+git reset --hard "$commit" > /dev/null
+# This isolated fixture observed no dispatch at all. Restore its known-failed
+# marker before testing uncertainty separately; never touch real repo intent.
+rm .git/publication-state/0.1.1-ic-auth-protocol-types.dispatched
 export FIXTURE_MODE=lost-reply
 if bash scripts/release/publish.sh > "$fixture/lost-reply.log" 2>&1; then exit 1; fi
 [[ "$(wc -l < "$fixture/uploads")" == 1 ]]

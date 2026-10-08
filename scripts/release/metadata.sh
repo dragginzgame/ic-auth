@@ -40,15 +40,24 @@ read_receipt() {
         and (.changelog | type == "string") and (.lock_sha256 | test("^[a-f0-9]{64}$"))
     ' "$1" > /dev/null || fail 'validation receipt does not match the selected source/release'
     git show "$RELEASE_SOURCE:Cargo.lock" > "$scratch/base.lock"
-    [[ "$(sha256sum "$scratch/base.lock" | cut -d ' ' -f 1)" == "$(jq -r .lock_sha256 "$1")" ]] || fail 'validated lockfile mismatch'
+    # Recovery may have a partially prepared manifest/lock pair. Use the
+    # adopted portable reader here: rebuilding a workspace utility would depend
+    # on the very metadata this boundary is reconciling.
+    [[ "$(bash scripts/ci/verify-file-checksum.sh --print sha256 "$scratch/base.lock")" == "$(jq -r .lock_sha256 "$1")" ]] || fail 'validated lockfile mismatch'
 }
 render() {
     git show "$RELEASE_SOURCE:Cargo.toml" > "$scratch/base.toml"
     yq -p toml -o json '.' "$scratch/base.toml" | jq -e --arg previous "$RELEASE_PREVIOUS" \
         '.workspace.package.version == $previous and .workspace.dependencies."ic-auth-protocol-types".version == $previous' > /dev/null || fail 'source version mismatch'
     perl scripts/release/rewrite-manifest.pl "$scratch/base.toml" "$RELEASE_PREVIOUS" "$RELEASE_VERSION" > "$scratch/Cargo.toml"
+    # The saved source owns its local package set. Late checks must also admit
+    # releases that predate the addition of the native utility.
+    yq -p toml -o json '.' "$scratch/base.lock" | jq -r '.package[] | select(.source == null) | .name' > "$scratch/packages"
+    local_packages=()
+    while IFS= read -r package; do local_packages+=("$package"); done < "$scratch/packages"
+    [[ ${#local_packages[@]} -gt 0 ]] || fail 'validated source has no local packages'
     perl scripts/ci/rewrite-local-lock-versions.pl "$scratch/base.lock" "$RELEASE_PREVIOUS" "$RELEASE_VERSION" \
-        ic-auth ic-auth-protocol-types > "$scratch/Cargo.lock"
+        "${local_packages[@]}" > "$scratch/Cargo.lock"
     # -j adds no extra LF: the receipt preserves the original notes byte-for-byte.
     jq -j .changelog "$scratch/receipt.json" > "$scratch/notes"
     awk -v version="$RELEASE_VERSION" -v previous="$RELEASE_PREVIOUS" -v date="$RELEASE_DATE" \
@@ -106,12 +115,13 @@ case "$operation" in
         admit_changes
         cmp -s CHANGELOG.md "$scratch/notes" || fail 'notes changed during validation'
         git diff --quiet HEAD -- Cargo.toml Cargo.lock release-validation.json || fail 'metadata changed during validation'
+        lock_digest="$(bash scripts/dev/run-host-tooling.sh hash-file Cargo.lock 8388608)"
         jq -n --arg source "$RELEASE_SOURCE" --arg previous "$RELEASE_PREVIOUS" --arg candidate "$RELEASE_VERSION" \
             --arg kind "$RELEASE_KIND" --arg date "$RELEASE_DATE" --rawfile notes "$scratch/notes" \
-            --arg lock "$(sha256sum Cargo.lock | cut -d ' ' -f 1)" --arg verified "$(date -u +%FT%TZ)" \
+            --arg lock "$lock_digest" --arg verified "$(date -u +%FT%TZ)" \
             '{schema:1, gate:"ci", source:$source, previous:$previous, candidate:$candidate,
               kind:$kind, date:$date, verified_at:$verified, lock_sha256:$lock, changelog:$notes}' > "$scratch/receipt.json"
-        mv "$scratch/receipt.json" "$receipt"
+        bash scripts/dev/run-host-tooling.sh replace-private "$scratch/receipt.json" "$receipt" 1048576
         ;;
     prepare-version|prepared-check|commit-check)
         [[ "$(git rev-parse HEAD)" == "$RELEASE_SOURCE" ]] || fail 'preparation source changed'

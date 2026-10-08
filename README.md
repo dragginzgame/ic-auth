@@ -11,10 +11,14 @@ contract. The libraries and reference service must not depend on either project.
 ## Status
 
 The Rust workspace implements passive token/proof contracts, validated protocol
-identifiers and canonical signed encoding extracted from Canic. **It does not yet
+identifiers and canonical signed encoding extracted from Canic. The working tree
+also adds optional IC canister-signature verification using protected host inputs;
+see the [signature contract](docs/signatures.md). **It does not yet
 verify tokens, admit sessions or provide wallet login.** Hashing a token is not
-authentication. Both packages are unpublished; their manifests and the guarded
-publication command now support crates.io delivery of these implemented APIs.
+authentication. Both libraries are published on crates.io at `0.1.2` with these
+contracts and encoding; the new signature API is not yet published. The native
+utility in `apps/tooling/` is unpublished and reuses
+`ic-host-fs`/`ic-host-artifacts` for release and publication file operations.
 
 Canic still runs its existing implementation. Its adapter adoption and removal of
 superseded code require a separately authorized Canic change.
@@ -33,7 +37,9 @@ Cargo.toml                     # Virtual workspace and dependency catalog
 Cargo.lock                     # One selected Rust dependency graph
 crates/
   ic-auth-protocol-types/      # Passive auth contracts and validated identifiers
-  ic-auth/                     # Canonical token, certificate and proof encoding
+  ic-auth/                     # Canonical encoding and optional IC signature verification
+apps/
+  tooling/                     # Unpublished native release/publication file utility
 ```
 
 The types package is `ic-auth-protocol-types` (Rust import
@@ -50,6 +56,7 @@ With the [declared tools](docs/development.md) prepared, run the focused checks:
 ```sh
 make test-types
 make test-protocol
+make test-signatures
 make check-wasm
 ```
 

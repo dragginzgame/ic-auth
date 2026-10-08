@@ -1,7 +1,7 @@
 # IC Auth Agent Instructions
 
 Apply [DRAGGINZGAME.md](DRAGGINZGAME.md), adopted from Shared Tooling revision
-`2687f26317952c43c685f7f799ed09288dc10a67` and recorded in
+`eeb72e741199bd8574280eacb3542d8379b912f6` and recorded in
 [.shared-tooling.snapshot](.shared-tooling.snapshot). Read
 [the current handoff](docs/status/current.md) before implementation.
 
@@ -39,6 +39,9 @@ Apply [DRAGGINZGAME.md](DRAGGINZGAME.md), adopted from Shared Tooling revision
 - The host owns the clock, stable-memory allocation, transaction boundary and
   certification-root publication. Library operations must not secretly write a
   global certification root or allocate conflicting stable-memory regions.
+- Use published `ic-host-*` for applicable local file, artifact and process
+  mechanics. Keep these native host dependencies in `apps/tooling/`, outside
+  both protocol libraries. Release identity and upload/retry policy stay here.
 - Wallet login must not use SIWS/ic-siws, require a Solana transaction or depend
   on RPC. Use established signature primitives; do not implement cryptography.
 - Identity mappings, controller authority, delegated session lifetime and
@@ -48,10 +51,13 @@ Apply [DRAGGINZGAME.md](DRAGGINZGAME.md), adopted from Shared Tooling revision
 ## Validation and delivery
 
 - See [developer setup](docs/development.md) for the implemented command surface.
-  Focused Rust checks are `make test-types`, `make test-protocol`,
-  `make check-wasm` and `make clippy`; `make ci` is the explicit complete gate.
-  Both crates remain unpublished extraction candidates. Canonical hashing is
-  not proof verification or authenticated admission.
+  Focused Rust checks are `make test-types`, `make test-protocol`, `make test-signatures`,
+  `make test-host-tooling`, `make check-wasm` and `make clippy`; `make ci` is the
+  explicit complete gate. `make test-release-runner` checks the adopted runner
+  with substituted effects.
+  Both libraries are published at `0.1.2` but remain partial extraction
+  implementations. The working tree adds optional IC signature verification;
+  canonical hashing and a valid signature do not establish token admission.
 - `make publish-dry-run` checks both package builds using live registry metadata
   without uploading. `make test-release-tools` uses local bare remotes and mocked
   upload/registry transport. The three release targets share the complete gate

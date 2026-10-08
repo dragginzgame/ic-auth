@@ -69,11 +69,38 @@ This is a textual dependency inventory, not proof of complete generated-Candid,
 macro-expansion, feature-selected or downstream coverage. Canic adoption must
 trace those generated contracts and producer/consumer fixtures coherently with
 [Canic #354](https://github.com/dragginzgame/canic/issues/354). No Canic source was
-removed, aliased or redirected. Until that adoption, the new packages are an
-unpublished extraction candidate; Canic retains its active implementation.
-A1 is not claimed complete, and A2–A6 remain unimplemented here.
+removed, aliased or redirected. Until that adoption, Canic retains its active
+implementation. The contracts/encoding are published independently at `0.1.2`;
+the later signature addition below remains uncommitted and unpublished.
+A1 is not claimed complete, and the larger extraction is still partial.
 
-The qualification findings named by #491 remain unresolved by this move. In
+The qualification findings named by #491 remain unresolved by the encoding move. In
 particular, hashing an issuer binding does not prove exact seed verification,
 and hashing policy material does not enforce cache-policy expiry. No replay,
 atomicity, revocation, wallet login or stable ingress identity claim is made.
+
+## Subsequent signature verification boundary
+
+The signature review used committed Canic
+`4c51a87c6a32397196bb3f65d064641194df10a5`, reading
+`ops/auth/{canister_sig_key,issuer_canister_sig,root_canister_sig}.rs` from Git,
+not its dirty tooling/dependency changes. Existing issuer/root domain bytes and
+explicit signer/seed checks inform the new reusable verifier. Canic's fixed seed,
+fleet trust policy, metrics, thread-local signature maps and direct
+`certified_data_set` calls were not copied.
+
+The [signature API](../signatures.md) uses the upstream public-key type and IC
+signature verifier, adds a bounded DER admission check and exact re-encoding,
+and receives protected signer, seed hash, root key, clock and limits explicitly.
+There is no custom DER field parser or cryptographic primitive. Certificate
+freshness is checked after upstream cryptographic verification; Canic's reviewed
+wrapper did not provide that clock boundary. Signed-message construction preserves
+both inspected Canic domains exactly and checks the one-byte length conversion.
+
+Real fixture signatures verify under deterministic BLS trust keys; changed
+signer/seed/network/time policy rejects the same proof. This is verification
+mechanism evidence, not live IC, complete token/session verification, service
+certification composition or consumer adoption. Preparation/retrieval and their
+bounded retention, host root composition and lifecycle remain unimplemented;
+no A2 completion claim is made. Canic still owns its active source until a
+separately authorized adoption removes it coherently.

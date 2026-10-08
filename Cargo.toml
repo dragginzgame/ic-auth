@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/ic-auth", "crates/ic-auth-protocol-types"]
+members = ["apps/tooling", "crates/ic-auth", "crates/ic-auth-protocol-types"]
 resolver = "3"
 
 [workspace.package]
@@ -12,7 +12,16 @@ repository = "https://github.com/dragginzgame/ic-auth"
 [workspace.dependencies]
 candid = { version = "0.10", default-features = false }
 ic-auth-protocol-types = { version = "0.1.2", path = "crates/ic-auth-protocol-types" }
+ic-canister-sig-creation = "1.3.1"
+ic-certification = "3.2"
+ic-host-artifacts = { version = "0.5.1", default-features = false }
+ic-host-fs = { version = "0.5.1", default-features = false }
+ic-signature-verification = "0.3"
+ic-verify-bls-signature = { version = "0.6", default-features = false, features = ["alloc"] }
+leb128 = "0.2"
 serde = { version = "1", features = ["derive"] }
+serde_bytes = "0.11"
+serde_cbor = "0.11"
 sha2 = "0.10"
 thiserror = "2"
 

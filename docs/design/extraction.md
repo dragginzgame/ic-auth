@@ -42,6 +42,7 @@ or issuer signing dependencies when those functions are not needed.
 | `ic-auth` | Protocol encoding, certificate/token verification and issuance rules, local session state transitions, reusable signature support and optional wallet proof verification. Pure logic and platform integration occupy separate modules. |
 | `apps/wallet-auth` | Service endpoints, protected application configuration, identity mappings, nonce state, storage backend, certified signature tree, controller policy and lifecycle. |
 | `packages/client` | Wallet discovery/signing, challenge exchange and construction of a delegated ICP client identity. |
+| `apps/tooling` | Unpublished native release/publication file operations using `ic-host-fs` and `ic-host-artifacts`. Not part of either authentication library's dependency graph. |
 
 Use a virtual root with one lockfile and root-owned package/dependency catalogs.
 Create additional crates only for an established independent dependency boundary;
