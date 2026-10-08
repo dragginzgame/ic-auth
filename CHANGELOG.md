@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.1.3]
+## [0.1.3] - 2026-10-08
 
 - Add optional IC canister-signature verification with protected signer, seed
   and network trust inputs, bounded proof decoding and host-controlled certificate
