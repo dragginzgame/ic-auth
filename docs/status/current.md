@@ -3,9 +3,9 @@
 The maintainer accepted the larger Canic authentication extraction, selected the
 name `ic-auth`, and confirmed `/home/adam/projects/ic-auth` as the local repository.
 
-The current committed release is `10d8d7fe1a0cdd7f13f2eea98245c32d3f0e0a50`
-(`0.1.7`) on `main`, with annotated tag `v0.1.7`; both remote identities were
-verified during this batch. Both libraries' `0.1.7` registry checksums match
+The current committed release is `616aed8b0e6cbc805609c5ed3f5c38a50e3dc52c`
+(`0.1.8`) on `main`, with annotated tag `v0.1.8`; both remote identities were
+verified during this batch. Both libraries' `0.1.8` registry checksums match
 the retained publication intent for that exact source/tag. The maintainer
 executed the release and publication. The original bootstrap was
 `7a03102e52b7a400588530997a9f7fb91c83de9d` (`0.1.0`).
@@ -22,7 +22,7 @@ records this batch without closing the larger extraction.
 
 The virtual Rust workspace contains `ic-auth-protocol-types`, `ic-auth` and the
 unpublished native application in `apps/tooling/`, with one lockfile, root-owned
-dependency selections and current manifest version `0.1.7`.
+dependency selections and current manifest version `0.1.8`.
 The passive token/proof contracts and canonical encoding are adapted from the
 clean Canic source at `e286b3fd98460c98670336853f80658a920966e0`; see the
 [source review](../design/canic-source-review.md) for exact ownership and API
@@ -36,7 +36,127 @@ There is no stable canister adapter, wallet endpoint or TypeScript client yet.
 Canic adoption has not
 occurred; no sibling repository was modified.
 
-## Current Shared Tooling/MSRV batch
+## Current Host 0.8.3 review and wrapper cleanup
+
+All four Host packages were already selected at 0.8.3 in the incoming dirty
+lockfile. That update and the prior Shared Tooling batch were preserved.
+Live registry metadata identifies 0.8.3 as the latest unyanked version of each;
+all four checksums match the selected lock. Published package source and observed
+remote main are `67d031222073f23ad437b45053156e229f86a016`. The clean sibling was
+read-only. Evidence is retained in `target/host-0.8.3-review/`.
+
+The committed 0.8.2-to-0.8.3 changes add live output observation to owned-child
+communication and expose regular lock-file admission without acquiring a lock.
+This consumer has no private pipe-reader loop or descriptor-opening lock
+implementation to retire. IC Testkit owns server startup and retained output;
+Shared Tooling owns release process orchestration. Directory locks and registry
+uncertainty policy remain with the shell release/publication owner. The current
+native CLI already delegates bounded no-follow reads, digest computation and
+durable private publication to Host. Its explicit permissions and create-only
+semantics are retained; the link-following `hash_file` API is not an equivalent
+substitute. No new dependency, adapter, function or type was needed or removed.
+
+A concrete wrapper defect was reproduced: inherited `CDPATH=.` emitted the
+checkout path before the digest (`cdpath-cached-before.stdout`) and before the
+NUL-delimited release metadata (`cdpath-metadata-before.nul`). Consumer wrapper,
+release metadata, publication and fixture entrypoints now resolve an absolute
+script path and use physical `cd`, preserving exact output. The release fixture
+checks exact metadata bytes and keeps `CDPATH` set throughout its local release
+and mocked publication flows. No authentication API or signed bytes changed.
+
+An initial offline attempt lacked the selected Host cache entries and failed
+without resolution changes (`cdpath-before.stderr`). Explicit `cargo fetch
+--locked` prepared those four entries (`cache-preparation.log`); subsequent Rust
+checks stayed offline. Four native file tests pass (`native-file-tests.log`),
+including bounded hashing, no-follow admission, private replacement and saved
+intent preservation. Exact wrapper stdout and release metadata pass after the
+fix (`cdpath-after.stdout`, `cdpath-metadata-after.nul`). ShellCheck passes.
+
+Both real IC Testkit scenarios pass with the selected 0.25.2 client and 16.1.0
+server on Host 0.8.3 (`final-testkit-qualification.log`, retained state
+`target/portable-fixtures/qualification.3kaA17`). The first run was refused by
+the sandbox at loopback binding before either scenario could execute; its log
+and `qualification.RK3eWS` state are retained separately. The successful run used
+the same verified server outside that restriction. This exercises certification,
+composed roots, protected upgrades and actual delegated ingress, not wallet login.
+
+Focused native tooling/runner checks pass on actual Rust 1.88.0
+(`native-msrv.log`, compiler identities in `compiler-identities.log`), as does
+strict native Clippy (`native-clippy.log`). This checks the changed Host graph;
+the earlier isolated public-package/native/Wasm minimum qualification remains
+its own evidence. Consumer release/recovery/publication fixtures pass with
+inherited `CDPATH` (`consumer-release-fixtures.log`); their local/mocked effects
+are not live release or upload evidence. Snapshot, pinning/inheritance, links,
+metadata, library boundaries and the diff pass (`final-governance.log`).
+Final source/lock/snapshot/Wasm identities and the working diff are retained here.
+
+The compatible pending batch remains 0.1.9; manifests remain 0.1.8.
+No commit, push, release, publication or sibling change was performed.
+
+## Shared Tooling 0.1.29 batch
+
+Observed remote Shared Tooling main is
+`1a54fb625d6e47efa64c4384808ecbc87be84e7e` (0.1.29). A clean isolated checkout
+exported its committed bytes; the sibling's untracked Cargo-install helper was
+excluded and the sibling remained read-only. The canonical refresh passed for
+80 files, explicitly adding `scripts/ci/check-release-source.sh` to the existing
+selection. Evidence is retained in `target/baseline-0.1.29/`.
+
+The local release adapter now uses that helper. Ordinary initial admission
+allows only pending `CHANGELOG.md` notes; interrupted preparation retains the
+four exact metadata paths and receipt-bound byte checks. Refusals name all
+staged, unstaged and untracked paths, quote unusual names and distinguish failed
+Git observations from successfully observed dirty source. The runner identifies
+an initial preflight refusal before this attempt starts validation/preparation.
+No files or index bytes are repaired merely to pass admission.
+
+The refreshed baseline restricts standing issue-writing permission to verified
+`dragginzgame/*` destinations, including the maintenance prompt. Its optional npm
+checks remain unselected: this repository has no frontend publication root.
+The optional sibling issue dashboard was not added to the snapshot. No task,
+maintenance agent or schedule was activated.
+
+The shared server defaults now select the same reviewed 16.1.0 archives as
+`ci/ic-auth-tools.tsv`. The consumer-owned selection remains explicit because
+its client/server pairing is qualified with IC Testkit. No Cargo dependency,
+compiler floor, authentication API, signed bytes or runtime pairing changed.
+
+Both unyanked 0.1.8 registry checksums match the retained publication receipt:
+protocol `ef8d1f627a45eefbf5b3e831a61c4ee16b283976ae9bf155686fba8b64722300`,
+auth `6e239af75a1eca605a0b9b0da602466de2f1f7685637213ad236d68de1bd1d2c`.
+The remote annotated tag object is `4245aeec57a212e31d1c27e1077a401defd47d8b`
+and dereferences to the release commit above. The repository description remains
+consistent with implemented scope. Current status prose now reflects that release;
+earlier batch records below retain their original evidence and limits.
+
+Focused checks pass: canonical source-admission fixtures cover lock-only,
+hidden staged, unstaged, untracked, unusual-name and rename cases, Git errors
+and preservation (`shared-source-fixtures.log`). The adopted simulation-only
+runner passes (`shared-release-runner.log`). Consumer fixtures additionally
+confirm lock/staged diagnostics, refusal before the substitute gate, unchanged
+source/index bytes, exact local tags/push, interrupted preparation and publication
+reconciliation (`final-consumer-release-fixtures.log`, retained fixture
+`target/portable-fixtures/release-tools.ZaZcZM`). Their mocked gate/transport and
+local bare remote do not establish live delivery. Duplicate-recipe warnings are
+deliberate fixture overrides; production `make help` has empty stderr.
+
+The source-owned optional npm checker fixtures pass without executing npm, Node,
+Cargo or network commands (`shared-npm-fixtures.log`); no npm root was selected
+for this Rust repository. Snapshot integrity (80 files), Cargo pinning/inheritance,
+documentation links and the diff pass (`final-governance.log`). ShellCheck passes
+with the sourced PR companion included (`final-shellcheck.log`); the earlier
+invocation omitted that companion and retained its SC1091 diagnostic separately.
+Source identities and the working diff are retained alongside these logs.
+No authentication or dependency graph changed, so no Rust library, full CI or
+live canister qualification gate was run for this tooling batch.
+
+The compatible pending changelog is 0.1.9; manifest versions remain 0.1.8.
+No commit, push, release or publication was run.
+
+## Earlier Shared Tooling/MSRV batch (released in 0.1.8)
+
+The following records preparation against 0.1.7, before the maintainer's 0.1.8
+release above. Its pending-version and qualification wording is historical.
 
 Shared Tooling `1872ed2c20f6c70689bb2249050b1d673c60bfa0` (0.1.28) matched remote
 main at observation. A clean isolated checkout exported committed bytes; an

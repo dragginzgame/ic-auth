@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.1.9]
+
+- Adopt Shared Tooling 0.1.29 and report all refused staged, unstaged and
+  untracked release paths, including lockfile changes, while preserving source
+  and index bytes. Initial preflight refusals identify that validation and
+  version preparation have not started for that attempt.
+  [shared #74](https://github.com/dragginzgame/shared-tooling/issues/74).
+- Preserve exact digest and release metadata output under inherited `CDPATH`,
+  using physical checkout paths throughout native tooling and release fixtures.
+
 ## [0.1.8] - 2026-10-08
 
 - Declare and check Rust 1.88 as the supported package minimum, independently of

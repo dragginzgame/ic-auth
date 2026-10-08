@@ -1,7 +1,7 @@
 # IC Auth Agent Instructions
 
 Apply [DRAGGINZGAME.md](DRAGGINZGAME.md), adopted from Shared Tooling revision
-`1872ed2c20f6c70689bb2249050b1d673c60bfa0` and recorded in
+`1a54fb625d6e47efa64c4384808ecbc87be84e7e` and recorded in
 [.shared-tooling.snapshot](.shared-tooling.snapshot). Read
 [the current handoff](docs/status/current.md) before implementation.
 
@@ -71,7 +71,7 @@ Apply [DRAGGINZGAME.md](DRAGGINZGAME.md), adopted from Shared Tooling revision
   `make test-host-tooling`, `make test-qualification`, `make check-wasm` and `make clippy`; `make ci` is the
   explicit complete gate. `make test-release-runner` checks the adopted runner
   with substituted effects.
-  Both libraries are published at `0.1.7` with contracts, encoding and optional
+  Both libraries are published at `0.1.8` with contracts, encoding and optional
   IC signature/token/session machinery, including bounded signature preparation.
   The internal IC Testkit fixture exercises actual certification, composed roots,
   protected metadata upgrades and signed ingress with fresh session keys.

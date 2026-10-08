@@ -2,7 +2,9 @@
 set -euo pipefail
 
 # Consumer metadata/evidence adapter. Git effects belong to the shared runner.
-cd "$(dirname "${BASH_SOURCE[0]}")/../.."
+script_path="${BASH_SOURCE[0]}"
+[[ "$script_path" == /* ]] || script_path="$PWD/$script_path"
+cd -P "${script_path%/*}/../.."
 operation="${1:?operation required}"
 fail() { echo "release metadata refused: $*" >&2; exit 1; }
 [[ "${RELEASE_DELIVERY:-direct}" == direct ]] || fail 'this repository qualifies direct delivery only'
@@ -20,16 +22,8 @@ scratch="$(mktemp -d "$state/metadata.XXXXXX")"
 trap 'rm -rf "$scratch"' EXIT
 
 admit_changes() {
-    local path
-    git diff --cached --name-only -z HEAD -- > "$scratch/paths"
-    git diff --name-only -z -- >> "$scratch/paths"
-    git ls-files --others --exclude-standard -z >> "$scratch/paths"
-    while IFS= read -r -d '' path; do
-        case "$path" in
-            Cargo.toml|Cargo.lock|CHANGELOG.md|release-validation.json) ;;
-            *) fail "uncommitted non-release path: $path" ;;
-        esac
-    done < "$scratch/paths"
+    bash scripts/ci/check-release-source.sh \
+        --allow Cargo.toml --allow Cargo.lock --allow CHANGELOG.md --allow release-validation.json
 }
 read_receipt() {
     [[ -f "$1" && ! -L "$1" ]] || fail 'missing validation receipt; run the release through the shared runner'
@@ -79,8 +73,8 @@ check_payload() {
 case "$operation" in
     preflight)
         [[ "$(git rev-parse HEAD)" == "$RELEASE_SOURCE" ]] || fail 'selected source changed'
-        admit_changes
         if [[ -f "$receipt" ]]; then
+            admit_changes
             # Recovery after an interrupted preparation: admit only exact base
             # or prepared bytes for each file, then rebuild the saved payload.
             read_receipt "$receipt"
@@ -97,8 +91,7 @@ case "$operation" in
             done
             exit 0
         fi
-        git diff --quiet HEAD -- Cargo.toml Cargo.lock release-validation.json || fail 'only pending notes may be dirty before validation'
-        git diff --cached --quiet HEAD -- Cargo.toml Cargo.lock release-validation.json || fail 'staged metadata differs before validation'
+        bash scripts/ci/check-release-source.sh --allow CHANGELOG.md
         [[ "$(bash scripts/ci/read-cargo-workspace-version.sh --stable Cargo.toml)" == "$RELEASE_PREVIOUS" ]] || fail 'current version mismatch'
         heading="$(awk '/^## / { print; exit }' CHANGELOG.md)"
         [[ "$heading" == "## [$RELEASE_VERSION]" ]] || fail "pending changelog must select $RELEASE_VERSION (selected $RELEASE_KIND)"

@@ -3,7 +3,10 @@ set -euo pipefail
 
 # Local Git/bare-remote fixtures, real metadata transforms and mocked upload
 # transport. No source commit, remote ref or registry effect in the real repo.
-root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)"
+script_path="${BASH_SOURCE[0]}"
+[[ "$script_path" == /* ]] || script_path="$PWD/$script_path"
+cd -P "${script_path%/*}/../.."
+root="$PWD"
 export PATH="$root/.tools/host/bin:$root/.tools/rust/bin:$PATH"
 export CARGO_NET_OFFLINE=true RUSTUP_AUTO_INSTALL=0
 mkdir -p "$root/target/portable-fixtures"
@@ -39,6 +42,12 @@ for path in "${overlays[@]}"; do
     cp -p "$root/$path" "$fixture/repo/$path"
 done
 cd "$fixture/repo"
+# Keep an inherited search path throughout release and publication flows.
+# Machine-readable metadata and digest output must not acquire a cd banner.
+export CDPATH=".:$fixture"
+printf '%s\0' Cargo.toml Cargo.lock CHANGELOG.md release-validation.json > "$fixture/expected-files.nul"
+bash scripts/release/metadata.sh files > "$fixture/observed-files.nul"
+cmp "$fixture/expected-files.nul" "$fixture/observed-files.nul"
 # Fixture releases always start at a synthetic 0.1.0, even after the real
 # workspace advances. Do not make future CI depend on today's version.
 initial="$(bash scripts/ci/read-cargo-workspace-version.sh --stable Cargo.toml)"
@@ -83,11 +92,32 @@ if make --no-print-directory release-patch > "$fixture/gate-failure.log" 2>&1; t
 [[ -z "$(git tag -l)" && -f target/keep ]]
 rm target/fail-gate
 
+# Initial admission names a changed lock and refuses before validation or
+# preparation, without changing source or index bytes.
+printf '\n' >> Cargo.lock
+cp Cargo.lock "$fixture/dirty-lock"
+cp .git/index "$fixture/dirty-index"
+if make --no-print-directory release-patch > "$fixture/lock-source.log" 2>&1; then exit 1; fi
+rg -F 'unstaged: Cargo.lock' "$fixture/lock-source.log" > /dev/null
+rg -F 'this attempt has not started validation or version preparation' "$fixture/lock-source.log" > /dev/null
+if rg -F 'fixture-complete-gate' "$fixture/lock-source.log" > /dev/null; then exit 1; fi
+cmp Cargo.lock "$fixture/dirty-lock"
+cmp .git/index "$fixture/dirty-index"
+[[ "$(git rev-parse HEAD)" == "$before" && -z "$(git tag -l)" ]]
+git restore Cargo.lock
+
 # A staged edit restored only in the worktree must still be rejected.
 printf '\n// unrelated staged source\n' >> crates/ic-auth/src/lib.rs
 git add crates/ic-auth/src/lib.rs
 git show HEAD:crates/ic-auth/src/lib.rs > crates/ic-auth/src/lib.rs
+cp .git/index "$fixture/staged-index"
+cp crates/ic-auth/src/lib.rs "$fixture/staged-worktree"
 if make --no-print-directory release-patch > "$fixture/staged-source.log" 2>&1; then exit 1; fi
+rg -F 'staged: crates/ic-auth/src/lib.rs' "$fixture/staged-source.log" > /dev/null
+rg -F 'unstaged: crates/ic-auth/src/lib.rs' "$fixture/staged-source.log" > /dev/null
+rg -F 'this attempt has not started validation or version preparation' "$fixture/staged-source.log" > /dev/null
+cmp .git/index "$fixture/staged-index"
+cmp crates/ic-auth/src/lib.rs "$fixture/staged-worktree"
 git restore --staged crates/ic-auth/src/lib.rs
 make --no-print-directory release-patch > "$fixture/patch.log" 2>&1
 [[ "$(make -s release-version)" == 0.1.1 ]]

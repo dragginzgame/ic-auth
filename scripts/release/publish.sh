@@ -2,7 +2,9 @@
 set -euo pipefail
 
 # Explicit crates.io upload only. No release/tag creation or artifact cleanup.
-cd "$(dirname "${BASH_SOURCE[0]}")/../.."
+script_path="${BASH_SOURCE[0]}"
+[[ "$script_path" == /* ]] || script_path="$PWD/$script_path"
+cd -P "${script_path%/*}/../.."
 fail() { echo "publication refused: $*" >&2; exit 1; }
 version="$(bash scripts/ci/read-cargo-workspace-version.sh --stable Cargo.toml)"
 source="$(git rev-parse --verify HEAD)"

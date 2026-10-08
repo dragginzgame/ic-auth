@@ -2,8 +2,8 @@
 
 The virtual root owns two libraries, unpublished native tooling in `apps/tooling/`
 and the internal host/runner in `apps/qualification/`, plus dependency selections,
-lints and one lockfile. The current manifest version is `0.1.7`, tagged as
-`v0.1.7`; both libraries are published on crates.io.
+lints and one lockfile. The current manifest version is `0.1.8`, tagged as
+`v0.1.8`; both libraries are published on crates.io.
 Rust `1.99.0` remains the development compiler selected by `rust-toolchain.toml`.
 The common package minimum is Rust `1.88.0`, inherited from the root catalog and
 qualified by explicit older-compiler checks. See [MSRV coverage](msrv.md).
@@ -113,17 +113,18 @@ It does not qualify browser/wallet login or a durable session backend.
 ## Releases and publication
 
 ```sh
-make release-patch                 # current compatible batch: 0.1.7 -> 0.1.8
-make release-minor                 # pre-1.0 breaking increment: 0.1.7 -> 0.2.0
-make release-major                 # explicit major decision: 0.1.7 -> 1.0.0
+make release-patch                 # current compatible batch: 0.1.8 -> 0.1.9
+make release-minor                 # pre-1.0 breaking increment: 0.1.8 -> 0.2.0
+make release-major                 # explicit major decision: 0.1.8 -> 1.0.0
 make release-resume VERSION=X.Y.Z   # reconcile the exact saved attempt
 make publish-dry-run               # validate packages without upload
 make publish                       # upload a clean, delivered tagged release
 ```
 
-The undated `0.1.8` draft records qualified minimum-compiler coverage and
-Shared Tooling 0.1.28 adoption. Existing encoding, signature, token and session
-APIs and signed bytes are unchanged. Released `0.1.7` added IC Testkit
+The undated `0.1.9` draft records Shared Tooling 0.1.29 adoption and clearer
+release-source diagnostics. Released `0.1.8` added qualified minimum-compiler
+coverage and Shared Tooling 0.1.28 adoption. Existing encoding, signature, token
+and session APIs and signed bytes are unchanged. Released `0.1.7` added IC Testkit
 qualification; signature preparation was introduced in `0.1.6`. Native SDK/CDK
 dependencies belong only to the qualification apps.
 The earlier `0.1.2` rename used the maintainer's explicitly selected exception
@@ -134,8 +135,13 @@ before executing a release; only pending notes may be dirty at ordinary prefligh
 All three release targets use the adopted runner, the same `make ci` gate and
 direct delivery to `origin/main` by default. `RELEASE_REMOTE` and `RELEASE_BRANCH`
 select another already-authorized destination. PR delivery is not qualified here.
-Preflight admits staged and unstaged paths independently and fetches only the
-selected lockfile. Preparation changes the root version, the inherited internal
+Preflight reports all refused staged, unstaged and untracked paths, quotes
+unusual names, and distinguishes Git observation errors from dirty source.
+Initial refusal identifies that this attempt has not started validation or
+version preparation. Interrupted preparation retains its exact four-file
+metadata allowance and receipt checks. Admission preserves files and index bytes.
+Preflight fetches only the selected lockfile. Preparation changes the root
+version, the inherited internal
 dependency requirement, all local workspace lock entries and the candidate notes.
 It adds `release-validation.json`, binding the complete gate to the validated
 source, lockfile, original notes and selected release identity. External dependency
@@ -168,7 +174,10 @@ implicit. See [Cargo publication](https://doc.rust-lang.org/cargo/commands/cargo
 for credentials, dry-run and index-propagation semantics.
 
 `scripts/dev/run-host-tooling.sh` runs the unpublished utility through locked,
-offline Cargo with output in this checkout. File identities use
+offline Cargo with output in this checkout. The wrapper and release adapters
+resolve their physical checkout without emitting inherited `CDPATH` banners;
+digest stdout and NUL-delimited release paths retain their exact contracts.
+File identities use
 `ic-host-artifacts::artifact::Sha256Digest`; no-follow regular reads and durable
 private-file publication use `ic-host-fs`. The caller supplies finite byte limits:
 8 MiB for lockfiles, 64 MiB for package archives, 1 MiB for validation receipts,
