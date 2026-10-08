@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.1.8]
+## [0.1.8] - 2026-10-08
 
 - Declare and check Rust 1.88 as the supported package minimum, independently of
   the development compiler. Verify isolated public package payloads on native
