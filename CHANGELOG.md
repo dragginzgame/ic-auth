@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.1.9]
+## [0.1.9] - 2026-10-08
 
 - Adopt Shared Tooling 0.1.29 and report all refused staged, unstaged and
   untracked release paths, including lockfile changes, while preserving source
