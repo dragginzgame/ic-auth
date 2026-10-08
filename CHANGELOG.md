@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.1.7]
+## [0.1.7] - 2026-10-08
 
 - Add internal `ic-testkit` qualification for composed certification, protected
   metadata upgrades and real signed ingress. Fresh session keys retain the same
