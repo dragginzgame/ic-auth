@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.1.4]
+## [0.1.4] - 2026-10-08
 
 - Add optional complete application-token verification: authenticate root
   chain-key grants and issuer signatures, bind the actual caller, and enforce
