@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.1.8]
+
+- Declare and check Rust 1.88 as the supported package minimum, independently of
+  the development compiler. Verify isolated public package payloads on native
+  and Wasm, with supported features and explicit minimum-compiler setup/CI.
+- Adopt Shared Tooling 0.1.28's installer-link admission and simulation-only
+  release-runner fixtures, plus its readable maintenance catalog.
+  [shared #75](https://github.com/dragginzgame/shared-tooling/issues/75),
+  [shared #70](https://github.com/dragginzgame/shared-tooling/issues/70).
+
 ## [0.1.7] - 2026-10-08
 
 - Add internal `ic-testkit` qualification for composed certification, protected

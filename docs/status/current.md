@@ -3,9 +3,9 @@
 The maintainer accepted the larger Canic authentication extraction, selected the
 name `ic-auth`, and confirmed `/home/adam/projects/ic-auth` as the local repository.
 
-The current committed release is `b135ab02cced773f1dc9823cc57c07c873a0b099`
-(`0.1.6`) on `main`, with annotated tag `v0.1.6`; both remote identities were
-verified during this batch. Both libraries' `0.1.6` registry checksums match
+The current committed release is `10d8d7fe1a0cdd7f13f2eea98245c32d3f0e0a50`
+(`0.1.7`) on `main`, with annotated tag `v0.1.7`; both remote identities were
+verified during this batch. Both libraries' `0.1.7` registry checksums match
 the retained publication intent for that exact source/tag. The maintainer
 executed the release and publication. The original bootstrap was
 `7a03102e52b7a400588530997a9f7fb91c83de9d` (`0.1.0`).
@@ -22,7 +22,7 @@ records this batch without closing the larger extraction.
 
 The virtual Rust workspace contains `ic-auth-protocol-types`, `ic-auth` and the
 unpublished native application in `apps/tooling/`, with one lockfile, root-owned
-dependency selections and current manifest version `0.1.6`.
+dependency selections and current manifest version `0.1.7`.
 The passive token/proof contracts and canonical encoding are adapted from the
 clean Canic source at `e286b3fd98460c98670336853f80658a920966e0`; see the
 [source review](../design/canic-source-review.md) for exact ownership and API
@@ -30,13 +30,87 @@ adaptations. Both packages now allow crates.io publication of their implemented
 contracts/encoding, with inherited repository/README metadata and matching MIT
 notices in the package payloads. Released `0.1.6` includes optional complete token
 and IC signature verification, session/replay machinery and bounded signature
-preparation/retrieval. The working tree adds internal canister/runner packages
-under `apps/qualification/`, for pending `0.1.7`.
+preparation/retrieval. Released `0.1.7` includes the internal canister/runner
+packages under `apps/qualification/` and their IC Testkit qualification.
 There is no stable canister adapter, wallet endpoint or TypeScript client yet.
 Canic adoption has not
 occurred; no sibling repository was modified.
 
-## Current IC Testkit adoption
+## Current Shared Tooling/MSRV batch
+
+Shared Tooling `1872ed2c20f6c70689bb2249050b1d673c60bfa0` (0.1.28) matched remote
+main at observation. A clean isolated checkout exported committed bytes; an
+initial attempt used an origin URL with a different `.git` spelling and was
+refused before writing (`snapshot-refresh.log`). The corrected canonical URL
+refresh passed (`final-snapshot-refresh.log`). The 79-file selection includes the
+new complete governance/task catalog, malformed-link installer admission and
+simulation-only release-runner fixture. `make tasks` reads that catalog;
+no maintenance agent, timer or schedule was activated.
+
+Rust 1.88.0 is now the common qualified package minimum, inherited by all five
+members. Development Rust remains 1.99.0. The actual Rust 1.85.0 native probe
+failed because selected `psm` 0.1.32 and `ar_archive_writer` 0.5.3 require 1.88.0
+(`probe-1.85-default.log`); no dependency downgrade or ignore-version escape was
+used. Native/Wasm 1.88 probes passed before declaring the floor. See
+[the minimum compiler contract](../msrv.md).
+
+`make check-msrv` prints real old-compiler identities and checks normalized
+public package payloads outside the production workspace. Each library feature
+and all features together pass on native and Wasm; internal tooling/runner
+all-targets/all-features and the Wasm canister pass separately. Local protocol
+payload staging preserves all external versions/sources/checksums; the script
+checks that invariant against the workspace lock. The final successful run retained
+`target/portable-fixtures/msrv.n5KtOq` (`qualified-msrv.log`); earlier successful
+inputs remain separately retained. Setup explicitly
+prepares 1.88.0 and its Wasm target without changing development selection or
+updating rustup (`msrv-install.log`). The configured complete CI/release gate
+now includes the minimum lane; local execution remained focused.
+
+The initial Host 0.8.1 inspection was followed by a concurrent lock update to
+all four Host 0.8.2 packages. That update was preserved. Live unyanked registry
+checksums match the final lock; packaged source and observed remote main are
+`92bd2fecc71124b562e227a32a67644e1e5e34b7`. The committed 0.8.1-to-0.8.2 diff
+changes a portable child fixture from `/bin/true` to `/bin/sh -c 'exit 0'` and
+release metadata, with no production API/runtime/dependency change. Dirty sibling
+files were read-only and never imported. Auth graphs remain free of testkit,
+native Host, Canic and wallet dependencies.
+
+Released protocol/auth 0.1.7 checksums match the retained publication receipt:
+`ccdbbc0217ee785e69d9c4d64f5e00a096e240ad4893a310f0cceecc4c9c0b5b` and
+`130c5ef49bf8c9288acdf9ed9a78950a5daafd130234db4006ad897581b1e420`.
+Both initially observed release CI runs were queued; the final observation has
+one running and one queued (`final-release-ci.json`). No completed hosted
+qualification is claimed:
+[run 37800480770](https://github.com/dragginzgame/ic-auth/actions/runs/37800480770),
+[run 37800481361](https://github.com/dragginzgame/ic-auth/actions/runs/37800481361).
+
+Real testkit scenarios and strict native/Wasm Clippy pass on Host 0.8.2
+(`host-0.8.2-qualification.log`, retained state
+`target/portable-fixtures/qualification.u6K2B1`). Four native file tests, the
+local/mocked consumer release fixture and the adopted simulation-only runner pass
+(`focused-tooling.log`). The source-owned host/IC installer fixtures pass,
+including malformed active links and actual collector cases
+(`upstream-host-fixtures.log`, `upstream-ic-fixtures.log`); those synthetic native
+host substitutions do not establish real macOS execution or footprint savings.
+Both public package dry-runs build without uploading (`package-dry-run.log`).
+The GitHub description remains consistent with implemented library scope.
+
+Current evidence is retained separately under `target/baseline-0.1.28/`.
+Final formatting, tool checks, snapshot, pinning/inheritance, links, metadata and
+boundaries are recorded in `final-governance.log`; ShellCheck passes for the
+consumer-owned new scripts. Final source/lock/snapshot/Wasm and normalized package
+identities are recorded in `source-identities.sha256` in that same directory.
+The selected next version is 0.1.8: support for a lower compiler, additive local
+commands and shared tooling fixes preserve public auth APIs and signed bytes.
+Manifest versions remain 0.1.7. No commit, push, release, publication, production
+deployment or sibling adoption was performed. Wallet service policy and durable
+session host adoption remain separate; older sections retain their original
+pre-release selection/evidence wording.
+
+## Earlier IC Testkit adoption (released in 0.1.7)
+
+The following records preparation against 0.1.6, before the maintainer's 0.1.7
+release above. Its pending-version and qualification wording is historical.
 
 The maintainer required `ic-testkit` as the canister test infrastructure. The
 working qualification package now selects published `ic-testkit` 0.25 and uses

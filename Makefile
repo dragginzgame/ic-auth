@@ -14,7 +14,7 @@ export RELEASE_REMOTE RELEASE_BRANCH
 
 .PHONY: help install-hooks format-tools-check fmt fmt-check fetch metadata \
         test-types test-protocol test-signatures test-signature-store test-tokens test-sessions check-wasm clippy check-boundaries \
-        check-snapshot check-dependency-pins check-doc-links ci \
+        check-snapshot check-dependency-pins check-doc-links check-msrv install-msrv msrv-tools-check tasks ci \
         publish publish-dry-run check-package-licenses test-release-tools \
         test-host-tooling test-qualification build-qualification-canister test-release-runner test-evidence-archive \
         release-patch release-minor release-major release-resume \
@@ -23,16 +23,28 @@ export RELEASE_REMOTE RELEASE_BRANCH
         release-committed-check release-tagged-check release-push-check
 
 help:
-	@echo 'Setup: install-tools, tools-check, install-hooks, fetch'
+	@echo 'Setup: install-tools, tools-check, install-hooks, fetch; minimum compiler: install-msrv, msrv-tools-check'
 	@echo 'Focused checks: test-types, test-protocol, test-signatures, test-signature-store, test-tokens, test-sessions, test-host-tooling, test-qualification, check-wasm, clippy, metadata'
 	@echo 'Formatting: fmt, fmt-check'
-	@echo 'Governance: check-snapshot, check-dependency-pins, check-doc-links, check-boundaries'
+	@echo 'Governance: check-snapshot, check-dependency-pins, check-doc-links, check-boundaries, check-msrv; maintenance catalog: tasks'
 	@echo 'Complete CI gate (explicit only): ci'
 	@echo 'Releases: release-patch, release-minor, release-major; recovery: release-resume VERSION=X.Y.Z'
 	@echo 'Crates.io: publish; local checks without upload: publish-dry-run, test-release-tools'
 
-install-tools: install-rust-tools
-tools-check: rust-tools-check
+install-tools: install-rust-tools install-msrv
+tools-check: rust-tools-check msrv-tools-check
+
+install-msrv: install-host-tools
+	bash scripts/dev/msrv-tools.sh install
+
+msrv-tools-check:
+	bash scripts/dev/msrv-tools.sh check
+
+check-msrv:
+	bash scripts/dev/check-msrv.sh
+
+tasks:
+	@cat tasks/README.md
 
 install-hooks:
 	bash scripts/dev/install-git-hooks.sh
@@ -103,7 +115,7 @@ check-doc-links:
 	@rg --files -g '*.md' -0 | xargs -0 perl scripts/ci/check-documentation-links.pl --root "$(CURDIR)"
 
 ci:
-	+bash scripts/ci/run-validation-targets.sh --fail-fast check-snapshot check-dependency-pins check-doc-links fmt-check metadata check-boundaries test-types test-protocol test-signatures test-signature-store test-tokens test-sessions test-host-tooling test-qualification check-wasm clippy publish-dry-run test-release-tools test-release-runner test-evidence-archive
+	+bash scripts/ci/run-validation-targets.sh --fail-fast check-snapshot check-dependency-pins check-doc-links fmt-check metadata check-boundaries check-msrv test-types test-protocol test-signatures test-signature-store test-tokens test-sessions test-host-tooling test-qualification check-wasm clippy publish-dry-run test-release-tools test-release-runner test-evidence-archive
 
 check-package-licenses:
 	@cmp LICENSE crates/ic-auth-protocol-types/LICENSE

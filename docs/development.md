@@ -2,11 +2,12 @@
 
 The virtual root owns two libraries, unpublished native tooling in `apps/tooling/`
 and the internal host/runner in `apps/qualification/`, plus dependency selections,
-lints and one lockfile. The current manifest version is `0.1.6`, tagged as
-`v0.1.6`; both libraries are published on crates.io.
-Rust `1.99.0` matches the inspected
-Canic toolchain; `rust-toolchain.toml` is the sole toolchain selection. No lower
-MSRV is claimed. Linux x86_64 is the initially exercised host.
+lints and one lockfile. The current manifest version is `0.1.7`, tagged as
+`v0.1.7`; both libraries are published on crates.io.
+Rust `1.99.0` remains the development compiler selected by `rust-toolchain.toml`.
+The common package minimum is Rust `1.88.0`, inherited from the root catalog and
+qualified by explicit older-compiler checks. See [MSRV coverage](msrv.md).
+Linux x86_64 is the initially exercised host.
 
 The supported host matrix is Linux x86_64 and macOS 15 on Intel and Apple Silicon.
 CI runs the same complete gate on `ubuntu-24.04`, `macos-15-intel` and `macos-15`.
@@ -31,7 +32,10 @@ The first command prepares the toolchain, rustfmt, Clippy and Wasm target select
 by the toolchain file. Common system prerequisites, exact executable pins and
 installation behavior are described in the shared [local setup](local-setup.md).
 The Makefile includes the reviewed `make/tools.mk` and adds the shared Rust tool
-set to its aggregate setup/check commands. Installation is explicit; checks run
+set and the declared minimum compiler/Wasm target to aggregate setup/check
+commands. `make install-msrv` prepares the minimum compiler alone (and its host
+tool prerequisites); `make msrv-tools-check` inspects its prepared versions.
+Installation is explicit; checks run
 offline. `fetch` prepares the selected lockfile without changing it.
 
 Make selects checkout-local tools automatically. The shell export is needed for
@@ -53,6 +57,8 @@ establish independent formatting qualification.
 | `make test-tokens` | Complete real secp256k1/BLS proof chains, signed binding and protected authority/window/scope rejection |
 | `make test-sessions` | Atomic admission/replay failure, exact retry, live authority invalidation, bounded pruning and quotas using real token proofs |
 | `make test-host-tooling` | Native file-operation CLI: bounded input, exact digest output, no-follow reads and preserved create-only evidence |
+| `make check-msrv` | Isolated public package payloads and internal applications using the declared minimum compiler, with native/Wasm and feature coverage |
+| `make tasks` | Read the adopted maintenance task catalog; no task, agent or schedule starts |
 | `make test-qualification` | Build the internal Wasm host; verify real certificates, root composition, upgrades and authenticated ingress through `ic-testkit` with the checked server |
 | `make build-qualification-canister` | Build the internal host's release Wasm without starting a server |
 | `make check-wasm` | Compile-check both libraries and signature verification/preparation, token and session capabilities for `wasm32-unknown-unknown` |
@@ -107,18 +113,19 @@ It does not qualify browser/wallet login or a durable session backend.
 ## Releases and publication
 
 ```sh
-make release-patch                 # current compatible batch: 0.1.6 -> 0.1.7
-make release-minor                 # pre-1.0 breaking increment: 0.1.6 -> 0.2.0
-make release-major                 # explicit major decision: 0.1.6 -> 1.0.0
+make release-patch                 # current compatible batch: 0.1.7 -> 0.1.8
+make release-minor                 # pre-1.0 breaking increment: 0.1.7 -> 0.2.0
+make release-major                 # explicit major decision: 0.1.7 -> 1.0.0
 make release-resume VERSION=X.Y.Z   # reconcile the exact saved attempt
 make publish-dry-run               # validate packages without upload
 make publish                       # upload a clean, delivered tagged release
 ```
 
-The undated `0.1.7` draft records internal PocketIC qualification and current
-Shared Tooling adoption. Existing encoding, signature, token and session APIs
-and signed bytes are unchanged. Released `0.1.6` contains signature preparation;
-the new native SDK/CDK dependencies belong only to the qualification apps.
+The undated `0.1.8` draft records qualified minimum-compiler coverage and
+Shared Tooling 0.1.28 adoption. Existing encoding, signature, token and session
+APIs and signed bytes are unchanged. Released `0.1.7` added IC Testkit
+qualification; signature preparation was introduced in `0.1.6`. Native SDK/CDK
+dependencies belong only to the qualification apps.
 The earlier `0.1.2` rename used the maintainer's explicitly selected exception
 to the usual pre-1.0 minor requirement; later changes follow the normal
 [shared release contract](releases.md). Commit the implementation
@@ -129,7 +136,7 @@ direct delivery to `origin/main` by default. `RELEASE_REMOTE` and `RELEASE_BRANC
 select another already-authorized destination. PR delivery is not qualified here.
 Preflight admits staged and unstaged paths independently and fetches only the
 selected lockfile. Preparation changes the root version, the inherited internal
-dependency requirement, all three local lock entries and the candidate notes.
+dependency requirement, all local workspace lock entries and the candidate notes.
 It adds `release-validation.json`, binding the complete gate to the validated
 source, lockfile, original notes and selected release identity. External dependency
 selections remain byte-for-byte unchanged. The canonical root version is replaced

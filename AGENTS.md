@@ -1,7 +1,7 @@
 # IC Auth Agent Instructions
 
 Apply [DRAGGINZGAME.md](DRAGGINZGAME.md), adopted from Shared Tooling revision
-`db039347d2372b877c1c46dcdd2b5c3aa9412009` and recorded in
+`1872ed2c20f6c70689bb2249050b1d673c60bfa0` and recorded in
 [.shared-tooling.snapshot](.shared-tooling.snapshot). Read
 [the current handoff](docs/status/current.md) before implementation.
 
@@ -61,12 +61,17 @@ Apply [DRAGGINZGAME.md](DRAGGINZGAME.md), adopted from Shared Tooling revision
 ## Validation and delivery
 
 - See [developer setup](docs/development.md) for the implemented command surface.
+  Rust 1.88.0 is the qualified common package minimum; development formatting
+  and Clippy stay on 1.99.0. `make check-msrv` checks isolated Cargo package
+  payloads for every supported library feature on native/Wasm, then the internal
+  applications separately. Setup explicitly prepares that compiler; checks never
+  download one. See [minimum compiler qualification](docs/msrv.md).
   Focused Rust checks are `make test-types`, `make test-protocol`, `make test-signatures`,
   `make test-signature-store`, `make test-tokens`, `make test-sessions`,
   `make test-host-tooling`, `make test-qualification`, `make check-wasm` and `make clippy`; `make ci` is the
   explicit complete gate. `make test-release-runner` checks the adopted runner
   with substituted effects.
-  Both libraries are published at `0.1.6` with contracts, encoding and optional
+  Both libraries are published at `0.1.7` with contracts, encoding and optional
   IC signature/token/session machinery, including bounded signature preparation.
   The internal IC Testkit fixture exercises actual certification, composed roots,
   protected metadata upgrades and signed ingress with fresh session keys.

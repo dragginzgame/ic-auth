@@ -32,6 +32,7 @@ overlays=(Makefile Cargo.toml Cargo.lock CHANGELOG.md .shared-tooling.snapshot
     scripts/release/rewrite-manifest.pl
     scripts/dev/run-host-tooling.sh
     scripts/dev/test-qualification.sh
+    scripts/dev/msrv-tools.sh scripts/dev/check-msrv.sh
     scripts/ci/check-release-tag.sh scripts/ci/rewrite-local-lock-versions.pl)
 for path in "${overlays[@]}"; do
     mkdir -p "$fixture/repo/$(dirname "$path")"
