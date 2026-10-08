@@ -70,8 +70,9 @@ macro-expansion, feature-selected or downstream coverage. Canic adoption must
 trace those generated contracts and producer/consumer fixtures coherently with
 [Canic #354](https://github.com/dragginzgame/canic/issues/354). No Canic source was
 removed, aliased or redirected. Until that adoption, Canic retains its active
-implementation. The contracts/encoding and signature capability are published
-independently at `0.1.3`; the subsequent token addition below remains unpublished.
+implementation. The contracts/encoding, signature and complete token capabilities
+are published independently at `0.1.4`; the subsequent session addition below
+remains unpublished.
 A1 is not claimed complete, and the larger extraction is still partial.
 
 The qualification findings named by #491 remain unresolved by the encoding move. In
@@ -134,3 +135,31 @@ root policy. This closes stale-policy acceptance in this uncached verifier, not
 in Canic's still-active implementation or retained application sessions. Session
 admission, replay/atomicity, service certification and downstream adoption remain
 separate obligations under [Canic #491](https://github.com/dragginzgame/canic/issues/491).
+
+## Subsequent session/replay boundary
+
+The session review used the same committed Canic
+`4c51a87c6a32397196bb3f65d064641194df10a5`, reading
+`workflow/auth/application_sessions.rs`,
+`domain/policy/pure/auth/application_authorization.rs`,
+`model/auth/application_authorization/{authority,scope,mod}.rs` and
+`ops/storage/auth/application_sessions.rs`. Dirty sibling code was excluded.
+The [session contract](../sessions.md) incorporates strict proof eligibility,
+scope narrowing, one active caller record, exact request hashes, independent
+session expiry and replay-preserving retry/logout/replacement.
+
+The source's public verified-authority constructor was not imported: new
+admission calls the real token verifier inside an explicit host transaction.
+Canic's FleetKey/CanisterRole projections, stable-memory IDs, globals, metrics,
+configuration generation transitions and endpoint guards remain with Canic.
+Root enrollment and epoch floors are additionally checked on retained sessions;
+the host still owns propagation of issuer/configuration revocations.
+
+The memory backend stages only the touched pair and uses ordered expiry indexes,
+rather than importing the source store's whole-state clone/encoding. Current
+record codecs and quotas are checked at this library's bounded boundary. No
+legacy Canic stable reader, lifecycle policy or shared certification-root write
+was introduced. Native failure-after-staging tests establish rollback for the
+volatile reference backend; they do not qualify a Canic durable transaction or
+restore/upgrade boundary. Stable host adoption and canonical ownership convergence
+remain open in the existing extraction tracker and require separate scope.

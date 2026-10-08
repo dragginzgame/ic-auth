@@ -2,7 +2,7 @@
 
 The virtual root owns two libraries and the unpublished native application in
 `apps/tooling/`, dependency selections, lints and one lockfile. The current manifest
-version is `0.1.3`, tagged as `v0.1.3`; both libraries are published on crates.io.
+version is `0.1.4`, tagged as `v0.1.4`; both libraries are published on crates.io.
 Rust `1.99.0` matches the inspected
 Canic toolchain; `rust-toolchain.toml` is the sole toolchain selection. No lower
 MSRV is claimed. Linux x86_64 is the initially exercised host.
@@ -49,11 +49,12 @@ establish independent formatting qualification.
 | `make test-protocol` | Canonical encoding, signed vectors, ordering and size rejection |
 | `make test-signatures` | Real BLS-signed IC fixtures, signer/seed/root rejection, certificate freshness and bounded decoding |
 | `make test-tokens` | Complete real secp256k1/BLS proof chains, signed binding and protected authority/window/scope rejection |
+| `make test-sessions` | Atomic admission/replay failure, exact retry, live authority invalidation, bounded pruning and quotas using real token proofs |
 | `make test-host-tooling` | Native file-operation CLI: bounded input, exact digest output, no-follow reads and preserved create-only evidence |
-| `make check-wasm` | Compile-check both libraries and signature/token-selected capabilities for `wasm32-unknown-unknown` |
+| `make check-wasm` | Compile-check both libraries and signature/token/session-selected capabilities for `wasm32-unknown-unknown` |
 | `make clippy` | Lint the two libraries and native application, including test targets and all features |
 | `make metadata` | Validate the selected locked graph offline |
-| `make check-boundaries` | Inspect default, signature-selected and token-selected transitive dependency graphs |
+| `make check-boundaries` | Inspect default, signature-selected, token-selected and session-selected transitive dependency graphs |
 | `make fmt` / `make fmt-check` | Shared manifest sorting followed by Rust formatting |
 | `make check-snapshot` | Verify the adopted shared files and modes |
 | `make check-dependency-pins` | Check declarations, lockfile tracking and root inheritance |
@@ -67,7 +68,7 @@ establish independent formatting qualification.
 It uses the shared validation logger and retains failures. The workflow prepares
 tools and caches first, then calls that same gate. The public remote is
 [dragginzgame/ic-auth](https://github.com/dragginzgame/ic-auth), and `main` contains
-the bootstrap commit. This batch has focused local evidence only; remote CI is
+the current release. This batch has focused local evidence only; remote CI is
 not inferred from it. Dependency pinning requires the lockfile to be tracked.
 Cargo tests, metadata and Wasm checks run offline after `fetch`. The publication
 dry run deliberately accesses registry metadata: the selected Cargo's offline
@@ -87,21 +88,25 @@ do not establish live network trust,
 session admission, PocketIC behavior, service upgrades or independent consumer
 adoption. Token tests additionally verify root batch ECDSA signatures and issuer
 BLS certification together with caller, narrowing and current authority inputs;
-see the [signature](signatures.md) and [token](tokens.md) contracts.
+see the [signature](signatures.md) and [token](tokens.md) contracts. Session tests
+cover admission and authorization with a volatile backend and a failing staged
+transaction; they do not qualify stable canister storage or lifecycle. The
+[session contract](sessions.md) specifies the host's durability obligations.
 
 ## Releases and publication
 
 ```sh
-make release-patch                 # current compatible batch: 0.1.3 -> 0.1.4
-make release-minor                 # pre-1.0 breaking increment: 0.1.3 -> 0.2.0
-make release-major                 # explicit major decision: 0.1.3 -> 1.0.0
+make release-patch                 # current compatible batch: 0.1.4 -> 0.1.5
+make release-minor                 # pre-1.0 breaking increment: 0.1.4 -> 0.2.0
+make release-major                 # explicit major decision: 0.1.4 -> 1.0.0
 make release-resume VERSION=X.Y.Z   # reconcile the exact saved attempt
 make publish-dry-run               # validate packages without upload
 make publish                       # upload a clean, delivered tagged release
 ```
 
-The undated `0.1.4` draft records compatible token verification and fixture isolation.
-Existing encoding/signature APIs and signed bytes are unchanged.
+The undated `0.1.5` draft records compatible session/replay machinery and the
+Shared Tooling 0.1.26 release runner. Existing encoding/signature/token APIs and
+signed bytes are unchanged.
 The earlier `0.1.2` rename used the maintainer's explicitly selected exception
 to the usual pre-1.0 minor requirement; later changes follow the normal
 [shared release contract](releases.md). Commit the implementation

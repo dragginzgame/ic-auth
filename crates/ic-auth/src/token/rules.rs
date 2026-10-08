@@ -8,7 +8,7 @@ use ic_auth_protocol_types::{
     DelegatedRoleGrant, DelegatedToken, DelegationAudience, IssuerProof, Principal, RootProof,
 };
 
-pub(super) fn check_size(
+pub(crate) fn check_size(
     token: &DelegatedToken,
     limits: TokenVerificationLimits,
 ) -> Result<(), TokenVerificationError> {

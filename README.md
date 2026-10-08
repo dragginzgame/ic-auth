@@ -11,15 +11,14 @@ contract. The libraries and reference service must not depend on either project.
 ## Status
 
 The Rust workspace implements passive token/proof contracts, validated protocol
-identifiers, canonical signed encoding and optional IC canister-signature
+identifiers, canonical signed encoding and optional IC signature/application-token
 verification extracted from Canic. Both libraries are published on crates.io at
-`0.1.3`; see the [signature contract](docs/signatures.md).
-The working tree adds complete application-token verification with protected
-host inputs and both root/issuer proof checks; see the [token contract](docs/tokens.md).
-This new API is not yet published. **Session admission and wallet login remain
-unimplemented.** A verified token does not grant application resource ownership.
-The native
-utility in `apps/tooling/` is unpublished and reuses
+`0.1.4`; see the [signature](docs/signatures.md) and [token](docs/tokens.md) contracts.
+The working tree adds atomic session/replay admission, live session authorization
+and a bounded volatile backend; see the [session contract](docs/sessions.md).
+The session API is not yet published or adopted by a durable canister host.
+**Wallet login remains unimplemented.** Tokens and local sessions do not grant
+application resource ownership. The native utility in `apps/tooling/` is unpublished and reuses
 `ic-host-fs`/`ic-host-artifacts` for release and publication file operations.
 
 Canic still runs its existing implementation. Its adapter adoption and removal of
@@ -39,7 +38,7 @@ Cargo.toml                     # Virtual workspace and dependency catalog
 Cargo.lock                     # One selected Rust dependency graph
 crates/
   ic-auth-protocol-types/      # Passive auth contracts and validated identifiers
-  ic-auth/                     # Canonical encoding and optional signature/token verification
+  ic-auth/                     # Encoding and optional signature/token/session machinery
 apps/
   tooling/                     # Unpublished native release/publication file utility
 ```
@@ -60,6 +59,7 @@ make test-types
 make test-protocol
 make test-signatures
 make test-tokens
+make test-sessions
 make check-wasm
 ```
 

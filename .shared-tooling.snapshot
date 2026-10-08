@@ -1,7 +1,7 @@
 # Shared Tooling snapshot v1
 format	1
 source	https://github.com/dragginzgame/shared-tooling
-revision	eeb72e741199bd8574280eacb3542d8379b912f6
+revision	75a8a60f49cec11d3f6aecab5c977029c42cc549
 file	fe90530851fed47985442343664b5f5f44fde396d78a0d6f489cc1562c61592d	-	DRAGGINZGAME.md
 file	05838a36f21bb4299617ae8965687791062c94d768181f5f97676cc577382153	-	rules/contributions.md
 file	b5a6e8fb723a861b722834675e27b4b16f3d296112622c1b40cdc8714f575404	-	rules/changelogs.md
@@ -17,8 +17,8 @@ file	35fd87d36a09ed0971841abf28535d43470c713a82581c2251b924da1ab8f484	-	audits/f
 file	ffdca09602c44c8aff8fc2a17588b20eb6a56e2e71fb6d42ad75087fdd65819b	-	audits/complexity-and-technical-debt.md
 file	1b64cf2ba0393ab329ec29eb05a696d47ef5933f5ab9bff6e1fe4a7e7b294075	-	audits/module-surface-hardening.md
 file	ad0c56d074fb54455932bab7fcff0908dac34f000d2961caeca12616b79b778b	-	audits/module-cleanup.md
-file	28ae8700852b466abea45beb6f3f87ea12680c2e84b3e062fb2363b2e3478341	-	docs/releases.md
-file	5c269095b0bee42a80ec0f43937559e016e428107b03d699a1a74bb3dc56c312	x	scripts/ci/run-release.sh
+file	e816d2e4178ab662b835de60bdcd927f4d9557f0d2e61e3ddf0b6b3569c718ff	-	docs/releases.md
+file	dda85719533331b90ddd1d37df310c01bf1457b12df8fad36854b52387d8a9a8	x	scripts/ci/run-release.sh
 file	fc40c8ad1c4ab850fda0e60b8cb0b3201724d020966e4d7e5d07620781f5e814	-	scripts/ci/release-pr.sh
 file	c0d4bed8f2b876f5ae0a61f6c56e4c71736ab9888f092ab6c67d9f5ba142543d	x	scripts/ci/check-make-execution.sh
 file	37e028e2d9fee271ffdc06d06fc15d7a148ec524def3d9ed2afcd9910c0ec642	x	scripts/ci/next-release-version.sh
@@ -30,7 +30,7 @@ file	9315c9faffa4f36cfab496342535bf49d728ddd2111e8e127cbc44b3fac89ce7	-	docs/pri
 file	ee68649246bad21f0f28df4ea3809d8e2c7bcf1cd2a3d68e44684b855badc1c2	-	docs/principles/reviewable-changes.md
 file	7e5fd8a3c3b1dc5a829a19ad1a4933fdc17792c8e923871da1e9f36586baff41	-	docs/principles/rust-code-hygiene.md
 file	457fd38e0073c91ba470b918d4facd9faac3c5200ebd38c97e9d6b76acdaea55	-	docs/principles/simplicity-and-maintainability.md
-file	23acdc20173ca0203278eaca7300b65ef27b51eba8d51c1a4aa41cdc45d745bf	-	docs/consuming-snapshots.md
+file	17da36b641e62f6885877fa0649919b7bb7292ef9b2d46edba11b09a6e1b859b	-	docs/consuming-snapshots.md
 file	1a0d1d6f2a87a0d77378fdda605f5700cc7e2ca8c8dfac79418248da30b7e657	-	docs/provenance.md
 file	77aadb32fe003786a714d5001ab564b4324c5b63ce2831f1ef6f4736f6715fe1	-	docs/verification-helpers.md
 file	ff700a201efff31508d1682e5701b94e41d68f4892307d53b59e37f36e210264	-	docs/ic-tools.md
@@ -60,7 +60,7 @@ file	5dd38585740657f98f655c15c4f617ca05dc4b6304e0925675a44376ec33309b	x	scripts/
 file	6bbdb81bfe4b69311e57529866ccac2d8394de1452479c656ef9b7dd2a69e529	x	scripts/ci/check-formatting-hooks.sh
 file	236f9b2d7fe391a73d03cfe355c0d26fa73de8db1553c7e670f7b19aeb65d086	x	scripts/ci/rewrite-local-lock-versions.pl
 file	d7b179f9ceaec6e11c690c975b61f91bedc80526415f71571615064db14f0c9c	x	scripts/ci/check-release-tag.sh
-file	dd2a93d06ae8471a0a05af1bad1bb74dabc4ff9b60a2a1ee1336269029e5c112	x	scripts/ci/test-release-runner.sh
+file	b96fad468c82853ac9483edf8c73513bb4cce1761803dcf41a315f95c07c4295	x	scripts/ci/test-release-runner.sh
 file	5be336cb3e8045b2d2d536542a94944b376ee812b03f786a90b9d962ab697f13	x	scripts/ci/archive-evidence.sh
 file	8509f262544d8a31b344a6241740d8cbc7f4a3d700ab0d71ac6c0405837e9eff	-	.github/actions/retain-failure-evidence/action.yml
 file	a3a654d1b16ff28463bc6379b210af3771016defa25e27fe4ff943e78a64ba02	x	scripts/ci/test-evidence-archive.sh

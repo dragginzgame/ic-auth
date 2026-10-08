@@ -6,7 +6,7 @@
 //! performed; replay consumption and session admission remain separate.
 
 mod root;
-mod rules;
+pub(crate) mod rules;
 
 use crate::{
     canister_signature::{

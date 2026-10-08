@@ -1,7 +1,7 @@
 # Application-token verification
 
-The working tree adds the optional `token-verification` feature and
-`ic_auth::token::verify_token`. This API is not in the published `0.1.3` package.
+The optional `token-verification` feature and `ic_auth::token::verify_token`
+are published in `0.1.4`.
 The feature enables IC canister-signature verification and `k256` secp256k1
 verification. Encoding-only and signature-only graphs remain independently
 selectable; no selected graph imports Canic, Toko, Solana, SIWS, native Host
@@ -76,8 +76,9 @@ The result borrows immutable claims and the local grant and exposes the claims
 hash and exclusive deadline capped by the current root policy. It is evidence of
 verification for this call. Do not persist it as a timeless authority or skip live
 checks after policy changes. `Clone` does not refresh its validity. This API does
-not consume a nonce or establish a session: hosts must use one atomic admission/
-replay transaction when that flow requires it. Application resources and business
+not consume a nonce or establish a session. The working tree's optional
+[session engine](sessions.md) uses an explicit atomic host admission/replay
+transaction when that flow requires it. Application resources and business
 permissions remain independently checked, and these tokens are not IC ingress
 delegations. No secret signing operation, clock acquisition, certification-root
 write, memory allocation into host stable regions or global cache occurs here.

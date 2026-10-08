@@ -1,7 +1,7 @@
 # IC Auth Agent Instructions
 
 Apply [DRAGGINZGAME.md](DRAGGINZGAME.md), adopted from Shared Tooling revision
-`eeb72e741199bd8574280eacb3542d8379b912f6` and recorded in
+`75a8a60f49cec11d3f6aecab5c977029c42cc549` and recorded in
 [.shared-tooling.snapshot](.shared-tooling.snapshot). Read
 [the current handoff](docs/status/current.md) before implementation.
 
@@ -52,13 +52,15 @@ Apply [DRAGGINZGAME.md](DRAGGINZGAME.md), adopted from Shared Tooling revision
 
 - See [developer setup](docs/development.md) for the implemented command surface.
   Focused Rust checks are `make test-types`, `make test-protocol`, `make test-signatures`,
-  `make test-tokens`,
+  `make test-tokens`, `make test-sessions`,
   `make test-host-tooling`, `make check-wasm` and `make clippy`; `make ci` is the
   explicit complete gate. `make test-release-runner` checks the adopted runner
   with substituted effects.
-  Both libraries are published at `0.1.3` with contracts, encoding and optional
-  IC signature verification. The working tree adds complete token verification;
-  replay consumption, session admission and wallet login remain unimplemented.
+  Both libraries are published at `0.1.4` with contracts, encoding and optional
+  IC signature/token verification. The working tree adds session/replay admission
+  and a bounded volatile backend. Stable host adoption and wallet login remain
+  unimplemented. Host stores must commit session/replay changes atomically and
+  advance protected generation with authority changes.
 - `make publish-dry-run` checks both package builds using live registry metadata
   without uploading. `make test-release-tools` uses local bare remotes and mocked
   upload/registry transport. The three release targets share the complete gate

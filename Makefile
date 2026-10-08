@@ -12,7 +12,7 @@ export RELEASE_DELIVERY := direct
 export RELEASE_REMOTE RELEASE_BRANCH
 
 .PHONY: help install-hooks format-tools-check fmt fmt-check fetch metadata \
-        test-types test-protocol test-signatures test-tokens check-wasm clippy check-boundaries \
+        test-types test-protocol test-signatures test-tokens test-sessions check-wasm clippy check-boundaries \
         check-snapshot check-dependency-pins check-doc-links ci \
         publish publish-dry-run check-package-licenses test-release-tools \
         test-host-tooling test-release-runner test-evidence-archive \
@@ -23,7 +23,7 @@ export RELEASE_REMOTE RELEASE_BRANCH
 
 help:
 	@echo 'Setup: install-tools, tools-check, install-hooks, fetch'
-	@echo 'Focused checks: test-types, test-protocol, test-signatures, test-tokens, test-host-tooling, check-wasm, clippy, metadata'
+	@echo 'Focused checks: test-types, test-protocol, test-signatures, test-tokens, test-sessions, test-host-tooling, check-wasm, clippy, metadata'
 	@echo 'Formatting: fmt, fmt-check'
 	@echo 'Governance: check-snapshot, check-dependency-pins, check-doc-links, check-boundaries'
 	@echo 'Complete CI gate (explicit only): ci'
@@ -66,10 +66,14 @@ test-signatures:
 test-tokens:
 	cargo test --locked --offline -p ic-auth --features token-verification --test token
 
+test-sessions:
+	cargo test --locked --offline -p ic-auth --features sessions --test token sessions::
+
 check-wasm:
 	cargo check --locked --offline -p ic-auth-protocol-types -p ic-auth --target wasm32-unknown-unknown
 	cargo check --locked --offline -p ic-auth --features canister-signature-verification --target wasm32-unknown-unknown
 	cargo check --locked --offline -p ic-auth --features token-verification --target wasm32-unknown-unknown
+	cargo check --locked --offline -p ic-auth --features sessions --target wasm32-unknown-unknown
 
 clippy:
 	cargo clippy --locked --offline -p ic-auth-protocol-types -p ic-auth -p ic-auth-tooling --all-targets --all-features -- -D warnings
@@ -87,7 +91,7 @@ check-doc-links:
 	@rg --files -g '*.md' -0 | xargs -0 perl scripts/ci/check-documentation-links.pl --root "$(CURDIR)"
 
 ci:
-	+bash scripts/ci/run-validation-targets.sh --fail-fast check-snapshot check-dependency-pins check-doc-links fmt-check metadata check-boundaries test-types test-protocol test-signatures test-tokens test-host-tooling check-wasm clippy publish-dry-run test-release-tools test-release-runner test-evidence-archive
+	+bash scripts/ci/run-validation-targets.sh --fail-fast check-snapshot check-dependency-pins check-doc-links fmt-check metadata check-boundaries test-types test-protocol test-signatures test-tokens test-sessions test-host-tooling check-wasm clippy publish-dry-run test-release-tools test-release-runner test-evidence-archive
 
 check-package-licenses:
 	@cmp LICENSE crates/ic-auth-protocol-types/LICENSE

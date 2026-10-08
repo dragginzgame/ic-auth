@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.1.5]
+
+- Add optional local session admission with atomic replay consumption, exact
+  retries without extending authority, live caller/scope/authority checks and
+  replay-preserving logout. Provide bounded volatile storage and explicit host
+  transaction contracts; durable canister adoption remains separate.
+- Adopt Shared Tooling 0.1.26, preserving concurrently changed symbolic Git
+  tracking refs during confirmed release reconciliation.
+- Use published `ic-host-fs` and `ic-host-artifacts` 0.7 for native file and
+  publication evidence operations; authentication library graphs remain separate.
+
 ## [0.1.4] - 2026-10-08
 
 - Add optional complete application-token verification: authenticate root

@@ -3,9 +3,9 @@
 The maintainer accepted the larger Canic authentication extraction, selected the
 name `ic-auth`, and confirmed `/home/adam/projects/ic-auth` as the local repository.
 
-The current committed release is `b2bdbbe9a5723eb9c93f7d7a274e5e2280278e9b`
-(`0.1.3`) on `main`, with annotated tag `v0.1.3`; both remote identities were
-verified during this batch. Both libraries' `0.1.3` registry checksums match
+The current committed release is `af384e51584b9402ec0316fb0c566d190e47ba40`
+(`0.1.4`) on `main`, with annotated tag `v0.1.4`; both remote identities were
+verified during this batch. Both libraries' `0.1.4` registry checksums match
 the retained publication intent for that exact source/tag. The maintainer
 executed the release and publication. The original bootstrap was
 `7a03102e52b7a400588530997a9f7fb91c83de9d` (`0.1.0`).
@@ -22,19 +22,121 @@ records this batch without closing the larger extraction.
 
 The virtual Rust workspace contains `ic-auth-protocol-types`, `ic-auth` and the
 unpublished native application in `apps/tooling/`, with one lockfile, root-owned
-dependency selections and current manifest version `0.1.3`.
+dependency selections and current manifest version `0.1.4`.
 The passive token/proof contracts and canonical encoding are adapted from the
 clean Canic source at `e286b3fd98460c98670336853f80658a920966e0`; see the
 [source review](../design/canic-source-review.md) for exact ownership and API
 adaptations. Both packages now allow crates.io publication of their implemented
 contracts/encoding, with inherited repository/README metadata and matching MIT
-notices in the package payloads. The released `0.1.3` also includes optional IC
-canister-signature verification. Complete application-token verification is now
-implemented locally for the pending `0.1.4`; there is no session engine, wallet
-endpoint or TypeScript client yet. Canic adoption has not
+notices in the package payloads. Released `0.1.4` includes optional complete token
+verification and IC canister-signature verification. The working tree adds a
+pure session/replay engine and bounded volatile backend for pending `0.1.5`.
+There is no stable canister adapter, wallet endpoint or TypeScript client yet.
+Canic adoption has not
 occurred; no sibling repository was modified.
 
-## Current application-token verification batch
+## Current session/replay batch
+
+`ic-auth` now has optional `sessions`, with complete token verification before
+new admission, canonical scope narrowing and exact Canic request hashes. The
+engine resolves retry and consumption inside the host's synchronous transaction,
+then stages only the touched session/replay pair. Exact retry after proof expiry
+returns the unchanged still-authorized session. Replacement and logout retain
+replay history; authority generation changes do not erase it. Live checks include
+actual caller/subject, audience, role, current scopes, generation, enrolled root
+key identity, epoch/version floors and narrowed root acceptance deadlines.
+
+`MemorySessionStore` supplies a bounded volatile backend with explicit physical
+record/encoded-byte quotas, indexed expiry cleanup capped at 128 records, checked
+generation advancement and no whole-store clone/encoding. Per-record CBOR decode
+is bounded and validates structural invariants; it is for trusted host storage,
+not an ingress credential. The [session contract](../sessions.md) specifies
+transaction rollback, monotonic cleanup time, durable restore and protected
+authority-generation obligations. It distinguishes local session lifetime from
+the original proof, IC ingress delegation and resource ownership. No CDK, stable
+memory allocation, globals, certification publication or wallet graph was added.
+
+The read-only extraction input remains Canic
+`4c51a87c6a32397196bb3f65d064641194df10a5`. Its workflow, pure application policy,
+scope model and storage operations were reviewed from committed source; the
+sibling's staged/dirty work was excluded. Canic still owns its protected fleet
+context, endpoint guards and durable backend. Consumer adoption must settle its
+retained representation and remove the superseded owner in a separately
+authorized change. This batch does not claim that ownership convergence.
+
+Fourteen session tests pass with real ECDSA/BLS chains, including forged-proof
+rejection, strict proof starts, TTL overflow at the maximum clock, exact retry,
+generation/root-key/scope invalidation, logout/replacement, byte/capacity failures,
+rollback after staging, corrupt record rejection and indexed bounded cleanup.
+The request hash has an independently computed byte vector. Existing protocol,
+token, IC signature and type tests pass too, along with strict all-feature
+Clippy, default/signature/token/session Wasm compilation, locked metadata,
+dependency boundaries and native tooling tests. Focused logs are retained under
+`target/session-engine/`: `focused-checks.log`, `final-focused-checks.log` and
+`session-final-checks.log` distinguish successive source/host selections.
+
+The final Cargo package dry run built both archives and aborted uploads
+(`package-dry-run.log`). The unpacked auth payload passed all 14 session tests
+offline against checksum-verified, published protocol-types 0.1.4 and compiled
+for Wasm with `sessions`. Logs are `packaged-native.log` and `packaged-wasm.log`.
+The isolated fixture added an empty workspace table and replaced Cargo's staged
+protocol checksum with the observed published checksum; library source and
+original archives were untouched. This verifies the package boundary, not
+downstream application or stable host adoption. Formatting, snapshot integrity,
+dependency pins, local links, ShellCheck with sourced scripts and the diff pass;
+evidence includes `governance-checks.log` and `shellcheck.log`.
+`source-identities.sha256`, produced with the native `ic-host-*` utility, binds
+the final source/tests, manifests/lock, Makefile, toolchain, shared snapshot and
+selected guards/runner. Original validation logs and failed attempts are preserved.
+
+The initial session build rejected the fixture's module path before execution;
+`initial-tests.log` records it. The next run failed one expected strict-start
+case because its IC certificate was signed ahead of the test clock. The fixture
+time was corrected without weakening production freshness checks; the failed
+run remains in `session-tests.log`. Later checks stopped correctly when the root
+manifest concurrently selected Host 0.7 while the lock still selected 0.6;
+`locked-host-selection-failure.log` records that refusal.
+
+The concurrent root selection was preserved. Published `ic-host-fs` and
+`ic-host-artifacts` 0.7.0 availability and checksums were verified, and their
+packaged source revision `491fc0e231b9650526f5f57b9ab7b1f62f02218c` matched remote
+main. Explicit offline workspace resolution changed only those two lock entries;
+explicit locked fetch prepared them before offline validation. Native bounded
+hash/no-follow/durable-create/replacement tests and Clippy pass on 0.7.0.
+The earlier focused checks used 0.6.0 and are not relabelled. Both native owners
+remain outside every auth graph; no Candid/process dependency was needed.
+
+Shared Tooling 0.1.26 at `75a8a60f49cec11d3f6aecab5c977029c42cc549` was verified
+as remote main, reviewed and adopted through its canonical exporter from the
+clean sibling source. Its 62-file snapshot preserves the source-owned runner's
+locked Git-ref transaction and concurrent symbolic-ref handling. Rules/tool pins
+are unchanged. The adopted runner regression tests and local bare-remote release
+adapters with mocked registry/upload transport pass; they do not run a live
+release or the full local CI gate.
+
+Live sparse registry records match the retained 0.1.4 intent: protocol types
+`f3b8439d22f13f7bfd5fb382d5563f213c308a5951dbddb2a6014421fe926e56`, auth
+`baad1f7e93287cfc77ccb863b2fad5760b650749ef9597fd0d347b65ca2fa4ee`.
+The public repository description was corrected to the released token-verifier
+scope and read back. The maintainer's 0.1.4
+[CI run](https://github.com/dragginzgame/ic-auth/actions/runs/37772047548)
+passed Linux and ARM macOS; Intel macOS was still running at the final observed
+read. This qualifies the pushed 0.1.4 source on those completed hosts, including
+the fixture-isolation fix. Native macOS qualification is not inferred for this
+new session/Host 0.7/Shared Tooling 0.1.26 batch.
+
+The pending version is 0.1.5: session APIs are optional compatible additions,
+existing token/signature APIs, signed bytes and default graphs are unchanged,
+and the native Host/shared-runner updates preserve maintained command contracts.
+Manifest versions remain 0.1.4. No commit, source push, release, upload, full local
+CI, stable backend/PocketIC lifecycle or downstream adoption was performed.
+Current evidence is under `target/session-engine/`; the earlier target logs listed
+below were not present when this turn started and remain historical references.
+
+## Earlier application-token verification batch (released in 0.1.4)
+
+The following evidence records preparation against 0.1.3 before the maintainer's
+subsequent 0.1.4 release/publication recorded above.
 
 The optional `token-verification` feature verifies the complete existing root
 ECDSA chain-key/Merkle proof and issuer IC BLS proof. Actual authenticated caller,

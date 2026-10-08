@@ -20,6 +20,9 @@ use sha2::{Digest, Sha256};
 const SEED: &[u8] = b"canic-issuer-delegated-token";
 const NOW: u64 = 150;
 
+#[cfg(feature = "sessions")]
+mod sessions;
+
 fn p(id: u8) -> Principal {
     Principal::from_slice(&[id; 10])
 }
