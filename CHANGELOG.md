@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.1.6]
+## [0.1.6] - 2026-10-08
 
 - Add optional bounded canister-signature preparation and retrieval with exact
   retry deadlines, indexed expiry cleanup and explicit host-owned certification
