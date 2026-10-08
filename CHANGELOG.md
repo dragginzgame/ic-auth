@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.1.1]
+## [0.1.1] - 2026-10-08
 
 - Bootstrap the unpublished Rust workspace with shared setup, formatting hooks,
   locked validation and CI configuration.

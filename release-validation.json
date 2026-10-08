@@ -1,0 +1,12 @@
+{
+  "schema": 1,
+  "gate": "ci",
+  "source": "15a7fe4a58f548e83f79f7eedce75cc3c59a6631",
+  "previous": "0.1.0",
+  "candidate": "0.1.1",
+  "kind": "patch",
+  "date": "2026-10-08",
+  "verified_at": "2026-10-08T09:07:32Z",
+  "lock_sha256": "9cfcc9d85ebfbe59d98ca0809b2c94fa4bf3384983146102af997d8a0850cc19",
+  "changelog": "# Changelog\n\n## [0.1.1]\n\n- Bootstrap the unpublished Rust workspace with shared setup, formatting hooks,\n  locked validation and CI configuration.\n- Introduce passive application-token contracts and canonical encoding adapted\n  from Canic, preserving existing Candid identities and signed hash vectors.\n  Full verification, sessions and wallet login remain pending under\n  [Canic #491](https://github.com/dragginzgame/canic/issues/491).\n- Add standard patch, minor and major releases with recoverable metadata\n  preparation and atomic branch/tag delivery, plus crates.io publication and\n  a publication dry run that verifies package builds without uploading.\n  [#1](https://github.com/dragginzgame/ic-auth/issues/1)\n"
+}
