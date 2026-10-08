@@ -7,6 +7,9 @@
 
 pub mod canonical;
 
+#[cfg(feature = "canister-signature-preparation")]
+pub mod signature_store;
+
 #[cfg(feature = "canister-signature-verification")]
 pub mod canister_signature;
 

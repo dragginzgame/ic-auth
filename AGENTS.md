@@ -52,13 +52,14 @@ Apply [DRAGGINZGAME.md](DRAGGINZGAME.md), adopted from Shared Tooling revision
 
 - See [developer setup](docs/development.md) for the implemented command surface.
   Focused Rust checks are `make test-types`, `make test-protocol`, `make test-signatures`,
-  `make test-tokens`, `make test-sessions`,
+  `make test-signature-store`, `make test-tokens`, `make test-sessions`,
   `make test-host-tooling`, `make check-wasm` and `make clippy`; `make ci` is the
   explicit complete gate. `make test-release-runner` checks the adopted runner
   with substituted effects.
-  Both libraries are published at `0.1.4` with contracts, encoding and optional
-  IC signature/token verification. The working tree adds session/replay admission
-  and a bounded volatile backend. Stable host adoption and wallet login remain
+  Both libraries are published at `0.1.5` with contracts, encoding and optional
+  IC signature/token/session machinery. The working tree adds bounded signature
+  preparation/retrieval with explicit host certification composition.
+  Stable host adoption and wallet login remain
   unimplemented. Host stores must commit session/replay changes atomically and
   advance protected generation with authority changes.
 - `make publish-dry-run` checks both package builds using live registry metadata

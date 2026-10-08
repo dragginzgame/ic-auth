@@ -1,7 +1,7 @@
 # Local application sessions
 
-The working tree adds `ic_auth::session` behind `sessions`, enabling the existing
-token verifier. It is not in published `0.1.4`. Default, signature-only and
+`ic_auth::session` is published in `0.1.5` behind `sessions`, enabling the existing
+token verifier. Default, signature-only and
 token-only graphs remain selectable without the session engine. No feature
 imports Canic, Toko, Solana, native Host tooling, CDK or stable storage.
 

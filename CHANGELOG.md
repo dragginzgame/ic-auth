@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.6]
+
+- Add optional bounded canister-signature preparation and retrieval with exact
+  retry deadlines, indexed expiry cleanup and explicit host-owned certification
+  composition. Keep signing decisions, runtime clock/certificates and lifecycle
+  with the host; preserve existing Canic signature bytes.
+
 ## [0.1.5] - 2026-10-08
 
 - Add optional local session admission with atomic replay consumption, exact

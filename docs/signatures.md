@@ -66,5 +66,7 @@ fixture keys, both upstream subnet-range formats and explicit rejection cases.
 `make check-wasm` compiles default and verification-selected graphs, and
 `make check-boundaries` inspects both. These checks do not qualify real IC
 ingress delegation, service lifecycle, native macOS execution or Canic adoption.
+The independent optional [preparation capability](signature-preparation.md)
+provides bounded retention and explicit host root composition in the working tree.
 The accepted [extraction design](design/extraction.md) and
 [Canic #491](https://github.com/dragginzgame/canic/issues/491) retain that scope.

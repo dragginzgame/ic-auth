@@ -10,6 +10,13 @@ publish = ["crates-io"]
 
 [features]
 default = []
+canister-signature-preparation = [
+    "dep:ic-canister-sig-creation",
+    "dep:ic-certification",
+    "dep:serde",
+    "dep:serde_bytes",
+    "dep:serde_cbor",
+]
 sessions = ["token-verification"]
 token-verification = ["canister-signature-verification", "dep:k256"]
 canister-signature-verification = [

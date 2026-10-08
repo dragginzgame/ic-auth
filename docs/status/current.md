@@ -3,9 +3,9 @@
 The maintainer accepted the larger Canic authentication extraction, selected the
 name `ic-auth`, and confirmed `/home/adam/projects/ic-auth` as the local repository.
 
-The current committed release is `af384e51584b9402ec0316fb0c566d190e47ba40`
-(`0.1.4`) on `main`, with annotated tag `v0.1.4`; both remote identities were
-verified during this batch. Both libraries' `0.1.4` registry checksums match
+The current committed release is `70082ae2481f9aa6e8c5c34cf2ebb8fc2fbbd794`
+(`0.1.5`) on `main`, with annotated tag `v0.1.5`; both remote identities were
+verified during this batch. Both libraries' `0.1.5` registry checksums match
 the retained publication intent for that exact source/tag. The maintainer
 executed the release and publication. The original bootstrap was
 `7a03102e52b7a400588530997a9f7fb91c83de9d` (`0.1.0`).
@@ -22,20 +22,103 @@ records this batch without closing the larger extraction.
 
 The virtual Rust workspace contains `ic-auth-protocol-types`, `ic-auth` and the
 unpublished native application in `apps/tooling/`, with one lockfile, root-owned
-dependency selections and current manifest version `0.1.4`.
+dependency selections and current manifest version `0.1.5`.
 The passive token/proof contracts and canonical encoding are adapted from the
 clean Canic source at `e286b3fd98460c98670336853f80658a920966e0`; see the
 [source review](../design/canic-source-review.md) for exact ownership and API
 adaptations. Both packages now allow crates.io publication of their implemented
 contracts/encoding, with inherited repository/README metadata and matching MIT
-notices in the package payloads. Released `0.1.4` includes optional complete token
-verification and IC canister-signature verification. The working tree adds a
-pure session/replay engine and bounded volatile backend for pending `0.1.5`.
+notices in the package payloads. Released `0.1.5` includes optional complete token
+and IC signature verification, plus session/replay machinery. The working tree
+adds bounded signature preparation/retrieval and host-owned certification
+composition for pending `0.1.6`.
 There is no stable canister adapter, wallet endpoint or TypeScript client yet.
 Canic adoption has not
 occurred; no sibling repository was modified.
 
-## Current session/replay batch
+## Current signature preparation/retrieval batch
+
+Optional `canister-signature-preparation` exposes a bounded volatile
+`SignatureStore`, independently of verification/token/session features. It
+retains the existing Canic domains, empty signature paths, upstream DER keys and
+CBOR proof DTO. The host authorizes preparation and supplies actual signer,
+protected limits, clock, query certificate and ordered composition siblings.
+There are no IC runtime calls, implicit root writes or native Host dependencies.
+See the [contract](../signature-preparation.md) for input, lifecycle and
+certificate-source obligations.
+
+Physical capacity includes expired records. Each leaf has one expiry index
+entry; live retries preserve their deadline, while expired-key repreparation
+replaces that entry. Explicit prune removes at most 128 earliest expired records;
+remove/prune preserve other leaves and never clone or scan the complete store.
+All fallible preparation checks precede mutation. Retrieval enforces the
+exclusive deadline and requires the supplied host certificate's canister root
+to match the current composed witness digest. Its structural certificate check
+does not substitute for consumer BLS/freshness verification. Deleting leaves
+cannot revoke proofs already delivered.
+
+Read-only extraction input remains Canic
+`4c51a87c6a32397196bb3f65d064641194df10a5`; its dirty sibling changes were excluded.
+The selected upstream signing-map source was reviewed rather than wrapped:
+its internal clock and query-certificate calls are incompatible with this pure
+boundary. DFINITY's certified tree, key and hash primitives are reused. Endpoint
+eligibility, operation/caller records, renewal and other certified state remain
+host-owned. Stable root publication/restore and real IC ingress delegation are
+not qualified by this pure mechanism batch.
+
+Eleven new tests pass, including 1999 live retries without expiry-index growth,
+expiry/repreparation, failure atomicity, overflow/clock bounds, multi-key removal,
+bounded pruning, certificate/output/depth limits and real BLS verification of
+both Canic domains composed with two other certified branches. All 70 workspace
+tests pass, including existing token/session and native file operations.
+Strict all-feature Clippy, default and each independently selected Wasm graph,
+locked metadata and dependency guards pass. Logs are retained under
+`target/signature-preparation/`: `store-tests-fixed.log`, `workspace-tests.log`
+and `compile-and-boundaries.log`. The first test compile rejected a borrowed
+temporary (`initial-tests.log`); the following fixture run correctly rejected
+an obsolete certificate and an undersized output limit (`store-tests.log`). The
+fixtures were corrected without weakening production checks; failures remain.
+
+The Cargo publication dry run built both archives and explicitly aborted uploads
+(`package-dry-run.log`). The unpacked auth archive passed the preparation unit
+and ten integration tests against checksum-verified published protocol types
+0.1.5, and its preparation-only feature compiled for Wasm. Evidence is
+`packaged-tests.log` and `packaged-wasm.log`. The isolated fixture adds an empty
+workspace table and replaces Cargo's staged protocol checksum with the observed
+published checksum; archive/source bytes are unchanged. This checks the package
+boundary, not a live upload or a durable host.
+
+Formatting, the 62-file snapshot, dependency pins and local links pass
+(`governance.log`), along with ShellCheck and the final diff review.
+`source-identities.sha256`, produced through the native `ic-host-*` utility,
+binds source/tests, metadata, selected tooling/guards and the original archives.
+
+The concurrently changed lockfile selection of `ic-host-fs` and
+`ic-host-artifacts` 0.7.1 was preserved. Live registry checksums match the selected
+entries and packaged source revision `410fee7c309e781edf6a361f0e480d71b7c11e5a`,
+also observed as remote Host main. Native tests and Clippy use that selection.
+Shared Tooling remote main still matches the adopted 0.1.26 revision
+`75a8a60f49cec11d3f6aecab5c977029c42cc549`; no snapshot refresh is needed.
+
+Live 0.1.5 registry checksums match the retained publication receipt: protocol
+types `07832762f8124cfdc79d3c897e1ee74671b60e993cd8aa027be03c28643751bf`, auth
+`40e6ed17becd4bd06fef97ef9d2d1ec9da09f06fd2a800a4613b96500487570c`.
+The maintainer's 0.1.5 CI runs were still queued at the latest observation;
+the preceding [0.1.4 run](https://github.com/dragginzgame/ic-auth/actions/runs/37772047548)
+completed successfully on all configured hosts. Neither result qualifies this
+uncommitted preparation batch on macOS.
+
+The pending version is `0.1.6`: preparation is a compatible optional addition;
+existing APIs, signed bytes and default graphs are unchanged. Manifest versions
+remain 0.1.5. No commit, push, release, upload, full local CI, sibling adoption
+or stable/PocketIC lifecycle was performed. Earlier target logs named below were
+not present when this turn started and remain historical references.
+
+## Earlier session/replay batch (released in 0.1.5)
+
+The following records preparation against 0.1.4 before the maintainer's 0.1.5
+release/publication above; its observations and pending-version wording are
+historical evidence.
 
 `ic-auth` now has optional `sessions`, with complete token verification before
 new admission, canonical scope narrowing and exact Canic request hashes. The

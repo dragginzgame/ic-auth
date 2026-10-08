@@ -71,8 +71,8 @@ trace those generated contracts and producer/consumer fixtures coherently with
 [Canic #354](https://github.com/dragginzgame/canic/issues/354). No Canic source was
 removed, aliased or redirected. Until that adoption, Canic retains its active
 implementation. The contracts/encoding, signature and complete token capabilities
-are published independently at `0.1.4`; the subsequent session addition below
-remains unpublished.
+are published independently, with sessions included in `0.1.5`. The subsequent
+signature preparation addition below remains unpublished.
 A1 is not claimed complete, and the larger extraction is still partial.
 
 The qualification findings named by #491 remain unresolved by the encoding move. In
@@ -102,7 +102,7 @@ Real fixture signatures verify under deterministic BLS trust keys; changed
 signer/seed/network/time policy rejects the same proof. This is verification
 mechanism evidence, not live IC, complete token/session verification, service
 certification composition or consumer adoption. Preparation/retrieval and their
-bounded retention, host root composition and lifecycle remain unimplemented;
+bounded retention, host root composition and lifecycle were unimplemented in that batch;
 no A2 completion claim is made. Canic still owns its active source until a
 separately authorized adoption removes it coherently.
 
@@ -163,3 +163,30 @@ was introduced. Native failure-after-staging tests establish rollback for the
 volatile reference backend; they do not qualify a Canic durable transaction or
 restore/upgrade boundary. Stable host adoption and canonical ownership convergence
 remain open in the existing extraction tracker and require separate scope.
+
+## Subsequent signature preparation/retrieval boundary
+
+The preparation review read the same committed Canic root/issuer helpers and
+DFINITY's selected `ic-canister-sig-creation` 1.3.1 source. Canic's one-minute
+retrieval window and exact certified `/sig` paths inform the new optional
+[preparation API](../signature-preparation.md). Caller/operation eligibility,
+metrics, pending root-attestation records and renewal orchestration remain with
+Canic; no sibling files were edited.
+
+The upstream signature map obtains an IC clock internally, acquires query
+certificates and retains a queue entry per preparation. Those effects were not
+wrapped into the pure library. DFINITY's `ic-certification` tree/witness owner and
+public-key/hash primitives remain canonical; IC Auth supplies bounded keyed
+retention with one expiry index entry per leaf. Live retries keep their original
+deadline; expired-key preparation replaces that entry. These are explicit new
+Rust mechanism semantics, preserving Canic's signed bytes and proof DTOs rather
+than promising drop-in workflow compatibility.
+
+The host owns the clock, authorization, query certificate, other certified
+branches and final root publication. Retrieval rejects certificates covering a
+different composed digest/canister. Real BLS fixtures verify both Canic domains
+through the existing receiver with multiple host branches. Cleanup/removal do
+not revoke proofs already issued. The reference store is volatile and has no
+durable restore codec; root publication, query timing, upgrades and actual IC
+ingress delegation need host/PocketIC qualification. The compatible pending
+version is `0.1.6`; canonical Canic consumer adoption remains separately scoped.

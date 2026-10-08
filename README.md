@@ -11,12 +11,13 @@ contract. The libraries and reference service must not depend on either project.
 ## Status
 
 The Rust workspace implements passive token/proof contracts, validated protocol
-identifiers, canonical signed encoding and optional IC signature/application-token
-verification extracted from Canic. Both libraries are published on crates.io at
-`0.1.4`; see the [signature](docs/signatures.md) and [token](docs/tokens.md) contracts.
-The working tree adds atomic session/replay admission, live session authorization
-and a bounded volatile backend; see the [session contract](docs/sessions.md).
-The session API is not yet published or adopted by a durable canister host.
+identifiers, canonical signed encoding, optional IC signature/application-token
+verification and atomic session/replay admission extracted from Canic. Both
+libraries are published on crates.io at `0.1.5`; see the
+[signature](docs/signatures.md), [token](docs/tokens.md) and
+[session](docs/sessions.md) contracts. Durable canister adoption remains pending.
+The working tree adds bounded [signature preparation and retrieval](docs/signature-preparation.md)
+with explicit host certification composition, for pending `0.1.6`.
 **Wallet login remains unimplemented.** Tokens and local sessions do not grant
 application resource ownership. The native utility in `apps/tooling/` is unpublished and reuses
 `ic-host-fs`/`ic-host-artifacts` for release and publication file operations.
@@ -58,6 +59,7 @@ With the [declared tools](docs/development.md) prepared, run the focused checks:
 make test-types
 make test-protocol
 make test-signatures
+make test-signature-store
 make test-tokens
 make test-sessions
 make check-wasm
