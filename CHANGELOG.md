@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.1.5]
+## [0.1.5] - 2026-10-08
 
 - Add optional local session admission with atomic replay consumption, exact
   retries without extending authority, live caller/scope/authority checks and
