@@ -52,12 +52,13 @@ Apply [DRAGGINZGAME.md](DRAGGINZGAME.md), adopted from Shared Tooling revision
 
 - See [developer setup](docs/development.md) for the implemented command surface.
   Focused Rust checks are `make test-types`, `make test-protocol`, `make test-signatures`,
+  `make test-tokens`,
   `make test-host-tooling`, `make check-wasm` and `make clippy`; `make ci` is the
   explicit complete gate. `make test-release-runner` checks the adopted runner
   with substituted effects.
-  Both libraries are published at `0.1.2` but remain partial extraction
-  implementations. The working tree adds optional IC signature verification;
-  canonical hashing and a valid signature do not establish token admission.
+  Both libraries are published at `0.1.3` with contracts, encoding and optional
+  IC signature verification. The working tree adds complete token verification;
+  replay consumption, session admission and wallet login remain unimplemented.
 - `make publish-dry-run` checks both package builds using live registry metadata
   without uploading. `make test-release-tools` uses local bare remotes and mocked
   upload/registry transport. The three release targets share the complete gate

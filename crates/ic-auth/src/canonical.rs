@@ -10,6 +10,8 @@ const DOMAIN_SEPARATOR: &[u8] = b"CANIC-AUTH\0";
 const ISSUER_PROOF_BINDING_HASH_DOMAIN: &[u8] = b"canic-issuer-proof-binding-v1";
 const CHAIN_KEY_BATCH_HEADER_DOMAIN: &[u8] = b"CANIC_ROOT_DELEGATION_CHAIN_KEY_BATCH_V1";
 const CHAIN_KEY_DELEGATION_CERT_DOMAIN: &[u8] = b"CANIC_ROOT_DELEGATION_CHAIN_KEY_ISSUER_LEAF_V1";
+const CHAIN_KEY_DERIVATION_PATH_DOMAIN: &[u8] =
+    b"CANIC_ROOT_DELEGATION_CHAIN_KEY_DERIVATION_PATH_V1";
 /// Largest extension admitted by the existing application-token protocol.
 pub const MAX_TOKEN_EXT_BYTES: usize = 4096;
 
@@ -78,6 +80,16 @@ pub fn chain_key_delegation_cert_hash(
     cert: &ChainKeyDelegationCertV1,
 ) -> Result<[u8; 32], CanonicalAuthError> {
     hash_chain_key_leaf_payload(&chain_key_delegation_cert_bytes(cert)?)
+}
+
+/// Hash the exact ordered derivation path under its existing Canic domain.
+/// This binds path bytes; it does not derive a key or establish its authority.
+pub fn chain_key_derivation_path_hash(
+    derivation_path: &[Vec<u8>],
+) -> Result<[u8; 32], CanonicalAuthError> {
+    let mut out = CHAIN_KEY_DERIVATION_PATH_DOMAIN.to_vec();
+    encode_chain_key_derivation_path(&mut out, derivation_path)?;
+    Ok(hash_bytes(&out))
 }
 
 /// Bind an issuer principal, proof algorithm and seed hash.

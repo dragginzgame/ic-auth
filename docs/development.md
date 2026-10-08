@@ -2,7 +2,7 @@
 
 The virtual root owns two libraries and the unpublished native application in
 `apps/tooling/`, dependency selections, lints and one lockfile. The current manifest
-version is `0.1.2`, tagged as `v0.1.2`; both libraries are published on crates.io.
+version is `0.1.3`, tagged as `v0.1.3`; both libraries are published on crates.io.
 Rust `1.99.0` matches the inspected
 Canic toolchain; `rust-toolchain.toml` is the sole toolchain selection. No lower
 MSRV is claimed. Linux x86_64 is the initially exercised host.
@@ -48,11 +48,12 @@ establish independent formatting qualification.
 | `make test-types` | Identifier rejection and Candid wire compatibility |
 | `make test-protocol` | Canonical encoding, signed vectors, ordering and size rejection |
 | `make test-signatures` | Real BLS-signed IC fixtures, signer/seed/root rejection, certificate freshness and bounded decoding |
+| `make test-tokens` | Complete real secp256k1/BLS proof chains, signed binding and protected authority/window/scope rejection |
 | `make test-host-tooling` | Native file-operation CLI: bounded input, exact digest output, no-follow reads and preserved create-only evidence |
-| `make check-wasm` | Compile-check both libraries and the optional signature capability for `wasm32-unknown-unknown` |
+| `make check-wasm` | Compile-check both libraries and signature/token-selected capabilities for `wasm32-unknown-unknown` |
 | `make clippy` | Lint the two libraries and native application, including test targets and all features |
 | `make metadata` | Validate the selected locked graph offline |
-| `make check-boundaries` | Inspect default and signature-selected transitive dependency graphs |
+| `make check-boundaries` | Inspect default, signature-selected and token-selected transitive dependency graphs |
 | `make fmt` / `make fmt-check` | Shared manifest sorting followed by Rust formatting |
 | `make check-snapshot` | Verify the adopted shared files and modes |
 | `make check-dependency-pins` | Check declarations, lockfile tracking and root inheritance |
@@ -82,23 +83,25 @@ to inspect the retained files. This layout does not erase prior evidence under
 
 Signature tests exercise real cryptography with deterministic fixture trust keys,
 including root/subnet chains, and preserve Canic's signature-domain bytes. They
-do not establish live network trust, complete application-token verification,
+do not establish live network trust,
 session admission, PocketIC behavior, service upgrades or independent consumer
-adoption. See the [signature API and trust contract](signatures.md).
+adoption. Token tests additionally verify root batch ECDSA signatures and issuer
+BLS certification together with caller, narrowing and current authority inputs;
+see the [signature](signatures.md) and [token](tokens.md) contracts.
 
 ## Releases and publication
 
 ```sh
-make release-patch                 # current compatible batch: 0.1.2 -> 0.1.3
-make release-minor                 # pre-1.0 breaking increment: 0.1.2 -> 0.2.0
-make release-major                 # explicit major decision: 0.1.2 -> 1.0.0
+make release-patch                 # current compatible batch: 0.1.3 -> 0.1.4
+make release-minor                 # pre-1.0 breaking increment: 0.1.3 -> 0.2.0
+make release-major                 # explicit major decision: 0.1.3 -> 1.0.0
 make release-resume VERSION=X.Y.Z   # reconcile the exact saved attempt
 make publish-dry-run               # validate packages without upload
 make publish                       # upload a clean, delivered tagged release
 ```
 
-The undated `0.1.3` draft records compatible Shared Tooling/host utility adoption
-and optional signature verification. Existing encoding APIs and bytes are unchanged.
+The undated `0.1.4` draft records compatible token verification and fixture isolation.
+Existing encoding/signature APIs and signed bytes are unchanged.
 The earlier `0.1.2` rename used the maintainer's explicitly selected exception
 to the usual pre-1.0 minor requirement; later changes follow the normal
 [shared release contract](releases.md). Commit the implementation

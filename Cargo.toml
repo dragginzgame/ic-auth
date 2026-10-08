@@ -18,6 +18,7 @@ ic-host-artifacts = { version = "0.5.1", default-features = false }
 ic-host-fs = { version = "0.5.1", default-features = false }
 ic-signature-verification = "0.3"
 ic-verify-bls-signature = { version = "0.6", default-features = false, features = ["alloc"] }
+k256 = { version = "0.13.4", default-features = false, features = ["ecdsa"] }
 leb128 = "0.2"
 serde = { version = "1", features = ["derive"] }
 serde_bytes = "0.11"

@@ -1,8 +1,8 @@
 # IC canister-signature verification
 
-The working tree adds `ic-auth`'s optional `canister-signature-verification`
-feature and `ic_auth::canister_signature`. This API is not in the published
-`0.1.2` packages. Encoding-only consumers leave the feature disabled.
+`ic-auth`'s optional `canister-signature-verification` feature and
+`ic_auth::canister_signature` are published in `0.1.3`. Encoding-only consumers
+leave the feature disabled.
 
 `verify_canister_signature(message, proof, policy)` verifies the exact message
 against `IcCanisterSignatureProofV1`. The host constructs
@@ -51,8 +51,9 @@ ingress delegation messages and wallet challenges.
 A successful result authenticates only the exact message under the selected
 trust context. It does not check application-token validity, audience, subject,
 presenter, grants, scope, epochs, revocation or resource ownership, and does not
-consume a replay record or admit a session. Complete token/session verification
-remains required before an application grants access.
+consume a replay record or admit a session. The separate optional
+[token verifier](tokens.md) composes complete root/issuer proof and semantic checks;
+host replay/session/resource rules still apply before granting access.
 
 This module has no runtime effects: no clock acquisition, memory-region
 allocation, management calls, signing, certification-root publication or global

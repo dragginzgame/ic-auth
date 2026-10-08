@@ -70,8 +70,8 @@ macro-expansion, feature-selected or downstream coverage. Canic adoption must
 trace those generated contracts and producer/consumer fixtures coherently with
 [Canic #354](https://github.com/dragginzgame/canic/issues/354). No Canic source was
 removed, aliased or redirected. Until that adoption, Canic retains its active
-implementation. The contracts/encoding are published independently at `0.1.2`;
-the later signature addition below remains uncommitted and unpublished.
+implementation. The contracts/encoding and signature capability are published
+independently at `0.1.3`; the subsequent token addition below remains unpublished.
 A1 is not claimed complete, and the larger extraction is still partial.
 
 The qualification findings named by #491 remain unresolved by the encoding move. In
@@ -104,3 +104,33 @@ certification composition or consumer adoption. Preparation/retrieval and their
 bounded retention, host root composition and lifecycle remain unimplemented;
 no A2 completion claim is made. Canic still owns its active source until a
 separately authorized adoption removes it coherently.
+
+## Subsequent complete token-verification boundary
+
+The token review also used committed Canic
+`4c51a87c6a32397196bb3f65d064641194df10a5`, specifically
+`ops/auth/delegated/{verify,chain_key,cert_rules,audience}.rs`, the derivation-path
+hash in `domain/auth.rs` and the verified-authority invariants in
+`model/auth/application_authorization/authority.rs`. No sibling files were edited.
+
+The [token verifier](../tokens.md) incorporates validity, issuer/certificate
+binding, exact audience, grant narrowing, Merkle witness and protected root-key
+checks. The derivation-path hash preserves the existing domain and ordered
+length-prefixed bytes. SEC1/scalar parsing, high-s detection and prehash signature
+verification use `k256` 0.13.4, the version selected by the reviewed Canic source;
+the hand-coded scalar-order comparison was not copied.
+
+Fleet/network resolution, mainnet/test key eligibility and management-call key
+enrollment stay with the host. The host supplies the exact approved root policy,
+current epoch/version floors, acceptance deadline, scope ceiling and clock.
+The library never treats a submitted public key as enrollment, and authenticates
+the issuer/seed from the root proof before using them for issuer verification.
+It rejects anonymous identities and returns an immutable result constructible
+only through both real cryptographic checks. Proof checks are not injectable.
+
+No Canic positive cache or semantic-only cache reader was imported. Each call
+rechecks current policy and full proofs; the result deadline is capped by the
+root policy. This closes stale-policy acceptance in this uncached verifier, not
+in Canic's still-active implementation or retained application sessions. Session
+admission, replay/atomicity, service certification and downstream adoption remain
+separate obligations under [Canic #491](https://github.com/dragginzgame/canic/issues/491).

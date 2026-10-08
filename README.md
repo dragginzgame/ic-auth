@@ -11,12 +11,14 @@ contract. The libraries and reference service must not depend on either project.
 ## Status
 
 The Rust workspace implements passive token/proof contracts, validated protocol
-identifiers and canonical signed encoding extracted from Canic. The working tree
-also adds optional IC canister-signature verification using protected host inputs;
-see the [signature contract](docs/signatures.md). **It does not yet
-verify tokens, admit sessions or provide wallet login.** Hashing a token is not
-authentication. Both libraries are published on crates.io at `0.1.2` with these
-contracts and encoding; the new signature API is not yet published. The native
+identifiers, canonical signed encoding and optional IC canister-signature
+verification extracted from Canic. Both libraries are published on crates.io at
+`0.1.3`; see the [signature contract](docs/signatures.md).
+The working tree adds complete application-token verification with protected
+host inputs and both root/issuer proof checks; see the [token contract](docs/tokens.md).
+This new API is not yet published. **Session admission and wallet login remain
+unimplemented.** A verified token does not grant application resource ownership.
+The native
 utility in `apps/tooling/` is unpublished and reuses
 `ic-host-fs`/`ic-host-artifacts` for release and publication file operations.
 
@@ -37,7 +39,7 @@ Cargo.toml                     # Virtual workspace and dependency catalog
 Cargo.lock                     # One selected Rust dependency graph
 crates/
   ic-auth-protocol-types/      # Passive auth contracts and validated identifiers
-  ic-auth/                     # Canonical encoding and optional IC signature verification
+  ic-auth/                     # Canonical encoding and optional signature/token verification
 apps/
   tooling/                     # Unpublished native release/publication file utility
 ```
@@ -57,6 +59,7 @@ With the [declared tools](docs/development.md) prepared, run the focused checks:
 make test-types
 make test-protocol
 make test-signatures
+make test-tokens
 make check-wasm
 ```
 

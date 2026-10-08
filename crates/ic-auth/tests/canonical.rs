@@ -1,6 +1,26 @@
 use ic_auth::canonical::*;
 use ic_auth_protocol_types::*;
 
+#[test]
+fn canic_derivation_path_hash_keeps_the_existing_domain_lengths_and_order() {
+    let path = vec![b"canic".to_vec(), b"delegation".to_vec()];
+    let expected: CanonicalId = "fe51a87b988d221227b134c48f36787e891a902dcb5d48ea5f94cff8bfed5a16"
+        .parse()
+        .unwrap();
+    assert_eq!(
+        chain_key_derivation_path_hash(&path).unwrap(),
+        *expected.as_bytes()
+    );
+    assert_ne!(
+        chain_key_derivation_path_hash(&[path[1].clone(), path[0].clone()]).unwrap(),
+        *expected.as_bytes()
+    );
+    assert_ne!(
+        chain_key_derivation_path_hash(&[b"canicdelegation".to_vec()]).unwrap(),
+        *expected.as_bytes()
+    );
+}
+
 // Frozen projection of Canic's mainnet fixture; not a runtime trust anchor.
 fn audience() -> DelegationAudience {
     DelegationAudience::Fleet(AudienceId {

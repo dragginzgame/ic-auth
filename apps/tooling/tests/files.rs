@@ -2,21 +2,27 @@ use std::{
     fs,
     path::{Path, PathBuf},
     process::{Command, Output},
+    sync::atomic::{AtomicU64, Ordering},
     time::{SystemTime, UNIX_EPOCH},
 };
 
 fn fixture() -> PathBuf {
+    // Wall-clock precision varies by host; parallel tests can observe the same
+    // timestamp. A process-local sequence keeps their evidence disjoint.
+    static NEXT_FIXTURE: AtomicU64 = AtomicU64::new(0);
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../../target/portable-fixtures/host-tooling-tests")
         .join(format!(
-            "{}-{}",
+            "{}-{}-{}",
             std::process::id(),
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .unwrap()
-                .as_nanos()
+                .as_nanos(),
+            NEXT_FIXTURE.fetch_add(1, Ordering::Relaxed)
         ));
-    fs::create_dir_all(&path).unwrap();
+    fs::create_dir_all(path.parent().unwrap()).unwrap();
+    fs::create_dir(&path).unwrap();
     path
 }
 

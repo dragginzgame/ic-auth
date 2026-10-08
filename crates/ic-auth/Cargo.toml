@@ -5,11 +5,12 @@ edition.workspace = true
 license.workspace = true
 readme.workspace = true
 repository.workspace = true
-description = "Application authentication protocol encoding and optional IC signature verification"
+description = "Application authentication protocol encoding and optional token and IC signature verification"
 publish = ["crates-io"]
 
 [features]
 default = []
+token-verification = ["canister-signature-verification", "dep:k256"]
 canister-signature-verification = [
     "dep:ic-canister-sig-creation",
     "dep:ic-certification",
@@ -25,6 +26,7 @@ ic-auth-protocol-types.workspace = true
 ic-canister-sig-creation = { workspace = true, optional = true }
 ic-certification = { workspace = true, optional = true }
 ic-signature-verification = { workspace = true, optional = true }
+k256 = { workspace = true, optional = true }
 leb128 = { workspace = true, optional = true }
 serde = { workspace = true, optional = true }
 serde_bytes = { workspace = true, optional = true }

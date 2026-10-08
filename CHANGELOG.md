@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.1.4]
+
+- Add optional complete application-token verification: authenticate root
+  chain-key grants and issuer signatures, bind the actual caller, and enforce
+  protected audience, role, scope, lifetime and authority policy on every call.
+  Preserve existing signed bytes and keep verification free of wallet, host
+  tooling and storage dependencies. Session admission/replay remain separate.
+- Isolate parallel native-tooling test fixtures even when macOS clock readings
+  coincide, preventing one test's input from replacing another's evidence.
+
 ## [0.1.3] - 2026-10-08
 
 - Add optional IC canister-signature verification with protected signer, seed

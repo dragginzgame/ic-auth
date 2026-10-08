@@ -3,9 +3,9 @@
 The maintainer accepted the larger Canic authentication extraction, selected the
 name `ic-auth`, and confirmed `/home/adam/projects/ic-auth` as the local repository.
 
-The current committed release is `8077d949519592b80c07ef8d83b8487b5cace09a`
-(`0.1.2`) on `main`, with annotated tag `v0.1.2`; both remote identities were
-verified during this batch. Both libraries' `0.1.2` registry checksums match
+The current committed release is `b2bdbbe9a5723eb9c93f7d7a274e5e2280278e9b`
+(`0.1.3`) on `main`, with annotated tag `v0.1.3`; both remote identities were
+verified during this batch. Both libraries' `0.1.3` registry checksums match
 the retained publication intent for that exact source/tag. The maintainer
 executed the release and publication. The original bootstrap was
 `7a03102e52b7a400588530997a9f7fb91c83de9d` (`0.1.0`).
@@ -22,17 +22,106 @@ records this batch without closing the larger extraction.
 
 The virtual Rust workspace contains `ic-auth-protocol-types`, `ic-auth` and the
 unpublished native application in `apps/tooling/`, with one lockfile, root-owned
-dependency selections and current manifest version `0.1.2`.
+dependency selections and current manifest version `0.1.3`.
 The passive token/proof contracts and canonical encoding are adapted from the
 clean Canic source at `e286b3fd98460c98670336853f80658a920966e0`; see the
 [source review](../design/canic-source-review.md) for exact ownership and API
 adaptations. Both packages now allow crates.io publication of their implemented
 contracts/encoding, with inherited repository/README metadata and matching MIT
-notices in the package payloads. There is no token verifier,
-session engine, wallet endpoint or TypeScript client yet. Canic adoption has not
+notices in the package payloads. The released `0.1.3` also includes optional IC
+canister-signature verification. Complete application-token verification is now
+implemented locally for the pending `0.1.4`; there is no session engine, wallet
+endpoint or TypeScript client yet. Canic adoption has not
 occurred; no sibling repository was modified.
 
-## Current signature verification batch
+## Current application-token verification batch
+
+The optional `token-verification` feature verifies the complete existing root
+ECDSA chain-key/Merkle proof and issuer IC BLS proof. Actual authenticated caller,
+clock, root-key enrollment, audience, local role, allowed/required scopes, finite
+input limits and live epoch/version/acceptance policy are explicit host inputs.
+Both cryptographic verifiers are concrete; no accepting callbacks or retained
+identity cache can bypass a proof. Verified claims are borrowed, cannot be
+deserialized into verification evidence, and expire no later than the host's
+current root-key acceptance deadline. The [API contract](../tokens.md) explains
+the remaining host enrollment, decoding, replay, session and resource-policy
+obligations.
+
+The read-only source remains committed Canic
+`4c51a87c6a32397196bb3f65d064641194df10a5`. Its root chain-key header, delegation
+leaf, Merkle directions, key/path bindings and issuer domain are preserved.
+The canonical derivation-path hash now has an independent fixed byte vector.
+`k256` owns SEC1 parsing, ECDSA scalar validation, high-s detection and prehash
+verification. No custom cryptography, Canic authority registry, network-key-name
+policy, storage, runtime clock, certification-root publication or Solana graph
+was imported. Native file/artifact operations continue to use `ic-host-fs` and
+`ic-host-artifacts` `0.5.2`; they remain excluded from both auth libraries.
+
+Focused Linux checks passed: 41 auth tests across the selected APIs, strict
+all-feature Clippy, default/signature/token Wasm builds, locked metadata and
+library dependency boundaries. The 12 token tests use real ECDSA and BLS proofs
+and cover identity, grant narrowing, authority invalidation, exact time bounds,
+forged signed bytes, malformed/high-s signatures, witness tampering and input
+budgets. Logs are under `target/token-verification/`, including
+`focused-checks.log` and `initial-tests.log`. `source-identities.sha256`, produced
+by the native `ic-host-*` utility, binds the final library/tooling source and
+tests, manifests, lockfile, Makefile, toolchain, snapshot and boundary guard;
+documentation-only source comments were completed before final packaging.
+No existing locked external version
+changed; 12 selections were added for optional `k256` verification.
+
+The pushed release's native CI exposed an intermittent parallel fixture
+collision: in [run 37764724605](https://github.com/dragginzgame/ic-auth/actions/runs/37764724605),
+both macOS jobs failed the tooling intent test after reading the hash test's
+`abc` input. Linux passed. The old directory name used PID and clock precision,
+and `create_dir_all` could share a directory between simultaneous tests.
+The local helper now adds a process-wide atomic sequence and exclusively creates
+each leaf directory. Four host-tooling tests and strict Clippy pass locally;
+native macOS qualification of this fix awaits CI for the new source. The failed
+job log is retained in `previous-ci-failure.log`, and local checks in
+`fixture-checks.log`. This changes test isolation, not production intent writes.
+
+The final real Cargo package dry run built both distributable archives and
+aborted uploads (`package-dry-run-final.log`); the earlier dry run remains in
+`package-dry-run.log`. The unpacked auth payload also compiled offline for native
+and Wasm with `token-verification` against the checksum-verified, published
+protocol-types `0.1.3`. This isolated fixture copied the normalized manifest,
+added an empty workspace table, and replaced Cargo's staged-dependency checksum
+with the observed published checksum; it did not change the source or archives.
+Logs are `packaged-native.log` and `packaged-wasm.log`. The first attempt refused
+the enclosing workspace before compilation; that result remains in
+`packaged-native-workspace-failure.log`. This is package-boundary compilation,
+not downstream application adoption.
+
+Formatting, dependency pins, snapshot integrity, local links, boundary-script
+ShellCheck and the diff passed. Local bare-remote release adapters and mocked
+publication/recovery passed with a substituted complete gate, not live effects;
+logs are `governance-checks.log` and `release-adapter-checks.log`. Recipe override
+warnings occur only in that intentionally substituted fixture Makefile. The
+maintained Makefile has one recipe per target. Existing-version dry-run warnings
+are expected because manifests remain `0.1.3`.
+Sparse registry records independently matched the
+retained `0.1.3` publication checksums: protocol types
+`b667ca6a00543bc8a3e36d2d6d8a8e3cee2528e986a894a28025c86311aec273`, auth
+`56f767225901ae8e618ddddb266d5391cb755bd13e7caba9dafed24da2c52e25`.
+The crates.io API returned HTTP 403 during read-only checking; the public sparse
+index supplied the live registry observation instead.
+
+Shared Tooling `0.1.25` at `eeb72e741199bd8574280eacb3542d8379b912f6`
+was reverified as remote `main`; the reviewed 62-file snapshot is unchanged.
+The repository description was read and still accurately describes the released
+scope. The next undated changelog entry is `0.1.4`: optional token verification
+and fixture isolation are compatible additions/fixes, with existing encoding,
+wire contracts and default graphs preserved. No manifest bump, commit, push,
+release, publication, full local CI, native macOS run, live IC/PocketIC execution
+or consumer adoption was performed by this batch. Session/replay atomicity,
+signature preparation/retention and wallet service contracts remain separate
+unfinished extraction work in the existing tracker.
+
+## Earlier signature verification batch (released in 0.1.3)
+
+The following evidence records preparation against `0.1.2`, before the
+maintainer's subsequent `0.1.3` release and publication recorded above.
 
 The maintainer requested continuation of the accepted extraction. The working
 tree now adds the optional `canister-signature-verification` feature to `ic-auth`.
@@ -159,8 +248,8 @@ archives failed validation/fixture evidence from `target/portable-fixtures/`.
 No native macOS, full local CI, PocketIC, new release, source push or upload was
 performed by that batch. Its pending `0.1.3` notes selected a compatible patch:
 library APIs, signed bytes and registry upload/retry semantics were unchanged.
-The repository description was reviewed for that batch. The current local
-signature capability is not yet included in the published package contract.
+The repository description was reviewed for that batch. At that time, the local
+signature capability was not yet included in the published package contract.
 
 ## Earlier extraction and release evidence
 

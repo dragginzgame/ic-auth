@@ -18,9 +18,11 @@ done
 # The selected verification capability must remain free of product, wallet,
 # host tooling and service-owned storage dependencies too. Upstream IC key
 # parsing includes ic0 transitively; verification performs no runtime calls.
-graph="$(cargo tree --locked --offline -p ic-auth --no-default-features --features canister-signature-verification --edges normal,build --prefix none --format '{p}')"
-if printf '%s\n' "$graph" | rg '^(canic|toko|solana|ic-siws|ic-host|ic-cdk|ic-stable-structures|ic-memory|ic-timers)([- ]|$)'; then
-    echo 'signature verification pulls product, wallet, native host or runtime/storage dependencies' >&2
-    exit 1
-fi
+for feature in canister-signature-verification token-verification; do
+    graph="$(cargo tree --locked --offline -p ic-auth --no-default-features --features "$feature" --edges normal,build --prefix none --format '{p}')"
+    if printf '%s\n' "$graph" | rg '^(canic|toko|solana|ic-siws|ic-host|ic-cdk|ic-stable-structures|ic-memory|ic-timers)([- ]|$)'; then
+        echo "$feature pulls product, wallet, native host or runtime/storage dependencies" >&2
+        exit 1
+    fi
+done
 echo 'Auth dependency boundaries verified'
