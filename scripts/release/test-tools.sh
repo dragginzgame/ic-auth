@@ -13,9 +13,11 @@ unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR
 export GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null
 mkdir "$fixture/repo"
 git -C "$root" archive HEAD | tar -xf - -C "$fixture/repo"
+# Use the complete working package trees so package moves and import changes
+# are tested together, rather than mixing current manifests with archived code.
+rm -rf "$fixture/repo/crates"
+cp -Rp "$root/crates" "$fixture/repo/crates"
 overlays=(Makefile Cargo.toml Cargo.lock CHANGELOG.md .shared-tooling.snapshot
-    crates/ic-auth/Cargo.toml crates/ic-auth-types/Cargo.toml
-    crates/ic-auth/LICENSE crates/ic-auth-types/LICENSE
     scripts/release/metadata.sh scripts/release/publish.sh scripts/release/test-tools.sh
     scripts/release/rewrite-manifest.pl
     scripts/ci/check-release-tag.sh scripts/ci/rewrite-local-lock-versions.pl)
@@ -29,7 +31,7 @@ cd "$fixture/repo"
 initial="$(bash scripts/ci/read-cargo-workspace-version.sh --stable Cargo.toml)"
 if [[ "$initial" != 0.1.0 ]]; then
     perl scripts/release/rewrite-manifest.pl Cargo.toml "$initial" 0.1.0 > "$fixture/manifest"
-    perl scripts/ci/rewrite-local-lock-versions.pl Cargo.lock "$initial" 0.1.0 ic-auth ic-auth-types > "$fixture/lock"
+    perl scripts/ci/rewrite-local-lock-versions.pl Cargo.lock "$initial" 0.1.0 ic-auth ic-auth-protocol-types > "$fixture/lock"
     cp "$fixture/manifest" Cargo.toml
     cp "$fixture/lock" Cargo.lock
 fi
@@ -95,7 +97,7 @@ set -euo pipefail
 case "$1" in
     package)
         mkdir -p "$CARGO_TARGET_DIR/package"
-        printf types > "$CARGO_TARGET_DIR/package/ic-auth-types-0.1.1.crate"
+        printf types > "$CARGO_TARGET_DIR/package/ic-auth-protocol-types-0.1.1.crate"
         printf auth > "$CARGO_TARGET_DIR/package/ic-auth-0.1.1.crate"
         if [[ "$FIXTURE_MODE" == source-change ]]; then git commit --allow-empty -qm 'Concurrent fixture source'; fi
         ;;
@@ -142,10 +144,10 @@ if bash scripts/release/publish.sh > "$fixture/lost-reply.log" 2>&1; then exit 1
 [[ "$(wc -l < "$fixture/uploads")" == 1 ]]
 if bash scripts/release/publish.sh > "$fixture/unresolved.log" 2>&1; then exit 1; fi
 [[ "$(wc -l < "$fixture/uploads")" == 1 ]]
-touch "$fixture/observed-ic-auth-types"
+touch "$fixture/observed-ic-auth-protocol-types"
 export FIXTURE_MODE=success
 bash scripts/release/publish.sh > "$fixture/publish.log" 2>&1
-[[ "$(cat "$fixture/uploads")" == $'ic-auth-types\nic-auth' ]]
+[[ "$(cat "$fixture/uploads")" == $'ic-auth-protocol-types\nic-auth' ]]
 bash scripts/release/publish.sh > "$fixture/publish-retry.log" 2>&1
 [[ "$(wc -l < "$fixture/uploads")" == 2 ]]
 export FIXTURE_MODE=source-change

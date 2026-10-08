@@ -32,9 +32,15 @@ superseded code require a separately authorized Canic change.
 Cargo.toml                     # Virtual workspace and dependency catalog
 Cargo.lock                     # One selected Rust dependency graph
 crates/
-  ic-auth-types/               # Passive auth contracts and validated identifiers
+  ic-auth-protocol-types/      # Passive auth contracts and validated identifiers
   ic-auth/                     # Canonical token, certificate and proof encoding
 ```
+
+The types package is `ic-auth-protocol-types` (Rust import
+`ic_auth_protocol_types`). The unrelated [`ic_auth_types`](https://docs.rs/crate/ic_auth_types/0.1.1)
+package belongs to another IC-Auth project and does not implement our application
+token/proof contracts. Crates.io treats hyphens and underscores as colliding
+names, so changing only the punctuation cannot resolve that conflict.
 
 Future service and client packages belong in `apps/wallet-auth/` and
 `packages/client/`. They are not created as empty or accepting placeholders.

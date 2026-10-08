@@ -1,5 +1,5 @@
 use candid::{CandidType, decode_one, encode_one};
-use ic_auth_types::*;
+use ic_auth_protocol_types::*;
 use serde::Deserialize;
 
 // Independent description of Canic's current Candid boundary: identifiers and

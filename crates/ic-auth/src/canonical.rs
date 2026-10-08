@@ -2,7 +2,7 @@
 //! Domains and tags are protocol identities, not package branding.
 //! This module does not verify signatures, authority, validity or caller binding.
 
-use ic_auth_types::*;
+use ic_auth_protocol_types::*;
 use sha2::{Digest, Sha256};
 use thiserror::Error;
 

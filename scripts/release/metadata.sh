@@ -45,10 +45,10 @@ read_receipt() {
 render() {
     git show "$RELEASE_SOURCE:Cargo.toml" > "$scratch/base.toml"
     yq -p toml -o json '.' "$scratch/base.toml" | jq -e --arg previous "$RELEASE_PREVIOUS" \
-        '.workspace.package.version == $previous and .workspace.dependencies."ic-auth-types".version == $previous' > /dev/null || fail 'source version mismatch'
+        '.workspace.package.version == $previous and .workspace.dependencies."ic-auth-protocol-types".version == $previous' > /dev/null || fail 'source version mismatch'
     perl scripts/release/rewrite-manifest.pl "$scratch/base.toml" "$RELEASE_PREVIOUS" "$RELEASE_VERSION" > "$scratch/Cargo.toml"
     perl scripts/ci/rewrite-local-lock-versions.pl "$scratch/base.lock" "$RELEASE_PREVIOUS" "$RELEASE_VERSION" \
-        ic-auth ic-auth-types > "$scratch/Cargo.lock"
+        ic-auth ic-auth-protocol-types > "$scratch/Cargo.lock"
     # -j adds no extra LF: the receipt preserves the original notes byte-for-byte.
     jq -j .changelog "$scratch/receipt.json" > "$scratch/notes"
     awk -v version="$RELEASE_VERSION" -v previous="$RELEASE_PREVIOUS" -v date="$RELEASE_DATE" \

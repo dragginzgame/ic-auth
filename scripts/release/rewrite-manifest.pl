@@ -14,6 +14,6 @@ for ($previous, $candidate) {
 open my $file, '<', $path or die "$path: $!\n";
 my $text = do { local $/; <$file> };
 my $package = ($text =~ s/^version = "\Q$previous\E"$/version = "$candidate"/mg);
-my $dependency = ($text =~ s/^(ic-auth-types = \{[^\n]*?\bversion = ")\Q$previous\E(")/$1$candidate$2/mg);
+my $dependency = ($text =~ s/^(ic-auth-protocol-types = \{[^\n]*?\bversion = ")\Q$previous\E(")/$1$candidate$2/mg);
 $package == 1 && $dependency == 1 or die "unexpected root version/dependency declaration layout\n";
 print $text or die "manifest output: $!\n";

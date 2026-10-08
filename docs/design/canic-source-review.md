@@ -12,8 +12,8 @@ extraction and adoption. This is a source/contract record, not another task queu
 
 | Canic source under `crates/canic-core/src/` | IC Auth result |
 | --- | --- |
-| `dto/auth/common.rs`, `token.rs` | Passive request, grant, audience and application-token contracts in `ic-auth-types` |
-| Protocol portions of `dto/auth/proof.rs` | Certificates, chain-key batch proofs/witnesses and issuer signature contracts in `ic-auth-types` |
+| `dto/auth/common.rs`, `token.rs` | Passive request, grant, audience and application-token contracts in `ic-auth-protocol-types` |
+| Protocol portions of `dto/auth/proof.rs` | Certificates, chain-key batch proofs/witnesses and issuer signature contracts in `ic-auth-protocol-types` |
 | Canonical identity serialization in `ids/fleet/mod.rs`, `ids/network.rs` | Fixed-width `CanonicalId` and exact network-qualified `AudienceId`, preserving text serialization |
 | Role grammar in `ops/auth/delegated/canonical.rs` | `AuthRole`, validated on construction and deserialization without deployment role constants |
 | Token/proof portions of `ops/auth/delegated/canonical.rs` | Canonical bytes and hashes in `ic-auth::canonical`, preserving existing domains and tags |

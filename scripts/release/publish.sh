@@ -35,9 +35,9 @@ mkdir -p "${CARGO_TARGET_DIR:-$PWD/target}"
 logs="$(mktemp -d "${CARGO_TARGET_DIR:-$PWD/target}/publication-$version.XXXXXX")"
 echo "Publication evidence retained: $logs"
 step() { "$@" 2>&1 | tee -a "$logs/output.log"; }
-packages=(ic-auth-types ic-auth)
+packages=(ic-auth-protocol-types ic-auth)
 step make --no-print-directory check-package-licenses
-step cargo package --locked --registry crates-io -p ic-auth-types -p ic-auth
+step cargo package --locked --registry crates-io -p ic-auth-protocol-types -p ic-auth
 assert_source
 plan="$state/$version.json"
 candidate="$logs/intent.json"
@@ -50,7 +50,7 @@ done
 jq -n --arg source "$source" --arg version "$version" --arg tag "$tag" \
     --arg types "${hashes[0]}" --arg auth "${hashes[1]}" \
     '{schema:1, source:$source, version:$version, tag:$tag, registry:"crates-io",
-      packages:[{name:"ic-auth-types",checksum:$types},{name:"ic-auth",checksum:$auth}]}' > "$candidate"
+      packages:[{name:"ic-auth-protocol-types",checksum:$types},{name:"ic-auth",checksum:$auth}]}' > "$candidate"
 if [[ -e "$plan" || -L "$plan" ]]; then
     if [[ -L "$plan" ]] || ! cmp -s "$candidate" "$plan"; then
         fail 'saved publication intent conflicts with the current source or archives'

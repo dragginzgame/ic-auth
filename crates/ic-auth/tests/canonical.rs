@@ -1,5 +1,5 @@
 use ic_auth::canonical::*;
-use ic_auth_types::*;
+use ic_auth_protocol_types::*;
 
 // Frozen projection of Canic's mainnet fixture; not a runtime trust anchor.
 fn audience() -> DelegationAudience {

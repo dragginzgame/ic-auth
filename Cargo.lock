@@ -190,13 +190,13 @@ checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 name = "ic-auth"
 version = "0.1.1"
 dependencies = [
- "ic-auth-types",
+ "ic-auth-protocol-types",
  "sha2",
  "thiserror 2.0.21",
 ]
 
 [[package]]
-name = "ic-auth-types"
+name = "ic-auth-protocol-types"
 version = "0.1.1"
 dependencies = [
  "candid",

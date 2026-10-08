@@ -9,7 +9,7 @@ description = "Canonical application authentication protocol encoding"
 publish = ["crates-io"]
 
 [dependencies]
-ic-auth-types.workspace = true
+ic-auth-protocol-types.workspace = true
 sha2.workspace = true
 thiserror.workspace = true
 

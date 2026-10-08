@@ -1,8 +1,8 @@
 # Rust development
 
 The virtual root owns both packages, dependency selections, lints and the single
-lockfile. The committed bootstrap package version is `0.1.0`; there is no tagged
-or published history. Both libraries select crates.io. Rust `1.99.0` matches the inspected
+lockfile. The current manifest version is `0.1.1`, tagged as `v0.1.1`; our packages
+have not been published. Both libraries select crates.io. Rust `1.99.0` matches the inspected
 Canic toolchain; `rust-toolchain.toml` is the sole toolchain selection. No lower
 MSRV is claimed. Linux x86_64 is the initially exercised host.
 
@@ -70,18 +70,22 @@ Those checks belong with the corresponding implementation.
 ## Releases and publication
 
 ```sh
-make release-patch                 # 0.1.0 -> 0.1.1
-make release-minor                 # 0.1.0 -> 0.2.0
-make release-major                 # 0.1.0 -> 1.0.0
+make release-patch                 # maintainer-selected rename exception: 0.1.1 -> 0.1.2
+make release-minor                 # normal pre-1.0 breaking increment: 0.1.1 -> 0.2.0
+make release-major                 # explicit major decision: 0.1.1 -> 1.0.0
 make release-resume VERSION=X.Y.Z   # reconcile the exact saved attempt
 make publish-dry-run               # validate packages without upload
 make publish                       # upload a clean, delivered tagged release
 ```
 
-The undated `0.1.1` draft contains the entire initial pending batch. This selects
-the first patch increment from the committed `0.1.0` manifest; it does not invent
-a finalized `0.1.0` release. A minor/major request needs a matching pending heading,
-as required by the [shared release contract](releases.md). Commit the implementation
+The undated `0.1.2` draft records the breaking types-package rename from
+`ic-auth-types` to `ic-auth-protocol-types`. Consumers must update their Cargo
+dependency and import `ic_auth_protocol_types`; wire contracts are unchanged.
+The maintainer explicitly selected `0.1.2`, an exception scoped to this rename
+and to the baseline's usual pre-1.0 minor requirement. Use the patch target for
+this selected candidate; subsequent changes follow the normal
+[shared release contract](releases.md). This selection authorizes changelog
+preparation, not release execution. Commit the implementation
 before executing a release; only pending notes may be dirty at ordinary preflight.
 
 All three release targets use the adopted runner, the same `make ci` gate and
@@ -101,7 +105,7 @@ and build artifacts on failure and success. Rerun the same normal target for
 recovery; explicit resume selects one saved version. Late checks read the selected
 release commit even if HEAD contains later work. Releases do not publish crates.
 
-`make publish` selects only `ic-auth-types` and `ic-auth`, in that dependency order,
+`make publish` selects only `ic-auth-protocol-types` and `ic-auth`, in that dependency order,
 and always targets crates.io. It requires a clean worktree, the exact annotated
 tag at HEAD, a validated release receipt and the same tag object on the selected
 remote. Cargo builds the distributable archives before dispatch. Each package
@@ -119,6 +123,13 @@ effect independently before reconciling the retained intent. Publication logs an
 archives remain in `target/`; no cleanup, GitHub Release object or deployment is
 implicit. See [Cargo publication](https://doc.rust-lang.org/cargo/commands/cargo-publish.html)
 for credentials, dry-run and index-propagation semantics.
+
+The attempted `0.1.1` publication stopped before dispatch because the existing
+`ic_auth_types 0.1.1` archive has a different checksum. That crate belongs to a
+different project. Retain the old intent and logs; the rename requires a fresh
+release and its own publication intent, not a replacement of the `v0.1.1` tag.
+Registry-index absence for `ic-auth-protocol-types` was checked during the rename;
+it is an availability observation, not a reservation of the name.
 
 The focused fixture uses real version/lock transforms, a substitute complete gate,
 local commits/tags/bare remotes and mocked Cargo uploads/registry observations.

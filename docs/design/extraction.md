@@ -23,8 +23,8 @@ service nor Solana token/NFT infrastructure is needed for wallet login.
 ## Dependency direction
 
 ```text
-ic-auth-types <--- ic-auth <--- wallet-auth service
-                        <--- Canic adapter and local authorization host
+ic-auth-protocol-types <--- ic-auth <--- wallet-auth service
+                              <--- Canic adapter and local authorization host
 
 wallet-auth public Candid <--- TypeScript client <--- application frontend
 ```
@@ -38,7 +38,7 @@ or issuer signing dependencies when those functions are not needed.
 
 | Package | Responsibility |
 | --- | --- |
-| `ic-auth-types` | Passive public protocol contracts, validated identifiers and errors. No CDK, storage, timers or certificate-tree state. |
+| `ic-auth-protocol-types` | Passive public protocol contracts, validated identifiers and errors. No CDK, storage, timers or certificate-tree state. |
 | `ic-auth` | Protocol encoding, certificate/token verification and issuance rules, local session state transitions, reusable signature support and optional wallet proof verification. Pure logic and platform integration occupy separate modules. |
 | `apps/wallet-auth` | Service endpoints, protected application configuration, identity mappings, nonce state, storage backend, certified signature tree, controller policy and lifecycle. |
 | `packages/client` | Wallet discovery/signing, challenge exchange and construction of a delegated ICP client identity. |

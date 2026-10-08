@@ -54,16 +54,16 @@ metadata:
 	cargo metadata --locked --offline --format-version 1 > /dev/null
 
 test-types:
-	cargo test --locked --offline -p ic-auth-types
+	cargo test --locked --offline -p ic-auth-protocol-types
 
 test-protocol:
 	cargo test --locked --offline -p ic-auth
 
 check-wasm:
-	cargo check --locked --offline -p ic-auth-types -p ic-auth --target wasm32-unknown-unknown
+	cargo check --locked --offline -p ic-auth-protocol-types -p ic-auth --target wasm32-unknown-unknown
 
 clippy:
-	cargo clippy --locked --offline -p ic-auth-types -p ic-auth --all-targets -- -D warnings
+	cargo clippy --locked --offline -p ic-auth-protocol-types -p ic-auth --all-targets -- -D warnings
 
 check-boundaries:
 	bash scripts/ci/check-auth-boundaries.sh
@@ -81,11 +81,11 @@ ci:
 	+bash scripts/ci/run-validation-targets.sh --fail-fast check-snapshot check-dependency-pins check-doc-links fmt-check metadata check-boundaries test-types test-protocol check-wasm clippy publish-dry-run test-release-tools
 
 check-package-licenses:
-	@cmp LICENSE crates/ic-auth-types/LICENSE
+	@cmp LICENSE crates/ic-auth-protocol-types/LICENSE
 	@cmp LICENSE crates/ic-auth/LICENSE
 
 publish-dry-run: check-package-licenses
-	cargo publish --dry-run --locked --registry crates-io --allow-dirty -p ic-auth-types -p ic-auth
+	cargo publish --dry-run --locked --registry crates-io --allow-dirty -p ic-auth-protocol-types -p ic-auth
 
 publish:
 	bash scripts/release/publish.sh
