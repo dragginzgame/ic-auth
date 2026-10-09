@@ -125,6 +125,23 @@ Make/snapshot identities are recorded separately in
 `selected-inputs-after-shared.sha256`. No additional Rust/canister product suite
 or complete local gate ran for the Make adoption.
 
+### Tool failure-evidence fixture repair (pending 0.2.5)
+
+The maintainer's release gate at committed source `2f7594d` failed in
+`test-tools-evidence`. Retained fixture `tools-evidence.MqwAQ0` shows that Make
+stopped during parsing: the fixture copied the actual Makefile but omitted its
+new release/format includes. The consumer-owned fixture now copies both
+includes. Its Cargo installation fault, missing-tool refusal, original aggregate
+status, logging-failure precedence and exact four-file archive checksum checks
+remain intact. No selected shared source or product contract changed.
+
+`make test-tools-evidence` and the same script under genuine Bash 3.2 both pass;
+ShellCheck passes. Logs are retained in `target/tools-evidence-make-fix/`, with
+passing fixtures `tools-evidence.6bqluV` and `tools-evidence.JDoEKk`. The original
+failed fixture and validation logs are preserved. This compatible fix extends
+the existing 0.2.5 draft and [issue #11](https://github.com/dragginzgame/ic-auth/issues/11).
+The complete gate/release was not rerun; native macOS acceptance remains pending.
+
 ## Earlier compatible improvements for 0.2.4 (released)
 
 The following records local preparation before maintainer delivery; pending

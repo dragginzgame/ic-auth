@@ -10,6 +10,8 @@
   [Canic #507](https://github.com/dragginzgame/canic/issues/507).
 - Adopt Shared Tooling 0.2.6 release and single-workspace formatting Make owners,
   preserving IC Auth's release policy, prepared tools and validation gate.
+  Include both new Make owners in the isolated tool failure-evidence fixture so
+  setup/check qualification reaches the intended injected failures.
   [#11](https://github.com/dragginzgame/ic-auth/issues/11).
 
 ## [0.2.4] - 2026-10-09
