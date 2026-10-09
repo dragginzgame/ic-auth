@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.1.12]
+## [0.1.12] - 2026-10-09
 
 - Preserve the native MSRV lane under macOS Bash 3.2 without weakening strict
   shell checks or the package/feature matrix.
