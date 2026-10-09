@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.2.3]
+## [0.2.3] - 2026-10-09
 
 - Adopt the latest reviewed Shared Tooling fixes for unterminated IC-tool pin
   matrices and literal newlines in hook paths, preserving existing selections
