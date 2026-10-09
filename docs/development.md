@@ -141,15 +141,18 @@ It does not qualify browser/wallet login or a durable session backend.
 ## Releases and publication
 
 ```sh
-make release-patch                 # current compatible batch: 0.1.11 -> 0.1.12
-make release-minor                 # pre-1.0 breaking increment: 0.1.11 -> 0.2.0
-make release-major                 # explicit major decision: 0.1.11 -> 1.0.0
+make release-patch                 # current compatible batch: 0.1.12 -> 0.1.13
+make release-minor                 # pre-1.0 breaking increment: 0.1.12 -> 0.2.0
+make release-major                 # explicit major decision: 0.1.12 -> 1.0.0
 make release-resume VERSION=X.Y.Z   # reconcile the exact saved attempt
 make publish-dry-run               # validate packages without upload
 make publish                       # upload a clean, delivered tagged release
 ```
 
-The undated `0.1.12` draft records portable MSRV checking, retained setup evidence
+The undated `0.1.13` draft adopts Shared Tooling 0.1.35's selected Cargo installer
+and dependency-preparation guidance. Product CLI selections and profiles remain
+consumer-owned; this does not change the current PocketIC setup. Released
+`0.1.12` added portable MSRV checking, retained setup evidence
 and Shared Tooling 0.1.34 optional fleet selection/path handling, plus Host 0.8.8
 streaming file identities and Testkit 0.25.4 runtime qualification. Released `0.1.11` added
 Host Tooling 0.8.5 and opt-in transactional browser storage. The current PocketIC

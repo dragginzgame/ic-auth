@@ -3,9 +3,9 @@
 The maintainer accepted the larger Canic authentication extraction, selected the
 name `ic-auth`, and confirmed `/home/adam/projects/ic-auth` as the local repository.
 
-The current committed release is `4fef99163ff848d791e03a4db1ae7a726b88d557`
-(`0.1.11`) on `main`, with annotated tag `v0.1.11`; both remote identities were
-verified during issue review. Both libraries' `0.1.11` registry checksums match
+The current committed release is `dafdeafa02ca0b59a19c1311bc279b5a6cc3a3b0`
+(`0.1.12`) on `main`, with annotated tag `v0.1.12`; both remote identities were
+verified during continuation. Both libraries' `0.1.12` registry checksums match
 the retained publication intent for that exact source/tag. The maintainer
 executed the release and publication. The original bootstrap was
 `7a03102e52b7a400588530997a9f7fb91c83de9d` (`0.1.0`).
@@ -22,7 +22,7 @@ records this batch without closing the larger extraction.
 
 The virtual Rust workspace contains `ic-auth-protocol-types`, `ic-auth` and the
 unpublished native application in `apps/tooling/`, with one lockfile, root-owned
-dependency selections and current manifest version `0.1.11`.
+dependency selections and current manifest version `0.1.12`.
 The passive token/proof contracts and canonical encoding are adapted from the
 clean Canic source at `e286b3fd98460c98670336853f80658a920966e0`; see the
 [source review](../design/canic-source-review.md) for exact ownership and API
@@ -38,7 +38,106 @@ qualification, npm publication and consumer adoption remain pending.
 Canic adoption has not
 occurred; no sibling repository was modified.
 
-## Current issue repair batch
+## Current continuation
+
+The maintainer delivered 0.1.12. Both live packages are unyanked, and their
+registry checksums match the retained publication intent for the exact remote
+source/tag. The [main release CI](https://github.com/dragginzgame/ic-auth/actions/runs/37903856227)
+and [tag CI](https://github.com/dragginzgame/ic-auth/actions/runs/37903860241)
+both pass their complete Linux gates, including the negative setup/check fixture
+and exact artifact upload/download byte verification. Both macOS jobs remain
+queued in each run. Delivery is distinct from native acceptance; the existing
+qualification issues remain open until that evidence completes.
+
+The current compatible draft is 0.1.13. Its reviewed Shared Tooling snapshot
+selects `1af63d31942448a46ef42553285176b98dce9274` (0.1.36), verified against
+remote main, with the same 79 canonical files and no sibling changes.
+The initial 0.1.35 refresh at `be550afa57fe9e16872e5110b5cd69c24b4fa9e8`
+introduced the canonical installer for consumer-selected registry
+binaries/examples without replacing the existing formatter bundle.
+Both fixed/selected installer fixtures passed on Bash 5
+and genuine Bash 3.2 with substituted Cargo effects. Actual consumer tools-check
+and negative failure-evidence collection pass on both shells. The real published
+Testkit 0.25.4 CLI was installed in the versioned `debug` selection through that
+canonical installer; offline receipt/byte admission returns the same CLI path
+on both shells, and that CLI's server check returns the same previously qualified
+server path. This qualifies that selection on Linux, not native macOS.
+
+The adopted dependency-preparation rule already matches IC Auth's release
+preflight: `cargo fetch --locked` runs after source/changelog admission and before
+offline validation. No release-adapter change or new network switch was needed.
+The local/mocked release/publication reconciliation fixture passes with the
+selected snapshot. Evidence is retained in `target/continuation-0.1.13/`,
+including `rust-tools-bash5.log`, `rust-tools-bash32.log`, `consumer-tools*.log`,
+`testkit-selected-*` and `release-tools.log`. Snapshot/link checks, ShellCheck
+and diff checks pass. That snapshot refresh changed no Rust manifests/lock,
+public libraries or npm selections; no broad Rust/CI gate was run for it.
+
+The subsequent 0.1.36 refresh adopts the canonical repair under
+[Shared Tooling #65](https://github.com/dragginzgame/shared-tooling/issues/65):
+both Cargo and local selection receipts require exactly one JSON document,
+installation ancestors and the selection slot are checked again after Cargo
+returns, and failed Cargo status is preserved with the retained attempt.
+The exact-source installer fixtures pass on Bash 5 and genuine Bash 3.2,
+covering conflicting receipt streams, redirected ancestors, original failed
+status, prior installation preservation and locking with substituted Cargo.
+Actual consumer tools-check and negative failure-evidence collection also pass
+on both shells. The existing real Testkit debug CLI passes the updated offline
+checks on both shells with the same path; before/after receipts and executable
+checksums are unchanged. This is Linux artifact re-admission, not a new build
+or native macOS qualification. ShellCheck, snapshot/link and diff checks pass;
+evidence is retained in `target/shared-review-0.1.13/`. The exact-source
+[Shared Tooling CI](https://github.com/dragginzgame/shared-tooling/actions/runs/37908179516)
+has passing lint/security, Linux portable regression in progress and both macOS
+jobs queued at review. This refresh changes neither the incoming Host lock
+selection nor Rust/browser sources, and does not rerun unrelated Rust or release
+gates. The compatible pending version remains 0.1.13.
+
+The subsequent Host review preserves the incoming lock selection of all four
+published `ic-host-*` 0.8.9 packages. Their registry checksums and archive source
+identities match `0464db5146be910a0f078447831fa2807072c75a`; their library sources
+are byte-identical to 0.8.8. The release changes Host's own dependency preparation
+under [Host #36](https://github.com/dragginzgame/ic-host-tooling/issues/36), already
+implemented here. There is no new library API to substitute, and the direct
+`ic-host-fs` minimum remains 0.8.7 for bounded no-follow hashing. Testkit 0.25.4
+and its selected PocketIC 16.1.0 server are unchanged.
+
+Explicit locked dependency preparation, five file-helper tests, dependency-pin
+and library-boundary checks, strict native Clippy and Rust 1.88 checks for both
+native applications pass with that lock. Both real certification/composed-root,
+protected upgrade and fresh-key ingress scenarios pass, as does the local/mocked
+release/publication fixture. Evidence is retained in
+`target/host-review-0.1.13/`. The exact-source
+[Host CI](https://github.com/dragginzgame/ic-host-tooling/actions/runs/37905479815)
+passes Linux and MSRV; both macOS jobs remain queued at review. These focused
+checks do not establish native macOS acceptance or remote CI for the uncommitted
+IC Auth batch. Public Rust libraries and browser selections remain unchanged.
+
+[IC Auth #7](https://github.com/dragginzgame/ic-auth/issues/7) owns consumer
+adoption of Testkit's published setup/check interface. An isolated probe of
+published Testkit 0.25.4 `085756dd0e0e2304de7e4a0b6b887201918646b6` built its
+actual CLI from the package payload and its own locked inputs. An empty workspace
+table isolated that fixture from this repository; source code was unchanged.
+Explicit official-asset setup and offline check with `PATH=/nonexistent` return
+the same admitted executable path. Passing only that check-returned path to
+IC Auth's real certification/composed-root, protected upgrade and fresh-key
+ingress scenarios passes both tests on Linux. Probe evidence and retained server
+state are under `target/continuation-0.1.13/testkit-owner/` and the named
+`target/portable-fixtures/testkit-owner.*` directory.
+
+The probe preserves the selected snapshot, consumer pins and existing IC bundle
+link, verified before/after. No new Make command or installation route is
+advertised. Owner macOS qualification and the reviewed Shared Tooling six-tool
+retirement remain prerequisites in
+[Testkit #38](https://github.com/dragginzgame/ic-testkit/issues/38) and
+[Shared Tooling #76](https://github.com/dragginzgame/shared-tooling/issues/76).
+Sibling repositories remain read-only; their coordination belongs in those
+issues. No further package version change, commit, push or publication occurred.
+
+## Earlier 0.1.12 qualification (released)
+
+The following records preparation before the maintainer delivered 0.1.12;
+its pending-version and uncommitted wording is historical.
 
 The maintainer authorized work on [the MSRV wrapper](https://github.com/dragginzgame/ic-auth/issues/4),
 [setup failure evidence](https://github.com/dragginzgame/ic-auth/issues/2),

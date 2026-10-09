@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.1.13]
+
+- Adopt Shared Tooling 0.1.36's canonical installer for consumer-selected Cargo
+  binaries/examples. Reject conflicting receipt documents, recheck installation
+  paths after Cargo returns and retain Cargo's original failure status and build
+  evidence. Existing valid installations and the formatter bundle remain usable.
+  [Shared Tooling #65](https://github.com/dragginzgame/shared-tooling/issues/65).
+- Adopt the common locked dependency-preparation policy; release preflight
+  continues fetching the selected lock before offline validation and preserves
+  explicit offline settings.
+  [Shared Tooling #84](https://github.com/dragginzgame/shared-tooling/issues/84).
+- Select published Host Tooling 0.8.9 for native file utilities and IC Testkit,
+  retaining the current file/process contracts.
+  [Host Tooling #36](https://github.com/dragginzgame/ic-host-tooling/issues/36).
+
 ## [0.1.12] - 2026-10-09
 
 - Preserve the native MSRV lane under macOS Bash 3.2 without weakening strict
