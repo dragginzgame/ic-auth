@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.2.5]
+## [0.2.5] - 2026-10-09
 
 - Extend browser-client recovery coverage to uncertain prepare expiry across
   reloads, preserving original intent and preventing new dispatch or request
