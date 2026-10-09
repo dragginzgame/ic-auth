@@ -33,12 +33,12 @@ cp -Rp "$root/apps" "$fixture/repo/apps"
 mkdir -p "$fixture/repo/packages"
 tar -C "$root/packages" --exclude=node_modules --exclude=dist -cf - client | tar -xf - -C "$fixture/repo/packages"
 overlays=(.gitignore Makefile Cargo.toml Cargo.lock CHANGELOG.md .shared-tooling.snapshot
-    ci/ic-auth-tools.tsv
     scripts/release/metadata.sh scripts/release/publish.sh scripts/release/test-tools.sh
     scripts/release/rewrite-manifest.pl
     scripts/dev/run-host-tooling.sh
     scripts/dev/client-tools.sh scripts/dev/client-contracts.sh scripts/dev/test-client.sh
-    scripts/dev/test-qualification.sh
+    scripts/dev/test-qualification.sh scripts/dev/testkit-tools.sh
+    scripts/ci/test-testkit-tools.sh
     scripts/dev/msrv-tools.sh scripts/dev/check-msrv.sh
     scripts/ci/check-release-tag.sh scripts/ci/rewrite-local-lock-versions.pl)
 for path in "${overlays[@]}"; do

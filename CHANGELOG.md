@@ -7,7 +7,9 @@
   `make install-tools` (or `make install-ic-tools install-testkit-tools`) to
   prepare the new five-tool bundle and Testkit server. Offline qualification
   consumes Testkit's admitted path; the duplicate server matrix and alignment/
-  binary checkers are removed. Old bundles and evidence remain retained.
+  binary checkers are removed. Release/publication fixtures export the current
+  Testkit callers without requiring the retired matrix. Old bundles and evidence
+  remain retained.
   [#7](https://github.com/dragginzgame/ic-auth/issues/7),
   [Shared Tooling #76](https://github.com/dragginzgame/shared-tooling/issues/76).
 - Adopt checkout-local formatter discovery and single-document dependency

@@ -111,6 +111,20 @@ Canic can adopt published IC Auth 0.1.14 now; this tooling cut does not require 
 new authentication API or wallet endpoint. No sibling source edits, complete
 local CI, commit, push or publication are authorized or claimed.
 
+The maintainer subsequently committed the hard-cut implementation at
+`f6e17b08be17cbb39a41fb526079b7a710bbd405` with the manifest still 0.1.14.
+Their complete-gate invocation exposed a missed consumer release-fixture overlay:
+`test-release-tools` still tried copying the retired `ci/ic-auth-tools.tsv`.
+The local fix removes that entry and exports the current Testkit setup/check
+and caller-test scripts alongside the qualification wrapper. The shared matrix
+already comes from the verified snapshot export; no replacement matrix is added.
+`make test-release-tools` now passes all local release/publication scenarios;
+ShellCheck and diff whitespace pass. The failed fixture `release-tools.ZUIs3S`
+and original validation logs remain retained. Successful evidence is in
+`target/shared-hard-cut/release-fixture-fix/release-tools.log` and
+`target/portable-fixtures/release-tools.o1qRdM`. A complete-gate rerun and native
+macOS acceptance are still outstanding; this repair did not commit or release.
+
 ## Earlier compatible continuation (carried into 0.2.0)
 
 The maintainer delivered 0.1.14 and requested more work to accelerate Canic
