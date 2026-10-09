@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.2.2]
+## [0.2.2] - 2026-10-09
 
 - Add bounded standalone root delegation-proof verification for issuer
   installation before a token exists. Reuse complete-token certificate and
