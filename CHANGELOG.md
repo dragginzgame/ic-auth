@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.2.4]
+## [0.2.4] - 2026-10-09
 
 - Qualify the incoming Host 0.9.3 and IC Testkit 0.27.1 selections for native
   tooling and canister lifecycle checks, retaining Testkit-owned server setup.
