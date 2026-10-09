@@ -13,9 +13,10 @@ mkdir -p "$root/target/portable-fixtures"
 fixture="$(mktemp -d "$root/target/portable-fixtures/release-tools.XXXXXX")"
 echo "Release/publication fixture evidence: $fixture"
 # Exercise the actual shared Make entrypoints before substituting the larger
-# gate below. Both opt-in includes are explicit inputs to this isolated check.
+# gate below. The opt-in includes and execution probe are explicit inputs.
 TMPDIR="$fixture" bash scripts/ci/check-release-commands.sh "$root" \
-    ci/tool-versions.env make/tools.mk make/release.mk make/rust-format.mk
+    ci/tool-versions.env make/tools.mk make/release.mk make/rust-format.mk \
+    make/execution.mk scripts/ci/check-make-execution.sh
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR
 export GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null
 mkdir "$fixture/repo"

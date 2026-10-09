@@ -3,9 +3,9 @@
 The maintainer accepted the larger Canic authentication extraction, selected the
 name `ic-auth`, and confirmed `/home/adam/projects/ic-auth` as the local repository.
 
-The current committed release is `64e1d9b90bb27e50280e3845e86db336df4f04e3`
-(`0.2.4`) on `main`, with annotated tag `v0.2.4`; both remote identities were
-verified during continuation. Both libraries' `0.2.4` registry checksums match
+The current committed release is `6dec8b9463526536f3f9f888082ac26cc9a0a727`
+(`0.2.5`) on `main`, with annotated tag `v0.2.5`; both remote identities were
+verified during continuation. Both libraries' `0.2.5` registry checksums match
 the retained publication intent for that exact source/tag. The maintainer
 executed the release and publication. The original bootstrap was
 `7a03102e52b7a400588530997a9f7fb91c83de9d` (`0.1.0`).
@@ -22,7 +22,7 @@ records this batch without closing the larger extraction.
 
 The virtual Rust workspace contains `ic-auth-protocol-types`, `ic-auth` and the
 unpublished native application in `apps/tooling/`, with one lockfile, root-owned
-dependency selections and current manifest version `0.2.4`.
+dependency selections and current manifest version `0.2.5`.
 The passive token/proof contracts and canonical encoding are adapted from the
 clean Canic source at `e286b3fd98460c98670336853f80658a920966e0`; see the
 [source review](../design/canic-source-review.md) for exact ownership and API
@@ -40,10 +40,110 @@ has recorded focused standalone-proof adapter qualification; complete-token,
 durable-session and deployed acceptance remain separate. No sibling repository
 was modified by IC Auth work.
 
-## Current client recovery and shared Make adoption (pending 0.2.5)
+## Current client deadline repair (pending 0.2.6)
+
+The maintainer confirmed 0.2.5 live and requested continued integration work.
+The pushed main/peeled tag match the release above; annotated tag object
+`a847f4131319aff66c05dabe22ed22c8a3e03d04` and both official unyanked registry
+checksums match retained publication intent. Its
+[main CI](https://github.com/dragginzgame/ic-auth/actions/runs/37949883587)
+is still queued at inspection. Issue #11 remains open for native acceptance.
+
+Prepare and reconciliation previously processed replies after the saved operation
+deadline, unlike retrieval. New regressions reproduce a late prepared reply
+changing retained intent before expiry refusal. The client now checks its
+exclusive deadline after the reply and current-generation check, before outcome
+processing. At exact expiry and one nanosecond later, prepared/no-effect TTL/session
+replies preserve original bytes/revision across reloads, allocate no new ID or
+retrieval and do not invalidate the session. Replies one nanosecond before expiry
+still complete retrieval. All 39 client cases and both Rust/TypeScript Candid
+directions pass. This uses injected transport/shared memory, not Canic endpoints.
+
+Earlier qualification used an incoming Host 0.9.4 lock, preserved byte-for-byte.
+The latest selections are qualified below. Published
+Host source `4e3daebd5df07c6449279535668436024a45c02b` matches remote main/tag;
+crate sources are unchanged from 0.9.3, with version metadata and shared Make
+adoption at their owner. Five native file-helper cases and both actual Testkit
+certification/composed-root/protected-upgrade/fresh-key ingress scenarios pass.
+The sandbox first refused localhost binding; that failure is retained, and the
+same offline qualification passes with binding enabled. Testkit remains 0.27.1
+with its admitted 16.1.0 server. Rust 1.88 all-target/all-feature application
+checks and strict affected-package Clippy pass.
+
+Evidence is retained in `target/continuation-0.2.5-live/`, including failing
+client reproductions, final acceptance and the unchanged incoming lock hash.
+The next draft is **0.2.6**: a compatible client deadline correction, native
+dependency qualification and the Shared Tooling fixes below. Public Rust APIs,
+generated contracts, storage profile
+and package versions are unchanged; no migration or retained-state reset is
+required. No functions, methods or types were removed. No full local gate,
+sibling edit/build, commit, push, publication or deployment occurred. Canic's
+existing #58/#506 verifier/deadline adoption and #507 non-issuing reconciliation
+remain at their owning issues; the private client remains unpublished on npm.
+
+### Shared Tooling 0.2.7 adoption
+
+The maintainer requested the new shared revision. Remote main matches reviewed
+`47d6ae6488b8007323fa7c2e22a6efa11d77ae63` (0.2.7 heading). The canonical exporter
+refreshes 80 selected files, adding `make/execution.mk` explicitly; the baseline
+itself is unchanged. The release and tool-evidence consumer fixtures select the
+new companion and its existing execution probe. Shared entrypoints reject unsafe Make modes
+before dispatch; release qualification stays bound to its disposable root and
+formatting qualification preserves newline-ending paths and Git object custody.
+
+On Linux, Bash 5 and genuine Bash 3.2 pass the consumer release/publication and
+failure-evidence fixtures, actual consumer sorting/formatting/hook preservation
+checks, and focused Shared owner release/format/hook suites. The latter include
+direct/inherited unsafe-mode refusal, quoted variables/parallel Make, external
+root confinement and real Cargo formatting in a newline-ending fixture. They are
+distinguished from native macOS and real release acceptance. No source hooks
+were activated or new tools installed. Evidence is retained in
+`target/shared-tooling-0.2.7/`; the first export refused a differently spelled
+clone origin URL, then passed after matching the recorded source exactly.
+
+The client and incoming lock hashes were unchanged during that adoption, and the
+complete CI roster matched its pre-adoption bytes. Issue #11 remains open for delivered native
+acceptance. No Rust product suite, complete gate, commit/push, publication or
+sibling mutation ran for this adoption. Shared #93 is a separate
+artifact-readback proposal and is not part of this reviewed revision.
+
+### Latest Host and Testkit qualification
+
+The maintainer requested the latest upstream review. The new incoming lock
+selects Host **0.9.5** and IC Testkit **0.27.2**; it is preserved byte-for-byte.
+Host source `0f61811c88a6b6b4b026b04ca16e428409be877f` and Testkit source
+`1a8f2ff570ea1c3bd58b215e28af52e5d99870e8` match their remote main/peeled tags
+and the downloaded packages' VCS metadata. Official unyanked registry checksums
+match the lock selections. Both releases change shared tooling; Host crate
+sources and Testkit runtime/CLI sources are unchanged from the prior selections.
+No IC Auth API adaptation or new dependency is required.
+
+The initial offline metadata check refused uncached packages; selected CLI
+admission also refused the unprepared version. Explicit locked fetch and
+`make install-testkit-tools` then prepared the exact 0.27.2 CLI, admitted by its
+selected-install receipt, and retained Testkit's existing 16.1.0 server. Prior
+installations and refusal logs remain retained; ordinary checks stay offline.
+The CLI exposes setup/check/run rather than a standalone version command.
+
+Five native Host utility tests, the substituted Testkit caller failure/selection
+fixture, both actual certification/composed-root/protected-upgrade/fresh-key
+ingress scenarios, Rust 1.88 all-target/all-feature application checks, strict
+affected-package Clippy and library dependency boundaries pass on Linux.
+Logs and exact input hashes are in `target/host-testkit-latest/`. Pending client
+and snapshot bytes remain unchanged. The earlier 0.9.4/0.27.1 evidence above is
+retained separately; current qualification uses 0.9.5/0.27.2. Upstream native CI
+is queued at inspection, separately from these consumer results. This extends
+the existing compatible 0.2.6 draft without package version changes, full gate,
+commit/push, release, sibling edits or deployment.
+
+## Earlier client recovery and shared Make adoption (0.2.5, released)
+
+The following records local preparation before maintainer delivery; pending
+version, publication and CI observations in this section are historical.
 
 The maintainer confirmed 0.2.4 live and requested continued issue work and help
-for Canic integration. Remote main/peeled tag match the source above; the
+for Canic integration. Remote main/peeled tag matched
+`64e1d9b90bb27e50280e3845e86db336df4f04e3` during that continuation; the
 annotated tag object is `32313542a51d6c08f18f78a6296163131d931063`. Both official
 registry records are unyanked and match retained publication intent. Its
 [main CI](https://github.com/dragginzgame/ic-auth/actions/runs/37944459924)

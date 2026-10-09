@@ -76,6 +76,15 @@ ID or invalidating the authenticated session. Expiry bounds automatic work; it
 does not prove whether the original issuance completed. Explicit reconciliation
 of retained unknown effects remains an application/issuer recovery obligation.
 
+Prepare and reconciliation also check that saved deadline after a reply arrives,
+before interpreting the outcome or changing storage. At or after expiry, even a
+prepared response, definitive no-effect TTL rejection or session rejection
+returns `retrieval_expired`, preserving the original intent and revision. It
+cannot trigger TTL backoff, allocate another ID or invalidate the session.
+Replies one nanosecond before the deadline remain eligible for normal processing;
+retrieval independently enforces the same cutoff. Session-generation checks
+still run first, so a reply to an obsolete login remains `stale_generation`.
+
 A typed `sessionInvalid` result atomically invalidates only the generation seen
 by that request. Generation/principal checks also reject late replies after
 logout, reconnect or a cross-tab login change as `stale_generation`. Applications

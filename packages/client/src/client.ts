@@ -234,6 +234,7 @@ export class TokenSessionClient {
           throw new ClientError('prepare_uncertain', { cause });
         }
         this.#assertSession(captured);
+        if (this.#now() >= deadline) throw new ClientError('retrieval_expired');
         if (result.kind === 'unresolved') throw new ClientError('prepare_uncertain');
         if (result.kind === 'ttlUnavailable') {
           // This is explicitly a definitive no-effect rejection. Unknown replies

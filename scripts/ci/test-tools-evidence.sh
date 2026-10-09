@@ -11,11 +11,12 @@ mkdir -p target/portable-fixtures
 fixture="$(mktemp -d "$root/target/portable-fixtures/tools-evidence.XXXXXX")"
 printf 'Tool failure evidence retained: %s\n' "$fixture"
 consumer="$fixture/consumer with spaces"
-mkdir -p "$consumer/scripts/dev" "$consumer/make" "$consumer/ci" "$fixture/bin" "$fixture/runner"
+mkdir -p "$consumer/scripts/dev" "$consumer/scripts/ci" "$consumer/make" "$consumer/ci" "$fixture/bin" "$fixture/runner"
 # Copy every include loaded by the actual Makefile so injected failures reach
 # the selected tool targets rather than stopping during Makefile parsing.
-for input in Makefile make/tools.mk make/release.mk make/rust-format.mk \
-    ci/tool-versions.env scripts/dev/ci-tools.sh scripts/dev/install-rust-tools.sh; do
+for input in Makefile make/tools.mk make/release.mk make/rust-format.mk make/execution.mk \
+    scripts/ci/check-make-execution.sh ci/tool-versions.env \
+    scripts/dev/ci-tools.sh scripts/dev/install-rust-tools.sh; do
     cp -p "$input" "$consumer/$input"
 done
 # Substitute only Cargo's install effect. Wrapper, aggregate and installer are

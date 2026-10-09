@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.2.6]
+
+- Enforce the browser client's original exclusive deadline on prepare and
+  reconciliation replies, preserving saved intent without TTL backoff, new
+  request IDs or session invalidation after expiry.
+  [#3](https://github.com/dragginzgame/ic-auth/issues/3).
+- Qualify incoming Host 0.9.5 and IC Testkit 0.27.2 for native tooling and
+  canister lifecycle checks, preparing the matching Testkit CLI while retaining
+  its PocketIC 16.1.0 server pairing.
+- Adopt Shared Tooling 0.2.7 Make failure-propagation guards and isolated release
+  and newline-safe formatting checks, including required fixture companions.
+  [#11](https://github.com/dragginzgame/ic-auth/issues/11),
+  [Shared Tooling #30](https://github.com/dragginzgame/shared-tooling/issues/30),
+  [#7](https://github.com/dragginzgame/shared-tooling/issues/7),
+  [#90](https://github.com/dragginzgame/shared-tooling/issues/90).
+
 ## [0.2.5] - 2026-10-09
 
 - Extend browser-client recovery coverage to uncertain prepare expiry across

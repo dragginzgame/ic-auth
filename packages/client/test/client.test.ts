@@ -81,6 +81,100 @@ test('uncertain prepare keeps its original exclusive deadline and intent across 
   assert.deepEqual(h.sessions.invalidations, []);
 });
 
+for (const phase of ['prepare', 'reconcile'] as const) {
+  test(`${phase} replies at or after the deadline preserve intent across reloads`, async () => {
+    for (const kind of ['prepared', 'ttlUnavailable', 'sessionInvalid'] as const) {
+      for (const lateBy of [0n, 1n]) {
+        const h = harness(); const base = h.options.issuer;
+        const started = deferred<PrepareResult>(); const reply = deferred<PrepareResult>();
+        let key: string | undefined;
+        let completed: PrepareResult | undefined;
+        // Keep the issuer's retrieval material valid across the earlier client
+        // deadline, isolating the cutoff from claim/retrieval expiry checks.
+        const options = { ...h.options, operationTtlNs: second / 2n,
+          store: {
+            read: (value: string) => h.store.read(value),
+            write: (value: string, revision: bigint, entry: Parameters<typeof h.store.write>[2]) => {
+              key = value;
+              return h.store.write(value, revision, entry);
+            },
+          },
+          issuer: (session: Session, fixed: Parameters<typeof base>[1]): IssuerOperations => {
+            const operations = base(session, fixed);
+            return { ...operations,
+              prepare: async (request, signal) => {
+                completed = await operations.prepare(request, signal);
+                if (phase === 'reconcile') throw new Error('original reply lost');
+                started.resolve(completed);
+                return reply.promise;
+              },
+              reconcile: async () => {
+                h.state.reconciles++;
+                assert.ok(completed);
+                started.resolve(completed);
+                return reply.promise;
+              },
+            };
+          },
+        };
+        const client = new TokenSessionClient(options);
+        if (phase === 'reconcile') {
+          await assert.rejects(client.token(h.configured), error('prepare_uncertain'));
+        }
+        const flight = client.token(h.configured);
+        const prepared = await started.promise;
+        assert.ok(key);
+        const original = await h.store.read(key);
+        assert.ok(original.entry && original.entry.kind === 'prepare');
+        h.state.now = original.entry.deadlineNs + lateBy;
+        reply.resolve(kind === 'prepared' ? prepared : { kind });
+        await assert.rejects(flight, error('retrieval_expired'));
+        assert.deepEqual(await h.store.read(key), original);
+
+        const reloaded = new TokenSessionClient({ ...options, operationTtlNs: 100n * second });
+        await assert.rejects(reloaded.token(h.configured), error('retrieval_expired'));
+        assert.equal(h.state.prepares, 1); assert.equal(h.state.ids, 1);
+        assert.equal(h.state.reconciles, phase === 'reconcile' ? 1 : 0);
+        assert.equal(h.state.retrieves, 0);
+        assert.deepEqual(await h.store.read(key), original);
+        assert.deepEqual(h.sessions.invalidations, []);
+      }
+    }
+  });
+}
+
+test('prepare and reconciliation replies just before the deadline can complete retrieval', async () => {
+  for (const phase of ['prepare', 'reconcile'] as const) {
+    const h = harness({ operationTtlNs: second / 2n }); const base = h.options.issuer;
+    const deadline = h.state.now + h.options.operationTtlNs;
+    let completed: PrepareResult | undefined;
+    const client = new TokenSessionClient({ ...h.options,
+      issuer: (session, fixed) => {
+        const operations = base(session, fixed);
+        return { ...operations,
+          prepare: async (request, signal) => {
+            completed = await operations.prepare(request, signal);
+            if (phase === 'reconcile') throw new Error('original reply lost');
+            h.state.now = deadline - 1n;
+            return completed;
+          },
+          reconcile: async () => {
+            h.state.reconciles++;
+            assert.ok(completed);
+            h.state.now = deadline - 1n;
+            return completed;
+          },
+        };
+      },
+    });
+    if (phase === 'reconcile') await assert.rejects(client.token(h.configured), error('prepare_uncertain'));
+    const token = await client.token(h.configured);
+    assert.deepEqual(token.claims, h.issued.get('login-1')!.claims);
+    assert.equal(h.state.prepares, 1); assert.equal(h.state.ids, 1);
+    assert.equal(h.state.retrieves, 1); assert.equal(h.state.reconciles, phase === 'reconcile' ? 1 : 0);
+  }
+});
+
 test('lost retrieval reply reuses prepared material without allocating another prepare', async () => {
   const h = harness(); const base = h.options.issuer; let lost = true;
   const client = new TokenSessionClient({ ...h.options, issuer: (session, fixed) => {
