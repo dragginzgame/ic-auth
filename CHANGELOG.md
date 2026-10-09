@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.1.10]
+## [0.1.10] - 2026-10-09
 
 - Add a private browser application-token client with injected authenticated
   identities and issuer operations, scoped caching, single-flight renewal and
