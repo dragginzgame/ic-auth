@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.2.6]
+## [0.2.6] - 2026-10-09
 
 - Enforce the browser client's original exclusive deadline on prepare and
   reconciliation replies, preserving saved intent without TTL backoff, new
