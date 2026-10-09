@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.1.13]
+## [0.1.13] - 2026-10-09
 
 - Adopt Shared Tooling 0.1.36's canonical installer for consumer-selected Cargo
   binaries/examples. Reject conflicting receipt documents, recheck installation
