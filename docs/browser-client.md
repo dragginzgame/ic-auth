@@ -60,6 +60,13 @@ allocates a replacement issuance automatically. Only a definitive
 `ttlUnavailable` outcome that guarantees no effect permits a smaller candidate
 TTL and fresh operation ID. Exhausting those candidates returns `ttl_exhausted`.
 
+The client checks the original exclusive operation deadline before allocating
+a fresh request ID and reserving intent, including after a delayed storage read,
+a lost CAS reservation or a definitive TTL rejection's storage clear. Completion
+at or after expiry returns `retrieval_expired` without another reservation or
+issuer call. Storage transactions begun before expiry keep their normal commit
+and uncertainty semantics; expiry never authorizes discarding unknown effects.
+
 Only typed `pending` retrieval outcomes are polled. Poll count, per-call timeout,
 material size and original operation/retrieval deadlines are bounded explicitly.
 A lost retrieval reply returns `transport` and retains prepared material. Poll

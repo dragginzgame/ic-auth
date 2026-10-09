@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.7]
+
+- Refuse fresh browser-client request IDs and intent reservations after storage
+  latency, CAS contention or TTL-backoff clearing exhausts the original operation
+  deadline. [#3](https://github.com/dragginzgame/ic-auth/issues/3).
+- Adopt Shared Tooling 0.2.8 Make admission fixes: use the selected snapshot's
+  execution probe and support recursive Make commands with extra arguments.
+  [#11](https://github.com/dragginzgame/ic-auth/issues/11),
+  [Shared Tooling #30](https://github.com/dragginzgame/shared-tooling/issues/30).
+- Select Host 0.9.7 for native tooling and canister qualification, retaining
+  IC Testkit 0.27.2 and its PocketIC 16.1.0 server pairing.
+
 ## [0.2.6] - 2026-10-09
 
 - Enforce the browser client's original exclusive deadline on prepare and

@@ -1,7 +1,7 @@
 # Shared Tooling snapshot v1
 format	1
 source	https://github.com/dragginzgame/shared-tooling
-revision	47d6ae6488b8007323fa7c2e22a6efa11d77ae63
+revision	b2646cde9abbc8861857a4379c683a0c19eba43e
 file	0d472a74369e6aa772d585305e19b398fb86f0ef9698f1564356ddc11c60e0b6	-	DRAGGINZGAME.md
 file	05838a36f21bb4299617ae8965687791062c94d768181f5f97676cc577382153	-	rules/contributions.md
 file	b5a6e8fb723a861b722834675e27b4b16f3d296112622c1b40cdc8714f575404	-	rules/changelogs.md
@@ -17,7 +17,7 @@ file	35fd87d36a09ed0971841abf28535d43470c713a82581c2251b924da1ab8f484	-	audits/f
 file	ffdca09602c44c8aff8fc2a17588b20eb6a56e2e71fb6d42ad75087fdd65819b	-	audits/complexity-and-technical-debt.md
 file	1b64cf2ba0393ab329ec29eb05a696d47ef5933f5ab9bff6e1fe4a7e7b294075	-	audits/module-surface-hardening.md
 file	8f415bcb0e97fcc0e27519e727e7aefae94686e6e5e3619d24e3df3ace5d7708	-	audits/module-cleanup.md
-file	a36ffec9ac991db92030b17dc3e2a524dfed06e6b87eeebe23d6ee0655c603fb	-	docs/releases.md
+file	e9a4f50ec386838698a44946f44aa777c4ad37bcfe1c65f4d63da281058cac97	-	docs/releases.md
 file	fc689ff5d636be1049a527f6cafa74a768005211dcbecb074b8b327d8e6bab04	x	scripts/ci/run-release.sh
 file	fc40c8ad1c4ab850fda0e60b8cb0b3201724d020966e4d7e5d07620781f5e814	-	scripts/ci/release-pr.sh
 file	c0d4bed8f2b876f5ae0a61f6c56e4c71736ab9888f092ab6c67d9f5ba142543d	x	scripts/ci/check-make-execution.sh
@@ -81,4 +81,4 @@ file	dfccb5fa0194b343d140512c892a31eac902cb1a489e641feae3c18e1cf70a1c	-	scripts/
 file	a3af7084956384262842be33100f91a22fdd82b0f91b6091a00e90f8726f67fe	x	scripts/ci/check-release-source.sh
 file	f1a92a42f6e5000b40c8f44a5f89fa8c5b254f204bcc9f2af8d2bbf5f123ec15	-	make/release.mk
 file	1fd9242abe9dfcfe2dc4639644c178c59e92e55efed7ec90443b56f4590a57d8	-	make/rust-format.mk
-file	7da7d5cd82bf10041937b2fcefc0cc63c27251b2e07462b37391a49c7e988ca0	-	make/execution.mk
+file	6b3532abce23f8fe3a57a1c3327455c8975d9ba6e66529255cdc566dfbbe914e	-	make/execution.mk

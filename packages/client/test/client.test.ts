@@ -175,6 +175,98 @@ test('prepare and reconciliation replies just before the deadline can complete r
   }
 });
 
+for (const phase of ['initial-read', 'contended-reservation', 'ttl-clear'] as const) {
+  test(`${phase} completing at or after expiry cannot reserve another issuance intent`, async () => {
+    for (const lateBy of [0n, 1n]) {
+      const h = harness(); const base = h.options.issuer;
+      const deadline = h.state.now + h.options.operationTtlNs;
+      let delayed = false; let key: string | undefined; let writes = 0;
+      let retained: Awaited<ReturnType<typeof h.store.read>> | undefined;
+      const client = new TokenSessionClient({ ...h.options,
+        store: {
+          read: async value => {
+            key = value;
+            const snapshot = await h.store.read(value);
+            if (phase === 'initial-read' && !delayed) {
+              delayed = true; retained = snapshot; h.state.now = deadline + lateBy;
+            }
+            return snapshot;
+          },
+          write: async (value, revision, entry) => {
+            writes++;
+            if (phase === 'contended-reservation' && !delayed) {
+              // Another writer advances the empty slot's CAS revision while
+              // this caller's reservation loses the race.
+              assert.equal(await h.store.write(value, revision, undefined), true);
+              delayed = true; retained = await h.store.read(value);
+              h.state.now = deadline + lateBy;
+              return false;
+            }
+            const committed = await h.store.write(value, revision, entry);
+            if (phase === 'ttl-clear' && entry === undefined && committed) {
+              delayed = true; retained = await h.store.read(value);
+              h.state.now = deadline + lateBy;
+            }
+            return committed;
+          },
+        },
+        issuer: (session, fixed) => ({ ...base(session, fixed), prepare: async () => {
+          h.state.prepares++;
+          return { kind: 'ttlUnavailable' };
+        } }),
+      });
+      await assert.rejects(client.token(h.configured), error('retrieval_expired'));
+      assert.ok(delayed && key && retained);
+      assert.deepEqual(await h.store.read(key), retained);
+      assert.equal(retained.entry, undefined);
+      assert.equal(h.state.ids, phase === 'initial-read' ? 0 : 1);
+      assert.equal(writes, phase === 'initial-read' ? 0 : phase === 'ttl-clear' ? 2 : 1);
+      assert.equal(h.state.prepares, phase === 'ttl-clear' ? 1 : 0);
+      assert.equal(h.state.reconciles, 0); assert.equal(h.state.retrieves, 0);
+      assert.deepEqual(h.sessions.invalidations, []);
+    }
+  });
+}
+
+test('storage completing just before expiry can reserve and finish issuance', async () => {
+  for (const phase of ['initial-read', 'ttl-clear'] as const) {
+    const h = harness(); const base = h.options.issuer;
+    const deadline = h.state.now + h.options.operationTtlNs;
+    let delayed = false; let rejected = false;
+    const client = new TokenSessionClient({ ...h.options,
+      store: {
+        read: async key => {
+          const snapshot = await h.store.read(key);
+          if (phase === 'initial-read' && !delayed) { delayed = true; h.state.now = deadline - 1n; }
+          return snapshot;
+        },
+        write: async (key, revision, entry) => {
+          const committed = await h.store.write(key, revision, entry);
+          if (phase === 'ttl-clear' && entry === undefined && committed) {
+            delayed = true; h.state.now = deadline - 1n;
+          }
+          return committed;
+        },
+      },
+      issuer: (session, fixed) => {
+        const operations = base(session, fixed);
+        return { ...operations, prepare: async (request, signal) => {
+          if (phase === 'ttl-clear' && !rejected) {
+            rejected = true; h.state.prepares++; return { kind: 'ttlUnavailable' };
+          }
+          return operations.prepare(request, signal);
+        } };
+      },
+    });
+    const token = await client.token(h.configured);
+    assert.ok(delayed);
+    assert.deepEqual(token.claims, h.issued.get('login-1')!.claims);
+    assert.equal(h.state.ids, phase === 'ttl-clear' ? 2 : 1);
+    assert.equal(h.state.prepares, phase === 'ttl-clear' ? 2 : 1);
+    assert.equal(h.state.retrieves, 1);
+  }
+});
+
 test('lost retrieval reply reuses prepared material without allocating another prepare', async () => {
   const h = harness(); const base = h.options.issuer; let lost = true;
   const client = new TokenSessionClient({ ...h.options, issuer: (session, fixed) => {

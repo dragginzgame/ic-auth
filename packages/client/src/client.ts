@@ -194,6 +194,7 @@ export class TokenSessionClient {
         continue;
       }
       if (!entry) {
+        if (this.#now() >= deadline) throw new ClientError('retrieval_expired');
         const requestId = this.#options.requestId().slice();
         if (requestId.length !== 32) throw new ClientError('configuration');
         entry = {
