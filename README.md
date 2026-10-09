@@ -13,7 +13,7 @@ contract. The libraries and reference service must not depend on either project.
 The Rust workspace implements passive token/proof contracts, validated protocol
 identifiers, canonical signed encoding, optional IC signature/application-token
 verification and atomic session/replay admission extracted from Canic. Both
-libraries are published on crates.io at `0.1.9`; see the
+libraries are published on crates.io at `0.1.10`; see the
 [signature](docs/signatures.md), [token](docs/tokens.md) and
 [session](docs/sessions.md) contracts. Durable canister adoption remains pending.
 Bounded [signature preparation and retrieval](docs/signature-preparation.md)
@@ -22,7 +22,8 @@ Released [IC Testkit qualification](docs/ic-testkit-qualification.md) checks
 real certification, upgrades and signed ingress; this internal fixture
 does not implement a wallet login provider.
 The private [browser client](docs/browser-client.md) now implements injected
-authenticated-identity/token lifecycle machinery with generated Candid contracts.
+authenticated-identity/token lifecycle machinery with generated Candid contracts
+and an opt-in transactional IndexedDB store.
 It is not published; issuer adapter qualification and consumer adoption remain pending.
 **Wallet login remains unimplemented.** Tokens and local sessions do not grant
 application resource ownership. The native utility in `apps/tooling/` is unpublished and reuses

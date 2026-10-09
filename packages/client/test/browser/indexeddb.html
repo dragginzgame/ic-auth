@@ -1,0 +1,97 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>IC Auth IndexedDB qualification</title>
+<pre id="result" data-result="running">Running native IndexedDB checks…</pre>
+<script type="module">
+import { IndexedDbTokenStore } from '/indexeddb.js';
+const output = document.querySelector('#result');
+const lines = [];
+const assert = (condition, message) => { if (!condition) throw new Error(message); };
+const request = operation => new Promise((resolve, reject) => {
+  operation.onsuccess = () => resolve(operation.result); operation.onerror = () => reject(operation.error);
+});
+const complete = transaction => new Promise((resolve, reject) => {
+  transaction.oncomplete = resolve; transaction.onabort = () => reject(transaction.error);
+});
+const refused = async (operation, code) => {
+  try { await operation; } catch (error) { assert(error.code === code, `expected ${code}: ${error}`); return; }
+  throw new Error(`expected ${code} refusal`);
+};
+const configuration = {
+  factory: indexedDB, databaseName: `ic-auth-qualification-${crypto.randomUUID()}`,
+  maximumEntries: 2, maximumEntryBytes: 1024, maximumKeyBytes: 1024, timeoutMs: 10_000,
+};
+const intent = () => ({ kind: 'prepare', request: new Uint8Array([1, 2]), candidate: 0, deadlineNs: 9_007_199_254_740_993n });
+let a, b, raw, abortStore;
+const abortName = configuration.databaseName + '-abort';
+try {
+  a = await IndexedDbTokenStore.open(configuration); b = await IndexedDbTokenStore.open(configuration);
+  const results = await Promise.all([a.write('scope', 0n, intent()), b.write('scope', 0n, intent())]);
+  assert(results.filter(Boolean).length === 1, 'exactly one CAS writer'); lines.push('PASS concurrent connections/CAS');
+  const saved = await b.read('scope'); saved.entry.request[0] = 99;
+  assert((await a.read('scope')).entry.request[0] === 1, 'detached read');
+  lines.push('PASS detached bytes');
+  a.close(); b.close();
+  a = await IndexedDbTokenStore.open(configuration);
+  const restored = await a.read('scope');
+  assert(restored.revision === saved.revision && restored.entry.deadlineNs === 9_007_199_254_740_993n, 'reopen/bigint');
+  lines.push('PASS reopen/uncertain intent/exact bigint');
+  await a.write('scope', restored.revision, undefined);
+  assert(!await a.write('scope', 0n, intent()), 'tombstone ABA'); lines.push('PASS tombstone stale-writer refusal');
+  await a.write('another', 0n, intent());
+  await refused(a.write('overflow', 0n, intent()), 'storage_capacity'); lines.push('PASS capacity with tombstones');
+  await refused(IndexedDbTokenStore.open({ ...configuration, maximumEntries: 3 }), 'configuration');
+  assert((await a.read('another')).entry.kind === 'prepare', 'profile refusal preserved bytes');
+  lines.push('PASS incompatible profile preserved');
+  raw = await request(indexedDB.open(configuration.databaseName, 1));
+  const transact = raw.transaction.bind(raw);
+  // A separate native connection verifies that abort after put success rolls back.
+  const tx = transact('tokens', 'readwrite');
+  const finished = new Promise(resolve => { tx.onabort = resolve; });
+  const put = tx.objectStore('tokens').put({ revision: 99n, entry: intent() }, 'scope');
+  put.onsuccess = () => tx.abort(); await finished;
+  assert((await a.read('scope')).entry === undefined, 'aborted put must not replace tombstone');
+  lines.push('PASS native post-request transaction rollback');
+  const corrupt = transact('tokens', 'readwrite'); const committed = complete(corrupt);
+  corrupt.objectStore('tokens').put({ revision: 99n, entry: intent() }, 'corrupt'); await committed;
+  await refused(a.read('corrupt'), 'storage_corrupt');
+  await refused(a.write('corrupt', 99n, undefined), 'storage_corrupt');
+  assert((await request(transact('tokens').objectStore('tokens').get('corrupt'))).revision === 99n, 'corrupt retained');
+  lines.push('PASS malformed retained data refused without deletion');
+  let abortNext = false;
+  const factory = { open: (...arguments_) => {
+    const opening = indexedDB.open(...arguments_);
+    opening.addEventListener('success', () => {
+      const database = opening.result; const transaction = database.transaction.bind(database);
+      database.transaction = (...arguments_) => {
+        const tx = transaction(...arguments_); const get = tx.objectStore.bind(tx);
+        tx.objectStore = name => {
+          const store = get(name); const put = store.put.bind(store);
+          store.put = (...arguments_) => {
+            const operation = put(...arguments_);
+            if (name === 'tokens' && abortNext) { abortNext = false; operation.addEventListener('success', () => tx.abort(), {once:true}); }
+            return operation;
+          };
+          return store;
+        };
+        return tx;
+      };
+    });
+    return opening;
+  } };
+  abortStore = await IndexedDbTokenStore.open({ ...configuration, factory, databaseName: abortName, maximumEntries: 1 });
+  abortNext = true;
+  await refused(abortStore.write('failed', 0n, intent()), 'storage_unavailable');
+  assert((await abortStore.read('failed')).revision === 0n, 'late abort left an entry');
+  assert(await abortStore.write('kept', 0n, intent()), 'late abort consumed capacity');
+  lines.push('PASS class write resolves only on native commit');
+  output.dataset.result = 'pass'; output.textContent = lines.join('\n');
+} catch (error) {
+  output.dataset.result = 'fail'; output.textContent = [...lines, `FAIL ${error.stack ?? error}`].join('\n');
+} finally {
+  a?.close(); b?.close(); raw?.close(); abortStore?.close();
+  // Only this page's uniquely named disposable fixture is removed.
+  indexedDB.deleteDatabase(configuration.databaseName);
+  indexedDB.deleteDatabase(abortName);
+}
+</script>

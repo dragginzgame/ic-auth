@@ -2,8 +2,8 @@
 
 The virtual root owns two libraries, unpublished native tooling in `apps/tooling/`
 and the internal host/runner in `apps/qualification/`, plus dependency selections,
-lints and one lockfile. The current manifest version is `0.1.9`, tagged as
-`v0.1.9`; both libraries are published on crates.io.
+lints and one lockfile. The current manifest version is `0.1.10`, tagged as
+`v0.1.10`; both libraries are published on crates.io.
 Rust `1.99.0` remains the development compiler selected by `rust-toolchain.toml`.
 The common package minimum is Rust `1.88.0`, inherited from the root catalog and
 qualified by explicit older-compiler checks. See [MSRV coverage](msrv.md).
@@ -61,7 +61,7 @@ is retained under `target/browser-client/`.
 
 | Focused command | Purpose |
 | --- | --- |
-| `make test-client` | Private client lifecycle, compiled SDK consumer example and Rust/TypeScript Candid roundtrip |
+| `make test-client` | Private client lifecycle, IndexedDB transactions, compiled SDK consumer example and Rust/TypeScript Candid roundtrip |
 | `make check-client-contracts` | Compare fresh locked bindings with the Rust-owned checked-in contracts offline |
 | `make generate-client-contracts` | Explicitly regenerate the checked-in client contracts from Rust DTOs |
 | `make test-types` | Identifier rejection and Candid wire compatibility |
@@ -127,16 +127,19 @@ It does not qualify browser/wallet login or a durable session backend.
 ## Releases and publication
 
 ```sh
-make release-patch                 # current compatible batch: 0.1.9 -> 0.1.10
-make release-minor                 # pre-1.0 breaking increment: 0.1.9 -> 0.2.0
-make release-major                 # explicit major decision: 0.1.9 -> 1.0.0
+make release-patch                 # current compatible batch: 0.1.10 -> 0.1.11
+make release-minor                 # pre-1.0 breaking increment: 0.1.10 -> 0.2.0
+make release-major                 # explicit major decision: 0.1.10 -> 1.0.0
 make release-resume VERSION=X.Y.Z   # reconcile the exact saved attempt
 make publish-dry-run               # validate packages without upload
 make publish                       # upload a clean, delivered tagged release
 ```
 
-The undated `0.1.9` draft records Shared Tooling 0.1.29 adoption and clearer
-release-source diagnostics. Released `0.1.8` added qualified minimum-compiler
+The undated `0.1.11` draft records Shared Tooling 0.1.32 IC-tool reuse,
+Host Tooling 0.8.5 and opt-in transactional browser storage. The current PocketIC
+installer and consumer-selected pins remain in use until the published Testkit
+replacement is qualified; see [the handoff](ic-tools.md#pocketic-ownership-handoff).
+Released `0.1.8` added qualified minimum-compiler
 coverage and Shared Tooling 0.1.28 adoption. Existing encoding, signature, token
 and session APIs and signed bytes are unchanged. Released `0.1.7` added IC Testkit
 qualification; signature preparation was introduced in `0.1.6`. Native SDK/CDK

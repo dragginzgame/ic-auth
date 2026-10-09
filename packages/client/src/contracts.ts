@@ -85,7 +85,7 @@ export type ClientErrorCode =
   | 'configuration' | 'unauthenticated' | 'stale_generation' | 'ttl_exhausted'
   | 'prepare_uncertain' | 'retrieval_expired' | 'polling_exhausted' | 'transport'
   | 'issuer_rejected' | 'invalid_material' | 'storage_conflict' | 'timeout'
-  | 'storage_capacity';
+  | 'storage_capacity' | 'storage_corrupt' | 'storage_unavailable';
 
 export class ClientError extends Error {
   constructor(public readonly code: ClientErrorCode, options?: ErrorOptions) {

@@ -1,7 +1,7 @@
 # IC Auth Agent Instructions
 
 Apply [DRAGGINZGAME.md](DRAGGINZGAME.md), adopted from Shared Tooling revision
-`1a54fb625d6e47efa64c4384808ecbc87be84e7e` and recorded in
+`635a39a9dd5f8d021fa9c9196b591e00521a7e02` and recorded in
 [.shared-tooling.snapshot](.shared-tooling.snapshot). Read
 [the current handoff](docs/status/current.md) before implementation.
 
@@ -71,7 +71,7 @@ Apply [DRAGGINZGAME.md](DRAGGINZGAME.md), adopted from Shared Tooling revision
   `make test-host-tooling`, `make test-qualification`, `make check-wasm` and `make clippy`; `make ci` is the
   explicit complete gate. `make test-release-runner` checks the adopted runner
   with substituted effects.
-  Both libraries are published at `0.1.9` with contracts, encoding and optional
+  Both libraries are published at `0.1.10` with contracts, encoding and optional
   IC signature/token/session machinery, including bounded signature preparation.
   The internal IC Testkit fixture exercises actual certification, composed roots,
   protected metadata upgrades and signed ingress with fresh session keys.
@@ -84,7 +84,10 @@ Apply [DRAGGINZGAME.md](DRAGGINZGAME.md), adopted from Shared Tooling revision
   See [client contracts](docs/browser-client.md). `make install-client-dependencies`
   explicitly prepares its selected Node/npm dependencies; `make test-client`
   checks lifecycle behavior and both Candid directions offline. Do not claim a
-  production adapter, npm publication or consumer adoption from transport fixtures.
+  production issuer adapter, npm publication or consumer adoption from transport
+  fixtures. Its IndexedDB store is opt-in with a dedicated application-owned
+  database, bounded records and atomic strict-commit CAS; do not erase unknown
+  issuance intent or change its stored profile/format implicitly.
 - `make publish-dry-run` checks both package builds using live registry metadata
   without uploading. `make test-release-tools` uses local bare remotes and mocked
   upload/registry transport. The three release targets share the complete gate

@@ -22,8 +22,9 @@
     "@icp-sdk/core": "^6.1.0"
   },
   "devDependencies": {
-    "typescript": "^7.0.2",
+    "@icp-sdk/bindgen": "^0.4.1",
     "@types/node": "^24.0.0",
-    "@icp-sdk/bindgen": "^0.4.1"
+    "fake-indexeddb": "^6.2.5",
+    "typescript": "^7.0.2"
   }
 }

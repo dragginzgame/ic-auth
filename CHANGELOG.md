@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.11]
+
+- Add an opt-in IndexedDB token store with atomic cross-connection compare-and-swap,
+  bounded admission and completion after strict transaction commit. Retain
+  uncertain issuance intent and refuse incompatible/corrupt storage without reset.
+  [IC Auth #3](https://github.com/dragginzgame/ic-auth/issues/3).
+- Adopt Shared Tooling 0.1.32 so verified IC tools can be reused when pin comments
+  or row order change, preserving installation receipts and checksum checks.
+  [Shared Tooling #79](https://github.com/dragginzgame/shared-tooling/issues/79).
+- Select published Host Tooling 0.8.5 for native file operations and IC Testkit,
+  preserving bounded no-follow reads and private publication evidence. Keep
+  the existing PocketIC setup until Testkit's replacement contract is qualified.
+  [Shared Tooling #76](https://github.com/dragginzgame/shared-tooling/issues/76).
+
 ## [0.1.10] - 2026-10-09
 
 - Add a private browser application-token client with injected authenticated

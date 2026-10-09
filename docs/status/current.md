@@ -1,11 +1,11 @@
-# Current handoff — 2026-10-08
+# Current handoff — 2026-10-09
 
 The maintainer accepted the larger Canic authentication extraction, selected the
 name `ic-auth`, and confirmed `/home/adam/projects/ic-auth` as the local repository.
 
-The current committed release is `551b4caed9ea44c11e72ccf444bb9b4c2b2e49bf`
-(`0.1.9`) on `main`, with annotated tag `v0.1.9`; both remote identities were
-verified during this batch. Both libraries' `0.1.9` registry checksums match
+The current committed release is `01f765b2b0b1c403feb3df3e0a7210bcaa6c26c9`
+(`0.1.10`) on `main`, with annotated tag `v0.1.10`; both remote identities were
+verified during this batch. Both libraries' `0.1.10` registry checksums match
 the retained publication intent for that exact source/tag. The maintainer
 executed the release and publication. The original bootstrap was
 `7a03102e52b7a400588530997a9f7fb91c83de9d` (`0.1.0`).
@@ -22,7 +22,7 @@ records this batch without closing the larger extraction.
 
 The virtual Rust workspace contains `ic-auth-protocol-types`, `ic-auth` and the
 unpublished native application in `apps/tooling/`, with one lockfile, root-owned
-dependency selections and current manifest version `0.1.9`.
+dependency selections and current manifest version `0.1.10`.
 The passive token/proof contracts and canonical encoding are adapted from the
 clean Canic source at `e286b3fd98460c98670336853f80658a920966e0`; see the
 [source review](../design/canic-source-review.md) for exact ownership and API
@@ -38,7 +38,122 @@ qualification, npm publication and consumer adoption remain pending.
 Canic adoption has not
 occurred; no sibling repository was modified.
 
-## Current browser client batch
+## Current 0.1.11 qualification
+
+The maintainer requested review of new Host Tooling and continuation of 0.1.11.
+The incoming lock already selected all four Host packages at 0.8.5, replacing
+the committed 0.8.4 selections. That change is preserved. Live registry metadata,
+cached package archive digests and selected lock checksums agree for every package;
+all are unyanked and declare Rust 1.88.0. Published package source and remote
+main/tag resolve to `1cad3253096b6eb67be5187209e7fb606593c501`.
+The clean Host sibling was read-only. The 0.8.4-to-0.8.5 crate sources are identical;
+the release adopts the IC installer reuse fix already selected here. No further
+native API substitution is needed: the consumer already delegates bounded
+no-follow reads, SHA-256 and durable private publication to Host.
+
+Shared Tooling subsequently advanced to committed
+`635a39a9dd5f8d021fa9c9196b591e00521a7e02` (0.1.32), verified against remote main.
+A new clean isolated clone supplied the canonical refresh of the same 80 files;
+the sibling's further dirty dashboard/setup work was preserved and excluded.
+The selected additions document PocketIC's intended Testkit ownership and correct
+Cargo-install qualification guidance. No new workflow or installer was selected.
+The consumer workflow has no concurrency cancellation, so it already preserves
+each push's native jobs. The complete IC installer, consumer pins, receipts and
+Testkit 0.25.3/PocketIC 16.1.0 pairing remain in place until the published replacement
+setup/check contract is qualified. No direct PocketIC dependency was added.
+
+Two additional storage rejection tests prove that unavailable strict durability
+does not admit a relaxed fallback or alter retained intent, and that exhausting
+nat64 revisions cannot wrap, clear an existing intent or allocate another key.
+All 35 Node tests and both Rust/TypeScript Candid directions pass on Host 0.8.5.
+The previous nine native Chromium observations remain evidence for the unchanged
+storage implementation; the new injected cases are Node qualification.
+Four native file tests, strict tooling/runner Clippy and actual Rust 1.88.0
+tooling/runner checks pass. Both real IC Testkit scenarios pass with Host 0.8.5,
+covering certification/composed roots, protected upgrades and delegated ingress.
+Snapshot integrity, dependency declarations/inheritance, local links, locked
+metadata, library graph boundaries and formatting pass. The release/recovery and
+publication reconciliation fixture passes with the final selected snapshot and
+Host lock, using local/mocked effects only. Full CI and native macOS remain pending.
+
+Current evidence is retained under `target/continuation-0.1.11/host-0.8.5/`.
+Rust manifests remain 0.1.10 and the compatible draft remains 0.1.11. No existing
+function, method or type was removed. No commit, push, release, publication or
+sibling source change was performed. Real issuer adoption, wallet login and native
+macOS qualification remain separate from this local batch.
+
+## Earlier preparation of the current 0.1.11 batch
+
+The following records the earlier 0.1.31 refresh and initial storage qualification;
+the current source selection and additional tests are recorded above.
+
+The maintainer pushed/released 0.1.10 and authorized continued local development
+and current Shared Tooling adoption. Remote main/tag resolve to the exact release
+above. Both unyanked 0.1.10 registry checksums match retained publication intent:
+`51162f12aeb7cf52a2249475d8c423e1dc9e33e18e4727ce53687f3696975c04`
+(protocol types) and
+`f962f1ad928c5aabff78891a09c883847503661d6a41c4b29c520b2e16b3cc98`
+(auth). Rust manifest/lock versions remain 0.1.10. The next compatible draft is
+0.1.11: opt-in private storage and installer reuse are additive, with no existing
+Rust API or signed-byte change. No commit, push, release or publication was made.
+
+Shared Tooling remote main and committed sibling HEAD are
+`9af82393c620e486578febed74a648523725c234` (0.1.31). The sibling has further dirty
+Cargo-install qualification changes; they were preserved and excluded. A clean
+isolated clone at that exact commit supplied the canonical 80-file refresh.
+The selected baseline adds fleet/report ownership guidance and the IC installer
+compares complete validated records across all hosts instead of raw pin bytes.
+No fleet dashboard, new Cargo installer or central qualification workflow was
+added to consumer CI. The existing tool/version/checksum selections are unchanged.
+
+The old installer rejects the same selected records with reversed rows and new
+comments. The adopted installer passes offline against the existing real bundle,
+with exact stdout, unchanged active link and unchanged installed-pin digest. The
+clean upstream IC installer fixture also passes with mocked downloads/archives;
+that evidence is distinct from real bundle reuse and native macOS qualification.
+The current GitHub description still matches the independent authentication
+library scope; no description write was necessary.
+
+The private browser package now offers opt-in `IndexedDbTokenStore`, with an
+explicit factory, dedicated owner-selected database and frozen bounded profile.
+It atomically reserves capacity and revisions with the record CAS, waits for
+strict transaction commit, retains tombstones/uncertain intent, validates exact
+schema and refuses malformed state without deleting it. Closing/version-change
+only closes the connection. No storage migration, implicit reset or alternate
+reader was introduced. `fake-indexeddb 6.2.5` is test-only, prepared explicitly with
+lifecycle scripts disabled; no existing npm selections or Rust dependencies moved.
+See [browser storage](../browser-client.md) for the contract and owner obligations.
+
+Native Linux Chromium 153.0.8010.12 passes the actual IndexedDB fixture, including
+independent-connection CAS, detached bytes, reopening/exact bigint intent,
+tombstone/capacity admission, profile/corrupt-state refusal and late transaction
+abort. Node tests additionally exercise the client recovering a lost prepare
+reply after reopening and transaction timeout/rollback. These are storage/lifecycle
+checks, not a production issuer adapter, browser proof verifier, live consumer
+adoption, device-crash recovery or native macOS/browser-engine qualification.
+The standard DOM-dump attempt stalled, and a virtual-time attempt observed an
+incomplete page; retained artifacts distinguish them from the passing real-time
+CDP observation. The isolated test browser and local server were closed.
+
+Focused checks pass: 33 Node lifecycle/codec/storage/example tests, both Candid
+directions, and nine native Chromium storage observations against the final
+compiled source. Snapshot integrity, tracked npm declarations/Cargo inheritance,
+local links, formatting, locked metadata, auth graph boundaries and ShellCheck
+pass. The local/mocked release/publication fixture also passes with the adopted
+snapshot and complete working client tree. Source/input digests and the observed
+local headless-browser binary digest use the existing Host utility. Existing
+Rust sources, dependency selections and declared compiler floors are unchanged;
+no broad local CI or unrelated Rust feature suites were run. Remote CI for the
+uncommitted batch and native macOS/browser-engine qualification remain pending.
+
+Evidence is retained under `target/continuation-0.1.11/`, with native fixture source,
+results, selected tool/source identities and failed attempts. No existing function,
+method or type was removed. Neither Shared Tooling nor Canic/Toko source was edited.
+
+## Earlier browser client batch (released in 0.1.10)
+
+The following records preparation before the maintainer's 0.1.10 release. Its
+pending-version and untracked-file wording is historical.
 
 The maintainer pushed/released 0.1.9, then authorized continuation on the browser
 client in [IC Auth #3](https://github.com/dragginzgame/ic-auth/issues/3).

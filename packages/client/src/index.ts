@@ -6,3 +6,4 @@ export type {
   DelegatedToken, DelegatedTokenClaims, DelegatedTokenPrepareRequest,
   DelegatedTokenPrepareResponse, DelegatedRoleGrant, DelegationAudience,
 } from './generated/protocol.did.js';
+export { IndexedDbTokenStore, type IndexedDbTokenStoreOptions } from './indexeddb.js';

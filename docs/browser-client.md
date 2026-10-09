@@ -3,8 +3,9 @@
 The private `packages/client/` package implements framework-independent
 application-token lifecycle machinery for [IC Auth #3](https://github.com/dragginzgame/ic-auth/issues/3).
 It is source/build qualified locally, not published on npm. It declares no
-canister endpoints and has no Canic or Toko dependency. Wallet login, durable
-browser storage and a production issuer adapter remain separate work.
+canister endpoints and has no Canic or Toko dependency. The opt-in IndexedDB
+store has transaction qualification in Node and native Chromium on Linux. Wallet
+login and a production issuer adapter remain separate work.
 
 ## Boundary
 
@@ -85,6 +86,59 @@ supply an explicit retention policy that preserves unknown effects. The core
 checks contention bounds but does not promise one shared flight across browser
 tabs; atomic intent reservation prevents duplicate initial dispatch, while a
 second client may receive `prepare_uncertain` during reconciliation.
+
+`IndexedDbTokenStore.open(options)` implements the same contract using a dedicated
+application-owned IndexedDB database and an explicitly supplied `IDBFactory`.
+It never opens a default database, shares an application's business stores or
+installs a storage polyfill. Supply `databaseName`, `maximumEntries`,
+`maximumEntryBytes`, `maximumKeyBytes` and `timeoutMs` explicitly. Entry-byte limits
+cover the sum of request/prepared bytes; size them for both Candid components.
+For example, after the application has selected its namespace and limits:
+
+```ts
+const store = await IndexedDbTokenStore.open({
+  factory: indexedDB,
+  databaseName: applicationAuthDatabaseName,
+  maximumEntries: 128,
+  maximumEntryBytes: 2 * maxMaterialBytes,
+  maximumKeyBytes: 131_072,
+  timeoutMs: 10_000,
+});
+```
+
+Each connection validates the frozen `ic-auth-token-store-v1` profile and exact
+object-store schema. Bounds are part of that stored profile; all connections
+must agree. Unknown schemas, corrupted entries and incompatible bounds are
+refused without clearing, overwriting or upgrading retained data. Changing the
+format, namespace or bounds requires an explicit owner-controlled disposition;
+creating another database is not a recovery procedure for unknown issuance.
+
+Compare-and-swap, revision allocation and capacity admission share one read/write
+transaction across both stores. Writes require the browser's `strict` durability
+hint and resolve only after the transaction's complete event; a successful `put`
+request alone is insufficient. Unsupported strict transactions fail without a
+fallback. See the [IndexedDB transaction contract](https://w3c.github.io/IndexedDB/#transaction-lifetime).
+Native errors abort the whole operation; quota refusal maps to `storage_capacity`,
+malformed stored state to `storage_corrupt`, and unavailable/closed storage to
+`storage_unavailable`. Operations and opening are bounded by `timeoutMs`; a timeout
+does not authorize discarding a possible committed intent. The store retains
+all tombstones/uncertain records, performs no eviction or garbage collection,
+and closes its connection on a version-change request. `close()` only closes
+that connection; it does not clear data or revoke authentication.
+Exhausting the unsigned 64-bit revision space also returns `storage_capacity`
+without wrapping revisions or modifying retained intent.
+
+The application owns browser storage custody, availability, session-generation
+persistence and cross-tab login notifications. A committed request record does
+not recreate an SDK identity or authorize a session after reconnect. Browser
+storage loss/eviction and device failures are outside these transaction tests;
+there is no automatic reset, localStorage fallback or legacy JSON reader.
+`make test-client` uses the test-only `fake-indexeddb` implementation for transaction
+failure injection. The [native fixture](../packages/client/test/browser/indexeddb.html)
+also checks the actual Chromium IndexedDB engine on Linux. Other browser engines
+and native macOS browser execution have not been qualified by this batch. The
+fixture imports the compiled store/error modules from a localhost test server;
+it is not an application UI, production adapter or remote endpoint.
 
 The Rust owner exports data-only Candid with `export_candid`. Locked
 `@icp-sdk/bindgen` generates both runtime IDL descriptors and TypeScript types.
