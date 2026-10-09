@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.2.1]
+## [0.2.1] - 2026-10-09
 
 - Run the full three-host CI gate automatically for `main` pushes and pull
   requests, avoiding duplicate release-tag validation. Add manual qualification
