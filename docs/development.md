@@ -141,17 +141,21 @@ It does not qualify browser/wallet login or a durable session backend.
 ## Releases and publication
 
 ```sh
-make release-patch                 # current compatible batch: 0.1.12 -> 0.1.13
-make release-minor                 # pre-1.0 breaking increment: 0.1.12 -> 0.2.0
-make release-major                 # explicit major decision: 0.1.12 -> 1.0.0
+make release-patch                 # next compatible increment: 0.1.13 -> 0.1.14
+make release-minor                 # pre-1.0 breaking increment: 0.1.13 -> 0.2.0
+make release-major                 # explicit major decision: 0.1.13 -> 1.0.0
 make release-resume VERSION=X.Y.Z   # reconcile the exact saved attempt
 make publish-dry-run               # validate packages without upload
 make publish                       # upload a clean, delivered tagged release
 ```
 
-The undated `0.1.13` draft adopts Shared Tooling 0.1.35's selected Cargo installer
-and dependency-preparation guidance. Product CLI selections and profiles remain
-consumer-owned; this does not change the current PocketIC setup. Released
+Released `0.1.13` adopts Shared Tooling 0.1.36's selected Cargo installer and
+receipt/path/failure-status checks, dependency-preparation guidance and Host
+Tooling 0.8.9. Product CLI selections and profiles remain consumer-owned;
+this does not change the current PocketIC setup. The compatible `0.1.14` draft
+documents the [Canic library adoption contract](canic-adoption.md) and adds
+two-way qualification of its token issuance Candid envelopes. Canic's actual
+adapter and durable host qualification remain consumer-owned. Released
 `0.1.12` added portable MSRV checking, retained setup evidence
 and Shared Tooling 0.1.34 optional fleet selection/path handling, plus Host 0.8.8
 streaming file identities and Testkit 0.25.4 runtime qualification. Released `0.1.11` added

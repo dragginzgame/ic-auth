@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.1.14]
+
+- Document the Canic adoption contract for the published libraries, with feature
+  selection, protected authority inputs and durable storage/certification
+  contracts. Consumer implementation and qualification remain Canic-owned.
+  [Canic #491](https://github.com/dragginzgame/canic/issues/491).
+- Qualify Canic's prepare request, claims/prepare response and retrieval
+  envelopes in both Candid directions, preserving metadata and optional bytes
+  while rejecting malformed nested identities and roles.
+  [#8](https://github.com/dragginzgame/ic-auth/issues/8).
+
 ## [0.1.13] - 2026-10-09
 
 - Adopt Shared Tooling 0.1.36's canonical installer for consumer-selected Cargo

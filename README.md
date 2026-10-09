@@ -13,7 +13,7 @@ contract. The libraries and reference service must not depend on either project.
 The Rust workspace implements passive token/proof contracts, validated protocol
 identifiers, canonical signed encoding, optional IC signature/application-token
 verification and atomic session/replay admission extracted from Canic. Both
-libraries are published on crates.io at `0.1.10`; see the
+libraries are published on crates.io at `0.1.13`; see the
 [signature](docs/signatures.md), [token](docs/tokens.md) and
 [session](docs/sessions.md) contracts. Durable canister adoption remains pending.
 Bounded [signature preparation and retrieval](docs/signature-preparation.md)
@@ -27,10 +27,12 @@ and an opt-in transactional IndexedDB store.
 It is not published; issuer adapter qualification and consumer adoption remain pending.
 **Wallet login remains unimplemented.** Tokens and local sessions do not grant
 application resource ownership. The native utility in `apps/tooling/` is unpublished and reuses
-`ic-host-fs`/`ic-host-artifacts` for release and publication file operations.
+`ic-host-fs` for release and publication file operations.
 
-Canic still runs its existing implementation. Its adapter adoption and removal of
-superseded code require a separately authorized Canic change.
+Canic still runs its existing implementation. The
+[Canic adoption contract](docs/canic-adoption.md) maps the published libraries
+to its feature, authority, storage and certification boundaries; implementation
+and acceptance belong in [Canic #491](https://github.com/dragginzgame/canic/issues/491).
 
 - [Architecture and ownership](docs/design/extraction.md)
 - [Current handoff](docs/status/current.md)

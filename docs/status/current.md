@@ -3,9 +3,9 @@
 The maintainer accepted the larger Canic authentication extraction, selected the
 name `ic-auth`, and confirmed `/home/adam/projects/ic-auth` as the local repository.
 
-The current committed release is `dafdeafa02ca0b59a19c1311bc279b5a6cc3a3b0`
-(`0.1.12`) on `main`, with annotated tag `v0.1.12`; both remote identities were
-verified during continuation. Both libraries' `0.1.12` registry checksums match
+The current committed release is `4421f991065a8bc9fc21d3d70776943b493dc740`
+(`0.1.13`) on `main`, with annotated tag `v0.1.13`; both remote identities were
+verified during continuation. Both libraries' `0.1.13` registry checksums match
 the retained publication intent for that exact source/tag. The maintainer
 executed the release and publication. The original bootstrap was
 `7a03102e52b7a400588530997a9f7fb91c83de9d` (`0.1.0`).
@@ -22,7 +22,7 @@ records this batch without closing the larger extraction.
 
 The virtual Rust workspace contains `ic-auth-protocol-types`, `ic-auth` and the
 unpublished native application in `apps/tooling/`, with one lockfile, root-owned
-dependency selections and current manifest version `0.1.12`.
+dependency selections and current manifest version `0.1.13`.
 The passive token/proof contracts and canonical encoding are adapted from the
 clean Canic source at `e286b3fd98460c98670336853f80658a920966e0`; see the
 [source review](../design/canic-source-review.md) for exact ownership and API
@@ -39,6 +39,73 @@ Canic adoption has not
 occurred; no sibling repository was modified.
 
 ## Current continuation
+
+The maintainer delivered 0.1.13. Both live packages are unyanked and their
+registry checksums match `.git/publication-state/0.1.13.json` for exact source
+`4421f991065a8bc9fc21d3d70776943b493dc740` and annotated tag object
+`5a040475c50f444abd37b6f42699a0b4c0fbdf09`. The exact-source
+[main CI](https://github.com/dragginzgame/ic-auth/actions/runs/37910262133) and
+[tag CI](https://github.com/dragginzgame/ic-auth/actions/runs/37910261591) were
+running Linux with both macOS jobs queued at initial review. The subsequent
+exact-source main inspection passes its complete Linux gate; both macOS jobs
+remain queued. Publication does not establish native acceptance.
+
+The maintainer clarified that Canic should reuse as many applicable shared
+libraries as possible to reduce code duplication. The published Rust libraries
+are the first confirmed duplicate engine in this continuation's review.
+The [Canic adoption contract](../canic-adoption.md) maps existing capability
+families to published features/APIs and identifies protected authority, durable
+transactions, retained-state disposition and certification composition owned by
+the Canic adapter. A read-only source/declaration review at committed Canic
+`c4c046f947b2b28f4342cbf6efe9221ba1ed5f70` confirms no root/Core IC Auth dependency
+and still-active generic engines; unrelated dirty work is preserved. Source
+review is not a consumer build, stable-host qualification or deployment claim.
+Implementation and acceptance remain in
+[the Canic #491 handoff](https://github.com/dragginzgame/canic/issues/491#issuecomment-6078139476);
+no sibling edit is requested or performed. Wallet login is independent of local
+Rust adoption.
+
+The wider source/declaration review and clarified owner map are recorded in
+[Canic #491](https://github.com/dragginzgame/canic/issues/491#issuecomment-6078242947).
+It records existing shared delegation separately from remaining adoption and
+contract differences. The two Testkit URL-selection callers are traced in
+[Canic #501](https://github.com/dragginzgame/canic/issues/501#issuecomment-6078229079);
+[Canic #502](https://github.com/dragginzgame/canic/issues/502) owns the IC Jobs
+assessment. The review used the adopted flow-convergence method, preserved dirty
+owner work and ran no consumer builds. Library reuse must preserve one canonical
+mechanism and the actual trust, atomicity and recovery contract; no code-size or
+runtime savings are claimed from source inspection.
+
+The maintainer then made Canic's IC Auth adoption the immediate priority. The
+[priority handoff](https://github.com/dragginzgame/canic/issues/491#issuecomment-6078380486)
+selects published 0.1.13 for starting consumer work, independently of wallet
+login, IC Jobs or 0.1.14 publication. The pending 0.1.14 batch now adds independent
+wire fixtures for complete prepare requests, claims/prepare responses and
+retrieval requests under
+[IC Auth #8](https://github.com/dragginzgame/ic-auth/issues/8). The DTO source
+files match committed Canic `c4c046f947b2b28f4342cbf6efe9221ba1ed5f70`; the
+fixtures add no Canic dependency. Four additional tests cover both Candid
+directions, exact bytes, request metadata, optional extension states, fixed
+hashes/nonces, principals, unsigned boundaries and invalid nested identities/
+roles. All eight type tests and strict package Clippy pass on Rust 1.99; the
+eight wire tests pass on 1.88 and the test target checks for Wasm on 1.88.
+Formatting, dependency boundaries/pins, snapshot/links and diff checks pass.
+These fixtures are codec compatibility evidence, not actual Canic compilation,
+proof authentication, generated endpoint or stable-host qualification. No broad
+local CI, unrelated Rust suites or new canister lifecycle runs were needed.
+
+README, agent publication status and developer release examples reflect the
+delivered 0.1.13. The compatible pending version remains 0.1.14 for the maintained
+adoption documentation and wire qualification; public library APIs, signed bytes,
+manifests, lockfile and browser source are unchanged. Evidence is retained in
+`target/continuation-0.1.14/`, including `types.log`, `types-clippy.log`,
+`types-msrv.log`, `types-wasm-msrv.log` and `guards.log`.
+No commit, push, publication or deployment was performed by this continuation.
+
+## Earlier 0.1.13 preparation (released)
+
+The following records work before maintainer delivery; its draft and uncommitted
+wording is historical.
 
 The maintainer delivered 0.1.12. Both live packages are unyanked, and their
 registry checksums match the retained publication intent for the exact remote
