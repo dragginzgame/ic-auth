@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.1.11]
+## [0.1.11] - 2026-10-09
 
 - Add an opt-in IndexedDB token store with atomic cross-connection compare-and-swap,
   bounded admission and completion after strict transaction commit. Retain
