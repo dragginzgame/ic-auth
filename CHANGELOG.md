@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.1.14]
+## [0.1.14] - 2026-10-09
 
 - Document the Canic adoption contract for the published libraries, with feature
   selection, protected authority inputs and durable storage/certification
