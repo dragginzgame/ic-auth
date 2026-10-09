@@ -22,6 +22,15 @@ replay its exact ID against a qualified idempotent endpoint. An issuer without
 that capability cannot provide a supported recovery adapter. Unknown transport
 errors do not mean pending, TTL rejection or expired authentication.
 
+Exact-ID replay is safe only if the issuer cannot treat an expired or pruned
+receipt as fresh issuance. A relative receipt TTL alone does not guarantee that:
+replaying after retention can produce different claims with the same request ID.
+The adapter must use a qualified replay contract or a lookup that never issues;
+missing, expired or uncertain evidence remains `unresolved`, not a definitive
+no-effect TTL rejection. A request's receipt TTL and the client's operation
+deadline are distinct bounds. Reducing a local timeout does not prove that a
+delayed network request cannot arrive after server retention.
+
 The protected `TokenScope` selects issuer, deployment network, policy identity,
 network-qualified audience, requested role grants and extension bytes. All of
 these, plus authenticated principal and session generation, participate in cache
@@ -59,6 +68,13 @@ exhaustion returns `polling_exhausted`; an exclusive deadline returns
 Clock values must be monotonic unsigned nanoseconds; future-issued claims are
 rejected without a clock-skew allowance. The owner supplies the clock and wait
 implementation and must choose valid request/operation limits for its issuer.
+An uncertain prepare keeps its original stored exclusive deadline across client
+reloads, including when a later instance selects a longer operation lifetime.
+At that deadline the client returns `retrieval_expired` without calling prepare,
+reconcile or retrieve again, clearing retained intent, allocating a new request
+ID or invalidating the authenticated session. Expiry bounds automatic work; it
+does not prove whether the original issuance completed. Explicit reconciliation
+of retained unknown effects remains an application/issuer recovery obligation.
 
 A typed `sessionInvalid` result atomically invalidates only the generation seen
 by that request. Generation/principal checks also reject late replies after
@@ -194,6 +210,16 @@ identified these replacement boundaries:
 Toko's current `issue_token(ttl_secs)` and related wrappers do not expose this
 request metadata/reconciliation contract. Qualify that boundary before removing
 its old implementation, and align the SDK major with the selected client SDK.
+Canic's existing prepare workflow has caller/payload-bound replay receipts and
+staged-response recovery, but a committed receipt can expire and be pruned by
+another prepare. Replaying the original request after that can reserve a fresh
+receipt with a new relative deadline. Its production adapter must therefore
+qualify non-issuing reconciliation before using exact prepare replay as the
+client's `reconcile` operation. This source review does not qualify a Canic
+endpoint or provide a production adapter. The exact source, smallest proposal
+and consumer acceptance are tracked in
+[Canic #507](https://github.com/dragginzgame/canic/issues/507).
+
 Registration, shard routing, project membership, roles, account records, NFT
 semantics and business-storage migration remain in Toko. Fleet enrollment,
 issuer approval/renewal and endpoint guards remain in Canic. Neither sibling was

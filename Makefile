@@ -2,23 +2,22 @@
 
 include ci/tool-versions.env
 include make/tools.mk
+include make/release.mk
+include make/rust-format.mk
 
 # Keep Cargo artifacts in this checkout, including CI and hook invocations.
 export CARGO_TARGET_DIR := $(CURDIR)/target
 export RUSTUP_AUTO_INSTALL := 0
-RELEASE_REMOTE ?= origin
-RELEASE_BRANCH ?= main
 export RELEASE_DELIVERY := direct
 export RELEASE_REMOTE RELEASE_BRANCH
 
-.PHONY: help install-hooks format-tools-check fmt fmt-check fetch metadata \
+.PHONY: help install-hooks fetch metadata \
         install-testkit-tools testkit-tools-check test-testkit-tools \
         test-types test-protocol test-signatures test-signature-store test-tokens test-sessions check-wasm clippy check-boundaries \
         check-snapshot check-dependency-pins check-doc-links check-msrv install-msrv msrv-tools-check tasks ci \
         client-tools-check install-client-dependencies generate-client-contracts check-client-contracts test-client \
         publish publish-dry-run check-package-licenses test-release-tools \
         test-host-tooling test-qualification build-qualification-canister test-release-runner test-evidence-archive test-tools-evidence \
-        release-patch release-minor release-major release-resume \
         release-version release-preflight release-verify release-prepare-version \
         release-prepared-check release-files release-commit-check \
         release-committed-check release-tagged-check release-push-check
@@ -60,17 +59,6 @@ tasks:
 
 install-hooks:
 	bash scripts/dev/install-git-hooks.sh
-
-format-tools-check:
-	bash scripts/ci/check-format-tools.sh "$(SHARED_TOOLING_CARGO_SORT_VERSION)"
-
-fmt: format-tools-check
-	cargo sort --workspace
-	cargo fmt --all
-
-fmt-check: format-tools-check
-	cargo sort --workspace --check
-	cargo fmt --all -- --check
 
 # Explicit selected-cache preparation; ordinary Rust checks remain offline.
 fetch:
@@ -171,16 +159,6 @@ test-tools-evidence:
 test-evidence-archive:
 	@mkdir -p "$(CURDIR)/target/portable-fixtures"
 	TMPDIR="$(CURDIR)/target/portable-fixtures" bash scripts/ci/test-evidence-archive.sh
-
-ifneq ($(word 2,$(filter release-patch release-minor release-major release-resume,$(MAKECMDGOALS))),)
-$(error Select exactly one release target)
-endif
-
-release-patch release-minor release-major:
-	+@bash scripts/ci/run-release.sh "$(@:release-%=%)" "$(RELEASE_REMOTE)" "$(RELEASE_BRANCH)"
-
-release-resume:
-	+@bash scripts/ci/run-release.sh resume "$(VERSION)" "$(RELEASE_REMOTE)" "$(RELEASE_BRANCH)"
 
 release-version:
 	@bash scripts/ci/read-cargo-workspace-version.sh --stable Cargo.toml

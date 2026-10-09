@@ -2,8 +2,8 @@
 
 The virtual root owns two libraries, unpublished native tooling in `apps/tooling/`
 and the internal host/runner in `apps/qualification/`, plus dependency selections,
-lints and one lockfile. The current manifest version is `0.2.3`, tagged as
-`v0.2.3`; both libraries are published on crates.io.
+lints and one lockfile. The current manifest version is `0.2.4`, tagged as
+`v0.2.4`; both libraries are published on crates.io.
 Rust `1.99.0` remains the development compiler selected by `rust-toolchain.toml`.
 The common package minimum is Rust `1.88.0`, inherited from the root catalog and
 qualified by explicit older-compiler checks. See [MSRV coverage](msrv.md).
@@ -34,12 +34,17 @@ export PATH="$PWD/.tools/host/bin:$PWD/.tools/ic/bin:$PWD/.tools/rust/bin:$PATH"
 The first command prepares the toolchain, rustfmt, Clippy and Wasm target selected
 by the toolchain file. Common system prerequisites, exact executable pins and
 installation behavior are described in the shared [local setup](local-setup.md).
-The Makefile includes the reviewed `make/tools.mk` and adds the shared Rust tool
+The Makefile includes reviewed `make/tools.mk`, `make/release.mk` and
+`make/rust-format.mk`. It adds the shared Rust tool
 set, the locked Testkit CLI/server and the declared minimum compiler/Wasm target
 to aggregate setup/check commands. `make install-msrv` prepares the minimum compiler alone (and its host
 tool prerequisites); `make msrv-tools-check` inspects its prepared versions.
 Installation is explicit; checks run
 offline. `fetch` prepares the selected lockfile without changing it.
+Shared includes own standard release dispatch and single-workspace formatting;
+IC Auth retains its direct delivery policy, cache preparation, metadata adapters
+and complete validation roster. Formatting checks use the prepared checkout-local
+tools without installing them or activating Git hooks.
 
 Make selects checkout-local tools automatically. The shell export is needed for
 interactive direct commands. Builds stay under this checkout's `target/`; Cargo
@@ -164,9 +169,9 @@ It does not qualify browser/wallet login or a durable session backend.
 ## Releases and publication
 
 ```sh
-make release-patch                 # compatible work: 0.2.3 -> 0.2.4
-make release-minor                 # breaking pre-1.0 contract: 0.2.3 -> 0.3.0
-make release-major                 # explicit major decision: 0.2.3 -> 1.0.0
+make release-patch                 # compatible work: 0.2.4 -> 0.2.5
+make release-minor                 # breaking pre-1.0 contract: 0.2.4 -> 0.3.0
+make release-major                 # explicit major decision: 0.2.4 -> 1.0.0
 make release-resume VERSION=X.Y.Z   # reconcile the exact saved attempt
 make publish-dry-run               # validate packages without upload
 make publish                       # upload a clean, delivered tagged release

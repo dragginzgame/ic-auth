@@ -38,6 +38,49 @@ test('unknown prepare reply survives a new client and reconciles exact request',
   assert.equal(h.requests[0]?.ttl_ns, 10n * second); assert.deepEqual(h.sessions.invalidations, []);
 });
 
+test('uncertain prepare keeps its original exclusive deadline and intent across reloads', async () => {
+  const h = harness(); const base = h.options.issuer;
+  let key: string | undefined;
+  const options = { ...h.options,
+    store: {
+      read: (value: string) => h.store.read(value),
+      write: (value: string, revision: bigint, entry: Parameters<typeof h.store.write>[2]) => {
+        key = value;
+        return h.store.write(value, revision, entry);
+      },
+    },
+    issuer: (session: Session, fixed: Parameters<typeof base>[1]): IssuerOperations => {
+      const operations = base(session, fixed);
+      return { ...operations,
+        prepare: async (request, signal) => {
+          await operations.prepare(request, signal);
+          throw new Error('reply lost after issuance');
+        },
+        reconcile: async () => { h.state.reconciles++; return { kind: 'unresolved' }; },
+      };
+    },
+  };
+  await assert.rejects(new TokenSessionClient(options).token(h.configured), error('prepare_uncertain'));
+  assert.ok(key);
+  const original = await h.store.read(key);
+  assert.ok(original.entry && original.entry.kind === 'prepare');
+
+  // A fresh instance and a longer configured operation lifetime cannot restart
+  // the deadline of a possibly completed issuance retained in shared storage.
+  const reloaded = { ...options, operationTtlNs: 100n * second };
+  h.state.now = original.entry.deadlineNs - 1n;
+  await assert.rejects(new TokenSessionClient(reloaded).token(h.configured), error('prepare_uncertain'));
+  assert.equal(h.state.reconciles, 1);
+  h.state.now = original.entry.deadlineNs;
+  for (let reload = 0; reload < 2; reload++) {
+    await assert.rejects(new TokenSessionClient(reloaded).token(h.configured), error('retrieval_expired'));
+  }
+  assert.equal(h.state.prepares, 1); assert.equal(h.state.reconciles, 1);
+  assert.equal(h.state.retrieves, 0); assert.equal(h.state.ids, 1);
+  assert.deepEqual(await h.store.read(key), original);
+  assert.deepEqual(h.sessions.invalidations, []);
+});
+
 test('lost retrieval reply reuses prepared material without allocating another prepare', async () => {
   const h = harness(); const base = h.options.issuer; let lost = true;
   const client = new TokenSessionClient({ ...h.options, issuer: (session, fixed) => {

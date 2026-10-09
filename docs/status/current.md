@@ -3,9 +3,9 @@
 The maintainer accepted the larger Canic authentication extraction, selected the
 name `ic-auth`, and confirmed `/home/adam/projects/ic-auth` as the local repository.
 
-The current committed release is `7476b6b8f1e9b85903b3ca8c26972b95d9011604`
-(`0.2.3`) on `main`, with annotated tag `v0.2.3`; both remote identities were
-verified during continuation. Both libraries' `0.2.3` registry checksums match
+The current committed release is `64e1d9b90bb27e50280e3845e86db336df4f04e3`
+(`0.2.4`) on `main`, with annotated tag `v0.2.4`; both remote identities were
+verified during continuation. Both libraries' `0.2.4` registry checksums match
 the retained publication intent for that exact source/tag. The maintainer
 executed the release and publication. The original bootstrap was
 `7a03102e52b7a400588530997a9f7fb91c83de9d` (`0.1.0`).
@@ -22,7 +22,7 @@ records this batch without closing the larger extraction.
 
 The virtual Rust workspace contains `ic-auth-protocol-types`, `ic-auth` and the
 unpublished native application in `apps/tooling/`, with one lockfile, root-owned
-dependency selections and current manifest version `0.2.3`.
+dependency selections and current manifest version `0.2.4`.
 The passive token/proof contracts and canonical encoding are adapted from the
 clean Canic source at `e286b3fd98460c98670336853f80658a920966e0`; see the
 [source review](../design/canic-source-review.md) for exact ownership and API
@@ -40,7 +40,95 @@ has recorded focused standalone-proof adapter qualification; complete-token,
 durable-session and deployed acceptance remain separate. No sibling repository
 was modified by IC Auth work.
 
-## Current compatible improvements (pending 0.2.4)
+## Current client recovery and shared Make adoption (pending 0.2.5)
+
+The maintainer confirmed 0.2.4 live and requested continued issue work and help
+for Canic integration. Remote main/peeled tag match the source above; the
+annotated tag object is `32313542a51d6c08f18f78a6296163131d931063`. Both official
+registry records are unyanked and match retained publication intent. Its
+[main CI](https://github.com/dragginzgame/ic-auth/actions/runs/37944459924)
+is queued at inspection; publication does not establish native acceptance.
+
+The client now has a regression for a possibly completed prepare whose reply
+was lost. A new client instance reconciles just before the original stored
+deadline; at that exclusive deadline, further reloads make no issuer calls,
+allocate no request IDs, preserve exact intent/revision and do not invalidate
+the authenticated session. Selecting a longer later operation lifetime cannot
+restart the saved deadline. This qualifies existing behavior using injected
+transport and a shared memory store, not an actual Canic endpoint or browser
+reload. The [client contract](../browser-client.md) distinguishes bounded
+automatic work from the owner's obligation to reconcile unknown effects.
+
+Read-only review at Canic `ac55e50334dd6479ec36f404e89e60bcfe9184d6` confirms
+its existing prepare replay authenticates caller/payload and recovers staged
+responses. The reviewed replay/prepare files are committed and unchanged;
+unrelated issuer-adoption work remains dirty. After committed receipt expiry,
+another fresh prepare can prune it. Replaying the original ID then reserves a
+new relative deadline and can prepare different claims. This is source-traced
+evidence, not runtime reproduction. [Canic #507](https://github.com/dragginzgame/canic/issues/507)
+owns non-issuing reconciliation/qualified replay and the actual pruning/delayed
+request acceptance. IC Auth #3 remains open for a real adapter and coordinated
+adoption. Existing complete-verifier/cache retirement (#58/#491) and effective
+installation deadline propagation (#506) remain Canic-owned, with their existing
+published library APIs available now.
+
+`make test-client` passes all 36 lifecycle/storage/codec/example cases and both
+Rust/TypeScript Candid directions using explicitly selected Node 24.21.0 and
+npm 12.2.0. Source and evidence are retained in
+`target/continuation-0.2.4-live/`, including `client-tests.log`, exact release/CI
+observations and `canic-recovery-inputs.sha256`. Public APIs, runtime behavior,
+wire/storage formats, dependencies and package versions are unchanged. The next
+draft is **0.2.5**, compatible coverage, integration documentation and the shared
+Make adoption below; no retained storage disposition or migration is required.
+No functions, methods or types
+were removed. No full local CI, sibling build/edit, commit, push, release,
+publication, npm delivery or deployment occurred.
+
+[0.2.1 main CI](https://github.com/dragginzgame/ic-auth/actions/runs/37927487960)
+now passes complete Linux, Intel macOS and Apple Silicon jobs at exact source
+`9cd4cf09dde6ce0b739ed58af18612ed02202841`. This supplies the remaining native
+acceptance for issue #9, now closed. It does not qualify later sources or this
+new client regression. No queued run was cancelled, rerun or dispatched.
+
+During continuation, [IC Auth #11](https://github.com/dragginzgame/ic-auth/issues/11)
+identified the now-committed Shared Tooling Make adoption. The canonical exporter
+refreshed the snapshot to 79 files at reviewed remote main
+`ce13a5314916891fd239d9b199b4a91b04775054` (0.2.6 heading), using an isolated exact
+source checkout. `make/release.mk` and `make/rust-format.mk` now own the existing
+entrypoints; replaced local recipes/defaults and redundant phony declarations
+are removed. The target names remain. Direct delivery, destinations, local build
+output, explicit locked fetch/cache preparation, metadata adapters and the
+complete CI roster are retained. The baseline itself is unchanged. No sibling
+checkout was changed, tool installed or real hook configuration activated.
+
+The existing release fixture now invokes the canonical checker against the
+actual Makefile, selecting both includes explicitly and substituting only runner
+effects. All increments, exact resume/version/destination arguments, conflicts
+and failures pass on Bash 5 and genuine Bash 3.2. Actual consumer formatting
+hook checks pass on both shells, including real sorting/rustfmt, partial staging,
+formatter failure and unrelated-file/lock preservation. Both real formatting
+targets reject missing/wrong formatter selection without source changes. A
+separate owner include fixture covers substituted-Cargo command ordering and
+failure propagation; it is distinguished from the real consumer hook checks.
+The local/mocked release/publication reconciliation suite passes on both shells.
+Default-goal/environment checks verify harmless help, direct policy, selected
+destinations, checkout-local output and toolchain admission; before/after CI
+roster bytes match. Formatting, ShellCheck, snapshot/declaration/documentation
+guards and diff whitespace pass. Logs and retained source/export inputs are in
+`target/continuation-0.2.4-live/make-adoption/`; an initial fixture launch lacked
+its TMPDIR parent, was retained, and passed after explicit directory preparation.
+
+Issue #11 remains open for delivered exact-source native macOS acceptance; these
+are Linux/Bash portability and substituted-effect checks, not native macOS or
+real release qualification. Client input hashes remain unchanged, and final
+Make/snapshot identities are recorded separately in
+`selected-inputs-after-shared.sha256`. No additional Rust/canister product suite
+or complete local gate ran for the Make adoption.
+
+## Earlier compatible improvements for 0.2.4 (released)
+
+The following records local preparation before maintainer delivery; pending
+version, publication and CI observations in this section are historical.
 
 The maintainer requested new Host/Shared Tooling review, improvements and help
 for Canic integration. The incoming lock edit selecting Host 0.9.3 and Testkit

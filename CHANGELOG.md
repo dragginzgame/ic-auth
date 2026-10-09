@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.5]
+
+- Extend browser-client recovery coverage to uncertain prepare expiry across
+  reloads, preserving original intent and preventing new dispatch or request
+  allocation at the stored deadline. Clarify the issuer reconciliation contract
+  required for Canic adoption.
+  [#3](https://github.com/dragginzgame/ic-auth/issues/3),
+  [Canic #507](https://github.com/dragginzgame/canic/issues/507).
+- Adopt Shared Tooling 0.2.6 release and single-workspace formatting Make owners,
+  preserving IC Auth's release policy, prepared tools and validation gate.
+  [#11](https://github.com/dragginzgame/ic-auth/issues/11).
+
 ## [0.2.4] - 2026-10-09
 
 - Qualify the incoming Host 0.9.3 and IC Testkit 0.27.1 selections for native
