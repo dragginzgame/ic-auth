@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.2.7]
+## [0.2.7] - 2026-10-09
 
 - Refuse fresh browser-client request IDs and intent reservations after storage
   latency, CAS contention or TTL-backoff clearing exhausts the original operation
