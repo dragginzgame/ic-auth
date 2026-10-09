@@ -83,6 +83,54 @@ permissions remain independently checked, and these tokens are not IC ingress
 delegations. No secret signing operation, clock acquisition, certification-root
 write, memory allocation into host stable regions or global cache occurs here.
 
+## Standalone root delegation verification
+
+The pending compatible 0.2.2 batch adds
+`ic_auth::token::verify_delegation_proof(proof, context)` under the existing
+`token-verification` feature. It accepts `DelegationProof` directly, before
+claims or an issuer signature exist. There is no fabricated token, cryptographic
+callback, runtime acquisition or separate proof-verification implementation.
+Complete token verification retains its public context, errors, signed bytes and
+validation ordering; both calls share the same certificate rules and root engine.
+
+The host supplies `DelegationProofVerificationContext` with its actual intended
+`expected_issuer`, independently enrolled `root_key`, `now_ns` and finite
+`DelegationProofVerificationLimits`. Expected issuer must come from protected
+runtime/configuration, not `proof.cert.issuer_pid`. Bounds cover certificate TTL,
+the delegated maximum token TTL, future skew, variable material and witness
+length. `TokenVerificationLimits::into()` projects those five bounds when an
+existing host already owns that policy. This call does not require an IC network
+BLS key, caller, local role/scopes or issuer-signature limits because it does not
+verify a completed token.
+
+The material budget uses the accounting above across the certificate and root
+proof, excluding claims and issuer signature material. It is checked before
+canonical allocation and cryptography. Anonymous issuer/root, mismatched expected
+issuer/root, invalid windows/TTLs and malformed/noncanonical grants reject.
+The same root engine checks header/leaf/certificate/key/path/seed bindings,
+Merkle direction, real low-s secp256k1 signature, current enrollment window and
+version/epoch floors. Errors use `TokenVerificationError`; token-only and issuer
+signature errors cannot arise from this boundary.
+
+The private-field `VerifiedDelegationProof` borrows the validated certificate and
+exposes its canonical hash and exclusive deadline capped by the current key
+policy. The root signs the issuer leaf: **certificate `issued_at_ns` is checked
+for consistency but is not a signed leaf field**. The returned canonical
+certificate hash includes that metadata and is not separately signed by the
+root. Complete token verification additionally binds the exact certificate hash
+through the issuer's signed claims. Standalone success must not be described as
+proof of a root-signed certificate issue timestamp.
+
+Success means the enrolled root delegated the signed issuer authority at this
+clock and live policy. It is not token verification, installation/issuance
+approval, a session, an ingress delegation or an application resource grant.
+The host retains issuer approval, build-network/key-name admission, audience/grant
+admission, authorized issuance, renewal, storage and certification composition.
+Recheck current authority and expiry on subsequent use; cloning or storing the
+result does not refresh it. Canic's pre-token root-verifier replacement is
+coordinated through [IC Auth #10](https://github.com/dragginzgame/ic-auth/issues/10)
+and [Canic #491](https://github.com/dragginzgame/canic/issues/491).
+
 `make test-tokens` uses real deterministic secp256k1/BLS proof chains with rejection
 coverage. `make check-wasm`, `make clippy` and `make check-boundaries` include the
 new feature. These establish focused native/cross-compilation evidence, not live

@@ -1,11 +1,13 @@
 use super::{
-    TokenVerificationContext, TokenVerificationError, TokenVerificationLimits, binding, window,
+    DelegationProofVerificationLimits, TokenVerificationContext, TokenVerificationError,
+    TokenVerificationLimits, binding, window,
 };
 use crate::canonical::{
     CanonicalAuthError, cert_hash, claims_hash, issuer_proof_binding_hash, validate_scope_label,
 };
 use ic_auth_protocol_types::{
-    DelegatedRoleGrant, DelegatedToken, DelegationAudience, IssuerProof, Principal, RootProof,
+    DelegatedRoleGrant, DelegatedToken, DelegationAudience, DelegationCert, DelegationProof,
+    IssuerProof, Principal, RootProof,
 };
 
 pub(crate) fn check_size(
@@ -13,52 +15,71 @@ pub(crate) fn check_size(
     limits: TokenVerificationLimits,
 ) -> Result<(), TokenVerificationError> {
     let mut remaining = limits.max_variable_bytes;
-    let mut take = |length: usize| {
-        remaining = remaining
-            .checked_sub(length)
-            .ok_or(TokenVerificationError::InputTooLarge)?;
-        Ok::<_, TokenVerificationError>(())
-    };
-    let RootProof::IcChainKeyBatchSignatureV1(root) = &token.proof.root_proof;
-    for grants in [
-        &token.proof.cert.grants,
-        &token.claims.grants,
-        &root.delegation_cert.grants,
-    ] {
-        take(grants.len())?;
-        for grant in grants {
-            take(grant.target.as_str().len())?;
-            take(grant.scopes.len())?;
-            for scope in &grant.scopes {
-                take(scope.len())?;
-            }
+    check_proof_size(&token.proof, limits.max_witness_steps, &mut remaining)?;
+    check_grants_size(&token.claims.grants, &mut remaining)?;
+    take(
+        &mut remaining,
+        token.claims.ext.as_ref().map_or(0, Vec::len),
+    )?;
+    let IssuerProof::IcCanisterSignatureV1(issuer) = &token.issuer_proof;
+    if issuer.signature_cbor.len() > limits.max_issuer_signature_bytes {
+        return Err(TokenVerificationError::InputTooLarge);
+    }
+    take(&mut remaining, issuer.signature_cbor.len())?;
+    take(&mut remaining, issuer.public_key_der.len())?;
+    Ok(())
+}
+
+fn take(remaining: &mut usize, length: usize) -> Result<(), TokenVerificationError> {
+    *remaining = remaining
+        .checked_sub(length)
+        .ok_or(TokenVerificationError::InputTooLarge)?;
+    Ok(())
+}
+
+fn check_grants_size(
+    grants: &[DelegatedRoleGrant],
+    remaining: &mut usize,
+) -> Result<(), TokenVerificationError> {
+    take(remaining, grants.len())?;
+    for grant in grants {
+        take(remaining, grant.target.as_str().len())?;
+        take(remaining, grant.scopes.len())?;
+        for scope in &grant.scopes {
+            take(remaining, scope.len())?;
         }
     }
-    if root.issuer_witness.steps.len() > limits.max_witness_steps {
+    Ok(())
+}
+
+pub(super) fn check_proof_size(
+    proof: &DelegationProof,
+    max_witness_steps: usize,
+    remaining: &mut usize,
+) -> Result<(), TokenVerificationError> {
+    let RootProof::IcChainKeyBatchSignatureV1(root) = &proof.root_proof;
+    for grants in [&proof.cert.grants, &root.delegation_cert.grants] {
+        check_grants_size(grants, remaining)?;
+    }
+    if root.issuer_witness.steps.len() > max_witness_steps {
         return Err(TokenVerificationError::InputTooLarge);
     }
     take(
+        remaining,
         root.issuer_witness
             .steps
             .len()
             .checked_mul(33)
             .ok_or(TokenVerificationError::InputTooLarge)?,
     )?;
-    take(root.header.key_id.name.len())?;
-    take(root.signature.key_id.name.len())?;
-    take(root.signature.public_key.len())?;
-    take(root.signature.signature.len())?;
-    take(root.signature.derivation_path.len())?;
+    take(remaining, root.header.key_id.name.len())?;
+    take(remaining, root.signature.key_id.name.len())?;
+    take(remaining, root.signature.public_key.len())?;
+    take(remaining, root.signature.signature.len())?;
+    take(remaining, root.signature.derivation_path.len())?;
     for component in &root.signature.derivation_path {
-        take(component.len())?;
+        take(remaining, component.len())?;
     }
-    take(token.claims.ext.as_ref().map_or(0, Vec::len))?;
-    let IssuerProof::IcCanisterSignatureV1(issuer) = &token.issuer_proof;
-    if issuer.signature_cbor.len() > limits.max_issuer_signature_bytes {
-        return Err(TokenVerificationError::InputTooLarge);
-    }
-    take(issuer.signature_cbor.len())?;
-    take(issuer.public_key_der.len())?;
     Ok(())
 }
 
@@ -91,6 +112,56 @@ fn ttl(target: &'static str, start: u64, end: u64, max: u64) -> Result<(), Token
     Ok(())
 }
 
+pub(super) fn verify_certificate_window(
+    cert: &DelegationCert,
+    now_ns: u64,
+    limits: DelegationProofVerificationLimits,
+) -> Result<(), TokenVerificationError> {
+    binding(cert.issued_at_ns <= cert.not_before_ns, "cert_issued_at")?;
+    ttl(
+        "certificate",
+        cert.not_before_ns,
+        cert.expires_at_ns,
+        limits.max_cert_ttl_ns,
+    )?;
+    if cert.max_token_ttl_ns == 0 {
+        return Err(TokenVerificationError::InvalidWindow {
+            target: "max_token_ttl",
+        });
+    }
+    let cert_ttl = cert.expires_at_ns - cert.not_before_ns;
+    if cert.max_token_ttl_ns > limits.max_token_ttl_ns.min(cert_ttl) {
+        return Err(TokenVerificationError::TtlExceeded {
+            target: "max_token_ttl",
+            ttl_ns: cert.max_token_ttl_ns,
+            max_ttl_ns: limits.max_token_ttl_ns.min(cert_ttl),
+        });
+    }
+    window(
+        "certificate",
+        cert.not_before_ns,
+        cert.expires_at_ns,
+        now_ns,
+        limits.max_future_skew_ns,
+    )?;
+    grants_valid(&cert.grants)?;
+    Ok(())
+}
+
+pub(super) fn verify_certificate_binding(
+    cert: &DelegationCert,
+) -> Result<(), TokenVerificationError> {
+    binding(
+        issuer_proof_binding_hash(
+            cert.issuer_pid,
+            cert.issuer_proof_alg,
+            cert.issuer_proof_binding,
+        )? == cert.issuer_proof_binding_hash,
+        "issuer_proof_binding_hash",
+    )?;
+    Ok(())
+}
+
 pub(super) fn verify_material<'a>(
     token: &'a DelegatedToken,
     ctx: &TokenVerificationContext<'_>,
@@ -119,43 +190,9 @@ pub(super) fn verify_material<'a>(
         "root_canister_id",
     )?;
     binding(claims.issuer_pid == cert.issuer_pid, "issuer_canister_id")?;
-    binding(cert.issued_at_ns <= cert.not_before_ns, "cert_issued_at")?;
-    ttl(
-        "certificate",
-        cert.not_before_ns,
-        cert.expires_at_ns,
-        ctx.limits.max_cert_ttl_ns,
-    )?;
-    if cert.max_token_ttl_ns == 0 {
-        return Err(TokenVerificationError::InvalidWindow {
-            target: "max_token_ttl",
-        });
-    }
-    let cert_ttl = cert.expires_at_ns - cert.not_before_ns;
-    if cert.max_token_ttl_ns > ctx.limits.max_token_ttl_ns.min(cert_ttl) {
-        return Err(TokenVerificationError::TtlExceeded {
-            target: "max_token_ttl",
-            ttl_ns: cert.max_token_ttl_ns,
-            max_ttl_ns: ctx.limits.max_token_ttl_ns.min(cert_ttl),
-        });
-    }
-    window(
-        "certificate",
-        cert.not_before_ns,
-        cert.expires_at_ns,
-        ctx.now_ns,
-        ctx.limits.max_future_skew_ns,
-    )?;
-    grants_valid(&cert.grants)?;
+    verify_certificate_window(cert, ctx.now_ns, ctx.limits.into())?;
     grants_valid(&claims.grants)?;
-    binding(
-        issuer_proof_binding_hash(
-            cert.issuer_pid,
-            cert.issuer_proof_alg,
-            cert.issuer_proof_binding,
-        )? == cert.issuer_proof_binding_hash,
-        "issuer_proof_binding_hash",
-    )?;
+    verify_certificate_binding(cert)?;
     binding(cert_hash(cert)? == claims.cert_hash, "cert_hash")?;
     // Check claims canonicality (including extension size) even if grants narrow.
     let claims_hash = claims_hash(claims)?;

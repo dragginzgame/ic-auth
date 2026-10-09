@@ -16,16 +16,16 @@ transactions and recovery obligations.
 
 ## Published dependency and feature selection
 
-Both `ic-auth` and `ic-auth-protocol-types` 0.2.0 are published and unyanked.
+Both `ic-auth` and `ic-auth-protocol-types` 0.2.1 are published and unyanked.
 Their registry checksums match IC Auth release
-`7291bf70426cfa9ca03403155ab249e2d978d88e`. Rust 1.88 is the supported minimum.
+`9cd4cf09dde6ce0b739ed58af18612ed02202841`. Rust 1.88 is the supported minimum.
 For adoption of this release, select compatible registry requirements in Canic's
 root catalog and record the resolved versions in its own lockfiles:
 
 ```toml
 [workspace.dependencies]
-ic-auth = { version = "0.2.0", default-features = false }
-ic-auth-protocol-types = "0.2.0"
+ic-auth = { version = "0.2.1", default-features = false }
+ic-auth-protocol-types = "0.2.1"
 ```
 
 Child packages inherit these dependencies with `workspace = true`; their
@@ -116,9 +116,10 @@ adapter or durable session backend.
 The maintainer's immediate priority is Canic adoption from the already-published
 libraries. Published 0.2.0 carries complete proof-transport qualification and
 the developer-tooling hard cut; authentication APIs and signed bytes are unchanged.
-The inspected Canic graph still selects 0.1.14, which already supports the next
-complete-verifier adoption. Consumer dependency changes require its own qualified
-lockfiles and remain owned by Canic.
+The current read-only inspection finds Canic selecting compatible `0.2`
+requirements and resolving both libraries at 0.2.1 with matching registry
+checksums. Complete token verification is already available. Consumer dependency
+changes require its own qualified lockfiles and remain owned by Canic.
 
 Protocol-types tests now independently describe Canic's prepare request,
 claims/prepare response and retrieval request at immutable Canic
@@ -142,7 +143,7 @@ target checks for Wasm on 1.88. These independent fixtures describe the immutabl
 Canic DTO source, not the concurrently edited consumer adapter.
 Released 0.2.0 also cuts the developer PocketIC setup over to Testkit
 under Shared Tooling 0.2.0; that tooling change does not require a new Rust
-authentication API or delay Canic's published 0.1.14 adoption.
+authentication API or delay Canic's runtime verifier adoption.
 
 Canic acceptance requires its selected native/Wasm feature graphs, canonical
 signed-byte vectors, both Candid directions, facade/macro callers and real host
@@ -190,3 +191,25 @@ key windows, epochs and local ceilings using the same token on successive calls,
 as well as caller/audience/seed/signature rejection. Complete verifier adoption
 does not require a new library endpoint or wallet service. Stable session storage
 and certification preparation retain their separately described host contracts.
+
+The pre-token installation caller has a separate boundary:
+`ops/auth/delegation/active.rs::install_active_delegation_proof` checks an issuer's
+`DelegationProof` before a completed token exists. Released 0.2.1 has no public
+standalone root-proof entry point. The compatible pending 0.2.2 batch adds
+`token::verify_delegation_proof` with `DelegationProofVerificationContext` and
+`DelegationProofVerificationLimits`; see the
+[standalone contract](tokens.md#standalone-root-delegation-verification).
+Supply the actual issuer from protected runtime/configuration, enrolled root
+policy, host clock and finite bounds. The result is proof evidence, not issuance
+approval. Its certificate hash includes checked issue metadata that is absent
+from the signed root leaf; complete token verification still binds that exact
+hash through signed issuer claims.
+
+[IC Auth #10](https://github.com/dragginzgame/ic-auth/issues/10) owns library
+qualification, coordinated under Canic #491. Keep Canic's installation authority,
+protected key/network/audience/grant policy, renewal, storage and live authority
+checks. Preserve its strict installation not-before rule even if configured
+cryptographic future skew is nonzero. Verify before storage mutation and use
+the policy-capped deadline when recording proof freshness. Retire its duplicate
+pre-token root verifier after the library release and consumer acceptance. This boundary does not block adoption of the existing
+complete token verifier. No Canic source changes or host acceptance are implied.

@@ -20,6 +20,8 @@ use sha2::{Digest, Sha256};
 const SEED: &[u8] = b"canic-issuer-delegated-token";
 const NOW: u64 = 150;
 
+mod delegation;
+
 #[cfg(feature = "sessions")]
 mod sessions;
 

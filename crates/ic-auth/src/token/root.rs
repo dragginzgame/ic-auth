@@ -1,4 +1,4 @@
-use super::{TokenVerificationContext, TokenVerificationError, binding, window};
+use super::{RootKeyPolicy, TokenVerificationError, binding, window};
 use crate::canonical::{
     chain_key_batch_header_hash, chain_key_delegation_cert_hash, chain_key_derivation_path_hash,
 };
@@ -12,13 +12,14 @@ use sha2::{Digest, Sha256};
 pub(super) fn verify(
     cert: &DelegationCert,
     root: &RootProof,
-    ctx: &TokenVerificationContext<'_>,
+    policy: &RootKeyPolicy,
+    now_ns: u64,
+    max_future_skew_ns: u64,
 ) -> Result<(), TokenVerificationError> {
     let RootProof::IcChainKeyBatchSignatureV1(proof) = root;
     let header = &proof.header;
     let leaf = &proof.delegation_cert;
     let signature = &proof.signature;
-    let policy = ctx.root_key;
     binding(header.schema_version == 1, "schema_version")?;
     binding(
         header.root_canister_id == policy.root_canister_id
@@ -29,22 +30,22 @@ pub(super) fn verify(
         "root_key_policy",
         policy.valid_from_ns,
         policy.accept_until_ns,
-        ctx.now_ns,
-        ctx.limits.max_future_skew_ns,
+        now_ns,
+        max_future_skew_ns,
     )?;
     window(
         "batch",
         header.not_before_ns,
         header.expires_at_ns,
-        ctx.now_ns,
-        ctx.limits.max_future_skew_ns,
+        now_ns,
+        max_future_skew_ns,
     )?;
     window(
         "issuer_leaf",
         leaf.not_before_ns,
         leaf.expires_at_ns,
-        ctx.now_ns,
-        ctx.limits.max_future_skew_ns,
+        now_ns,
+        max_future_skew_ns,
     )?;
     binding(
         leaf.not_before_ns >= header.not_before_ns && leaf.expires_at_ns <= header.expires_at_ns,

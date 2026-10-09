@@ -2,8 +2,8 @@
 
 The virtual root owns two libraries, unpublished native tooling in `apps/tooling/`
 and the internal host/runner in `apps/qualification/`, plus dependency selections,
-lints and one lockfile. The current manifest version is `0.2.0`, tagged as
-`v0.2.0`; both libraries are published on crates.io.
+lints and one lockfile. The current manifest version is `0.2.1`, tagged as
+`v0.2.1`; both libraries are published on crates.io.
 Rust `1.99.0` remains the development compiler selected by `rust-toolchain.toml`.
 The common package minimum is Rust `1.88.0`, inherited from the root catalog and
 qualified by explicit older-compiler checks. See [MSRV coverage](msrv.md).
@@ -164,9 +164,9 @@ It does not qualify browser/wallet login or a durable session backend.
 ## Releases and publication
 
 ```sh
-make release-patch                 # compatible work: 0.2.0 -> 0.2.1
-make release-minor                 # breaking pre-1.0 contract: 0.2.0 -> 0.3.0
-make release-major                 # explicit major decision: 0.2.0 -> 1.0.0
+make release-patch                 # compatible work: 0.2.1 -> 0.2.2
+make release-minor                 # breaking pre-1.0 contract: 0.2.1 -> 0.3.0
+make release-major                 # explicit major decision: 0.2.1 -> 1.0.0
 make release-resume VERSION=X.Y.Z   # reconcile the exact saved attempt
 make publish-dry-run               # validate packages without upload
 make publish                       # upload a clean, delivered tagged release

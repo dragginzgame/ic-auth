@@ -1,11 +1,19 @@
-//! Complete verification of the existing application-token proof chain.
+//! Verification of the existing application-token proof chain and root delegations.
 //!
 //! Hosts provide protected root-key enrollment, current policy, caller, clock,
 //! audience, role, allowed scopes and endpoint requirements. Every invocation
-//! checks both proofs and live policy. No cache, storage or runtime effect is
-//! performed; replay consumption and session admission remain separate.
+//! of `verify_token` checks both proofs and live policy. Standalone
+//! `verify_delegation_proof` authenticates root delegation only. No cache, storage
+//! or runtime effect is performed; replay consumption and session admission remain
+//! separate.
 
+mod delegation;
 mod root;
+
+pub use delegation::{
+    DelegationProofVerificationContext, DelegationProofVerificationLimits, VerifiedDelegationProof,
+    verify_delegation_proof,
+};
 pub(crate) mod rules;
 
 use crate::{
@@ -189,7 +197,13 @@ pub fn verify_token<'a>(
 ) -> Result<VerifiedToken<'a>, TokenVerificationError> {
     rules::check_size(token, context.limits)?;
     let (grant, claims_hash) = rules::verify_material(token, context)?;
-    root::verify(&token.proof.cert, &token.proof.root_proof, context)?;
+    root::verify(
+        &token.proof.cert,
+        &token.proof.root_proof,
+        context.root_key,
+        context.now_ns,
+        context.limits.max_future_skew_ns,
+    )?;
 
     let cert = &token.proof.cert;
     // The seed and issuer become authenticated only after the root proof above.

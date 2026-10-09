@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.2.2]
+
+- Add bounded standalone root delegation-proof verification for issuer
+  installation before a token exists. Reuse complete-token certificate and
+  cryptographic checks with protected issuer, key, clock and limits; return
+  proof evidence separately from token or issuance authorization.
+  [#10](https://github.com/dragginzgame/ic-auth/issues/10),
+  [Canic #491](https://github.com/dragginzgame/canic/issues/491).
+
 ## [0.2.1] - 2026-10-09
 
 - Run the full three-host CI gate automatically for `main` pushes and pull

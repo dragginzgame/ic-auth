@@ -3,9 +3,9 @@
 The maintainer accepted the larger Canic authentication extraction, selected the
 name `ic-auth`, and confirmed `/home/adam/projects/ic-auth` as the local repository.
 
-The current committed release is `7291bf70426cfa9ca03403155ab249e2d978d88e`
-(`0.2.0`) on `main`, with annotated tag `v0.2.0`; both remote identities were
-verified during continuation. Both libraries' `0.2.0` registry checksums match
+The current committed release is `9cd4cf09dde6ce0b739ed58af18612ed02202841`
+(`0.2.1`) on `main`, with annotated tag `v0.2.1`; both remote identities were
+verified during continuation. Both libraries' `0.2.1` registry checksums match
 the retained publication intent for that exact source/tag. The maintainer
 executed the release and publication. The original bootstrap was
 `7a03102e52b7a400588530997a9f7fb91c83de9d` (`0.1.0`).
@@ -22,7 +22,7 @@ records this batch without closing the larger extraction.
 
 The virtual Rust workspace contains `ic-auth-protocol-types`, `ic-auth` and the
 unpublished native application in `apps/tooling/`, with one lockfile, root-owned
-dependency selections and current manifest version `0.2.0`.
+dependency selections and current manifest version `0.2.1`.
 The passive token/proof contracts and canonical encoding are adapted from the
 clean Canic source at `e286b3fd98460c98670336853f80658a920966e0`; see the
 [source review](../design/canic-source-review.md) for exact ownership and API
@@ -39,7 +39,94 @@ Canic adoption is now in progress in the consumer's dirty working tree, without
 consumer qualification or deployment evidence from this repository. No sibling
 repository was modified by IC Auth work.
 
-## Current independent continuation
+## Current 0.2.2 implementation
+
+The maintainer authorized continuing the standalone proof batch for **0.2.2**.
+It is an additive public API under the existing `token-verification` feature,
+with no wire, signed-byte, dependency, feature-selection or existing verifier
+contract change. Manifests/lock remain 0.2.1 until explicit release preparation.
+
+`token::verify_delegation_proof` accepts the existing proof directly with
+protected expected issuer, root key policy, clock and finite proof bounds. It
+returns private-field `VerifiedDelegationProof` evidence with a borrowed
+certificate, canonical hash and policy-capped exclusive deadline. Certificate
+rules and material accounting are shared with complete token verification; the
+same root engine checks bindings, witness, low-s ECDSA and live authority.
+The complete-token validation order and existing public error surface are
+preserved. No token fabrication, verification callback or new host effect exists.
+
+The root-signed issuer leaf excludes certificate issue-time metadata. The new
+result validates its consistency but does not authenticate that metadata as a
+root-signed timestamp; complete tokens bind the full certificate hash through
+issuer-signed claims. This distinction is covered by a focused test and the
+[contract](../tokens.md#standalone-root-delegation-verification).
+Canic retains installation/issuance approval, protected network/key and
+application policy, renewal, storage and certification composition.
+
+[IC Auth #10](https://github.com/dragginzgame/ic-auth/issues/10) owns this batch,
+coordinated under [Canic #491](https://github.com/dragginzgame/canic/issues/491).
+Focused evidence is retained in `target/continuation-0.2.2/`; the source tests
+cover real signed proofs, wrong root/issuer/key/path/seed/header/leaf/witness,
+scalar/high-s failures, exact material/time/TTL bounds, canonical grants and
+live authority invalidation. Existing complete-token and session tests run
+alongside the new API.
+
+Focused checks pass: 23 proof/token cases on Rust 1.99, 14 session cases,
+13 canonical-vector cases and the library's existing unit case; Rust 1.88 runs
+all 37 proof/token/session cases successfully. `make check-wasm` passes every
+selected library feature. `make check-msrv` passes isolated Cargo package payloads
+for all supported features on native/Wasm and the separately checked internal
+applications. Warning-denied Clippy of all IC Auth library targets/features,
+formatting, 77-file snapshot integrity, declarations, transitive dependency
+boundaries, 254 local documentation references and diff whitespace pass.
+Logs are `library-tests.log`, `msrv-tests.log`, `wasm-msrv.log`,
+`library-clippy.log`, `fmt.log`, `guards.log` and `prose-final.log` beneath the
+same evidence directory. The MSRV payload identities remain in the fixture
+printed by `wasm-msrv.log`; a later module-comment wrap changes no code contract.
+This is local Linux/native and cross-compilation evidence. The complete local CI
+and release gate, native macOS, live IC effects and Canic adapter acceptance were
+not run for this pure verifier batch. No functions, methods or types were removed;
+existing private certificate blocks and budget accounting were extracted for reuse. No sibling edits, package version changes, commit, push,
+release or publication occurred.
+
+## Released 0.2.1 and Canic gap review
+
+The annotated tag object is `8dc86ad90a094c476385977c1ff57e0fd16344d3`;
+remote main and the peeled tag match the release source above. Both unyanked
+registry entries match `.git/publication-state/0.2.1.json`.
+The exact-source [main workflow](https://github.com/dragginzgame/ic-auth/actions/runs/37927487960)
+is queued at inspection, with no duplicate automatic tag run. Keep IC Auth
+#7/#8/#9 open pending their matching native acceptance; publication is not proof
+of that qualification.
+
+Canic's changing working tree at committed base
+`c4c046f947b2b28f4342cbf6efe9221ba1ed5f70` now uses compatible `0.2` catalog
+requirements and resolves both Auth packages at 0.2.1 with matching checksums.
+This selection does not requalify its previously accepted input snapshots.
+The complete runtime token verifier can be adopted with the existing API.
+
+One concrete pre-token extraction gap is recorded in
+[IC Auth #10](https://github.com/dragginzgame/ic-auth/issues/10), coordinated under
+[Canic #491](https://github.com/dragginzgame/canic/issues/491): active issuer proof
+installation verifies a root delegation before a token exists. The library's
+root verifier is private and depends on complete-token prechecks. A standalone
+bounded proof boundary must share the canonical verifier and independently
+validate protected identity, key, time and material inputs. It must not invent a
+token or expose an unchecked helper. This is proposed follow-up work, not an API
+shipped in 0.2.1. Canic retains installation authority, live policy, renewal,
+storage and certification composition.
+
+Inspection hashes, registry/consumer selection evidence and issue bodies are
+retained in `target/continuation-0.2.1/canic-gap-review/`. No sibling edits,
+builds, package version changes or release effects occurred during this review.
+Only publication/adoption documentation was aligned; local links, snapshot
+integrity and diff whitespace are the relevant checks. No new release candidate
+is selected for this governance-only review.
+
+## Earlier 0.2.1 preparation (released)
+
+The following records preparation before maintainer delivery; pending and
+uncommitted wording in this section is historical.
 
 The maintainer requested continued IC Auth work while Canic catches up. The
 compatible pending release is **0.2.1**, covering
