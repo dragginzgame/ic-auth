@@ -2,8 +2,8 @@
 
 The virtual root owns two libraries, unpublished native tooling in `apps/tooling/`
 and the internal host/runner in `apps/qualification/`, plus dependency selections,
-lints and one lockfile. The current manifest version is `0.1.14`, tagged as
-`v0.1.14`; both libraries are published on crates.io.
+lints and one lockfile. The current manifest version is `0.2.0`, tagged as
+`v0.2.0`; both libraries are published on crates.io.
 Rust `1.99.0` remains the development compiler selected by `rust-toolchain.toml`.
 The common package minimum is Rust `1.88.0`, inherited from the root catalog and
 qualified by explicit older-compiler checks. See [MSRV coverage](msrv.md).
@@ -11,6 +11,9 @@ Linux x86_64 is the initially exercised host.
 
 The supported host matrix is Linux x86_64 and macOS 15 on Intel and Apple Silicon.
 CI runs the same complete gate on `ubuntu-24.04`, `macos-15-intel` and `macos-15`.
+Automatic runs cover `main` pushes and pull requests. Release tags do not enqueue
+a second equivalent matrix; separate commits pushed to `main` retain their own
+complete runs. The workflow does not cancel existing or superseded runs.
 Native macOS qualification for this batch remains pending those jobs. Shared
 Tooling's [host prerequisites](supported-hosts.md) apply, including Bash 3.2+,
 GNU Make, rustup, Git and standard Unix setup utilities.
@@ -103,6 +106,24 @@ multi-package check fails when a staged dependency has no resolved checksum.
 It never uploads packages. It is part of the complete CI/release gate; release
 logs remain under `.git/release-state/validation-logs/`.
 
+Once this workflow is delivered to `main`, an explicitly authorized qualification
+of another branch or a tag-only release can dispatch the same workflow at that ref:
+
+```sh
+gh workflow run ci.yml --repo dragginzgame/ic-auth --ref vX.Y.Z
+```
+
+Dispatch requires the workflow on the default branch and its `workflow_dispatch`
+trigger at the selected ref; historical tags without that trigger cannot acquire
+it from later source. Check the resulting run's `headSha` against the intended
+commit, and require all three native jobs. A PR run qualifies its merge candidate,
+not a different release commit. Existing 0.2.0 branch/tag runs retain their original
+source and are not cancelled by this change. Tag identity, validation receipts
+and exact pushed-tag admission remain in the release/publication scripts.
+Manual dispatch runs validation only; it does not release or publish packages.
+See [GitHub's event rules](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows)
+and [workflow syntax](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax).
+
 CI stores validation logs and local fixture evidence under
 `target/portable-fixtures/`. Failed jobs use the adopted retention action and
 archiver; downloaded artifacts contain `evidence.tar.gz`. Extract that archive
@@ -136,16 +157,16 @@ Preparation tests additionally cover host-owned certification composition and
 bounded retrieval retention; see [the preparation contract](signature-preparation.md).
 They do not qualify an actual canister's root publication or query/upgrade lifecycle.
 The separate [IC Testkit command](ic-testkit-qualification.md) exercises those host
-paths and real signed ingress. It obtains the verified server from the local IC
-bundle, checks exact client/server alignment and retains state beneath `target/`.
+paths and real signed ingress. It consumes the locked Testkit CLI's offline
+admission path and retains state beneath `target/`.
 It does not qualify browser/wallet login or a durable session backend.
 
 ## Releases and publication
 
 ```sh
-make release-patch                 # only for compatible work; current hard cut requires minor
-make release-minor                 # current pending developer-tooling hard cut: 0.1.14 -> 0.2.0
-make release-major                 # explicit major decision: 0.1.14 -> 1.0.0
+make release-patch                 # compatible work: 0.2.0 -> 0.2.1
+make release-minor                 # breaking pre-1.0 contract: 0.2.0 -> 0.3.0
+make release-major                 # explicit major decision: 0.2.0 -> 1.0.0
 make release-resume VERSION=X.Y.Z   # reconcile the exact saved attempt
 make publish-dry-run               # validate packages without upload
 make publish                       # upload a clean, delivered tagged release
@@ -156,7 +177,7 @@ receipt/path/failure-status checks, dependency-preparation guidance and Host
 Tooling 0.8.9. Product CLI selections and profiles remain consumer-owned;
 that release preserved its then-current PocketIC setup. Released `0.1.14` documents
 the [Canic library adoption contract](canic-adoption.md) and qualifies its token
-issuance Candid envelopes in both directions. The pending `0.2.0` draft
+issuance Candid envelopes in both directions. Released `0.2.0`
 extends that qualification to complete tokens and root/issuer proof transport.
 It also adopts Shared Tooling 0.2.0's breaking PocketIC ownership handoff. Run
 explicit `make install-tools` after updating: the shared IC bundle now holds

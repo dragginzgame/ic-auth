@@ -11,7 +11,7 @@ the wrapper asks the locked Testkit CLI to check its prepared server and consume
 only the returned absolute path. There is no test-time setup, server pin catalog
 or retained-bundle fallback. `make install-testkit-tools` explicitly prepares the
 CLI and server; `make testkit-tools-check` performs offline admission alone.
-`ic-testkit` 0.26 owns the PocketIC dependency; runtime types are imported through
+`ic-testkit` 0.27 owns the PocketIC dependency; runtime types are imported through
 its re-export, and typed Candid calls preserve application results separately
 from encoding, decoding and replica errors. There is no direct `pocket-ic`
 dependency or exact-version pin exception in this workspace.

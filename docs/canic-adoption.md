@@ -16,21 +16,21 @@ transactions and recovery obligations.
 
 ## Published dependency and feature selection
 
-Both `ic-auth` and `ic-auth-protocol-types` 0.1.14 are published and unyanked.
+Both `ic-auth` and `ic-auth-protocol-types` 0.2.0 are published and unyanked.
 Their registry checksums match IC Auth release
-`5210a34cc57d11301709af19877d1a5f0a100f36`. Rust 1.88 is the supported minimum.
-Canic selects compatible registry requirements in its root catalog and records
-the resolved versions in its own lockfile:
+`7291bf70426cfa9ca03403155ab249e2d978d88e`. Rust 1.88 is the supported minimum.
+For adoption of this release, select compatible registry requirements in Canic's
+root catalog and record the resolved versions in its own lockfiles:
 
 ```toml
 [workspace.dependencies]
-ic-auth = { version = "0.1.14", default-features = false }
-ic-auth-protocol-types = "0.1.14"
+ic-auth = { version = "0.2.0", default-features = false }
+ic-auth-protocol-types = "0.2.0"
 ```
 
 Child packages inherit these dependencies with `workspace = true`; their
 existing capability features forward only the needed library features. This is
-the published selection. The read-only review below distinguishes Canic's
+the recommended published selection. The read-only review below distinguishes Canic's
 in-progress source adoption from consumer qualification.
 
 | Existing Canic capability | IC Auth selection | Retained Canic responsibility |
@@ -114,8 +114,11 @@ adapter or durable session backend.
 ## Consumer acceptance boundary
 
 The maintainer's immediate priority is Canic adoption from the already-published
-0.1.14 libraries. The pending 0.2.0 wire qualification introduces no required
-API change and is not a prerequisite for continuing consumer work.
+libraries. Published 0.2.0 carries complete proof-transport qualification and
+the developer-tooling hard cut; authentication APIs and signed bytes are unchanged.
+The inspected Canic graph still selects 0.1.14, which already supports the next
+complete-verifier adoption. Consumer dependency changes require its own qualified
+lockfiles and remain owned by Canic.
 
 Protocol-types tests now independently describe Canic's prepare request,
 claims/prepare response and retrieval request at immutable Canic
@@ -128,7 +131,7 @@ Wasm on 1.88. [IC Auth #8](https://github.com/dragginzgame/ic-auth/issues/8) own
 this fixture evidence; it does not authenticate tokens or qualify actual Canic
 generated Candid, macro endpoints or production adapters.
 
-The next batch adds complete retrieved-token and delegation-proof
+Released 0.2.0 adds complete retrieved-token and delegation-proof
 fixtures, including certificate/leaf audiences and grants, batch headers, both
 Merkle sibling directions, seed bindings, key identifiers, nested derivation
 paths and opaque root/issuer signatures. Empty and nonempty issuer material is
@@ -137,7 +140,7 @@ Malformed roles/identities in the certificate or issuer leaf reject even within
 a complete token. All eleven wire tests pass on Rust 1.99 and 1.88; the test
 target checks for Wasm on 1.88. These independent fixtures describe the immutable
 Canic DTO source, not the concurrently edited consumer adapter.
-The pending minor release also cuts the developer PocketIC setup over to Testkit
+Released 0.2.0 also cuts the developer PocketIC setup over to Testkit
 under Shared Tooling 0.2.0; that tooling change does not require a new Rust
 authentication API or delay Canic's published 0.1.14 adoption.
 
@@ -153,8 +156,12 @@ The initial 2026-10-09 review found no IC Auth dependency in Canic's root/Core
 manifests at committed `c4c046f947b2b28f4342cbf6efe9221ba1ed5f70`. During the next
 read-only inspection, the consumer working tree began selecting 0.1.14 and
 adapting its canonical/proof code. This is uncommitted source evidence, not
-consumer qualification or deployment. The next boundary below remains in the
-same owning issue. Wallet login is not a prerequisite for these local Rust calls. The private
+consumer qualification or deployment from this source inspection. The owner
+subsequently recorded 202 passing focused encoding/configuration/facade cases in
+[its adoption handoff](https://github.com/dragginzgame/canic/issues/491#issuecomment-6079111719).
+Those qualify its retained input snapshots, not later graph changes or complete
+verifier/host adoption. The next boundary below remains in the same owning issue.
+Wallet login is not a prerequisite for these local Rust calls. The private
 [browser client](browser-client.md#consumer-adoption) has a separate real-issuer
 adapter and publication boundary.
 

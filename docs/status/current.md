@@ -3,9 +3,9 @@
 The maintainer accepted the larger Canic authentication extraction, selected the
 name `ic-auth`, and confirmed `/home/adam/projects/ic-auth` as the local repository.
 
-The current committed release is `5210a34cc57d11301709af19877d1a5f0a100f36`
-(`0.1.14`) on `main`, with annotated tag `v0.1.14`; both remote identities were
-verified during continuation. Both libraries' `0.1.14` registry checksums match
+The current committed release is `7291bf70426cfa9ca03403155ab249e2d978d88e`
+(`0.2.0`) on `main`, with annotated tag `v0.2.0`; both remote identities were
+verified during continuation. Both libraries' `0.2.0` registry checksums match
 the retained publication intent for that exact source/tag. The maintainer
 executed the release and publication. The original bootstrap was
 `7a03102e52b7a400588530997a9f7fb91c83de9d` (`0.1.0`).
@@ -22,7 +22,7 @@ records this batch without closing the larger extraction.
 
 The virtual Rust workspace contains `ic-auth-protocol-types`, `ic-auth` and the
 unpublished native application in `apps/tooling/`, with one lockfile, root-owned
-dependency selections and current manifest version `0.1.14`.
+dependency selections and current manifest version `0.2.0`.
 The passive token/proof contracts and canonical encoding are adapted from the
 clean Canic source at `e286b3fd98460c98670336853f80658a920966e0`; see the
 [source review](../design/canic-source-review.md) for exact ownership and API
@@ -39,7 +39,104 @@ Canic adoption is now in progress in the consumer's dirty working tree, without
 consumer qualification or deployment evidence from this repository. No sibling
 repository was modified by IC Auth work.
 
-## Current hard cut
+## Current independent continuation
+
+The maintainer requested continued IC Auth work while Canic catches up. The
+compatible pending release is **0.2.1**, covering
+[IC Auth #9](https://github.com/dragginzgame/ic-auth/issues/9) and qualification of
+the incoming native Host/Testkit selections. Auth library APIs, signed bytes,
+feature surfaces and package versions remain unchanged at 0.2.0.
+
+The CI workflow now selects `push.branches: [main]`, unchanged pull-request
+activity and `workflow_dispatch`. An atomic main/release-tag push therefore
+selects one automatic matrix for its source; feature branches use PR validation
+or explicit dispatch. Distinct main commits retain their own complete runs.
+No path filter, shared concurrency key or cancellation was introduced. All
+workflow content except `on` is identical before/after, proven by sorted JSON
+comparison: three hosts, browser/MSRV/setup/cache preparation, complete gate,
+upload/download byte qualification and failure retention are preserved.
+The release/publication scripts retain exact annotated-tag, pushed-tag and
+validation-receipt admission. They previously had no CI tag-specific caller.
+
+Actionlint, actual event/matrix assertions and case review pass. The
+[developer instructions](../development.md#validation) document explicit dispatch
+for supported branch/tag refs, its default-branch/selected-trigger requirement,
+exact `headSha` acceptance and historical-tag limitations. No remote run was
+triggered or cancelled. Actual native event qualification still requires
+maintainer delivery; IC Auth #9 remains open. Review evidence is retained in
+`target/continuation-0.2.1/{actionlint.log,event-check.log,event-review.md,ci-before.json,ci-after.json,jobs-before.json,jobs-after.json}`.
+
+Concurrent owner work selected Host 0.9.2 and Testkit 0.27 in the manifest.
+The lock initially retained Testkit 0.26.0, then another process completed its
+0.27.0 resolution before the targeted Cargo update (which changed no selection).
+Those incoming entries and tokio-util 0.7.20 were preserved. Official index entries
+for Testkit 0.27.0/Host FS 0.9.2 are unyanked and match locked checksums.
+Explicit preparation through the canonical installer and owner CLI succeeded;
+older slots and server evidence remain retained. Testkit still admits PocketIC
+16.1.0. No startup-error variant adapter was needed: the local runner already
+consumes the bounded owner startup result without variant matching.
+
+The current selected graph passes five native file-helper cases, both real
+certification/composed-root/protected-upgrade/fresh-key signed-ingress scenarios,
+Rust 1.88 application checks including tests, and warning-denied Clippy of both
+native applications. Logs are `host-tests.log`, `qualification.log`,
+`native-msrv.log` and `native-clippy.log` under the same evidence directory.
+The real qualification state is retained beneath `target/portable-fixtures/`
+at the exact path printed in `qualification.log`. Native startup ran with local
+loopback networking admitted. The selected manifest/lock hashes in
+`selected-inputs.sha256` still match after qualification. This is Linux acceptance,
+not current native macOS, browser adapter, Canic or wallet-service acceptance.
+Caller fixtures pass on Bash 5 and genuine Bash 3.2, including the actual unchanged
+CI archive step. ShellCheck, formatting, snapshot/declaration/link guards and diff
+whitespace pass. Aggregate checks and real offline CLI admission are recorded
+alongside these logs.
+
+The previously aligned release/consumer documentation remains part of the local
+batch. No package version mutation, full local CI, commit, push, release,
+publication or sibling source edit was performed. Canic continues independently
+under its existing tracker; no wallet endpoint is introduced.
+
+## Released 0.2.0 and consumer handoff
+
+The maintainer delivered 0.2.0. Both official Cargo sparse-index records are
+unyanked and match `.git/publication-state/0.2.0.json` for the exact source above
+and annotated tag object `db9d1b2e42466136c870be1d989bb3e009b10be8`.
+The crates.io API refused HTTP 403, so verification used the official index.
+Exact-source [main CI](https://github.com/dragginzgame/ic-auth/actions/runs/37923280901)
+and [tag CI](https://github.com/dragginzgame/ic-auth/actions/runs/37923280939)
+are queued at inspection. Keep IC Auth #7/#8 open pending their matching native
+acceptance; publication does not establish that qualification. Evidence is in
+`target/continuation-0.2.0-live/`.
+
+The next adoption step remains Canic's runtime token verifier under
+[Canic #491](https://github.com/dragginzgame/canic/issues/491). Its owner recorded
+202 passing focused encoding, DTO, configuration and facade cases for the initial
+0.1.14 slice, with immutable input snapshots. The current read-only review finds
+Canic still at committed `c4c046f947b2b28f4342cbf6efe9221ba1ed5f70` with changing
+uncommitted work: Auth 0.1.14 and Testkit 0.26.0 are selected. The earlier
+Testkit catalog/lock mismatch is resolved at this inspection; the older acceptance
+cannot be relabelled as qualification of the new graph. Canonical hashing and
+shared proof declarations are adopted in source, but `AuthOps::verify_token`
+still takes the local positive-cache/callback verification routes. Delegate those
+callers to `ic_auth::token::verify_token` with protected caller, clock, fleet/role,
+scope ceiling, key/network policy and finite limits. Qualify live authority changes
+and retain typed endpoint errors/metrics before retiring the duplicate engine.
+Durable session transactions and composed certification stores follow separately.
+The published library already supplies this verifier; no new IC Auth endpoint,
+wallet provider or library release is needed to begin that consumer work.
+
+During the preceding release-status review, an incoming lock edit advanced
+`tokio-util` 0.7.19 to 0.7.20; it was then preserved without compilation. The
+current graph qualification is recorded above and is separate from 0.2.0 release
+acceptance. No sibling
+source, manifest version, release effect or compilation was performed by this
+release-status review. Publication status and consumer documentation were aligned;
+local links, snapshot integrity and diff whitespace are the relevant checks.
+
+## Earlier hard-cut preparation (released)
+
+The following records preparation before maintainer delivery; pending and
+uncommitted wording in this section is historical.
 
 The maintainer requested the latest Shared Tooling and its hard cut. The reviewed
 snapshot now contains 77 canonical files from Shared Tooling 0.2.0 main revision

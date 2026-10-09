@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.2.1]
+
+- Run the full three-host CI gate automatically for `main` pushes and pull
+  requests, avoiding duplicate release-tag validation. Add manual qualification
+  of a selected branch/tag while retaining the complete matrix and failure
+  evidence. [#9](https://github.com/dragginzgame/ic-auth/issues/9).
+- Select the matching IC Testkit 0.27.0 CLI for the incoming dependency update
+  and retain Host 0.9.2 for native tooling and canister qualification.
+  [IC Testkit #30](https://github.com/dragginzgame/ic-testkit/issues/30),
+  [Host Tooling #39](https://github.com/dragginzgame/ic-host-tooling/issues/39).
+
 ## [0.2.0] - 2026-10-09
 
 - **Breaking developer setup contract:** adopt Shared Tooling 0.2.0 and transfer
