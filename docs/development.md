@@ -1,9 +1,9 @@
-# Rust development
+# Development
 
 The virtual root owns two libraries, unpublished native tooling in `apps/tooling/`
 and the internal host/runner in `apps/qualification/`, plus dependency selections,
-lints and one lockfile. The current manifest version is `0.1.8`, tagged as
-`v0.1.8`; both libraries are published on crates.io.
+lints and one lockfile. The current manifest version is `0.1.9`, tagged as
+`v0.1.9`; both libraries are published on crates.io.
 Rust `1.99.0` remains the development compiler selected by `rust-toolchain.toml`.
 The common package minimum is Rust `1.88.0`, inherited from the root catalog and
 qualified by explicit older-compiler checks. See [MSRV coverage](msrv.md).
@@ -46,10 +46,24 @@ The reviewed pre-commit hook formats selected files without building or testing,
 rejects partial staging and preserves unrelated edits. Hook activation does not
 establish independent formatting qualification.
 
+## Browser client setup
+
+The private [browser client](browser-client.md) has its own locked npm build root.
+Select exact Node from `packages/client/.nvmrc` and npm from that package's
+`packageManager`, then run `make install-client-dependencies` and
+`make client-tools-check`. Preparation uses `npm ci` with lifecycle scripts
+turned off. Validation does not install dependencies. CI prepares these selections
+explicitly on all three hosts before its complete gate. Client source and example
+outputs remain under ignored `packages/client/dist/`; generated-contract evidence
+is retained under `target/browser-client/`.
+
 ## Validation
 
 | Focused command | Purpose |
 | --- | --- |
+| `make test-client` | Private client lifecycle, compiled SDK consumer example and Rust/TypeScript Candid roundtrip |
+| `make check-client-contracts` | Compare fresh locked bindings with the Rust-owned checked-in contracts offline |
+| `make generate-client-contracts` | Explicitly regenerate the checked-in client contracts from Rust DTOs |
 | `make test-types` | Identifier rejection and Candid wire compatibility |
 | `make test-protocol` | Canonical encoding, signed vectors, ordering and size rejection |
 | `make test-signatures` | Real BLS-signed IC fixtures, signer/seed/root rejection, certificate freshness and bounded decoding |
@@ -79,7 +93,7 @@ It uses the shared validation logger and retains failures. The workflow prepares
 tools and caches first, then calls that same gate. The public remote is
 [dragginzgame/ic-auth](https://github.com/dragginzgame/ic-auth), and `main` contains
 the current release. This batch has focused local evidence only; remote CI is
-not inferred from it. Dependency pinning requires the lockfile to be tracked.
+not inferred from it. Dependency pinning requires each lockfile and the npm root manifest to be tracked.
 Cargo tests, metadata and Wasm checks run offline after `fetch`. The publication
 dry run deliberately accesses registry metadata: the selected Cargo's offline
 multi-package check fails when a staged dependency has no resolved checksum.
@@ -113,9 +127,9 @@ It does not qualify browser/wallet login or a durable session backend.
 ## Releases and publication
 
 ```sh
-make release-patch                 # current compatible batch: 0.1.8 -> 0.1.9
-make release-minor                 # pre-1.0 breaking increment: 0.1.8 -> 0.2.0
-make release-major                 # explicit major decision: 0.1.8 -> 1.0.0
+make release-patch                 # current compatible batch: 0.1.9 -> 0.1.10
+make release-minor                 # pre-1.0 breaking increment: 0.1.9 -> 0.2.0
+make release-major                 # explicit major decision: 0.1.9 -> 1.0.0
 make release-resume VERSION=X.Y.Z   # reconcile the exact saved attempt
 make publish-dry-run               # validate packages without upload
 make publish                       # upload a clean, delivered tagged release

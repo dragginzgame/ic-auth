@@ -1,0 +1,29 @@
+{
+  "name": "@dragginzgame/ic-auth-client",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Application-token lifecycle for injected authenticated IC identities",
+  "license": "MIT",
+  "packageManager": "npm@12.2.0",
+  "engines": {
+    "node": ">=24.21.0 <25",
+    "npm": "12.2.0"
+  },
+  "exports": {
+    ".": "./dist/src/index.js"
+  },
+  "types": "./dist/src/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test --test-isolation=none --test-reporter=tap dist/test/*.test.js"
+  },
+  "dependencies": {
+    "@icp-sdk/core": "^6.1.0"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2",
+    "@types/node": "^24.0.0",
+    "@icp-sdk/bindgen": "^0.4.1"
+  }
+}

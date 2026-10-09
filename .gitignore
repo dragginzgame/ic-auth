@@ -4,3 +4,5 @@
 **/node_modules/
 /.shared-tooling-refresh.*/
 .DS_Store
+
+/packages/client/dist/

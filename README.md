@@ -13,7 +13,7 @@ contract. The libraries and reference service must not depend on either project.
 The Rust workspace implements passive token/proof contracts, validated protocol
 identifiers, canonical signed encoding, optional IC signature/application-token
 verification and atomic session/replay admission extracted from Canic. Both
-libraries are published on crates.io at `0.1.8`; see the
+libraries are published on crates.io at `0.1.9`; see the
 [signature](docs/signatures.md), [token](docs/tokens.md) and
 [session](docs/sessions.md) contracts. Durable canister adoption remains pending.
 Bounded [signature preparation and retrieval](docs/signature-preparation.md)
@@ -21,6 +21,9 @@ includes explicit host certification composition.
 Released [IC Testkit qualification](docs/ic-testkit-qualification.md) checks
 real certification, upgrades and signed ingress; this internal fixture
 does not implement a wallet login provider.
+The private [browser client](docs/browser-client.md) now implements injected
+authenticated-identity/token lifecycle machinery with generated Candid contracts.
+It is not published; issuer adapter qualification and consumer adoption remain pending.
 **Wallet login remains unimplemented.** Tokens and local sessions do not grant
 application resource ownership. The native utility in `apps/tooling/` is unpublished and reuses
 `ic-host-fs`/`ic-host-artifacts` for release and publication file operations.
@@ -31,6 +34,7 @@ superseded code require a separately authorized Canic change.
 - [Architecture and ownership](docs/design/extraction.md)
 - [Current handoff](docs/status/current.md)
 - [Developer setup and commands](docs/development.md)
+- [Browser token client and consumer boundary](docs/browser-client.md)
 - [Minimum Rust compiler and package qualification](docs/msrv.md)
 - [Shared maintenance task catalog](tasks/README.md)
 - [Canic source review and incorporation boundary](docs/design/canic-source-review.md)
@@ -47,7 +51,9 @@ crates/
   ic-auth/                     # Encoding and optional signature/token/session machinery
 apps/
   tooling/                     # Unpublished native release/publication file utility
-  qualification/               # Internal Wasm host and PocketIC/IC-agent tests
+  qualification/               # Internal Wasm host and IC Testkit/IC-agent tests
+packages/
+  client/                      # Private browser lifecycle client and generated contracts
 ```
 
 The types package is `ic-auth-protocol-types` (Rust import
@@ -56,8 +62,8 @@ package belongs to another IC-Auth project and does not implement our applicatio
 token/proof contracts. Crates.io treats hyphens and underscores as colliding
 names, so changing only the punctuation cannot resolve that conflict.
 
-Future service and client packages belong in `apps/wallet-auth/` and
-`packages/client/`. They are not created as empty or accepting placeholders.
+The future wallet service belongs in `apps/wallet-auth/`. No accepting wallet
+endpoint is created before its complete proof verification and service contracts.
 
 With the [declared tools](docs/development.md) prepared, run the focused checks:
 

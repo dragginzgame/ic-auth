@@ -71,7 +71,7 @@ Apply [DRAGGINZGAME.md](DRAGGINZGAME.md), adopted from Shared Tooling revision
   `make test-host-tooling`, `make test-qualification`, `make check-wasm` and `make clippy`; `make ci` is the
   explicit complete gate. `make test-release-runner` checks the adopted runner
   with substituted effects.
-  Both libraries are published at `0.1.8` with contracts, encoding and optional
+  Both libraries are published at `0.1.9` with contracts, encoding and optional
   IC signature/token/session machinery, including bounded signature preparation.
   The internal IC Testkit fixture exercises actual certification, composed roots,
   protected metadata upgrades and signed ingress with fresh session keys.
@@ -79,6 +79,12 @@ Apply [DRAGGINZGAME.md](DRAGGINZGAME.md), adopted from Shared Tooling revision
   Stable library host adoption and wallet login remain
   unimplemented. Host stores must commit session/replay changes atomically and
   advance protected generation with authority changes.
+- The private browser client is in `packages/client/`, with Rust-owned generated
+  Candid data contracts and injected SDK identity/issuer/storage boundaries.
+  See [client contracts](docs/browser-client.md). `make install-client-dependencies`
+  explicitly prepares its selected Node/npm dependencies; `make test-client`
+  checks lifecycle behavior and both Candid directions offline. Do not claim a
+  production adapter, npm publication or consumer adoption from transport fixtures.
 - `make publish-dry-run` checks both package builds using live registry metadata
   without uploading. `make test-release-tools` uses local bare remotes and mocked
   upload/registry transport. The three release targets share the complete gate

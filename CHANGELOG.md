@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.1.10]
+
+- Add a private browser application-token client with injected authenticated
+  identities and issuer operations, scoped caching, single-flight renewal and
+  generation-safe invalidation. Preserve uncertain issuance intent and use
+  explicit no-effect TTL outcomes for fallback.
+  [IC Auth #3](https://github.com/dragginzgame/ic-auth/issues/3).
+- Generate client Candid contracts from the Rust protocol owner and add explicit
+  Node/npm setup, offline lifecycle tests and cross-language wire checks.
+  The client is not published and consumer adapter adoption remains pending.
+
 ## [0.1.9] - 2026-10-08
 
 - Adopt Shared Tooling 0.1.29 and report all refused staged, unstaged and

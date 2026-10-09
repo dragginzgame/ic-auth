@@ -22,7 +22,17 @@ jobs:
         with:
           persist-credentials: false
       - name: Prepare retained evidence directories
-        run: mkdir -p target/portable-fixtures
+        run: mkdir -p target/portable-fixtures target/browser-client
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version-file: packages/client/.nvmrc
+          package-manager-cache: false
+      - name: Prepare selected client package manager and locked dependencies
+        run: |
+          selected_npm="$(node --input-type=module -e 'import manifest from "./packages/client/package.json" with {type:"json"}; console.log(manifest.packageManager.slice(4))')"
+          npm install --global "npm@$selected_npm" --registry=https://registry.npmjs.org --ignore-scripts --no-audit --no-fund
+          make install-client-dependencies 2>&1 | tee target/browser-client/npm-preparation.log
+          make client-tools-check
       - name: Prepare the repository-selected Rust toolchain
         run: rustup show active-toolchain
       - name: Install reviewed tools and prepare the selected dependency cache

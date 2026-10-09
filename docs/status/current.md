@@ -3,9 +3,9 @@
 The maintainer accepted the larger Canic authentication extraction, selected the
 name `ic-auth`, and confirmed `/home/adam/projects/ic-auth` as the local repository.
 
-The current committed release is `616aed8b0e6cbc805609c5ed3f5c38a50e3dc52c`
-(`0.1.8`) on `main`, with annotated tag `v0.1.8`; both remote identities were
-verified during this batch. Both libraries' `0.1.8` registry checksums match
+The current committed release is `551b4caed9ea44c11e72ccf444bb9b4c2b2e49bf`
+(`0.1.9`) on `main`, with annotated tag `v0.1.9`; both remote identities were
+verified during this batch. Both libraries' `0.1.9` registry checksums match
 the retained publication intent for that exact source/tag. The maintainer
 executed the release and publication. The original bootstrap was
 `7a03102e52b7a400588530997a9f7fb91c83de9d` (`0.1.0`).
@@ -22,7 +22,7 @@ records this batch without closing the larger extraction.
 
 The virtual Rust workspace contains `ic-auth-protocol-types`, `ic-auth` and the
 unpublished native application in `apps/tooling/`, with one lockfile, root-owned
-dependency selections and current manifest version `0.1.8`.
+dependency selections and current manifest version `0.1.9`.
 The passive token/proof contracts and canonical encoding are adapted from the
 clean Canic source at `e286b3fd98460c98670336853f80658a920966e0`; see the
 [source review](../design/canic-source-review.md) for exact ownership and API
@@ -32,11 +32,70 @@ notices in the package payloads. Released `0.1.6` includes optional complete tok
 and IC signature verification, session/replay machinery and bounded signature
 preparation/retrieval. Released `0.1.7` includes the internal canister/runner
 packages under `apps/qualification/` and their IC Testkit qualification.
-There is no stable canister adapter, wallet endpoint or TypeScript client yet.
+There is no stable canister adapter or wallet endpoint yet. The private browser
+client now implements injected token lifecycle machinery; real issuer adapter
+qualification, npm publication and consumer adoption remain pending.
 Canic adoption has not
 occurred; no sibling repository was modified.
 
-## Current Host 0.8.3 review and wrapper cleanup
+## Current browser client batch
+
+The maintainer pushed/released 0.1.9, then authorized continuation on the browser
+client in [IC Auth #3](https://github.com/dragginzgame/ic-auth/issues/3).
+Live 0.1.9 registry checksums match retained publication intent:
+`de44ab5b877f3df89674d273b3e38b2e398e25cc60ab5bf3caa61d8cc436b7ff`
+(protocol types) and
+`fa9b48d98aa8232eb264eb94f2ff0238a922a786e314884fc3e52e1cd978f101`
+(auth). The Rust manifest remains 0.1.9. The next compatible draft is 0.1.10:
+the private client/dev tooling is additive and existing Rust APIs and signed
+bytes remain unchanged. No release, push or publication was performed here.
+
+The private npm root uses Node 24.21.0/npm 12.2.0 and locked ICP SDK core 6.1.0,
+bindgen 0.4.1 and TypeScript 7.0.2. Runtime contracts come from the Rust DTO owner;
+no client service endpoints or hand-written Candid DTO copies were introduced.
+A Rust development-only printer feature exports the contracts without changing
+normal protocol dependency selections. Native Host packages remain outside the
+browser and public protocol graphs. See [browser client](../browser-client.md)
+for uncertainty, generation, cache, storage and consumer boundaries.
+
+Explicit npm preparation used reviewed registry routing with lifecycle scripts
+disabled. Subsequent checks were offline and preserved the lock. Local source
+fixtures exercise login/renewal races, captured-generation invalidation,
+unknown prepare/retrieval replies, typed TTL exhaustion, expiry/poll bounds,
+cache isolation, material binding, storage admission and CAS behavior. The
+Internet Identity example compiles with the actual SDK and checks authenticated
+agent identity plus logout during pending login. These are transport/lifecycle
+fixtures, not a live issuer adapter or browser cryptographic qualification.
+
+The read-only Toko source review selected
+`44d4e2c6d41e3575b2503e79ffa369129ff3ecf2` and preserved its dirty Cargo lock.
+The adoption recipe names replacement boundaries but leaves user/shard/project
+semantics in Toko and issuer authority in Canic. A real adapter must expose
+qualified exact-ID reconciliation before old token helpers are removed.
+Issue #3 remains open for that consumer work. Neither sibling was edited.
+
+Focused validation passed: 23 Node lifecycle/codec/example tests and both Candid
+directions; protocol type tests and the exporter on development Rust 1.99.0 and
+minimum Rust 1.88.0; strict protocol Clippy; auth dependency boundaries, locked
+metadata, formatting, ShellCheck, Actionlint, snapshot integrity and local links.
+The release/publication fixture includes the client source/lock without build
+outputs and passes its local/mocked release and uncertainty checks. These fixture
+Make override warnings are deliberate substitute gate recipes, not production
+Makefile duplicates. Evidence is retained under `target/browser-client/`, with
+failed first attempts alongside the final logs. Generated-contract directories
+record exact input hashes using the existing Host utility and tool versions.
+
+The canonical dependency declaration check passes in an isolated source fixture
+with the new npm manifest/lock tracked; the real index was unchanged. The real
+checkout's npm check correctly requires those currently new files to be tracked
+at commit. The Rust lock is unchanged. No broad local CI or native macOS run is
+claimed; configured CI now prepares and checks the client on all three hosts.
+No existing function, method or type was removed in this additive batch.
+
+## Earlier Host 0.8.3 review and wrapper cleanup (released in 0.1.9)
+
+The following records preparation against 0.1.8, before the maintainer's 0.1.9
+release. Its pending-version wording is historical.
 
 All four Host packages were already selected at 0.8.3 in the incoming dirty
 lockfile. That update and the prior Shared Tooling batch were preserved.
@@ -93,7 +152,10 @@ Final source/lock/snapshot/Wasm identities and the working diff are retained her
 The compatible pending batch remains 0.1.9; manifests remain 0.1.8.
 No commit, push, release, publication or sibling change was performed.
 
-## Shared Tooling 0.1.29 batch
+## Earlier Shared Tooling 0.1.29 batch (released in 0.1.9)
+
+The following records preparation before the maintainer's 0.1.9 release; its
+pending-version wording is historical.
 
 Observed remote Shared Tooling main is
 `1a54fb625d6e47efa64c4384808ecbc87be84e7e` (0.1.29). A clean isolated checkout

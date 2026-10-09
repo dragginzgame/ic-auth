@@ -1,0 +1,112 @@
+type AudienceId = record { fleet_id : text; canonical_network_id : text };
+type AuthRequestMetadata = record { request_id : blob; ttl_ns : nat64 };
+type ChainKeyAlgorithm = variant { EcdsaSecp256k1 };
+type ChainKeyBatchHeaderV1 = record {
+  root_canister_id : principal;
+  registry_epoch : nat64;
+  algorithm : ChainKeyAlgorithm;
+  key_version : nat64;
+  key_id : ChainKeyKeyId;
+  registry_hash : blob;
+  proof_epoch : nat64;
+  batch_id : blob;
+  not_before_ns : nat64;
+  schema_version : nat16;
+  derivation_path_hash : blob;
+  tree_root : blob;
+  expires_at_ns : nat64;
+};
+type ChainKeyBatchWitnessStepV1 = variant {
+  RightSibling : blob;
+  LeftSibling : blob;
+};
+type ChainKeyBatchWitnessV1 = record { steps : vec ChainKeyBatchWitnessStepV1 };
+type ChainKeyDelegationCertV1 = record {
+  root_canister_id : principal;
+  registry_epoch : nat64;
+  grants : vec DelegatedRoleGrant;
+  max_token_ttl_ns : nat64;
+  issuer_proof_binding_hash : blob;
+  registry_hash : blob;
+  proof_epoch : nat64;
+  issuer_proof_binding : IssuerProofBinding;
+  audience : DelegationAudience;
+  not_before_ns : nat64;
+  issuer_canister_id : principal;
+  issuer_proof_algorithm : IssuerProofAlgorithm;
+  expires_at_ns : nat64;
+};
+type ChainKeyKeyId = record { name : text };
+type ChainKeyRootSignatureV1 = record {
+  algorithm : ChainKeyAlgorithm;
+  signature : blob;
+  public_key : blob;
+  key_id : ChainKeyKeyId;
+  derivation_path : vec blob;
+};
+type DelegatedRoleGrant = record { scopes : vec text; target : text };
+type DelegatedToken = record {
+  claims : DelegatedTokenClaims;
+  issuer_proof : IssuerProof;
+  proof : DelegationProof;
+};
+type DelegatedTokenClaims = record {
+  aud : DelegationAudience;
+  ext : opt blob;
+  cert_hash : blob;
+  grants : vec DelegatedRoleGrant;
+  subject : principal;
+  presenter : principal;
+  issued_at_ns : nat64;
+  issuer_pid : principal;
+  nonce : blob;
+  expires_at_ns : nat64;
+};
+type DelegatedTokenGetRequest = record { claims_hash : blob };
+type DelegatedTokenPrepareRequest = record {
+  aud : DelegationAudience;
+  ext : opt blob;
+  grants : vec DelegatedRoleGrant;
+  metadata : opt AuthRequestMetadata;
+  ttl_ns : nat64;
+};
+type DelegatedTokenPrepareResponse = record {
+  claims_hash : blob;
+  claims : DelegatedTokenClaims;
+  retrieval_expires_at_ns : nat64;
+};
+type DelegationAudience = variant { Fleet : AudienceId };
+type DelegationCert = record {
+  aud : DelegationAudience;
+  grants : vec DelegatedRoleGrant;
+  max_token_ttl_ns : nat64;
+  issuer_proof_binding_hash : blob;
+  issuer_proof_binding : IssuerProofBinding;
+  not_before_ns : nat64;
+  issued_at_ns : nat64;
+  issuer_pid : principal;
+  issuer_proof_alg : IssuerProofAlgorithm;
+  expires_at_ns : nat64;
+  root_pid : principal;
+};
+type DelegationProof = record { cert : DelegationCert; root_proof : RootProof };
+type IcCanisterSignatureProofV1 = record {
+  signature_cbor : blob;
+  public_key_der : blob;
+};
+type IcChainKeyBatchSignatureProofV1 = record {
+  issuer_witness : ChainKeyBatchWitnessV1;
+  signature : ChainKeyRootSignatureV1;
+  delegation_cert : ChainKeyDelegationCertV1;
+  header : ChainKeyBatchHeaderV1;
+};
+type IssuerProof = variant {
+  IcCanisterSignatureV1 : IcCanisterSignatureProofV1;
+};
+type IssuerProofAlgorithm = variant { IcCanisterSignatureV1 };
+type IssuerProofBinding = variant {
+  IcCanisterSignatureV1 : record { seed_hash : blob };
+};
+type RootProof = variant {
+  IcChainKeyBatchSignatureV1 : IcChainKeyBatchSignatureProofV1;
+};

@@ -1323,9 +1323,9 @@ dependencies = [
 
 [[package]]
 name = "ic-host-artifacts"
-version = "0.8.3"
+version = "0.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6d1becd57d40835a5837ffafe10b024bfd74ccf52523b49a8ce40cba89512ee8"
+checksum = "26e471bd1214f30f1bdaa75bd0de152c863c16548f8682bba08ced37e9ddad02"
 dependencies = [
  "flate2",
  "sha2 0.10.9",
@@ -1335,9 +1335,9 @@ dependencies = [
 
 [[package]]
 name = "ic-host-fs"
-version = "0.8.3"
+version = "0.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "78e22e84c893ed89bdbc7cac87c703f01cb253beb3880f4400a993a261b0df69"
+checksum = "e26d9a9c7741af21823ba5e46d19c10e15d2a511cc294eaed1e37f66f85bc02c"
 dependencies = [
  "ic-host-artifacts",
  "rustix",
@@ -1345,9 +1345,9 @@ dependencies = [
 
 [[package]]
 name = "ic-host-process"
-version = "0.8.3"
+version = "0.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ab7c164d5ea034323bcb4b72ecae7072a8ac5d1ac9465f8728d51fe7faff8f7e"
+checksum = "7604e4bc9aead86852f50f9d0fca9f125510f3db591156f2866257539c9f2261"
 dependencies = [
  "ic-host-artifacts",
  "ic-host-fs",
@@ -1357,9 +1357,9 @@ dependencies = [
 
 [[package]]
 name = "ic-host-tools"
-version = "0.8.3"
+version = "0.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4372439200461e46a66be3c42f1a267fb8f2b80043d2fd2125cfc6d9e6397732"
+checksum = "3de7e115d3ead0210b14350b2ecf179bd0232703345074336efde03fc34df877"
 dependencies = [
  "ic-host-artifacts",
  "ic-host-fs",
@@ -3051,9 +3051,9 @@ dependencies = [
 
 [[package]]
 name = "toml"
-version = "1.1.7+spec-1.1.0"
+version = "1.1.8+spec-1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7874cd34dd99040fc24e30923aa64a60a81ff3ddfe2b8129ccc84ba24949deed"
+checksum = "20489e00e4d8741d6be680764cc12e270655e375a20d1011e844a9c3379e678d"
 dependencies = [
  "indexmap",
  "serde_core",
@@ -3075,9 +3075,9 @@ dependencies = [
 
 [[package]]
 name = "toml_parser"
-version = "1.1.4+spec-1.1.0"
+version = "1.1.5+spec-1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bed810ee007d8e7f9cf20b4774e7198142fa27186e0f805871da7f3c39eaf333"
+checksum = "baa693a8032d7e1cada7d0041e96126df243179ff061456783ac7f12bda4744c"
 dependencies = [
  "winnow",
 ]

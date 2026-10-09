@@ -15,6 +15,7 @@ export RELEASE_REMOTE RELEASE_BRANCH
 .PHONY: help install-hooks format-tools-check fmt fmt-check fetch metadata \
         test-types test-protocol test-signatures test-signature-store test-tokens test-sessions check-wasm clippy check-boundaries \
         check-snapshot check-dependency-pins check-doc-links check-msrv install-msrv msrv-tools-check tasks ci \
+        client-tools-check install-client-dependencies generate-client-contracts check-client-contracts test-client \
         publish publish-dry-run check-package-licenses test-release-tools \
         test-host-tooling test-qualification build-qualification-canister test-release-runner test-evidence-archive \
         release-patch release-minor release-major release-resume \
@@ -25,6 +26,7 @@ export RELEASE_REMOTE RELEASE_BRANCH
 help:
 	@echo 'Setup: install-tools, tools-check, install-hooks, fetch; minimum compiler: install-msrv, msrv-tools-check'
 	@echo 'Focused checks: test-types, test-protocol, test-signatures, test-signature-store, test-tokens, test-sessions, test-host-tooling, test-qualification, check-wasm, clippy, metadata'
+	@echo 'Browser client: install-client-dependencies, client-tools-check, generate-client-contracts, check-client-contracts, test-client'
 	@echo 'Formatting: fmt, fmt-check'
 	@echo 'Governance: check-snapshot, check-dependency-pins, check-doc-links, check-boundaries, check-msrv; maintenance catalog: tasks'
 	@echo 'Complete CI gate (explicit only): ci'
@@ -108,14 +110,31 @@ check-boundaries:
 check-snapshot:
 	bash scripts/ci/verify-shared-tooling-snapshot.sh
 
+client-tools-check:
+	bash scripts/dev/client-tools.sh check
+
+install-client-dependencies:
+	bash scripts/dev/client-tools.sh install
+
+generate-client-contracts:
+	bash scripts/dev/client-contracts.sh generate
+
+check-client-contracts:
+	bash scripts/dev/client-contracts.sh check
+
+test-client:
+	bash scripts/dev/test-client.sh
+
 check-dependency-pins:
-	bash scripts/ci/check-dependency-pins.sh --cargo-inheritance
+	bash scripts/ci/check-dependency-pins.sh --cargo-inheritance --npm-root packages/client \
+	  --node-version "$$(cat packages/client/.nvmrc)" \
+	  --npm-version "$$(jq -er '.packageManager | sub("^npm@"; "")' packages/client/package.json)"
 
 check-doc-links:
 	@rg --files -g '*.md' -0 | xargs -0 perl scripts/ci/check-documentation-links.pl --root "$(CURDIR)"
 
 ci:
-	+bash scripts/ci/run-validation-targets.sh --fail-fast check-snapshot check-dependency-pins check-doc-links fmt-check metadata check-boundaries check-msrv test-types test-protocol test-signatures test-signature-store test-tokens test-sessions test-host-tooling test-qualification check-wasm clippy publish-dry-run test-release-tools test-release-runner test-evidence-archive
+	+bash scripts/ci/run-validation-targets.sh --fail-fast check-snapshot check-dependency-pins check-doc-links fmt-check metadata check-boundaries check-msrv test-client test-types test-protocol test-signatures test-signature-store test-tokens test-sessions test-host-tooling test-qualification check-wasm clippy publish-dry-run test-release-tools test-release-runner test-evidence-archive
 
 check-package-licenses:
 	@cmp LICENSE crates/ic-auth-protocol-types/LICENSE
