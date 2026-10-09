@@ -3,9 +3,9 @@
 The maintainer accepted the larger Canic authentication extraction, selected the
 name `ic-auth`, and confirmed `/home/adam/projects/ic-auth` as the local repository.
 
-The current committed release is `45b6755b70307a4e20d3cac421dbeaae278fb5e9`
-(`0.2.2`) on `main`, with annotated tag `v0.2.2`; both remote identities were
-verified during continuation. Both libraries' `0.2.2` registry checksums match
+The current committed release is `7476b6b8f1e9b85903b3ca8c26972b95d9011604`
+(`0.2.3`) on `main`, with annotated tag `v0.2.3`; both remote identities were
+verified during continuation. Both libraries' `0.2.3` registry checksums match
 the retained publication intent for that exact source/tag. The maintainer
 executed the release and publication. The original bootstrap was
 `7a03102e52b7a400588530997a9f7fb91c83de9d` (`0.1.0`).
@@ -22,7 +22,7 @@ records this batch without closing the larger extraction.
 
 The virtual Rust workspace contains `ic-auth-protocol-types`, `ic-auth` and the
 unpublished native application in `apps/tooling/`, with one lockfile, root-owned
-dependency selections and current manifest version `0.2.2`.
+dependency selections and current manifest version `0.2.3`.
 The passive token/proof contracts and canonical encoding are adapted from the
 clean Canic source at `e286b3fd98460c98670336853f80658a920966e0`; see the
 [source review](../design/canic-source-review.md) for exact ownership and API
@@ -35,11 +35,79 @@ packages under `apps/qualification/` and their IC Testkit qualification.
 There is no stable canister adapter or wallet endpoint yet. The private browser
 client now implements injected token lifecycle machinery; real issuer adapter
 qualification, npm publication and consumer adoption remain pending.
-Canic adoption is now in progress in the consumer's dirty working tree, without
-consumer qualification or deployment evidence from this repository. No sibling
-repository was modified by IC Auth work.
+Canic adoption is in progress in the consumer's dirty working tree. Its owner
+has recorded focused standalone-proof adapter qualification; complete-token,
+durable-session and deployed acceptance remain separate. No sibling repository
+was modified by IC Auth work.
 
-## Current Shared Tooling adoption (pending 0.2.3)
+## Current compatible improvements (pending 0.2.4)
+
+The maintainer requested new Host/Shared Tooling review, improvements and help
+for Canic integration. The incoming lock edit selecting Host 0.9.3 and Testkit
+0.27.1 was preserved and explicitly prepared. Host remote main is
+`545e7236b91d84e190c80931b784f72cc4fafb11`; its 0.9.3 release changes Shared
+Tooling adoption, not Rust library APIs. Canonical Testkit CLI installation and
+offline admission retain its selected PocketIC 16.1.0 server.
+
+Shared Tooling remote main remains the already adopted
+`04e07b4bf54e7aeb03eb7804a845cee27b7305df`, with 77 selected files. The sibling's
+new release/format Make includes are uncommitted owner work, tracked in
+[Shared Tooling #91](https://github.com/dragginzgame/shared-tooling/issues/91) and
+[#92](https://github.com/dragginzgame/shared-tooling/issues/92). No dirty source
+was imported or sibling checkout changed; adoption requires a reviewed commit.
+
+Two real signed-token regressions demonstrate that earlier success does not
+extend issuer certificate freshness or pin the IC network trust anchor. Exact
+age equality accepts; advancing the clock, tightening freshness or changing the
+protected BLS key rejects the same untouched token. The
+[token contract](../tokens.md#canic-verifier-integration) explains the protected
+Canic adapter inputs and why the returned deadline is not a cache lease.
+Public APIs, signed bytes, features and package versions remain unchanged.
+The numbered next changelog is **0.2.4**, a compatible coverage/tooling batch.
+
+At Canic committed base `ac55e50334dd6479ec36f404e89e60bcfe9184d6`, the owner's
+[acceptance comment](https://github.com/dragginzgame/canic/issues/491#issuecomment-6082545028)
+records 28 focused cases for the issuer's published standalone-proof adapter,
+including policy-capped deadlines and native/Wasm checks. That evidence belongs
+to the owner and its retained working inputs; it does not establish deployed
+adoption or qualify IC Auth's current changes. Read-only coordinator inspection
+found ROOT discarding installation responses and retaining declared deadlines.
+[Canic #506](https://github.com/dragginzgame/canic/issues/506) owns the repair and
+its rejection/renewal acceptance. Full-token verifier and proof-cache retirement
+remain coordinated in [Canic #491](https://github.com/dragginzgame/canic/issues/491)
+and [#58](https://github.com/dragginzgame/canic/issues/58); no new library API is
+needed for either step.
+
+Focused Linux checks pass: 25 token/proof cases, five native file-helper cases,
+both real certification/composed-root/protected-upgrade/fresh-key ingress
+scenarios, Rust 1.88 application checks and 39 token/proof/session cases, and
+warning-denied Clippy of the affected library/native applications. Evidence and
+input hashes are retained under `target/continuation-0.2.4/`; the actual runtime
+state is retained at the path printed in `qualification.log`. This is local
+Linux qualification of the incoming graph, not its native macOS acceptance.
+Formatting, snapshot integrity, dependency declarations/boundaries, 256 local
+documentation references and diff whitespace pass. Testkit setup/admission and
+failure-retention caller fixtures pass on Bash 5 and genuine Bash 3.2; actual
+offline owner CLI admission also passes. The recorded source/lock hashes still
+match after qualification. Logs are `guards.log`, `testkit-check.log` and
+`testkit-callers-bash32.log`, alongside the focused Rust/runtime logs.
+No functions, methods or types were removed. No full local CI, sibling edit,
+package version mutation, commit, push, publication or deployment occurred.
+
+The completed [0.2.0 main CI](https://github.com/dragginzgame/ic-auth/actions/runs/37923280901),
+source `7291bf70426cfa9ca03403155ab249e2d978d88e`, now supplies complete Linux,
+Intel macOS and Apple Silicon acceptance for the delivered failure collector,
+Testkit setup hard cut and Candid transport coverage. All jobs passed the real
+negative-path evidence upload/download/byte verification and complete gate;
+IC Auth #2/#7/#8 are closed with that matching acceptance. Its failed tag run is
+not relabelled as successful. This older source selects Host FS 0.9.1/Testkit
+0.26.0 and does not qualify the current graph. The 0.2.1 workflow still awaits
+matching native acceptance for #9; real browser issuer adoption remains #3.
+
+## Earlier Shared Tooling preparation for 0.2.3 (released)
+
+The following records preparation before maintainer delivery; pending-version
+and manifest wording in this section is historical.
 
 The maintainer requested the latest Shared Tooling and continued issue fixes.
 The reviewed remote main revision is

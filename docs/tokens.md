@@ -83,6 +83,31 @@ permissions remain independently checked, and these tokens are not IC ingress
 delegations. No secret signing operation, clock acquisition, certification-root
 write, memory allocation into host stable regions or global cache occurs here.
 
+## Canic verifier integration
+
+Canic can use the published `token-verification` capability for complete-token
+verification without a new IC Auth API or a session backend. Keep the adapter
+at its authenticated runtime boundary: project the existing DTO into
+`DelegatedToken`, obtain caller/clock/fleet/role from runtime state, and obtain
+root enrollment, network trust, finite limits and the local scope ceiling from
+protected configuration. An endpoint's required scopes are not its scope ceiling;
+neither may be inferred from the submitted grants. Preserve typed error/metric
+mapping and the endpoint's application authorization after successful verification.
+
+Route every verification through `verify_token`, including previously accepted
+token bytes. The returned deadline is not a cache lease: issuer certificate
+freshness can expire earlier, and changes to the IC trust anchor, scope ceiling
+or root authority can reject the same token immediately. Capping a positive
+cache at `RootKeyPolicy::accept_until_ns` alone does not preserve these checks.
+The signed-token tests exercise the inclusive certificate-age boundary,
+tightened freshness policy and a changed network BLS key after prior success,
+alongside existing root-policy/epoch and local-scope rejection cases. Consumer
+acceptance must exercise those transitions through Canic's actual endpoint
+adapter before retiring its local verifier and proof-skipping cache.
+This replacement is coordinated in
+[Canic #491](https://github.com/dragginzgame/canic/issues/491) and
+[Canic #58](https://github.com/dragginzgame/canic/issues/58).
+
 ## Standalone root delegation verification
 
 Released 0.2.2 adds
@@ -130,6 +155,16 @@ Recheck current authority and expiry on subsequent use; cloning or storing the
 result does not refresh it. Canic's pre-token root-verifier replacement is
 coordinated through [IC Auth #10](https://github.com/dragginzgame/ic-auth/issues/10)
 and [Canic #491](https://github.com/dragginzgame/canic/issues/491).
+
+When recording an issuer's installation response, the coordinator must retain
+the exact certificate identity and issuer-reported effective expiry/refresh
+deadlines in its existing renewal record. Validate the response against the
+requested issuer and certificate, and reject impossible or expired deadlines
+before marking installation successful. A policy-capped expiry changes local
+usability, not the signed certificate bytes or hash. Recording the declared
+certificate expiry instead can delay renewal beyond the issuer's usable proof.
+Installation evidence and renewal orchestration remain Canic-owned contracts,
+tracked in [Canic #506](https://github.com/dragginzgame/canic/issues/506).
 
 `make test-tokens` uses real deterministic secp256k1/BLS proof chains with rejection
 coverage. `make check-wasm`, `make clippy` and `make check-boundaries` include the

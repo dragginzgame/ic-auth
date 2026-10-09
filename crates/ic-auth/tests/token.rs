@@ -337,6 +337,56 @@ fn protected_policy_deadline_and_epoch_floors_are_rechecked_without_cache() {
 }
 
 #[test]
+fn prior_token_success_does_not_extend_issuer_certificate_freshness() {
+    let f = Fixture::new();
+    let mut ctx = f.context();
+    ctx.limits.max_certificate_age_ns = 20;
+    assert_eq!(verify_token(&f.token, &ctx).unwrap().expires_at_ns(), 220);
+
+    // The authenticated certificate is exactly twenty nanoseconds old. The
+    // token, delegation and enrolled root policy all remain otherwise valid.
+    ctx.now_ns = NOW + 20;
+    assert!(verify_token(&f.token, &ctx).is_ok());
+    ctx.now_ns += 1;
+    assert_eq!(
+        verify_token(&f.token, &ctx).unwrap_err(),
+        Error::IssuerSignature(CanisterSignatureError::CertificateTooOld)
+    );
+
+    // Tightening live freshness policy invalidates the same untouched token
+    // even without advancing the clock or changing either signed proof.
+    ctx.now_ns = NOW + 20;
+    ctx.limits.max_certificate_age_ns = 19;
+    assert_eq!(
+        verify_token(&f.token, &ctx).unwrap_err(),
+        Error::IssuerSignature(CanisterSignatureError::CertificateTooOld)
+    );
+}
+
+#[test]
+fn prior_token_success_does_not_pin_the_ic_network_trust_anchor() {
+    let f = Fixture::new();
+    let mut ctx = f.context();
+    assert!(verify_token(&f.token, &ctx).is_ok());
+
+    let other_network_key = bls_key(2).public_key().serialize();
+    ctx.ic_root_public_key_raw = &other_network_key;
+    assert!(matches!(
+        verify_token(&f.token, &ctx),
+        Err(Error::IssuerSignature(
+            CanisterSignatureError::InvalidSignature(_)
+        ))
+    ));
+    ctx.ic_root_public_key_raw = &other_network_key[..95];
+    assert_eq!(
+        verify_token(&f.token, &ctx).unwrap_err(),
+        Error::IssuerSignature(CanisterSignatureError::InvalidRootKeyLength)
+    );
+    ctx.ic_root_public_key_raw = &f.ic_root;
+    assert!(verify_token(&f.token, &ctx).is_ok());
+}
+
+#[test]
 fn caller_subject_anonymous_and_issuer_bindings_are_enforced() {
     let f = Fixture::new();
     let mut ctx = f.context();

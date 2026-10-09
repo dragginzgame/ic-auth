@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.2.4]
+
+- Qualify the incoming Host 0.9.3 and IC Testkit 0.27.1 selections for native
+  tooling and canister lifecycle checks, retaining Testkit-owned server setup.
+- Extend signed-token coverage for IC trust-anchor changes and certificate
+  freshness after prior success. Document complete-verifier adoption and
+  effective installation deadlines for Canic.
+  [Canic #491](https://github.com/dragginzgame/canic/issues/491),
+  [#58](https://github.com/dragginzgame/canic/issues/58),
+  [#506](https://github.com/dragginzgame/canic/issues/506).
+
 ## [0.2.3] - 2026-10-09
 
 - Adopt the latest reviewed Shared Tooling fixes for unterminated IC-tool pin
