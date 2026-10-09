@@ -3,9 +3,9 @@
 The maintainer accepted the larger Canic authentication extraction, selected the
 name `ic-auth`, and confirmed `/home/adam/projects/ic-auth` as the local repository.
 
-The current committed release is `01f765b2b0b1c403feb3df3e0a7210bcaa6c26c9`
-(`0.1.10`) on `main`, with annotated tag `v0.1.10`; both remote identities were
-verified during this batch. Both libraries' `0.1.10` registry checksums match
+The current committed release is `4fef99163ff848d791e03a4db1ae7a726b88d557`
+(`0.1.11`) on `main`, with annotated tag `v0.1.11`; both remote identities were
+verified during issue review. Both libraries' `0.1.11` registry checksums match
 the retained publication intent for that exact source/tag. The maintainer
 executed the release and publication. The original bootstrap was
 `7a03102e52b7a400588530997a9f7fb91c83de9d` (`0.1.0`).
@@ -22,7 +22,7 @@ records this batch without closing the larger extraction.
 
 The virtual Rust workspace contains `ic-auth-protocol-types`, `ic-auth` and the
 unpublished native application in `apps/tooling/`, with one lockfile, root-owned
-dependency selections and current manifest version `0.1.10`.
+dependency selections and current manifest version `0.1.11`.
 The passive token/proof contracts and canonical encoding are adapted from the
 clean Canic source at `e286b3fd98460c98670336853f80658a920966e0`; see the
 [source review](../design/canic-source-review.md) for exact ownership and API
@@ -38,7 +38,100 @@ qualification, npm publication and consumer adoption remain pending.
 Canic adoption has not
 occurred; no sibling repository was modified.
 
-## Current 0.1.11 qualification
+## Current issue repair batch
+
+The maintainer authorized work on [the MSRV wrapper](https://github.com/dragginzgame/ic-auth/issues/4),
+[setup failure evidence](https://github.com/dragginzgame/ic-auth/issues/2),
+[client adoption](https://github.com/dragginzgame/ic-auth/issues/3) and
+[optional fleet tooling](https://github.com/dragginzgame/ic-auth/issues/5).
+The final continuation also covers [streaming file identities](https://github.com/dragginzgame/ic-auth/issues/6)
+and the reviewed Shared Tooling 0.1.34 refresh.
+GitHub remains their status tracker. The prior release/publication tracker was
+closed after verifying the delivered 0.1.11 source/tag and both live package
+checksums against publication intent. Linux's complete release CI passes; both
+macOS architectures fail at `target_args[@]: unbound variable` in `check-msrv.sh`.
+
+The MSRV wrapper now expands its empty native-target array safely on Bash 3.2,
+retaining strict shell settings, explicit Rust 1.88.0 and all existing isolated
+package/native/Wasm/feature checks. The failure is reproduced on genuine Linux
+Bash 3.2.57, and the repaired full package matrix passes under that shell.
+The change affects argument routing, not compiler floors or dependencies.
+
+The CI setup caller records real aggregate install/check output in the collector's
+selected `target/rust-tools-install.log` and `rust-tools-check.log`. It preserves
+the aggregate failure even if logging also fails, and rejects a logging failure
+after a successful aggregate. The focused fixture copies the actual wrapper,
+Makefile and installer, substitutes only Cargo's installation effect for the
+main negative cases, checks offline refusal without a second dispatch, and runs
+the adopted collector block directly. The original logs/build bytes survive the
+archive; unrelated Rust cache data is excluded. Both Bash 5 and genuine Bash 3.2
+pass. CI uploads through the ordinary action and downloads the exact artifact ID
+for checksum verification on all three hosts; those hosted results remain pending.
+
+The snapshot now selects clean committed Shared Tooling
+`3d33cd250fcae7dbe5cabe44b2abd6b2c91a1822` (0.1.34), verified against remote main.
+The unused `cloc-tooling.pl` and its manifest record were explicitly retired;
+the remaining 79 files retain canonical hashes/modes. The upstream optional
+target reports its owner instead of invoking a sibling. Real local `make cloc`
+and offline `make tools-check` pass, and the omitted fleet report gives the
+expected diagnostic. The removed reporter measures 279 code LOC with cloc 2.10.
+Shared Tooling retains the canonical fleet implementation and tests.
+The 0.1.34 alignment checker preserves literal paths under `CDPATH` and stops
+before Cargo if the selected directory disappears. Its canonical fixture passes
+on Bash 5 and genuine Bash 3.2; the adopted checker verifies this consumer's
+actual locked pairing with and without `CDPATH` on those shells.
+
+The incoming lock subsequently advanced to Host 0.8.8 and Testkit 0.25.4; those
+selections are preserved. The hash-only helper now uses Host's bounded streaming
+no-follow API, introduced in 0.8.7, instead of buffering the complete artifact.
+Its CLI argument validation, exact digest stdout and rejection behavior remain
+intact. The native utility and root no longer declare the unused direct
+`ic-host-artifacts` dependency; it remains owned transitively by Host/Testkit.
+The root selects a minimum `ic-host-fs` 0.8.7 for the new API. Five file-helper
+tests include empty-file/zero-limit admission and nonempty zero-limit rejection.
+The final selected stack passes strict native Clippy, the complete Bash 3.2
+Rust 1.88 package/feature matrix and both real certification/upgrade/ingress
+scenarios. Testkit 0.25.4's newly published setup/check CLI remains a separate
+consumer adoption: this batch retains the existing server installer and
+consumer-owned PocketIC 16.1.0 pins.
+
+The maintainer selected issue-only coordination for other repositories: keep
+siblings read-only and record findings/adoption requirements in their owning
+GitHub issues. Production client adoption remains consumer-owned under
+[Toko #1803](https://github.com/dragginzgame/toko/issues/1803) and
+[Canic #491](https://github.com/dragginzgame/canic/issues/491), linked from
+[IC Auth #3](https://github.com/dragginzgame/ic-auth/issues/3).
+Read-only review found Toko unchanged at `44d4e2c6d41e3575b2503e79ffa369129ff3ecf2`
+apart from its unrelated dirty lock; its TTL-only issuance wrappers do not expose
+the client's exact request/reconciliation contract. Canic remains at committed
+`c4c046f947b2b28f4342cbf6efe9221ba1ed5f70` with unrelated dirty work preserved. No sibling source was changed
+and no production adapter or deployed adoption is claimed. No sibling-edit
+approval is pending; adoption contracts and qualification belong in those issues.
+
+Snapshot/dependency/link/format checks, ShellCheck and Actionlint pass. The positive
+setup-check wrapper preserves exact captured output. The canonical shared Make
+fixture passes on Bash 5 and 3.2 for minimal and explicit fleet selections,
+including spaced paths. The later Host/Testkit qualification and direct native
+dependency cleanup are recorded above; browser source, npm selections and both
+authentication libraries remain unchanged. No broad local CI or unrelated
+authentication suites were run.
+
+Evidence is retained under `target/issue-work-0.1.12/` and its uniquely named
+`target/portable-fixtures/` subdirectories. The compatible draft is 0.1.12;
+Rust manifests and the lock remain 0.1.11. No commit, push, release or publication
+was performed. The final release/publication fixture passes with the actual
+streaming hash helper and current lock, using local bare remotes and mocked
+registry/upload effects. Final evidence includes `final-focused.log`,
+`final-msrv-bash32.log`, `final-native-clippy.log`,
+`final-native-qualification.log` and `final-release-tools.log` in that directory.
+The implementation batch is ready to commit and push for native CI. Hosted
+macOS, exact artifact upload/download qualification and the complete CI gate
+remain required before treating 0.1.12 as release/publication-qualified.
+
+## Earlier 0.1.11 qualification (released)
+
+The following records local preparation before the maintainer delivered 0.1.11;
+its pending-version and uncommitted wording is historical.
 
 The maintainer requested review of new Host Tooling and continuation of 0.1.11.
 The incoming lock already selected all four Host packages at 0.8.5, replacing

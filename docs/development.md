@@ -2,8 +2,8 @@
 
 The virtual root owns two libraries, unpublished native tooling in `apps/tooling/`
 and the internal host/runner in `apps/qualification/`, plus dependency selections,
-lints and one lockfile. The current manifest version is `0.1.10`, tagged as
-`v0.1.10`; both libraries are published on crates.io.
+lints and one lockfile. The current manifest version is `0.1.11`, tagged as
+`v0.1.11`; both libraries are published on crates.io.
 Rust `1.99.0` remains the development compiler selected by `rust-toolchain.toml`.
 The common package minimum is Rust `1.88.0`, inherited from the root catalog and
 qualified by explicit older-compiler checks. See [MSRV coverage](msrv.md).
@@ -87,6 +87,7 @@ is retained under `target/browser-client/`.
 | `make test-release-tools` | Exercise release/recovery and publication rejection/retry using local and mocked effects |
 | `make test-release-runner` | Adopted Shared Tooling runner regression fixtures with substituted release effects |
 | `make test-evidence-archive` | Adopted evidence archive fixtures: retained files, symlinks and literal paths |
+| `make test-tools-evidence` | Actual setup/check caller failure status and adopted collector archive bytes, with Cargo installation substituted |
 
 `make ci` is the complete configured gate, reserved for explicit requests and CI.
 It uses the shared validation logger and retains failures. The workflow prepares
@@ -105,6 +106,19 @@ CI stores validation logs and local fixture evidence under
 archiver; downloaded artifacts contain `evidence.tar.gz`. Extract that archive
 to inspect the retained files. This layout does not erase prior evidence under
 `target/release-tools.*/`.
+
+CI's `scripts/dev/ci-tools.sh install|check` invokes the real aggregate targets,
+preserves pipeline failure status and saves their output in
+`target/rust-tools-install.log` and `target/rust-tools-check.log`. Both logs and
+`.tools/rust/build` are selected by the adopted failure collector. The native
+matrix also injects a failed Cargo installation into an isolated consumer, checks
+offline refusal, uploads through the same action and downloads that exact artifact
+ID to verify retained bytes. Local archive checks do not establish hosted upload
+or macOS qualification before those jobs run.
+
+The snapshot deliberately omits fleet reporters. `make cloc` still reports this
+workspace; the optional shared `cloc-tooling` target explains that fleet reports
+run in Shared Tooling and does not execute another checkout.
 
 Signature tests exercise real cryptography with deterministic fixture trust keys,
 including root/subnet chains, and preserve Canic's signature-domain bytes. They
@@ -127,15 +141,17 @@ It does not qualify browser/wallet login or a durable session backend.
 ## Releases and publication
 
 ```sh
-make release-patch                 # current compatible batch: 0.1.10 -> 0.1.11
-make release-minor                 # pre-1.0 breaking increment: 0.1.10 -> 0.2.0
-make release-major                 # explicit major decision: 0.1.10 -> 1.0.0
+make release-patch                 # current compatible batch: 0.1.11 -> 0.1.12
+make release-minor                 # pre-1.0 breaking increment: 0.1.11 -> 0.2.0
+make release-major                 # explicit major decision: 0.1.11 -> 1.0.0
 make release-resume VERSION=X.Y.Z   # reconcile the exact saved attempt
 make publish-dry-run               # validate packages without upload
 make publish                       # upload a clean, delivered tagged release
 ```
 
-The undated `0.1.11` draft records Shared Tooling 0.1.32 IC-tool reuse,
+The undated `0.1.12` draft records portable MSRV checking, retained setup evidence
+and Shared Tooling 0.1.34 optional fleet selection/path handling, plus Host 0.8.8
+streaming file identities and Testkit 0.25.4 runtime qualification. Released `0.1.11` added
 Host Tooling 0.8.5 and opt-in transactional browser storage. The current PocketIC
 installer and consumer-selected pins remain in use until the published Testkit
 replacement is qualified; see [the handoff](ic-tools.md#pocketic-ownership-handoff).

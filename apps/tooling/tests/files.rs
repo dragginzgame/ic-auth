@@ -51,6 +51,22 @@ fn hash_stdout_is_exact_and_oversize_has_no_identity() {
 }
 
 #[test]
+fn empty_file_hash_accepts_zero_limit_without_admitting_nonempty_bytes() {
+    let root = fixture();
+    fs::write(root.join("empty"), b"").unwrap();
+    let accepted = invoke(&root, &["hash-file", "empty", "0"]);
+    assert!(accepted.status.success());
+    assert_eq!(
+        accepted.stdout,
+        b"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\n"
+    );
+    fs::write(root.join("one-byte"), b"x").unwrap();
+    let rejected = invoke(&root, &["hash-file", "one-byte", "0"]);
+    assert!(!rejected.status.success());
+    assert!(rejected.stdout.is_empty());
+}
+
+#[test]
 fn intent_creation_never_replaces_saved_bytes() {
     let root = fixture();
     fs::write(root.join("input"), b"original intent").unwrap();

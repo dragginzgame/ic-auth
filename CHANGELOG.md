@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.1.12]
+
+- Preserve the native MSRV lane under macOS Bash 3.2 without weakening strict
+  shell checks or the package/feature matrix.
+  [#4](https://github.com/dragginzgame/ic-auth/issues/4).
+- Retain actual Rust-tool setup/check output and verify failure status, build
+  evidence and exact uploaded/downloaded bytes in native CI.
+  [#2](https://github.com/dragginzgame/ic-auth/issues/2).
+- Adopt Shared Tooling 0.1.34 and retire the unused consumer fleet reporter;
+  retain local workspace LOC and common setup/check commands.
+  [#5](https://github.com/dragginzgame/ic-auth/issues/5).
+- Use Host Tooling 0.8.8's bounded streaming hash for release file identities,
+  retaining final-symlink refusal and exact digest output without buffering the
+  complete file. Remove the native utility's direct artifact dependency.
+  [#6](https://github.com/dragginzgame/ic-auth/issues/6).
+- Qualify the selected Testkit 0.25.4 runtime with the existing pinned PocketIC
+  16.1.0 server; retain the current setup until the replacement setup/check
+  contract is consumer-qualified.
+  [Testkit #38](https://github.com/dragginzgame/ic-testkit/issues/38).
+- Preserve literal manifest paths and stop before Cargo if the selected directory
+  disappears during qualification alignment checks.
+  [Shared Tooling #82](https://github.com/dragginzgame/shared-tooling/issues/82).
+
 ## [0.1.11] - 2026-10-09
 
 - Add an opt-in IndexedDB token store with atomic cross-connection compare-and-swap,

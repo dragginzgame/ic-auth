@@ -47,6 +47,9 @@ The real server, lifecycle and signed-ingress tests remain owned by
 
 The configured CI/release gate includes `check-msrv` on Linux and both supported
 macOS architectures. Setup installs the declared compiler; the check selects it
-explicitly despite `rust-toolchain.toml`. Local Linux checks pass. Hosted native
-macOS evidence for these changed sources awaits their own CI jobs; the 0.1.7
-release jobs do not qualify this uncommitted batch.
+explicitly despite `rust-toolchain.toml` and records its actual Bash version.
+At 0.1.11, Linux's complete CI passed, but both macOS jobs stopped at an empty
+native-target array under Bash's strict unset-variable checks. The current fix
+preserves zero native arguments and the unchanged Wasm/feature matrix using
+Bash 3.2-safe expansion. That full matrix passes on Linux using actual Bash
+3.2.57; it does not establish native macOS qualification before matching CI runs.

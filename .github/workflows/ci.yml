@@ -37,11 +37,37 @@ jobs:
         run: rustup show active-toolchain
       - name: Install reviewed tools and prepare the selected dependency cache
         run: |
-          make install-tools
-          make tools-check
+          bash scripts/dev/ci-tools.sh install
+          bash scripts/dev/ci-tools.sh check
           printf '%s\n' "$GITHUB_WORKSPACE/.tools/host/bin" \
             "$GITHUB_WORKSPACE/.tools/ic/bin" "$GITHUB_WORKSPACE/.tools/rust/bin" >> "$GITHUB_PATH"
           make fetch
+      - name: Qualify Rust-tool setup and check failure collection
+        id: tools-evidence
+        run: bash scripts/ci/test-tools-evidence.sh
+      - name: Upload the qualified Rust-tool failure evidence
+        id: tools-evidence-upload
+        uses: ./.github/actions/retain-failure-evidence
+        with:
+          name: ic-auth-rust-tools-${{ matrix.os }}-${{ github.run_attempt }}
+          temp-root: ${{ steps.tools-evidence.outputs.temp }}
+          repository-root: ${{ steps.tools-evidence.outputs.consumer }}
+      - name: Download that exact Rust-tool failure artifact
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          artifact-ids: ${{ steps.tools-evidence-upload.outputs.artifact-id }}
+          path: ${{ github.workspace }}/target/tools-evidence-downloaded
+          merge-multiple: true
+      - name: Verify uploaded Rust-tool failure bytes
+        env:
+          EXPECTED_EVIDENCE: ${{ steps.tools-evidence.outputs.expected }}
+        run: |
+          cd target/tools-evidence-downloaded
+          mkdir payload
+          tar -xzf evidence.tar.gz -C payload
+          cd payload
+          bash "$GITHUB_WORKSPACE/scripts/ci/verify-evidence-checksums.sh" "$EXPECTED_EVIDENCE"
+          test ! -e .tools/rust/unrelated-cache
       - name: Validate
         run: make ci
       - name: Retain failed validation evidence

@@ -1,10 +1,9 @@
 //! Local bounded file identities and durable release/publication evidence.
 //! Callers own parent paths, locking, artifact limits and effect reconciliation.
 
-use ic_host_artifacts::artifact::Sha256Digest;
 use ic_host_fs::{
     durable::{PublicationMode, WriteOptions, write_typed_with},
-    read::read_file_no_follow,
+    read::{hash_file_no_follow, read_file_no_follow},
 };
 use std::{env, error::Error, ffi::OsString, io::Write, path::Path};
 
@@ -20,8 +19,8 @@ fn run(arguments: &[OsString]) -> Result<(), Box<dyn Error>> {
         .parse::<usize>()?;
     match (operation, arguments.len()) {
         ("hash-file", 3) => {
-            let bytes = read_file_no_follow(Path::new(&arguments[1]), limit)?;
-            println!("{}", Sha256Digest::compute(&bytes));
+            let identity = hash_file_no_follow(Path::new(&arguments[1]), limit as u64)?;
+            println!("{}", identity.sha256);
         }
         ("create-private" | "replace-private", 4) => {
             let bytes = read_file_no_follow(Path::new(&arguments[1]), limit)?;

@@ -1,7 +1,7 @@
 # IC Auth Agent Instructions
 
 Apply [DRAGGINZGAME.md](DRAGGINZGAME.md), adopted from Shared Tooling revision
-`635a39a9dd5f8d021fa9c9196b591e00521a7e02` and recorded in
+`3d33cd250fcae7dbe5cabe44b2abd6b2c91a1822` and recorded in
 [.shared-tooling.snapshot](.shared-tooling.snapshot). Read
 [the current handoff](docs/status/current.md) before implementation.
 
@@ -16,9 +16,10 @@ Apply [DRAGGINZGAME.md](DRAGGINZGAME.md), adopted from Shared Tooling revision
 - Canic owns fleet topology, member/role authority, issuer approval and renewal
   orchestration, endpoint guards and deployment configuration. Toko owns its user
   records, account-linking policy and NFT ledger semantics.
-- Do not edit sibling repositories without explicit scope authorization. An
-  extraction must coordinate consumer adoption and retain one canonical owner
-  when that adoption is completed.
+- Keep sibling repositories read-only. Record findings and consumer adoption
+  requirements in the owning GitHub issues, using existing trackers where they
+  match; do not request sibling edits as part of IC Auth work. An extraction must
+  coordinate consumer adoption and retain one canonical owner when completed.
 - GitHub issues are the work tracker. IC Auth-specific work belongs in
   [IC Auth issues](https://github.com/dragginzgame/ic-auth/issues).
   [Canic #491](https://github.com/dragginzgame/canic/issues/491) remains the existing
@@ -71,7 +72,7 @@ Apply [DRAGGINZGAME.md](DRAGGINZGAME.md), adopted from Shared Tooling revision
   `make test-host-tooling`, `make test-qualification`, `make check-wasm` and `make clippy`; `make ci` is the
   explicit complete gate. `make test-release-runner` checks the adopted runner
   with substituted effects.
-  Both libraries are published at `0.1.10` with contracts, encoding and optional
+  Both libraries are published at `0.1.11` with contracts, encoding and optional
   IC signature/token/session machinery, including bounded signature preparation.
   The internal IC Testkit fixture exercises actual certification, composed roots,
   protected metadata upgrades and signed ingress with fresh session keys.

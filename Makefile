@@ -17,7 +17,7 @@ export RELEASE_REMOTE RELEASE_BRANCH
         check-snapshot check-dependency-pins check-doc-links check-msrv install-msrv msrv-tools-check tasks ci \
         client-tools-check install-client-dependencies generate-client-contracts check-client-contracts test-client \
         publish publish-dry-run check-package-licenses test-release-tools \
-        test-host-tooling test-qualification build-qualification-canister test-release-runner test-evidence-archive \
+        test-host-tooling test-qualification build-qualification-canister test-release-runner test-evidence-archive test-tools-evidence \
         release-patch release-minor release-major release-resume \
         release-version release-preflight release-verify release-prepare-version \
         release-prepared-check release-files release-commit-check \
@@ -134,7 +134,7 @@ check-doc-links:
 	@rg --files -g '*.md' -0 | xargs -0 perl scripts/ci/check-documentation-links.pl --root "$(CURDIR)"
 
 ci:
-	+bash scripts/ci/run-validation-targets.sh --fail-fast check-snapshot check-dependency-pins check-doc-links fmt-check metadata check-boundaries check-msrv test-client test-types test-protocol test-signatures test-signature-store test-tokens test-sessions test-host-tooling test-qualification check-wasm clippy publish-dry-run test-release-tools test-release-runner test-evidence-archive
+	+bash scripts/ci/run-validation-targets.sh --fail-fast check-snapshot check-dependency-pins check-doc-links fmt-check metadata check-boundaries check-msrv test-tools-evidence test-client test-types test-protocol test-signatures test-signature-store test-tokens test-sessions test-host-tooling test-qualification check-wasm clippy publish-dry-run test-release-tools test-release-runner test-evidence-archive
 
 check-package-licenses:
 	@cmp LICENSE crates/ic-auth-protocol-types/LICENSE
@@ -154,6 +154,9 @@ test-host-tooling:
 
 test-release-runner:
 	bash scripts/ci/test-release-runner.sh
+
+test-tools-evidence:
+	bash scripts/ci/test-tools-evidence.sh
 
 test-evidence-archive:
 	@mkdir -p "$(CURDIR)/target/portable-fixtures"

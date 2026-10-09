@@ -5,6 +5,7 @@ script_path="${BASH_SOURCE[0]}"
 [[ "$script_path" == /* ]] || script_path="$PWD/$script_path"
 cd -P "${script_path%/*}/../.."
 root="$PWD"
+printf 'MSRV wrapper Bash %s\n' "$BASH_VERSION"
 export PATH="$root/.tools/host/bin:$PATH" RUSTUP_AUTO_INSTALL=0 CARGO_NET_OFFLINE=true
 floor="$(bash scripts/dev/msrv-tools.sh floor)"
 development="$(yq -p toml -o json '.' rust-toolchain.toml | jq -er '.toolchain.channel')"
@@ -56,7 +57,9 @@ export CARGO_TARGET_DIR="$root/target/msrv"
 for target in native wasm32-unknown-unknown; do
     target_args=()
     [[ "$target" == native ]] || target_args=(--target "$target")
-    cargo +"$floor" check --locked --offline --lib --manifest-path "$types/Cargo.toml" "${target_args[@]}"
+    # Bash 3.2 treats an empty array as unset under nounset. Keep zero native
+    # target arguments rather than passing an empty string or weakening -u.
+    cargo +"$floor" check --locked --offline --lib --manifest-path "$types/Cargo.toml" ${target_args[@]+"${target_args[@]}"}
     for feature in default canister-signature-verification canister-signature-preparation token-verification sessions all; do
         feature_args=(--no-default-features)
         case "$feature" in
@@ -66,7 +69,7 @@ for target in native wasm32-unknown-unknown; do
         esac
         printf 'MSRV %s: ic-auth %s on %s\n' "$floor" "$feature" "$target"
         cargo +"$floor" check --locked --offline --lib --manifest-path "$auth/Cargo.toml" \
-            "${target_args[@]}" "${feature_args[@]}"
+            ${target_args[@]+"${target_args[@]}"} "${feature_args[@]}"
     done
 done
 # Internal applications have the same qualified floor, checked separately from
