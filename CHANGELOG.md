@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.2.0]
+## [0.2.0] - 2026-10-09
 
 - **Breaking developer setup contract:** adopt Shared Tooling 0.2.0 and transfer
   PocketIC provisioning/admission to the locked IC Testkit CLI. Run explicit
