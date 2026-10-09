@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.2.0]
+
+- **Breaking developer setup contract:** adopt Shared Tooling 0.2.0 and transfer
+  PocketIC provisioning/admission to the locked IC Testkit CLI. Run explicit
+  `make install-tools` (or `make install-ic-tools install-testkit-tools`) to
+  prepare the new five-tool bundle and Testkit server. Offline qualification
+  consumes Testkit's admitted path; the duplicate server matrix and alignment/
+  binary checkers are removed. Old bundles and evidence remain retained.
+  [#7](https://github.com/dragginzgame/ic-auth/issues/7),
+  [Shared Tooling #76](https://github.com/dragginzgame/shared-tooling/issues/76).
+- Adopt checkout-local formatter discovery and single-document dependency
+  exception admission from Shared Tooling 0.1.37/0.1.38.
+  [Shared Tooling #85](https://github.com/dragginzgame/shared-tooling/issues/85),
+  [#86](https://github.com/dragginzgame/shared-tooling/issues/86).
+- Extend Canic Candid qualification to complete retrieved tokens, delegation
+  certificates and chain-key batch proofs, preserving witness directions and
+  opaque signature/key bytes while rejecting malformed nested roles/identities.
+  [#8](https://github.com/dragginzgame/ic-auth/issues/8).
+- Update the published-library adoption contract for 0.1.14 and record Canic's
+  in-progress canonical encoding/proof adoption and remaining complete-verifier
+  boundary. [Canic #491](https://github.com/dragginzgame/canic/issues/491).
+- Retain the incoming Host Tooling 0.9.0 and IC Testkit 0.26.0 selections for
+  native utilities and canister qualification, using Testkit's matching CLI.
+  [Host Tooling #38](https://github.com/dragginzgame/ic-host-tooling/issues/38),
+  [IC Testkit #38](https://github.com/dragginzgame/ic-testkit/issues/38).
+
 ## [0.1.14] - 2026-10-09
 
 - Document the Canic adoption contract for the published libraries, with feature

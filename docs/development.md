@@ -2,8 +2,8 @@
 
 The virtual root owns two libraries, unpublished native tooling in `apps/tooling/`
 and the internal host/runner in `apps/qualification/`, plus dependency selections,
-lints and one lockfile. The current manifest version is `0.1.11`, tagged as
-`v0.1.11`; both libraries are published on crates.io.
+lints and one lockfile. The current manifest version is `0.1.14`, tagged as
+`v0.1.14`; both libraries are published on crates.io.
 Rust `1.99.0` remains the development compiler selected by `rust-toolchain.toml`.
 The common package minimum is Rust `1.88.0`, inherited from the root catalog and
 qualified by explicit older-compiler checks. See [MSRV coverage](msrv.md).
@@ -32,15 +32,16 @@ The first command prepares the toolchain, rustfmt, Clippy and Wasm target select
 by the toolchain file. Common system prerequisites, exact executable pins and
 installation behavior are described in the shared [local setup](local-setup.md).
 The Makefile includes the reviewed `make/tools.mk` and adds the shared Rust tool
-set and the declared minimum compiler/Wasm target to aggregate setup/check
-commands. `make install-msrv` prepares the minimum compiler alone (and its host
+set, the locked Testkit CLI/server and the declared minimum compiler/Wasm target
+to aggregate setup/check commands. `make install-msrv` prepares the minimum compiler alone (and its host
 tool prerequisites); `make msrv-tools-check` inspects its prepared versions.
 Installation is explicit; checks run
 offline. `fetch` prepares the selected lockfile without changing it.
 
 Make selects checkout-local tools automatically. The shell export is needed for
 interactive direct commands. Builds stay under this checkout's `target/`; Cargo
-tool installation retains its build output under `.tools/rust/build/`.
+tool installation retains failed build attempts under `.tools/rust/build/` and
+successful Testkit CLI builds in their versioned `.tools/rust/` selection slot.
 
 The reviewed pre-commit hook formats selected files without building or testing,
 rejects partial staging and preserves unrelated edits. Hook activation does not
@@ -88,6 +89,7 @@ is retained under `target/browser-client/`.
 | `make test-release-runner` | Adopted Shared Tooling runner regression fixtures with substituted release effects |
 | `make test-evidence-archive` | Adopted evidence archive fixtures: retained files, symlinks and literal paths |
 | `make test-tools-evidence` | Actual setup/check caller failure status and adopted collector archive bytes, with Cargo installation substituted |
+| `make test-testkit-tools` | Locked CLI selection, setup/check failures and selection changes, qualification path and actual CI evidence archive with substituted effects |
 
 `make ci` is the complete configured gate, reserved for explicit requests and CI.
 It uses the shared validation logger and retains failures. The workflow prepares
@@ -141,9 +143,9 @@ It does not qualify browser/wallet login or a durable session backend.
 ## Releases and publication
 
 ```sh
-make release-patch                 # next compatible increment: 0.1.13 -> 0.1.14
-make release-minor                 # pre-1.0 breaking increment: 0.1.13 -> 0.2.0
-make release-major                 # explicit major decision: 0.1.13 -> 1.0.0
+make release-patch                 # only for compatible work; current hard cut requires minor
+make release-minor                 # current pending developer-tooling hard cut: 0.1.14 -> 0.2.0
+make release-major                 # explicit major decision: 0.1.14 -> 1.0.0
 make release-resume VERSION=X.Y.Z   # reconcile the exact saved attempt
 make publish-dry-run               # validate packages without upload
 make publish                       # upload a clean, delivered tagged release
@@ -152,16 +154,24 @@ make publish                       # upload a clean, delivered tagged release
 Released `0.1.13` adopts Shared Tooling 0.1.36's selected Cargo installer and
 receipt/path/failure-status checks, dependency-preparation guidance and Host
 Tooling 0.8.9. Product CLI selections and profiles remain consumer-owned;
-this does not change the current PocketIC setup. The compatible `0.1.14` draft
-documents the [Canic library adoption contract](canic-adoption.md) and adds
-two-way qualification of its token issuance Candid envelopes. Canic's actual
-adapter and durable host qualification remain consumer-owned. Released
+that release preserved its then-current PocketIC setup. Released `0.1.14` documents
+the [Canic library adoption contract](canic-adoption.md) and qualifies its token
+issuance Candid envelopes in both directions. The pending `0.2.0` draft
+extends that qualification to complete tokens and root/issuer proof transport.
+It also adopts Shared Tooling 0.2.0's breaking PocketIC ownership handoff. Run
+explicit `make install-tools` after updating: the shared IC bundle now holds
+five tools, and the locked Testkit CLI owns server setup and offline admission.
+`make install-testkit-tools` prepares only that CLI/server route;
+`make testkit-tools-check` returns the admitted absolute server path without
+downloading. `make test-testkit-tools` checks caller selection, failures and
+offline qualification with substituted effects. Canic's actual adapter and
+durable host qualification remain consumer-owned. Released
 `0.1.12` added portable MSRV checking, retained setup evidence
 and Shared Tooling 0.1.34 optional fleet selection/path handling, plus Host 0.8.8
 streaming file identities and Testkit 0.25.4 runtime qualification. Released `0.1.11` added
-Host Tooling 0.8.5 and opt-in transactional browser storage. The current PocketIC
-installer and consumer-selected pins remain in use until the published Testkit
-replacement is qualified; see [the handoff](ic-tools.md#pocketic-ownership-handoff).
+Host Tooling 0.8.5 and opt-in transactional browser storage. See
+[the handoff](ic-tools.md#pocketic-ownership-handoff) for the new server owner and
+retained-bundle disposition.
 Released `0.1.8` added qualified minimum-compiler
 coverage and Shared Tooling 0.1.28 adoption. Existing encoding, signature, token
 and session APIs and signed bytes are unchanged. Released `0.1.7` added IC Testkit

@@ -1,7 +1,6 @@
 .DEFAULT_GOAL := help
 
 include ci/tool-versions.env
-IC_TOOL_PINS := $(CURDIR)/ci/ic-auth-tools.tsv
 include make/tools.mk
 
 # Keep Cargo artifacts in this checkout, including CI and hook invocations.
@@ -13,6 +12,7 @@ export RELEASE_DELIVERY := direct
 export RELEASE_REMOTE RELEASE_BRANCH
 
 .PHONY: help install-hooks format-tools-check fmt fmt-check fetch metadata \
+        install-testkit-tools testkit-tools-check test-testkit-tools \
         test-types test-protocol test-signatures test-signature-store test-tokens test-sessions check-wasm clippy check-boundaries \
         check-snapshot check-dependency-pins check-doc-links check-msrv install-msrv msrv-tools-check tasks ci \
         client-tools-check install-client-dependencies generate-client-contracts check-client-contracts test-client \
@@ -25,6 +25,7 @@ export RELEASE_REMOTE RELEASE_BRANCH
 
 help:
 	@echo 'Setup: install-tools, tools-check, install-hooks, fetch; minimum compiler: install-msrv, msrv-tools-check'
+	@echo 'Testkit server: install-testkit-tools (explicit setup), testkit-tools-check (offline admission)'
 	@echo 'Focused checks: test-types, test-protocol, test-signatures, test-signature-store, test-tokens, test-sessions, test-host-tooling, test-qualification, check-wasm, clippy, metadata'
 	@echo 'Browser client: install-client-dependencies, client-tools-check, generate-client-contracts, check-client-contracts, test-client'
 	@echo 'Formatting: fmt, fmt-check'
@@ -33,8 +34,17 @@ help:
 	@echo 'Releases: release-patch, release-minor, release-major; recovery: release-resume VERSION=X.Y.Z'
 	@echo 'Crates.io: publish; local checks without upload: publish-dry-run, test-release-tools'
 
-install-tools: install-rust-tools install-msrv
-tools-check: rust-tools-check msrv-tools-check
+install-tools: install-rust-tools install-msrv install-testkit-tools
+tools-check: rust-tools-check msrv-tools-check testkit-tools-check
+
+install-testkit-tools: install-host-tools
+	bash scripts/dev/testkit-tools.sh install
+
+testkit-tools-check:
+	@bash scripts/dev/testkit-tools.sh check
+
+test-testkit-tools:
+	bash scripts/ci/test-testkit-tools.sh
 
 install-msrv: install-host-tools
 	bash scripts/dev/msrv-tools.sh install
@@ -134,7 +144,7 @@ check-doc-links:
 	@rg --files -g '*.md' -0 | xargs -0 perl scripts/ci/check-documentation-links.pl --root "$(CURDIR)"
 
 ci:
-	+bash scripts/ci/run-validation-targets.sh --fail-fast check-snapshot check-dependency-pins check-doc-links fmt-check metadata check-boundaries check-msrv test-tools-evidence test-client test-types test-protocol test-signatures test-signature-store test-tokens test-sessions test-host-tooling test-qualification check-wasm clippy publish-dry-run test-release-tools test-release-runner test-evidence-archive
+	+bash scripts/ci/run-validation-targets.sh --fail-fast check-snapshot check-dependency-pins check-doc-links fmt-check metadata check-boundaries check-msrv test-tools-evidence test-testkit-tools test-client test-types test-protocol test-signatures test-signature-store test-tokens test-sessions test-host-tooling test-qualification check-wasm clippy publish-dry-run test-release-tools test-release-runner test-evidence-archive
 
 check-package-licenses:
 	@cmp LICENSE crates/ic-auth-protocol-types/LICENSE

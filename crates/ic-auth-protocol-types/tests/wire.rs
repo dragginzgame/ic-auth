@@ -2,6 +2,8 @@ use candid::{CandidType, decode_one, encode_one};
 use ic_auth_protocol_types::*;
 use serde::Deserialize;
 
+mod proofs;
+
 // Independent description of Canic's current Candid boundary: identifiers and
 // roles are text, despite being validated value types inside the library.
 #[derive(CandidType, Clone, Debug, Deserialize, PartialEq)]

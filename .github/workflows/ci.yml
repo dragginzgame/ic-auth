@@ -70,6 +70,14 @@ jobs:
           test ! -e .tools/rust/unrelated-cache
       - name: Validate
         run: make ci
+      - name: Archive retained Testkit setup evidence
+        if: ${{ failure() && !cancelled() }}
+        run: |
+          if [[ -e .tools/testkit-server || -L .tools/testkit-server ]]; then
+            evidence_dir="$(mktemp -d target/portable-fixtures/testkit-setup.XXXXXX)"
+            bash scripts/ci/archive-evidence.sh "$PWD/$evidence_dir/server-evidence.tar.gz" \
+              "$PWD" .tools/testkit-server
+          fi
       - name: Retain failed validation evidence
         if: ${{ failure() && !cancelled() }}
         uses: ./.github/actions/retain-failure-evidence

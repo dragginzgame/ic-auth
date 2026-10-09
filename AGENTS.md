@@ -1,7 +1,7 @@
 # IC Auth Agent Instructions
 
 Apply [DRAGGINZGAME.md](DRAGGINZGAME.md), adopted from Shared Tooling revision
-`1af63d31942448a46ef42553285176b98dce9274` and recorded in
+`8140e3dd1b44409d682c721889ab702f438c6a17` and recorded in
 [.shared-tooling.snapshot](.shared-tooling.snapshot). Read
 [the current handoff](docs/status/current.md) before implementation.
 
@@ -54,8 +54,10 @@ Apply [DRAGGINZGAME.md](DRAGGINZGAME.md), adopted from Shared Tooling revision
 
 - Native canister qualification uses published `ic-testkit` for typed calls,
   bounded startup and its upstream runtime re-export. Do not add a direct
-  `pocket-ic` dependency. The consumer-owned `ci/ic-auth-tools.tsv` selects the
-  server matching testkit's locked client; keep the shared default matrix intact.
+  `pocket-ic` dependency. The locked Testkit package selects the setup/check CLI;
+  Testkit owns server selection and admission outside the shared five-tool bundle.
+  `make install-testkit-tools` explicitly prepares it, and
+  `make testkit-tools-check` returns its admitted server path offline.
   Changing that pairing requires successful certification, upgrade and ingress
   qualification. Testkit and native host dependencies stay outside both libraries.
 
@@ -72,7 +74,7 @@ Apply [DRAGGINZGAME.md](DRAGGINZGAME.md), adopted from Shared Tooling revision
   `make test-host-tooling`, `make test-qualification`, `make check-wasm` and `make clippy`; `make ci` is the
   explicit complete gate. `make test-release-runner` checks the adopted runner
   with substituted effects.
-  Both libraries are published at `0.1.13` with contracts, encoding and optional
+  Both libraries are published at `0.1.14` with contracts, encoding and optional
   IC signature/token/session machinery, including bounded signature preparation.
   The internal IC Testkit fixture exercises actual certification, composed roots,
   protected metadata upgrades and signed ingress with fresh session keys.

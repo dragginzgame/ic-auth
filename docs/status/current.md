@@ -3,9 +3,9 @@
 The maintainer accepted the larger Canic authentication extraction, selected the
 name `ic-auth`, and confirmed `/home/adam/projects/ic-auth` as the local repository.
 
-The current committed release is `4421f991065a8bc9fc21d3d70776943b493dc740`
-(`0.1.13`) on `main`, with annotated tag `v0.1.13`; both remote identities were
-verified during continuation. Both libraries' `0.1.13` registry checksums match
+The current committed release is `5210a34cc57d11301709af19877d1a5f0a100f36`
+(`0.1.14`) on `main`, with annotated tag `v0.1.14`; both remote identities were
+verified during continuation. Both libraries' `0.1.14` registry checksums match
 the retained publication intent for that exact source/tag. The maintainer
 executed the release and publication. The original bootstrap was
 `7a03102e52b7a400588530997a9f7fb91c83de9d` (`0.1.0`).
@@ -22,7 +22,7 @@ records this batch without closing the larger extraction.
 
 The virtual Rust workspace contains `ic-auth-protocol-types`, `ic-auth` and the
 unpublished native application in `apps/tooling/`, with one lockfile, root-owned
-dependency selections and current manifest version `0.1.13`.
+dependency selections and current manifest version `0.1.14`.
 The passive token/proof contracts and canonical encoding are adapted from the
 clean Canic source at `e286b3fd98460c98670336853f80658a920966e0`; see the
 [source review](../design/canic-source-review.md) for exact ownership and API
@@ -35,10 +35,158 @@ packages under `apps/qualification/` and their IC Testkit qualification.
 There is no stable canister adapter or wallet endpoint yet. The private browser
 client now implements injected token lifecycle machinery; real issuer adapter
 qualification, npm publication and consumer adoption remain pending.
-Canic adoption has not
-occurred; no sibling repository was modified.
+Canic adoption is now in progress in the consumer's dirty working tree, without
+consumer qualification or deployment evidence from this repository. No sibling
+repository was modified by IC Auth work.
 
-## Current continuation
+## Current hard cut
+
+The maintainer requested the latest Shared Tooling and its hard cut. The reviewed
+snapshot now contains 77 canonical files from Shared Tooling 0.2.0 main revision
+`8140e3dd1b44409d682c721889ab702f438c6a17`. Its five-tool IC bundle no longer
+owns PocketIC. IC Auth removes `ci/ic-auth-tools.tsv`,
+`scripts/ci/check-pocketic-alignment.sh` and
+`scripts/ci/check-pocketic-binary.sh`, including the former alignment checker's
+`usage()` function. Testkit owns server selection, asset authentication and
+offline admission; there is no replacement consumer server catalog or fallback.
+
+`make install-tools` explicitly prepares the locked `ic-testkit-server` through
+the shared Rust installer and then invokes owner setup.
+`make install-testkit-tools` prepares that capability alone;
+`make testkit-tools-check` checks the selected executable receipt and consumes
+Testkit's admitted absolute server path without installation. Qualification uses
+only that path. The caller rejects a Testkit lock selection changed during its
+effects. CI invokes the same setup/check surface on Linux and both macOS
+architectures and archives retained Testkit setup evidence through the shared
+archiver and existing failure collector.
+
+The complete pending batch is now **0.2.0**, because this developer setup contract
+is breaking. It carries the compatible proof-transport qualification below;
+the manifests remain 0.1.14 and no package version or release effect was executed.
+The current shared snapshot also adopts checkout-local formatter discovery and
+single-document dependency exception admission. Native owner/consumer acceptance
+must remain distinct: Testkit 0.25.4's exact-source three-host provisioning and
+managed launch passed in
+[owner CI](https://github.com/dragginzgame/ic-testkit/actions/runs/37901828971);
+new IC Auth native macOS acceptance still requires its own exact-source CI.
+
+Another process selected Host Tooling 0.9.0 and IC Testkit 0.26.0 in the root
+manifest/lock during setup. Those incoming changes were preserved. The initial
+0.25.5 CLI setup completed, but qualification refused its receipt after the lock
+selected 0.26.0. Explicit preparation of the matching 0.26.0 CLI then succeeded.
+The new five-tool bundle is active locally; the previous six-tool bundle
+`ic-set.M4eBQ5`, its original pins/receipt and every receipt-covered file are
+unchanged. Older Testkit executable slots remain retained. Both selected clients
+continue using PocketIC 16.1.0, admitted by the owner's store.
+
+Focused caller checks pass on Bash 5 and genuine Bash 3.2: missing/ambiguous/
+non-registry CLI selection, installation/setup/admission failures, concurrent
+selection changes, qualification-path substitution and actual CI archive bytes.
+Real setup and offline admission return the same path under both shells. Aggregate tool
+checking and failure-evidence qualification pass. The canonical five-tool IC
+installer and dependency-pinning fixtures pass; formatter-hook adoption,
+ShellCheck and Actionlint pass. Evidence is retained under
+`target/shared-hard-cut/`. The first real lifecycle invocation with the current
+graph built successfully but the sandbox refused the local server bind;
+`qualification-final.log` retains that failure. With loopback networking admitted,
+both real certification/composition/upgrade and fresh-key signed-ingress scenarios
+pass in `qualification-native.log`; owner runtime state is retained under
+`target/portable-fixtures/qualification.HVJfZN`.
+
+The preserved Host 0.9.0/Testkit 0.26.0 graph passes all five native file-helper
+tests, strict Clippy of both native applications and Rust 1.88 checks including
+their tests. See `incoming-host-tests.log`, `incoming-native-clippy.log` and
+`incoming-native-msrv.log` in the same evidence directory. Formatting, dependency
+boundaries/pins, all 77 snapshot files, 251 local links across 54 documents and
+diff whitespace pass in `guards-final.log`. The selected manifest/lock hashes
+are retained in `selected-inputs.sha256`; auth libraries acquire no native Host,
+Testkit or direct PocketIC dependency.
+
+This implements the consumer handoff in
+[IC Auth #7](https://github.com/dragginzgame/ic-auth/issues/7), coordinated with
+[Shared Tooling #76](https://github.com/dragginzgame/shared-tooling/issues/76).
+The [consumer evidence update](https://github.com/dragginzgame/ic-auth/issues/7#issuecomment-6079297692)
+keeps delivery and native macOS acceptance outstanding at that existing tracker.
+Canic can adopt published IC Auth 0.1.14 now; this tooling cut does not require a
+new authentication API or wallet endpoint. No sibling source edits, complete
+local CI, commit, push or publication are authorized or claimed.
+
+## Earlier compatible continuation (carried into 0.2.0)
+
+The maintainer delivered 0.1.14 and requested more work to accelerate Canic
+adoption. Both live packages are unyanked and their registry checksums match
+`.git/publication-state/0.1.14.json` for the exact source above and annotated tag
+object `083af85df9c6b3fcfe8fe1c2f081e2069060d990`. Exact-source
+[main CI](https://github.com/dragginzgame/ic-auth/actions/runs/37914751465) and
+[tag CI](https://github.com/dragginzgame/ic-auth/actions/runs/37914751714) were
+queued at review. Publication does not establish native acceptance.
+
+The read-only review initially found Canic at the previously reviewed commit
+`c4c046f947b2b28f4342cbf6efe9221ba1ed5f70` with unrelated dirty work and no root/Core
+IC Auth dependency. During inspection, owner work began selecting published
+0.1.14 in both manifests, re-exporting metadata and proof atoms, and delegating
+canonical encoding through checked projections. Its registry/key-policy hashes
+remain host-owned. These are changing uncommitted sources, not a consumer build
+or completed A5 acceptance. No Canic source was edited or compiled here.
+
+The [adoption contract](../canic-adoption.md#current-canic-adapter-boundary) now
+maps that boundary and the next complete-verifier callers. The positive-cache
+path and callback verifier still remain in the inspected source; next consumer
+work should converge on `token::verify_token`, retain protected network/key-name
+admission, typed endpoint errors and finite limits, and define an independent
+local scope ceiling. Do not infer that ceiling or key enrollment from submitted
+claims. Durable session adoption and certification composition remain separate
+host obligations in [Canic #491](https://github.com/dragginzgame/canic/issues/491).
+The [consumer progress handoff](https://github.com/dragginzgame/canic/issues/491#issuecomment-6078838724)
+records the observed source change and exact next callers; the
+[qualification update](https://github.com/dragginzgame/ic-auth/issues/8#issuecomment-6078839767)
+records delivery separately from pending fixture/native acceptance.
+The current published library is sufficient to start this work; wallet login
+and publication of the next qualification batch are not prerequisites.
+
+The compatible batch initially selected 0.1.15 and is now carried into 0.2.0.
+It extends
+[IC Auth #8](https://github.com/dragginzgame/ic-auth/issues/8) with independent
+fixtures for complete retrieved tokens, delegation certificates and chain-key
+batch proofs at the immutable Canic DTO source above. Three additional tests
+preserve exact bytes in both Candid directions, including both Merkle sibling
+directions, seed bindings, opaque root/issuer signatures, nested key paths and
+optional extensions. Malformed roles/identities in certificate/leaf material
+reject within complete proof/token envelopes. Synthetic signature/key bytes
+qualify transport only, not cryptographic acceptance or the consumer adapter.
+
+All eleven wire tests pass on Rust 1.99 and 1.88, strict package Clippy passes,
+and the test target checks for Wasm on 1.88. Evidence is retained in
+`target/continuation-0.1.15/{types-final,types-clippy,types-msrv,types-wasm-msrv}.log`.
+The initial module-discovery failure is retained in `types.log`; ordinary module
+discovery under `tests/proofs/mod.rs` fixes it. The immutable DTO comparison
+passed before concurrent consumer edits started. Public APIs, signed encoding,
+manifests, browser selections and Shared Tooling snapshot were unchanged by this
+qualification batch. A separate incoming lock update was recorded below, before
+the current hard cut and newer incoming selections above.
+Formatting, dependency boundaries/pins, all 79 snapshot files, 252 local links
+across 54 documents and diff whitespace pass; the guards log retains the checks.
+No full local CI, new canister lifecycle run, commit, push or publication occurred.
+
+During final checks, another process selected all four Host packages at 0.8.10
+in the lockfile. This incoming work was preserved; no package selection was
+changed by this continuation. Registry checksums match the lock, and the four
+cached library source trees are byte-identical to 0.8.9. Five native file-helper
+tests, strict tooling Clippy and Rust 1.88 checks of both native applications
+including tests pass. Evidence is retained in
+`target/continuation-0.1.15/incoming-host-{tests,clippy,msrv}.log` and
+`incoming-host-lock.patch`. Testkit 0.25.5 and its PocketIC 16.1.0 client are
+already in released 0.1.14 and remain unchanged. The final lock checksum is
+retained in `final-locked-input.sha256`; auth library dependency paths are
+unchanged. This does not establish native macOS, new runtime or complete-gate
+acceptance. Host's release changed its own Shared Tooling under
+[Host #37](https://github.com/dragginzgame/ic-host-tooling/issues/37); it does not
+update IC Auth's reviewed snapshot implicitly.
+
+## Earlier 0.1.14 preparation (released)
+
+The following records work before maintainer delivery; its draft and uncommitted
+wording is historical.
 
 The maintainer delivered 0.1.13. Both live packages are unyanked and their
 registry checksums match `.git/publication-state/0.1.13.json` for exact source

@@ -16,21 +16,22 @@ transactions and recovery obligations.
 
 ## Published dependency and feature selection
 
-Both `ic-auth` and `ic-auth-protocol-types` 0.1.13 are published and unyanked.
+Both `ic-auth` and `ic-auth-protocol-types` 0.1.14 are published and unyanked.
 Their registry checksums match IC Auth release
-`4421f991065a8bc9fc21d3d70776943b493dc740`. Rust 1.88 is the supported minimum.
+`5210a34cc57d11301709af19877d1a5f0a100f36`. Rust 1.88 is the supported minimum.
 Canic selects compatible registry requirements in its root catalog and records
 the resolved versions in its own lockfile:
 
 ```toml
 [workspace.dependencies]
-ic-auth = { version = "0.1.13", default-features = false }
-ic-auth-protocol-types = "0.1.13"
+ic-auth = { version = "0.1.14", default-features = false }
+ic-auth-protocol-types = "0.1.14"
 ```
 
 Child packages inherit these dependencies with `workspace = true`; their
 existing capability features forward only the needed library features. This is
-a proposed Canic selection, not an applied or consumer-qualified manifest.
+the published selection. The read-only review below distinguishes Canic's
+in-progress source adoption from consumer qualification.
 
 | Existing Canic capability | IC Auth selection | Retained Canic responsibility |
 | --- | --- | --- |
@@ -113,11 +114,12 @@ adapter or durable session backend.
 ## Consumer acceptance boundary
 
 The maintainer's immediate priority is Canic adoption from the already-published
-0.1.13 libraries. The pending 0.1.14 wire qualification introduces no required
-API change and is not a prerequisite for starting consumer work.
+0.1.14 libraries. The pending 0.2.0 wire qualification introduces no required
+API change and is not a prerequisite for continuing consumer work.
 
 Protocol-types tests now independently describe Canic's prepare request,
-claims/prepare response and retrieval request at the reviewed source above.
+claims/prepare response and retrieval request at immutable Canic
+`c4c046f947b2b28f4342cbf6efe9221ba1ed5f70`.
 They check both Candid directions and identical encoded bytes for metadata,
 nested grants/audiences, fixed-width hashes/nonces, principals, unsigned deadlines
 and absent/empty/nonempty optional extensions. Invalid nested roles/identities
@@ -125,6 +127,19 @@ reject. Native tests pass on Rust 1.99 and 1.88, and the test target checks for
 Wasm on 1.88. [IC Auth #8](https://github.com/dragginzgame/ic-auth/issues/8) owns
 this fixture evidence; it does not authenticate tokens or qualify actual Canic
 generated Candid, macro endpoints or production adapters.
+
+The next batch adds complete retrieved-token and delegation-proof
+fixtures, including certificate/leaf audiences and grants, batch headers, both
+Merkle sibling directions, seed bindings, key identifiers, nested derivation
+paths and opaque root/issuer signatures. Empty and nonempty issuer material is
+preserved as transport; synthetic keys/signatures are deliberately unauthenticated.
+Malformed roles/identities in the certificate or issuer leaf reject even within
+a complete token. All eleven wire tests pass on Rust 1.99 and 1.88; the test
+target checks for Wasm on 1.88. These independent fixtures describe the immutable
+Canic DTO source, not the concurrently edited consumer adapter.
+The pending minor release also cuts the developer PocketIC setup over to Testkit
+under Shared Tooling 0.2.0; that tooling change does not require a new Rust
+authentication API or delay Canic's published 0.1.14 adoption.
 
 Canic acceptance requires its selected native/Wasm feature graphs, canonical
 signed-byte vectors, both Candid directions, facade/macro callers and real host
@@ -134,10 +149,37 @@ replacement replay refusal, capacity/expiry boundaries and protected authority
 changes. Report removed symbols and actual remaining dependency edges when the
 superseded owners are retired.
 
-The 2026-10-09 read-only review found no IC Auth dependency in Canic's root/Core
-manifests and the local engines still active at committed
-`c4c046f947b2b28f4342cbf6efe9221ba1ed5f70`; unrelated dirty Canic work was preserved.
-That is source/declaration evidence, not a consumer build or deployment result.
-Wallet login is not a prerequisite for these local Rust calls. The private
+The initial 2026-10-09 review found no IC Auth dependency in Canic's root/Core
+manifests at committed `c4c046f947b2b28f4342cbf6efe9221ba1ed5f70`. During the next
+read-only inspection, the consumer working tree began selecting 0.1.14 and
+adapting its canonical/proof code. This is uncommitted source evidence, not
+consumer qualification or deployment. The next boundary below remains in the
+same owning issue. Wallet login is not a prerequisite for these local Rust calls. The private
 [browser client](browser-client.md#consumer-adoption) has a separate real-issuer
 adapter and publication boundary.
+
+## Current Canic adapter boundary
+
+The in-progress Canic `ops/auth/delegated/canonical/mod.rs` calls the library's
+encoding/hash functions through checked role, audience, grant, certificate and
+claims projections in `ops/auth/delegated/protocol/mod.rs`. Root policy and
+delegated registry snapshot framing remain Canic-owned. The protocol DTO
+re-exports include metadata, chain-key header/witness/signature atoms and issuer
+signature types. Remaining local token/certificate declarations and projections
+do not establish canonical type adoption complete. Preserve the owner release
+boundary and retained-data obligations while converging these callers.
+
+The next reusable engine remains the runtime verifier:
+
+| Current Canic caller | Library boundary | Canic obligation |
+| --- | --- | --- |
+| `ops/auth/token/verification.rs::verify_with_embedded_proofs` and `delegated/verify.rs::verify_delegated_token` | `token::verify_token` | Project the complete token once; supply independently enrolled key policy, actual caller, protected fleet/role and endpoint requirements |
+| `ops/auth/token/verifier_config.rs` | `RootKeyPolicy` and `TokenVerificationLimits` | Keep build-network/key-name admission and all numeric limits in protected configuration |
+| `verification.rs::verify_from_positive_cache` | Live policy on every `verify_token` call | Retire the old proof-skipping path; do not feed a semantic-only result into session admission |
+| `ops/auth/application_authorization.rs::local_application_authorization_authority` | Protected `allowed_scopes` and session context | Use the local configured ceiling where enabled; define the token-only verifier's protected ceiling separately instead of taking it from submitted grants |
+
+Preserve endpoint error/metric mapping with typed library errors. Qualify changed
+key windows, epochs and local ceilings using the same token on successive calls,
+as well as caller/audience/seed/signature rejection. Complete verifier adoption
+does not require a new library endpoint or wallet service. Stable session storage
+and certification preparation retain their separately described host contracts.
