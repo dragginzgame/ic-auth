@@ -85,7 +85,7 @@ write, memory allocation into host stable regions or global cache occurs here.
 
 ## Standalone root delegation verification
 
-The pending compatible 0.2.2 batch adds
+Released 0.2.2 adds
 `ic_auth::token::verify_delegation_proof(proof, context)` under the existing
 `token-verification` feature. It accepts `DelegationProof` directly, before
 claims or an issuer signature exist. There is no fabricated token, cryptographic

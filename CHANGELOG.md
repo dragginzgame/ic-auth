@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.3]
+
+- Adopt the latest reviewed Shared Tooling fixes for unterminated IC-tool pin
+  matrices and literal newlines in hook paths, preserving existing selections
+  and failed Git-read status.
+  [Shared Tooling #87](https://github.com/dragginzgame/shared-tooling/issues/87),
+  [#89](https://github.com/dragginzgame/shared-tooling/issues/89).
+
 ## [0.2.2] - 2026-10-09
 
 - Add bounded standalone root delegation-proof verification for issuer

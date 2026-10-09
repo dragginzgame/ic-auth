@@ -3,9 +3,9 @@
 The maintainer accepted the larger Canic authentication extraction, selected the
 name `ic-auth`, and confirmed `/home/adam/projects/ic-auth` as the local repository.
 
-The current committed release is `9cd4cf09dde6ce0b739ed58af18612ed02202841`
-(`0.2.1`) on `main`, with annotated tag `v0.2.1`; both remote identities were
-verified during continuation. Both libraries' `0.2.1` registry checksums match
+The current committed release is `45b6755b70307a4e20d3cac421dbeaae278fb5e9`
+(`0.2.2`) on `main`, with annotated tag `v0.2.2`; both remote identities were
+verified during continuation. Both libraries' `0.2.2` registry checksums match
 the retained publication intent for that exact source/tag. The maintainer
 executed the release and publication. The original bootstrap was
 `7a03102e52b7a400588530997a9f7fb91c83de9d` (`0.1.0`).
@@ -22,7 +22,7 @@ records this batch without closing the larger extraction.
 
 The virtual Rust workspace contains `ic-auth-protocol-types`, `ic-auth` and the
 unpublished native application in `apps/tooling/`, with one lockfile, root-owned
-dependency selections and current manifest version `0.2.1`.
+dependency selections and current manifest version `0.2.2`.
 The passive token/proof contracts and canonical encoding are adapted from the
 clean Canic source at `e286b3fd98460c98670336853f80658a920966e0`; see the
 [source review](../design/canic-source-review.md) for exact ownership and API
@@ -39,7 +39,75 @@ Canic adoption is now in progress in the consumer's dirty working tree, without
 consumer qualification or deployment evidence from this repository. No sibling
 repository was modified by IC Auth work.
 
-## Current 0.2.2 implementation
+## Current Shared Tooling adoption (pending 0.2.3)
+
+The maintainer requested the latest Shared Tooling and continued issue fixes.
+The reviewed remote main revision is
+`04e07b4bf54e7aeb03eb7804a845cee27b7305df` (owner's 0.2.5 heading).
+The canonical exporter refreshed the existing 77-file selection from an isolated
+immutable source checkout; no sibling files were changed or extra upstream test
+roster added to this consumer. Local AGENTS.md records that exact revision.
+The baseline itself is unchanged. Relevant executable fixes preserve final
+unterminated IC matrix records and literal trailing newlines in Git hook paths,
+including failed-read status; companion-selection guidance is also refreshed.
+This is compatible developer tooling, so the undated next changelog is **0.2.3**.
+Package manifests and lock remain 0.2.2.
+
+Canonical hook/IC installer fixtures pass on Bash 5 and genuine Bash 3.2 using
+an isolated owner source tree. Consumer formatting-hook adoption checks also
+pass on both shells against this checkout's actual hook, installer and Make
+formatting targets. Owner fixture results are distinguished from consumer
+caller acceptance. Logs and the exact source archive/export evidence are retained
+under `target/continuation-0.2.3/`. The local/mocked release/publication
+reconciliation fixture passes, as do actual offline `make tools-check`, ShellCheck,
+77-file snapshot integrity, dependency declarations, 255 local links and diff
+whitespace. The effective hook path remains `.githooks`; no config activation
+was changed. Logs are `shared-{hooks,ic-tools}-bash{5,32}.log`,
+`consumer-hooks-bash{5,32}.log`, `release-tools.log`, `tools-check.log`,
+`shellcheck.log` and `guards.log`. Selected input hashes and the working-tree diff
+are retained. No authentication library code or dependency selection changed;
+no product Rust/canister suite or complete CI gate ran for this setup adoption.
+No functions, methods or types were removed.
+
+## Released 0.2.2 and issue acceptance review
+
+Remote main and peeled `v0.2.2` match the current release source above; the
+annotated tag object is `89db3ccdec0c4424370dcd06939fdded42da3e11`.
+Both official registry entries are unyanked and match retained publication
+checksums. Its exact-source
+[main CI](https://github.com/dragginzgame/ic-auth/actions/runs/37936975452)
+is queued at inspection. The standalone proof API is published and its consumer
+acceptance remains owned by Canic #491, separately from library issue #10.
+A final read-only review at Canic committed base
+`ac55e50334dd6479ec36f404e89e60bcfe9184d6` observes its changing working tree
+selecting both 0.2.2 packages with matching registry checksums; this is selection
+evidence, not consumer qualification.
+
+The earlier accepted source `5210a34cc57d11301709af19877d1a5f0a100f36` has
+successful complete Linux, Intel macOS and Apple Silicon jobs in
+[0.1.14 main CI](https://github.com/dragginzgame/ic-auth/actions/runs/37914751465).
+This supplies the outstanding native acceptance for the delivered MSRV (#4),
+fleet reporter (#5) and streaming file hash (#6) repairs. It does not qualify
+later dependency selections or unrelated later source. Those fixes remain
+present; their relevant MSRV wrapper/file helper source is unchanged. Issues
+#4/#5/#6 are closed with this exact-source acceptance. Library API issue #10 is
+closed after 0.2.2 publication and its retained native/Wasm/MSRV qualification;
+Canic adoption and verifier retirement stay open in the consumer tracker.
+
+The 0.2.0 tag's Apple Silicon job failed at exact evidence download before its
+validation gate. `gh run view --log-failed` returned no log bytes; the job
+annotation reports “None of the provided artifact IDs were found.”
+Retained job/annotation observations identify the transport failure but not its
+cause; no speculative retry or workflow repair is introduced.
+Keep #2 and newer native acceptance (#7/#8/#9) open pending their own matching
+results. The private browser client's real issuer adapter and adoption (#3)
+remain consumer-coordinated work. No queued workflow was cancelled or rerun.
+No commit, package version change, release, publication or sibling edit occurred.
+
+## Earlier 0.2.2 preparation (released)
+
+The following records local preparation before maintainer release/publication;
+pending manifest, qualification and delivery wording in this section is historical.
 
 The maintainer authorized continuing the standalone proof batch for **0.2.2**.
 It is an additive public API under the existing `token-verification` feature,
