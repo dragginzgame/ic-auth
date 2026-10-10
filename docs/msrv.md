@@ -25,12 +25,25 @@ on the separately selected development compiler normalizes both public package
 archives without uploading. Their bounded digests and a unique unpacked fixture
 are retained under `target/portable-fixtures/msrv.*`.
 
-The normalized packages are checked outside the production workspace, so private
-test infrastructure cannot supply dependency features to a library consumer.
-The auth package uses the matching local protocol payload; only that fixture's
-path/source identity changes. Every external package version, source and checksum
-must remain a subset of the real workspace lock. There is no unlocked resolution,
-dependency downgrade, network fallback or `--ignore-rust-version` check.
+An independent consumer checks the normalized packages outside the production
+workspace, so private test infrastructure cannot supply dependency features.
+Only its manifest patches crates.io to select the two exact unpacked packages;
+packaged manifests and locks remain untouched. Offline metadata projects the
+fixture lock from the selected workspace graph and adds this consumer root.
+Before compilation, admission requires both exact package names, versions and
+manifest paths, enforces the library's forbidden-dependency boundary, and requires every
+external version, source and checksum to remain a subset of the original lock.
+Compiler checks are locked/offline, without a dependency downgrade, network
+fallback or `--ignore-rust-version`.
+
+Admission refusal cases run as part of `check-msrv`. Hashes seal the archives and
+every unpacked file before metadata resolution and again after all compilation;
+original and consumer manifests/locks must also remain unchanged. Failed hashes,
+comparisons or compiler commands fail the check and retain their evidence. This
+qualifies local archive interoperability, not crates.io publication readiness;
+`publish-dry-run` retains ordinary Cargo registry admission.
+See [Auth #21](https://github.com/dragginzgame/ic-auth/issues/21) and the adopted
+[coordinated-archive guidance](../rules/cargo-dependencies.md#qualifying-coordinated-package-archives-before-a-version-bump).
 
 | Package path | Minimum-compiler coverage |
 | --- | --- |

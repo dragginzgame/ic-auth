@@ -3,9 +3,9 @@
 The maintainer accepted the larger Canic authentication extraction, selected the
 name `ic-auth`, and confirmed `/home/adam/projects/ic-auth` as the local repository.
 
-The current committed release is `1acea39bedda888f9a7893c79e12ded8449b200b`
-(`0.3.4`) on `main`, with annotated tag `v0.3.4`; both remote identities were
-verified during continuation. Both libraries' `0.3.4` registry checksums match
+The current committed release is `c04f98318278ecb822f42807078b70e989f997dc`
+(`0.3.5`) on `main`, with annotated tag `v0.3.5`; both remote identities were
+verified during continuation. Both libraries' `0.3.5` registry checksums match
 the retained publication intent for that exact source/tag. The maintainer
 executed the release and publication. The original bootstrap was
 `7a03102e52b7a400588530997a9f7fb91c83de9d` (`0.1.0`).
@@ -22,7 +22,7 @@ records this batch without closing the larger extraction.
 
 The virtual Rust workspace contains `ic-auth-protocol-types`, `ic-auth` and the
 unpublished native application in `apps/tooling/`, with one lockfile, root-owned
-dependency selections and current manifest version `0.3.4`.
+dependency selections and current manifest version `0.3.5`.
 The passive token/proof contracts and canonical encoding are adapted from the
 clean Canic source at `e286b3fd98460c98670336853f80658a920966e0`; see the
 [source review](../design/canic-source-review.md) for exact ownership and API
@@ -40,7 +40,75 @@ has recorded focused standalone-proof and bounded batch-builder qualification;
 complete-token, durable-session and deployed acceptance remain separate. No sibling repository
 was modified by IC Auth work.
 
-## Current continuation (pending 0.3.5)
+## Current continuation (pending 0.3.6)
+
+The maintainer confirmed 0.3.5 is live. Remote main and the peeled tag match the
+source above; annotated tag `25196a5e1f7dc67a85588ae0742cdf8998ea7d11` and both
+unyanked official registry checksums match `.git/publication-state/0.3.5.json`:
+protocol-types `368aa465723d9958cc02baf138e7b0f5d6e2411a134f1f22b9f5643674d530f8`,
+Auth `0fef8711c7e0ac0aed54f086302e35d8d89378013a55147147a76e0e1d5e5219`.
+The matching [0.3.5 CI](https://github.com/dragginzgame/ic-auth/actions/runs/38069660311)
+passes on Ubuntu; both native macOS jobs are running at this inspection.
+Released 0.3.4's later CI run was cancelled; its unfinished hosts remain
+unqualified. Released 0.3.3's three successful hosts retain their own input-bound
+evidence. [Auth #20](https://github.com/dragginzgame/ic-auth/issues/20) tracks
+native acceptance of the added certified-token session scenarios.
+
+This continuation adopts Shared Tooling 0.3.8
+`67285b28a98b7c4211ad32de726709d4e87edea4` through the verified 84-file canonical
+snapshot exported from a clean isolated committed checkout. The delivered Auth
+lock already selects all four Host packages at 0.12.8
+`c810c299acd0c41001a046c8e8ad0ee6daceefc0`; official registry and package VCS
+identities match. Host's Rust APIs are unchanged from 0.12.7. Testkit remains
+0.33.1 with server 16.1.0. The incoming serde_json 1.0.152 lock selection is
+preserved and its caches explicitly prepared. Sibling dirty future work is not
+adopted.
+
+The compatible 0.3.6 batch repairs existing archive MSRV qualification under
+[Auth #21](https://github.com/dragginzgame/ic-auth/issues/21), following
+[Shared #109](https://github.com/dragginzgame/shared-tooling/issues/109). Both
+normalized archives and packaged manifests/locks remain untouched. An independent
+consumer uses fixture-only registry patches to select their exact unpacked
+payloads. Pre-compilation admission enforces their names/versions/paths, excludes
+forbidden product/runtime/native edges and preserves selected external
+version/source/checksum identities. Every supported library feature still checks
+on native/Wasm at Rust 1.88.0; internal applications check separately. Final
+hashes require unchanged archives, unpacked files and original/fixture inputs.
+Ordinary registry publication admission stays intact. Public APIs, formats,
+compiler floor and manifest version remain unchanged at 0.3.5.
+
+Initial actual MSRV qualification and graph/lock refusal fixtures pass on Linux;
+the latter also pass on genuine Bash 3.2. A disposable consumer with substituted
+compiler effects refuses compiler failure, unpacked-source mutation, fixture
+and original lock mutation, archive mutation and a no-follow hash failure on
+Bash 3.2. This does not substitute for real compilation or native host acceptance.
+Evidence, including the initial failed fixture setup attempts, remains under
+`target/archives-0.3.6/`. Complete **`make -j4 ci` passes all 27 targets on Linux**,
+including actual Testkit certification/upgrade/ingress, every library/client case,
+Wasm, strict Clippy, ordinary registry package dry runs with uploads aborted, and
+local/mocked release/recovery/evidence fixtures. Inputs remained unchanged through
+the gate: tracked diff SHA-256
+`cda64c48e1a31832ef6c353643b0f0877b0c3f72fdf1d6785a48b5d4a97ed12d`.
+The new guard/test scripts and MSRV wrapper have separately recorded hashes in
+`qualified-inputs.sha256`; the matching `after-gate-tracked.diff`, `ci.log` and
+focused results bind their actual inputs. Final prose receives snapshot/link/diff
+checks. Native macOS acceptance of this new source remains outstanding.
+
+Read-only Canic inspection remains at dirty base
+`ac55e50334dd6479ec36f404e89e60bcfe9184d6`, selecting Auth 0.3.4, Testkit 0.33.1
+and Host 0.12.7. Full-verifier/cache retirement and durable host adoption remain
+Canic #491/#58/#459; existing published runtime APIs already support those
+adapters. No sibling files or builds are changed. No package version, commit,
+push, release, upload or deployment occurs.
+The [Canic handoff](https://github.com/dragginzgame/canic/issues/491#issuecomment-6100299824)
+records published 0.3.5 qualification and the remaining consumer-owned verifier
+and durable-storage obligations.
+
+## Earlier integration qualification (0.3.5, released)
+
+The following records preparation before maintainer delivery. Source,
+dependency and hosted-CI observations are historical; the delivered Host 0.12.8
+selection above differs from this earlier local qualification.
 
 The maintainer confirmed 0.3.4 is live. Remote main and the peeled tag match the
 source above; annotated tag `b9b53f90092c03f9dfa0860c779e0bf5f11cad11` and both

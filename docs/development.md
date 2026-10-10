@@ -2,8 +2,8 @@
 
 The virtual root owns two libraries, unpublished native tooling in `apps/tooling/`
 and the internal host/runner in `apps/qualification/`, plus dependency selections,
-lints and one lockfile. The current manifest version is `0.3.4`, tagged as
-`v0.3.4`; both libraries are published on crates.io.
+lints and one lockfile. The current manifest version is `0.3.5`, tagged as
+`v0.3.5`; both libraries are published on crates.io.
 Rust `1.99.0` remains the development compiler selected by `rust-toolchain.toml`.
 The common package minimum is Rust `1.88.0`, inherited from the root catalog and
 qualified by explicit older-compiler checks. See [MSRV coverage](msrv.md).
@@ -212,9 +212,9 @@ It does not qualify browser/wallet login or a durable session backend.
 ## Releases and publication
 
 ```sh
-make release-patch                 # compatible patch increment: 0.3.4 -> 0.3.5
-make release-minor                 # breaking pre-1.0 contract: 0.3.4 -> 0.4.0
-make release-major                 # explicit major decision: 0.3.4 -> 1.0.0
+make release-patch                 # compatible patch increment: 0.3.5 -> 0.3.6
+make release-minor                 # breaking pre-1.0 contract: 0.3.5 -> 0.4.0
+make release-major                 # explicit major decision: 0.3.5 -> 1.0.0
 make release-resume VERSION=X.Y.Z   # reconcile the exact saved attempt
 make publish-dry-run               # validate packages without upload
 make publish                       # upload a clean, delivered tagged release
@@ -341,7 +341,7 @@ the utility uses
 and owner-only permissions. Publication errors retain their typed before/after
 state through the utility's error boundary, with secondary staging cleanup
 failures included in diagnostics. IC Testkit 0.33.1 selects Host 0.12 for its four
-public reexports; the lock resolves all four Host packages once at 0.12.7.
+public reexports; the lock resolves all four Host packages once at 0.12.8.
 Host's public APIs are unchanged; its filesystem implementation now rejects
 NUL-containing publication paths before parent creation. Auth retains its
 existing version rewriter and release policy.

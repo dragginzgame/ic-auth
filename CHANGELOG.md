@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.3.6]
+
+- Qualify both exact, untouched package archives at the minimum Rust compiler
+  through an isolated consumer. Reject incorrect package identities, forbidden
+  dependency edges, changed external lock selections and changed payloads or
+  inputs. Packaged manifests and locks are no longer rewritten.
+  [#21](https://github.com/dragginzgame/ic-auth/issues/21).
+- Adopt Shared Tooling 0.3.8's coordinated-archive guidance while preserving
+  ordinary registry publication admission.
+  [Shared #109](https://github.com/dragginzgame/shared-tooling/issues/109).
+
 ## [0.3.5] - 2026-10-10
 
 - Extend real certified-token session qualification through a substituted host
