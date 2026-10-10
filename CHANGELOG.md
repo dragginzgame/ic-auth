@@ -9,6 +9,9 @@
   exact archive acceptance and uncertain-upload reconciliation while retaining
   every observation separately. Publication requires curl 8.4.0+.
   [#12](https://github.com/dragginzgame/ic-auth/issues/12).
+- Identify the locked Testkit CLI and explicit setup command when offline
+  admission fails; qualify the incoming Testkit 0.28.1 selection.
+  [#14](https://github.com/dragginzgame/ic-auth/issues/14).
 
 ## [0.2.8] - 2026-10-10
 

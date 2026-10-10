@@ -198,7 +198,12 @@ explicit `make install-tools` after updating: the shared IC bundle now holds
 five tools, and the locked Testkit CLI owns server setup and offline admission.
 `make install-testkit-tools` prepares only that CLI/server route;
 `make testkit-tools-check` returns the admitted absolute server path without
-downloading. `make test-testkit-tools` checks caller selection, failures and
+downloading. A lockfile update that changes Testkit selects a new versioned CLI,
+even when its PocketIC server is unchanged. Explicitly rerun
+`make install-testkit-tools` before qualification; a missing CLI check reports
+the selected package/version and preparation command, preserving its failure
+status without installing or falling back to an older CLI.
+`make test-testkit-tools` checks caller selection, failures and
 offline qualification with substituted effects. Canic's actual adapter and
 durable host qualification remain consumer-owned. Released
 `0.1.12` added portable MSRV checking, retained setup evidence
@@ -279,9 +284,9 @@ registry uncertainty policy remain owned by the release/publication scripts.
 The native utility selects published `ic-host-fs` 0.10 and uses
 `durable::write_with(path, options, producer)` with explicit create/replace modes
 and owner-only permissions. Publication errors retain their typed before/after
-state through the utility's error boundary. IC Testkit 0.28.0 also requires Host
+state through the utility's error boundary. IC Testkit 0.28.1 also requires Host
 0.10; the lock selects all four Host packages at 0.10.1 with no older Host graph.
-Run `make install-testkit-tools` to prepare the selected 0.28.0 CLI, then
+Run `make install-testkit-tools` to prepare the selected 0.28.1 CLI, then
 `make testkit-tools-check` for offline admission of its unchanged 16.1.0 server.
 Prior versioned CLI installations remain retained. Native Host dependencies
 remain outside both protocol libraries. See the owner adoption in

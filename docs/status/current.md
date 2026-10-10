@@ -76,8 +76,9 @@ bare-remote/mocked-transport checks. [#12](https://github.com/dragginzgame/ic-au
 retains native consumer acceptance separately from upstream
 [Shared #94](https://github.com/dragginzgame/shared-tooling/issues/94).
 
-Host 0.10.1 and Testkit 0.28.0 upstream identities are unchanged; manifest/lock
-and client input hashes remain preserved. The read-only Canic review at base
+The initial continuation preserved Host 0.10.1 and Testkit 0.28.0. The later
+incoming Testkit 0.28.1 lock and its qualification are recorded below; the
+earlier input hashes retain their original identities. The read-only Canic review at base
 `ac55e50334dd6479ec36f404e89e60bcfe9184d6` finds both Auth packages at 0.2.7 in
 its dirty root lock and the standalone-proof call integrated. The local
 complete-token verifier/proof-skipping cache and discarded installation
@@ -102,6 +103,36 @@ stored format or package version changes. No local function, method or type is
 removed; only duplicate transport/parsing inside the retained `observe` adapter
 is replaced. No sibling source mutation, full gate, commit/push, publication,
 npm release or deployment occurs here.
+
+### Testkit 0.28.1 admission repair
+
+At committed preparation source `1e11eeb`, the maintainer's incoming lock selects
+published Testkit 0.28.1 while only the 0.28.0 CLI was prepared. The full gate
+built the qualification Wasm, then refused offline admission with `selected Cargo
+tool is not installed`; Cargo itself was available. The original failure remains
+in `target/validation-failures/20261010T080312Z-2277050-17-test-qualification.log`.
+Direct admission reproduces that exact prerequisite failure. Registry digest and
+downloaded VCS metadata match released Testkit
+`ebbea97c90161eb03834b01a9fb0159aa0d99d89`; no root dependency selection changed.
+
+Explicit `make install-testkit-tools` prepares the selected 0.28.1 CLI and reuses
+the existing admitted PocketIC 16.1.0 server. The former CLI/server and root
+manifest/lock hashes remain unchanged. The consumer now reports the selected
+CLI/version and explicit setup command when shared CLI admission fails, retaining
+the original exit status and no success output. It never installs during a check
+or selects a retained older CLI; the shared installer snapshot is untouched.
+[#14](https://github.com/dragginzgame/ic-auth/issues/14) tracks this repair.
+
+The new diagnostic fixture fails before the repair and passes afterward on
+Linux Bash 5 and genuine Bash 3.2, alongside existing setup/check/changed-lock
+failure and qualification/evidence cases. Both actual certification/composed-root,
+protected-upgrade and fresh-key signed-ingress tests pass on the incoming graph.
+The qualification runner's all-target/all-feature check passes on Rust 1.88;
+ShellCheck, snapshot integrity, local links and diff checks also pass.
+Evidence is retained under `target/testkit-qualification-repair/`. The existing
+compatible 0.2.9 draft is extended without API/format/version changes or removed
+symbols. No full gate, release/publication or sibling mutation occurs in this
+repair; earlier 0.28.0 results remain historical evidence.
 
 ## Earlier client completion deadline repair (0.2.8, released)
 

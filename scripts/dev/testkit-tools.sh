@@ -25,7 +25,14 @@ version="$(locked_testkit_version)"
 selection=(--consumer "$PWD" --package ic-testkit --version "$version"
     --bin ic-testkit-server --profile debug)
 [[ "$phase" != check ]] || selection+=(--check)
-cli="$(bash scripts/dev/install-rust-tools.sh "${selection[@]}")"
+cli="$(bash scripts/dev/install-rust-tools.sh "${selection[@]}")" || {
+    status=$?
+    printf 'Testkit CLI ic-testkit-server %s %s failed (exit %s).\n' "$version" "$phase" "$status" >&2
+    if [[ "$phase" == check ]]; then
+        echo 'Prepare the selected CLI with make install-testkit-tools; checks never install tools.' >&2
+    fi
+    exit "$status"
+}
 case "$phase" in
     install) server="$("$cli" setup --directory "$PWD/.tools/testkit-server")" ;;
     check) server="$("$cli" check --directory "$PWD/.tools/testkit-server")" ;;

@@ -86,6 +86,8 @@ status=0
 "$BASH" "$consumer/scripts/dev/testkit-tools.sh" check > "$fixture/missing.stdout" 2> "$fixture/missing.stderr" || status=$?
 [[ "$status" == 27 && ! -s "$fixture/missing.stdout" ]]
 [[ "$(cat "$TESTKIT_FIXTURE_LOG")" == 'cli check' ]]
+rg -q 'ic-testkit-server.*0[.]25[.]5' "$fixture/missing.stderr"
+rg -F 'make install-testkit-tools' "$fixture/missing.stderr" > /dev/null
 
 # Only explicit preparation dispatches CLI installation and server setup.
 "$BASH" "$consumer/scripts/dev/testkit-tools.sh" install > "$fixture/setup.stdout"
