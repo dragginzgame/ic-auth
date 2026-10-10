@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.3.4]
+## [0.3.4] - 2026-10-10
 
 - Qualify session admission from an actual certified token, including rejection
   without proof consumption, exact retry after proof expiry and live authority
