@@ -2,8 +2,8 @@
 
 The virtual root owns two libraries, unpublished native tooling in `apps/tooling/`
 and the internal host/runner in `apps/qualification/`, plus dependency selections,
-lints and one lockfile. The current manifest version is `0.3.3`, tagged as
-`v0.3.3`; both libraries are published on crates.io.
+lints and one lockfile. The current manifest version is `0.3.4`, tagged as
+`v0.3.4`; both libraries are published on crates.io.
 Rust `1.99.0` remains the development compiler selected by `rust-toolchain.toml`.
 The common package minimum is Rust `1.88.0`, inherited from the root catalog and
 qualified by explicit older-compiler checks. See [MSRV coverage](msrv.md).
@@ -12,8 +12,9 @@ Linux x86_64 is the initially exercised host.
 The supported host matrix is Linux x86_64 and macOS 15 on Intel and Apple Silicon.
 CI runs the same complete gate on `ubuntu-24.04`, `macos-15-intel` and `macos-15`.
 Automatic runs cover `main` pushes and pull requests. Release tags do not enqueue
-a second equivalent matrix; separate commits pushed to `main` retain their own
-complete runs. The workflow does not cancel existing or superseded runs.
+a second equivalent matrix. Newer revisions cancel older queued and running
+checks for the same workflow and branch or PR ref; unfinished hosts on cancelled
+revisions remain unqualified.
 Native macOS qualification for this batch remains pending those jobs. Shared
 Tooling's [host prerequisites](supported-hosts.md) apply, including Bash 3.2+,
 GNU Make, rustup, Git and standard Unix setup utilities.
@@ -163,7 +164,7 @@ trigger at the selected ref; historical tags without that trigger cannot acquire
 it from later source. Check the resulting run's `headSha` against the intended
 commit, and require all three native jobs. A PR run qualifies its merge candidate,
 not a different release commit. Existing 0.2.0 branch/tag runs retain their original
-source and are not cancelled by this change. Tag identity, validation receipts
+source and qualification status. Tag identity, validation receipts
 and exact pushed-tag admission remain in the release/publication scripts.
 Manual dispatch runs validation only; it does not release or publish packages.
 See [GitHub's event rules](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows)
@@ -211,9 +212,9 @@ It does not qualify browser/wallet login or a durable session backend.
 ## Releases and publication
 
 ```sh
-make release-patch                 # compatible patch increment: 0.3.3 -> 0.3.4
-make release-minor                 # breaking pre-1.0 contract: 0.3.3 -> 0.4.0
-make release-major                 # explicit major decision: 0.3.3 -> 1.0.0
+make release-patch                 # compatible patch increment: 0.3.4 -> 0.3.5
+make release-minor                 # breaking pre-1.0 contract: 0.3.4 -> 0.4.0
+make release-major                 # explicit major decision: 0.3.4 -> 1.0.0
 make release-resume VERSION=X.Y.Z   # reconcile the exact saved attempt
 make publish-dry-run               # validate packages without upload
 make publish                       # upload a clean, delivered tagged release
@@ -339,8 +340,8 @@ the utility uses
 `durable::write_with(path, options, producer)` with explicit create/replace modes
 and owner-only permissions. Publication errors retain their typed before/after
 state through the utility's error boundary, with secondary staging cleanup
-failures included in diagnostics. IC Testkit 0.32.2 selects Host 0.12 for its four
-public reexports; the lock resolves all four Host packages once at 0.12.6.
+failures included in diagnostics. IC Testkit 0.33.1 selects Host 0.12 for its four
+public reexports; the lock resolves all four Host packages once at 0.12.7.
 Host's public APIs are unchanged; its filesystem implementation now rejects
 NUL-containing publication paths before parent creation. Auth retains its
 existing version rewriter and release policy.
@@ -351,7 +352,7 @@ directly and obtains runtime types through Testkit. Testkit owns adoption of
 Host's breaking process API; Auth has no direct caller or compatibility shim.
 Directory-suffixed publication targets are refused before creating parents or
 replacing a stripped filename; the native utility uses that upstream guard.
-Run `make install-testkit-tools` to prepare the selected 0.32.2 CLI, then
+Run `make install-testkit-tools` to prepare the selected 0.33.1 CLI, then
 `make testkit-tools-check` for offline admission of its unchanged 16.1.0 server.
 Prior versioned CLI installations remain retained. Native Host dependencies
 remain outside both protocol libraries. See the owner adoption in

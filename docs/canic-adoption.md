@@ -16,9 +16,9 @@ transactions and recovery obligations.
 
 ## Published dependency and feature selection
 
-Both `ic-auth` and `ic-auth-protocol-types` 0.3.3 are published and unyanked.
+Both `ic-auth` and `ic-auth-protocol-types` 0.3.4 are published and unyanked.
 Their registry checksums match IC Auth release
-`55568fd0ed741afac52ed8872d9bda2dd4000bee`. Rust 1.88 is the supported minimum.
+`1acea39bedda888f9a7893c79e12ded8449b200b`. Rust 1.88 is the supported minimum.
 For adoption of this release, select compatible registry requirements in Canic's
 root catalog and record the resolved versions in its own lockfiles:
 
@@ -33,9 +33,9 @@ existing capability features forward only the needed library features. This is
 the recommended published selection. The read-only review below distinguishes Canic's
 in-progress source adoption from consumer qualification.
 
-Releases 0.3.0 through 0.3.3 change developer tooling and qualification; their
+Releases 0.3.0 through 0.3.4 change developer tooling and qualification; their
 authentication APIs and signed bytes are unchanged from 0.2.11. Canic's changing root manifest and lock select
-0.3/0.3.2 in the read-only review below; selected versions alone do not establish
+0.3/0.3.4 in the read-only review below; selected versions alone do not establish
 runtime adoption or removal of duplicated implementations.
 
 | Existing Canic capability | IC Auth selection | Retained Canic responsibility |
@@ -124,7 +124,7 @@ the developer-tooling hard cut; authentication APIs and signed bytes are unchang
 The current read-only inspection at Canic committed base
 `ac55e50334dd6479ec36f404e89e60bcfe9184d6` finds its changing working tree
 selecting compatible `0.3` requirements and resolving both libraries at
-0.3.2 with matching registry checksums. Complete token verification is already available. Consumer dependency
+0.3.4 with matching registry checksums. Complete token verification is already available. Consumer dependency
 changes require its own qualified lockfiles and remain owned by Canic.
 
 Released Auth 0.3.3 adds
@@ -136,11 +136,20 @@ pass locally. Root ECDSA signing is native test-only signing. This reinforces th
 existing adoption boundary without a new runtime API or a production issuer
 adapter; Canic's actual endpoint acceptance remains separate.
 
-The compatible 0.3.4 draft extends that fixture through reference-store session
+Released 0.3.4 extends that fixture through reference-store session
 admission, exact retry beyond proof expiry and live scope/generation invalidation.
 Rejected network and narrowing requests leave the proof reusable. This joins
 the existing public verifier and session engine; it does not qualify Canic's
 stable transaction backend, restart recovery or its actual endpoints.
+
+The pending 0.3.5 extension also checks a substituted host refusal after the
+library operation succeeds but before reference-store commit. Fresh admission
+leaves no records, quota/accounting usage or expiry indexes; identical-token
+admission then succeeds. Exact retry propagates storage refusal while preserving
+the committed session/replay pair and lease. Canic must reproduce these
+obligations at its actual durable transaction boundary, including restart and
+retained-state recovery. [Auth #20](https://github.com/dragginzgame/ic-auth/issues/20)
+owns this session qualification. It adds no required runtime API.
 
 Protocol-types tests now independently describe Canic's prepare request,
 claims/prepare response and retrieval request at immutable Canic
@@ -207,8 +216,9 @@ slice. This is local producer/installation qualification, not delivered Canic
 adoption or a real IC certificate journey.
 
 Canic retains authorized leaf records, batch identity/header policy, management
-signing, stable state and renewal. Its held Auth 0.3.2 graph already supplies
-this API. Complete-token verification, certified-signature retention/composition
+signing, stable state and renewal. Its Auth 0.3.2 selection at the recorded batch
+qualification already supplied this API; the current lock selects 0.3.4.
+Complete-token verification, certified-signature retention/composition
 and atomic durable sessions remain separate consumer adoption slices; no Auth
 library release is required to start those adapters.
 

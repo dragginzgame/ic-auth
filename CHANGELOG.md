@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.5]
+
+- Extend real certified-token session qualification through a substituted host
+  transaction refusal after verification/staging. Rejected admission leaves
+  session/replay records, quotas, expiry indexes and accounting unchanged; an
+  exact retry also propagates storage failure without returning authority or
+  extending the committed lease. Consumer durable storage remains separate.
+  Public authentication APIs and formats are unchanged.
+  [#20](https://github.com/dragginzgame/ic-auth/issues/20).
+- Reconcile documentation with published 0.3.4, its Testkit 0.33.1/Host 0.12.7
+  selections and the current CI cancellation policy.
+
 ## [0.3.4] - 2026-10-10
 
 - Qualify session admission from an actual certified token, including rejection
@@ -23,9 +35,9 @@
 - Keep only the newest CI run per workflow and branch or PR, cancelling older
   queued and running checks while retaining the existing host matrix and gates
   ([Shared #108](https://github.com/dragginzgame/shared-tooling/issues/108)).
-- Select the published Host 0.12.6 graph, including rejection of NUL-containing
-  publication paths before parent creation. Native dependencies remain outside
-  both authentication libraries.
+- Select published Testkit 0.33.1 and the single Host 0.12.7 graph, including
+  rejection of NUL-containing publication paths before parent creation. Native
+  dependencies remain outside both authentication libraries.
 
 ## [0.3.3] - 2026-10-10
 
