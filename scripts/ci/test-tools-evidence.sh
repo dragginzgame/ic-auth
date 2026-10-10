@@ -19,6 +19,13 @@ for input in Makefile make/tools.mk make/release.mk make/rust-format.mk make/exe
     scripts/dev/ci-tools.sh scripts/dev/install-rust-tools.sh; do
     cp -p "$input" "$consumer/$input"
 done
+# The common aggregate now admits IC and Rust prerequisites before installing.
+# Substitute IC admission, retaining the actual Rust preflight and installer.
+cat > "$consumer/scripts/dev/install-ic-tools.sh" <<'SCRIPT'
+#!/usr/bin/env bash
+set -euo pipefail
+[[ $# == 5 && "$1" == --consumer && "$3" == --pins && "$5" == --preflight ]]
+SCRIPT
 # Admit the earlier common sets without provisioning them in this failure
 # fixture. Keep the actual aggregate, Rust installer and collector, so the
 # injected later failure cannot dispatch product setup/check or lose evidence.
@@ -33,6 +40,11 @@ MAKE
 cat > "$fixture/bin/cargo" <<'SCRIPT'
 #!/usr/bin/env bash
 set -euo pipefail
+if [[ $# == 1 && "$1" == --version ]]; then
+    [[ "$RUSTUP_AUTO_INSTALL" == 0 ]]
+    printf 'cargo 1.99.0\n'
+    exit 0
+fi
 [[ $# == 9 && "$1" == install && "$6" == --root && "$8" == --target-dir && "$9" == "$7/build" ]]
 mkdir -p "$9"
 printf 'retained failed Rust compilation\n' > "$9/failed-build.txt"

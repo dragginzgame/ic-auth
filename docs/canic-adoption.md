@@ -16,22 +16,27 @@ transactions and recovery obligations.
 
 ## Published dependency and feature selection
 
-Both `ic-auth` and `ic-auth-protocol-types` 0.2.11 are published and unyanked.
+Both `ic-auth` and `ic-auth-protocol-types` 0.3.0 are published and unyanked.
 Their registry checksums match IC Auth release
-`17e4103d1a9f2315e7a81bca3f99b7793566a6d5`. Rust 1.88 is the supported minimum.
+`6141442bdc7699fa697c9da69ef3299ce9b66a6e`. Rust 1.88 is the supported minimum.
 For adoption of this release, select compatible registry requirements in Canic's
 root catalog and record the resolved versions in its own lockfiles:
 
 ```toml
 [workspace.dependencies]
-ic-auth = { version = "0.2.11", default-features = false }
-ic-auth-protocol-types = "0.2.11"
+ic-auth = { version = "0.3", default-features = false }
+ic-auth-protocol-types = "0.3"
 ```
 
 Child packages inherit these dependencies with `workspace = true`; their
 existing capability features forward only the needed library features. This is
 the recommended published selection. The read-only review below distinguishes Canic's
 in-progress source adoption from consumer qualification.
+
+Release 0.3.0 changes developer setup; its authentication APIs and signed bytes
+are unchanged from 0.2.11. Canic's changing root manifest and lock now select
+0.3/0.3.0 in the read-only review below; selected versions alone do not establish
+runtime adoption or removal of duplicated implementations.
 
 | Existing Canic capability | IC Auth selection | Retained Canic responsibility |
 | --- | --- | --- |
@@ -118,8 +123,8 @@ libraries. Published 0.2.0 carries complete proof-transport qualification and
 the developer-tooling hard cut; authentication APIs and signed bytes are unchanged.
 The current read-only inspection at Canic committed base
 `ac55e50334dd6479ec36f404e89e60bcfe9184d6` finds its changing working tree
-selecting compatible `0.2.2`/`0.2` requirements and now resolving both libraries at
-0.2.10 with matching registry checksums. Complete token verification is already available. Consumer dependency
+selecting compatible `0.3` requirements and resolving both libraries at
+0.3.0 with matching registry checksums. Complete token verification is already available. Consumer dependency
 changes require its own qualified lockfiles and remain owned by Canic.
 
 Protocol-types tests now independently describe Canic's prepare request,

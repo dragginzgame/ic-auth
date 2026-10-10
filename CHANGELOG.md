@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.3.1]
+
+- Preserve Make's shared job budget at IC Auth-owned Cargo and release entry
+  points, removing closed-descriptor warnings during parallel execution while
+  retaining refusal of unsafe Make modes before any effects.
+  [#17](https://github.com/dragginzgame/ic-auth/issues/17).
+- Adopt Shared Tooling 0.3.1's read-only platform/toolchain preflight and precise
+  host-tool diagnostics, preserving setup ordering, offline checks and retained
+  evidence. Qualify the selected Host filesystem/artifact 0.12.1 packages;
+  authentication APIs and signed bytes are unchanged.
+  [#16](https://github.com/dragginzgame/ic-auth/issues/16),
+  [Shared #101](https://github.com/dragginzgame/shared-tooling/issues/101).
+
 ## [0.3.0] - 2026-10-10
 
 ### Breaking

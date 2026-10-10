@@ -30,6 +30,11 @@ printf 'synthetic server bytes\n' > "$TESTKIT_FIXTURE_SERVER"
 cat > "$consumer/scripts/dev/install-rust-tools.sh" <<'SCRIPT'
 #!/usr/bin/env bash
 set -euo pipefail
+if [[ $# == 5 && "$1" == --consumer && "$2" == "$TESTKIT_FIXTURE_CONSUMER" &&
+      "$3" == --versions && "$4" == "$TESTKIT_FIXTURE_CONSUMER/ci/tool-versions.env" && "$5" == --preflight ]]; then
+    printf 'rust preflight\n' >> "$TESTKIT_FIXTURE_LOG"
+    exit "${TESTKIT_FIXTURE_RUST_PREFLIGHT_STATUS:-0}"
+fi
 [[ $# == 10 || $# == 11 ]]
 [[ "$1" == --consumer && "$2" == "$TESTKIT_FIXTURE_CONSUMER" &&
    "$3" == --package && "$4" == ic-testkit && "$5" == --version &&
@@ -45,6 +50,14 @@ else
     touch "$TESTKIT_FIXTURE_READY"
 fi
 printf '%s\n' "$TESTKIT_FIXTURE_CLI"
+SCRIPT
+cat > "$consumer/scripts/dev/install-ic-tools.sh" <<'SCRIPT'
+#!/usr/bin/env bash
+set -euo pipefail
+[[ $# == 5 && "$1" == --consumer && "$2" == "$TESTKIT_FIXTURE_CONSUMER" &&
+   "$3" == --pins && "$4" == "$TESTKIT_FIXTURE_CONSUMER/ci/ic-tools.tsv" && "$5" == --preflight ]]
+printf 'ic preflight\n' >> "$TESTKIT_FIXTURE_LOG"
+exit "${TESTKIT_FIXTURE_IC_PREFLIGHT_STATUS:-0}"
 SCRIPT
 cat > "$TESTKIT_FIXTURE_CLI" <<'SCRIPT'
 #!/usr/bin/env bash
@@ -126,9 +139,24 @@ done
 # Real consumer aggregates retain common/product ordering under parallel Make.
 # Only explicit setup dispatches the selected CLI installer and server setup;
 # individual product setup targets still admit their host prerequisite.
+for failed in ic rust; do
+    : > "$TESTKIT_FIXTURE_LOG"
+    status=0
+    if [[ "$failed" == ic ]]; then
+        (cd "$consumer"; TESTKIT_FIXTURE_IC_PREFLIGHT_STATUS=37 make --no-print-directory -j4 install-tools) \
+            > "$fixture/preflight-$failed.log" 2>&1 || status=$?
+        printf 'ic preflight\n' > "$fixture/expected-preflight.log"
+    else
+        (cd "$consumer"; TESTKIT_FIXTURE_RUST_PREFLIGHT_STATUS=39 make --no-print-directory -j4 install-tools) \
+            > "$fixture/preflight-$failed.log" 2>&1 || status=$?
+        printf 'ic preflight\nrust preflight\n' > "$fixture/expected-preflight.log"
+    fi
+    [[ "$status" == 2 && ! -e "$TESTKIT_FIXTURE_READY" && ! -e "$consumer/cargo-dispatch.log" ]]
+    cmp "$fixture/expected-preflight.log" "$TESTKIT_FIXTURE_LOG"
+done
 : > "$TESTKIT_FIXTURE_LOG"
 (cd "$consumer"; make --no-print-directory -j4 install-tools) > "$fixture/setup.log" 2>&1
-printf '%s\n' install-host-tools install-ic-tools install-rust-tools \
+printf '%s\n' 'ic preflight' 'rust preflight' install-host-tools install-ic-tools install-rust-tools \
     install-host-tools install-msrv install-host-tools 'cli install' 'server setup' > "$fixture/expected-setup.log"
 cmp "$fixture/expected-setup.log" "$TESTKIT_FIXTURE_LOG"
 : > "$TESTKIT_FIXTURE_LOG"

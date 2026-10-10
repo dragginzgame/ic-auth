@@ -3,9 +3,9 @@
 The maintainer accepted the larger Canic authentication extraction, selected the
 name `ic-auth`, and confirmed `/home/adam/projects/ic-auth` as the local repository.
 
-The current committed release is `17e4103d1a9f2315e7a81bca3f99b7793566a6d5`
-(`0.2.11`) on `main`, with annotated tag `v0.2.11`; both remote identities were
-verified during continuation. Both libraries' `0.2.11` registry checksums match
+The current committed release is `6141442bdc7699fa697c9da69ef3299ce9b66a6e`
+(`0.3.0`) on `main`, with annotated tag `v0.3.0`; both remote identities were
+verified during continuation. Both libraries' `0.3.0` registry checksums match
 the retained publication intent for that exact source/tag. The maintainer
 executed the release and publication. The original bootstrap was
 `7a03102e52b7a400588530997a9f7fb91c83de9d` (`0.1.0`).
@@ -22,7 +22,7 @@ records this batch without closing the larger extraction.
 
 The virtual Rust workspace contains `ic-auth-protocol-types`, `ic-auth` and the
 unpublished native application in `apps/tooling/`, with one lockfile, root-owned
-dependency selections and current manifest version `0.2.11`.
+dependency selections and current manifest version `0.3.0`.
 The passive token/proof contracts and canonical encoding are adapted from the
 clean Canic source at `e286b3fd98460c98670336853f80658a920966e0`; see the
 [source review](../design/canic-source-review.md) for exact ownership and API
@@ -40,7 +40,101 @@ has recorded focused standalone-proof adapter qualification; complete-token,
 durable-session and deployed acceptance remain separate. No sibling repository
 was modified by IC Auth work.
 
-## Current Shared Tooling adoption (pending 0.3.0)
+## Current tooling adoption and parallel Cargo repair (pending 0.3.1)
+
+The maintainer confirmed 0.3.0 live. Remote main and peeled tag match the source
+above; annotated tag `375a33ab1aff897095ef2d305b9f52a480b3700d` and both unyanked
+official sparse-registry checksums match retained publication intent.
+Exact-release [CI](https://github.com/dragginzgame/ic-auth/actions/runs/38046019077)
+is in progress at the latest inspection. Prior 0.2.11
+[CI](https://github.com/dragginzgame/ic-auth/actions/runs/38043906989) now passes
+all three supported hosts, including authenticated exact-artifact readback and
+independent payload checks. That evidence does not qualify later source.
+
+Shared Tooling 0.3.1 `fa452afaa5012866eb1c20820dfa8038c106e7ec` is verified
+as remote main and exported canonically from an isolated clean checkout. All 83
+selected files and modes verify. The aggregate now admits complete-set platform
+and Rust/Cargo prerequisites before any installation; host diagnostics identify
+the exact selected tool without executing unauthenticated bytes. Actual Auth
+setup callers admit preflight separately from injected installation failures,
+including rejection before Testkit or product setup under parallel Make.
+[Shared #101](https://github.com/dragginzgame/shared-tooling/issues/101) owns the
+producer; [Auth #16](https://github.com/dragginzgame/ic-auth/issues/16) owns common
+setup adoption. Exact-source Shared
+[CI](https://github.com/dragginzgame/shared-tooling/actions/runs/38049622600)
+is queued at inspection; local substituted tests do not qualify native macOS.
+
+The incoming lock selects published Host filesystem/artifact 0.12.1 at
+`e5ecfa06c14d144cfeb85ea89d65906b1bf81636`, verified against remote main/tag,
+official sparse-index checksums and package VCS identities. Its library source
+is unchanged from 0.12.0; its owned release-tool, jobserver and Bash 3.2 repairs
+do not change Auth's release policy or require cargo-set-version here. Root
+requirements and Testkit 0.31.0 selection remain intact. Testkit retains its
+four Host 0.11.0 packages and 16.1.0 server; do not misreport this as a unified
+0.12 graph. These dependencies stay outside both authentication libraries.
+The selected Testkit CLI/server passes actual offline admission.
+
+Actual `make -j4 metadata` reproduced a closed inherited jobserver descriptor
+with GNU Make 4.3 / Cargo 1.99. Root-owned Cargo recipes and wrappers now preserve
+the descriptor handoff through recursive recipe marking. The globally included
+execution guard still refuses unsafe Make modes before effects, including when
+MAKEFLAGS is erased. No jobserver flags, separate job budget or vendored code is
+introduced. The actual-Make descriptor fixture fails on the released Makefile and
+passes on the pending source, on Bash 5 and genuine Bash 3.2.57. Actual parallel
+metadata is warning-free. Shared formatter/installer boundaries remain owned by
+[Shared #99](https://github.com/dragginzgame/shared-tooling/issues/99); there is no
+reviewed committed correction in Shared 0.3.1 to adopt yet. Auth's repair is
+[Auth #17](https://github.com/dragginzgame/ic-auth/issues/17).
+
+Read-only Canic review at committed base
+`ac55e50334dd6479ec36f404e89e60bcfe9184d6` finds its dirty root manifest and lock
+selecting 0.3/0.3.0 with both published checksums. The unchanged local Merkle
+builder and remaining complete-token proof callbacks are consumer-owned deletion
+boundaries, not missing Auth APIs. The dirty `ops/auth/delegated/verify.rs` is
+SHA-256 `0983dc4937c342ca2b666659fcd02339bff2c8c127d7fadf0b4b0d4ef836a509`;
+the distinct `ops/auth/token/verification.rs` remains
+`40220fc6b7bd899dc7889340e785b4ebca2c91d9bbdc17e7f0c91ae3577a73f7`.
+The [adoption contract](../canic-adoption.md)
+selects published 0.3.0 and retains Canic's qualification obligations. No consumer
+build or runtime acceptance is inferred from dependency selection.
+
+Earlier repair evidence is retained in `target/continuation-0.3.0-live/`; focused
+descriptor, mode-refusal, ShellCheck and selected-tool checks passed. That complete
+**`make -j4 ci` passed on Linux**, including both real certification/upgrade/fresh-key ingress
+scenarios on the release-selected Host/Testkit graph, every library/client case,
+native/Wasm MSRV, Clippy, package dry runs and release/recovery/evidence fixtures.
+The earlier gate's tracked diff SHA-256 is
+`80cac2c9aa673727b04151e5c3054760b1d3defafb7c141d9c4806d7821e1106`;
+its new fixture hash is retained separately. Inputs stayed unchanged during the
+gate. It exposed further owned release-fixture and read-only version-probe
+boundaries, whose recursive marking and descriptor/refusal coverage are added
+afterward. Affected descriptor fixtures on both shells, actual version read,
+ShellCheck and parallel release/publication fixtures pass again; unchanged
+gate evidence is retained. Final source/patch identities and logs remain beside
+the earlier gate inputs. That gate precedes the new Shared 0.3.1/Host 0.12.1
+adoption. New adoption evidence is retained in `target/upstream-0.3.1/`;
+consumer setup/evidence fixtures and exact-source upstream command/host fixtures
+pass on Bash 5 and genuine Bash 3.2.57. Actual parallel setup reuses the prepared
+selections, and separate offline admission passes. A fresh complete **`make -j4
+ci` passes all 26 targets on Linux** for Shared 0.3.1, Host fs/artifact 0.12.1 and
+Testkit 0.31.0, including the final owned jobserver repair and all real canister,
+native/Wasm MSRV, client, package-dry-run and release/recovery/evidence checks.
+Gate inputs remained unchanged: captured tracked diff SHA-256
+`c4457e1479113bac91a8a61bcb65f175b8946310fb4e270bcb8f77887be7a531`, with
+the new descriptor fixture hashed separately in `qualified-inputs.sha256`.
+Shared-owned descriptor warnings remain under #99; deliberate recipe overrides
+belong only to substituted fixture Makefiles. ShellCheck passes for changed
+owned scripts; final handoff edits receive link, snapshot and diff checks.
+No native
+macOS result exists for the pending source. The compatible draft is **0.3.1**;
+public authentication APIs, signed
+bytes, retained formats and package versions remain unchanged. No sibling source,
+commit, push, release or publication effect occurs here.
+
+## Earlier Shared Tooling adoption (0.3.0, released)
+
+The following records implementation and qualification before maintainer delivery.
+Pending-source, dependency selections and CI observations below are historical.
 
 The maintainer confirmed 0.2.11 live. Remote main and peeled tag match the source
 above; annotated tag `45c644dc752c66ffb4db3e3765a95c0459e8b765` and both unyanked

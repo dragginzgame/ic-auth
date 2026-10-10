@@ -94,7 +94,7 @@ testkit-tools-check:
 	@test -f target/testkit-ready
 
 release-prepare-version:
-	@bash scripts/release/metadata.sh prepare-version
+	+@bash scripts/release/metadata.sh prepare-version
 	@if test -f target/interrupt-prepare; then git show HEAD:Cargo.toml > Cargo.toml; exit 19; fi
 MAKE
 git init -q -b main
