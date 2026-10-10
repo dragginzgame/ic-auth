@@ -8,8 +8,8 @@ use ic_auth::canister_signature::{
 };
 use ic_auth_protocol_types::IcCanisterSignatureProofV1;
 use ic_canister_sig_creation::{CanisterSigPublicKey, extract_raw_root_pk_from_der, hash_bytes};
+use ic_host_fs::read::read_file_no_follow;
 use ic_testkit::{
-    ic_host_fs::read::read_file_no_follow,
     pic::{CandidCallExt, PocketIc, PocketIcBuilder, PocketIcBuilderExt, PocketIcStartupConfig},
     pocket_ic::Time,
 };

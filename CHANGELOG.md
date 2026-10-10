@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.2.10]
+
+- Use Host 0.11 filesystem helpers in native tooling and qualification, retaining
+  rejection of directory-suffixed publication targets and reporting staging
+  cleanup failures alongside the original failure.
+  [Host #44](https://github.com/dragginzgame/ic-host-tooling/issues/44).
+- Prepare the selected Testkit CLI during release preflight and check tools
+  before complete validation or standalone qualification builds.
+  [#14](https://github.com/dragginzgame/ic-auth/issues/14),
+  [Shared #96](https://github.com/dragginzgame/shared-tooling/issues/96).
+- Adopt Shared Tooling 0.2.13 with exact selected-tool failure diagnostics,
+  preserving Make failure propagation when callers replace Make flags and
+  refusing snapshot paths containing LF or CR.
+  [#11](https://github.com/dragginzgame/ic-auth/issues/11),
+  [Shared #96](https://github.com/dragginzgame/shared-tooling/issues/96),
+  [Shared #30](https://github.com/dragginzgame/shared-tooling/issues/30),
+  [#95](https://github.com/dragginzgame/shared-tooling/issues/95).
+
 ## [0.2.9] - 2026-10-10
 
 - Adopt Shared Tooling 0.2.10 with concise formatting output and retained

@@ -3,9 +3,9 @@
 The maintainer accepted the larger Canic authentication extraction, selected the
 name `ic-auth`, and confirmed `/home/adam/projects/ic-auth` as the local repository.
 
-The current committed release is `edafe5b7414857dc5c8f6b19096234972945a30b`
-(`0.2.8`) on `main`, with annotated tag `v0.2.8`; both remote identities were
-verified during continuation. Both libraries' `0.2.8` registry checksums match
+The current committed release is `b22cc6b70083b3371c0188bb170dd5d240f5bb8c`
+(`0.2.9`) on `main`, with annotated tag `v0.2.9`; both remote identities were
+verified during continuation. Both libraries' `0.2.9` registry checksums match
 the retained publication intent for that exact source/tag. The maintainer
 executed the release and publication. The original bootstrap was
 `7a03102e52b7a400588530997a9f7fb91c83de9d` (`0.1.0`).
@@ -22,7 +22,7 @@ records this batch without closing the larger extraction.
 
 The virtual Rust workspace contains `ic-auth-protocol-types`, `ic-auth` and the
 unpublished native application in `apps/tooling/`, with one lockfile, root-owned
-dependency selections and current manifest version `0.2.8`.
+dependency selections and current manifest version `0.2.9`.
 The passive token/proof contracts and canonical encoding are adapted from the
 clean Canic source at `e286b3fd98460c98670336853f80658a920966e0`; see the
 [source review](../design/canic-source-review.md) for exact ownership and API
@@ -40,7 +40,80 @@ has recorded focused standalone-proof adapter qualification; complete-token,
 durable-session and deployed acceptance remain separate. No sibling repository
 was modified by IC Auth work.
 
-## Current Shared adoption and Canic handoff (pending 0.2.9)
+## Current Host and tool preparation follow-through (pending 0.2.10)
+
+The maintainer confirmed the preceding work pushed. Remote main and peeled
+`v0.2.9` match the current release above; annotated tag
+`e69ad79f060a4a64278f67d6b2af869be9ba7aff` and both unyanked registry checksums
+match retained publication intent. Published packages do not establish hosted
+acceptance of the pending source.
+
+The latest continuation preserves the incoming root `ic-host-fs` 0.11 requirement
+and reconciles its lock to published filesystem/artifact 0.11.0. Official registry
+checksums and downloaded VCS identities match Host
+`1d768c80a5bb87e3330a6b7bacfdfc543063968f`. Both the native utility and
+qualification runner now use that root-selected filesystem API directly.
+Directory-required suffixes refuse without replacing a stripped file or creating
+parents; staging cleanup failures remain secondary but appear in diagnostics.
+The consumer regression fails against isolated Host 0.10.1 and passes with
+0.10.2 and 0.11.0 across create/replace modes, saved/missing targets and three
+suffixes. No duplicate pathname guard or compatibility shim is introduced.
+Published Testkit 0.28.1 still requires Host 0.10, so its four 0.10.2 packages
+remain intact. Only the two 0.11.0 packages are added to the incoming external
+lock identities. Host's process hard cut belongs to
+[Testkit #47](https://github.com/dragginzgame/ic-testkit/issues/47); Auth has no
+direct process caller to migrate. Root manifest, Testkit selection and client
+lock are preserved.
+
+Shared Tooling committed 0.2.13
+`5864f468d39f8f9d1bd26fca1afe0e20f25f1b5e` is exported from an isolated clean
+checkout. The existing 83-file selection adds exact selected-CLI failure details
+and the accepted preparation/early-admission contract, retaining 0.2.12's
+independent Make-flag admission and raw/resolved directory rejection for LF/CR.
+The five-tool bundle and CLI selection stay unchanged. Exact-source Shared CI
+passes Linux, lint/security and Apple Silicon, with Intel still running. Host CI
+passes Linux and MSRV, with Apple Silicon running and Intel queued at inspection.
+These upstream results do not establish hosted consumer acceptance.
+
+Normal release preflight now prepares the exact locked Testkit CLI/server through
+the existing explicit target, then checks admission, after source/version/notes
+admission and locked fetch. Cargo's explicit offline setting remains authoritative.
+Saved-receipt recovery returns before setup against interrupted metadata.
+Complete CI checks prepared tools immediately after snapshot integrity; standalone
+qualification checks Testkit before dispatching its Wasm build, including parallel
+Make. Ordinary checks remain offline. Auth's adoption is local;
+[Shared #96](https://github.com/dragginzgame/shared-tooling/issues/96) still owns
+common prevention/diagnostics and other consumers' owning trackers retain their
+adoption. No sibling source is modified.
+
+Both real certification/composed-root/protected-upgrade/fresh-key ingress cases
+pass on this mixed Host graph. Six native utility tests, strict native all-target
+Clippy and Rust 1.88 all-target/all-feature checks of both native apps pass.
+Early-refusal caller tests and the canonical Shared selected-installer fixture
+pass on Bash 5 and genuine Bash 3.2. An actual missing-CLI consumer check names
+package, locked version, target, profile, destination and explicit setup command,
+with empty success output and no tool-directory creation. Release fixtures pass
+with local bare remotes/substituted upload and setup effects, including failures
+before the gate, dirty-source refusal and interrupted recovery without further
+preparation. Actual tool-failure collection, prepared-tool admission, dependency
+boundaries, formatting, ShellCheck, snapshot integrity and document links pass.
+Current evidence is in `target/continuation-host-0.11/`. Earlier red regressions,
+corrected fixture setup and sandbox/server-bind failures remain separately
+retained in `target/continuation-0.2.9-live/`; the fleet inspection remains in
+`target/selected-cli-fleet-scan/`.
+
+The selected draft is compatible **0.2.10**: library APIs, signed bytes, stored
+formats, package versions and browser client remain unchanged. The Canic adoption
+contract now selects published 0.2.9; no new Rust API is needed for its existing
+complete-token, durable-session or real-issuer adoption obligations. Full local
+CI and native macOS qualification remain separate; no commit, push, release,
+upload, deployment or sibling mutation occurs
+in this continuation.
+
+## Earlier Shared adoption and Canic handoff (0.2.9, released)
+
+The following records implementation and qualification before maintainer delivery.
+Pending-source and CI observations below are historical.
 
 The maintainer confirmed 0.2.8 live. Remote main and peeled tag match the source
 above; annotated tag `4b7e158cc72b2430ecfa5a1886eaa00007669f06` and both official

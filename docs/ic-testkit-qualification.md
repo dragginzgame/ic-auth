@@ -1,6 +1,7 @@
 # IC Testkit signature and ingress qualification
 
-`make test-qualification` builds the internal Wasm host in
+`make test-qualification` first admits the prepared Testkit CLI/server, then
+builds the internal Wasm host in
 `apps/qualification/canister/` and runs `apps/qualification/runner/` through
 published `ic-testkit` against its admitted server. Both packages are
 unpublished. They are
@@ -11,7 +12,7 @@ the wrapper asks the locked Testkit CLI to check its prepared server and consume
 only the returned absolute path. There is no test-time setup, server pin catalog
 or retained-bundle fallback. `make install-testkit-tools` explicitly prepares the
 CLI and server; `make testkit-tools-check` performs offline admission alone.
-`ic-testkit` 0.27 owns the PocketIC dependency; runtime types are imported through
+`ic-testkit` 0.28 owns the PocketIC dependency; runtime types are imported through
 its re-export, and typed Candid calls preserve application results separately
 from encoding, decoding and replica errors. There is no direct `pocket-ic`
 dependency or exact-version pin exception in this workspace.

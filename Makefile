@@ -99,7 +99,8 @@ clippy:
 build-qualification-canister:
 	cargo build --locked --offline -p ic-auth-qualification-canister --target wasm32-unknown-unknown --release
 
-test-qualification: build-qualification-canister
+test-qualification: testkit-tools-check
+	+$(MAKE) --no-print-directory build-qualification-canister
 	bash scripts/dev/test-qualification.sh
 
 check-boundaries:
@@ -132,7 +133,7 @@ check-doc-links:
 	@rg --files -g '*.md' -0 | xargs -0 perl scripts/ci/check-documentation-links.pl --root "$(CURDIR)"
 
 ci:
-	+bash scripts/ci/run-validation-targets.sh --fail-fast check-snapshot check-dependency-pins check-doc-links fmt-check metadata check-boundaries check-msrv test-tools-evidence test-testkit-tools test-client test-types test-protocol test-signatures test-signature-store test-tokens test-sessions test-host-tooling test-qualification check-wasm clippy publish-dry-run test-release-tools test-release-runner test-evidence-archive
+	+bash scripts/ci/run-validation-targets.sh --fail-fast check-snapshot tools-check check-dependency-pins check-doc-links fmt-check metadata check-boundaries check-msrv test-tools-evidence test-testkit-tools test-client test-types test-protocol test-signatures test-signature-store test-tokens test-sessions test-host-tooling test-qualification check-wasm clippy publish-dry-run test-release-tools test-release-runner test-evidence-archive
 
 check-package-licenses:
 	@cmp LICENSE crates/ic-auth-protocol-types/LICENSE

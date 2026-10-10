@@ -72,6 +72,7 @@ SCRIPT
 cat > "$fixture/bin/cargo" <<'SCRIPT'
 #!/usr/bin/env bash
 set -euo pipefail
+printf 'cargo dispatch %s\n' "$*" >> "$TESTKIT_FIXTURE_CONSUMER/cargo-dispatch.log"
 [[ "$POCKET_IC_BIN" == "$TESTKIT_FIXTURE_SERVER" ]]
 [[ "$IC_AUTH_QUALIFICATION_WASM" == "$TESTKIT_FIXTURE_CONSUMER/target/wasm32-unknown-unknown/release/ic_auth_qualification_canister.wasm" ]]
 [[ -d "$IC_AUTH_QUALIFICATION_STATE_ROOT" && "$TMPDIR" == "$IC_AUTH_QUALIFICATION_STATE_ROOT" ]]
@@ -88,6 +89,31 @@ status=0
 [[ "$(cat "$TESTKIT_FIXTURE_LOG")" == 'cli check' ]]
 rg -q 'ic-testkit-server.*0[.]25[.]5' "$fixture/missing.stderr"
 rg -F 'make install-testkit-tools' "$fixture/missing.stderr" > /dev/null
+
+# Actual Make entry points refuse before Wasm compilation or any later CI lane,
+# including parallel Make. Substitute the already-prepared common bundle only;
+# Testkit admission and the validation runner remain their actual callers.
+mkdir -p "$consumer/make" "$consumer/ci" "$consumer/scripts/ci"
+for input in Makefile make/tools.mk make/release.mk make/rust-format.mk make/execution.mk \
+    ci/tool-versions.env scripts/ci/check-make-execution.sh scripts/ci/run-validation-targets.sh; do
+    cp -p "$input" "$consumer/$input"
+done
+cat >> "$consumer/Makefile" <<'MAKE'
+
+host-tools-check ic-tools-check rust-tools-check msrv-tools-check:
+	@:
+check-snapshot:
+	@printf 'snapshot check\n' >> "$(TESTKIT_FIXTURE_LOG)"
+MAKE
+for target in test-qualification ci; do
+    : > "$TESTKIT_FIXTURE_LOG"
+    status=0
+    (cd "$consumer"; make --no-print-directory -j4 "$target") \
+        > "$fixture/early-$target.log" 2>&1 || status=$?
+    [[ "$status" == 2 && ! -e "$consumer/cargo-dispatch.log" ]]
+    [[ "$(tail -n 1 "$TESTKIT_FIXTURE_LOG")" == 'cli check' ]]
+    rg -F 'make install-testkit-tools' "$fixture/early-$target.log" > /dev/null
+done
 
 # Only explicit preparation dispatches CLI installation and server setup.
 "$BASH" "$consumer/scripts/dev/testkit-tools.sh" install > "$fixture/setup.stdout"

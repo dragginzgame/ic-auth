@@ -98,6 +98,11 @@ case "$operation" in
         awk -v version="$RELEASE_VERSION" -v previous="$RELEASE_PREVIOUS" -v date="$RELEASE_DATE" \
             -f scripts/ci/finalize-release-changelog.awk CHANGELOG.md > /dev/null
         cargo fetch --locked
+        # Explicit release preparation includes the lock-selected executable;
+        # fetching its sources alone does not prepare its immutable CLI slot.
+        # Interrupted metadata recovery above must not install a partial graph.
+        make --no-print-directory install-testkit-tools
+        make --no-print-directory testkit-tools-check
         ;;
     verify)
         [[ "$(git rev-parse HEAD)" == "$RELEASE_SOURCE" ]] || fail 'validation source mismatch'

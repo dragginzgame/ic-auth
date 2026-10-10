@@ -2,8 +2,8 @@
 
 The virtual root owns two libraries, unpublished native tooling in `apps/tooling/`
 and the internal host/runner in `apps/qualification/`, plus dependency selections,
-lints and one lockfile. The current manifest version is `0.2.8`, tagged as
-`v0.2.8`; both libraries are published on crates.io.
+lints and one lockfile. The current manifest version is `0.2.9`, tagged as
+`v0.2.9`; both libraries are published on crates.io.
 Rust `1.99.0` remains the development compiler selected by `rust-toolchain.toml`.
 The common package minimum is Rust `1.88.0`, inherited from the root catalog and
 qualified by explicit older-compiler checks. See [MSRV coverage](msrv.md).
@@ -178,9 +178,9 @@ It does not qualify browser/wallet login or a durable session backend.
 ## Releases and publication
 
 ```sh
-make release-patch                 # compatible work: 0.2.8 -> 0.2.9
-make release-minor                 # breaking pre-1.0 contract: 0.2.8 -> 0.3.0
-make release-major                 # explicit major decision: 0.2.8 -> 1.0.0
+make release-patch                 # compatible work: 0.2.9 -> 0.2.10
+make release-minor                 # breaking pre-1.0 contract: 0.2.9 -> 0.3.0
+make release-major                 # explicit major decision: 0.2.9 -> 1.0.0
 make release-resume VERSION=X.Y.Z   # reconcile the exact saved attempt
 make publish-dry-run               # validate packages without upload
 make publish                       # upload a clean, delivered tagged release
@@ -203,6 +203,9 @@ even when its PocketIC server is unchanged. Explicitly rerun
 `make install-testkit-tools` before qualification; a missing CLI check reports
 the selected package/version and preparation command, preserving its failure
 status without installing or falling back to an older CLI.
+Complete validation checks the prepared tools immediately after snapshot
+integrity. Standalone qualification admits Testkit before dispatching the Wasm
+build, with explicit sequencing that also applies to parallel Make.
 `make test-testkit-tools` checks caller selection, failures and
 offline qualification with substituted effects. Canic's actual adapter and
 durable host qualification remain consumer-owned. Released
@@ -230,7 +233,12 @@ unusual names, and distinguishes Git observation errors from dirty source.
 Initial refusal identifies that this attempt has not started validation or
 version preparation. Interrupted preparation retains its exact four-file
 metadata allowance and receipt checks. Admission preserves files and index bytes.
-Preflight fetches only the selected lockfile. Preparation changes the root
+Normal preflight fetches the selected lockfile, explicitly prepares its Testkit
+CLI/server through `make install-testkit-tools`, then performs offline admission.
+Explicit Cargo offline settings still apply; a failed preparation stops before
+validation or version changes. Saved-receipt recovery admits interrupted metadata
+without provisioning a potentially partial graph. Ordinary checks never install
+tools. Preparation changes the root
 version, the inherited internal
 dependency requirement, all local workspace lock entries and the candidate notes.
 It adds `release-validation.json`, binding the complete gate to the validated
@@ -281,16 +289,24 @@ private-file publication use `ic-host-fs`. The caller supplies finite byte limit
 tooling limits, not authentication protocol limits. The publication lock and
 registry uncertainty policy remain owned by the release/publication scripts.
 
-The native utility selects published `ic-host-fs` 0.10 and uses
+The native utility and qualification runner select published `ic-host-fs` 0.11;
+the utility uses
 `durable::write_with(path, options, producer)` with explicit create/replace modes
 and owner-only permissions. Publication errors retain their typed before/after
-state through the utility's error boundary. IC Testkit 0.28.1 also requires Host
-0.10; the lock selects all four Host packages at 0.10.1 with no older Host graph.
+state through the utility's error boundary, with secondary staging cleanup
+failures included in diagnostics. IC Testkit 0.28.1 still requires Host 0.10;
+the lock retains its four 0.10.2 packages alongside Auth's filesystem/artifact
+0.11.0 pair. The qualification runner reads Wasm through the root-selected
+filesystem helper directly and obtains runtime types through Testkit. Host's
+breaking process API belongs to Testkit's migration; Auth has no direct caller
+or compatibility shim for it.
+Directory-suffixed publication targets are refused before creating parents or
+replacing a stripped filename; the native utility uses that upstream guard.
 Run `make install-testkit-tools` to prepare the selected 0.28.1 CLI, then
 `make testkit-tools-check` for offline admission of its unchanged 16.1.0 server.
 Prior versioned CLI installations remain retained. Native Host dependencies
 remain outside both protocol libraries. See the owner adoption in
-[Testkit #44](https://github.com/dragginzgame/ic-testkit/issues/44).
+[Testkit #47](https://github.com/dragginzgame/ic-testkit/issues/47).
 
 Receipt reconciliation uses the adopted portable checksum helper, because an
 interrupted preparation can temporarily leave incompatible manifest/lock versions

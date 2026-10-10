@@ -121,6 +121,24 @@ fn receipt_replacement_is_bounded_and_private() {
     }
 }
 
+#[test]
+fn directory_required_targets_never_publish_or_replace_stripped_names() {
+    let root = fixture();
+    fs::write(root.join("input"), b"new receipt").unwrap();
+    for operation in ["create-private", "replace-private"] {
+        for suffix in ["/", "/.", "//"] {
+            fs::write(root.join("receipt"), b"saved receipt").unwrap();
+            for destination in [format!("receipt{suffix}"), format!("new/receipt{suffix}")] {
+                let refused = invoke(&root, &[operation, "input", &destination, "1024"]);
+                assert!(!refused.status.success(), "{operation} {destination}");
+                assert!(refused.stdout.is_empty());
+                assert_eq!(fs::read(root.join("receipt")).unwrap(), b"saved receipt");
+                assert!(!root.join("new").exists());
+            }
+        }
+    }
+}
+
 #[cfg(unix)]
 #[test]
 fn symlink_inputs_and_existing_intent_links_are_refused() {

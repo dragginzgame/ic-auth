@@ -75,8 +75,23 @@ printf '# Changelog\n\n## [0.1.1]\n\n- Fixture release.\n' > CHANGELOG.md
 cat >> Makefile <<'MAKE'
 
 ci:
+	@test -f target/testkit-ready
+	@printf 'gate\n' >> target/preparation-dispatch.log
 	@test ! -f target/fail-gate
 	@echo fixture-complete-gate
+
+install-testkit-tools:
+	@printf 'cli setup\n' >> target/preparation-dispatch.log
+	@test ! -f target/fail-cli-setup
+	@touch target/testkit-ready
+
+install-host-tools:
+	@:
+
+testkit-tools-check:
+	@printf 'cli check\n' >> target/preparation-dispatch.log
+	@test ! -f target/fail-cli-check
+	@test -f target/testkit-ready
 
 release-prepare-version:
 	@bash scripts/release/metadata.sh prepare-version
@@ -95,10 +110,24 @@ printf 'retained artifact\n' > target/keep
 before="$(git rev-parse HEAD)"
 if make --no-print-directory release-minor > "$fixture/wrong-candidate.log" 2>&1; then exit 1; fi
 [[ "$(git rev-parse HEAD)" == "$before" && -z "$(git tag -l)" ]]
+# CLI setup and offline admission must precede the gate and preserve release
+# identity on either failure. Neither version preparation nor a tag may start.
+for phase in setup check; do
+    : > target/preparation-dispatch.log
+    touch "target/fail-cli-$phase"
+    if make --no-print-directory release-patch > "$fixture/cli-$phase-failure.log" 2>&1; then exit 1; fi
+    [[ "$(git rev-parse HEAD)" == "$before" && "$(make -s release-version)" == 0.1.0 ]]
+    [[ -z "$(git tag -l)" ]]
+    if [[ "$phase" == setup ]]; then expected='cli setup'; else expected=$'cli setup\ncli check'; fi
+    [[ "$(cat target/preparation-dispatch.log)" == "$expected" ]]
+    rm "target/fail-cli-$phase"
+done
+: > target/preparation-dispatch.log
 touch target/fail-gate
 if make --no-print-directory release-patch > "$fixture/gate-failure.log" 2>&1; then exit 1; fi
 [[ "$(git rev-parse HEAD)" == "$before" && "$(make -s release-version)" == 0.1.0 ]]
 [[ -z "$(git tag -l)" && -f target/keep ]]
+[[ "$(cat target/preparation-dispatch.log)" == $'cli setup\ncli check\ngate' ]]
 rm target/fail-gate
 
 # Initial admission names a changed lock and refuses before validation or
@@ -106,12 +135,14 @@ rm target/fail-gate
 printf '\n' >> Cargo.lock
 cp Cargo.lock "$fixture/dirty-lock"
 cp .git/index "$fixture/dirty-index"
+cp target/preparation-dispatch.log "$fixture/dirty-dispatch.log"
 if make --no-print-directory release-patch > "$fixture/lock-source.log" 2>&1; then exit 1; fi
 rg -F 'unstaged: Cargo.lock' "$fixture/lock-source.log" > /dev/null
 rg -F 'this attempt has not started validation or version preparation' "$fixture/lock-source.log" > /dev/null
 if rg -F 'fixture-complete-gate' "$fixture/lock-source.log" > /dev/null; then exit 1; fi
 cmp Cargo.lock "$fixture/dirty-lock"
 cmp .git/index "$fixture/dirty-index"
+cmp target/preparation-dispatch.log "$fixture/dirty-dispatch.log"
 [[ "$(git rev-parse HEAD)" == "$before" && -z "$(git tag -l)" ]]
 git restore Cargo.lock
 
@@ -301,8 +332,12 @@ for kind in minor major; do
         if make --no-print-directory release-minor > "$fixture/interrupted-prepare.log" 2>&1; then exit 1; fi
         [[ "$(make -s release-version)" == 0.1.1 && -z "$(git tag -l v0.2.0)" ]]
         rm target/interrupt-prepare
+        cp target/preparation-dispatch.log "$fixture/interrupted-dispatch.log"
     fi
     make --no-print-directory "release-$kind" > "$fixture/$kind.log" 2>&1
+    if [[ "$kind" == minor ]]; then
+        cmp target/preparation-dispatch.log "$fixture/interrupted-dispatch.log"
+    fi
     [[ "$(make -s release-version)" == "$candidate" ]]
     bash scripts/ci/check-release-tag.sh "$(git rev-parse HEAD)" "$candidate"
 done
