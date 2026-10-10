@@ -2,8 +2,8 @@
 
 The virtual root owns two libraries, unpublished native tooling in `apps/tooling/`
 and the internal host/runner in `apps/qualification/`, plus dependency selections,
-lints and one lockfile. The current manifest version is `0.2.7`, tagged as
-`v0.2.7`; both libraries are published on crates.io.
+lints and one lockfile. The current manifest version is `0.2.8`, tagged as
+`v0.2.8`; both libraries are published on crates.io.
 Rust `1.99.0` remains the development compiler selected by `rust-toolchain.toml`.
 The common package minimum is Rust `1.88.0`, inherited from the root catalog and
 qualified by explicit older-compiler checks. See [MSRV coverage](msrv.md).
@@ -148,7 +148,9 @@ preserves pipeline failure status and saves their output in
 `.tools/rust/build` are selected by the adopted failure collector. The native
 matrix also injects a failed Cargo installation into an isolated consumer, checks
 offline refusal, uploads through the same action and downloads that exact artifact
-ID to verify retained bytes. Local archive checks do not establish hosted upload
+ID to verify retained bytes. Readback uses the current repository/run and the
+job's read-only Actions token, refuses digest mismatch and independently verifies
+the extracted payload. Local archive checks do not establish hosted upload
 or macOS qualification before those jobs run.
 
 The snapshot deliberately omits fleet reporters. `make cloc` still reports this
@@ -176,9 +178,9 @@ It does not qualify browser/wallet login or a durable session backend.
 ## Releases and publication
 
 ```sh
-make release-patch                 # compatible work: 0.2.7 -> 0.2.8
-make release-minor                 # breaking pre-1.0 contract: 0.2.7 -> 0.3.0
-make release-major                 # explicit major decision: 0.2.7 -> 1.0.0
+make release-patch                 # compatible work: 0.2.8 -> 0.2.9
+make release-minor                 # breaking pre-1.0 contract: 0.2.8 -> 0.3.0
+make release-major                 # explicit major decision: 0.2.8 -> 1.0.0
 make release-resume VERSION=X.Y.Z   # reconcile the exact saved attempt
 make publish-dry-run               # validate packages without upload
 make publish                       # upload a clean, delivered tagged release
@@ -248,7 +250,13 @@ publication; the script never prints or reads credential files itself.
 Publication intent under `.git/publication-state/` fixes source, tag, registry,
 version and archive checksums before upload. Successful matching registry
 observations skip an identical upload. Registry errors and checksum conflicts
-stop the run. An attempted upload without confirmation remains unresolved:
+stop the run. Exact-version transport and metadata admission use the selected
+Shared Tooling helper, requiring curl 8.4.0+ and the prepared jq. It bounds each
+response to 1 MiB, rejects incorrect identity/schema and retains each observation
+in a separate private directory beneath the publication log. HTTP 404 means
+absent; all unavailable/invalid observations refuse dispatch. Auth retains the
+archive checksum decision; matching yanked bytes reconcile prior publication
+without another upload. An attempted upload without confirmation remains unresolved:
 rerunning observes the exact version/checksum and does not redispatch an absent
 version after an uncertain response. If it never appears, establish the failed
 effect independently before reconciling the retained intent. Publication logs and

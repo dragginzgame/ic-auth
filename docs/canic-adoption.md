@@ -16,16 +16,16 @@ transactions and recovery obligations.
 
 ## Published dependency and feature selection
 
-Both `ic-auth` and `ic-auth-protocol-types` 0.2.7 are published and unyanked.
+Both `ic-auth` and `ic-auth-protocol-types` 0.2.8 are published and unyanked.
 Their registry checksums match IC Auth release
-`2d4abad9038e9dd904844ce1d4c970ed2919af3a`. Rust 1.88 is the supported minimum.
+`edafe5b7414857dc5c8f6b19096234972945a30b`. Rust 1.88 is the supported minimum.
 For adoption of this release, select compatible registry requirements in Canic's
 root catalog and record the resolved versions in its own lockfiles:
 
 ```toml
 [workspace.dependencies]
-ic-auth = { version = "0.2.7", default-features = false }
-ic-auth-protocol-types = "0.2.7"
+ic-auth = { version = "0.2.8", default-features = false }
+ic-auth-protocol-types = "0.2.8"
 ```
 
 Child packages inherit these dependencies with `workspace = true`; their
@@ -192,6 +192,45 @@ key windows, epochs and local ceilings using the same token on successive calls,
 as well as caller/audience/seed/signature rejection. Complete verifier adoption
 does not require a new library endpoint or wallet service. Stable session storage
 and certification preparation retain their separately described host contracts.
+
+The 2026-10-10 read-only review of Canic at base
+`ac55e50334dd6479ec36f404e89e60bcfe9184d6` finds both libraries resolved to 0.2.7
+in its dirty root lock. Its installation adapter calls the standalone library
+verifier, while the complete-token adapter still uses local callbacks and the
+positive cache. This identifies the next consumer boundary, not qualification
+of its uncommitted graph. [Canic #58](https://github.com/dragginzgame/canic/issues/58)
+owns that repair; 0.2.8 adds no required Rust API for it.
+
+The complete adapter must assemble these fields before calling the library:
+
+| Library input | Protected Canic source or decision |
+| --- | --- |
+| `caller`, `now_ns` | Actual authenticated ingress caller and host clock at this invocation |
+| `audience`, `role` | Current fleet binding and runtime role, through checked protocol projections |
+| `root_key` | Existing independently enrolled chain-key policy, retaining network/key-name admission and all live floors/windows |
+| `ic_root_public_key_raw` | Network-selected BLS trust anchor, after existing build-network validation |
+| `allowed_scopes` | Sorted, unique protected ceiling for this local role; the existing local application configuration supplies it where enabled |
+| `required_scopes` | The operation's endpoint requirements, independently of the ceiling |
+| `limits` | Existing host TTL/skew policy plus explicit certificate age, material, signature and witness bounds |
+
+Token-only verification without local session configuration needs an explicit
+protected ceiling owned by Canic; neither submitted grants nor endpoint-required
+scopes define it. The library rejects any scope in the selected local grant
+outside this ceiling, even when the operation only requires a smaller subset.
+It does not silently intersect or normalize the grant. The existing issuer
+proof callback has no certificate-age or signature-size inputs, so those finite
+bounds must be selected deliberately rather than inferred from received proof
+bytes. Consumer limits are not new IC Auth defaults.
+
+Project the complete token once and pass it to `token::verify_token`. After
+success, use `VerifiedToken` accessors for authenticated claims, selected role,
+local scopes, claims hash and the policy-capped exclusive expiry. Resolve
+Canic-owned resource permissions and session/replay admission separately.
+Keep typed error/metric mapping at the adapter and qualify the real entry point
+with identical signed token bytes while changing the protected ceiling, root
+window/epoch, IC trust anchor and certificate age. Retiring the cache together
+with local proof callbacks leaves one verification owner; keeping a cap on the
+old cache alone does not enforce these live inputs.
 
 The pre-token installation caller has a separate boundary:
 `ops/auth/delegation/active.rs::install_active_delegation_proof` checks an issuer's

@@ -1,11 +1,11 @@
-# Current handoff — 2026-10-09
+# Current handoff — 2026-10-10
 
 The maintainer accepted the larger Canic authentication extraction, selected the
 name `ic-auth`, and confirmed `/home/adam/projects/ic-auth` as the local repository.
 
-The current committed release is `2d4abad9038e9dd904844ce1d4c970ed2919af3a`
-(`0.2.7`) on `main`, with annotated tag `v0.2.7`; both remote identities were
-verified during continuation. Both libraries' `0.2.7` registry checksums match
+The current committed release is `edafe5b7414857dc5c8f6b19096234972945a30b`
+(`0.2.8`) on `main`, with annotated tag `v0.2.8`; both remote identities were
+verified during continuation. Both libraries' `0.2.8` registry checksums match
 the retained publication intent for that exact source/tag. The maintainer
 executed the release and publication. The original bootstrap was
 `7a03102e52b7a400588530997a9f7fb91c83de9d` (`0.1.0`).
@@ -22,7 +22,7 @@ records this batch without closing the larger extraction.
 
 The virtual Rust workspace contains `ic-auth-protocol-types`, `ic-auth` and the
 unpublished native application in `apps/tooling/`, with one lockfile, root-owned
-dependency selections and current manifest version `0.2.7`.
+dependency selections and current manifest version `0.2.8`.
 The passive token/proof contracts and canonical encoding are adapted from the
 clean Canic source at `e286b3fd98460c98670336853f80658a920966e0`; see the
 [source review](../design/canic-source-review.md) for exact ownership and API
@@ -40,7 +40,73 @@ has recorded focused standalone-proof adapter qualification; complete-token,
 durable-session and deployed acceptance remain separate. No sibling repository
 was modified by IC Auth work.
 
-## Current client completion deadline repair (pending 0.2.8)
+## Current Shared adoption and Canic handoff (pending 0.2.9)
+
+The maintainer confirmed 0.2.8 live. Remote main and peeled tag match the source
+above; annotated tag `4b7e158cc72b2430ecfa5a1886eaa00007669f06` and both official
+unyanked registry checksums match retained publication intent. Its
+[CI](https://github.com/dragginzgame/ic-auth/actions/runs/38034022541) has passed
+Ubuntu and macOS ARM, with Intel still running at final inspection; the pending changes
+below have no hosted result yet.
+
+Shared Tooling 0.2.10 at `43a0dc46cdc3c77e70a68e192561642ed50a3e0f` is reviewed
+and exported from an isolated committed clone, excluding dirty sibling work.
+The snapshot selects 83 files with its exact version annotation, adding the
+formatting wrapper and registry helper/fixture explicitly. No fleet tools or
+tool-pin changes are added. Formatting keeps its existing sort/fmt checks and
+now retains failed command output through the shared collector. The Rust CI job
+adds only Actions read permission and authenticated current-repository/run
+artifact lookup, retaining the pinned action, uploader-returned ID and
+independent byte verification. [#13](https://github.com/dragginzgame/ic-auth/issues/13)
+retains hosted consumer acceptance. Shared's exact-source CI passes Linux and
+macOS ARM; its Intel IC-tool setup failed on a Quill DNS resolution timeout,
+separate from registry/formatting/adopted-source behavior.
+
+Publication now delegates transport, HTTP classification and bounded identity/
+schema admission to Shared's metadata mode, requiring curl 8.4.0+ and jq. Each
+observation retains a fresh private directory; Auth still owns expected archive
+checksums, source/tag intent, upload order and uncertain-dispatch refusal.
+Matching yanked bytes reconcile earlier effects without another upload. The
+expanded consumer fixture reproduces the old observer accepting wrong-crate
+metadata with matching digests, then passes with the adopted observer. It covers
+invalid identity/schema/stream/size, transport and old-curl refusal, unchanged
+checksum conflict, preserved pre/post-dispatch 404 evidence, lost-reply refusal,
+exact recovery and yanked reconciliation. No actual upload occurs in these local
+bare-remote/mocked-transport checks. [#12](https://github.com/dragginzgame/ic-auth/issues/12)
+retains native consumer acceptance separately from upstream
+[Shared #94](https://github.com/dragginzgame/shared-tooling/issues/94).
+
+Host 0.10.1 and Testkit 0.28.0 upstream identities are unchanged; manifest/lock
+and client input hashes remain preserved. The read-only Canic review at base
+`ac55e50334dd6479ec36f404e89e60bcfe9184d6` finds both Auth packages at 0.2.7 in
+its dirty root lock and the standalone-proof call integrated. The local
+complete-token verifier/proof-skipping cache and discarded installation
+acknowledgement remain. The [adoption contract](../canic-adoption.md) selects
+published 0.2.8 and supplies precise protected input/result projections for
+[Canic #58](https://github.com/dragginzgame/canic/issues/58). Effective renewal
+deadlines remain [#506](https://github.com/dragginzgame/canic/issues/506), and the
+real browser issuer adapter still needs qualified non-issuing reconciliation
+under [#507](https://github.com/dragginzgame/canic/issues/507). No new Auth Rust
+API or wallet service is required for those consumer repairs.
+
+Evidence is retained under `target/continuation-0.2.8-live/`, including red and
+final publication runs, selected committed upstream source and reviewed Canic
+hashes. Publication and registry fixtures pass on Linux Bash 5 and Bash 3.2.
+The actual consumer formatting-hook/manifest perturbation checks, selected
+upstream formatting/retention fixtures, actual tool-evidence caller, Actionlint,
+ShellCheck, snapshot, dependency pins, local links and formatting pass. Incoming
+manifest/lock/client hashes remain unchanged. Full local CI and native hosted
+qualification of this pending tree remain separate.
+The selected draft **0.2.9** is compatible: no library API, signed bytes,
+stored format or package version changes. No local function, method or type is
+removed; only duplicate transport/parsing inside the retained `observe` adapter
+is replaced. No sibling source mutation, full gate, commit/push, publication,
+npm release or deployment occurs here.
+
+## Earlier client completion deadline repair (0.2.8, released)
+
+The following records local preparation before maintainer delivery. Pending
+versions and publication/CI observations in this section are historical.
 
 The maintainer confirmed 0.2.7 live. Remote main and peeled tag match the source
 above; annotated tag object `d993631e95c19149458406255745208cfe6f5b59` and both

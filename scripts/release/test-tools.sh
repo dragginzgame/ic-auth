@@ -174,20 +174,45 @@ SH
 cat > "$fixture/bin/curl" <<'SH'
 #!/usr/bin/env bash
 set -euo pipefail
+if [[ "$*" == '--disable --version' ]]; then
+    if [[ "$FIXTURE_MODE" == old-curl ]]; then printf 'curl 8.3.0\n'; else printf 'curl 8.4.0\n'; fi
+    exit 0
+fi
 output=''
+diagnostics=''
 while [[ $# -gt 0 ]]; do
-    case "$1" in --output) output="$2"; shift 2 ;; *) url="$1"; shift ;; esac
+    case "$1" in
+        --output) output="$2"; shift 2 ;;
+        --stderr) diagnostics="$2"; shift 2 ;;
+        *) url="$1"; shift ;;
+    esac
 done
+[[ -z "$diagnostics" ]] || : > "$diagnostics"
 package="$(basename "$(dirname "$url")")"
+checksum="$(bash scripts/dev/run-host-tooling.sh hash-file "$CARGO_TARGET_DIR/package/$package-0.1.1.crate" 67108864)"
 case "$FIXTURE_MODE" in
     unknown) printf 503 ;;
     conflict)
-        jq -n '{version:{num:"0.1.1",checksum:"wrong"}}' > "$output"
+        jq -n --arg crate "$package" '{version:{crate:$crate,num:"0.1.1",checksum:("0" * 64),yanked:false}}' > "$output"
         printf 200 ;;
+    wrong-crate|wrong-version|invalid-checksum|invalid-yanked|multiple-json)
+        jq -n --arg crate "$package" --arg checksum "$checksum" --arg mode "$FIXTURE_MODE" '
+            {version:{crate:$crate,num:"0.1.1",checksum:$checksum,yanked:false}} |
+            if $mode == "wrong-crate" then .version.crate = "other-crate"
+            elif $mode == "wrong-version" then .version.num = "0.1.2"
+            elif $mode == "invalid-checksum" then .version.checksum = "wrong"
+            elif $mode == "invalid-yanked" then .version.yanked = "false"
+            else . end
+        ' > "$output"
+        if [[ "$FIXTURE_MODE" == multiple-json ]]; then printf '{}\n' >> "$output"; fi
+        printf 200 ;;
+    malformed) printf '{' > "$output"; printf 200 ;;
+    oversized) head -c 1048577 /dev/zero > "$output"; printf 200 ;;
+    transport) printf '{' > "$output"; printf 000; exit 28 ;;
     *)
         if [[ -f "$FIXTURE_LOG/observed-$package" ]]; then
-            checksum="$(bash scripts/dev/run-host-tooling.sh hash-file "$CARGO_TARGET_DIR/package/$package-0.1.1.crate" 67108864)"
-            jq -n --arg checksum "$checksum" '{version:{num:"0.1.1",checksum:$checksum}}' > "$output"
+            jq -n --arg crate "$package" --arg checksum "$checksum" --arg mode "$FIXTURE_MODE" \
+                '{version:{crate:$crate,num:"0.1.1",checksum:$checksum,yanked:($mode == "yanked")}}' > "$output"
             printf 200
         else printf 404; fi
         ;;
@@ -200,6 +225,13 @@ if bash scripts/release/publish.sh > "$fixture/unknown.log" 2>&1; then exit 1; f
 export FIXTURE_MODE=conflict
 if bash scripts/release/publish.sh > "$fixture/conflict.log" 2>&1; then exit 1; fi
 [[ ! -f "$fixture/uploads" ]]
+grep -F 'registry checksum conflict' "$fixture/conflict.log" > /dev/null
+for mode in wrong-crate wrong-version invalid-checksum invalid-yanked multiple-json malformed oversized transport old-curl; do
+    export FIXTURE_MODE="$mode"
+    if bash scripts/release/publish.sh > "$fixture/$mode.log" 2>&1; then exit 1; fi
+    [[ ! -f "$fixture/uploads" && ! -e .git/publication-state/0.1.1-ic-auth-protocol-types.dispatched ]]
+    grep -F 'cannot establish registry state' "$fixture/$mode.log" > /dev/null
+done
 export FIXTURE_MODE=marker-source-change
 if bash scripts/release/publish.sh > "$fixture/marker-source-change.log" 2>&1; then exit 1; fi
 [[ ! -f "$fixture/uploads" ]]
@@ -210,6 +242,15 @@ rm .git/publication-state/0.1.1-ic-auth-protocol-types.dispatched
 export FIXTURE_MODE=lost-reply
 if bash scripts/release/publish.sh > "$fixture/lost-reply.log" 2>&1; then exit 1; fi
 [[ "$(wc -l < "$fixture/uploads")" == 1 ]]
+# Every observation has separate retained facts, including the pre/post-dispatch
+# 404s. Later reconciliation must not overwrite evidence from the lost reply.
+grep -F 'Registry observation evidence retained:' "$fixture/lost-reply.log" | \
+    sed 's/^Registry observation evidence retained: //' > "$fixture/lost-reply-evidence.paths"
+[[ "$(wc -l < "$fixture/lost-reply-evidence.paths")" == 2 ]]
+while IFS= read -r observation; do
+    [[ "$(cat "$observation/http-status")" == 404 && "$(cat "$observation/curl-exit")" == 0 ]]
+    bash scripts/ci/verify-file-checksum.sh --print sha256 "$observation/http-status" >> "$fixture/lost-reply-status.hashes"
+done < "$fixture/lost-reply-evidence.paths"
 if bash scripts/release/publish.sh > "$fixture/unresolved.log" 2>&1; then exit 1; fi
 [[ "$(wc -l < "$fixture/uploads")" == 1 ]]
 touch "$fixture/observed-ic-auth-protocol-types"
@@ -218,6 +259,13 @@ bash scripts/release/publish.sh > "$fixture/publish.log" 2>&1
 [[ "$(cat "$fixture/uploads")" == $'ic-auth-protocol-types\nic-auth' ]]
 bash scripts/release/publish.sh > "$fixture/publish-retry.log" 2>&1
 [[ "$(wc -l < "$fixture/uploads")" == 2 ]]
+export FIXTURE_MODE=yanked
+bash scripts/release/publish.sh > "$fixture/yanked-reconcile.log" 2>&1
+[[ "$(wc -l < "$fixture/uploads")" == 2 ]]
+while IFS= read -r observation; do
+    bash scripts/ci/verify-file-checksum.sh --print sha256 "$observation/http-status" >> "$fixture/lost-reply-status-after.hashes"
+done < "$fixture/lost-reply-evidence.paths"
+cmp "$fixture/lost-reply-status.hashes" "$fixture/lost-reply-status-after.hashes"
 export FIXTURE_MODE=source-change
 if bash scripts/release/publish.sh > "$fixture/source-change.log" 2>&1; then exit 1; fi
 [[ "$(wc -l < "$fixture/uploads")" == 2 ]]

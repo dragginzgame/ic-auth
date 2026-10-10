@@ -63,19 +63,14 @@ else
     bash scripts/dev/run-host-tooling.sh create-private "$candidate" "$plan" 65536
 fi
 observe() {
-    local package="$1" checksum="$2" status observed
-    status="$(curl --disable --silent --show-error --location --proto '=https' --proto-redir '=https' \
-        --connect-timeout 10 --max-time 30 --output "$logs/$package.json" --write-out '%{http_code}' \
-        --user-agent 'dragginzgame-ic-auth (https://github.com/dragginzgame/ic-auth)' \
-        "https://crates.io/api/v1/crates/$package/$version")" || return 2
-    case "$status" in
-        404) return 1 ;;
-        200)
-            observed="$(jq -er --arg version "$version" '.version | select(.num == $version) | .checksum' "$logs/$package.json")" || return 2
-            [[ "$observed" == "$checksum" ]] || fail "registry checksum conflict for $package $version"
-            return 0 ;;
-        *) echo "Registry observation unavailable: HTTP $status" >&2; return 2 ;;
-    esac
+    local package="$1" checksum="$2" evidence observed
+    evidence="$(mktemp -d "$logs/$package-observation.XXXXXX")" || return 2
+    observed="$(bash scripts/ci/check-crates-io-version.sh \
+        --metadata "$evidence/registry" "$package" "$version")" || return $?
+    # Shared owns transport and admitted metadata; Auth owns payload acceptance.
+    # Yanked matching bytes still reconcile an earlier upload, as before.
+    [[ "$(jq -r '.checksum' <<< "$observed")" == "$checksum" ]] ||
+        fail "registry checksum conflict for $package $version"
 }
 for index in "${!packages[@]}"; do
     package="${packages[$index]}"

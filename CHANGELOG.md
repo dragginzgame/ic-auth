@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.2.9]
+
+- Adopt Shared Tooling 0.2.10 with concise formatting output and retained
+  failure logs; authenticate exact current-run CI artifact readback.
+  [#13](https://github.com/dragginzgame/ic-auth/issues/13).
+- Use bounded shared registry metadata observation for publication, preserving
+  exact archive acceptance and uncertain-upload reconciliation while retaining
+  every observation separately. Publication requires curl 8.4.0+.
+  [#12](https://github.com/dragginzgame/ic-auth/issues/12).
+
 ## [0.2.8] - 2026-10-10
 
 - Refuse browser retrieval completion when ready-token storage finishes at or
