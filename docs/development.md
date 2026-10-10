@@ -2,8 +2,8 @@
 
 The virtual root owns two libraries, unpublished native tooling in `apps/tooling/`
 and the internal host/runner in `apps/qualification/`, plus dependency selections,
-lints and one lockfile. The current manifest version is `0.3.1`, tagged as
-`v0.3.1`; both libraries are published on crates.io.
+lints and one lockfile. The current manifest version is `0.3.2`, tagged as
+`v0.3.2`; both libraries are published on crates.io.
 Rust `1.99.0` remains the development compiler selected by `rust-toolchain.toml`.
 The common package minimum is Rust `1.88.0`, inherited from the root catalog and
 qualified by explicit older-compiler checks. See [MSRV coverage](msrv.md).
@@ -35,7 +35,7 @@ The first command prepares the toolchain, rustfmt, Clippy and Wasm target select
 by the toolchain file. Common system prerequisites, exact executable pins and
 installation behavior are described in the shared [local setup](local-setup.md).
 The Makefile includes reviewed `make/tools.mk`, `make/release.mk` and
-`make/rust-format.mk`. Shared Tooling 0.3.2 admits the complete-set platform and
+`make/rust-format.mk`. Shared Tooling 0.3.4 admits the complete-set platform and
 selected Rust/Cargo toolchain before aggregate setup downloads, then runs the complete
 host, IC and Rust toolsets in order. These read-only preflight calls disable
 automatic Rustup installation; prepare an unavailable compiler explicitly.
@@ -66,6 +66,13 @@ and LOC recipe handoff under
 include also admits Make execution independently, so standalone tool consumers
 retain refusal of unsafe modes. Shared fixtures require explicit completion
 before reporting success or deleting their evidence, including on Bash 3.2.
+The validation runner also rejects malformed nesting depth before dispatch and
+requires explicit completion before success. The separate formatting-adoption
+checker still has a reproduced Bash 3.2 premature-exit gap under
+[Shared #103](https://github.com/dragginzgame/shared-tooling/issues/103).
+The common IC toolset now selects Binaryen 133; run `make install-ic-tools`
+explicitly to prepare it. This repository builds its qualification Wasm directly
+with Cargo and has no optimized product bundle to qualify.
 The release and tool-evidence fixtures copy that companion and its execution
 probe explicitly; qualification uses disposable checkouts and substituted effects.
 Admission resolves that probe relative to the selected include, independently of
@@ -108,7 +115,7 @@ is retained under `target/browser-client/`.
 | `make test-host-tooling` | Native file-operation CLI: bounded input, exact digest output, no-follow reads and preserved create-only evidence |
 | `make check-msrv` | Isolated public package payloads and internal applications using the declared minimum compiler, with native/Wasm and feature coverage |
 | `make tasks` | Read the adopted maintenance task catalog; no task, agent or schedule starts |
-| `make test-qualification` | Build the internal Wasm host; verify real certificates, root composition, upgrades and authenticated ingress through `ic-testkit` with the checked server |
+| `make test-qualification` | Build the internal Wasm host; verify real certificates, complete application tokens, live authority rejection, root composition, upgrades and authenticated ingress through `ic-testkit` with the checked server |
 | `make build-qualification-canister` | Build the internal host's release Wasm without starting a server |
 | `make check-wasm` | Compile-check both libraries and signature verification/preparation, token and session capabilities for `wasm32-unknown-unknown` |
 | `make clippy` | Lint the libraries, native tooling/qualification and Wasm host with their selected targets |
@@ -193,16 +200,16 @@ Preparation tests additionally cover host-owned certification composition and
 bounded retrieval retention; see [the preparation contract](signature-preparation.md).
 They do not qualify an actual canister's root publication or query/upgrade lifecycle.
 The separate [IC Testkit command](ic-testkit-qualification.md) exercises those host
-paths and real signed ingress. It consumes the locked Testkit CLI's offline
+paths, complete application tokens and real signed ingress. It consumes the locked Testkit CLI's offline
 admission path and retains state beneath `target/`.
 It does not qualify browser/wallet login or a durable session backend.
 
 ## Releases and publication
 
 ```sh
-make release-patch                 # current compatible draft: 0.3.1 -> 0.3.2
-make release-minor                 # breaking pre-1.0 contract: 0.3.1 -> 0.4.0
-make release-major                 # explicit major decision: 0.3.1 -> 1.0.0
+make release-patch                 # compatible patch increment: 0.3.2 -> 0.3.3
+make release-minor                 # breaking pre-1.0 contract: 0.3.2 -> 0.4.0
+make release-major                 # explicit major decision: 0.3.2 -> 1.0.0
 make release-resume VERSION=X.Y.Z   # reconcile the exact saved attempt
 make publish-dry-run               # validate packages without upload
 make publish                       # upload a clean, delivered tagged release
@@ -316,10 +323,10 @@ the utility uses
 `durable::write_with(path, options, producer)` with explicit create/replace modes
 and owner-only permissions. Publication errors retain their typed before/after
 state through the utility's error boundary, with secondary staging cleanup
-failures included in diagnostics. IC Testkit 0.32.0 selects Host 0.12 for its four
-public reexports; the lock resolves all four Host packages to 0.12.2, removing
-the former duplicate 0.11 selections. Host 0.12.2 adopts shared setup preflight
-and diagnostics; its library source is unchanged from 0.12.0. Auth retains its
+failures included in diagnostics. IC Testkit 0.32.2 selects Host 0.12 for its four
+public reexports; the lock resolves all four Host packages once at 0.12.4.
+Host's Rust source and public APIs are unchanged from 0.12.2; its latest changes
+adopt common tooling and fix native Make/fixture boundaries. Auth retains its
 existing version rewriter and release policy.
 The 0.12 release changes common developer setup, preserving these filesystem
 APIs; no local compatibility shim is introduced.
@@ -328,7 +335,7 @@ directly and obtains runtime types through Testkit. Testkit owns adoption of
 Host's breaking process API; Auth has no direct caller or compatibility shim.
 Directory-suffixed publication targets are refused before creating parents or
 replacing a stripped filename; the native utility uses that upstream guard.
-Run `make install-testkit-tools` to prepare the selected 0.32.0 CLI, then
+Run `make install-testkit-tools` to prepare the selected 0.32.2 CLI, then
 `make testkit-tools-check` for offline admission of its unchanged 16.1.0 server.
 Prior versioned CLI installations remain retained. Native Host dependencies
 remain outside both protocol libraries. See the owner adoption in

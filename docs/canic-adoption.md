@@ -16,9 +16,9 @@ transactions and recovery obligations.
 
 ## Published dependency and feature selection
 
-Both `ic-auth` and `ic-auth-protocol-types` 0.3.1 are published and unyanked.
+Both `ic-auth` and `ic-auth-protocol-types` 0.3.2 are published and unyanked.
 Their registry checksums match IC Auth release
-`7ee9aa2a6f6fb19e94da096ce4149ff05c256476`. Rust 1.88 is the supported minimum.
+`c3d0877c1ad5481dedb59dc810a25c18182d0a00`. Rust 1.88 is the supported minimum.
 For adoption of this release, select compatible registry requirements in Canic's
 root catalog and record the resolved versions in its own lockfiles:
 
@@ -33,9 +33,9 @@ existing capability features forward only the needed library features. This is
 the recommended published selection. The read-only review below distinguishes Canic's
 in-progress source adoption from consumer qualification.
 
-Releases 0.3.0 and 0.3.1 change developer tooling; their authentication APIs and
+Releases 0.3.0 through 0.3.2 change developer tooling; their authentication APIs and
 signed bytes are unchanged from 0.2.11. Canic's changing root manifest and lock select
-0.3/0.3.0 in the read-only review below; selected versions alone do not establish
+0.3/0.3.2 in the read-only review below; selected versions alone do not establish
 runtime adoption or removal of duplicated implementations.
 
 | Existing Canic capability | IC Auth selection | Retained Canic responsibility |
@@ -124,8 +124,17 @@ the developer-tooling hard cut; authentication APIs and signed bytes are unchang
 The current read-only inspection at Canic committed base
 `ac55e50334dd6479ec36f404e89e60bcfe9184d6` finds its changing working tree
 selecting compatible `0.3` requirements and resolving both libraries at
-0.3.0 with matching registry checksums. Complete token verification is already available. Consumer dependency
+0.3.2 with matching registry checksums. Complete token verification is already available. Consumer dependency
 changes require its own qualified lockfiles and remain owned by Canic.
+
+The pending compatible Auth 0.3.3 batch adds
+[complete-token Testkit qualification](ic-testkit-qualification.md), joining the
+published bounded Merkle builder and complete verifier with an actual certified
+issuer. Live caller/audience/scope, root deadline/epoch, network-key and certificate
+freshness rejection, followed by upgrade and re-preparation of the same claims,
+pass locally. Root ECDSA signing is native test-only signing. This reinforces the
+existing adoption boundary without a new runtime API or a production issuer
+adapter; Canic's actual endpoint acceptance remains separate.
 
 Protocol-types tests now independently describe Canic's prepare request,
 claims/prepare response and retrieval request at immutable Canic

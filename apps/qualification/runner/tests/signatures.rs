@@ -24,6 +24,9 @@ const DOMAIN: &[u8] = b"canic-issuer-delegated-token";
 const INGRESS_DOMAIN: &[u8] = b"ic-request-auth-delegation";
 static NEXT_INSTANCE: AtomicUsize = AtomicUsize::new(0);
 
+#[path = "signatures/application_tokens.rs"]
+mod application_tokens;
+
 struct Fixture {
     pic: PocketIc,
     signer: Principal,

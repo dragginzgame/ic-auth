@@ -1,4 +1,4 @@
-# IC Testkit signature and ingress qualification
+# IC Testkit signature, token and ingress qualification
 
 `make test-qualification` first admits the prepared Testkit CLI/server, then
 builds the internal Wasm host in
@@ -12,7 +12,7 @@ the wrapper asks the locked Testkit CLI to check its prepared server and consume
 only the returned absolute path. There is no test-time setup, server pin catalog
 or retained-bundle fallback. `make install-testkit-tools` explicitly prepares the
 CLI and server; `make testkit-tools-check` performs offline admission alone.
-`ic-testkit` 0.28 owns the PocketIC dependency; runtime types are imported through
+`ic-testkit` 0.32.2 owns the PocketIC dependency; runtime types are imported through
 its re-export, and typed Candid calls preserve application results separately
 from encoding, decoding and replica errors. There is no direct `pocket-ic`
 dependency or exact-version pin exception in this workspace.
@@ -22,7 +22,7 @@ PocketIC 16.1.0 pins `thiserror` 2.0.18, so the shared lock selects that version
 the existing authentication capabilities are tested with that selection too.
 
 Wasm bytes are read through published `ic-host-fs` with a 16 MiB limit and no
-symlink following, through testkit's IC Host re-export. Testkit owns bounded
+symlink following, through the root-selected filesystem crate. Testkit owns bounded
 server startup and retained stdout/stderr; each fresh instance has a 30-second
 startup budget, while upstream operation limits remain 30 seconds. Each invocation
 prints a unique retained state directory beneath
@@ -93,6 +93,22 @@ to bypass its early validation and reach the replica; no library proof verifier
 is replaced or bypassed in production code.
 
 ## Evidence and limits
+
+The complete-token scenario joins the public bounded Merkle constructor,
+native test-key ECDSA root signing and an actual Testkit-certified issuer proof
+with `token::verify_token`. It verifies the narrowed local grant, then rejects
+the same token after changing caller, audience, scope ceiling, root-policy
+deadline, key/proof/registry floors or network trust anchor. Advancing the actual
+Testkit clock makes the issuer certificate stale while the claims remain valid.
+After actual upgrade, pending retrieval rejects; controller-authorized
+re-preparation of the unchanged claims verifies again with the same issuer
+identity and preserved composed asset state. See
+[Auth #18](https://github.com/dragginzgame/ic-auth/issues/18).
+
+Root signing in this scenario uses a deterministic native fixture key. It does
+not qualify management-canister signing, a production token issuance endpoint,
+browser reconciliation, stable session storage or Canic's adapter. The canister
+remains a controller-guarded signature fixture.
 
 The focused command is part of the configured CI/release gate on Linux and both
 supported macOS architectures. Local Linux execution and strict native/Wasm

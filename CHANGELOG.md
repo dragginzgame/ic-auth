@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.3]
+
+- Qualify complete application-token verification with an actual certified
+  issuer, live authority rejection and re-preparation after canister upgrade,
+  using the published bounded Merkle constructor. Public APIs and signed bytes
+  are unchanged. [#18](https://github.com/dragginzgame/ic-auth/issues/18).
+- Adopt Shared Tooling 0.3.4, including malformed validation-depth rejection
+  and reliable premature-exit failure retention on Bash 3.2. Prepare the common
+  Binaryen 133 selection explicitly; earlier bundles remain retained.
+  [Shared #104](https://github.com/dragginzgame/shared-tooling/issues/104),
+  [Shared #102](https://github.com/dragginzgame/shared-tooling/issues/102).
+- Select Testkit 0.32.2 and a single Host 0.12.4 graph for native qualification.
+  Native tooling stays outside both authentication libraries.
+
 ## [0.3.2] - 2026-10-10
 
 - Preserve jobserver descriptors during dependency-pin validation, completing

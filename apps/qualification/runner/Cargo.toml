@@ -11,11 +11,12 @@ description = "Internal IC Testkit and ingress-delegation qualification"
 [dev-dependencies]
 candid.workspace = true
 ic-agent.workspace = true
-ic-auth = { workspace = true, features = ["canister-signature-verification"] }
+ic-auth = { workspace = true, features = ["token-verification"] }
 ic-auth-protocol-types.workspace = true
 ic-canister-sig-creation.workspace = true
 ic-host-fs.workspace = true
 ic-testkit.workspace = true
+k256.workspace = true
 tokio.workspace = true
 
 [lints]

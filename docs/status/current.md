@@ -3,9 +3,9 @@
 The maintainer accepted the larger Canic authentication extraction, selected the
 name `ic-auth`, and confirmed `/home/adam/projects/ic-auth` as the local repository.
 
-The current committed release is `7ee9aa2a6f6fb19e94da096ce4149ff05c256476`
-(`0.3.1`) on `main`, with annotated tag `v0.3.1`; both remote identities were
-verified during continuation. Both libraries' `0.3.1` registry checksums match
+The current committed release is `c3d0877c1ad5481dedb59dc810a25c18182d0a00`
+(`0.3.2`) on `main`, with annotated tag `v0.3.2`; both remote identities were
+verified during continuation. Both libraries' `0.3.2` registry checksums match
 the retained publication intent for that exact source/tag. The maintainer
 executed the release and publication. The original bootstrap was
 `7a03102e52b7a400588530997a9f7fb91c83de9d` (`0.1.0`).
@@ -22,7 +22,7 @@ records this batch without closing the larger extraction.
 
 The virtual Rust workspace contains `ic-auth-protocol-types`, `ic-auth` and the
 unpublished native application in `apps/tooling/`, with one lockfile, root-owned
-dependency selections and current manifest version `0.3.1`.
+dependency selections and current manifest version `0.3.2`.
 The passive token/proof contracts and canonical encoding are adapted from the
 clean Canic source at `e286b3fd98460c98670336853f80658a920966e0`; see the
 [source review](../design/canic-source-review.md) for exact ownership and API
@@ -40,10 +40,110 @@ has recorded focused standalone-proof adapter qualification; complete-token,
 durable-session and deployed acceptance remain separate. No sibling repository
 was modified by IC Auth work.
 
-## Current upstream adoption (pending 0.3.2)
+## Current integration qualification (pending 0.3.3)
 
-The maintainer confirmed 0.3.1 live. Remote main and peeled tag match the source
-above; annotated tag `ec7032f13a8ef8611a7318d0a7e681ea402cac32` and both unyanked
+The maintainer requested further integration and fixes after pushing 0.3.2.
+The compatible **0.3.3** draft adds complete-token Testkit qualification under
+[Auth #18](https://github.com/dragginzgame/ic-auth/issues/18); library APIs,
+signed bytes, storage formats and package versions remain unchanged at 0.3.2.
+The existing internal signature host is used without new issuance endpoints.
+The public bounded Merkle constructor and complete verifier authenticate a
+native test-key ECDSA root proof plus an actual certified issuer proof. The same
+token rejects after caller/audience/scope, root-policy deadline, key/proof/registry
+floors, network key or issuer-certificate freshness changes. Actual upgrade
+invalidates pending retrieval, and authorized re-preparation of unchanged claims
+verifies with preserved issuer identity and composed asset state. All three
+real Testkit scenarios pass on Linux; this does not qualify management signing,
+Canic deployment, browser reconciliation or durable session storage.
+
+Canonically exported Shared 0.3.4 `169d77b8440568c5200eede971625126181f7bb2`
+is verified at remote main, with the same 84-file selection from an isolated
+clean committed checkout. It rejects malformed runner depth before dispatch and
+requires explicit completion before runner success, including Bash 3.2.
+Canonical runner fixtures pass on Bash 5 and genuine Bash 3.2.57; actual Auth
+`make ci` with malformed depth returns 2 before any validation target dispatch.
+Binaryen 133 is explicitly prepared and older bundles remain retained. Auth's
+qualification Wasm uses direct Cargo builds, with no optimized product bundle.
+
+Published Testkit 0.32.2 `9e697b6363441e3fa96477adae5b07820461c3c5` and all
+four Host packages at 0.12.4 `5400f159474cebac1ec7ae7c8763abfd258bde03` match
+unyanked official registry checksums, package VCS identities and remote source.
+Host Rust source is unchanged from 0.12.2. Explicit setup prepares the locked
+0.32.2 CLI and admits server 16.1.0; separate offline tool checks pass.
+Native dependencies stay outside both authentication libraries.
+
+Read-only Canic inspection remains at dirty base
+`ac55e50334dd6479ec36f404e89e60bcfe9184d6`; its lock now selects both Auth
+packages at 0.3.2 and Testkit 0.32.1. The generic Merkle helper and two verifier
+snapshots match the previously recorded hashes; adoption and retirement stay in
+Canic #491/#58. No sibling files or builds are changed.
+
+Evidence is in `target/integration-0.3.3/`. Initial compile/module-path failures
+and sandbox loopback-startup refusal are retained separately from the passing
+permitted native run. A source-prefix nounset injection into a disposable copy
+of the unchanged canonical formatting-adoption checker returns 1 on Bash 5 but
+0 on Bash 3.2, deleting its fixture before completion. Shared #103 owns that
+remaining helper repair; canonical files are not patched here. Auth #11 retains
+its native hook-preservation qualification.
+
+Complete **`make -j4 ci` passes all 26 targets on Linux**, including all three
+actual Testkit scenarios, every library/client case, isolated native/Wasm package
+MSRV and internal application checks, Wasm, Clippy, actual package dry runs with
+uploads aborted, and release/recovery/evidence fixtures. Inputs remained unchanged
+through the gate: tracked diff SHA-256
+`8baa158ef0592f85fb10a03fc526bfd612d32ab3c5d79975a1d9b184574e3850` and new
+qualification module SHA-256
+`6cc755b33704814fcbe8ab291f2326ec9743d48f47d9078574f27b7190b4f891` are retained
+in `qualified-inputs.sha256`; `ci.log` records the complete result. Intentional
+recipe overrides occur only in substituted release fixtures, with no closed
+jobserver warnings. Final prose receives snapshot, link and diff checks.
+Native macOS acceptance for this pending source remains outstanding; released
+0.3.2 CI is still queued. No sibling source, package version, commit, push, release
+or upload effect was performed.
+
+## Earlier release reconciliation (0.3.2)
+
+The following records delivery reconciliation before the current integration batch.
+
+Remote main and peeled tag match the current source above; annotated tag
+`cc896a2511ec9d74fd3e9a2b2df9c07414afd524` matches the retained publication
+receipt. Official sparse-index entries are unyanked and match both receipt
+checksums: `ic-auth-protocol-types`
+`02974fddd268c9cb24c0f8126efd4d85e2510190be037fceaa8a948fe1a75713` and
+`ic-auth` `655b30686bca3eddcbaeb9351a1609c47b6919ca6028ed4efa91d78aa35974f2`.
+Exact-source [0.3.2 CI](https://github.com/dragginzgame/ic-auth/actions/runs/38054843142)
+is queued at inspection; no hosted native acceptance is claimed for this source.
+
+Exact-source [0.3.0 CI](https://github.com/dragginzgame/ic-auth/actions/runs/38046019077)
+and [0.3.1 CI](https://github.com/dragginzgame/ic-auth/actions/runs/38051656374)
+now pass on Ubuntu 24.04, macOS 15 Intel and macOS 15 Apple Silicon. Each host
+passes selected setup, exact-ID artifact download, independent uploaded-byte
+verification and the complete gate. This completes native common-toolset
+adoption under [Auth #16](https://github.com/dragginzgame/ic-auth/issues/16).
+It does not qualify the final 0.3.2 dependency-pin descriptor repair under
+[Auth #17](https://github.com/dragginzgame/ic-auth/issues/17), which remains open
+for that release's native results. [Auth #11](https://github.com/dragginzgame/ic-auth/issues/11)
+retains the separately required native real hook/formatting preservation checks;
+the hosted gate covers release routing and check-only formatting, but does not
+run those focused hook cases.
+
+Published authentication APIs and signed bytes remain unchanged from 0.2.11.
+Canic's available full-token verifier and bounded batch constructor are described
+in [the adoption contract](../canic-adoption.md); consumer qualification and
+duplicate retirement remain owned by Canic #491/#58. Sibling trees stay read-only.
+This reconciliation changes documentation and issue state only; no new numbered
+release draft, source build, commit, push or publication is introduced. Earlier
+local evidence paths below record preparation; `target/continuation-0.3.1-live/`
+is absent from the current checkout, so those logs were not re-inspected here.
+
+## Earlier upstream adoption (0.3.2, released)
+
+The following records preparation before maintainer delivery. Dependency and
+hosted CI observations are historical, not current qualification.
+
+The maintainer confirmed 0.3.1 live. Remote main and peeled tag matched
+`7ee9aa2a6f6fb19e94da096ce4149ff05c256476`; annotated tag
+`ec7032f13a8ef8611a7318d0a7e681ea402cac32` and both unyanked
 official registry checksums match retained publication intent. Exact-release
 [CI](https://github.com/dragginzgame/ic-auth/actions/runs/38051656374) is in progress
 at the latest inspection; 0.3.0 CI remains in progress. Neither qualifies this pending source.
