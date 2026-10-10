@@ -125,7 +125,7 @@ test-client:
 	+bash scripts/dev/test-client.sh
 
 check-dependency-pins:
-	bash scripts/ci/check-dependency-pins.sh --cargo-inheritance --npm-root packages/client \
+	+bash scripts/ci/check-dependency-pins.sh --cargo-inheritance --npm-root packages/client \
 	  --node-version "$$(cat packages/client/.nvmrc)" \
 	  --npm-version "$$(jq -er '.packageManager | sub("^npm@"; "")' packages/client/package.json)"
 

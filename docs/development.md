@@ -2,8 +2,8 @@
 
 The virtual root owns two libraries, unpublished native tooling in `apps/tooling/`
 and the internal host/runner in `apps/qualification/`, plus dependency selections,
-lints and one lockfile. The current manifest version is `0.3.0`, tagged as
-`v0.3.0`; both libraries are published on crates.io.
+lints and one lockfile. The current manifest version is `0.3.1`, tagged as
+`v0.3.1`; both libraries are published on crates.io.
 Rust `1.99.0` remains the development compiler selected by `rust-toolchain.toml`.
 The common package minimum is Rust `1.88.0`, inherited from the root catalog and
 qualified by explicit older-compiler checks. See [MSRV coverage](msrv.md).
@@ -35,7 +35,7 @@ The first command prepares the toolchain, rustfmt, Clippy and Wasm target select
 by the toolchain file. Common system prerequisites, exact executable pins and
 installation behavior are described in the shared [local setup](local-setup.md).
 The Makefile includes reviewed `make/tools.mk`, `make/release.mk` and
-`make/rust-format.mk`. Shared Tooling 0.3.1 admits the complete-set platform and
+`make/rust-format.mk`. Shared Tooling 0.3.2 admits the complete-set platform and
 selected Rust/Cargo toolchain before aggregate setup downloads, then runs the complete
 host, IC and Rust toolsets in order. These read-only preflight calls disable
 automatic Rustup installation; prepare an unavailable compiler explicitly.
@@ -60,9 +60,12 @@ IC Auth-owned Cargo recipes and wrappers preserve Make's inherited jobserver
 descriptors with recursive recipe marking. The same execution guard refuses
 unsafe modes before installations, builds, publication or metadata effects;
 callers do not replace jobserver flags or select a separate parallelism budget.
-Shared formatter/installer recipe ownership remains in
-[Shared #99](https://github.com/dragginzgame/shared-tooling/issues/99), pending a
-reviewed upstream correction; the recorded snapshot stays intact.
+Shared Tooling 0.3.2 supplies the corresponding formatter, Rust installer/check
+and LOC recipe handoff under
+[Shared #99](https://github.com/dragginzgame/shared-tooling/issues/99). Its tool
+include also admits Make execution independently, so standalone tool consumers
+retain refusal of unsafe modes. Shared fixtures require explicit completion
+before reporting success or deleting their evidence, including on Bash 3.2.
 The release and tool-evidence fixtures copy that companion and its execution
 probe explicitly; qualification uses disposable checkouts and substituted effects.
 Admission resolves that probe relative to the selected include, independently of
@@ -197,9 +200,9 @@ It does not qualify browser/wallet login or a durable session backend.
 ## Releases and publication
 
 ```sh
-make release-patch                 # current compatible draft: 0.3.0 -> 0.3.1
-make release-minor                 # breaking pre-1.0 contract: 0.3.0 -> 0.4.0
-make release-major                 # explicit major decision: 0.3.0 -> 1.0.0
+make release-patch                 # current compatible draft: 0.3.1 -> 0.3.2
+make release-minor                 # breaking pre-1.0 contract: 0.3.1 -> 0.4.0
+make release-major                 # explicit major decision: 0.3.1 -> 1.0.0
 make release-resume VERSION=X.Y.Z   # reconcile the exact saved attempt
 make publish-dry-run               # validate packages without upload
 make publish                       # upload a clean, delivered tagged release
@@ -313,11 +316,11 @@ the utility uses
 `durable::write_with(path, options, producer)` with explicit create/replace modes
 and owner-only permissions. Publication errors retain their typed before/after
 state through the utility's error boundary, with secondary staging cleanup
-failures included in diagnostics. IC Testkit 0.31.0 still requires Host 0.11;
-its four 0.11.0 packages remain intact alongside the root-selected filesystem
-and artifact 0.12.1 packages. Host 0.12.1 fixes its own release-tool preparation,
-jobserver handoff and Bash 3.2 fixtures; its library source is unchanged from
-0.12.0. Auth retains its existing version rewriter and release policy.
+failures included in diagnostics. IC Testkit 0.32.0 selects Host 0.12 for its four
+public reexports; the lock resolves all four Host packages to 0.12.2, removing
+the former duplicate 0.11 selections. Host 0.12.2 adopts shared setup preflight
+and diagnostics; its library source is unchanged from 0.12.0. Auth retains its
+existing version rewriter and release policy.
 The 0.12 release changes common developer setup, preserving these filesystem
 APIs; no local compatibility shim is introduced.
 The qualification runner reads Wasm through the root-selected filesystem helper
@@ -325,7 +328,7 @@ directly and obtains runtime types through Testkit. Testkit owns adoption of
 Host's breaking process API; Auth has no direct caller or compatibility shim.
 Directory-suffixed publication targets are refused before creating parents or
 replacing a stripped filename; the native utility uses that upstream guard.
-Run `make install-testkit-tools` to prepare the selected 0.31.0 CLI, then
+Run `make install-testkit-tools` to prepare the selected 0.32.0 CLI, then
 `make testkit-tools-check` for offline admission of its unchanged 16.1.0 server.
 Prior versioned CLI installations remain retained. Native Host dependencies
 remain outside both protocol libraries. See the owner adoption in

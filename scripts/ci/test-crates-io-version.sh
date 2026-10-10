@@ -6,10 +6,14 @@ root="$0"
 root="$(cd -P "${root%/*}/../.." && printf '%s/.' "$PWD")"
 root="${root%/.}"
 fixture="$(mktemp -d "${TMPDIR:-/tmp}/registry-observation.XXXXXX")"
+fixture_complete=false
 finish() {
     local status=$?
+    # Bash 3.2 may report zero after nounset before assertions finish.
+    [[ "$fixture_complete" == true || "$status" != 0 ]] || status=1
     if [[ "$status" == 0 ]]; then rm -rf "$fixture";
     else echo "Registry observation fixtures retained: $fixture" >&2; fi
+    exit "$status"
 }
 trap finish EXIT
 mkdir "$fixture/bin"
@@ -203,3 +207,4 @@ for args in --metadata '--metadata only-directory'; do
     [[ "$status" == 2 ]]
 done
 echo 'Exact registry presence, metadata and retained evidence tests passed (curl substitute)'
+fixture_complete=true

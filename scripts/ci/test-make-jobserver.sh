@@ -5,13 +5,15 @@ script_path="${BASH_SOURCE[0]}"
 [[ "$script_path" == /* ]] || script_path="$PWD/$script_path"
 cd -P "${script_path%/*}/../.."
 root="$PWD"
+export PATH="$root/.tools/host/bin:$PATH"
 unset MAKEFLAGS MFLAGS MAKEOVERRIDES GNUMAKEFLAGS MAKEFILES
 mkdir -p target/portable-fixtures
 fixture="$(mktemp -d "$root/target/portable-fixtures/make-jobserver.XXXXXX")"
 printf 'Make jobserver evidence retained: %s\n' "$fixture"
 consumer="$fixture/consumer with spaces"
 mkdir -p "$consumer/make" "$consumer/ci" "$consumer/scripts/dev" \
-    "$consumer/scripts/ci" "$consumer/scripts/release" "$fixture/bin"
+    "$consumer/scripts/ci" "$consumer/scripts/release" "$consumer/packages/client" "$fixture/bin"
+cp packages/client/package.json packages/client/.nvmrc "$consumer/packages/client/"
 for input in Makefile make/tools.mk make/release.mk make/rust-format.mk make/execution.mk \
     ci/tool-versions.env scripts/ci/check-make-execution.sh; do
     cp -p "$input" "$consumer/$input"
@@ -37,7 +39,7 @@ export PATH="$fixture/bin:$PATH"
 # recipes, includes, execution admission and Bash-to-Cargo descriptor handoff.
 for script in dev/testkit-tools.sh dev/msrv-tools.sh dev/check-msrv.sh \
     dev/test-qualification.sh dev/client-contracts.sh dev/test-client.sh \
-    ci/check-auth-boundaries.sh ci/read-cargo-workspace-version.sh \
+    ci/check-auth-boundaries.sh ci/check-dependency-pins.sh ci/read-cargo-workspace-version.sh \
     release/publish.sh release/metadata.sh release/test-tools.sh; do
     cat > "$consumer/scripts/$script" <<'SCRIPT'
 #!/usr/bin/env bash
@@ -56,7 +58,7 @@ if make --help | rg -q -- --jobserver-style; then
 fi
 targets=(fetch metadata test-types test-protocol test-signatures test-signature-store \
     test-tokens test-sessions check-wasm clippy build-qualification-canister \
-    test-qualification test-host-tooling check-boundaries check-msrv \
+    test-qualification test-host-tooling check-boundaries check-dependency-pins check-msrv \
     install-testkit-tools testkit-tools-check msrv-tools-check \
     generate-client-contracts check-client-contracts test-client publish-dry-run publish test-release-tools \
     release-version release-preflight release-prepare-version release-prepared-check release-files \
@@ -70,7 +72,7 @@ done
 # Recursive marking must never make unsafe modes execute these effects, even
 # when callers erase MAKEFLAGS. The shared independent guard stays authoritative.
 for mode in -n -t -q -i; do
-    for target in fetch metadata install-testkit-tools generate-client-contracts publish test-release-tools release-prepare-version; do
+    for target in fetch metadata check-dependency-pins install-testkit-tools generate-client-contracts publish test-release-tools release-prepare-version; do
         : > "$AUTH_JOBSERVER_LOG"
         status=0
         (cd "$consumer"; make "$mode" --no-print-directory "$target" MAKEFLAGS=) \

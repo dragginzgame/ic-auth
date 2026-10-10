@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.3.2]
+
+- Preserve jobserver descriptors during dependency-pin validation, completing
+  the owned Cargo-wrapper repair.
+  [#17](https://github.com/dragginzgame/ic-auth/issues/17).
+- Adopt Shared Tooling 0.3.2's jobserver handoff and explicit fixture-completion
+  checks, preserving unsafe-mode refusal and failed evidence on Bash 3.2.
+  [Shared #99](https://github.com/dragginzgame/shared-tooling/issues/99),
+  [Shared #103](https://github.com/dragginzgame/shared-tooling/issues/103).
+- Qualify Testkit 0.32 and a single Host 0.12.2 dependency graph for native
+  canister tests, removing duplicate Host 0.11 selections. Authentication APIs,
+  signed bytes and stored formats are unchanged.
+
 ## [0.3.1] - 2026-10-10
 
 - Preserve Make's shared job budget at IC Auth-owned Cargo and release entry

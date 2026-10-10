@@ -16,9 +16,9 @@ transactions and recovery obligations.
 
 ## Published dependency and feature selection
 
-Both `ic-auth` and `ic-auth-protocol-types` 0.3.0 are published and unyanked.
+Both `ic-auth` and `ic-auth-protocol-types` 0.3.1 are published and unyanked.
 Their registry checksums match IC Auth release
-`6141442bdc7699fa697c9da69ef3299ce9b66a6e`. Rust 1.88 is the supported minimum.
+`7ee9aa2a6f6fb19e94da096ce4149ff05c256476`. Rust 1.88 is the supported minimum.
 For adoption of this release, select compatible registry requirements in Canic's
 root catalog and record the resolved versions in its own lockfiles:
 
@@ -33,8 +33,8 @@ existing capability features forward only the needed library features. This is
 the recommended published selection. The read-only review below distinguishes Canic's
 in-progress source adoption from consumer qualification.
 
-Release 0.3.0 changes developer setup; its authentication APIs and signed bytes
-are unchanged from 0.2.11. Canic's changing root manifest and lock now select
+Releases 0.3.0 and 0.3.1 change developer tooling; their authentication APIs and
+signed bytes are unchanged from 0.2.11. Canic's changing root manifest and lock select
 0.3/0.3.0 in the read-only review below; selected versions alone do not establish
 runtime adoption or removal of duplicated implementations.
 
