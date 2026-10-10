@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.3.1]
+## [0.3.1] - 2026-10-10
 
 - Preserve Make's shared job budget at IC Auth-owned Cargo and release entry
   points, removing closed-descriptor warnings during parallel execution while
