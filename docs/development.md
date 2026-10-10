@@ -2,8 +2,8 @@
 
 The virtual root owns two libraries, unpublished native tooling in `apps/tooling/`
 and the internal host/runner in `apps/qualification/`, plus dependency selections,
-lints and one lockfile. The current manifest version is `0.2.9`, tagged as
-`v0.2.9`; both libraries are published on crates.io.
+lints and one lockfile. The current manifest version is `0.2.11`, tagged as
+`v0.2.11`; both libraries are published on crates.io.
 Rust `1.99.0` remains the development compiler selected by `rust-toolchain.toml`.
 The common package minimum is Rust `1.88.0`, inherited from the root catalog and
 qualified by explicit older-compiler checks. See [MSRV coverage](msrv.md).
@@ -35,10 +35,15 @@ The first command prepares the toolchain, rustfmt, Clippy and Wasm target select
 by the toolchain file. Common system prerequisites, exact executable pins and
 installation behavior are described in the shared [local setup](local-setup.md).
 The Makefile includes reviewed `make/tools.mk`, `make/release.mk` and
-`make/rust-format.mk`. It adds the shared Rust tool
-set, the locked Testkit CLI/server and the declared minimum compiler/Wasm target
-to aggregate setup/check commands. `make install-msrv` prepares the minimum compiler alone (and its host
-tool prerequisites); `make msrv-tools-check` inspects its prepared versions.
+`make/rust-format.mk`. Shared Tooling 0.3.0 runs the complete host, IC and Rust
+toolsets in order. IC Auth adds its minimum compiler/Wasm target, then locked
+Testkit CLI/server through `LOCAL_TOOL_INSTALL_TARGETS` and
+`LOCAL_TOOL_CHECK_TARGETS`. These ordered extensions stop on failure even under
+parallel Make. Direct host-installer callers remove `--with-ripgrep`/`--with-cloc`;
+all four host tools are required. Explicit setup reuses matching installations
+and retains earlier bundles and build evidence. `make install-msrv` prepares the
+minimum compiler alone (and its host tool prerequisites);
+`make msrv-tools-check` inspects its prepared versions.
 Installation is explicit; checks run
 offline. `fetch` prepares the selected lockfile without changing it.
 Shared includes own standard release dispatch and single-workspace formatting;
@@ -106,12 +111,14 @@ is retained under `target/browser-client/`.
 | `make test-tools-evidence` | Actual setup/check caller failure status and adopted collector archive bytes, with Cargo installation substituted |
 | `make test-testkit-tools` | Locked CLI selection, setup/check failures and selection changes, qualification path and actual CI evidence archive with substituted effects |
 
-`make ci` is the complete configured gate, reserved for explicit requests and CI.
+`make ci` is the complete configured gate for delivery and CI; focused development
+uses the individual checks above.
 It uses the shared validation logger and retains failures. The workflow prepares
 tools and caches first, then calls that same gate. The public remote is
 [dragginzgame/ic-auth](https://github.com/dragginzgame/ic-auth), and `main` contains
-the current release. This batch has focused local evidence only; remote CI is
-not inferred from it. Dependency pinning requires each lockfile and the npm root manifest to be tracked.
+the current release. Local and hosted evidence for the current batch is recorded
+in the [handoff](status/current.md). Dependency pinning requires each lockfile and
+the npm root manifest to be tracked.
 Cargo tests, metadata and Wasm checks run offline after `fetch`. The publication
 dry run deliberately accesses registry metadata: the selected Cargo's offline
 multi-package check fails when a staged dependency has no resolved checksum.
@@ -178,9 +185,9 @@ It does not qualify browser/wallet login or a durable session backend.
 ## Releases and publication
 
 ```sh
-make release-patch                 # compatible work: 0.2.10 -> 0.2.11
-make release-minor                 # breaking pre-1.0 contract: 0.2.10 -> 0.3.0
-make release-major                 # explicit major decision: 0.2.10 -> 1.0.0
+make release-patch                 # compatible work: 0.2.11 -> 0.2.12
+make release-minor                 # current breaking tooling draft: 0.2.11 -> 0.3.0
+make release-major                 # explicit major decision: 0.2.11 -> 1.0.0
 make release-resume VERSION=X.Y.Z   # reconcile the exact saved attempt
 make publish-dry-run               # validate packages without upload
 make publish                       # upload a clean, delivered tagged release
@@ -294,18 +301,22 @@ the utility uses
 `durable::write_with(path, options, producer)` with explicit create/replace modes
 and owner-only permissions. Publication errors retain their typed before/after
 state through the utility's error boundary, with secondary staging cleanup
-failures included in diagnostics. IC Testkit 0.29.0 now requires Host 0.11;
+failures included in diagnostics. IC Testkit 0.30.0 requires Host 0.11;
 the lock selects all four Host packages at 0.11.0 and removes the older graph.
 The qualification runner reads Wasm through the root-selected filesystem helper
 directly and obtains runtime types through Testkit. Testkit owns adoption of
 Host's breaking process API; Auth has no direct caller or compatibility shim.
 Directory-suffixed publication targets are refused before creating parents or
 replacing a stripped filename; the native utility uses that upstream guard.
-Run `make install-testkit-tools` to prepare the selected 0.29.0 CLI, then
+Run `make install-testkit-tools` to prepare the selected 0.30.0 CLI, then
 `make testkit-tools-check` for offline admission of its unchanged 16.1.0 server.
 Prior versioned CLI installations remain retained. Native Host dependencies
 remain outside both protocol libraries. See the owner adoption in
 [Testkit #47](https://github.com/dragginzgame/ic-testkit/issues/47).
+Testkit 0.30 bounds retained Cargo failure output and requires complete bounded
+identity/workspace/metadata probes; successful identities and installation receipts
+are unchanged. No Auth caller uses those process APIs directly. See
+[Testkit #49](https://github.com/dragginzgame/ic-testkit/issues/49).
 
 Receipt reconciliation uses the adopted portable checksum helper, because an
 interrupted preparation can temporarily leave incompatible manifest/lock versions

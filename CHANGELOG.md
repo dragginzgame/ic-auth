@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.3.0]
+
+### Breaking
+
+- Adopt Shared Tooling 0.3.0's complete toolset and ordered setup/check contract.
+  Host setup always includes jq, yq, ripgrep and cloc; direct installer callers
+  must remove `--with-ripgrep`/`--with-cloc`. Common host, IC and Rust tools run
+  before the minimum compiler and selected Testkit CLI/server, stopping on
+  failure even under parallel Make. Run explicit `make install-tools`, then
+  `make tools-check`; existing matching installations and evidence are retained.
+  Authentication APIs, signed bytes and stored formats are unchanged.
+  [#11](https://github.com/dragginzgame/ic-auth/issues/11),
+  [Shared #98](https://github.com/dragginzgame/shared-tooling/issues/98).
+
+### Changed
+
+- Qualify the incoming Testkit 0.30 selection for native canister tests, keeping
+  its bounded build diagnostics and complete identity/metadata probes owned by
+  Testkit. [Testkit #49](https://github.com/dragginzgame/ic-testkit/issues/49).
+
 ## [0.2.11] - 2026-10-10
 
 - Add bounded chain-key Merkle batch construction so Canic can retire its local

@@ -1,8 +1,8 @@
 # Chain-key Merkle batch construction
 
-The working library adds `ic_auth::chain_key_batch::merkle_root_and_witnesses`
-for pending **0.2.11**, tracked in [#15](https://github.com/dragginzgame/ic-auth/issues/15).
-It is not part of published 0.2.10. The constructor needs no optional feature,
+Published **0.2.11** includes `ic_auth::chain_key_batch::merkle_root_and_witnesses`,
+tracked in [#15](https://github.com/dragginzgame/ic-auth/issues/15).
+The constructor needs no optional feature,
 runtime, signing key, host tool or storage backend.
 
 Pass ordered canonical certificate hashes and a protected maximum leaf count.

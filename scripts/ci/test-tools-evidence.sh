@@ -19,8 +19,17 @@ for input in Makefile make/tools.mk make/release.mk make/rust-format.mk make/exe
     scripts/dev/ci-tools.sh scripts/dev/install-rust-tools.sh; do
     cp -p "$input" "$consumer/$input"
 done
-# Substitute only Cargo's install effect. Wrapper, aggregate and installer are
-# the actual selected sources, including their original statuses.
+# Admit the earlier common sets without provisioning them in this failure
+# fixture. Keep the actual aggregate, Rust installer and collector, so the
+# injected later failure cannot dispatch product setup/check or lose evidence.
+cat >> "$consumer/Makefile" <<'MAKE'
+
+install-host-tools install-ic-tools host-tools-check ic-tools-check:
+	@:
+install-msrv install-testkit-tools msrv-tools-check testkit-tools-check:
+	@printf 'unexpected product dispatch\n' >> target/product-dispatch.log
+	@exit 99
+MAKE
 cat > "$fixture/bin/cargo" <<'SCRIPT'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -43,6 +52,7 @@ done
 grep -F 'injected Cargo installation failure (23)' "$consumer/target/rust-tools-install.log" > /dev/null
 grep -F 'missing or mismatched cargo-sort' "$consumer/target/rust-tools-check.log" > /dev/null
 [[ "$(cat "$consumer/.tools/rust/build/dispatches.txt")" == dispatch ]]
+[[ ! -e "$consumer/target/product-dispatch.log" ]]
 # Logging failure cannot mask a rejected aggregate, or turn a successful one
 # into an unrecorded success. Keep these extra runs outside the retained oracle.
 cp -R "$consumer" "$fixture/log-errors"

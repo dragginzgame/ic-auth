@@ -100,8 +100,11 @@ for input in Makefile make/tools.mk make/release.mk make/rust-format.mk make/exe
 done
 cat >> "$consumer/Makefile" <<'MAKE'
 
-host-tools-check ic-tools-check rust-tools-check msrv-tools-check:
-	@:
+install-host-tools install-ic-tools install-rust-tools install-msrv host-tools-check ic-tools-check rust-tools-check:
+	@printf '%s\n' '$@' >> "$(TESTKIT_FIXTURE_LOG)"
+msrv-tools-check:
+	@printf '%s\n' '$@' >> "$(TESTKIT_FIXTURE_LOG)"
+	@exit "$${TESTKIT_FIXTURE_MSRV_STATUS:-0}"
 check-snapshot:
 	@printf 'snapshot check\n' >> "$(TESTKIT_FIXTURE_LOG)"
 MAKE
@@ -113,15 +116,35 @@ for target in test-qualification ci; do
     [[ "$status" == 2 && ! -e "$consumer/cargo-dispatch.log" ]]
     [[ "$(tail -n 1 "$TESTKIT_FIXTURE_LOG")" == 'cli check' ]]
     rg -F 'make install-testkit-tools' "$fixture/early-$target.log" > /dev/null
+    if [[ "$target" == ci ]]; then
+        printf '%s\n' 'snapshot check' host-tools-check ic-tools-check rust-tools-check \
+            msrv-tools-check 'cli check' > "$fixture/expected-early.log"
+        cmp "$fixture/expected-early.log" "$TESTKIT_FIXTURE_LOG"
+    fi
 done
 
-# Only explicit preparation dispatches CLI installation and server setup.
-"$BASH" "$consumer/scripts/dev/testkit-tools.sh" install > "$fixture/setup.stdout"
-[[ "$(cat "$fixture/setup.stdout")" == "$TESTKIT_FIXTURE_SERVER" ]]
-[[ "$(tail -n 2 "$TESTKIT_FIXTURE_LOG")" == $'cli install\nserver setup' ]]
-"$BASH" "$consumer/scripts/dev/testkit-tools.sh" check > "$fixture/check.stdout"
-cmp "$fixture/setup.stdout" "$fixture/check.stdout"
-[[ "$(tail -n 2 "$TESTKIT_FIXTURE_LOG")" == $'cli check\nserver check' ]]
+# Real consumer aggregates retain common/product ordering under parallel Make.
+# Only explicit setup dispatches the selected CLI installer and server setup;
+# individual product setup targets still admit their host prerequisite.
+: > "$TESTKIT_FIXTURE_LOG"
+(cd "$consumer"; make --no-print-directory -j4 install-tools) > "$fixture/setup.log" 2>&1
+printf '%s\n' install-host-tools install-ic-tools install-rust-tools \
+    install-host-tools install-msrv install-host-tools 'cli install' 'server setup' > "$fixture/expected-setup.log"
+cmp "$fixture/expected-setup.log" "$TESTKIT_FIXTURE_LOG"
+: > "$TESTKIT_FIXTURE_LOG"
+(cd "$consumer"; make --no-print-directory -j4 tools-check) > "$fixture/check.log" 2>&1
+printf '%s\n' host-tools-check ic-tools-check rust-tools-check msrv-tools-check \
+    'cli check' 'server check' > "$fixture/expected-check.log"
+cmp "$fixture/expected-check.log" "$TESTKIT_FIXTURE_LOG"
+
+# Missing minimum compiler refuses before Testkit, without installation.
+: > "$TESTKIT_FIXTURE_LOG"
+status=0
+(cd "$consumer"; TESTKIT_FIXTURE_MSRV_STATUS=31 make --no-print-directory -j4 tools-check) \
+    > "$fixture/missing-msrv.log" 2>&1 || status=$?
+[[ "$status" == 2 ]]
+printf '%s\n' host-tools-check ic-tools-check rust-tools-check msrv-tools-check > "$fixture/expected-msrv.log"
+cmp "$fixture/expected-msrv.log" "$TESTKIT_FIXTURE_LOG"
 
 # Original setup/installation/admission failures cannot report an identity.
 for phase in install check; do

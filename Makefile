@@ -1,6 +1,9 @@
 .DEFAULT_GOAL := help
 
 include ci/tool-versions.env
+# Extend the shared ordered aggregates after host, IC and Rust admission.
+LOCAL_TOOL_INSTALL_TARGETS := install-msrv install-testkit-tools
+LOCAL_TOOL_CHECK_TARGETS := msrv-tools-check testkit-tools-check
 include make/tools.mk
 include make/release.mk
 include make/rust-format.mk
@@ -32,9 +35,6 @@ help:
 	@echo 'Complete CI gate (explicit only): ci'
 	@echo 'Releases: release-patch, release-minor, release-major; recovery: release-resume VERSION=X.Y.Z'
 	@echo 'Crates.io: publish; local checks without upload: publish-dry-run, test-release-tools'
-
-install-tools: install-rust-tools install-msrv install-testkit-tools
-tools-check: rust-tools-check msrv-tools-check testkit-tools-check
 
 install-testkit-tools: install-host-tools
 	bash scripts/dev/testkit-tools.sh install

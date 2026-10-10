@@ -3,9 +3,9 @@
 The maintainer accepted the larger Canic authentication extraction, selected the
 name `ic-auth`, and confirmed `/home/adam/projects/ic-auth` as the local repository.
 
-The current committed release is `29cf578acc2045447fe1856f85d8974ab51ac6ab`
-(`0.2.10`) on `main`, with annotated tag `v0.2.10`; both remote identities were
-verified during continuation. Both libraries' `0.2.10` registry checksums match
+The current committed release is `17e4103d1a9f2315e7a81bca3f99b7793566a6d5`
+(`0.2.11`) on `main`, with annotated tag `v0.2.11`; both remote identities were
+verified during continuation. Both libraries' `0.2.11` registry checksums match
 the retained publication intent for that exact source/tag. The maintainer
 executed the release and publication. The original bootstrap was
 `7a03102e52b7a400588530997a9f7fb91c83de9d` (`0.1.0`).
@@ -22,7 +22,7 @@ records this batch without closing the larger extraction.
 
 The virtual Rust workspace contains `ic-auth-protocol-types`, `ic-auth` and the
 unpublished native application in `apps/tooling/`, with one lockfile, root-owned
-dependency selections and current manifest version `0.2.10`.
+dependency selections and current manifest version `0.2.11`.
 The passive token/proof contracts and canonical encoding are adapted from the
 clean Canic source at `e286b3fd98460c98670336853f80658a920966e0`; see the
 [source review](../design/canic-source-review.md) for exact ownership and API
@@ -40,7 +40,61 @@ has recorded focused standalone-proof adapter qualification; complete-token,
 durable-session and deployed acceptance remain separate. No sibling repository
 was modified by IC Auth work.
 
-## Current Canic batch-construction extraction (pending 0.2.11)
+## Current Shared Tooling adoption (pending 0.3.0)
+
+The maintainer confirmed 0.2.11 live. Remote main and peeled tag match the source
+above; annotated tag `45c644dc752c66ffb4db3e3765a95c0459e8b765` and both unyanked
+registry checksums match retained publication intent. The bounded Merkle batch
+constructor is now available for Canic adoption; current consumer requirements
+are in [the adoption contract](../canic-adoption.md) and Canic #491.
+Exact-release [CI](https://github.com/dragginzgame/ic-auth/actions/runs/38043906989)
+is queued at inspection; the pending adoption has no hosted result of its own.
+
+Shared Tooling 0.3.0 `88a73139a0f083344c41a6f6f4b5c3a8aca7dc1d` is exported from
+an isolated clean committed checkout, excluding sibling edits. All 83 selected
+files retain canonical bytes and modes. The new common aggregate owns host → IC
+→ Rust ordering; IC Auth selects minimum compiler → locked Testkit as its ordered
+product extensions. Direct host installation always requires all four tools;
+optional ripgrep/cloc flags are removed. Existing installation layouts and
+receipts are retained. The early CI and standalone qualification admission
+boundaries remain intact. Actual caller fixtures substitute earlier prepared
+sets and installation effects, preserving the adopted aggregate and collector.
+They check parallel ordering, missing-compiler/CLI refusal before dispatch and
+Rust failure evidence without product effects. They pass on Bash 5 and genuine
+Bash 3.2, alongside upstream common-command and four-host installer fixtures.
+Shared exact-source [CI](https://github.com/dragginzgame/shared-tooling/actions/runs/38044218125)
+is queued at inspection; local fixtures do not prove native macOS acceptance.
+
+The incoming root Testkit 0.30 requirement and matching lock edit are preserved.
+Published 0.30.0 at `6ac161b8ed689012bf8b0ce926946f94ea9f407d` has matching official
+sparse-registry checksum and is unyanked. It bounds retained build diagnostics
+and requires complete bounded identity/metadata probes; successful cache framing
+and server selection are unchanged. It remains outside both libraries, selecting
+the same four Host 0.11.0 packages. Explicit `make install-tools` prepares the
+selected CLI/server through the new aggregate; offline admission is checked
+separately. No direct process caller or compatibility path is introduced here.
+
+Focused evidence is retained in `target/shared-0.3-adoption/`; complete **`make ci`
+passes on Linux**, including isolated native/Wasm package MSRV, every library
+and browser case, both real certification/upgrade/fresh-key signed-ingress
+scenarios, Wasm, Clippy, package dry runs and release/recovery/evidence fixtures.
+`ci.log` retains the complete result. Gate inputs are retained in
+`qualified-inputs.diff`, SHA-256
+`a56241c425141a7925d2a3918a6bd1f1ec273996a65af6d360ffd888fedb3010`;
+those inputs remained unchanged throughout the gate. Only this prose outcome
+is updated afterward. Matching native macOS consumer qualification remains
+pending. The selected draft is **0.3.0** because the adopted installer CLI removes
+flags and aggregate execution semantics change.
+Authentication APIs, signed bytes and retained formats are unchanged. Package
+versions remain 0.2.11; this continuation does not commit, push, publish or edit
+sibling repositories. Owning adoption trackers remain
+[Auth #11](https://github.com/dragginzgame/ic-auth/issues/11) and
+[Shared #98](https://github.com/dragginzgame/shared-tooling/issues/98).
+
+## Earlier Canic batch-construction extraction (0.2.11, released)
+
+The following records implementation and qualification before maintainer delivery.
+Pending-source and CI observations below are historical.
 
 The maintainer confirmed 0.2.10 live. Remote main and peeled tag match the source
 above; annotated tag `8fa4da48ca6e6be03bcabb72f6d40f5f1b876805` and both unyanked

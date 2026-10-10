@@ -16,16 +16,16 @@ transactions and recovery obligations.
 
 ## Published dependency and feature selection
 
-Both `ic-auth` and `ic-auth-protocol-types` 0.2.10 are published and unyanked.
+Both `ic-auth` and `ic-auth-protocol-types` 0.2.11 are published and unyanked.
 Their registry checksums match IC Auth release
-`29cf578acc2045447fe1856f85d8974ab51ac6ab`. Rust 1.88 is the supported minimum.
+`17e4103d1a9f2315e7a81bca3f99b7793566a6d5`. Rust 1.88 is the supported minimum.
 For adoption of this release, select compatible registry requirements in Canic's
 root catalog and record the resolved versions in its own lockfiles:
 
 ```toml
 [workspace.dependencies]
-ic-auth = { version = "0.2.10", default-features = false }
-ic-auth-protocol-types = "0.2.10"
+ic-auth = { version = "0.2.11", default-features = false }
+ic-auth-protocol-types = "0.2.11"
 ```
 
 Child packages inherit these dependencies with `workspace = true`; their
@@ -169,16 +169,16 @@ adapter and publication boundary.
 
 ## Current Canic adapter boundary
 
-### Pending batch construction extraction
+### Published batch construction extraction
 
-Pending IC Auth **0.2.11** adds the pure, default-feature
+Published IC Auth **0.2.11** provides the pure, default-feature
 `chain_key_batch::merkle_root_and_witnesses(&leaf_hashes, max_leaves)` constructor;
-it is not in published 0.2.10. See the [batch contract](chain-key-batches.md) and
+see the [batch contract](chain-key-batches.md) and
 [Auth #15](https://github.com/dragginzgame/ic-auth/issues/15).
 The reviewed Canic helper matches committed
 `ac55e50334dd6479ec36f404e89e60bcfe9184d6`; the wider consumer tree is dirty.
 
-After that library release, the batch construction caller in
+The batch construction caller in
 `ops/auth/delegation/chain_key_batch/mod.rs` can pass its existing ordered leaf
 hashes and protected 64-issuer limit to the library. Preserve principal-byte
 sorting and duplicate issuer rejection before construction, then zip returned
@@ -187,8 +187,8 @@ Merkle construction machinery. Canic retains its authorized leaf records,
 batch identity/header policy, management signing, stable state and renewal.
 Retirement requires the consumer's actual builder/verifier, signed-byte and
 selected-feature tests; Auth's golden vector and real-signature tests alone do
-not qualify that adapter. This pending addition does not delay the already
-published complete-verifier adoption below.
+not qualify that adapter. Both batch construction and complete verification are
+available for consumer adoption now.
 
 ### Complete verifier adoption
 
