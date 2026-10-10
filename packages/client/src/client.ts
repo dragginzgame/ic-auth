@@ -274,6 +274,7 @@ export class TokenSessionClient {
           if (!equalBytes(claimsBytes(result.value.claims, maximum), claimsBytes(prepared.claims, maximum))) throw new ClientError('invalid_material');
           if (!await this.#call(() => store.write(key, owned.revision, { kind: 'ready', token: bytes }))) break;
           this.#assertSession(captured);
+          if (this.#now() >= deadline) throw new ClientError('retrieval_expired');
           return tokenFromBytes(bytes, maximum);
         }
         if (result.kind !== 'pending') return this.#failure(result, captured);

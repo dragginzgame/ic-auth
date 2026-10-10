@@ -267,6 +267,87 @@ test('storage completing just before expiry can reserve and finish issuance', as
   }
 });
 
+test('ready commits completing at or after retrieval expiry preserve material without returning it', async () => {
+  for (const lateBy of [0n, 1n]) {
+    const h = harness();
+    const deadline = h.state.now + second;
+    const started = deferred<{ key: string; saved: Awaited<ReturnType<typeof h.store.read>> }>();
+    const finish = deferred<void>();
+    const options = { ...h.options, store: {
+      read: (key: string) => h.store.read(key),
+      write: async (key: string, revision: bigint, entry: Parameters<typeof h.store.write>[2]) => {
+        const committed = await h.store.write(key, revision, entry);
+        if (entry?.kind === 'ready' && committed) {
+          started.resolve({ key, saved: await h.store.read(key) });
+          await finish.promise;
+        }
+        return committed;
+      },
+    } };
+    const client = new TokenSessionClient(options);
+    const first = client.token(h.configured); const shared = client.token(h.configured);
+    const { key, saved } = await started.promise;
+    assert.equal(saved.entry?.kind, 'ready');
+    h.state.now = deadline + lateBy;
+    finish.resolve();
+    await Promise.all([
+      assert.rejects(first, error('retrieval_expired')),
+      assert.rejects(shared, error('retrieval_expired')),
+    ]);
+    assert.deepEqual(await h.store.read(key), saved);
+    assert.equal(h.state.prepares, 1); assert.equal(h.state.retrieves, 1);
+    assert.equal(h.state.ids, 1); assert.equal(h.state.reconciles, 0);
+    assert.deepEqual(h.sessions.invalidations, []);
+
+    // Expiry of retrieval does not revoke a completed token's longer validity.
+    const cached = await new TokenSessionClient(options).token(h.configured);
+    assert.deepEqual(cached.claims, h.issued.get('login-1')!.claims);
+    assert.equal(h.state.prepares, 1); assert.equal(h.state.retrieves, 1);
+    assert.equal(h.state.ids, 1);
+    assert.deepEqual(await h.store.read(key), saved);
+  }
+});
+
+test('ready commits just before retrieval expiry can return completed material', async () => {
+  const h = harness(); const deadline = h.state.now + second;
+  const client = new TokenSessionClient({ ...h.options, store: {
+    read: key => h.store.read(key),
+    write: async (key, revision, entry) => {
+      const committed = await h.store.write(key, revision, entry);
+      if (entry?.kind === 'ready' && committed) h.state.now = deadline - 1n;
+      return committed;
+    },
+  } });
+  const token = await client.token(h.configured);
+  assert.deepEqual(token.claims, h.issued.get('login-1')!.claims);
+  assert.equal(h.state.prepares, 1); assert.equal(h.state.retrieves, 1);
+  assert.equal(h.state.ids, 1);
+});
+
+test('obsolete generation takes precedence over expiry after a ready commit', async () => {
+  const h = harness(); const deadline = h.state.now + second;
+  let key: string | undefined;
+  let saved: Awaited<ReturnType<typeof h.store.read>> | undefined;
+  const client = new TokenSessionClient({ ...h.options, store: {
+    read: value => h.store.read(value),
+    write: async (value, revision, entry) => {
+      const committed = await h.store.write(value, revision, entry);
+      if (entry?.kind === 'ready' && committed) {
+        key = value; saved = await h.store.read(value);
+        h.sessions.value = { generation: 'login-2', identity: principal(2) };
+        h.state.now = deadline;
+      }
+      return committed;
+    },
+  } });
+  await assert.rejects(client.token(h.configured), error('stale_generation'));
+  assert.ok(key && saved);
+  assert.deepEqual(await h.store.read(key), saved);
+  assert.equal(h.state.prepares, 1); assert.equal(h.state.retrieves, 1);
+  assert.deepEqual(h.sessions.invalidations, []);
+  assert.equal(h.sessions.current()?.generation, 'login-2');
+});
+
 test('lost retrieval reply reuses prepared material without allocating another prepare', async () => {
   const h = harness(); const base = h.options.issuer; let lost = true;
   const client = new TokenSessionClient({ ...h.options, issuer: (session, fixed) => {

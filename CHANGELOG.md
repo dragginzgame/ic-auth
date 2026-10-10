@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.2.8]
+
+- Refuse browser retrieval completion when ready-token storage finishes at or
+  after the original deadline, retaining committed material for subsequent
+  valid cache lookup. [#3](https://github.com/dragginzgame/ic-auth/issues/3).
+- Adopt Host 0.10.1's filesystem publication API and parent durability fix,
+  preserving private create-only intent. Testkit 0.28.0 unifies the Host graph;
+  prepare its selected CLI with `make install-testkit-tools`.
+  [Host #43](https://github.com/dragginzgame/ic-host-tooling/issues/43),
+  [Testkit #44](https://github.com/dragginzgame/ic-testkit/issues/44).
+
 ## [0.2.7] - 2026-10-09
 
 - Refuse fresh browser-client request IDs and intent reservations after storage

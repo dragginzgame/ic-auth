@@ -2,8 +2,8 @@
 
 The virtual root owns two libraries, unpublished native tooling in `apps/tooling/`
 and the internal host/runner in `apps/qualification/`, plus dependency selections,
-lints and one lockfile. The current manifest version is `0.2.6`, tagged as
-`v0.2.6`; both libraries are published on crates.io.
+lints and one lockfile. The current manifest version is `0.2.7`, tagged as
+`v0.2.7`; both libraries are published on crates.io.
 Rust `1.99.0` remains the development compiler selected by `rust-toolchain.toml`.
 The common package minimum is Rust `1.88.0`, inherited from the root catalog and
 qualified by explicit older-compiler checks. See [MSRV coverage](msrv.md).
@@ -176,9 +176,9 @@ It does not qualify browser/wallet login or a durable session backend.
 ## Releases and publication
 
 ```sh
-make release-patch                 # compatible work: 0.2.6 -> 0.2.7
-make release-minor                 # breaking pre-1.0 contract: 0.2.6 -> 0.3.0
-make release-major                 # explicit major decision: 0.2.6 -> 1.0.0
+make release-patch                 # compatible work: 0.2.7 -> 0.2.8
+make release-minor                 # breaking pre-1.0 contract: 0.2.7 -> 0.3.0
+make release-major                 # explicit major decision: 0.2.7 -> 1.0.0
 make release-resume VERSION=X.Y.Z   # reconcile the exact saved attempt
 make publish-dry-run               # validate packages without upload
 make publish                       # upload a clean, delivered tagged release
@@ -267,6 +267,17 @@ private-file publication use `ic-host-fs`. The caller supplies finite byte limit
 64 KiB for publication intent and 1 KiB for dispatch markers. These are local
 tooling limits, not authentication protocol limits. The publication lock and
 registry uncertainty policy remain owned by the release/publication scripts.
+
+The native utility selects published `ic-host-fs` 0.10 and uses
+`durable::write_with(path, options, producer)` with explicit create/replace modes
+and owner-only permissions. Publication errors retain their typed before/after
+state through the utility's error boundary. IC Testkit 0.28.0 also requires Host
+0.10; the lock selects all four Host packages at 0.10.1 with no older Host graph.
+Run `make install-testkit-tools` to prepare the selected 0.28.0 CLI, then
+`make testkit-tools-check` for offline admission of its unchanged 16.1.0 server.
+Prior versioned CLI installations remain retained. Native Host dependencies
+remain outside both protocol libraries. See the owner adoption in
+[Testkit #44](https://github.com/dragginzgame/ic-testkit/issues/44).
 
 Receipt reconciliation uses the adopted portable checksum helper, because an
 interrupted preparation can temporarily leave incompatible manifest/lock versions

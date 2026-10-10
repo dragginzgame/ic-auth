@@ -16,16 +16,16 @@ transactions and recovery obligations.
 
 ## Published dependency and feature selection
 
-Both `ic-auth` and `ic-auth-protocol-types` 0.2.6 are published and unyanked.
+Both `ic-auth` and `ic-auth-protocol-types` 0.2.7 are published and unyanked.
 Their registry checksums match IC Auth release
-`9bdfe5d843d63d90ab17582525881330942ceeb5`. Rust 1.88 is the supported minimum.
+`2d4abad9038e9dd904844ce1d4c970ed2919af3a`. Rust 1.88 is the supported minimum.
 For adoption of this release, select compatible registry requirements in Canic's
 root catalog and record the resolved versions in its own lockfiles:
 
 ```toml
 [workspace.dependencies]
-ic-auth = { version = "0.2.6", default-features = false }
-ic-auth-protocol-types = "0.2.6"
+ic-auth = { version = "0.2.7", default-features = false }
+ic-auth-protocol-types = "0.2.7"
 ```
 
 Child packages inherit these dependencies with `workspace = true`; their

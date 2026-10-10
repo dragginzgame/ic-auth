@@ -2,7 +2,7 @@
 //! Callers own parent paths, locking, artifact limits and effect reconciliation.
 
 use ic_host_fs::{
-    durable::{PublicationMode, WriteOptions, write_typed_with},
+    durable::{PublicationMode, WriteOptions, write_with},
     read::{hash_file_no_follow, read_file_no_follow},
 };
 use std::{env, error::Error, ffi::OsString, io::Write, path::Path};
@@ -29,7 +29,7 @@ fn run(arguments: &[OsString]) -> Result<(), Box<dyn Error>> {
             } else {
                 PublicationMode::Replace
             };
-            write_typed_with(
+            write_with(
                 Path::new(&arguments[2]),
                 WriteOptions {
                     mode,

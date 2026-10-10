@@ -92,6 +92,13 @@ Replies one nanosecond before the deadline remain eligible for normal processing
 retrieval independently enforces the same cutoff. Session-generation checks
 still run first, so a reply to an obsolete login remains `stale_generation`.
 
+Retrieval checks that deadline again after the ready-token storage commit,
+before returning completed material to any callers sharing the flight. A commit
+finishing at or after expiry returns `retrieval_expired` and retains its bytes
+and revision. A subsequent cache lookup may use the completed token while its
+claims remain valid; it does not replay issuance or retrieval. The session
+generation check still precedes expiry refusal.
+
 A typed `sessionInvalid` result atomically invalidates only the generation seen
 by that request. Generation/principal checks also reject late replies after
 logout, reconnect or a cross-tab login change as `stale_generation`. Applications
