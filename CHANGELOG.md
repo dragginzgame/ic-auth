@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.2.9]
+## [0.2.9] - 2026-10-10
 
 - Adopt Shared Tooling 0.2.10 with concise formatting output and retained
   failure logs; authenticate exact current-run CI artifact readback.
