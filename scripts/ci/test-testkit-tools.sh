@@ -25,6 +25,7 @@ export TESTKIT_FIXTURE_CLI="$fixture/ic-testkit-server"
 export TESTKIT_FIXTURE_SERVER="$fixture/admitted server"
 export TESTKIT_FIXTURE_READY="$fixture/cli-ready"
 export TESTKIT_FIXTURE_CONSUMER="$consumer"
+export TESTKIT_FIXTURE_LOCK="$fixture/selected.lock"
 export PATH="$root/.tools/host/bin:$fixture/bin:$PATH"
 printf 'synthetic server bytes\n' > "$TESTKIT_FIXTURE_SERVER"
 cat > "$consumer/scripts/dev/install-rust-tools.sh" <<'SCRIPT'
@@ -35,15 +36,26 @@ if [[ $# == 5 && "$1" == --consumer && "$2" == "$TESTKIT_FIXTURE_CONSUMER" &&
     printf 'rust preflight\n' >> "$TESTKIT_FIXTURE_LOG"
     exit "${TESTKIT_FIXTURE_RUST_PREFLIGHT_STATUS:-0}"
 fi
-[[ $# == 10 || $# == 11 ]]
+[[ $# == 10 || $# == 11 ]] || exit 1
 [[ "$1" == --consumer && "$2" == "$TESTKIT_FIXTURE_CONSUMER" &&
-   "$3" == --package && "$4" == ic-testkit && "$5" == --version &&
-   "$6" == 0.25.5 && "$7" == --bin && "$8" == ic-testkit-server &&
-   "$9" == --profile && "${10}" == debug ]]
+   "$3" == --package && "$4" == ic-testkit && "$5" == --lockfile &&
+   "$6" == Cargo.lock && "$7" == --bin && "$8" == ic-testkit-server &&
+   "$9" == --profile && "${10}" == debug ]] || exit 1
 if [[ $# == 11 ]]; then
-    [[ "${11}" == --check ]]
+    [[ "${11}" == --check ]] || exit 1
     printf 'cli check\n' >> "$TESTKIT_FIXTURE_LOG"
-    [[ -f "$TESTKIT_FIXTURE_READY" ]] || exit 27
+    if ! cmp -s "$TESTKIT_FIXTURE_LOCK" "$TESTKIT_FIXTURE_CONSUMER/Cargo.lock"; then
+        if [[ "${TESTKIT_FIXTURE_CHANGED_CLI_READY:-0}" == 1 ]]; then
+            printf '%s-next\n' "$TESTKIT_FIXTURE_CLI"
+            exit 0
+        fi
+        echo 'missing selected Cargo tool: package=ic-testkit version=0.26.0 target=bin:ic-testkit-server profile=debug' >&2
+        exit 27
+    fi
+    [[ -f "$TESTKIT_FIXTURE_READY" ]] || {
+        echo 'missing selected Cargo tool: package=ic-testkit version=0.25.5 target=bin:ic-testkit-server profile=debug' >&2
+        exit 27
+    }
 else
     printf 'cli install\n' >> "$TESTKIT_FIXTURE_LOG"
     [[ "${TESTKIT_FIXTURE_INSTALL_STATUS:-0}" == 0 ]] || exit "$TESTKIT_FIXTURE_INSTALL_STATUS"
@@ -55,14 +67,14 @@ cat > "$consumer/scripts/dev/install-ic-tools.sh" <<'SCRIPT'
 #!/usr/bin/env bash
 set -euo pipefail
 [[ $# == 5 && "$1" == --consumer && "$2" == "$TESTKIT_FIXTURE_CONSUMER" &&
-   "$3" == --pins && "$4" == "$TESTKIT_FIXTURE_CONSUMER/ci/ic-tools.tsv" && "$5" == --preflight ]]
+   "$3" == --pins && "$4" == "$TESTKIT_FIXTURE_CONSUMER/ci/ic-tools.tsv" && "$5" == --preflight ]] || exit 1
 printf 'ic preflight\n' >> "$TESTKIT_FIXTURE_LOG"
 exit "${TESTKIT_FIXTURE_IC_PREFLIGHT_STATUS:-0}"
 SCRIPT
 cat > "$TESTKIT_FIXTURE_CLI" <<'SCRIPT'
 #!/usr/bin/env bash
 set -euo pipefail
-[[ $# == 3 && "$2" == --directory && "$3" == "$TESTKIT_FIXTURE_CONSUMER/.tools/testkit-server" ]]
+[[ $# == 3 && "$2" == --directory && "$3" == "$TESTKIT_FIXTURE_CONSUMER/.tools/testkit-server" ]] || exit 1
 printf 'server %s\n' "$1" >> "$TESTKIT_FIXTURE_LOG"
 case "$1" in
     setup)
@@ -86,21 +98,22 @@ cat > "$fixture/bin/cargo" <<'SCRIPT'
 #!/usr/bin/env bash
 set -euo pipefail
 printf 'cargo dispatch %s\n' "$*" >> "$TESTKIT_FIXTURE_CONSUMER/cargo-dispatch.log"
-[[ "$POCKET_IC_BIN" == "$TESTKIT_FIXTURE_SERVER" ]]
-[[ "$IC_AUTH_QUALIFICATION_WASM" == "$TESTKIT_FIXTURE_CONSUMER/target/wasm32-unknown-unknown/release/ic_auth_qualification_canister.wasm" ]]
-[[ -d "$IC_AUTH_QUALIFICATION_STATE_ROOT" && "$TMPDIR" == "$IC_AUTH_QUALIFICATION_STATE_ROOT" ]]
-[[ "$*" == 'test --locked --offline -p ic-auth-qualification --test signatures -- --nocapture' ]]
+[[ "$POCKET_IC_BIN" == "$TESTKIT_FIXTURE_SERVER" ]] || exit 1
+[[ "$IC_AUTH_QUALIFICATION_WASM" == "$TESTKIT_FIXTURE_CONSUMER/target/wasm32-unknown-unknown/release/ic_auth_qualification_canister.wasm" ]] || exit 1
+[[ -d "$IC_AUTH_QUALIFICATION_STATE_ROOT" && "$TMPDIR" == "$IC_AUTH_QUALIFICATION_STATE_ROOT" ]] || exit 1
+[[ "$*" == 'test --locked --offline -p ic-auth-qualification --test signatures -- --nocapture' ]] || exit 1
 printf 'qualified admitted server\n' >> "$TESTKIT_FIXTURE_LOG"
 SCRIPT
 chmod +x "$TESTKIT_FIXTURE_CLI" "$fixture/bin/cargo"
+cp "$consumer/scripts/dev/install-rust-tools.sh" "$fixture/mock-installer.sh"
 ln -s "$BASH" "$fixture/bin/bash"
 
 # Missing selected CLI refuses even when an old shared executable is retained.
 status=0
 "$BASH" "$consumer/scripts/dev/testkit-tools.sh" check > "$fixture/missing.stdout" 2> "$fixture/missing.stderr" || status=$?
-[[ "$status" == 27 && ! -s "$fixture/missing.stdout" ]]
-[[ "$(cat "$TESTKIT_FIXTURE_LOG")" == 'cli check' ]]
-rg -q 'ic-testkit-server.*0[.]25[.]5' "$fixture/missing.stderr"
+[[ "$status" == 27 && ! -s "$fixture/missing.stdout" ]] || exit 1
+[[ "$(cat "$TESTKIT_FIXTURE_LOG")" == 'cli check' ]] || exit 1
+rg -q 'package=ic-testkit version=0[.]25[.]5 target=bin:ic-testkit-server' "$fixture/missing.stderr"
 rg -F 'make install-testkit-tools' "$fixture/missing.stderr" > /dev/null
 
 # Actual Make entry points refuse before Wasm compilation or any later CI lane,
@@ -126,8 +139,8 @@ for target in test-qualification ci; do
     status=0
     (cd "$consumer"; make --no-print-directory -j4 "$target") \
         > "$fixture/early-$target.log" 2>&1 || status=$?
-    [[ "$status" == 2 && ! -e "$consumer/cargo-dispatch.log" ]]
-    [[ "$(tail -n 1 "$TESTKIT_FIXTURE_LOG")" == 'cli check' ]]
+    [[ "$status" == 2 && ! -e "$consumer/cargo-dispatch.log" ]] || exit 1
+    [[ "$(tail -n 1 "$TESTKIT_FIXTURE_LOG")" == 'cli check' ]] || exit 1
     rg -F 'make install-testkit-tools' "$fixture/early-$target.log" > /dev/null
     if [[ "$target" == ci ]]; then
         printf '%s\n' 'snapshot check' host-tools-check ic-tools-check rust-tools-check \
@@ -151,18 +164,18 @@ for failed in ic rust; do
             > "$fixture/preflight-$failed.log" 2>&1 || status=$?
         printf 'ic preflight\nrust preflight\n' > "$fixture/expected-preflight.log"
     fi
-    [[ "$status" == 2 && ! -e "$TESTKIT_FIXTURE_READY" && ! -e "$consumer/cargo-dispatch.log" ]]
+    [[ "$status" == 2 && ! -e "$TESTKIT_FIXTURE_READY" && ! -e "$consumer/cargo-dispatch.log" ]] || exit 1
     cmp "$fixture/expected-preflight.log" "$TESTKIT_FIXTURE_LOG"
 done
 : > "$TESTKIT_FIXTURE_LOG"
 (cd "$consumer"; make --no-print-directory -j4 install-tools) > "$fixture/setup.log" 2>&1
 printf '%s\n' 'ic preflight' 'rust preflight' install-host-tools install-ic-tools install-rust-tools \
-    install-host-tools install-msrv install-host-tools 'cli install' 'server setup' > "$fixture/expected-setup.log"
+    install-host-tools install-msrv install-host-tools 'cli install' 'server setup' 'cli check' > "$fixture/expected-setup.log"
 cmp "$fixture/expected-setup.log" "$TESTKIT_FIXTURE_LOG"
 : > "$TESTKIT_FIXTURE_LOG"
 (cd "$consumer"; make --no-print-directory -j4 tools-check) > "$fixture/check.log" 2>&1
 printf '%s\n' host-tools-check ic-tools-check rust-tools-check msrv-tools-check \
-    'cli check' 'server check' > "$fixture/expected-check.log"
+    'cli check' 'server check' 'cli check' > "$fixture/expected-check.log"
 cmp "$fixture/expected-check.log" "$TESTKIT_FIXTURE_LOG"
 
 # Missing minimum compiler refuses before Testkit, without installation.
@@ -170,7 +183,7 @@ cmp "$fixture/expected-check.log" "$TESTKIT_FIXTURE_LOG"
 status=0
 (cd "$consumer"; TESTKIT_FIXTURE_MSRV_STATUS=31 make --no-print-directory -j4 tools-check) \
     > "$fixture/missing-msrv.log" 2>&1 || status=$?
-[[ "$status" == 2 ]]
+[[ "$status" == 2 ]] || exit 1
 printf '%s\n' host-tools-check ic-tools-check rust-tools-check msrv-tools-check > "$fixture/expected-msrv.log"
 cmp "$fixture/expected-msrv.log" "$TESTKIT_FIXTURE_LOG"
 
@@ -181,26 +194,47 @@ for phase in install check; do
         "$BASH" "$consumer/scripts/dev/testkit-tools.sh" "$phase" \
         > "$fixture/failed-$phase.stdout" 2> "$fixture/failed-$phase.stderr" || status=$?
     if [[ "$phase" == install ]]; then expected=39; else expected=33; fi
-    [[ "$status" == "$expected" && ! -s "$fixture/failed-$phase.stdout" ]]
+    [[ "$status" == "$expected" && ! -s "$fixture/failed-$phase.stdout" ]] || exit 1
 done
 status=0
 TESTKIT_FIXTURE_INSTALL_STATUS=23 "$BASH" "$consumer/scripts/dev/testkit-tools.sh" install \
     > "$fixture/failed-cli.stdout" 2> "$fixture/failed-cli.stderr" || status=$?
-[[ "$status" == 23 && ! -s "$fixture/failed-cli.stdout" ]]
-[[ "$(tail -n 1 "$TESTKIT_FIXTURE_LOG")" == 'cli install' ]]
+[[ "$status" == 23 && ! -s "$fixture/failed-cli.stdout" ]] || exit 1
+[[ "$(tail -n 1 "$TESTKIT_FIXTURE_LOG")" == 'cli install' ]] || exit 1
 
 # A changed locked selection cannot report the former selection as success.
 for phase in install check; do
-    status=0
-    TESTKIT_FIXTURE_CHANGE_SELECTION=1 "$BASH" "$consumer/scripts/dev/testkit-tools.sh" "$phase" \
-        > "$fixture/changed-$phase.stdout" 2> "$fixture/changed-$phase.stderr" || status=$?
-    [[ "$status" != 0 && ! -s "$fixture/changed-$phase.stdout" ]]
-    rg -q 'locked Testkit selection changed' "$fixture/changed-$phase.stderr"
-    [[ -f "$consumer/.tools/testkit-server/admitted" ]]
-    cp "$fixture/selected.lock" "$consumer/Cargo.lock"
+    for ready in 0 1; do
+        status=0
+        TESTKIT_FIXTURE_CHANGE_SELECTION=1 TESTKIT_FIXTURE_CHANGED_CLI_READY="$ready" \
+            "$BASH" "$consumer/scripts/dev/testkit-tools.sh" "$phase" \
+            > "$fixture/changed-$phase-$ready.stdout" 2> "$fixture/changed-$phase-$ready.stderr" || status=$?
+        [[ "$status" != 0 && ! -s "$fixture/changed-$phase-$ready.stdout" ]] || exit 1
+        if [[ "$ready" == 0 ]]; then
+            [[ "$status" == 27 ]] || exit 1
+            rg -q 'locked Testkit CLI could not be re-admitted' "$fixture/changed-$phase-$ready.stderr"
+        else
+            [[ "$status" == 1 ]] || exit 1
+            rg -q 'locked Testkit selection changed' "$fixture/changed-$phase-$ready.stderr"
+        fi
+        [[ -f "$consumer/.tools/testkit-server/admitted" ]] || exit 1
+        cp "$fixture/selected.lock" "$consumer/Cargo.lock"
+    done
 done
 
 # Ambiguous or non-registry CLI identity refuses before any tool effect.
+# Exercise the canonical reader, rather than teaching the substitute to parse.
+cp scripts/dev/install-rust-tools.sh "$consumer/scripts/dev/install-rust-tools.sh"
+# A valid lock reaches canonical offline admission and names the exact missing
+# CLI, without invoking any server or Cargo installation effect.
+cp "$TESTKIT_FIXTURE_LOG" "$fixture/before-canonical-check.log"
+status=0
+"$BASH" "$consumer/scripts/dev/testkit-tools.sh" check \
+    > "$fixture/canonical-missing.stdout" 2> "$fixture/canonical-missing.stderr" || status=$?
+[[ "$status" == 1 && ! -s "$fixture/canonical-missing.stdout" ]] || exit 1
+rg -q 'package=ic-testkit version=0[.]25[.]5 target=bin:ic-testkit-server' "$fixture/canonical-missing.stderr"
+rg -F 'make install-testkit-tools' "$fixture/canonical-missing.stderr" > /dev/null
+cmp "$TESTKIT_FIXTURE_LOG" "$fixture/before-canonical-check.log"
 for kind in duplicate nonregistry; do
     cp "$fixture/selected.lock" "$consumer/Cargo.lock"
     if [[ "$kind" == duplicate ]]; then
@@ -213,16 +247,17 @@ for kind in duplicate nonregistry; do
     status=0
     "$BASH" "$consumer/scripts/dev/testkit-tools.sh" check \
         > "$fixture/$kind.stdout" 2> "$fixture/$kind.stderr" || status=$?
-    [[ "$status" != 0 && ! -s "$fixture/$kind.stdout" ]]
+    [[ "$status" != 0 && ! -s "$fixture/$kind.stdout" ]] || exit 1
     cmp "$TESTKIT_FIXTURE_LOG" "$fixture/before-$kind.log"
 done
 cp "$fixture/selected.lock" "$consumer/Cargo.lock"
+cp "$fixture/mock-installer.sh" "$consumer/scripts/dev/install-rust-tools.sh"
 
 # The real qualification caller consumes only Testkit's check-returned path.
 POCKET_IC_BIN=/unadmitted/override "$BASH" "$consumer/scripts/dev/test-qualification.sh" \
     > "$fixture/qualification.stdout" 2> "$fixture/qualification.stderr"
-[[ "$(tail -n 3 "$TESTKIT_FIXTURE_LOG")" == $'cli check\nserver check\nqualified admitted server' ]]
-[[ "$(cat "$consumer/.tools/ic/bin/pocket-ic")" == 'retained former bundle' ]]
+[[ "$(tail -n 4 "$TESTKIT_FIXTURE_LOG")" == $'cli check\nserver check\ncli check\nqualified admitted server' ]] || exit 1
+[[ "$(cat "$consumer/.tools/ic/bin/pocket-ic")" == 'retained former bundle' ]] || exit 1
 
 # Execute the actual CI extension of the shared collector, with opaque owner
 # failure bytes. The shared archiver preserves that evidence without new policy.

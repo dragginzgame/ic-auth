@@ -3,9 +3,9 @@
 The maintainer accepted the larger Canic authentication extraction, selected the
 name `ic-auth`, and confirmed `/home/adam/projects/ic-auth` as the local repository.
 
-The current committed release is `c3d0877c1ad5481dedb59dc810a25c18182d0a00`
-(`0.3.2`) on `main`, with annotated tag `v0.3.2`; both remote identities were
-verified during continuation. Both libraries' `0.3.2` registry checksums match
+The current committed release is `55568fd0ed741afac52ed8872d9bda2dd4000bee`
+(`0.3.3`) on `main`, with annotated tag `v0.3.3`; both remote identities were
+verified during continuation. Both libraries' `0.3.3` registry checksums match
 the retained publication intent for that exact source/tag. The maintainer
 executed the release and publication. The original bootstrap was
 `7a03102e52b7a400588530997a9f7fb91c83de9d` (`0.1.0`).
@@ -22,7 +22,7 @@ records this batch without closing the larger extraction.
 
 The virtual Rust workspace contains `ic-auth-protocol-types`, `ic-auth` and the
 unpublished native application in `apps/tooling/`, with one lockfile, root-owned
-dependency selections and current manifest version `0.3.2`.
+dependency selections and current manifest version `0.3.3`.
 The passive token/proof contracts and canonical encoding are adapted from the
 clean Canic source at `e286b3fd98460c98670336853f80658a920966e0`; see the
 [source review](../design/canic-source-review.md) for exact ownership and API
@@ -36,11 +36,152 @@ There is no stable canister adapter or wallet endpoint yet. The private browser
 client now implements injected token lifecycle machinery; real issuer adapter
 qualification, npm publication and consumer adoption remain pending.
 Canic adoption is in progress in the consumer's dirty working tree. Its owner
-has recorded focused standalone-proof adapter qualification; complete-token,
-durable-session and deployed acceptance remain separate. No sibling repository
+has recorded focused standalone-proof and bounded batch-builder qualification;
+complete-token, durable-session and deployed acceptance remain separate. No sibling repository
 was modified by IC Auth work.
 
-## Current integration qualification (pending 0.3.3)
+## Current continuation (pending 0.3.4)
+
+The compatible 0.3.4 draft extends actual certified-token qualification through
+session admission and live authorization against the volatile reference store.
+Library APIs, signed bytes and storage formats remain unchanged; the package
+version remains 0.3.3. [Auth #18](https://github.com/dragginzgame/ic-auth/issues/18)
+retains the integration qualification.
+
+The latest refresh adopts Shared 0.3.7
+`34e5ad7aac3599306c9572bb547f2239d09df1a3` from an isolated clean committed
+checkout, retaining the 84-file selection. Mandatory portable assertions and
+selected Cargo-tool activation now fail explicitly on Bash 3.2. Routine CI uses
+the stable workflow/ref cancellation group required by Shared #108; all three
+native hosts remain required, and cancelled unfinished checks do not qualify
+their source. The incoming workflow and dependency changes were preserved.
+
+All four published Host packages select 0.12.6 at
+`5f356effea97fbc31dfcca5b9f1b2834f35325a9`, matching unyanked official sparse
+registry checksums and package VCS identities. The applicable Host filesystem
+fix refuses NUL-containing publication paths before creating parents; Auth
+continues using its existing bounded no-follow reads and durable publication
+APIs. Native dependencies remain outside both libraries. Testkit stays 0.32.2
+with server 16.1.0; neither the CLI/server pairing nor package versions change.
+Canonical Cargo-installer and failure-retention fixtures use substituted effects;
+their Bash 5 and genuine Bash 3.2 results are recorded in
+`target/shared-host-0.3.4/`. This is interpreter qualification on Linux, separate
+from native macOS acceptance.
+
+The updated **`make -j4 ci` passes all 27 targets on Linux** against these
+selections, including actual formatting preservation, all three real Testkit
+scenarios, native/Wasm MSRV, every library/client case, strict Clippy, package
+dry runs with uploads aborted, and local/mocked release/recovery/evidence cases.
+The selected canonical release-runner fixture also passes on genuine Bash 3.2.
+`target/shared-host-0.3.4/ci.log` and the focused logs retain results. Inputs
+remained unchanged through the gate: tracked diff SHA-256
+`718ecdec6925fc656274bb9984229b9bbca004276193a731f05e101a58a0fd15`,
+recorded in `qualified-inputs.sha256` with the matching
+`after-gate-tracked.diff`; the session-module hash remains the value below.
+Final prose receives snapshot, link and diff checks. Native macOS acceptance
+for this pending source remains outstanding. No package version, commit, push,
+release, upload or sibling source effect occurs.
+
+The actual certified token, re-prepared after issuer upgrade, now passes through
+both public session operations against the bounded volatile reference store.
+Wrong network trust and ungranted narrowing reject without proof consumption;
+the identical token then admits. The actual Testkit clock advances beyond proof
+expiry: fresh verification rejects, while exact retry and session authorization
+preserve the original lease and unchanged storage occupancy. Narrowed protected
+scopes and advanced generation reject both authorization and retry; logout
+preserves replay refusal. No production stable backend or Canic endpoint is added.
+
+Earlier session qualification, before the Shared 0.3.6 refresh, passed
+**all 26 `make -j4 ci` targets on Linux**, including all three
+real Testkit scenarios, isolated package native/Wasm MSRV and internal application
+checks, every library/client case, Wasm, strict Clippy, actual package dry runs
+with uploads aborted, and release/recovery/evidence fixtures. Evidence is in
+`target/integration-0.3.4/`. The initial sandbox loopback refusal is retained
+separately from the passing permitted native run. Inputs remain unchanged through
+the gate: tracked diff SHA-256
+`5e2fa9e0c235ba1228e4441128e0cb62501b48abc99fb032503e786c7e68a195`
+and new session qualification module SHA-256
+`4253302a4aa8df544e981c09c3cf336cff72eef9ca0376070717d41e3560c9e0`.
+`qualified-inputs.sha256`, the matching `after-gate-tracked.diff` and `ci.log`
+retain that evidence. Intentional recipe overrides remain confined to mocked
+release fixtures; no closed jobserver warnings occur. Final prose receives
+snapshot, local-link and diff checks. Native macOS acceptance for this pending
+source remains outstanding. No package version, commit, push, release, upload
+or sibling effect is performed.
+
+Shared 0.3.6 `0604bfd730ec7ec288cd2cfdad217a0d42bf256b` is verified at remote
+main and canonically exported from an isolated clean committed checkout, with
+the same 84-file selection. During the initial read-only inspection its changes
+were uncommitted; delivery was rechecked before refresh. The adopted hook
+preserves failed Git observations, and its checker requires explicit completion
+before success or cleanup. Actual Auth formatting/preservation checks pass on
+Bash 5 and genuine Bash 3.2.57 on Linux. Fourteen checker failure/completion
+probes preserve status and evidence on both shells. The new
+`make test-formatting-hooks` exports current qualification inputs and joins
+all native CI hosts under [Auth #11](https://github.com/dragginzgame/ic-auth/issues/11).
+Native macOS acceptance remains outstanding.
+
+The Testkit caller delegates lockfile parsing and selected CLI admission to the
+canonical `--lockfile` installer. It re-admits offline after the separate server
+operation and refuses a changed selection even when the new CLI is already
+installed. Explicit actual setup and separate offline admission pass. Owned
+caller cases pass on both shells, including canonical malformed/ambiguous/source
+refusal, original status retention, parallel ordering and retained server paths.
+Canonical Git-hook and Cargo-installer fixtures pass on Bash 5 with substituted
+effects; no sibling source is modified.
+
+A disposable contradiction of the actual owned release fixture's first required
+comparison reproduces Bash 3.2 continuing with status zero, while Bash 5 refuses.
+[Auth #19](https://github.com/dragginzgame/ic-auth/issues/19) owns the consumer fix:
+mandatory release and changed Testkit fixture comparisons now explicitly refuse.
+The same contradicted release comparison and owned Testkit status check reject
+on both shells before later dispatch. The wider canonical audit remains under
+[Shared #107](https://github.com/dragginzgame/shared-tooling/issues/107); normal
+fixture completion is not a substitute for enforced assertions. Earlier probes
+and the initial caller diagnostic-matching failure remain in
+`target/shared-0.3.6/`. Normal complete release/recovery fixtures pass on genuine
+Bash 3.2 on Linux after the owned assertion fix.
+
+Earlier Shared 0.3.6 **`make -j4 ci` passed all 27 targets on Linux**, including the actual
+formatting-hook check, every earlier session/client/library case, real Testkit
+scenarios, native/Wasm MSRV, Clippy, package dry runs with uploads aborted and
+release/recovery/evidence fixtures. The tracked qualified diff SHA-256 is
+`54f6257e0cbc524f72316726b48b107343ce86757b782c0d20729c06c3c52c8f`;
+`qualified-inputs.sha256`, the identical `after-gate-tracked.diff` and `ci.log`
+retain unchanged-input evidence. The session module hash remains the value above.
+Final prose receives snapshot, link and diff checks. Native macOS acceptance
+for this pending source remains outstanding; source remains uncommitted and
+package versions remain 0.3.3. No release, push, upload or sibling source effect
+occurs. The producer's exact-source
+[Shared CI](https://github.com/dragginzgame/shared-tooling/actions/runs/38061078001)
+is queued at inspection; it is not consumer acceptance.
+
+Released 0.3.3's remote main and peeled tag match the source above; its annotated
+tag is `4a23c8bb13a4ffdf71392fd0acc29f6aee0f80fe`. Both unyanked official
+sparse-index checksums match the publication receipt: protocol-types
+`0bc439c47138d1a44bbd1ca7340077cd3958932fc0f6b78b4507d2b4effd4644`
+and Auth `b5367dec889c9477c979f3cb4c29596ac73d73fb5c1124175d899092198e52b7`.
+Exact-source [0.3.3 CI](https://github.com/dragginzgame/ic-auth/actions/runs/38057156297)
+passes on Ubuntu and macOS Apple Silicon; macOS Intel remains in progress at the
+latest inspection. These released-source results do not qualify pending 0.3.4.
+[Auth #18](https://github.com/dragginzgame/ic-auth/issues/18) retains its native
+acceptance requirement. [Auth #17](https://github.com/dragginzgame/ic-auth/issues/17)
+likewise awaits final descriptor-fix native acceptance; previous-release results are not substituted.
+
+Canic's read-only dirty base remains `ac55e50334dd6479ec36f404e89e60bcfe9184d6`.
+Its lock selects Auth 0.3.2, Testkit 0.32.2 and Host 0.12.4. The batch caller now
+uses Auth's bounded constructor directly, with protected 64-issuer budget,
+principal ordering and duplicate rejection. Its owner records focused batch,
+shared installation-verifier and graph acceptance in
+[Canic #491](https://github.com/dragginzgame/canic/issues/491#issuecomment-6098306441);
+source remains uncommitted and deployed adoption is not claimed. Full-token
+callbacks/positive cache and durable sessions remain separate adoption slices.
+No sibling files or builds are changed.
+
+## Earlier integration qualification (0.3.3, released)
+
+The following records preparation before maintainer delivery. Dependency,
+source and hosted-CI observations in this section are historical.
 
 The maintainer requested further integration and fixes after pushing 0.3.2.
 The compatible **0.3.3** draft adds complete-token Testkit qualification under
@@ -105,7 +246,7 @@ or upload effect was performed.
 
 The following records delivery reconciliation before the current integration batch.
 
-Remote main and peeled tag match the current source above; annotated tag
+Remote main and peeled tag matched the 0.3.2 source at preparation; annotated tag
 `cc896a2511ec9d74fd3e9a2b2df9c07414afd524` matches the retained publication
 receipt. Official sparse-index entries are unyanked and match both receipt
 checksums: `ic-auth-protocol-types`

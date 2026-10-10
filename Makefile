@@ -14,7 +14,7 @@ export RUSTUP_AUTO_INSTALL := 0
 export RELEASE_DELIVERY := direct
 export RELEASE_REMOTE RELEASE_BRANCH
 
-.PHONY: help install-hooks fetch metadata \
+.PHONY: help install-hooks fetch metadata test-formatting-hooks \
         install-testkit-tools testkit-tools-check test-testkit-tools \
         test-types test-protocol test-signatures test-signature-store test-tokens test-sessions check-wasm clippy check-boundaries \
         check-snapshot check-dependency-pins check-doc-links check-msrv install-msrv msrv-tools-check tasks ci \
@@ -30,7 +30,7 @@ help:
 	@echo 'Testkit server: install-testkit-tools (explicit setup), testkit-tools-check (offline admission)'
 	@echo 'Focused checks: test-types, test-protocol, test-signatures, test-signature-store, test-tokens, test-sessions, test-host-tooling, test-qualification, check-wasm, clippy, metadata'
 	@echo 'Browser client: install-client-dependencies, client-tools-check, generate-client-contracts, check-client-contracts, test-client'
-	@echo 'Formatting: fmt, fmt-check'
+	@echo 'Formatting: fmt, fmt-check, test-formatting-hooks'
 	@echo 'Governance: check-snapshot, check-dependency-pins, check-doc-links, check-boundaries, check-msrv; maintenance catalog: tasks'
 	@echo 'Complete CI gate (explicit only): ci'
 	@echo 'Releases: release-patch, release-minor, release-major; recovery: release-resume VERSION=X.Y.Z'
@@ -44,6 +44,14 @@ testkit-tools-check:
 
 test-testkit-tools:
 	bash scripts/ci/test-testkit-tools.sh
+
+test-formatting-hooks:
+	@mkdir -p target/portable-fixtures
+	+@TMPDIR="$(CURDIR)/target/portable-fixtures" bash scripts/ci/check-formatting-hooks.sh \
+		"$(CURDIR)" crates/ic-auth/src/lib.rs Cargo.toml --no-dependency-tables \
+		apps/qualification/runner/Cargo.toml \
+		apps/qualification/runner/tests/signatures/application_tokens.rs \
+		apps/qualification/runner/tests/signatures/application_sessions.rs
 
 install-msrv: install-host-tools
 	bash scripts/dev/msrv-tools.sh install
@@ -133,7 +141,7 @@ check-doc-links:
 	@rg --files -g '*.md' -0 | xargs -0 perl scripts/ci/check-documentation-links.pl --root "$(CURDIR)"
 
 ci:
-	+bash scripts/ci/run-validation-targets.sh --fail-fast check-snapshot tools-check check-dependency-pins check-doc-links test-make-jobserver fmt-check metadata check-boundaries check-msrv test-tools-evidence test-testkit-tools test-client test-types test-protocol test-signatures test-signature-store test-tokens test-sessions test-host-tooling test-qualification check-wasm clippy publish-dry-run test-release-tools test-release-runner test-evidence-archive
+	+bash scripts/ci/run-validation-targets.sh --fail-fast check-snapshot tools-check check-dependency-pins check-doc-links test-make-jobserver fmt-check test-formatting-hooks metadata check-boundaries check-msrv test-tools-evidence test-testkit-tools test-client test-types test-protocol test-signatures test-signature-store test-tokens test-sessions test-host-tooling test-qualification check-wasm clippy publish-dry-run test-release-tools test-release-runner test-evidence-archive
 
 check-package-licenses:
 	@cmp LICENSE crates/ic-auth-protocol-types/LICENSE

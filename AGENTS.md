@@ -1,7 +1,7 @@
 # IC Auth Agent Instructions
 
 Apply [DRAGGINZGAME.md](DRAGGINZGAME.md), adopted from Shared Tooling revision
-`169d77b8440568c5200eede971625126181f7bb2` and recorded in
+`34e5ad7aac3599306c9572bb547f2239d09df1a3` and recorded in
 [.shared-tooling.snapshot](.shared-tooling.snapshot). Read
 [the current handoff](docs/status/current.md) before implementation.
 
@@ -72,12 +72,14 @@ Apply [DRAGGINZGAME.md](DRAGGINZGAME.md), adopted from Shared Tooling revision
   Focused Rust checks are `make test-types`, `make test-protocol`, `make test-signatures`,
   `make test-signature-store`, `make test-tokens`, `make test-sessions`,
   `make test-host-tooling`, `make test-qualification`, `make check-wasm` and `make clippy`; `make ci` is the
-  explicit complete gate. `make test-release-runner` checks the adopted runner
+  explicit complete gate. `make test-formatting-hooks` checks actual staged preservation and is part of
+  the complete gate. `make test-release-runner` checks the adopted runner
   with substituted effects.
-  Both libraries are published at `0.3.2` with contracts, encoding and optional
+  Both libraries are published at `0.3.3` with contracts, encoding and optional
   IC signature/token/session machinery, including bounded signature preparation.
   The internal IC Testkit fixture exercises actual certification, composed roots,
-  protected metadata upgrades and signed ingress with fresh session keys.
+  protected metadata upgrades, certified-token session admission and signed
+  ingress with fresh session keys.
   It is not a wallet login provider or stable session backend.
   Stable library host adoption and wallet login remain
   unimplemented. Host stores must commit session/replay changes atomically and

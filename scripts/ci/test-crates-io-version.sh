@@ -51,7 +51,7 @@ for http in 200 404 401 429 503 000 malformed '200404'; do
     status=0
     REGISTRY_HTTP="$http" bash "$root/scripts/ci/check-crates-io-version.sh" fixture_crate 0.1.2 \
         > "$fixture/output" 2>&1 || status=$?
-    [[ "$status" == "$expected" && "$(wc -l < "$fixture/calls")" -eq 1 ]]
+    [[ "$status" == "$expected" && "$(wc -l < "$fixture/calls")" -eq 1 ]] || exit 1
 done
 # Even HTTP-looking output from an unsuccessful transport is unknown.
 for http in 200 404; do
@@ -59,7 +59,7 @@ for http in 200 404; do
         status=0
         REGISTRY_HTTP="$http" REGISTRY_TRANSPORT="$transport" bash "$root/scripts/ci/check-crates-io-version.sh" fixture_crate 0.1.2 \
             > "$fixture/output" 2>&1 || status=$?
-        [[ "$status" == 2 ]]
+        [[ "$status" == 2 ]] || exit 1
     done
 done
 cat > "$fixture/expected" <<'ARGS'
@@ -89,21 +89,21 @@ cmp "$fixture/expected" "$fixture/args"
 for crate in '' '-option' 'a/b' 'a?b' 'a b'; do
     status=0
     bash "$root/scripts/ci/check-crates-io-version.sh" "$crate" 0.1.2 > /dev/null 2>&1 || status=$?
-    [[ "$status" == 2 ]]
+    [[ "$status" == 2 ]] || exit 1
 done
 for version in '' 01.1.2 v0.1.2 0.1.2-rc.1 0.1.2+build '0.1.2/other' '0.1.2?x'; do
     status=0
     bash "$root/scripts/ci/check-crates-io-version.sh" fixture "$version" > /dev/null 2>&1 || status=$?
-    [[ "$status" == 2 ]]
+    [[ "$status" == 2 ]] || exit 1
 done
 for count in 0 1 3; do
     args=()
     while [[ "${#args[@]}" -lt "$count" ]]; do args+=(fixture); done
     status=0
     bash "$root/scripts/ci/check-crates-io-version.sh" ${args[@]+"${args[@]}"} > /dev/null 2>&1 || status=$?
-    [[ "$status" == 2 ]]
+    [[ "$status" == 2 ]] || exit 1
 done
-[[ ! -s "$fixture/calls" ]]
+[[ ! -s "$fixture/calls" ]] || exit 1
 
 # Metadata mode retains each response, validates one exact identity, and never
 # turns inconclusive transport/JSON into permission to publish.
@@ -118,17 +118,17 @@ observe() {
     : > "$fixture/calls"
     bash "$root/scripts/ci/check-crates-io-version.sh" --metadata "$evidence" fixture_crate 0.1.2 \
         > "$fixture/stdout" 2> "$fixture/stderr" || status=$?
-    [[ "$status" == "$expected" && "$(wc -l < "$fixture/calls")" -eq 1 ]]
+    [[ "$status" == "$expected" && "$(wc -l < "$fixture/calls")" -eq 1 ]] || exit 1
     cmp "$REGISTRY_BODY" "$evidence/response.json"
-    [[ "$(cat "$evidence/http-status")" == "$REGISTRY_HTTP" ]]
-    [[ "$(cat "$evidence/curl-exit")" == "$REGISTRY_TRANSPORT" ]]
-    [[ -s "$evidence/curl.stderr" && -s "$evidence/request.url" && -s "$evidence/curl-version.txt" ]]
+    [[ "$(cat "$evidence/http-status")" == "$REGISTRY_HTTP" ]] || exit 1
+    [[ "$(cat "$evidence/curl-exit")" == "$REGISTRY_TRANSPORT" ]] || exit 1
+    [[ -s "$evidence/curl.stderr" && -s "$evidence/request.url" && -s "$evidence/curl-version.txt" ]] || exit 1
     if [[ "$expected" == 0 ]]; then
         jq -c '.version | {crate, version:.num, checksum, yanked}' "$REGISTRY_BODY" > "$fixture/expected-metadata"
         cmp "$fixture/expected-metadata" "$fixture/stdout"
         cmp "$fixture/stdout" "$evidence/metadata.json"
     else
-        [[ ! -s "$fixture/stdout" && ! -s "$evidence/metadata.json" ]]
+        [[ ! -s "$fixture/stdout" && ! -s "$evidence/metadata.json" ]] || exit 1
     fi
 }
 observe 0
@@ -142,7 +142,7 @@ for existing in "$evidence" "$fixture/evidence-link" "$fixture/valid" "$fixture/
     status=0
     bash "$root/scripts/ci/check-crates-io-version.sh" --metadata "$existing" fixture_crate 0.1.2 \
         > "$fixture/stdout" 2> "$fixture/stderr" || status=$?
-    [[ "$status" == 2 && ! -s "$fixture/calls" && ! -s "$fixture/stdout" ]]
+    [[ "$status" == 2 && ! -s "$fixture/calls" && ! -s "$fixture/stdout" ]] || exit 1
 done
 cmp "$fixture/retained" "$evidence/response.json"
 
@@ -187,14 +187,14 @@ cp "$fixture/valid" "$REGISTRY_BODY"
 status=0
 REGISTRY_BREAK_EVIDENCE=true bash "$root/scripts/ci/check-crates-io-version.sh" \
     --metadata "$fixture/write-failure" fixture_crate 0.1.2 > "$fixture/stdout" 2> "$fixture/stderr" || status=$?
-[[ "$status" == 2 && ! -s "$fixture/stdout" ]]
+[[ "$status" == 2 && ! -s "$fixture/stdout" ]] || exit 1
 cmp "$REGISTRY_BODY" "$fixture/write-failure/response.json"
 for curl_version in 'curl 7.88.1 fixture' 'curl 8.3.0 fixture' 'not a version'; do
     : > "$fixture/calls"
     status=0
     REGISTRY_CURL_VERSION="$curl_version" bash "$root/scripts/ci/check-crates-io-version.sh" \
         --metadata "$fixture/old-curl" fixture_crate 0.1.2 > "$fixture/stdout" 2> "$fixture/stderr" || status=$?
-    [[ "$status" == 2 && ! -e "$fixture/old-curl" && ! -s "$fixture/calls" && ! -s "$fixture/stdout" ]]
+    [[ "$status" == 2 && ! -e "$fixture/old-curl" && ! -s "$fixture/calls" && ! -s "$fixture/stdout" ]] || exit 1
 done
 # The older presence-only contract does not gain the metadata prerequisites.
 REGISTRY_CURL_VERSION='curl 7.88.1 fixture' REGISTRY_HTTP=200 \
@@ -204,7 +204,7 @@ for args in --metadata '--metadata only-directory'; do
     # Intentional splitting exercises missing positional inputs.
     # shellcheck disable=SC2086
     bash "$root/scripts/ci/check-crates-io-version.sh" $args > /dev/null 2>&1 || status=$?
-    [[ "$status" == 2 ]]
+    [[ "$status" == 2 ]] || exit 1
 done
 echo 'Exact registry presence, metadata and retained evidence tests passed (curl substitute)'
 fixture_complete=true

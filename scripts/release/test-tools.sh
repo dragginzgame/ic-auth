@@ -109,25 +109,25 @@ mkdir target
 printf 'retained artifact\n' > target/keep
 before="$(git rev-parse HEAD)"
 if make --no-print-directory release-minor > "$fixture/wrong-candidate.log" 2>&1; then exit 1; fi
-[[ "$(git rev-parse HEAD)" == "$before" && -z "$(git tag -l)" ]]
+[[ "$(git rev-parse HEAD)" == "$before" && -z "$(git tag -l)" ]] || exit 1
 # CLI setup and offline admission must precede the gate and preserve release
 # identity on either failure. Neither version preparation nor a tag may start.
 for phase in setup check; do
     : > target/preparation-dispatch.log
     touch "target/fail-cli-$phase"
     if make --no-print-directory release-patch > "$fixture/cli-$phase-failure.log" 2>&1; then exit 1; fi
-    [[ "$(git rev-parse HEAD)" == "$before" && "$(make -s release-version)" == 0.1.0 ]]
-    [[ -z "$(git tag -l)" ]]
+    [[ "$(git rev-parse HEAD)" == "$before" && "$(make -s release-version)" == 0.1.0 ]] || exit 1
+    [[ -z "$(git tag -l)" ]] || exit 1
     if [[ "$phase" == setup ]]; then expected='cli setup'; else expected=$'cli setup\ncli check'; fi
-    [[ "$(cat target/preparation-dispatch.log)" == "$expected" ]]
+    [[ "$(cat target/preparation-dispatch.log)" == "$expected" ]] || exit 1
     rm "target/fail-cli-$phase"
 done
 : > target/preparation-dispatch.log
 touch target/fail-gate
 if make --no-print-directory release-patch > "$fixture/gate-failure.log" 2>&1; then exit 1; fi
-[[ "$(git rev-parse HEAD)" == "$before" && "$(make -s release-version)" == 0.1.0 ]]
-[[ -z "$(git tag -l)" && -f target/keep ]]
-[[ "$(cat target/preparation-dispatch.log)" == $'cli setup\ncli check\ngate' ]]
+[[ "$(git rev-parse HEAD)" == "$before" && "$(make -s release-version)" == 0.1.0 ]] || exit 1
+[[ -z "$(git tag -l)" && -f target/keep ]] || exit 1
+[[ "$(cat target/preparation-dispatch.log)" == $'cli setup\ncli check\ngate' ]] || exit 1
 rm target/fail-gate
 
 # Initial admission names a changed lock and refuses before validation or
@@ -143,7 +143,7 @@ if rg -F 'fixture-complete-gate' "$fixture/lock-source.log" > /dev/null; then ex
 cmp Cargo.lock "$fixture/dirty-lock"
 cmp .git/index "$fixture/dirty-index"
 cmp target/preparation-dispatch.log "$fixture/dirty-dispatch.log"
-[[ "$(git rev-parse HEAD)" == "$before" && -z "$(git tag -l)" ]]
+[[ "$(git rev-parse HEAD)" == "$before" && -z "$(git tag -l)" ]] || exit 1
 git restore Cargo.lock
 
 # A staged edit restored only in the worktree must still be rejected.
@@ -160,17 +160,17 @@ cmp .git/index "$fixture/staged-index"
 cmp crates/ic-auth/src/lib.rs "$fixture/staged-worktree"
 git restore --staged crates/ic-auth/src/lib.rs
 make --no-print-directory release-patch > "$fixture/patch.log" 2>&1
-[[ "$(make -s release-version)" == 0.1.1 ]]
+[[ "$(make -s release-version)" == 0.1.1 ]] || exit 1
 commit="$(git rev-parse HEAD)"
 bash scripts/ci/check-release-tag.sh "$commit" 0.1.1
-[[ "$(git --git-dir="$fixture/remote.git" rev-parse main)" == "$commit" ]]
-[[ "$(git --git-dir="$fixture/remote.git" rev-parse v0.1.1)" == "$(git rev-parse v0.1.1)" ]]
-[[ -f target/keep ]]
+[[ "$(git --git-dir="$fixture/remote.git" rev-parse main)" == "$commit" ]] || exit 1
+[[ "$(git --git-dir="$fixture/remote.git" rev-parse v0.1.1)" == "$(git rev-parse v0.1.1)" ]] || exit 1
+[[ -f target/keep ]] || exit 1
 git show "$before:Cargo.lock" | yq -p toml -o json '.' | jq -S '[.package[] | select(.source != null)]' > "$fixture/external-before.json"
 yq -p toml -o json '.' Cargo.lock | jq -S '[.package[] | select(.source != null)]' > "$fixture/external-after.json"
 cmp "$fixture/external-before.json" "$fixture/external-after.json"
 make --no-print-directory release-resume VERSION=0.1.1 > "$fixture/resume.log" 2>&1
-[[ "$(git rev-parse HEAD)" == "$commit" ]]
+[[ "$(git rev-parse HEAD)" == "$commit" ]] || exit 1
 
 # Fake only package creation/upload and registry reads. Metadata, tag checks,
 # clean-worktree admission and publication intent/reconciliation stay real.
@@ -252,54 +252,54 @@ SH
 chmod +x "$fixture/bin/cargo" "$fixture/bin/curl"
 export PATH="$fixture/bin:$PATH" CARGO_TARGET_DIR="$PWD/target"
 if bash scripts/release/publish.sh > "$fixture/unknown.log" 2>&1; then exit 1; fi
-[[ ! -f "$fixture/uploads" ]]
+[[ ! -f "$fixture/uploads" ]] || exit 1
 export FIXTURE_MODE=conflict
 if bash scripts/release/publish.sh > "$fixture/conflict.log" 2>&1; then exit 1; fi
-[[ ! -f "$fixture/uploads" ]]
+[[ ! -f "$fixture/uploads" ]] || exit 1
 grep -F 'registry checksum conflict' "$fixture/conflict.log" > /dev/null
 for mode in wrong-crate wrong-version invalid-checksum invalid-yanked multiple-json malformed oversized transport old-curl; do
     export FIXTURE_MODE="$mode"
     if bash scripts/release/publish.sh > "$fixture/$mode.log" 2>&1; then exit 1; fi
-    [[ ! -f "$fixture/uploads" && ! -e .git/publication-state/0.1.1-ic-auth-protocol-types.dispatched ]]
+    [[ ! -f "$fixture/uploads" && ! -e .git/publication-state/0.1.1-ic-auth-protocol-types.dispatched ]] || exit 1
     grep -F 'cannot establish registry state' "$fixture/$mode.log" > /dev/null
 done
 export FIXTURE_MODE=marker-source-change
 if bash scripts/release/publish.sh > "$fixture/marker-source-change.log" 2>&1; then exit 1; fi
-[[ ! -f "$fixture/uploads" ]]
+[[ ! -f "$fixture/uploads" ]] || exit 1
 git reset --hard "$commit" > /dev/null
 # This isolated fixture observed no dispatch at all. Restore its known-failed
 # marker before testing uncertainty separately; never touch real repo intent.
 rm .git/publication-state/0.1.1-ic-auth-protocol-types.dispatched
 export FIXTURE_MODE=lost-reply
 if bash scripts/release/publish.sh > "$fixture/lost-reply.log" 2>&1; then exit 1; fi
-[[ "$(wc -l < "$fixture/uploads")" == 1 ]]
+[[ "$(wc -l < "$fixture/uploads")" == 1 ]] || exit 1
 # Every observation has separate retained facts, including the pre/post-dispatch
 # 404s. Later reconciliation must not overwrite evidence from the lost reply.
 grep -F 'Registry observation evidence retained:' "$fixture/lost-reply.log" | \
     sed 's/^Registry observation evidence retained: //' > "$fixture/lost-reply-evidence.paths"
-[[ "$(wc -l < "$fixture/lost-reply-evidence.paths")" == 2 ]]
+[[ "$(wc -l < "$fixture/lost-reply-evidence.paths")" == 2 ]] || exit 1
 while IFS= read -r observation; do
-    [[ "$(cat "$observation/http-status")" == 404 && "$(cat "$observation/curl-exit")" == 0 ]]
+    [[ "$(cat "$observation/http-status")" == 404 && "$(cat "$observation/curl-exit")" == 0 ]] || exit 1
     bash scripts/ci/verify-file-checksum.sh --print sha256 "$observation/http-status" >> "$fixture/lost-reply-status.hashes"
 done < "$fixture/lost-reply-evidence.paths"
 if bash scripts/release/publish.sh > "$fixture/unresolved.log" 2>&1; then exit 1; fi
-[[ "$(wc -l < "$fixture/uploads")" == 1 ]]
+[[ "$(wc -l < "$fixture/uploads")" == 1 ]] || exit 1
 touch "$fixture/observed-ic-auth-protocol-types"
 export FIXTURE_MODE=success
 bash scripts/release/publish.sh > "$fixture/publish.log" 2>&1
-[[ "$(cat "$fixture/uploads")" == $'ic-auth-protocol-types\nic-auth' ]]
+[[ "$(cat "$fixture/uploads")" == $'ic-auth-protocol-types\nic-auth' ]] || exit 1
 bash scripts/release/publish.sh > "$fixture/publish-retry.log" 2>&1
-[[ "$(wc -l < "$fixture/uploads")" == 2 ]]
+[[ "$(wc -l < "$fixture/uploads")" == 2 ]] || exit 1
 export FIXTURE_MODE=yanked
 bash scripts/release/publish.sh > "$fixture/yanked-reconcile.log" 2>&1
-[[ "$(wc -l < "$fixture/uploads")" == 2 ]]
+[[ "$(wc -l < "$fixture/uploads")" == 2 ]] || exit 1
 while IFS= read -r observation; do
     bash scripts/ci/verify-file-checksum.sh --print sha256 "$observation/http-status" >> "$fixture/lost-reply-status-after.hashes"
 done < "$fixture/lost-reply-evidence.paths"
 cmp "$fixture/lost-reply-status.hashes" "$fixture/lost-reply-status-after.hashes"
 export FIXTURE_MODE=source-change
 if bash scripts/release/publish.sh > "$fixture/source-change.log" 2>&1; then exit 1; fi
-[[ "$(wc -l < "$fixture/uploads")" == 2 ]]
+[[ "$(wc -l < "$fixture/uploads")" == 2 ]] || exit 1
 git reset --hard "$commit" > /dev/null
 export FIXTURE_MODE=success
 
@@ -330,7 +330,7 @@ for kind in minor major; do
     if [[ "$kind" == minor ]]; then
         touch target/interrupt-prepare
         if make --no-print-directory release-minor > "$fixture/interrupted-prepare.log" 2>&1; then exit 1; fi
-        [[ "$(make -s release-version)" == 0.1.1 && -z "$(git tag -l v0.2.0)" ]]
+        [[ "$(make -s release-version)" == 0.1.1 && -z "$(git tag -l v0.2.0)" ]] || exit 1
         rm target/interrupt-prepare
         cp target/preparation-dispatch.log "$fixture/interrupted-dispatch.log"
     fi
@@ -338,8 +338,8 @@ for kind in minor major; do
     if [[ "$kind" == minor ]]; then
         cmp target/preparation-dispatch.log "$fixture/interrupted-dispatch.log"
     fi
-    [[ "$(make -s release-version)" == "$candidate" ]]
+    [[ "$(make -s release-version)" == "$candidate" ]] || exit 1
     bash scripts/ci/check-release-tag.sh "$(git rev-parse HEAD)" "$candidate"
 done
-[[ -f target/keep ]]
+[[ -f target/keep ]] || exit 1
 echo 'Release metadata, failure admission, exact tags/push, resume and publication reconciliation passed (local/mocked effects)'

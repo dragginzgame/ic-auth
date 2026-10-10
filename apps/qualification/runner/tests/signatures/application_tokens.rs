@@ -27,6 +27,9 @@ use std::time::Duration;
 
 const SECOND: u64 = 1_000_000_000;
 
+#[path = "application_sessions.rs"]
+mod application_sessions;
+
 fn root_proof(cert: &DelegationCert, key: &SigningKey, policy: &RootKeyPolicy) -> RootProof {
     let leaf = ChainKeyDelegationCertV1 {
         root_canister_id: cert.root_pid,
@@ -282,4 +285,5 @@ fn complete_token_rechecks_live_authority_and_real_certification_after_upgrade()
     );
     assert_eq!(token.claims, unchanged.claims);
     assert_eq!(token.proof, unchanged.proof);
+    application_sessions::qualify_admission(&fixture, &token, context);
 }

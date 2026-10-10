@@ -16,9 +16,9 @@ transactions and recovery obligations.
 
 ## Published dependency and feature selection
 
-Both `ic-auth` and `ic-auth-protocol-types` 0.3.2 are published and unyanked.
+Both `ic-auth` and `ic-auth-protocol-types` 0.3.3 are published and unyanked.
 Their registry checksums match IC Auth release
-`c3d0877c1ad5481dedb59dc810a25c18182d0a00`. Rust 1.88 is the supported minimum.
+`55568fd0ed741afac52ed8872d9bda2dd4000bee`. Rust 1.88 is the supported minimum.
 For adoption of this release, select compatible registry requirements in Canic's
 root catalog and record the resolved versions in its own lockfiles:
 
@@ -33,8 +33,8 @@ existing capability features forward only the needed library features. This is
 the recommended published selection. The read-only review below distinguishes Canic's
 in-progress source adoption from consumer qualification.
 
-Releases 0.3.0 through 0.3.2 change developer tooling; their authentication APIs and
-signed bytes are unchanged from 0.2.11. Canic's changing root manifest and lock select
+Releases 0.3.0 through 0.3.3 change developer tooling and qualification; their
+authentication APIs and signed bytes are unchanged from 0.2.11. Canic's changing root manifest and lock select
 0.3/0.3.2 in the read-only review below; selected versions alone do not establish
 runtime adoption or removal of duplicated implementations.
 
@@ -127,7 +127,7 @@ selecting compatible `0.3` requirements and resolving both libraries at
 0.3.2 with matching registry checksums. Complete token verification is already available. Consumer dependency
 changes require its own qualified lockfiles and remain owned by Canic.
 
-The pending compatible Auth 0.3.3 batch adds
+Released Auth 0.3.3 adds
 [complete-token Testkit qualification](ic-testkit-qualification.md), joining the
 published bounded Merkle builder and complete verifier with an actual certified
 issuer. Live caller/audience/scope, root deadline/epoch, network-key and certificate
@@ -135,6 +135,12 @@ freshness rejection, followed by upgrade and re-preparation of the same claims,
 pass locally. Root ECDSA signing is native test-only signing. This reinforces the
 existing adoption boundary without a new runtime API or a production issuer
 adapter; Canic's actual endpoint acceptance remains separate.
+
+The compatible 0.3.4 draft extends that fixture through reference-store session
+admission, exact retry beyond proof expiry and live scope/generation invalidation.
+Rejected network and narrowing requests leave the proof reusable. This joins
+the existing public verifier and session engine; it does not qualify Canic's
+stable transaction backend, restart recovery or its actual endpoints.
 
 Protocol-types tests now independently describe Canic's prepare request,
 claims/prepare response and retrieval request at immutable Canic
@@ -189,20 +195,22 @@ Published IC Auth **0.2.11** provides the pure, default-feature
 `chain_key_batch::merkle_root_and_witnesses(&leaf_hashes, max_leaves)` constructor;
 see the [batch contract](chain-key-batches.md) and
 [Auth #15](https://github.com/dragginzgame/ic-auth/issues/15).
-The reviewed Canic helper matches committed
-`ac55e50334dd6479ec36f404e89e60bcfe9184d6`; the wider consumer tree is dirty.
+The read-only Canic review remains at dirty committed base
+`ac55e50334dd6479ec36f404e89e60bcfe9184d6`. Its current batch caller directly
+uses the published constructor with its protected 64-issuer budget, preserving
+principal-byte sorting and duplicate issuer rejection. The owner records
+24 passing batch cases and 182 focused authentication cases, including a
+three-issuer batch with real ECDSA signatures and the shared installation
+verifier, in [Canic's adoption evidence](https://github.com/dragginzgame/canic/issues/491#issuecomment-6098306441).
+The copied generic tree implementation is retired in that uncommitted consumer
+slice. This is local producer/installation qualification, not delivered Canic
+adoption or a real IC certificate journey.
 
-The batch construction caller in
-`ops/auth/delegation/chain_key_batch/mod.rs` can pass its existing ordered leaf
-hashes and protected 64-issuer limit to the library. Preserve principal-byte
-sorting and duplicate issuer rejection before construction, then zip returned
-witnesses with the same leaf order. The shared builder replaces the generic
-Merkle construction machinery. Canic retains its authorized leaf records,
-batch identity/header policy, management signing, stable state and renewal.
-Retirement requires the consumer's actual builder/verifier, signed-byte and
-selected-feature tests; Auth's golden vector and real-signature tests alone do
-not qualify that adapter. Both batch construction and complete verification are
-available for consumer adoption now.
+Canic retains authorized leaf records, batch identity/header policy, management
+signing, stable state and renewal. Its held Auth 0.3.2 graph already supplies
+this API. Complete-token verification, certified-signature retention/composition
+and atomic durable sessions remain separate consumer adoption slices; no Auth
+library release is required to start those adapters.
 
 ### Complete verifier adoption
 
@@ -230,7 +238,7 @@ as well as caller/audience/seed/signature rejection. Complete verifier adoption
 does not require a new library endpoint or wallet service. Stable session storage
 and certification preparation retain their separately described host contracts.
 
-The 2026-10-10 read-only review of Canic at base
+The earlier 2026-10-10 read-only review of Canic at base
 `ac55e50334dd6479ec36f404e89e60bcfe9184d6` finds both libraries resolved to 0.2.7
 in its dirty root lock. Its installation adapter calls the standalone library
 verifier, while the complete-token adapter still uses local callbacks and the

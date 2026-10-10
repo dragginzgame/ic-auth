@@ -1,5 +1,32 @@
 # Changelog
 
+## [0.3.4]
+
+- Qualify session admission from an actual certified token, including rejection
+  without proof consumption, exact retry after proof expiry and live authority
+  invalidation. The reference store remains volatile; consumer durable storage
+  adoption is separate. Public APIs and formats are unchanged.
+  [#18](https://github.com/dragginzgame/ic-auth/issues/18).
+- Adopt Shared Tooling 0.3.7, including failed Git-observation, incomplete-checker
+  and mandatory Bash 3.2 assertion refusal. Run actual formatting-hook
+  preservation in the complete CI gate.
+  [#11](https://github.com/dragginzgame/ic-auth/issues/11),
+  [Shared #103](https://github.com/dragginzgame/shared-tooling/issues/103),
+  [Shared #106](https://github.com/dragginzgame/shared-tooling/issues/106).
+- Use the canonical lockfile-selected Cargo installer for Testkit, retaining
+  offline admission and refusal of selection changes after server setup/check.
+  [Shared #96](https://github.com/dragginzgame/shared-tooling/issues/96).
+- Enforce failed comparisons in owned portable release and Testkit fixtures
+  explicitly, preventing Bash 3.2 from skipping required assertions.
+  [#19](https://github.com/dragginzgame/ic-auth/issues/19),
+  [Shared #107](https://github.com/dragginzgame/shared-tooling/issues/107).
+- Keep only the newest CI run per workflow and branch or PR, cancelling older
+  queued and running checks while retaining the existing host matrix and gates
+  ([Shared #108](https://github.com/dragginzgame/shared-tooling/issues/108)).
+- Select the published Host 0.12.6 graph, including rejection of NUL-containing
+  publication paths before parent creation. Native dependencies remain outside
+  both authentication libraries.
+
 ## [0.3.3] - 2026-10-10
 
 - Qualify complete application-token verification with an actual certified

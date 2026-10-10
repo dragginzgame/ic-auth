@@ -1,4 +1,4 @@
-# IC Testkit signature, token and ingress qualification
+# IC Testkit signature, token, session and ingress qualification
 
 `make test-qualification` first admits the prepared Testkit CLI/server, then
 builds the internal Wasm host in
@@ -104,6 +104,16 @@ After actual upgrade, pending retrieval rejects; controller-authorized
 re-preparation of the unchanged claims verifies again with the same issuer
 identity and preserved composed asset state. See
 [Auth #18](https://github.com/dragginzgame/ic-auth/issues/18).
+
+The same certified token, retrieved after issuer upgrade, also passes through
+`session::establish_session` and `session::authorize_session` against the bounded
+volatile reference store. A different network trust anchor or ungranted narrowing
+request rejects without consuming the proof; admission of the identical token
+then succeeds. Advancing the actual Testkit clock beyond claims expiry rejects
+fresh token verification, while exact retry returns the still-live session with
+its original deadline and unchanged storage occupancy. A narrowed protected
+scope ceiling or advanced generation rejects authorization and retry. Logout
+preserves replay refusal, including after generation invalidation.
 
 Root signing in this scenario uses a deterministic native fixture key. It does
 not qualify management-canister signing, a production token issuance endpoint,

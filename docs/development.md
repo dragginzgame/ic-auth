@@ -2,8 +2,8 @@
 
 The virtual root owns two libraries, unpublished native tooling in `apps/tooling/`
 and the internal host/runner in `apps/qualification/`, plus dependency selections,
-lints and one lockfile. The current manifest version is `0.3.2`, tagged as
-`v0.3.2`; both libraries are published on crates.io.
+lints and one lockfile. The current manifest version is `0.3.3`, tagged as
+`v0.3.3`; both libraries are published on crates.io.
 Rust `1.99.0` remains the development compiler selected by `rust-toolchain.toml`.
 The common package minimum is Rust `1.88.0`, inherited from the root catalog and
 qualified by explicit older-compiler checks. See [MSRV coverage](msrv.md).
@@ -67,9 +67,13 @@ include also admits Make execution independently, so standalone tool consumers
 retain refusal of unsafe modes. Shared fixtures require explicit completion
 before reporting success or deleting their evidence, including on Bash 3.2.
 The validation runner also rejects malformed nesting depth before dispatch and
-requires explicit completion before success. The separate formatting-adoption
-checker still has a reproduced Bash 3.2 premature-exit gap under
-[Shared #103](https://github.com/dragginzgame/shared-tooling/issues/103).
+requires explicit completion before success. Shared Tooling 0.3.7 also enforces
+mandatory portable assertions explicitly on Bash 3.2, including selected Cargo
+tool activation. The formatting-adoption checker refuses premature completion
+under [Shared #103](https://github.com/dragginzgame/shared-tooling/issues/103).
+Routine CI cancels older queued and running checks for the same workflow/ref;
+unfinished hosts on cancelled revisions remain unqualified. The retained run
+still requires the complete Linux and macOS matrix.
 The common IC toolset now selects Binaryen 133; run `make install-ic-tools`
 explicitly to prepare it. This repository builds its qualification Wasm directly
 with Cargo and has no optimized product bundle to qualify.
@@ -207,9 +211,9 @@ It does not qualify browser/wallet login or a durable session backend.
 ## Releases and publication
 
 ```sh
-make release-patch                 # compatible patch increment: 0.3.2 -> 0.3.3
-make release-minor                 # breaking pre-1.0 contract: 0.3.2 -> 0.4.0
-make release-major                 # explicit major decision: 0.3.2 -> 1.0.0
+make release-patch                 # compatible patch increment: 0.3.3 -> 0.3.4
+make release-minor                 # breaking pre-1.0 contract: 0.3.3 -> 0.4.0
+make release-major                 # explicit major decision: 0.3.3 -> 1.0.0
 make release-resume VERSION=X.Y.Z   # reconcile the exact saved attempt
 make publish-dry-run               # validate packages without upload
 make publish                       # upload a clean, delivered tagged release
@@ -232,6 +236,18 @@ even when its PocketIC server is unchanged. Explicitly rerun
 `make install-testkit-tools` before qualification; a missing CLI check reports
 the selected package/version and preparation command, preserving its failure
 status without installing or falling back to an older CLI.
+Shared 0.3.7 owns the lockfile selection directly through the Cargo installer's
+`--lockfile Cargo.lock` argument. The wrapper delegates parsing and CLI admission
+to that owner, then re-admits the current CLI offline after Testkit's server
+operation. A changed selection refuses, including when the newly selected CLI
+is already installed. Checks never prepare a missing selection.
+
+`make test-formatting-hooks` checks actual staged formatting, partial-stage and
+formatter-failure preservation, lockfiles, unrelated edits and hook installation
+in disposable exports. It is included in the complete gate on all three native
+hosts. Failed checker scratch stays under `target/portable-fixtures/`; successful
+scratch is removed. The fixture exports the current qualification sources too.
+
 Complete validation checks the prepared tools immediately after snapshot
 integrity. Standalone qualification admits Testkit before dispatching the Wasm
 build, with explicit sequencing that also applies to parallel Make.
@@ -324,9 +340,9 @@ the utility uses
 and owner-only permissions. Publication errors retain their typed before/after
 state through the utility's error boundary, with secondary staging cleanup
 failures included in diagnostics. IC Testkit 0.32.2 selects Host 0.12 for its four
-public reexports; the lock resolves all four Host packages once at 0.12.4.
-Host's Rust source and public APIs are unchanged from 0.12.2; its latest changes
-adopt common tooling and fix native Make/fixture boundaries. Auth retains its
+public reexports; the lock resolves all four Host packages once at 0.12.6.
+Host's public APIs are unchanged; its filesystem implementation now rejects
+NUL-containing publication paths before parent creation. Auth retains its
 existing version rewriter and release policy.
 The 0.12 release changes common developer setup, preserving these filesystem
 APIs; no local compatibility shim is introduced.
