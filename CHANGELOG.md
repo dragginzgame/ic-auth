@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.2.10]
+## [0.2.10] - 2026-10-10
 
 - Use Host 0.11 filesystem helpers in native tooling and qualification, retaining
   rejection of directory-suffixed publication targets and reporting staging
