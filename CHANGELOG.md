@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.3.6]
+## [0.3.6] - 2026-10-10
 
 - Qualify both exact, untouched package archives at the minimum Rust compiler
   through an isolated consumer. Reject incorrect package identities, forbidden
