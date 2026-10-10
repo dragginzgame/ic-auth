@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.2.11]
+## [0.2.11] - 2026-10-10
 
 - Add bounded chain-key Merkle batch construction so Canic can retire its local
   builder, preserving existing roots, witness ordering and signed bytes.
