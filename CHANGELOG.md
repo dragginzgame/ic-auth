@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.2.8]
+## [0.2.8] - 2026-10-10
 
 - Refuse browser retrieval completion when ready-token storage finishes at or
   after the original deadline, retaining committed material for subsequent
