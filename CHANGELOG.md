@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.3.3]
+## [0.3.3] - 2026-10-10
 
 - Qualify complete application-token verification with an actual certified
   issuer, live authority rejection and re-preparation after canister upgrade,
