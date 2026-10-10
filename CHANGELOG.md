@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.3.5]
+## [0.3.5] - 2026-10-10
 
 - Extend real certified-token session qualification through a substituted host
   transaction refusal after verification/staging. Rejected admission leaves
