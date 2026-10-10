@@ -13,11 +13,13 @@ contract. The libraries and reference service must not depend on either project.
 The Rust workspace implements passive token/proof contracts, validated protocol
 identifiers, canonical signed encoding, optional IC signature/application-token
 verification and atomic session/replay admission extracted from Canic. Both
-libraries are published on crates.io at `0.2.8`; see the
+libraries are published on crates.io at `0.2.10`; see the
 [signature](docs/signatures.md), [token](docs/tokens.md) and
 [session](docs/sessions.md) contracts. Durable canister adoption remains pending.
 Bounded [signature preparation and retrieval](docs/signature-preparation.md)
 includes explicit host certification composition.
+The bounded [Merkle batch constructor](docs/chain-key-batches.md) is implemented
+for pending 0.2.11, allowing Canic to retire its generic construction helper.
 Released [IC Testkit qualification](docs/ic-testkit-qualification.md) checks
 real certification, upgrades and signed ingress; this internal fixture
 does not implement a wallet login provider.

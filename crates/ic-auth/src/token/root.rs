@@ -2,12 +2,9 @@ use super::{RootKeyPolicy, TokenVerificationError, binding, window};
 use crate::canonical::{
     chain_key_batch_header_hash, chain_key_delegation_cert_hash, chain_key_derivation_path_hash,
 };
-use ic_auth_protocol_types::{
-    ChainKeyAlgorithm, ChainKeyBatchWitnessStepV1, ChainKeyBatchWitnessV1, DelegationCert,
-    RootProof,
-};
+use crate::chain_key_batch::witness_root;
+use ic_auth_protocol_types::{ChainKeyAlgorithm, DelegationCert, RootProof};
 use k256::ecdsa::{Signature, VerifyingKey, signature::hazmat::PrehashVerifier};
-use sha2::{Digest, Sha256};
 
 pub(super) fn verify(
     cert: &DelegationCert,
@@ -140,18 +137,4 @@ pub(super) fn verify(
     }
     key.verify_prehash(&chain_key_batch_header_hash(header)?, &signature)
         .map_err(|_| TokenVerificationError::RootSignatureInvalid)
-}
-
-fn witness_root(leaf: [u8; 32], witness: &ChainKeyBatchWitnessV1) -> [u8; 32] {
-    witness.steps.iter().fold(leaf, |current, step| {
-        let (left, right) = match step {
-            ChainKeyBatchWitnessStepV1::LeftSibling(hash) => (*hash, current),
-            ChainKeyBatchWitnessStepV1::RightSibling(hash) => (current, *hash),
-        };
-        let mut hasher = Sha256::new();
-        hasher.update([1]);
-        hasher.update(left);
-        hasher.update(right);
-        hasher.finalize().into()
-    })
 }

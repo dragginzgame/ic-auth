@@ -294,6 +294,27 @@ fn complete_real_proof_chain_returns_only_authenticated_local_grants() {
 }
 
 #[test]
+fn constructed_batch_witness_authenticates_existing_signed_bytes() {
+    let mut f = Fixture::new();
+    let before = proof_hash(&f.token.proof).unwrap();
+    let RootProof::IcChainKeyBatchSignatureV1(root) = &mut f.token.proof.root_proof;
+    let leaves = [
+        [42; 32],
+        chain_key_delegation_cert_hash(&root.delegation_cert).unwrap(),
+        [43; 32],
+    ];
+    let (tree_root, witnesses) =
+        ic_auth::chain_key_batch::merkle_root_and_witnesses(&leaves, 3).unwrap();
+    assert_eq!(tree_root, root.header.tree_root);
+    root.issuer_witness = witnesses[1].clone();
+    assert_eq!(proof_hash(&f.token.proof).unwrap(), before);
+    assert!(verify_token(&f.token, &f.context()).is_ok());
+    let RootProof::IcChainKeyBatchSignatureV1(root) = &mut f.token.proof.root_proof;
+    root.issuer_witness = witnesses[0].clone();
+    f.assert_error(Error::InvalidMerkleWitness);
+}
+
+#[test]
 fn protected_policy_deadline_and_epoch_floors_are_rechecked_without_cache() {
     let mut f = Fixture::new();
     assert!(verify_token(&f.token, &f.context()).is_ok());

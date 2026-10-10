@@ -16,16 +16,16 @@ transactions and recovery obligations.
 
 ## Published dependency and feature selection
 
-Both `ic-auth` and `ic-auth-protocol-types` 0.2.9 are published and unyanked.
+Both `ic-auth` and `ic-auth-protocol-types` 0.2.10 are published and unyanked.
 Their registry checksums match IC Auth release
-`b22cc6b70083b3371c0188bb170dd5d240f5bb8c`. Rust 1.88 is the supported minimum.
+`29cf578acc2045447fe1856f85d8974ab51ac6ab`. Rust 1.88 is the supported minimum.
 For adoption of this release, select compatible registry requirements in Canic's
 root catalog and record the resolved versions in its own lockfiles:
 
 ```toml
 [workspace.dependencies]
-ic-auth = { version = "0.2.9", default-features = false }
-ic-auth-protocol-types = "0.2.9"
+ic-auth = { version = "0.2.10", default-features = false }
+ic-auth-protocol-types = "0.2.10"
 ```
 
 Child packages inherit these dependencies with `workspace = true`; their
@@ -118,8 +118,8 @@ libraries. Published 0.2.0 carries complete proof-transport qualification and
 the developer-tooling hard cut; authentication APIs and signed bytes are unchanged.
 The current read-only inspection at Canic committed base
 `ac55e50334dd6479ec36f404e89e60bcfe9184d6` finds its changing working tree
-selecting compatible `0.2.2`/`0.2` requirements and resolving both libraries at
-0.2.2 with matching registry checksums. Complete token verification is already available. Consumer dependency
+selecting compatible `0.2.2`/`0.2` requirements and now resolving both libraries at
+0.2.10 with matching registry checksums. Complete token verification is already available. Consumer dependency
 changes require its own qualified lockfiles and remain owned by Canic.
 
 Protocol-types tests now independently describe Canic's prepare request,
@@ -168,6 +168,29 @@ Wallet login is not a prerequisite for these local Rust calls. The private
 adapter and publication boundary.
 
 ## Current Canic adapter boundary
+
+### Pending batch construction extraction
+
+Pending IC Auth **0.2.11** adds the pure, default-feature
+`chain_key_batch::merkle_root_and_witnesses(&leaf_hashes, max_leaves)` constructor;
+it is not in published 0.2.10. See the [batch contract](chain-key-batches.md) and
+[Auth #15](https://github.com/dragginzgame/ic-auth/issues/15).
+The reviewed Canic helper matches committed
+`ac55e50334dd6479ec36f404e89e60bcfe9184d6`; the wider consumer tree is dirty.
+
+After that library release, the batch construction caller in
+`ops/auth/delegation/chain_key_batch/mod.rs` can pass its existing ordered leaf
+hashes and protected 64-issuer limit to the library. Preserve principal-byte
+sorting and duplicate issuer rejection before construction, then zip returned
+witnesses with the same leaf order. The shared builder replaces the generic
+Merkle construction machinery. Canic retains its authorized leaf records,
+batch identity/header policy, management signing, stable state and renewal.
+Retirement requires the consumer's actual builder/verifier, signed-byte and
+selected-feature tests; Auth's golden vector and real-signature tests alone do
+not qualify that adapter. This pending addition does not delay the already
+published complete-verifier adoption below.
+
+### Complete verifier adoption
 
 The in-progress Canic `ops/auth/delegated/canonical/mod.rs` calls the library's
 encoding/hash functions through checked role, audience, grant, certificate and

@@ -3,9 +3,9 @@
 The maintainer accepted the larger Canic authentication extraction, selected the
 name `ic-auth`, and confirmed `/home/adam/projects/ic-auth` as the local repository.
 
-The current committed release is `b22cc6b70083b3371c0188bb170dd5d240f5bb8c`
-(`0.2.9`) on `main`, with annotated tag `v0.2.9`; both remote identities were
-verified during continuation. Both libraries' `0.2.9` registry checksums match
+The current committed release is `29cf578acc2045447fe1856f85d8974ab51ac6ab`
+(`0.2.10`) on `main`, with annotated tag `v0.2.10`; both remote identities were
+verified during continuation. Both libraries' `0.2.10` registry checksums match
 the retained publication intent for that exact source/tag. The maintainer
 executed the release and publication. The original bootstrap was
 `7a03102e52b7a400588530997a9f7fb91c83de9d` (`0.1.0`).
@@ -22,7 +22,7 @@ records this batch without closing the larger extraction.
 
 The virtual Rust workspace contains `ic-auth-protocol-types`, `ic-auth` and the
 unpublished native application in `apps/tooling/`, with one lockfile, root-owned
-dependency selections and current manifest version `0.2.9`.
+dependency selections and current manifest version `0.2.10`.
 The passive token/proof contracts and canonical encoding are adapted from the
 clean Canic source at `e286b3fd98460c98670336853f80658a920966e0`; see the
 [source review](../design/canic-source-review.md) for exact ownership and API
@@ -40,7 +40,56 @@ has recorded focused standalone-proof adapter qualification; complete-token,
 durable-session and deployed acceptance remain separate. No sibling repository
 was modified by IC Auth work.
 
-## Current Host and tool preparation follow-through (pending 0.2.10)
+## Current Canic batch-construction extraction (pending 0.2.11)
+
+The maintainer confirmed 0.2.10 live. Remote main and peeled tag match the source
+above; annotated tag `8fa4da48ca6e6be03bcabb72f6d40f5f1b876805` and both unyanked
+registry checksums match retained publication intent. Exact-release
+[CI](https://github.com/dragginzgame/ic-auth/actions/runs/38041557212) passes Linux;
+Intel is running and Apple Silicon queued at inspection. The pending source has
+no hosted result of its own.
+
+Read-only Canic inspection at base
+`ac55e50334dd6479ec36f404e89e60bcfe9184d6` finds its changing root lock selecting
+both Auth packages at 0.2.10. The local complete-token callbacks and positive
+cache remain. Their replacement is already published and tracked in
+[Canic #58](https://github.com/dragginzgame/canic/issues/58); no new endpoint or
+wallet service is required. The Merkle construction helper matches immutable
+committed source, SHA-256
+`f2ea18223a396afb89f3c6ab3ce0c98f58e780f392e98e08996b354043e515ab`.
+
+The pure library now implements a bounded root-and-witness constructor in its
+default graph, preserving node bytes, leaf order and odd-node promotion. The
+existing verifier shares its node hashing. Four construction cases cover the
+frozen Canic root, witness directions, singleton/duplicate hashes, rejection and
+all shapes through 64 leaves. All 26 token/proof cases pass, including a generated
+witness against existing signed bytes and a wrong-position witness rejection.
+[Auth #15](https://github.com/dragginzgame/ic-auth/issues/15) owns the addition;
+[the adoption contract](../canic-adoption.md) retains Canic's protected issuer
+policy, signing, persistence and qualification obligations.
+
+The incoming root Testkit 0.29 requirement is preserved and reconciled to
+published 0.29.0 at `e15cc2acfd9324f6877f854415005f91d169a031`. Its Host 0.11
+selection removes the older filesystem/artifact graph and unifies all four Host
+packages at 0.11.0. Explicit setup prepares the 0.29.0/debug CLI and admits its
+unchanged 16.1.0 server, retaining prior installations. No CLI fallback or direct
+PocketIC dependency is introduced. Complete `make ci` passes on Linux, including
+isolated native/Wasm package MSRV qualification, all library/client cases,
+both actual certification/upgrade/fresh-key ingress scenarios, Wasm, Clippy,
+package dry runs and release/recovery fixtures. Matching macOS consumer
+qualification remains pending. Evidence is retained in
+`target/canic-adoption-0.2.10/`; production inputs are recorded before the gate
+and remain unchanged afterward.
+
+The next compatible draft is **0.2.11**: the constructor is additive, with no
+changed signed encoding, wire/storage contract or existing public API. Package
+versions remain 0.2.10; no sibling files, commits, pushes or release effects are
+changed here. Consumer adoption remains in Canic #491.
+
+## Earlier Host and tool preparation follow-through (0.2.10, released)
+
+The following records implementation and qualification before maintainer delivery.
+Pending-source and CI observations below are historical.
 
 The maintainer confirmed the preceding work pushed. Remote main and peeled
 `v0.2.9` match the current release above; annotated tag

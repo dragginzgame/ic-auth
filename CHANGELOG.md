@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.2.11]
+
+- Add bounded chain-key Merkle batch construction so Canic can retire its local
+  builder, preserving existing roots, witness ordering and signed bytes.
+  [#15](https://github.com/dragginzgame/ic-auth/issues/15),
+  [Canic #491](https://github.com/dragginzgame/canic/issues/491).
+- Adopt the incoming Testkit 0.29 selection and unify native Host dependencies
+  on 0.11, retaining Testkit-owned CLI/server setup and admission.
+  [Testkit #47](https://github.com/dragginzgame/ic-testkit/issues/47).
+
 ## [0.2.10] - 2026-10-10
 
 - Use Host 0.11 filesystem helpers in native tooling and qualification, retaining

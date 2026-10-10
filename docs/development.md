@@ -178,9 +178,9 @@ It does not qualify browser/wallet login or a durable session backend.
 ## Releases and publication
 
 ```sh
-make release-patch                 # compatible work: 0.2.9 -> 0.2.10
-make release-minor                 # breaking pre-1.0 contract: 0.2.9 -> 0.3.0
-make release-major                 # explicit major decision: 0.2.9 -> 1.0.0
+make release-patch                 # compatible work: 0.2.10 -> 0.2.11
+make release-minor                 # breaking pre-1.0 contract: 0.2.10 -> 0.3.0
+make release-major                 # explicit major decision: 0.2.10 -> 1.0.0
 make release-resume VERSION=X.Y.Z   # reconcile the exact saved attempt
 make publish-dry-run               # validate packages without upload
 make publish                       # upload a clean, delivered tagged release
@@ -294,15 +294,14 @@ the utility uses
 `durable::write_with(path, options, producer)` with explicit create/replace modes
 and owner-only permissions. Publication errors retain their typed before/after
 state through the utility's error boundary, with secondary staging cleanup
-failures included in diagnostics. IC Testkit 0.28.1 still requires Host 0.10;
-the lock retains its four 0.10.2 packages alongside Auth's filesystem/artifact
-0.11.0 pair. The qualification runner reads Wasm through the root-selected
-filesystem helper directly and obtains runtime types through Testkit. Host's
-breaking process API belongs to Testkit's migration; Auth has no direct caller
-or compatibility shim for it.
+failures included in diagnostics. IC Testkit 0.29.0 now requires Host 0.11;
+the lock selects all four Host packages at 0.11.0 and removes the older graph.
+The qualification runner reads Wasm through the root-selected filesystem helper
+directly and obtains runtime types through Testkit. Testkit owns adoption of
+Host's breaking process API; Auth has no direct caller or compatibility shim.
 Directory-suffixed publication targets are refused before creating parents or
 replacing a stripped filename; the native utility uses that upstream guard.
-Run `make install-testkit-tools` to prepare the selected 0.28.1 CLI, then
+Run `make install-testkit-tools` to prepare the selected 0.29.0 CLI, then
 `make testkit-tools-check` for offline admission of its unchanged 16.1.0 server.
 Prior versioned CLI installations remain retained. Native Host dependencies
 remain outside both protocol libraries. See the owner adoption in

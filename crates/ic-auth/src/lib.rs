@@ -6,6 +6,7 @@
 //! one explicit host transaction for admission and replay consumption.
 
 pub mod canonical;
+pub mod chain_key_batch;
 
 #[cfg(feature = "canister-signature-preparation")]
 pub mod signature_store;
