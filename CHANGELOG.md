@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.4.0]
+## [0.4.0] - 2026-10-11
 
 - **Breaking:** distinguish Root signature/header mismatches from enrolled-key
   policy mismatches with separate typed token-verification errors. Consumers
