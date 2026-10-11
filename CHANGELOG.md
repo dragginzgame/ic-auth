@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.4.3]
+## [0.4.3] - 2026-10-11
 
 - Check completed browser token flights against each caller's captured scope and
   current claim validity. Conflicting absent/present-empty extension options
