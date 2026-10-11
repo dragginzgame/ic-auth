@@ -36,6 +36,11 @@ external version, source and checksum to remain a subset of the original lock.
 Compiler checks are locked/offline, without a dependency downgrade, network
 fallback or `--ignore-rust-version`.
 
+The independent consumer constructs and hashes the public canonical session
+request on native and Wasm without optional features. Each default selection's
+normal/build graph is recorded and rejects K256, certificate verification, CDK
+and stable storage. The optional session engine remains a separate feature check.
+
 Admission refusal cases run as part of `check-msrv`. Hashes seal the archives and
 every unpacked file before metadata resolution and again after all compilation;
 original and consumer manifests/locks must also remain unchanged. Failed hashes,

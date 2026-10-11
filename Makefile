@@ -51,6 +51,9 @@ test-formatting-hooks:
 		"$(CURDIR)" crates/ic-auth/src/lib.rs Cargo.toml --no-dependency-tables \
 		crates/ic-auth/src/canonical.rs \
 		crates/ic-auth/src/certificate_issuance.rs \
+		crates/ic-auth/src/session_request.rs \
+		crates/ic-auth/src/session/mod.rs \
+		crates/ic-auth/src/session/model.rs \
 		crates/ic-auth/Cargo.toml \
 		crates/ic-auth/src/chain_key_signature.rs \
 		crates/ic-auth/src/token/root.rs \
@@ -58,6 +61,8 @@ test-formatting-hooks:
 		crates/ic-auth/src/token_preparation.rs \
 		crates/ic-auth/tests/chain_key_signature.rs \
 		crates/ic-auth/tests/certificate_issuance.rs \
+		crates/ic-auth/tests/session_request.rs \
+		crates/ic-auth/tests/sessions/mod.rs \
 		crates/ic-auth/tests/token.rs \
 		crates/ic-auth/tests/root_bindings/mod.rs \
 		crates/ic-auth/tests/token_preparation.rs \

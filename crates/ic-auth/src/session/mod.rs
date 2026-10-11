@@ -6,10 +6,11 @@ mod memory;
 mod model;
 
 pub use memory::{MemorySessionStore, SessionPruned};
-pub use model::{Replay, Session, SessionLimits, SessionPolicy, SessionRequest};
+pub use model::{Replay, Session, SessionLimits, SessionPolicy};
 
 use crate::{
     canonical::{CanonicalAuthError, claims_hash},
+    session_request::{SessionRequest, SessionRequestError},
     token::{TokenVerificationContext, TokenVerificationError, verify_token},
 };
 use ic_auth_protocol_types::{DelegatedToken, Principal};
@@ -83,6 +84,16 @@ pub enum SessionError {
     Canonical(#[from] CanonicalAuthError),
     #[error(transparent)]
     Token(#[from] TokenVerificationError),
+}
+
+// Stored record checks retain the engine's existing rejection surface.
+impl From<SessionRequestError> for SessionError {
+    fn from(error: SessionRequestError) -> Self {
+        match error {
+            SessionRequestError::InvalidRequest => Self::InvalidPolicyOrRecord,
+            SessionRequestError::Canonical(error) => Self::Canonical(error),
+        }
+    }
 }
 
 /// Admit one token, atomically consuming its canonical claims fingerprint. Exact

@@ -2,9 +2,10 @@
 
 The virtual root owns two libraries, unpublished native tooling in `apps/tooling/`
 and the internal host/runner in `apps/qualification/`, plus dependency selections,
-lints and one lockfile. The current manifest version is `0.4.6`, tagged as
-`v0.4.6`; protocol-types is indexed but auth publication remains unverified.
-The complete verified two-library selection remains `0.4.5`.
+lints and one lockfile. The current manifest version is `0.4.7`, tagged as
+`v0.4.7`; both libraries are published and checksum-verified. Pending **0.5.0**
+moves the [canonical session request API](session-requests.md) into the default
+selection and changes its constructor error type. Versions remain release-owned.
 Rust `1.99.0` remains the development compiler selected by `rust-toolchain.toml`.
 The common package minimum is Rust `1.88.0`, inherited from the root catalog and
 qualified by explicit older-compiler checks. See [MSRV coverage](msrv.md).
@@ -265,7 +266,7 @@ Released 0.4.1 adopts Shared Tooling 0.5.0 without changing the library contract
 Released 0.4.2 adds pure [token preparation](token-preparation.md), adopts Shared
 Tooling 0.6.0 and qualifies native dependency updates. Released 0.4.3 fixes browser
 flight result validation. Released 0.4.4 adopts Shared Tooling 0.6.1's setup failure
-propagation and qualifies the incoming native selections. Pending 0.4.5 adopts
+propagation and qualifies the incoming native selections. Released 0.4.5 adopts
 Shared Tooling 0.6.3's restart of committed preparation. Existing Rust APIs,
 signed bytes, stored formats and consumer build requirements remain unchanged.
 Release execution still requires an explicit request for the selected command.
@@ -424,9 +425,9 @@ directly and obtains runtime types through Testkit. Testkit owns adoption of
 Host's breaking process API; Auth has no direct caller or compatibility shim.
 Directory-suffixed publication targets are refused before creating parents or
 replacing a stripped filename; the native utility uses that upstream guard.
-The current lock selects Testkit 0.33.7 and the four Host packages at 0.13.5.
-Both patches update contributor tooling and failure retention; existing Auth
-runtime and file callers are unchanged. Native graph qualification
+The current lock selects Testkit 0.34.0 and the four Host packages at 0.14.1.
+These updates remain in native tooling and qualification; Auth's callers do not
+use Host's replaced completed-process-result boundary. Native graph qualification
 uses the actual certification, upgrade and ingress journey, separately from
 common Rust setup; its current evidence belongs in the [handoff](status/current.md).
 Matching native CI remains required for the pending batch.

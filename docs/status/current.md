@@ -3,14 +3,15 @@
 The maintainer accepted the larger Canic authentication extraction, selected the
 name `ic-auth`, and confirmed `/home/adam/projects/ic-auth` as the local repository.
 
-The current committed release is `8e29fa0d8f10c98b22c139feab5862f76ff116f8`
-(`0.4.6`) on `main`, with annotated tag `v0.4.6`; both remote identities match
-the retained publication intent. Protocol-types 0.4.6 is indexed, unyanked and
-checksum-matched. At delivery inspection, the auth crate's 0.4.6 is absent from
-both the crates.io API and sparse index; complete publication is not yet verified.
-The maintainer executed the source release; published 0.4.5 remains the last
-verified complete two-library selection. The original bootstrap was
-`7a03102e52b7a400588530997a9f7fb91c83de9d` (`0.1.0`).
+The current committed release is `06ff1f8ef44277f534b083b5f45f94d573b9f7a5`
+(`0.4.7`) on `main`, with annotated tag `v0.4.7`; remote main and the peeled tag
+match the retained publication intent. Both libraries are indexed, unyanked and
+checksum-matched: protocol-types
+`635e05972d2db981c7563aad95e360d500e6c58e6768711b1dfb38489a863c9c`
+and auth `57f82e8ddd77bb5c211aad254c19b3b66635648b77f51c4bd560395c95ea2d32`.
+This verifies delivery of the chain-key checks/normalizer and certificate issuance
+API. Earlier incomplete 0.4.6 delivery evidence below is historical. The original
+bootstrap was `7a03102e52b7a400588530997a9f7fb91c83de9d` (`0.1.0`).
 The public remote [dragginzgame/ic-auth](https://github.com/dragginzgame/ic-auth)
 was created at the maintainer's request and is configured as `origin` using
 `https://github.com/dragginzgame/ic-auth.git`.
@@ -24,7 +25,7 @@ records this batch without closing the larger extraction.
 
 The virtual Rust workspace contains `ic-auth-protocol-types`, `ic-auth` and the
 unpublished native application in `apps/tooling/`, with one lockfile, root-owned
-dependency selections and current manifest version `0.4.6`.
+dependency selections and current manifest version `0.4.7`.
 The passive token/proof contracts and canonical encoding are adapted from the
 clean Canic source at `e286b3fd98460c98670336853f80658a920966e0`; see the
 [source review](../design/canic-source-review.md) for exact ownership and API
@@ -45,7 +46,54 @@ That evidence binds its reported consumer inputs, not later changing sibling
 files. Complete-token, durable-session and deployed acceptance remain separate.
 No sibling repository was modified or built by IC Auth work.
 
-## Current continuation (pending 0.4.7)
+## Current continuation (pending 0.5.0)
+
+[Auth #32](https://github.com/dragginzgame/ic-auth/issues/32) extracts the existing
+canonical request owner into the default-feature
+[`session_request` module](../session-requests.md), with `SessionRequestError` for
+pure shape/canonical refusals. The optional session engine shares that owner;
+request hash framing, stored session bytes, admission policy and replay/atomicity
+remain unchanged. There is no old-path alias. This public import/constructor-error
+cut requires **0.5.0**, not a patch; manifests and lock remain at released 0.4.7.
+
+Five default-feature request cases pass, including independent frozen vectors,
+absent/explicit/max-u64 TTL, exact 16-scope/64-byte/1024-byte bounds, grammar and
+combined-invalid refusal order, input detachment and framing distinction. All
+14 session cases pass. Isolated normalized-package MSRV consumers now call this
+public API on native/Wasm, and their default normal/build graphs refuse K256,
+certificate verification, CDK and stable storage. Stored-record corruption checks
+retain the engine's prior shape/canonical errors.
+
+The complete genuine Bash 3.2.57 gate passes all **28 targets**, including all
+three actual certification/upgrade/ingress cases, isolated package MSRV, feature
+boundaries, strict Clippy, 52 browser cases, both package dry runs without upload
+and local/mocked release/evidence fixtures. Every tracked/new input and mode,
+the incoming manifest/lock, real index and HEAD remain identical throughout;
+tracked checkpoint diff SHA-256
+`27d69fab9cb1b5c51b66d4d1e92ae028d08895f973b12cf3211b077ac484f459`.
+Evidence is retained under `target/session-request-0.5.0/`; final documentation is
+checked separately. Shared Tooling stays 0.6.3, Testkit stays 0.34.0 and all four
+Host packages stay 0.14.1 with the admitted 16.1.0 server.
+
+The verified [Auth producer handoff](https://github.com/dragginzgame/ic-auth/issues/32#issuecomment-6111498271)
+and [Canic adoption handoff](https://github.com/dragginzgame/canic/issues/491#issuecomment-6111498429)
+record the public cut and exact reviewed consumer inputs. Publication and matching
+native/consumer acceptance remain open. Released 0.4.7's
+[exact-source CI](https://github.com/dragginzgame/ic-auth/actions/runs/38155990585)
+passes Linux; both macOS jobs remain queued at final inspection. That release
+run does not qualify this uncommitted 0.5.0 batch.
+
+Canic can adopt after publication to retire its establishment-request hash,
+without enabling cryptographic session features. Keep its typed prechecks and
+error precedence, protected generation, endpoint authentication, operation and
+replay/lease policy. #491 retains consumer acceptance and #517 its release impact.
+No sibling edit or build is performed. Index, source versions, lock, commits,
+refs, release/publication and deployment remain user-owned.
+
+## Released 0.4.7 preparation evidence
+
+The following records preparation before maintainer delivery; pending-version,
+publication and CI observations are historical. Current verified delivery is above.
 
 [Auth #31](https://github.com/dragginzgame/ic-auth/issues/31) adds explicit
 `chain_key_signature::normalize_secp256k1_signature` under the existing

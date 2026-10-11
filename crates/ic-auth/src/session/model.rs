@@ -1,13 +1,13 @@
 use super::SessionError;
 use crate::{
     canonical::validate_scope_label,
+    session_request::{SessionRequest, check_scopes},
     token::{RootKeyPolicy, TokenVerificationContext, VerifiedToken},
 };
 use ic_auth_protocol_types::{
     AudienceId, AuthRole, ChainKeyAlgorithm, ChainKeyKeyId, DelegatedToken, Principal, RootProof,
 };
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 
 /// Protected admission policy. Hosts must advance generation atomically with
 /// authority changes, including disable/re-enable and issuer revocation.
@@ -63,60 +63,6 @@ impl SessionLimits {
         }
         Ok(())
     }
-}
-
-/// Canonical narrowing request: 1..=16 unique scopes, at most 1024 scope bytes.
-/// Input order is normalized before hashing; duplicates are rejected.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct SessionRequest {
-    scopes: Vec<String>,
-    ttl_secs: Option<u64>,
-}
-impl SessionRequest {
-    pub fn new(mut scopes: Vec<String>, ttl_secs: Option<u64>) -> Result<Self, SessionError> {
-        check_scopes(&scopes)?;
-        scopes.sort_unstable();
-        if scopes.windows(2).any(|pair| pair[0] == pair[1]) || ttl_secs == Some(0) {
-            return Err(SessionError::InvalidPolicyOrRecord);
-        }
-        Ok(Self { scopes, ttl_secs })
-    }
-    pub fn scopes(&self) -> &[String] {
-        &self.scopes
-    }
-    /// Exact Canic V1 request hash; None and an explicit default TTL differ.
-    pub fn hash(&self) -> [u8; 32] {
-        let mut hash = Sha256::new();
-        hash.update(b"canic-application-session-request-v1");
-        hash.update((self.scopes.len() as u64).to_be_bytes());
-        for scope in &self.scopes {
-            hash.update((scope.len() as u64).to_be_bytes());
-            hash.update(scope.as_bytes());
-        }
-        match self.ttl_secs {
-            None => hash.update([0]),
-            Some(ttl) => {
-                hash.update([1]);
-                hash.update(ttl.to_be_bytes());
-            }
-        }
-        hash.finalize().into()
-    }
-}
-
-fn check_scopes(scopes: &[String]) -> Result<(), SessionError> {
-    if scopes.is_empty() || scopes.len() > 16 {
-        return Err(SessionError::InvalidPolicyOrRecord);
-    }
-    let mut bytes = 0usize;
-    for scope in scopes {
-        validate_scope_label(scope)?;
-        bytes += scope.len(); // Each validated scope is <=64 bytes, count <=16.
-    }
-    if bytes > 1024 {
-        return Err(SessionError::InvalidPolicyOrRecord);
-    }
-    Ok(())
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -211,7 +157,7 @@ impl Session {
         }
         let data: SessionData =
             serde_cbor::from_slice(bytes).map_err(|_| SessionError::InvalidPolicyOrRecord)?;
-        check_scopes(&data.scopes)?;
+        check_scopes(&data.scopes).map_err(SessionError::from)?;
         if data.caller == Principal::anonymous()
             || data.caller != data.subject
             || data.issuer == Principal::anonymous()
@@ -234,7 +180,7 @@ impl Session {
         ctx: &TokenVerificationContext<'_>,
         policy: SessionPolicy,
     ) -> Result<Self, SessionError> {
-        let ttl = request.ttl_secs.unwrap_or(policy.default_ttl_secs);
+        let ttl = request.ttl_secs().unwrap_or(policy.default_ttl_secs);
         if ttl == 0 || ttl > policy.max_ttl_secs {
             return Err(SessionError::InvalidPolicyOrRecord);
         }
@@ -256,7 +202,7 @@ impl Session {
             issuer: verified.claims().issuer_pid,
             audience: ctx.audience,
             role: verified.role().clone(),
-            scopes: request.scopes.clone(),
+            scopes: request.scopes().to_vec(),
             generation: policy.generation,
             established_at_ns: ctx.now_ns,
             expires_at_ns: expires.min(key.accept_until_ns),

@@ -16,17 +16,17 @@ transactions and recovery obligations.
 
 ## Published dependency and feature selection
 
-Both `ic-auth` and `ic-auth-protocol-types` 0.4.5 are published and unyanked.
+Both `ic-auth` and `ic-auth-protocol-types` 0.4.7 are published and unyanked.
 Their registry checksums match IC Auth release
-`33136e265b89af9c3f370d9d18b0724c27e0762a`. Rust 1.88 is the supported minimum.
-The pure preparation API requires at least 0.4.2; 0.4.5 preserves its Rust contract.
+`06ff1f8ef44277f534b083b5f45f94d573b9f7a5`. Rust 1.88 is the supported minimum.
+The pure preparation API requires at least 0.4.2; 0.4.7 preserves its Rust contract.
 Select compatible registry requirements in Canic's
 root catalog and record the resolved versions in its own lockfiles:
 
 ```toml
 [workspace.dependencies]
-ic-auth = { version = "0.4.2", default-features = false }
-ic-auth-protocol-types = "0.4.2"
+ic-auth = { version = "0.4.7", default-features = false }
+ic-auth-protocol-types = "0.4.7"
 ```
 
 Child packages inherit these dependencies with `workspace = true`; their
@@ -59,12 +59,11 @@ imports Canic, Toko, Solana, CDK, stable memory or native Host/Testkit tooling.
 Library adoption does not remove a cryptographic dependency from the transitive
 graph merely by moving its direct declaration.
 
-## Chain-key checks and pending normalization
+## Published chain-key checks and normalization
 
-The 0.4.6 source/tag implements [pure SEC1 admission and compact prehash verification](chain-key-signatures.md)
+Published 0.4.7 implements [pure SEC1 admission and compact prehash verification](chain-key-signatures.md)
 under `chain-key-verification`, without selecting certificate verification.
-The auth crate's registry publication is not yet verified. After confirmed
-publication, Canic can select at least 0.4.6,
+Canic can select 0.4.7,
 forward its existing ECDSA capability, and replace the parsing/verification in
 `ops/auth/delegated/chain_key.rs` used by `chain_key_signing.rs` and
 `token/verifier_config.rs`. Keep the original signing hash, protected key
@@ -73,10 +72,10 @@ projection. Complete Root verification retains its existing error surface.
 
 [Auth #29](https://github.com/dragginzgame/ic-auth/issues/29) owns this extraction;
 [Canic #491](https://github.com/dragginzgame/canic/issues/491) retains adoption.
-Configuration schema key admission can use the same public helper. Pending 0.4.7
+Configuration schema key admission can use the same public helper. Released 0.4.7
 under [Auth #31](https://github.com/dragginzgame/ic-auth/issues/31) adds explicit
 `normalize_secp256k1_signature`, returning compact low-S bytes through K256.
-After publication, the reviewed `normalize_chain_key_ecdsa_signature_enabled`
+The reviewed `normalize_chain_key_ecdsa_signature_enabled`
 can replace its conversion with this function and project the returned array to
 its response vector. Retain the producer's decision to normalize management
 replies, then verify using its original hash and protected key. Strict submitted
@@ -91,9 +90,9 @@ This additive producer patch does not classify the consumer's release boundary.
 
 ## Canonical declarations and protected inputs
 
-Pending 0.4.7 adds [pure certificate issuance validation](certificate-issuance.md)
+Released 0.4.7 adds [pure certificate issuance validation](certificate-issuance.md)
 under [Auth #30](https://github.com/dragginzgame/ic-auth/issues/30), with no optional
-feature required. After publication, replace `delegated/cert_rules.rs` mechanics
+feature required. Replace `delegated/cert_rules.rs` mechanics
 used by certificate construction and pure token-material validation with
 `validate_certificate_issuance`, passing independently resolved Root and explicit
 TTL/grant/scope bounds. Map distinct lifetime and grant causes to the existing
@@ -161,11 +160,29 @@ publication. This extraction is independent of Canic's complete-token freshness,
 protected scope ceiling and committed-session lease decisions. Local Auth tests
 and its actual certified-token fixture do not establish Canic endpoint adoption.
 
+## Pure session request identity (pending 0.5.0)
+
+[Auth #32](https://github.com/dragginzgame/ic-auth/issues/32) exposes
+[`session_request::SessionRequest`](session-requests.md) without optional features.
+After publication, the always-compiled adapter can replace
+`ApplicationSessionWorkflow::establishment_request_hash` with the shared request
+hash while retaining existing typed scope/TTL prechecks and diagnostic order.
+The exact Canic V1 domain, framing and absent/explicit TTL distinction remain.
+This requires no token verifier, enrolled key, clock or session store.
+
+0.5.0 removes the former `session::SessionRequest` import and changes construction
+errors to `SessionRequestError`; update imports and error projection. The optional
+session engine uses this same owner without changing its stored format, hashes or
+lease/replay policy. Canic retains protected generation, authenticated endpoints,
+operation identity and committed lease policy. Consumer qualification belongs in
+#491; its exposed upstream release boundary remains #517.
+
 ## Durable sessions and certification
 
 The target session engine calls `session::establish_session`; protected operations call
 `session::authorize_session` with current context. Use `SessionRequest::new`
-for canonical scope/TTL request identity. Do not wrap the old session engine
+from `session_request` in pending 0.5.0 for canonical scope/TTL request identity.
+Do not wrap the old session engine
 behind the library or use its public verified-authority constructor to bypass
 proof verification.
 

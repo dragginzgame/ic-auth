@@ -1,6 +1,6 @@
 # Pure certificate issuance validation
 
-Pending 0.4.7 provides the default-feature API
+Released 0.4.7 provides the default-feature API
 `ic_auth::certificate_issuance::validate_certificate_issuance(cert, expected_root, limits)`
 for [Auth #30](https://github.com/dragginzgame/ic-auth/issues/30). It accepts the
 passive `DelegationCert` contract and returns `Result<(), CertificateIssuanceError>`.

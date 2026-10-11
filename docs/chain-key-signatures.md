@@ -1,12 +1,12 @@
 # Pure chain-key signature checks
 
-The **0.4.6 source/tag** adds `ic_auth::chain_key_signature` under the independent
-`chain-key-verification` feature. [Auth #29](https://github.com/dragginzgame/ic-auth/issues/29)
-owns producer qualification; [Canic #491](https://github.com/dragginzgame/canic/issues/491)
-owns consumer adoption. At delivery inspection, protocol-types 0.4.6 is indexed;
-the auth crate's 0.4.6 registry publication is not yet verified. Select the API
-only after its publication is confirmed. Pending **0.4.7** adds explicit
-normalization under [Auth #31](https://github.com/dragginzgame/ic-auth/issues/31).
+Published **0.4.7** includes `ic_auth::chain_key_signature` under the independent
+`chain-key-verification` feature and explicit producer normalization.
+[Auth #29](https://github.com/dragginzgame/ic-auth/issues/29) and
+[Auth #31](https://github.com/dragginzgame/ic-auth/issues/31) own producer qualification;
+[Canic #491](https://github.com/dragginzgame/canic/issues/491) owns consumer adoption.
+Both 0.4.7 library publications are checksum-verified; the earlier incomplete
+0.4.6 delivery does not block this published selection.
 
 `validate_secp256k1_public_key(&[u8])` admits SEC1 key material using K256's
 existing parser, including compressed and uncompressed keys. Admission does
@@ -30,13 +30,13 @@ high-S detection, then cryptographic verification. Inputs are borrowed and
 unchanged. Signature validity alone is not proof of enrollment, management-call
 provenance, issuer approval, wallet identity or application authorization.
 
-## Explicit producer normalization (pending 0.4.7)
+## Explicit producer normalization (released 0.4.7)
 
 `normalize_secp256k1_signature(&[u8]) -> Result<[u8; 64], ChainKeySignatureError>`
 uses K256 to parse compact signature bytes and return their low-S representation.
 Already-low-S bytes remain identical; repeated normalization is idempotent.
 Malformed encodings/scalars return `MalformedSignature`. The input remains
-unchanged. This implemented addition is not yet published.
+unchanged.
 
 Normalization has no public-key or hash input and cannot authenticate a
 signature. A parseable signature for the wrong hash or key can normalize
@@ -69,13 +69,13 @@ high-S refusal, explicit normalization/idempotence and rejection precedence.
 proof controls and shared standalone/token rejection checks. Native/Wasm,
 isolated package MSRV and dependency-boundary checks include the new capability.
 
-After confirmed 0.4.6 publication, Canic can forward its existing ECDSA capability to
+With published 0.4.7, Canic can forward its existing ECDSA capability to
 `ic-auth/chain-key-verification`, replace its isolated signing-response verifier
 and configured-key admission with these functions, and retain its unsupported
 algorithm/feature-disabled refusals and endpoint error projection. Audit all
 remaining production and test K256 uses before removing its direct dependency;
 the reviewed signing adapter explicitly normalizes management replies before
-verification. After 0.4.7 publication it can replace that conversion with the
+verification. It can replace that conversion with the
 new normalizer, projecting the returned array to its response vector, while
 retaining the same producer policy. Its configuration validation also parses
 keys and can use this admission function. If no production K256 use remains,

@@ -77,6 +77,13 @@ cat > "$fixture/src/lib.rs" <<'RUST'
 pub use ic_auth_protocol_types;
 #[cfg(feature = "ic-auth")]
 pub use ic_auth;
+#[cfg(feature = "ic-auth")]
+pub fn canonical_session_request(
+    scopes: Vec<String>, ttl_secs: Option<u64>,
+) -> Result<(Vec<String>, [u8; 32]), ic_auth::session_request::SessionRequestError> {
+    let request = ic_auth::session_request::SessionRequest::new(scopes, ttl_secs)?;
+    Ok((request.scopes().to_vec(), request.hash()))
+}
 RUST
 cp "$fixture/original-workspace.lock" "$fixture/Cargo.lock"
 cargo +"$development" metadata --offline --format-version 1 --all-features \
@@ -105,6 +112,15 @@ for target in native wasm32-unknown-unknown; do
         printf 'MSRV %s: ic-auth %s on %s\n' "$floor" "$feature" "$target"
         cargo +"$floor" check --locked --offline --lib --manifest-path "$fixture/Cargo.toml" \
             ${target_args[@]+"${target_args[@]}"} "${feature_args[@]}"
+        if [[ "$feature" == default ]]; then
+            cargo +"$floor" tree --locked --offline --manifest-path "$fixture/Cargo.toml" \
+                ${target_args[@]+"${target_args[@]}"} "${feature_args[@]}" \
+                --edges normal,build --prefix none --format '{p}' > "$fixture/pure-request-$target.graph"
+            if rg '^(k256|ic-certification|ic-signature-verification|ic-canister-sig-creation|ic-verify-bls-signature|ic-cdk|ic-stable-structures)([- ]|$)' "$fixture/pure-request-$target.graph"; then
+                echo 'isolated pure request consumer pulls cryptographic or session storage dependencies' >&2
+                exit 1
+            fi
+        fi
     done
 done
 # Internal applications have the same qualified floor, checked separately from

@@ -8,6 +8,7 @@
 pub mod canonical;
 pub mod certificate_issuance;
 pub mod chain_key_batch;
+pub mod session_request;
 pub mod token_preparation;
 
 #[cfg(feature = "chain-key-verification")]

@@ -5,6 +5,12 @@ token verifier. Default, signature-only and
 token-only graphs remain selectable without the session engine. No feature
 imports Canic, Toko, Solana, native Host tooling, CDK or stable storage.
 
+Pending 0.5.0 moves `SessionRequest` to the default-feature
+[`ic_auth::session_request`](session-requests.md) module. Update the former
+`session::SessionRequest` import and handle `SessionRequestError` at construction.
+The engine consumes that same pure owner; request hashes, session records and
+engine admission/error contracts remain unchanged.
+
 `establish_session(store, token, request, token_context, policy)` verifies both
 token proofs before new admission and performs session replacement and replay
 consumption in one synchronous host transaction. `authorize_session` reads the
@@ -129,7 +135,8 @@ and remove the superseded owner in the separately authorized consumer change.
 It covers proof rejection, exact retries, post-staging atomic failure, authority
 and caller/scope changes, replacement/logout, capacity and byte failure, strict
 starts, expiry overflow and bounded cleanup. The request hash has an independently
-computed fixed vector. Clippy, Wasm compilation, packaging and graph checks
+computed fixed vector in the default-feature `make test-protocol` suite, with
+separate absent/explicit-TTL vectors and exact scope bounds. Clippy, Wasm compilation, packaging and graph checks
 include the feature. These checks do not establish stable host adoption, upgrade
 or ingress-delegation behavior; PocketIC remains required for those boundaries.
 The [accepted design](design/extraction.md) and

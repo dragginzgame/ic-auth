@@ -14,6 +14,10 @@ for package in ic-auth-protocol-types ic-auth; do
         echo 'passive types pull runtime, storage or certification state' >&2
         exit 1
     fi
+    if [[ "$package" == ic-auth ]] && printf '%s\n' "$graph" | rg '^(k256|ic-certification|ic-signature-verification|ic-canister-sig-creation|ic-verify-bls-signature|ic-cdk|ic-stable-structures)([- ]|$)'; then
+        echo 'pure encoding/request graph pulls cryptographic or session storage dependencies' >&2
+        exit 1
+    fi
 done
 # The selected authentication capabilities must remain free of product, wallet,
 # host tooling and service-owned storage dependencies too. Upstream IC key

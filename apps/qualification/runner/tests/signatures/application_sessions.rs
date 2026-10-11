@@ -7,9 +7,10 @@ use ic_auth::{
     canonical::claims_hash,
     session::{
         MemorySessionStore, SessionError, SessionEstablished, SessionLimits, SessionOccupancy,
-        SessionPolicy, SessionPruned, SessionRequest, SessionStore, SessionTransaction,
-        authorize_session, establish_session,
+        SessionPolicy, SessionPruned, SessionStore, SessionTransaction, authorize_session,
+        establish_session,
     },
+    session_request::SessionRequest,
     token::{TokenVerificationContext, TokenVerificationError, verify_token},
 };
 use ic_auth_protocol_types::DelegatedToken;

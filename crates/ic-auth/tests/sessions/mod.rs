@@ -1,8 +1,9 @@
 use super::*;
 use ic_auth::session::{
     MemorySessionStore, Session, SessionError, SessionEstablished, SessionLimits, SessionPolicy,
-    SessionRequest, SessionStore, SessionTransaction, authorize_session, establish_session,
+    SessionStore, SessionTransaction, authorize_session, establish_session,
 };
+use ic_auth::session_request::SessionRequest;
 
 fn policy(generation: u64) -> SessionPolicy {
     SessionPolicy {
@@ -411,28 +412,7 @@ fn pruning_is_bounded_and_exact_retry_survives_replay_pruning() {
 }
 
 #[test]
-fn canonical_request_hash_preserves_exact_ttl_choice_and_scope_order() {
-    let a = SessionRequest::new(vec!["write".into(), "read".into()], Some(30)).unwrap();
-    let b = SessionRequest::new(vec!["read".into(), "write".into()], Some(30)).unwrap();
-    assert_eq!(a.hash(), b.hash());
-    assert_eq!(
-        a.hash()
-            .iter()
-            .map(|b| format!("{b:02x}"))
-            .collect::<String>(),
-        "d99fc919563d8dba6db966bacbb256f2ba2437e64d12353106409934cc678551"
-    );
-    assert_ne!(
-        request().hash(),
-        SessionRequest::new(vec!["read".into()], Some(1))
-            .unwrap()
-            .hash()
-    );
-    assert!(SessionRequest::new(vec![], None).is_err());
-    assert!(SessionRequest::new(vec!["read".into(), "read".into()], None).is_err());
-    assert!(SessionRequest::new(vec!["bad scope".into()], None).is_err());
-    assert!(SessionRequest::new((0..17).map(|n| format!("s{n}")).collect(), None).is_err());
-    assert!(SessionRequest::new(vec!["read".into()], Some(0)).is_err());
+fn stored_record_decode_rejects_invalid_size_and_encoding() {
     assert_eq!(
         Session::decode(&vec![0; 2049]),
         Err(SessionError::ByteCapacity)
@@ -555,6 +535,26 @@ fn stored_record_decode_rejects_corruption_and_unknown_fields() {
         Err(SessionError::InvalidPolicyOrRecord)
     );
     fields.remove(&serde_cbor::Value::Text("unexpected".into()));
+    fields.insert(
+        serde_cbor::Value::Text("scopes".into()),
+        serde_cbor::Value::Array(vec![]),
+    );
+    assert_eq!(
+        Session::decode(&serde_cbor::to_vec(&fields).unwrap()),
+        Err(SessionError::InvalidPolicyOrRecord)
+    );
+    fields.insert(
+        serde_cbor::Value::Text("scopes".into()),
+        serde_cbor::Value::Array(vec![serde_cbor::Value::Text("bad scope".into())]),
+    );
+    assert_eq!(
+        Session::decode(&serde_cbor::to_vec(&fields).unwrap()),
+        Err(SessionError::Canonical(
+            ic_auth::canonical::CanonicalAuthError::InvalidScope {
+                scope: "bad scope".into(),
+            }
+        ))
+    );
     fields.insert(
         serde_cbor::Value::Text("scopes".into()),
         serde_cbor::Value::Array(vec![serde_cbor::Value::Text("read".into()); 2]),

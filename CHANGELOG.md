@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.5.0]
+
+- Breaking: move the canonical session request API to the default-feature
+  `ic_auth::session_request` module and return `SessionRequestError` from its
+  constructor. Update the former `session::SessionRequest` import and constructor
+  error handling; no compatibility alias remains. Canic can reuse request hashes
+  without enabling cryptographic sessions. The engine shares this owner and
+  preserves request hashes, signed bytes and stored session encoding.
+  [#32](https://github.com/dragginzgame/ic-auth/issues/32).
+
 ## [0.4.7] - 2026-10-11
 
 - Add pure certificate issuance validation with explicit Root and host limits,
