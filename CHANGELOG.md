@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.3.7]
+## [0.3.7] - 2026-10-11
 
 - Adopt Shared Tooling 0.3.9 so Cargo tool setup/checks use the selected
   consumer's configuration and early fatal, LLVM and missing-file diagnostics
