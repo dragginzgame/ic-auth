@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.4.7]
+## [0.4.7] - 2026-10-11
 
 - Add pure certificate issuance validation with explicit Root and host limits,
   typed lifetime/grant/binding refusals and unchanged signed fields. Canic can
