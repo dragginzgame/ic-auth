@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.4.5]
+## [0.4.5] - 2026-10-11
 
 - Adopt Shared Tooling 0.6.3 so standard release targets restart interrupted
   preparation after its local metadata disposition is committed in a clean
