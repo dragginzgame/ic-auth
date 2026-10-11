@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.4.4]
+## [0.4.4] - 2026-10-11
 
 - Adopt Shared Tooling 0.6.1 so failed Cargo-tool setup stops with its original
   failure status and retains prior selections and failure evidence. Contributors
