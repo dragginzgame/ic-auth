@@ -45,7 +45,9 @@ if [[ $# == 1 && "$1" == --version ]]; then
     printf 'cargo 1.99.0\n'
     exit 0
 fi
-[[ $# == 9 && "$1" == install && "$6" == --root && "$8" == --target-dir && "$9" == "$7/build" ]]
+[[ $# == 13 && "$1" == install && "$2" == cargo-sort && "$3" == --version &&
+    "$5" == --locked && "$6" == --root && "$8" == --target-dir && "$9" == "$7/build" &&
+    "${10}" == --bin && "${11}" == cargo-sort && "${12}" == --registry && "${13}" == crates-io ]] || exit 1
 mkdir -p "$9"
 printf 'retained failed Rust compilation\n' > "$9/failed-build.txt"
 printf 'dispatch\n' >> "$9/dispatches.txt"
@@ -62,8 +64,11 @@ for phase in install check; do
     cmp "$fixture/$phase.stdout" "$consumer/target/rust-tools-$phase.log"
 done
 grep -F 'injected Cargo installation failure (23)' "$consumer/target/rust-tools-install.log" > /dev/null
-grep -F 'missing or mismatched cargo-sort' "$consumer/target/rust-tools-check.log" > /dev/null
-[[ "$(cat "$consumer/.tools/rust/build/dispatches.txt")" == dispatch ]]
+grep -F 'missing or mismatched common Rust tool set' "$consumer/target/rust-tools-check.log" > /dev/null
+set -- "$consumer"/.tools/rust/build/cargo-attempt.*
+[[ $# == 1 && -f "$1/build/failed-build.txt" ]] || exit 1
+attempt="${1##*/}"
+[[ "$(cat "$1/build/dispatches.txt")" == dispatch ]] || exit 1
 [[ ! -e "$consumer/target/product-dispatch.log" ]]
 # Logging failure cannot mask a rejected aggregate, or turn a successful one
 # into an unrecorded success. Keep these extra runs outside the retained oracle.
@@ -89,8 +94,13 @@ status=0
 TEST_TEE_BINARY="$tee_binary" PATH="$fixture/bin:$PATH" "$BASH" "$fixture/log-errors/scripts/dev/ci-tools.sh" check \
     > "$fixture/logging-failed.log" 2>&1 || status=$?
 [[ "$status" == 41 ]]
-mkdir "$consumer/.tools/rust/unrelated-cache"
-printf 'must not upload\n' > "$consumer/.tools/rust/unrelated-cache/private"
+# The collector retains the complete physical Rust tree, including earlier
+# slot build evidence. A redirected child is archived as a link, never followed.
+slot_evidence='.tools/rust/fixture-1.0.0-bin-fixture-release/installed/build/evidence.txt'
+mkdir -p "$consumer/${slot_evidence%/*}" "$fixture/outside"
+printf 'retained prior slot build evidence\n' > "$consumer/$slot_evidence"
+printf 'must not upload\n' > "$fixture/outside/private"
+ln -s "$fixture/outside" "$consumer/.tools/rust/redirected-slot"
 
 # Execute the adopted collector block; never maintain another selection.
 yq -p yaml -o json '.' .github/actions/retain-failure-evidence/action.yml | \
@@ -107,14 +117,19 @@ archive="$(sed -n 's/^path=//p' "$fixture/collector.outputs")"
         printf '%s  %s\n' "$digest" "$path"
     done
     for path in failed-build.txt dispatches.txt; do
-        digest="$(bash scripts/ci/verify-file-checksum.sh --print sha256 "$consumer/.tools/rust/build/$path")"
-        printf '%s  .tools/rust/build/%s\n' "$digest" "$path"
+        relative=".tools/rust/build/$attempt/build/$path"
+        digest="$(bash scripts/ci/verify-file-checksum.sh --print sha256 "$consumer/$relative")"
+        printf '%s  %s\n' "$digest" "$relative"
     done
+    digest="$(bash scripts/ci/verify-file-checksum.sh --print sha256 "$consumer/$slot_evidence")"
+    printf '%s  %s\n' "$digest" "$slot_evidence"
 } > "$fixture/expected.sha256"
 mkdir "$fixture/unpacked"
 tar -xzf "$archive" -C "$fixture/unpacked"
 (cd "$fixture/unpacked"; bash "$root/scripts/ci/verify-evidence-checksums.sh" "$fixture/expected.sha256")
-[[ ! -e "$fixture/unpacked/.tools/rust/unrelated-cache" ]]
+[[ -L "$fixture/unpacked/.tools/rust/redirected-slot" &&
+    "$(readlink "$fixture/unpacked/.tools/rust/redirected-slot")" == "$fixture/outside" ]] || exit 1
+[[ ! -e "$fixture/unpacked/outside" ]] || exit 1
 # Native CI collects through the ordinary action and verifies the exact-ID
 # downloaded artifact against this oracle outside the upload selection.
 if [[ -n "${GITHUB_OUTPUT:-}" ]]; then

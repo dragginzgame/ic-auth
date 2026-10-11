@@ -7,7 +7,7 @@ script_path="${BASH_SOURCE[0]}"
 [[ "$script_path" == /* ]] || script_path="$PWD/$script_path"
 cd -P "${script_path%/*}/../.."
 root="$PWD"
-export PATH="$root/.tools/host/bin:$root/.tools/rust/bin:$PATH"
+export PATH="$root/.tools/host/bin:$root/.tools/rust/common/bin:$PATH"
 export CARGO_NET_OFFLINE=true RUSTUP_AUTO_INSTALL=0
 mkdir -p "$root/target/portable-fixtures"
 fixture="$(mktemp -d "$root/target/portable-fixtures/release-tools.XXXXXX")"

@@ -12,7 +12,8 @@ the wrapper asks the locked Testkit CLI to check its prepared server and consume
 only the returned absolute path. There is no test-time setup, server pin catalog
 or retained-bundle fallback. `make install-testkit-tools` explicitly prepares the
 CLI and server; `make testkit-tools-check` performs offline admission alone.
-`ic-testkit` 0.33.3 owns the PocketIC dependency; runtime types are imported through
+The current lock selects `ic-testkit` 0.33.5, which owns the PocketIC
+dependency; runtime types are imported through
 its re-export, and typed Candid calls preserve application results separately
 from encoding, decoding and replica errors. There is no direct `pocket-ic`
 dependency or exact-version pin exception in this workspace.
@@ -126,7 +127,7 @@ consumer durable commits and restart recovery.
 [Auth #20](https://github.com/dragginzgame/ic-auth/issues/20) tracks this session
 extension separately from completed certified-token acceptance under Auth #18.
 
-The pending 0.4.0 extension admits that actual certified token under a protected
+The released 0.4.0 extension admits that actual certified token under a protected
 root enrollment whose deadline precedes both signed claims expiry and the
 requested session lease. Verification preserves signed claims expiry while
 reporting the capped proof deadline; session admission caps the committed lease.

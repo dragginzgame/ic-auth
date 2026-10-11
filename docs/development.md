@@ -2,8 +2,8 @@
 
 The virtual root owns two libraries, unpublished native tooling in `apps/tooling/`
 and the internal host/runner in `apps/qualification/`, plus dependency selections,
-lints and one lockfile. The current manifest version is `0.3.8`, tagged as
-`v0.3.8`; both libraries are published on crates.io.
+lints and one lockfile. The current manifest version is `0.4.0`, tagged as
+`v0.4.0`; both libraries are published on crates.io.
 Rust `1.99.0` remains the development compiler selected by `rust-toolchain.toml`.
 The common package minimum is Rust `1.88.0`, inherited from the root catalog and
 qualified by explicit older-compiler checks. See [MSRV coverage](msrv.md).
@@ -29,7 +29,7 @@ make install-tools
 make tools-check
 make install-hooks
 make fetch
-export PATH="$PWD/.tools/host/bin:$PWD/.tools/ic/bin:$PWD/.tools/rust/bin:$PATH"
+export PATH="$PWD/.tools/host/bin:$PWD/.tools/ic/bin:$PWD/.tools/rust/common/bin:$PATH"
 ```
 
 The first command prepares the toolchain, rustfmt, Clippy and Wasm target selected
@@ -79,6 +79,20 @@ The adopted Shared snapshot runs Cargo tool setup and offline checks from the se
 consumer directory, keeping its toolchain and Cargo configuration consistent.
 Live diagnostics and retained error summaries now share one classification,
 including early fatal, LLVM and missing-file failures.
+Shared Tooling installs common Rust tools through its existing versioned
+Cargo slot/receipt engine. Run `make install-rust-tools` explicitly after adoption,
+then `make rust-tools-check`; common PATH activation requires all three pinned
+tools to pass. Earlier in-place installations, completed slots and failed attempts
+remain retained. This contributor setup change preserves IC Auth's published
+contract and uses patch notes. Shared Tooling 0.5.0 now shares verified host and IC
+bundles across checkouts through its per-user store. Run `make install-host-tools`
+and `make install-ic-tools`, then `make host-tools-check` and `make ic-tools-check`
+after adoption. Existing PATH entries remain valid; earlier physical bundles stay
+retained but are no longer admitted as active installations. The default store is
+`${XDG_DATA_HOME:-$HOME/.local/share}/shared-tooling/tools`; use the same absolute
+`SHARED_TOOLING_STORE` override for setup, checks and failure collection if needed.
+Rust slots and Testkit server storage stay local. See
+[Shared storage](local-setup.md#shared-executable-storage).
 The common IC toolset now selects Binaryen 133; run `make install-ic-tools`
 explicitly to prepare it. This repository builds its qualification Wasm directly
 with Cargo and has no optimized product bundle to qualify.
@@ -183,7 +197,9 @@ to inspect the retained files. This layout does not erase prior evidence under
 CI's `scripts/dev/ci-tools.sh install|check` invokes the real aggregate targets,
 preserves pipeline failure status and saves their output in
 `target/rust-tools-install.log` and `target/rust-tools-check.log`. Both logs and
-`.tools/rust/build` are selected by the adopted failure collector. The native
+the complete physical `.tools/rust` tree are selected by the adopted failure
+collector without following child links, including failed attempts and earlier
+slot receipts/builds. The native
 matrix also injects a failed Cargo installation into an isolated consumer, checks
 offline refusal, uploads through the same action and downloads that exact artifact
 ID to verify retained bytes. Readback uses the current repository/run and the
@@ -216,16 +232,18 @@ It does not qualify browser/wallet login or a durable session backend.
 ## Releases and publication
 
 ```sh
-make release-patch                 # compatible patch increment: 0.3.8 -> 0.3.9
-make release-minor                 # breaking pre-1.0 contract: 0.3.8 -> 0.4.0
-make release-major                 # explicit major decision: 0.3.8 -> 1.0.0
+make release-patch                 # compatible patch increment: 0.4.0 -> 0.4.1
+make release-minor                 # breaking pre-1.0 contract: 0.4.0 -> 0.5.0
+make release-major                 # explicit major decision: 0.4.0 -> 1.0.0
 make release-resume VERSION=X.Y.Z   # reconcile the exact saved attempt
 make publish-dry-run               # validate packages without upload
 make publish                       # upload a clean, delivered tagged release
 ```
 
-The current pending diagnostic hard cut selects 0.4.0 and requires the minor
-release boundary; a 0.3.9 patch cannot carry its changed public error causes.
+Released 0.4.0 carries the diagnostic hard cut at the required minor boundary.
+The current 0.4.1 draft updates contributor tooling and documentation, preserving
+the released API, runtime behavior and consumer build requirements. Adopting
+Shared Tooling 0.5.0 does not require a library minor release.
 Release execution still requires an explicit request for the selected command.
 
 Released `0.1.13` adopts Shared Tooling 0.1.36's selected Cargo installer and
@@ -348,11 +366,12 @@ the utility uses
 `durable::write_with(path, options, producer)` with explicit create/replace modes
 and owner-only permissions. Publication errors retain their typed before/after
 state through the utility's error boundary, with secondary staging cleanup
-failures included in diagnostics. The released Auth 0.3.8 lock selects Testkit
-0.33.3 and all four Host packages at 0.13.0, with no Host 0.12 duplicates.
+failures included in diagnostics. The released Auth 0.4.0 lock selects Testkit
+0.33.4 and all four Host packages at 0.13.1, with no Host 0.12 duplicates.
 [Testkit #54](https://github.com/dragginzgame/ic-testkit/issues/54) owns the upstream
-release-guidance correction and native acceptance; its public reexport identity
-changed under a patch release. Auth's public libraries have no Testkit or Host
+native acceptance; Testkit 0.33.4 delivers corrected Host upgrade guidance for
+the public reexport identity change already shipped under patch 0.33.3.
+Auth's public libraries have no Testkit or Host
 dependency, so their contracts are unchanged. Host 0.13 removes an unused
 fixed-cadence pathname lock wrapper; Auth has no caller and needs no shim.
 The filesystem implementation rejects
@@ -363,7 +382,10 @@ directly and obtains runtime types through Testkit. Testkit owns adoption of
 Host's breaking process API; Auth has no direct caller or compatibility shim.
 Directory-suffixed publication targets are refused before creating parents or
 replacing a stripped filename; the native utility uses that upstream guard.
-Run `make install-testkit-tools` to prepare the selected 0.33.3 CLI, then
+The current lock selects Testkit 0.33.5's contributor-tooling patch; its published
+Rust runtime source is unchanged from 0.33.4. This selection is qualified with
+the actual certification, upgrade and ingress journey separately from common
+Rust setup. Run `make install-testkit-tools` to prepare the selected 0.33.5 CLI, then
 `make testkit-tools-check` for offline admission of its unchanged 16.1.0 server.
 Prior versioned CLI installations remain retained. Native Host dependencies
 remain outside both protocol libraries. See the owner adoption in

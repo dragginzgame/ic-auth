@@ -85,7 +85,7 @@ write, memory allocation into host stable regions or global cache occurs here.
 
 ## Root binding diagnostics
 
-The pending 0.4.0 hard cut gives both `verify_token` and
+The published 0.4.0 hard cut gives both `verify_token` and
 `verify_delegation_proof` the same two typed causes for algorithm, key ID and
 derivation-path hash:
 

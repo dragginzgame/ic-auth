@@ -16,16 +16,16 @@ transactions and recovery obligations.
 
 ## Published dependency and feature selection
 
-Both `ic-auth` and `ic-auth-protocol-types` 0.3.8 are published and unyanked.
+Both `ic-auth` and `ic-auth-protocol-types` 0.4.0 are published and unyanked.
 Their registry checksums match IC Auth release
-`f0ecba618fe6be8e2f570dc9a88c1a26eccb8a6a`. Rust 1.88 is the supported minimum.
+`ad5036f8768566f36dbd443d945243b196c03e29`. Rust 1.88 is the supported minimum.
 For adoption of this release, select compatible registry requirements in Canic's
 root catalog and record the resolved versions in its own lockfiles:
 
 ```toml
 [workspace.dependencies]
-ic-auth = { version = "0.3", default-features = false }
-ic-auth-protocol-types = "0.3"
+ic-auth = { version = "0.4", default-features = false }
+ic-auth-protocol-types = "0.4"
 ```
 
 Child packages inherit these dependencies with `workspace = true`; their
@@ -34,9 +34,11 @@ the recommended published selection. The read-only review below distinguishes Ca
 in-progress source adoption from consumer qualification.
 
 Releases 0.3.0 through 0.3.8 change developer tooling and qualification; their
-authentication APIs and signed bytes are unchanged from 0.2.11. Canic's changing root manifest and lock select
-0.3/0.3.8 in the latest read-only review below; selected versions alone do not establish
-runtime adoption or removal of duplicated implementations.
+authentication APIs and signed bytes are unchanged from 0.2.11. Release 0.4.0
+changes typed Root rejection causes, requiring updated exhaustive matches and
+diagnostic projection; signed bytes and successful acceptance are unchanged.
+Canic's changing root manifest and lock now select 0.4/0.4.0 in the read-only
+review below. Selected versions alone do not establish runtime acceptance.
 
 | Existing Canic capability | IC Auth selection | Retained Canic responsibility |
 | --- | --- | --- |
@@ -112,7 +114,7 @@ and [#459](https://github.com/dragginzgame/canic/issues/459) before direct engin
 adoption. This is a consumer decision, not an Auth compatibility shim or a change
 to the existing library's session policy.
 
-The pending [root-deadline qualification](ic-testkit-qualification.md) exercises
+The released [root-deadline qualification](ic-testkit-qualification.md) exercises
 this distinction with an actual certified token: a capped session expires before
 the signed proof, and a later eligible enrollment cannot reuse it after session
 pruning. [Auth #22](https://github.com/dragginzgame/ic-auth/issues/22) owns producer
@@ -148,7 +150,7 @@ adapter or durable session backend.
 The maintainer's immediate priority is Canic adoption from the already-published
 libraries. Published 0.2.0 carries complete proof-transport qualification and
 the developer-tooling hard cut; authentication APIs and signed bytes are unchanged.
-The latest read-only inspection at Canic committed base
+The earlier read-only inspection at Canic committed base
 `25b73cd403b20b4e148c6e340f8c760a26d97f6e` finds its changing working tree
 selecting compatible `0.3` requirements and resolving both libraries at
 0.3.8 with matching registry checksums. Complete token verification is already available. Consumer dependency
@@ -289,7 +291,7 @@ the token verifier hashes to
 The remaining diagnostic adapter rechecks submitted key/path metadata only after
 library rejection; it cannot accept a proof. [Auth #23](https://github.com/dragginzgame/ic-auth/issues/23)
 owns distinguishing submitted signature/header mismatches from header/enrolled
-policy mismatches. The pending 0.4.0 producer cut implements
+policy mismatches. The published 0.4.0 producer cut implements
 `RootSignatureBindingMismatch` and `RootKeyPolicyBindingMismatch` for algorithm,
 key ID and derivation-path hash in both public verifier entry points. For each
 field, inconsistent submitted signature/header material takes precedence over
@@ -301,7 +303,20 @@ all error matches, project the two typed origins into its existing public codes,
 and retire the post-rejection key/path comparisons and hashing in
 `map_root_delegation_proof_error`. Qualify signature-only, policy-only and combined
 mismatches through both installation and presentation. The producer implementation
-is pending publication; current published 0.3 adoption can continue meanwhile.
+is published; 0.3 requirements do not select this minor release automatically.
+
+A subsequent read-only review at the same committed Canic base finds its dirty
+root catalog selecting `0.4` and both locked packages resolving to 0.4.0 with
+the matching unyanked producer checksums. The Root adapter now maps
+`RootSignatureBindingMismatch` to invalid input and `RootKeyPolicyBindingMismatch`
+to stale material. Token presentation delegates diagnostic projection to that
+same adapter; its duplicate submitted key/path comparisons and hashing are gone.
+The reviewed lock SHA-256 is
+`7526b96f01ea66916f2880ddb15354a3321f902ab13d18bba0e20931ba27983a`,
+Root adapter `a16983e06e7561b2f894c5f4a63602c47ee01603204a9f2f800cd38297121df8`
+and token verifier `7f1e1e4c68c03ea67664d5a93ed09554344248e018d405d1524bac073d4ed819`.
+This establishes source migration in the consumer's working tree, without
+claiming consumer compilation, endpoint acceptance or deployment by this review.
 
 The next reusable engine remains the runtime verifier:
 

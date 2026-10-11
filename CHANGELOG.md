@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.4.1]
+
+- Adopt Shared Tooling 0.5.0's verified shared host/IC storage and unified Rust
+  installation. Contributors must rerun host/IC setup and offline checks, prepare
+  the common Rust slots and use `.tools/rust/common/bin`. Host/IC PATH entries
+  stay unchanged; earlier installations remain retained. The published library
+  contract is unchanged.
+  Update the failure-evidence fixture for selected Cargo dispatch and retain its
+  actual failed attempt and prior-slot build bytes without following links.
+  [#24](https://github.com/dragginzgame/ic-auth/issues/24).
+
+- Qualify the current locked Testkit 0.33.5 selection with its separately
+  prepared CLI and unchanged server 16.1.0. This upstream patch changes
+  contributor tooling; authentication and qualification runtime APIs are unchanged.
+  [Testkit #57](https://github.com/dragginzgame/ic-testkit/issues/57).
+
+- Correct published dependency examples and migration guidance for Auth 0.4.0's
+  typed Root binding diagnostics and root-policy deadline qualification. Document
+  the release's actual Testkit 0.33.4/Host 0.13.1 selections; authentication APIs
+  and formats are unchanged.
+  [#23](https://github.com/dragginzgame/ic-auth/issues/23),
+  [#22](https://github.com/dragginzgame/ic-auth/issues/22).
+
 ## [0.4.0] - 2026-10-11
 
 - **Breaking:** distinguish Root signature/header mismatches from enrolled-key
