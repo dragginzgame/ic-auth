@@ -33,6 +33,106 @@ impl SessionStore for RefuseCommit<'_> {
     }
 }
 
+pub(super) fn qualify_root_deadline(
+    fixture: &Fixture,
+    token: &DelegatedToken,
+    context: &TokenVerificationContext<'_>,
+) -> MemorySessionStore {
+    let mut root_key = context.root_key.clone();
+    root_key.accept_until_ns = context.now_ns + 2 * SECOND;
+    let original_root_key = context.root_key;
+    let mut context = TokenVerificationContext {
+        root_key: &root_key,
+        ..*context
+    };
+    let mut store = MemorySessionStore::new(
+        0,
+        SessionLimits {
+            max_sessions: 1,
+            max_replays: 1,
+            max_replays_per_subject: 1,
+            max_encoded_bytes: 4096,
+        },
+    )
+    .unwrap();
+    let policy = SessionPolicy {
+        generation: 0,
+        enabled: true,
+        subject_admissible: true,
+        default_ttl_secs: 60,
+        max_ttl_secs: 60,
+        max_proof_ttl_ns: 60 * SECOND,
+    };
+    let request = SessionRequest::new(vec!["read".into()], None).unwrap();
+    let verified = verify_token(token, &context).unwrap();
+    assert_eq!(verified.expires_at_ns(), root_key.accept_until_ns);
+    assert_eq!(verified.claims().expires_at_ns, token.claims.expires_at_ns);
+    assert!(verified.expires_at_ns() < token.claims.expires_at_ns);
+    let SessionEstablished::Created(session) =
+        establish_session(&mut store, token, &request, &context, policy).unwrap()
+    else {
+        panic!("first admission must create a session");
+    };
+    assert_eq!(session.expires_at_ns(), root_key.accept_until_ns);
+    let committed_bytes = store.encoded_bytes();
+    fixture.pic.advance_time(Duration::from_secs(1));
+    context.now_ns = fixture.now();
+    assert!(context.now_ns < root_key.accept_until_ns);
+    assert_eq!(
+        establish_session(&mut store, token, &request, &context, policy).unwrap(),
+        SessionEstablished::ExactRetry(session.clone())
+    );
+    assert_eq!(
+        authorize_session(&mut store, &context, policy).unwrap(),
+        session
+    );
+    assert_eq!(store.encoded_bytes(), committed_bytes);
+
+    fixture.pic.advance_time(Duration::from_secs(1));
+    context.now_ns = fixture.now();
+    assert_eq!(context.now_ns, root_key.accept_until_ns);
+    assert_eq!(
+        verify_token(token, &context).unwrap_err(),
+        TokenVerificationError::Expired {
+            target: "root_key_policy"
+        }
+    );
+    assert_eq!(
+        establish_session(&mut store, token, &request, &context, policy),
+        Err(SessionError::MissingOrExpired)
+    );
+    assert_eq!(
+        authorize_session(&mut store, &context, policy),
+        Err(SessionError::MissingOrExpired)
+    );
+    assert_eq!(store.encoded_bytes(), committed_bytes);
+    // The expired session is reclaimable, but its signed proof stays consumed.
+    assert_eq!(
+        store.prune(context.now_ns, 128),
+        SessionPruned {
+            sessions: 1,
+            replays: 0,
+        }
+    );
+    let fingerprint = claims_hash(&token.claims).unwrap();
+    store
+        .transaction(|tx| {
+            assert!(tx.replay_exists(fingerprint)?);
+            assert_eq!(tx.session(context.caller)?, None);
+            Ok(())
+        })
+        .unwrap();
+    // Even a currently admissible enrollment cannot consume the same proof
+    // again after the capped session disappears.
+    context.root_key = original_root_key;
+    assert!(verify_token(token, &context).is_ok());
+    assert_eq!(
+        establish_session(&mut store, token, &request, &context, policy),
+        Err(SessionError::ReplayConflict)
+    );
+    store
+}
+
 pub(super) fn qualify_admission(
     fixture: &Fixture,
     token: &DelegatedToken,

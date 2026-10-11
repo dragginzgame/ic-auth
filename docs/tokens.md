@@ -83,6 +83,37 @@ permissions remain independently checked, and these tokens are not IC ingress
 delegations. No secret signing operation, clock acquisition, certification-root
 write, memory allocation into host stable regions or global cache occurs here.
 
+## Root binding diagnostics
+
+The pending 0.4.0 hard cut gives both `verify_token` and
+`verify_delegation_proof` the same two typed causes for algorithm, key ID and
+derivation-path hash:
+
+| `TokenVerificationError` variant | Comparison that failed |
+| --- | --- |
+| `RootSignatureBindingMismatch { field }` | Submitted signature metadata versus its submitted batch header |
+| `RootKeyPolicyBindingMismatch { field }` | Batch header versus independently enrolled root-key policy |
+
+For each field, submitted signature/header inconsistency takes precedence when
+both comparisons fail. The field order remains algorithm, key ID, public key,
+derivation path, key version and authority floors. Input bounds, validity windows
+and leaf bindings remain earlier checks. Derivation paths use the canonical hash
+owner; oversized paths still reject before hashing. There is currently one
+representable algorithm, so algorithm mismatch cannot be constructed without
+extending the protocol. No unsupported algorithm is added for diagnostic tests.
+
+These three fields no longer return the ambiguous generic `BindingMismatch`.
+Other binding causes, including `root_public_key` and `key_version`, keep that
+variant. Consumers must update exhaustive enum matches and any field-based error
+mapping when selecting 0.4. A Canic adapter can map submitted inconsistency to
+its invalid-request code and enrollment mismatch to its existing authority-conflict
+code directly from the typed cause, then remove its duplicate comparisons/hash.
+A rejection does not authenticate submitted metadata or grant authority.
+Signed bytes, successful verification, session policy and stored formats remain
+unchanged; no retained-state reset is required by this diagnostic change.
+[Auth #23](https://github.com/dragginzgame/ic-auth/issues/23) owns the hard cut,
+with consumer adoption under [Canic #491](https://github.com/dragginzgame/canic/issues/491).
+
 ## Canic verifier integration
 
 Canic can use the published `token-verification` capability for complete-token

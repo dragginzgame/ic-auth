@@ -3,9 +3,9 @@
 The maintainer accepted the larger Canic authentication extraction, selected the
 name `ic-auth`, and confirmed `/home/adam/projects/ic-auth` as the local repository.
 
-The current committed release is `928f1504fb3c4200d2583b3c0d42b1a4a3ef61eb`
-(`0.3.7`) on `main`, with annotated tag `v0.3.7`; both remote identities were
-verified during continuation. Both libraries' `0.3.7` registry checksums match
+The current committed release is `f0ecba618fe6be8e2f570dc9a88c1a26eccb8a6a`
+(`0.3.8`) on `main`, with annotated tag `v0.3.8`; both remote identities were
+verified during continuation. Both libraries' `0.3.8` registry checksums match
 the retained publication intent for that exact source/tag. The maintainer
 executed the release and publication. The original bootstrap was
 `7a03102e52b7a400588530997a9f7fb91c83de9d` (`0.1.0`).
@@ -22,7 +22,7 @@ records this batch without closing the larger extraction.
 
 The virtual Rust workspace contains `ic-auth-protocol-types`, `ic-auth` and the
 unpublished native application in `apps/tooling/`, with one lockfile, root-owned
-dependency selections and current manifest version `0.3.7`.
+dependency selections and current manifest version `0.3.8`.
 The passive token/proof contracts and canonical encoding are adapted from the
 clean Canic source at `e286b3fd98460c98670336853f80658a920966e0`; see the
 [source review](../design/canic-source-review.md) for exact ownership and API
@@ -40,7 +40,153 @@ has recorded focused standalone-proof and bounded batch-builder qualification;
 complete-token, durable-session and deployed acceptance remain separate. No sibling repository
 was modified by IC Auth work.
 
-## Current continuation (pending 0.3.8)
+## Current continuation (pending 0.4.0)
+
+The maintainer authorized continuing issue implementation after the bounded
+0.3.9 review. [Auth #23](https://github.com/dragginzgame/ic-auth/issues/23) now
+implements separate `RootSignatureBindingMismatch` and
+`RootKeyPolicyBindingMismatch` variants for algorithm, key ID and derivation-path
+hash in the one canonical Root verifier. Both complete-token and delegation-only
+entry points share those causes. Within each field, inconsistent submitted
+signature/header material takes precedence over an enrollment mismatch; the
+surrounding guard order and established cryptographic checks remain intact.
+
+Real signed-proof cases distinguish signature-only, header-only, matching
+header/signature versus enrollment, and changed protected policy. Re-signed
+header controls verify cryptographically and accept with matching enrollment;
+the earlier rejection is not an accidentally invalid signature. Both public
+entry points return the expected cause without mutating the token. Empty and
+oversized path material, policy expiry and earlier-field precedence are covered.
+All 29 focused token/delegation cases pass natively. Algorithm has only one
+representable variant, so no artificial
+algorithm/protocol addition is made to manufacture a negative test.
+
+The entire undated draft is relabelled 0.4.0 from released 0.3.8, carrying forward
+the previous root-deadline/replay qualification under #22. The two new public
+error variants and changed causes break exhaustive matches/diagnostic projections,
+requiring the pre-1.0 minor boundary. The package version stays 0.3.8 until
+separately authorized release preparation; no 0.3.9 release is created. Signed
+bytes, successful acceptance, session policy, stored formats and compiler floor
+are unchanged. No retained-state reset is needed for this diagnostic change.
+The [migration contract](../tokens.md#root-binding-diagnostics) and Canic adoption
+notes specify mapping the typed origins and retiring post-rejection comparisons
+and path hashing in the consumer. Canic's actual adoption and its durable/session
+policy obligations stay under #491/#459; no sibling code/build is changed.
+
+The final complete gate passes all 27 targets on Linux under genuine Bash
+3.2.57, including actual Testkit certification/composition, upgrade, token/session
+and signed ingress, isolated native/Wasm MSRV payloads, browser contracts, strict
+Clippy, live-metadata package dry runs and local/mocked release/recovery fixtures.
+The carried #22 root-deadline/replay fixture passes against the changed verifier.
+`target/integration-0.4.0/ci-bash32.log` retains the full run. Before/after tracked
+diffs are identical, SHA-256
+`b3561e392d849ca82c2e524da3c422a4766482acb8d1242665eba5dc0f61998b`;
+the new untracked `crates/ic-auth/tests/root_bindings/mod.rs` is separately bound
+by `30ebcf55c1a89d2dc3719d5081ca5c81624554df4d53cc71864a26b8148800fb`.
+All source, lock and snapshot hashes in `qualified-inputs.sha256` verify after
+the gate. Final evidence prose is updated afterward and checked separately.
+
+Incoming 0.3.9 diff/evidence is preserved separately; the earlier complete gates
+below remain bound to their original inputs. Implementation and migration are
+recorded in [Auth #23](https://github.com/dragginzgame/ic-auth/issues/23#issuecomment-6107547549),
+[Canic #491](https://github.com/dragginzgame/canic/issues/491#issuecomment-6107547724)
+and [Auth #22](https://github.com/dragginzgame/ic-auth/issues/22#issuecomment-6107547862).
+The posted bodies are read back against the prepared text. At the bounded final
+inspection, released 0.3.8 CI still passes Ubuntu with both macOS jobs queued;
+those results do not qualify this pending source. Producer delivery/native
+acceptance and consumer adoption remain separate. No commit, push, release,
+publication or deployment is performed by this implementation.
+
+## Earlier continuation (0.3.9 draft, superseded by pending 0.4.0)
+
+The following results qualify the earlier compatible inputs before Auth #23's
+diagnostic hard cut. They do not qualify the later changed verifier/error API.
+
+The maintainer confirms 0.3.8 is live. Official remote main and peeled tag match
+the source above; annotated tag `f42369e33b3735588c8932b5a7daa4c67678f8da` and both
+unyanked official registry checksums match `.git/publication-state/0.3.8.json`:
+protocol-types `9379a7ebd8518cb16c3593fdc4df72f8ab01865742364fd0708072883469bb0c`,
+Auth `7236cd31af8cdbf13a1c4ce6c8619a996c46125125540971b0fab33c6732a3e2`.
+[Exact-source 0.3.8 CI](https://github.com/dragginzgame/ic-auth/actions/runs/38124650642)
+passes Ubuntu at final inspection; both macOS jobs remain queued. Released
+0.3.7's Ubuntu lane passed, but both
+macOS lanes were cancelled; those unfinished gates cannot close Auth #19/#20.
+
+Shared 0.3.12 `52e846369c39a1da371eac47ff97d94da925217e` and Host 0.13.0
+`7c58c92c72789139ec460475c429f9090581008f` remain current at official upstream
+main. The released 0.3.8 lock differs from the preceding draft qualification:
+it already selects published Testkit 0.33.3
+`464eb3847d8443511ed3e95fda6ac39d20695c45` and exactly one Host 0.13.0 graph.
+The released changelog's 0.33.2/split-graph description and earlier evidence are
+historical; published history is preserved. Actual cached archives match the
+official unyanked Testkit and all four Host hashes. No dependency mutation is
+needed; the precise Testkit update is a no-op. The already prepared selected CLI
+separately admits unchanged server 16.1.0 offline. Testkit #54 retains its
+public-reexport compatibility-boundary/guidance correction and native acceptance.
+No upstream dirty corrective documentation or sibling build is adopted.
+
+The compatible 0.3.9 fixture extension under
+[Auth #22](https://github.com/dragginzgame/ic-auth/issues/22) addresses the concrete
+Canic adoption deadline distinction using the existing real certified token
+retrieved after upgrade. A short protected root window caps verification and
+the requested session lease without changing signed claims expiry. Actual host
+time verifies unchanged retry/authorization before the cutoff and rejection at
+the cutoff. Failed operations preserve accounting; bounded session pruning
+retains replay, and a currently eligible enrollment cannot reuse that proof.
+After the existing independent-lease journey advances actual time beyond signed
+proof expiry, bounded pruning reclaims the retained replay and all accounting.
+This is volatile producer qualification; Canic owns its authority decision and
+durable commit/restart under #491/#459. No public authentication APIs, signed
+bytes, stored formats, compiler floor or consumer code change.
+
+Focused actual Testkit certification/composition, upgrade, complete token/session
+and signed ingress qualification passes on Linux with the released 0.33.3/Host
+0.13 graph. The first fixture compile failure (moved test context) is retained
+separately from the corrected passing run. Logs, native archive hashes and
+registry observations remain under `target/continuation-0.3.9/`.
+Both final complete gates pass all 27 targets on Linux, first on Bash 5 and then
+on explicitly admitted genuine Bash 3.2.57. Actual canister lifecycle, native/Wasm
+archive/internal-app MSRV, library/client cases, strict Clippy, package dry runs
+and local/mocked release/recovery/evidence checks pass. Before/after diffs remain
+identical through both gates: SHA-256
+`b30db46aa812fa2a678faeb9cb8ed9e461b46589d91d1647ac2f25e82d9105a4`.
+Saved diffs, verified input hashes, `ci-bash5.log` and
+`ci-bash32-confirmed.log` bind those results; final evidence prose is updated
+afterward. The first gate's original `ci-bash32.log` filename is misleading: its
+MSRV wrapper reports Bash 5, and only the confirmed log is Bash 3.2 evidence.
+The preceding release's temporary Bash profile and
+`target/continuation-0.3.8/` evidence directory are no longer present at inspection;
+their recorded results below are historical, not freshly inspected logs. The
+new explicitly checked profile and interpreter observation are retained with
+this continuation. No current evidence is deleted.
+This is one compatible qualification batch in the undated 0.3.9 draft; root
+package version remains 0.3.8. Native macOS acceptance is separate. No commit,
+push, release, publication, deployment, sibling edit or sibling build occurs.
+Qualified evidence is recorded in
+[Auth #22](https://github.com/dragginzgame/ic-auth/issues/22#issuecomment-6107320351),
+[Testkit #54](https://github.com/dragginzgame/ic-testkit/issues/54#issuecomment-6107320501)
+and [Canic #491](https://github.com/dragginzgame/canic/issues/491#issuecomment-6107320650).
+All posted bodies are read back and match the prepared text. Auth #20 remains
+open for complete native gates; source-bound current delivery is recorded there.
+
+A subsequent bounded check finds Shared/Host/Testkit upstream unchanged and
+0.3.8's Ubuntu gate passing with both macOS jobs still queued. Canic now resolves
+Auth 0.3.8 and uses one protected-context Root-proof adapter for installation and
+token presentation; its owner reports 103 focused Auth cases and selected Clippy
+passing in the dirty 0.111.1 tree. The adoption contract records that newer
+evidence separately from the earlier cache-removal slice. No consumer build or
+sibling edit is performed here. New [Auth #23](https://github.com/dragginzgame/ic-auth/issues/23)
+identifies ambiguous submitted-signature versus enrolled-policy error causes.
+That public diagnostic hard cut requires a separate minor boundary (0.4.0) and
+consumer mapping qualification; it does not expand this compatible 0.3.9 batch.
+Only adoption/evidence prose changes after the two complete gates; snapshot,
+local links and diff checks cover that update.
+
+## Earlier tooling qualification (0.3.8, released)
+
+The following observations qualify the retained earlier draft inputs. The final
+release's Testkit 0.33.3 graph and current hosted CI are described above; these
+earlier source, graph and CI observations remain historical.
 
 The maintainer confirms 0.3.7 is live. Remote main and the peeled tag match the
 source above; annotated tag `36c7b449c678806491bffeddb86ba4ebf0ab5f36` and both

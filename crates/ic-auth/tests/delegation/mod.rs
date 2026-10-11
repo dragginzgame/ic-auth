@@ -356,7 +356,10 @@ fn standalone_and_complete_token_share_root_rejection_contracts() {
                 field: "max_token_ttl",
             },
         ),
-        ("key_name", Error::BindingMismatch { field: "key_id" }),
+        (
+            "key_name",
+            Error::RootSignatureBindingMismatch { field: "key_id" },
+        ),
         (
             "key_version",
             Error::BindingMismatch {
@@ -371,7 +374,7 @@ fn standalone_and_complete_token_share_root_rejection_contracts() {
         ),
         (
             "path",
-            Error::BindingMismatch {
+            Error::RootSignatureBindingMismatch {
                 field: "derivation_path_hash",
             },
         ),

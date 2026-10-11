@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.4.0]
+
+- **Breaking:** distinguish Root signature/header mismatches from enrolled-key
+  policy mismatches with separate typed token-verification errors. Consumers
+  must update exhaustive matches and diagnostic mappings; signed bytes,
+  successful verification and stored formats are unchanged.
+  [#23](https://github.com/dragginzgame/ic-auth/issues/23).
+
+- Extend real certified-token qualification through a root-policy cutoff earlier
+  than the requested session lease and signed token expiry. Retry and authorization
+  reject at the cutoff, while replay protection remains until signed proof expiry.
+  This qualification preserves session policy and stored formats.
+  [#22](https://github.com/dragginzgame/ic-auth/issues/22).
+
 ## [0.3.8] - 2026-10-11
 
 - Adopt Shared Tooling 0.3.12's corrected snapshot identity, independently

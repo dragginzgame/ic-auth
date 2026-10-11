@@ -151,6 +151,12 @@ pub enum TokenVerificationError {
     SubjectMismatch,
     #[error("proof binding mismatch: {field}")]
     BindingMismatch { field: &'static str },
+    /// Submitted signature metadata does not match its submitted batch header.
+    #[error("root signature binding mismatch: {field}")]
+    RootSignatureBindingMismatch { field: &'static str },
+    /// The batch header does not match independently enrolled root-key policy.
+    #[error("root key policy binding mismatch: {field}")]
+    RootKeyPolicyBindingMismatch { field: &'static str },
     #[error("invalid {target} validity window")]
     InvalidWindow { target: &'static str },
     #[error("{target} is not yet valid")]

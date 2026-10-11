@@ -16,9 +16,9 @@ transactions and recovery obligations.
 
 ## Published dependency and feature selection
 
-Both `ic-auth` and `ic-auth-protocol-types` 0.3.7 are published and unyanked.
+Both `ic-auth` and `ic-auth-protocol-types` 0.3.8 are published and unyanked.
 Their registry checksums match IC Auth release
-`928f1504fb3c4200d2583b3c0d42b1a4a3ef61eb`. Rust 1.88 is the supported minimum.
+`f0ecba618fe6be8e2f570dc9a88c1a26eccb8a6a`. Rust 1.88 is the supported minimum.
 For adoption of this release, select compatible registry requirements in Canic's
 root catalog and record the resolved versions in its own lockfiles:
 
@@ -33,9 +33,9 @@ existing capability features forward only the needed library features. This is
 the recommended published selection. The read-only review below distinguishes Canic's
 in-progress source adoption from consumer qualification.
 
-Releases 0.3.0 through 0.3.7 change developer tooling and qualification; their
+Releases 0.3.0 through 0.3.8 change developer tooling and qualification; their
 authentication APIs and signed bytes are unchanged from 0.2.11. Canic's changing root manifest and lock select
-0.3/0.3.7 in the latest read-only review below; selected versions alone do not establish
+0.3/0.3.8 in the latest read-only review below; selected versions alone do not establish
 runtime adoption or removal of duplicated implementations.
 
 | Existing Canic capability | IC Auth selection | Retained Canic responsibility |
@@ -112,6 +112,12 @@ and [#459](https://github.com/dragginzgame/canic/issues/459) before direct engin
 adoption. This is a consumer decision, not an Auth compatibility shim or a change
 to the existing library's session policy.
 
+The pending [root-deadline qualification](ic-testkit-qualification.md) exercises
+this distinction with an actual certified token: a capped session expires before
+the signed proof, and a later eligible enrollment cannot reuse it after session
+pruning. [Auth #22](https://github.com/dragginzgame/ic-auth/issues/22) owns producer
+qualification; it does not select Canic's policy or qualify consumer persistence.
+
 Canic implements `SessionStore` and `SessionTransaction` against its actual
 durable host store. Reads, capacity checks and the staged session/replay pair
 observe one isolated synchronous transaction. Closure or commit failure leaves
@@ -145,7 +151,7 @@ the developer-tooling hard cut; authentication APIs and signed bytes are unchang
 The latest read-only inspection at Canic committed base
 `25b73cd403b20b4e148c6e340f8c760a26d97f6e` finds its changing working tree
 selecting compatible `0.3` requirements and resolving both libraries at
-0.3.7 with matching registry checksums. Complete token verification is already available. Consumer dependency
+0.3.8 with matching registry checksums. Complete token verification is already available. Consumer dependency
 changes require its own qualified lockfiles and remain owned by Canic.
 
 Released Auth 0.3.3 adds
@@ -254,7 +260,7 @@ signature types. Remaining local token/certificate declarations and projections
 do not establish canonical type adoption complete. Preserve the owner release
 boundary and retained-data obligations while converging these callers.
 
-The latest changing Canic tree, based on committed 0.111.0
+The earlier cache-removal review of Canic, based on committed 0.111.0
 `25b73cd403b20b4e148c6e340f8c760a26d97f6e`, removes the positive proof cache and
 its proof-skipping runtime path. Every presentation resolves verifier policy
 and checks both proofs through the remaining local callbacks. The owner records
@@ -264,6 +270,38 @@ acceptance. The inspected verifier and session-workflow SHA-256 values are
 `dcc6133dca6d4cbfb14b14360550a932a71d2f13f3e88f141a33071d7b5d99f2`
 and `6a4c293a9807c5e6eb3cfa0a24d319bf132b7bf4299a5ee90f71a144619f25fb`.
 No Canic compilation or source mutation is performed by this review.
+
+The subsequent read-only review at that same committed base resolves both Auth
+packages to published 0.3.8. Active-proof installation and token presentation now
+share `ops/auth/delegated/root_proof/mod.rs`, which projects protected context
+into `token::verify_delegation_proof`. The duplicate Root-proof acceptance engine
+is retired in the consumer's dirty tree; complete token semantics, issuer proof
+verification, certification and session/storage adoption remain separate.
+The owner records 103 passing focused Auth cases and warning-denied feature-on,
+feature-off and adapter Clippy in its
+[Root-proof evidence](https://github.com/dragginzgame/canic/issues/491#issuecomment-6107336083).
+This is owner-reported local qualification, not a new consumer build or deployed
+acceptance by this review. The reviewed root adapter hashes to
+`2f61147a74503b5e4d9276bdbdd1f2e9d83a23b384af22816f3adc37075d456b`;
+the token verifier hashes to
+`a3f431ec64ba05f8a7f5ddcce923a26c858cf393134b6ba47a2da9e1365bf2a0`.
+
+The remaining diagnostic adapter rechecks submitted key/path metadata only after
+library rejection; it cannot accept a proof. [Auth #23](https://github.com/dragginzgame/ic-auth/issues/23)
+owns distinguishing submitted signature/header mismatches from header/enrolled
+policy mismatches. The pending 0.4.0 producer cut implements
+`RootSignatureBindingMismatch` and `RootKeyPolicyBindingMismatch` for algorithm,
+key ID and derivation-path hash in both public verifier entry points. For each
+field, inconsistent submitted signature/header material takes precedence over
+an enrollment mismatch. Other binding causes and cryptographic checks retain
+their existing contracts. See the [diagnostic migration](tokens.md#root-binding-diagnostics).
+
+When adopting published 0.4, Canic must update its root dependency selections and
+all error matches, project the two typed origins into its existing public codes,
+and retire the post-rejection key/path comparisons and hashing in
+`map_root_delegation_proof_error`. Qualify signature-only, policy-only and combined
+mismatches through both installation and presentation. The producer implementation
+is pending publication; current published 0.3 adoption can continue meanwhile.
 
 The next reusable engine remains the runtime verifier:
 
@@ -286,7 +324,8 @@ verifier, while the complete-token adapter still uses local callbacks and the
 positive cache. This identifies the next consumer boundary, not qualification
 of its uncommitted graph. [Canic #58](https://github.com/dragginzgame/canic/issues/58)
 owns that repair; the later owner cache removal above supersedes that specific
-source finding. It does not retire the remaining local proof callbacks.
+source finding. The newer shared Root adapter above supersedes local Root-proof
+acceptance; complete-token and issuer callbacks still require their own cut.
 
 The complete adapter must assemble these fields before calling the library:
 

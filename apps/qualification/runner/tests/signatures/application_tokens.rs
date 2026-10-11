@@ -285,5 +285,16 @@ fn complete_token_rechecks_live_authority_and_real_certification_after_upgrade()
     );
     assert_eq!(token.claims, unchanged.claims);
     assert_eq!(token.proof, unchanged.proof);
+    let mut capped_store = application_sessions::qualify_root_deadline(&fixture, &token, &context);
+    context.now_ns = fixture.now();
     application_sessions::qualify_admission(&fixture, &token, context);
+    assert!(fixture.now() >= token.claims.expires_at_ns);
+    assert_eq!(
+        capped_store.prune(fixture.now(), 128),
+        ic_auth::session::SessionPruned {
+            sessions: 0,
+            replays: 1,
+        }
+    );
+    assert_eq!(capped_store.encoded_bytes(), 0);
 }

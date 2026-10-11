@@ -21,6 +21,7 @@ const SEED: &[u8] = b"canic-issuer-delegated-token";
 const NOW: u64 = 150;
 
 mod delegation;
+mod root_bindings;
 
 #[cfg(feature = "sessions")]
 mod sessions;
@@ -704,7 +705,7 @@ fn binds_root_header_leaf_key_identity_derivation_and_merkle_direction() {
     let mut f = Fixture::new();
     let RootProof::IcChainKeyBatchSignatureV1(root) = &mut f.token.proof.root_proof;
     root.signature.derivation_path[0].push(0);
-    f.assert_error(Error::BindingMismatch {
+    f.assert_error(Error::RootSignatureBindingMismatch {
         field: "derivation_path_hash",
     });
     let mut f = Fixture::new();
@@ -722,7 +723,7 @@ fn binds_root_header_leaf_key_identity_derivation_and_merkle_direction() {
     let mut f = Fixture::new();
     let RootProof::IcChainKeyBatchSignatureV1(root) = &mut f.token.proof.root_proof;
     root.header.key_id.name = "another_key".into();
-    f.assert_error(Error::BindingMismatch { field: "key_id" });
+    f.assert_error(Error::RootSignatureBindingMismatch { field: "key_id" });
     let mut f = Fixture::new();
     let RootProof::IcChainKeyBatchSignatureV1(root) = &mut f.token.proof.root_proof;
     root.header.batch_id[0] ^= 1;

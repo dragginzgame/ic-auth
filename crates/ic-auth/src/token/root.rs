@@ -77,21 +77,32 @@ pub(super) fn verify(
         leaf.not_before_ns == cert.not_before_ns && leaf.expires_at_ns == cert.expires_at_ns,
         "leaf_cert_window",
     )?;
-    binding(
-        header.algorithm == policy.algorithm && signature.algorithm == header.algorithm,
-        "algorithm",
-    )?;
-    binding(
-        header.key_id == policy.key_id && signature.key_id == header.key_id,
-        "key_id",
-    )?;
+    // For each field, inconsistent submitted material takes precedence over
+    // an enrollment mismatch. Consumers project this cause without rechecking
+    // submitted metadata; neither rejection establishes verified authority.
+    if signature.algorithm != header.algorithm {
+        return Err(TokenVerificationError::RootSignatureBindingMismatch { field: "algorithm" });
+    }
+    if header.algorithm != policy.algorithm {
+        return Err(TokenVerificationError::RootKeyPolicyBindingMismatch { field: "algorithm" });
+    }
+    if signature.key_id != header.key_id {
+        return Err(TokenVerificationError::RootSignatureBindingMismatch { field: "key_id" });
+    }
+    if header.key_id != policy.key_id {
+        return Err(TokenVerificationError::RootKeyPolicyBindingMismatch { field: "key_id" });
+    }
     binding(signature.public_key == policy.public_key, "root_public_key")?;
-    binding(
-        header.derivation_path_hash == policy.derivation_path_hash
-            && chain_key_derivation_path_hash(&signature.derivation_path)?
-                == header.derivation_path_hash,
-        "derivation_path_hash",
-    )?;
+    if chain_key_derivation_path_hash(&signature.derivation_path)? != header.derivation_path_hash {
+        return Err(TokenVerificationError::RootSignatureBindingMismatch {
+            field: "derivation_path_hash",
+        });
+    }
+    if header.derivation_path_hash != policy.derivation_path_hash {
+        return Err(TokenVerificationError::RootKeyPolicyBindingMismatch {
+            field: "derivation_path_hash",
+        });
+    }
     binding(header.key_version == policy.key_version, "key_version")?;
     for (field, found, minimum) in [
         (
