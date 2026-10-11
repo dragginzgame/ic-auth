@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.4.2]
+## [0.4.2] - 2026-10-11
 
 - Adopt Shared Tooling 0.6.0's shared Cargo storage and standard tool-build
   environment. Contributors must explicitly prepare/check common Rust tools and
