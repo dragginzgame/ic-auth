@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.4.6]
+## [0.4.6] - 2026-10-11
 
 - Add independently selectable chain-key public-key admission and prehash
   signature verification so Canic can remove duplicate signing-response checks.
