@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.4.1]
+## [0.4.1] - 2026-10-11
 
 - Adopt Shared Tooling 0.5.0's verified shared host/IC storage and unified Rust
   installation. Contributors must rerun host/IC setup and offline checks, prepare
