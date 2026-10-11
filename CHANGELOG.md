@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.3.7]
+
+- Adopt Shared Tooling 0.3.9 so Cargo tool setup/checks use the selected
+  consumer's configuration and early fatal, LLVM and missing-file diagnostics
+  remain visible in both live validation output and retained summaries.
+  [Shared #101](https://github.com/dragginzgame/shared-tooling/issues/101),
+  [Shared #110](https://github.com/dragginzgame/shared-tooling/issues/110).
+- Adopt the subsequent reviewed Shared snapshot's release-check temporary-path
+  fix and derive-macro protection guidance. The producer's committed version
+  still identifies that revision as 0.3.9.
+  [Shared #112](https://github.com/dragginzgame/shared-tooling/issues/112),
+  [Shared #113](https://github.com/dragginzgame/shared-tooling/issues/113),
+  [Shared #114](https://github.com/dragginzgame/shared-tooling/issues/114).
+- Select the published Host 0.12.10 graph for native tooling and qualification.
+  Public authentication APIs, formats and the Testkit/server pairing are unchanged.
+- Accept padded macOS line counts in publication/reconciliation fixtures and
+  exercise that output on every host, preserving exact dispatch assertions.
+  [#19](https://github.com/dragginzgame/ic-auth/issues/19).
+
 ## [0.3.6] - 2026-10-10
 
 - Qualify both exact, untouched package archives at the minimum Rust compiler

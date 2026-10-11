@@ -2,8 +2,8 @@
 
 The virtual root owns two libraries, unpublished native tooling in `apps/tooling/`
 and the internal host/runner in `apps/qualification/`, plus dependency selections,
-lints and one lockfile. The current manifest version is `0.3.5`, tagged as
-`v0.3.5`; both libraries are published on crates.io.
+lints and one lockfile. The current manifest version is `0.3.6`, tagged as
+`v0.3.6`; both libraries are published on crates.io.
 Rust `1.99.0` remains the development compiler selected by `rust-toolchain.toml`.
 The common package minimum is Rust `1.88.0`, inherited from the root catalog and
 qualified by explicit older-compiler checks. See [MSRV coverage](msrv.md).
@@ -75,6 +75,10 @@ under [Shared #103](https://github.com/dragginzgame/shared-tooling/issues/103).
 Routine CI cancels older queued and running checks for the same workflow/ref;
 unfinished hosts on cancelled revisions remain unqualified. The retained run
 still requires the complete Linux and macOS matrix.
+The adopted Shared snapshot runs Cargo tool setup and offline checks from the selected
+consumer directory, keeping its toolchain and Cargo configuration consistent.
+Live diagnostics and retained error summaries now share one classification,
+including early fatal, LLVM and missing-file failures.
 The common IC toolset now selects Binaryen 133; run `make install-ic-tools`
 explicitly to prepare it. This repository builds its qualification Wasm directly
 with Cargo and has no optimized product bundle to qualify.
@@ -212,9 +216,9 @@ It does not qualify browser/wallet login or a durable session backend.
 ## Releases and publication
 
 ```sh
-make release-patch                 # compatible patch increment: 0.3.5 -> 0.3.6
-make release-minor                 # breaking pre-1.0 contract: 0.3.5 -> 0.4.0
-make release-major                 # explicit major decision: 0.3.5 -> 1.0.0
+make release-patch                 # compatible patch increment: 0.3.6 -> 0.3.7
+make release-minor                 # breaking pre-1.0 contract: 0.3.6 -> 0.4.0
+make release-major                 # explicit major decision: 0.3.6 -> 1.0.0
 make release-resume VERSION=X.Y.Z   # reconcile the exact saved attempt
 make publish-dry-run               # validate packages without upload
 make publish                       # upload a clean, delivered tagged release
@@ -341,7 +345,7 @@ the utility uses
 and owner-only permissions. Publication errors retain their typed before/after
 state through the utility's error boundary, with secondary staging cleanup
 failures included in diagnostics. IC Testkit 0.33.1 selects Host 0.12 for its four
-public reexports; the lock resolves all four Host packages once at 0.12.8.
+public reexports; the lock resolves all four Host packages once at 0.12.10.
 Host's public APIs are unchanged; its filesystem implementation now rejects
 NUL-containing publication paths before parent creation. Auth retains its
 existing version rewriter and release policy.

@@ -175,6 +175,16 @@ make --no-print-directory release-resume VERSION=0.1.1 > "$fixture/resume.log" 2
 # Fake only package creation/upload and registry reads. Metadata, tag checks,
 # clean-worktree admission and publication intent/reconciliation stay real.
 mkdir "$fixture/bin"
+FIXTURE_WC="$(command -v wc)"
+export FIXTURE_WC
+# BSD wc pads line counts. Exercise that output on every host, preserving the
+# real count while testing publication dispatch/reconciliation numerically.
+cat > "$fixture/bin/wc" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+count="$("$FIXTURE_WC" "$@")"
+printf '%8s\n' "$count"
+SH
 actual_cargo="$(command -v cargo)"
 export FIXTURE_CARGO="$actual_cargo" FIXTURE_LOG="$fixture" FIXTURE_MODE=unknown
 cat > "$fixture/bin/cargo" <<'SH'
@@ -249,7 +259,7 @@ case "$FIXTURE_MODE" in
         ;;
 esac
 SH
-chmod +x "$fixture/bin/cargo" "$fixture/bin/curl"
+chmod +x "$fixture/bin/cargo" "$fixture/bin/curl" "$fixture/bin/wc"
 export PATH="$fixture/bin:$PATH" CARGO_TARGET_DIR="$PWD/target"
 if bash scripts/release/publish.sh > "$fixture/unknown.log" 2>&1; then exit 1; fi
 [[ ! -f "$fixture/uploads" ]] || exit 1
@@ -272,34 +282,34 @@ git reset --hard "$commit" > /dev/null
 rm .git/publication-state/0.1.1-ic-auth-protocol-types.dispatched
 export FIXTURE_MODE=lost-reply
 if bash scripts/release/publish.sh > "$fixture/lost-reply.log" 2>&1; then exit 1; fi
-[[ "$(wc -l < "$fixture/uploads")" == 1 ]] || exit 1
+[[ "$(wc -l < "$fixture/uploads")" -eq 1 ]] || exit 1
 # Every observation has separate retained facts, including the pre/post-dispatch
 # 404s. Later reconciliation must not overwrite evidence from the lost reply.
 grep -F 'Registry observation evidence retained:' "$fixture/lost-reply.log" | \
     sed 's/^Registry observation evidence retained: //' > "$fixture/lost-reply-evidence.paths"
-[[ "$(wc -l < "$fixture/lost-reply-evidence.paths")" == 2 ]] || exit 1
+[[ "$(wc -l < "$fixture/lost-reply-evidence.paths")" -eq 2 ]] || exit 1
 while IFS= read -r observation; do
     [[ "$(cat "$observation/http-status")" == 404 && "$(cat "$observation/curl-exit")" == 0 ]] || exit 1
     bash scripts/ci/verify-file-checksum.sh --print sha256 "$observation/http-status" >> "$fixture/lost-reply-status.hashes"
 done < "$fixture/lost-reply-evidence.paths"
 if bash scripts/release/publish.sh > "$fixture/unresolved.log" 2>&1; then exit 1; fi
-[[ "$(wc -l < "$fixture/uploads")" == 1 ]] || exit 1
+[[ "$(wc -l < "$fixture/uploads")" -eq 1 ]] || exit 1
 touch "$fixture/observed-ic-auth-protocol-types"
 export FIXTURE_MODE=success
 bash scripts/release/publish.sh > "$fixture/publish.log" 2>&1
 [[ "$(cat "$fixture/uploads")" == $'ic-auth-protocol-types\nic-auth' ]] || exit 1
 bash scripts/release/publish.sh > "$fixture/publish-retry.log" 2>&1
-[[ "$(wc -l < "$fixture/uploads")" == 2 ]] || exit 1
+[[ "$(wc -l < "$fixture/uploads")" -eq 2 ]] || exit 1
 export FIXTURE_MODE=yanked
 bash scripts/release/publish.sh > "$fixture/yanked-reconcile.log" 2>&1
-[[ "$(wc -l < "$fixture/uploads")" == 2 ]] || exit 1
+[[ "$(wc -l < "$fixture/uploads")" -eq 2 ]] || exit 1
 while IFS= read -r observation; do
     bash scripts/ci/verify-file-checksum.sh --print sha256 "$observation/http-status" >> "$fixture/lost-reply-status-after.hashes"
 done < "$fixture/lost-reply-evidence.paths"
 cmp "$fixture/lost-reply-status.hashes" "$fixture/lost-reply-status-after.hashes"
 export FIXTURE_MODE=source-change
 if bash scripts/release/publish.sh > "$fixture/source-change.log" 2>&1; then exit 1; fi
-[[ "$(wc -l < "$fixture/uploads")" == 2 ]] || exit 1
+[[ "$(wc -l < "$fixture/uploads")" -eq 2 ]] || exit 1
 git reset --hard "$commit" > /dev/null
 export FIXTURE_MODE=success
 

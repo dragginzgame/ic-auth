@@ -1,11 +1,11 @@
-# Current handoff — 2026-10-10
+# Current handoff — 2026-10-11
 
 The maintainer accepted the larger Canic authentication extraction, selected the
 name `ic-auth`, and confirmed `/home/adam/projects/ic-auth` as the local repository.
 
-The current committed release is `c04f98318278ecb822f42807078b70e989f997dc`
-(`0.3.5`) on `main`, with annotated tag `v0.3.5`; both remote identities were
-verified during continuation. Both libraries' `0.3.5` registry checksums match
+The current committed release is `dce175975d6e5aa70b45b747d49467784285ac35`
+(`0.3.6`) on `main`, with annotated tag `v0.3.6`; both remote identities were
+verified during continuation. Both libraries' `0.3.6` registry checksums match
 the retained publication intent for that exact source/tag. The maintainer
 executed the release and publication. The original bootstrap was
 `7a03102e52b7a400588530997a9f7fb91c83de9d` (`0.1.0`).
@@ -22,7 +22,7 @@ records this batch without closing the larger extraction.
 
 The virtual Rust workspace contains `ic-auth-protocol-types`, `ic-auth` and the
 unpublished native application in `apps/tooling/`, with one lockfile, root-owned
-dependency selections and current manifest version `0.3.5`.
+dependency selections and current manifest version `0.3.6`.
 The passive token/proof contracts and canonical encoding are adapted from the
 clean Canic source at `e286b3fd98460c98670336853f80658a920966e0`; see the
 [source review](../design/canic-source-review.md) for exact ownership and API
@@ -40,7 +40,81 @@ has recorded focused standalone-proof and bounded batch-builder qualification;
 complete-token, durable-session and deployed acceptance remain separate. No sibling repository
 was modified by IC Auth work.
 
-## Current continuation (pending 0.3.6)
+## Current continuation (pending 0.3.7)
+
+Released 0.3.6 is verified at remote main and peeled tag; annotated tag
+`8b025e65a984642526ca816727090baebd7d3b26` and both unyanked official registry
+checksums match `.git/publication-state/0.3.6.json`: protocol-types
+`275bbfcc2c3ece4c6237d744bd656d319ba57ad053fb5a9ebf8c42f669bd5082`, Auth
+`131bcfd312937934bf392781bc9d97116d87193092dabac0196d68016966d2f9`.
+The delivered lock selects Host 0.12.9. Its
+[exact-source CI](https://github.com/dragginzgame/ic-auth/actions/runs/38073930159)
+passes on Ubuntu, but both native macOS lanes fail in `test-release-tools`.
+Released 0.3.5's two macOS lanes also fail in that target. Neither failed complete
+run supplies native full-gate acceptance. Downloaded logs are retained separately
+under `target/upstream-0.3.7/`; earlier qualifications below remain bound to their
+original inputs.
+
+The requested update adopts Shared Tooling revision
+`37af29b2f8fb4532744b600c5f85ce716a8b57cf`, verified at official remote main and
+exported from an isolated clean committed source. Its committed VERSION remains
+0.3.9 despite the 0.3.10 subject/changelog; the canonical snapshot preserves that
+authority. [Shared #114](https://github.com/dragginzgame/shared-tooling/issues/114)
+already tracks the producer correction. Dirty sibling 0.3.11 work is excluded.
+Its 84-file snapshot includes the preceding 0.3.9 fixes for
+Cargo-tool setup/check working directories and consistent live/retained diagnostic
+classification. The canonical Rust-tool and validation-runner fixtures pass on
+Bash 5 and genuine Bash 3.2 at preceding revision `1ed2ca5` with substituted
+effects; these implementations are unchanged in the newly adopted revision.
+The new release-check implementation anchors relative/symlinked temporary roots
+and nested Make probes. Its canonical release-command and host-tool fixtures pass
+on both interpreters with relative and symlinked temporary parents; exact-source
+logs remain in `target/upstream-0.3.7/shared-0310/`. New derive-macro protection
+guidance is adopted; Auth has no Rust macro definitions or dollar-prefixed derive
+paths requiring markers. No shared source or sibling files are edited.
+
+All four Host packages now select published 0.12.10
+`5074de1792f920112c6539629605a6624f573863`; actual archive digests, official
+unyanked registry checksums and package VCS identities match. Host's Rust APIs
+and source are unchanged from 0.12.9. Narrow Cargo updates and explicit locked
+fetch prepare this graph; unrelated external selections and dependency edges are
+preserved. Testkit remains 0.33.1 with server 16.1.0, so its CLI/server pairing
+is unchanged. Native dependencies remain outside both libraries.
+
+The owned release fixture has six textual line-count assertions that reject BSD
+wc's padded counts. The actual fixture with padded output returns failure on
+Bash 3.2 after one lost-reply upload, before later reconciliation dispatch.
+Numeric comparisons fix this demonstrated defect; the fixture now supplies
+padded real counts on every host. Its complete local/mocked release and
+publication scenarios then pass on genuine Bash 3.2. This is controlled native
+output reproduction on Linux, not a claim that macOS full CI now passes.
+[Auth #19](https://github.com/dragginzgame/ic-auth/issues/19) owns the remaining
+release-fixture native acceptance.
+
+This is compatible tooling/qualification work, selected for the undated 0.3.7
+draft. Public authentication APIs, signed bytes, formats, compiler floor and
+manifest version remain unchanged at 0.3.6. The preceding 0.3.9 snapshot, Host
+0.12.10 graph and count repair pass all 27 complete-gate targets on Linux with
+genuine Bash 3.2 (`target/upstream-0.3.7/ci-bash32.log`, tracked diff SHA-256
+`7ccd56016f0070454644a4d9dcadd55ef38d1bca4692d58979531900453a32eb`).
+The release fixture also passes on Bash 5. The final newer snapshot passes all
+27 complete-gate targets on Linux with genuine Bash 3.2, including actual Testkit
+certification/upgrade/ingress, archive native/Wasm MSRV, release recovery and
+publication reconciliation. The tracked diff remained unchanged during that gate:
+SHA-256 `31c76ee5d6d126b6be8b883694f73eab424202c508ca43158e7da8dd432fede6`;
+input hashes, before/after diffs and `ci-bash32.log` are retained in
+`target/upstream-0.3.7/shared-0310/`. Only this qualification prose is finalized
+afterward. Native macOS complete-gate acceptance remains outstanding under Auth
+#19; earlier evidence remains bound to its original inputs.
+No commit, push, tag, release, upload, deployment or sibling source/build effect
+is performed. Canic's complete-verifier/cache and durable-session adoption remain
+with Canic #491/#58/#459; this batch adds no runtime prerequisite.
+
+## Earlier archive qualification (0.3.6, released)
+
+The following records preparation before maintainer delivery. Source, dependencies
+and hosted-CI observations are historical; the delivered Host 0.12.9 graph and
+native failures above differ from this earlier local qualification.
 
 The maintainer confirmed 0.3.5 is live. Remote main and the peeled tag match the
 source above; annotated tag `25196a5e1f7dc67a85588ae0742cdf8998ea7d11` and both
