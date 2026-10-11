@@ -70,19 +70,23 @@ export class TokenSessionClient {
       fixed.network, fixed.policyId, fixed.audience.Fleet.canonical_network_id,
       fixed.audience.Fleet.fleet_id, fixed.grants, [...(fixed.ext[0] ?? [])],
     ]);
-    const existing = this.#flights.get(key);
-    if (existing) {
-      const value = await existing;
-      this.#assertSession(captured);
-      return tokenFromBytes(tokenBytes(value, this.#options.maxMaterialBytes), this.#options.maxMaterialBytes);
+    let flight = this.#flights.get(key);
+    if (!flight) {
+      if (this.#flights.size >= 128) throw new ClientError('storage_capacity');
+      const promise = this.#obtain(key, captured, fixed)
+        .finally(() => { if (this.#flights.get(key) === promise) this.#flights.delete(key); });
+      this.#flights.set(key, promise);
+      flight = promise;
     }
-    if (this.#flights.size >= 128) throw new ClientError('storage_capacity');
-    const promise = this.#obtain(key, captured, fixed)
-      .finally(() => { if (this.#flights.get(key) === promise) this.#flights.delete(key); });
-    this.#flights.set(key, promise);
-    const value = await promise;
+    const value = await flight;
     this.#assertSession(captured);
-    return tokenFromBytes(tokenBytes(value, this.#options.maxMaterialBytes), this.#options.maxMaterialBytes);
+    const detached = tokenFromBytes(tokenBytes(value, this.#options.maxMaterialBytes), this.#options.maxMaterialBytes);
+    const request = { metadata: [], aud: fixed.audience, grants: fixed.grants, ext: fixed.ext,
+      ttl_ns: this.#options.ttlCandidatesNs[0]! } satisfies DelegatedTokenPrepareRequest;
+    // A shared flight does not authenticate this caller's requested option.
+    // Keep retained keys/intent intact, and check each detached result instead.
+    this.#checkClaims(detached, captured, request);
+    return detached;
   }
 
   #capture(session: Session): CapturedSession {

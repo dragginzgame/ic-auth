@@ -16,16 +16,16 @@ transactions and recovery obligations.
 
 ## Published dependency and feature selection
 
-Both `ic-auth` and `ic-auth-protocol-types` 0.4.1 are published and unyanked.
+Both `ic-auth` and `ic-auth-protocol-types` 0.4.2 are published and unyanked.
 Their registry checksums match IC Auth release
-`2ffd600e68e3c0951e4724d07a123257ed3f38d6`. Rust 1.88 is the supported minimum.
+`1080c07b04df592876f5379ad96778378b5593e2`. Rust 1.88 is the supported minimum.
 For adoption of this release, select compatible registry requirements in Canic's
 root catalog and record the resolved versions in its own lockfiles:
 
 ```toml
 [workspace.dependencies]
-ic-auth = { version = "0.4", default-features = false }
-ic-auth-protocol-types = "0.4"
+ic-auth = { version = "0.4.2", default-features = false }
+ic-auth-protocol-types = "0.4.2"
 ```
 
 Child packages inherit these dependencies with `workspace = true`; their
@@ -37,13 +37,14 @@ Releases 0.3.0 through 0.3.8 change developer tooling and qualification; their
 authentication APIs and signed bytes are unchanged from 0.2.11. Release 0.4.0
 changes typed Root rejection causes, requiring updated exhaustive matches and
 diagnostic projection; signed bytes and successful acceptance are unchanged.
-Canic's changing root manifest and lock now select 0.4/0.4.0 in the read-only
-review below. Selected versions alone do not establish runtime acceptance.
+Canic's changing root manifest and lock now select 0.4.2. Its owner-reported
+preparation qualification is linked below; selected versions alone do not
+establish full runtime or deployment acceptance.
 
 | Existing Canic capability | IC Auth selection | Retained Canic responsibility |
 | --- | --- | --- |
 | Protocol DTOs and canonical encoding | Protocol-types and default `ic-auth::canonical` | Fleet/configuration envelopes and checked deployment-identity projections |
-| Pure delegated-token issuance | Default `token_preparation` in pending 0.4.2 | Installed authority, authenticated presenter, host bounds, operation custody and authorized signing |
+| Pure delegated-token issuance | Default `token_preparation` in published 0.4.2 | Installed authority, authenticated presenter, host bounds, operation custody and authorized signing |
 | Root/issuer canister-signature verification | `canister-signature-verification` | Protected signer, seed, network trust anchor, time and limits |
 | Root/issuer canister-signature creation | `canister-signature-preparation` | Authorized message construction, runtime certificate, certification-root composition and lifecycle |
 | `auth-delegated-token-verify` | `token-verification` | Independent key enrollment, fleet/role policy, authenticated caller and endpoint requirements |
@@ -86,15 +87,18 @@ deserialized. Do not retain a second positive proof cache that bypasses changed
 policy, key windows or epochs. Fleet member/role decisions, issuer approval,
 renewal orchestration and application resource authorization stay in Canic.
 
-## Pure issuance preparation (pending 0.4.2)
+## Pure issuance preparation (released 0.4.2)
 
 [Auth #25](https://github.com/dragginzgame/ic-auth/issues/25) adds the default-feature
 `ic_auth::token_preparation` boundary described in the
 [preparation contract](token-preparation.md). Canic can project its protocol DTOs
 and protected host inputs into `PrepareDelegatedTokenInput`, retain the immutable
 result, sign `claims_hash()`, and call `finish_delegated_token` after authorized
-proof retrieval. Select 0.4.2 only after publication and qualify Canic's own graph;
-its currently reviewed lock still resolves Auth 0.4.0.
+proof retrieval. Canic now requires published 0.4.2 and its owner records
+[204 focused Auth/workflow cases, five wire cases and enabled/disabled Clippy](https://github.com/dragginzgame/canic/issues/491#issuecomment-6109065011)
+in its uncommitted 0.111.1 draft. The duplicate pure preparation module is removed.
+This is owner-reported native adoption; managed/Wasm/endpoint acceptance and
+deployment remain separate. IC Auth performs no consumer build or edit.
 
 Canic's current grant/scope ceilings are 16/32. Pass those existing host policies
 as `TokenPreparationLimits`; they are not Auth defaults. Project canonical role

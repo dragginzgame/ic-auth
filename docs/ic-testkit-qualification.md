@@ -156,9 +156,10 @@ remains a controller-guarded signature fixture.
 The focused command is part of the configured CI/release gate on Linux and both
 supported macOS architectures. Released 0.4.0's complete gate passes on all three
 hosts in [matching-source CI](https://github.com/dragginzgame/ic-auth/actions/runs/38128802347).
-The pending 0.4.2 preparation journey passes the complete local Linux gate and
-strict native/Wasm Clippy. Its native macOS execution awaits its own CI jobs;
-previous-release CI does not qualify uncommitted changes.
+The released 0.4.2 preparation journey passes the complete local Linux gate and
+strict native/Wasm Clippy. Its [matching CI](https://github.com/dragginzgame/ic-auth/actions/runs/38138739513)
+passes Linux; both macOS jobs remain queued at inspection. Previous-release
+results do not qualify the current browser-client repair.
 
 Fresh session keys stand in for browser keys; no browser UI, Solana wallet proof,
 challenge/replay service or wallet-to-principal mapping is exercised. The fixed

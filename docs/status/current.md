@@ -3,9 +3,9 @@
 The maintainer accepted the larger Canic authentication extraction, selected the
 name `ic-auth`, and confirmed `/home/adam/projects/ic-auth` as the local repository.
 
-The current committed release is `2ffd600e68e3c0951e4724d07a123257ed3f38d6`
-(`0.4.1`) on `main`, with annotated tag `v0.4.1`; both remote identities were
-verified during continuation. Both libraries' `0.4.1` registry checksums match
+The current committed release is `1080c07b04df592876f5379ad96778378b5593e2`
+(`0.4.2`) on `main`, with annotated tag `v0.4.2`; both remote identities were
+verified during continuation. Both libraries' `0.4.2` registry checksums match
 the retained publication intent for that exact source/tag. The maintainer
 executed the release and publication. The original bootstrap was
 `7a03102e52b7a400588530997a9f7fb91c83de9d` (`0.1.0`).
@@ -22,7 +22,7 @@ records this batch without closing the larger extraction.
 
 The virtual Rust workspace contains `ic-auth-protocol-types`, `ic-auth` and the
 unpublished native application in `apps/tooling/`, with one lockfile, root-owned
-dependency selections and current manifest version `0.4.1`.
+dependency selections and current manifest version `0.4.2`.
 The passive token/proof contracts and canonical encoding are adapted from the
 clean Canic source at `e286b3fd98460c98670336853f80658a920966e0`; see the
 [source review](../design/canic-source-review.md) for exact ownership and API
@@ -36,11 +36,84 @@ There is no stable canister adapter or wallet endpoint yet. The private browser
 client now implements injected token lifecycle machinery; real issuer adapter
 qualification, npm publication and consumer adoption remain pending.
 Canic adoption is in progress in the consumer's dirty working tree. Its owner
-has recorded focused standalone-proof and bounded batch-builder qualification;
-complete-token, durable-session and deployed acceptance remain separate. No sibling repository
-was modified by IC Auth work.
+now records published 0.4.2 pure preparation/finishing adoption, with 204 focused
+Auth/workflow cases, five wire cases and enabled/disabled Clippy in
+[the existing tracker](https://github.com/dragginzgame/canic/issues/491#issuecomment-6109065011).
+That evidence binds its reported consumer inputs, not later changing sibling
+files. Complete-token, durable-session and deployed acceptance remain separate.
+No sibling repository was modified or built by IC Auth work.
 
-## Current continuation (pending 0.4.2)
+## Current continuation (pending 0.4.3)
+
+[Auth #27](https://github.com/dragginzgame/ic-auth/issues/27) identifies a shared
+browser-flight context mismatch. The retained key flattens extension bytes,
+colliding absent and present-empty options. A joining caller previously accepted
+the other caller's detached token without checking its own captured request.
+Both deterministic directions fail on released source with missing expected
+rejection; the initial log is retained under `target/issues-0.4.3/`.
+
+The client now gives all completed flights one return boundary: session generation
+first, detached material, then each caller's captured claims/scope and current
+claim validity. It rejects conflicting options without changing keys/profile,
+clearing uncertain intent, dispatching another prepare or allocating an ID.
+Matching present-empty callers still share issuance. Existing stored-key
+ambiguity remains explicit: redesign requires owner-controlled retained-state
+disposition under [#3](https://github.com/dragginzgame/ic-auth/issues/3), not a
+hidden reset or new namespace that abandons unknown effects.
+
+All 52 focused client cases and both Candid directions pass. The six added cases
+cover both conflict directions, unchanged uncertain intent/revision across reloads,
+matching empty-option sharing/detachment and return-time claim expiry boundaries.
+Existing stale-generation and retrieval-deadline cases remain passing.
+The complete `PATH=<genuine Bash 3.2.57 profile> make -j4 ci` passes all 27 targets,
+including actual certification/upgrade/ingress, isolated native/Wasm MSRV,
+library/client checks, Clippy, package dry runs without upload and local/mocked
+release/recovery fixtures. Every tracked/new input and the tracked diff remain
+identical across the gate, SHA-256
+`c585d58f72f97498ede5ddc22b027f2c5c17b2428d82b406182d3ac034d5e61d`.
+The held lock and real index are unchanged. Evidence remains separate under
+`target/issues-0.4.3/`; final handoff prose is checked afterward.
+[Auth #27 evidence](https://github.com/dragginzgame/ic-auth/issues/27#issuecomment-6109230404)
+records local implementation; delivery and matching-source native acceptance
+remain open.
+
+A separate Host 0.13.4 lock update arrives during implementation and is preserved.
+The released 0.4.2 lock actually selects Host 0.13.3, superseding the earlier
+0.13.2 preparation checkpoint below. Testkit stays 0.33.6 with server 16.1.0.
+Explicit locked cache preparation succeeds without changing the held lock.
+Host's additive private-sidecar API does not change Auth's existing native file
+callers or introduce a native dependency into either public library.
+
+Released 0.4.2's [matching CI](https://github.com/dragginzgame/ic-auth/actions/runs/38138739513)
+passes Linux; both macOS jobs remain queued at bounded inspection. Issues #24,
+#25 and #26 retain their source-bound native/hosted acceptance. Canic has adopted
+#25's pure API; its full-verifier finite freshness/protected scopes and independent
+committed-session lease remain owner decisions under #491/#459. The real browser
+issuer adapter still depends on non-issuing recovery under
+[Canic #507](https://github.com/dragginzgame/canic/issues/507).
+
+The delivered Shared 0.6.0 native jobs fail at the canonical Rust fixture,
+tracked in [Shared #124](https://github.com/dragginzgame/shared-tooling/issues/124).
+The additional temporary-root fixture alias issue is
+[Shared #127](https://github.com/dragginzgame/shared-tooling/issues/127).
+Those central fixtures are outside Auth's selected snapshot. The separate common
+setup lock-refusal defect is inherited by Auth and remains
+[Shared #120](https://github.com/dragginzgame/shared-tooling/issues/120); #125 closes
+only as its duplicate. Successful setup/reuse without contention does not qualify
+that failure path. A dirty upstream repair is not adopted: a reviewed committed
+canonical correction and matching Auth native CI remain under
+[Auth #26](https://github.com/dragginzgame/ic-auth/issues/26#issuecomment-6109193839).
+No vendored installer fork or sibling edit is introduced.
+
+The next compatible version is **0.4.3**: this fixes client rejection of incorrectly
+bound returned material, preserving Rust APIs, signed bytes, stored keys/profile
+and consumer build requirements. Manifests remain 0.4.2. Staging, commits,
+package versions, refs, release, publication and deployment remain user-owned.
+
+## Released 0.4.2 preparation and adoption evidence
+
+The following checkpoints retain their original pre-delivery identities and
+limitations. Subsequent publication and consumer adoption are recorded above.
 
 [Auth #25](https://github.com/dragginzgame/ic-auth/issues/25) identifies Canic's
 remaining pure token issuance duplication. The new default-feature

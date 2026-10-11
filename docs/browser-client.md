@@ -38,6 +38,16 @@ isolation. Grants must be sorted with unique targets; scopes must be sorted and
 unique. Use a new `policyId` when the adapter, trust or issuance policy changes.
 Do not obtain these values from untrusted token material.
 
+Every completed flight checks its detached token against each caller's captured
+request and current claim validity, after checking the session generation.
+The retained key flattens extension bytes, so absent and present-empty extensions
+share a namespace. A conflicting option rejects `invalid_material` rather than
+returning the other caller's token or replacing its intent. Same-option callers
+still share issuance. This fix preserves existing keys and the stored profile;
+changing that namespace requires an explicit disposition of retained unknown
+effects under [#3](https://github.com/dragginzgame/ic-auth/issues/3).
+See [the flight repair](https://github.com/dragginzgame/ic-auth/issues/27).
+
 The client checks Candid shape, bounded material, identity/issuer/scope binding,
 claim times and equality between prepared and retrieved claims. It does **not**
 verify the root/issuer cryptographic proof chain or confer role authority.

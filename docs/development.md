@@ -2,8 +2,8 @@
 
 The virtual root owns two libraries, unpublished native tooling in `apps/tooling/`
 and the internal host/runner in `apps/qualification/`, plus dependency selections,
-lints and one lockfile. The current manifest version is `0.4.1`, tagged as
-`v0.4.1`; both libraries are published on crates.io.
+lints and one lockfile. The current manifest version is `0.4.2`, tagged as
+`v0.4.2`; both libraries are published on crates.io.
 Rust `1.99.0` remains the development compiler selected by `rust-toolchain.toml`.
 The common package minimum is Rust `1.88.0`, inherited from the root catalog and
 qualified by explicit older-compiler checks. See [MSRV coverage](msrv.md).
@@ -245,9 +245,9 @@ It does not qualify browser/wallet login or a durable session backend.
 ## Releases and publication
 
 ```sh
-make release-patch                 # compatible patch increment: 0.4.1 -> 0.4.2
-make release-minor                 # breaking pre-1.0 contract: 0.4.1 -> 0.5.0
-make release-major                 # explicit major decision: 0.4.1 -> 1.0.0
+make release-patch                 # compatible patch increment: 0.4.2 -> 0.4.3
+make release-minor                 # breaking pre-1.0 contract: 0.4.2 -> 0.5.0
+make release-major                 # explicit major decision: 0.4.2 -> 1.0.0
 make release-resume VERSION=X.Y.Z   # reconcile the exact saved attempt
 make publish-dry-run               # validate packages without upload
 make publish                       # upload a clean, delivered tagged release
@@ -255,9 +255,10 @@ make publish                       # upload a clean, delivered tagged release
 
 Released 0.4.0 carries the diagnostic hard cut at the required minor boundary.
 Released 0.4.1 adopts Shared Tooling 0.5.0 without changing the library contract.
-The pending 0.4.2 batch adds pure [token preparation](token-preparation.md) and
-qualifies native dependency updates. Existing APIs, signed bytes, stored formats
-and consumer build requirements remain unchanged.
+Released 0.4.2 adds pure [token preparation](token-preparation.md), adopts Shared
+Tooling 0.6.0 and qualifies native dependency updates. Pending 0.4.3 fixes browser
+flight result validation. Existing Rust APIs, signed bytes, stored formats and
+consumer build requirements remain unchanged.
 Release execution still requires an explicit request for the selected command.
 
 Released `0.1.13` adopts Shared Tooling 0.1.36's selected Cargo installer and
@@ -399,11 +400,12 @@ directly and obtains runtime types through Testkit. Testkit owns adoption of
 Host's breaking process API; Auth has no direct caller or compatibility shim.
 Directory-suffixed publication targets are refused before creating parents or
 replacing a stripped filename; the native utility uses that upstream guard.
-The current lock selects Testkit 0.33.6 and the four Host packages at 0.13.2.
-These upstream patches adopt Shared Tooling 0.5.0 for contributors; their runtime
-API is unchanged. This selected graph passes the actual certification, upgrade
-and ingress journey and the complete Auth gate locally on Linux, separately from
-common Rust setup; matching native CI remains required for the pending batch.
+The current lock selects Testkit 0.33.6 and the four Host packages at 0.13.4.
+Testkit's patch updates contributor tooling. Host 0.13.4 adds a private sidecar
+opening API; existing Auth file callers are unchanged. Native graph qualification
+uses the actual certification, upgrade and ingress journey, separately from
+common Rust setup; its current evidence belongs in the [handoff](status/current.md).
+Matching native CI remains required for the pending batch.
 Run `make install-testkit-tools` to prepare the selected CLI, then
 `make testkit-tools-check` for offline admission of its unchanged 16.1.0 server.
 Prior versioned CLI installations remain retained. Native Host dependencies

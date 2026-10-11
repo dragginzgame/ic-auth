@@ -15,6 +15,87 @@ test('concurrent callers share issuance; cached/caller bytes remain detached', a
   assert.equal((await h.client.token(h.configured)).claims.nonce[0], 0);
 });
 
+for (const present of [false, true]) {
+  test(`shared flight rejects the other extension option when the original is ${present ? 'present-empty' : 'absent'}`, async () => {
+    const h = harness(); const base = h.options.issuer;
+    const started = deferred<void>(); const response = deferred<void>();
+    const client = new TokenSessionClient({ ...h.options, issuer: (session, fixed) => {
+      const operations = base(session, fixed);
+      return { ...operations, prepare: async (request, signal) => {
+        const result = await operations.prepare(request, signal);
+        started.resolve(); await response.promise; return result;
+      } };
+    } });
+    const original = { ...h.configured, ext: present ? [new Uint8Array()] as [Uint8Array] : [] as [] };
+    const conflicting = { ...h.configured, ext: present ? [] as [] : [new Uint8Array()] as [Uint8Array] };
+    const first = client.token(original); await started.promise;
+    const rejected = assert.rejects(client.token(conflicting), error('invalid_material'));
+    await new Promise<void>(resolve => setImmediate(resolve));
+    response.resolve(); const token = await first; await rejected;
+    assert.deepEqual(token.claims.ext, original.ext);
+    assert.equal(h.state.prepares, 1); assert.equal(h.state.retrieves, 1); assert.equal(h.state.ids, 1);
+    assert.deepEqual((await client.token(original)).claims.ext, original.ext);
+    await assert.rejects(client.token(conflicting), error('invalid_material'));
+    assert.equal(h.state.prepares, 1); assert.equal(h.state.ids, 1);
+  });
+
+  test(`conflicting extension option preserves uncertain ${present ? 'present-empty' : 'absent'} intent on reload`, async () => {
+    const h = harness(); const base = h.options.issuer; let savedKey: string | undefined;
+    const options = { ...h.options, store: {
+      read: (key: string) => h.store.read(key),
+      write: (key: string, revision: bigint, entry: Parameters<typeof h.store.write>[2]) => {
+        savedKey = key; return h.store.write(key, revision, entry);
+      },
+    }, issuer: (session: Session, fixed: Parameters<typeof base>[1]): IssuerOperations => {
+      const operations = base(session, fixed);
+      return { ...operations, prepare: async (request, signal) => {
+        await operations.prepare(request, signal); throw new Error('reply lost after issuance');
+      } };
+    } };
+    const original = { ...h.configured, ext: present ? [new Uint8Array()] as [Uint8Array] : [] as [] };
+    const conflicting = { ...h.configured, ext: present ? [] as [] : [new Uint8Array()] as [Uint8Array] };
+    await assert.rejects(new TokenSessionClient(options).token(original), error('prepare_uncertain'));
+    assert.ok(savedKey); const retained = await h.store.read(savedKey);
+    await assert.rejects(new TokenSessionClient(options).token(conflicting), error('invalid_material'));
+    assert.deepEqual(await h.store.read(savedKey), retained);
+    assert.equal(h.state.prepares, 1); assert.equal(h.state.reconciles, 0); assert.equal(h.state.retrieves, 0);
+    assert.equal(h.state.ids, 1); assert.deepEqual(h.sessions.invalidations, []);
+  });
+}
+
+test('present-empty extension callers still share issuance with detached results', async () => {
+  const h = harness(); const configured = { ...h.configured, ext: [new Uint8Array()] as [Uint8Array] };
+  const [a, b] = await Promise.all([h.client.token(configured), h.client.token(configured)]);
+  a.claims.ext = [];
+  assert.deepEqual(b.claims.ext, [new Uint8Array()]);
+  assert.deepEqual((await h.client.token(configured)).claims.ext, [new Uint8Array()]);
+  assert.equal(h.state.prepares, 1); assert.equal(h.state.retrieves, 1); assert.equal(h.state.ids, 1);
+});
+
+test('completed flight rechecks claim expiry after its caller generation check', async () => {
+  for (const lateBy of [-1n, 0n, 1n]) {
+    const h = harness(); const token = await h.client.token(h.configured);
+    let read = false; let checks = 0; let key: string | undefined;
+    const client = new TokenSessionClient({ ...h.options, sessions: {
+      current: () => {
+        if (read && ++checks === 2) h.state.now = token.claims.expires_at_ns + lateBy;
+        return h.sessions.current();
+      },
+      connect: signal => h.sessions.connect(signal),
+      invalidate: generation => h.sessions.invalidate(generation),
+    }, store: {
+      read: async value => { key = value; const saved = await h.store.read(value); read = true; return saved; },
+      write: (value, revision, entry) => h.store.write(value, revision, entry),
+    } });
+    if (lateBy < 0n) assert.deepEqual((await client.token(h.configured)).claims, token.claims);
+    else await assert.rejects(client.token(h.configured), error('invalid_material'));
+    assert.equal(checks, 2); assert.ok(key);
+    assert.equal((await h.store.read(key)).entry?.kind, 'ready');
+    assert.equal(h.state.prepares, 1); assert.equal(h.state.retrieves, 1); assert.equal(h.state.ids, 1);
+    assert.deepEqual(h.sessions.invalidations, []);
+  }
+});
+
 test('concurrent login is single flight', async () => {
   const h = harness(); h.sessions.value = undefined;
   const pending = deferred<Session>(); let logins = 0;

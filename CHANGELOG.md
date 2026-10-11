@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.3]
+
+- Check completed browser token flights against each caller's captured scope and
+  current claim validity. Conflicting absent/present-empty extension options
+  reject without changing stored keys, clearing uncertain issuance or allocating
+  another operation. Same-scope callers still share detached results; Rust APIs,
+  signed bytes and the stored profile are unchanged.
+  [#27](https://github.com/dragginzgame/ic-auth/issues/27).
+
+- Qualify the preserved Host 0.13.4 native selection with Testkit 0.33.6 and the
+  existing server 16.1.0 pairing. Native tools remain outside both public libraries.
+
 ## [0.4.2] - 2026-10-11
 
 - Adopt Shared Tooling 0.6.0's shared Cargo storage and standard tool-build

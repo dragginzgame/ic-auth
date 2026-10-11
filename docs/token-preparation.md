@@ -1,8 +1,8 @@
 # Delegated-token preparation
 
-Pending **0.4.2** adds `ic_auth::token_preparation` with the default library
-selection, including `default-features = false`. This additive API is not yet
-published. [Auth #25](https://github.com/dragginzgame/ic-auth/issues/25) requests
+Released **0.4.2** adds `ic_auth::token_preparation` with the default library
+selection, including `default-features = false`. Both packages are published.
+[Auth #25](https://github.com/dragginzgame/ic-auth/issues/25) requests
 the extraction of Canic's pure issuance helper; the
 [Canic adoption contract](canic-adoption.md) describes consumer ownership.
 
