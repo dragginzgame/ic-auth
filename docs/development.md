@@ -305,8 +305,11 @@ unusual names, and distinguishes Git observation errors from dirty source.
 Initial refusal identifies that this attempt has not started validation or
 version preparation. Interrupted preparation retains its exact four-file
 metadata allowance and receipt checks. Admission preserves files and index bytes.
-Normal preflight fetches the selected lockfile, explicitly prepares its Testkit
-CLI/server through `make install-testkit-tools`, then performs offline admission.
+Normal preflight fetches the selected lockfile, then runs `make install-tools`
+and `make tools-check`. The canonical ordered aggregate prepares host, IC and
+common Rust tools before the minimum compiler and lock-selected Testkit CLI/server;
+the second aggregate admits the complete selection offline. Shared host/IC
+payloads alone do not activate a checkout's missing local references.
 Explicit Cargo offline settings still apply; a failed preparation stops before
 validation or version changes. Saved-receipt recovery admits interrupted metadata
 without provisioning a potentially partial graph. Ordinary checks never install

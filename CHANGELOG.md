@@ -11,6 +11,11 @@
   actual failed attempt and prior-slot build bytes without following links.
   [#24](https://github.com/dragginzgame/ic-auth/issues/24).
 
+- Prepare and admit the complete tool selection before release validation,
+  including missing common tool references. Setup/check failures stop before
+  the gate or version changes; interrupted metadata recovery stays unchanged.
+  [#24](https://github.com/dragginzgame/ic-auth/issues/24).
+
 - Qualify the current locked Testkit 0.33.5 selection with its separately
   prepared CLI and unchanged server 16.1.0. This upstream patch changes
   contributor tooling; authentication and qualification runtime APIs are unchanged.

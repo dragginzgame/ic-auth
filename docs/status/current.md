@@ -42,6 +42,33 @@ was modified by IC Auth work.
 
 ## Current continuation (pending 0.4.1)
 
+The maintainer committed the adoption as
+`ba997219d245cf3b650f002a745bb2c64ec6909e`, with package versions still 0.4.0.
+The subsequent reported release gate fails at IC admission. At inspection, this
+checkout has no `.tools/ic` reference or common Rust projection, while the
+previously admitted shared IC generation remains present. The disappearance's
+cause is not established. Canonical complete setup restores the selections;
+offline admission passes. The consumer release adapter previously prepared only
+Host/Testkit, so it could reach the complete gate without the common sets.
+
+The adapter now calls canonical `install-tools` and `tools-check` after locked
+cache preparation and before validation. This remains inside coherent-source
+preflight; interrupted metadata recovery does not provision a partial graph.
+The existing local/mocked release fixture requires common preparation as well
+as Testkit, checks all four setup/admission failure boundaries before gate/version
+effects, and fails against the earlier adapter. The complete `make -j4 ci`
+passes all 27 targets under genuine Bash 3.2.57, including the repaired fixture
+and real certification/upgrade/ingress. ShellCheck and separate offline complete
+admission pass. Tracked diffs stay identical before/during/after the gate,
+SHA-256 `029d6c69534837e1801bbdf0cc2a813e39f890ae046dd23bee317878aa1309ee`;
+selected input hashes verify and the real index remains unchanged. Evidence
+prose is checked separately afterward. No version/ref/release effects occur in
+the real checkout. Evidence remains under
+`target/common-release-preparation/`. Shared slot contention is a separate
+upstream-owned finding already recorded in
+[Shared #120](https://github.com/dragginzgame/shared-tooling/issues/120#issuecomment-6108305533);
+no canonical lock guard is bypassed here.
+
 Shared Tooling **0.5.0** `a306180ce534227fcb98b882fba9a526d5d747e0`
 is adopted through canonical preview/refresh. The 85-file snapshot adds the
 required `scripts/dev/tool-store.sh` companion and refreshes both installers,

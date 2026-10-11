@@ -75,10 +75,23 @@ printf '# Changelog\n\n## [0.1.1]\n\n- Fixture release.\n' > CHANGELOG.md
 cat >> Makefile <<'MAKE'
 
 ci:
+	@test -f target/common-tools-ready
 	@test -f target/testkit-ready
 	@printf 'gate\n' >> target/preparation-dispatch.log
 	@test ! -f target/fail-gate
 	@echo fixture-complete-gate
+
+install-tools:
+	@printf 'common setup\n' >> target/preparation-dispatch.log
+	@test ! -f target/fail-common-setup
+	@touch target/common-tools-ready
+	+@$(MAKE) --no-print-directory install-testkit-tools
+
+tools-check:
+	@printf 'common check\n' >> target/preparation-dispatch.log
+	@test ! -f target/fail-common-check
+	@test -f target/common-tools-ready
+	+@$(MAKE) --no-print-directory testkit-tools-check
 
 install-testkit-tools:
 	@printf 'cli setup\n' >> target/preparation-dispatch.log
@@ -110,24 +123,29 @@ printf 'retained artifact\n' > target/keep
 before="$(git rev-parse HEAD)"
 if make --no-print-directory release-minor > "$fixture/wrong-candidate.log" 2>&1; then exit 1; fi
 [[ "$(git rev-parse HEAD)" == "$before" && -z "$(git tag -l)" ]] || exit 1
-# CLI setup and offline admission must precede the gate and preserve release
+# Common and CLI setup/admission must precede the gate and preserve release
 # identity on either failure. Neither version preparation nor a tag may start.
-for phase in setup check; do
+for phase in common-setup cli-setup common-check cli-check; do
     : > target/preparation-dispatch.log
-    touch "target/fail-cli-$phase"
-    if make --no-print-directory release-patch > "$fixture/cli-$phase-failure.log" 2>&1; then exit 1; fi
+    touch "target/fail-$phase"
+    if make --no-print-directory release-patch > "$fixture/$phase-failure.log" 2>&1; then exit 1; fi
     [[ "$(git rev-parse HEAD)" == "$before" && "$(make -s release-version)" == 0.1.0 ]] || exit 1
     [[ -z "$(git tag -l)" ]] || exit 1
-    if [[ "$phase" == setup ]]; then expected='cli setup'; else expected=$'cli setup\ncli check'; fi
+    case "$phase" in
+        common-setup) expected='common setup' ;;
+        cli-setup) expected=$'common setup\ncli setup' ;;
+        common-check) expected=$'common setup\ncli setup\ncommon check' ;;
+        cli-check) expected=$'common setup\ncli setup\ncommon check\ncli check' ;;
+    esac
     [[ "$(cat target/preparation-dispatch.log)" == "$expected" ]] || exit 1
-    rm "target/fail-cli-$phase"
+    rm "target/fail-$phase"
 done
 : > target/preparation-dispatch.log
 touch target/fail-gate
 if make --no-print-directory release-patch > "$fixture/gate-failure.log" 2>&1; then exit 1; fi
 [[ "$(git rev-parse HEAD)" == "$before" && "$(make -s release-version)" == 0.1.0 ]] || exit 1
 [[ -z "$(git tag -l)" && -f target/keep ]] || exit 1
-[[ "$(cat target/preparation-dispatch.log)" == $'cli setup\ncli check\ngate' ]] || exit 1
+[[ "$(cat target/preparation-dispatch.log)" == $'common setup\ncli setup\ncommon check\ncli check\ngate' ]] || exit 1
 rm target/fail-gate
 
 # Initial admission names a changed lock and refuses before validation or
