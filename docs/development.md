@@ -2,8 +2,8 @@
 
 The virtual root owns two libraries, unpublished native tooling in `apps/tooling/`
 and the internal host/runner in `apps/qualification/`, plus dependency selections,
-lints and one lockfile. The current manifest version is `0.4.3`, tagged as
-`v0.4.3`; both libraries are published on crates.io.
+lints and one lockfile. The current manifest version is `0.4.4`, tagged as
+`v0.4.4`; both libraries are published on crates.io.
 Rust `1.99.0` remains the development compiler selected by `rust-toolchain.toml`.
 The common package minimum is Rust `1.88.0`, inherited from the root catalog and
 qualified by explicit older-compiler checks. See [MSRV coverage](msrv.md).
@@ -250,9 +250,9 @@ It does not qualify browser/wallet login or a durable session backend.
 ## Releases and publication
 
 ```sh
-make release-patch                 # compatible patch increment: 0.4.3 -> 0.4.4
-make release-minor                 # breaking pre-1.0 contract: 0.4.3 -> 0.5.0
-make release-major                 # explicit major decision: 0.4.3 -> 1.0.0
+make release-patch                 # compatible patch increment: 0.4.4 -> 0.4.5
+make release-minor                 # breaking pre-1.0 contract: 0.4.4 -> 0.5.0
+make release-major                 # explicit major decision: 0.4.4 -> 1.0.0
 make release-resume VERSION=X.Y.Z   # reconcile the exact saved attempt
 make publish-dry-run               # validate packages without upload
 make publish                       # upload a clean, delivered tagged release
@@ -262,10 +262,26 @@ Released 0.4.0 carries the diagnostic hard cut at the required minor boundary.
 Released 0.4.1 adopts Shared Tooling 0.5.0 without changing the library contract.
 Released 0.4.2 adds pure [token preparation](token-preparation.md), adopts Shared
 Tooling 0.6.0 and qualifies native dependency updates. Released 0.4.3 fixes browser
-flight result validation. Pending 0.4.4 adopts Shared Tooling 0.6.1's setup failure
-propagation and qualifies the incoming native selections. Existing Rust APIs,
+flight result validation. Released 0.4.4 adopts Shared Tooling 0.6.1's setup failure
+propagation and qualifies the incoming native selections. Pending 0.4.5 adopts
+Shared Tooling 0.6.3's restart of committed preparation. Existing Rust APIs,
 signed bytes, stored formats and consumer build requirements remain unchanged.
 Release execution still requires an explicit request for the selected command.
+
+The [shared restart contract](releases.md#source-changes-after-saved-preparation-intent)
+applies to IC Auth's direct delivery. Its preparation adapter writes only local
+Cargo manifest/lock, changelog and validation receipt, with the manifest last;
+Git staging and delivery remain runner-owned. At unchanged HEAD, interruption
+still resumes the exact saved version. Once the maintainer commits the disposition
+of that metadata in a clean descendant, a standard target archives the old
+`prepare` plan unchanged and selects its requested increment from current metadata.
+It repeats setup/admission and the complete gate before preparing again. Old
+source/candidate-bound validation receipts remain in `.git/release-state/` and
+cannot qualify the new source. No separate preparation journal or retirement
+helper is added. Explicit `release-resume`, dirty/divergent source, changed
+destinations and plans with staging or later effects keep exact-source refusal.
+See [Auth #28](https://github.com/dragginzgame/ic-auth/issues/28) and
+[Shared #126](https://github.com/dragginzgame/shared-tooling/issues/126).
 
 Released `0.1.13` adopts Shared Tooling 0.1.36's selected Cargo installer and
 receipt/path/failure-status checks, dependency-preparation guidance and Host

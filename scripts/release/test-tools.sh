@@ -109,6 +109,7 @@ testkit-tools-check:
 release-prepare-version:
 	+@bash scripts/release/metadata.sh prepare-version
 	@if test -f target/interrupt-prepare; then git show HEAD:Cargo.toml > Cargo.toml; exit 19; fi
+	@if test -f target/interrupt-prepared; then exit 19; fi
 MAKE
 git init -q -b main
 git config user.name 'Release fixture'
@@ -370,4 +371,80 @@ for kind in minor major; do
     bash scripts/ci/check-release-tag.sh "$(git rev-parse HEAD)" "$candidate"
 done
 [[ -f target/keep ]] || exit 1
+# Qualify the consumer's actual local metadata/receipt owner when a maintainer
+# commits the disposition of interrupted preparation. The runner must archive
+# the old intent and validate the current source before preparing again.
+for disposition in restored prepared; do
+    base="$(make -s release-version)"
+    saved_candidate="$(bash scripts/ci/next-release-version.sh "$base" patch)"
+    printf '# Changelog\n\n## [%s]\n\n- Interrupted preparation fixture.\n' "$saved_candidate" > CHANGELOG.md
+    git add CHANGELOG.md
+    git commit -qm 'Prepare interrupted fixture notes'
+    saved_source="$(git rev-parse HEAD)"
+    state="$(git rev-parse --absolute-git-dir)/release-state"
+    if [[ "$disposition" == restored ]]; then marker=interrupt-prepare; else marker=interrupt-prepared; fi
+    touch "target/$marker"
+    if make --no-print-directory release-patch > "$fixture/$disposition-interrupted.log" 2>&1; then exit 1; fi
+    rm "target/$marker"
+    old_plan="$state/$saved_candidate.plan"
+    old_receipt="$state/validation-$saved_source-$saved_candidate.json"
+    [[ "$(tail -n 1 "$old_plan")" == prepare && ! -e "$old_plan.files" ]] || exit 1
+    cp "$old_plan" "$fixture/$disposition-saved.plan"
+    cp "$old_receipt" "$fixture/$disposition-saved-receipt.json"
+    if [[ "$disposition" == restored ]]; then
+        # Restore the whole partially written roster, then request a different
+        # increment. The superseded patch must not control today's selection.
+        for path in Cargo.toml Cargo.lock CHANGELOG.md release-validation.json; do
+            git show "$saved_source:$path" > "$path"
+        done
+        kind=minor
+    else
+        # The fully written local candidate is committed without any runner
+        # staging, release commit, tag or push. Increment from that metadata.
+        kind='patch'
+    fi
+    base="$(make -s release-version)"
+    candidate="$(bash scripts/ci/next-release-version.sh "$base" "$kind")"
+    printf '# Changelog\n\n## [%s]\n\n- Committed preparation disposition fixture.\n\n## [%s] - 2026-10-05\n\n- Earlier fixture metadata.\n' "$candidate" "$base" > CHANGELOG.md
+    git add -- Cargo.toml Cargo.lock CHANGELOG.md release-validation.json
+    git commit -qm 'Commit fixture metadata disposition'
+    current_source="$(git rev-parse HEAD)"
+    git merge-base --is-ancestor "$saved_source" "$current_source"
+    cp target/preparation-dispatch.log "$fixture/$disposition-before-restart.log"
+    # Exact resume remains source-bound. Dirty/untracked normal restart must
+    # retain the old intent and refuse before any setup or validation dispatch.
+    if make --no-print-directory release-resume VERSION="$saved_candidate" > "$fixture/$disposition-exact-resume.log" 2>&1; then exit 1; fi
+    printf 'untracked fixture input\n' > restart-input
+    if make --no-print-directory "release-$kind" > "$fixture/$disposition-untracked.log" 2>&1; then exit 1; fi
+    rm restart-input
+    cmp "$old_plan" "$fixture/$disposition-saved.plan"
+    cmp "$old_receipt" "$fixture/$disposition-saved-receipt.json"
+    cmp target/preparation-dispatch.log "$fixture/$disposition-before-restart.log"
+    [[ ! -e "$state/lock" && "$(git rev-parse HEAD)" == "$current_source" ]] || exit 1
+    # Refuse the fresh gate once: archiving intent cannot imply preparation or
+    # permit reuse of the old source's successful validation receipt.
+    touch target/fail-gate
+    if make --no-print-directory "release-$kind" > "$fixture/$disposition-fresh-gate-failure.log" 2>&1; then exit 1; fi
+    rm target/fail-gate
+    set -- "$state/$saved_candidate".attempt.*/"$saved_candidate.plan"
+    [[ $# == 1 && -f "$1" && ! -L "$1" ]] || exit 1
+    archive_plan="$1"
+    cmp "$archive_plan" "$fixture/$disposition-saved.plan"
+    [[ ! -e "$old_plan" && ! -e "$state/$candidate.plan" && "$(make -s release-version)" == "$base" ]] || exit 1
+    [[ "$(git rev-parse HEAD)" == "$current_source" && -z "$(git tag -l "v$candidate")" ]] || exit 1
+    git diff --quiet HEAD -- Cargo.toml Cargo.lock CHANGELOG.md release-validation.json
+    git diff --cached --quiet HEAD --
+    { cat "$fixture/$disposition-before-restart.log"; printf 'common setup\ncli setup\ncommon check\ncli check\ngate\n'; } > "$fixture/$disposition-expected-failed-dispatch.log"
+    cmp target/preparation-dispatch.log "$fixture/$disposition-expected-failed-dispatch.log"
+    make --no-print-directory "release-$kind" > "$fixture/$disposition-restarted.log" 2>&1
+    [[ "$(make -s release-version)" == "$candidate" && -f target/keep ]] || exit 1
+    [[ "$(jq -r .source release-validation.json)" == "$current_source" && "$(jq -r .previous release-validation.json)" == "$base" ]] || exit 1
+    [[ "$(jq -r .candidate release-validation.json)" == "$candidate" && "$(jq -r .kind release-validation.json)" == "$kind" ]] || exit 1
+    bash scripts/ci/check-release-tag.sh "$(git rev-parse HEAD)" "$candidate"
+    [[ "$(git --git-dir="$fixture/remote.git" rev-parse main)" == "$(git rev-parse HEAD)" ]] || exit 1
+    cmp "$archive_plan" "$fixture/$disposition-saved.plan"
+    cmp "$old_receipt" "$fixture/$disposition-saved-receipt.json"
+    yq -p toml -o json '.' Cargo.lock | jq -S '[.package[] | select(.source != null)]' > "$fixture/$disposition-external.json"
+    cmp "$fixture/external-before.json" "$fixture/$disposition-external.json"
+done
 echo 'Release metadata, failure admission, exact tags/push, resume and publication reconciliation passed (local/mocked effects)'

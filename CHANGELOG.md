@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.4.5]
+
+- Adopt Shared Tooling 0.6.3 so standard release targets restart interrupted
+  preparation after its local metadata disposition is committed in a clean
+  descendant. Retain the old intent and receipts, select the requested increment
+  from current metadata and require fresh validation. Exact resume stays bound
+  to its saved source; library contracts and dependency selections are unchanged.
+  [#28](https://github.com/dragginzgame/ic-auth/issues/28),
+  [Shared #126](https://github.com/dragginzgame/shared-tooling/issues/126).
+
 ## [0.4.4] - 2026-10-11
 
 - Adopt Shared Tooling 0.6.1 so failed Cargo-tool setup stops with its original
