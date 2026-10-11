@@ -2,8 +2,8 @@
 
 The virtual root owns two libraries, unpublished native tooling in `apps/tooling/`
 and the internal host/runner in `apps/qualification/`, plus dependency selections,
-lints and one lockfile. The current manifest version is `0.4.2`, tagged as
-`v0.4.2`; both libraries are published on crates.io.
+lints and one lockfile. The current manifest version is `0.4.3`, tagged as
+`v0.4.3`; both libraries are published on crates.io.
 Rust `1.99.0` remains the development compiler selected by `rust-toolchain.toml`.
 The common package minimum is Rust `1.88.0`, inherited from the root catalog and
 qualified by explicit older-compiler checks. See [MSRV coverage](msrv.md).
@@ -106,6 +106,11 @@ offline checks. Failure collection keeps local Rust evidence and only its
 referenced shared generations, including failed build output. Testkit's server
 storage remains local and Testkit-owned. See
 [Shared storage](local-setup.md#shared-executable-storage).
+Shared Tooling 0.6.1 corrects failure propagation through common Cargo setup.
+Run explicit Rust/Testkit setup and their separate offline checks after adopting
+this revision: the changed build-policy identity selects new shared generations.
+Lock, receipt and activation failures stop setup with failure evidence retained;
+checks never install missing tools or bypass a foreign lock.
 The common IC toolset now selects Binaryen 133; run `make install-ic-tools`
 explicitly to prepare it. This repository builds its qualification Wasm directly
 with Cargo and has no optimized product bundle to qualify.
@@ -245,9 +250,9 @@ It does not qualify browser/wallet login or a durable session backend.
 ## Releases and publication
 
 ```sh
-make release-patch                 # compatible patch increment: 0.4.2 -> 0.4.3
-make release-minor                 # breaking pre-1.0 contract: 0.4.2 -> 0.5.0
-make release-major                 # explicit major decision: 0.4.2 -> 1.0.0
+make release-patch                 # compatible patch increment: 0.4.3 -> 0.4.4
+make release-minor                 # breaking pre-1.0 contract: 0.4.3 -> 0.5.0
+make release-major                 # explicit major decision: 0.4.3 -> 1.0.0
 make release-resume VERSION=X.Y.Z   # reconcile the exact saved attempt
 make publish-dry-run               # validate packages without upload
 make publish                       # upload a clean, delivered tagged release
@@ -256,9 +261,10 @@ make publish                       # upload a clean, delivered tagged release
 Released 0.4.0 carries the diagnostic hard cut at the required minor boundary.
 Released 0.4.1 adopts Shared Tooling 0.5.0 without changing the library contract.
 Released 0.4.2 adds pure [token preparation](token-preparation.md), adopts Shared
-Tooling 0.6.0 and qualifies native dependency updates. Pending 0.4.3 fixes browser
-flight result validation. Existing Rust APIs, signed bytes, stored formats and
-consumer build requirements remain unchanged.
+Tooling 0.6.0 and qualifies native dependency updates. Released 0.4.3 fixes browser
+flight result validation. Pending 0.4.4 adopts Shared Tooling 0.6.1's setup failure
+propagation and qualifies the incoming native selections. Existing Rust APIs,
+signed bytes, stored formats and consumer build requirements remain unchanged.
 Release execution still requires an explicit request for the selected command.
 
 Released `0.1.13` adopts Shared Tooling 0.1.36's selected Cargo installer and
@@ -400,9 +406,9 @@ directly and obtains runtime types through Testkit. Testkit owns adoption of
 Host's breaking process API; Auth has no direct caller or compatibility shim.
 Directory-suffixed publication targets are refused before creating parents or
 replacing a stripped filename; the native utility uses that upstream guard.
-The current lock selects Testkit 0.33.6 and the four Host packages at 0.13.4.
-Testkit's patch updates contributor tooling. Host 0.13.4 adds a private sidecar
-opening API; existing Auth file callers are unchanged. Native graph qualification
+The current lock selects Testkit 0.33.7 and the four Host packages at 0.13.5.
+Both patches update contributor tooling and failure retention; existing Auth
+runtime and file callers are unchanged. Native graph qualification
 uses the actual certification, upgrade and ingress journey, separately from
 common Rust setup; its current evidence belongs in the [handoff](status/current.md).
 Matching native CI remains required for the pending batch.

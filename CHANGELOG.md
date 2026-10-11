@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.4.4]
+
+- Adopt Shared Tooling 0.6.1 so failed Cargo-tool setup stops with its original
+  failure status and retains prior selections and failure evidence. Contributors
+  must rerun explicit Rust/Testkit tool setup and offline admission; library APIs,
+  formats and compiler requirements are unchanged.
+  [#26](https://github.com/dragginzgame/ic-auth/issues/26),
+  [Shared #120](https://github.com/dragginzgame/shared-tooling/issues/120).
+
+- Qualify the preserved Testkit 0.33.7 selection with Host 0.13.5 and the existing
+  server 16.1.0 pairing. These patches update contributor tooling and failure
+  retention, with native dependencies remaining outside both public libraries.
+  [Testkit #59](https://github.com/dragginzgame/ic-testkit/issues/59),
+  [Testkit #60](https://github.com/dragginzgame/ic-testkit/issues/60),
+  [Host #65](https://github.com/dragginzgame/ic-host-tooling/issues/65).
+
 ## [0.4.3] - 2026-10-11
 
 - Check completed browser token flights against each caller's captured scope and

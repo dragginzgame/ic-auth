@@ -3,9 +3,9 @@
 The maintainer accepted the larger Canic authentication extraction, selected the
 name `ic-auth`, and confirmed `/home/adam/projects/ic-auth` as the local repository.
 
-The current committed release is `1080c07b04df592876f5379ad96778378b5593e2`
-(`0.4.2`) on `main`, with annotated tag `v0.4.2`; both remote identities were
-verified during continuation. Both libraries' `0.4.2` registry checksums match
+The current committed release is `4a05966a09fecacac58e13b67b5e78ac1fa783ee`
+(`0.4.3`) on `main`, with annotated tag `v0.4.3`; both remote identities were
+verified during continuation. Both libraries' `0.4.3` registry checksums match
 the retained publication intent for that exact source/tag. The maintainer
 executed the release and publication. The original bootstrap was
 `7a03102e52b7a400588530997a9f7fb91c83de9d` (`0.1.0`).
@@ -22,7 +22,7 @@ records this batch without closing the larger extraction.
 
 The virtual Rust workspace contains `ic-auth-protocol-types`, `ic-auth` and the
 unpublished native application in `apps/tooling/`, with one lockfile, root-owned
-dependency selections and current manifest version `0.4.2`.
+dependency selections and current manifest version `0.4.3`.
 The passive token/proof contracts and canonical encoding are adapted from the
 clean Canic source at `e286b3fd98460c98670336853f80658a920966e0`; see the
 [source review](../design/canic-source-review.md) for exact ownership and API
@@ -43,7 +43,63 @@ That evidence binds its reported consumer inputs, not later changing sibling
 files. Complete-token, durable-session and deployed acceptance remain separate.
 No sibling repository was modified or built by IC Auth work.
 
-## Current continuation (pending 0.4.3)
+## Current continuation (pending 0.4.4)
+
+The common Cargo setup correction is now committed and pushed in Shared Tooling
+**0.6.1 `731909525038c58d6f80b498e80f8630b11c685d`**. The reviewed canonical
+87-file refresh changes the installer, Cargo build companion and shared store;
+no dirty upstream release-runner work is included. Under
+[Auth #26](https://github.com/dragginzgame/ic-auth/issues/26) and
+[Shared #120](https://github.com/dragginzgame/shared-tooling/issues/120),
+lock, receipt, reference and activation failures propagate out of common setup.
+Cleanup releases only acquired locks, keeps the original failure status and
+retains previous complete selections and attempt evidence.
+
+The incoming dirty lock selects Testkit 0.33.7; its bytes are captured and preserved.
+The published unyanked checksum is verified. This upstream patch changes developer
+tooling/evidence rather than runtime APIs. A separate Host 0.13.5 lock update
+arrives before the complete gate; its published checksums are verified and its
+bytes preserved. The first gate correctly refuses its missing offline cache;
+explicit locked cache preparation then succeeds. This Host patch also changes
+contributor tooling, preserving runtime APIs. Server 16.1.0 is still selected and
+admitted by Testkit. Explicit complete setup and separate offline admission pass.
+Two explicit offline setup/check retries from a disposable consumer select the
+identical four physical common-tool/Testkit generations without copied binaries;
+their payload/receipt/source/build-log bytes, mtimes and generation inventory stay
+unchanged. All 19 previously captured payload/evidence hashes still verify.
+
+The canonical Cargo refusal fixture passes on current Bash and genuine Bash
+3.2.57, including lock contention, malformed receipt and reference/activation
+failure propagation with the old common set and foreign owner preserved.
+Canonical host/IC store fixtures pass on Bash 3.2; the owned nine-file failure
+collector and Testkit caller fixtures also pass. These substituted installer
+effects remain distinct from the actual native qualification below.
+
+The complete Bash 3.2 `make -j4 ci` passes all **27 targets**, including actual
+certification/upgrades/signed ingress, isolated native/Wasm MSRV, library/client
+checks, Clippy, package dry runs without upload and local/mocked release/recovery.
+Every tracked/new input hash and mode and the tracked diff stay identical during
+the completed gate, SHA-256
+`82e37c40f509adacc0047248a9b1e075b773985014b2b692d19f8fd33e3a5a23`.
+The held lock stays unchanged; staged entries still match initial HEAD.
+ShellCheck 0.11.0 passes the three changed canonical scripts. Final handoff prose
+is checked separately. Evidence stays under `target/issues-0.4.4/`, retaining the
+cache refusal separately.
+
+Published 0.4.3's [matching CI](https://github.com/dragginzgame/ic-auth/actions/runs/38142059219)
+passes Linux, with Intel macOS running and Apple Silicon queued at bounded
+inspection. It supplies hosted failure-artifact round-trip evidence for its
+0.6.0 snapshot, not this correction. Shared 0.6.1's
+[exact-source CI](https://github.com/dragginzgame/shared-tooling/actions/runs/38141614488)
+passes Linux native/portable and lint jobs; both macOS jobs are cancelled.
+Delivery and matching-source native/hosted acceptance remain in Auth #26 and
+the upstream trackers; neither cancelled nor older runs close that requirement.
+
+The next compatible version is **0.4.4**. Library APIs, signed bytes, stored formats
+and MSRV are unchanged; manifests remain 0.4.3. Staging, commits, version changes,
+refs, release, publication and deployment remain user-owned.
+
+## Released 0.4.3 preparation evidence
 
 [Auth #27](https://github.com/dragginzgame/ic-auth/issues/27) identifies a shared
 browser-flight context mismatch. The retained key flattens extension bytes,
@@ -105,10 +161,11 @@ canonical correction and matching Auth native CI remain under
 [Auth #26](https://github.com/dragginzgame/ic-auth/issues/26#issuecomment-6109193839).
 No vendored installer fork or sibling edit is introduced.
 
-The next compatible version is **0.4.3**: this fixes client rejection of incorrectly
-bound returned material, preserving Rust APIs, signed bytes, stored keys/profile
-and consumer build requirements. Manifests remain 0.4.2. Staging, commits,
-package versions, refs, release, publication and deployment remain user-owned.
+The preceding qualification was completed before the maintainer's 0.4.3 release.
+Its original source identities and native-CI limitations are retained above.
+Both published 0.4.3 package checksums now match the retained publication intent
+for the remote source/tag. Its matching-source native CI is queued at inspection;
+[#27](https://github.com/dragginzgame/ic-auth/issues/27) remains open for that gate.
 
 ## Released 0.4.2 preparation and adoption evidence
 
