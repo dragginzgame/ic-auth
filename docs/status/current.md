@@ -3,9 +3,9 @@
 The maintainer accepted the larger Canic authentication extraction, selected the
 name `ic-auth`, and confirmed `/home/adam/projects/ic-auth` as the local repository.
 
-The current committed release is `435e91c349ebcffdeb7181f375229cfe5aa9066a`
-(`0.4.4`) on `main`, with annotated tag `v0.4.4`; both remote identities were
-verified during continuation. Both libraries' `0.4.4` registry checksums match
+The current committed release is `33136e265b89af9c3f370d9d18b0724c27e0762a`
+(`0.4.5`) on `main`, with annotated tag `v0.4.5`; both remote identities were
+verified during issue review. Both libraries' `0.4.5` registry checksums match
 the retained publication intent for that exact source/tag. The maintainer
 executed the release and publication. The original bootstrap was
 `7a03102e52b7a400588530997a9f7fb91c83de9d` (`0.1.0`).
@@ -22,7 +22,7 @@ records this batch without closing the larger extraction.
 
 The virtual Rust workspace contains `ic-auth-protocol-types`, `ic-auth` and the
 unpublished native application in `apps/tooling/`, with one lockfile, root-owned
-dependency selections and current manifest version `0.4.4`.
+dependency selections and current manifest version `0.4.5`.
 The passive token/proof contracts and canonical encoding are adapted from the
 clean Canic source at `e286b3fd98460c98670336853f80658a920966e0`; see the
 [source review](../design/canic-source-review.md) for exact ownership and API
@@ -43,7 +43,64 @@ That evidence binds its reported consumer inputs, not later changing sibling
 files. Complete-token, durable-session and deployed acceptance remain separate.
 No sibling repository was modified or built by IC Auth work.
 
-## Current continuation (pending 0.4.5)
+## Current continuation (pending 0.4.6)
+
+[Auth #29](https://github.com/dragginzgame/ic-auth/issues/29) adds pure
+`chain_key_signature::validate_secp256k1_public_key` and
+`verify_secp256k1_prehash` with typed malformed-key, malformed-signature,
+high-S and invalid-signature errors. The independent `chain-key-verification`
+feature selects K256 without certificate machinery; default features stay empty.
+Token verification enables both signature capabilities and reuses the same
+parsed-material boundary after its existing policy, binding and witness checks.
+Parsing remains before canonical header hashing. Signed bytes, existing Root
+errors, stored formats and authority rules are unchanged.
+
+Six isolated real-key/signature cases and 30 complete-token/delegation cases
+pass, including combined policy/witness versus malformed-crypto rejection.
+Formatting and the actual selected dependency-boundary checks pass. Native/Wasm,
+isolated archive MSRV, Make jobserver and complete-gate coverage include the new
+capability. The complete genuine Bash 3.2 `make -j4 ci` passes all **28 targets**,
+including real canister certification/upgrades/signed ingress, isolated archive
+native/Wasm MSRV, 52 browser-client cases, warning-denied Clippy and both package
+dry runs without upload. Local/bare-remote release/publication recovery and
+canonical runner/evidence fixtures also pass with their existing substituted
+effects. All tracked/new inputs and modes, held lock, index and HEAD remain
+identical throughout the gate; tracked diff SHA-256
+`c82e788e39b83e801ca3ae8be379515128f454c030a401ddc25e6c701ed4b153`.
+Final handoff/adoption prose is checked separately.
+The initial negative fixture mistakenly used a K256-admitted compact SEC1 tag;
+it is retained separately and corrected to a reserved tag, without changing
+production parser semantics. The first complete gate identifies missing new
+module inputs in the owned formatting export; its explicit overlay now includes
+the changed module, manifest and test inputs and the focused fixture passes.
+Both findings remain separate from subsequent complete-gate qualification.
+Evidence stays under `target/integration-0.4.6/`.
+
+The incoming Host 0.14.1 lock edit is captured and preserved byte-for-byte;
+its published FS/artifact checksums and the held Testkit 0.33.8 checksum are
+verified unyanked. Real qualification uses that locked Testkit and its admitted
+server 16.1.0. Testkit's transitive Host 0.13.5 selection remains distinct from
+the applications' direct Host 0.14.1 graph. The held external dependency
+selection is separate from this additive library API.
+Manifests remain 0.4.5; the next compatible version is **0.4.6**. No version,
+index, commit, ref, release/recovery, publication, deployment or sibling source
+mutation is performed. [The new contract](../chain-key-signatures.md) names the
+future consumer cut; Canic #491 owns adoption after publication. Its feature
+selection, original signing hash/key custody and endpoint error projection stay
+local. Its schema key admission can also use the new helper; its signing-reply
+normalization still uses K256 and is not implicitly removed. No consumer
+adoption is inferred from the current dirty Canic lock.
+
+[Auth #28's delivery update](https://github.com/dragginzgame/ic-auth/issues/28#issuecomment-6110398842)
+verifies published 0.4.5 and its Shared 0.6.3 snapshot. Matching-source
+[0.4.5 CI](https://github.com/dragginzgame/ic-auth/actions/runs/38149454914) passes
+Linux, with Apple Silicon running and Intel macOS queued at the final bounded
+review. That released-source run cannot qualify this uncommitted 0.4.6 batch.
+Earlier 0.4.1–0.4.4 runs were cancelled and
+do not close their remaining native acceptance. The fixture warning request is
+[Shared #128](https://github.com/dragginzgame/shared-tooling/issues/128).
+
+## Released 0.4.5 preparation evidence
 
 [Auth #28](https://github.com/dragginzgame/ic-auth/issues/28) qualifies committed
 Shared Tooling **0.6.3 `4fd979d13c32adb3cb2f51f213ebfc4f98339b3d`** under the
@@ -96,9 +153,11 @@ Canic's published 0.4.2 pure preparation adoption remains available without
 waiting for this contributor-tooling patch. Real browser non-issuing recovery
 remains [Canic #507](https://github.com/dragginzgame/canic/issues/507).
 
-The next compatible version is **0.4.5**. Manifests stay 0.4.4; library APIs,
-signed bytes, storage profiles and MSRV are unchanged. Staging, commits, versions,
-refs, release/recovery, publication and deployment remain user-owned.
+The preceding evidence qualified the compatible 0.4.5 preparation over 0.4.4.
+The maintainer subsequently delivered 0.4.5 as verified above; the original
+source and native acceptance limitations remain historical evidence. Staging,
+commits, versions, refs, release/recovery, publication and deployment remain
+user-owned.
 
 ## Released 0.4.4 preparation evidence
 

@@ -32,6 +32,28 @@ fn resign(root: &mut IcChainKeyBatchSignatureProofV1) {
 }
 
 #[test]
+fn root_policy_and_witness_rejections_precede_isolated_crypto_errors() {
+    for rejection in ["policy", "witness"] {
+        let mut f = Fixture::new();
+        assert!(verify_token(&f.token, &f.context()).is_ok());
+        f.policy.public_key = vec![0; 33];
+        let RootProof::IcChainKeyBatchSignatureV1(root) = &mut f.token.proof.root_proof;
+        root.signature.public_key = f.policy.public_key.clone();
+        root.signature.signature = vec![0; 64];
+        root.header.tree_root[0] ^= 1;
+        let expected = if rejection == "policy" {
+            f.policy.min_accepted_proof_epoch = root.header.proof_epoch + 1;
+            Error::StaleAuthority {
+                field: "proof_epoch",
+            }
+        } else {
+            Error::InvalidMerkleWitness
+        };
+        assert_rejected(&f, expected);
+    }
+}
+
+#[test]
 fn key_id_distinguishes_submitted_binding_from_enrollment_and_defines_precedence() {
     for mutation in ["signature", "header", "both", "policy"] {
         let mut f = Fixture::new();

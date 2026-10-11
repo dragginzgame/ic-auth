@@ -45,6 +45,10 @@ the existing 64-byte `r || s` encoding with valid nonzero scalars and low-s
 representation; `k256` verifies the existing canonical header hash as a prehash.
 The public key must match the protected enrollment byte-for-byte.
 
+Pending 0.4.6 shares the cryptographic primitive with the independently selected
+[chain-key signature checks](chain-key-signatures.md). Isolated key/signature
+admission does not replace the protected proof-chain checks described here.
+
 Only after authenticating the root proof does the verifier use its issuer and
 seed hash to check the issuer's IC signature. It signs the canonical claims hash
 under the unchanged `canic-issuer-delegated-token` domain. The signature verifier

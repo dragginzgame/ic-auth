@@ -56,7 +56,7 @@ options=(--no-print-directory -j4)
 if make --help | rg -q -- --jobserver-style; then
     options+=(--jobserver-style=pipe)
 fi
-targets=(fetch metadata test-types test-protocol test-signatures test-signature-store \
+targets=(fetch metadata test-types test-protocol test-chain-key-signatures test-signatures test-signature-store \
     test-tokens test-sessions check-wasm clippy build-qualification-canister \
     test-qualification test-host-tooling check-boundaries check-dependency-pins check-msrv \
     install-testkit-tools testkit-tools-check msrv-tools-check \

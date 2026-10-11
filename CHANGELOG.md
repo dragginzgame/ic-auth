@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.6]
+
+- Add independently selectable chain-key public-key admission and prehash
+  signature verification so Canic can remove duplicate signing-response checks.
+  Reuse the same cryptographic boundary in Root-proof verification, preserving
+  signed bytes, rejection order and existing token errors.
+  [#29](https://github.com/dragginzgame/ic-auth/issues/29).
+
 ## [0.4.5] - 2026-10-11
 
 - Adopt Shared Tooling 0.6.3 so standard release targets restart interrupted

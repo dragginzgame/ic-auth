@@ -149,6 +149,7 @@ is retained under `target/browser-client/`.
 | `make generate-client-contracts` | Explicitly regenerate the checked-in client contracts from Rust DTOs |
 | `make test-types` | Identifier rejection and Candid wire compatibility |
 | `make test-protocol` | Canonical encoding, signed vectors, ordering and size rejection |
+| `make test-chain-key-signatures` | Isolated SEC1 key admission and exact compact prehash verification, including malformed material and high-S refusal |
 | `make test-signatures` | Real BLS-signed IC fixtures, signer/seed/root rejection, certificate freshness and bounded decoding |
 | `make test-signature-store` | Bounded preparation/retrieval, unchanged retry deadlines, pruning and real BLS verification with host-composed branches |
 | `make test-tokens` | Complete real secp256k1/BLS proof chains, signed binding and protected authority/window/scope rejection |
@@ -158,10 +159,10 @@ is retained under `target/browser-client/`.
 | `make tasks` | Read the adopted maintenance task catalog; no task, agent or schedule starts |
 | `make test-qualification` | Build the internal Wasm host; verify real certificates, complete application tokens, live authority rejection, root composition, upgrades and authenticated ingress through `ic-testkit` with the checked server |
 | `make build-qualification-canister` | Build the internal host's release Wasm without starting a server |
-| `make check-wasm` | Compile-check both libraries and signature verification/preparation, token and session capabilities for `wasm32-unknown-unknown` |
+| `make check-wasm` | Compile-check both libraries and chain-key/signature verification/preparation, token and session capabilities for `wasm32-unknown-unknown` |
 | `make clippy` | Lint the libraries, native tooling/qualification and Wasm host with their selected targets |
 | `make metadata` | Validate the selected locked graph offline |
-| `make check-boundaries` | Inspect default, signature verification/preparation, token and session transitive dependency graphs |
+| `make check-boundaries` | Inspect default, chain-key/signature verification/preparation, token and session transitive dependency graphs |
 | `make fmt` / `make fmt-check` | Shared manifest sorting followed by Rust formatting |
 | `make check-snapshot` | Verify the adopted shared files and modes |
 | `make check-dependency-pins` | Check declarations, lockfile tracking and root inheritance |

@@ -9,6 +9,9 @@ pub mod canonical;
 pub mod chain_key_batch;
 pub mod token_preparation;
 
+#[cfg(feature = "chain-key-verification")]
+pub mod chain_key_signature;
+
 #[cfg(feature = "canister-signature-preparation")]
 pub mod signature_store;
 

@@ -69,13 +69,13 @@ Apply [DRAGGINZGAME.md](DRAGGINZGAME.md), adopted from Shared Tooling revision
   payloads for every supported library feature on native/Wasm, then the internal
   applications separately. Setup explicitly prepares that compiler; checks never
   download one. See [minimum compiler qualification](docs/msrv.md).
-  Focused Rust checks are `make test-types`, `make test-protocol`, `make test-signatures`,
+  Focused Rust checks are `make test-types`, `make test-protocol`, `make test-chain-key-signatures`, `make test-signatures`,
   `make test-signature-store`, `make test-tokens`, `make test-sessions`,
   `make test-host-tooling`, `make test-qualification`, `make check-wasm` and `make clippy`; `make ci` is the
   explicit complete gate. `make test-formatting-hooks` checks actual staged preservation and is part of
   the complete gate. `make test-release-runner` checks the adopted runner
   with substituted effects.
-  Both libraries are published at `0.4.4` with contracts, encoding and optional
+  Both libraries are published at `0.4.5` with contracts, encoding and optional
   IC signature/token/session machinery, including bounded signature preparation.
   The internal IC Testkit fixture exercises actual certification, composed roots,
   protected metadata upgrades, certified-token session admission and signed

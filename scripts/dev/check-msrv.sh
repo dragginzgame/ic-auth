@@ -95,7 +95,7 @@ for target in native wasm32-unknown-unknown; do
     # target arguments rather than passing an empty string or weakening -u.
     cargo +"$floor" check --locked --offline --lib --no-default-features \
         --manifest-path "$fixture/Cargo.toml" ${target_args[@]+"${target_args[@]}"}
-    for feature in default canister-signature-verification canister-signature-preparation token-verification sessions all; do
+    for feature in default chain-key-verification canister-signature-verification canister-signature-preparation token-verification sessions all; do
         feature_args=(--no-default-features --features ic-auth)
         case "$feature" in
             default) ;;

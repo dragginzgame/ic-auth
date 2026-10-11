@@ -3,8 +3,8 @@ use crate::canonical::{
     chain_key_batch_header_hash, chain_key_delegation_cert_hash, chain_key_derivation_path_hash,
 };
 use crate::chain_key_batch::witness_root;
+use crate::chain_key_signature::{ChainKeySignatureError, VerificationMaterial};
 use ic_auth_protocol_types::{ChainKeyAlgorithm, DelegationCert, RootProof};
-use k256::ecdsa::{Signature, VerifyingKey, signature::hazmat::PrehashVerifier};
 
 pub(super) fn verify(
     cert: &DelegationCert,
@@ -137,15 +137,19 @@ pub(super) fn verify(
     if witness_root(leaf_hash, &proof.issuer_witness) != header.tree_root {
         return Err(TokenVerificationError::InvalidMerkleWitness);
     }
-    // SEC1 parsing, scalar range validation and high-s detection belong to k256.
     let ChainKeyAlgorithm::EcdsaSecp256k1 = signature.algorithm;
-    let key = VerifyingKey::from_sec1_bytes(&policy.public_key)
-        .map_err(|_| TokenVerificationError::RootSignatureInvalid)?;
-    let signature = Signature::from_slice(&signature.signature)
-        .map_err(|_| TokenVerificationError::RootSignatureInvalid)?;
-    if signature.normalize_s().is_some() {
-        return Err(TokenVerificationError::HighSSignature);
+    let material = VerificationMaterial::parse(&policy.public_key, &signature.signature)
+        .map_err(signature_error)?;
+    material
+        .verify_prehash(&chain_key_batch_header_hash(header)?)
+        .map_err(signature_error)
+}
+
+fn signature_error(error: ChainKeySignatureError) -> TokenVerificationError {
+    match error {
+        ChainKeySignatureError::HighSSignature => TokenVerificationError::HighSSignature,
+        ChainKeySignatureError::MalformedPublicKey
+        | ChainKeySignatureError::MalformedSignature
+        | ChainKeySignatureError::InvalidSignature => TokenVerificationError::RootSignatureInvalid,
     }
-    key.verify_prehash(&chain_key_batch_header_hash(header)?, &signature)
-        .map_err(|_| TokenVerificationError::RootSignatureInvalid)
 }

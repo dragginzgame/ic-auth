@@ -11,6 +11,7 @@ publish = ["crates-io"]
 
 [features]
 default = []
+chain-key-verification = ["dep:k256"]
 canister-signature-preparation = [
     "dep:ic-canister-sig-creation",
     "dep:ic-certification",
@@ -19,7 +20,7 @@ canister-signature-preparation = [
     "dep:serde_cbor",
 ]
 sessions = ["token-verification"]
-token-verification = ["canister-signature-verification", "dep:k256"]
+token-verification = ["canister-signature-verification", "chain-key-verification"]
 canister-signature-verification = [
     "dep:ic-canister-sig-creation",
     "dep:ic-certification",

@@ -16,10 +16,10 @@ transactions and recovery obligations.
 
 ## Published dependency and feature selection
 
-Both `ic-auth` and `ic-auth-protocol-types` 0.4.4 are published and unyanked.
+Both `ic-auth` and `ic-auth-protocol-types` 0.4.5 are published and unyanked.
 Their registry checksums match IC Auth release
-`435e91c349ebcffdeb7181f375229cfe5aa9066a`. Rust 1.88 is the supported minimum.
-The pure preparation API requires at least 0.4.2; 0.4.4 preserves its Rust contract.
+`33136e265b89af9c3f370d9d18b0724c27e0762a`. Rust 1.88 is the supported minimum.
+The pure preparation API requires at least 0.4.2; 0.4.5 preserves its Rust contract.
 Select compatible registry requirements in Canic's
 root catalog and record the resolved versions in its own lockfiles:
 
@@ -38,8 +38,9 @@ Releases 0.3.0 through 0.3.8 change developer tooling and qualification; their
 authentication APIs and signed bytes are unchanged from 0.2.11. Release 0.4.0
 changes typed Root rejection causes, requiring updated exhaustive matches and
 diagnostic projection; signed bytes and successful acceptance are unchanged.
-Canic's changing root manifest and lock now select 0.4.2. Its owner-reported
-preparation qualification is linked below; selected versions alone do not
+Canic's owner-reported preparation qualification selects 0.4.2 at its recorded
+checkpoint below. A later read-only lock inspection resolves 0.4.5 without
+establishing new consumer qualification. Selected versions alone do not
 establish full runtime or deployment acceptance.
 
 | Existing Canic capability | IC Auth selection | Retained Canic responsibility |
@@ -57,6 +58,26 @@ verification. Signature preparation is independently selectable. No feature
 imports Canic, Toko, Solana, CDK, stable memory or native Host/Testkit tooling.
 Library adoption does not remove a cryptographic dependency from the transitive
 graph merely by moving its direct declaration.
+
+## Pending isolated chain-key checks
+
+Pending 0.4.6 implements [pure SEC1 admission and compact prehash verification](chain-key-signatures.md)
+under `chain-key-verification`, without selecting certificate verification.
+The API is not yet published. After delivery, Canic can select at least 0.4.6,
+forward its existing ECDSA capability, and replace the parsing/verification in
+`ops/auth/delegated/chain_key.rs` used by `chain_key_signing.rs` and
+`token/verifier_config.rs`. Keep the original signing hash, protected key
+selection, unsupported-algorithm and feature-disabled refusals, and local error
+projection. Complete Root verification retains its existing error surface.
+
+[Auth #29](https://github.com/dragginzgame/ic-auth/issues/29) owns this extraction;
+[Canic #491](https://github.com/dragginzgame/canic/issues/491) retains adoption.
+Configuration schema key admission can use the same public helper. The reviewed
+`normalize_chain_key_ecdsa_signature_enabled` still uses K256 to normalize
+management replies before verification; retain that explicit producer policy.
+Audit remaining production and test uses before removing the direct consumer
+dependency. This does not qualify management replies, enroll a key,
+decide certificate freshness/session leases or establish consumer acceptance.
 
 ## Canonical declarations and protected inputs
 

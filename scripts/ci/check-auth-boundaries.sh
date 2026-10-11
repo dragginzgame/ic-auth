@@ -18,10 +18,14 @@ done
 # The selected authentication capabilities must remain free of product, wallet,
 # host tooling and service-owned storage dependencies too. Upstream IC key
 # parsing includes ic0 transitively; verification performs no runtime calls.
-for feature in canister-signature-verification canister-signature-preparation token-verification sessions; do
+for feature in chain-key-verification canister-signature-verification canister-signature-preparation token-verification sessions; do
     graph="$(cargo tree --locked --offline -p ic-auth --no-default-features --features "$feature" --edges normal,build --prefix none --format '{p}')"
     if printf '%s\n' "$graph" | rg '^(canic|toko|solana|ic-siws|ic-host|ic-cdk|ic-stable-structures|ic-memory|ic-timers)([- ]|$)'; then
         echo "$feature pulls product, wallet, native host or runtime/storage dependencies" >&2
+        exit 1
+    fi
+    if [[ "$feature" == chain-key-verification ]] && printf '%s\n' "$graph" | rg '^(ic-canister-sig-creation|ic-certification|ic-signature-verification)([- ]|$)'; then
+        echo 'isolated chain-key verification pulls certificate machinery' >&2
         exit 1
     fi
 done
