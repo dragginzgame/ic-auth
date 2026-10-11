@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.3.8]
+## [0.3.8] - 2026-10-11
 
 - Adopt Shared Tooling 0.3.12's corrected snapshot identity, independently
   checked diagnostic families and formatting-check support for relative or
