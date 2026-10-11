@@ -58,6 +58,8 @@ jobs:
         run: bash scripts/ci/test-tools-evidence.sh
       - name: Upload the qualified Rust-tool failure evidence
         id: tools-evidence-upload
+        env:
+          SHARED_TOOLING_STORE: ${{ steps.tools-evidence.outputs.store }}
         uses: ./.github/actions/retain-failure-evidence
         with:
           name: ic-auth-rust-tools-${{ matrix.os }}-${{ github.run_attempt }}
@@ -83,6 +85,7 @@ jobs:
           cd payload
           bash "$GITHUB_WORKSPACE/scripts/ci/verify-evidence-checksums.sh" "$EXPECTED_EVIDENCE"
           test ! -e .tools/rust/unrelated-cache
+          test ! -e rust-unrelated
       - name: Validate
         run: make ci
       - name: Archive retained Testkit setup evidence

@@ -16,7 +16,9 @@ mkdir -p "$consumer/scripts/dev" "$consumer/scripts/ci" "$consumer/make" "$consu
 # the selected tool targets rather than stopping during Makefile parsing.
 for input in Makefile make/tools.mk make/release.mk make/rust-format.mk make/execution.mk \
     scripts/ci/check-make-execution.sh scripts/ci/run-formatting.sh ci/tool-versions.env \
-    scripts/dev/ci-tools.sh scripts/dev/install-rust-tools.sh; do
+    scripts/dev/ci-tools.sh scripts/dev/install-rust-tools.sh \
+    scripts/dev/cargo-tool-build.sh scripts/dev/tool-store.sh \
+    scripts/ci/verify-file-checksum.sh; do
     cp -p "$input" "$consumer/$input"
 done
 # The common aggregate now admits IC and Rust prerequisites before installing.
@@ -37,38 +39,24 @@ install-msrv install-testkit-tools msrv-tools-check testkit-tools-check:
 	@printf 'unexpected product dispatch\n' >> target/product-dispatch.log
 	@exit 99
 MAKE
-cat > "$fixture/bin/cargo" <<'SCRIPT'
-#!/usr/bin/env bash
-set -euo pipefail
-if [[ $# == 1 && "$1" == --version ]]; then
-    [[ "$RUSTUP_AUTO_INSTALL" == 0 ]]
-    printf 'cargo 1.99.0\n'
-    exit 0
-fi
-[[ $# == 13 && "$1" == install && "$2" == cargo-sort && "$3" == --version &&
-    "$5" == --locked && "$6" == --root && "$8" == --target-dir && "$9" == "$7/build" &&
-    "${10}" == --bin && "${11}" == cargo-sort && "${12}" == --registry && "${13}" == crates-io ]] || exit 1
-mkdir -p "$9"
-printf 'retained failed Rust compilation\n' > "$9/failed-build.txt"
-printf 'dispatch\n' >> "$9/dispatches.txt"
-echo 'injected Cargo installation failure (23)' >&2
-exit 23
-SCRIPT
-chmod +x "$fixture/bin/cargo"
+# The canonical substitute provides a compiler-local Cargo boundary compatible
+# with the standard cleared build environment. It never contacts a registry.
+bash scripts/ci/prepare-cargo-failure-fixture.sh "$fixture/compiler"
+export SHARED_TOOLING_STORE="$fixture/store"
 ln -s "$BASH" "$fixture/bin/bash"
 for phase in install check; do
     status=0
-    PATH="$fixture/bin:$PATH" "$BASH" "$consumer/scripts/dev/ci-tools.sh" "$phase" \
+    PATH="$fixture/compiler/bin:$fixture/bin:$PATH" "$BASH" "$consumer/scripts/dev/ci-tools.sh" "$phase" \
         > "$fixture/$phase.stdout" 2>&1 || status=$?
     [[ "$status" == 2 ]]
     cmp "$fixture/$phase.stdout" "$consumer/target/rust-tools-$phase.log"
 done
-grep -F 'injected Cargo installation failure (23)' "$consumer/target/rust-tools-install.log" > /dev/null
-grep -F 'missing or mismatched common Rust tool set' "$consumer/target/rust-tools-check.log" > /dev/null
-set -- "$consumer"/.tools/rust/build/cargo-attempt.*
+grep -F 'injected Cargo installation failure' "$consumer/target/rust-tools-install.log" > /dev/null
+grep -F 'missing or invalid shared Cargo tool: cargo-sort' "$consumer/target/rust-tools-check.log" > /dev/null
+set -- "$SHARED_TOOLING_STORE"/rust-*/set.*
 [[ $# == 1 && -f "$1/build/failed-build.txt" ]] || exit 1
-attempt="${1##*/}"
-[[ "$(cat "$1/build/dispatches.txt")" == dispatch ]] || exit 1
+attempt="${1#"$SHARED_TOOLING_STORE/"}"
+[[ -s "$1/install.log" && -s "$1/inputs.json" ]] || exit 1
 [[ ! -e "$consumer/target/product-dispatch.log" ]]
 # Logging failure cannot mask a rejected aggregate, or turn a successful one
 # into an unrecorded success. Keep these extra runs outside the retained oracle.
@@ -94,13 +82,15 @@ status=0
 TEST_TEE_BINARY="$tee_binary" PATH="$fixture/bin:$PATH" "$BASH" "$fixture/log-errors/scripts/dev/ci-tools.sh" check \
     > "$fixture/logging-failed.log" 2>&1 || status=$?
 [[ "$status" == 41 ]]
-# The collector retains the complete physical Rust tree, including earlier
-# slot build evidence. A redirected child is archived as a link, never followed.
+# The selector retains the local Rust tree and the referenced failed shared
+# attempt. An unrelated generation or redirected child must not be followed.
 slot_evidence='.tools/rust/fixture-1.0.0-bin-fixture-release/installed/build/evidence.txt'
 mkdir -p "$consumer/${slot_evidence%/*}" "$fixture/outside"
 printf 'retained prior slot build evidence\n' > "$consumer/$slot_evidence"
 printf 'must not upload\n' > "$fixture/outside/private"
 ln -s "$fixture/outside" "$consumer/.tools/rust/redirected-slot"
+mkdir -p "$SHARED_TOOLING_STORE/rust-unrelated/set.unrelated"
+printf 'must not upload\n' > "$SHARED_TOOLING_STORE/rust-unrelated/set.unrelated/private"
 
 # Execute the adopted collector block; never maintain another selection.
 yq -p yaml -o json '.' .github/actions/retain-failure-evidence/action.yml | \
@@ -116,9 +106,9 @@ archive="$(sed -n 's/^path=//p' "$fixture/collector.outputs")"
         digest="$(bash scripts/ci/verify-file-checksum.sh --print sha256 "$consumer/target/$path")"
         printf '%s  %s\n' "$digest" "$path"
     done
-    for path in failed-build.txt dispatches.txt; do
-        relative=".tools/rust/build/$attempt/build/$path"
-        digest="$(bash scripts/ci/verify-file-checksum.sh --print sha256 "$consumer/$relative")"
+    for path in build/failed-build.txt install.log inputs.json Cargo.lock source.crate native-environment.txt; do
+        relative="$attempt/$path"
+        digest="$(bash scripts/ci/verify-file-checksum.sh --print sha256 "$SHARED_TOOLING_STORE/$relative")"
         printf '%s  %s\n' "$digest" "$relative"
     done
     digest="$(bash scripts/ci/verify-file-checksum.sh --print sha256 "$consumer/$slot_evidence")"
@@ -130,9 +120,11 @@ tar -xzf "$archive" -C "$fixture/unpacked"
 [[ -L "$fixture/unpacked/.tools/rust/redirected-slot" &&
     "$(readlink "$fixture/unpacked/.tools/rust/redirected-slot")" == "$fixture/outside" ]] || exit 1
 [[ ! -e "$fixture/unpacked/outside" ]] || exit 1
+[[ ! -e "$fixture/unpacked/rust-unrelated" ]] || exit 1
+grep -Fx 'collection-complete=true' "$fixture/collector.outputs" > /dev/null
 # Native CI collects through the ordinary action and verifies the exact-ID
 # downloaded artifact against this oracle outside the upload selection.
 if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
-    printf 'consumer=%s\ntemp=%s\nexpected=%s\n' "$consumer" "$consumer/target" "$fixture/expected.sha256" >> "$GITHUB_OUTPUT"
+    printf 'consumer=%s\ntemp=%s\nexpected=%s\nstore=%s\n' "$consumer" "$consumer/target" "$fixture/expected.sha256" "$SHARED_TOOLING_STORE" >> "$GITHUB_OUTPUT"
 fi
 printf 'Rust setup/check failure status and collected bytes verified: %s\n' "$fixture"

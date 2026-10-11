@@ -49,6 +49,9 @@ test-formatting-hooks:
 	@mkdir -p target/portable-fixtures
 	+@TMPDIR="$(CURDIR)/target/portable-fixtures" bash scripts/ci/check-formatting-hooks.sh \
 		"$(CURDIR)" crates/ic-auth/src/lib.rs Cargo.toml --no-dependency-tables \
+		crates/ic-auth/src/canonical.rs \
+		crates/ic-auth/src/token_preparation.rs \
+		crates/ic-auth/tests/token_preparation.rs \
 		apps/qualification/runner/Cargo.toml \
 		apps/qualification/runner/tests/signatures/application_tokens.rs \
 		apps/qualification/runner/tests/signatures/application_sessions.rs

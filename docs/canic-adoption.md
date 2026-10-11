@@ -16,9 +16,9 @@ transactions and recovery obligations.
 
 ## Published dependency and feature selection
 
-Both `ic-auth` and `ic-auth-protocol-types` 0.4.0 are published and unyanked.
+Both `ic-auth` and `ic-auth-protocol-types` 0.4.1 are published and unyanked.
 Their registry checksums match IC Auth release
-`ad5036f8768566f36dbd443d945243b196c03e29`. Rust 1.88 is the supported minimum.
+`2ffd600e68e3c0951e4724d07a123257ed3f38d6`. Rust 1.88 is the supported minimum.
 For adoption of this release, select compatible registry requirements in Canic's
 root catalog and record the resolved versions in its own lockfiles:
 
@@ -43,6 +43,7 @@ review below. Selected versions alone do not establish runtime acceptance.
 | Existing Canic capability | IC Auth selection | Retained Canic responsibility |
 | --- | --- | --- |
 | Protocol DTOs and canonical encoding | Protocol-types and default `ic-auth::canonical` | Fleet/configuration envelopes and checked deployment-identity projections |
+| Pure delegated-token issuance | Default `token_preparation` in pending 0.4.2 | Installed authority, authenticated presenter, host bounds, operation custody and authorized signing |
 | Root/issuer canister-signature verification | `canister-signature-verification` | Protected signer, seed, network trust anchor, time and limits |
 | Root/issuer canister-signature creation | `canister-signature-preparation` | Authorized message construction, runtime certificate, certification-root composition and lifecycle |
 | `auth-delegated-token-verify` | `token-verification` | Independent key enrollment, fleet/role policy, authenticated caller and endpoint requirements |
@@ -84,6 +85,31 @@ the complete verifier. Its `VerifiedToken` cannot be publicly constructed or
 deserialized. Do not retain a second positive proof cache that bypasses changed
 policy, key windows or epochs. Fleet member/role decisions, issuer approval,
 renewal orchestration and application resource authorization stay in Canic.
+
+## Pure issuance preparation (pending 0.4.2)
+
+[Auth #25](https://github.com/dragginzgame/ic-auth/issues/25) adds the default-feature
+`ic_auth::token_preparation` boundary described in the
+[preparation contract](token-preparation.md). Canic can project its protocol DTOs
+and protected host inputs into `PrepareDelegatedTokenInput`, retain the immutable
+result, sign `claims_hash()`, and call `finish_delegated_token` after authorized
+proof retrieval. Select 0.4.2 only after publication and qualify Canic's own graph;
+its currently reviewed lock still resolves Auth 0.4.0.
+
+Canic's current grant/scope ceilings are 16/32. Pass those existing host policies
+as `TokenPreparationLimits`; they are not Auth defaults. Project canonical role
+order errors into the existing noncanonical-grants diagnostic and invalid scope
+errors into its rejected-scope diagnostic. Other shape/deadline/subset failures
+remain typed. Update field reads to the prepared value's shared accessors rather
+than recreating a mutable claims/hash pair or a second issuance engine.
+
+The helper preserves the exact nonce domain, claims bytes, proof attachment,
+rejection order and requested TTL. The owner still resolves the installed proof
+and independently enrolled authority deadline, authenticates the presenter,
+retains original operation/clock inputs and authorizes signing and certification
+publication. This extraction is independent of Canic's complete-token freshness,
+protected scope ceiling and committed-session lease decisions. Local Auth tests
+and its actual certified-token fixture do not establish Canic endpoint adoption.
 
 ## Durable sessions and certification
 

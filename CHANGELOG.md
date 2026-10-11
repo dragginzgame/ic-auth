@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.4.2]
+
+- Adopt Shared Tooling 0.6.0's shared Cargo storage and standard tool-build
+  environment. Contributors must explicitly prepare/check common Rust tools and
+  the selected Testkit CLI; existing PATH entries and old installations remain.
+  Retain referenced shared build failures through the hosted evidence collector
+  while excluding unrelated generations. The library contract is unchanged.
+  [#26](https://github.com/dragginzgame/ic-auth/issues/26),
+  [Shared #120](https://github.com/dragginzgame/shared-tooling/issues/120),
+  [Shared #121](https://github.com/dragginzgame/shared-tooling/issues/121).
+
+- Add pure delegated-token preparation and finishing with explicit host authority,
+  clock, operation and request bounds. Immutable prepared claims preserve Canic's
+  nonce framing, signed bytes, requested TTL and typed refusal precedence. Route
+  the actual certified-token/upgrade fixture through this API so Canic can replace
+  its duplicate issuance helper. Signing and issuer approval remain host-owned;
+  existing APIs and wire/storage formats are unchanged.
+  [#25](https://github.com/dragginzgame/ic-auth/issues/25).
+
+- Qualify the selected Testkit 0.33.6 and Host 0.13.2 native graph with separately
+  prepared Testkit tools. These upstream contributor-tooling patches preserve
+  runtime APIs and the server 16.1.0 pairing; native dependencies remain outside
+  the public authentication libraries.
+  [Testkit #58](https://github.com/dragginzgame/ic-testkit/issues/58),
+  [Host #63](https://github.com/dragginzgame/ic-host-tooling/issues/63).
+
 ## [0.4.1] - 2026-10-11
 
 - Adopt Shared Tooling 0.5.0's verified shared host/IC storage and unified Rust

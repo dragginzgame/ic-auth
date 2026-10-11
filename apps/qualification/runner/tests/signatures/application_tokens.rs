@@ -5,21 +5,24 @@ use super::{DOMAIN, Fixture, SEED};
 use ic_auth::{
     canister_signature::CanisterSignatureError,
     canonical::{
-        cert_hash, chain_key_batch_header_hash, chain_key_delegation_cert_hash,
-        chain_key_derivation_path_hash, claims_hash, issuer_proof_binding_hash,
+        chain_key_batch_header_hash, chain_key_delegation_cert_hash,
+        chain_key_derivation_path_hash, issuer_proof_binding_hash,
     },
     chain_key_batch::merkle_root_and_witnesses,
     token::{
         RootKeyPolicy, TokenVerificationContext, TokenVerificationError as Error,
         TokenVerificationLimits, verify_token,
     },
+    token_preparation::{
+        PrepareDelegatedTokenInput, TokenPreparationLimits, finish_delegated_token,
+        prepare_delegated_token,
+    },
 };
 use ic_auth_protocol_types::{
     AudienceId, AuthRole, CanonicalId, ChainKeyAlgorithm, ChainKeyBatchHeaderV1,
     ChainKeyDelegationCertV1, ChainKeyKeyId, ChainKeyRootSignatureV1, DelegatedRoleGrant,
-    DelegatedToken, DelegatedTokenClaims, DelegationAudience, DelegationCert, DelegationProof,
-    IcChainKeyBatchSignatureProofV1, IssuerProof, IssuerProofAlgorithm, IssuerProofBinding,
-    RootProof,
+    DelegationAudience, DelegationCert, DelegationProof, IcChainKeyBatchSignatureProofV1,
+    IssuerProof, IssuerProofAlgorithm, IssuerProofBinding, RootProof,
 };
 use ic_canister_sig_creation::{IC_ROOT_PK_DER, extract_raw_root_pk_from_der, hash_bytes};
 use k256::ecdsa::{Signature, SigningKey, signature::hazmat::PrehashSigner};
@@ -143,33 +146,35 @@ fn complete_token_rechecks_live_authority_and_real_certification_after_upgrade()
             scopes: vec!["read".into(), "write".into()],
         }],
     };
-    let claims = DelegatedTokenClaims {
-        presenter: fixture.owner,
-        subject: fixture.owner,
-        issuer_pid: fixture.signer,
-        cert_hash: cert_hash(&cert).unwrap(),
-        issued_at_ns: started,
-        expires_at_ns: started + 60 * SECOND,
-        aud: cert.aud.clone(),
+    let proof = DelegationProof {
+        root_proof: root_proof(&cert, &key, &policy),
+        cert,
+    };
+    let prepared = prepare_delegated_token(PrepareDelegatedTokenInput {
+        proof: &proof,
+        authority_expires_at_ns: policy.accept_until_ns,
+        operation_id: [4; 32],
+        prepared_by: fixture.owner,
+        audience: proof.cert.aud.clone(),
         grants: vec![DelegatedRoleGrant {
             target: role.clone(),
             scopes: vec!["read".into()],
         }],
-        nonce: [9; 16],
+        ttl_ns: 60 * SECOND,
         ext: None,
-    };
-    let payload = claims_hash(&claims).unwrap();
-    fixture.prepare(DOMAIN, &payload, 60 * SECOND).unwrap();
-    let mut token = DelegatedToken {
-        proof: DelegationProof {
-            root_proof: root_proof(&cert, &key, &policy),
-            cert,
+        now_ns: started,
+        limits: TokenPreparationLimits {
+            max_grants: 1,
+            max_scopes_per_grant: 1,
         },
-        claims,
-        issuer_proof: IssuerProof::IcCanisterSignatureV1(
-            fixture.retrieve(DOMAIN, &payload).unwrap(),
-        ),
-    };
+    })
+    .unwrap();
+    let payload = prepared.claims_hash();
+    fixture.prepare(DOMAIN, &payload, 60 * SECOND).unwrap();
+    let mut token = finish_delegated_token(
+        prepared,
+        IssuerProof::IcCanisterSignatureV1(fixture.retrieve(DOMAIN, &payload).unwrap()),
+    );
     let unchanged = token.clone();
     let network = extract_raw_root_pk_from_der(&fixture.pic.root_key().unwrap()).unwrap();
     let allowed = vec!["read".into(), "write".into()];

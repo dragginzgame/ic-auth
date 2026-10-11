@@ -2,8 +2,8 @@
 
 The virtual root owns two libraries, unpublished native tooling in `apps/tooling/`
 and the internal host/runner in `apps/qualification/`, plus dependency selections,
-lints and one lockfile. The current manifest version is `0.4.0`, tagged as
-`v0.4.0`; both libraries are published on crates.io.
+lints and one lockfile. The current manifest version is `0.4.1`, tagged as
+`v0.4.1`; both libraries are published on crates.io.
 Rust `1.99.0` remains the development compiler selected by `rust-toolchain.toml`.
 The common package minimum is Rust `1.88.0`, inherited from the root catalog and
 qualified by explicit older-compiler checks. See [MSRV coverage](msrv.md).
@@ -15,7 +15,9 @@ Automatic runs cover `main` pushes and pull requests. Release tags do not enqueu
 a second equivalent matrix. Newer revisions cancel older queued and running
 checks for the same workflow and branch or PR ref; unfinished hosts on cancelled
 revisions remain unqualified.
-Native macOS qualification for this batch remains pending those jobs. Shared
+Released 0.4.0's complete gate passes on all three hosts in
+[its exact-source CI run](https://github.com/dragginzgame/ic-auth/actions/runs/38128802347).
+The current uncommitted batch still requires its own native CI. Shared
 Tooling's [host prerequisites](supported-hosts.md) apply, including Bash 3.2+,
 GNU Make, rustup, Git and standard Unix setup utilities.
 
@@ -75,8 +77,9 @@ under [Shared #103](https://github.com/dragginzgame/shared-tooling/issues/103).
 Routine CI cancels older queued and running checks for the same workflow/ref;
 unfinished hosts on cancelled revisions remain unqualified. The retained run
 still requires the complete Linux and macOS matrix.
-The adopted Shared snapshot runs Cargo tool setup and offline checks from the selected
-consumer directory, keeping its toolchain and Cargo configuration consistent.
+The adopted Shared snapshot resolves Cargo tool setup and offline checks from
+the selected consumer directory, using its prepared compiler. Tool builds use
+the standard environment; application Cargo configuration remains local.
 Live diagnostics and retained error summaries now share one classification,
 including early fatal, LLVM and missing-file failures.
 Shared Tooling installs common Rust tools through its existing versioned
@@ -91,7 +94,17 @@ after adoption. Existing PATH entries remain valid; earlier physical bundles sta
 retained but are no longer admitted as active installations. The default store is
 `${XDG_DATA_HOME:-$HOME/.local/share}/shared-tooling/tools`; use the same absolute
 `SHARED_TOOLING_STORE` override for setup, checks and failure collection if needed.
-Rust slots and Testkit server storage stay local. See
+Shared Tooling 0.6.0 also shares Cargo tools under exact compiler, native environment,
+package and packaged-lock identities. Run `make install-rust-tools` and
+`make rust-tools-check`, then `make install-testkit-tools` and
+`make testkit-tools-check` after adoption. Common PATH stays
+`.tools/rust/common/bin`; selected CLI callers use the installer's checked return
+path. Earlier local slots, complete sets and failed attempts remain retained.
+Tool builds exclude application flags/wrappers/configuration and use two jobs;
+explicit offline settings still apply. The managed source cache is needed for
+offline checks. Failure collection keeps local Rust evidence and only its
+referenced shared generations, including failed build output. Testkit's server
+storage remains local and Testkit-owned. See
 [Shared storage](local-setup.md#shared-executable-storage).
 The common IC toolset now selects Binaryen 133; run `make install-ic-tools`
 explicitly to prepare it. This repository builds its qualification Wasm directly
@@ -232,18 +245,19 @@ It does not qualify browser/wallet login or a durable session backend.
 ## Releases and publication
 
 ```sh
-make release-patch                 # compatible patch increment: 0.4.0 -> 0.4.1
-make release-minor                 # breaking pre-1.0 contract: 0.4.0 -> 0.5.0
-make release-major                 # explicit major decision: 0.4.0 -> 1.0.0
+make release-patch                 # compatible patch increment: 0.4.1 -> 0.4.2
+make release-minor                 # breaking pre-1.0 contract: 0.4.1 -> 0.5.0
+make release-major                 # explicit major decision: 0.4.1 -> 1.0.0
 make release-resume VERSION=X.Y.Z   # reconcile the exact saved attempt
 make publish-dry-run               # validate packages without upload
 make publish                       # upload a clean, delivered tagged release
 ```
 
 Released 0.4.0 carries the diagnostic hard cut at the required minor boundary.
-The current 0.4.1 draft updates contributor tooling and documentation, preserving
-the released API, runtime behavior and consumer build requirements. Adopting
-Shared Tooling 0.5.0 does not require a library minor release.
+Released 0.4.1 adopts Shared Tooling 0.5.0 without changing the library contract.
+The pending 0.4.2 batch adds pure [token preparation](token-preparation.md) and
+qualifies native dependency updates. Existing APIs, signed bytes, stored formats
+and consumer build requirements remain unchanged.
 Release execution still requires an explicit request for the selected command.
 
 Released `0.1.13` adopts Shared Tooling 0.1.36's selected Cargo installer and
@@ -385,10 +399,12 @@ directly and obtains runtime types through Testkit. Testkit owns adoption of
 Host's breaking process API; Auth has no direct caller or compatibility shim.
 Directory-suffixed publication targets are refused before creating parents or
 replacing a stripped filename; the native utility uses that upstream guard.
-The current lock selects Testkit 0.33.5's contributor-tooling patch; its published
-Rust runtime source is unchanged from 0.33.4. This selection is qualified with
-the actual certification, upgrade and ingress journey separately from common
-Rust setup. Run `make install-testkit-tools` to prepare the selected 0.33.5 CLI, then
+The current lock selects Testkit 0.33.6 and the four Host packages at 0.13.2.
+These upstream patches adopt Shared Tooling 0.5.0 for contributors; their runtime
+API is unchanged. This selected graph passes the actual certification, upgrade
+and ingress journey and the complete Auth gate locally on Linux, separately from
+common Rust setup; matching native CI remains required for the pending batch.
+Run `make install-testkit-tools` to prepare the selected CLI, then
 `make testkit-tools-check` for offline admission of its unchanged 16.1.0 server.
 Prior versioned CLI installations remain retained. Native Host dependencies
 remain outside both protocol libraries. See the owner adoption in

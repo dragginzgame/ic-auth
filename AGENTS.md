@@ -1,7 +1,7 @@
 # IC Auth Agent Instructions
 
 Apply [DRAGGINZGAME.md](DRAGGINZGAME.md), adopted from Shared Tooling revision
-`a306180ce534227fcb98b882fba9a526d5d747e0` and recorded in
+`75180980a0c4e4252d8a915aaecfaefd92bf9a4e` and recorded in
 [.shared-tooling.snapshot](.shared-tooling.snapshot). Read
 [the current handoff](docs/status/current.md) before implementation.
 
@@ -75,7 +75,7 @@ Apply [DRAGGINZGAME.md](DRAGGINZGAME.md), adopted from Shared Tooling revision
   explicit complete gate. `make test-formatting-hooks` checks actual staged preservation and is part of
   the complete gate. `make test-release-runner` checks the adopted runner
   with substituted effects.
-  Both libraries are published at `0.4.0` with contracts, encoding and optional
+  Both libraries are published at `0.4.1` with contracts, encoding and optional
   IC signature/token/session machinery, including bounded signature preparation.
   The internal IC Testkit fixture exercises actual certification, composed roots,
   protected metadata upgrades, certified-token session admission and signed

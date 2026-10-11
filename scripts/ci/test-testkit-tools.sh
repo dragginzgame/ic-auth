@@ -225,14 +225,23 @@ done
 # Ambiguous or non-registry CLI identity refuses before any tool effect.
 # Exercise the canonical reader, rather than teaching the substitute to parse.
 cp scripts/dev/install-rust-tools.sh "$consumer/scripts/dev/install-rust-tools.sh"
+for input in scripts/dev/cargo-tool-build.sh scripts/dev/tool-store.sh scripts/ci/verify-file-checksum.sh; do
+    cp -p "$input" "$consumer/$input"
+done
+# Prepare substituted registry source without installing any executable. The
+# offline check must reach missing selection admission, not an absent cache.
+bash scripts/ci/prepare-cargo-failure-fixture.sh "$fixture/source-compiler"
+mkdir -m 700 "$fixture/canonical-store" "$fixture/canonical-store/cargo-cache"
+(umask 077; CARGO_HOME="$fixture/canonical-store/cargo-cache" "$fixture/source-compiler/bin/cargo" \
+    info ic-testkit@0.25.5 --registry crates-io)
 # A valid lock reaches canonical offline admission and names the exact missing
 # CLI, without invoking any server or Cargo installation effect.
 cp "$TESTKIT_FIXTURE_LOG" "$fixture/before-canonical-check.log"
 status=0
-"$BASH" "$consumer/scripts/dev/testkit-tools.sh" check \
+SHARED_TOOLING_STORE="$fixture/canonical-store" "$BASH" "$consumer/scripts/dev/testkit-tools.sh" check \
     > "$fixture/canonical-missing.stdout" 2> "$fixture/canonical-missing.stderr" || status=$?
 [[ "$status" == 1 && ! -s "$fixture/canonical-missing.stdout" ]] || exit 1
-rg -q 'package=ic-testkit version=0[.]25[.]5 target=bin:ic-testkit-server' "$fixture/canonical-missing.stderr"
+rg -F 'missing or invalid shared Cargo tool: ic-testkit 0.25.5 (bin:ic-testkit-server, debug)' "$fixture/canonical-missing.stderr" > /dev/null
 rg -F 'make install-testkit-tools' "$fixture/canonical-missing.stderr" > /dev/null
 cmp "$TESTKIT_FIXTURE_LOG" "$fixture/before-canonical-check.log"
 for kind in duplicate nonregistry; do

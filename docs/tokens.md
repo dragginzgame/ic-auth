@@ -1,5 +1,8 @@
 # Application-token verification
 
+Issuer-side [pure preparation](token-preparation.md) is a separate default-feature
+API in pending 0.4.2. Preparing or finishing a token does not verify its proofs.
+
 The optional `token-verification` feature and `ic_auth::token::verify_token`
 are published in `0.1.4`.
 The feature enables IC canister-signature verification and `k256` secp256k1

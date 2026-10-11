@@ -393,6 +393,15 @@ fn encode_role(out: &mut Vec<u8>, role: &AuthRole) -> Result<(), CanonicalAuthEr
 }
 
 fn encode_scopes(out: &mut Vec<u8>, scopes: &[String]) -> Result<(), CanonicalAuthError> {
+    validate_scopes(scopes)?;
+    encode_len(out, scopes.len())?;
+    for scope in scopes {
+        encode_bytes(out, scope.as_bytes())?;
+    }
+    Ok(())
+}
+
+pub(crate) fn validate_scopes(scopes: &[String]) -> Result<(), CanonicalAuthError> {
     let mut previous = None;
     for scope in scopes {
         validate_scope_label(scope)?;
@@ -401,11 +410,6 @@ fn encode_scopes(out: &mut Vec<u8>, scopes: &[String]) -> Result<(), CanonicalAu
             return Err(CanonicalAuthError::NonCanonicalScopes);
         }
         previous = Some(current);
-    }
-
-    encode_len(out, scopes.len())?;
-    for scope in scopes {
-        encode_bytes(out, scope.as_bytes())?;
     }
 
     Ok(())

@@ -106,6 +106,14 @@ re-preparation of the unchanged claims verifies again with the same issuer
 identity and preserved composed asset state. See
 [Auth #18](https://github.com/dragginzgame/ic-auth/issues/18).
 
+Pending 0.4.2 routes that scenario through public
+[token preparation and finishing](token-preparation.md): explicit host authority,
+presenter, operation, clock and bounds produce the canonical signing hash; the
+actual retrieved certified issuer proof is then attached. Subsequent live-policy,
+certificate freshness and upgrade assertions still use complete verification.
+This exercises the producer API requested in
+[Auth #25](https://github.com/dragginzgame/ic-auth/issues/25).
+
 The same certified token, retrieved after issuer upgrade, also passes through
 `session::establish_session` and `session::authorize_session` against the bounded
 volatile reference store. A different network trust anchor or ungranted narrowing
@@ -146,8 +154,10 @@ browser reconciliation, stable session storage or Canic's adapter. The canister
 remains a controller-guarded signature fixture.
 
 The focused command is part of the configured CI/release gate on Linux and both
-supported macOS architectures. Local Linux execution and strict native/Wasm
-Clippy pass. Native macOS execution of this new fixture awaits its own CI jobs;
+supported macOS architectures. Released 0.4.0's complete gate passes on all three
+hosts in [matching-source CI](https://github.com/dragginzgame/ic-auth/actions/runs/38128802347).
+The pending 0.4.2 preparation journey passes the complete local Linux gate and
+strict native/Wasm Clippy. Its native macOS execution awaits its own CI jobs;
 previous-release CI does not qualify uncommitted changes.
 
 Fresh session keys stand in for browser keys; no browser UI, Solana wallet proof,
