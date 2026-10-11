@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.5.0]
+## [0.5.0] - 2026-10-11
 
 - Breaking: move the canonical session request API to the default-feature
   `ic_auth::session_request` module and return `SessionRequestError` from its
