@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.3.8]
+
+- Adopt Shared Tooling 0.3.12's corrected snapshot identity, independently
+  checked diagnostic families and formatting-check support for relative or
+  symlinked temporary directories.
+  [Shared #114](https://github.com/dragginzgame/shared-tooling/issues/114),
+  [Shared #110](https://github.com/dragginzgame/shared-tooling/issues/110),
+  [Shared #116](https://github.com/dragginzgame/shared-tooling/issues/116).
+- Select Host 0.13 for direct native file operations and Testkit 0.33.2 for
+  canister qualification. Public authentication APIs and formats are unchanged.
+  Testkit's Host 0.12 dependencies remain upstream-owned pending
+  [Testkit #54](https://github.com/dragginzgame/ic-testkit/issues/54).
+
 ## [0.3.7] - 2026-10-11
 
 - Adopt Shared Tooling 0.3.9 so Cargo tool setup/checks use the selected

@@ -1,8 +1,8 @@
 # Shared Tooling snapshot v1
-# version	0.3.9
+# version	0.3.12
 format	1
 source	https://github.com/dragginzgame/shared-tooling
-revision	37af29b2f8fb4532744b600c5f85ce716a8b57cf
+revision	52e846369c39a1da371eac47ff97d94da925217e
 file	429b7f96a30b4d890c6e7cd4e95db9d38af24d918c032b6232eba0c9f214ce8c	-	DRAGGINZGAME.md
 file	05838a36f21bb4299617ae8965687791062c94d768181f5f97676cc577382153	-	rules/contributions.md
 file	b5a6e8fb723a861b722834675e27b4b16f3d296112622c1b40cdc8714f575404	-	rules/changelogs.md
@@ -57,7 +57,7 @@ file	a04ef3105e7851b83bb682120873e29a6c3c604183c275bc53051dd9e4b300a7	x	scripts/
 file	40f31a19d6115411ebffe7c26e3ed30b8af7eead10dd4830de8d5a9312291222	x	scripts/ci/read-cargo-workspace-version.sh
 file	ad6a1edf04aca341040b7d4cc1b068a2c5dbe7ab34c6374c5ab2332944e8c6dd	x	scripts/ci/run-validation-targets.sh
 file	6fe7da8acbeb862b26047d08c63a95a5d2b93223bb9c929d65c56dd2f30551ac	x	scripts/ci/check-release-commands.sh
-file	6c49b569e82b8ac3307409bd59d51498f37cff0594c6e6e400177532ae930a03	x	scripts/ci/check-formatting-hooks.sh
+file	aaa3d329c2f2377b4359ef7910d58fdab78c62d48b747a96538e19da5527fa67	x	scripts/ci/check-formatting-hooks.sh
 file	236f9b2d7fe391a73d03cfe355c0d26fa73de8db1553c7e670f7b19aeb65d086	x	scripts/ci/rewrite-local-lock-versions.pl
 file	d7b179f9ceaec6e11c690c975b61f91bedc80526415f71571615064db14f0c9c	x	scripts/ci/check-release-tag.sh
 file	6e48da795503f730fe9a90e14635d73133719f901ba7baea899007cd196722b4	x	scripts/ci/test-release-runner.sh

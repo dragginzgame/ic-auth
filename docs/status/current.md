@@ -3,9 +3,9 @@
 The maintainer accepted the larger Canic authentication extraction, selected the
 name `ic-auth`, and confirmed `/home/adam/projects/ic-auth` as the local repository.
 
-The current committed release is `dce175975d6e5aa70b45b747d49467784285ac35`
-(`0.3.6`) on `main`, with annotated tag `v0.3.6`; both remote identities were
-verified during continuation. Both libraries' `0.3.6` registry checksums match
+The current committed release is `928f1504fb3c4200d2583b3c0d42b1a4a3ef61eb`
+(`0.3.7`) on `main`, with annotated tag `v0.3.7`; both remote identities were
+verified during continuation. Both libraries' `0.3.7` registry checksums match
 the retained publication intent for that exact source/tag. The maintainer
 executed the release and publication. The original bootstrap was
 `7a03102e52b7a400588530997a9f7fb91c83de9d` (`0.1.0`).
@@ -22,7 +22,7 @@ records this batch without closing the larger extraction.
 
 The virtual Rust workspace contains `ic-auth-protocol-types`, `ic-auth` and the
 unpublished native application in `apps/tooling/`, with one lockfile, root-owned
-dependency selections and current manifest version `0.3.6`.
+dependency selections and current manifest version `0.3.7`.
 The passive token/proof contracts and canonical encoding are adapted from the
 clean Canic source at `e286b3fd98460c98670336853f80658a920966e0`; see the
 [source review](../design/canic-source-review.md) for exact ownership and API
@@ -40,7 +40,102 @@ has recorded focused standalone-proof and bounded batch-builder qualification;
 complete-token, durable-session and deployed acceptance remain separate. No sibling repository
 was modified by IC Auth work.
 
-## Current continuation (pending 0.3.7)
+## Current continuation (pending 0.3.8)
+
+The maintainer confirms 0.3.7 is live. Remote main and the peeled tag match the
+source above; annotated tag `36c7b449c678806491bffeddb86ba4ebf0ab5f36` and both
+unyanked official registry checksums match `.git/publication-state/0.3.7.json`:
+protocol-types `8a9e44e6be274807c382e1eaf7db0b9134f08e3846dc55b5ed9b612a49ac754a`,
+Auth `2c4bfbc4dd9e78b5b8dd118cd5177fe070132cb06377a9eb886a94b0dfba176b`.
+Its [exact-source CI](https://github.com/dragginzgame/ic-auth/actions/runs/38122056624)
+passes Ubuntu; both macOS jobs were queued at the initial inspection. This does not
+qualify the repaired complete macOS gate.
+
+At the final 0.3.12 inspection, Intel is running and Apple Silicon is still
+queued. No new native complete-gate acceptance is inferred.
+
+Shared Tooling 0.3.11 `db143ae9ae140eb66826c413360723d23c078f66` is verified at
+official main and canonically exported from an isolated clean source as the
+unchanged 84-file selection. Its committed VERSION now agrees with the snapshot,
+resolving Shared #114. Its strengthened diagnostic regression separates each
+family beyond neighboring summary context. That canonical fixture passes on
+Bash 5 and genuine Bash 3.2 on Linux. Selected production scripts are unchanged
+from the delivered Auth snapshot.
+
+This continuation adopts subsequent Shared 0.3.12
+`52e846369c39a1da371eac47ff97d94da925217e`, verified at official main and exported
+canonically from a clean isolated source with the same 84-file selection. The
+formatting checker now exports its selected physical temporary parent before
+running nested Make/hooks/formatters. Auth's actual previous checker refuses a
+safe nested Make baseline with relative TMPDIR; the retained attempt is in
+`target/continuation-0.3.8/shared-0312/`. The new checker passes actual Auth
+preservation on Bash 5 with a relative root and Bash 3.2 with an aliased relative
+root. Canonical upstream hook fixtures pass on both interpreters, including
+absolute/relative/alias success, failed prerequisite retention and source/index
+preservation. Shared #116 owns native upstream acceptance.
+
+Canic's owner has removed its proof-skipping cache in the dirty 0.111.1 slice
+based on committed `25b73cd403b20b4e148c6e340f8c760a26d97f6e`; both Auth packages
+resolve to published 0.3.7 with matching checksums. Local proof callbacks remain.
+The adoption contract now records that progress and makes proof eligibility,
+committed lease and signed-proof replay retention distinct. The library session
+lease is also capped by enrolled root policy, whereas Canic's current workflow
+accepts an independent expiry. Consumer authority semantics require explicit
+alignment under Canic #491/#459 before replacing that engine; root windows cannot
+be fabricated to bypass the cap. No consumer compilation or source edit occurs.
+
+Incoming dirty changes select Testkit 0.33.2 and direct Host fs 0.13. They are
+preserved separately in `target/continuation-0.3.8/incoming.diff` and resolved
+through a narrow Cargo update and explicit locked fetch. The added Host fs and
+artifacts 0.13.0 archives match official unyanked hashes and source
+`7c58c92c72789139ec460475c429f9090581008f`. Testkit 0.33.2 matches its archive/hash
+and source `06553d704fa111083946b3787e95f1933c00493f`. Its selected CLI is explicitly
+prepared, then separately admitted offline with unchanged server 16.1.0.
+Host's only Rust API removal is unused by Auth; no compatibility adapter is
+needed. Testkit's incompatible Host 0.12 requirements retain the existing four
+0.12.10 selections alongside direct fs/artifacts 0.13.0. No unrelated external
+selection or dependency edge changes. [Testkit #54](https://github.com/dragginzgame/ic-testkit/issues/54)
+owns a qualified upstream hard cut and published convergence.
+
+Retained exact-source 0.3.6 native logs show `fmt-check`, actual formatting-hook
+preservation, standard Make release adapters and untouched-archive native/Wasm
+MSRV passing on both macOS architectures before the later owned release-fixture
+failure. Those scoped successes supply acceptance evidence to close
+[Auth #11](https://github.com/dragginzgame/ic-auth/issues/11) and
+[#21](https://github.com/dragginzgame/ic-auth/issues/21); the complete gate still
+failed under #19. Auth #20 requires successful complete native gates, and #3
+retains real issuer/consumer adoption. The unfinished macOS jobs in the 0.3.7 run
+cannot yet close those acceptance gaps. The retrieved logs are retained
+under `target/continuation-0.3.8/`, independently of prior qualification evidence.
+
+This compatible tooling/dependency batch selects the undated 0.3.8 draft; public
+authentication APIs, signed bytes, storage formats, compiler floor and root
+version 0.3.7 remain unchanged. At Shared 0.3.11, all 27 complete-gate targets pass on Linux with
+genuine Bash 3.2, including actual Testkit certification/upgrade/ingress, untouched
+archive native/Wasm MSRV, library/client cases, Clippy, package dry runs and
+local/mocked release/recovery/evidence. The tracked diff stayed unchanged during
+the gate: SHA-256 `e6e03ab9faf4bd2747880f56767b84052c531a5b04650d7e61addc4c80837bb2`.
+Saved before/after diffs, input hashes and `ci-bash32.log` remain under
+`target/continuation-0.3.8/`; final qualification prose is updated afterward.
+This new graph still requires native macOS acceptance. No commit, push, release,
+upload, deployment, sibling source change or
+sibling build occurs. Canic's existing published APIs remain sufficient for its
+next runtime-verifier/cache, signature-store and durable-session adoption under
+Canic #491/#58/#459; this native update adds no consumer runtime prerequisite.
+
+The preceding complete-gate evidence remains bound to Shared 0.3.11. A separate
+final complete gate for Shared 0.3.12 passes all 27 targets on Linux with genuine
+Bash 3.2, including the same actual canister lifecycle, package and release
+qualification. Before/after tracked diffs match SHA-256
+`11c76153b2adf8ca9608e1d9c74a1de8de8c79c4495d1f9143e8e96dfc5f18cb`;
+saved diffs, verified input hashes and `ci-bash32.log` remain under
+`target/continuation-0.3.8/shared-0312/`. Final evidence prose is updated afterward.
+This extends the same compatible 0.3.8 draft, with unchanged package/dependency
+selections and public authentication contracts. Native macOS acceptance remains
+separate. The concrete Canic deadline findings are recorded in
+[Canic #491](https://github.com/dragginzgame/canic/issues/491#issuecomment-6107017266).
+
+## Earlier tooling qualification (0.3.7, released)
 
 Released 0.3.6 is verified at remote main and peeled tag; annotated tag
 `8b025e65a984642526ca816727090baebd7d3b26` and both unyanked official registry

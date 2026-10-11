@@ -16,9 +16,9 @@ transactions and recovery obligations.
 
 ## Published dependency and feature selection
 
-Both `ic-auth` and `ic-auth-protocol-types` 0.3.6 are published and unyanked.
+Both `ic-auth` and `ic-auth-protocol-types` 0.3.7 are published and unyanked.
 Their registry checksums match IC Auth release
-`dce175975d6e5aa70b45b747d49467784285ac35`. Rust 1.88 is the supported minimum.
+`928f1504fb3c4200d2583b3c0d42b1a4a3ef61eb`. Rust 1.88 is the supported minimum.
 For adoption of this release, select compatible registry requirements in Canic's
 root catalog and record the resolved versions in its own lockfiles:
 
@@ -33,9 +33,9 @@ existing capability features forward only the needed library features. This is
 the recommended published selection. The read-only review below distinguishes Canic's
 in-progress source adoption from consumer qualification.
 
-Releases 0.3.0 through 0.3.6 change developer tooling and qualification; their
+Releases 0.3.0 through 0.3.7 change developer tooling and qualification; their
 authentication APIs and signed bytes are unchanged from 0.2.11. Canic's changing root manifest and lock select
-0.3/0.3.4 in the read-only review below; selected versions alone do not establish
+0.3/0.3.7 in the latest read-only review below; selected versions alone do not establish
 runtime adoption or removal of duplicated implementations.
 
 | Existing Canic capability | IC Auth selection | Retained Canic responsibility |
@@ -85,11 +85,32 @@ renewal orchestration and application resource authorization stay in Canic.
 
 ## Durable sessions and certification
 
-Session admission calls `session::establish_session`; protected operations call
+The target session engine calls `session::establish_session`; protected operations call
 `session::authorize_session` with current context. Use `SessionRequest::new`
 for canonical scope/TTL request identity. Do not wrap the old session engine
 behind the library or use its public verified-authority constructor to bypass
 proof verification.
+
+Align authority and expiry contracts before replacing Canic's session engine.
+The three deadlines have distinct meanings:
+
+| Deadline | Existing library contract | Consumer projection |
+| --- | --- | --- |
+| `VerifiedToken::expires_at_ns()` | Current proof admission deadline, capped by accepted root policy | Use for proof eligibility; it is not the signed token's original expiry or a committed session lease |
+| `Session::expires_at_ns()` | Requested/default lease capped by `RootKeyPolicy::accept_until_ns` | Direct session-engine adoption must accept this authority cap explicitly |
+| `Replay::remove_at_ns()` | Original authenticated `claims.expires_at_ns` | Preserve the signed proof's replay retention independently of logout, lease expiry or a shorter current policy window |
+
+Canic's existing workflow accepts an independently supplied committed-session
+expiry and retains replay until its authority projection's proof expiry. The
+owner has explicitly preserved independent lease semantics in its pending
+cache-removal slice. Mapping the capped verified-token deadline into that
+projection can silently shorten replay retention; applying the library session
+engine can also shorten a lease at the root-policy boundary. Do not fabricate a
+longer enrolled root window to conceal the difference. Canic must resolve that
+authority contract under [#491](https://github.com/dragginzgame/canic/issues/491)
+and [#459](https://github.com/dragginzgame/canic/issues/459) before direct engine
+adoption. This is a consumer decision, not an Auth compatibility shim or a change
+to the existing library's session policy.
 
 Canic implements `SessionStore` and `SessionTransaction` against its actual
 durable host store. Reads, capacity checks and the staged session/replay pair
@@ -121,10 +142,10 @@ adapter or durable session backend.
 The maintainer's immediate priority is Canic adoption from the already-published
 libraries. Published 0.2.0 carries complete proof-transport qualification and
 the developer-tooling hard cut; authentication APIs and signed bytes are unchanged.
-The current read-only inspection at Canic committed base
-`ac55e50334dd6479ec36f404e89e60bcfe9184d6` finds its changing working tree
+The latest read-only inspection at Canic committed base
+`25b73cd403b20b4e148c6e340f8c760a26d97f6e` finds its changing working tree
 selecting compatible `0.3` requirements and resolving both libraries at
-0.3.4 with matching registry checksums. Complete token verification is already available. Consumer dependency
+0.3.7 with matching registry checksums. Complete token verification is already available. Consumer dependency
 changes require its own qualified lockfiles and remain owned by Canic.
 
 Released Auth 0.3.3 adds
@@ -204,8 +225,8 @@ Published IC Auth **0.2.11** provides the pure, default-feature
 `chain_key_batch::merkle_root_and_witnesses(&leaf_hashes, max_leaves)` constructor;
 see the [batch contract](chain-key-batches.md) and
 [Auth #15](https://github.com/dragginzgame/ic-auth/issues/15).
-The read-only Canic review remains at dirty committed base
-`ac55e50334dd6479ec36f404e89e60bcfe9184d6`. Its current batch caller directly
+The earlier read-only Canic review was at dirty committed base
+`ac55e50334dd6479ec36f404e89e60bcfe9184d6`. Its reviewed batch caller directly
 uses the published constructor with its protected 64-issuer budget, preserving
 principal-byte sorting and duplicate issuer rejection. The owner records
 24 passing batch cases and 182 focused authentication cases, including a
@@ -217,7 +238,7 @@ adoption or a real IC certificate journey.
 
 Canic retains authorized leaf records, batch identity/header policy, management
 signing, stable state and renewal. Its Auth 0.3.2 selection at the recorded batch
-qualification already supplied this API; the current lock selects 0.3.4.
+qualification already supplied this API; the lock at that review selected 0.3.4.
 Complete-token verification, certified-signature retention/composition
 and atomic durable sessions remain separate consumer adoption slices; no Auth
 library release is required to start those adapters.
@@ -233,13 +254,23 @@ signature types. Remaining local token/certificate declarations and projections
 do not establish canonical type adoption complete. Preserve the owner release
 boundary and retained-data obligations while converging these callers.
 
+The latest changing Canic tree, based on committed 0.111.0
+`25b73cd403b20b4e148c6e340f8c760a26d97f6e`, removes the positive proof cache and
+its proof-skipping runtime path. Every presentation resolves verifier policy
+and checks both proofs through the remaining local callbacks. The owner records
+focused qualification in its [pending 0.111.1 evidence](https://github.com/dragginzgame/canic/issues/491#issuecomment-6106918805).
+This is uncommitted consumer work, not full upstream-verifier adoption or deployed
+acceptance. The inspected verifier and session-workflow SHA-256 values are
+`dcc6133dca6d4cbfb14b14360550a932a71d2f13f3e88f141a33071d7b5d99f2`
+and `6a4c293a9807c5e6eb3cfa0a24d319bf132b7bf4299a5ee90f71a144619f25fb`.
+No Canic compilation or source mutation is performed by this review.
+
 The next reusable engine remains the runtime verifier:
 
 | Current Canic caller | Library boundary | Canic obligation |
 | --- | --- | --- |
 | `ops/auth/token/verification.rs::verify_with_embedded_proofs` and `delegated/verify.rs::verify_delegated_token` | `token::verify_token` | Project the complete token once; supply independently enrolled key policy, actual caller, protected fleet/role and endpoint requirements |
 | `ops/auth/token/verifier_config.rs` | `RootKeyPolicy` and `TokenVerificationLimits` | Keep build-network/key-name admission and all numeric limits in protected configuration |
-| `verification.rs::verify_from_positive_cache` | Live policy on every `verify_token` call | Retire the old proof-skipping path; do not feed a semantic-only result into session admission |
 | `ops/auth/application_authorization.rs::local_application_authorization_authority` | Protected `allowed_scopes` and session context | Use the local configured ceiling where enabled; define the token-only verifier's protected ceiling separately instead of taking it from submitted grants |
 
 Preserve endpoint error/metric mapping with typed library errors. Qualify changed
@@ -254,7 +285,8 @@ in its dirty root lock. Its installation adapter calls the standalone library
 verifier, while the complete-token adapter still uses local callbacks and the
 positive cache. This identifies the next consumer boundary, not qualification
 of its uncommitted graph. [Canic #58](https://github.com/dragginzgame/canic/issues/58)
-owns that repair; 0.2.8 adds no required Rust API for it.
+owns that repair; the later owner cache removal above supersedes that specific
+source finding. It does not retire the remaining local proof callbacks.
 
 The complete adapter must assemble these fields before calling the library:
 
