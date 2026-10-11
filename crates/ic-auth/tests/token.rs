@@ -576,6 +576,44 @@ fn token_and_certificate_windows_and_ttl_are_bounded() {
 }
 
 #[test]
+fn issuance_rule_reuse_preserves_verifier_limit_projection_and_refusal_order() {
+    let mut f = Fixture::new();
+    f.token.proof.cert.expires_at_ns = 150;
+    f.token.proof.cert.max_token_ttl_ns = 121;
+    // Both host and certificate token bounds are exceeded. Verification keeps
+    // its combined minimum projection, unlike issuance's ordered distinct causes.
+    f.assert_error(Error::TtlExceeded {
+        target: "max_token_ttl",
+        ttl_ns: 121,
+        max_ttl_ns: 50,
+    });
+    f.token.proof.cert.max_token_ttl_ns = 100;
+    f.assert_error(Error::TtlExceeded {
+        target: "max_token_ttl",
+        ttl_ns: 100,
+        max_ttl_ns: 50,
+    });
+    f.token.proof.cert.max_token_ttl_ns = 50;
+    f.token.proof.cert.grants.clear();
+    f.token.proof.cert.issuer_proof_binding_hash = [0; 32];
+    f.assert_error(Error::Expired {
+        target: "certificate",
+    });
+    f.token.proof.cert.expires_at_ns = 500;
+    f.assert_error(Error::InvalidGrants);
+    f.token.proof.cert.grants = vec![grant(&["read"])];
+    f.token.claims.grants.clear();
+    f.assert_error(Error::InvalidGrants);
+    f.token.claims.grants = vec![grant(&["read"])];
+    f.assert_error(Error::BindingMismatch {
+        field: "issuer_proof_binding_hash",
+    });
+    // Root/identity admission still occurs before shape checks.
+    f.token.proof.cert.root_pid = Principal::anonymous();
+    f.assert_error(Error::AnonymousPrincipal { field: "root" });
+}
+
+#[test]
 fn future_skew_and_exclusive_expiry_use_exact_host_time_boundaries() {
     let mut f = Fixture::new();
     f.token.claims.issued_at_ns = NOW + 10;

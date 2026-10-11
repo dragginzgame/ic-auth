@@ -59,11 +59,12 @@ imports Canic, Toko, Solana, CDK, stable memory or native Host/Testkit tooling.
 Library adoption does not remove a cryptographic dependency from the transitive
 graph merely by moving its direct declaration.
 
-## Pending isolated chain-key checks
+## Chain-key checks and pending normalization
 
-Pending 0.4.6 implements [pure SEC1 admission and compact prehash verification](chain-key-signatures.md)
+The 0.4.6 source/tag implements [pure SEC1 admission and compact prehash verification](chain-key-signatures.md)
 under `chain-key-verification`, without selecting certificate verification.
-The API is not yet published. After delivery, Canic can select at least 0.4.6,
+The auth crate's registry publication is not yet verified. After confirmed
+publication, Canic can select at least 0.4.6,
 forward its existing ECDSA capability, and replace the parsing/verification in
 `ops/auth/delegated/chain_key.rs` used by `chain_key_signing.rs` and
 `token/verifier_config.rs`. Keep the original signing hash, protected key
@@ -72,14 +73,37 @@ projection. Complete Root verification retains its existing error surface.
 
 [Auth #29](https://github.com/dragginzgame/ic-auth/issues/29) owns this extraction;
 [Canic #491](https://github.com/dragginzgame/canic/issues/491) retains adoption.
-Configuration schema key admission can use the same public helper. The reviewed
-`normalize_chain_key_ecdsa_signature_enabled` still uses K256 to normalize
-management replies before verification; retain that explicit producer policy.
-Audit remaining production and test uses before removing the direct consumer
-dependency. This does not qualify management replies, enroll a key,
+Configuration schema key admission can use the same public helper. Pending 0.4.7
+under [Auth #31](https://github.com/dragginzgame/ic-auth/issues/31) adds explicit
+`normalize_secp256k1_signature`, returning compact low-S bytes through K256.
+After publication, the reviewed `normalize_chain_key_ecdsa_signature_enabled`
+can replace its conversion with this function and project the returned array to
+its response vector. Retain the producer's decision to normalize management
+replies, then verify using its original hash and protected key. Strict submitted
+proof verification still rejects high S. Normalization success is not signature
+authentication. Audit remaining production/test uses before moving K256 to
+test-only dependencies. This does not qualify management replies, enroll a key,
 decide certificate freshness/session leases or establish consumer acceptance.
 
+The larger Canic offloading release must resolve its exposed upstream type
+families under [Canic #517](https://github.com/dragginzgame/canic/issues/517).
+This additive producer patch does not classify the consumer's release boundary.
+
 ## Canonical declarations and protected inputs
+
+Pending 0.4.7 adds [pure certificate issuance validation](certificate-issuance.md)
+under [Auth #30](https://github.com/dragginzgame/ic-auth/issues/30), with no optional
+feature required. After publication, replace `delegated/cert_rules.rs` mechanics
+used by certificate construction and pure token-material validation with
+`validate_certificate_issuance`, passing independently resolved Root and explicit
+TTL/grant/scope bounds. Map distinct lifetime and grant causes to the existing
+consumer refusals; validate Canic role labels during the passive DTO projection.
+Keep its canonical rejection order, signed bytes, protected policy resolution,
+issuer approval, signing and clock checks. Shape success does not establish any
+of those authorities. Consumer fixtures must establish equivalent combined-invalid
+refusals before deleting the local engine. Eager raw DTO role projection can change
+the order of a malformed-role refusal; the contract above records that specific
+unresolved consumer boundary. No sibling edit or acceptance is claimed.
 
 Use the protocol package's token, proof, certificate, audience and grant types
 as their canonical declarations. Remove superseded generic Canic declarations;

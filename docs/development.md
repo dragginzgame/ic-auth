@@ -2,8 +2,9 @@
 
 The virtual root owns two libraries, unpublished native tooling in `apps/tooling/`
 and the internal host/runner in `apps/qualification/`, plus dependency selections,
-lints and one lockfile. The current manifest version is `0.4.4`, tagged as
-`v0.4.4`; both libraries are published on crates.io.
+lints and one lockfile. The current manifest version is `0.4.6`, tagged as
+`v0.4.6`; protocol-types is indexed but auth publication remains unverified.
+The complete verified two-library selection remains `0.4.5`.
 Rust `1.99.0` remains the development compiler selected by `rust-toolchain.toml`.
 The common package minimum is Rust `1.88.0`, inherited from the root catalog and
 qualified by explicit older-compiler checks. See [MSRV coverage](msrv.md).
@@ -149,7 +150,7 @@ is retained under `target/browser-client/`.
 | `make generate-client-contracts` | Explicitly regenerate the checked-in client contracts from Rust DTOs |
 | `make test-types` | Identifier rejection and Candid wire compatibility |
 | `make test-protocol` | Canonical encoding, signed vectors, ordering and size rejection |
-| `make test-chain-key-signatures` | Isolated SEC1 key admission and exact compact prehash verification, including malformed material and high-S refusal |
+| `make test-chain-key-signatures` | Isolated SEC1 admission, explicit producer normalization and exact prehash verification, including malformed material and strict high-S refusal |
 | `make test-signatures` | Real BLS-signed IC fixtures, signer/seed/root rejection, certificate freshness and bounded decoding |
 | `make test-signature-store` | Bounded preparation/retrieval, unchanged retry deadlines, pruning and real BLS verification with host-composed branches |
 | `make test-tokens` | Complete real secp256k1/BLS proof chains, signed binding and protected authority/window/scope rejection |

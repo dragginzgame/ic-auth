@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.4.7]
+
+- Add pure certificate issuance validation with explicit Root and host limits,
+  typed lifetime/grant/binding refusals and unchanged signed fields. Canic can
+  retire its duplicate certificate rules while retaining signing and authority.
+  Verification and token preparation reuse the applicable rules without changing
+  their rejection contracts. [#30](https://github.com/dragginzgame/ic-auth/issues/30).
+
+- Add explicit compact-signature normalization so Canic can reuse K256's low-S
+  conversion for management signing replies. Strict verification still refuses
+  high-S input; normalization does not authenticate a reply or change authority.
+  [#31](https://github.com/dragginzgame/ic-auth/issues/31).
+
+- Qualify the incoming Testkit 0.34.0 update with its aligned Host 0.14.1 graph
+  and existing server 16.1.0 pairing. The selected CLI requires explicit setup
+  and offline admission; native dependencies remain outside both libraries.
+  [Testkit #61](https://github.com/dragginzgame/ic-testkit/issues/61).
+
 ## [0.4.6] - 2026-10-11
 
 - Add independently selectable chain-key public-key admission and prehash

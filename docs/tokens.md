@@ -1,7 +1,10 @@
 # Application-token verification
 
 Issuer-side [pure preparation](token-preparation.md) is a separate default-feature
-API in pending 0.4.2. Preparing or finishing a token does not verify its proofs.
+API released in 0.4.2. Preparing or finishing a token does not verify its proofs.
+Pending 0.4.7 adds [pure certificate issuance validation](certificate-issuance.md)
+before signing. Verification shares its lifetime and binding primitives while
+preserving the stronger identity, clock and proof checks and existing error order.
 
 The optional `token-verification` feature and `ic_auth::token::verify_token`
 are published in `0.1.4`.
@@ -45,9 +48,11 @@ the existing 64-byte `r || s` encoding with valid nonzero scalars and low-s
 representation; `k256` verifies the existing canonical header hash as a prehash.
 The public key must match the protected enrollment byte-for-byte.
 
-Pending 0.4.6 shares the cryptographic primitive with the independently selected
+The 0.4.6 source/tag shares the cryptographic primitive with the independently selected
 [chain-key signature checks](chain-key-signatures.md). Isolated key/signature
 admission does not replace the protected proof-chain checks described here.
+The pending 0.4.7 explicit producer normalizer is not called during verification;
+submitted high-S proofs continue to reject.
 
 Only after authenticating the root proof does the verifier use its issuer and
 seed hash to check the issuer's IC signature. It signs the canonical claims hash

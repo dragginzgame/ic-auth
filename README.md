@@ -19,10 +19,13 @@ libraries are published on crates.io at `0.4.5`; see the
 Bounded [signature preparation and retrieval](docs/signature-preparation.md)
 includes explicit host certification composition.
 Released 0.4.2 adds pure [delegated-token preparation](docs/token-preparation.md).
-Pending 0.4.6 adds independent [chain-key signature checks](docs/chain-key-signatures.md)
-for signing-response adapters; they are not yet published.
-Canic adopts it in its locally qualified draft, retaining host authority; its
-complete verifier and durable-session adoption remain separate.
+The 0.4.6 source/tag adds independent [chain-key signature checks](docs/chain-key-signatures.md)
+for signing-response adapters; its auth crate publication remains unverified at
+inspection. Pending 0.4.7 adds explicit producer signature normalization.
+It also adds pure [certificate issuance validation](docs/certificate-issuance.md)
+so Canic can retire its duplicate certificate rules without transferring authority.
+Canic's pure token preparation adoption is locally qualified in its draft, retaining
+host authority; complete verifier and durable-session adoption remain separate.
 Published 0.2.11 includes the bounded [Merkle batch constructor](docs/chain-key-batches.md),
 allowing Canic to retire its generic construction helper.
 Released [IC Testkit qualification](docs/ic-testkit-qualification.md) checks

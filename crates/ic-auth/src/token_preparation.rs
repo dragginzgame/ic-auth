@@ -4,7 +4,8 @@
 //! The host owns issuer approval, independently enrolled authority, authenticated
 //! identity, clock, operation custody, signing and certification-root publication.
 
-use crate::canonical::{CanonicalAuthError, cert_hash, claims_hash, validate_scopes};
+use crate::canonical::{CanonicalAuthError, cert_hash, claims_hash};
+use crate::certificate_issuance::{GrantValidationError, validate_grants};
 use ic_auth_protocol_types::{
     AuthRole, DelegatedRoleGrant, DelegatedToken, DelegatedTokenClaims, DelegationAudience,
     DelegationProof, IssuerProof, Principal,
@@ -99,6 +100,19 @@ pub enum PrepareDelegatedTokenError {
     Canonical(#[from] CanonicalAuthError),
 }
 
+impl From<GrantValidationError> for PrepareDelegatedTokenError {
+    fn from(error: GrantValidationError) -> Self {
+        use GrantValidationError as E;
+        match error {
+            E::Empty => Self::GrantsEmpty,
+            E::TooMany { found, max } => Self::TooManyGrants { found, max },
+            E::EmptyScopes { role } => Self::EmptyGrantScopes { role },
+            E::TooManyScopes { role, found, max } => Self::TooManyGrantScopes { role, found, max },
+            E::Canonical(error) => Self::Canonical(error),
+        }
+    }
+}
+
 /// Prepare exact canonical claims without reading runtime state or signing.
 /// Expiry is checked against both certificate and supplied authority: an
 /// overlong request rejects rather than silently shortening the requested TTL.
@@ -130,36 +144,12 @@ pub fn prepare_delegated_token(
     if expires_at_ns > deadline {
         return Err(Error::TokenOutlivesCert);
     }
-    if input.grants.is_empty() {
-        return Err(Error::GrantsEmpty);
-    }
-    if input.grants.len() > input.limits.max_grants {
-        return Err(Error::TooManyGrants {
-            found: input.grants.len(),
-            max: input.limits.max_grants,
-        });
-    }
-    let mut previous = None;
-    for grant in &input.grants {
-        let role = grant.target.as_str().as_bytes();
-        if previous.is_some_and(|previous| previous >= role) {
-            return Err(CanonicalAuthError::NonCanonicalRoles.into());
-        }
-        previous = Some(role);
-        if grant.scopes.is_empty() {
-            return Err(Error::EmptyGrantScopes {
-                role: grant.target.clone(),
-            });
-        }
-        if grant.scopes.len() > input.limits.max_scopes_per_grant {
-            return Err(Error::TooManyGrantScopes {
-                role: grant.target.clone(),
-                found: grant.scopes.len(),
-                max: input.limits.max_scopes_per_grant,
-            });
-        }
-        validate_scopes(&grant.scopes)?;
-    }
+    validate_grants(
+        &input.grants,
+        input.limits.max_grants,
+        input.limits.max_scopes_per_grant,
+    )
+    .map_err(Error::from)?;
     if input.audience != cert.aud {
         return Err(Error::AudienceNotSubset);
     }

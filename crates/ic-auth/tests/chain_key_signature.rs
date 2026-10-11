@@ -1,7 +1,8 @@
 #![cfg(feature = "chain-key-verification")]
 
 use ic_auth::chain_key_signature::{
-    ChainKeySignatureError as Error, validate_secp256k1_public_key, verify_secp256k1_prehash,
+    ChainKeySignatureError as Error, normalize_secp256k1_signature, validate_secp256k1_public_key,
+    verify_secp256k1_prehash,
 };
 use k256::ecdsa::{Signature, SigningKey, signature::hazmat::PrehashSigner};
 
@@ -20,6 +21,19 @@ fn high_s_signature() -> Signature {
     assert!(signature.normalize_s().is_none());
     let (r, s) = signature.split_scalars();
     Signature::from_scalars(r.to_bytes(), (-*s).to_bytes()).unwrap()
+}
+
+fn malformed_signatures() -> [Vec<u8>; 6] {
+    let mut recoverable = signature().to_bytes().to_vec();
+    recoverable.push(0);
+    [
+        vec![],
+        vec![1; 63],
+        vec![0; 64],
+        vec![0xff; 64],
+        signature().to_der().as_bytes().to_vec(),
+        recoverable,
+    ]
 }
 
 #[test]
@@ -63,21 +77,63 @@ fn rejects_malformed_keys_for_admission_and_verification() {
 #[test]
 fn rejects_noncompact_encodings_and_out_of_range_scalars() {
     let key = signing_key().verifying_key().to_encoded_point(true);
-    let mut recoverable = signature().to_bytes().to_vec();
-    recoverable.push(0);
-    for signature in [
-        vec![],
-        vec![1; 63],
-        vec![0; 64],
-        vec![0xff; 64],
-        signature().to_der().as_bytes().to_vec(),
-        recoverable,
-    ] {
+    for signature in malformed_signatures() {
         assert_eq!(
             verify_secp256k1_prehash(key.as_bytes(), &PREHASH, &signature),
             Err(Error::MalformedSignature)
         );
     }
+}
+
+#[test]
+fn explicit_normalization_preserves_low_s_and_converts_high_s_idempotently() {
+    let key = signing_key().verifying_key().to_encoded_point(true);
+    let low_s: [u8; 64] = signature().to_bytes().into();
+    let high_s: [u8; 64] = high_s_signature().to_bytes().into();
+    assert_ne!(high_s, low_s);
+    for input in [low_s, high_s] {
+        let unchanged = input;
+        let normalized = normalize_secp256k1_signature(&input).unwrap();
+        assert_eq!(normalized, low_s);
+        assert_eq!(input, unchanged);
+        assert_eq!(normalize_secp256k1_signature(&normalized), Ok(low_s));
+        assert_eq!(
+            verify_secp256k1_prehash(key.as_bytes(), &PREHASH, &normalized),
+            Ok(())
+        );
+    }
+    // Explicit producer normalization does not weaken strict verification.
+    assert_eq!(
+        verify_secp256k1_prehash(key.as_bytes(), &PREHASH, &high_s),
+        Err(Error::HighSSignature)
+    );
+}
+
+#[test]
+fn normalization_rejects_malformed_encodings_and_scalars() {
+    for signature in malformed_signatures() {
+        assert_eq!(
+            normalize_secp256k1_signature(&signature),
+            Err(Error::MalformedSignature)
+        );
+    }
+}
+
+#[test]
+fn normalization_success_does_not_authenticate_a_signature() {
+    let key = signing_key().verifying_key().to_encoded_point(true);
+    let normalized = normalize_secp256k1_signature(&high_s_signature().to_bytes()).unwrap();
+    assert_eq!(
+        verify_secp256k1_prehash(key.as_bytes(), &[0; 32], &normalized),
+        Err(Error::InvalidSignature)
+    );
+    let mut changed_signature: [u8; 64] = signature().to_bytes().into();
+    changed_signature[0] ^= 1;
+    let normalized = normalize_secp256k1_signature(&changed_signature).unwrap();
+    assert_eq!(
+        verify_secp256k1_prehash(key.as_bytes(), &PREHASH, &normalized),
+        Err(Error::InvalidSignature)
+    );
 }
 
 #[test]

@@ -2,8 +2,8 @@
 //!
 //! These checks establish only key encoding and signature validity. The host
 //! still owns key enrollment, algorithm selection, signing authorization and
-//! the meaning of the supplied 32-byte prehash. No hashing or normalization is
-//! performed on supplied material.
+//! the meaning of the supplied 32-byte prehash. Verification performs no hashing
+//! or normalization. Normalization is a separate explicit producer operation.
 
 use k256::ecdsa::{Signature, VerifyingKey, signature::hazmat::PrehashVerifier};
 use thiserror::Error;
@@ -41,9 +41,25 @@ pub fn verify_secp256k1_prehash(
     VerificationMaterial::parse(public_key, signature)?.verify_prehash(prehash)
 }
 
+/// Return the low-S representation of a compact 64-byte ECDSA signature.
+///
+/// This explicitly normalizes producer material using K256; it does not verify
+/// a signature, authenticate a management reply or authorize signing. Malformed
+/// encodings/scalars return [`ChainKeySignatureError::MalformedSignature`].
+/// Already-low-S bytes remain identical. Strict verification still rejects
+/// high-S input; it never calls this function implicitly.
+pub fn normalize_secp256k1_signature(signature: &[u8]) -> Result<[u8; 64], ChainKeySignatureError> {
+    let parsed = parse_signature(signature)?;
+    Ok(parsed.normalize_s().unwrap_or(parsed).to_bytes().into())
+}
+
 fn parse_public_key(public_key: &[u8]) -> Result<VerifyingKey, ChainKeySignatureError> {
     VerifyingKey::from_sec1_bytes(public_key)
         .map_err(|_| ChainKeySignatureError::MalformedPublicKey)
+}
+
+fn parse_signature(signature: &[u8]) -> Result<Signature, ChainKeySignatureError> {
+    Signature::from_slice(signature).map_err(|_| ChainKeySignatureError::MalformedSignature)
 }
 
 // Keep parsing separate from prehash evaluation so the complete Root verifier
@@ -59,8 +75,7 @@ impl VerificationMaterial {
         signature: &[u8],
     ) -> Result<Self, ChainKeySignatureError> {
         let key = parse_public_key(public_key)?;
-        let signature = Signature::from_slice(signature)
-            .map_err(|_| ChainKeySignatureError::MalformedSignature)?;
+        let signature = parse_signature(signature)?;
         if signature.normalize_s().is_some() {
             return Err(ChainKeySignatureError::HighSSignature);
         }

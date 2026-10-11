@@ -6,6 +6,7 @@
 //! one explicit host transaction for admission and replay consumption.
 
 pub mod canonical;
+pub mod certificate_issuance;
 pub mod chain_key_batch;
 pub mod token_preparation;
 

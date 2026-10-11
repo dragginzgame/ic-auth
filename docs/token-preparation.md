@@ -31,6 +31,10 @@ The request rejects in this order:
 `PrepareDelegatedTokenError` preserves typed causes. Host shape bounds have their
 own variants; role/scope canonical refusals use `CanonicalAuthError`. Applications
 project these causes into their endpoint errors without reimplementing validation.
+Pending 0.4.7 shares the grant primitive with
+[certificate issuance validation](certificate-issuance.md), preserving this request
+order and public causes. It does not implicitly revalidate the host-admitted proof
+as a new certificate issuance.
 
 The immutable `PreparedDelegatedToken` exposes `claims()`, `claims_hash()` and
 `proof()`. It retains the original proof and the exact canonical claims/hash.

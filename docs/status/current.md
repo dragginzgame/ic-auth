@@ -3,11 +3,13 @@
 The maintainer accepted the larger Canic authentication extraction, selected the
 name `ic-auth`, and confirmed `/home/adam/projects/ic-auth` as the local repository.
 
-The current committed release is `33136e265b89af9c3f370d9d18b0724c27e0762a`
-(`0.4.5`) on `main`, with annotated tag `v0.4.5`; both remote identities were
-verified during issue review. Both libraries' `0.4.5` registry checksums match
-the retained publication intent for that exact source/tag. The maintainer
-executed the release and publication. The original bootstrap was
+The current committed release is `8e29fa0d8f10c98b22c139feab5862f76ff116f8`
+(`0.4.6`) on `main`, with annotated tag `v0.4.6`; both remote identities match
+the retained publication intent. Protocol-types 0.4.6 is indexed, unyanked and
+checksum-matched. At delivery inspection, the auth crate's 0.4.6 is absent from
+both the crates.io API and sparse index; complete publication is not yet verified.
+The maintainer executed the source release; published 0.4.5 remains the last
+verified complete two-library selection. The original bootstrap was
 `7a03102e52b7a400588530997a9f7fb91c83de9d` (`0.1.0`).
 The public remote [dragginzgame/ic-auth](https://github.com/dragginzgame/ic-auth)
 was created at the maintainer's request and is configured as `origin` using
@@ -22,7 +24,7 @@ records this batch without closing the larger extraction.
 
 The virtual Rust workspace contains `ic-auth-protocol-types`, `ic-auth` and the
 unpublished native application in `apps/tooling/`, with one lockfile, root-owned
-dependency selections and current manifest version `0.4.5`.
+dependency selections and current manifest version `0.4.6`.
 The passive token/proof contracts and canonical encoding are adapted from the
 clean Canic source at `e286b3fd98460c98670336853f80658a920966e0`; see the
 [source review](../design/canic-source-review.md) for exact ownership and API
@@ -43,7 +45,98 @@ That evidence binds its reported consumer inputs, not later changing sibling
 files. Complete-token, durable-session and deployed acceptance remain separate.
 No sibling repository was modified or built by IC Auth work.
 
-## Current continuation (pending 0.4.6)
+## Current continuation (pending 0.4.7)
+
+[Auth #31](https://github.com/dragginzgame/ic-auth/issues/31) adds explicit
+`chain_key_signature::normalize_secp256k1_signature` under the existing
+independent chain-key capability. K256 supplies parsing and low-S conversion;
+the library returns a fixed 64-byte array and reuses the same compact parser
+with strict verification. No new feature, error variant, state, signing effect
+or authority policy is added. Both isolated and complete verification still
+reject high-S input and never invoke normalization implicitly.
+
+Nine real signature cases and all 30 token/delegation cases pass, including
+high-S conversion to the signed low-S control, byte-identical already-low-S
+output, idempotence, unchanged input, malformed/DER/recoverable/scalar rejection,
+and normalized but cryptographically invalid material. Strict high-S and Root
+policy/witness refusal order stay intact. The prior normalization checkpoint's
+complete genuine Bash 3.2 gate
+passes all **28 targets**, including real canister certification/upgrades/signed
+ingress, isolated native/Wasm package MSRV, 52 browser cases, strict Clippy, both
+package dry runs without upload and existing local/mocked release/evidence cases.
+Every tracked/new input and mode, both incoming manifest/lock bytes, real index
+and HEAD remains identical throughout; tracked diff SHA-256
+`79484f75b89f5716af1e79d47a0c48fecf0c78c2b68e59cb54928435a7b2c1a1`.
+That receipt precedes the certificate issuance implementation below; final
+handoff/adoption prose was checked separately.
+Canic can adopt this after publication to remove its remaining normalization
+primitive, retaining its explicit management-reply policy and original key/hash.
+Production K256 removal still requires its final caller audit; test signing
+stays test infrastructure. No Canic source or build is changed here.
+
+The incoming manifest and lock update selects Testkit 0.34.0 and converges all
+four Host packages on 0.14.1. Both incoming files are captured and preserved.
+These native dependencies remain outside the published library graphs. Published
+checksums are verified unyanked. The initial offline selected-CLI admission
+correctly refuses an unprepared selection; explicit `install-testkit-tools` and
+subsequent offline admission pass with server 16.1.0. This setup is separate from
+runtime certification/upgrade/ingress qualification, whose three real cases pass
+in the complete gate with the newly selected CLI/runtime pairing.
+Testkit's archive migration note describes its completed-process-result hard cut;
+Auth's actual callers do not use the replaced process result boundary.
+
+Evidence stays under `target/integration-0.4.7/`, retaining the initial tool
+admission refusal. Root package versions stay 0.4.6; **0.4.7** is the next
+compatible patch. Index, commits, versions, refs, release/recovery, publication
+and deployment remain user-owned. Auth #29 retains 0.4.6 publication/native
+acceptance; Canic #491 retains consumer adoption and broader authority decisions.
+The new source has no remote CI of its own. Released 0.4.6's
+[exact-source CI](https://github.com/dragginzgame/ic-auth/actions/runs/38152329332)
+passes Linux, with Intel macOS running and Apple Silicon queued at final bounded
+inspection. It does not qualify this uncommitted patch. The final publication
+recheck still finds protocol-types 0.4.6 checksum-matched and unyanked, but no
+auth 0.4.6 index entry and an API 404; #29 retains this incomplete delivery.
+
+[Auth #30](https://github.com/dragginzgame/ic-auth/issues/30) now implements
+default-feature [certificate issuance validation](../certificate-issuance.md)
+over the passive contract with independently supplied Root and explicit TTL/grant
+bounds. It preserves the requested Root/window/certificate-TTL/token-TTL/grants/
+binding-hash refusal order, exact equality and unchanged signed fields. Role
+grammar remains enforced by passive construction/decoding. Success establishes
+no signing authority, installation, principal eligibility or current-clock
+acceptance. Verification reuses lifetime/binding primitives with its existing
+identity, clock, cardinality and crypto order; token preparation reuses grant
+checks without changing public causes, nonce/claims bytes or its admitted-proof
+precondition. No feature, dependency, wire or stored model changes.
+
+Nine issuance cases and all 31 token/delegation cases pass, including a new
+combined-bound/clock/grant/binding regression for the existing verifier surface.
+The seven preparation cases retain the frozen certificate/nonce/claim vectors.
+Formatting fixtures overlay the added module and affected source/tests so their
+disposable checkout checks the actual current module graph. Complete validation
+of the extended batch initially passes all 28 targets, but a concurrent lock update
+from syn 3.0.7 to 3.0.8 prevents a stable-input receipt. Source/modes other than the
+lock, manifest, real index and HEAD remain unchanged. The incoming lock update is
+preserved. The next offline attempt refuses the missing selected archive;
+explicit locked `make fetch` prepares it without changing the lock. The repeated
+complete genuine Bash 3.2 gate passes all **28 targets** with every tracked/new
+input and mode stable, including all three real runtime cases, isolated native/
+Wasm package MSRV, feature boundaries, Clippy, both package dry runs without
+upload and local/mocked release/evidence fixtures. The incoming manifest, captured
+updated lock, real index and HEAD stay unchanged; tracked diff SHA-256
+`d2061890e43235c262a0299d21aba59e4341d8ed8d6f35570efb8878b17e7d77`.
+Final prose is checked separately. All attempts and exact reviewed consumer source
+hashes are retained under `target/certificate-issuance-0.4.7/`. After publication
+Canic can project the typed causes and retire
+both construction and token-material certificate rules under #491; no sibling
+edit or build is performed. Eager raw DTO role projection may alter combined-invalid
+rejection order before the passive validator runs; #30/#491 retains that concrete
+consumer acceptance gap. This remains additive compatible pending **0.4.7**.
+Canic's exposed upstream type-family/release boundary remains
+[Canic #517](https://github.com/dragginzgame/canic/issues/517); an additive Auth
+patch does not classify the larger consumer offloading release.
+
+## Released 0.4.6 preparation evidence
 
 [Auth #29](https://github.com/dragginzgame/ic-auth/issues/29) adds pure
 `chain_key_signature::validate_secp256k1_public_key` and

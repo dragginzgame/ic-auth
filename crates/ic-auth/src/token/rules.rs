@@ -2,8 +2,10 @@ use super::{
     DelegationProofVerificationLimits, TokenVerificationContext, TokenVerificationError,
     TokenVerificationLimits, binding, window,
 };
-use crate::canonical::{
-    CanonicalAuthError, cert_hash, claims_hash, issuer_proof_binding_hash, validate_scope_label,
+use crate::canonical::{CanonicalAuthError, cert_hash, claims_hash, validate_scope_label};
+use crate::certificate_issuance::{
+    CertificateLifetimeError, issuer_binding_matches, positive_duration,
+    validate_certificate_lifetime,
 };
 use ic_auth_protocol_types::{
     DelegatedRoleGrant, DelegatedToken, DelegationAudience, DelegationCert, DelegationProof,
@@ -98,10 +100,8 @@ fn grants_valid(grants: &[DelegatedRoleGrant]) -> Result<(), TokenVerificationEr
 }
 
 fn ttl(target: &'static str, start: u64, end: u64, max: u64) -> Result<(), TokenVerificationError> {
-    let ttl_ns = end
-        .checked_sub(start)
-        .filter(|ttl| *ttl != 0)
-        .ok_or(TokenVerificationError::InvalidWindow { target })?;
+    let ttl_ns =
+        positive_duration(start, end).ok_or(TokenVerificationError::InvalidWindow { target })?;
     if ttl_ns > max {
         return Err(TokenVerificationError::TtlExceeded {
             target,
@@ -117,26 +117,42 @@ pub(super) fn verify_certificate_window(
     now_ns: u64,
     limits: DelegationProofVerificationLimits,
 ) -> Result<(), TokenVerificationError> {
-    binding(cert.issued_at_ns <= cert.not_before_ns, "cert_issued_at")?;
-    ttl(
-        "certificate",
-        cert.not_before_ns,
-        cert.expires_at_ns,
-        limits.max_cert_ttl_ns,
+    validate_certificate_lifetime(cert, limits.max_cert_ttl_ns, limits.max_token_ttl_ns).map_err(
+        |error| {
+            use CertificateLifetimeError as E;
+            match error {
+                E::IssuedAfterStart => TokenVerificationError::BindingMismatch {
+                    field: "cert_issued_at",
+                },
+                E::InvalidWindow => TokenVerificationError::InvalidWindow {
+                    target: "certificate",
+                },
+                E::CertTtlExceeded { ttl_ns, max_ttl_ns } => TokenVerificationError::TtlExceeded {
+                    target: "certificate",
+                    ttl_ns,
+                    max_ttl_ns,
+                },
+                E::TokenTtlZero => TokenVerificationError::InvalidWindow {
+                    target: "max_token_ttl",
+                },
+                E::TokenTtlExceeded { ttl_ns, .. } => TokenVerificationError::TtlExceeded {
+                    target: "max_token_ttl",
+                    ttl_ns,
+                    max_ttl_ns: limits
+                        .max_token_ttl_ns
+                        .min(cert.expires_at_ns - cert.not_before_ns),
+                },
+                E::TokenTtlOutlivesCert {
+                    token_ttl_ns,
+                    cert_ttl_ns,
+                } => TokenVerificationError::TtlExceeded {
+                    target: "max_token_ttl",
+                    ttl_ns: token_ttl_ns,
+                    max_ttl_ns: cert_ttl_ns,
+                },
+            }
+        },
     )?;
-    if cert.max_token_ttl_ns == 0 {
-        return Err(TokenVerificationError::InvalidWindow {
-            target: "max_token_ttl",
-        });
-    }
-    let cert_ttl = cert.expires_at_ns - cert.not_before_ns;
-    if cert.max_token_ttl_ns > limits.max_token_ttl_ns.min(cert_ttl) {
-        return Err(TokenVerificationError::TtlExceeded {
-            target: "max_token_ttl",
-            ttl_ns: cert.max_token_ttl_ns,
-            max_ttl_ns: limits.max_token_ttl_ns.min(cert_ttl),
-        });
-    }
     window(
         "certificate",
         cert.not_before_ns,
@@ -151,14 +167,7 @@ pub(super) fn verify_certificate_window(
 pub(super) fn verify_certificate_binding(
     cert: &DelegationCert,
 ) -> Result<(), TokenVerificationError> {
-    binding(
-        issuer_proof_binding_hash(
-            cert.issuer_pid,
-            cert.issuer_proof_alg,
-            cert.issuer_proof_binding,
-        )? == cert.issuer_proof_binding_hash,
-        "issuer_proof_binding_hash",
-    )?;
+    binding(issuer_binding_matches(cert)?, "issuer_proof_binding_hash")?;
     Ok(())
 }
 
