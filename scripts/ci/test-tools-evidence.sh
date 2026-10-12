@@ -14,31 +14,26 @@ consumer="$fixture/consumer with spaces"
 mkdir -p "$consumer/scripts/dev" "$consumer/scripts/ci" "$consumer/make" "$consumer/ci" "$fixture/bin" "$fixture/runner"
 # Copy every include loaded by the actual Makefile so injected failures reach
 # the selected tool targets rather than stopping during Makefile parsing.
-for input in Makefile make/tools.mk make/release.mk make/rust-format.mk make/execution.mk \
+for input in Makefile make/consumer.mk make/tools.mk make/release.mk make/rust-format.mk make/execution.mk \
     scripts/ci/check-make-execution.sh scripts/ci/run-formatting.sh ci/tool-versions.env \
     scripts/dev/ci-tools.sh scripts/dev/install-rust-tools.sh \
     scripts/dev/cargo-tool-build.sh scripts/dev/tool-store.sh \
     scripts/ci/verify-file-checksum.sh; do
     cp -p "$input" "$consumer/$input"
 done
-# The common aggregate now admits IC and Rust prerequisites before installing.
-# Substitute IC admission, retaining the actual Rust preflight and installer.
-cat > "$consumer/scripts/dev/install-ic-tools.sh" <<'SCRIPT'
+# Retain the actual ordered aggregate and Rust preflight/installer. Earlier
+# common sets are inert; a later Rust refusal must never dispatch product tools.
+for script in install-host-tools install-ic-tools; do
+    printf '#!/usr/bin/env bash\nexit 0\n' > "$consumer/scripts/dev/$script.sh"
+done
+for script in msrv-tools testkit-tools; do
+    cat > "$consumer/scripts/dev/$script.sh" <<'SCRIPT'
 #!/usr/bin/env bash
 set -euo pipefail
-[[ $# == 5 && "$1" == --consumer && "$3" == --pins && "$5" == --preflight ]]
+printf 'unexpected product dispatch\n' >> target/product-dispatch.log
+exit 99
 SCRIPT
-# Admit the earlier common sets without provisioning them in this failure
-# fixture. Keep the actual aggregate, Rust installer and collector, so the
-# injected later failure cannot dispatch product setup/check or lose evidence.
-cat >> "$consumer/Makefile" <<'MAKE'
-
-install-host-tools install-ic-tools host-tools-check ic-tools-check:
-	@:
-install-msrv install-testkit-tools msrv-tools-check testkit-tools-check:
-	@printf 'unexpected product dispatch\n' >> target/product-dispatch.log
-	@exit 99
-MAKE
+done
 # The canonical substitute provides a compiler-local Cargo boundary compatible
 # with the standard cleared build environment. It never contacts a registry.
 bash scripts/ci/prepare-cargo-failure-fixture.sh "$fixture/compiler"
@@ -58,6 +53,7 @@ set -- "$SHARED_TOOLING_STORE"/rust-*/set.*
 attempt="${1#"$SHARED_TOOLING_STORE/"}"
 [[ -s "$1/install.log" && -s "$1/inputs.json" ]] || exit 1
 [[ ! -e "$consumer/target/product-dispatch.log" ]]
+if rg 'warning: (overriding recipe|ignoring old recipe)' "$fixture"/*.stdout; then exit 1; fi
 # Logging failure cannot mask a rejected aggregate, or turn a successful one
 # into an unrecorded success. Keep these extra runs outside the retained oracle.
 cp -R "$consumer" "$fixture/log-errors"

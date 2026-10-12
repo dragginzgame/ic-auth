@@ -1,16 +1,19 @@
-# Current handoff — 2026-10-11
+# Current handoff — 2026-10-12
 
 The maintainer accepted the larger Canic authentication extraction, selected the
 name `ic-auth`, and confirmed `/home/adam/projects/ic-auth` as the local repository.
 
-The current committed release is `06ff1f8ef44277f534b083b5f45f94d573b9f7a5`
-(`0.4.7`) on `main`, with annotated tag `v0.4.7`; remote main and the peeled tag
-match the retained publication intent. Both libraries are indexed, unyanked and
+The current committed release is `da82060511719c8055f335dc094fc46603ab8759`
+(`0.5.0`) on `main`, with annotated tag `v0.5.0` object
+`ce3f02f25f57dc8070e8c1ad4c099392ff0b77a1`; remote main and the peeled tag match
+its retained publication intent. Both libraries are indexed, unyanked and
 checksum-matched: protocol-types
-`635e05972d2db981c7563aad95e360d500e6c58e6768711b1dfb38489a863c9c`
-and auth `57f82e8ddd77bb5c211aad254c19b3b66635648b77f51c4bd560395c95ea2d32`.
-This verifies delivery of the chain-key checks/normalizer and certificate issuance
-API. Earlier incomplete 0.4.6 delivery evidence below is historical. The original
+`ab2cf145240b06e085dd0c7ea9b78eb2cdb03fd4c7edf8717a2cf23de325f62d`
+and auth `2b6d8a7f4233cd0655febd3cd6fe660cafe358ce5d78eaef2223d1e396d678f9`.
+[Exact-source CI](https://github.com/dragginzgame/ic-auth/actions/runs/38160094000)
+passes Linux and both macOS 15 architectures. This delivers and natively qualifies
+pure session requests, plus the earlier chain-key and certificate issuance APIs.
+Earlier pending/publication observations below remain historical. The original
 bootstrap was `7a03102e52b7a400588530997a9f7fb91c83de9d` (`0.1.0`).
 The public remote [dragginzgame/ic-auth](https://github.com/dragginzgame/ic-auth)
 was created at the maintainer's request and is configured as `origin` using
@@ -25,7 +28,7 @@ records this batch without closing the larger extraction.
 
 The virtual Rust workspace contains `ic-auth-protocol-types`, `ic-auth` and the
 unpublished native application in `apps/tooling/`, with one lockfile, root-owned
-dependency selections and current manifest version `0.4.7`.
+dependency selections and current manifest version `0.5.0`.
 The passive token/proof contracts and canonical encoding are adapted from the
 clean Canic source at `e286b3fd98460c98670336853f80658a920966e0`; see the
 [source review](../design/canic-source-review.md) for exact ownership and API
@@ -46,7 +49,177 @@ That evidence binds its reported consumer inputs, not later changing sibling
 files. Complete-token, durable-session and deployed acceptance remain separate.
 No sibling repository was modified or built by IC Auth work.
 
-## Current continuation (pending 0.5.0)
+## Current continuation (pending 0.5.1)
+
+[Auth #33](https://github.com/dragginzgame/ic-auth/issues/33) advances the same
+compatible batch to committed Shared Tooling **0.6.6
+`a15eb9d406d287697df9bc8fa96db8cda6721a71`**, through the unchanged 89-file
+selection, and published **Host 0.14.4** across all four native packages.
+Canonical refresh uses an isolated clean checkout and preserves the earlier
+entrypoint, no-warning fixtures and prepared-input checkpoint work. Shared's
+three changed selected files supply the new tool pin and setup/hook guidance.
+
+Explicit `make install-rust-tools` and offline `make rust-tools-check` prepare
+and admit cargo-sort-derives **0.14.1**. Auth has no affected macro definitions or
+corruption-workaround markers; its default Cargo-sort/rustfmt policy is unchanged.
+The committed upstream real frontend/Rust hook fixture passes on genuine Bash
+**3.2.57**, with exact Node 24.21.0, npm 11.19.0 and Prettier 3.9.6 explicitly
+prepared under Auth's ignored target directory. Both unprotected derive forms
+retain sorted literal `$crate` paths in refreshed staged bytes; the exported
+macro library and separate consuming crate compile and run. Ordinary sorting,
+repeat stability, unrelated-file/index preservation and refusal controls pass.
+Auth's actual formatter/staged hook and six native file cases pass separately.
+The selected tool is built with the development compiler; this is not separate
+Rust 1.88 tool-build qualification. The library floor remains independently
+qualified at 1.88.
+
+The incoming lock selects Host 0.14.3; only those four packages advance to
+0.14.4, with official unyanked checksum matches and unchanged Host Rust source.
+Cargo's narrow updates also reselect six unrelated broad-range Windows edges;
+their original permitted selections are restored and locked offline metadata
+admits them. All unrelated versions, checksums and dependency edges remain
+unchanged. Candid/derive 0.10.38, unicode-ident 1.0.27 and Testkit **0.34.1** with
+server **16.1.0** stay selected. Registry inspection now observes Testkit 0.34.2;
+that separate CLI pairing is not selected by this Host upgrade. Native Host and
+Testkit remain outside both public library graphs.
+
+The complete genuine **Bash 3.2.57 gate passes all 28 targets**, with **zero
+recipe override warnings**. This includes isolated native/Wasm package MSRV,
+52 browser cases/both Candid directions, library/proof/session checks, all three
+real certification/upgrade/signed-ingress cases, strict Clippy, both package dry
+runs without upload and local/mocked release/evidence fixtures. The eight declared
+input hashes stay stable across **56 before/after observations**. Every tracked/new
+file byte and mode, qualified upgraded lock, original root manifest, real index
+and HEAD remains unchanged during validation; tracked checkpoint diff SHA-256
+`52fc98053d925ddca3429a7154e9633226816b71a5f77939b9d9eb9180466ee8`.
+Evidence under `target/shared-0.6.6/` includes `qualification-receipt.json`, registry
+and Host source comparisons, incoming/Cargo-generated/qualified locks, setup,
+macro/focused logs and full gate captures. Final prose is checked separately.
+The GitHub description still matches the independent implemented library scope.
+
+The [Auth handoff](https://github.com/dragginzgame/ic-auth/issues/33#issuecomment-6120679650)
+and [Shared macro-pin evidence](https://github.com/dragginzgame/shared-tooling/issues/113#issuecomment-6120684759)
+retain delivery and matching-source Linux/both macOS acceptance. Released 0.5.0's
+hosted matrix does not qualify this uncommitted batch. Pending **0.5.1** changes
+no public Auth API, signed/stored format or supported compiler requirement.
+Manifest release versions remain 0.5.0; index, commits, refs and release effects
+remain maintainer-owned, and sibling repositories remain read-only.
+
+### Prior 0.6.5 adoption checkpoint
+
+The following receipt predates the 0.6.6/Host extension above and cannot qualify
+its new tool pin, hook fixture or upgraded lock.
+
+[Auth #33](https://github.com/dragginzgame/ic-auth/issues/33) now advances the pending
+batch to committed Shared Tooling **0.6.5
+`42f2091768b5f71c98a684d3dab563f408ca2dd9`**, with the same 89-file selection.
+Canonical refresh uses an isolated clean checkout and preserves all existing
+0.5.1 work and incoming dependency bytes. Newer dirty 0.6.6 work, including its
+derive-sorter pin, is excluded.
+
+The actual CI roster declares eight Rust/frontend manifests, lock and
+compiler/tool pin files. Their hashes are checked before/after every stage;
+changes, deletion or observation failure stop later dispatch with original
+failure status and retained evidence. Nested gates in the same checkout retain
+the checkpoint; independent fixtures establish their own. This is early drift
+detection, not source isolation within a running stage or automatic preparation.
+The Testkit fixture exercises actual `make ci` with changed Rust/frontend locks,
+a deleted compiler selection and drift combined with an original failing stage;
+all refuse before common/product admission or Cargo dispatch. Existing Testkit
+selection/order controls and the actual formatter/staged hook checks pass.
+
+Isolated canonical 0.6.5 fixtures pass on genuine Bash 3.2.57: staged formatting
+can admit original prepared receipts while checking exported pins/compiler,
+missing/corrupt/mismatched receipts and setup in exports refuse without changing
+the index, and unrelated checkouts cannot borrow the hook context. Validation
+fixtures cover nested checkpoints, observation errors, unchanged inputs and
+retained original failures. These are upstream substitute fixtures, separately
+from Auth's actual consumer and runtime checks. Evidence is retained under
+`target/shared-0.6.5/`.
+The incoming lock already selects Testkit **0.34.1**, with Host 0.14.2 and
+Candid 0.10.38 preserved. Its initial full-gate admission correctly refuses the
+unprepared selected CLI before any build, while all eight checkpoint inputs stay
+unchanged. Explicit `make install-testkit-tools` and separate offline admission
+now pass. The packaged changelog records Make/jobserver and failed-download
+status fixes, with unchanged library APIs and server contract. The server stays
+16.1.0; all three actual certification/upgrade/ingress cases pass with this pairing
+in the repeated full gate. No dependency resolution or lock mutation is performed.
+
+The extended complete genuine **Bash 3.2.57 gate passes all 28 targets** with zero
+recipe override warnings. Retained checkpoint JSON confirms all eight declared
+hashes unchanged across **56 before/after stage observations**. All tracked/new
+file bytes and modes, incoming manifest/lock, real index and HEAD remain identical
+throughout; tracked checkpoint diff SHA-256
+`6cd35e0048a84521cd3aa287fafb77c3ef9a8b93735685a705ddf91af1fe4298`.
+This includes isolated native/Wasm package MSRV, browser/Candid and library/proof/
+session checks, actual runtime qualification, strict Clippy, both package dry runs
+without upload and local/mocked release/evidence fixtures. Initial admission
+refusal and explicit setup logs remain retained. Final prose is checked separately.
+The verified [Auth adoption handoff](https://github.com/dragginzgame/ic-auth/issues/33#issuecomment-6120257401),
+[prepared-input consumer proof](https://github.com/dragginzgame/shared-tooling/issues/129#issuecomment-6120257774)
+and [hook/entrypoint proof](https://github.com/dragginzgame/shared-tooling/issues/130#issuecomment-6120257970)
+keep delivery and matching-source native acceptance open. Released 0.5.0's hosted
+matrix does not qualify this uncommitted batch.
+The selected next version stays compatible **0.5.1**, with no public auth API,
+signed/stored format or compiler floor change.
+
+### Prior 0.6.4 adoption checkpoint
+
+The following receipt predates the 0.6.5 extension above and cannot qualify its
+new runner/hook inputs.
+
+Auth #33 initially adopted committed Shared Tooling 0.6.4 `6fc8eb9a94f83fb0b9d0a26377d4232508cdbe2d` through a reviewed 89-file
+snapshot. The sibling has newer dirty work; canonical preview/refresh uses an
+isolated clean checkout of the selected commit. Its initial dirty-source refusal
+is retained. `make/consumer.mk` replaces equivalent component includes and local
+hook/snapshot recipes; `check-snapshot` retains its public name and delegates to
+`shared-tooling-check`. Tool ordering, formatting, Make admission/jobserver and
+consumer-owned full gate and release metadata remain at their existing owners.
+
+Release, tool-evidence, Testkit and jobserver fixtures now substitute script
+effects while using the real Make recipes, instead of appending overrides.
+Captured real Make logs reject recipe override warnings; stderr is never filtered.
+Focused jobserver, setup/check refusal, Testkit ordering, formatter/staged hook
+and release cases pass. The initial full Bash 3.2 run catches a new substitute
+relying on implicit branch `errexit`; an injected setup refusal continues within
+its disposable repository and the harness correctly fails. Explicit refusal
+exits and child-status propagation fix it. The repeated genuine Bash 3.2 release
+fixture and ShellCheck pass; the initial failure and its stable inputs remain
+retained under `target/shared-0.6.4/`.
+
+The corrected complete genuine **Bash 3.2.57 gate passes all 28 targets** with
+**zero recipe override warnings**, including isolated native/Wasm package MSRV,
+52 browser cases/both Candid directions, all library/proof/session controls,
+actual certification/upgrades/signed ingress, strict Clippy, package dry runs
+without upload and local/mocked release/evidence fixtures. Every tracked/new
+input and mode, incoming manifest/lock, real index and HEAD remain identical;
+tracked checkpoint diff SHA-256
+`f08db2af58c982ac95d23318ee84f94b7ac434c825ffba814a565f677831375f`.
+Final prose is checked separately. The verified
+[Auth #33 handoff](https://github.com/dragginzgame/ic-auth/issues/33#issuecomment-6119872251),
+[Shared warning repair](https://github.com/dragginzgame/shared-tooling/issues/128#issuecomment-6119872460)
+and [entrypoint adoption](https://github.com/dragginzgame/shared-tooling/issues/130#issuecomment-6119872683)
+retain delivery and matching-source native acceptance. The new batch has no
+hosted CI of its own; released 0.5.0's matrix does not qualify these changes.
+
+The incoming lock is preserved byte-for-byte: Candid/derive 0.10.38, Host 0.14.2
+across all four native packages and unicode-ident 1.0.27. Testkit stays 0.34.0
+with admitted server 16.1.0. Official selected checksums are verified unyanked;
+the current pairing passes real certification, upgrade and ingress separately
+from offline CLI admission. Contributor Make adoption
+and warning repair are compatible **0.5.1**; public auth APIs, signed/stored
+formats and compiler floor are unchanged. Manifests remain 0.5.0. Index, refs,
+commits, release/publication and deployment remain user-owned; siblings remain
+read-only. Canic #491 owns adoption of the now-published pure request helper;
+#30's raw-role projection/refusal-order acceptance gap remains separate.
+The [verified delivery handoff](https://github.com/dragginzgame/canic/issues/491#issuecomment-6119675390)
+records the published 0.5.0 APIs; producer issues remain open for consumer
+acceptance. No Canic adoption or deployment is inferred from producer CI.
+
+## Released 0.5.0 preparation evidence
+
+The following records preparation before maintainer delivery; pending-version,
+publication and native CI observations are historical. Current delivery is above.
 
 [Auth #32](https://github.com/dragginzgame/ic-auth/issues/32) extracts the existing
 canonical request owner into the default-feature

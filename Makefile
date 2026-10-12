@@ -4,9 +4,8 @@ include ci/tool-versions.env
 # Extend the shared ordered aggregates after host, IC and Rust admission.
 LOCAL_TOOL_INSTALL_TARGETS := install-msrv install-testkit-tools
 LOCAL_TOOL_CHECK_TARGETS := msrv-tools-check testkit-tools-check
-include make/tools.mk
-include make/release.mk
-include make/rust-format.mk
+override SHARED_TOOLING_ROOT := $(CURDIR)
+include make/consumer.mk
 
 # Keep Cargo artifacts in this checkout, including CI and hook invocations.
 export CARGO_TARGET_DIR := $(CURDIR)/target
@@ -49,6 +48,7 @@ test-formatting-hooks:
 	@mkdir -p target/portable-fixtures
 	+@TMPDIR="$(CURDIR)/target/portable-fixtures" bash scripts/ci/check-formatting-hooks.sh \
 		"$(CURDIR)" crates/ic-auth/src/lib.rs Cargo.toml --no-dependency-tables \
+		make/consumer.mk make/release.mk make/rust-format.mk ci/tool-versions.env \
 		crates/ic-auth/src/canonical.rs \
 		crates/ic-auth/src/certificate_issuance.rs \
 		crates/ic-auth/src/session_request.rs \
@@ -81,9 +81,6 @@ check-msrv:
 
 tasks:
 	@cat tasks/README.md
-
-install-hooks:
-	bash scripts/dev/install-git-hooks.sh
 
 # Explicit selected-cache preparation; ordinary Rust checks remain offline.
 fetch:
@@ -135,8 +132,7 @@ test-qualification: testkit-tools-check
 check-boundaries:
 	+bash scripts/ci/check-auth-boundaries.sh
 
-check-snapshot:
-	bash scripts/ci/verify-shared-tooling-snapshot.sh
+check-snapshot: shared-tooling-check
 
 client-tools-check:
 	bash scripts/dev/client-tools.sh check
@@ -162,7 +158,12 @@ check-doc-links:
 	@rg --files -g '*.md' -0 | xargs -0 perl scripts/ci/check-documentation-links.pl --root "$(CURDIR)"
 
 ci:
-	+bash scripts/ci/run-validation-targets.sh --fail-fast check-snapshot tools-check check-dependency-pins check-doc-links test-make-jobserver fmt-check test-formatting-hooks metadata check-boundaries check-msrv test-tools-evidence test-testkit-tools test-client test-types test-protocol test-chain-key-signatures test-signatures test-signature-store test-tokens test-sessions test-host-tooling test-qualification check-wasm clippy publish-dry-run test-release-tools test-release-runner test-evidence-archive
+	+bash scripts/ci/run-validation-targets.sh --fail-fast \
+	  --input Cargo.toml --input Cargo.lock --input rust-toolchain.toml \
+	  --input ci/tool-versions.env --input ci/ic-tools.tsv \
+	  --input packages/client/package.json --input packages/client/package-lock.json \
+	  --input packages/client/.nvmrc \
+	  check-snapshot tools-check check-dependency-pins check-doc-links test-make-jobserver fmt-check test-formatting-hooks metadata check-boundaries check-msrv test-tools-evidence test-testkit-tools test-client test-types test-protocol test-chain-key-signatures test-signatures test-signature-store test-tokens test-sessions test-host-tooling test-qualification check-wasm clippy publish-dry-run test-release-tools test-release-runner test-evidence-archive
 
 check-package-licenses:
 	@cmp LICENSE crates/ic-auth-protocol-types/LICENSE

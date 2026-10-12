@@ -39,9 +39,10 @@ different support scopes require an explicitly approved exception.
 | Rust development | rustfmt and product compilation targets | Consumer toolchain setup and the [formatter prerequisite check](verification-helpers.md#formatter-prerequisites) |
 | Workflow-specific tools | ShellCheck, actionlint, Gitleaks, authenticated `gh`, Node/SDKs and other tools used by that repository | Explicit consumer setup; declare the tools required by each workflow |
 
-Use the derive sorter's documented
-[macro protection](../rules/git-hooks.md#derive-macros-and-dollar-prefixed-paths)
-for affected definitions.
+Follow the derive sorter's documented
+[macro qualification and pin adoption](../rules/git-hooks.md#derive-macros-and-dollar-prefixed-paths)
+before removing corruption-workaround markers. The selected 0.14.1 formatter
+requires Rust 1.88 or newer to build; consumer library MSRVs stay independently owned.
 Tool availability and version checks do not establish semantic preservation.
 
 `make install-tools` and `make tools-check` cover all 12 common executables,
@@ -52,7 +53,7 @@ tools extend the aggregate through existing consumer-owned targets:
 ```make
 LOCAL_TOOL_INSTALL_TARGETS += install-testkit
 LOCAL_TOOL_CHECK_TARGETS += testkit-check
-include make/tools.mk
+include make/consumer.mk
 ```
 
 These lists run sequentially after the common sets, including under parallel
@@ -73,8 +74,9 @@ Make and CI must select their own checkout's local tool paths. CI exports them
 for subsequent steps explicitly; Make's export does not change the calling
 terminal. Follow the [consumer adoption example](consuming-snapshots.md#local-ic-tool-adoption)
 for the complete installation/check selections, including ripgrep and cloc.
-Those commands are owned by `make/tools.mk`: consumers include the reviewed
-snapshot's file instead of maintaining copied recipes or installer flags. Shared
+Those commands are owned by `make/tools.mk`, selected through the
+[consumer Make entrypoint](make-interface.md). Consumers include that reviewed
+snapshot instead of maintaining copied recipes or installer flags. Shared
 Tooling's own Makefile and CI use the same commands. Snapshot adoption brings
 command updates; explicit setup brings newly required executables.
 

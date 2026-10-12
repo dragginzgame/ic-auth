@@ -5,7 +5,7 @@ token verifier. Default, signature-only and
 token-only graphs remain selectable without the session engine. No feature
 imports Canic, Toko, Solana, native Host tooling, CDK or stable storage.
 
-Pending 0.5.0 moves `SessionRequest` to the default-feature
+Released 0.5.0 moves `SessionRequest` to the default-feature
 [`ic_auth::session_request`](session-requests.md) module. Update the former
 `session::SessionRequest` import and handle `SessionRequestError` at construction.
 The engine consumes that same pure owner; request hashes, session records and

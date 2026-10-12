@@ -2,10 +2,11 @@
 
 The virtual root owns two libraries, unpublished native tooling in `apps/tooling/`
 and the internal host/runner in `apps/qualification/`, plus dependency selections,
-lints and one lockfile. The current manifest version is `0.4.7`, tagged as
-`v0.4.7`; both libraries are published and checksum-verified. Pending **0.5.0**
-moves the [canonical session request API](session-requests.md) into the default
-selection and changes its constructor error type. Versions remain release-owned.
+lints and one lockfile. The current manifest version is `0.5.0`, tagged as
+`v0.5.0`; both libraries are published and checksum-verified. That release exposes
+[canonical session requests](session-requests.md) in the default selection with
+the new constructor error type. Compatible pending 0.5.1 adopts the shared Make
+entrypoint, guards prepared inputs and repairs fixture warning noise. Versions remain release-owned.
 Rust `1.99.0` remains the development compiler selected by `rust-toolchain.toml`.
 The common package minimum is Rust `1.88.0`, inherited from the root catalog and
 qualified by explicit older-compiler checks. See [MSRV coverage](msrv.md).
@@ -17,8 +18,8 @@ Automatic runs cover `main` pushes and pull requests. Release tags do not enqueu
 a second equivalent matrix. Newer revisions cancel older queued and running
 checks for the same workflow and branch or PR ref; unfinished hosts on cancelled
 revisions remain unqualified.
-Released 0.4.0's complete gate passes on all three hosts in
-[its exact-source CI run](https://github.com/dragginzgame/ic-auth/actions/runs/38128802347).
+Released 0.5.0's complete gate passes on all three hosts in
+[its exact-source CI run](https://github.com/dragginzgame/ic-auth/actions/runs/38160094000).
 The current uncommitted batch still requires its own native CI. Shared
 Tooling's [host prerequisites](supported-hosts.md) apply, including Bash 3.2+,
 GNU Make, rustup, Git and standard Unix setup utilities.
@@ -39,8 +40,10 @@ export PATH="$PWD/.tools/host/bin:$PWD/.tools/ic/bin:$PWD/.tools/rust/common/bin
 The first command prepares the toolchain, rustfmt, Clippy and Wasm target selected
 by the toolchain file. Common system prerequisites, exact executable pins and
 installation behavior are described in the shared [local setup](local-setup.md).
-The Makefile includes reviewed `make/tools.mk`, `make/release.mk` and
-`make/rust-format.mk`. Shared Tooling 0.3.4 admits the complete-set platform and
+The Makefile includes reviewed [`make/consumer.mk`](make-interface.md), which owns
+common setup, formatting, hooks, snapshot verification and release routing.
+`check-snapshot` retains its public name and depends on `shared-tooling-check`.
+Auth owns its tool extensions, application checks and release metadata adapters. Shared Tooling 0.3.4 admits the complete-set platform and
 selected Rust/Cargo toolchain before aggregate setup downloads, then runs the complete
 host, IC and Rust toolsets in order. These read-only preflight calls disable
 automatic Rustup installation; prepare an unavailable compiler explicitly.
@@ -59,6 +62,10 @@ Shared includes own standard release dispatch and single-workspace formatting;
 IC Auth retains its direct delivery policy, cache preparation, metadata adapters
 and complete validation roster. Formatting checks use the prepared checkout-local
 tools without installing them or activating Git hooks.
+Shared Tooling 0.6.6 selects cargo-sort-derives 0.14.1 for its literal `$crate`
+macro-path fix. Run `make install-rust-tools`, then `make rust-tools-check` when
+adopting that pin. Auth's default formatter remains Cargo manifest sorting and
+rustfmt; the common tool selection does not enable derive sorting locally.
 The release/format includes also load the selected `make/execution.mk` companion,
 which rejects ignore-errors, dry-run, touch and question modes before recipes.
 IC Auth-owned Cargo recipes and wrappers preserve Make's inherited jobserver
@@ -174,13 +181,21 @@ is retained under `target/browser-client/`.
 | `make test-release-runner` | Adopted Shared Tooling runner regression fixtures with substituted release effects |
 | `make test-evidence-archive` | Adopted evidence archive fixtures: retained files, symlinks and literal paths |
 | `make test-tools-evidence` | Actual setup/check caller failure status and adopted collector archive bytes, with Cargo installation substituted |
-| `make test-testkit-tools` | Locked CLI selection, setup/check failures and selection changes, qualification path and actual CI evidence archive with substituted effects |
+| `make test-testkit-tools` | Locked CLI selection, setup/check failures and selection changes, prepared-input drift refusal, qualification path and actual CI evidence archive with substituted effects |
 | `make test-make-jobserver` | Actual owned Make recipes preserve pipe jobserver descriptors through Cargo/wrappers; unsafe modes refuse before substituted effects |
 
 `make ci` is the complete configured gate for delivery and CI; focused development
 uses the individual checks above.
-It uses the shared validation logger and retains failures. The workflow prepares
-tools and caches first, then calls that same gate. The public remote is
+It uses the Shared Tooling 0.6.6 logger and retains failures. CI declares the
+root Cargo manifest/lock, Rust compiler selection, common host/Rust and IC pins,
+and browser package manifest/lock/Node selection as prepared inputs. Their byte
+identities are checked before and after each stage. A change, deletion or read
+failure stops later dispatch, preserves an original stage failure and reports
+which inputs require fresh preparation and the full gate. Nested gates in the
+same checkout retain the checkpoint; disposable checkouts establish their own.
+This detects drift at stage boundaries, without isolating arbitrary source edits
+inside a running stage. Checks never fetch, reinstall or silently restart.
+The workflow prepares tools and caches first, then calls that same gate. The public remote is
 [dragginzgame/ic-auth](https://github.com/dragginzgame/ic-auth), and `main` contains
 the current release. Local and hosted evidence for the current batch is recorded
 in the [handoff](status/current.md). Dependency pinning requires each lockfile and
@@ -425,7 +440,7 @@ directly and obtains runtime types through Testkit. Testkit owns adoption of
 Host's breaking process API; Auth has no direct caller or compatibility shim.
 Directory-suffixed publication targets are refused before creating parents or
 replacing a stripped filename; the native utility uses that upstream guard.
-The current lock selects Testkit 0.34.0 and the four Host packages at 0.14.1.
+The current lock selects Testkit 0.34.1 and the four Host packages at 0.14.4.
 These updates remain in native tooling and qualification; Auth's callers do not
 use Host's replaced completed-process-result boundary. Native graph qualification
 uses the actual certification, upgrade and ingress journey, separately from

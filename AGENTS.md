@@ -1,7 +1,7 @@
 # IC Auth Agent Instructions
 
 Apply [DRAGGINZGAME.md](DRAGGINZGAME.md), adopted from Shared Tooling revision
-`4fd979d13c32adb3cb2f51f213ebfc4f98339b3d` and recorded in
+`a15eb9d406d287697df9bc8fa96db8cda6721a71` and recorded in
 [.shared-tooling.snapshot](.shared-tooling.snapshot). Read
 [the current handoff](docs/status/current.md) before implementation.
 
@@ -72,10 +72,12 @@ Apply [DRAGGINZGAME.md](DRAGGINZGAME.md), adopted from Shared Tooling revision
   Focused Rust checks are `make test-types`, `make test-protocol`, `make test-chain-key-signatures`, `make test-signatures`,
   `make test-signature-store`, `make test-tokens`, `make test-sessions`,
   `make test-host-tooling`, `make test-qualification`, `make check-wasm` and `make clippy`; `make ci` is the
-  explicit complete gate. `make test-formatting-hooks` checks actual staged preservation and is part of
+  explicit complete gate. It seals declared Rust/frontend preparation inputs
+  between stages and refuses drift without fetching or restarting implicitly.
+  `make test-formatting-hooks` checks actual staged preservation and is part of
   the complete gate. `make test-release-runner` checks the adopted runner
   with substituted effects.
-  Both libraries are published at `0.4.7` with contracts, encoding and optional
+  Both libraries are published at `0.5.0` with contracts, encoding and optional
   IC signature/token/session machinery, including bounded signature preparation.
   The internal IC Testkit fixture exercises actual certification, composed roots,
   protected metadata upgrades, certified-token session admission and signed

@@ -15,7 +15,7 @@ echo "Release/publication fixture evidence: $fixture"
 # Exercise the actual shared Make entrypoints before substituting the larger
 # gate below. The opt-in includes and execution probe are explicit inputs.
 TMPDIR="$fixture" bash scripts/ci/check-release-commands.sh "$root" \
-    ci/tool-versions.env make/tools.mk make/release.mk make/rust-format.mk \
+    ci/tool-versions.env make/consumer.mk make/tools.mk make/release.mk make/rust-format.mk \
     make/execution.mk scripts/ci/check-make-execution.sh
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR
 export GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null
@@ -70,47 +70,59 @@ if [[ "$initial" != 0.1.0 ]]; then
     cp "$fixture/lock" Cargo.lock
 fi
 printf '# Changelog\n\n## [0.1.1]\n\n- Fixture release.\n' > CHANGELOG.md
-# A substitute gate is deliberate: prove runner/adapter effects and failure
-# contracts without recursively running full CI from a focused tooling test.
-cat >> Makefile <<'MAKE'
-
-ci:
-	@test -f target/common-tools-ready
-	@test -f target/testkit-ready
-	@printf 'gate\n' >> target/preparation-dispatch.log
-	@test ! -f target/fail-gate
-	@echo fixture-complete-gate
-
-install-tools:
-	@printf 'common setup\n' >> target/preparation-dispatch.log
-	@test ! -f target/fail-common-setup
-	@touch target/common-tools-ready
-	+@$(MAKE) --no-print-directory install-testkit-tools
-
-tools-check:
-	@printf 'common check\n' >> target/preparation-dispatch.log
-	@test ! -f target/fail-common-check
-	@test -f target/common-tools-ready
-	+@$(MAKE) --no-print-directory testkit-tools-check
-
-install-testkit-tools:
-	@printf 'cli setup\n' >> target/preparation-dispatch.log
-	@test ! -f target/fail-cli-setup
-	@touch target/testkit-ready
-
-install-host-tools:
-	@:
-
-testkit-tools-check:
-	@printf 'cli check\n' >> target/preparation-dispatch.log
-	@test ! -f target/fail-cli-check
-	@test -f target/testkit-ready
-
-release-prepare-version:
-	+@bash scripts/release/metadata.sh prepare-version
-	@if test -f target/interrupt-prepare; then git show HEAD:Cargo.toml > Cargo.toml; exit 19; fi
-	@if test -f target/interrupt-prepared; then exit 19; fi
-MAKE
+# Substitute external effects at script boundaries; retain the actual Make
+# recipes, ordered common/product admission and release routing without overrides.
+cat > scripts/ci/run-validation-targets.sh <<'SCRIPT'
+#!/usr/bin/env bash
+set -euo pipefail
+[[ -f target/common-tools-ready && -f target/testkit-ready ]] || exit 1
+printf 'gate\n' >> target/preparation-dispatch.log
+[[ ! -f target/fail-gate ]] || exit 1
+echo fixture-complete-gate
+SCRIPT
+cat > scripts/dev/install-host-tools.sh <<'SCRIPT'
+#!/usr/bin/env bash
+set -euo pipefail
+if [[ "${*: -1}" == --check ]]; then
+    printf 'common check\n' >> target/preparation-dispatch.log
+    [[ ! -f target/fail-common-check && -f target/common-tools-ready ]] || exit 1
+else
+    printf 'common setup\n' >> target/preparation-dispatch.log
+    [[ ! -f target/fail-common-setup ]] || exit 1
+    touch target/common-tools-ready
+fi
+SCRIPT
+for script in install-ic-tools install-rust-tools msrv-tools; do
+    printf '#!/usr/bin/env bash\nexit 0\n' > "scripts/dev/$script.sh"
+done
+cat > scripts/dev/testkit-tools.sh <<'SCRIPT'
+#!/usr/bin/env bash
+set -euo pipefail
+case "$1" in
+    install)
+        printf 'cli setup\n' >> target/preparation-dispatch.log
+        [[ ! -f target/fail-cli-setup ]] || exit 1
+        touch target/testkit-ready ;;
+    check)
+        printf 'cli check\n' >> target/preparation-dispatch.log
+        [[ ! -f target/fail-cli-check && -f target/testkit-ready ]] || exit 1 ;;
+    *) exit 2 ;;
+esac
+SCRIPT
+cp scripts/release/metadata.sh scripts/release/fixture-metadata.sh
+cat > scripts/release/metadata.sh <<'SCRIPT'
+#!/usr/bin/env bash
+set -euo pipefail
+bash scripts/release/fixture-metadata.sh "$@" || exit "$?"
+if [[ "$1" == prepare-version ]]; then
+    if [[ -f target/interrupt-prepare ]]; then git show HEAD:Cargo.toml > Cargo.toml; exit 19; fi
+    if [[ -f target/interrupt-prepared ]]; then exit 19; fi
+fi
+SCRIPT
+# Diagnose recipe drift rather than filtering Make stderr. Every nested parse
+# uses this same production Makefile and its unchanged canonical includes.
+make --no-print-directory help > "$fixture/make-parse.log" 2>&1
+if rg 'warning: (overriding recipe|ignoring old recipe)' "$fixture/make-parse.log"; then exit 1; fi
 git init -q -b main
 git config user.name 'Release fixture'
 git config user.email 'release-fixture@example.invalid'
@@ -134,9 +146,9 @@ for phase in common-setup cli-setup common-check cli-check; do
     [[ -z "$(git tag -l)" ]] || exit 1
     case "$phase" in
         common-setup) expected='common setup' ;;
-        cli-setup) expected=$'common setup\ncli setup' ;;
-        common-check) expected=$'common setup\ncli setup\ncommon check' ;;
-        cli-check) expected=$'common setup\ncli setup\ncommon check\ncli check' ;;
+        cli-setup) expected=$'common setup\ncommon setup\ncommon setup\ncli setup' ;;
+        common-check) expected=$'common setup\ncommon setup\ncommon setup\ncli setup\ncommon check' ;;
+        cli-check) expected=$'common setup\ncommon setup\ncommon setup\ncli setup\ncommon check\ncli check' ;;
     esac
     [[ "$(cat target/preparation-dispatch.log)" == "$expected" ]] || exit 1
     rm "target/fail-$phase"
@@ -146,7 +158,7 @@ touch target/fail-gate
 if make --no-print-directory release-patch > "$fixture/gate-failure.log" 2>&1; then exit 1; fi
 [[ "$(git rev-parse HEAD)" == "$before" && "$(make -s release-version)" == 0.1.0 ]] || exit 1
 [[ -z "$(git tag -l)" && -f target/keep ]] || exit 1
-[[ "$(cat target/preparation-dispatch.log)" == $'common setup\ncli setup\ncommon check\ncli check\ngate' ]] || exit 1
+[[ "$(cat target/preparation-dispatch.log)" == $'common setup\ncommon setup\ncommon setup\ncli setup\ncommon check\ncli check\ngate' ]] || exit 1
 rm target/fail-gate
 
 # Initial admission names a changed lock and refuses before validation or
@@ -434,7 +446,7 @@ for disposition in restored prepared; do
     [[ "$(git rev-parse HEAD)" == "$current_source" && -z "$(git tag -l "v$candidate")" ]] || exit 1
     git diff --quiet HEAD -- Cargo.toml Cargo.lock CHANGELOG.md release-validation.json
     git diff --cached --quiet HEAD --
-    { cat "$fixture/$disposition-before-restart.log"; printf 'common setup\ncli setup\ncommon check\ncli check\ngate\n'; } > "$fixture/$disposition-expected-failed-dispatch.log"
+    { cat "$fixture/$disposition-before-restart.log"; printf 'common setup\ncommon setup\ncommon setup\ncli setup\ncommon check\ncli check\ngate\n'; } > "$fixture/$disposition-expected-failed-dispatch.log"
     cmp target/preparation-dispatch.log "$fixture/$disposition-expected-failed-dispatch.log"
     make --no-print-directory "release-$kind" > "$fixture/$disposition-restarted.log" 2>&1
     [[ "$(make -s release-version)" == "$candidate" && -f target/keep ]] || exit 1

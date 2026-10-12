@@ -14,7 +14,7 @@ consumer="$fixture/consumer with spaces"
 mkdir -p "$consumer/make" "$consumer/ci" "$consumer/scripts/dev" \
     "$consumer/scripts/ci" "$consumer/scripts/release" "$consumer/packages/client" "$fixture/bin"
 cp packages/client/package.json packages/client/.nvmrc "$consumer/packages/client/"
-for input in Makefile make/tools.mk make/release.mk make/rust-format.mk make/execution.mk \
+for input in Makefile make/consumer.mk make/tools.mk make/release.mk make/rust-format.mk make/execution.mk \
     ci/tool-versions.env scripts/ci/check-make-execution.sh; do
     cp -p "$input" "$consumer/$input"
 done
@@ -47,11 +47,12 @@ set -euo pipefail
 exec cargo "$@"
 SCRIPT
 done
-cat >> "$consumer/Makefile" <<'MAKE'
-
-install-host-tools check-package-licenses:
-	@:
-MAKE
+printf '#!/usr/bin/env bash\nexit 0\n' > "$consumer/scripts/dev/install-host-tools.sh"
+mkdir -p "$consumer/crates/ic-auth" "$consumer/crates/ic-auth-protocol-types"
+cp LICENSE "$consumer/LICENSE"
+for package in ic-auth ic-auth-protocol-types; do
+    cp "crates/$package/LICENSE" "$consumer/crates/$package/LICENSE"
+done
 options=(--no-print-directory -j4)
 if make --help | rg -q -- --jobserver-style; then
     options+=(--jobserver-style=pipe)
@@ -80,4 +81,5 @@ for mode in -n -t -q -i; do
         [[ "$status" != 0 && ! -s "$AUTH_JOBSERVER_LOG" ]]
     done
 done
+if rg 'warning: (overriding recipe|ignoring old recipe)' "$fixture"/*.log; then exit 1; fi
 printf 'Actual Make Cargo descriptor handoff and unsafe-mode refusal verified (substituted effects)\n'

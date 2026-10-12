@@ -31,6 +31,11 @@ printf 'synthetic server bytes\n' > "$TESTKIT_FIXTURE_SERVER"
 cat > "$consumer/scripts/dev/install-rust-tools.sh" <<'SCRIPT'
 #!/usr/bin/env bash
 set -euo pipefail
+if [[ $# == 4 || ( $# == 5 && "${5:-}" == --check ) ]]; then
+    if [[ $# == 5 ]]; then target=rust-tools-check; else target=install-rust-tools; fi
+    printf '%s\n' "$target" >> "$TESTKIT_FIXTURE_LOG"
+    exit 0
+fi
 if [[ $# == 5 && "$1" == --consumer && "$2" == "$TESTKIT_FIXTURE_CONSUMER" &&
       "$3" == --versions && "$4" == "$TESTKIT_FIXTURE_CONSUMER/ci/tool-versions.env" && "$5" == --preflight ]]; then
     printf 'rust preflight\n' >> "$TESTKIT_FIXTURE_LOG"
@@ -66,6 +71,11 @@ SCRIPT
 cat > "$consumer/scripts/dev/install-ic-tools.sh" <<'SCRIPT'
 #!/usr/bin/env bash
 set -euo pipefail
+if [[ $# == 4 || ( $# == 5 && "${5:-}" == --check ) ]]; then
+    if [[ $# == 5 ]]; then target=ic-tools-check; else target=install-ic-tools; fi
+    printf '%s\n' "$target" >> "$TESTKIT_FIXTURE_LOG"
+    exit 0
+fi
 [[ $# == 5 && "$1" == --consumer && "$2" == "$TESTKIT_FIXTURE_CONSUMER" &&
    "$3" == --pins && "$4" == "$TESTKIT_FIXTURE_CONSUMER/ci/ic-tools.tsv" && "$5" == --preflight ]] || exit 1
 printf 'ic preflight\n' >> "$TESTKIT_FIXTURE_LOG"
@@ -120,20 +130,42 @@ rg -F 'make install-testkit-tools' "$fixture/missing.stderr" > /dev/null
 # including parallel Make. Substitute the already-prepared common bundle only;
 # Testkit admission and the validation runner remain their actual callers.
 mkdir -p "$consumer/make" "$consumer/ci" "$consumer/scripts/ci"
-for input in Makefile make/tools.mk make/release.mk make/rust-format.mk make/execution.mk \
-    ci/tool-versions.env scripts/ci/check-make-execution.sh scripts/ci/run-validation-targets.sh; do
+for input in Makefile make/consumer.mk make/tools.mk make/release.mk make/rust-format.mk make/execution.mk \
+    ci/tool-versions.env ci/ic-tools.tsv Cargo.toml rust-toolchain.toml \
+    packages/client/package.json packages/client/package-lock.json packages/client/.nvmrc \
+    scripts/ci/check-make-execution.sh scripts/ci/verify-file-checksum.sh \
+    scripts/ci/run-validation-targets.sh; do
+    mkdir -p "$consumer/$(dirname "$input")"
     cp -p "$input" "$consumer/$input"
 done
-cat >> "$consumer/Makefile" <<'MAKE'
-
-install-host-tools install-ic-tools install-rust-tools install-msrv host-tools-check ic-tools-check rust-tools-check:
-	@printf '%s\n' '$@' >> "$(TESTKIT_FIXTURE_LOG)"
-msrv-tools-check:
-	@printf '%s\n' '$@' >> "$(TESTKIT_FIXTURE_LOG)"
-	@exit "$${TESTKIT_FIXTURE_MSRV_STATUS:-0}"
-check-snapshot:
-	@printf 'snapshot check\n' >> "$(TESTKIT_FIXTURE_LOG)"
-MAKE
+cat > "$consumer/scripts/dev/install-host-tools.sh" <<'SCRIPT'
+#!/usr/bin/env bash
+set -euo pipefail
+if [[ "${*: -1}" == --check ]]; then target=host-tools-check; else target=install-host-tools; fi
+printf '%s\n' "$target" >> "$TESTKIT_FIXTURE_LOG"
+SCRIPT
+cat > "$consumer/scripts/dev/msrv-tools.sh" <<'SCRIPT'
+#!/usr/bin/env bash
+set -euo pipefail
+case "$1" in
+    install) printf 'install-msrv\n' >> "$TESTKIT_FIXTURE_LOG" ;;
+    check) printf 'msrv-tools-check\n' >> "$TESTKIT_FIXTURE_LOG"; exit "${TESTKIT_FIXTURE_MSRV_STATUS:-0}" ;;
+    *) exit 2 ;;
+esac
+SCRIPT
+cat > "$consumer/scripts/ci/verify-shared-tooling-snapshot.sh" <<'SCRIPT'
+#!/usr/bin/env bash
+set -euo pipefail
+printf 'snapshot check\n' >> "$TESTKIT_FIXTURE_LOG"
+if [[ -n "${TESTKIT_FIXTURE_INPUT_EDIT:-}" ]]; then
+    case "${TESTKIT_FIXTURE_INPUT_ACTION:-append}" in
+        append) printf '\n' >> "$TESTKIT_FIXTURE_INPUT_EDIT" ;;
+        delete) rm "$TESTKIT_FIXTURE_INPUT_EDIT" ;;
+        *) exit 2 ;;
+    esac
+fi
+exit "${TESTKIT_FIXTURE_SNAPSHOT_STATUS:-0}"
+SCRIPT
 for target in test-qualification ci; do
     : > "$TESTKIT_FIXTURE_LOG"
     status=0
@@ -147,6 +179,31 @@ for target in test-qualification ci; do
             msrv-tools-check 'cli check' > "$fixture/expected-early.log"
         cmp "$fixture/expected-early.log" "$TESTKIT_FIXTURE_LOG"
     fi
+done
+
+# The actual CI roster seals both Rust and frontend preparation before stages.
+# Each independent export mutates one declared input in the first stage; no
+# common/product admission or Cargo dispatch may follow, even under parallel Make.
+for scenario in rust frontend deleted failed-stage; do
+    mutant="$fixture/drift-$scenario"
+    cp -R "$consumer" "$mutant"
+    : > "$TESTKIT_FIXTURE_LOG"
+    input=Cargo.lock; action=append; snapshot_status=0
+    case "$scenario" in
+        frontend) input=packages/client/package-lock.json ;;
+        deleted) input=rust-toolchain.toml; action=delete ;;
+        failed-stage) snapshot_status=37 ;;
+    esac
+    status=0
+    (cd "$mutant"; TESTKIT_FIXTURE_INPUT_EDIT="$input" TESTKIT_FIXTURE_INPUT_ACTION="$action" \
+        TESTKIT_FIXTURE_SNAPSHOT_STATUS="$snapshot_status" make --no-print-directory -j4 ci) \
+        > "$fixture/drift-$scenario.log" 2>&1 || status=$?
+    [[ "$status" == 2 && "$(cat "$TESTKIT_FIXTURE_LOG")" == 'snapshot check' && \
+       ! -e "$mutant/cargo-dispatch.log" ]] || exit 1
+    rg -F "validation input $input" "$fixture/drift-$scenario.log" > /dev/null || \
+        rg -F "validation input changed: $input" "$fixture/drift-$scenario.log" > /dev/null || exit 1
+    rg -F 'Restart preparation and the full gate against the current inputs' "$fixture/drift-$scenario.log" > /dev/null || exit 1
+    [[ "$scenario" != failed-stage ]] || rg -F 'Error 37' "$fixture/drift-$scenario.log" > /dev/null || exit 1
 done
 
 # Real consumer aggregates retain common/product ordering under parallel Make.
@@ -281,4 +338,5 @@ archive="$(rg --files "$consumer/target/portable-fixtures" | rg '/server-evidenc
 mkdir "$fixture/unpacked"
 tar -xzf "$archive" -C "$fixture/unpacked"
 cmp "$consumer/.tools/testkit-server/setup.log" "$fixture/unpacked/.tools/testkit-server/setup.log"
+if rg 'warning: (overriding recipe|ignoring old recipe)' "$fixture"/*.log; then exit 1; fi
 printf 'Testkit explicit setup, offline admission, failure propagation, qualification path and retained CI bytes verified\n'

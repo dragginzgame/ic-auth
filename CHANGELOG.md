@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.5.1]
+
+- Adopt Shared Tooling 0.6.6's common Make entrypoint for setup, formatting,
+  hook installation, snapshot checks and release routing, preserving Auth's
+  commands, ordered MSRV/Testkit admission and complete validation gate.
+  [#33](https://github.com/dragginzgame/ic-auth/issues/33),
+  [Shared #130](https://github.com/dragginzgame/shared-tooling/issues/130).
+- Prepare the shared cargo-sort-derives 0.14.1 pin, which preserves literal
+  `$crate` paths in macro derives and conditional derives. Auth's default
+  formatting policy remains Cargo manifest sorting and rustfmt.
+  [Shared #113](https://github.com/dragginzgame/shared-tooling/issues/113).
+- Seal declared Rust/frontend manifests, locks and tool/compiler pins at CI stage
+  boundaries. Input drift or missing files stop later dispatch, retain original
+  failures and require fresh preparation and validation. Adopt the staged-hook
+  receipt fix without installing tools in the index export.
+  [Shared #129](https://github.com/dragginzgame/shared-tooling/issues/129).
+- Remove repeated recipe override warnings from release, tool-evidence, Testkit
+  and jobserver fixtures. Substitute script effects while exercising the real
+  Make recipes and retaining diagnostics, failure order and recovery evidence.
+  [Shared #128](https://github.com/dragginzgame/shared-tooling/issues/128).
+- Upgrade all four native Host packages to published 0.14.4, preserving incoming
+  Candid 0.10.38, Testkit 0.34.1 and unrelated dependency selections. Qualify with
+  isolated package MSRV, signed-byte/client contracts and
+  real canister certification, upgrades and ingress. Server 16.1.0 stays selected;
+  native tooling remains outside both libraries.
+
 ## [0.5.0] - 2026-10-11
 
 - Breaking: move the canonical session request API to the default-feature

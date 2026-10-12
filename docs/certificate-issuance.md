@@ -52,12 +52,12 @@ reuses grant validation while retaining its own errors, authority deadline,
 request order, deterministic nonce and exact signed claims. Preparation continues
 to assume a host-admitted proof; it does not implicitly run the new issuance API.
 
-After publication, Canic can replace the mechanics of `delegated/cert_rules.rs`
+Canic can replace the mechanics of `delegated/cert_rules.rs`
 with this call, supplying its resolved Root and limits (currently 16 grants and
 32 scopes) and projecting typed errors at its DTO boundary. Keep protected Fleet
 and role policy resolution, issuer approval, Root signing, management effects,
 storage, endpoint authorization and current-clock checks in Canic. Construction
 and pure token-material callers must both use the same adopted owner before
 retiring the old rules. [Canic #491](https://github.com/dragginzgame/canic/issues/491)
-owns consumer adoption; this source implementation does not establish registry
-delivery or Canic runtime acceptance.
+owns consumer adoption; producer qualification and publication do not establish
+Canic runtime acceptance.

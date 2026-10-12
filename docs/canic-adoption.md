@@ -16,17 +16,17 @@ transactions and recovery obligations.
 
 ## Published dependency and feature selection
 
-Both `ic-auth` and `ic-auth-protocol-types` 0.4.7 are published and unyanked.
+Both `ic-auth` and `ic-auth-protocol-types` 0.5.0 are published and unyanked.
 Their registry checksums match IC Auth release
-`06ff1f8ef44277f534b083b5f45f94d573b9f7a5`. Rust 1.88 is the supported minimum.
-The pure preparation API requires at least 0.4.2; 0.4.7 preserves its Rust contract.
+`da82060511719c8055f335dc094fc46603ab8759`. Rust 1.88 is the supported minimum.
+The pure preparation API requires at least 0.4.2; 0.5.0 preserves its Rust contract.
 Select compatible registry requirements in Canic's
 root catalog and record the resolved versions in its own lockfiles:
 
 ```toml
 [workspace.dependencies]
-ic-auth = { version = "0.4.7", default-features = false }
-ic-auth-protocol-types = "0.4.7"
+ic-auth = { version = "0.5.0", default-features = false }
+ic-auth-protocol-types = "0.5.0"
 ```
 
 Child packages inherit these dependencies with `workspace = true`; their
@@ -160,11 +160,11 @@ publication. This extraction is independent of Canic's complete-token freshness,
 protected scope ceiling and committed-session lease decisions. Local Auth tests
 and its actual certified-token fixture do not establish Canic endpoint adoption.
 
-## Pure session request identity (pending 0.5.0)
+## Pure session request identity (released 0.5.0)
 
 [Auth #32](https://github.com/dragginzgame/ic-auth/issues/32) exposes
 [`session_request::SessionRequest`](session-requests.md) without optional features.
-After publication, the always-compiled adapter can replace
+The always-compiled adapter can replace
 `ApplicationSessionWorkflow::establishment_request_hash` with the shared request
 hash while retaining existing typed scope/TTL prechecks and diagnostic order.
 The exact Canic V1 domain, framing and absent/explicit TTL distinction remain.
@@ -181,7 +181,7 @@ operation identity and committed lease policy. Consumer qualification belongs in
 
 The target session engine calls `session::establish_session`; protected operations call
 `session::authorize_session` with current context. Use `SessionRequest::new`
-from `session_request` in pending 0.5.0 for canonical scope/TTL request identity.
+from `session_request` in released 0.5.0 for canonical scope/TTL request identity.
 Do not wrap the old session engine
 behind the library or use its public verified-authority constructor to bypass
 proof verification.

@@ -1,6 +1,6 @@
 # Canonical session requests
 
-Pending **0.5.0** exposes `ic_auth::session_request::{SessionRequest, SessionRequestError}`
+Released **0.5.0** exposes `ic_auth::session_request::{SessionRequest, SessionRequestError}`
 without optional features, including `default-features = false`.
 [Auth #32](https://github.com/dragginzgame/ic-auth/issues/32) owns this extraction;
 [Canic #491](https://github.com/dragginzgame/canic/issues/491) owns consumer adoption.
@@ -39,7 +39,7 @@ The optional [session engine](sessions.md) accepts this same request owner and
 retains its existing admission, policy, transaction and stored-record contracts.
 Request hashes, signed bytes and stored session encoding do not change.
 
-After publication, Canic can replace its local establishment-request hash with
+Canic can replace its local establishment-request hash with
 `SessionRequest::new(...).hash()` in its always-compiled endpoint adapter without
 enabling cryptographic session features. Keep its existing typed scope/TTL
 prechecks and diagnostic order before projection. Protected generation, request
