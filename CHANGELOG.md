@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.5.7]
+## [0.5.7] - 2026-10-12
 
 - Adopt Shared Tooling 0.9.6 with bounded transient setup-download retries and
   stricter snapshot/release Git identities. Wait for the exact uploaded CI
