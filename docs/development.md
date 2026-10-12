@@ -2,12 +2,14 @@
 
 The virtual root owns two libraries, unpublished native tooling in `apps/tooling/`
 and the internal host/runner in `apps/qualification/`, plus dependency selections,
-lints and one lockfile. The current manifest version is `0.5.2`, tagged as
-`v0.5.2`; both libraries are published and checksum-verified. It retains 0.5.0's
+lints and one lockfile. The current manifest version is `0.5.3`, tagged as
+`v0.5.3`; both libraries are published and checksum-verified. It retains 0.5.0's
 default-feature [canonical session requests](session-requests.md) and adopts the
 shared Make entrypoint, prepared-input guards and fixture warning repair.
-Compatible pending 0.5.3 extends real certification qualification across signing
-profiles and qualifies the incoming Testkit 0.34.3 pairing.
+Released 0.5.3 extends real certification qualification across Root/issuer signing
+profiles and qualifies Testkit 0.34.3 with Host 0.14.5. The incoming native lock
+selects Testkit 0.34.4 / Host 0.14.8, qualified by the refreshed local gate under
+[Auth #36](https://github.com/dragginzgame/ic-auth/issues/36).
 Versions remain release-owned.
 Rust `1.99.0` remains the development compiler selected by `rust-toolchain.toml`.
 The common package minimum is Rust `1.88.0`, inherited from the root catalog and
@@ -22,7 +24,7 @@ checks for the same workflow and branch or PR ref; unfinished hosts on cancelled
 revisions remain unqualified.
 Released 0.5.0's complete gate passes on all three hosts in
 [its exact-source CI run](https://github.com/dragginzgame/ic-auth/actions/runs/38160094000).
-Released 0.5.2's [exact-source run](https://github.com/dragginzgame/ic-auth/actions/runs/38231059204)
+Released 0.5.3's [exact-source run](https://github.com/dragginzgame/ic-auth/actions/runs/38236293541)
 and remaining native acceptance are recorded in the [handoff](status/current.md).
 The current uncommitted batch also needs its own native CI after delivery. Shared
 Tooling's [host prerequisites](supported-hosts.md) apply, including Bash 3.2+,
@@ -47,13 +49,22 @@ installation behavior are described in the shared [local setup](local-setup.md).
 The Makefile includes reviewed [`make/consumer.mk`](make-interface.md), which owns
 common setup, formatting, hooks, snapshot verification and release routing.
 `check-snapshot` retains its public name and depends on `shared-tooling-check`.
-The recorded snapshot selects 64 entrypoints and derives their 89-file companion
-closure from commit `8e8cc21265272e0234326c53a8c7bf9e7d8d77df`. That committed
-entrypoint work is pending Shared 0.7.0; its source `VERSION` still records 0.6.6.
-Use the current exporter's `--entrypoint`/`--add-entrypoint` options for selection
-changes, then reuse recorded roots on ordinary refresh. Review the full preview
-and local callers before any individual `--retire-file` approval. See
+The recorded snapshot selects 65 entrypoints and derives their 90-file companion
+closure from committed Shared Tooling 0.8.4
+`dca2bdd018afa6be598f03bb3cce1bab79c66973`. Its exact source `VERSION` records
+0.8.4; no release tag is inferred from that annotation. Refreshes reuse recorded
+roots with the canonical exporter. Preview the complete change and retain directly
+used helpers as entrypoints: unchanged owned payloads outside the new closure are
+retired automatically after ownership, local-edit and index checks. Do not use
+`--retire-file`. Payload replacement is atomic per file; the manifest is published
+last and interrupted refreshes retry against the same source/selection. See
 [snapshot adoption](consuming-snapshots.md#entrypoint-selection-in-070).
+The new [Cargo-tool freshness task](../tasks/cargo-tool-versions.md) is included
+with the catalog; its online checker runs from Shared Tooling and is separate
+from Auth's offline admission and CI. No schedule is enabled by adoption.
+The shared LOC helper also supports machine-readable workspace counts:
+`bash scripts/dev/cloc.sh --json "$PWD"`. Its package rows and totals use numeric
+fields; `make cloc` retains the human table. Fleet aggregation remains Shared-owned.
 Auth owns its tool extensions, application checks and release metadata adapters. Shared Tooling 0.3.4 admits the complete-set platform and
 selected Rust/Cargo toolchain before aggregate setup downloads, then runs the complete
 host, IC and Rust toolsets in order. These read-only preflight calls disable

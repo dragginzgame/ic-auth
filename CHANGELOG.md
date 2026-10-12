@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.5.4]
+
+- Adopt committed Shared Tooling 0.8.4 for strict snapshot records, safer retained
+  Cargo build diagnostics, consistent Rust formatter catalog selection and quiet
+  successful PCRE2 checks. Refreshes replace payloads atomically and retire only
+  unchanged owned files outside the selected entrypoints. Add the Cargo-tool
+  freshness task document; its checker remains Shared-owned. Read workspace LOC
+  as numeric JSON with `cloc.sh --json`, preserving the existing human table.
+  [#37](https://github.com/dragginzgame/ic-auth/issues/37),
+  [Shared #131](https://github.com/dragginzgame/shared-tooling/issues/131),
+  [#135](https://github.com/dragginzgame/shared-tooling/issues/135),
+  [#136](https://github.com/dragginzgame/shared-tooling/issues/136).
+
+- Qualify the incoming native Host 0.14.8 / Testkit 0.34.4 pairing with server
+  16.1.0, including real Root/issuer certification, upgrades, complete-token/
+  session and signed-ingress journeys. Testkit fixes interrupted server-download
+  cleanup; setup remains explicit and checks remain offline. Auth public APIs,
+  signed/stored formats and compiler requirements are unchanged.
+  [#36](https://github.com/dragginzgame/ic-auth/issues/36).
+
 ## [0.5.3] - 2026-10-12
 
 - Qualify Root role-attestation and issuer-token signature profiles in one

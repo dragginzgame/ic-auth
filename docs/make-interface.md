@@ -14,6 +14,9 @@ sets `SHARED_TOOLING_RUST := 0` before the include; it still prepares the comple
 common toolset, but does not expose Rust formatting or hook installation.
 The include preserves the consumer's default goal, even when declared later.
 Parsing it never installs tools, activates hooks or starts a release.
+Selecting `make/consumer.mk` as a snapshot entrypoint includes the common
+installers and default LOC helper through their declared dependencies. Pin
+catalogs remain consumer-owned; optional fleet reports require explicit selection.
 
 | Commands | Shared owner | Consumer inputs |
 | --- | --- | --- |
@@ -127,7 +130,7 @@ recipe warnings rather than filtering them from every invocation.
 
 1. Refresh the [recorded snapshot](consuming-snapshots.md), selecting
    `make/consumer.mk` as an entrypoint. The exporter derives its companion closure;
-   preview reports all additions, updates and explicit retirements. Include other
+   preview reports all additions, updates and automatic retirements. Include other
    locally used commands and governance roots; this entrypoint is not their inventory.
 2. Replace the separate shared includes and equivalent local hook/snapshot-check
    recipes. Retain stronger prerequisites, target environment and extra snapshot
