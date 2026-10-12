@@ -10,6 +10,7 @@ unset MAKEFLAGS MFLAGS MAKEOVERRIDES GNUMAKEFLAGS MAKEFILES
 mkdir -p target/portable-fixtures
 fixture="$(mktemp -d "$root/target/portable-fixtures/tools-evidence.XXXXXX")"
 printf 'Tool failure evidence retained: %s\n' "$fixture"
+bash scripts/ci/test-artifact-discovery.sh
 consumer="$fixture/consumer with spaces"
 mkdir -p "$consumer/scripts/dev" "$consumer/scripts/ci" "$consumer/make" "$consumer/ci" "$fixture/bin" "$fixture/runner"
 # Copy every include loaded by the actual Makefile so injected failures reach

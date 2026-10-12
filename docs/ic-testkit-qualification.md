@@ -12,7 +12,7 @@ the wrapper asks the locked Testkit CLI to check its prepared server and consume
 only the returned absolute path. There is no test-time setup, server pin catalog
 or retained-bundle fallback. `make install-testkit-tools` explicitly prepares the
 CLI and server; `make testkit-tools-check` performs offline admission alone.
-The incoming lock selects `ic-testkit` 0.34.6, which owns the PocketIC
+The released 0.5.6 lock selects `ic-testkit` 0.34.7, which owns the PocketIC
 dependency; runtime types are imported through
 its re-export, and typed Candid calls preserve application results separately
 from encoding, decoding and replica errors. There is no direct `pocket-ic`
@@ -24,14 +24,21 @@ Released 0.5.3 qualified Testkit 0.34.3 with Host 0.14.5. The earlier
 interruption and retain failure evidence; its library/runtime sources are
 unchanged. Consumer checks still require explicit CLI preparation and offline
 admission, rather than a test-time download.
-Released 0.5.5 selects Testkit 0.34.5 / Host 0.14.9. The incoming Testkit 0.34.6 /
-Host 0.14.10 pairing is reviewed under
+Released 0.5.5 selects Testkit 0.34.5 / Host 0.14.9. The earlier Testkit 0.34.6 /
+Host 0.14.10 preparation is reviewed under
 [Auth #41](https://github.com/dragginzgame/ic-auth/issues/41): published production
 Rust sources are unchanged, while two upstream lock-reacquisition tests gain
-subprocess isolation. Auth's current complete local gate passes all 29 stages,
+subprocess isolation. That complete local gate passes all 29 stages,
 including four real certification/token/session/upgrade/ingress cases with that
 pairing and server 16.1.0. This is Linux/Bash 3.2 evidence; native macOS acceptance
-of the new source/lock follows maintainer delivery.
+of that source/lock remains separate. The delivered 0.5.6 source instead selects
+Testkit 0.34.7 with direct Host filesystem/artifacts 0.15.0 and Testkit's transitive
+Host 0.14.10 family. Pending 0.5.7 preserves those selections and qualifies them
+under [Auth #42](https://github.com/dragginzgame/ic-auth/issues/42): all 29 local
+Linux/Bash 3.2 stages pass, including four real canister cases. Native macOS
+acceptance of that source remains separate. Older receipts
+do not qualify the later graph. Testkit's library/runtime behavior is unchanged
+in 0.34.7; its packaged notes describe contributor tooling adoption.
 The selected transitive client and server are both 16.1.0. The IC agent is 0.49.2
 and the host CDK is 0.20.3; versions and dependencies are owned by the virtual root.
 PocketIC 16.1.0 pins `thiserror` 2.0.18, so the shared lock selects that version;

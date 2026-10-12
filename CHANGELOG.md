@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.5.7]
+
+- Adopt Shared Tooling 0.9.6 with bounded transient setup-download retries and
+  stricter snapshot/release Git identities. Wait for the exact uploaded CI
+  artifact to become visible before its pinned download; exhaustion and invalid
+  identity remain failures, with digest and independent byte checks retained.
+  [#42](https://github.com/dragginzgame/ic-auth/issues/42),
+  [Shared #138](https://github.com/dragginzgame/shared-tooling/issues/138),
+  [#133](https://github.com/dragginzgame/shared-tooling/issues/133),
+  [#139](https://github.com/dragginzgame/shared-tooling/issues/139),
+  [#63](https://github.com/dragginzgame/shared-tooling/issues/63).
+
 ## [0.5.6] - 2026-10-12
 
 - Qualify locked native tooling at Host 0.14.10 / Testkit 0.34.6 and updated

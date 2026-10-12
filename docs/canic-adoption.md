@@ -16,17 +16,17 @@ transactions and recovery obligations.
 
 ## Published dependency and feature selection
 
-Both `ic-auth` and `ic-auth-protocol-types` 0.5.5 are published and unyanked.
+Both `ic-auth` and `ic-auth-protocol-types` 0.5.6 are published and unyanked.
 Their registry checksums match IC Auth release
-`95dfc17da8ec5c90d3c258a8727acc0214eac5c3`. Rust 1.88 is the supported minimum.
-The pure preparation API requires at least 0.4.2; 0.5.5 preserves its Rust contract.
+`dd57087020e12bbd30794f386360a6ec6ef5837f`. Rust 1.88 is the supported minimum.
+The pure preparation API requires at least 0.4.2; 0.5.6 preserves its Rust contract.
 Select compatible registry requirements in Canic's
 root catalog and record the resolved versions in its own lockfiles:
 
 ```toml
 [workspace.dependencies]
-ic-auth = { version = "0.5.5", default-features = false }
-ic-auth-protocol-types = "0.5.5"
+ic-auth = { version = "0.5.6", default-features = false }
+ic-auth-protocol-types = "0.5.6"
 ```
 
 Child packages inherit these dependencies with `workspace = true`; their
@@ -47,7 +47,7 @@ certificate issuance and enabled chain-key checks/normalization, with direct
 production K256 retired from Core. Its [scoped native/Clippy/Wasm evidence](https://github.com/dragginzgame/ic-auth/issues/32#issuecomment-6120465762)
 and [extraction handoff](https://github.com/dragginzgame/canic/issues/491#issuecomment-6120497751)
 do not establish consumer publication, deployment or complete session-engine
-acceptance. Compatible Auth 0.5.1 through 0.5.5 introduce no new API prerequisite.
+acceptance. Compatible Auth 0.5.1 through 0.5.6 introduce no new API prerequisite.
 
 The [read-only verifier review](https://github.com/dragginzgame/canic/issues/491#issuecomment-6126777217)
 finds Canic's dirty root lock selecting published 0.5.4. Its complete-token
@@ -73,8 +73,12 @@ Browser adapter qualification still requires non-issuing reconciliation in
 
 Producer 0.5.4's [complete native matrix](https://github.com/dragginzgame/ic-auth/actions/runs/38247803905)
 qualifies its retained library and actual canister fixture on Linux, Intel macOS
-and ARM macOS. Published 0.5.5's [own run](https://github.com/dragginzgame/ic-auth/actions/runs/38264912310)
-is still incomplete. Neither proves Canic's changing endpoints or persistence.
+and ARM macOS. Published 0.5.6's [own run](https://github.com/dragginzgame/ic-auth/actions/runs/38273690043)
+passes Linux, with Intel macOS queued and ARM macOS running at inspection.
+Neither proves Canic's
+changing endpoints or persistence. Pending compatible 0.5.7 adopts contributor
+tooling; it adds no new library API prerequisite for Canic. Durable store,
+rollback/restart/upgrade and deployed acceptance stay with the consumer owner.
 
 | Existing Canic capability | IC Auth selection | Retained Canic responsibility |
 | --- | --- | --- |

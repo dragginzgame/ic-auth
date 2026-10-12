@@ -2,8 +2,8 @@
 
 The virtual root owns two libraries, unpublished native tooling in `apps/tooling/`
 and the internal host/runner in `apps/qualification/`, plus dependency selections,
-lints and one lockfile. The current manifest version is `0.5.5`, tagged as
-`v0.5.5`; both libraries are published and checksum-verified. It retains 0.5.0's
+lints and one lockfile. The current manifest version is `0.5.6`, tagged as
+`v0.5.6`; both libraries are published and checksum-verified. It retains 0.5.0's
 default-feature [canonical session requests](session-requests.md) and adopts the
 shared Make entrypoint, prepared-input guards and fixture warning repair.
 Released 0.5.3 extends real certification qualification across Root/issuer signing
@@ -15,11 +15,18 @@ Released 0.5.5's lock selects Host 0.14.9 / Testkit 0.34.5 with the same
 server 16.1.0, qualified by the complete local gate. Its separate native
 acceptance and evidence are tracked in
 [Auth #40](https://github.com/dragginzgame/ic-auth/issues/40).
-The incoming 0.5.6 lock selects Host 0.14.10 / Testkit 0.34.6 and newer native
-TLS/macro dependencies. [Auth #41](https://github.com/dragginzgame/ic-auth/issues/41)
-records its passing complete Linux/Bash 3.2 gate, including native/Wasm Rust 1.88
-package paths and four real canister cases. Native acceptance after delivery
-remains separate; older gates do not qualify the incoming graph.
+Released 0.5.6 selects direct Host filesystem/artifacts 0.15.0 and Testkit 0.34.7;
+Testkit retains its transitive four-package Host 0.14.10 family. The server stays
+16.1.0, with newer native TLS/macro dependencies.
+[Auth #41](https://github.com/dragginzgame/ic-auth/issues/41) retains the earlier
+0.14.10/0.34.6 preparation receipt; it does not qualify the later selections.
+Released 0.5.6's exact-source Linux gate passes; Intel macOS is queued and ARM
+macOS is running at inspection.
+The pending compatible 0.5.7 tooling batch preserves this Cargo graph and
+passes the complete 29-stage Linux/Bash 3.2 gate under
+[Auth #42](https://github.com/dragginzgame/ic-auth/issues/42), including package
+MSRV paths and all four real canister cases. Native acceptance of that source
+remains separate.
 Rust `1.99.0` remains the development compiler selected by `rust-toolchain.toml`.
 The common package minimum is Rust `1.88.0`, inherited from the root catalog and
 qualified by explicit older-compiler checks. See [MSRV coverage](msrv.md).
@@ -36,9 +43,11 @@ Released 0.5.0's complete gate passes on all three hosts in
 Released 0.5.4's [exact-source run](https://github.com/dragginzgame/ic-auth/actions/runs/38247803905)
 passes on all three hosts. Released 0.5.5's
 [own run](https://github.com/dragginzgame/ic-auth/actions/runs/38264912310)
-passes the complete Linux gate; Intel macOS is running and ARM macOS is queued
-at final inspection.
-It is not a completed native matrix. Shared
+passes Linux and Intel macOS; ARM macOS was cancelled by the newer revision.
+Released 0.5.6's [own run](https://github.com/dragginzgame/ic-auth/actions/runs/38273690043)
+passes Linux; Intel macOS is queued and ARM macOS is running at inspection.
+Neither is a completed
+native matrix, and neither qualifies uncommitted 0.5.7 changes. Shared
 Tooling's [host prerequisites](supported-hosts.md) apply, including Bash 3.2+,
 GNU Make, rustup, Git and standard Unix setup utilities.
 
@@ -50,8 +59,23 @@ only after dependency preparation and offline admission succeed. The workflow's
 strict pipeline preserves the first setup failure in retained logs. This is
 explicit CI setup; ordinary checks do not install. The retained Intel macOS
 failure under [#38](https://github.com/dragginzgame/ic-auth/issues/38) has no actual
-version/path observations, so native acceptance of the repair still requires its
-own pushed-source matrix.
+version/path observations. The repaired route passes Intel macOS at 0.5.5.
+Complete native acceptance remains source-bound and still requires the unfinished
+ARM case.
+
+CI waits for its exact uploaded Rust-tool artifact through the shared read-only
+helper before the pinned download action. Successful listings retry an absent
+ID at most six times with 60 seconds of backoff, within a two-minute step;
+API/schema, expired or wrong-run identities fail immediately. Download requires
+discovery success and retains strict digest admission and independent retained
+byte checks. `test-tools-evidence` exercises the actual workflow command with
+substituted API/sleep effects; it does not upload or retrieve live artifacts.
+
+Shared 0.9.6 also bounds transient host/IC asset setup retries. Permanent download
+and checksum errors remain terminal, with failed candidates and previous tool
+selections retained. Ordinary checks stay offline. Snapshot and release recovery
+admit only complete 40- or 64-character Git identities; PR identity strings reject
+trailing newlines before state writes. Auth retains direct release delivery.
 
 ## Setup
 
@@ -72,10 +96,10 @@ installation behavior are described in the shared [local setup](local-setup.md).
 The Makefile includes reviewed [`make/consumer.mk`](make-interface.md), which owns
 common setup, formatting, hooks, snapshot verification and release routing.
 `check-snapshot` retains its public name and depends on `shared-tooling-check`.
-The recorded snapshot selects 65 entrypoints and derives their 90-file companion
-closure from committed Shared Tooling 0.9.2
-`c118062a070a2e238f1eb3989b6fd700f369ce1e`. Its exact source `VERSION` records
-0.9.2; no release tag is inferred from that annotation. Refreshes reuse recorded
+The recorded snapshot selects 66 entrypoints and derives their 91-file companion
+closure from committed Shared Tooling 0.9.6
+`7e9f062f53baad2059a8585e2fffe2b98f03bafd`. Its exact source `VERSION` records
+0.9.6; no release tag is inferred from that annotation. Refreshes reuse recorded
 roots with the canonical exporter. Preview the complete change and retain directly
 used helpers as entrypoints: unchanged owned payloads outside the new closure are
 retired automatically after ownership, local-edit and index checks. Do not use
@@ -469,7 +493,7 @@ private-file publication use `ic-host-fs`. The caller supplies finite byte limit
 tooling limits, not authentication protocol limits. The publication lock and
 registry uncertainty policy remain owned by the release/publication scripts.
 
-The native utility and qualification runner select published `ic-host-fs` 0.13;
+The native utility and qualification runner select published `ic-host-fs` 0.15.0;
 the utility uses
 `durable::write_with(path, options, producer)` with explicit create/replace modes
 and owner-only permissions. Publication errors retain their typed before/after

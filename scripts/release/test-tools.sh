@@ -43,6 +43,7 @@ overlays=(.gitignore Makefile Cargo.toml Cargo.lock CHANGELOG.md .shared-tooling
     scripts/dev/run-host-tooling.sh
     scripts/dev/client-tools.sh scripts/dev/client-contracts.sh scripts/dev/test-client.sh
     scripts/dev/prepare-client-ci.sh scripts/ci/test-client-tools.sh .github/workflows/ci.yml
+    scripts/ci/test-artifact-discovery.sh
     scripts/dev/test-qualification.sh scripts/dev/testkit-tools.sh
     scripts/ci/test-testkit-tools.sh
     scripts/dev/msrv-tools.sh scripts/dev/check-msrv.sh
