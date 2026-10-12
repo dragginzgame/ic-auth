@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.5.4]
+## [0.5.4] - 2026-10-12
 
 - Adopt committed Shared Tooling 0.8.4 for strict snapshot records, safer retained
   Cargo build diagnostics, consistent Rust formatter catalog selection and quiet
