@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.5.5]
+## [0.5.5] - 2026-10-12
 
 - Adopt committed Shared Tooling 0.9.2’s unified snapshot reader, including NUL
   rejection and complete validated-record output. Keep ownership/integrity
