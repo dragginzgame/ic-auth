@@ -37,11 +37,14 @@ certificate and does not sort, normalize or change any signed field.
 Canic's current raw DTO can contain malformed role labels; its eager `protocol::cert`
 projection checks every role before this passive validator can run. That projection
 alone cannot preserve the old raw DTO precedence for a malformed later role combined
-with an earlier Root, lifetime, grant-count or scope failure. Consumer adoption must
-resolve and test this boundary before claiming equivalent refusals or retiring all
-local rules. Do not bypass `AuthRole` validation or manufacture substitute signed
-fields to hide a projection error. The producer's ordered contract covers validly
-constructed passive roles; raw DTO admission remains a consumer acceptance gap.
+with an earlier Root, lifetime, grant-count or scope failure. Canic's owner now
+reports choosing projection-first refusal as an explicit pre-1.0 hard cut,
+retiring its duplicate rules and testing an invalid-role/invalid-lifetime case
+with zero Root/issuer proof callbacks. See the [consumer evidence](https://github.com/dragginzgame/ic-auth/issues/30#issuecomment-6120497461).
+That choice is locally qualified in its held integration batch; consumer delivery
+and complete session-engine acceptance remain separate. Do not bypass `AuthRole`
+validation or manufacture substitute signed fields to hide a projection error.
+The producer's ordered contract covers validly constructed passive roles.
 
 Anonymous principals, current-clock acceptance, issuer approval, enrolled Root
 policy and certificate freshness are deliberately separate obligations. Complete

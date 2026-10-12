@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.5.2]
+
+- Select explicit Shared Tooling snapshot entrypoints and derive their required
+  companions from the reviewed commit, preserving the existing payload and
+  command surface. Future refreshes reuse the recorded roots; omitted files
+  require individual ownership-checked retirement.
+  [#34](https://github.com/dragginzgame/ic-auth/issues/34),
+  [Shared #131](https://github.com/dragginzgame/shared-tooling/issues/131).
+- Qualify the incoming native Host 0.14.5 selection with Testkit 0.34.2 and its
+  admitted server 16.1.0, retaining explicit setup/offline checks and native
+  dependencies outside both libraries. Auth APIs, signed/stored formats and
+  compiler requirements are unchanged.
+  [#34](https://github.com/dragginzgame/ic-auth/issues/34).
+
 ## [0.5.1] - 2026-10-12
 
 - Adopt Shared Tooling 0.6.6's common Make entrypoint for setup, formatting,

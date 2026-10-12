@@ -2,11 +2,13 @@
 
 The virtual root owns two libraries, unpublished native tooling in `apps/tooling/`
 and the internal host/runner in `apps/qualification/`, plus dependency selections,
-lints and one lockfile. The current manifest version is `0.5.0`, tagged as
-`v0.5.0`; both libraries are published and checksum-verified. That release exposes
-[canonical session requests](session-requests.md) in the default selection with
-the new constructor error type. Compatible pending 0.5.1 adopts the shared Make
-entrypoint, guards prepared inputs and repairs fixture warning noise. Versions remain release-owned.
+lints and one lockfile. The current manifest version is `0.5.1`, tagged as
+`v0.5.1`; both libraries are published and checksum-verified. It retains 0.5.0's
+default-feature [canonical session requests](session-requests.md) and adopts the
+shared Make entrypoint, prepared-input guards and fixture warning repair.
+Compatible pending 0.5.2 adopts snapshot entrypoints and qualifies the incoming
+native Host 0.14.5 pairing.
+Versions remain release-owned.
 Rust `1.99.0` remains the development compiler selected by `rust-toolchain.toml`.
 The common package minimum is Rust `1.88.0`, inherited from the root catalog and
 qualified by explicit older-compiler checks. See [MSRV coverage](msrv.md).
@@ -20,7 +22,9 @@ checks for the same workflow and branch or PR ref; unfinished hosts on cancelled
 revisions remain unqualified.
 Released 0.5.0's complete gate passes on all three hosts in
 [its exact-source CI run](https://github.com/dragginzgame/ic-auth/actions/runs/38160094000).
-The current uncommitted batch still requires its own native CI. Shared
+Released 0.5.1's [exact-source run](https://github.com/dragginzgame/ic-auth/actions/runs/38225498434)
+and remaining native acceptance are recorded in the [handoff](status/current.md).
+The current uncommitted batch also needs its own native CI after delivery. Shared
 Tooling's [host prerequisites](supported-hosts.md) apply, including Bash 3.2+,
 GNU Make, rustup, Git and standard Unix setup utilities.
 
@@ -43,6 +47,13 @@ installation behavior are described in the shared [local setup](local-setup.md).
 The Makefile includes reviewed [`make/consumer.mk`](make-interface.md), which owns
 common setup, formatting, hooks, snapshot verification and release routing.
 `check-snapshot` retains its public name and depends on `shared-tooling-check`.
+The recorded snapshot selects 64 entrypoints and derives their 89-file companion
+closure from commit `8e8cc21265272e0234326c53a8c7bf9e7d8d77df`. That committed
+entrypoint work is pending Shared 0.7.0; its source `VERSION` still records 0.6.6.
+Use the current exporter's `--entrypoint`/`--add-entrypoint` options for selection
+changes, then reuse recorded roots on ordinary refresh. Review the full preview
+and local callers before any individual `--retire-file` approval. See
+[snapshot adoption](consuming-snapshots.md#entrypoint-selection-in-070).
 Auth owns its tool extensions, application checks and release metadata adapters. Shared Tooling 0.3.4 admits the complete-set platform and
 selected Rust/Cargo toolchain before aggregate setup downloads, then runs the complete
 host, IC and Rust toolsets in order. These read-only preflight calls disable
@@ -440,7 +451,7 @@ directly and obtains runtime types through Testkit. Testkit owns adoption of
 Host's breaking process API; Auth has no direct caller or compatibility shim.
 Directory-suffixed publication targets are refused before creating parents or
 replacing a stripped filename; the native utility uses that upstream guard.
-The current lock selects Testkit 0.34.1 and the four Host packages at 0.14.4.
+The current lock selects Testkit 0.34.2 and the four Host packages at 0.14.5.
 These updates remain in native tooling and qualification; Auth's callers do not
 use Host's replaced completed-process-result boundary. Native graph qualification
 uses the actual certification, upgrade and ingress journey, separately from

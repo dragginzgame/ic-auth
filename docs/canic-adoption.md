@@ -16,17 +16,17 @@ transactions and recovery obligations.
 
 ## Published dependency and feature selection
 
-Both `ic-auth` and `ic-auth-protocol-types` 0.5.0 are published and unyanked.
+Both `ic-auth` and `ic-auth-protocol-types` 0.5.1 are published and unyanked.
 Their registry checksums match IC Auth release
 `da82060511719c8055f335dc094fc46603ab8759`. Rust 1.88 is the supported minimum.
-The pure preparation API requires at least 0.4.2; 0.5.0 preserves its Rust contract.
+The pure preparation API requires at least 0.4.2; 0.5.1 preserves its Rust contract.
 Select compatible registry requirements in Canic's
 root catalog and record the resolved versions in its own lockfiles:
 
 ```toml
 [workspace.dependencies]
-ic-auth = { version = "0.5.0", default-features = false }
-ic-auth-protocol-types = "0.5.0"
+ic-auth = { version = "0.5.1", default-features = false }
+ic-auth-protocol-types = "0.5.1"
 ```
 
 Child packages inherit these dependencies with `workspace = true`; their
@@ -41,7 +41,13 @@ diagnostic projection; signed bytes and successful acceptance are unchanged.
 Canic's owner-reported preparation qualification selects 0.4.2 at its recorded
 checkpoint below. A later read-only lock inspection resolves 0.4.5 without
 establishing new consumer qualification. Selected versions alone do not
-establish full runtime or deployment acceptance.
+establish full runtime or deployment acceptance. The consumer now reports
+Auth 0.5.0 adoption in its held integration batch for pure request hashing,
+certificate issuance and enabled chain-key checks/normalization, with direct
+production K256 retired from Core. Its [scoped native/Clippy/Wasm evidence](https://github.com/dragginzgame/ic-auth/issues/32#issuecomment-6120465762)
+and [extraction handoff](https://github.com/dragginzgame/canic/issues/491#issuecomment-6120497751)
+do not establish consumer publication, deployment or complete session-engine
+acceptance. Compatible Auth 0.5.1 introduces no new API prerequisite.
 
 | Existing Canic capability | IC Auth selection | Retained Canic responsibility |
 | --- | --- | --- |
@@ -97,12 +103,15 @@ used by certificate construction and pure token-material validation with
 `validate_certificate_issuance`, passing independently resolved Root and explicit
 TTL/grant/scope bounds. Map distinct lifetime and grant causes to the existing
 consumer refusals; validate Canic role labels during the passive DTO projection.
-Keep its canonical rejection order, signed bytes, protected policy resolution,
+Keep shared canonical rejection order, signed bytes, protected policy resolution,
 issuer approval, signing and clock checks. Shape success does not establish any
-of those authorities. Consumer fixtures must establish equivalent combined-invalid
-refusals before deleting the local engine. Eager raw DTO role projection can change
-the order of a malformed-role refusal; the contract above records that specific
-unresolved consumer boundary. No sibling edit or acceptance is claimed.
+of those authorities. Eager raw DTO role projection precedes shared validation.
+Canic's owner reports accepting that diagnostic order as a pre-1.0 hard cut,
+retiring duplicate rules and qualifying an invalid-role/invalid-lifetime case
+with zero proof callbacks. See the [producer feedback](https://github.com/dragginzgame/ic-auth/issues/30#issuecomment-6120497461).
+This resolves the earlier raw DTO order choice in its held integration batch;
+matching delivered consumer acceptance remains under Canic #491. No sibling
+source was changed or built here.
 
 Use the protocol package's token, proof, certificate, audience and grant types
 as their canonical declarations. Remove superseded generic Canic declarations;

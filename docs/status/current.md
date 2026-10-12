@@ -3,16 +3,20 @@
 The maintainer accepted the larger Canic authentication extraction, selected the
 name `ic-auth`, and confirmed `/home/adam/projects/ic-auth` as the local repository.
 
-The current committed release is `da82060511719c8055f335dc094fc46603ab8759`
-(`0.5.0`) on `main`, with annotated tag `v0.5.0` object
-`ce3f02f25f57dc8070e8c1ad4c099392ff0b77a1`; remote main and the peeled tag match
+The current committed release is `7e6be6bcdcd309d6e0a106f061806007cbe12d8e`
+(`0.5.1`) on `main`, with annotated tag `v0.5.1` object
+`729409a597220780cf5b2a63ce5c274d48abf500`; remote main and the peeled tag match
 its retained publication intent. Both libraries are indexed, unyanked and
 checksum-matched: protocol-types
-`ab2cf145240b06e085dd0c7ea9b78eb2cdb03fd4c7edf8717a2cf23de325f62d`
-and auth `2b6d8a7f4233cd0655febd3cd6fe660cafe358ce5d78eaef2223d1e396d678f9`.
-[Exact-source CI](https://github.com/dragginzgame/ic-auth/actions/runs/38160094000)
-passes Linux and both macOS 15 architectures. This delivers and natively qualifies
-pure session requests, plus the earlier chain-key and certificate issuance APIs.
+`76ebdc4aea43afdc998216f25e35685f5f4bc07a81c8f41cd522b5840ac5988b`
+and auth `d9f5f3b5cc0b4cf6384e653a09c64fd62f52fb662ee1c48db0968e43b8d24e35`.
+[Exact-source 0.5.1 CI](https://github.com/dragginzgame/ic-auth/actions/runs/38225498434)
+passes Linux and Apple Silicon; Intel macOS is still running at final inspection.
+[Auth #33](https://github.com/dragginzgame/ic-auth/issues/33) retains native
+acceptance. The released source selects Testkit 0.34.2 and Host 0.14.4, differing
+from the earlier preparation's Testkit selection. Released 0.5.0's
+[complete three-host evidence](https://github.com/dragginzgame/ic-auth/actions/runs/38160094000)
+qualifies its pure request, chain-key and certificate APIs at that older source.
 Earlier pending/publication observations below remain historical. The original
 bootstrap was `7a03102e52b7a400588530997a9f7fb91c83de9d` (`0.1.0`).
 The public remote [dragginzgame/ic-auth](https://github.com/dragginzgame/ic-auth)
@@ -28,7 +32,7 @@ records this batch without closing the larger extraction.
 
 The virtual Rust workspace contains `ic-auth-protocol-types`, `ic-auth` and the
 unpublished native application in `apps/tooling/`, with one lockfile, root-owned
-dependency selections and current manifest version `0.5.0`.
+dependency selections and current manifest version `0.5.1`.
 The passive token/proof contracts and canonical encoding are adapted from the
 clean Canic source at `e286b3fd98460c98670336853f80658a920966e0`; see the
 [source review](../design/canic-source-review.md) for exact ownership and API
@@ -41,15 +45,89 @@ packages under `apps/qualification/` and their IC Testkit qualification.
 There is no stable canister adapter or wallet endpoint yet. The private browser
 client now implements injected token lifecycle machinery; real issuer adapter
 qualification, npm publication and consumer adoption remain pending.
-Canic adoption is in progress in the consumer's dirty working tree. Its owner
-now records published 0.4.2 pure preparation/finishing adoption, with 204 focused
-Auth/workflow cases, five wire cases and enabled/disabled Clippy in
-[the existing tracker](https://github.com/dragginzgame/canic/issues/491#issuecomment-6109065011).
+Canic adoption is in progress in the consumer's held integration batch. Its owner
+records published Auth 0.5.0 request hashing, certificate rules and enabled
+chain-key checks/normalization, with direct production K256 retired from Core,
+in [the existing tracker](https://github.com/dragginzgame/canic/issues/491#issuecomment-6120497751).
+The earlier 0.4.2 preparation checkpoint remains historical evidence below.
 That evidence binds its reported consumer inputs, not later changing sibling
 files. Complete-token, durable-session and deployed acceptance remain separate.
 No sibling repository was modified or built by IC Auth work.
 
-## Current continuation (pending 0.5.1)
+## Current continuation (pending 0.5.2)
+
+[Auth #34](https://github.com/dragginzgame/ic-auth/issues/34) adopts committed
+Shared entrypoint work **`8e8cc21265272e0234326c53a8c7bf9e7d8d77df`** and qualifies
+the incoming native **Host 0.14.5 / Testkit 0.34.2 / server 16.1.0** pairing.
+Shared's pending heading is **0.7.0**, while its exact committed `VERSION` and
+snapshot annotation remain **0.6.6**. No 0.7.0 publication is inferred.
+
+Canonical refresh uses an isolated clean checkout and records **64 explicit
+entrypoints with the same 89 payload paths**. Four selected files update;
+none are added or retired. Preview preserves checkout bytes/modes, and subsequent
+no-option preview/refresh reuses recorded roots with a byte-identical manifest.
+The initial exact-origin refusal is corrected only in the isolated clone to
+match existing provenance. Local commands, optional fixture inputs, governance,
+tool pins, formatting and release policy remain selected. Future selection uses
+`--entrypoint`/`--add-entrypoint`; individual retirement requires local caller and
+other-bundle review plus exact ownership proof. Canonical upstream distribution
+and retirement fixtures pass on genuine Bash 3.2.57, separately from actual Auth
+snapshot verification; their growing upstream roster is not added to Auth CI.
+
+The incoming manifest/lock is preserved byte-for-byte. Only the four Host
+packages differ from released HEAD, advancing 0.14.4 to published 0.14.5 with
+official unyanked checksum matches and identical Rust source. Committed Testkit
+0.34.2's prepared CLI initially passes offline admission. The initial Host-only
+28-target gate passes; evidence is under `target/host-0.14.5-issues/`, with its
+binary diff stable throughout and byte/mode capture taken during initial admission.
+
+The first post-refresh gate stops before builds after system-package updates
+change the native Cargo-tool fingerprint, despite unchanged source/compiler/tool
+pins and eight prepared inputs. Its old binaries and receipts remain present.
+Native inventory comparison shows desktop updates along with native packages;
+only `build.native` differs in old/new Cargo-sort inputs. The first explicit setup
+refuses an active matching-store lock. After its owner finishes, explicit
+`make install-tools` and separate offline admission pass, reusing matching
+generations. The old Cargo-sort binary hash remains unchanged. Original failure,
+lock refusal and inventory comparison are retained. The
+[Shared #120 report](https://github.com/dragginzgame/shared-tooling/issues/120#issuecomment-6121298164)
+asks the canonical owner to identify changed inputs accurately and review inventory
+scope with qualified native reuse; no downstream receipt bypass or fork is added.
+
+The repeated genuine **Bash 3.2.57 gate passes all 28 targets**, with **zero recipe
+override warnings**, including isolated native/Wasm MSRV, 52 browser cases/both
+Candid directions, proof/token/session checks, all three actual certification/
+upgrade/signed-ingress cases, strict Clippy, both package dry runs without upload
+and local/mocked release/evidence fixtures. Eight prepared hashes are identical
+across **56 stage observations**. Every tracked/new file byte and mode, incoming
+manifest/lock, real index and HEAD remains unchanged throughout; tracked diff
+SHA-256 `1b6f5de7367ce3cecdb39eacd5408ba51897d2b81ed666a2712c7df6004a1a74`.
+Evidence is under `target/shared-entrypoints-8e8/`, including
+`qualification-receipt.json`, roots/previews, reuse proofs, canonical fixture logs,
+native identity comparison, setup/admission and all gate attempts. Final prose
+is checked separately. The GitHub description remains accurate.
+
+Canic guidance now reflects its reported held adoption and accepted projection-first
+raw-role diagnostic hard cut, with combined-invalid zero-proof-callback controls.
+The earlier order choice is resolved locally; consumer delivery, complete verifier/
+session authority and deployment remain distinct. Browser issuer/reconciliation
+adoption remains [Auth #3](https://github.com/dragginzgame/ic-auth/issues/3) /
+[Canic #507](https://github.com/dragginzgame/canic/issues/507). No new Auth API
+prerequisite emerged from this review. Older exact-release runs for #24–#28 are
+cancelled; their former queued status supplies no missing native proof.
+
+The [Auth qualification handoff](https://github.com/dragginzgame/ic-auth/issues/34#issuecomment-6121476319),
+[Shared entrypoint evidence](https://github.com/dragginzgame/shared-tooling/issues/131#issuecomment-6121476738)
+and [Canic feedback](https://github.com/dragginzgame/canic/issues/491#issuecomment-6121477054)
+keep delivery and matching-source native acceptance at their owning trackers.
+This compatible **0.5.2** batch has no public API, signed/stored format or floor
+change and no hosted CI of its own. Versions remain 0.5.1; index, commits, refs
+and release/publication effects remain maintainer-owned. Siblings remain read-only.
+
+## Released 0.5.1 preparation evidence
+
+The following records preparation before maintainer delivery. Pending-version,
+dependency and native CI observations remain historical; current delivery is above.
 
 [Auth #33](https://github.com/dragginzgame/ic-auth/issues/33) advances the same
 compatible batch to committed Shared Tooling **0.6.6
