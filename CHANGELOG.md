@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.5.6]
+
+- Qualify locked native tooling at Host 0.14.10 / Testkit 0.34.6 and updated
+  native TLS/macro dependencies, retaining Rust 1.88, Testkit-owned server setup,
+  offline admission and protocol library boundaries.
+  [#41](https://github.com/dragginzgame/ic-auth/issues/41).
+- Update Canic adoption guidance for published verification/session APIs,
+  protected verifier inputs and the remaining durable, lifecycle and browser
+  reconciliation contracts.
+  [Canic #491](https://github.com/dragginzgame/canic/issues/491),
+  [#3](https://github.com/dragginzgame/ic-auth/issues/3).
+
 ## [0.5.5] - 2026-10-12
 
 - Adopt committed Shared Tooling 0.9.2’s unified snapshot reader, including NUL

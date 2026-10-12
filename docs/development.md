@@ -2,8 +2,8 @@
 
 The virtual root owns two libraries, unpublished native tooling in `apps/tooling/`
 and the internal host/runner in `apps/qualification/`, plus dependency selections,
-lints and one lockfile. The current manifest version is `0.5.4`, tagged as
-`v0.5.4`; both libraries are published and checksum-verified. It retains 0.5.0's
+lints and one lockfile. The current manifest version is `0.5.5`, tagged as
+`v0.5.5`; both libraries are published and checksum-verified. It retains 0.5.0's
 default-feature [canonical session requests](session-requests.md) and adopts the
 shared Make entrypoint, prepared-input guards and fixture warning repair.
 Released 0.5.3 extends real certification qualification across Root/issuer signing
@@ -11,10 +11,15 @@ profiles and qualifies Testkit 0.34.3 with Host 0.14.5. Released 0.5.4 selects
 Testkit 0.34.4 / Host 0.14.8, qualified by the local gate under
 [Auth #36](https://github.com/dragginzgame/ic-auth/issues/36).
 Versions remain release-owned.
-The incoming pending lock selects Host 0.14.9 / Testkit 0.34.5 with the same
+Released 0.5.5's lock selects Host 0.14.9 / Testkit 0.34.5 with the same
 server 16.1.0, qualified by the complete local gate. Its separate native
 acceptance and evidence are tracked in
 [Auth #40](https://github.com/dragginzgame/ic-auth/issues/40).
+The incoming 0.5.6 lock selects Host 0.14.10 / Testkit 0.34.6 and newer native
+TLS/macro dependencies. [Auth #41](https://github.com/dragginzgame/ic-auth/issues/41)
+records its passing complete Linux/Bash 3.2 gate, including native/Wasm Rust 1.88
+package paths and four real canister cases. Native acceptance after delivery
+remains separate; older gates do not qualify the incoming graph.
 Rust `1.99.0` remains the development compiler selected by `rust-toolchain.toml`.
 The common package minimum is Rust `1.88.0`, inherited from the root catalog and
 qualified by explicit older-compiler checks. See [MSRV coverage](msrv.md).
@@ -29,8 +34,11 @@ revisions remain unqualified.
 Released 0.5.0's complete gate passes on all three hosts in
 [its exact-source CI run](https://github.com/dragginzgame/ic-auth/actions/runs/38160094000).
 Released 0.5.4's [exact-source run](https://github.com/dragginzgame/ic-auth/actions/runs/38247803905)
-and remaining native acceptance are recorded in the [handoff](status/current.md).
-The current uncommitted batch also needs its own native CI after delivery. Shared
+passes on all three hosts. Released 0.5.5's
+[own run](https://github.com/dragginzgame/ic-auth/actions/runs/38264912310)
+passes the complete Linux gate; Intel macOS is running and ARM macOS is queued
+at final inspection.
+It is not a completed native matrix. Shared
 Tooling's [host prerequisites](supported-hosts.md) apply, including Bash 3.2+,
 GNU Make, rustup, Git and standard Unix setup utilities.
 

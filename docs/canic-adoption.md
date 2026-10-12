@@ -16,17 +16,17 @@ transactions and recovery obligations.
 
 ## Published dependency and feature selection
 
-Both `ic-auth` and `ic-auth-protocol-types` 0.5.2 are published and unyanked.
+Both `ic-auth` and `ic-auth-protocol-types` 0.5.5 are published and unyanked.
 Their registry checksums match IC Auth release
-`da82060511719c8055f335dc094fc46603ab8759`. Rust 1.88 is the supported minimum.
-The pure preparation API requires at least 0.4.2; 0.5.2 preserves its Rust contract.
+`95dfc17da8ec5c90d3c258a8727acc0214eac5c3`. Rust 1.88 is the supported minimum.
+The pure preparation API requires at least 0.4.2; 0.5.5 preserves its Rust contract.
 Select compatible registry requirements in Canic's
 root catalog and record the resolved versions in its own lockfiles:
 
 ```toml
 [workspace.dependencies]
-ic-auth = { version = "0.5.2", default-features = false }
-ic-auth-protocol-types = "0.5.2"
+ic-auth = { version = "0.5.5", default-features = false }
+ic-auth-protocol-types = "0.5.5"
 ```
 
 Child packages inherit these dependencies with `workspace = true`; their
@@ -47,7 +47,34 @@ certificate issuance and enabled chain-key checks/normalization, with direct
 production K256 retired from Core. Its [scoped native/Clippy/Wasm evidence](https://github.com/dragginzgame/ic-auth/issues/32#issuecomment-6120465762)
 and [extraction handoff](https://github.com/dragginzgame/canic/issues/491#issuecomment-6120497751)
 do not establish consumer publication, deployment or complete session-engine
-acceptance. Compatible Auth 0.5.1/0.5.2 introduce no new API prerequisite.
+acceptance. Compatible Auth 0.5.1 through 0.5.5 introduce no new API prerequisite.
+
+The [read-only verifier review](https://github.com/dragginzgame/canic/issues/491#issuecomment-6126777217)
+finds Canic's dirty root lock selecting published 0.5.4. Its complete-token
+adapter now calls `token::verify_token` with protected `allowed_token_scopes`,
+enrolled Root policy and explicit freshness/material bounds; its copied verifier
+is removed. Root/issuer wrappers share one host-owned SignatureStore. The new
+durable SessionStore backend is present. In a
+[later source checkpoint](https://github.com/dragginzgame/canic/issues/491#issuecomment-6126878501),
+the session endpoint reaches a workflow calling `session::establish_session`,
+and a new authorization wrapper calls `session::authorize_session`. Final backend
+and guard compilation and durable transaction/lifecycle acceptance remain
+Canic-owned; changing partial source does not establish a coherent adapter.
+The [subsequent guard review](https://github.com/dragginzgame/canic/issues/491#issuecomment-6127256752)
+finds the access facade calling that wrapper. Its local precheck still owns
+public denial precedence alongside repeated generic expiry/generation/scope
+checks. Narrow it only after separating the Canic caller/fleet/role/subject
+policy and qualifying single/combined refusals at the actual facade.
+The feature-gating
+blocker advanced to corrected source during review; source alignment is not a
+resumed native/Wasm or Metrics test pass. No sibling build/edit is performed here.
+Browser adapter qualification still requires non-issuing reconciliation in
+[Canic #507](https://github.com/dragginzgame/canic/issues/507).
+
+Producer 0.5.4's [complete native matrix](https://github.com/dragginzgame/ic-auth/actions/runs/38247803905)
+qualifies its retained library and actual canister fixture on Linux, Intel macOS
+and ARM macOS. Published 0.5.5's [own run](https://github.com/dragginzgame/ic-auth/actions/runs/38264912310)
+is still incomplete. Neither proves Canic's changing endpoints or persistence.
 
 | Existing Canic capability | IC Auth selection | Retained Canic responsibility |
 | --- | --- | --- |
@@ -247,14 +274,15 @@ codec. Its [preparation contract](signature-preparation.md) and the unpublished
 [Testkit fixture](ic-testkit-qualification.md) do not qualify a Canic lifecycle
 adapter or durable session backend.
 
-The pending 0.5.3 qualification under
+The released 0.5.3 qualification under
 [Auth #35](https://github.com/dragginzgame/ic-auth/issues/35) exercises existing
 Root role-attestation and issuer-token seed/domain pairs together in one store,
 with actual certificate verification, shared capacity, profile-isolated expiry,
 composed branch updates and upgrade re-preparation. The required library API is
 already published in 0.5.2; this adds evidence, not a new consumer prerequisite.
-[Canic #60](https://github.com/dragginzgame/canic/issues/60) owns replacing its
-separate Root/issuer SignatureMaps and direct certification-root publication.
+[Canic #60](https://github.com/dragginzgame/canic/issues/60) owns
+shared-host adapter acceptance after replacing its separate Root/issuer
+SignatureMaps and direct wrapper certification-root publication.
 Keep one host-owned `/sig` tree containing both profiles, then compose that
 contribution with application branches. Forking two identically labeled `/sig`
 owners is not the qualified composition. Canic must independently choose fixed
@@ -438,13 +466,14 @@ and token verifier `7f1e1e4c68c03ea67664d5a93ed09554344248e018d405d1524bac073d4e
 This establishes source migration in the consumer's working tree, without
 claiming consumer compilation, endpoint acceptance or deployment by this review.
 
-The next reusable engine remains the runtime verifier:
+The current runtime verifier delegates to `token::verify_token`; the following
+inputs remain its host contract after that cut:
 
 | Current Canic caller | Library boundary | Canic obligation |
 | --- | --- | --- |
-| `ops/auth/token/verification.rs::verify_with_embedded_proofs` and `delegated/verify.rs::verify_delegated_token` | `token::verify_token` | Project the complete token once; supply independently enrolled key policy, actual caller, protected fleet/role and endpoint requirements |
+| `ops/auth/token/verification.rs::verify_with_embedded_proofs` | `token::verify_token` | Project the complete token once; supply independently enrolled key policy, actual caller, protected fleet/role and endpoint requirements |
 | `ops/auth/token/verifier_config.rs` | `RootKeyPolicy` and `TokenVerificationLimits` | Keep build-network/key-name admission and all numeric limits in protected configuration |
-| `ops/auth/application_authorization.rs::local_application_authorization_authority` | Protected `allowed_scopes` and session context | Use the local configured ceiling where enabled; define the token-only verifier's protected ceiling separately instead of taking it from submitted grants |
+| Current canister's `auth.allowed_token_scopes` | Protected `allowed_scopes` | Keep the configured token ceiling independent of submitted grants and endpoint requirements; review session policy separately |
 
 Preserve endpoint error/metric mapping with typed library errors. Qualify changed
 key windows, epochs and local ceilings using the same token on successive calls,
@@ -460,7 +489,8 @@ positive cache. This identifies the next consumer boundary, not qualification
 of its uncommitted graph. [Canic #58](https://github.com/dragginzgame/canic/issues/58)
 owns that repair; the later owner cache removal above supersedes that specific
 source finding. The newer shared Root adapter above supersedes local Root-proof
-acceptance; complete-token and issuer callbacks still require their own cut.
+acceptance; complete-token and issuer callbacks still required their own cut at
+that historical checkpoint. The current shared verifier above supersedes it.
 
 The complete adapter must assemble these fields before calling the library:
 
