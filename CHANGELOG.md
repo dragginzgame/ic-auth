@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.5.3]
+
+- Qualify Root role-attestation and issuer-token signature profiles in one
+  host-composed store using real IC certificates, shared capacity, isolated
+  expiry/cleanup and upgrade re-preparation. Give Canic evidence for replacing
+  its parallel signature trees while retaining one certification-root owner.
+  Public Auth APIs and signed/stored formats are unchanged.
+  [#35](https://github.com/dragginzgame/ic-auth/issues/35),
+  [Canic #60](https://github.com/dragginzgame/canic/issues/60).
+- Qualify incoming Testkit 0.34.3 with Host 0.14.5 and its server 16.1.0 pairing;
+  selected CLI preparation remains explicit and native dependencies remain
+  outside both libraries.
+
 ## [0.5.2] - 2026-10-12
 
 - Select explicit Shared Tooling snapshot entrypoints and derive their required

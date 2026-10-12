@@ -16,17 +16,17 @@ transactions and recovery obligations.
 
 ## Published dependency and feature selection
 
-Both `ic-auth` and `ic-auth-protocol-types` 0.5.1 are published and unyanked.
+Both `ic-auth` and `ic-auth-protocol-types` 0.5.2 are published and unyanked.
 Their registry checksums match IC Auth release
 `da82060511719c8055f335dc094fc46603ab8759`. Rust 1.88 is the supported minimum.
-The pure preparation API requires at least 0.4.2; 0.5.1 preserves its Rust contract.
+The pure preparation API requires at least 0.4.2; 0.5.2 preserves its Rust contract.
 Select compatible registry requirements in Canic's
 root catalog and record the resolved versions in its own lockfiles:
 
 ```toml
 [workspace.dependencies]
-ic-auth = { version = "0.5.1", default-features = false }
-ic-auth-protocol-types = "0.5.1"
+ic-auth = { version = "0.5.2", default-features = false }
+ic-auth-protocol-types = "0.5.2"
 ```
 
 Child packages inherit these dependencies with `workspace = true`; their
@@ -47,7 +47,7 @@ certificate issuance and enabled chain-key checks/normalization, with direct
 production K256 retired from Core. Its [scoped native/Clippy/Wasm evidence](https://github.com/dragginzgame/ic-auth/issues/32#issuecomment-6120465762)
 and [extraction handoff](https://github.com/dragginzgame/canic/issues/491#issuecomment-6120497751)
 do not establish consumer publication, deployment or complete session-engine
-acceptance. Compatible Auth 0.5.1 introduces no new API prerequisite.
+acceptance. Compatible Auth 0.5.1/0.5.2 introduce no new API prerequisite.
 
 | Existing Canic capability | IC Auth selection | Retained Canic responsibility |
 | --- | --- | --- |
@@ -246,6 +246,24 @@ owns pending retrieval behavior on upgrades. The store has no durable restore
 codec. Its [preparation contract](signature-preparation.md) and the unpublished
 [Testkit fixture](ic-testkit-qualification.md) do not qualify a Canic lifecycle
 adapter or durable session backend.
+
+The pending 0.5.3 qualification under
+[Auth #35](https://github.com/dragginzgame/ic-auth/issues/35) exercises existing
+Root role-attestation and issuer-token seed/domain pairs together in one store,
+with actual certificate verification, shared capacity, profile-isolated expiry,
+composed branch updates and upgrade re-preparation. The required library API is
+already published in 0.5.2; this adds evidence, not a new consumer prerequisite.
+[Canic #60](https://github.com/dragginzgame/canic/issues/60) owns replacing its
+separate Root/issuer SignatureMaps and direct certification-root publication.
+Keep one host-owned `/sig` tree containing both profiles, then compose that
+contribution with application branches. Forking two identically labeled `/sig`
+owners is not the qualified composition. Canic must independently choose fixed
+profiles for each authorized operation, retain caller/operation metadata and
+cleanup scheduling, and review the shared physical budget and original duplicate
+deadline behavior. After upgrade, republish the composed root before queries and
+apply the consumer's explicit pending-operation disposition. Library leaf cleanup
+does not revoke already-issued proofs, enroll an issuer or confer application
+resource authority. No Canic lifecycle or certified HTTP adapter is qualified here.
 
 ## Consumer acceptance boundary
 

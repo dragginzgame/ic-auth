@@ -2,12 +2,12 @@
 
 The virtual root owns two libraries, unpublished native tooling in `apps/tooling/`
 and the internal host/runner in `apps/qualification/`, plus dependency selections,
-lints and one lockfile. The current manifest version is `0.5.1`, tagged as
-`v0.5.1`; both libraries are published and checksum-verified. It retains 0.5.0's
+lints and one lockfile. The current manifest version is `0.5.2`, tagged as
+`v0.5.2`; both libraries are published and checksum-verified. It retains 0.5.0's
 default-feature [canonical session requests](session-requests.md) and adopts the
 shared Make entrypoint, prepared-input guards and fixture warning repair.
-Compatible pending 0.5.2 adopts snapshot entrypoints and qualifies the incoming
-native Host 0.14.5 pairing.
+Compatible pending 0.5.3 extends real certification qualification across signing
+profiles and qualifies the incoming Testkit 0.34.3 pairing.
 Versions remain release-owned.
 Rust `1.99.0` remains the development compiler selected by `rust-toolchain.toml`.
 The common package minimum is Rust `1.88.0`, inherited from the root catalog and
@@ -22,7 +22,7 @@ checks for the same workflow and branch or PR ref; unfinished hosts on cancelled
 revisions remain unqualified.
 Released 0.5.0's complete gate passes on all three hosts in
 [its exact-source CI run](https://github.com/dragginzgame/ic-auth/actions/runs/38160094000).
-Released 0.5.1's [exact-source run](https://github.com/dragginzgame/ic-auth/actions/runs/38225498434)
+Released 0.5.2's [exact-source run](https://github.com/dragginzgame/ic-auth/actions/runs/38231059204)
 and remaining native acceptance are recorded in the [handoff](status/current.md).
 The current uncommitted batch also needs its own native CI after delivery. Shared
 Tooling's [host prerequisites](supported-hosts.md) apply, including Bash 3.2+,
@@ -451,7 +451,7 @@ directly and obtains runtime types through Testkit. Testkit owns adoption of
 Host's breaking process API; Auth has no direct caller or compatibility shim.
 Directory-suffixed publication targets are refused before creating parents or
 replacing a stripped filename; the native utility uses that upstream guard.
-The current lock selects Testkit 0.34.2 and the four Host packages at 0.14.5.
+The current lock selects Testkit 0.34.3 and the four Host packages at 0.14.5.
 These updates remain in native tooling and qualification; Auth's callers do not
 use Host's replaced completed-process-result boundary. Native graph qualification
 uses the actual certification, upgrade and ingress journey, separately from

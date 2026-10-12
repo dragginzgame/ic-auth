@@ -4,7 +4,8 @@ use ic_agent::{
     identity::{BasicIdentity, DelegatedIdentity, Delegation, SignedDelegation},
 };
 use ic_auth::canister_signature::{
-    CanisterSignaturePolicy, domain_separated_message, verify_canister_signature,
+    CanisterSignatureError, CanisterSignaturePolicy, domain_separated_message,
+    verify_canister_signature,
 };
 use ic_auth_protocol_types::IcCanisterSignatureProofV1;
 use ic_canister_sig_creation::{CanisterSigPublicKey, extract_raw_root_pk_from_der, hash_bytes};
@@ -26,6 +27,9 @@ static NEXT_INSTANCE: AtomicUsize = AtomicUsize::new(0);
 
 #[path = "signatures/application_tokens.rs"]
 mod application_tokens;
+
+#[path = "signatures/profile_composition.rs"]
+mod profile_composition;
 
 struct Fixture {
     pic: PocketIc,
@@ -95,11 +99,21 @@ impl Fixture {
     }
 
     fn prepare(&self, domain: &[u8], message: &[u8], ttl: u64) -> Result<u64, String> {
+        self.prepare_with_seed(SEED, domain, message, ttl)
+    }
+
+    fn prepare_with_seed(
+        &self,
+        seed: &[u8],
+        domain: &[u8],
+        message: &[u8],
+        ttl: u64,
+    ) -> Result<u64, String> {
         self.pic.update_candid_as_or_panic(
             self.signer,
             self.controller,
             "prepare",
-            (domain.to_vec(), message.to_vec(), ttl),
+            (seed.to_vec(), domain.to_vec(), message.to_vec(), ttl),
         )
     }
 
@@ -108,17 +122,43 @@ impl Fixture {
         domain: &[u8],
         message: &[u8],
     ) -> Result<IcCanisterSignatureProofV1, String> {
+        self.retrieve_with_seed(SEED, domain, message)
+    }
+
+    fn retrieve_with_seed(
+        &self,
+        seed: &[u8],
+        domain: &[u8],
+        message: &[u8],
+    ) -> Result<IcCanisterSignatureProofV1, String> {
         // Certificates become available after the update's state is certified.
         self.pic.tick();
-        self.pic
-            .query_candid_or_panic(self.signer, "retrieve", (domain.to_vec(), message.to_vec()))
+        self.pic.query_candid_or_panic(
+            self.signer,
+            "retrieve",
+            (seed.to_vec(), domain.to_vec(), message.to_vec()),
+        )
     }
 
     fn verify(&self, domain: &[u8], payload: [u8; 32], proof: &IcCanisterSignatureProofV1) {
+        assert_eq!(self.verify_result(SEED, domain, payload, proof), Ok(()));
+        assert_eq!(
+            self.verify_result(b"unapproved seed", domain, payload, proof),
+            Err(CanisterSignatureError::SeedMismatch)
+        );
+    }
+
+    fn verify_result(
+        &self,
+        seed: &[u8],
+        domain: &[u8],
+        payload: [u8; 32],
+        proof: &IcCanisterSignatureProofV1,
+    ) -> Result<(), CanisterSignatureError> {
         let network = extract_raw_root_pk_from_der(&self.pic.root_key().unwrap()).unwrap();
         let policy = CanisterSignaturePolicy {
             signing_canister: self.signer,
-            seed_hash: hash_bytes(SEED),
+            seed_hash: hash_bytes(seed),
             ic_root_public_key_raw: &network,
             now_ns: self.now(),
             max_certificate_age_ns: 5_000_000_000,
@@ -126,24 +166,7 @@ impl Fixture {
             max_signature_bytes: 128 * 1024,
             max_message_bytes: 1024,
         };
-        assert_eq!(
-            verify_canister_signature(
-                &domain_separated_message(domain, payload).unwrap(),
-                proof,
-                &policy
-            ),
-            Ok(())
-        );
-        let mut wrong = policy.clone();
-        wrong.seed_hash = hash_bytes(b"unapproved seed");
-        assert!(
-            verify_canister_signature(
-                &domain_separated_message(domain, payload).unwrap(),
-                proof,
-                &wrong
-            )
-            .is_err()
-        );
+        verify_canister_signature(&domain_separated_message(domain, payload)?, proof, &policy)
     }
 
     fn set_asset(&self, version: u64) {
@@ -218,7 +241,12 @@ fn real_certificates_composition_cleanup_and_upgrade_obey_the_host_contract() {
         fixture.signer,
         fixture.owner,
         "prepare",
-        (DOMAIN.to_vec(), payload.to_vec(), 60_000_000_000_u64),
+        (
+            SEED.to_vec(),
+            DOMAIN.to_vec(),
+            payload.to_vec(),
+            60_000_000_000_u64,
+        ),
     );
     assert!(unauthorized.is_err());
     let deadline = fixture.prepare(DOMAIN, &payload, 60_000_000_000).unwrap();

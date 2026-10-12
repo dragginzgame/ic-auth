@@ -68,7 +68,10 @@ test-formatting-hooks:
 		crates/ic-auth/tests/token_preparation.rs \
 		apps/qualification/runner/Cargo.toml \
 		apps/qualification/runner/tests/signatures/application_tokens.rs \
-		apps/qualification/runner/tests/signatures/application_sessions.rs
+		apps/qualification/runner/tests/signatures/application_sessions.rs \
+		apps/qualification/canister/src/lib.rs \
+		apps/qualification/runner/tests/signatures.rs \
+		apps/qualification/runner/tests/signatures/profile_composition.rs
 
 install-msrv: install-host-tools
 	bash scripts/dev/msrv-tools.sh install

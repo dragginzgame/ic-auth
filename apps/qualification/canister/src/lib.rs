@@ -11,8 +11,6 @@ use ic_certification::{Hash, fork_hash, labeled, leaf};
 use serde::Deserialize;
 use std::cell::RefCell;
 
-const SEED: &[u8] = b"qualification-identity";
-
 /// Stable metadata belongs to this fixture's host. Pending signatures are
 /// deliberately volatile; upgrade clears them and republishes the combined root.
 #[derive(CandidType, Deserialize)]
@@ -103,14 +101,19 @@ fn post_upgrade() {
 }
 
 #[ic_cdk::update]
-fn prepare(domain: Vec<u8>, message: Vec<u8>, retention_ns: u64) -> Result<u64, String> {
+fn prepare(
+    seed: Vec<u8>,
+    domain: Vec<u8>,
+    message: Vec<u8>,
+    retention_ns: u64,
+) -> Result<u64, String> {
     controller()?;
     with_state(|state| {
         let prepared = state
             .signatures
             .prepare(
                 SignatureInputs {
-                    seed: SEED,
+                    seed: &seed,
                     domain: &domain,
                     message: &message,
                 },
@@ -124,14 +127,18 @@ fn prepare(domain: Vec<u8>, message: Vec<u8>, retention_ns: u64) -> Result<u64, 
 }
 
 #[ic_cdk::query]
-fn retrieve(domain: Vec<u8>, message: Vec<u8>) -> Result<IcCanisterSignatureProofV1, String> {
+fn retrieve(
+    seed: Vec<u8>,
+    domain: Vec<u8>,
+    message: Vec<u8>,
+) -> Result<IcCanisterSignatureProofV1, String> {
     let certificate = ic_cdk::api::data_certificate().ok_or("query certificate absent")?;
     with_state(|state| {
         state
             .signatures
             .retrieve(
                 SignatureInputs {
-                    seed: SEED,
+                    seed: &seed,
                     domain: &domain,
                     message: &message,
                 },

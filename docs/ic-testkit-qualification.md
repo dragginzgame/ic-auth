@@ -12,7 +12,7 @@ the wrapper asks the locked Testkit CLI to check its prepared server and consume
 only the returned absolute path. There is no test-time setup, server pin catalog
 or retained-bundle fallback. `make install-testkit-tools` explicitly prepares the
 CLI and server; `make testkit-tools-check` performs offline admission alone.
-The current lock selects `ic-testkit` 0.33.5, which owns the PocketIC
+The current lock selects `ic-testkit` 0.34.3, which owns the PocketIC
 dependency; runtime types are imported through
 its re-export, and typed Candid calls preserve application results separately
 from encoding, decoding and replica errors. There is no direct `pocket-ic`
@@ -57,8 +57,22 @@ the other owners' roots. The host publishes after every successful mutation.
 Queries obtain an actual data certificate and pass protected sibling hashes to
 the library's [retrieval API](signature-preparation.md). The native verifier uses
 the PocketIC instance's independently obtained network root, approved signer,
-fixed fixture seed and host clock. Tests configure NNS and application subnets
+protected expected seed and host clock. Tests configure NNS and application subnets
 so the certificate's real subnet trust chain is checked.
+
+The controller-only preparation call now selects explicit seed/domain/message
+inputs in this unpublished fixture. A combined-profile scenario uses the existing
+`canic-root-role-attestation` and `canic-issuer-delegated-token` identities with
+the same payload in one store. Both actual proofs verify under their own protected
+profiles; crossed seed/domain use rejects. The 16-leaf fixture budget is shared,
+failed capacity admission preserves both profiles, and live duplicate preparation
+retains the original deadline. Expiring/pruning the short-lived Root leaf preserves
+the issuer proof and frees a slot for that profile. Asset-branch updates and
+upgrades preserve host metadata; upgrade clears both pending profiles, whose
+re-preparation returns the same public keys. These are signing-profile and composed
+root checks, not certified HTTP serving or application authority policy.
+See [Auth #35](https://github.com/dragginzgame/ic-auth/issues/35) and
+[Canic #60](https://github.com/dragginzgame/canic/issues/60).
 
 The fixture's single stable-memory owner preserves its resource owner and branch
 metadata with CDK storage. Pending signatures intentionally remain volatile.
@@ -106,7 +120,7 @@ re-preparation of the unchanged claims verifies again with the same issuer
 identity and preserved composed asset state. See
 [Auth #18](https://github.com/dragginzgame/ic-auth/issues/18).
 
-Pending 0.4.2 routes that scenario through public
+Released 0.4.2 routes that scenario through public
 [token preparation and finishing](token-preparation.md): explicit host authority,
 presenter, operation, clock and bounds produce the canonical signing hash; the
 actual retrieved certified issuer proof is then attached. Subsequent live-policy,

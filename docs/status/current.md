@@ -3,18 +3,18 @@
 The maintainer accepted the larger Canic authentication extraction, selected the
 name `ic-auth`, and confirmed `/home/adam/projects/ic-auth` as the local repository.
 
-The current committed release is `7e6be6bcdcd309d6e0a106f061806007cbe12d8e`
-(`0.5.1`) on `main`, with annotated tag `v0.5.1` object
-`729409a597220780cf5b2a63ce5c274d48abf500`; remote main and the peeled tag match
+The current committed release is `2927ec1b70f30ffbe6c368a1805f3e51fd8eeedd`
+(`0.5.2`) on `main`, with annotated tag `v0.5.2` object
+`77ae33a4b00d76e7bd5daecfa73e2e5c14a003a2`; remote main and the peeled tag match
 its retained publication intent. Both libraries are indexed, unyanked and
 checksum-matched: protocol-types
-`76ebdc4aea43afdc998216f25e35685f5f4bc07a81c8f41cd522b5840ac5988b`
-and auth `d9f5f3b5cc0b4cf6384e653a09c64fd62f52fb662ee1c48db0968e43b8d24e35`.
-[Exact-source 0.5.1 CI](https://github.com/dragginzgame/ic-auth/actions/runs/38225498434)
-passes Linux and Apple Silicon; Intel macOS is still running at final inspection.
-[Auth #33](https://github.com/dragginzgame/ic-auth/issues/33) retains native
-acceptance. The released source selects Testkit 0.34.2 and Host 0.14.4, differing
-from the earlier preparation's Testkit selection. Released 0.5.0's
+`a4ec7fd8df1f838d9f682d1f3b6e1a219f25889c5e4c6f45762a64e799481e35`
+and auth `0b14c50f98055579d5da01c08bb8e29278d64d722f5309d8924d4bcbb376f8ac`.
+[Exact-source 0.5.2 CI](https://github.com/dragginzgame/ic-auth/actions/runs/38231059204)
+passes Linux; both macOS jobs remain running at final inspection.
+[Auth #34](https://github.com/dragginzgame/ic-auth/issues/34) retains native
+acceptance. The older 0.5.1 run is cancelled and supplies no missing Intel proof.
+Released source selects Testkit 0.34.2 and Host 0.14.5. Released 0.5.0's
 [complete three-host evidence](https://github.com/dragginzgame/ic-auth/actions/runs/38160094000)
 qualifies its pure request, chain-key and certificate APIs at that older source.
 Earlier pending/publication observations below remain historical. The original
@@ -32,7 +32,7 @@ records this batch without closing the larger extraction.
 
 The virtual Rust workspace contains `ic-auth-protocol-types`, `ic-auth` and the
 unpublished native application in `apps/tooling/`, with one lockfile, root-owned
-dependency selections and current manifest version `0.5.1`.
+dependency selections and current manifest version `0.5.2`.
 The passive token/proof contracts and canonical encoding are adapted from the
 clean Canic source at `e286b3fd98460c98670336853f80658a920966e0`; see the
 [source review](../design/canic-source-review.md) for exact ownership and API
@@ -54,7 +54,77 @@ That evidence binds its reported consumer inputs, not later changing sibling
 files. Complete-token, durable-session and deployed acceptance remain separate.
 No sibling repository was modified or built by IC Auth work.
 
-## Current continuation (pending 0.5.2)
+## Current continuation (pending 0.5.3)
+
+[Auth #35](https://github.com/dragginzgame/ic-auth/issues/35) adds concrete
+producer qualification for Canic's remaining signature-tree/certification
+ownership gap under [Canic #60](https://github.com/dragginzgame/canic/issues/60).
+Only the unpublished qualification host/runner changes: controller-authorized
+preparation now takes explicit seed/domain/message inputs, and its caller and
+staged-formatting fixture include the changed/new sources. Both public libraries,
+their features, signed/stored formats and compiler floor remain unchanged.
+
+One actual Testkit case prepares the existing Root role-attestation and issuer-token
+profiles in the same SignatureStore and composed assets/sig/status root. Identical
+payloads yield distinct expected DER keys; each IC certificate verifies under its
+approved profile, while crossed seed/domain use and missing crossed retrieval
+reject. The fixture's 16-leaf capacity is shared, failed new admission preserves
+both proofs, and a live duplicate at capacity retains the original deadline.
+Root expiry and bounded pruning preserve issuer retrieval and free its next slot.
+Asset-branch changes coexist; actual upgrade preserves host metadata while clearing
+both pending profiles, whose re-preparation returns the same public keys. These
+are signing-profile/composition checks, not certified HTTP serving, application
+authority, durable signature/session storage or wallet login qualification.
+
+Focused `make test-qualification` passes **all four actual cases**, including the
+existing complete-token/session, certification/upgrade and signed-ingress journeys.
+The incoming **Testkit 0.34.3 / Host 0.14.5 / server 16.1.0** pairing is preserved
+byte-for-byte. Its checksum matches the official unyanked registry package.
+Initial offline admission refuses the unprepared CLI; explicit
+`make install-testkit-tools` and separate offline admission succeed. Testkit's
+published patch aligns locked Host and contributor snapshot/evidence mechanics;
+runtime/server selection remains unchanged. No dependency resolution occurs.
+
+The complete genuine **Bash 3.2.57 gate passes all 28 targets**, with **zero recipe
+override warnings**. It includes isolated native/Wasm package MSRV and graphs,
+real staged formatting, 52 browser cases/both Candid directions, library/proof/
+session checks, all four actual runtime cases, strict Clippy, both package dry
+runs without upload and local/mocked release/evidence fixtures. Eight prepared
+hashes remain stable across **56 observations**; every tracked/new byte/mode,
+incoming manifest/lock, real index and HEAD is unchanged throughout. Tracked diff
+SHA-256 `e0ca887af48788a5d3604943e508d38a961c74d4d208633652bd0c55da35d959`;
+new profile fixture SHA-256
+`7e6e497622c804cc142e89b7f1ac94ff37adc18debb1e6dee2e39c9677196105`.
+Evidence is retained under `target/integration-0.5.3/`, including
+`qualification-receipt.json`, setup/admission and focused/full logs, unchanged
+input captures and read-only consumer source review. Final prose is checked
+separately; the GitHub description remains accurate.
+
+Read-only Canic source at base `25b73cd403b20b4e148c6e340f8c760a26d97f6e`
+still has the two SignatureMap globals and direct certification-root writes.
+Captured module hashes bind that dirty-source finding, not Canic execution.
+The [producer handoff](https://github.com/dragginzgame/ic-auth/issues/35#issuecomment-6122176570),
+[Canic #60 adoption guidance](https://github.com/dragginzgame/canic/issues/60#issuecomment-6122176888)
+and [extraction feedback](https://github.com/dragginzgame/canic/issues/491#issuecomment-6122177208)
+describe one host-owned `/sig` tree with applicable profiles, a single composed
+root publisher and retained Canic caller/operation metadata, quota/cleanup and
+lifecycle decisions. Forking competing `/sig` owners is not the qualified design.
+The library API is already published in 0.5.2; this adds evidence without a new
+integration prerequisite. Consumer entrypoint/HTTP/lifecycle acceptance stays
+open; no sibling code is edited or built here.
+
+The [0.5.2 delivery update](https://github.com/dragginzgame/ic-auth/issues/34#issuecomment-6122177547)
+keeps current native acceptance distinct from the pending batch, which has no
+hosted run of its own. Versions remain 0.5.2. Index, commits, refs, publication
+and deployment remain maintainer-owned. This qualification batch is compatible
+**0.5.3**; full verifier/session authority, browser reconciliation and consumer
+exposed-family delivery remain at their existing trackers.
+
+## Released 0.5.2 preparation evidence
+
+The following records preparation before maintainer delivery. Pending versions,
+dependency selections and native CI observations are historical; current delivery
+is above.
 
 [Auth #34](https://github.com/dragginzgame/ic-auth/issues/34) adopts committed
 Shared entrypoint work **`8e8cc21265272e0234326c53a8c7bf9e7d8d77df`** and qualifies
