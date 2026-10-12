@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.5.3]
+## [0.5.3] - 2026-10-12
 
 - Qualify Root role-attestation and issuer-token signature profiles in one
   host-composed store using real IC certificates, shared capacity, isolated
