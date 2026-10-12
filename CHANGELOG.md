@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.5.1]
+## [0.5.1] - 2026-10-12
 
 - Adopt Shared Tooling 0.6.6's common Make entrypoint for setup, formatting,
   hook installation, snapshot checks and release routing, preserving Auth's
