@@ -5,8 +5,12 @@ script_path="${BASH_SOURCE[0]}"
 [[ "$script_path" == /* ]] || script_path="$PWD/$script_path"
 cd -P "${script_path%/*}/../../packages/client"
 selected_node="$(cat .nvmrc)"
-selected_npm="$(node --input-type=module -e 'import manifest from "./package.json" with {type:"json"}; console.log(manifest.packageManager.slice(4))')"
-[[ "$(node --version)" == "v$selected_node" && "$(npm --version)" == "$selected_npm" ]] || {
+selected_npm="$(node -p 'require("./package.json").packageManager.slice(4)')"
+observed_node="$(node --version)"
+observed_npm="$(npm --version)"
+[[ "$observed_node" == "v$selected_node" && "$observed_npm" == "$selected_npm" ]] || {
+    printf 'Observed Node=%s path=%s; npm=%s path=%s\n' \
+        "$observed_node" "$(command -v node)" "$observed_npm" "$(command -v npm)" >&2
     echo "Select Node $selected_node and npm $selected_npm before client setup/checks" >&2; exit 1;
 }
 printf 'Client toolchain: Node %s; npm %s\n' "$selected_node" "$selected_npm"

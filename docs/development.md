@@ -2,15 +2,19 @@
 
 The virtual root owns two libraries, unpublished native tooling in `apps/tooling/`
 and the internal host/runner in `apps/qualification/`, plus dependency selections,
-lints and one lockfile. The current manifest version is `0.5.3`, tagged as
-`v0.5.3`; both libraries are published and checksum-verified. It retains 0.5.0's
+lints and one lockfile. The current manifest version is `0.5.4`, tagged as
+`v0.5.4`; both libraries are published and checksum-verified. It retains 0.5.0's
 default-feature [canonical session requests](session-requests.md) and adopts the
 shared Make entrypoint, prepared-input guards and fixture warning repair.
 Released 0.5.3 extends real certification qualification across Root/issuer signing
-profiles and qualifies Testkit 0.34.3 with Host 0.14.5. The incoming native lock
-selects Testkit 0.34.4 / Host 0.14.8, qualified by the refreshed local gate under
+profiles and qualifies Testkit 0.34.3 with Host 0.14.5. Released 0.5.4 selects
+Testkit 0.34.4 / Host 0.14.8, qualified by the local gate under
 [Auth #36](https://github.com/dragginzgame/ic-auth/issues/36).
 Versions remain release-owned.
+The incoming pending lock selects Host 0.14.9 / Testkit 0.34.5 with the same
+server 16.1.0, qualified by the complete local gate. Its separate native
+acceptance and evidence are tracked in
+[Auth #40](https://github.com/dragginzgame/ic-auth/issues/40).
 Rust `1.99.0` remains the development compiler selected by `rust-toolchain.toml`.
 The common package minimum is Rust `1.88.0`, inherited from the root catalog and
 qualified by explicit older-compiler checks. See [MSRV coverage](msrv.md).
@@ -24,11 +28,22 @@ checks for the same workflow and branch or PR ref; unfinished hosts on cancelled
 revisions remain unqualified.
 Released 0.5.0's complete gate passes on all three hosts in
 [its exact-source CI run](https://github.com/dragginzgame/ic-auth/actions/runs/38160094000).
-Released 0.5.3's [exact-source run](https://github.com/dragginzgame/ic-auth/actions/runs/38236293541)
+Released 0.5.4's [exact-source run](https://github.com/dragginzgame/ic-auth/actions/runs/38247803905)
 and remaining native acceptance are recorded in the [handoff](status/current.md).
 The current uncommitted batch also needs its own native CI after delivery. Shared
 Tooling's [host prerequisites](supported-hosts.md) apply, including Bash 3.2+,
 GNU Make, rustup, Git and standard Unix setup utilities.
+
+CI prepares Node through its pinned setup action, then
+[scripts/dev/prepare-client-ci.sh](../scripts/dev/prepare-client-ci.sh) installs
+exact npm into that Node installation with an explicit prefix. It records actual
+versions/paths/prefixes and publishes the admitted bin directory for later steps
+only after dependency preparation and offline admission succeed. The workflow's
+strict pipeline preserves the first setup failure in retained logs. This is
+explicit CI setup; ordinary checks do not install. The retained Intel macOS
+failure under [#38](https://github.com/dragginzgame/ic-auth/issues/38) has no actual
+version/path observations, so native acceptance of the repair still requires its
+own pushed-source matrix.
 
 ## Setup
 
@@ -50,15 +65,19 @@ The Makefile includes reviewed [`make/consumer.mk`](make-interface.md), which ow
 common setup, formatting, hooks, snapshot verification and release routing.
 `check-snapshot` retains its public name and depends on `shared-tooling-check`.
 The recorded snapshot selects 65 entrypoints and derives their 90-file companion
-closure from committed Shared Tooling 0.8.4
-`dca2bdd018afa6be598f03bb3cce1bab79c66973`. Its exact source `VERSION` records
-0.8.4; no release tag is inferred from that annotation. Refreshes reuse recorded
+closure from committed Shared Tooling 0.9.2
+`c118062a070a2e238f1eb3989b6fd700f369ce1e`. Its exact source `VERSION` records
+0.9.2; no release tag is inferred from that annotation. Refreshes reuse recorded
 roots with the canonical exporter. Preview the complete change and retain directly
 used helpers as entrypoints: unchanged owned payloads outside the new closure are
 retired automatically after ownership, local-edit and index checks. Do not use
 `--retire-file`. Payload replacement is atomic per file; the manifest is published
 last and interrupted refreshes retry against the same source/selection. See
 [snapshot adoption](consuming-snapshots.md#entrypoint-selection-in-070).
+The canonical verifier also supports `--read-manifest FILE`: it validates the
+complete captured syntax before emitting records, rejects NUL/extra fields, and
+performs no payload/ownership admission in this mode. Normal snapshot checks
+still verify bytes/modes. See [reader semantics](consuming-snapshots.md).
 The new [Cargo-tool freshness task](../tasks/cargo-tool-versions.md) is included
 with the catalog; its online checker runs from Shared Tooling and is separate
 from Auth's offline admission and CI. No schedule is enabled by adoption.
@@ -175,6 +194,7 @@ is retained under `target/browser-client/`.
 
 | Focused command | Purpose |
 | --- | --- |
+| `make test-client-tools` | Actual CI pipeline and Make callers: selected Node/npm path, later-step admission and first-failure controls with substituted npm effects |
 | `make test-client` | Private client lifecycle, IndexedDB transactions, compiled SDK consumer example and Rust/TypeScript Candid roundtrip |
 | `make check-client-contracts` | Compare fresh locked bindings with the Rust-owned checked-in contracts offline |
 | `make generate-client-contracts` | Explicitly regenerate the checked-in client contracts from Rust DTOs |

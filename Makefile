@@ -17,7 +17,7 @@ export RELEASE_REMOTE RELEASE_BRANCH
         install-testkit-tools testkit-tools-check test-testkit-tools \
         test-types test-protocol test-chain-key-signatures test-signatures test-signature-store test-tokens test-sessions check-wasm clippy check-boundaries \
         check-snapshot check-dependency-pins check-doc-links check-msrv install-msrv msrv-tools-check tasks ci \
-        client-tools-check install-client-dependencies generate-client-contracts check-client-contracts test-client \
+        client-tools-check install-client-dependencies generate-client-contracts check-client-contracts test-client test-client-tools \
         publish publish-dry-run check-package-licenses test-release-tools \
         test-host-tooling test-qualification build-qualification-canister test-release-runner test-evidence-archive test-tools-evidence test-make-jobserver \
         release-version release-preflight release-verify release-prepare-version \
@@ -152,6 +152,9 @@ check-client-contracts:
 test-client:
 	+bash scripts/dev/test-client.sh
 
+test-client-tools:
+	+bash scripts/ci/test-client-tools.sh
+
 check-dependency-pins:
 	+bash scripts/ci/check-dependency-pins.sh --cargo-inheritance --npm-root packages/client \
 	  --node-version "$$(cat packages/client/.nvmrc)" \
@@ -166,7 +169,7 @@ ci:
 	  --input ci/tool-versions.env --input ci/ic-tools.tsv \
 	  --input packages/client/package.json --input packages/client/package-lock.json \
 	  --input packages/client/.nvmrc \
-	  check-snapshot tools-check check-dependency-pins check-doc-links test-make-jobserver fmt-check test-formatting-hooks metadata check-boundaries check-msrv test-tools-evidence test-testkit-tools test-client test-types test-protocol test-chain-key-signatures test-signatures test-signature-store test-tokens test-sessions test-host-tooling test-qualification check-wasm clippy publish-dry-run test-release-tools test-release-runner test-evidence-archive
+	  check-snapshot tools-check check-dependency-pins check-doc-links test-make-jobserver fmt-check test-formatting-hooks metadata check-boundaries check-msrv test-tools-evidence test-testkit-tools test-client-tools test-client test-types test-protocol test-chain-key-signatures test-signatures test-signature-store test-tokens test-sessions test-host-tooling test-qualification check-wasm clippy publish-dry-run test-release-tools test-release-runner test-evidence-archive
 
 check-package-licenses:
 	@cmp LICENSE crates/ic-auth-protocol-types/LICENSE

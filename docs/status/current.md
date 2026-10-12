@@ -3,20 +3,19 @@
 The maintainer accepted the larger Canic authentication extraction, selected the
 name `ic-auth`, and confirmed `/home/adam/projects/ic-auth` as the local repository.
 
-The current committed release is `02cd95fd24ab77a416eb79700fc3610dce5f611d`
-(`0.5.3`) on `main`, with annotated tag `v0.5.3` object
-`c06d5fdd3e56b6c0cea06858ad30ef351d1e10e9`; remote main and the peeled tag match
+The current committed release is `ba4b49b73d176d2e2d3f2877e46bf7e743416c9d`
+(`0.5.4`) on `main`, with annotated tag `v0.5.4` object
+`49378c43d65b78c14ac69d57a81a9957520320ed`; remote main and peeled tag match
 its retained publication intent. Both libraries are indexed, unyanked and
-checksum-matched: protocol-types
-`1fad3f108a19780aec3d0e209da108d090de26abd8e85bbb73448235d1260526`
-and auth `59f43db4e5dbab7a5c7a983e8f799d0dc723443667e54cf8249d482158baf305`.
-[Exact-source 0.5.3 CI](https://github.com/dragginzgame/ic-auth/actions/runs/38236293541)
-passes Linux and Apple Silicon; Intel macOS fails client Node/npm admission
-before Rust checks.
-[Auth #38](https://github.com/dragginzgame/ic-auth/issues/38) owns that setup failure;
-this snapshot update does not repair it.
-[Auth #35](https://github.com/dragginzgame/ic-auth/issues/35)
-retains native acceptance. Released source selects Testkit 0.34.3 and Host 0.14.5.
+checksum-matched: types
+`e38924c8c9989b99e0fbc26b0d6220c7a5300adb619c44b910ccfdafcf8d1b1d`,
+auth `63fc3c09d2b0edf1e5ba77d1e3f238369e62ecbc75dbed8866f5d59709d83248`.
+[Exact-source 0.5.4 CI](https://github.com/dragginzgame/ic-auth/actions/runs/38247803905)
+now passes the complete gate on Linux, Intel macOS and ARM macOS, completing
+#36/#37 native acceptance at that exact released source. Released
+source selects Shared 0.8.4, Host 0.14.8 and Testkit 0.34.4/server 16.1.0.
+The prior 0.5.3 Intel client-setup failure stays in
+[Auth #38](https://github.com/dragginzgame/ic-auth/issues/38).
 Released 0.5.0's
 [complete three-host evidence](https://github.com/dragginzgame/ic-auth/actions/runs/38160094000)
 qualifies its pure request, chain-key and certificate APIs at that older source.
@@ -35,7 +34,7 @@ records this batch without closing the larger extraction.
 
 The virtual Rust workspace contains `ic-auth-protocol-types`, `ic-auth` and the
 unpublished native application in `apps/tooling/`, with one lockfile, root-owned
-dependency selections and current manifest version `0.5.3`.
+dependency selections and current manifest version `0.5.4`.
 The passive token/proof contracts and canonical encoding are adapted from the
 clean Canic source at `e286b3fd98460c98670336853f80658a920966e0`; see the
 [source review](../design/canic-source-review.md) for exact ownership and API
@@ -57,7 +56,105 @@ That evidence binds its reported consumer inputs, not later changing sibling
 files. Complete-token, durable-session and deployed acceptance remain separate.
 No sibling repository was modified or built by IC Auth work.
 
-## Current continuation (pending 0.5.4)
+## Current continuation (pending 0.5.5)
+
+[Auth #39](https://github.com/dragginzgame/ic-auth/issues/39) now advances the
+same compatible batch to committed Shared Tooling **0.9.2
+`c118062a070a2e238f1eb3989b6fd700f369ce1e`**, matching official remote main
+and source VERSION. The sibling is clean; an isolated exact-source exporter
+reuses 65 roots/90 payloads, updates six files and adds/retires none. Preview
+preserves all source bytes/modes/index/HEAD; repeated no-option refresh is
+byte-identical. Incoming Cargo files and the prior CI repair remain preserved.
+
+Shared 0.9.1/0.9.2 consolidate host/IC installer cleanup, release the shared lock
+after checkout cleanup failure, retain original installation errors/candidates,
+reject NUL before evidence hashing and reject supplied/resolved CR/LF consumer
+paths before configuration or setup. Four focused canonical fixtures pass on
+genuine Bash 3.2.57 with substituted installation effects; fleet-only helpers
+remain upstream. This is not native macOS execution evidence.
+
+[Auth #40](https://github.com/dragginzgame/ic-auth/issues/40) qualifies the incoming
+lock, which independently advances four Host packages **0.14.8 -> 0.14.9**
+and Testkit **0.34.4 -> 0.34.5**. It is retained unchanged. Explicit locked fetch
+passes; initial offline CLI admission correctly refuses the unprepared selection.
+Sandboxed setup attempts refuse shared-store writes and are retained; no existing
+lock is removed. Setup through the documented installer with appropriate store
+access succeeds. All five official sparse-index checksums match unyanked packages;
+authenticated published archives contain no Rust-source changes from the prior
+pairing. Separate offline admission succeeds for server 16.1.0.
+
+The initial complete gate stops at qualification because its sandbox prevents
+the verified server from binding localhost; all four startup refusals are retained
+in `target/shared-0.9.2/validation-logs/validation.UOzxlj`, with unchanged source
+and inputs. A fresh gate with the required local-server access passes all **29
+stages** on Linux with genuine Bash 3.2.57, including all four real canister
+journeys and 52 browser tests. Logs:
+`target/shared-0.9.2/validation-logs/validation.rxbvla`; receipt:
+`target/shared-0.9.2/qualification-receipt.json`. All 58 input observations match
+the eight-file baseline; every tracked/new source byte and mode, real index and
+HEAD, and incoming Cargo files remain unchanged across validation. Checked
+tracked-diff SHA-256 is
+`6833e0f65b172f66aa7ef0cc2b408a3a1784a56e518f4d185c5f39fcbb3d6436`.
+No duplicate-recipe warnings occur. Final evidence edits are prose-only and
+receive links/snapshot/diff checks separately.
+
+The combined batch is ready for compatible **0.5.5** preparation: public APIs,
+formats and compiler requirements remain unchanged. Native CI for this pending
+source remains separate from released 0.5.4's completed matrix. No sibling
+source/build or package version, staging, commit, ref or release effect changes.
+
+The following 0.9.0 preparation receipt remains historical input evidence:
+
+[Auth #39](https://github.com/dragginzgame/ic-auth/issues/39) adopts committed
+Shared Tooling **0.9.0 `aec7a149f581a42b9531fc747b46024fc0314fcf`** from an
+isolated clean exact-source checkout, matching official remote main/source
+VERSION. Dirty sibling 0.9.1 installer cleanup is excluded. Canonical export
+reuses 65 roots/90 payloads: only the verifier and snapshot guidance change.
+Preview preserves source/index state, and no-option preview/refresh reuses roots
+with byte-identical payload/manifest bytes. Incoming Cargo files stay unchanged.
+
+The unified reader validates one captured manifest before emitting records,
+rejects NUL/trailing fields and keeps payload integrity/ownership separate.
+Four focused canonical export/retirement/tooling-reader fixtures pass on genuine
+Bash 3.2, separately from Auth’s actual syntax-only and integrity checks. Actual
+NUL/extra-field probes refuse with no partial record output; valid Auth records
+and normal snapshot verification pass. No fleet helper/gate is added here.
+
+[Auth #38](https://github.com/dragginzgame/ic-auth/issues/38) repairs CI preparation
+routing: exact npm installs into the selected Node installation, PATH selects it
+through Make, and the admitted bin directory is published for later steps after
+complete preparation. Versions/paths/prefixes are retained; workflow strict mode
+preserves the first failure through tee. Ordinary checks retain exact admission
+and gain observed-version/path diagnostics, without installing implicitly.
+The actual workflow block and Make recipes pass selected-prefix/later-step,
+wrong-Node, setup-failure, wrong-prepared-npm, dependency-failure and missing-path
+controls on Bash 3.2 with substituted npm effects. Native macOS root cause/repair
+acceptance is not claimed from these Linux fixtures; its failed job omitted
+actual versions/paths. Release-fixture overlays include the new maintained inputs.
+
+The new `test-client-tools` target extends the complete gate to **29 stages**.
+The earlier 0.9.0-source validation passes on Linux with genuine Bash 3.2.57:
+`target/shared-0.9.0/validation-logs/validation.zJKKw4` contains all **29 PASS**
+results, including four canister qualification tests and 52 browser tests.
+All 58 before/after input observations match the eight-file baseline; every
+tracked/new source byte and mode, index and HEAD stays unchanged across the gate.
+Incoming Cargo manifest/lock bytes remain identical. The retained receipt is
+`target/shared-0.9.0/qualification-receipt.json`, with checked tracked-diff SHA-256
+`0e4bf5caaa2853c6c5d086e50843bf2b6a85f2299fd33ac74fbbb88e000dec40`.
+No duplicate-recipe warnings occur. Final evidence edits are prose-only and
+receive link, snapshot and diff checks separately; no hosted run is inferred for
+this pending source from the released 0.5.4 run.
+Library APIs, signed/stored formats, tool pins and Rust floor remain unchanged;
+the compatible candidate is **0.5.5**. Versions/index/commits/refs/release effects
+remain maintainer-owned. Consumer full-verifier/session and browser-reconciliation
+contracts remain in their existing Canic trackers; no sibling source/build is
+changed here.
+
+## Released 0.5.4 preparation evidence
+
+The following receipt describes preparation before maintainer delivery. Its
+pending versions and native observations are historical; current delivery is above.
+
 
 [Auth #37](https://github.com/dragginzgame/ic-auth/issues/37) now advances the same
 compatible batch to committed Shared Tooling **0.8.4

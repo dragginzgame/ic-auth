@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.5.5]
+
+- Adopt committed Shared Tooling 0.9.2’s unified snapshot reader, including NUL
+  rejection and complete validated-record output. Keep ownership/integrity
+  checks separate and preserve the selected command surface.
+  [#39](https://github.com/dragginzgame/ic-auth/issues/39),
+  [Shared #133](https://github.com/dragginzgame/shared-tooling/issues/133).
+  Reject NUL in evidence checksum manifests and invalid consumer paths before
+  tool setup. Shared installer cleanup releases both locks even if checkout
+  cleanup fails, preserving original failures and failed candidates.
+- Bind CI npm installation and later steps to the selected Node installation.
+  Retain observed versions, paths and prefixes, and preserve the first setup
+  failure through log capture. Exact pins and offline admission remain enforced.
+  [#38](https://github.com/dragginzgame/ic-auth/issues/38).
+- Qualify the incoming locked Host 0.14.9 / Testkit 0.34.5 pairing for native
+  qualification. Library APIs, formats and compiler requirements stay unchanged.
+  [#40](https://github.com/dragginzgame/ic-auth/issues/40).
+
 ## [0.5.4] - 2026-10-12
 
 - Adopt committed Shared Tooling 0.8.4 for strict snapshot records, safer retained
