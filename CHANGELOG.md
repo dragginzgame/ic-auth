@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.5.2]
+## [0.5.2] - 2026-10-12
 
 - Select explicit Shared Tooling snapshot entrypoints and derive their required
   companions from the reviewed commit, preserving the existing payload and
