@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.5.6]
+## [0.5.6] - 2026-10-12
 
 - Qualify locked native tooling at Host 0.14.10 / Testkit 0.34.6 and updated
   native TLS/macro dependencies, retaining Rust 1.88, Testkit-owned server setup,
