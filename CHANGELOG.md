@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.5.10]
+## [0.5.10] - 2026-10-13
 
 - Use IC Metrics for repeated qualification instruction summaries, with separate
   workloads and decode/authorization/total counts, means and maxima. Retain raw
