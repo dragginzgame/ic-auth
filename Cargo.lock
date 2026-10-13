@@ -1154,7 +1154,7 @@ dependencies = [
 
 [[package]]
 name = "ic-auth"
-version = "0.5.8"
+version = "0.5.9"
 dependencies = [
  "ic-auth-protocol-types",
  "ic-canister-sig-creation",
@@ -1172,7 +1172,7 @@ dependencies = [
 
 [[package]]
 name = "ic-auth-protocol-types"
-version = "0.5.8"
+version = "0.5.9"
 dependencies = [
  "candid",
  "serde",
@@ -1181,7 +1181,7 @@ dependencies = [
 
 [[package]]
 name = "ic-auth-qualification"
-version = "0.5.8"
+version = "0.5.9"
 dependencies = [
  "candid",
  "ic-agent",
@@ -1197,7 +1197,7 @@ dependencies = [
 
 [[package]]
 name = "ic-auth-qualification-canister"
-version = "0.5.8"
+version = "0.5.9"
 dependencies = [
  "candid",
  "ic-auth",
@@ -1209,7 +1209,7 @@ dependencies = [
 
 [[package]]
 name = "ic-auth-tooling"
-version = "0.5.8"
+version = "0.5.9"
 dependencies = [
  "ic-host-fs 0.17.0",
 ]

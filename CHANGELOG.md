@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.5.9]
+## [0.5.9] - 2026-10-13
 
 - Avoid rewriting unchanged signature retention entries on live preparation
   retries, preserving validation, the accepted clock and the original deadline.
