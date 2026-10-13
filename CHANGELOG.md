@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.5.8]
+## [0.5.8] - 2026-10-13
 
 - Qualify native tooling with Host 0.16.0 and Testkit 0.35.1, retaining
   Testkit-owned server admission and the library dependency boundary.
