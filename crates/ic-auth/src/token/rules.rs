@@ -2,7 +2,7 @@ use super::{
     DelegationProofVerificationLimits, TokenVerificationContext, TokenVerificationError,
     TokenVerificationLimits, binding, window,
 };
-use crate::canonical::{CanonicalAuthError, cert_hash, claims_hash, validate_scope_label};
+use crate::canonical::{cert_hash, claims_hash, validate_scope_label, validate_scopes};
 use crate::certificate_issuance::{
     CertificateLifetimeError, issuer_binding_matches, positive_duration,
     validate_certificate_lifetime,
@@ -242,14 +242,7 @@ pub(super) fn verify_material<'a>(
         .iter()
         .find(|grant| &grant.target == ctx.role)
         .ok_or(TokenVerificationError::RoleRejected)?;
-    let mut previous: Option<&str> = None;
-    for scope in ctx.allowed_scopes {
-        validate_scope_label(scope)?;
-        if previous.is_some_and(|previous| previous >= scope.as_str()) {
-            return Err(CanonicalAuthError::NonCanonicalScopes.into());
-        }
-        previous = Some(scope);
-    }
+    validate_scopes(ctx.allowed_scopes)?;
     for scope in &grant.scopes {
         if !ctx.allowed_scopes.contains(scope) {
             return Err(TokenVerificationError::ScopeRejected {

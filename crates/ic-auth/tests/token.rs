@@ -483,6 +483,37 @@ fn protects_network_audience_local_role_scope_ceiling_and_endpoint_requirements(
 }
 
 #[test]
+fn protected_scope_ceiling_preserves_canonical_error_precedence() {
+    for (allowed, expected) in [
+        (vec!["read", "read"], CanonicalAuthError::NonCanonicalScopes),
+        (
+            vec!["write", "read"],
+            CanonicalAuthError::NonCanonicalScopes,
+        ),
+        (
+            vec!["read", "read", ""],
+            CanonicalAuthError::NonCanonicalScopes,
+        ),
+        (vec!["write", ""], CanonicalAuthError::EmptyScope),
+        (
+            vec!["bad scope", "read"],
+            CanonicalAuthError::InvalidScope {
+                scope: "bad scope".into(),
+            },
+        ),
+    ] {
+        let mut f = Fixture::new();
+        f.allowed = allowed.into_iter().map(str::to_owned).collect();
+        f.assert_error(Error::Canonical(expected));
+    }
+    let mut f = Fixture::new();
+    f.allowed.clear();
+    f.assert_error(Error::ScopeRejected {
+        scope: "read".into(),
+    });
+}
+
+#[test]
 fn rejects_grant_broadening_and_noncanonical_or_empty_grants() {
     let mut f = Fixture::new();
     f.token.claims.grants = vec![grant(&["admin"])];

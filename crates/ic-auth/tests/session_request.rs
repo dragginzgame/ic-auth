@@ -72,6 +72,16 @@ fn exact_scope_limits_accept_without_widening_or_changing_labels() {
         Err(SessionRequestError::InvalidRequest)
     );
     let too_long = format!("{}a", sorted[0]);
+    let mut over_total = sorted;
+    over_total[0] = too_long.clone();
+    assert_eq!(
+        SessionRequest::new(over_total, None),
+        Err(SessionRequestError::Canonical(
+            CanonicalAuthError::InvalidScope {
+                scope: too_long.clone()
+            }
+        ))
+    );
     assert_eq!(
         SessionRequest::new(vec![too_long.clone()], None),
         Err(SessionRequestError::Canonical(

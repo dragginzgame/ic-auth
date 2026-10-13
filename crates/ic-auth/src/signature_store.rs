@@ -198,10 +198,15 @@ impl SignatureStore {
             .checked_add(retention_ns)
             .ok_or(SignatureStoreError::DeadlineOverflow)?;
         let existing = self.entries.get(&key).copied();
-        let expires_at = match existing {
-            Some(expires_at) if now_ns < expires_at => expires_at,
-            _ => deadline,
-        };
+        if let Some(expires_at) = existing
+            && now_ns < expires_at
+        {
+            self.last_mutation_ns = now_ns;
+            return Ok(PreparedSignature {
+                retrieval_expires_at_ns: expires_at,
+                signature_root: self.root_hash(),
+            });
+        }
         if let Some(old) = existing {
             self.expirations.remove(&(old, key.0, key.1));
         } else {
@@ -218,11 +223,11 @@ impl SignatureStore {
                 });
             }
         }
-        self.entries.insert(key, expires_at);
-        self.expirations.insert((expires_at, key.0, key.1));
+        self.entries.insert(key, deadline);
+        self.expirations.insert((deadline, key.0, key.1));
         self.last_mutation_ns = now_ns;
         Ok(PreparedSignature {
-            retrieval_expires_at_ns: expires_at,
+            retrieval_expires_at_ns: deadline,
             signature_root: self.root_hash(),
         })
     }

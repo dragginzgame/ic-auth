@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.5.9]
+
+- Avoid rewriting unchanged signature retention entries on live preparation
+  retries, preserving validation, the accepted clock and the original deadline.
+  [#47](https://github.com/dragginzgame/ic-auth/issues/47).
+
+- Share canonical scope validation across token verification and live session
+  checks, preserving their existing errors, rejection order and retry behavior.
+  [#46](https://github.com/dragginzgame/ic-auth/issues/46).
+
+- Remove redundant session-request byte accounting: the existing scope count
+  and canonical label limits enforce the same 1,024-byte ceiling.
+
 ## [0.5.8] - 2026-10-13
 
 - Qualify native tooling with Host 0.16.0 and Testkit 0.35.1, retaining

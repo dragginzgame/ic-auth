@@ -1,6 +1,6 @@
 use super::SessionError;
 use crate::{
-    canonical::validate_scope_label,
+    canonical::{CanonicalAuthError, validate_scopes},
     session_request::{SessionRequest, check_scopes},
     token::{RootKeyPolicy, TokenVerificationContext, VerifiedToken},
 };
@@ -248,14 +248,10 @@ impl Session {
         {
             return Err(SessionError::StaleAuthority);
         }
-        let mut previous: Option<&str> = None;
-        for scope in ctx.allowed_scopes {
-            validate_scope_label(scope)?;
-            if previous.is_some_and(|p| p >= scope.as_str()) {
-                return Err(SessionError::InvalidPolicyOrRecord);
-            }
-            previous = Some(scope);
-        }
+        validate_scopes(ctx.allowed_scopes).map_err(|error| match error {
+            CanonicalAuthError::NonCanonicalScopes => SessionError::InvalidPolicyOrRecord,
+            error => SessionError::Canonical(error),
+        })?;
         if self
             .0
             .scopes

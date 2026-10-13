@@ -564,3 +564,57 @@ fn stored_record_decode_rejects_corruption_and_unknown_fields() {
         Err(SessionError::InvalidPolicyOrRecord)
     );
 }
+
+#[test]
+fn protected_scope_ceiling_preserves_retry_and_live_errors_without_mutation() {
+    let f = Fixture::new();
+    let mut s = store();
+    let admitted =
+        created(establish_session(&mut s, &f.token, &request(), &f.context(), policy(0)).unwrap());
+    let before = s.encoded_bytes();
+    for (allowed, expected) in [
+        (vec!["read", "read"], SessionError::InvalidPolicyOrRecord),
+        (vec!["write", "read"], SessionError::InvalidPolicyOrRecord),
+        (
+            vec!["read", "read", ""],
+            SessionError::InvalidPolicyOrRecord,
+        ),
+        (
+            vec!["write", ""],
+            SessionError::Canonical(CanonicalAuthError::EmptyScope),
+        ),
+        (
+            vec!["bad scope", "read"],
+            SessionError::Canonical(CanonicalAuthError::InvalidScope {
+                scope: "bad scope".into(),
+            }),
+        ),
+        (vec![], SessionError::ScopeRejected),
+    ] {
+        let allowed = allowed.into_iter().map(str::to_owned).collect::<Vec<_>>();
+        let mut ctx = f.context();
+        ctx.allowed_scopes = &allowed;
+        assert_eq!(
+            authorize_session(&mut s, &ctx, policy(0)).unwrap_err(),
+            expected
+        );
+        assert_eq!(
+            establish_session(&mut s, &f.token, &request(), &ctx, policy(0)).unwrap_err(),
+            expected
+        );
+        assert_eq!(s.encoded_bytes(), before);
+        assert_eq!(
+            authorize_session(&mut s, &f.context(), policy(0)).unwrap(),
+            admitted
+        );
+        ctx.now_ns = admitted.expires_at_ns();
+        assert_eq!(
+            authorize_session(&mut s, &ctx, policy(0)),
+            Err(SessionError::MissingOrExpired)
+        );
+    }
+    assert_eq!(
+        establish_session(&mut s, &f.token, &request(), &f.context(), policy(0)).unwrap(),
+        SessionEstablished::ExactRetry(admitted)
+    );
+}

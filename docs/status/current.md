@@ -3,24 +3,21 @@
 The maintainer accepted the larger Canic authentication extraction, selected the
 name `ic-auth`, and confirmed `/home/adam/projects/ic-auth` as the local repository.
 
-The current committed release is `1df653d8391304c85c54a71f9559d0732337ea91`
-(`0.5.7`) on `main`, with annotated tag `v0.5.7` object
-`4c1f01fa894907032eb3040712166f3d4cc62f46`; verified remote main/tag and local
-peeled tag match its retained publication intent. Both libraries are indexed,
-unyanked and checksum-matched: types
-`0908296f6ed514c071c731e5f9bea467ca39ec988249272c3c1adc8343d018fa`,
-auth `3c96efcc5a224e2e147fadb30ef6381f79bc0b32169742415b585f207b55d903`.
-[Exact-source 0.5.7 CI](https://github.com/dragginzgame/ic-auth/actions/runs/38284363288)
-now passes all three native hosts. #38–#42 are closed against this maintained
-released graph; cancelled predecessor runs retain their historical status. Released source
-selects Shared 0.9.6, three Host packages at 0.15.1 and Testkit
-0.35.0/server 16.1.0. The previously recorded 0.34.7/Host 0.15.0 selections
-describe pre-delivery preparation, not this delivered graph. Producer
-qualification does not qualify Canic's changing adapters. Released
-[0.5.6 CI](https://github.com/dragginzgame/ic-auth/actions/runs/38273690043)
-was cancelled after its Linux pass; [0.5.5 CI](https://github.com/dragginzgame/ic-auth/actions/runs/38264912310)
-passes Linux and Intel macOS with ARM cancelled. Neither incomplete matrix is
-relabelled as a complete native pass.
+The current committed release is `12bae9fa3d16209b427f0e9f2f558b9bdd452969`
+(`0.5.8`) on `main`, with annotated tag object
+`9612b81a5a3a9c3787a59c189f96c758eabe5010`; official remote main/tag and local
+peeled tag match its retained publication intent. Both unyanked registry entries
+match: types `feff45b4baa7053505d968f87ea73c6848f0834d99be81c941025cf846ed9b9f`,
+auth `f917a985fad99de53482cede7ff13b8d0dced811c2f05e15b7146a7540f1d7c4`.
+[Exact-source 0.5.8 CI](https://github.com/dragginzgame/ic-auth/actions/runs/38373594603)
+passes Linux; both macOS jobs remain queued at follow-up inspection, so #43–#45
+retain native acceptance. Its source
+selects Shared 0.9.13, direct Host 0.16.0 and Testkit 0.35.1, with Testkit's Host
+0.15.2/server 16.1.0. Prior
+[0.5.7 CI](https://github.com/dragginzgame/ic-auth/actions/runs/38284363288)
+passes all three native hosts and closes #38–#42 at that source. It does not
+qualify later producer or Canic inputs. Earlier partial/cancelled release runs
+remain historical evidence in their preparation receipts below.
 The preceding
 [Exact-source 0.5.4 CI](https://github.com/dragginzgame/ic-auth/actions/runs/38247803905)
 now passes the complete gate on Linux, Intel macOS and ARM macOS, completing
@@ -46,7 +43,7 @@ records this batch without closing the larger extraction.
 
 The virtual Rust workspace contains `ic-auth-protocol-types`, `ic-auth` and the
 unpublished native application in `apps/tooling/`, with one lockfile, root-owned
-dependency selections and current manifest version `0.5.7`.
+dependency selections and current manifest version `0.5.8`.
 The passive token/proof contracts and canonical encoding are adapted from the
 clean Canic source at `e286b3fd98460c98670336853f80658a920966e0`; see the
 [source review](../design/canic-source-review.md) for exact ownership and API
@@ -68,7 +65,73 @@ That evidence binds its reported consumer inputs, not later changing sibling
 files. Complete-token, durable-session and deployed acceptance remain separate.
 No sibling repository was modified or built by IC Auth work.
 
-## Shared 0.9.13 and Host 0.16 adoption (pending 0.5.8)
+## Current simplification (pending 0.5.9)
+
+[Auth #46](https://github.com/dragginzgame/ic-auth/issues/46) consolidates protected
+scope-ceiling validation in token verification and live session authorization on
+the existing canonical validator. No new policy type, public API or cache is
+introduced. The session boundary retains its InvalidPolicyOrRecord mapping for
+noncanonical order; label errors and earlier authority/expiry checks retain their
+precedence. Request normalization/count bounds, stored-record validation and
+required-scope membership remain separate because their contracts differ.
+
+The focused review applies the adopted flow-convergence method to those three
+validation owners at released source `12bae9fa3d16209b427f0e9f2f558b9bdd452969`.
+The maintenance concern is repeated grammar/order logic, not a reproduced
+acceptance bug or measured Canic performance improvement. Characterization tests
+pass before and after the change through token verification, authorization and
+exact retry, including mixed-invalid errors and unchanged retained sessions.
+Canic's host cleanup, renewal, facade-denial, logout and browser repairs remain
+with its existing #419/#506/#525/#380/#507 trackers; none requires a new producer
+API from this compatible patch.
+
+The complete `make -j4 ci` gate passes all 29 stages on Linux/Bash 5.2.21,
+including four real canister cases, package/compiler qualification and local/mocked
+release recovery. Logs: `target/complexity-0.5.9/validation-logs/validation.Y2hdUi`;
+receipt: `target/complexity-0.5.9/qualification-receipt.json`. All 58 sealed-input
+observations match. Source bytes/modes, index and HEAD match from the early
+tools-check checkpoint, taken before compilation, through completion. The attempted
+pre-entry capture referenced removed prior-release scratch files; this receipt
+does not claim a gate-entry checkpoint or Bash 3.2 execution. Final prose receives
+separate link/snapshot/diff checks. No consumer performance benefit or native
+macOS acceptance is claimed; package versions and release refs remain unchanged.
+
+The follow-up scope review removes unreachable aggregate byte accounting from
+`session_request::check_scopes`: its 16-label count guard and canonical 64-byte
+label guard already enforce the 1,024-byte bound. Both request construction and
+trusted record decoding retain that check, their distinct ordering rules and
+error precedence. Existing exact-bound/hash cases and a 1,025-byte rejection case
+pass with protocol/session checks. This continues #46 without a public contract
+change; no consumer speedup is claimed. The follow-up complete gate passes all
+29 stages on Linux/Bash 5.2.21, with 58 matching sealed-input observations and
+identical source bytes/modes, index and HEAD before/after execution. Logs:
+`target/scope-bounds-0.5.9/validation-logs/validation.EGfe24`; receipt:
+`target/scope-bounds-0.5.9/qualification-receipt.json`. Final prose is checked
+separately for local links, snapshot integrity and diff whitespace.
+
+The next bounded review, [Auth #47](https://github.com/dragginzgame/ic-auth/issues/47),
+removes unchanged retention-map/index writes on live signature preparation retry.
+Input, clock, retention and overflow checks still precede the return, and successful
+retries still advance the accepted clock. Expired replacement and new-key capacity
+checks retain their paths. Before/after characterization covers live retry at
+capacity, invalid retention/overflow without clock advancement, later clock
+regression and exact expiry pruning. Existing composed-witness tests also pass.
+This reduces mutation work without a measured Canic speedup or public API change.
+
+Incoming Cargo selections now use direct Host 0.17.0 and Testkit 0.36.0 with its
+Host 0.16.0 graph; those incoming bytes are preserved by this cleanup. Offline
+Testkit admission initially refused the uninstalled selected CLI; explicit
+`make install-testkit-tools` then prepared it and server 16.1.0. The failed check
+and setup logs remain in `target/signature-retry-0.5.9/`. All 29 complete gate
+stages pass on Linux/Bash 5.2.21, including real canister qualification on this
+graph. All 58 sealed-input observations match; source bytes/modes, index and HEAD
+are identical before/after execution, and incoming Cargo bytes are preserved.
+Logs: `target/signature-retry-0.5.9/validation-logs/validation.zBW9Jr`; receipt:
+`target/signature-retry-0.5.9/qualification-receipt.json`. Final prose receives
+separate link/snapshot/diff checks. Earlier receipts describe their older inputs;
+this local run does not establish native macOS or Canic consumer acceptance.
+
+## Released 0.5.8 Shared/Host preparation evidence
 
 The requested latest committed Shared snapshot is 0.9.13
 `35cad65677ff989b5fb24a88d947fda37d2366e8`, verified against official main.

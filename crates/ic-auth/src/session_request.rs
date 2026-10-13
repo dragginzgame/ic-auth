@@ -66,13 +66,9 @@ pub(crate) fn check_scopes(scopes: &[String]) -> Result<(), SessionRequestError>
     if scopes.is_empty() || scopes.len() > 16 {
         return Err(SessionRequestError::InvalidRequest);
     }
-    let mut bytes = 0usize;
+    // The count bound and canonical 64-byte label bound imply <=1024 bytes.
     for scope in scopes {
         validate_scope_label(scope)?;
-        bytes += scope.len(); // Each validated scope is <=64 bytes, count <=16.
-    }
-    if bytes > 1024 {
-        return Err(SessionRequestError::InvalidRequest);
     }
     Ok(())
 }

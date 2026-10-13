@@ -208,6 +208,38 @@ fn removing_one_leaf_preserves_other_messages_and_seeds() {
 }
 
 #[test]
+fn live_retry_validates_before_advancing_clock_and_preserves_retention() {
+    let mut store = SignatureStore::new(
+        signer(),
+        SignatureLimits {
+            max_signatures: 1,
+            ..limits()
+        },
+    )
+    .unwrap();
+    let first = store.prepare(inputs(), u64::MAX - 10, 10).unwrap();
+    assert_eq!(
+        store.prepare(inputs(), u64::MAX - 1, 0),
+        Err(Error::InvalidRetention)
+    );
+    assert_eq!(
+        store.prepare(inputs(), u64::MAX - 1, 2),
+        Err(Error::DeadlineOverflow)
+    );
+    // Failed retries did not advance the clock; a valid retry at capacity does.
+    assert_eq!(store.prepare(inputs(), u64::MAX - 2, 1).unwrap(), first);
+    assert_eq!(
+        store.remove(inputs(), u64::MAX - 3),
+        Err(Error::ClockRegressed)
+    );
+    assert_eq!(store.root_hash(), first.signature_root);
+    assert_eq!(store.len(), 1);
+    assert_eq!(store.prune(u64::MAX - 1, 1), Ok(0));
+    assert_eq!(store.prune(u64::MAX, 1), Ok(1));
+    assert!(store.is_empty());
+}
+
+#[test]
 fn input_retention_overflow_and_clock_rejections_leave_state_unchanged() {
     let mut store = store();
     store.prepare(inputs(), NOW, 1).unwrap();
