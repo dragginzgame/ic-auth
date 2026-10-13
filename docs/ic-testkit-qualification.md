@@ -12,7 +12,7 @@ the wrapper asks the locked Testkit CLI to check its prepared server and consume
 only the returned absolute path. There is no test-time setup, server pin catalog
 or retained-bundle fallback. `make install-testkit-tools` explicitly prepares the
 CLI and server; `make testkit-tools-check` performs offline admission alone.
-The released 0.5.6 lock selects `ic-testkit` 0.34.7, which owns the PocketIC
+The released 0.5.7 lock selects `ic-testkit` 0.35.0, which owns the PocketIC
 dependency; runtime types are imported through
 its re-export, and typed Candid calls preserve application results separately
 from encoding, decoding and replica errors. There is no direct `pocket-ic`
@@ -39,6 +39,15 @@ Linux/Bash 3.2 stages pass, including four real canister cases. Native macOS
 acceptance of that source remains separate. Older receipts
 do not qualify the later graph. Testkit's library/runtime behavior is unchanged
 in 0.34.7; its packaged notes describe contributor tooling adoption.
+The actual delivered 0.5.7 graph already selects Testkit 0.35.0 and three Host
+packages at 0.15.1. Testkit's removed generic build/IC-tool reexports have no
+Auth caller, so no compatibility route or direct IC Build dependency is added.
+These native dependencies remain absent from both public library graphs.
+The earlier 0.34.7/Host 0.15.0 receipt above remains historical; it does not
+qualify the later graph. The pending 0.5.8 gate binds the actual unchanged native
+selection to the extended fixture under
+[Auth #43](https://github.com/dragginzgame/ic-auth/issues/43).
+
 The selected transitive client and server are both 16.1.0. The IC agent is 0.49.2
 and the host CDK is 0.20.3; versions and dependencies are owned by the virtual root.
 PocketIC 16.1.0 pins `thiserror` 2.0.18, so the shared lock selects that version;
@@ -207,3 +216,28 @@ in the [accepted design](design/extraction.md). The existing
 [Canic extraction tracker](https://github.com/dragginzgame/canic/issues/491)
 remains the adoption owner. Exact local evidence belongs in the
 [current handoff](status/current.md).
+
+## Isolated session instruction qualification
+
+The certified-token case also produces one-scope and maximum-width (16 scopes,
+64 bytes each) sessions through complete real certificate/proof admission. The
+fixture controller installs the encoded trusted record and independent protected
+role/audience/scope/Root policy in the internal canister. Unauthorized installation
+is refused. A query uses actual caller/time and measures `Session::decode` and
+`authorize_session` separately with the IC instruction counter; context creation,
+Candid decoding, host stable-row projection and response encoding are excluded.
+
+The read-only transaction adapter traps if authorization asks for admission
+limits, replay/occupancy or writes. Tests cover repeated reads, generation changes,
+Root key replacement, a narrowed Root deadline, scope narrowing and missing
+required scope, missing records, disable, combined stale/scope rejection and exact
+expiry after advancing the replica round. Every measured SDK segment stays below
+one million instructions; samples and certified fixture state are retained by
+`make test-qualification`. This bounds these fixture inputs, not a universal
+budget or Canic's complete facade. Canic's own measurements and denial mapping
+remain [#525](https://github.com/dragginzgame/canic/issues/525).
+
+The fixture remains volatile across upgrades. Controller-installed records are
+trusted restoration inputs, never login credentials or a stable backend. The
+measurement creates no new wallet endpoint, signing authority or public library
+API, and cannot qualify Canic's atomic storage, timers, logout or browser adapter.

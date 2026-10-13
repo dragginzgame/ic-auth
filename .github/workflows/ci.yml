@@ -45,6 +45,25 @@ jobs:
           bash scripts/dev/prepare-client-ci.sh 2>&1 | tee target/browser-client/npm-preparation.log
       - name: Prepare the repository-selected Rust toolchain
         run: rustup show active-toolchain
+      - name: Prepare host tools and identify Cargo build cache
+        id: tool-cache-key
+        run: |
+          make --no-print-directory install-host-tools
+          make --no-print-directory host-tools-check
+          export PATH="$GITHUB_WORKSPACE/.tools/host/bin:$PATH"
+          bash scripts/ci/cargo-tool-cache-key.sh ci/tool-versions.env >> "$GITHUB_OUTPUT"
+      - name: Restore Cargo tool builds
+        id: tool-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        timeout-minutes: 3
+        continue-on-error: true
+        env:
+          SEGMENT_DOWNLOAD_TIMEOUT_MINS: 2
+        with:
+          path: |
+            ${{ steps.tool-cache-key.outputs.root }}/cargo-cache
+            ${{ steps.tool-cache-key.outputs.root }}/rust-*
+          key: cargo-tools-${{ runner.os }}-${{ runner.arch }}-${{ steps.tool-cache-key.outputs.key }}
       - name: Install reviewed tools and prepare the selected dependency cache
         run: |
           bash scripts/dev/ci-tools.sh install
@@ -52,6 +71,18 @@ jobs:
           printf '%s\n' "$GITHUB_WORKSPACE/.tools/host/bin" \
             "$GITHUB_WORKSPACE/.tools/ic/bin" "$GITHUB_WORKSPACE/.tools/rust/common/bin" >> "$GITHUB_PATH"
           make fetch
+      # Save after setup and admission, before longer tests can be cancelled.
+      # Pull requests only restore; cache hits never bypass tool admission.
+      - name: Save verified Cargo tool builds
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.tool-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        timeout-minutes: 3
+        continue-on-error: true
+        with:
+          path: |
+            ${{ steps.tool-cache-key.outputs.root }}/cargo-cache
+            ${{ steps.tool-cache-key.outputs.root }}/rust-*
+          key: cargo-tools-${{ runner.os }}-${{ runner.arch }}-${{ steps.tool-cache-key.outputs.key }}
       - name: Qualify Rust-tool setup and check failure collection
         id: tools-evidence
         run: bash scripts/ci/test-tools-evidence.sh

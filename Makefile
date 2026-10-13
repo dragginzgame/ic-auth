@@ -69,6 +69,10 @@ test-formatting-hooks:
 		apps/qualification/runner/Cargo.toml \
 		apps/qualification/runner/tests/signatures/application_tokens.rs \
 		apps/qualification/runner/tests/signatures/application_sessions.rs \
+		apps/qualification/runner/tests/signatures/session_profile.rs \
+		apps/qualification/session_profile.rs \
+		apps/qualification/canister/Cargo.toml \
+		apps/qualification/canister/src/session_profile.rs \
 		apps/qualification/canister/src/lib.rs \
 		apps/qualification/runner/tests/signatures.rs \
 		apps/qualification/runner/tests/signatures/profile_composition.rs

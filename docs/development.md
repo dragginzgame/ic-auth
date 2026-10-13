@@ -2,8 +2,8 @@
 
 The virtual root owns two libraries, unpublished native tooling in `apps/tooling/`
 and the internal host/runner in `apps/qualification/`, plus dependency selections,
-lints and one lockfile. The current manifest version is `0.5.6`, tagged as
-`v0.5.6`; both libraries are published and checksum-verified. It retains 0.5.0's
+lints and one lockfile. The current manifest version is `0.5.7`, tagged as
+`v0.5.7`; both libraries are published and checksum-verified. It retains 0.5.0's
 default-feature [canonical session requests](session-requests.md) and adopts the
 shared Make entrypoint, prepared-input guards and fixture warning repair.
 Released 0.5.3 extends real certification qualification across Root/issuer signing
@@ -20,13 +20,15 @@ Testkit retains its transitive four-package Host 0.14.10 family. The server stay
 16.1.0, with newer native TLS/macro dependencies.
 [Auth #41](https://github.com/dragginzgame/ic-auth/issues/41) retains the earlier
 0.14.10/0.34.6 preparation receipt; it does not qualify the later selections.
-Released 0.5.6's exact-source Linux gate passes; Intel macOS is queued and ARM
-macOS is running at inspection.
-The pending compatible 0.5.7 tooling batch preserves this Cargo graph and
-passes the complete 29-stage Linux/Bash 3.2 gate under
-[Auth #42](https://github.com/dragginzgame/ic-auth/issues/42), including package
-MSRV paths and all four real canister cases. Native acceptance of that source
-remains separate.
+Released 0.5.6's exact-source Linux gate passes; its incomplete native run was
+cancelled after delivery of 0.5.7. That release actually selects Testkit 0.35.0
+and the three Host packages at 0.15.1; the earlier preparation receipt is
+historical. Pending 0.5.8 preserves those locked registry versions and extends
+the real fixture with isolated Wasm session costs and live refusal cases under
+[Auth #43](https://github.com/dragginzgame/ic-auth/issues/43). Both libraries'
+contracts and versions stay unchanged. No IC Build or direct PocketIC dependency
+is introduced. Its complete Linux/Bash 3.2 gate passes all 29 stages; native
+macOS acceptance of the future pushed source remains separate.
 Rust `1.99.0` remains the development compiler selected by `rust-toolchain.toml`.
 The common package minimum is Rust `1.88.0`, inherited from the root catalog and
 qualified by explicit older-compiler checks. See [MSRV coverage](msrv.md).
@@ -45,9 +47,10 @@ passes on all three hosts. Released 0.5.5's
 [own run](https://github.com/dragginzgame/ic-auth/actions/runs/38264912310)
 passes Linux and Intel macOS; ARM macOS was cancelled by the newer revision.
 Released 0.5.6's [own run](https://github.com/dragginzgame/ic-auth/actions/runs/38273690043)
-passes Linux; Intel macOS is queued and ARM macOS is running at inspection.
-Neither is a completed
-native matrix, and neither qualifies uncommitted 0.5.7 changes. Shared
+passes Linux; that incomplete run was cancelled by the newer revision.
+Released 0.5.7's [own run](https://github.com/dragginzgame/ic-auth/actions/runs/38284363288)
+passes Linux with Intel/ARM macOS queued. Native acceptance remains source-bound.
+Shared
 Tooling's [host prerequisites](supported-hosts.md) apply, including Bash 3.2+,
 GNU Make, rustup, Git and standard Unix setup utilities.
 
@@ -96,10 +99,10 @@ installation behavior are described in the shared [local setup](local-setup.md).
 The Makefile includes reviewed [`make/consumer.mk`](make-interface.md), which owns
 common setup, formatting, hooks, snapshot verification and release routing.
 `check-snapshot` retains its public name and depends on `shared-tooling-check`.
-The recorded snapshot selects 66 entrypoints and derives their 91-file companion
-closure from committed Shared Tooling 0.9.6
-`7e9f062f53baad2059a8585e2fffe2b98f03bafd`. Its exact source `VERSION` records
-0.9.6; no release tag is inferred from that annotation. Refreshes reuse recorded
+The recorded snapshot selects 68 entrypoints and derives their 93-file companion
+closure from committed Shared Tooling 0.9.13
+`35cad65677ff989b5fb24a88d947fda37d2366e8`. Its exact source `VERSION` records
+0.9.13; no release tag is inferred from that annotation. Refreshes reuse recorded
 roots with the canonical exporter. Preview the complete change and retain directly
 used helpers as entrypoints: unchanged owned payloads outside the new closure are
 retired automatically after ownership, local-edit and index checks. Do not use
@@ -110,6 +113,17 @@ The canonical verifier also supports `--read-manifest FILE`: it validates the
 complete captured syntax before emitting records, rejects NUL/extra fields, and
 performs no payload/ownership admission in this mode. Normal snapshot checks
 still verify bytes/modes. See [reader semantics](consuming-snapshots.md).
+Shared 0.9.10 rejects non-boolean Cargo `net.offline` values before tool dispatch.
+Its changed build policy selects fresh tool receipts: explicitly run
+`make install-rust-tools` and `make install-testkit-tools`, then `make tools-check`.
+Existing installations and evidence are retained. CI uses the canonical Cargo
+build cache identity, restores shared builds before setup and saves admitted
+builds on main pushes before tests. Pull requests only restore; cache availability
+never bypasses full setup, offline admission or the three-host validation matrix.
+The [change-reporting rules](../rules/change-reporting.md) govern final maintainer
+handoffs, including scoped zero counts and separate symbol deletion/move/rename
+classification.
+
 The new [Cargo-tool freshness task](../tasks/cargo-tool-versions.md) is included
 with the catalog; its online checker runs from Shared Tooling and is separate
 from Auth's offline admission and CI. No schedule is enabled by adoption.
@@ -493,7 +507,7 @@ private-file publication use `ic-host-fs`. The caller supplies finite byte limit
 tooling limits, not authentication protocol limits. The publication lock and
 registry uncertainty policy remain owned by the release/publication scripts.
 
-The native utility and qualification runner select published `ic-host-fs` 0.15.0;
+The native utility and qualification runner select published `ic-host-fs` 0.15.1;
 the utility uses
 `durable::write_with(path, options, producer)` with explicit create/replace modes
 and owner-only permissions. Publication errors retain their typed before/after

@@ -64,12 +64,15 @@ pr_store() {
 pr_preflight() {
     read_remote_refs
     [[ "$remote_head" == "$source" ]] || fail 'PR preparation requires the current published base commit'
-    local head_ref
+    local head_ref response
     head_ref="$(git ls-remote --refs -- "$destination" "refs/heads/$pr_branch")"
     [[ -z "$head_ref" ]] || fail 'release PR branch already exists before preparation'
     # Read-only API admission also establishes that this token can see this repo.
-    gh api --hostname github.com "repos/$pr_repository" --jq .full_name > "$state_root/pr-repository"
-    [[ "$(cat "$state_root/pr-repository")" == "$pr_repository" ]] || fail 'GitHub repository identity differs from the push destination'
+    response="$(mktemp "$state_root/pr-repository.XXXXXX")"
+    gh api --hostname github.com "repos/$pr_repository" > "$response"
+    jq -se --arg repository "$pr_repository" '
+        length == 1 and (.[0] | type == "object" and .full_name == $repository)
+    ' "$response" >/dev/null || fail 'GitHub repository identity differs from the push destination'
 }
 
 pr_prepare_branch() {

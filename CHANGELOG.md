@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.5.8]
+
+- Qualify native tooling with Host 0.16.0 and Testkit 0.35.1, retaining
+  Testkit-owned server admission and the library dependency boundary.
+  [#45](https://github.com/dragginzgame/ic-auth/issues/45).
+
+- Adopt Shared Tooling 0.9.13, including strict Cargo offline configuration
+  checks and CI reuse of verified tool builds. Restored builds still pass explicit
+  setup and offline admission; contributors reselect tools with
+  `make install-rust-tools` and `make install-testkit-tools`.
+  Preserve tool-lock and Cargo source-acquisition failures and their exit statuses.
+  [#44](https://github.com/dragginzgame/ic-auth/issues/44).
+
+- Add real Wasm qualification of bounded session decoding and live SDK
+  authorization costs, with controller-installed authority and maximum-width
+  scope records. Exercise generation, Root key/deadline, scope, missing-session
+  and expiry refusals without changing the published API or stored format.
+  [#43](https://github.com/dragginzgame/ic-auth/issues/43),
+  [Canic #525](https://github.com/dragginzgame/canic/issues/525).
+
 ## [0.5.7] - 2026-10-12
 
 - Adopt Shared Tooling 0.9.6 with bounded transient setup-download retries and

@@ -31,6 +31,9 @@ mod application_tokens;
 #[path = "signatures/profile_composition.rs"]
 mod profile_composition;
 
+#[path = "signatures/session_profile.rs"]
+mod session_profile;
+
 struct Fixture {
     pic: PocketIc,
     signer: Principal,

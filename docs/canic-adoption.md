@@ -16,17 +16,17 @@ transactions and recovery obligations.
 
 ## Published dependency and feature selection
 
-Both `ic-auth` and `ic-auth-protocol-types` 0.5.6 are published and unyanked.
+Both `ic-auth` and `ic-auth-protocol-types` 0.5.7 are published and unyanked.
 Their registry checksums match IC Auth release
-`dd57087020e12bbd30794f386360a6ec6ef5837f`. Rust 1.88 is the supported minimum.
-The pure preparation API requires at least 0.4.2; 0.5.6 preserves its Rust contract.
+`1df653d8391304c85c54a71f9559d0732337ea91`. Rust 1.88 is the supported minimum.
+The pure preparation API requires at least 0.4.2; 0.5.7 preserves its Rust contract.
 Select compatible registry requirements in Canic's
 root catalog and record the resolved versions in its own lockfiles:
 
 ```toml
 [workspace.dependencies]
-ic-auth = { version = "0.5.6", default-features = false }
-ic-auth-protocol-types = "0.5.6"
+ic-auth = { version = "0.5.7", default-features = false }
+ic-auth-protocol-types = "0.5.7"
 ```
 
 Child packages inherit these dependencies with `workspace = true`; their
@@ -47,7 +47,7 @@ certificate issuance and enabled chain-key checks/normalization, with direct
 production K256 retired from Core. Its [scoped native/Clippy/Wasm evidence](https://github.com/dragginzgame/ic-auth/issues/32#issuecomment-6120465762)
 and [extraction handoff](https://github.com/dragginzgame/canic/issues/491#issuecomment-6120497751)
 do not establish consumer publication, deployment or complete session-engine
-acceptance. Compatible Auth 0.5.1 through 0.5.6 introduce no new API prerequisite.
+acceptance. Compatible Auth 0.5.1 through 0.5.7 introduce no new API prerequisite.
 
 The [read-only verifier review](https://github.com/dragginzgame/canic/issues/491#issuecomment-6126777217)
 finds Canic's dirty root lock selecting published 0.5.4. Its complete-token
@@ -61,24 +61,53 @@ and a new authorization wrapper calls `session::authorize_session`. Final backen
 and guard compilation and durable transaction/lifecycle acceptance remain
 Canic-owned; changing partial source does not establish a coherent adapter.
 The [subsequent guard review](https://github.com/dragginzgame/canic/issues/491#issuecomment-6127256752)
-finds the access facade calling that wrapper. Its local precheck still owns
-public denial precedence alongside repeated generic expiry/generation/scope
-checks. Narrow it only after separating the Canic caller/fleet/role/subject
-policy and qualifying single/combined refusals at the actual facade.
-The feature-gating
-blocker advanced to corrected source during review; source alignment is not a
-resumed native/Wasm or Metrics test pass. No sibling build/edit is performed here.
-Browser adapter qualification still requires non-issuing reconciliation in
+found the facade calling that wrapper alongside a duplicate local precheck.
+That checkpoint is historical. The
+[current integration review](https://github.com/dragginzgame/canic/issues/491#issuecomment-6141222338)
+finds Canic's root and both Blob consumer locks on published Auth 0.5.7, with
+the production guard running
+the SDK before Canic subject/scope denial classification. Admission commits one
+stable session/replay pair with incremental indexes. Logout and other full-state
+operations still require their own resource/lifecycle proof under
+[Canic #380](https://github.com/dragginzgame/canic/issues/380).
+
+Retained owner storage, Clippy and managed recovery evidence has advanced.
+The changing tree is not a released/deployed consumer qualification, and no
+sibling build/edit is performed here. The measured maximum-state authorization
+budget failure and actual-facade denial coverage are tracked in
+[Canic #525](https://github.com/dragginzgame/canic/issues/525).
+The existing pure denial probe does not exercise the production SDK branch.
+The [consumer owner now reports](https://github.com/dragginzgame/canic/issues/525#issuecomment-6130059637)
+989,121 maximum-state authorization instructions without raising its 1M limit,
+plus one/median, cleanup and recovery passes; actual-facade single/combined denial
+acceptance remains open. Producer
+[Auth #43](https://github.com/dragginzgame/ic-auth/issues/43) adds an isolated
+actual-Wasm SDK decode/live-check probe to help attribute future regressions.
+One-scope records measure about 53k instructions, and the maximum-width scope
+record about 211k in the final gate (focused runs reached 292k). This excludes
+consumer context/stable-row projection and is not a complete Canic budget pass.
+[Canic #419](https://github.com/dragginzgame/canic/issues/419) retains the host
+cleanup-custody finding: physical expired rows count until bounded explicit
+pruning, which must not be stranded by unrelated intent failure. Browser adapter
+qualification independently requires non-issuing reconciliation in
 [Canic #507](https://github.com/dragginzgame/canic/issues/507).
+
+The 2026-10-13 audit observes local Canic 0.112.0 plus held changes, while
+remote main remains 0.111.0. It also reconfirms
+[Canic #506](https://github.com/dragginzgame/canic/issues/506#issuecomment-6141222675):
+ROOT must retain validated issuer-effective installation deadlines in renewal
+state. The current coordinator discards the successful typed response and stores
+declared deadlines. This remains consumer-owned alongside final facade, cleanup,
+logout and browser acceptance; Auth 0.5.8 adds no required API for those repairs.
 
 Producer 0.5.4's [complete native matrix](https://github.com/dragginzgame/ic-auth/actions/runs/38247803905)
 qualifies its retained library and actual canister fixture on Linux, Intel macOS
-and ARM macOS. Published 0.5.6's [own run](https://github.com/dragginzgame/ic-auth/actions/runs/38273690043)
-passes Linux, with Intel macOS queued and ARM macOS running at inspection.
-Neither proves Canic's
-changing endpoints or persistence. Pending compatible 0.5.7 adopts contributor
-tooling; it adds no new library API prerequisite for Canic. Durable store,
-rollback/restart/upgrade and deployed acceptance stay with the consumer owner.
+and ARM macOS. Published 0.5.7's [own run](https://github.com/dragginzgame/ic-auth/actions/runs/38284363288)
+passes all three native hosts; 0.5.6's prior run was cancelled after its Linux pass.
+Neither proves Canic's changing endpoints or persistence. Compatible 0.5.7
+adopts contributor tooling and adds no new library API prerequisite beyond
+Canic's selected 0.5.7. Durable store, rollback/restart/upgrade and deployed
+acceptance stay with the consumer owner.
 
 | Existing Canic capability | IC Auth selection | Retained Canic responsibility |
 | --- | --- | --- |
