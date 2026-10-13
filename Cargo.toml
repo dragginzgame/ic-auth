@@ -25,8 +25,9 @@ ic-canister-sig-creation = "1.3.1"
 ic-cdk = "0.20.3"
 ic-certification = "3.2"
 ic-host-fs = { version = "0.17", default-features = false }
+ic-metrics = { version = "0.9", default-features = false }
 ic-signature-verification = "0.3"
-ic-testkit = "0.36"
+ic-testkit = "0.37"
 ic-verify-bls-signature = { version = "0.6", default-features = false, features = ["alloc"] }
 k256 = { version = "0.13.4", default-features = false, features = ["ecdsa"] }
 leb128 = "0.2"

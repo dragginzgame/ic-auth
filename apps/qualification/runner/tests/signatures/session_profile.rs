@@ -15,6 +15,7 @@ use ic_auth::{
     },
 };
 use ic_auth_protocol_types::{DelegatedRoleGrant, DelegatedToken, DelegationProof, IssuerProof};
+use ic_metrics::MeasurementSummary;
 use ic_testkit::pic::CandidCallExt;
 use k256::ecdsa::SigningKey;
 use std::time::Duration;
@@ -149,11 +150,39 @@ pub(super) fn qualify(
         );
         assert_eq!(refused, Err("controller required".into()));
         install(fixture, &input);
-        let first = measure(fixture, "allow");
-        assert_eq!(first.record_bytes, record.len() as u64);
-        assert!(first.decode_instructions > 0);
-        let repeated = measure(fixture, "allow");
-        assert_eq!(first.record_bytes, repeated.record_bytes);
+        // Each installed shape has independent instruction series. Summarize
+        // only these repeated allowed queries; refusal/recovery cases stay raw.
+        let mut summaries = [MeasurementSummary::EMPTY; 3];
+        for _ in 0..5 {
+            let sample = measure(fixture, "allow");
+            assert_eq!(sample.record_bytes, record.len() as u64);
+            assert!(sample.decode_instructions > 0);
+            for (summary, instructions) in summaries.iter_mut().zip([
+                sample.decode_instructions,
+                sample.authorization_instructions,
+                sample.total_instructions,
+            ]) {
+                summary.record(instructions);
+            }
+        }
+        for (segment, summary) in ["decode", "authorization", "total"]
+            .into_iter()
+            .zip(summaries)
+        {
+            let mean = summary
+                .mean()
+                .expect("bounded instruction sample count")
+                .expect("completed instruction observations");
+            let maximum = summary
+                .maximum()
+                .expect("completed instruction observations");
+            eprintln!(
+                "session Wasm summary: scopes={}, record_bytes={}, segment={segment}, unit=instructions, samples={}, mean_floor={mean}, maximum={maximum}",
+                scopes.len(),
+                record.len(),
+                summary.samples(),
+            );
+        }
 
         // Rejected host configuration must preserve the previously installed pair.
         let mut invalid = input.clone();

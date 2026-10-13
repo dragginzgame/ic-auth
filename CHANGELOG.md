@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.5.10]
+
+- Use IC Metrics for repeated qualification instruction summaries, with separate
+  workloads and decode/authorization/total counts, means and maxima. Retain raw
+  samples and enforce each observation's budget.
+  [#49](https://github.com/dragginzgame/ic-auth/issues/49).
+
+- Adopt Shared Tooling 0.10.0 with snapshot-owned common tool catalogs and
+  independent host, IC and Rust selections. Reuse the existing reviewed pins;
+  run `make install-tools` and `make tools-check` to prepare and admit them.
+  [#48](https://github.com/dragginzgame/ic-auth/issues/48).
+
 ## [0.5.9] - 2026-10-13
 
 - Avoid rewriting unchanged signature retention entries on live preparation

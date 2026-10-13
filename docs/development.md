@@ -96,13 +96,19 @@ export PATH="$PWD/.tools/host/bin:$PWD/.tools/ic/bin:$PWD/.tools/rust/common/bin
 The first command prepares the toolchain, rustfmt, Clippy and Wasm target selected
 by the toolchain file. Common system prerequisites, exact executable pins and
 installation behavior are described in the shared [local setup](local-setup.md).
+The snapshot owns the common host/Cargo and IC catalogs. Make, standalone setup,
+formatting, CI cache identity and failure evidence use those same reviewed pins.
+There are no local catalog exceptions; host, IC and Rust override selections are
+independent. Compiler/MSRV and locked Testkit CLI/server selection stay local.
+After catalog adoption, explicitly run `make install-tools` and `make tools-check`.
+
 The Makefile includes reviewed [`make/consumer.mk`](make-interface.md), which owns
 common setup, formatting, hooks, snapshot verification and release routing.
 `check-snapshot` retains its public name and depends on `shared-tooling-check`.
-The recorded snapshot selects 68 entrypoints and derives their 93-file companion
-closure from committed Shared Tooling 0.9.13
-`35cad65677ff989b5fb24a88d947fda37d2366e8`. Its exact source `VERSION` records
-0.9.13; no release tag is inferred from that annotation. Refreshes reuse recorded
+The recorded snapshot selects 66 entrypoints and derives their 93-file companion
+closure from committed Shared Tooling 0.10.0
+`ed9c26f015691859f67b50b512a94709dcdc0c6c`. Its exact source `VERSION` records
+0.10.0; no release tag is inferred from that annotation. Refreshes reuse recorded
 roots with the canonical exporter. Preview the complete change and retain directly
 used helpers as entrypoints: unchanged owned payloads outside the new closure are
 retired automatically after ownership, local-edit and index checks. Do not use

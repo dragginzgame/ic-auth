@@ -16,17 +16,17 @@ transactions and recovery obligations.
 
 ## Published dependency and feature selection
 
-Both `ic-auth` and `ic-auth-protocol-types` 0.5.8 are published and unyanked.
+Both `ic-auth` and `ic-auth-protocol-types` 0.5.9 are published and unyanked.
 Their registry checksums match IC Auth release
-`12bae9fa3d16209b427f0e9f2f558b9bdd452969`. Rust 1.88 is the supported minimum.
-The pure preparation API requires at least 0.4.2; 0.5.7 preserves its Rust contract.
+`75d8dae2ac71ce12a628929be2d0cd5bad30fbfb`. Rust 1.88 is the supported minimum.
+The pure preparation API requires at least 0.4.2; 0.5.9 preserves its Rust contract.
 Select compatible registry requirements in Canic's
 root catalog and record the resolved versions in its own lockfiles:
 
 ```toml
 [workspace.dependencies]
-ic-auth = { version = "0.5.8", default-features = false }
-ic-auth-protocol-types = "0.5.8"
+ic-auth = { version = "0.5.9", default-features = false }
+ic-auth-protocol-types = "0.5.9"
 ```
 
 Child packages inherit these dependencies with `workspace = true`; their
@@ -47,7 +47,7 @@ certificate issuance and enabled chain-key checks/normalization, with direct
 production K256 retired from Core. Its [scoped native/Clippy/Wasm evidence](https://github.com/dragginzgame/ic-auth/issues/32#issuecomment-6120465762)
 and [extraction handoff](https://github.com/dragginzgame/canic/issues/491#issuecomment-6120497751)
 do not establish consumer publication, deployment or complete session-engine
-acceptance. Compatible Auth 0.5.1 through 0.5.7 introduce no new API prerequisite.
+acceptance. Compatible Auth 0.5.1 through 0.5.9 introduce no new API prerequisite.
 
 The [read-only verifier review](https://github.com/dragginzgame/canic/issues/491#issuecomment-6126777217)
 finds Canic's dirty root lock selecting published 0.5.4. Its complete-token
@@ -92,13 +92,42 @@ pruning, which must not be stranded by unrelated intent failure. Browser adapter
 qualification independently requires non-issuing reconciliation in
 [Canic #507](https://github.com/dragginzgame/canic/issues/507).
 
-The 2026-10-13 audit observes local Canic 0.112.0 plus held changes, while
-remote main remains 0.111.0. It also reconfirms
+The earlier 2026-10-13 audit observed local Canic 0.112.0 plus held changes, while
+remote main remained 0.111.0. It also reconfirmed
 [Canic #506](https://github.com/dragginzgame/canic/issues/506#issuecomment-6141222675):
 ROOT must retain validated issuer-effective installation deadlines in renewal
 state. The current coordinator discards the successful typed response and stores
 declared deadlines. This remains consumer-owned alongside final facade, cleanup,
-logout and browser acceptance; Auth 0.5.8 adds no required API for those repairs.
+logout and browser acceptance; Auth 0.5.9 adds no required API for those repairs.
+
+The follow-up after Auth 0.5.9 publication reviews clean local Canic commit
+`ce45935307e1f95a7f72ea3e338b19b509e17210`. Official remote main remains the
+0.111.0 release at `25b73cd403b20b4e148c6e340f8c760a26d97f6e`. The root lock
+selects Auth/protocol-types 0.5.8; both independent Blob consumer locks select
+0.5.7. These are compatible selections, not proof of one qualified graph. The
+same cleanup/renewal/logout code and pure denial probe remain present at this
+committed checkpoint. Browser prepare still enters reserve-or-replay and fresh
+issuance; it does not supply the required non-issuing reconciliation adapter.
+The existing owning issues retain their acceptance requirements. Fourteen file
+hashes and the three selected lock graphs are retained in
+`target/integration-0.5.9-live/canic-source.json`; this review does not run Canic.
+
+A later working-tree checkpoint at that HEAD selects Auth/protocol-types 0.5.9
+in the root, with both Blob consumer locks still on 0.5.7. The
+[production denial follow-through](https://github.com/dragginzgame/canic/issues/525#issuecomment-6143196133)
+identifies a narrower acceptance gap: protected verifier/TTL resolution precedes
+session lookup and projects every resolution error to StaleAuthority, even with
+a missing or expired session. The pure policy has no Root-resolution input and
+cannot qualify those combinations. Canic owns the normative facade precedence,
+unavailable/stale cause projection and actual endpoint tests; Auth's engine
+contract remains unchanged. All source-traced paths deny, with no runtime bypass
+reproduction claimed. The issue contains the exact matrix and owner repair choices.
+
+Published Auth 0.5.9 includes canonical-scope consolidation and live signature
+retry cleanup, preserving APIs, errors and stored/signed bytes. Its
+[exact-source CI](https://github.com/dragginzgame/ic-auth/actions/runs/38379505548)
+is running on Linux with both macOS jobs queued at inspection. Prior 0.5.8 CI
+was cancelled after its Linux pass; it does not complete #43–#45 native acceptance.
 
 Producer 0.5.4's [complete native matrix](https://github.com/dragginzgame/ic-auth/actions/runs/38247803905)
 qualifies its retained library and actual canister fixture on Linux, Intel macOS
@@ -108,6 +137,15 @@ Neither proves Canic's changing endpoints or persistence. Compatible 0.5.7
 adopts contributor tooling and adds no new library API prerequisite beyond
 Canic's selected 0.5.7. Durable store, rollback/restart/upgrade and deployed
 acceptance stay with the consumer owner.
+
+[Canic #533](https://github.com/dragginzgame/canic/issues/533#issuecomment-6144678469)
+now owns a distinct cross-build state-preservation audit. Released 0.111's auth
+cell contains session/replay arrays; the current committed candidate separates
+rows and requires SDK session bytes. Auth does not decode the old Canic aggregate
+or establish missing historical Root bindings. Canic must qualify the exact
+retained memory/codec transition, preserve consumed-proof history and choose an
+authorized session disposition alongside application-state preservation. Neither
+same-release recovery nor a compatible Auth package patch proves that transition.
 
 | Existing Canic capability | IC Auth selection | Retained Canic responsibility |
 | --- | --- | --- |

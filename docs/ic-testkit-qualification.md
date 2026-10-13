@@ -224,8 +224,18 @@ The certified-token case also produces one-scope and maximum-width (16 scopes,
 fixture controller installs the encoded trusted record and independent protected
 role/audience/scope/Root policy in the internal canister. Unauthorized installation
 is refused. A query uses actual caller/time and measures `Session::decode` and
-`authorize_session` separately with the IC instruction counter; context creation,
+`authorize_session` separately with the message instruction counter (0); context creation,
 Candid decoding, host stable-row projection and response encoding are excluded.
+
+The native runner uses published `ic-metrics` 0.9.0 to summarize five consecutive
+allowed-query observations for each installed record shape. Decode, authorization
+and total instructions have separate ordered summaries, labelled with scope count,
+record bytes and units. Reports include sample count, floor mean and maximum.
+Each raw observation is retained and independently checked against the budget;
+refusal/recovery/time-change cases are not pooled into these summaries. Sampling
+and reporting run outside the measured canister. Metrics is a runner-only
+dev-dependency; the measured Wasm and published authentication graphs do not
+select it. These small fixture samples are not universal performance estimates.
 
 The read-only transaction adapter traps if authorization asks for admission
 limits, replay/occupancy or writes. Tests cover repeated reads, generation changes,
