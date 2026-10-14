@@ -278,8 +278,9 @@ is retained under `target/browser-client/`.
 | `make test-testkit-tools` | Locked CLI selection, setup/check failures and selection changes, prepared-input drift refusal, qualification path and actual CI evidence archive with substituted effects |
 | `make test-make-jobserver` | Actual owned Make recipes preserve pipe jobserver descriptors through Cargo/wrappers; unsafe modes refuse before substituted effects |
 
-`make ci` is the complete configured gate for delivery and CI; focused development
-uses the individual checks above.
+`make ci` is the complete configured release and CI gate. Local development and
+handoff use relevant individual checks above under the
+[validation cadence](../AGENTS.md#validation-cadence-during-shared-policy-adoption).
 It uses the Shared Tooling 0.6.6 logger and retains failures. CI declares the
 root Cargo manifest/lock, Rust compiler selection, common host/Rust and IC pins,
 and browser package manifest/lock/Node selection as prepared inputs. Their byte
