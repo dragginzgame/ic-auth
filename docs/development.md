@@ -280,7 +280,7 @@ is retained under `target/browser-client/`.
 
 `make ci` is the complete configured release and CI gate. Local development and
 handoff use relevant individual checks above under the
-[validation cadence](../AGENTS.md#validation-cadence-during-shared-policy-adoption).
+[validation cadence](../AGENTS.md#validation-policy).
 It uses the Shared Tooling 0.6.6 logger and retains failures. CI declares the
 root Cargo manifest/lock, Rust compiler selection, common host/Rust and IC pins,
 and browser package manifest/lock/Node selection as prepared inputs. Their byte
