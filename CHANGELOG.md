@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.5.11]
+
+- Use fallible Testkit Candid calls with explicit fixture assertions, preparing
+  qualification callers for Testkit 0.45 without changing library contracts.
+
 ## [0.5.10] - 2026-10-13
 
 - Use IC Metrics for repeated qualification instruction summaries, with separate

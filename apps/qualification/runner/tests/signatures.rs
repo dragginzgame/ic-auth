@@ -112,12 +112,14 @@ impl Fixture {
         message: &[u8],
         ttl: u64,
     ) -> Result<u64, String> {
-        self.pic.update_candid_as_or_panic(
-            self.signer,
-            self.controller,
-            "prepare",
-            (seed.to_vec(), domain.to_vec(), message.to_vec(), ttl),
-        )
+        self.pic
+            .update_candid_as(
+                self.signer,
+                self.controller,
+                "prepare",
+                (seed.to_vec(), domain.to_vec(), message.to_vec(), ttl),
+            )
+            .expect("update Candid harness call")
     }
 
     fn retrieve(
@@ -136,11 +138,13 @@ impl Fixture {
     ) -> Result<IcCanisterSignatureProofV1, String> {
         // Certificates become available after the update's state is certified.
         self.pic.tick();
-        self.pic.query_candid_or_panic(
-            self.signer,
-            "retrieve",
-            (seed.to_vec(), domain.to_vec(), message.to_vec()),
-        )
+        self.pic
+            .query_candid(
+                self.signer,
+                "retrieve",
+                (seed.to_vec(), domain.to_vec(), message.to_vec()),
+            )
+            .expect("query Candid harness call")
     }
 
     fn verify(&self, domain: &[u8], payload: [u8; 32], proof: &IcCanisterSignatureProofV1) {
@@ -173,18 +177,17 @@ impl Fixture {
     }
 
     fn set_asset(&self, version: u64) {
-        let result: Result<(), String> = self.pic.update_candid_as_or_panic(
-            self.signer,
-            self.controller,
-            "set_asset",
-            (version,),
-        );
+        let result: Result<(), String> = self
+            .pic
+            .update_candid_as(self.signer, self.controller, "set_asset", (version,))
+            .expect("update Candid harness call");
         result.unwrap();
     }
 
     fn asset_version(&self) -> u64 {
         self.pic
-            .query_candid_or_panic(self.signer, "asset_version", ())
+            .query_candid(self.signer, "asset_version", ())
+            .expect("query Candid harness call")
     }
 
     fn upgrade(&self) {
@@ -240,17 +243,20 @@ impl Fixture {
 fn real_certificates_composition_cleanup_and_upgrade_obey_the_host_contract() {
     let fixture = Fixture::new();
     let payload = [7; 32];
-    let unauthorized: Result<u64, String> = fixture.pic.update_candid_as_or_panic(
-        fixture.signer,
-        fixture.owner,
-        "prepare",
-        (
-            SEED.to_vec(),
-            DOMAIN.to_vec(),
-            payload.to_vec(),
-            60_000_000_000_u64,
-        ),
-    );
+    let unauthorized: Result<u64, String> = fixture
+        .pic
+        .update_candid_as(
+            fixture.signer,
+            fixture.owner,
+            "prepare",
+            (
+                SEED.to_vec(),
+                DOMAIN.to_vec(),
+                payload.to_vec(),
+                60_000_000_000_u64,
+            ),
+        )
+        .expect("update Candid harness call");
     assert!(unauthorized.is_err());
     let deadline = fixture.prepare(DOMAIN, &payload, 60_000_000_000).unwrap();
     assert_eq!(
@@ -274,12 +280,10 @@ fn real_certificates_composition_cleanup_and_upgrade_obey_the_host_contract() {
         .pic
         .set_time(Time::from_nanos_since_unix_epoch(fixture.now() + 10));
     assert!(fixture.retrieve(DOMAIN, &payload).is_err());
-    let removed: Result<u32, String> = fixture.pic.update_candid_as_or_panic(
-        fixture.signer,
-        fixture.controller,
-        "prune",
-        (128_u32,),
-    );
+    let removed: Result<u32, String> = fixture
+        .pic
+        .update_candid_as(fixture.signer, fixture.controller, "prune", (128_u32,))
+        .expect("update Candid harness call");
     assert_eq!(removed, Ok(1));
     fixture.prepare(DOMAIN, &payload, 60_000_000_000).unwrap();
     let restored = fixture.retrieve(DOMAIN, &payload).unwrap();

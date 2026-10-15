@@ -23,21 +23,22 @@ use std::time::Duration;
 const SECOND: u64 = 1_000_000_000;
 
 fn install(fixture: &Fixture, input: &SessionProfileInput) {
-    let result: Result<(), String> = fixture.pic.update_candid_as_or_panic(
-        fixture.resource,
-        fixture.controller,
-        "install_session_profile",
-        (input.clone(),),
-    );
+    let result: Result<(), String> = fixture
+        .pic
+        .update_candid_as(
+            fixture.resource,
+            fixture.controller,
+            "install_session_profile",
+            (input.clone(),),
+        )
+        .expect("update Candid harness call");
     result.unwrap();
 }
 fn measure(fixture: &Fixture, expected: &str) -> SessionProfileResult {
-    let result: Result<SessionProfileResult, String> = fixture.pic.query_candid_as_or_panic(
-        fixture.resource,
-        fixture.owner,
-        "profile_session",
-        (),
-    );
+    let result: Result<SessionProfileResult, String> = fixture
+        .pic
+        .query_candid_as(fixture.resource, fixture.owner, "profile_session", ())
+        .expect("query Candid harness call");
     let sample = result.unwrap();
     assert_eq!(sample.decision, expected);
     assert!(sample.authorization_instructions > 0);
@@ -142,12 +143,15 @@ pub(super) fn qualify(
             generation: 0,
             enabled: true,
         };
-        let refused: Result<(), String> = fixture.pic.update_candid_as_or_panic(
-            fixture.resource,
-            fixture.owner,
-            "install_session_profile",
-            (input.clone(),),
-        );
+        let refused: Result<(), String> = fixture
+            .pic
+            .update_candid_as(
+                fixture.resource,
+                fixture.owner,
+                "install_session_profile",
+                (input.clone(),),
+            )
+            .expect("update Candid harness call");
         assert_eq!(refused, Err("controller required".into()));
         install(fixture, &input);
         // Each installed shape has independent instruction series. Summarize
@@ -187,31 +191,40 @@ pub(super) fn qualify(
         // Rejected host configuration must preserve the previously installed pair.
         let mut invalid = input.clone();
         invalid.record = Some(vec![0; 2049]);
-        let rejected: Result<(), String> = fixture.pic.update_candid_as_or_panic(
-            fixture.resource,
-            fixture.controller,
-            "install_session_profile",
-            (invalid,),
-        );
-        assert_eq!(rejected, Err("invalid bounded profile inputs".into()));
-        invalid = input.clone();
-        invalid.public_key.pop();
-        let rejected: Result<(), String> = fixture.pic.update_candid_as_or_panic(
-            fixture.resource,
-            fixture.controller,
-            "install_session_profile",
-            (invalid,),
-        );
-        assert_eq!(rejected, Err("invalid bounded profile inputs".into()));
-        if scopes.len() > 1 {
-            invalid = input.clone();
-            invalid.allowed_scopes.reverse();
-            let rejected: Result<(), String> = fixture.pic.update_candid_as_or_panic(
+        let rejected: Result<(), String> = fixture
+            .pic
+            .update_candid_as(
                 fixture.resource,
                 fixture.controller,
                 "install_session_profile",
                 (invalid,),
-            );
+            )
+            .expect("update Candid harness call");
+        assert_eq!(rejected, Err("invalid bounded profile inputs".into()));
+        invalid = input.clone();
+        invalid.public_key.pop();
+        let rejected: Result<(), String> = fixture
+            .pic
+            .update_candid_as(
+                fixture.resource,
+                fixture.controller,
+                "install_session_profile",
+                (invalid,),
+            )
+            .expect("update Candid harness call");
+        assert_eq!(rejected, Err("invalid bounded profile inputs".into()));
+        if scopes.len() > 1 {
+            invalid = input.clone();
+            invalid.allowed_scopes.reverse();
+            let rejected: Result<(), String> = fixture
+                .pic
+                .update_candid_as(
+                    fixture.resource,
+                    fixture.controller,
+                    "install_session_profile",
+                    (invalid,),
+                )
+                .expect("update Candid harness call");
             assert_eq!(rejected, Err("profile ceiling must be canonical".into()));
         }
         measure(fixture, "allow");

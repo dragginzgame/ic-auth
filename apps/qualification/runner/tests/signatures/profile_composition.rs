@@ -81,12 +81,10 @@ fn root_and_issuer_profiles_share_one_composed_store_without_crossing_authority(
             .retrieve_with_seed(ROOT_PROFILE, ROOT_PROFILE, &payload)
             .is_err()
     );
-    let removed: Result<u32, String> = fixture.pic.update_candid_as_or_panic(
-        fixture.signer,
-        fixture.controller,
-        "prune",
-        (128_u32,),
-    );
+    let removed: Result<u32, String> = fixture
+        .pic
+        .update_candid_as(fixture.signer, fixture.controller, "prune", (128_u32,))
+        .expect("update Candid harness call");
     assert_eq!(removed, Ok(1));
     let live_issuer = fixture
         .retrieve_with_seed(ISSUER_PROFILE, ISSUER_PROFILE, &payload)
