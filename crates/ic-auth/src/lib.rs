@@ -42,3 +42,6 @@ pub mod portable_certified;
 
 #[cfg(feature = "sessions")]
 pub mod session;
+
+#[cfg(feature = "sessions")]
+mod storage_codec;

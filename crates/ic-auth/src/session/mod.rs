@@ -13,12 +13,13 @@ use crate::{
     canonical::CanonicalAuthError,
     portable::{
         LoginRevocationChange, LoginRevocationError, MemoryLoginRevocations, PortableClaimsContext,
-        PortableClaimsError, PortableEncodingError, VerifiedPortableClaims, claims_hash,
-        decode_claims, validate_claims_context,
+        PortableClaimsError, PortableEncodingError, VerifiedPortableClaims, decode_claims,
+        validate_claims_context,
     },
     session_request::{SessionRequest, SessionRequestError},
 };
 use ic_auth_protocol_types::{AuthRole, LogoutResult, LogoutUnavailable, Principal};
+use sha2::{Digest, Sha256};
 use thiserror::Error;
 
 /// Protected receiver context, shared by both proof mechanisms and session checks.
@@ -194,7 +195,9 @@ pub fn establish_session(
     context.validate(policy, ledger)?;
     let authority = &context.authority;
     let claims = decode_claims(encoded_claims)?;
-    let fingerprint = claims_hash(&claims)?;
+    // decode_claims rejects alternate encodings; hash its exact admitted bytes
+    // instead of allocating and validating a second canonical encoding.
+    let fingerprint: [u8; 32] = Sha256::digest(encoded_claims).into();
     if ledger.is_revoked(authority.caller, authority.now_ns)? {
         return Err(LoginRevocationError::Revoked.into());
     }

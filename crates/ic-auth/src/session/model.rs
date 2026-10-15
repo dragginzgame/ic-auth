@@ -170,24 +170,24 @@ impl Session {
 
     /// Bounded current record with a domain distinct from the retired token record.
     pub fn encode(&self) -> Result<Vec<u8>, SessionError> {
-        let mut bytes = RECORD_DOMAIN.to_vec();
-        bytes.extend(serde_cbor::to_vec(&self.0).map_err(|_| SessionError::InvalidPolicyOrRecord)?);
-        if bytes.len() > 2048 {
-            return Err(SessionError::ByteCapacity);
-        }
-        Ok(bytes)
+        crate::storage_codec::encode(
+            &self.0,
+            RECORD_DOMAIN,
+            2048,
+            SessionError::InvalidPolicyOrRecord,
+            SessionError::ByteCapacity,
+        )
     }
     /// Trusted-storage restoration only. Old token-session bytes are rejected.
     #[cfg(feature = "session-restore")]
     pub fn decode(bytes: &[u8]) -> Result<Self, SessionError> {
-        if bytes.len() > 2048 {
-            return Err(SessionError::ByteCapacity);
-        }
-        let bytes = bytes
-            .strip_prefix(RECORD_DOMAIN)
-            .ok_or(SessionError::InvalidPolicyOrRecord)?;
-        let data: SessionData =
-            serde_cbor::from_slice(bytes).map_err(|_| SessionError::InvalidPolicyOrRecord)?;
+        let data: SessionData = crate::storage_codec::decode(
+            bytes,
+            RECORD_DOMAIN,
+            2048,
+            || SessionError::InvalidPolicyOrRecord,
+            SessionError::ByteCapacity,
+        )?;
         check_scopes(&data.scopes)?;
         if data.caller.as_slice().len() != 29
             || data.caller.as_slice().last() != Some(&2)
@@ -320,25 +320,25 @@ impl Replay {
         if caller.len() != 29 || caller.last() != Some(&2) || self.0.remove_at_ns == 0 {
             return Err(SessionError::InvalidPolicyOrRecord);
         }
-        let mut bytes = REPLAY_DOMAIN.to_vec();
-        bytes.extend(serde_cbor::to_vec(&self.0).map_err(|_| SessionError::InvalidPolicyOrRecord)?);
-        if bytes.len() > 512 {
-            return Err(SessionError::ByteCapacity);
-        }
-        Ok(bytes)
+        crate::storage_codec::encode(
+            &self.0,
+            REPLAY_DOMAIN,
+            512,
+            SessionError::InvalidPolicyOrRecord,
+            SessionError::ByteCapacity,
+        )
     }
 
     /// Trusted-storage restoration only; provenance and rollback are host-owned.
     #[cfg(feature = "session-restore")]
     pub fn decode(bytes: &[u8]) -> Result<Self, SessionError> {
-        if bytes.len() > 512 {
-            return Err(SessionError::ByteCapacity);
-        }
-        let bytes = bytes
-            .strip_prefix(REPLAY_DOMAIN)
-            .ok_or(SessionError::InvalidPolicyOrRecord)?;
-        let record =
-            Self(serde_cbor::from_slice(bytes).map_err(|_| SessionError::InvalidPolicyOrRecord)?);
+        let record = Self(crate::storage_codec::decode(
+            bytes,
+            REPLAY_DOMAIN,
+            512,
+            || SessionError::InvalidPolicyOrRecord,
+            SessionError::ByteCapacity,
+        )?);
         record.encode()?;
         Ok(record)
     }

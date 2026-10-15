@@ -69,6 +69,7 @@ revision	3bef3f2daec7f64f875397ed4d53d5b9e2e68a08
 # entrypoint	scripts/ci/cargo-tool-cache-key.sh
 # entrypoint	rules/change-reporting.md
 # entrypoint	scripts/ci/download-evidence.sh
+# entrypoint	scripts/ci/render-cargo-workspace-version.pl
 file	d70f32239de9ea0d2d2a3a0eebd2fa862746807cd797f512f95b2e46fc5faa67	x	.githooks/pre-commit
 file	21513c3b94a5113369e9357e4c54ceec59b1b5894ae9157e789ee1ce08ee2ba2	-	.github/actions/retain-failure-evidence/action.yml
 file	b7af05c3ee820b1032136db1a6414a99cfb70dddec841d97ae6f07bedabf3bc2	-	DRAGGINZGAME.md
@@ -135,6 +136,7 @@ file	a9ed416a02f737d420723642935de94ffdd53cf92f75bb06ab4b0bc1c68430dc	-	tasks/ca
 file	a46f24404cdf654f576ba7c2ca4ff359ac00eb25ffad2e3f37d9d43ea98dc225	x	scripts/ci/cargo-tool-cache-key.sh
 file	fa96fe86ee2ccf61002fbce2b09603298550fd239d28131cbdcf6449a8247923	-	rules/change-reporting.md
 file	7906b5d35d5947d5f2e6cd088733fd7331943a456df70d491cfdb5e4b9586e50	x	scripts/ci/download-evidence.sh
+file	a1a9739e4749bfa9c594c8714a89aac3c2394b87cdfbc7c27c3936c8071ece4b	x	scripts/ci/render-cargo-workspace-version.pl
 file	4c981184847462ab3c01cac087e28309f8e054253fd95c7bbe56f643877aa708	x	scripts/ci/verify-file-checksum.sh
 file	a4682503812f210b951aede536cdd65642bfe266b02ab532853a1aeff64f9742	x	scripts/ci/verify-shared-tooling-snapshot.sh
 file	9e32385247296ce95d2b15b1290c64e6b6dff15716c1c139f21ab5e5128f4be3	x	scripts/ci/check-make-execution.sh

@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.6.2]
+
+- Add portable browser admission orchestration with one durable issuance claim,
+  non-issuing recovery and proof reuse across receivers. Record destinations before
+  admission and reject late results after logout or timeout. Production adapters
+  and renewal remain unfinished; existing token intents are preserved.
+- Share trusted-storage framing for session, replay and login-revocation records,
+  preserving their encoded bytes, separate domains, limits and validation errors.
+- Share strict IndexedDB transaction completion, abort and timeout handling between
+  the browser token store and logout journal, retaining their separate schemas.
+- Hash already-validated canonical claims bytes directly during session admission
+  and portable verification, avoiding redundant encoding without changing proofs.
+- Reuse Shared Tooling’s pure workspace-version renderer while retaining Auth’s
+  exact protocol dependency selector and release-recovery checks. Unrelated
+  version fields remain unchanged and refused renders emit no candidate manifest.
+
 ## [0.6.1] - 2026-10-15
 
 - Expose the existing session/login-record association check for custom host

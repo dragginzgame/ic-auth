@@ -1,3 +1,4 @@
+import { strictTransaction } from './idb-transaction.js';
 import { ClientError, type StoredToken, type StoreSnapshot, type TokenStore } from './contracts.js';
 
 export interface IndexedDbTokenStoreOptions {
@@ -126,32 +127,14 @@ export class IndexedDbTokenStore implements TokenStore {
 
   #transaction<T>(mode: IDBTransactionMode, execute: (tx: IDBTransaction, result: (value: T) => void, fail: (cause: unknown) => void) => void): Promise<T> {
     if (this.#closed) return Promise.reject(new ClientError('storage_unavailable'));
-    return new Promise((resolve, reject) => {
-      let tx: IDBTransaction;
-      try {
-        tx = this.database.transaction([TOKENS, METADATA], mode, { durability: 'strict' });
-        if (tx.durability !== 'strict') { tx.abort(); throw new ClientError('storage_unavailable'); }
-      } catch (cause) { reject(storageFailure(cause)); return; }
-      let completed = false;
-      let value: T;
-      let failure: unknown;
-      const fail = (cause: unknown) => {
-        failure = storageFailure(cause);
-        try { tx.abort(); }
-        catch { clearTimeout(timer); reject(failure); }
-      };
-      const timer = setTimeout(() => fail(new ClientError('timeout')), this.options.timeoutMs);
-      tx.onabort = () => { clearTimeout(timer); reject(failure ?? storageFailure(tx.error)); };
-      tx.oncomplete = () => {
-        clearTimeout(timer);
-        if (failure) reject(failure);
-        else if (!completed) reject(new ClientError('storage_corrupt'));
-        else resolve(value);
-      };
-      // Request errors retain the native abort behavior; never resolve on put success.
-      try { execute(tx, result => { completed = true; value = result; }, fail); }
-      catch (cause) { fail(cause); }
-    });
+    return strictTransaction(
+      () => this.database.transaction([TOKENS, METADATA], mode, { durability: 'strict' }),
+      this.options.timeoutMs, storageFailure,
+      (tx, result, fail) => {
+        try { execute(tx, result, cause => fail(storageFailure(cause))); }
+        catch (cause) { fail(storageFailure(cause)); }
+      },
+    );
   }
 
   async read(key: string): Promise<StoreSnapshot> {

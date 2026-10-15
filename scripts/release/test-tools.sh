@@ -12,6 +12,44 @@ export CARGO_NET_OFFLINE=true RUSTUP_AUTO_INSTALL=0
 mkdir -p "$root/target/portable-fixtures"
 fixture="$(mktemp -d "$root/target/portable-fixtures/release-tools.XXXXXX")"
 echo "Release/publication fixture evidence: $fixture"
+# The shared renderer owns only workspace.package.version. Auth retains the
+# exact local dependency selector, with no partial output on either refusal.
+cat > "$fixture/render input.toml" <<'TOML'
+[workspace.package]
+version = "0.1.0" # preserve this comment
+[workspace.dependencies]
+ic-auth-protocol-types = { version = "0.1.0", path = "crates/ic-auth-protocol-types" }
+[package.metadata.unrelated]
+version = "0.1.0"
+TOML
+cat > "$fixture/render expected.toml" <<'TOML'
+[workspace.package]
+version = "0.1.1" # preserve this comment
+[workspace.dependencies]
+ic-auth-protocol-types = { version = "0.1.1", path = "crates/ic-auth-protocol-types" }
+[package.metadata.unrelated]
+version = "0.1.0"
+TOML
+cp "$fixture/render input.toml" "$fixture/render original.toml"
+perl scripts/release/rewrite-manifest.pl "$fixture/render input.toml" 0.1.0 0.1.1 > "$fixture/render actual.toml"
+cmp "$fixture/render expected.toml" "$fixture/render actual.toml"
+cmp "$fixture/render original.toml" "$fixture/render input.toml"
+for refusal in missing duplicate wrong-version wrong-workspace; do
+    case "$refusal" in
+        missing) sed '/^ic-auth-protocol-types =/d' "$fixture/render input.toml" ;;
+        duplicate) cat "$fixture/render input.toml"; sed -n '/^ic-auth-protocol-types =/p' "$fixture/render input.toml" ;;
+        wrong-version) sed '/^ic-auth-protocol-types =/s/0.1.0/0.0.9/' "$fixture/render input.toml" ;;
+        wrong-workspace) sed '/^version =.*# preserve/s/0.1.0/0.0.9/' "$fixture/render input.toml" ;;
+    esac > "$fixture/render refused.toml"
+    cp "$fixture/render refused.toml" "$fixture/render refused-original.toml"
+    if perl scripts/release/rewrite-manifest.pl "$fixture/render refused.toml" 0.1.0 0.1.1 \
+        > "$fixture/render refused-output" 2> "$fixture/render refused-error"; then
+        echo "manifest renderer unexpectedly accepted $refusal" >&2
+        exit 1
+    fi
+    [[ ! -s "$fixture/render refused-output" ]]
+    cmp "$fixture/render refused-original.toml" "$fixture/render refused.toml"
+done
 # Exercise the actual shared Make entrypoints before substituting the larger
 # gate below. The opt-in includes and execution probe are explicit inputs.
 TMPDIR="$fixture" bash scripts/ci/check-release-commands.sh "$root" \

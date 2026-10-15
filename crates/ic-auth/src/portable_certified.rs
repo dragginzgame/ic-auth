@@ -11,7 +11,7 @@ use crate::{
     certificate_issuance::grants_are_subset,
     portable::{
         PortableClaimsContext, PortableClaimsError, PortableEncodingError, VerifiedPortableClaims,
-        claims_hash, decode_claims, validate_claims_context,
+        decode_claims, validate_claims_context,
     },
     token::{
         DelegationProofVerificationContext, RootKeyPolicy, TokenVerificationError,
@@ -22,6 +22,7 @@ use ic_auth_protocol_types::{
     DelegationAudience, DelegationProof, IcCanisterSignatureProofV1, IssuerProofBinding,
     PortableMechanism,
 };
+use sha2::{Digest, Sha256};
 use thiserror::Error;
 
 /// IC signature framing domain, distinct from the old delegated-token message.
@@ -119,7 +120,9 @@ pub fn verify_certified_claims(
         },
     )?;
     let IssuerProofBinding::IcCanisterSignatureV1 { seed_hash } = cert.issuer_proof_binding;
-    let fingerprint = claims_hash(&claims)?;
+    // decode_claims rejects alternate encodings; hash its exact admitted bytes
+    // instead of allocating and validating a second canonical encoding.
+    let fingerprint: [u8; 32] = Sha256::digest(encoded_claims).into();
     let message = domain_separated_message(CERTIFIED_SIGNATURE_DOMAIN, fingerprint)?;
     verify_canister_signature(
         &message,

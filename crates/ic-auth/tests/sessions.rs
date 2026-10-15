@@ -15,6 +15,74 @@ use sha2::{Digest, Sha256};
 const SECOND: u64 = 1_000_000_000;
 const NOW: u64 = 10 * SECOND;
 
+#[cfg(feature = "session-restore")]
+#[test]
+fn storage_record_domains_and_capacity_errors_remain_distinct() {
+    use ic_auth::portable::LoginRevocationChange;
+    let f = Fixture::new(1);
+    let mut r = Receiver::new(&f);
+    f.admit(&mut r, NOW).unwrap();
+    let session = r.store.session_records().next().unwrap().encode().unwrap();
+    let replay = r.store.replay_records().next().unwrap().encode().unwrap();
+    let login = r.ledger.records().next().unwrap().encode().unwrap();
+    assert_eq!(
+        Session::decode(&session).unwrap().encode().unwrap(),
+        session
+    );
+    assert_eq!(Replay::decode(&replay).unwrap().encode().unwrap(), replay);
+    assert_eq!(
+        LoginRevocationChange::decode(&login)
+            .unwrap()
+            .encode()
+            .unwrap(),
+        login
+    );
+    for bytes in [&replay, &login] {
+        assert_eq!(
+            Session::decode(bytes).unwrap_err(),
+            SessionError::InvalidPolicyOrRecord
+        );
+    }
+    for bytes in [&session, &login] {
+        assert_eq!(
+            Replay::decode(bytes).unwrap_err(),
+            if bytes.len() > 512 {
+                SessionError::ByteCapacity
+            } else {
+                SessionError::InvalidPolicyOrRecord
+            }
+        );
+    }
+    for bytes in [&session, &replay] {
+        assert!(matches!(
+            LoginRevocationChange::decode(bytes),
+            Err(LoginRevocationError::InvalidPolicy)
+        ));
+    }
+    // Outer limits precede wrong-domain and malformed-CBOR errors. At the exact
+    // limit, malformed input must still be a framing error, not a capacity error.
+    assert_eq!(
+        Session::decode(&[0; 2048]).unwrap_err(),
+        SessionError::InvalidPolicyOrRecord
+    );
+    assert_eq!(
+        Session::decode(&[0; 2049]).unwrap_err(),
+        SessionError::ByteCapacity
+    );
+    assert_eq!(
+        Replay::decode(&[0; 512]).unwrap_err(),
+        SessionError::InvalidPolicyOrRecord
+    );
+    assert_eq!(
+        Replay::decode(&[0; 513]).unwrap_err(),
+        SessionError::ByteCapacity
+    );
+    assert!(matches!(
+        LoginRevocationChange::decode(&[0; 1025]),
+        Err(LoginRevocationError::InvalidPolicy)
+    ));
+}
+
 struct Fixture {
     key: SigningKey,
     claims: PortableClaims,

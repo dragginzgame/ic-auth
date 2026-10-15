@@ -11,3 +11,4 @@ export { IndexedDbTokenStore, type IndexedDbTokenStoreOptions } from './indexedd
 export { IndexedDbLogoutStore, type LogoutJournal, type LogoutTarget } from './logout-store.js';
 export { PortableLogoutClient, type LogoutClock, type LogoutTransport } from './logout.js';
 export { httpLogoutTransport, type HttpLogoutOptions } from './logout-http.js';
+export { PortableAdmissionClient, type PortableAdmissionTransport, type AdmissionCredential } from './portable-admission.js';

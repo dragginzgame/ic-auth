@@ -8,7 +8,7 @@
 use crate::admission_budget::{AdmissionBudgetError, SessionAdmissionBudget};
 use crate::portable::{
     PortableClaimsContext, PortableClaimsError, PortableEncodingError, VerifiedPortableClaims,
-    claims_hash, decode_claims, validate_claims_context,
+    decode_claims, validate_claims_context,
 };
 use curve25519_dalek::scalar::Scalar;
 use ed25519_dalek::{Signature, VerifyingKey};
@@ -75,7 +75,9 @@ pub fn verify_ed25519_claims(
     if bool::from(Scalar::from_canonical_bytes(*signature.s_bytes()).is_none()) {
         return Err(PortableSignatureError::InvalidSignature);
     }
-    let fingerprint = claims_hash(&claims)?;
+    // decode_claims rejects alternate encodings; hash its exact admitted bytes
+    // instead of allocating and validating a second canonical encoding.
+    let fingerprint: [u8; 32] = Sha256::digest(encoded_claims).into();
     budget.consume(context.now_ns)?;
     key.verify_strict(&fingerprint, &signature)
         .map_err(|_| PortableSignatureError::InvalidSignature)?;

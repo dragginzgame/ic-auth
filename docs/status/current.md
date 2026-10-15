@@ -1,5 +1,109 @@
 # Current handoff — 2026-10-13
 
+## Portable browser admission orchestration (pending 0.6.2, 2026-10-15)
+
+The private client now coordinates initial portable issuance/reconciliation and
+receiver admission using injected transports and the existing logout journal.
+One atomic issuance claim selects `issue`; subsequent instances and uncertain
+attempts select non-issuing `reconcile`. One detached proof serves multiple
+receivers until its original admission expiry. Destination recording precedes
+admission, and late issuance/admission replies cannot restore a logged-out login.
+Transport calls have bounded cancellation-scoped signing identities. This adds
+no journal schema, silent old-intent migration or application-call retries.
+
+All 90 browser tests and both generated Candid directions pass in
+`target/portable-admission-client-final.log`. New regressions cover multi-receiver
+reuse, competing claims, lost reply plus store reopen, unresolved recovery, logout
+during issuance/admission, timeout/late signing, invalid identity, storage failure
+and oversized/expired proof material. Transports are substitutes; no production
+issuer, receiver endpoint or cryptographic proof acceptance is established by
+these tests. No fresh native browser, Rust suite or full CI run was performed.
+
+Production adapter/clock qualification, renewal and old-token lifecycle retirement
+remain in [Auth #3](https://github.com/dragginzgame/ic-auth/issues/3), with Canic #507's
+non-issuing recovery prerequisite. The coordinator deliberately cannot renew or
+replace an expired/unknown issuance. Existing receiver leases remain independent
+of admission expiry. See the [browser contract](../browser-client.md#portable-admission-coordinator).
+Incoming working changes, dependency selections, package versions and sibling
+sources were preserved; no commit, push or publication was performed.
+
+## Storage framing cleanup and retirement review (pending 0.6.2, 2026-10-15)
+
+Session, replay and login-revocation storage codecs share private domain/CBOR
+framing and outer byte limits. Record validation and error projection remain with
+each record owner; restore-only decoding stays behind `session-restore`. No public
+API, stored format or dependency selection changed. Focused session tests, strict
+Clippy, Wasm and dependency boundaries pass in `target/next-cleanups-checks.log`.
+The affected library features also pass Rust 1.88 in `target/next-cleanups-msrv.log`.
+The new regression checks cross-record refusal, roundtrips and capacity-error
+precedence; the initial test incorrectly expected a framing error for an oversized
+cross-record input (`target/next-cleanups-sessions.log`) and was corrected without
+changing production error order. No full CI, browser, canister lifecycle or native
+macOS run was performed for this cleanup.
+
+Two proposed removals remain gated after deeper review. Published Memory 0.42.0's
+base `FixtureCell` reads retained payloads before Auth can bound them and its
+underlying Cell initializer resets invalid magic to an empty cell. The existing
+128 KiB checkpoint wrapper remains; bounded fresh/retained admission belongs to
+[Memory #104](https://github.com/dragginzgame/ic-memory/issues/104#issuecomment-6197200398).
+The old browser token lifecycle also remains: portable data codecs/logout are not
+a production issuance/admission adapter, and retiring unresolved intents requires
+qualified non-issuing reconciliation and explicit storage disposition. The review
+is recorded in [Auth #3](https://github.com/dragginzgame/ic-auth/issues/3#issuecomment-6197200986),
+with the existing Canic #507 prerequisite. No sibling source or retained browser
+state was changed; no replacement capability or completed migration is claimed.
+
+## Browser transaction and claims cleanup (pending 0.6.2, 2026-10-15)
+
+The token store and logout journal now share one private strict IndexedDB
+transaction lifecycle. Their schemas, error projection and mutations remain
+separate. Results publish only on completion; aborts, missing results, timeout
+and even falsy callback failures cannot report a successful commit.
+
+Session admission and both portable proof verifiers hash the original claims
+bytes after canonical decoding, eliminating repeated encoding at those hash
+points. Independent decoding remains at public boundaries. APIs, wire format,
+validation order and budget charging are unchanged; no speedup is measured.
+The regression compares encoding and fingerprints for both mechanisms, wide
+claims and accepted mutations of the frozen vector.
+
+The 82 browser tests and focused protocol, session and portable signature tests
+pass in `target/three-cleanups-focused.log`. Strict Clippy, Wasm, dependency
+boundaries and isolated-package MSRV checks pass in
+`target/three-cleanups-checks.log`; documentation links and the 103-file snapshot
+also pass. No full CI, fresh native browser, canister lifecycle, benchmark or macOS
+run was performed for this cleanup. The generic filesystem CLI extraction
+still needs a published Host executable; the concrete adoption requirements are
+in [Host #76](https://github.com/dragginzgame/ic-host-tooling/issues/76#issuecomment-6196527711).
+The local CLI remains until that replacement can be qualified. No sibling source,
+package version or Git refs changed. These cleanups do not complete the production
+browser adapter or Canic migration.
+
+## Shared manifest renderer adoption (pending 0.6.2, 2026-10-15)
+
+Auth's release metadata adapter now delegates workspace version substitution to
+Shared Tooling's pure renderer. The canonical exporter extends the existing
+0.15.0 snapshot at `3bef3f2daec7f64f875397ed4d53d5b9e2e68a08` by one selected
+helper (103 files total); no other snapshot bytes or revision change. Auth retains
+its exact protocol dependency selector, parsed candidate comparison, saved-source
+custody and interruption/recovery policy. No subprocess failure can publish a
+partial candidate manifest.
+
+Focused `make test-release-tools` passed in
+`target/shared-renderer-release-tests.log`, covering byte preservation, unrelated
+version fields, missing/duplicate/wrong dependency selectors, wrong workspace
+versions, historical sources, mixed metadata recovery and publication uncertainty.
+All release/push/upload effects were confined to local fixtures or substituted
+transport. No real package version, Git refs, publication or sibling source
+changed. This completes local implementation of
+[Auth #60](https://github.com/dragginzgame/ic-auth/issues/60); delivered-source
+acceptance remains pending. No full suite or native macOS run was performed.
+
+Auth 0.6.1 is pushed at `8cedb6ef75ea34c49fc49597b35bcc500944ef36`;
+its [release CI](https://github.com/dragginzgame/ic-auth/actions/runs/38759995596)
+was still running at inspection. There was no newer Canic #491 consumer feedback;
+the transaction/workflow migration and production durable backend remain open.
+
 ## Custom session-store binding check (pending 0.6.1, 2026-10-15)
 
 Custom stores can now call the existing session/login-change association check

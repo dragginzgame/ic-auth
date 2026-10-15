@@ -23,9 +23,57 @@ or SDK prototypes, and preserves valid differing Rust/TypeScript Candid encoding
 The caller's outer byte maximum remains mandatory. Production canister decoding
 must separately bound instructions/allocations; browser codecs do not provide that.
 
-These data codecs do not migrate `TokenSessionClient`'s retained issuance intents
-or implement portable issuer operations, receiver admission or logout fan-out.
-The current injected token lifecycle below remains pending consumer transition.
+These data codecs do not migrate `TokenSessionClient`'s retained issuance intents.
+The injected portable admission coordinator below supplies sequencing, not a
+production issuer adapter. The old token lifecycle remains pending consumer
+transition and explicit disposition of its unresolved issuance records.
+
+### Portable admission coordinator
+
+`PortableAdmissionClient` coordinates one portable proof for an already started
+login. Construct it with the existing `PortableLogoutClient`, generation, direct
+browser identity, protected issuer and a `PortableAdmissionTransport`. Call
+`establish(receiver)` explicitly on first contact or when the receiver requires
+admission. On authenticated admission success it returns the durable-generation
+guarded identity for ordinary SDK calls; application authorization stays at the
+receiver. There is no automatic retry of application operations.
+
+The coordinator atomically claims issuance through the logout journal before
+dispatch. Only the first claimant invokes `issue`; all other instances, reloads
+and uncertain attempts invoke `reconcile`. That operation MUST only recover the
+original credential or refuse as unresolved; it MUST NOT issue, renew, extend a
+deadline or infer no effect from absent/pruned evidence. The transport owns exact
+request persistence/reconciliation against its actual issuer contract, including
+the crash between the journal claim and transport dispatch. Claims/proofs use the
+Rust-owned credential codecs. The coordinator does not verify signatures or infer
+trusted enrollment from response fields.
+
+One detached credential is cached in memory until its original admission expiry
+and reused across receivers. Every destination is durably recorded before admission
+dispatch, including failed or uncertain attempts. The qualified adapter supplies
+`admissionUntilNs` in the journal's clock domain, conservatively covering the
+original proof window; recovery must not reset it relative to retrieval time.
+Each transport call is bounded to at most five seconds, receives a cancellation
+signal and a temporary signing identity that refuses after cancellation. Logout
+invalidates late results and guarded signatures. Already signed/accepted requests
+cannot be recalled. Receivers still enforce proof expiry and the complete session
+admission contract, even when a client supplies malformed proof bytes.
+
+`issue` and `reconcile` are bound to one issuer/login and immutable grant request;
+`admit` must authenticate the update reply and resolve only on actual admission
+success. HTTP acceptance alone is insufficient. Current tests use injected
+transports, not deployed endpoints. There is no automatic renewal: expired proof
+material refuses without allocating a new issuance. Existing receiver sessions
+may remain usable through their separately enforced lease. Production transport,
+renewal and old-store retirement remain in [Auth #3](https://github.com/dragginzgame/ic-auth/issues/3)
+and [Canic #507](https://github.com/dragginzgame/canic/issues/507).
+
+The journal format is unchanged. Its `issuanceUnknown` flag remains conservative
+even after successful admission; the coordinator never clears historical evidence.
+Do not call `issuing` before this coordinator: it claims issuance itself, and a
+preexisting marker intentionally selects reconciliation. Stored old token intents
+are neither migrated nor deleted. The portable coordinator is an integration
+component, not a second production login service or a replacement wallet provider.
 
 ## Boundary
 

@@ -214,3 +214,45 @@ fn wire_order_duplicates_and_invalid_grammar_refuse_without_normalization() {
     bytes[225..229].copy_from_slice(b"USER");
     assert_eq!(decode_claims(&bytes), Err(Error::InvalidShape));
 }
+
+#[test]
+fn accepted_claim_bytes_are_the_unique_encoding_used_for_fingerprints() {
+    use sha2::{Digest, Sha256};
+    let mut wide = claims();
+    wide.grants = (0..16)
+        .map(|role| DelegatedRoleGrant {
+            target: format!("role{role:02}").parse().unwrap(),
+            scopes: (0..32)
+                .map(|scope| format!("scope{scope:02}{}", "x".repeat(57)))
+                .collect(),
+        })
+        .collect();
+    for mut value in [claims(), wide] {
+        for mechanism in [PortableMechanism::Ed25519, PortableMechanism::Certified] {
+            value.mechanism = mechanism;
+            let bytes = encode_claims(&value).unwrap();
+            let decoded = decode_claims(&bytes).unwrap();
+            assert_eq!(encode_claims(&decoded).unwrap(), bytes);
+            assert_eq!(
+                claims_hash(&decoded).unwrap(),
+                <[u8; 32]>::from(Sha256::digest(&bytes))
+            );
+        }
+    }
+    // Exercise accepted mutations as well as malformed ones: no alternate byte
+    // spelling may decode to a value whose canonical fingerprint differs.
+    let original = hex(VECTOR);
+    for offset in 0..original.len() {
+        for replacement in [0, 1, 0x7f, 0xff] {
+            let mut bytes = original.clone();
+            bytes[offset] = replacement;
+            if let Ok(decoded) = decode_claims(&bytes) {
+                assert_eq!(encode_claims(&decoded).unwrap(), bytes);
+                assert_eq!(
+                    claims_hash(&decoded).unwrap(),
+                    <[u8; 32]>::from(Sha256::digest(&bytes))
+                );
+            }
+        }
+    }
+}

@@ -62,29 +62,26 @@ impl LoginRevocationChange {
     /// Encode the proposed record for the host's atomic durable commit.
     #[cfg(feature = "sessions")]
     pub fn encode(&self) -> Result<Vec<u8>, LoginRevocationError> {
-        let mut bytes = RECORD_DOMAIN.to_vec();
-        bytes.extend(
-            serde_cbor::to_vec(&(self.audience, self.caller, self.record))
-                .map_err(|_| LoginRevocationError::Storage)?,
-        );
-        if bytes.len() > 1024 {
-            return Err(LoginRevocationError::InvalidPolicy);
-        }
-        Ok(bytes)
+        crate::storage_codec::encode(
+            &(self.audience, self.caller, self.record),
+            RECORD_DOMAIN,
+            1024,
+            LoginRevocationError::Storage,
+            LoginRevocationError::InvalidPolicy,
+        )
     }
 
     /// Decode trusted storage only; never accept these bytes from a client.
     /// This checks shape, not provenance, completeness, rollback or live authority.
     #[cfg(feature = "session-restore")]
     pub fn decode(bytes: &[u8]) -> Result<Self, LoginRevocationError> {
-        if bytes.len() > 1024 {
-            return Err(LoginRevocationError::InvalidPolicy);
-        }
-        let bytes = bytes
-            .strip_prefix(RECORD_DOMAIN)
-            .ok_or(LoginRevocationError::InvalidPolicy)?;
-        let (audience, caller, record) =
-            serde_cbor::from_slice(bytes).map_err(|_| LoginRevocationError::InvalidPolicy)?;
+        let (audience, caller, record) = crate::storage_codec::decode(
+            bytes,
+            RECORD_DOMAIN,
+            1024,
+            || LoginRevocationError::InvalidPolicy,
+            LoginRevocationError::InvalidPolicy,
+        )?;
         let change = Self {
             audience,
             caller,

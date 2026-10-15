@@ -1,3 +1,4 @@
+import { strictTransaction } from './idb-transaction.js';
 import { ClientError } from './contracts.js';
 
 /** Non-secret cleanup state. This store never holds a signing key or token. */
@@ -88,21 +89,10 @@ export class IndexedDbLogoutStore {
 
   /** Synchronous mutation, isolated across tabs; resolves only after strict commit. */
   transact<T>(operation: (record: LogoutJournal | undefined) => { record: LogoutJournal; value: T } | undefined): Promise<T | undefined> {
-    return new Promise((resolve, reject) => {
-      let result: T | undefined;
-      let error: unknown;
-      let tx: IDBTransaction | undefined;
-      const timer = setTimeout(() => {
-        error = new ClientError('timeout');
-        try { tx?.abort(); } catch { /* Transaction already completed. */ }
-      }, 5_000);
-      const fail = (cause: unknown) => { error = cause; try { tx?.abort(); } catch { clearTimeout(timer); reject(cause); } };
-      try {
-        tx = this.db.transaction('journal', 'readwrite', { durability: 'strict' });
-        tx.oncomplete = () => { clearTimeout(timer); resolve(result); };
-        tx.onabort = () => { clearTimeout(timer); reject(error ?? new ClientError('storage_unavailable', { cause: tx?.error })); };
-        tx.onerror = () => { error ??= new ClientError('storage_unavailable', { cause: tx?.error }); };
-        if (tx.durability !== 'strict') throw new ClientError('storage_unavailable');
+    return strictTransaction<T | undefined>(
+      () => this.db.transaction('journal', 'readwrite', { durability: 'strict' }),
+      5_000, cause => new ClientError('storage_unavailable', { cause }),
+      (tx, result, fail) => {
         const bucket = tx.objectStore('journal');
         if (bucket.keyPath !== null || bucket.autoIncrement || bucket.indexNames.length) throw new ClientError('storage_corrupt');
         const profile = bucket.get('format');
@@ -113,11 +103,12 @@ export class IndexedDbLogoutStore {
             try {
               if (request.result !== undefined) validate(request.result);
               const change = operation(request.result);
-              if (change) { validate(change.record); bucket.put(change.record, 'login'); result = change.value; }
+              if (change) { validate(change.record); bucket.put(change.record, 'login'); }
+              result(change?.value);
             } catch (cause) { fail(cause); }
           };
         };
-      } catch (cause) { clearTimeout(timer); if (tx) fail(cause); else reject(new ClientError('storage_unavailable', { cause })); }
-    });
+      },
+    );
   }
 }

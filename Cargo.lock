@@ -1441,7 +1441,7 @@ dependencies = [
  "ic-auth",
  "ic-auth-protocol-types",
  "ic-canister-sig-creation",
- "ic-host-fs",
+ "ic-host-fs 0.20.1",
  "ic-testkit",
  "k256 0.14.0",
  "serde",
@@ -1467,7 +1467,7 @@ dependencies = [
 name = "ic-auth-tooling"
 version = "0.6.1"
 dependencies = [
- "ic-host-fs",
+ "ic-host-fs 0.20.1",
 ]
 
 [[package]]
@@ -1583,12 +1583,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "ic-host-artifacts"
+version = "0.20.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d8f4ef133fc5ab978237e1a0f69338b6afe11db984b450ff559bc75373c7bded"
+dependencies = [
+ "sha2 0.10.9",
+]
+
+[[package]]
 name = "ic-host-fs"
 version = "0.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0dcfe7c0f16d3fe129284a41bfcd790c1e9d38c6d58ba15c95835d292e7770c5"
 dependencies = [
- "ic-host-artifacts",
+ "ic-host-artifacts 0.19.0",
+ "rustix",
+]
+
+[[package]]
+name = "ic-host-fs"
+version = "0.20.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8d14b46ff9a65d40733293bc96418df880db0bd47fb0c7a753fb7b7d7dea9079"
+dependencies = [
+ "ic-host-artifacts 0.20.1",
  "rustix",
 ]
 
@@ -1598,8 +1617,8 @@ version = "0.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "04818158227c4074535d7e4aa50ea834b4cc527181fe9a5c162214f986e52a1a"
 dependencies = [
- "ic-host-artifacts",
- "ic-host-fs",
+ "ic-host-artifacts 0.19.0",
+ "ic-host-fs 0.19.0",
  "libc",
  "rustix",
 ]
@@ -1617,9 +1636,9 @@ dependencies = [
 
 [[package]]
 name = "ic-memory"
-version = "0.41.0"
+version = "0.42.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7edd6714b5f69eb100edaaf61387c6cf762255c5dd6160969e63a0c315492a2c"
+checksum = "e4a26c84ac45374bd287772d20ee8467001073c375049fe77106adc3b6d9b5e4"
 dependencies = [
  "ciborium",
  "ic-stable-structures",
@@ -1676,8 +1695,8 @@ checksum = "5a30ff6ffc64795791a41a3ababade13a709c6a6ddc634fa36bc8812e7bcd1dd"
 dependencies = [
  "candid",
  "ic-cdk",
- "ic-host-artifacts",
- "ic-host-fs",
+ "ic-host-artifacts 0.19.0",
+ "ic-host-fs 0.19.0",
  "ic-host-process",
  "ic-metrics",
  "libc",
