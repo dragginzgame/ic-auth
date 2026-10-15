@@ -6,7 +6,6 @@ use ic_auth_protocol_types::{AudienceId, PortableClaims, Principal};
 use std::collections::{BTreeMap, BTreeSet};
 use thiserror::Error;
 
-const MAX_LOGIN_NS: u64 = 86_400_000_000_000;
 #[cfg(feature = "sessions")]
 const RECORD_DOMAIN: &[u8] = b"IC-AUTH-LOGIN-RECORD\0";
 
@@ -97,7 +96,7 @@ impl LoginRevocationChange {
                     && login.issuer != Principal::anonymous()
                     && login.subject != Principal::anonymous()
                     && login.started_at_ns < login.deadline_ns
-                    && login.deadline_ns - login.started_at_ns <= MAX_LOGIN_NS => {}
+                    && login.deadline_ns - login.started_at_ns <= crate::limits::MAX_LOGIN_NS => {}
             None if !change.record.admitted_pool && change.record.revoked => {}
             _ => return Err(LoginRevocationError::InvalidPolicy),
         }
@@ -574,7 +573,7 @@ impl MemoryLoginRevocations {
 fn retention(now_ns: u64, skew_ns: u64) -> Result<u64, LoginRevocationError> {
     skew_ns
         .checked_mul(2)
-        .and_then(|skew| MAX_LOGIN_NS.checked_add(skew))
+        .and_then(|skew| crate::limits::MAX_LOGIN_NS.checked_add(skew))
         .and_then(|ttl| now_ns.checked_add(ttl))
         .ok_or(LoginRevocationError::Clock)
 }

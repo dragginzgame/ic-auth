@@ -12,6 +12,7 @@ pub mod admission_budget;
 pub mod canonical;
 pub mod certificate_issuance;
 pub mod chain_key_batch;
+mod limits;
 pub mod portable;
 
 #[cfg(any(

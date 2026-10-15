@@ -1,3 +1,4 @@
+import { openDatabase } from './idb-open.js';
 import { strictTransaction } from './idb-transaction.js';
 import { ClientError } from './contracts.js';
 
@@ -60,23 +61,14 @@ export class IndexedDbLogoutStore {
 
   static async open(factory: IDBFactory, databaseName: string): Promise<IndexedDbLogoutStore> {
     if (!text(databaseName)) throw new ClientError('configuration');
-    const db = await new Promise<IDBDatabase>((resolve, reject) => {
-      let abandoned = false;
-      const fail = (cause: unknown) => { abandoned = true; clearTimeout(timer); reject(new ClientError('storage_unavailable', { cause })); };
-      const timer = setTimeout(() => fail(new Error('open timeout')), 5_000);
-      let request: IDBOpenDBRequest;
-      try { request = factory.open(databaseName, 1); } catch (cause) { fail(cause); return; }
-      request.onblocked = () => fail(new Error('blocked'));
-      request.onerror = () => fail(request.error);
-      request.onupgradeneeded = event => {
-        if (abandoned || event.oldVersion !== 0) { request.transaction?.abort(); return; }
+    const db = await openDatabase(
+      () => factory.open(databaseName, 1), 5_000,
+      cause => new ClientError('storage_unavailable', { cause }),
+      (request, event) => {
+        if (event.oldVersion !== 0) throw new ClientError('storage_corrupt');
         request.result.createObjectStore('journal').put(FORMAT, 'format');
-      };
-      request.onsuccess = () => {
-        clearTimeout(timer);
-        if (abandoned) request.result.close(); else resolve(request.result);
-      };
-    });
+      },
+    );
     const store = new IndexedDbLogoutStore(db);
     try {
       if (db.objectStoreNames.length !== 1 || !db.objectStoreNames.contains('journal')) throw new ClientError('storage_corrupt');

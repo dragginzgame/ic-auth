@@ -97,9 +97,9 @@ pub fn validate_claims_context(
 ) -> Result<(), PortableClaimsError> {
     use PortableClaimsError as Error;
     if context.max_login_ttl_ns == 0
-        || context.max_login_ttl_ns > 86_400_000_000_000
+        || context.max_login_ttl_ns > crate::limits::MAX_LOGIN_NS
         || context.max_proof_ttl_ns == 0
-        || context.max_proof_ttl_ns > 60_000_000_000
+        || context.max_proof_ttl_ns > crate::limits::MAX_PROOF_NS
         || context.issuer == Principal::anonymous()
         || context.authority_not_before_ns >= context.authority_expires_at_ns
         || context.enrollment_expires_at_ns == 0

@@ -170,3 +170,41 @@ fn symlink_inputs_and_existing_intent_links_are_refused() {
     );
     assert_eq!(fs::read(root.join("input")).unwrap(), b"protected bytes");
 }
+
+#[test]
+fn client_contract_bundle_checks_all_vectors_and_refuses_bad_input() {
+    let root = fixture();
+    let generated = invoke(&root, &["client-contracts", "generate", "."]);
+    assert!(generated.status.success(), "{:?}", generated);
+    for name in ["request", "credential", "logout"] {
+        let hex = fs::read_to_string(root.join(format!("{name}-vector.hex"))).unwrap();
+        let bytes: Vec<u8> = hex
+            .trim()
+            .as_bytes()
+            .as_chunks::<2>()
+            .0
+            .iter()
+            .map(|pair| u8::from_str_radix(std::str::from_utf8(pair).unwrap(), 16).unwrap())
+            .collect();
+        fs::write(root.join(format!("{name}-from-ts.bin")), bytes).unwrap();
+    }
+    assert!(
+        invoke(&root, &["client-contracts", "check", "."])
+            .status
+            .success()
+    );
+    for name in ["request", "credential", "logout"] {
+        let path = root.join(format!("{name}-from-ts.bin"));
+        let original = fs::read(&path).unwrap();
+        for invalid in [vec![0], vec![0; 131_073]] {
+            fs::write(&path, &invalid).unwrap();
+            assert!(
+                !invoke(&root, &["client-contracts", "check", "."])
+                    .status
+                    .success()
+            );
+            assert_eq!(fs::read(&path).unwrap(), invalid);
+        }
+        fs::write(path, original).unwrap();
+    }
+}

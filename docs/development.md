@@ -10,9 +10,9 @@ The selected graph uses IC Host 0.18 and Testkit 0.44.0 with its admitted server
 [session contract](sessions.md) for supported behavior and unfinished adapters.
 Historical release evidence does not qualify changed working-tree inputs.
 Rust `1.99.0` remains the development compiler selected by `rust-toolchain.toml`.
-The common package minimum is Rust `1.88.0`, inherited from the root catalog and
+The common package minimum is Rust `1.91.0`, inherited from the root catalog and
 qualified by explicit older-compiler checks. The internal qualification canister
-selects Rust 1.91.0 for IC Memory; both minima are prepared by explicit setup. See [MSRV coverage](msrv.md).
+inherits the same minimum; explicit setup prepares it once. See [MSRV coverage](msrv.md).
 Linux x86_64 is the initially exercised host.
 
 The supported host matrix is Linux x86_64 and macOS 15 on Intel and Apple Silicon.

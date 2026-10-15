@@ -407,7 +407,11 @@ and native macOS browser execution have not been qualified by this batch. The
 fixture imports the compiled store/error modules from a localhost test server;
 it is not an application UI, production adapter or remote endpoint.
 
-The Rust owner exports data-only Candid with `export_candid`. Locked
+The unpublished `ic-auth-tooling client-contracts generate DIRECTORY` command
+exports data-only Candid and all Rust vectors from the protocol crate's DTOs.
+`client-contracts check DIRECTORY` checks all TypeScript reply vectors together;
+bounded Host file reads reject oversized inputs. Fixture generation and checking
+are no longer packaged as a protocol-crate example. Locked
 `@icp-sdk/bindgen` generates both runtime IDL descriptors and TypeScript types.
 `check-client-contracts` generates into retained `target/browser-client/` and
 compares exact checked-in outputs. Retained generation directories record input

@@ -61,7 +61,7 @@ impl SessionRequest {
             return Err(SessionRequestError::InvalidLifetime);
         }
         now_ns
-            .checked_add(ttl * 1_000_000_000)
+            .checked_add(ttl * crate::limits::NS_PER_SECOND)
             .ok_or(SessionRequestError::InvalidLifetime)
     }
     pub(crate) fn check_granted_scopes(
@@ -94,7 +94,7 @@ impl SessionRequest {
 }
 
 pub(crate) fn validate_ttl_policy(default: u64, maximum: u64) -> Result<(), SessionRequestError> {
-    if default == 0 || default > maximum || maximum > 1800 {
+    if default == 0 || default > maximum || maximum > crate::limits::MAX_SESSION_SECS {
         return Err(SessionRequestError::InvalidLifetime);
     }
     Ok(())

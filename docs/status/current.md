@@ -1,5 +1,85 @@
 # Current handoff — 2026-10-13
 
+## Record sizing and dependency policy cleanup (pending 0.6.3)
+
+Session/replay admission and restoration accounting now count bytes with the same
+CBOR serializer and domain framing instead of allocating discarded encodings.
+Checked counting preserves record validation, byte limits and serializer-error
+precedence. The separate encoders still own stored bytes; no format changed.
+Auth's named dependency policies now serve workspace graphs, isolated MSRV graphs
+and packaged metadata; each caller still independently collects/adopts its graph.
+Policy cases cover allowed boundaries, package-prefix matching and rg/jq parity.
+
+Session tests passed in `target/cleanup5-validation.log`; that run subsequently
+found a Clippy warning in the previous batch's vector test. Its chunk iteration
+was corrected. Counting boundary/error/overflow tests pass in
+`target/cleanup5-counting.log`; strict Clippy, graph policies and the complete
+isolated native/Wasm MSRV matrix pass in `target/cleanup5-checks.log`. No full CI,
+native browser, real canister lifecycle or macOS run was performed for this batch.
+
+Read-only Build inspection found private external-lock admission already owned by
+its archive engine. Auth's request for a narrow published interface and semantic
+requirements is recorded in
+[Build #25](https://github.com/dragginzgame/ic-build/issues/25#issuecomment-6199516820).
+The local yq/jq lock comparison remains until adoption can be qualified. No sibling
+source, package versions or Git refs changed; incoming working edits were retained.
+
+## Contract fixture relocation and certificate buffer cleanup (pending 0.6.3)
+
+The browser declaration/vector CLI now lives in unpublished native tooling.
+Protocol DTO ownership and generated outputs are unchanged; the published protocol
+crate no longer carries the exporter example or its printer dev dependency.
+Generation emits the declaration and three vectors in one invocation, and checking
+validates all three TypeScript replies in one invocation. Host owns bounded file
+reads and durable writes; malformed/oversized replies fail without changing inputs.
+The lockfile change for this task adds only the tooling package's two direct edges;
+incoming external dependency selections were preserved.
+
+Canonical certificate encoding appends directly to the proof's buffer, preserving
+the domain prefix, field order and validation. This removes the temporary full
+certificate allocation/copy; no runtime speedup has been measured.
+
+All 92 browser tests with generated-contract comparison and bidirectional vectors,
+protocol tests, file-tool tests and strict Clippy pass in `target/cleanup4-tests.log`.
+The expanded tool rejection tests and isolated native/Wasm MSRV matrix pass in
+`target/cleanup4-followup.log`, including release/publication recovery fixtures
+with local remotes and mocked transport. Documentation/snapshot/diff checks pass. No full CI,
+fresh native browser, canister runtime or macOS qualification was run.
+
+Signed-ingress transport extraction is proposed in
+[Testkit #106](https://github.com/dragginzgame/ic-testkit/issues/106).
+Auth retains its local helper until a published replacement passes real ingress
+and lifecycle qualification. No sibling source, release version or Git ref changed.
+
+## Shared opening, lifetime ceilings and compiler selection (pending 0.6.3)
+
+Every package now inherits the root MSRV, including the qualification canister.
+Setup/check tooling selects it once; the separate internal Wasm check remains.
+Browser stores share private IndexedDB opening/abandonment handling while keeping
+schema creation, profile validation and error mapping local. Schema exceptions
+abort and reject without allowing a late connection to escape. Login, proof and
+session lifetime ceilings now have one private Rust owner; validation boundaries,
+values, error ordering and persisted formats are unchanged.
+
+`make test-client test-sessions test-protocol clippy check-msrv` passed in
+`target/cleanup3-validation.log`, including 92 browser tests and the isolated
+native/Wasm MSRV feature matrix. New opening regressions cover timeout/blocked
+abandonment, late upgrade/connection events and schema refusal. Shell syntax,
+documentation links, snapshot integrity and diff checks pass. No full CI, fresh
+native browser, canister runtime or macOS run was performed. Incoming dependency
+and MSRV changes were preserved; no versions, Git refs or sibling sources changed.
+
+## Workspace MSRV alignment (pending 0.6.3, 2026-10-15)
+
+The workspace minimum is now Rust 1.91.0, matching the qualification canister.
+Development formatting and Clippy remain on 1.99.0. Existing setup/check scripts
+read the declared floors; no compiler selection is hard-coded downstream.
+`make check-msrv` passed the isolated package native/Wasm feature matrix and
+internal application checks in `target/msrv-191.log`, preserving its sealed package
+and lock inputs. Documentation links and snapshot integrity also pass. No full CI
+or native macOS qualification was run. The incoming Testkit update was preserved;
+this task did not select dependencies, change release versions or commit changes.
+
 ## Portable browser admission orchestration (pending 0.6.2, 2026-10-15)
 
 The private client now coordinates initial portable issuance/reconciliation and

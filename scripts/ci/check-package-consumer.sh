@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
+source "${BASH_SOURCE[0]%/*}/auth-dependency-policy.sh"
+forbidden="$(auth_dependency_pattern packaged)"
 
 [[ $# == 3 ]] || { echo 'usage: check-package-consumer.sh WORKSPACE_LOCK FIXTURE VERSION' >&2; exit 2; }
 workspace_lock="$1"
@@ -9,7 +11,7 @@ version="$3"
 
 # Cargo owns resolution. Admit its exact unpacked package identities before
 # compilation, rather than trusting a successful build of registry payloads.
-jq -e --arg version "$version" --arg fixture "$fixture" '
+jq -e --arg forbidden "$forbidden" --arg version "$version" --arg fixture "$fixture" '
     .packages as $packages
     | .resolve.root as $root
     | [.resolve.nodes[].id] as $resolved
@@ -27,7 +29,7 @@ jq -e --arg version "$version" --arg fixture "$fixture" '
     and all($packages[] | select(.source == null);
         .name == "ic-auth-msrv-consumer" or .name == "ic-auth" or .name == "ic-auth-protocol-types")
     and all($packages[];
-        (.name | test("^(canic|toko|solana|ic-siws|ic-host|ic-testkit|pocket-ic|ic-cdk|ic-stable-structures|ic-memory|ic-timers)(-|$)")) | not)
+        (.name | test($forbidden)) | not)
 ' "$fixture/metadata.json" > /dev/null || {
     echo 'package consumer did not select the exact isolated library graph' >&2; exit 1;
 }

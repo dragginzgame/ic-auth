@@ -1,3 +1,4 @@
+import { openDatabase } from './idb-open.js';
 import { strictTransaction } from './idb-transaction.js';
 import { ClientError, type StoredToken, type StoreSnapshot, type TokenStore } from './contracts.js';
 
@@ -76,29 +77,15 @@ export class IndexedDbTokenStore implements TokenStore {
     if (!fixed.factory || typeof fixed.factory.open !== 'function' || fixed.databaseName.length === 0 || fixed.databaseName.length > 128
       || !bounded(fixed.maximumEntries, 1024) || !bounded(fixed.maximumEntryBytes, 2_097_152)
       || !bounded(fixed.maximumKeyBytes, 131_072) || !bounded(fixed.timeoutMs, 60_000)) throw new ClientError('configuration');
-    const database = await new Promise<IDBDatabase>((resolve, reject) => {
-      let abandoned = false;
-      const fail = (cause: unknown) => { abandoned = true; clearTimeout(timer); reject(storageFailure(cause)); };
-      const timer = setTimeout(() => fail(new ClientError('timeout')), fixed.timeoutMs);
-      let request: IDBOpenDBRequest;
-      try { request = fixed.factory.open(fixed.databaseName, 1); }
-      catch (cause) { fail(cause); return; }
-      request.onblocked = () => fail(new ClientError('storage_unavailable'));
-      request.onerror = () => fail(request.error);
-      request.onupgradeneeded = event => {
-        if (abandoned) { request.transaction?.abort(); return; }
-        try {
-          if (event.oldVersion !== 0) throw new ClientError('storage_corrupt');
-          request.result.createObjectStore(TOKENS);
-          request.result.createObjectStore(METADATA).put({ format: FORMAT, maximumEntries: fixed.maximumEntries,
-            maximumEntryBytes: fixed.maximumEntryBytes, maximumKeyBytes: fixed.maximumKeyBytes, revision: 0n } satisfies Metadata, 'profile');
-        } catch (cause) { request.transaction?.abort(); fail(cause); }
-      };
-      request.onsuccess = () => {
-        clearTimeout(timer);
-        if (abandoned) request.result.close(); else resolve(request.result);
-      };
-    });
+    const database = await openDatabase(
+      () => fixed.factory.open(fixed.databaseName, 1), fixed.timeoutMs, storageFailure,
+      (request, event) => {
+        if (event.oldVersion !== 0) throw new ClientError('storage_corrupt');
+        request.result.createObjectStore(TOKENS);
+        request.result.createObjectStore(METADATA).put({ format: FORMAT, maximumEntries: fixed.maximumEntries,
+          maximumEntryBytes: fixed.maximumEntryBytes, maximumKeyBytes: fixed.maximumKeyBytes, revision: 0n } satisfies Metadata, 'profile');
+      },
+    );
     const store = new IndexedDbTokenStore(database, fixed);
     try {
       if (database.objectStoreNames.length !== 2 || !database.objectStoreNames.contains(TOKENS)

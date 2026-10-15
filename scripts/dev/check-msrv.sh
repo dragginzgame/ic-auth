@@ -5,6 +5,7 @@ script_path="${BASH_SOURCE[0]}"
 [[ "$script_path" == /* ]] || script_path="$PWD/$script_path"
 cd -P "${script_path%/*}/../.."
 root="$PWD"
+source scripts/ci/auth-dependency-policy.sh
 printf 'MSRV wrapper Bash %s\n' "$BASH_VERSION"
 export PATH="$root/.tools/host/bin:$PATH" RUSTUP_AUTO_INSTALL=0 CARGO_NET_OFFLINE=true
 floor="$(bash scripts/dev/msrv-tools.sh floor)"
@@ -118,18 +119,17 @@ for target in native wasm32-unknown-unknown; do
             cargo +"$floor" tree --locked --offline --manifest-path "$fixture/Cargo.toml" \
                 ${target_args[@]+"${target_args[@]}"} "${feature_args[@]}" \
                 --edges normal,build --prefix none --format '{p}' > "$fixture/pure-request-$target.graph"
-            if rg '^(curve25519-dalek|ed25519-dalek|k256|ic-certification|ic-signature-verification|ic-canister-sig-creation|ic-verify-bls-signature|ic-cdk|ic-stable-structures)([- ]|$)' "$fixture/pure-request-$target.graph"; then
+            if rg "$(auth_dependency_pattern pure)" "$fixture/pure-request-$target.graph"; then
                 echo 'isolated pure request consumer pulls cryptographic or session storage dependencies' >&2
                 exit 1
             fi
         fi
     done
 done
-# Native applications retain the common floor; the IC Memory qualification host
-# has its own declared minimum, separate from the public dependency path. Runtime qualification remains test-qualification.
+# Internal applications use the same floor with separate native/Wasm checks.
+# Runtime qualification remains test-qualification.
 cargo +"$floor" check --locked --offline -p ic-auth-tooling -p ic-auth-qualification --all-targets --all-features
-qualification_floor="$(bash scripts/dev/msrv-tools.sh qualification-floor)"
-cargo +"$qualification_floor" check --locked --offline -p ic-auth-qualification-canister --target wasm32-unknown-unknown
+cargo +"$floor" check --locked --offline -p ic-auth-qualification-canister --target wasm32-unknown-unknown
 package_inputs "$fixture/Cargo.toml" "$fixture/Cargo.lock" "$fixture/src/lib.rs" > "$fixture/inputs-after"
 cmp "$fixture/inputs-before" "$fixture/inputs-after"
 printf 'Package archives, unpacked sources, manifests and locks remained unchanged\n'

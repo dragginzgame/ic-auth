@@ -67,3 +67,31 @@ for field in name version source checksum; do
     [[ "$status" == 1 ]] || { echo "unexpected lock admission: $field" >&2; exit 1; }
 done
 printf 'Package identity, isolation and external-lock refusal cases passed on Bash %s\n' "$BASH_VERSION"
+
+source scripts/ci/auth-dependency-policy.sh
+for engine in rg jq; do
+    while read -r policy package refused; do
+        pattern="$(auth_dependency_pattern "$policy")"
+        if [[ "$engine" == rg ]]; then
+            if printf '%s\n' "$package" | rg -q "$pattern"; then found=yes; else found=no; fi
+        else
+            if jq -ne --arg package "$package" --arg pattern "$pattern" '$package | test($pattern)' >/dev/null; then found=yes; else found=no; fi
+        fi
+        [[ "$found" == "$refused" ]] || { echo "dependency policy mismatch: $engine $policy $package" >&2; exit 1; }
+    done <<'CASES'
+default canic-core yes
+default canicular no
+passive ic0 yes
+capability ic0 no
+pure ed25519-dalek yes
+pure sha2 no
+certificate-free ic-certification yes
+session ed25519-dalek no
+session k256 yes
+packaged ic-testkit yes
+packaged pocket-ic yes
+packaged ic-host-fs yes
+packaged candid no
+CASES
+done
+if auth_dependency_pattern unknown >/dev/null 2>&1; then exit 1; fi

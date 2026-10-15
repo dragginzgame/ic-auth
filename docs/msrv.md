@@ -1,26 +1,24 @@
 # Minimum Rust compiler qualification
 
 The public libraries, native tooling and Testkit runner inherit
-`rust-version = "1.88.0"` from the virtual root. The unpublished qualification
-canister explicitly selects Rust 1.91.0 for its IC Memory 0.40 dependency. Rust 1.99.0 remains the development compiler for formatting, Clippy and
+`rust-version = "1.91.0"` from the virtual root, as does the unpublished qualification
+canister. Rust 1.99.0 remains the development compiler for formatting, Clippy and
 functional tests; it is independent of the supported minimum.
 
-The selected public native dependency path includes `psm` 0.1.32 and
-`ar_archive_writer` 0.5.3, both requiring Rust 1.88.0. A real Rust 1.85.0 check
-rejects that graph before compilation. No dependencies were downgraded to change
-the result. Rust 1.88.0 passes the selected paths below; internal CDK, IC agent,
-testkit and host packages retain that floor. A future proposed lower floor
-needs a maintained dependency selection and actual compiler qualification.
+The workspace minimum is deliberately aligned at Rust 1.91.0. Earlier checks
+qualified Rust 1.88.0 for an earlier dependency selection; that historical result
+does not qualify the current graph. A future proposed lower floor needs a
+maintained dependency selection and actual compiler qualification.
 
 ## Commands and coverage
 
-`make install-tools` explicitly prepares both declared minimum compilers and their Wasm targets,
+`make install-tools` explicitly prepares the workspace minimum compiler and its Wasm target,
 alongside the separately selected developer tools. `make install-msrv` prepares
-those compilers and host-tool prerequisites. `make msrv-tools-check` prints
+that compiler and host-tool prerequisites. `make msrv-tools-check` prints
 the actual rustc/Cargo versions and requires the installed Wasm target. It never
 installs a missing compiler implicitly.
 
-`make check-msrv` uses explicit `cargo +1.88.0` selection read from the root floor.
+`make check-msrv` uses explicit `cargo +1.91.0` selection read from the root floor.
 It prints the compiler identities, works offline and refuses lock changes. Cargo
 on the separately selected development compiler normalizes both public package
 archives without uploading. Their bounded digests and a unique unpacked fixture

@@ -115,21 +115,28 @@ pub fn role_hash(role: &AuthRole) -> Result<[u8; 32], CanonicalAuthError> {
 
 /// Encode a certificate without changing grant order or normalizing labels.
 pub fn cert_bytes(cert: &DelegationCert) -> Result<Vec<u8>, CanonicalAuthError> {
-    let mut out = domain_bytes(CanonicalDomain::DelegationCert);
-
-    encode_principal(&mut out, cert.root_pid)?;
-    encode_principal(&mut out, cert.issuer_pid)?;
-    encode_issuer_proof_algorithm(&mut out, cert.issuer_proof_alg);
-    encode_fixed_32(&mut out, cert.issuer_proof_binding_hash);
-    encode_issuer_proof_binding(&mut out, cert.issuer_proof_binding);
-    encode_u64(&mut out, cert.issued_at_ns);
-    encode_u64(&mut out, cert.not_before_ns);
-    encode_u64(&mut out, cert.expires_at_ns);
-    encode_u64(&mut out, cert.max_token_ttl_ns);
-    encode_audience(&mut out, &cert.aud);
-    encode_role_grants(&mut out, &cert.grants)?;
-
+    let mut out = Vec::with_capacity(128);
+    encode_cert(&mut out, cert)?;
     Ok(out)
+}
+
+fn encode_cert(out: &mut Vec<u8>, cert: &DelegationCert) -> Result<(), CanonicalAuthError> {
+    out.extend_from_slice(DOMAIN_SEPARATOR);
+    out.push(CanonicalDomain::DelegationCert as u8);
+
+    encode_principal(out, cert.root_pid)?;
+    encode_principal(out, cert.issuer_pid)?;
+    encode_issuer_proof_algorithm(out, cert.issuer_proof_alg);
+    encode_fixed_32(out, cert.issuer_proof_binding_hash);
+    encode_issuer_proof_binding(out, cert.issuer_proof_binding);
+    encode_u64(out, cert.issued_at_ns);
+    encode_u64(out, cert.not_before_ns);
+    encode_u64(out, cert.expires_at_ns);
+    encode_u64(out, cert.max_token_ttl_ns);
+    encode_audience(out, &cert.aud);
+    encode_role_grants(out, &cert.grants)?;
+
+    Ok(())
 }
 
 /// Encode claims exactly, including presenter, audience, nonce and extension presence.
@@ -153,7 +160,7 @@ pub fn claims_bytes(claims: &DelegatedTokenClaims) -> Result<Vec<u8>, CanonicalA
 fn proof_bytes(proof: &DelegationProof) -> Result<Vec<u8>, CanonicalAuthError> {
     let mut out = domain_bytes(CanonicalDomain::DelegationProof);
 
-    out.extend_from_slice(&cert_bytes(&proof.cert)?);
+    encode_cert(&mut out, &proof.cert)?;
     encode_root_proof(&mut out, &proof.root_proof)?;
 
     Ok(out)

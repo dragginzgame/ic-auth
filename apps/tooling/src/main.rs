@@ -7,7 +7,21 @@ use ic_host_fs::{
 };
 use std::{env, error::Error, ffi::OsString, io::Write, path::Path};
 
+mod client_contracts;
+
 fn run(arguments: &[OsString]) -> Result<(), Box<dyn Error>> {
+    if arguments
+        .first()
+        .is_some_and(|value| value == "client-contracts")
+    {
+        if arguments.len() != 3 {
+            return Err("client-contracts requires generate|check DIRECTORY".into());
+        }
+        return client_contracts::run(
+            arguments[1].to_str().ok_or("invalid mode")?,
+            Path::new(&arguments[2]),
+        );
+    }
     let usage = "usage: ic-auth-tooling hash-file PATH MAX_BYTES | {create-private|replace-private} SOURCE DESTINATION MAX_BYTES";
     let Some(operation) = arguments.first().and_then(|value| value.to_str()) else {
         return Err(usage.into());

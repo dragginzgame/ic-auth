@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.6.3]
+
+- Count session and replay storage bytes through the CBOR serializer without
+  allocating temporary record buffers; preserve limits and rejection ordering.
+- Share named dependency-boundary policies between workspace, MSRV and packaged
+  consumer checks while retaining their independent graph inspection.
+- Move browser contract generation and vector checking into unpublished tooling,
+  grouping their Cargo invocations while retaining Rust-owned protocol types.
+- Encode certificates directly into delegation-proof buffers, removing an
+  intermediate allocation and copy without changing signed bytes.
+- Raise the workspace minimum Rust version to 1.91.0. Library consumers and
+  local MSRV checks now require that compiler; development remains on 1.99.0.
+- Use one inherited MSRV selection for every package and prepare/check it once.
+- Share IndexedDB opening and abandoned-connection cleanup across browser stores,
+  keeping their schemas and error mapping separate.
+- Centralize authentication lifetime ceilings across admission, revocation and
+  restored-session validation without changing their values.
+
 ## [0.6.2] - 2026-10-15
 
 - Add portable browser admission orchestration with one durable issuance claim,

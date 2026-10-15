@@ -178,6 +178,15 @@ impl Session {
             SessionError::ByteCapacity,
         )
     }
+    pub(super) fn encoded_len(&self) -> Result<usize, SessionError> {
+        crate::storage_codec::encoded_len(
+            &self.0,
+            RECORD_DOMAIN,
+            2048,
+            SessionError::InvalidPolicyOrRecord,
+            SessionError::ByteCapacity,
+        )
+    }
     /// Trusted-storage restoration only. Old token-session bytes are rejected.
     #[cfg(feature = "session-restore")]
     pub fn decode(bytes: &[u8]) -> Result<Self, SessionError> {
@@ -195,10 +204,10 @@ impl Session {
             || data.issuer == Principal::anonymous()
             || data.login_started_at_ns > data.established_at_ns
             || data.login_started_at_ns >= data.login_deadline_ns
-            || data.login_deadline_ns - data.login_started_at_ns > 86_400_000_000_000
+            || data.login_deadline_ns - data.login_started_at_ns > crate::limits::MAX_LOGIN_NS
             || data.established_at_ns >= data.expires_at_ns
             || data.expires_at_ns > data.login_deadline_ns
-            || data.expires_at_ns - data.established_at_ns > 1_800_000_000_000
+            || data.expires_at_ns - data.established_at_ns > crate::limits::MAX_SESSION_NS
             || data.scopes.windows(2).any(|pair| pair[0] >= pair[1])
         {
             return Err(SessionError::InvalidPolicyOrRecord);
@@ -278,7 +287,8 @@ impl Session {
             || authority.now_ns >= authority.enrollment_expires_at_ns
             || self.0.expires_at_ns > authority.authority_expires_at_ns
             || self.0.expires_at_ns > authority.enrollment_expires_at_ns
-            || self.0.expires_at_ns - self.0.established_at_ns > policy.max_ttl_secs * 1_000_000_000
+            || self.0.expires_at_ns - self.0.established_at_ns
+                > policy.max_ttl_secs * crate::limits::NS_PER_SECOND
         {
             return Err(SessionError::StaleAuthority);
         }
@@ -316,10 +326,7 @@ pub struct Replay(ReplayData);
 impl Replay {
     /// Bounded, domain-separated storage record; not an admission credential.
     pub fn encode(&self) -> Result<Vec<u8>, SessionError> {
-        let caller = self.0.caller.as_slice();
-        if caller.len() != 29 || caller.last() != Some(&2) || self.0.remove_at_ns == 0 {
-            return Err(SessionError::InvalidPolicyOrRecord);
-        }
+        self.validate()?;
         crate::storage_codec::encode(
             &self.0,
             REPLAY_DOMAIN,
@@ -327,6 +334,14 @@ impl Replay {
             SessionError::InvalidPolicyOrRecord,
             SessionError::ByteCapacity,
         )
+    }
+
+    fn validate(&self) -> Result<(), SessionError> {
+        let caller = self.0.caller.as_slice();
+        if caller.len() != 29 || caller.last() != Some(&2) || self.0.remove_at_ns == 0 {
+            return Err(SessionError::InvalidPolicyOrRecord);
+        }
+        Ok(())
     }
 
     /// Trusted-storage restoration only; provenance and rollback are host-owned.
@@ -339,7 +354,7 @@ impl Replay {
             || SessionError::InvalidPolicyOrRecord,
             SessionError::ByteCapacity,
         )?);
-        record.encode()?;
+        record.encoded_len()?;
         Ok(record)
     }
 
@@ -364,6 +379,13 @@ impl Replay {
         self.0.remove_at_ns
     }
     pub(super) fn encoded_len(&self) -> Result<usize, SessionError> {
-        self.encode().map(|bytes| bytes.len())
+        self.validate()?;
+        crate::storage_codec::encoded_len(
+            &self.0,
+            REPLAY_DOMAIN,
+            512,
+            SessionError::InvalidPolicyOrRecord,
+            SessionError::ByteCapacity,
+        )
     }
 }

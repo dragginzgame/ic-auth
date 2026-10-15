@@ -2,8 +2,7 @@
 name = "ic-auth-qualification-canister"
 version.workspace = true
 edition.workspace = true
-# IC Memory's floor is isolated from the public protocol/session libraries.
-rust-version = "1.91.0"
+rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 publish = false

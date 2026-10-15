@@ -105,7 +105,7 @@ impl MemorySessionStore {
             {
                 return Err(SessionError::InvalidPolicyOrRecord);
             }
-            let bytes = session.encode()?.len();
+            let bytes = session.encoded_len()?;
             self.encoded_bytes = self
                 .encoded_bytes
                 .checked_add(bytes)
@@ -358,7 +358,7 @@ impl SessionTransaction for Transaction<'_> {
         let limits = self.limits();
         let count = self.occupancy(session.caller())?;
         limits.check_capacity(count, old.is_some())?;
-        let session_bytes = session.encode()?.len();
+        let session_bytes = session.encoded_len()?;
         let replay_bytes = replay.encoded_len()?;
         let total = self.store.encoded_bytes - old.map_or(0, |s| s.bytes);
         let total = total

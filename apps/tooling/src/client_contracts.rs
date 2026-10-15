@@ -49,10 +49,28 @@ fn logout_vector() -> Vec<LogoutResult> {
     ]
 }
 
-fn main() {
-    let arguments: Vec<_> = std::env::args().skip(1).collect();
-    match arguments.as_slice() {
-        [] => {
+pub(crate) fn run(
+    mode: &str,
+    directory: &std::path::Path,
+) -> Result<(), Box<dyn std::error::Error>> {
+    use ic_host_fs::{
+        durable::{PublicationMode, WriteOptions, write_with},
+        read::read_file_no_follow,
+    };
+    use std::io::Write;
+    let save = |name: &str, bytes: &[u8]| -> Result<(), Box<dyn std::error::Error>> {
+        write_with(
+            &directory.join(name),
+            WriteOptions {
+                mode: PublicationMode::Replace,
+                permissions: 0o600,
+            },
+            |file| file.write_all(bytes),
+        )?;
+        Ok(())
+    };
+    match mode {
+        "generate" => {
             let mut types = TypeContainer::new();
             types.add::<DelegatedToken>();
             types.add::<PortableCredential>();
@@ -63,45 +81,31 @@ fn main() {
             types.add::<DelegatedTokenGetRequest>();
             types.add::<DelegatedTokenPrepareRequest>();
             types.add::<DelegatedTokenPrepareResponse>();
-            print!("{}", compile(&types.env, &None));
-        }
-        [mode] if mode == "--request-vector" => {
-            for byte in Encode!(&request_vector()).expect("encode fixture") {
-                print!("{byte:02x}");
+            save("protocol.did", compile(&types.env, &None).as_bytes())?;
+            for (name, bytes) in [
+                ("request-vector.hex", Encode!(&request_vector())?),
+                ("credential-vector.hex", Encode!(&credential_vector())?),
+                ("logout-vector.hex", Encode!(&logout_vector())?),
+            ] {
+                let hex: String = bytes.iter().map(|byte| format!("{byte:02x}")).collect();
+                save(name, format!("{hex}\n").as_bytes())?;
             }
-            println!();
         }
-        [mode, path] if mode == "--check-request" => {
-            let bytes = std::fs::read(path).expect("read TS fixture");
-            let actual = Decode!(&bytes, DelegatedTokenPrepareRequest).expect("decode TS fixture");
-            assert_eq!(actual, request_vector());
-        }
-        [mode] if mode == "--credential-vector" => {
-            for byte in Encode!(&credential_vector()).expect("encode credential fixture") {
-                print!("{byte:02x}");
+        "check" => {
+            let bytes = read_file_no_follow(&directory.join("request-from-ts.bin"), 131_072)?;
+            if Decode!(&bytes, DelegatedTokenPrepareRequest)? != request_vector() {
+                return Err("request vector mismatch".into());
             }
-            println!();
-        }
-        [mode, path] if mode == "--check-credential" => {
-            let bytes = std::fs::read(path).expect("read TS credential fixture");
-            let actual = Decode!(&bytes, PortableCredential).expect("decode TS credential fixture");
-            assert_eq!(actual, credential_vector());
-        }
-        [mode] if mode == "--logout-vector" => {
-            for byte in Encode!(&logout_vector()).expect("encode logout fixture") {
-                print!("{byte:02x}");
+            let bytes = read_file_no_follow(&directory.join("credential-from-ts.bin"), 131_072)?;
+            if Decode!(&bytes, PortableCredential)? != credential_vector() {
+                return Err("credential vector mismatch".into());
             }
-            println!();
+            let bytes = read_file_no_follow(&directory.join("logout-from-ts.bin"), 131_072)?;
+            if Decode!(&bytes, Vec<LogoutResult>)? != logout_vector() {
+                return Err("logout vector mismatch".into());
+            }
         }
-        [mode, path] if mode == "--check-logout" => {
-            let bytes = std::fs::read(path).expect("read TS logout fixture");
-            assert_eq!(
-                Decode!(&bytes, Vec<LogoutResult>).expect("decode TS logout fixture"),
-                logout_vector()
-            );
-        }
-        _ => panic!(
-            "usage: export_candid [--request-vector | --check-request PATH | --credential-vector | --check-credential PATH | --logout-vector | --check-logout PATH]"
-        ),
+        _ => return Err("client-contracts requires generate|check DIRECTORY".into()),
     }
+    Ok(())
 }
