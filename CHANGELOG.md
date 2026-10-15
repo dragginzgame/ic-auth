@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.6.2]
+
+- Expose the retained session proof mechanism and issuer key binding so hosts can
+  select exact protected enrollment after restoration. These read-only selectors
+  do not replace live authorization or change credential/storage formats.
+
 ## [0.6.1] - 2026-10-15
 
 - Expose the existing session/login-record association check for custom host

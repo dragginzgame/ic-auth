@@ -149,6 +149,16 @@ impl Session {
     pub fn issuer(&self) -> Principal {
         self.0.issuer
     }
+    /// Proof mechanism retained at admission, for selecting protected enrollment.
+    /// This selector does not establish freshness or authorize session use.
+    pub fn mechanism(&self) -> PortableMechanism {
+        self.0.mechanism
+    }
+    /// Exact issuer key binding retained at admission. Resolve it in current
+    /// protected enrollment and still call `authorize_session` before use.
+    pub fn key_binding_id(&self) -> [u8; 32] {
+        self.0.key_binding_id
+    }
     pub fn scopes(&self) -> &[String] {
         &self.0.scopes
     }
