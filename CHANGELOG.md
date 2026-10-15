@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.6.1]
+## [0.6.1] - 2026-10-15
 
 - Expose the existing session/login-record association check for custom host
   transactions, avoiding duplication of private record validation. Document the
