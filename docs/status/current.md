@@ -1,5 +1,31 @@
 # Current handoff — 2026-10-13
 
+## Custom session-store binding check (pending 0.6.1, 2026-10-15)
+
+Custom stores can now call the existing session/login-change association check
+through the public API rather than decode private fields or copy the reference
+store's rules. Runtime behavior is unchanged: caller/domain must match; admission
+also matches issuer/account/login window and retention. A tombstone can clear an
+older session without an account binding, but can never authorize admission.
+See the [complete host migration contract](../sessions.md#custom-host-adoption-from-the-pre-06-session-api).
+
+Read-only Canic inspection at HEAD `644d4b13012b395d6211a6907e2e6aafdf391db9`
+plus its existing working tree confirms broader propagation remains: the custom
+store uses the old transaction/accounting contract and the workflow still passes
+old token/context inputs. Canic must retain ledger/budgets, persist login deltas
+atomically, implement session-only removal and adopt portable inputs and checked
+codecs. No Canic source/build was changed/run. Adoption remains in
+[Canic #491](https://github.com/dragginzgame/canic/issues/491); production durable
+storage remains [Auth #58](https://github.com/dragginzgame/ic-auth/issues/58).
+
+The external public-API regression covers mismatched caller/domain/issuer/account
+and both login-window endpoints, admitted logout and absent-reservation logout.
+All 19 restoration-selected session tests pass in `target/canic-binding-tests.log`.
+The standard session feature tests, strict Clippy, Wasm, dependency boundaries
+and isolated-package MSRV pass in `target/canic-binding-checks.log`.
+Incoming lockfile edits were preserved; package versions and Git refs are unchanged.
+No full suite, fresh canister lifecycle run or native macOS qualification claimed.
+
 ## IC Memory checkpoint qualification (working tree, 2026-10-15)
 
 The internal canister now uses published `ic-memory` 0.40.0 for a single

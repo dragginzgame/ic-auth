@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.6.1]
+
+- Expose the existing session/login-record association check for custom host
+  transactions, avoiding duplication of private record validation. Document the
+  complete portable-session host cut and remaining Canic integration obligations.
+
 ## [0.6.0] - 2026-10-15
 
 ### Breaking

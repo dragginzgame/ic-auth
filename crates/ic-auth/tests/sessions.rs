@@ -1136,3 +1136,63 @@ fn authority_generation_changes_only_after_host_commit() {
         Err(SessionError::GenerationExhausted)
     );
 }
+
+#[cfg(feature = "session-restore")]
+#[test]
+fn custom_store_checks_login_binding_through_public_api() {
+    let fixture = Fixture::new(1);
+    let mut receiver = Receiver::new(&fixture);
+    let session = created(fixture.admit(&mut receiver, NOW).unwrap());
+    let change = receiver.ledger.records().next().unwrap();
+    assert!(session.check_login_change(&change).is_ok());
+
+    // Each record is from a completely verified admission, but only the exact
+    // caller/domain/account/login binding belongs to this proposed session.
+    for field in 0..6 {
+        let mut other = Fixture::new(1);
+        match field {
+            0 => other = Fixture::new(2),
+            1 => other.claims.audience.fleet_id = CanonicalId::from_bytes([3; 32]),
+            2 => other.claims.issuer = Principal::from_slice(&[3]),
+            3 => other.claims.account_subject = Principal::from_slice(&[3]),
+            4 => other.claims.login_started_at_ns -= 1,
+            5 => other.claims.login_deadline_ns += 1,
+            _ => unreachable!(),
+        }
+        let mut host = Receiver::new(&other);
+        other.admit(&mut host, NOW).unwrap();
+        let change = host.ledger.records().next().unwrap();
+        assert_eq!(
+            session.check_login_change(&change),
+            Err(SessionError::InvalidPolicyOrRecord),
+            "binding field {field}"
+        );
+    }
+
+    receiver.logout(fixture.caller(), NOW).unwrap();
+    let tombstone = receiver.ledger.records().next().unwrap();
+    assert!(tombstone.revoked());
+    assert!(session.check_login_change(&tombstone).is_ok());
+
+    // Proofless logout can remove an old retained session without a reservation.
+    let mut unknown = Receiver::new(&fixture);
+    unknown.logout(fixture.caller(), NOW).unwrap();
+    let tombstone = unknown.ledger.records().next().unwrap();
+    assert_eq!(tombstone.binding(), None);
+    assert!(session.check_login_change(&tombstone).is_ok());
+
+    for field in 0..2 {
+        let mut other = Fixture::new(1);
+        if field == 0 {
+            other = Fixture::new(2);
+        } else {
+            other.claims.audience.fleet_id = CanonicalId::from_bytes([3; 32]);
+        }
+        let mut host = Receiver::new(&other);
+        host.logout(other.caller(), NOW).unwrap();
+        assert_eq!(
+            session.check_login_change(&host.ledger.records().next().unwrap()),
+            Err(SessionError::InvalidPolicyOrRecord)
+        );
+    }
+}

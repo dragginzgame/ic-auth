@@ -182,6 +182,53 @@ than invent missing reservations. [Auth #58](https://github.com/dragginzgame/ic-
 owns this integration and its failure/upgrade qualification. The qualification host selects `ic-memory`; neither public library depends on it.
 A production per-operation persistent backend remains unimplemented.
 
+## Custom host adoption from the pre-0.6 session API
+
+The portable engine is a protocol change, not just a renamed transaction method.
+Canic's reported integration stays in [Canic #491](https://github.com/dragginzgame/canic/issues/491).
+Hosts can reuse `MemorySessionStore::transaction_with_commit` to avoid copying its
+staging/index rules. A custom store with its own indexes must enforce the same
+contract before any persistent effects:
+
+| Proposed operation | Required login change and checks |
+| --- | --- |
+| Read only | `None`; reject staged writes/removals |
+| Admission/replacement | `Some(change)` with `!change.revoked()`; call `session.check_login_change(change)`; check session/replay caller, fingerprint and generation, replay uniqueness and physical capacities |
+| Session removal | `Some(change)` with `change.revoked()` and `change.caller() == removed_caller`; if a session exists, call its `check_login_change(change)`; retain all replay records |
+| Missing session removal | Still commit the proposed tombstone; absence is not evidence that a delayed admission cannot arrive |
+
+`Session::check_login_change` exposes the existing association check without
+revealing private storage fields. It checks caller/domain for both operations,
+and issuer/subject/login-window/retention for admission. A revoked record may
+have no login binding, so that an authenticated proofless logout can remove an
+older session. Passing this check never permits admission with a tombstone or
+replaces current authority, replay, capacity or atomicity checks. No submitted
+record is a credential. Persist the login change with the session/replay/index
+updates; return success only after the whole commit succeeds.
+
+The rest of the host cut must be propagated together:
+
+- Replace old `DelegatedToken` session inputs with `PortableCredential` and a
+  protected `SessionContext`/`PortableVerificationContext`. Call the complete
+  `verify_credential` inside `establish_session`'s callback using its supplied
+  shared budget and the same protected authority. Do not wrap an old token as
+  new signed claims or use the standalone token verifier to authorize a session.
+- Retain one login ledger and admission/unknown-logout budgets across requests.
+  Pass the ledger to establishment, authorization and logout. Fresh allocation
+  per call would lose denials and replenish abuse credit.
+- Use `Replay::caller()`, `max_replays_per_caller` and `replays_for_caller` for
+  login accounting. Application account identity remains `(issuer, subject)`;
+  replacing subject indexes mechanically is not an account migration.
+- Durable hosts select `session-restore` and use the bounded session/replay/login
+  codecs. Remove raw replay deserialization and explicitly retire incompatible
+  retained layouts. Restore complete matching metadata and records, then obtain
+  fresh receiver-bound enrollment before serving. Volatile hosts enforce reset
+  floors instead; neither profile can fabricate missing reservations.
+- Qualify failed commits, exact retries, same-account separate browser callers,
+  session-only logout with replay retention, unknown-login logout and upgrade
+  restoration/reset in the actual host. Auth's fixture is reference evidence,
+  not production Canic adoption or a completed per-operation durable backend.
+
 ## Evidence and remaining adoption
 
 `make test-sessions` covers both proof mechanisms, independent devices/receivers,

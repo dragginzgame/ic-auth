@@ -107,7 +107,19 @@ let _ = Session::decode(&[]);
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Session(SessionData);
 impl Session {
-    pub(super) fn check_login_change(
+    /// Check a proposed host transaction's login record against this session.
+    /// Custom stores call this before persistence instead of decoding private
+    /// record fields. Both operations require the same caller and audience.
+    /// Admission additionally requires the retained issuer, account subject,
+    /// login window and sufficient reservation retention to match.
+    ///
+    /// A revoked change is valid only for session removal: its login binding may
+    /// differ or be absent, allowing logout to clear an older retained session.
+    /// The store MUST separately reject admission with a revoked change, removal
+    /// with a non-revoked change, writes without a change and mismatched removals.
+    /// This checks record association, not proof validity, current authority,
+    /// replay, capacity, storage provenance or transaction atomicity.
+    pub fn check_login_change(
         &self,
         change: &crate::portable::LoginRevocationChange,
     ) -> Result<(), SessionError> {
