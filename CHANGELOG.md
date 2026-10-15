@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.6.3]
+## [0.6.3] - 2026-10-15
 
 - Count session and replay storage bytes through the CBOR serializer without
   allocating temporary record buffers; preserve limits and rejection ordering.
