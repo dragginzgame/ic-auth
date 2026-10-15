@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.6.2]
+## [0.6.2] - 2026-10-15
 
 - Add portable browser admission orchestration with one durable issuance claim,
   non-issuing recovery and proof reuse across receivers. Record destinations before
