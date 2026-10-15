@@ -203,6 +203,17 @@ pub fn verify_token<'a>(
 ) -> Result<VerifiedToken<'a>, TokenVerificationError> {
     rules::check_size(token, context.limits)?;
     let (grant, claims_hash) = rules::verify_material(token, context)?;
+    verify_token_proofs(token, context, grant, claims_hash)
+}
+
+// Pure material admission does not authenticate either proof. Both entry paths
+// converge here and must execute the same Root and issuer signature checks.
+fn verify_token_proofs<'a>(
+    token: &'a DelegatedToken,
+    context: &TokenVerificationContext<'_>,
+    grant: &'a ic_auth_protocol_types::DelegatedRoleGrant,
+    claims_hash: [u8; 32],
+) -> Result<VerifiedToken<'a>, TokenVerificationError> {
     root::verify(
         &token.proof.cert,
         &token.proof.root_proof,

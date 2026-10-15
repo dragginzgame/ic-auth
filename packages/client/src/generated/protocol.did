@@ -107,6 +107,21 @@ type IssuerProofAlgorithm = variant { IcCanisterSignatureV1 };
 type IssuerProofBinding = variant {
   IcCanisterSignatureV1 : record { seed_hash : blob };
 };
+type LogoutRequest = record {};
+type LogoutResult = variant {
+  InvalidCaller;
+  Unavailable : LogoutUnavailable;
+  Revoked : record { deny_until_ns : nat64 };
+};
+type LogoutUnavailable = variant { Storage; ResetPending; Capacity; Clock };
+type PortableCredential = record { claims : blob; proof : PortableProof };
+type PortableProof = variant {
+  Ed25519 : record { signature : blob };
+  Certified : record {
+    delegation : DelegationProof;
+    issuer_signature : IcCanisterSignatureProofV1;
+  };
+};
 type RootProof = variant {
   IcChainKeyBatchSignatureV1 : IcChainKeyBatchSignatureProofV1;
 };

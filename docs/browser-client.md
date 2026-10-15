@@ -7,7 +7,177 @@ canister endpoints and has no Canic or Toko dependency. The opt-in IndexedDB
 store has transaction qualification in Node and native Chromium on Linux. Wallet
 login and a production issuer adapter remain separate work.
 
+## Portable credential transport for 0.6
+
+`PortableCredential` and `PortableProof` are generated from the Rust type owner.
+`credentialBytes` and `credentialFromBytes` use the shared bounded Candid codec;
+claims remain opaque canonical signed bytes. A roundtrip neither authenticates
+those claims nor selects a trusted issuer key. Both proof variants retain their
+existing cryptographic material. Rust/TypeScript vectors qualify both Candid
+directions; certified transport also has Rust and TypeScript roundtrip checks.
+
+The shared decoder guards each SDK input-stream read against its remaining bytes.
+This rejects truncated final blobs that the selected SDK otherwise silently
+shortens. The guard is local to that decode, does not mutate generated descriptors
+or SDK prototypes, and preserves valid differing Rust/TypeScript Candid encodings.
+The caller's outer byte maximum remains mandatory. Production canister decoding
+must separately bound instructions/allocations; browser codecs do not provide that.
+
+These data codecs do not migrate `TokenSessionClient`'s retained issuance intents
+or implement portable issuer operations, receiver admission or logout fan-out.
+The current injected token lifecycle below remains pending consumer transition.
+
 ## Boundary
+
+The [reviewed 0.6 design](design/0.6-portable-authentication.md#browser-origin-and-key-custody)
+targets one trusted frontend origin/storage partition, fresh browser principals
+separate from account identity, and durable logout generation changes before
+network fan-out. Cross-origin SSO/signing brokers are excluded. Persistent login
+requires an admitted key/storage adapter; suspended tabs and callbacks consult
+durable state, not just broadcasts. This is a future consumer contract, not
+behavior supplied by the current injected `SessionSource` described below.
+
+### Implemented portable logout journal and worker
+
+`IndexedDbLogoutStore` and `PortableLogoutClient` implement opt-in cleanup for one
+fresh browser login in a dedicated, application-owned database. This is separate
+from the token store: no token intents are migrated, cleared or reinterpreted.
+The journal stores no credentials or signing keys. It does not supply a production
+issuer adapter or portable login/admission transport.
+
+Call `start` once with a fresh direct browser identity, unique generation and
+protected issuer. The database cannot be reused for another login or overwrite
+unfinished/unknown evidence. The application owns retention and database disposal.
+Before issuance call `issuing`; before receiver admission call `destination` with
+the conservative admission-window bound from the qualified clock adapter. Neither
+method dispatches network calls. New admission windows must leave more than five
+seconds inside the five-minute cleanup bound, so immediate logout can be committed.
+Retained windows are never silently shortened. Inventory is bounded to 64 destinations including
+the issuer. Cross-tab mutations use strict IndexedDB transactions; commit failure
+must stop the associated dispatch. Consumers must consult this journal and cancel
+ordinary signing/admission/renewal when its phase is no longer `active`, including
+late callbacks and suspended tabs. A broadcast alone is insufficient.
+
+Give ordinary SDK agents `guardedIdentity(generation, identity)` instead of the
+retained raw identity. It checks the durable active phase, original caller and
+generation both before signing and after asynchronous signing completes. Call and
+query destinations must already be in the committed inventory; signed read-state
+requests are also phase-gated. Storage/clock failures refuse signing. Logout in
+another tab therefore prevents a late signature from being returned to the agent.
+This does not recall a signature already returned, cancel an accepted request or
+protect against application code retaining the raw key. Receiver revocation and
+the protocol's residual windows still apply; consumers must separately guard late
+application callbacks and cancel renewal/admission scheduling.
+
+`begin` durably changes the phase to `cleanup` and fixes a deadline before any
+logout network call. The deadline must cover every known admission window plus
+five seconds for a final attempt, and be within five minutes. It cannot be extended
+by retrying or reopening. `cleanup` only resumes committed cleanup, using the same
+principal; it never reconnects. The injected adapter must send the empty shared
+logout request to the selected issuer/receiver using that exact identity. Before
+the deadline, a tab without a local signing handle returns the still-pending
+cleanup snapshot; it neither finishes shared cleanup nor disposes another tab's
+key. Another worker with the handle may continue. The caller may resume on handle
+availability or at the fixed deadline, rather than busy-polling without a key.
+At the deadline, or when every destination is confirmed, cleanup finishes even
+without a local handle. Unknown destinations remain unknown. Disposing retained
+key material and usable credentials is an idempotent application-owned operation;
+its failure is surfaced and retried when cleanup is resumed.
+
+Each destination has at most eight durable attempts, with bounded jitter and a
+reserved final attempt after its known admission window. A retained five-second
+claim serializes dispatch across tabs; a crash consumes the attempt. The cleanup
+transport receives an identity gated before and after signing to that live lease,
+fixed deadline and selected destination. It must use that supplied identity, never
+a cached raw signer. Signed read-state polling shares the lease bound. Timeouts abort
+the local request, but cannot cancel a request already accepted remotely. Delayed
+replies cannot overwrite newer claims or finished cleanup. Only typed `Revoked`
+confirms that destination; all other outcomes and transport uncertainty stay
+unknown. An issuer confirmation does not erase historical unknown issuance intent.
+The fixed deadline ends retries and triggers disposal even when destinations remain
+unknown. Immediate global logout is not claimed.
+
+`httpLogoutTransport({ host, methodName, dispose, rootKey?, fetch? })` supplies
+the SDK update-call adapter for this worker. Configure the gateway and endpoint
+name from application policy; both issuer and receiver endpoints must implement
+the shared empty `LogoutRequest` and `LogoutResult`. The adapter creates a fresh
+agent with the supplied lease-guarded identity for each attempt, submits once,
+and uses authenticated read-state polling. HTTP acceptance is not confirmation.
+SDK certificate verification retains its trusted root, target, request ID and
+freshness checks; the decoded Candid result is capped at 1,024 bytes. The adapter
+does not replace certificate verification or accept query replies as revocation.
+
+The default trust anchor is the SDK's IC root. Local qualification must explicitly
+provide its trusted root key; the adapter never fetches a root key from the gateway.
+The optional fetch implementation is trusted application infrastructure and must
+honor cancellation. Abort reaches submission and polling; after abort, late replies
+are rejected. Already accepted requests cannot be cancelled. The journal owns
+retry limits and the five-second attempt deadline; callers should use the adapter
+through `PortableLogoutClient`, not as an independently scheduled retry loop.
+Disposal remains the application's idempotent callback. Tests exercise actual SDK
+signing with substituted HTTP responses, invalid certificates, abort and bounded
+Candid decoding. Successful deployed issuer/receiver transport qualification and
+Canic/Toko adoption remain pending; no endpoint is installed by this adapter.
+
+The clock adapter must supply one qualified, reload-stable clock domain, conservative
+IC expiry mapping and monotonic observations. An ordinary `Date.now()` clock is not
+qualified by this implementation. Clock-domain changes and rollback reject rather
+than extending cleanup. Key custody, clock qualification and production adapter
+adoption remain host obligations. Tests exercise fake IndexedDB transactions,
+crash/reopen, competing connections, capacity, late admission/replies, issuer
+uncertainty and proof-expiry retries. The [native logout fixture](../packages/client/test/browser/logout.html)
+also passed against real IndexedDB on Linux Chromium 155.0.8059.40: strict commit,
+cross-connection invalidation, late-signature refusal, abort atomicity, reopen,
+Capacity retry and disposal. It uses a fixture signing identity; Node tests use
+actual SDK signing. Other browser engines/platforms remain unqualified.
+After building the client, serve `packages/client/` on localhost and open
+`/test/browser/logout.html`; the page reports pass/fail and deletes only its uniquely
+named disposable database. This is a qualification fixture, not an application UI.
+
+### Planned 0.6 logout retries
+
+This section is the complete consumer contract. The journal/worker above implements
+cleanup scheduling and persistence; production lifecycle wiring remains pending.
+At durable logout commit the client MUST cancel admission/renewal retries and
+record one finite cleanup deadline. The admitted clock adapter MUST conservatively
+map known outstanding proof expiries to its monotonic wait clock, including its
+qualified uncertainty margin. Cleanup MUST cover those remaining admission
+windows; an unqualified browser wall clock cannot establish that bound. Unknown
+issuance cannot be relabeled as a known final proof merely because a local
+callback was cancelled. Such uncertainty remains visible if issuer revocation
+cannot resolve it before the fixed cleanup deadline.
+
+Until receiver confirmation or that deadline, `Capacity` and transport-unknown
+outcomes MUST trigger bounded, jittered retries for that same receiver/principal.
+Keep the login signing handle available only to the cleanup path in client code;
+this is not a cryptographically attenuated logout key. Ordinary application,
+admission and issuance signing remain disabled by the durable logout generation.
+If establishment commits after an initial `Capacity`, it reserves a logout slot
+and a later retry can remove it. Do not stop all retries merely because the proof
+has just expired: a session may have committed before expiry. Where reachable,
+make a final logout attempt after the covered admission window, still within the
+fixed cleanup deadline. Backoff MUST NOT extend that deadline or increase load
+without a finite attempt/concurrency bound.
+
+At the deadline, delete the handle and usable credentials even if some targets
+remain unreachable. Retain non-secret status distinguishing confirmed revocation
+from unknown remote state; expiry alone is never confirmation of session removal.
+If issuer revocation failed, replacement proofs may exist until the absolute
+login deadline. A copied key can still exploit that residual window. Crash/reopen
+resumes only bounded cleanup when the handle remains available, never login;
+a missing handle makes authenticated cleanup unavailable, not successful.
+
+Acceptance MUST cover Capacity followed by late establishment and successful
+retry, repeated Capacity through proof expiry, a lost establishment reply whose
+session outlives its proof, failed issuer logout with an in-flight renewal, and a
+crash during cleanup. Also test `NotYetValid` admission retries with issuer-ahead
+time, cancellation on logout, and expiry without automatically minting a new proof.
+Consumers MUST retain the verified `(issuer, account_subject)` identity within
+the trust domain; equal subject principals from different issuers are not linked
+accounts. Wallet-origin behavior remains subject to the separate
+[review gate](design/0.6-portable-authentication.md#wallet-account-authentication).
+
+### Current injected client
 
 `TokenSessionClient` accepts an existing authenticated ICP SDK `Identity` through
 `SessionSource`. The application owns Internet Identity login, logout UI, account

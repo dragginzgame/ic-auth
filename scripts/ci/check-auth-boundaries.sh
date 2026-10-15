@@ -14,7 +14,7 @@ for package in ic-auth-protocol-types ic-auth; do
         echo 'passive types pull runtime, storage or certification state' >&2
         exit 1
     fi
-    if [[ "$package" == ic-auth ]] && printf '%s\n' "$graph" | rg '^(k256|ic-certification|ic-signature-verification|ic-canister-sig-creation|ic-verify-bls-signature|ic-cdk|ic-stable-structures)([- ]|$)'; then
+    if [[ "$package" == ic-auth ]] && printf '%s\n' "$graph" | rg '^(curve25519-dalek|ed25519-dalek|k256|ic-certification|ic-signature-verification|ic-canister-sig-creation|ic-verify-bls-signature|ic-cdk|ic-stable-structures)([- ]|$)'; then
         echo 'pure encoding/request graph pulls cryptographic or session storage dependencies' >&2
         exit 1
     fi
@@ -22,14 +22,18 @@ done
 # The selected authentication capabilities must remain free of product, wallet,
 # host tooling and service-owned storage dependencies too. Upstream IC key
 # parsing includes ic0 transitively; verification performs no runtime calls.
-for feature in chain-key-verification canister-signature-verification canister-signature-preparation token-verification sessions; do
+for feature in portable-signature-verification chain-key-verification canister-signature-verification canister-signature-preparation token-verification sessions session-restore sessions,portable-signature-verification; do
     graph="$(cargo tree --locked --offline -p ic-auth --no-default-features --features "$feature" --edges normal,build --prefix none --format '{p}')"
     if printf '%s\n' "$graph" | rg '^(canic|toko|solana|ic-siws|ic-host|ic-cdk|ic-stable-structures|ic-memory|ic-timers)([- ]|$)'; then
         echo "$feature pulls product, wallet, native host or runtime/storage dependencies" >&2
         exit 1
     fi
-    if [[ "$feature" == chain-key-verification ]] && printf '%s\n' "$graph" | rg '^(ic-canister-sig-creation|ic-certification|ic-signature-verification)([- ]|$)'; then
-        echo 'isolated chain-key verification pulls certificate machinery' >&2
+    if [[ "$feature" == chain-key-verification || "$feature" == portable-signature-verification ]] && printf '%s\n' "$graph" | rg '^(ic-canister-sig-creation|ic-certification|ic-signature-verification)([- ]|$)'; then
+        echo "$feature pulls certificate machinery" >&2
+        exit 1
+    fi
+    if [[ "$feature" == sessions* || "$feature" == session-restore ]] && printf '%s\n' "$graph" | rg '^(k256|ic-certification|ic-signature-verification|ic-canister-sig-creation|ic-verify-bls-signature)([- ]|$)'; then
+        echo "$feature pulls certificate or chain-key machinery" >&2
         exit 1
     fi
 done

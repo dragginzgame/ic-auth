@@ -15,9 +15,10 @@ finish() {
     exit "$status"
 }
 trap finish EXIT
-export REAL_CLIENT_MAKE="$(command -v make)"
-export CLIENT_FIXTURE_NODE_PIN="$(cat "$root/packages/client/.nvmrc")"
-export CLIENT_FIXTURE_NPM_PIN="$(node -p 'require(process.argv[1]).packageManager.slice(4)' "$root/packages/client/package.json")"
+REAL_CLIENT_MAKE="$(command -v make)"
+CLIENT_FIXTURE_NODE_PIN="$(cat "$root/packages/client/.nvmrc")"
+CLIENT_FIXTURE_NPM_PIN="$(node -p 'require(process.argv[1]).packageManager.slice(4)' "$root/packages/client/package.json")"
+export REAL_CLIENT_MAKE CLIENT_FIXTURE_NODE_PIN CLIENT_FIXTURE_NPM_PIN
 mkdir -p "$fixture/templates"
 yq -r '.jobs.rust.steps[] | select(.name == "Prepare selected client package manager and locked dependencies") | .run' \
     "$root/.github/workflows/ci.yml" > "$fixture/workflow.sh"
@@ -27,7 +28,9 @@ set -eu
 case "$*" in
     --version) printf 'v%s\n' "${CLIENT_FIXTURE_NODE_VERSION:-$CLIENT_FIXTURE_NODE_PIN}" ;;
     '-p process.execPath') printf '%s/bin/node\n' "$CLIENT_FIXTURE_NODE_PREFIX" ;;
-    *packageManager.slice*) printf '%s\n' "$CLIENT_FIXTURE_NPM_PIN" ;;
+    *packageManager.slice*)
+        [[ "${CLIENT_FIXTURE_PIN_EXIT:-0}" == 0 ]] || exit "$CLIENT_FIXTURE_PIN_EXIT"
+        printf '%s\n' "$CLIENT_FIXTURE_NPM_PIN" ;;
     *) exit 79 ;;
 esac
 SCRIPT
@@ -79,7 +82,7 @@ exec "$REAL_CLIENT_MAKE" "$@"
 SCRIPT
 chmod +x "$fixture/templates/"*
 export CLIENT_FIXTURE_TEMPLATE="$fixture/templates"
-for scenario in separate-prefix wrong-node setup-failure wrong-prepared-npm dependency-failure missing-path; do
+for scenario in separate-prefix wrong-node setup-failure wrong-prepared-npm dependency-failure missing-path selection-failure; do
     consumer="$fixture/$scenario/consumer with spaces"
     export CLIENT_FIXTURE_NODE_PREFIX="$fixture/$scenario/node install"
     export CLIENT_FIXTURE_OLD_PREFIX="$fixture/$scenario/unrelated global"
@@ -95,14 +98,14 @@ for scenario in separate-prefix wrong-node setup-failure wrong-prepared-npm depe
     cp "$root/Makefile" "$consumer/"
     cp -Rp "$root/make" "$consumer/"
     cp "$root/ci/tool-versions.env" "$consumer/ci/"
-    cp "$root/scripts/dev/client-tools.sh" "$root/scripts/dev/prepare-client-ci.sh" "$consumer/scripts/dev/"
+    cp "$root/scripts/dev/client-tools.sh" "$root/scripts/dev/prepare-client-ci.sh" "$root/scripts/dev/client-toolchain.sh" "$consumer/scripts/dev/"
     cp "$root/scripts/ci/check-make-execution.sh" "$consumer/scripts/ci/"
     cp "$root/packages/client/package.json" "$root/packages/client/.nvmrc" "$consumer/packages/client/"
     cp "$fixture/templates/node" "$CLIENT_FIXTURE_NODE_PREFIX/bin/node"
     ln -s "$CLIENT_FIXTURE_NODE_PREFIX/bin/node" "$fixture/$scenario/foreign/node"
     cp "$fixture/templates/npm-bootstrap" "$fixture/$scenario/foreign/npm"
     cp "$fixture/templates/make" "$fixture/$scenario/commands/make"
-    unset CLIENT_FIXTURE_NODE_VERSION CLIENT_FIXTURE_SETUP_EXIT CLIENT_FIXTURE_INSTALLED_VERSION CLIENT_FIXTURE_DEPENDENCY_EXIT
+    unset CLIENT_FIXTURE_PIN_EXIT CLIENT_FIXTURE_NODE_VERSION CLIENT_FIXTURE_SETUP_EXIT CLIENT_FIXTURE_INSTALLED_VERSION CLIENT_FIXTURE_DEPENDENCY_EXIT
     expected=0
     case "$scenario" in
         wrong-node) export CLIENT_FIXTURE_NODE_VERSION=18.0.0; expected=1 ;;
@@ -110,6 +113,7 @@ for scenario in separate-prefix wrong-node setup-failure wrong-prepared-npm depe
         wrong-prepared-npm) export CLIENT_FIXTURE_INSTALLED_VERSION=11.0.0; expected=1 ;;
         dependency-failure) export CLIENT_FIXTURE_DEPENDENCY_EXIT=23; expected=2 ;;
         missing-path) unset GITHUB_PATH; expected=2 ;;
+        selection-failure) export CLIENT_FIXTURE_PIN_EXIT=29; expected=29 ;;
     esac
     status=0
     (cd "$consumer"; PATH="$fixture/$scenario/commands:$fixture/$scenario/foreign:$PATH" \
@@ -125,9 +129,9 @@ for scenario in separate-prefix wrong-node setup-failure wrong-prepared-npm depe
             "$REAL_CLIENT_MAKE" client-tools-check) > "$fixture/$scenario/later-step.log" 2>&1
     else
         cmp "$fixture/$scenario/path-before" "$fixture/$scenario/github-path"
-        ! grep -F 'make:client-tools-check' "$CLIENT_FIXTURE_EVENTS" >/dev/null
+        if grep -F 'make:client-tools-check' "$CLIENT_FIXTURE_EVENTS" >/dev/null; then exit 1; fi
         if [[ "$scenario" != dependency-failure ]]; then
-            ! grep -F 'make:install-client-dependencies' "$CLIENT_FIXTURE_EVENTS" >/dev/null
+            if grep -F 'make:install-client-dependencies' "$CLIENT_FIXTURE_EVENTS" >/dev/null; then exit 1; fi
         fi
     fi
     if [[ "$scenario" == wrong-node || "$scenario" == wrong-prepared-npm ]]; then
@@ -141,6 +145,17 @@ for scenario in separate-prefix wrong-node setup-failure wrong-prepared-npm depe
         grep -F 'Observed Node=v18.0.0 path=' "$fixture/$scenario/offline-refusal.log" >/dev/null
         grep -F 'npm=11.0.0 path=' "$fixture/$scenario/offline-refusal.log" >/dev/null
     fi
+    if [[ "$scenario" == wrong-prepared-npm || "$scenario" == selection-failure ]]; then
+        status=0
+        (cd "$consumer"; PATH="$CLIENT_FIXTURE_NODE_PREFIX/bin:$fixture/$scenario/foreign:$PATH"             "$BASH" scripts/dev/client-tools.sh check) > "$fixture/$scenario/offline-refusal.log" 2>&1 || status=$?
+        if [[ "$scenario" == selection-failure ]]; then
+            [[ "$status" == 29 ]]
+        else
+            [[ "$status" == 1 ]]
+            grep -F 'npm=11.0.0 path=' "$fixture/$scenario/offline-refusal.log" >/dev/null
+        fi
+    fi
+
 done
 echo 'Actual client CI pipeline: selected-prefix activation, later-step admission and first-failure preservation passed (substituted npm effects)'
 complete=true

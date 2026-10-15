@@ -5,7 +5,7 @@
 //! identity, clock, operation custody, signing and certification-root publication.
 
 use crate::canonical::{CanonicalAuthError, cert_hash, claims_hash};
-use crate::certificate_issuance::{GrantValidationError, validate_grants};
+use crate::certificate_issuance::{GrantValidationError, grants_are_subset, validate_grants};
 use ic_auth_protocol_types::{
     AuthRole, DelegatedRoleGrant, DelegatedToken, DelegatedTokenClaims, DelegationAudience,
     DelegationProof, IssuerProof, Principal,
@@ -153,17 +153,7 @@ pub fn prepare_delegated_token(
     if input.audience != cert.aud {
         return Err(Error::AudienceNotSubset);
     }
-    if !input.grants.iter().all(|child| {
-        cert.grants
-            .iter()
-            .find(|parent| parent.target == child.target)
-            .is_some_and(|parent| {
-                child
-                    .scopes
-                    .iter()
-                    .all(|scope| parent.scopes.contains(scope))
-            })
-    }) {
+    if !grants_are_subset(&input.grants, &cert.grants) {
         return Err(Error::GrantsNotSubset);
     }
     let cert_hash = cert_hash(cert)?;

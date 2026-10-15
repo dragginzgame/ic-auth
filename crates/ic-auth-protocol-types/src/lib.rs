@@ -6,11 +6,15 @@
 
 mod common;
 mod identifiers;
+mod logout;
+mod portable;
 mod proof;
 mod token;
 
 pub use candid::Principal;
 pub use common::*;
 pub use identifiers::{AudienceId, AuthRole, CanonicalId, IdentifierError};
+pub use logout::{LogoutRequest, LogoutResult, LogoutUnavailable};
+pub use portable::{PortableClaims, PortableCredential, PortableMechanism, PortableProof};
 pub use proof::*;
 pub use token::*;

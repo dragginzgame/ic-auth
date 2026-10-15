@@ -1,5 +1,11 @@
 # Application-token verification
 
+For the accepted 0.6 application contract, use a token to
+[establish a local session](sessions.md), then authorize that session on ordinary
+application calls. The standalone verifier described here is a lower-level proof
+primitive, not a second endpoint authentication flow. Fresh session admission
+already invokes complete verification; do not verify twice at its caller.
+
 Issuer-side [pure preparation](token-preparation.md) is a separate default-feature
 API released in 0.4.2. Preparing or finishing a token does not verify its proofs.
 Released 0.4.7 adds [pure certificate issuance validation](certificate-issuance.md)

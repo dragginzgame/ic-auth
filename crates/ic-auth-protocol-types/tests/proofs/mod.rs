@@ -277,3 +277,33 @@ fn nested_certificate_and_leaf_cannot_bypass_role_or_audience_validation() {
     };
     assert!(decode_one::<DelegatedToken>(&encode_one(token).unwrap()).is_err());
 }
+
+#[test]
+fn portable_envelope_preserves_both_proofs_and_exact_claim_blobs() {
+    let delegation =
+        decode_one::<DelegationProof>(&encode_one(source_proof(vec![])).unwrap()).unwrap();
+    for proof in [
+        PortableProof::Ed25519 {
+            signature: vec![7; 64],
+        },
+        PortableProof::Certified {
+            delegation: Box::new(delegation),
+            issuer_signature: IcCanisterSignatureProofV1 {
+                signature_cbor: vec![0, 255],
+                public_key_der: vec![1, 2, 3],
+            },
+        },
+    ] {
+        let credential = PortableCredential {
+            claims: vec![0, 255, 128],
+            proof,
+        };
+        let bytes = encode_one(&credential).unwrap();
+        assert_eq!(
+            decode_one::<PortableCredential>(&bytes).unwrap(),
+            credential
+        );
+        assert!(decode_one::<DelegatedToken>(&bytes).is_err());
+        assert!(decode_one::<PortableCredential>(&bytes[..bytes.len() - 1]).is_err());
+    }
+}

@@ -400,3 +400,27 @@ fn audience_then_grant_narrowing_then_canonical_extension_have_stable_precedence
     request.ext = Some(vec![0; MAX_TOKEN_EXT_BYTES]);
     assert!(prepare_delegated_token(request).is_ok());
 }
+
+#[test]
+fn duplicate_parent_roles_preserve_first_match_narrowing_before_canonical_refusal() {
+    use PrepareDelegatedTokenError as E;
+    let mut proof = proof();
+    proof.cert.grants = vec![
+        grant("app_service", &["write"]),
+        grant("app_service", &["read"]),
+    ];
+    let mut request = input(&proof);
+    request.ext = Some(vec![0; MAX_TOKEN_EXT_BYTES + 1]);
+    assert_eq!(
+        prepare_delegated_token(request).unwrap_err(),
+        E::GrantsNotSubset
+    );
+
+    proof.cert.grants.reverse();
+    let mut request = input(&proof);
+    request.ext = Some(vec![0; MAX_TOKEN_EXT_BYTES + 1]);
+    assert_eq!(
+        prepare_delegated_token(request).unwrap_err(),
+        E::Canonical(CanonicalAuthError::NonCanonicalRoles)
+    );
+}

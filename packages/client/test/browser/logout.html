@@ -1,0 +1,78 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Portable logout native-browser qualification</title>
+<pre id="result" data-result="running">Running…</pre>
+<script type="importmap">
+{"imports":{"@icp-sdk/core/principal":"/node_modules/@icp-sdk/core/lib/esm/principal/index.js","@noble/hashes/":"/node_modules/@noble/hashes/"}}
+</script>
+<script type="module">
+import { IndexedDbLogoutStore } from '/dist/src/logout-store.js';
+import { PortableLogoutClient } from '/dist/src/logout.js';
+import { Principal } from '@icp-sdk/core/principal';
+const output = document.querySelector('#result');
+const lines = [];
+const assert = (condition, message) => { if (!condition) throw new Error(message); };
+const refused = async operation => {
+  try { await operation; } catch { return; }
+  throw new Error('expected refusal');
+};
+const name = `ic-auth-logout-qualification-${crypto.randomUUID()}`;
+const principal = Principal.selfAuthenticating(new Uint8Array([1, 2, 3]));
+const issuer = Principal.fromUint8Array(new Uint8Array([1]));
+const receiver = Principal.fromUint8Array(new Uint8Array([2]));
+// Fixture identity isolates lifecycle gating; Node tests use real SDK signatures.
+const identity = { getPrincipal: () => principal, transformRequest: async request => request };
+const request = { body: { request_type: 'call', canister_id: receiver } };
+let now = 1_000_000_000n;
+const clock = { id: 'fixture-clock', nowNs: () => now, wait: async ms => { now += BigInt(Math.ceil(ms)) * 1_000_000n; } };
+let a, b, reopened;
+let attempts = 0;
+let disposed = 0;
+const transport = {
+  revoke: async (target, signingIdentity) => {
+    assert(signingIdentity.getPrincipal().toText() === principal.toText(), 'principal changed');
+    if (target.toText() === receiver.toText() && attempts++ === 0) return { Unavailable: { Capacity: null } };
+    return { Revoked: { deny_until_ns: 86_400_000_000_000n } };
+  },
+  dispose: async () => { disposed++; },
+};
+try {
+  a = await IndexedDbLogoutStore.open(indexedDB, name);
+  b = await IndexedDbLogoutStore.open(indexedDB, name);
+  const first = new PortableLogoutClient(a, clock, transport, () => 0);
+  const second = new PortableLogoutClient(b, clock, transport, () => 0);
+  await first.start('browser-login', identity, issuer);
+  await first.destination('browser-login', receiver, now + 2_000_000_000n);
+  const guarded = first.guardedIdentity('browser-login', identity);
+  assert(await guarded.transformRequest(request) === request, 'active transform changed');
+  let release, started;
+  const begun = new Promise(resolve => { started = resolve; });
+  const slow = { getPrincipal: () => principal, transformRequest: async request => {
+    started(); await new Promise(resolve => { release = resolve; }); return request;
+  }};
+  const blocked = refused(first.guardedIdentity('browser-login', slow).transformRequest(request));
+  await begun;
+  await second.begin('browser-login', now + 10_000_000_000n);
+  const keyless = await second.cleanup('browser-login', undefined);
+  assert(keyless.phase === 'cleanup' && disposed === 0, 'keyless observer cancelled shared cleanup');
+  release(); await blocked;
+  await refused(guarded.transformRequest(request));
+  lines.push('PASS native strict commit, keyless observer, cross-connection logout and late-signature rejection');
+  await refused(a.transact(record => { record.phase = 'active'; throw new Error('abort'); }));
+  assert((await second.status('browser-login')).phase === 'cleanup', 'abort changed journal');
+  a.close(); b.close();
+  reopened = await IndexedDbLogoutStore.open(indexedDB, name);
+  const resumed = new PortableLogoutClient(reopened, clock, transport, () => 0);
+  assert((await resumed.status('browser-login')).deadlineNs === 11_000_000_000n, 'deadline lost');
+  const result = await resumed.cleanup('browser-login', identity);
+  assert(result.phase === 'finished' && result.targets.every(t => t.confirmedUntilNs), 'cleanup incomplete');
+  assert(attempts === 2 && disposed === 1, 'retry/disposal mismatch');
+  lines.push('PASS abort atomicity, reopen, exact bigint, Capacity retry and disposal');
+  output.dataset.result = 'pass'; output.textContent = lines.join('\n');
+} catch (error) {
+  output.dataset.result = 'fail'; output.textContent = [...lines, `FAIL ${error.stack ?? error}`].join('\n');
+} finally {
+  a?.close(); b?.close(); reopened?.close();
+  indexedDB.deleteDatabase(name);
+}
+</script>

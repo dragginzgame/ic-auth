@@ -64,3 +64,35 @@ and pure token-material callers must both use the same adopted owner before
 retiring the old rules. [Canic #491](https://github.com/dragginzgame/canic/issues/491)
 owns consumer adoption; producer qualification and publication do not establish
 Canic runtime acceptance.
+
+## Standalone scope and grant shape checks (pending 0.5.11)
+
+`certificate_issuance::validate_grants(grants, max_grants, max_scopes_per_grant)`
+exposes the same rules without requiring a certificate, expiry arithmetic or
+issuer proof. `GrantValidationError` carries empty/count failures, affected roles
+and existing canonical causes. Zero bounds reject nonempty corresponding values;
+equality is accepted. The grant-count check precedes per-grant role ordering,
+scope count, label grammar and strict scope ordering. Existing issuance and token
+preparation keep their error projections and use this same owner.
+
+`canonical::validate_scope_label_detailed` is an allocation-free `const fn`
+returning `ScopeLabelError`: `Empty`, `TooLong { bytes, max }`, `EmptySegment`,
+`InvalidSegmentStart { offset }` or `InvalidByte { offset }`. It enforces the
+existing 64-byte grammar: colon-separated nonempty segments starting with an
+ASCII lowercase letter or digit, followed by those bytes, `_` or `-`. Length
+wins before left-to-right byte errors; offsets are UTF-8 byte offsets. Static
+constructors can match the returned `Result` in const evaluation. The existing
+`validate_scope_label` retains `EmptyScope`/`InvalidScope` error projection.
+`canonical::validate_scopes` borrows a string slice and checks grammar and strict
+unique byte ordering; it permits an empty list and does not impose a count bound.
+
+These are shape checks, never resource grants. Canic retains its namespace and
+resource policy, 16/32 bounds, sorting at configuration boundaries and intentionally
+empty disabled configuration. Do not invoke bounded nonempty validation where
+empty configuration is valid. Keep its signed registry/key-policy envelope and
+encoding unchanged while reusing scope ordering. Raw role projection still needs
+an explicit consumer refusal contract: eager conversion of a later malformed role
+can precede an earlier scope error. No producer API bypasses passive role parsing.
+[Auth #50](https://github.com/dragginzgame/ic-auth/issues/50) owns producer work;
+[Canic #491](https://github.com/dragginzgame/canic/issues/491) owns consumer adoption
+and retirement of duplicate checks.

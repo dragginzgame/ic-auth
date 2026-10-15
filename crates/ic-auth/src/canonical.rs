@@ -197,7 +197,7 @@ fn encode_fleet_key(out: &mut Vec<u8>, fleet: AudienceId) {
     encode_fixed_32(out, *fleet.fleet_id.as_bytes());
 }
 
-fn encode_role_grants(
+pub(crate) fn encode_role_grants(
     out: &mut Vec<u8>,
     grants: &[DelegatedRoleGrant],
 ) -> Result<(), CanonicalAuthError> {
@@ -401,7 +401,11 @@ fn encode_scopes(out: &mut Vec<u8>, scopes: &[String]) -> Result<(), CanonicalAu
     Ok(())
 }
 
-pub(crate) fn validate_scopes(scopes: &[String]) -> Result<(), CanonicalAuthError> {
+/// Validate label grammar and strictly increasing, unique UTF-8 byte order.
+///
+/// An empty list is valid. Cardinality, normalization and application authority
+/// remain caller-owned; use the bounded grant validator for nonempty grants.
+pub fn validate_scopes(scopes: &[String]) -> Result<(), CanonicalAuthError> {
     let mut previous = None;
     for scope in scopes {
         validate_scope_label(scope)?;
@@ -415,17 +419,74 @@ pub(crate) fn validate_scopes(scopes: &[String]) -> Result<(), CanonicalAuthErro
     Ok(())
 }
 
-/// Check the existing lowercase, colon-separated application-scope grammar.
-pub fn validate_scope_label(scope: &str) -> Result<(), CanonicalAuthError> {
-    if scope.is_empty() {
-        return Err(CanonicalAuthError::EmptyScope);
+/// A scope label's grammar failure. Offsets and lengths count UTF-8 bytes.
+#[derive(Clone, Copy, Debug, Eq, Error, PartialEq)]
+pub enum ScopeLabelError {
+    #[error("scope is empty")]
+    Empty,
+    #[error("scope has {bytes} bytes; maximum is {max}")]
+    TooLong { bytes: usize, max: usize },
+    #[error("scope contains an empty segment")]
+    EmptySegment,
+    #[error("invalid scope segment start at byte {offset}")]
+    InvalidSegmentStart { offset: usize },
+    #[error("invalid scope byte at offset {offset}")]
+    InvalidByte { offset: usize },
+}
+
+/// Check the 64-byte, lowercase ASCII/digit, colon-separated scope grammar.
+///
+/// Every segment starts with a lowercase letter or digit; subsequent bytes may
+/// also be `_` or `-`. Length is checked first, then bytes from left to right.
+/// This allocation-free check supports static construction and grants no authority.
+pub const fn validate_scope_label_detailed(scope: &str) -> Result<(), ScopeLabelError> {
+    let bytes = scope.as_bytes();
+    if bytes.is_empty() {
+        return Err(ScopeLabelError::Empty);
     }
-    if !is_valid_scope(scope) {
-        return Err(CanonicalAuthError::InvalidScope {
-            scope: scope.to_string(),
+    if bytes.len() > 64 {
+        return Err(ScopeLabelError::TooLong {
+            bytes: bytes.len(),
+            max: 64,
         });
     }
+    let mut segment_start = true;
+    let mut offset = 0;
+    while offset < bytes.len() {
+        let byte = bytes[offset];
+        if byte == b':' {
+            if segment_start {
+                return Err(ScopeLabelError::EmptySegment);
+            }
+            segment_start = true;
+        } else if segment_start {
+            if !byte.is_ascii_lowercase() && !byte.is_ascii_digit() {
+                return Err(ScopeLabelError::InvalidSegmentStart { offset });
+            }
+            segment_start = false;
+        } else if !byte.is_ascii_lowercase()
+            && !byte.is_ascii_digit()
+            && byte != b'_'
+            && byte != b'-'
+        {
+            return Err(ScopeLabelError::InvalidByte { offset });
+        }
+        offset += 1;
+    }
+    if segment_start {
+        return Err(ScopeLabelError::EmptySegment);
+    }
     Ok(())
+}
+
+/// Check the existing lowercase, colon-separated application-scope grammar.
+pub fn validate_scope_label(scope: &str) -> Result<(), CanonicalAuthError> {
+    validate_scope_label_detailed(scope).map_err(|error| match error {
+        ScopeLabelError::Empty => CanonicalAuthError::EmptyScope,
+        _ => CanonicalAuthError::InvalidScope {
+            scope: scope.to_string(),
+        },
+    })
 }
 
 fn encode_string(out: &mut Vec<u8>, value: &str) -> Result<(), CanonicalAuthError> {
@@ -433,7 +494,10 @@ fn encode_string(out: &mut Vec<u8>, value: &str) -> Result<(), CanonicalAuthErro
     Ok(())
 }
 
-fn encode_principal(out: &mut Vec<u8>, principal: Principal) -> Result<(), CanonicalAuthError> {
+pub(crate) fn encode_principal(
+    out: &mut Vec<u8>,
+    principal: Principal,
+) -> Result<(), CanonicalAuthError> {
     encode_bytes(out, principal.as_slice())?;
     Ok(())
 }
@@ -460,21 +524,6 @@ fn encode_len(out: &mut Vec<u8>, len: usize) -> Result<(), CanonicalAuthError> {
     let len = u32::try_from(len).map_err(|_| CanonicalAuthError::LengthOverflow)?;
     out.extend_from_slice(&len.to_be_bytes());
     Ok(())
-}
-
-// Existing application-scope grammar, including its 64-byte bound.
-fn is_valid_scope(scope: &str) -> bool {
-    if scope.is_empty() || scope.len() > 64 {
-        return false;
-    }
-    scope.split(':').all(|segment| {
-        let mut bytes = segment.bytes();
-        bytes
-            .next()
-            .is_some_and(|b| b.is_ascii_lowercase() || b.is_ascii_digit())
-            && bytes
-                .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || matches!(b, b'_' | b'-'))
-    })
 }
 
 #[cfg(test)]

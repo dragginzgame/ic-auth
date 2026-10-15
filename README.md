@@ -10,37 +10,31 @@ contract. The libraries and reference service must not depend on either project.
 
 ## Status
 
-The Rust workspace implements passive token/proof contracts, validated protocol
-identifiers, canonical signed encoding, optional IC signature/application-token
-verification and atomic session/replay admission extracted from Canic. Both
-libraries are published on crates.io at `0.5.7`; see the
-[signature](docs/signatures.md), [token](docs/tokens.md) and
-[session](docs/sessions.md) contracts. Durable canister adoption remains pending.
-Bounded [signature preparation and retrieval](docs/signature-preparation.md)
-includes explicit host certification composition.
-Released 0.4.2 adds pure [delegated-token preparation](docs/token-preparation.md).
-Released 0.4.7 includes independent [chain-key signature checks](docs/chain-key-signatures.md)
-and explicit producer signature normalization. It also adds pure [certificate issuance validation](docs/certificate-issuance.md)
-so Canic can retire its duplicate certificate rules without transferring authority.
-Released **0.5.0** exposes [canonical session requests](docs/session-requests.md)
-without crypto features, with a breaking import and constructor error change;
-request hashes and stored session bytes remain unchanged.
-Canic's draft locally qualifies pure token preparation, session-request hashing,
-certificate issuance and enabled chain-key checks/normalization, retaining host
-authority. See the [consumer evidence](docs/canic-adoption.md); complete verifier,
-durable-session and deployed acceptance remain separate.
-Published 0.2.11 includes the bounded [Merkle batch constructor](docs/chain-key-batches.md),
-allowing Canic to retire its generic construction helper.
-Released [IC Testkit qualification](docs/ic-testkit-qualification.md) checks
-real certification, upgrades and signed ingress; this internal fixture
-does not implement a wallet login provider.
-The private [browser client](docs/browser-client.md) now implements injected
-authenticated-identity/token lifecycle machinery with generated Candid contracts
-and an opt-in transactional IndexedDB store.
-It is not published; issuer adapter qualification and consumer adoption remain pending.
-**Wallet login remains unimplemented.** Tokens and local sessions do not grant
-application resource ownership. The native utility in `apps/tooling/` is unpublished and reuses
-`ic-host-fs` for release and publication file operations.
+The working tree prepares the **0.6 library hard cut**; package manifests remain
+at `0.5.10` until release preparation. It implements portable certified and enrolled
+Ed25519 verification, one local session engine, replay/revocation bookkeeping and
+explicit protected authority/work budgets. See the [session contract](docs/sessions.md)
+and [current handoff](docs/status/current.md) for implementation and validation.
+
+The existing [signature](docs/signatures.md), [token](docs/tokens.md),
+[signature preparation](docs/signature-preparation.md),
+[certificate issuance](docs/certificate-issuance.md) and
+[chain-key](docs/chain-key-signatures.md) helpers remain reusable primitives.
+Application resource permissions and IC ingress delegation remain separate.
+
+The private [browser client](docs/browser-client.md) includes the retained token
+lifecycle plus a separate portable logout journal, guarded SDK identity and HTTP
+logout transport. It is unpublished; existing unknown issuance intents are not
+migrated or erased. Production portable login/admission, key/clock integration
+and successful deployed logout qualification remain pending.
+
+**Production issuer/enrollment lifecycle, wallet login and the durable session
+adapter remain unimplemented.** The reference receiver uses volatile state.
+The [IC Testkit fixture](docs/ic-testkit-qualification.md) exercises actual
+certification, portable sessions, upgrades and signed ingress; it is not a
+production wallet service or evidence of completed consumer adoption.
+The unpublished native utility in `apps/tooling/` uses `ic-host-fs` for release
+and publication file operations.
 
 Canic is adopting the shared libraries; its complete runtime verifier and durable
 host integration remain consumer work. The
@@ -57,6 +51,19 @@ and acceptance belong in [Canic #491](https://github.com/dragginzgame/canic/issu
 - [Canic source review and incorporation boundary](docs/design/canic-source-review.md)
 - [Extraction and Canic adoption tracker](https://github.com/dragginzgame/canic/issues/491)
 - [Agent instructions](AGENTS.md)
+
+## Application authentication for the 0.6 cut
+
+The accepted application flow is **portable proof admission → caller-bound local session
+→ scoped session checks**. Each receiving canister admits the credential under its
+protected fleet, role and scope policy. Ordinary application calls use the
+authenticated ingress caller and the local session; they do not carry a token.
+Token preparation and proof verification remain the admission machinery.
+Application resource permissions and IC ingress signatures remain distinct.
+
+This is the coordinated 0.6 consumer contract, not a claim that Canic/Toko have
+completed the cut. Their guards, Candid interfaces and frontend calls must change
+together under the [adoption contract](docs/canic-adoption.md).
 
 ## Workspace
 
@@ -96,9 +103,11 @@ make test-qualification
 make check-wasm
 ```
 
-Planned wallet authentication targets Solana message signing without SIWS or
-`ic-siws`. NFTs remain in their application's ledger. This service does not mint,
-index, bridge or custody Solana assets.
+Planned wallet authentication uses custom Solana/Ethereum login challenges without
+SIWS or SIWE, with established signature primitives and wallet message signing.
+Wallet adapters remain unimplemented; see the [wallet design](docs/design/0.6-portable-authentication.md#wallet-account-authentication).
+NFTs remain in their application's ledger. This service does not mint, index,
+bridge or custody wallet assets.
 
 Canic integration uses local library calls. It must not add a remote authentication
 request to every protected application call.

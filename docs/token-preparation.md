@@ -71,3 +71,12 @@ The first [Testkit token journey](ic-testkit-qualification.md) uses preparation
 and finishing with an actual certified issuer, then verification and upgrade.
 This reference journey does not qualify a deployed issuer endpoint or Canic's
 adapter.
+
+The pending compatible 0.5.11 cleanup shares the role/scope narrowing predicate
+with complete token verification, without moving either caller's checks.
+Preparation retains the first matching parent role before certificate hashing:
+a malformed duplicate parent's later row cannot rescue a missing first-row scope.
+Verification checks canonical certificate grants before narrowing, rejecting
+both duplicate-parent orders before subset admission. These distinct error orders
+remain intentional; neither shared predicate authenticates the parent proof.
+See [Auth #51](https://github.com/dragginzgame/ic-auth/issues/51).

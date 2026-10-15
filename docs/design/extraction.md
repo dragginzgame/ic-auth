@@ -22,6 +22,42 @@ service nor Solana token/NFT infrastructure is needed for wallet login.
 
 ## Dependency direction
 
+### Accepted 0.6 application authentication contract
+
+The [0.6 portable authentication design](0.6-portable-authentication.md) extends
+this contract with certified/BLS and opt-in TEE-backed Ed25519 admission into
+the same session engine, browser-driven multi-canister logout and non-TEE local
+qualification. TEE admission and the proposed Canic feature flag remain pending;
+the current implementation admits certified tokens. Receiver-to-issuer admission
+calls are not the selected multi-subnet architecture.
+
+The reviewed [protocol contract](0.6-auth-protocol.md) requires a fresh browser
+principal per application login, distinct from its issuer-authenticated account
+subject. The wallet-service stable-principal delegation below is a separate
+capability and must not be substituted as the caller-keyed application login.
+Its logout, reset and enrollment decisions supersede earlier design alternatives;
+they are implementation targets, not claims about today's token/session API.
+
+The maintainer selected a hard cut on 2026-10-13: application tokens establish
+caller-bound local sessions; ordinary application endpoints authorize those
+sessions with current protected context. Remove the superseded token-per-call
+application guard and its consumers in the coordinated Canic/Toko change, without
+a fallback or parallel compatibility route. The lower-level token verifier is
+still the proof primitive, not a second recommended application login flow.
+
+One token may admit the same caller on multiple receiving canisters whose
+protected audience, role and scopes permit it. Each receiver verifies admission
+and owns its session/replay transaction. This does not provide one global
+verification or automatically authorize every descendant in a tree.
+
+The cut does not remove stored-record validation, alter the CBOR format, or
+authorize discarding durable replay/identity state. Auth owns checked session
+records; Canic owns storage and lifecycle, and Toko owns application users and
+resource permissions. The [adoption contract](../canic-adoption.md) and
+[Canic #491](https://github.com/dragginzgame/canic/issues/491) carry consumer work.
+
+### Library graph
+
 ```text
 ic-auth-protocol-types <--- ic-auth <--- wallet-auth service
                               <--- Canic adapter and local authorization host
@@ -92,6 +128,11 @@ validation rules and authority must remain distinct. A valid wallet signature
 does not authorize an application role. An application token cannot be used as
 an IC ingress delegation. Fleet admission does not confer NFT ownership.
 
+In the 0.6 application profile, account authentication from paths 1/2 may authorize
+an issuer binding, but application calls in path 3 use the fresh browser key's
+own principal. Fresh delegation keys under one stable account principal do not
+provide independent per-device sessions in the caller-keyed session store.
+
 ## Embedded session engine
 
 Local application-session verification stays local. The new auth service is not
@@ -106,6 +147,15 @@ Specify exact-retry behavior, expiry pruning, per-subject/global quotas and byte
 limits. Use bounded record operations rather than cloning/encoding the entire
 store for each login. IC Auth owns the storage contract and engine; an embedded
 host owns stable-memory registration and supplies its backend.
+
+For 0.6, the host selects memory or persistent storage at build time per canister
+role. Both use that same engine and trait; neither IC Auth nor a standalone
+consumer depends on Canic configuration. Memory mode omits `session-restore`,
+loses sessions on upgrades and applies a protected signed-issuance cutoff after
+each loss of replay history. Persistent mode enables checked restoration and
+retains replay/authority state atomically. The [storage and reset contract](../sessions.md)
+defines the clock, cutoff, client recovery and mode-switch requirements. A local
+generation increment alone cannot invalidate an old token for fresh admission.
 
 Proof caches must not turn an earlier signature check into authority after a
 policy window closes, an epoch changes or the caller/context differs. Separate
@@ -124,6 +174,14 @@ retrieval, pruning, root refresh and lifecycle restoration together. A library
 move alone does not fix competing owners.
 
 ## Wallet service boundary
+
+Wallet login uses an IC Auth-owned challenge format and adapters for Solana and
+Ethereum, without SIWS or SIWE protocols or dependencies. Use established
+signature primitives and wallet message-signing APIs, not custom cryptography.
+The application login profile binds a fresh browser principal to an account;
+the stable-principal ingress delegation service described below is a separate
+capability, not an alternative application endpoint authentication flow. See the
+[0.6 wallet boundary](0.6-portable-authentication.md#wallet-account-authentication).
 
 The public interaction is challenge preparation, proof submission and certified
 delegation retrieval. Final method/type names are fixed with the implementation

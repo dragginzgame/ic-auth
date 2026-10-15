@@ -1,5 +1,95 @@
 # Changelog
 
+## [0.6.0]
+
+### Breaking
+
+- Replace token-specific session admission with one portable-credential session
+  engine for certified and enrolled Ed25519 proofs. Hosts supply protected
+  authority, receiver role/scopes, a retained revocation ledger and shared work
+  budgets. Applications establish a caller-bound session before ordinary scoped
+  calls; proof helpers remain available without authorizing application resources.
+  Coordinate Canic guards and Toko callers through
+  [Canic #491](https://github.com/dragginzgame/canic/issues/491).
+- Use the new portable signed-claims domain and session record encoding. Reject
+  old session records rather than reinterpret them. Bind each login to a fresh
+  browser principal and retain account identity as `(issuer, subject)`. Renewals
+  cannot change the account, browser key or original login window.
+  See [protocol](docs/design/0.6-auth-protocol.md) and [sessions](docs/sessions.md).
+- Require `session-restore` for `Session::decode`; volatile consumers exclude the
+  decoder. Protected `PortableClaimsContext` owns login/proof reset floors.
+  After volatile state loss, advance them with checked boot time and qualified
+  skew, invalidate old logins and authenticate fresh enrollment before serving.
+  Durable restoration must retain replay/revocation and protected authority too;
+  the production durable adapter remains unimplemented.
+  [#58](https://github.com/dragginzgame/ic-auth/issues/58).
+- Import `SessionAdmissionBudget` and its construction errors from
+  `admission_budget`. Retain receiver-wide credit across callers, proof mechanisms
+  and failures; exact retries and existing sessions do not spend fresh verification
+  credit. Use a separate budget for unknown-login logout attempts.
+  [#59](https://github.com/dragginzgame/ic-auth/issues/59).
+
+### Added
+
+- Add Rust-owned portable claims, credential/proof and typed logout contracts,
+  canonical encoding/signing hashes, browser-principal derivation and generated
+  browser Candid bindings. Both complete verifiers check runtime caller,
+  issuer/key/audience, grants, time, enrollment and reset floors. Future credentials
+  return `NotYetValid`; decoding alone never authenticates a credential.
+- Share one admission, replay, scoped authorization and logout lifecycle between
+  both proof mechanisms. Exact retries retain the original lease after proof
+  expiry. Proof expiry limits admission separately from session lifetime; captured
+  login/key/enrollment deadlines cap leases. Local logout acknowledges committed
+  session removal and retained denial, including when proof/enrollment has expired.
+- Bound revocation records with separate admitted/unknown pools, retained login
+  reservations, fixed skew-aware tombstone deadlines and bounded pruning. Check
+  cheap refusals before verification; failed cryptography/storage retain charged
+  work. These controls bound expensive work and state, not all ingress or fairness.
+- Add an opt-in portable browser logout journal, bounded cleanup worker and SDK
+  HTTP transport. Persist invalidation before fan-out, guard signing across tabs,
+  reserve the final post-admission attempt and preserve unknown remote outcomes.
+  Missing local keys cannot prematurely finish another worker's cleanup.
+  HTTP acceptance is not revocation confirmation. Existing token-store issuance
+  intents are untouched. See [browser contracts](docs/browser-client.md) and
+  [#3](https://github.com/dragginzgame/ic-auth/issues/3).
+
+### Changed and fixed
+
+- Keep session-only and Ed25519 session dependency graphs free of BLS/certificate
+  machinery. Adapt the selected K256 0.14 and Dalek 5/3 APIs, retaining explicit
+  high-S rejection versus producer normalization. Direct SHA-2 remains on 0.10.
+- Share scope/grant validation, request narrowing and capacity decisions while
+  retaining checks at their owning trust/commit boundaries.
+  [#50](https://github.com/dragginzgame/ic-auth/issues/50),
+  [#51](https://github.com/dragginzgame/ic-auth/issues/51),
+  [#52](https://github.com/dragginzgame/ic-auth/issues/52),
+  [#53](https://github.com/dragginzgame/ic-auth/issues/53).
+- Validate and persist detached browser preparation responses through bounded
+  Candid codecs. Reject truncated byte vectors without requiring identical valid
+  Candid encodings.
+  [#55](https://github.com/dragginzgame/ic-auth/issues/55),
+  [#56](https://github.com/dragginzgame/ic-auth/issues/56),
+  [#62](https://github.com/dragginzgame/ic-auth/issues/62).
+- Converge client Node/npm selection and admission while preserving explicit setup,
+  offline checks and first failures. Prevent stale unpacked-package MSRV metadata
+  reuse. Adapt qualification to Testkit's owned instance/server lifecycle.
+  [#54](https://github.com/dragginzgame/ic-auth/issues/54).
+
+### Qualification and scope
+
+- Exercise portable sessions across receivers/devices, signed ingress, resets,
+  replay, commit failures and logout. Add real IndexedDB cleanup/signing fixtures
+  and complete Ed25519 receiver cycle measurements with artifact identity.
+  Measurements exclude issuer signing and do not establish a production saving
+  against the older certified benchmark.
+- Document optional TEE assurance separately from enrolled Ed25519 verification.
+  Local issuer keys are designed to be heap-only and re-enrolled after upgrade;
+  threshold signing remains an alternative requiring qualification. Production
+  issuer/key/enrollment lifecycle, wallet login, durable storage and complete
+  Canic/Toko adoption remain unfinished. The browser transport is implemented;
+  deployed endpoint acceptance and key/clock integration remain pending.
+  See [the design and measurement limits](docs/design/0.6-portable-authentication.md).
+
 ## [0.5.10] - 2026-10-13
 
 - Use IC Metrics for repeated qualification instruction summaries, with separate

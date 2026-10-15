@@ -53,7 +53,7 @@ See [Auth #21](https://github.com/dragginzgame/ic-auth/issues/21) and the adopte
 | Package path | Minimum-compiler coverage |
 | --- | --- |
 | Protocol types | Native and `wasm32-unknown-unknown`, independent normalized package |
-| Auth library | Each target with default features, isolated chain-key verification, signature verification, signature preparation, token verification, sessions, and all features together |
+| Auth library | Each target with default features, isolated portable Ed25519 verification, isolated chain-key verification, signature verification, signature preparation, token verification, sessions, session restoration, and all features together |
 | Native tooling and testkit runner | Separate workspace checks of all targets/features |
 | Qualification canister | Separate `wasm32-unknown-unknown` check |
 

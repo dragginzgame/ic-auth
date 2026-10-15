@@ -30,9 +30,6 @@ use std::time::Duration;
 
 const SECOND: u64 = 1_000_000_000;
 
-#[path = "application_sessions.rs"]
-mod application_sessions;
-
 pub(super) fn root_proof(
     cert: &DelegationCert,
     key: &SigningKey,
@@ -108,11 +105,7 @@ fn complete_token_rechecks_live_authority_and_real_certification_after_upgrade()
             b"delegation".to_vec(),
         ])
         .unwrap(),
-        public_key: key
-            .verifying_key()
-            .to_encoded_point(true)
-            .as_bytes()
-            .to_vec(),
+        public_key: key.verifying_key().to_sec1_point(true).as_bytes().to_vec(),
         key_version: 4,
         min_accepted_key_version: 4,
         min_accepted_proof_epoch: 2,
@@ -294,19 +287,5 @@ fn complete_token_rechecks_live_authority_and_real_certification_after_upgrade()
     );
     assert_eq!(token.claims, unchanged.claims);
     assert_eq!(token.proof, unchanged.proof);
-    let mut capped_store = application_sessions::qualify_root_deadline(&fixture, &token, &context);
-    context.now_ns = fixture.now();
-    let profile_expiry = super::session_profile::qualify(&fixture, &token, &context, &key);
-    context.now_ns = fixture.now();
-    application_sessions::qualify_admission(&fixture, &token, context);
-    assert!(fixture.now() >= token.claims.expires_at_ns);
-    assert_eq!(
-        capped_store.prune(fixture.now(), 128),
-        ic_auth::session::SessionPruned {
-            sessions: 0,
-            replays: 1,
-        }
-    );
-    assert_eq!(capped_store.encoded_bytes(), 0);
-    super::session_profile::qualify_expiry(&fixture, profile_expiry);
+    super::sessions::qualify_certified(&fixture, &token, &context);
 }

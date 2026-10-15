@@ -21,10 +21,8 @@ const SEED: &[u8] = b"canic-issuer-delegated-token";
 const NOW: u64 = 150;
 
 mod delegation;
+mod portable_certified;
 mod root_bindings;
-
-#[cfg(feature = "sessions")]
-mod sessions;
 
 fn p(id: u8) -> Principal {
     Principal::from_slice(&[id; 10])
@@ -70,9 +68,13 @@ struct Envelope {
 
 fn issuer_proof(claims: &DelegatedTokenClaims, seed: &[u8], time: u64) -> IssuerProof {
     let message = domain_separated_message(SEED, claims_hash(claims).unwrap()).unwrap();
+    issuer_proof_message(claims.issuer_pid, &message, seed, time)
+}
+
+fn issuer_proof_message(issuer: Principal, message: &[u8], seed: &[u8], time: u64) -> IssuerProof {
     let tree = labeled(
         b"sig".to_vec(),
-        labeled(hash(seed), labeled(hash(&message), leaf(vec![]))),
+        labeled(hash(seed), labeled(hash(message), leaf(vec![]))),
     );
     let mut time_bytes = Vec::new();
     leb128::write::unsigned(&mut time_bytes, time).unwrap();
@@ -80,7 +82,7 @@ fn issuer_proof(claims: &DelegatedTokenClaims, seed: &[u8], time: u64) -> Issuer
         labeled(
             b"canister".to_vec(),
             labeled(
-                claims.issuer_pid.as_slice().to_vec(),
+                issuer.as_slice().to_vec(),
                 labeled(b"certified_data".to_vec(), leaf(tree.digest())),
             ),
         ),
@@ -98,7 +100,7 @@ fn issuer_proof(claims: &DelegatedTokenClaims, seed: &[u8], time: u64) -> Issuer
             certificate: ByteBuf::from(cbor(&certificate)),
             tree,
         }),
-        public_key_der: CanisterSigPublicKey::new(claims.issuer_pid, seed.to_vec()).to_der(),
+        public_key_der: CanisterSigPublicKey::new(issuer, seed.to_vec()).to_der(),
     })
 }
 
@@ -186,7 +188,7 @@ impl Fixture {
             .unwrap(),
             public_key: root_signing_key()
                 .verifying_key()
-                .to_encoded_point(true)
+                .to_sec1_point(true)
                 .as_bytes()
                 .to_vec(),
             key_version: 4,
@@ -546,6 +548,16 @@ fn rejects_grant_broadening_and_noncanonical_or_empty_grants() {
     let mut f = Fixture::new();
     f.token.claims.grants.push(grant(&["read"]));
     f.assert_error(Error::Canonical(CanonicalAuthError::NonCanonicalRoles));
+}
+
+#[test]
+fn duplicate_parent_roles_are_canonical_errors_before_token_narrowing() {
+    for first in ["read", "write"] {
+        let mut f = Fixture::new();
+        f.token.proof.cert.grants = vec![grant(&[first]), grant(&["read"])];
+        f.token.claims.grants = vec![grant(&["read"])];
+        f.assert_error(Error::Canonical(CanonicalAuthError::NonCanonicalRoles));
+    }
 }
 
 #[test]

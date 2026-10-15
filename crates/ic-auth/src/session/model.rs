@@ -1,12 +1,8 @@
-use super::SessionError;
-use crate::{
-    canonical::{CanonicalAuthError, validate_scopes},
-    session_request::{SessionRequest, check_scopes},
-    token::{RootKeyPolicy, TokenVerificationContext, VerifiedToken},
-};
-use ic_auth_protocol_types::{
-    AudienceId, AuthRole, ChainKeyAlgorithm, ChainKeyKeyId, DelegatedToken, Principal, RootProof,
-};
+use super::{SessionContext, SessionError, SessionOccupancy};
+#[cfg(feature = "session-restore")]
+use crate::session_request::check_scopes;
+use crate::{portable::VerifiedPortableClaims, session_request::SessionRequest};
+use ic_auth_protocol_types::{AudienceId, AuthRole, PortableMechanism, Principal};
 use serde::{Deserialize, Serialize};
 
 /// Protected admission policy. Hosts must advance generation atomically with
@@ -22,19 +18,10 @@ pub struct SessionPolicy {
     /// Default request TTL and upper bound, in seconds; maximum 1800 seconds.
     pub default_ttl_secs: u64,
     pub max_ttl_secs: u64,
-    /// Admission-only proof lifetime bound, at most 60 seconds in nanoseconds.
-    pub max_proof_ttl_ns: u64,
 }
 impl SessionPolicy {
     pub(super) fn validate(self) -> Result<(), SessionError> {
-        if self.default_ttl_secs == 0
-            || self.default_ttl_secs > self.max_ttl_secs
-            || self.max_ttl_secs > 1800
-            || self.max_proof_ttl_ns == 0
-            || self.max_proof_ttl_ns > 60_000_000_000
-        {
-            return Err(SessionError::InvalidPolicyOrRecord);
-        }
+        crate::session_request::validate_ttl_policy(self.default_ttl_secs, self.max_ttl_secs)?;
         Ok(())
     }
 }
@@ -45,7 +32,7 @@ impl SessionPolicy {
 pub struct SessionLimits {
     pub max_sessions: usize,
     pub max_replays: usize,
-    pub max_replays_per_subject: usize,
+    pub max_replays_per_caller: usize,
     pub max_encoded_bytes: usize,
 }
 impl SessionLimits {
@@ -54,8 +41,8 @@ impl SessionLimits {
             || self.max_sessions > 2048
             || self.max_replays == 0
             || self.max_replays > 4096
-            || self.max_replays_per_subject == 0
-            || self.max_replays_per_subject > 256
+            || self.max_replays_per_caller == 0
+            || self.max_replays_per_caller > 256
             || self.max_encoded_bytes == 0
             || self.max_encoded_bytes > 8 * 1024 * 1024
         {
@@ -63,53 +50,57 @@ impl SessionLimits {
         }
         Ok(())
     }
-}
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct RootAuthority {
-    root: Principal,
-    algorithm: ChainKeyAlgorithm,
-    key_id: ChainKeyKeyId,
-    path_hash: [u8; 32],
-    public_key: Vec<u8>,
-    key_version: u64,
-    proof_epoch: u64,
-    registry_epoch: u64,
-}
-impl RootAuthority {
-    fn current(&self, policy: &RootKeyPolicy) -> bool {
-        self.root == policy.root_canister_id
-            && self.algorithm == policy.algorithm
-            && self.key_id == policy.key_id
-            && self.path_hash == policy.derivation_path_hash
-            && self.public_key == policy.public_key
-            && self.key_version == policy.key_version
-            && self.key_version >= policy.min_accepted_key_version
-            && self.proof_epoch >= policy.min_accepted_proof_epoch
-            && self.registry_epoch >= policy.min_accepted_registry_epoch
+    pub(super) fn check_capacity(
+        self,
+        occupancy: SessionOccupancy,
+        replacing: bool,
+    ) -> Result<(), SessionError> {
+        if (!replacing && occupancy.sessions >= self.max_sessions)
+            || occupancy.replays >= self.max_replays
+            || occupancy.replays_for_caller >= self.max_replays_per_caller
+        {
+            return Err(SessionError::Capacity);
+        }
+        Ok(())
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+const RECORD_DOMAIN: &[u8] = b"IC-AUTH-PORTABLE-SESSION\0";
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[cfg_attr(feature = "session-restore", derive(Deserialize))]
 #[serde(deny_unknown_fields)]
 struct SessionData {
     caller: Principal,
     subject: Principal,
     issuer: Principal,
     audience: AudienceId,
+    mechanism: PortableMechanism,
+    key_binding_id: [u8; 32],
     role: AuthRole,
     scopes: Vec<String>,
     generation: u64,
+    login_started_at_ns: u64,
+    login_deadline_ns: u64,
     established_at_ns: u64,
     expires_at_ns: u64,
     fingerprint: [u8; 32],
     request_hash: [u8; 32],
-    root: RootAuthority,
 }
 
-/// A structurally checked host-owned session record, never an ingress credential.
-/// Decoding is only for trusted host storage; live authorization is always required.
+/// A checked host-owned portable session, never an ingress credential.
+/// Account identity is `(issuer(), subject())`; `caller()` identifies this login.
+/// Restoration requires trusted storage and live authorization after decoding.
+#[cfg_attr(
+    not(feature = "session-restore"),
+    doc = r#"
+```compile_fail,E0599
+use ic_auth::session::Session;
+let _ = Session::decode(&[]);
+```
+"#
+)]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Session(SessionData);
 impl Session {
@@ -141,122 +132,130 @@ impl Session {
         self.0.request_hash
     }
 
-    /// Encode one bounded current record, never an entire store.
+    /// Bounded current record with a domain distinct from the retired token record.
     pub fn encode(&self) -> Result<Vec<u8>, SessionError> {
-        let bytes = serde_cbor::to_vec(&self.0).map_err(|_| SessionError::InvalidPolicyOrRecord)?;
+        let mut bytes = RECORD_DOMAIN.to_vec();
+        bytes.extend(serde_cbor::to_vec(&self.0).map_err(|_| SessionError::InvalidPolicyOrRecord)?);
         if bytes.len() > 2048 {
             return Err(SessionError::ByteCapacity);
         }
         Ok(bytes)
     }
-    /// Restore a bounded record from trusted host storage and check invariants.
-    /// Successful decoding is structural evidence, not proof authentication.
+    /// Trusted-storage restoration only. Old token-session bytes are rejected.
+    #[cfg(feature = "session-restore")]
     pub fn decode(bytes: &[u8]) -> Result<Self, SessionError> {
         if bytes.len() > 2048 {
             return Err(SessionError::ByteCapacity);
         }
+        let bytes = bytes
+            .strip_prefix(RECORD_DOMAIN)
+            .ok_or(SessionError::InvalidPolicyOrRecord)?;
         let data: SessionData =
             serde_cbor::from_slice(bytes).map_err(|_| SessionError::InvalidPolicyOrRecord)?;
-        check_scopes(&data.scopes).map_err(SessionError::from)?;
-        if data.caller == Principal::anonymous()
-            || data.caller != data.subject
+        check_scopes(&data.scopes)?;
+        if data.caller.as_slice().len() != 29
+            || data.caller.as_slice().last() != Some(&2)
+            || data.subject == Principal::anonymous()
             || data.issuer == Principal::anonymous()
-            || data.root.root == Principal::anonymous()
+            || data.login_started_at_ns > data.established_at_ns
+            || data.login_started_at_ns >= data.login_deadline_ns
+            || data.login_deadline_ns - data.login_started_at_ns > 86_400_000_000_000
             || data.established_at_ns >= data.expires_at_ns
+            || data.expires_at_ns > data.login_deadline_ns
             || data.expires_at_ns - data.established_at_ns > 1_800_000_000_000
             || data.scopes.windows(2).any(|pair| pair[0] >= pair[1])
-            || data.root.key_id.name.is_empty()
-            || data.root.key_id.name.len() > 128
-            || !matches!(data.root.public_key.len(), 33 | 65)
         {
             return Err(SessionError::InvalidPolicyOrRecord);
         }
         Ok(Self(data))
     }
     pub(super) fn admit(
-        verified: &VerifiedToken<'_>,
-        token: &DelegatedToken,
+        verified: &VerifiedPortableClaims,
         request: &SessionRequest,
-        ctx: &TokenVerificationContext<'_>,
+        ctx: &SessionContext<'_>,
         policy: SessionPolicy,
     ) -> Result<Self, SessionError> {
-        let ttl = request.ttl_secs().unwrap_or(policy.default_ttl_secs);
-        if ttl == 0 || ttl > policy.max_ttl_secs {
-            return Err(SessionError::InvalidPolicyOrRecord);
-        }
-        let expires = ctx
-            .now_ns
-            .checked_add(
-                ttl.checked_mul(1_000_000_000)
-                    .ok_or(SessionError::InvalidPolicyOrRecord)?,
-            )
-            .ok_or(SessionError::InvalidPolicyOrRecord)?;
-        let RootProof::IcChainKeyBatchSignatureV1(root) = &token.proof.root_proof;
-        let key = ctx.root_key;
-        if key.key_id.name.is_empty() || key.key_id.name.len() > 128 {
-            return Err(SessionError::InvalidPolicyOrRecord);
-        }
+        let claims = verified.claims();
         let session = Self(SessionData {
-            caller: ctx.caller,
-            subject: verified.claims().subject,
-            issuer: verified.claims().issuer_pid,
-            audience: ctx.audience,
-            role: verified.role().clone(),
+            caller: ctx.authority.caller,
+            subject: claims.account_subject,
+            issuer: claims.issuer,
+            audience: claims.audience,
+            mechanism: claims.mechanism,
+            key_binding_id: claims.key_binding_id,
+            role: ctx.role.clone(),
             scopes: request.scopes().to_vec(),
             generation: policy.generation,
-            established_at_ns: ctx.now_ns,
-            expires_at_ns: expires.min(key.accept_until_ns),
-            fingerprint: verified.claims_hash(),
+            login_started_at_ns: claims.login_started_at_ns,
+            login_deadline_ns: claims.login_deadline_ns,
+            established_at_ns: ctx.authority.now_ns,
+            expires_at_ns: verified.session_expires_at_ns(
+                request,
+                ctx.role,
+                policy.default_ttl_secs,
+                policy.max_ttl_secs,
+            )?,
+            fingerprint: verified.fingerprint(),
             request_hash: request.hash(),
-            root: RootAuthority {
-                root: key.root_canister_id,
-                algorithm: key.algorithm,
-                key_id: key.key_id.clone(),
-                path_hash: key.derivation_path_hash,
-                public_key: key.public_key.clone(),
-                key_version: key.key_version,
-                proof_epoch: root.header.proof_epoch,
-                registry_epoch: root.header.registry_epoch,
-            },
         });
         session.check_live(ctx, policy)?;
         session.encode()?;
         Ok(session)
     }
+    pub(super) fn check_revocation(
+        &self,
+        ledger: &mut crate::portable::MemoryLoginRevocations,
+        now_ns: u64,
+    ) -> Result<(), SessionError> {
+        ledger.check_session(
+            self.0.caller,
+            self.0.issuer,
+            self.0.subject,
+            self.0.login_started_at_ns,
+            self.0.login_deadline_ns,
+            now_ns,
+        )?;
+        Ok(())
+    }
     pub(super) fn check_live(
         &self,
-        ctx: &TokenVerificationContext<'_>,
+        ctx: &SessionContext<'_>,
         policy: SessionPolicy,
     ) -> Result<(), SessionError> {
         if !policy.enabled || !policy.subject_admissible {
             return Err(SessionError::Disabled);
         }
-        if ctx.now_ns < self.0.established_at_ns || ctx.now_ns >= self.0.expires_at_ns {
+        let authority = &ctx.authority;
+        if authority.now_ns < self.0.established_at_ns || authority.now_ns >= self.0.expires_at_ns {
             return Err(SessionError::MissingOrExpired);
         }
-        if ctx.caller == Principal::anonymous()
-            || self.0.caller != ctx.caller
-            || self.0.subject != ctx.caller
-            || self.0.audience != ctx.audience
+        if self.0.caller != authority.caller
+            || self.0.issuer != authority.issuer
+            || self.0.audience != *authority.audience
+            || self.0.mechanism != authority.mechanism
+            || self.0.key_binding_id != authority.key_binding_id
             || &self.0.role != ctx.role
             || self.0.generation != policy.generation
-            || !self.0.root.current(ctx.root_key)
-            || ctx.now_ns < ctx.root_key.valid_from_ns
-            || ctx.now_ns >= ctx.root_key.accept_until_ns
-            || self.0.expires_at_ns > ctx.root_key.accept_until_ns
+            || self.0.login_started_at_ns < authority.min_login_started_at_ns
+            || authority.now_ns < authority.authority_not_before_ns
+            || authority.now_ns >= authority.authority_expires_at_ns
+            || authority.now_ns >= authority.enrollment_expires_at_ns
+            || self.0.expires_at_ns > authority.authority_expires_at_ns
+            || self.0.expires_at_ns > authority.enrollment_expires_at_ns
             || self.0.expires_at_ns - self.0.established_at_ns > policy.max_ttl_secs * 1_000_000_000
         {
             return Err(SessionError::StaleAuthority);
         }
-        validate_scopes(ctx.allowed_scopes).map_err(|error| match error {
-            CanonicalAuthError::NonCanonicalScopes => SessionError::InvalidPolicyOrRecord,
-            error => SessionError::Canonical(error),
-        })?;
+        let grant = authority
+            .grants
+            .iter()
+            .find(|grant| &grant.target == ctx.role)
+            .ok_or(SessionError::ScopeRejected)?;
         if self
             .0
             .scopes
             .iter()
-            .any(|s| !ctx.allowed_scopes.contains(s))
+            .any(|scope| !grant.scopes.contains(scope))
         {
             return Err(SessionError::ScopeRejected);
         }
@@ -269,7 +268,7 @@ impl Session {
 #[serde(deny_unknown_fields)]
 pub struct Replay {
     fingerprint: [u8; 32],
-    subject: Principal,
+    caller: Principal,
     generation: u64,
     remove_at_ns: u64,
 }
@@ -277,7 +276,7 @@ impl Replay {
     pub(super) fn new(session: &Session, remove_at_ns: u64) -> Self {
         Self {
             fingerprint: session.fingerprint(),
-            subject: session.subject(),
+            caller: session.caller(),
             generation: session.generation(),
             remove_at_ns,
         }
@@ -285,8 +284,8 @@ impl Replay {
     pub fn fingerprint(&self) -> [u8; 32] {
         self.fingerprint
     }
-    pub fn subject(&self) -> Principal {
-        self.subject
+    pub fn caller(&self) -> Principal {
+        self.caller
     }
     pub fn generation(&self) -> u64 {
         self.generation

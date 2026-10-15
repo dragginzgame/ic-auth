@@ -4,7 +4,7 @@ use super::{
 };
 use crate::canonical::{cert_hash, claims_hash, validate_scope_label, validate_scopes};
 use crate::certificate_issuance::{
-    CertificateLifetimeError, issuer_binding_matches, positive_duration,
+    CertificateLifetimeError, grants_are_subset, issuer_binding_matches, positive_duration,
     validate_certificate_lifetime,
 };
 use ic_auth_protocol_types::{
@@ -54,7 +54,7 @@ fn check_grants_size(
     Ok(())
 }
 
-pub(super) fn check_proof_size(
+pub(crate) fn check_proof_size(
     proof: &DelegationProof,
     max_witness_steps: usize,
     remaining: &mut usize,
@@ -175,6 +175,17 @@ pub(super) fn verify_material<'a>(
     token: &'a DelegatedToken,
     ctx: &TokenVerificationContext<'_>,
 ) -> Result<(&'a DelegatedRoleGrant, [u8; 32]), TokenVerificationError> {
+    verify_identity_and_certificate(token, ctx)?;
+    // Keep standalone claims canonicality at its original refusal position.
+    let claims_hash = claims_hash(&token.claims)?;
+    let grant = verify_claims_window_and_grants(token, ctx)?;
+    Ok((grant, claims_hash))
+}
+
+pub(super) fn verify_identity_and_certificate(
+    token: &DelegatedToken,
+    ctx: &TokenVerificationContext<'_>,
+) -> Result<(), TokenVerificationError> {
     let cert = &token.proof.cert;
     let claims = &token.claims;
     for (field, principal) in [
@@ -203,8 +214,15 @@ pub(super) fn verify_material<'a>(
     grants_valid(&claims.grants)?;
     verify_certificate_binding(cert)?;
     binding(cert_hash(cert)? == claims.cert_hash, "cert_hash")?;
-    // Check claims canonicality (including extension size) even if grants narrow.
-    let claims_hash = claims_hash(claims)?;
+    Ok(())
+}
+
+pub(super) fn verify_claims_window_and_grants<'a>(
+    token: &'a DelegatedToken,
+    ctx: &TokenVerificationContext<'_>,
+) -> Result<&'a DelegatedRoleGrant, TokenVerificationError> {
+    let cert = &token.proof.cert;
+    let claims = &token.claims;
     ttl(
         "token",
         claims.issued_at_ns,
@@ -226,15 +244,7 @@ pub(super) fn verify_material<'a>(
     if claims.aud != audience || cert.aud != audience {
         return Err(TokenVerificationError::AudienceRejected);
     }
-    if !claims.grants.iter().all(|child| {
-        cert.grants.iter().any(|parent| {
-            parent.target == child.target
-                && child
-                    .scopes
-                    .iter()
-                    .all(|scope| parent.scopes.contains(scope))
-        })
-    }) {
+    if !grants_are_subset(&claims.grants, &cert.grants) {
         return Err(TokenVerificationError::GrantsNotSubset);
     }
     let grant = claims
@@ -258,5 +268,5 @@ pub(super) fn verify_material<'a>(
             });
         }
     }
-    Ok((grant, claims_hash))
+    Ok(grant)
 }

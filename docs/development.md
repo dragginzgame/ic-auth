@@ -2,33 +2,13 @@
 
 The virtual root owns two libraries, unpublished native tooling in `apps/tooling/`
 and the internal host/runner in `apps/qualification/`, plus dependency selections,
-lints and one lockfile. The current manifest version is `0.5.7`, tagged as
-`v0.5.7`; both libraries are published and checksum-verified. It retains 0.5.0's
-default-feature [canonical session requests](session-requests.md) and adopts the
-shared Make entrypoint, prepared-input guards and fixture warning repair.
-Released 0.5.3 extends real certification qualification across Root/issuer signing
-profiles and qualifies Testkit 0.34.3 with Host 0.14.5. Released 0.5.4 selects
-Testkit 0.34.4 / Host 0.14.8, qualified by the local gate under
-[Auth #36](https://github.com/dragginzgame/ic-auth/issues/36).
-Versions remain release-owned.
-Released 0.5.5's lock selects Host 0.14.9 / Testkit 0.34.5 with the same
-server 16.1.0, qualified by the complete local gate. Its separate native
-acceptance and evidence are tracked in
-[Auth #40](https://github.com/dragginzgame/ic-auth/issues/40).
-Released 0.5.6 selects direct Host filesystem/artifacts 0.15.0 and Testkit 0.34.7;
-Testkit retains its transitive four-package Host 0.14.10 family. The server stays
-16.1.0, with newer native TLS/macro dependencies.
-[Auth #41](https://github.com/dragginzgame/ic-auth/issues/41) retains the earlier
-0.14.10/0.34.6 preparation receipt; it does not qualify the later selections.
-Released 0.5.6's exact-source Linux gate passes; its incomplete native run was
-cancelled after delivery of 0.5.7. That release actually selects Testkit 0.35.0
-and the three Host packages at 0.15.1; the earlier preparation receipt is
-historical. Pending 0.5.8 preserves those locked registry versions and extends
-the real fixture with isolated Wasm session costs and live refusal cases under
-[Auth #43](https://github.com/dragginzgame/ic-auth/issues/43). Both libraries'
-contracts and versions stay unchanged. No IC Build or direct PocketIC dependency
-is introduced. Its complete Linux/Bash 3.2 gate passes all 29 stages; native
-macOS acceptance of the future pushed source remains separate.
+lints and one lockfile. Package manifests remain at `0.5.10`; the working tree
+prepares the 0.6 portable session hard cut. Versions remain release-owned.
+The selected graph uses IC Host 0.18 and Testkit 0.44.0 with its admitted server
+16.1.0. No direct PocketIC dependency is introduced. Consult the
+[current handoff](status/current.md) for source-bound validation and the
+[session contract](sessions.md) for supported behavior and unfinished adapters.
+Historical release evidence does not qualify changed working-tree inputs.
 Rust `1.99.0` remains the development compiler selected by `rust-toolchain.toml`.
 The common package minimum is Rust `1.88.0`, inherited from the root catalog and
 qualified by explicit older-compiler checks. See [MSRV coverage](msrv.md).
@@ -40,16 +20,8 @@ Automatic runs cover `main` pushes and pull requests. Release tags do not enqueu
 a second equivalent matrix. Newer revisions cancel older queued and running
 checks for the same workflow and branch or PR ref; unfinished hosts on cancelled
 revisions remain unqualified.
-Released 0.5.0's complete gate passes on all three hosts in
-[its exact-source CI run](https://github.com/dragginzgame/ic-auth/actions/runs/38160094000).
-Released 0.5.4's [exact-source run](https://github.com/dragginzgame/ic-auth/actions/runs/38247803905)
-passes on all three hosts. Released 0.5.5's
-[own run](https://github.com/dragginzgame/ic-auth/actions/runs/38264912310)
-passes Linux and Intel macOS; ARM macOS was cancelled by the newer revision.
-Released 0.5.6's [own run](https://github.com/dragginzgame/ic-auth/actions/runs/38273690043)
-passes Linux; that incomplete run was cancelled by the newer revision.
-Released 0.5.7's [own run](https://github.com/dragginzgame/ic-auth/actions/runs/38284363288)
-passes Linux with Intel/ARM macOS queued. Native acceptance remains source-bound.
+Source-bound host acceptance belongs in the [current handoff](status/current.md);
+a local Linux pass does not establish macOS qualification.
 Shared
 Tooling's [host prerequisites](supported-hosts.md) apply, including Bash 3.2+,
 GNU Make, rustup, Git and standard Unix setup utilities.
@@ -252,11 +224,12 @@ is retained under `target/browser-client/`.
 | `make generate-client-contracts` | Explicitly regenerate the checked-in client contracts from Rust DTOs |
 | `make test-types` | Identifier rejection and Candid wire compatibility |
 | `make test-protocol` | Canonical encoding, signed vectors, ordering and size rejection |
+| `make test-portable-signatures` | Portable Ed25519 issuer proofs with protected audience/issuer/key binding, independent signature vectors and strict malformed/weak-key refusal; this does not admit sessions |
 | `make test-chain-key-signatures` | Isolated SEC1 admission, explicit producer normalization and exact prehash verification, including malformed material and strict high-S refusal |
 | `make test-signatures` | Real BLS-signed IC fixtures, signer/seed/root rejection, certificate freshness and bounded decoding |
 | `make test-signature-store` | Bounded preparation/retrieval, unchanged retry deadlines, pruning and real BLS verification with host-composed branches |
 | `make test-tokens` | Complete real secp256k1/BLS proof chains, signed binding and protected authority/window/scope rejection |
-| `make test-sessions` | Atomic admission/replay failure, exact retry, live authority invalidation, bounded pruning and quotas using real token proofs |
+| `make test-sessions` | Atomic admission/replay failure, exact retry, live authority invalidation, logout and quotas using certified and Ed25519 portable proofs |
 | `make test-host-tooling` | Native file-operation CLI: bounded input, exact digest output, no-follow reads and preserved create-only evidence |
 | `make check-msrv` | Isolated public package payloads and internal applications using the declared minimum compiler, with native/Wasm and feature coverage |
 | `make tasks` | Read the adopted maintenance task catalog; no task, agent or schedule starts |

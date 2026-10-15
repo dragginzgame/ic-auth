@@ -166,8 +166,8 @@ export class TokenSessionClient {
       || claims.issued_at_ns > this.#now() || claims.expires_at_ns <= this.#now()
       || claims.expires_at_ns <= claims.issued_at_ns || claims.expires_at_ns - claims.issued_at_ns > request.ttl_ns
       || !equalBytes(encode(DelegationAudience, claims.aud, this.#options.maxMaterialBytes), encode(DelegationAudience, request.aud, this.#options.maxMaterialBytes))
-      || !equalBytes(IDL.encode([IDL.Vec(DelegatedRoleGrant)], [claims.grants]), IDL.encode([IDL.Vec(DelegatedRoleGrant)], [request.grants]))
-      || !equalBytes(IDL.encode([IDL.Opt(IDL.Vec(IDL.Nat8))], [claims.ext]), IDL.encode([IDL.Opt(IDL.Vec(IDL.Nat8))], [request.ext]))) {
+      || !equalBytes(encode(IDL.Vec(DelegatedRoleGrant), claims.grants, this.#options.maxMaterialBytes), encode(IDL.Vec(DelegatedRoleGrant), request.grants, this.#options.maxMaterialBytes))
+      || !equalBytes(encode(IDL.Opt(IDL.Vec(IDL.Nat8)), claims.ext, this.#options.maxMaterialBytes), encode(IDL.Opt(IDL.Vec(IDL.Nat8)), request.ext, this.#options.maxMaterialBytes))) {
       throw new ClientError('invalid_material');
     }
   }
@@ -250,13 +250,15 @@ export class TokenSessionClient {
           continue;
         }
         if (result.kind !== 'prepared') return this.#failure(result, captured);
-        const prepared = result.value;
-        preparedBytes(prepared, maximum);
+        const bytes = preparedBytes(result.value, maximum);
+        // Validate the exact detached snapshot that will be persisted; issuer
+        // callbacks cannot change admitted material through the response object.
+        const prepared = preparedFromBytes(bytes, maximum);
         this.#checkClaims(prepared, captured, request);
         if (prepared.claims.issuer_pid.toText() !== scope.issuer.toText() || prepared.claims_hash.length !== 32
           || prepared.retrieval_expires_at_ns <= this.#now()) throw new ClientError('invalid_material');
         entry = { kind: 'retrieve', request: entry.request,
-          prepared: preparedBytes(prepared, maximum), deadlineNs: deadline < prepared.retrieval_expires_at_ns ? deadline : prepared.retrieval_expires_at_ns };
+          prepared: bytes, deadlineNs: deadline < prepared.retrieval_expires_at_ns ? deadline : prepared.retrieval_expires_at_ns };
         const retrieving = entry;
         if (!await this.#call(() => store.write(key, owned.revision, retrieving))) continue;
         continue;

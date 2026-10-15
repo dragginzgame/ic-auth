@@ -16,6 +16,117 @@ transactions and recovery obligations.
 
 ## Published dependency and feature selection
 
+### Accepted 0.6 cut; consumer implementation pending
+
+Use the Rust-owned `PortableCredential { claims, proof }` and `PortableProof`
+data contracts at the portable credential boundary. In the shared admission
+callback, `portable_credential::verify_credential` takes protected enrollment
+selection and reuses the complete verifier; the envelope supplies no Ed25519
+issuer key. Browser descriptors and bounded `credentialBytes`/`credentialFromBytes`
+are generated from that same owner. Endpoint names, argument wrappers, issuer
+operations and browser session orchestration remain consumer-owned integration.
+
+
+The [0.6 portable authentication design](design/0.6-portable-authentication.md)
+selects certified or enrolled Ed25519 proofs through one session/guard path.
+The proposed `enrolled_ed25519` mode separates signing custody from verification;
+`auth-tee` is optional deployment assurance, not a prerequisite for Ed25519.
+Local issuer keys live only in heap and require fresh Root enrollment on upgrade.
+Canic owns protected deployment/key enrollment and explicit operator-trust or TEE
+policy. These are pending capabilities, not current config/build options. Ordinary
+subnets and local tests remain usable without claiming hardware confidentiality.
+Browser logout contacts each receiver directly and revokes renewal at the issuer;
+expiry bounds missed notifications. Preserve login-level tombstones against late
+admission and already-issued renewal credentials. #491 owns consumer acceptance;
+the earlier issuer-call experiment is superseded as a multi-subnet recommendation.
+
+The [reviewed protocol](design/0.6-auth-protocol.md) now fixes the browser
+principal/account distinction, canonical credential bytes, proofless caller logout,
+issuance and post-await effect ordering, monotonic enrollment and exact reset
+profiles. Memory reset uses a signed login-start cutoff, so renewed pre-reset
+logins also refuse; persistent normal upgrades retain revocation. All boot paths
+require fresh authenticated enrollment before serving. The
+[issuer enrollment contract](design/0.6-tee-enrollment.md) names Root approval,
+volatile-key lifecycle, optional TEE evidence, freshness and key retirement. These producer/host changes are still
+prerequisites; neither a feature toggle nor current `SessionStore` implements them.
+
+The maintainer selected one application-authentication flow on 2026-10-13:
+`establish_session` now admits portable claims through either complete verifier,
+atomically consuming replay with the retained login reservation;
+ordinary endpoints call `authorize_session` using actual ingress identity and
+current protected authority. Use `logout_session` for caller-authenticated local
+revocation; do not directly remove a stored session and acknowledge logout.
+The portable record distinguishes browser caller from `(issuer, subject)` account
+identity. Old token-session records are rejected. See [the session API](sessions.md)
+for callback, transaction, reset and feature-selection requirements.
+Do not call the standalone verifier first and then repeat verification during
+fresh session admission.
+
+Canic must retire its token-per-call `auth::authenticated()` application guard and
+the raw/decoded token argument entry surfaces when its callers adopt session
+guards. Regenerate the affected Candid and client contracts in that same consumer
+cut. Toko must replace token-prepending application calls with session admission
+on each selected receiver, then calls signed by its existing session identity.
+Preserve registration, user resolution, resource ownership and role policy.
+Remove unused parallel bootstrap/renewal wrappers after tracing their callers;
+do not remove issuer preparation, Root authority or infrastructure attestations.
+
+A missing, expired or invalidated session refuses the application operation.
+An explicit admission/renewal step may restore eligible access; there is no
+implicit token-per-call fallback or repeated wallet prompt for each receiver.
+Admission still verifies each receiver's protected fleet/role/scope requirements.
+Coordinate retained sessions and replay evidence under the owning lifecycle
+contract; a hard cut is not permission to erase state.
+
+The accepted 0.6 storage choice is per-role **build configuration**, not a new
+IC Auth dependency on Canic. Map memory mode to `MemorySessionStore` with
+`sessions`; map persistent mode to Canic's durable `SessionStore` with
+`session-restore`. Do not unconditionally enable the restoration feature from
+Core if memory-only roles must omit its Wasm. Reject unsupported build/config
+combinations rather than silently selecting another backend. Runtime toggles
+that retain both implementations cannot claim decoder exclusion.
+
+Canic supplies the new required `SessionPolicy::min_proof_issued_at_ns`. After
+losing replay state, capture trusted install/post-upgrade time and use checked
+`time + 1` as the inclusive signed-issuance floor before serving. Do not rely on
+generation alone; the token does not carry that local generation. Preserve
+protected authority configuration independently from volatile sessions. Existing
+durable hosts keeping replay history can select `0`, or retain a stricter floor.
+Follow the [complete lifecycle contract](sessions.md#storage-selection-and-upgrade-contract-for-06).
+
+Consumer acceptance must cover memory-mode upgrade logout, refusal of an old
+consumed but unexpired token after upgrade, fresh signed re-admission, persistent
+session/replay restoration, disabled-backend state not being resurrected, and
+per-role resolved features/release Wasm. Toko recovery must obtain a fresh token
+when the reset floor rejects its cached one, using the existing issuer/ingress
+identity where eligible. This does not imply a wallet prompt on every upgrade.
+Client orchestration must ensure admission per receiver/identity/scopes before
+ordinary calls. One fleet-wide login flag is insufficient. Reuse the same valid
+token across permitted receivers; obtain fresh issuance after expiry or a receiver
+reset cutoff, without invalidating other receivers' still-live sessions. Retry
+only bounded admission/recovery and never blindly replay application mutations
+with uncertain outcomes. See [multiple receivers](sessions.md#multiple-receivers).
+
+Canic config syntax, endpoint wiring and actual host lifecycle qualification are
+pending consumer work in #491; Auth's reset regression tests model store loss
+without claiming a deployed Canic upgrade test.
+
+The read-only Toko checkpoint `44d4e2c6d41e3575b2503e79ffa369129ff3ecf2` selects
+Canic 0.110.48 and actively uses token-per-call guards. Its positive proof cache
+is the historical performance baseline, not uncached BLS verification on every
+call. The [Wasm comparison](https://github.com/dragginzgame/canic/issues/491#issuecomment-6149634805)
+and [size attribution](https://github.com/dragginzgame/canic/issues/491#issuecomment-6149738317)
+support session adoption for repeated calls but do not qualify the actual durable
+Canic backend or predict Toko's final Wasm size. Endpoint, frontend, lifecycle
+and performance acceptance remain in the owning issues.
+
+`Session::decode` is not called by the session engine itself. The current Canic
+durable adapter calls it when restoring `shared_session` bytes. Keep checked
+restoration on that path; moving it to an upgrade hook still retains the decoder
+in Wasm. The 0.6 flow decision does not select a new codec or a heap-only lifecycle.
+
+### Published selections before the cut
+
 Both `ic-auth` and `ic-auth-protocol-types` 0.5.9 are published and unyanked.
 Their registry checksums match IC Auth release
 `75d8dae2ac71ce12a628929be2d0cd5bad30fbfb`. Rust 1.88 is the supported minimum.
@@ -614,3 +725,21 @@ cryptographic future skew is nonzero. Verify before storage mutation and use
 the policy-capped deadline when recording proof freshness. Retire its duplicate
 pre-token root verifier after consumer acceptance. This boundary does not block
 adoption of the existing complete token verifier. No Canic source changes or host acceptance are implied.
+
+## Pending standalone shape APIs (0.5.11)
+
+[Auth #50](https://github.com/dragginzgame/ic-auth/issues/50) exposes the
+[scope and grant checks](certificate-issuance.md#standalone-scope-and-grant-shape-checks-pending-0511)
+needed before Canic certificate construction. Adopt the detailed const label
+validator for both static and runtime scope constructors, map its byte-offset
+causes, and retain Canic's set cardinality, aggregate byte and namespace policy.
+The public canonical scope-list validator can replace the ordering loop inside
+Canic's registry/key-policy encoding without changing the envelope or encoded
+bytes. Standalone grant validation takes existing passive grants and explicit
+16/32 bounds; it needs no dummy certificate or token.
+
+Consumer work belongs in [Canic #491](https://github.com/dragginzgame/canic/issues/491).
+Retire the duplicated loops only after static constructors, raw-role projection,
+mixed-invalid refusal precedence and construction/configuration callers are
+qualified together. Configuration sorting and intentionally empty disabled policy
+remain Canic-owned. No consumer edits, builds or adoption are claimed here.

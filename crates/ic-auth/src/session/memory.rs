@@ -13,6 +13,10 @@ struct Stored<T> {
 /// Bounded volatile reference backend for native and Wasm hosts. No stable
 /// memory, globals, timers or certification-root effects. Transactions stage
 /// only the touched pair; expiry indexes bound cleanup work without a store scan.
+/// Losing this store also loses replay history. Before serving after a reset,
+/// hosts must advance portable login/proof reset floors with qualified skew,
+/// discard revocation state and authenticate fresh enrollment before readiness.
+/// Persistent hosts retain sessions, replay and revocation state atomically.
 pub struct MemorySessionStore {
     generation: u64,
     limits: SessionLimits,
@@ -62,7 +66,7 @@ impl MemorySessionStore {
         self.encoded_bytes
     }
     /// Logout removes only this caller's session, preserving consumed proofs.
-    pub fn clear(&mut self, caller: Principal) -> bool {
+    fn clear(&mut self, caller: Principal) -> bool {
         if let Some(old) = self.sessions.remove(&caller) {
             self.session_expiry
                 .remove(&(old.value.expires_at_ns(), caller));
@@ -99,14 +103,14 @@ impl MemorySessionStore {
                     .remove(&fingerprint)
                     .expect("owned expiry index");
                 self.encoded_bytes -= old.bytes;
-                let subject = old.value.subject();
+                let caller = old.value.caller();
                 let count = self
                     .replay_counts
-                    .get_mut(&subject)
+                    .get_mut(&caller)
                     .expect("owned replay count");
                 *count -= 1;
                 if *count == 0 {
-                    self.replay_counts.remove(&subject);
+                    self.replay_counts.remove(&caller);
                 }
                 result.replays += 1;
             } else {
@@ -120,6 +124,7 @@ impl MemorySessionStore {
 struct Transaction<'a> {
     store: &'a MemorySessionStore,
     staged: Option<(Stored<Session>, Stored<Replay>, usize)>,
+    removed: Option<Principal>,
 }
 impl SessionTransaction for Transaction<'_> {
     fn generation(&self) -> u64 {
@@ -134,16 +139,24 @@ impl SessionTransaction for Transaction<'_> {
     fn replay_exists(&self, fingerprint: [u8; 32]) -> Result<bool, SessionError> {
         Ok(self.store.replays.contains_key(&fingerprint))
     }
-    fn occupancy(&self, subject: Principal) -> Result<SessionOccupancy, SessionError> {
+    fn occupancy(&self, caller: Principal) -> Result<SessionOccupancy, SessionError> {
         Ok(SessionOccupancy {
             sessions: self.store.sessions.len(),
             replays: self.store.replays.len(),
-            replays_for_subject: self.store.replay_counts.get(&subject).copied().unwrap_or(0),
+            replays_for_caller: self.store.replay_counts.get(&caller).copied().unwrap_or(0),
         })
+    }
+    fn remove(&mut self, caller: Principal) -> Result<(), SessionError> {
+        if self.staged.is_some() || self.removed.is_some() {
+            return Err(SessionError::InvalidPolicyOrRecord);
+        }
+        self.removed = Some(caller);
+        Ok(())
     }
     fn stage(&mut self, session: Session, replay: Replay) -> Result<(), SessionError> {
         if self.staged.is_some()
-            || session.subject() != replay.subject()
+            || self.removed.is_some()
+            || session.caller() != replay.caller()
             || session.fingerprint() != replay.fingerprint()
             || session.generation() != replay.generation()
             || replay.remove_at_ns() == 0
@@ -158,13 +171,8 @@ impl SessionTransaction for Transaction<'_> {
         }
         let old = self.store.sessions.get(&session.caller());
         let limits = self.limits();
-        let count = self.occupancy(session.subject())?;
-        if (old.is_none() && count.sessions >= limits.max_sessions)
-            || count.replays >= limits.max_replays
-            || count.replays_for_subject >= limits.max_replays_per_subject
-        {
-            return Err(SessionError::Capacity);
-        }
+        let count = self.occupancy(session.caller())?;
+        limits.check_capacity(count, old.is_some())?;
         let session_bytes = session.encode()?.len();
         let replay_bytes = replay.encoded_len()?;
         let total = self.store.encoded_bytes - old.map_or(0, |s| s.bytes);
@@ -195,11 +203,15 @@ impl SessionStore for MemorySessionStore {
         let mut tx = Transaction {
             store: self,
             staged: None,
+            removed: None,
         };
         let result = operation(&mut tx)?;
-        if let Some((session, replay, total)) = tx.staged {
+        let (staged, removed) = (tx.staged, tx.removed);
+        if let Some(caller) = removed {
+            self.clear(caller);
+        }
+        if let Some((session, replay, total)) = staged {
             let caller = session.value.caller();
-            let subject = session.value.subject();
             let fingerprint = replay.value.fingerprint();
             if let Some(old) = self.sessions.remove(&caller) {
                 self.session_expiry
@@ -211,7 +223,7 @@ impl SessionStore for MemorySessionStore {
                 .insert((replay.value.remove_at_ns(), fingerprint));
             self.sessions.insert(caller, session);
             self.replays.insert(fingerprint, replay);
-            *self.replay_counts.entry(subject).or_default() += 1;
+            *self.replay_counts.entry(caller).or_default() += 1;
             self.encoded_bytes = total;
         }
         Ok(result)

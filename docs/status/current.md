@@ -1,22 +1,188 @@
 # Current handoff — 2026-10-13
 
+## Library batch push review (working tree, 2026-10-15)
+
+The current library batch is prepared for a review push, not a claim that the
+complete production 0.6 system is ready. The draft changelog now describes the
+final portable API rather than superseded intermediate contracts; README/setup
+separate implemented machinery from issuer, durable-host and consumer adoption.
+Published changelog history is unchanged. Package versions remain 0.5.10.
+
+Code and dependency inputs are unchanged from the passing complete Linux gate
+`target/portable-cost-ci.log` (80 browser tests and five real-canister tests).
+This documentation-only review reuses that evidence; local links, snapshot and
+diff checks pass in `target/push-review-docs.log`. Native macOS acceptance of the
+future pushed source remains separate. No index, Git refs or release effects
+were changed. Include the new untracked source/contracts/tests in the reviewed
+commit alongside the tracked edits and intentional old-session-file removals.
+
+## Complete Ed25519 receiver cost and durable boundary (working tree, 2026-10-15)
+
+The actual volatile receiver qualification now records cycle-balance deltas and
+its Wasm hash for full admission, forged-proof rejection, exact retry, ordinary
+authorization and logout. Fresh admissions across two runs measured 12.68–12.95M
+cycles; ordinary session updates measured 7.18M. These include platform charges,
+exclude native producer signing and do not establish a percentage saving against
+the older certified fixture. See [measurement scope](../design/0.6-portable-authentication.md#capacity-and-abuse).
+
+The [storage contract](../sessions.md#storage-and-reset) records the IC Memory
+allocation boundary and separate adapter compiler requirement. Persisting only
+SessionStore would leave the concrete volatile revocation ledger outside the
+durable commit; [Auth #58](https://github.com/dragginzgame/ic-auth/issues/58) owns
+that remaining integration. No dependency/backend was added by this inspection.
+
+Complete Linux `make -j4 ci` passed in `target/portable-cost-ci.log`, including
+80 browser tests and five real-canister tests. Focused qualification passed in
+`target/portable-cost-qualification.log`. No sibling source, dependency/compiler
+selection, package versions or Git refs changed.
+
+## Shared SDK logout transport (working tree, 2026-10-15)
+
+`httpLogoutTransport` now connects the portable cleanup worker to the SDK's
+authenticated update-call path, using the current guarded identity per attempt.
+It sends the shared empty request, permits one submission per journal attempt,
+cancels polling and rejects unauthenticated or oversized Candid replies. Gateway,
+endpoint name, optional local trust anchor and key disposal remain explicit host
+configuration. See [browser integration](../browser-client.md). Production issuer
+and receiver acceptance, login issuance and consumer adoption remain open.
+
+Complete Linux `make -j4 ci` passed (`target/logout-http-ci.log`), including 80
+browser tests and five real-canister tests. The new transport tests use real SDK
+signing with substituted HTTP; they do not qualify successful deployed logout.
+Focused evidence is in `target/logout-http-client-retry.log`; the initial fixture
+assertion failure remains in `target/logout-http-client.log`. No sibling source,
+dependency selections, package versions or Git refs changed.
+
+## Keyless-tab cleanup continuation (working tree, 2026-10-15)
+
+A tab without a local signing handle no longer finishes shared cleanup or invokes
+key disposal before confirmation/deadline. It returns the pending snapshot so a
+key-holding worker can continue. New destination windows reserve the five-second
+final-attempt margin inside the existing five-minute cleanup bound. Retained
+windows/intents are not rewritten. The two regression tests fail against the
+previous implementation (`target/keyless-regression-before.log`) and pass after
+repair. No production consumer adoption is implied.
+
+Complete Linux `make -j4 ci` passed (`target/keyless-ci.log`), including 74 client
+tests and five real-canister tests. The updated native Chromium fixture passed
+with real IndexedDB (`target/keyless-native.json`). Focused results remain in
+`target/keyless-client.log`. No sibling source, stored intents, versions or Git
+refs were changed; production key/clock/transport integration remains open.
+
+## Portable signing boundary and native browser (working tree, 2026-10-15)
+
+`guardedIdentity` gates ordinary SDK signing before and after asynchronous signing
+against the durable active generation/caller and destination inventory. Cleanup
+transports receive an identity gated to their live lease, deadline and destination.
+Already returned signatures and remotely accepted requests cannot be recalled.
+Production key custody, clock qualification and application scheduling/callback
+wiring remain consumer obligations; no Canic/Toko adoption is claimed.
+
+The maintained native logout fixture passed on Linux Chromium 155.0.8059.40 with
+real IndexedDB: strict commit, cross-connection logout, late-signature refusal,
+abort atomicity, reopen, Capacity retry and disposal. Evidence is retained in
+`target/signing-native.json`; the isolated browser and localhost server were closed.
+The browser fixture uses a synthetic identity; Node tests use actual SDK signing.
+
+Complete Linux `make -j4 ci` passed in `target/signing-ci-final.log`, including
+72 client tests and five real-canister tests with selected Testkit 0.44.0. Its CLI
+was explicitly prepared after the initial gate refused the missing selected tool;
+`target/signing-ci.log` retains that failure. Focused evidence is in
+`target/signing-client-complete.log`. Dependency selections were preserved; no
+sibling source, package versions or Git refs were changed.
+
+## Portable browser logout cleanup (working tree, 2026-10-15)
+
+The opt-in `IndexedDbLogoutStore` and `PortableLogoutClient` now persist a
+non-secret per-login cleanup boundary, target inventory, fixed deadline and
+attempt counts. Cleanup consumes the shared typed results, reserves a final
+post-admission retry and retains uncertainty across crashes. Existing token
+store intents are untouched. See [the browser integration obligations](../browser-client.md).
+Production identity/clock/transport wiring and native-browser qualification of
+this new journal remain pending; this does not complete Canic/Toko adoption.
+
+Complete Linux `make -j4 ci` passed: `target/cleanup-ci.log`, including 67 browser
+tests and all five real-canister tests. Focused browser evidence is retained in
+`target/cleanup-client-complete.log`; earlier failed attempts remain separately.
+No sibling files, retained token intents, versions or Git refs were changed.
+
+## Typed logout boundary (working tree, 2026-10-15)
+
+The shared session engine now returns Rust-owned `LogoutResult`, also used by the
+actual qualification endpoint and generated browser bindings. Only committed
+local revocation returns `Revoked`; absent startup state returns `ResetPending`.
+The empty request accepts no identity or proof. Browser cleanup orchestration and
+issuer integration remain pending; this is not a global logout acknowledgement.
+
+`make -j4 ci` passed on Linux: `target/logout-ci-complete.log`, including
+57 browser tests, all five actual canister tests, MSRV, Wasm and release fixtures.
+Earlier failed attempts remain in `target/logout-ci.log`,
+`target/logout-ci-final.log` and `target/logout-qualification.log`.
+No sibling files, stored intents, package versions or Git refs were changed.
+
+
+## Portable credential boundary (working tree, 2026-10-14)
+
+`PortableCredential`/`PortableProof` now provide the Rust-owned Candid envelope,
+with generated browser descriptors and bounded byte codecs. Protected
+`PortableVerificationContext` selects the complete verifier through
+`verify_credential`; both qualification paths use that dispatcher within the
+shared session lifecycle. Signed claims remain unchanged and opaque in transport.
+Production issuer/browser orchestration and durable host adoption remain pending.
+
+Final-tree `make -j4 ci` passed on Linux; evidence is in
+`target/credential-ci.log`, including both mechanism builds, mixed-budget checks,
+Rust/TypeScript Candid directions and all five real-canister tests. The shared
+browser decoder now rejects truncated blob reads without rejecting valid differing
+Candid encodings. [Auth #62](https://github.com/dragginzgame/ic-auth/issues/62)
+records the SDK finding and delivery acceptance; Canic #491 owns adoption.
+Earlier fixture rejection evidence remains in `target/credential-focused.log`.
+No stored issuance intents were migrated, no sibling files edited and no release
+or Git-ref effects performed.
+
+
+## Portable session lifecycle hard cut (working tree, 2026-10-14)
+
+The shared session engine now admits portable certified and Ed25519 credentials,
+with caller-bound sessions and issuer-scoped accounts. It atomically couples
+session/replay commits to login reservations, handles exact retries after proof
+expiry, checks current authority and revocation on authorization, and removes
+sessions with retained logout tombstones. The old token-specific session adapter
+and record encoding are retired; old persisted records must not be reinterpreted.
+See [the current API and host obligations](../sessions.md).
+
+Final-tree `make -j4 ci` passed on Linux with selected Testkit 0.43.0; evidence
+is retained in `target/session-cut-ci-final.log`. All five real-canister tests
+pass. The fixture measured a 654-byte portable record, 38,377 decode instructions
+and 8,412 local authorization instructions, not production cycles or latency.
+Earlier failed attempts are retained in `target/session-cut-qualification.log`
+(sandbox localhost denial) and `target/session-cut-ci.log` (fixture clock
+assumptions corrected without relaxing admission checks).
+
+
+The reference backend is volatile. Production issuer/enrollment orchestration,
+browser fan-out and durable host integration remain open under Auth #59/#58/#3
+and Canic #491. No Canic files, release versions or Git refs were changed.
+The qualification fixture exercises two receivers/devices, actual signed ingress
+and upgrade readiness/reset refusal; it is not a production wallet service or
+cross-subnet latency benchmark. Earlier receipts below describe their own source
+and must not be treated as qualification of this hard cut.
+
+
 The maintainer accepted the larger Canic authentication extraction, selected the
 name `ic-auth`, and confirmed `/home/adam/projects/ic-auth` as the local repository.
 
-The current committed release is `75d8dae2ac71ce12a628929be2d0cd5bad30fbfb`
-(`0.5.9`) on `main`, with annotated tag object
-`9f00091c20914165c603e77750506e0920f3e4ee`. Official main/tag and local peeled tag
-match retained publication intent. Both unyanked registry entries match: types
-`6d13ce453ef86e0c8b25947b3b85b4dfbd7539a5fb32f9b9360c56141611c7ca`, auth
-`000b233be026ce6fd2bf01d820795b154551ca095ea800a5f5d0069713e978dc`.
-[Exact-source 0.5.9 CI](https://github.com/dragginzgame/ic-auth/actions/runs/38379505548)
-passes Linux with both macOS jobs queued at inspection. #46/#47 are
-delivered but retain native acceptance; #43–#45 also remain open. Released 0.5.9
-selects Shared 0.9.13, direct Host 0.17.0 and Testkit 0.36.0 with its Host
-0.16.0/server 16.1.0 graph. Incoming dirty Cargo selections now use Testkit
-0.37.0 and a unified Host 0.17.0 graph; they are preserved and now pass the local
-Shared 0.10 adoption gate below. Earlier receipts retain their older inputs.
-No Rust implementation or dependency selection is added by this adoption.
+The current committed release is `c5cf568e102cb8cfac26ff5e0e07d64e8310533b`
+(`0.5.10`) on official `main`, with annotated tag object
+`97d7e3bc178cec1dc534729734d97363241566ee`. Main, peeled tag and retained
+publication intent agree. Both unyanked registry entries match intent: types
+`393b7edc8577eded061830af056888bd3970f609995efcb3200c87759a548f36`, auth
+`b9bd46905c070da0339615c93467660d23c2029ca7a4a36a173b820f332ad739`.
+[Exact-source 0.5.10 CI](https://github.com/dragginzgame/ic-auth/actions/runs/38399120317)
+is queued at inspection; #48/#49 remain open for native acceptance. The 0.5.9
+run was cancelled, retaining its earlier Linux pass without completed macOS
+acceptance. #43–#47 also remain open. Incoming Cargo.lock changes select Host
+0.17.2 and are preserved separately from the shape API work below.
 
 [0.5.8 CI](https://github.com/dragginzgame/ic-auth/actions/runs/38373594603)
 was cancelled after its Linux pass; its macOS acceptance remains incomplete.
@@ -50,7 +216,7 @@ records this batch without closing the larger extraction.
 
 The virtual Rust workspace contains `ic-auth-protocol-types`, `ic-auth` and the
 unpublished native application in `apps/tooling/`, with one lockfile, root-owned
-dependency selections and current manifest version `0.5.9`.
+dependency selections and current manifest version `0.5.10`.
 The passive token/proof contracts and canonical encoding are adapted from the
 clean Canic source at `e286b3fd98460c98670336853f80658a920966e0`; see the
 [source review](../design/canic-source-review.md) for exact ownership and API
@@ -71,6 +237,526 @@ The earlier 0.4.2 preparation checkpoint remains historical evidence below.
 That evidence binds its reported consumer inputs, not later changing sibling
 files. Complete-token, durable-session and deployed acceptance remain separate.
 No sibling repository was modified or built by IC Auth work.
+
+## 0.6 portable admission and browser logout design — 2026-10-14
+
+The accepted custody simplification supersedes the earlier universal TEE gate
+and controller-call-path/snapshot-take retirement requirements below. Governance
+is trusted under local and chain-key signing alike. Local issuer keys use IC
+randomness and heap-only storage, rotate on code upgrade and require fresh Root
+approval; receivers cache authenticated enrollment. Ordinary-subnet local custody
+requires explicit operator/replica trust, while TEE is optional assurance with its
+own evidence. Threshold signing remains an alternative. Receiver session storage
+is still independently volatile or persistent. Finite authority, rollback,
+retirement and logout semantics remain unchanged. The proposal now separates
+`enrolled_ed25519` from custody selection; no config or issuer endpoint exists yet.
+Applications needing only an IC caller/account mapping need not adopt portable
+credentials. This is a documentation-only simplification, not changed runtime
+verification or a claim of completed production qualification.
+
+Portable context now supplies `advance_reset_floors` for the accepted state-loss
+rule. It uses trusted boot time plus qualified skew for login start, boot time
+plus one for proof issuance, and never lowers retained floors. Arithmetic failure
+leaves both unchanged. Tests cover both mechanisms, issuer-ahead clocks, renewed
+old logins, fresh-login timing and overflow. Hosts still own atomic invalidation,
+retained cutoff policy, clock qualification and fresh enrollment before readiness;
+this does not implement the full volatile host adapter. Complete Linux
+`make -j4 ci` passed (`target/reset-floors-ci.log`), including canister qualification,
+native/Wasm MSRV and mocked release/recovery fixtures.
+
+Unknown-login revocation now requires its own retained receiver-wide budget,
+reusing `SessionAdmissionBudget` independently of proof-verification credit.
+Fresh unknown attempts charge before storage, failure retains charges, and
+exhaustion returns `Capacity` without false success. Live reservations and
+tombstone retries bypass unknown-login credit; expired entries need fresh credit.
+Tests cover principal floods, failed commits, reset/rollback, refill boundaries,
+cheap refusals and admitted logout while unknown credit is exhausted. This is
+ledger machinery, not an installed portable logout endpoint. Complete Linux
+`make -j4 ci` passed (`target/logout-budget-ci.log`), including both proof profiles,
+canister qualification, native/Wasm MSRV and mocked release/recovery fixtures.
+
+Portable lease calculation now requires the protected receiver role and narrows
+requested scopes to that role's signed grant. It cannot combine grants or accept
+an absent role. The existing session engine uses the same request-narrowing owner;
+signed claims and request hashes remain unchanged. Focused tests cover both proof
+mechanisms, multi-role separation and existing session rejection behavior.
+Complete Linux `make -j4 ci` passed (`target/grant-narrowing-ci.log`), including
+canister qualification, native/Wasm MSRV and mocked release/recovery checks.
+This is admission machinery; complete portable session storage/authorization
+remains pending.
+
+Revocation reservation now exposes a bounded preflight refusal check, sharing its
+rules with final authenticated reservation. Hosts can reject revoked callers,
+changed login bindings and full capacity before spending cryptographic credit.
+Preflight does not reserve or authenticate anything; final reservation rechecks
+state, including logout/capacity changes at the same timestamp. Composed host tests
+cover this ordering and retained work credit, without claiming a complete endpoint.
+Full Linux `make -j4 ci` passed (`target/reservation-preflight-ci-retry.log`).
+The first attempt stopped because the selected Testkit 0.42.0 CLI was not locally
+prepared; explicit `make install-testkit-tools` succeeded before the retry.
+Dependency selections were preserved.
+
+The shared receiver-wide admission budget now lives outside session/BLS feature
+selection and is mandatory for both portable proof verifiers. Failed cryptography
+and later storage failure retain charges; changing callers or switching mechanisms
+cannot replenish credit. The old session engine uses the same owner and retains
+its existing admission errors. Constructor errors now use `AdmissionBudgetError`;
+consumers import the budget from `admission_budget`. Focused tests cover both
+mechanism directions, cheap refusals, failed commits, empty reset and rollback.
+Complete Linux `make -j4 ci` passed (`target/shared-budget-ci.log`), including
+combined-mechanism checks, native/Wasm MSRV and real canister qualification.
+Full portable session/record authorization integration is still pending.
+
+Portable lease calculation now shares the existing engine's checked request TTL
+policy. Both proof verifiers capture key/enrollment expiry in the verified result;
+leases may outlive proof expiry but cannot exceed login or captured authority
+limits. Tests cover both proof mechanisms, refresh isolation, policy bounds and
+clock overflow. Full `make -j4 ci` passed, including certified/Ed25519 lease
+checks and canister qualification (`target/portable-leases/ci.log`). Full portable
+session admission remains pending.
+
+Both portable proof verifiers now return one read-only `VerifiedPortableClaims`
+result carrying canonical fingerprint and verification time. The revocation ledger
+requires this result, its configured audience and the matching runtime caller/time;
+ordinary decoded or edited claims cannot reserve a login. Reservations retain the
+issuer/account pair and original login start/deadline, refusing even freshly signed
+renewals that change those fields. Host authority and replay checks must still be
+serialized with verification and commit; the result is not a reusable authority
+cache. Tests now pass real Ed25519 and certified verification results through the
+ledger. Evidence is under `target/verified-login/`. This integrates proof results
+with reservation bookkeeping, not the full portable session engine or endpoints.
+The complete Linux `make -j4 ci` gate passes (`ci.log`), including the compile-fail
+construction test, both Dalek feature profiles, native/Wasm MSRV, real-canister
+regressions, package dry runs and mocked release/recovery fixtures.
+
+Portable Certified verification now reuses the existing Root/delegation and IC
+signature verifiers under `token-verification`, without duplicating cryptography
+or changing the old token signed domain. It requires shared portable context,
+strict time checks, protected Root/network keys, exact certificate binding,
+delegated audience/grants/windows and bounded aggregate proof material. Its IC
+message framing domain is fixed as `ic-auth-portable-credential`. Tests reuse the
+existing Root/BLS fixture producers and cover complete proofs, tampering, old
+domain rejection, Root policy invalidation and input bounds. Evidence is retained
+in `target/portable-certified/`. This completes the lower-level proof branches,
+not the portable session/enrollment lifecycle or deployed logout flow.
+Complete Linux `make -j4 ci` passes (`ci.log`), including native/Wasm MSRV, four
+real-canister regressions, package dry runs and mocked release/recovery fixtures.
+No package version, commit, tag or publication changed.
+
+`MemoryLoginRevocations` now supplies bounded volatile bookkeeping for one
+installed trust domain, with separate admitted/unknown pools, login-deadline
+reservations, fixed skew-aware denial retention, monotonic clock checks and
+bounded indexed pruning. Reservation/revocation commits only after the host
+callback successfully commits its session/replay changes; errors retain records
+and capacity. Hosts must serialize both sides and supply atomic callback behavior.
+Tests exercise both orderings of admission/logout, callback failure, exact-retry
+denial, pool flooding, retention boundaries and arithmetic failure. Evidence is
+in `target/portable-revocations/`. This is not an installed logout endpoint:
+portable proof/enrollment/session integration, a receiver-wide logout work budget,
+startup/reset gates and durable storage remain required.
+The complete Linux `make -j4 ci` gate passes for this batch (`ci.log`), including
+native/Wasm MSRV, four real-canister regressions, package dry runs and mocked
+release/recovery fixtures. No package versions or release refs changed.
+
+Portable claims now have one pure protected-context checker for caller, issuer,
+key, audience, grants, exact time windows, enrollment expiry and reset floors.
+The optional Ed25519 verifier requires it before cryptography. Focused tests cover
+both mechanism contexts, separate devices, issuer-scoped accounts, old-login
+renewal after reset and timestamp boundaries. Evidence is retained under
+`target/portable-rules/`. The complete Linux `make -j4 ci` gate passes in
+`ci-retry.log` after explicit setup repaired the missing/invalid selected Testkit
+CLI; the initial setup refusal is retained in `ci.log`. This does not implement
+portable session admission:
+certified-envelope integration, protected enrollment, atomic replay/tombstones
+and browser cleanup remain required before the single session-engine cut.
+
+Historical third review (custody restrictions superseded above) added live-key
+snapshot take/read retirement even when
+code/controllers are unchanged, explicit Root governance-chain trust and a
+qualified NNS proposal/registry watcher for claims of pre-change suspension.
+It requires `(issuer, account_subject)` session/account namespaces, typed future-
+time retry without admission grace, jittered receiver refresh and a Root-outage
+drill. Browser Capacity retries cover known admission windows but cannot equate
+proof expiry with logout: a session may already have committed. Unknown renewal
+and failed revocation retain bounded cleanup plus explicit uncertainty.
+Both normative contracts now link wallet-origin and package-isolation gates;
+direct threshold Ed25519 signing is explicitly wire-compatible, with a separate
+non-TEE approval path still to qualify. The parenthesized residual formula and
+existing tombstone/reset clock margins remain in force. ERC-4361 adoption remains
+pending against the earlier protocol exclusion. These are documentation changes,
+not implemented enrollment, retry endpoints or consumer adoption.
+
+The maintainer's dependency update selects Curve25519 Dalek 5.0.0, Ed25519 Dalek
+3.0.0 and K256 0.14.0. Auth adapts K256's always-returned normalized signature and
+renamed SEC1 encoder without changing high-S rejection or signed formats. The
+qualification producers use the same new encoder. Direct SHA-2 stays on 0.10.9;
+the updated crypto graph also selects SHA-2 0.11.1, while older transitive crypto
+versions remain required by IC dependencies. The existing Rust 1.88 native/Wasm
+package matrix passes with these selections; no compiler-floor increase is needed.
+Focused signature/token tests, Wasm and Clippy evidence is retained in
+`target/crypto-upgrade/`. These checks qualify the dependency adaptation, not
+portable session integration or a production TEE issuer.
+The complete Linux `make -j4 ci` gate also passes for this adaptation, including
+four real-canister cases, both package dry runs and mocked release/recovery
+fixtures (`target/crypto-upgrade/ci.log`). The maintainer's manifest and lockfile
+selections were preserved byte-for-byte; no package version or publication changed.
+
+Historical second review (custody restrictions superseded above) made controller/
+snapshot custody normative: reviewed
+governance or qualified controllerless deployment, controller-only snapshots,
+and retirement on every module-hash/controller change. It adds threshold-Schnorr
+and batching tradeoffs, a separate future issuer crate, an explicit residual
+duration formula, and deployment-qualified clock margins for reset/tombstones.
+No production skew bound is yet qualified. Proofless logout stays bounded and
+caller-authenticated; optional expired-proof admission is deliberately deferred.
+ERC-4361-compatible Ethereum text without a SIWE dependency is proposed to retain
+wallet domain warnings, but changes the maintainer's earlier protocol exclusion
+and is pending approval. No wallet-origin protection is claimed from custom text.
+These are design revisions, not new runtime behavior or a changed codec tag.
+
+The optional `portable-signature-verification` capability now verifies ordinary
+Ed25519 signatures over the canonical claims digest against protected host
+selection of audience, issuer and public key. An explicit upstream scalar check
+preserves canonical-S refusal even if downstream feature unification enables
+Dalek's legacy scalar handling. The default graph remains free of this capability;
+production code owns no signing, private-key storage or issuer crate. Returned
+claims are not admitted sessions: protected enrollment provenance, replay,
+revocation and atomic session integration remain required under #59. The later
+shared-context step above now enforces time/caller checks in this verifier.
+Independent Python/OpenSSL signature vectors and malformed/tampered/weak-key
+cases exercise the primitive, including a noncanonical S + group-order signature.
+The package MSRV fixture now extracts with fresh mtimes: normalized archive times
+previously allowed shared Cargo output to reuse stale protocol-types metadata.
+
+Verifier qualification passes the complete Linux `make -j4 ci` gate, including
+both strict/legacy-feature test configurations, native/Wasm MSRV, Clippy, browser
+checks, four real-canister regressions and local/mocked release fixtures. Final
+evidence is `target/portable-verifier/ci-final.log`. The initial full-gate run
+hit stale release-Wasm types metadata; scoped package artifact cleanup and a
+complete successful rerun are recorded alongside the failed attempt. This is
+local qualification, not production deployment or Canic adoption.
+
+The first implementation step adds passive portable claims/mechanism types and
+the Rust-owned bounded canonical codec in `ic_auth::portable`, including signing
+digest and direct Ed25519 browser-principal derivation. Structural decoding never
+establishes authority. Frozen byte/hash vectors, every-field digest binding,
+truncated/oversized/invalid input and maximum-shape cases cover this foundation.
+No new admission endpoint or parallel authentication flow is enabled: protected
+enrollment, proof verification integration, login-level revocation and browser
+transport still require implementation under Auth #59 and Canic #491.
+
+Codec/protocol tests, the native/Wasm Rust 1.88 package matrix, Clippy, browser
+checks, all four real-canister cases and local/mocked release/evidence fixtures
+pass. Qualification startup now uses the incoming Testkit 0.40 owned-instance
+API and retains the server through instance teardown, including setup failure.
+Evidence is in `target/portable-claims/`. Earlier default-target package checks
+failed to find the portable exports. The verifier batch corrected that diagnosis:
+a fresh repository-local target builds both real package payloads successfully
+with uploads aborted, proving the failure was stale build metadata rather than
+an unavoidable published-version conflict. Evidence is retained in
+`target/portable-verifier/package-isolated.log`; the failed attempts remain.
+Coordinated 0.6 package/dependency version changes remain release-owned; no
+versions, commits, publication or sibling source were changed.
+
+Wallet authentication will use our own challenge format and Solana/Ethereum
+adapters, without SIWS/SIWE, while retaining established signature primitives.
+Exact wallet challenge encoding and adapter qualification remain unimplemented.
+Wallet choice does not change the independent memory/persistent session profiles
+or make account mappings and issuer keys volatile.
+
+Review feedback is resolved in the [protocol contract](../design/0.6-auth-protocol.md)
+and [TEE enrollment gate](../design/0.6-tee-enrollment.md). The application caller
+is a fresh browser principal per login, separate from stable account identity.
+Logout targets that authenticated caller without a proof and works after proof
+expiry, absent establishment or issuer-key retirement. Fixed schema/domain/limits,
+result types, server commit/recheck ordering and enrollment revision/generation
+rules are design inputs, not new runtime capabilities.
+
+The browser profile is one trusted frontend origin with durable generation and
+logout intent before fan-out; cross-origin brokers are excluded. Memory reset
+rejects immutable signed pre-reset login starts, including newly renewed proofs;
+persistent normal upgrades retain tombstones. Backup recovery invalidates old
+logins instead of trusting rollback state. All hosts reopen only after a fresh
+authenticated authority snapshot; unavailable authority keeps auth closed.
+This replaces the earlier optional durable-tombstone/restoration choices with
+definite profiles. Current code's issuance floor alone is not sufficient.
+
+The maintainer selected [two portable proof mechanisms](../design/0.6-portable-authentication.md)
+into one session flow: existing certified/BLS admission and opt-in TEE-backed
+Ed25519 admission. Only the issuer needs qualified confidential hosting for the
+latter; receivers can run on ordinary subnets. Canic's proposed `auth-tee` feature
+and protected config/key enrollment are consumer work in #491, not implemented
+flags. The online issuer-call experiment below is retained evidence and is
+superseded as the recommended multi-subnet architecture: routine receiver
+admission must not require cross-subnet ICCs.
+
+The browser will coordinate logout at known receivers and revoke issuer renewal,
+with bounded expiry for missed destinations. Login-level revocation must reject
+late admission and already-issued renewal credentials. Neither TEE nor browser
+fan-out promises instantaneous global/all-device revocation. Local qualification
+uses real cryptography without claiming hardware secrecy; production deployment
+assurance remains separately required. Auth #59 owns protocol/cost acceptance,
+Canic #491 integration, and Toko #1803 browser adoption.
+
+Proof expiry is an admission deadline, not the current session lease deadline:
+proofs are capped at 60 seconds and sessions at 1800 seconds by current policy.
+The design preserves that separation and adds a proposed authenticated absolute
+login deadline. Residual logout exposure includes late admission plus its lease;
+the earlier conversational statement that sessions must expire with proofs was
+too restrictive and does not describe the implementation.
+
+The original design-review batch changed documentation and issue handoffs only.
+The subsequent claims-codec implementation and its validation are recorded above;
+neither establishes a Canic flag, TEE issuer, new session admission/storage format
+or browser logout implementation. Maintained certified admission and incoming
+implementation work are preserved.
+
+## Pending 0.6 host-selected session storage
+
+The [2026-10-14 issuer-call experiment](https://github.com/dragginzgame/ic-auth/issues/59#issuecomment-6163232483)
+measures an alternative admission transport, not a second production flow. Two
+local Testkit runs with three receivers each compare current budgeted portable
+proof admission against a fixed-policy authenticated issuer-to-receiver call.
+With matching size-optimized builds, cold admission averages 485.08M versus
+1.74M measured Wasm instructions, and actual local cycle deductions average
+498.11M versus 18.92M (issuer plus receiver). The roughly 26.3x cycle reduction
+is a fixture result, not a production guarantee or mainnet latency measurement.
+Actual rogue-issuer, caller/grant, replay, revocation and expiry refusals pass.
+General Root enrollment, production SessionStore/lifecycle, uncertain delivery
+and same/cross-subnet latency remain outside this probe's qualification. Its
+bounded experimental record is not an alternate public Session constructor.
+Source, raw logs, profiles, hashes and limitations are retained under
+`target/issuer-rpc-experiment/`; the existing issue owns the protocol decision.
+Maintained Rust and the current budgeted portable-proof contract are unchanged.
+
+Fresh admission now requires a host-owned `SessionAdmissionBudget`, shared across
+callers/endpoints and retained separately from session transaction rollback.
+It starts empty, bounds accumulated/refilled verification attempts and charges
+failed proofs and failed commits. Cheap capacity/eligibility/TTL/scope checks
+precede cryptography; exact retries and existing sessions remain uncharged.
+See the [host contract](../sessions.md#admission-work-budget) and
+[Auth #59](https://github.com/dragginzgame/ic-auth/issues/59). This is an attempt
+budget, not a claim that signup is Sybil-proof, all ingress work is bounded, or
+honest admissions cannot be starved. Canic must commit debits on normal error
+responses, cover every admission endpoint and qualify trap/upgrade behavior.
+No alternate issuer-to-receiver protocol is implemented.
+
+[Auth #58](https://github.com/dragginzgame/ic-auth/issues/58) owns the accepted
+memory/persistent session storage contract. Hosts select an existing
+`SessionStore` implementation at build time; IC Auth remains independent from
+Canic configuration. Memory mode omits restoration and logs sessions out on
+upgrades; persistent mode retains checked sessions, replay history and protected
+authority together. The required new `SessionPolicy::min_proof_issued_at_ns`
+checks the verified token issuance time on new admissions. After replay-state
+loss, hosts supply checked trusted reset time + 1, refusing overflow or clock
+rollback. A local generation increment alone cannot reject an old signed token.
+The [lifecycle contract](../sessions.md) also covers mode changes and revocation.
+
+The same valid permitted token admits separately on each receiver. Admission on
+A does not create B/C sessions; B's reset does not invalidate A/C. Ordinary calls
+never implicitly admit. Client recovery is scoped to receiver/identity/grants
+and may require fresh issuance after expiry or a reset cutoff, without an
+intrinsic extra wallet signature. Canic build configuration, real upgrade wiring
+and client orchestration remain pending in the
+[consumer handoff](https://github.com/dragginzgame/canic/issues/491#issuecomment-6150481447).
+
+Focused validation passes 19 minimal-session tests, the decoder-access compile
+failure check, 21 restoration-enabled session tests, Wasm feature/dependency
+checks, strict Clippy and isolated native/Wasm package MSRV 1.88.0 checks.
+All four existing native canister qualification tests also pass. New signed
+reset and multi-receiver regressions model isolated stores; they do not claim
+Canic's actual post-upgrade implementation is qualified. Evidence is under
+`target/session-storage-policy/`. No package version, release, full CI or sibling
+source changes are claimed. Nanosecond units remain: fixed-width memory/signed
+encoding is unchanged; CBOR seconds would save only four bytes per present-day
+timestamp and would not remove the decoder.
+
+## Pending 0.6 session restoration capability
+
+`session-restore` now explicitly enables `Session::decode` and the private
+session record deserializers. Plain `sessions` keeps admission, in-memory storage,
+encoding and scoped authorization without that restoration code. The stored
+format and corruption checks are unchanged. The qualification canister opts in;
+Canic's durable adapter must do likewise, while other roles avoid forwarding the
+feature. Cargo feature unification makes each production canister's resolved
+graph and release artifact the consumer acceptance boundary; no universal
+200 KiB saving is claimed. See [session capability selection](../sessions.md) and
+[Canic's adoption handoff](https://github.com/dragginzgame/canic/issues/491#issuecomment-6150227591).
+
+Focused checks pass: 16 sessions-only tests, a compile-fail decoder-access check,
+18 opted-in session tests, native/Wasm package MSRV 1.88.0 feature checks,
+Wasm checks, dependency boundaries, strict Clippy and all four native canister
+qualification tests. Evidence is in `target/session-restore-cut/`. Package
+versions remain unchanged; no full CI, release or consumer adoption is claimed.
+
+## Accepted 0.6 application-flow cut
+
+On 2026-10-13 the maintainer selected **0.6.0** for a coordinated hard cut to
+one application-authentication flow: complete-token admission into a caller-bound
+local session, then scoped session checks on ordinary endpoints. The pending
+0.5.11 notes now belong to the single 0.6.0 candidate; published history and
+package versions remain unchanged. Earlier validation receipts below bind their
+recorded source, not completed 0.6 consumer acceptance.
+
+The library already implements that admission/authorization engine. Its standalone
+token verifier remains a lower-level proof primitive; the endpoint guard and
+frontend cut belongs to Canic and Toko under
+[Canic #491](https://github.com/dragginzgame/canic/issues/491) and
+[Toko #1803](https://github.com/dragginzgame/toko/issues/1803).
+The [adoption contract](../canic-adoption.md) requires coordinated guard, Candid,
+frontend and lifecycle changes, without a parallel per-call token fallback.
+Neither the contract update nor the 0.6 notes claim those consumer changes are
+implemented. Sibling checkouts remain read-only.
+
+The [measured comparison](https://github.com/dragginzgame/canic/issues/491#issuecomment-6149634805)
+uses real Wasm verification, the historical Canic 0.110.48 positive cache, and
+heap/stable-read session probes. Its
+[size attribution](https://github.com/dragginzgame/canic/issues/491#issuecomment-6149738317)
+finds record decoding dominates the incremental size, not the stable-memory
+allocation. The session engine does not call `Session::decode`; Canic's durable
+adapter does when reading encoded records. Keep checked restoration and durable
+replay obligations. This earlier contract-only decision did not change stored
+CBOR or host lifecycle. The later accepted memory/persistent choice above adds
+an explicit volatile-reset contract without changing stored bytes. A smaller
+checked codec still needs its own evidence and retained-state contract. Auth [#43](https://github.com/dragginzgame/ic-auth/issues/43)
+retains producer cost qualification.
+
+This contract-only slice checks links, source attribution, snapshot integrity and
+the diff. It does not rerun Rust/portable suites or claim new runtime acceptance.
+
+## Browser encoding and checked session inputs (pending 0.6.0)
+
+[Auth #55](https://github.com/dragginzgame/ic-auth/issues/55) encodes preparation
+once, then decodes and validates the exact detached snapshot whose bytes are
+stored for retrieval. Callback mutation of issuer-owned material cannot alter
+that admitted snapshot. No issuance, CAS, deadline or generation boundary is
+removed. [Auth #56](https://github.com/dragginzgame/ic-auth/issues/56) routes grant
+and extension comparisons through the existing bounded Candid encoder; exact
+bytes, option distinctions and typed material refusals remain qualified.
+
+[Auth #57](https://github.com/dragginzgame/ic-auth/issues/57) carries the immutable
+token, context and early canonical fingerprint in one private, non-deserializable
+session input. Fresh verification reuses those facts and executes the same Root
+and issuer signature owner as the public verifier. Standalone material validation
+retains identity/certificate-before-hash order; session entry retains early size/
+fingerprint admission and direct canonical error projection. Exact retries still
+bound transport and recheck current session authority; no public unchecked API,
+caller-supplied hash, mode flag or authentication shortcut is exposed.
+
+Focused checks pass 33 token tests, 18 session tests and 54 browser cases, covering
+both signatures, mixed-invalid refusal order, bounded retries, detached prepared
+material, Candid limits and exact encoding. Evidence is under
+`target/browser-token-reuse/`. The initial session test used equality on a
+non-PartialEq verified value; the corrected test compares its typed error. The
+initial mutation test acted before encoding; the final case targets validation.
+
+Native release-profile measurements use the same signed fixture in isolated
+before/after source copies, seven samples of 40 fresh admissions per workload.
+Early sequential runs are retained and inconclusive. Four alternating ABBA
+cycles yield 56 samples per source/shape: medians before/after are 1.7456/1.7477 ms
+(one scope) and 1.7586/1.7623 ms (16 scopes of 64 bytes). Differences below 0.3%
+do not establish a speedup; this is local native timing, not Canic Wasm cost or
+deployment acceptance. `benchmark-balanced.json` binds sample order and binary
+hashes; `benchmark.json` binds source/compiler/profile inputs. The first wide
+fixture requested an ungranted scope and refused; its failed log is retained.
+All 29 stages of `make -j4 ci` pass locally, including native/Wasm isolated
+MSRV and feature graphs, real canister lifecycle/certification/ingress, browser
+Candid/lifecycle, Clippy, package dry runs and local/mocked release recovery.
+`ci-before.json` and `ci-after.json` match source bytes, modes, HEAD and index.
+Native macOS acceptance and delivery/publication remain pending.
+Incoming held source and Cargo.lock remain
+preserved; no versions, index, refs, release or sibling changes are made.
+
+## Borrowed profile checks, capacity and client-tool convergence (pending 0.6.0)
+
+[Auth #52](https://github.com/dragginzgame/ic-auth/issues/52) removes temporary
+session requests from controller-installed profile validation. Borrowed canonical
+checks preserve count-before-grammar, all-label grammar-before-duplicate, then
+ceiling-order and required-label refusal. No normalization or authority changes.
+Real canister qualification passes nine additional mixed-invalid cases per
+workload and confirms the previous admitted profile survives refused installation.
+
+[Auth #53](https://github.com/dragginzgame/ic-auth/issues/53) shares session count
+capacity decisions while preserving both admission and backend staging checks.
+Direct backend tests bypass SDK admission and qualify exact replay/per-subject
+quotas, replacement at full session capacity, refusal of a different caller, and
+unchanged records, replay membership, counters and bytes after refusal.
+
+[Auth #54](https://github.com/dragginzgame/ic-auth/issues/54) shares Node/npm pin
+selection and exact version admission locally. CI setup still owns installation,
+selected-prefix activation, dependency preparation and late PATH publication.
+Offline checks never install. The actual Make/CI fixture includes the new helper,
+selection failure and offline npm refusal, with first exit status and unrelated
+installation/PATH preservation. Its absence assertions now explicitly exit on
+unexpected events; standalone negation previously bypassed Bash errexit.
+
+Focused session/client-tool checks and four real canister cases pass. The initial
+session test compile failure captured a mutable fixture through a closure; a
+fixed deadline removes that borrow without changing test inputs. ShellCheck
+initially flagged a compound condition and preexisting fixture export/absence
+checks; corrected ShellCheck passes. All 29 `make -j4 ci` stages pass locally,
+including isolated native/Wasm MSRV, optional features, browser tests, real canister
+qualification, Clippy, package dry runs and local/mocked release recovery.
+`ci-before.json` and `ci-after.json` match bytes, modes, HEAD and index. Incoming
+Cargo.lock is unchanged. Native macOS acceptance and release/publication remain
+pending; no staging, manifest bump, commit, tag, push or deployment occurred.
+Evidence and the incoming dirty tree are in `target/borrowed-capacity-client/`.
+All prior held 0.5.11 changes and Host lock selections remain intact. No new public
+API, dependency, wire/storage format, manifest version or sibling changes.
+
+## Narrowing convergence and upstream extraction proposals (pending 0.6.0)
+
+[Auth #51](https://github.com/dragginzgame/ic-auth/issues/51) consolidates token
+preparation and verification role/scope subset checks in the existing grant-rules
+owner. Preparation retains first-match narrowing before certificate hashing;
+verification hashes canonical parents before narrowing. No public API, signed
+bytes, storage format, dependency or validation order changes. Two public
+boundary regressions cover duplicate parent roles and mixed-invalid errors.
+The preparation regression also passed against the pre-consolidation source.
+Focused `make test-protocol test-tokens` and all 29 stages of `make -j4 ci`
+pass locally, including MSRV/native/Wasm feature graphs, real canister lifecycle,
+Clippy, package dry runs and local/mocked release recovery. `ci-before.json` and
+`ci-after.json` match source bytes, modes, HEAD and the index. The incoming lock
+is unchanged. Exact-source macOS acceptance and delivery/publication remain pending.
+Evidence is in `target/narrowing-convergence/`, with the incoming held 0.5.11
+shape work and Host lock selections preserved in `before/`.
+
+[Host #76](https://github.com/dragginzgame/ic-host-tooling/issues/76) requests
+ownership review for the bounded file-command adapter, and
+[Shared #159](https://github.com/dragginzgame/shared-tooling/issues/159) requests
+review of pure Cargo manifest rendering/comparison. Both are proposals with
+consumer contracts and retirement conditions, not implemented upstream APIs.
+The existing Auth file CLI and release helpers remain their qualified runnable
+owners until published replacements are adopted and tested. Siblings remain
+read-only. No version, index, commit, ref, push or publication changes are made.
+
+## Standalone shape validation (pending 0.6.0)
+
+[Auth #50](https://github.com/dragginzgame/ic-auth/issues/50) adds the public
+const-capable detailed label validator, canonical scope-list validation and
+standalone bounded grant validation. Existing canonical errors, issuance/token
+projections, signed domains and bytes remain unchanged. The internal grammar
+has one owner, and existing certificate/token callers reuse the public grant
+validator. There are no new features or dependencies in either library graph.
+
+The [API contract](../certificate-issuance.md#standalone-scope-and-grant-shape-checks-pending-0511)
+and [consumer handoff](../canic-adoption.md#pending-standalone-shape-apis-0511)
+cover static and runtime diagnostics, empty configuration, explicit bounds and
+raw-role projection precedence. Canic owns adoption and retirement through #491;
+no sibling files or builds are changed. The compatible undated 0.5.11 changelog
+is prepared; manifests and refs remain at 0.5.10.
+
+Focused `make test-protocol` passes, including four new public boundary tests and
+existing frozen encoding/preparation vectors. Evidence is in
+`target/shape-validation-0.5.11/`; the initial compile failure used Display for
+passive roles, which implement Debug instead. The corrected focused log is
+`focused-final.log`. All 29 stages of `make -j4 ci` pass locally in `ci.log`,
+including isolated native/Wasm package MSRV checks, all optional features, four
+real canister cases, 52 browser cases, Clippy, package dry runs and local/mocked
+release recovery. `ci-before.json` and `ci-after.json` match exactly, including
+source bytes, modes, HEAD and the real index; the incoming Host lock is unchanged.
+MacOS acceptance and 0.5.11 delivery/publication remain pending. No staging,
+manifest bump, commit, tag, push, publication or deployment was performed.
 
 ## Shared Tooling 0.10.0 adoption (pending 0.5.10)
 

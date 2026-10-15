@@ -11,10 +11,9 @@ use ic_certification::{Hash, fork_hash, labeled, leaf};
 use serde::Deserialize;
 use std::cell::RefCell;
 
-mod session_profile;
-#[path = "../../session_profile.rs"]
-mod session_profile_contract;
-use session_profile_contract::{SessionProfileInput, SessionProfileResult};
+mod sessions;
+use ic_auth_protocol_types::{LogoutRequest, LogoutResult};
+use sessions::contract::{ReceiverConfig, SessionInput, SessionProfile, SessionView};
 
 /// Stable metadata belongs to this fixture's host. Pending signatures are
 /// deliberately volatile; upgrade clears them and republishes the combined root.

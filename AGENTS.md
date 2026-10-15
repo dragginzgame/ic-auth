@@ -77,15 +77,13 @@ Apply [DRAGGINZGAME.md](DRAGGINZGAME.md), adopted from Shared Tooling revision
   `make test-formatting-hooks` checks actual staged preservation and is part of
   the complete gate. `make test-release-runner` checks the adopted runner
   with substituted effects.
-  Both libraries are published at `0.5.9` with contracts, encoding and optional
-  IC signature/token/session machinery, including bounded signature preparation.
-  The internal IC Testkit fixture exercises actual certification, composed roots,
-  protected metadata upgrades, certified-token session admission and signed
-  ingress with fresh session keys.
-  It is not a wallet login provider or stable session backend.
-  Stable library host adoption and wallet login remain
-  unimplemented. Host stores must commit session/replay changes atomically and
-  advance protected generation with authority changes.
+  Current publication and implementation status belongs in
+  [the handoff](docs/status/current.md), not this instruction file. The internal
+  IC Testkit fixture qualifies certification, composed roots, protected metadata
+  upgrades, certified-token admission and signed ingress; it does not establish
+  production wallet-login or stable session-backend adoption. Host stores must
+  commit session/replay changes atomically and advance protected generation with
+  authority changes.
 - The private browser client is in `packages/client/`, with Rust-owned generated
   Candid data contracts and injected SDK identity/issuer/storage boundaries.
   See [client contracts](docs/browser-client.md). `make install-client-dependencies`

@@ -11,7 +11,7 @@ use ic_auth_protocol_types::IcCanisterSignatureProofV1;
 use ic_canister_sig_creation::{CanisterSigPublicKey, extract_raw_root_pk_from_der, hash_bytes};
 use ic_host_fs::read::read_file_no_follow;
 use ic_testkit::{
-    pic::{CandidCallExt, PocketIc, PocketIcBuilder, PocketIcBuilderExt, PocketIcStartupConfig},
+    pic::{CandidCallExt, PocketIc, PocketIcBuilder, PocketIcManagedServer, PocketIcStartupConfig},
     pocket_ic::Time,
 };
 use std::{
@@ -31,11 +31,13 @@ mod application_tokens;
 #[path = "signatures/profile_composition.rs"]
 mod profile_composition;
 
-#[path = "signatures/session_profile.rs"]
-mod session_profile;
+#[path = "signatures/sessions.rs"]
+mod sessions;
 
 struct Fixture {
     pic: PocketIc,
+    // Drop the instance before terminating its exact owned server.
+    _server: Option<PocketIcManagedServer>,
     signer: Principal,
     resource: Principal,
     controller: Principal,
@@ -58,19 +60,20 @@ impl Fixture {
         );
         let instance = format!("instance-{}", NEXT_INSTANCE.fetch_add(1, Ordering::Relaxed));
         let state_path = state_root.join(&instance);
-        let pic = PocketIcBuilder::new()
+        let builder = PocketIcBuilder::new()
             .with_state_dir(state_path)
             .with_nns_subnet()
             .with_application_subnet()
-            .with_max_request_time_ms(Some(30_000))
-            .try_build(
-                PocketIcStartupConfig::spawn(server, Duration::from_secs(30))
-                    .with_server_output_files(
-                        state_root.join(format!("{instance}.stdout.log")),
-                        state_root.join(format!("{instance}.stderr.log")),
-                    ),
+            .with_max_request_time_ms(Some(30_000));
+        let owned = PocketIcStartupConfig::spawn(server, Duration::from_secs(30))
+            .with_server_output_files(
+                state_root.join(format!("{instance}.stdout.log")),
+                state_root.join(format!("{instance}.stderr.log")),
             )
+            .build_instance(builder)
             .expect("bounded testkit startup with the verified server");
+        // Retain Testkit's field drop order during setup, including panic paths.
+        let pic = &owned.instance;
         pic.set_time(SystemTime::now().into());
         let controller = Principal::self_authenticating(b"qualification controller");
         let signer = pic.create_canister_with_settings(Some(controller), None);
@@ -88,7 +91,8 @@ impl Fixture {
             );
         }
         Self {
-            pic,
+            pic: owned.instance,
+            _server: owned.server,
             signer,
             resource,
             controller,

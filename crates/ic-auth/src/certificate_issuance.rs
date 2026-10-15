@@ -151,24 +151,32 @@ impl From<CertificateLifetimeError> for CertificateIssuanceError {
     }
 }
 
-pub(crate) enum GrantValidationError {
+/// A standalone grant-shape failure, before any certificate or token exists.
+#[derive(Debug, Eq, Error, PartialEq)]
+pub enum GrantValidationError {
+    #[error("grants are empty")]
     Empty,
-    TooMany {
-        found: usize,
-        max: usize,
-    },
-    EmptyScopes {
-        role: AuthRole,
-    },
+    #[error("{found} grants exceed maximum {max}")]
+    TooMany { found: usize, max: usize },
+    #[error("grant for {role:?} has no scopes")]
+    EmptyScopes { role: AuthRole },
+    #[error("grant for {role:?} has {found} scopes; maximum is {max}")]
     TooManyScopes {
         role: AuthRole,
         found: usize,
         max: usize,
     },
+    #[error(transparent)]
     Canonical(CanonicalAuthError),
 }
 
-pub(crate) fn validate_grants(
+/// Validate nonempty grants against caller-owned cardinality bounds.
+///
+/// Checks the grant count first, then each role's strict byte ordering, scope
+/// count, label grammar and strict scope ordering in input order. It neither
+/// sorts nor grants authority. Typed roles must already be valid; hosts retain
+/// role projection and its error precedence at their own input boundary.
+pub fn validate_grants(
     grants: &[DelegatedRoleGrant],
     max_grants: usize,
     max_scopes_per_grant: usize,
@@ -218,6 +226,26 @@ impl From<GrantValidationError> for CertificateIssuanceError {
             E::Canonical(error) => Self::Canonical(error),
         }
     }
+}
+
+// Preparation checks narrowing before hashing the parent certificate, so retain
+// first-match semantics even for malformed duplicate parent roles. Verification
+// hashes/checks canonical parents first, where first-match and any-match agree.
+pub(crate) fn grants_are_subset(
+    grants: &[DelegatedRoleGrant],
+    ceiling: &[DelegatedRoleGrant],
+) -> bool {
+    grants.iter().all(|child| {
+        ceiling
+            .iter()
+            .find(|parent| parent.target == child.target)
+            .is_some_and(|parent| {
+                child
+                    .scopes
+                    .iter()
+                    .all(|scope| parent.scopes.contains(scope))
+            })
+    })
 }
 
 pub(crate) fn issuer_binding_matches(cert: &DelegationCert) -> Result<bool, CanonicalAuthError> {

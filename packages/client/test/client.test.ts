@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Principal } from '@icp-sdk/core/principal';
-import { ClientError, TokenSessionClient, type IssuerOperations, type PrepareResult, type RetrieveResult, type Session, type ClientErrorCode } from '../src/index.js';
+import { ClientError, TokenSessionClient, type IssuerOperations, type PrepareResult, type RetrieveResult, type Session, type ClientErrorCode, type DelegatedTokenPrepareResponse } from '../src/index.js';
 import { deferred, harness, principal, scope, second } from './support.js';
 
 const error = (code: ClientErrorCode) => (value: unknown) => value instanceof ClientError && value.code === code;
@@ -630,4 +630,31 @@ test('clock rollback and deadline overflow are configuration errors', async () =
   await assert.rejects(h.client.token(h.configured), error('configuration'));
   const overflowing = harness(); overflowing.state.now = (1n << 64n) - 1n;
   await assert.rejects(overflowing.client.token(overflowing.configured), error('configuration'));
+});
+
+
+test('prepared retrieval uses the detached admitted bytes when issuer-owned material mutates', async () => {
+  const h = harness(); const base = h.options.issuer;
+  let response: DelegatedTokenPrepareResponse | undefined;
+  let requested: Uint8Array | undefined;
+  let checks = 0;
+  const client = new TokenSessionClient({ ...h.options,
+    nowNs: () => { if (response && ++checks === 2) response.claims_hash.fill(9); return h.state.now; },
+    issuer: (session, fixed) => {
+      const operations = base(session, fixed);
+      return { ...operations,
+        prepare: async (request, signal) => {
+          const result = await operations.prepare(request, signal);
+          if (result.kind === 'prepared') response = result.value;
+          return result;
+        },
+        retrieve: async (hash, signal) => { requested = hash.slice(); return operations.retrieve(hash, signal); },
+      };
+    },
+  });
+  const token = await client.token(h.configured);
+  assert.deepEqual(requested, new Uint8Array(32));
+  assert.deepEqual(response?.claims_hash, new Uint8Array(32).fill(9));
+  assert.deepEqual(token.claims, h.issued.get('login-1')!.claims);
+  assert.equal(h.state.prepares, 1); assert.equal(h.state.retrieves, 1);
 });

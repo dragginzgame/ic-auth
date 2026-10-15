@@ -129,6 +129,25 @@ export type IssuerProofAlgorithm = { 'IcCanisterSignatureV1' : null };
 export type IssuerProofBinding = {
     'IcCanisterSignatureV1' : { 'seed_hash' : Uint8Array }
   };
+export type LogoutRequest = {};
+export type LogoutResult = { 'InvalidCaller' : null } |
+  { 'Unavailable' : LogoutUnavailable } |
+  { 'Revoked' : { 'deny_until_ns' : bigint } };
+export type LogoutUnavailable = { 'Storage' : null } |
+  { 'ResetPending' : null } |
+  { 'Capacity' : null } |
+  { 'Clock' : null };
+export interface PortableCredential {
+  'claims' : Uint8Array,
+  'proof' : PortableProof,
+}
+export type PortableProof = { 'Ed25519' : { 'signature' : Uint8Array } } |
+  {
+    'Certified' : {
+      'delegation' : DelegationProof,
+      'issuer_signature' : IcCanisterSignatureProofV1,
+    }
+  };
 export type RootProof = {
     'IcChainKeyBatchSignatureV1' : IcChainKeyBatchSignatureProofV1
   };
@@ -141,6 +160,8 @@ export const DelegationProof = IDL.Rec();
 export const IssuerProof = IDL.Rec();
 export const IssuerProofAlgorithm = IDL.Rec();
 export const IssuerProofBinding = IDL.Rec();
+export const LogoutUnavailable = IDL.Rec();
+export const PortableProof = IDL.Rec();
 export const RootProof = IDL.Rec();
 export const AudienceId = IDL.Record({
   'fleet_id' : IDL.Text,
@@ -267,6 +288,33 @@ IssuerProofAlgorithm.fill(IDL.Variant({ 'IcCanisterSignatureV1' : IDL.Null }));
 IssuerProofBinding.fill(
   IDL.Variant({
     'IcCanisterSignatureV1' : IDL.Record({ 'seed_hash' : IDL.Vec(IDL.Nat8) }),
+  })
+);
+export const LogoutRequest = IDL.Record({});
+export const LogoutResult = IDL.Variant({
+  'InvalidCaller' : IDL.Null,
+  'Unavailable' : LogoutUnavailable,
+  'Revoked' : IDL.Record({ 'deny_until_ns' : IDL.Nat64 }),
+});
+LogoutUnavailable.fill(
+  IDL.Variant({
+    'Storage' : IDL.Null,
+    'ResetPending' : IDL.Null,
+    'Capacity' : IDL.Null,
+    'Clock' : IDL.Null,
+  })
+);
+export const PortableCredential = IDL.Record({
+  'claims' : IDL.Vec(IDL.Nat8),
+  'proof' : PortableProof,
+});
+PortableProof.fill(
+  IDL.Variant({
+    'Ed25519' : IDL.Record({ 'signature' : IDL.Vec(IDL.Nat8) }),
+    'Certified' : IDL.Record({
+      'delegation' : DelegationProof,
+      'issuer_signature' : IcCanisterSignatureProofV1,
+    }),
   })
 );
 RootProof.fill(

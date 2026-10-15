@@ -5,8 +5,8 @@ script_path="${BASH_SOURCE[0]}"
 [[ "$script_path" == /* ]] || script_path="$PWD/$script_path"
 cd -P "${script_path%/*}/../.."
 [[ -n "${GITHUB_PATH:-}" ]] || { echo 'CI preparation requires GITHUB_PATH' >&2; exit 2; }
-selected_node="$(cat packages/client/.nvmrc)"
-selected_npm="$(node -p 'require("./packages/client/package.json").packageManager.slice(4)')"
+source scripts/dev/client-toolchain.sh
+client_toolchain_select "$PWD/packages/client"
 observed_node="$(node --version)"
 node_bin="$(dirname "$(node -p 'process.execPath')")"
 node_prefix="$(dirname "$node_bin")"
@@ -16,7 +16,7 @@ printf 'Client setup: selected Node=%s npm=%s; observed Node=%s path=%s\n' \
 printf 'Client setup: bootstrap npm=%s path=%s prefix=%s; install prefix=%s\n' \
     "$("$bootstrap_npm" --version)" "$bootstrap_npm" \
     "$("$bootstrap_npm" prefix --global)" "$node_prefix"
-[[ "$observed_node" == "v$selected_node" ]] || {
+client_node_matches "$observed_node" || {
     echo 'Selected Node is not active; client setup refused' >&2; exit 1;
 }
 export PATH="$node_bin:$PATH"
@@ -26,7 +26,7 @@ hash -r
 observed_npm="$(npm --version)"
 printf 'Client setup: prepared npm=%s path=%s prefix=%s\n' \
     "$observed_npm" "$(command -v npm)" "$(npm prefix --global)"
-[[ "$observed_npm" == "$selected_npm" ]] || {
+client_npm_matches "$observed_npm" || {
     echo 'Selected npm is not active; client setup refused' >&2; exit 1;
 }
 make install-client-dependencies

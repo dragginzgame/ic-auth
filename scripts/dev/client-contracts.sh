@@ -32,3 +32,5 @@ case "${1:-}" in
     generate) cp "$candidate/protocol.did" "$candidate/protocol.did.ts" packages/client/src/generated/ ;;
 esac
 cargo run --quiet --locked --offline -p ic-auth-protocol-types --example export_candid -- --request-vector > target/browser-client/request-vector.hex
+cargo run --quiet --locked --offline -p ic-auth-protocol-types --example export_candid -- --credential-vector > target/browser-client/credential-vector.hex
+cargo run --quiet --locked --offline -p ic-auth-protocol-types --example export_candid -- --logout-vector > target/browser-client/logout-vector.hex

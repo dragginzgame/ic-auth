@@ -27,7 +27,9 @@ for package in ic-auth-protocol-types ic-auth; do
     archive="$root/target/msrv-package/package/tmp-crate/$package-$version.crate"
     digest="$("$root/target/debug/ic-auth-tooling" hash-file "$archive" 8388608)"
     printf '%s  %s\n' "$digest" "$archive" >> "$fixture/package-identities.sha256"
-    tar -xzf "$archive" -C "$fixture"
+    # Cargo archives normalize mtimes. Fresh extraction times prevent reuse of
+    # stale local-package metadata in the shared target directory after edits.
+    tar -xmzf "$archive" -C "$fixture"
 done
 auth="$fixture/ic-auth-$version"
 types="$fixture/ic-auth-protocol-types-$version"
@@ -102,7 +104,7 @@ for target in native wasm32-unknown-unknown; do
     # target arguments rather than passing an empty string or weakening -u.
     cargo +"$floor" check --locked --offline --lib --no-default-features \
         --manifest-path "$fixture/Cargo.toml" ${target_args[@]+"${target_args[@]}"}
-    for feature in default chain-key-verification canister-signature-verification canister-signature-preparation token-verification sessions all; do
+    for feature in default portable-signature-verification chain-key-verification canister-signature-verification canister-signature-preparation token-verification sessions session-restore all; do
         feature_args=(--no-default-features --features ic-auth)
         case "$feature" in
             default) ;;
@@ -116,7 +118,7 @@ for target in native wasm32-unknown-unknown; do
             cargo +"$floor" tree --locked --offline --manifest-path "$fixture/Cargo.toml" \
                 ${target_args[@]+"${target_args[@]}"} "${feature_args[@]}" \
                 --edges normal,build --prefix none --format '{p}' > "$fixture/pure-request-$target.graph"
-            if rg '^(k256|ic-certification|ic-signature-verification|ic-canister-sig-creation|ic-verify-bls-signature|ic-cdk|ic-stable-structures)([- ]|$)' "$fixture/pure-request-$target.graph"; then
+            if rg '^(curve25519-dalek|ed25519-dalek|k256|ic-certification|ic-signature-verification|ic-canister-sig-creation|ic-verify-bls-signature|ic-cdk|ic-stable-structures)([- ]|$)' "$fixture/pure-request-$target.graph"; then
                 echo 'isolated pure request consumer pulls cryptographic or session storage dependencies' >&2
                 exit 1
             fi

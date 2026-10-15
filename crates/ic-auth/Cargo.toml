@@ -11,6 +11,7 @@ publish = ["crates-io"]
 
 [features]
 default = []
+portable-signature-verification = ["dep:curve25519-dalek", "dep:ed25519-dalek"]
 chain-key-verification = ["dep:k256"]
 canister-signature-preparation = [
     "dep:ic-canister-sig-creation",
@@ -19,7 +20,8 @@ canister-signature-preparation = [
     "dep:serde_bytes",
     "dep:serde_cbor",
 ]
-sessions = ["token-verification"]
+sessions = ["dep:serde", "dep:serde_cbor"]
+session-restore = ["sessions"]
 token-verification = ["canister-signature-verification", "chain-key-verification"]
 canister-signature-verification = [
     "dep:ic-canister-sig-creation",
@@ -32,6 +34,8 @@ canister-signature-verification = [
 ]
 
 [dependencies]
+curve25519-dalek = { workspace = true, optional = true }
+ed25519-dalek = { workspace = true, optional = true }
 ic-auth-protocol-types.workspace = true
 ic-canister-sig-creation = { workspace = true, optional = true }
 ic-certification = { workspace = true, optional = true }

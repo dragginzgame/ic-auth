@@ -1,7 +1,7 @@
 import { IDL } from '@icp-sdk/core/candid';
 import {
   DelegatedToken, DelegatedTokenClaims, DelegatedTokenPrepareRequest,
-  DelegatedTokenPrepareResponse,
+  DelegatedTokenPrepareResponse, PortableCredential, LogoutResult,
 } from './generated/protocol.did.js';
 import { ClientError } from './contracts.js';
 
@@ -21,7 +21,22 @@ export function encode(type: IDL.Type, value: unknown, maximum: number): Uint8Ar
 function decode<T>(type: IDL.Type, bytes: Uint8Array, maximum: number): T {
   if (bytes.byteLength > maximum) throw new ClientError('invalid_material');
   try {
-    const value = IDL.decode([type], bytes)[0];
+    // Guard the public input-stream read boundary on this decode only. The
+    // selected SDK's optimized blob decoder calls read(length) without checking
+    // availability; its stream otherwise silently returns a truncated slice.
+    // Inherit the generated descriptor without mutating it or SDK prototypes.
+    const boundedType: IDL.Type = Object.create(type);
+    boundedType.decodeValue = (pipe, wireType) => {
+      const read = pipe.read.bind(pipe);
+      pipe.read = (length: number) => {
+        if (!Number.isSafeInteger(length) || length < 0 || length > pipe.byteLength) {
+          throw new ClientError('invalid_material');
+        }
+        return read(length);
+      };
+      return type.decodeValue(pipe, wireType);
+    };
+    const value = IDL.decode([boundedType], bytes)[0];
     if (!type.covariant(value)) throw new ClientError('invalid_material');
     // Runtime admission above uses this exact generated descriptor. This is the
     // single typed boundary over the SDK's untyped decode result, not a service
@@ -42,3 +57,10 @@ export const claimsBytes = (value: DelegatedTokenClaims, maximum: number) => enc
 export function equalBytes(left: Uint8Array, right: Uint8Array): boolean {
   return left.length === right.length && left.every((byte, index) => byte === right[index]);
 }
+
+/** Bounded transport only: preserves opaque signed bytes, never verifies claims. */
+export const credentialBytes = (value: PortableCredential, maximum: number) => encode(PortableCredential, value, maximum);
+export const credentialFromBytes = (bytes: Uint8Array, maximum: number) => decode<PortableCredential>(PortableCredential, bytes, maximum);
+
+/** Decode only after the transport authenticates the update reply. */
+export const logoutResultFromBytes = (bytes: Uint8Array) => decode<LogoutResult>(LogoutResult, bytes, 1_024);

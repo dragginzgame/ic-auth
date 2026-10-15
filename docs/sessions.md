@@ -1,143 +1,138 @@
 # Local application sessions
 
-`ic_auth::session` is published in `0.1.5` behind `sessions`, enabling the existing
-token verifier. Default, signature-only and
-token-only graphs remain selectable without the session engine. No feature
-imports Canic, Toko, Solana, native Host tooling, CDK or stable storage.
+The pending 0.6 hard cut provides one portable application session engine in
+`ic_auth::session`. Enable `sessions` for the engine and bounded volatile store;
+select `portable-signature-verification` for Ed25519 or `token-verification` for
+complete certified portable proofs. The engine itself does not require either
+cryptographic backend. It does not depend on Canic, Toko, CDK or stable memory.
 
-Released 0.5.0 moves `SessionRequest` to the default-feature
-[`ic_auth::session_request`](session-requests.md) module. Update the former
-`session::SessionRequest` import and handle `SessionRequestError` at construction.
-The engine consumes that same pure owner; request hashes, session records and
-engine admission/error contracts remain unchanged.
+## Admission and ordinary calls
 
-`establish_session(store, token, request, token_context, policy)` verifies both
-token proofs before new admission and performs session replacement and replay
-consumption in one synchronous host transaction. `authorize_session` reads the
-current session and checks the operation's required scopes with protected live
-context. Neither operation reads an IC clock/caller or publishes certification.
-These sessions are application credentials, not IC ingress delegations; resource
-and business permission checks remain application-owned.
+`establish_session` takes a host store, retained login revocation ledger, shared
+work budget, canonical claims, checked `SessionRequest`, protected
+`SessionContext` and `SessionPolicy`, plus a complete verification callback.
+For a `PortableCredential` envelope, use `portable_credential::verify_credential`
+in that callback with the supplied budget and protected `PortableVerificationContext`.
+The dispatcher rejects proof/enrollment mechanism mismatches and reuses the complete
+Ed25519/certified verifiers. Pass the same protected claims context to the engine
+and dispatcher. The lower-level verifiers remain available to proof-only callers. The result is
+sealed `VerifiedPortableClaims`; decoding claims alone cannot admit a session.
+The engine rechecks the result's claims and verification time before committing.
 
-## Protected context and lifetime
+Cheap binding, revocation, request, replay and capacity refusals precede signature
+verification. Fresh admission spends receiver-wide verification credit, including
+invalid signatures and later storage failures. Never recreate the budget per
+request. Exact retries return the unchanged live session without verification,
+even after the admission proof expires. Changing the requested scope or lifetime
+on a retry is a replay conflict. Renewal uses a fresh credential within the same
+immutable issuer/account and login-start/deadline binding.
 
-The host supplies the actual caller and current audience, role, allowed scopes,
-root-key enrollment and time through `TokenVerificationContext`. Its required
-scopes apply to proof verification during admission and to later session
-authorization. The narrowing request need not grant every admission endpoint
-scope; later endpoints check their own requirements.
+A session records the browser `caller`, account `(issuer, subject)`, audience,
+mechanism/key binding, role/scopes, authority generation, login window, lease and
+proof/request fingerprints. Two devices belonging to one account use distinct
+fresh browser principals and independent sessions. Quotas count browser callers,
+not account subjects. Ingress delegation preserving one principal is not a new
+login identity.
 
-`SessionPolicy` supplies the protected generation, capability switch, current
-subject eligibility, default/maximum TTL and proof lifetime bound. Store generation
-must match policy generation. The host must atomically advance its persisted
-generation with authority changes, including disable/re-enable, issuer approval
-or revocation, IC trust-key changes and admission-policy changes that invalidate
-retained authority. A client must never supply this policy. Generation exhaustion
-fails without mutation; wrapping or resetting it would resurrect stale authority.
+`authorize_session` uses the runtime caller and protected current authority,
+generation, eligibility and required scopes. It checks the retained login
+reservation, revocation and lease without cryptography or network calls.
+Authorization does not extend a lease. Proof expiry limits admission; session
+expiry is capped by the requested TTL, login deadline and key/enrollment expiry.
+Refreshing authority never extends an existing lease. Applications separately
+check resource ownership and decide which effects require reauthorization after
+an await.
 
-Every authorization and exact retry checks caller/subject, audience, role,
-generation, current scope ceiling, root key identity, key/proof/registry floors
-and protected key validity. A changed SEC1 key, key name, path, root principal or
-version invalidates the retained record. Narrowing the root acceptance window
-below the stored session deadline invalidates it immediately. Original expiry
-cannot be extended by a later enrollment deadline. Hosts still own propagation of protected revocations;
-the library does not poll another canister or infer issuer eligibility.
+## Atomicity and logout
 
-New proof admission requires strict current proof start and a lifetime within
-the protected bound, at most 60 seconds. It does not use the token verifier's
-future-start skew allowance to create a session early. TTL selection is positive,
-at most the protected maximum and at most 1800 seconds. Nanosecond expiry addition
-rejects overflow and is capped by the root key's acceptance deadline. Expiry is
-exclusive. An admitted session may outlive its original token, issuer certificate
-or batch: it is a local admission with its own lifetime and live policy checks.
-Root grant revocation must update local generation or accepted authority floors;
-proof lifetime alone does not revoke an admitted session.
+The host MUST serialize the entire engine call with authority updates and ledger
+operations, without await or reentrancy. `SessionStore::transaction` must commit
+all staged session/replay/index changes or leave them unchanged. The engine wraps
+the final transaction in the ledger reservation callback, so a failed backend
+commit cannot leave an admitted reservation or acknowledge a failed logout.
+Verification and unknown-logout budget charges survive returned storage errors;
+hosts must not trap and roll back those charges.
 
-## Narrowing, exact retry and replay
+`logout_session` returns the shared `LogoutResult`: `Revoked { deny_until_ns }`
+only after commit, `InvalidCaller`, or typed `Unavailable` (capacity, storage or
+clock). Hosts return `Unavailable(ResetPending)` before touching unavailable
+startup state. The empty `LogoutRequest` accepts no client-selected identity or
+proof; hosts pass the authenticated runtime caller. Transport failures remain
+unknown, never successful revocation. The qualification endpoint and generated
+browser bindings use this same contract.
 
-`SessionRequest::new` accepts 1–16 distinct scopes of at most 64 bytes each,
-with at most 1024 aggregate bytes, using the canonical scope grammar. It sorts
-before hashing and rejects duplicates. Every requested scope must be in the
-verified local grant. The request hash preserves Canic's
-`canic-application-session-request-v1` domain, u64 big-endian counts/lengths and
-optional TTL in seconds. An omitted TTL differs from an explicit default TTL.
-No signed token bytes or existing token models change.
-Hosts bound outer token/request decoding before constructing these vectors.
+`logout_session` authenticates the actual caller, removes its local session and
+retains replay evidence plus a login tombstone. It works with expired proofs,
+expired enrollment and disabled admission, provided the host is initialized.
+Admitted logins have reserved revocation capacity; absent logins use the separate
+bounded pool and receiver-wide unknown-logout budget. Exhaustion returns failure,
+never false success or eviction. Retrying an existing tombstone retains its fixed
+deadline. See [the protocol](design/0.6-auth-protocol.md) for retention, browser
+retry and cross-subnet logout requirements.
 
-One store belongs to one protected local application authority namespace. There
-is one current session per exact caller. The proof-consumption fingerprint is
-the canonical claims hash, including nonce and certificate hash, independently
-of replaceable signature transport. State resolution occurs inside the same
-transaction as proof verification and admission:
+Each receiver has independent sessions and revocation state. The same permitted
+credential can establish on A, B and C, but admission on A does not admit on B.
+Ordinary calls never implicitly create sessions. Browser fan-out is necessary
+for remote logout without inter-canister calls; immediate global revocation is
+not guaranteed. Issuer logout and absolute login deadlines remain essential.
 
-1. A matching current session and request hash returns `ExactRetry` only after
-   all live session checks. Its expiry and stored bytes are unchanged, even
-   after the proof expires. Altering proof transport does not create new authority.
-2. A conflicting request or any other retained consumption of that fingerprint
-   is rejected. Logout and replacement retain replay tombstones. Generation
-   invalidation does not erase them.
-3. An unused proof must pass complete token verification, strict proof eligibility,
-   requested-scope narrowing, positive TTL and capacity checks before staging.
+## Storage and reset
 
-Replay tombstones remain until token expiry, when new proof admission is no
-longer possible. An active session can still resolve its exact retry after the
-tombstone is pruned. Clearing the session removes that retry opportunity. After
-both records are gone, the expired proof still cannot create a new session.
-Physical expired records count toward quotas until explicit cleanup; an admission
-failure performs no incidental cleanup.
-Replay cleanup requires a trusted clock that does not regress behind a completed
-cleanup time. A host must not restore older replay/generation state while serving
-new requests. Re-run `authorize_session` for every operation; a cached successful
-result is not current authority.
+`MemorySessionStore` provides bounded indexed storage, per-caller replay limits,
+encoded-byte accounting and explicit pruning of at most 128 expired records per
+call. Logout preserves replay records; authority generation advancement invalidates
+sessions without clearing replay evidence. Capacity includes expired records
+until pruning.
 
-## Transaction and storage ownership
+Enable `session-restore` only for hosts restoring serialized records. It exposes
+checked `Session::decode`; volatile consumers do not need that decoder. Cargo
+feature unification still applies, so inspect each deployed canister's selected
+graph rather than treating workspace builds as size measurements.
 
-`SessionStore::transaction` runs a closure over `SessionTransaction`. Record
-reads and occupancy refer to one isolated pre-commit snapshot. `stage` admits
-one touched session/replay pair. On any closure or commit error, the backend
-must preserve prior records, expiry indexes, subject counts, generation and byte
-accounting. No await, reentrancy or authority mutation may split these checks
-from commit. Implementations must also reject mismatched pairs, duplicate
-fingerprints, stale generation, capacity and encoded-byte overflow before writes.
+The portable record begins with `IC-AUTH-PORTABLE-SESSION\0` before its CBOR body.
+Old token-specific records are rejected, with no compatibility reader. The 0.6
+consumer transition must explicitly retire old sessions and coordinate retained
+replay/revocation state before serving. Decoding alone does not authorize a record:
+current authority and its matching retained login reservation are required.
 
-`SessionLimits` allows lower host limits within 2048 sessions, 4096 replay
-records, 256 replay records per subject and 8 MiB of encoded record bytes. A
-replacement consumes a new replay slot but reuses the caller's session slot.
-Encoded bytes are record payload accounting, not measured allocator/index heap
-usage. Hosts must bound their physical backend and indexes independently.
+After volatile reset, advance login/proof floors using trusted boot time and the
+qualified clock-skew bound, discard lost-state-dependent sessions and authenticate
+fresh enrollment before readiness. This forces fresh browser login after receiver
+upgrade. Durable hosts must retain sessions, replay, revocation and protected
+reset/authority state atomically. A production durable host adapter is not yet
+implemented; the ledger supplied here is volatile.
 
-`MemorySessionStore` is a volatile reference backend for native and Wasm. It
-stages only the touched pair and applies it after a successful closure; it does
-not clone or serialize the entire store. Ordered expiry indexes let `prune`
-remove at most `min(budget,128)` expired records without a full-store scan.
-`clear(actual_caller)` removes that caller's session and retains replay history.
-There are no global memory regions, timers or implicit cleanup effects.
+The durable adapter must use `ic-memory` for host-composed allocation ownership,
+with the host supplying the combined declarations and performing bootstrap before
+stores open. The reviewed IC Memory contract at revision
+`752263e22520e5009471b7040e2db0f14e0142b4` supplies allocation admission and
+re-exports stable structures; it does not supply Auth's record schema or transaction.
+That source declares Rust 1.91, above Auth core's qualified 1.88 floor; qualify
+the adapter's compiler independently rather than raising the pure libraries' floor.
+Keep this dependency in a separately selected durable adapter, outside the pure
+engine and volatile receiver graph. It must not persist the local issuer key.
 
-`Session::encode` and `Session::decode` handle one current CBOR record, bounded
-to 2048 bytes, with structural identity/window/scope checks and rejection of
-unknown fields. Decode is for trusted host storage, never a client credential
-or proof-authentication substitute. A backend restores replay records with their
-matching fingerprint, subject, generation and removal time and rebuilds indexes
-and counters before exposure. Validate retained record sets and physical budgets
-at the owning backend's restore boundary.
+Adding a stable `SessionStore` alone is insufficient: the current engine takes a
+concrete `MemoryLoginRevocations`, and its callback commits session/replay state
+before installing the heap reservation or tombstone. A durable implementation must
+first provide one commit boundary covering both sets of records and protected
+reset/authority metadata. Returned failures must leave them unchanged while
+retaining charged work budgets. Normal upgrades must restore matching reservations
+as well as sessions; incomplete recovery must enforce fresh-login reset rather
+than invent missing reservations. [Auth #58](https://github.com/dragginzgame/ic-auth/issues/58)
+owns this integration and its failure/upgrade qualification. No `ic-memory`
+dependency or persistent backend is advertised as implemented yet.
 
-No stable backend or canister lifecycle adapter is implemented or qualified.
-An embedded host owns stable-memory IDs, atomic durable writes, rollback/trap
-behavior, protected configuration and generation persistence, restore validation
-and maintenance scheduling. Volatile storage must not be substituted for durable
-replay state in a deployed service. Canic's existing stable representation is
-not read by this engine; adoption must coordinate its retained-state disposition
-and remove the superseded owner in the separately authorized consumer change.
+## Evidence and remaining adoption
 
-## Evidence
+`make test-sessions` covers both proof mechanisms, independent devices/receivers,
+renewal, exact retries, logout-before-admission, authority invalidation, commit
+failures and checked record restoration. `make test-qualification` exercises the
+volatile receiver in actual Wasm, upgrades and signed ingress, plus portable
+certified admission using real IC certificates. It does not qualify production
+wallet issuance, browser fan-out, durable persistence or cross-subnet latency.
 
-`make test-sessions` shares real secp256k1/BLS fixtures with token verification.
-It covers proof rejection, exact retries, post-staging atomic failure, authority
-and caller/scope changes, replacement/logout, capacity and byte failure, strict
-starts, expiry overflow and bounded cleanup. The request hash has an independently
-computed fixed vector in the default-feature `make test-protocol` suite, with
-separate absent/explicit-TTL vectors and exact scope bounds. Clippy, Wasm compilation, packaging and graph checks
-include the feature. These checks do not establish stable host adoption, upgrade
-or ingress-delegation behavior; PocketIC remains required for those boundaries.
-The [accepted design](design/extraction.md) and
-[Canic #491](https://github.com/dragginzgame/canic/issues/491) own the larger extraction.
+Canic owns enrollment, endpoint/configuration adapters and fleet integration;
+[Canic #491](https://github.com/dragginzgame/canic/issues/491) tracks adoption.
+The existing standalone token verifier remains a proof primitive, not an
+alternative token-per-call application session flow.
