@@ -5,16 +5,16 @@
 mod memory;
 mod model;
 
-pub use memory::{MemorySessionStore, SessionPruned};
+pub use memory::{MemorySessionStore, SessionCommit, SessionPrune, SessionPruned};
 pub use model::{Replay, Session, SessionLimits, SessionPolicy};
 
 use crate::{
     admission_budget::{AdmissionBudgetError, SessionAdmissionBudget},
     canonical::CanonicalAuthError,
     portable::{
-        LoginRevocationError, MemoryLoginRevocations, PortableClaimsContext, PortableClaimsError,
-        PortableEncodingError, VerifiedPortableClaims, claims_hash, decode_claims,
-        validate_claims_context,
+        LoginRevocationChange, LoginRevocationError, MemoryLoginRevocations, PortableClaimsContext,
+        PortableClaimsError, PortableEncodingError, VerifiedPortableClaims, claims_hash,
+        decode_claims, validate_claims_context,
     },
     session_request::{SessionRequest, SessionRequestError},
 };
@@ -80,9 +80,12 @@ pub trait SessionTransaction {
 
 /// Host-owned transaction boundary. No await, reentrancy or concurrent authority
 /// update may split the operation. Commit errors must preserve all prior state.
+/// Writes require the proposed login change; a durable implementation must commit
+/// it atomically with session/replay/index changes. `None` permits reads only.
 pub trait SessionStore {
     fn transaction<T>(
         &mut self,
+        login_change: Option<&LoginRevocationChange>,
         operation: impl FnOnce(&mut dyn SessionTransaction) -> Result<T, SessionError>,
     ) -> Result<T, SessionError>;
 }
@@ -195,7 +198,7 @@ pub fn establish_session(
     if ledger.is_revoked(authority.caller, authority.now_ns)? {
         return Err(LoginRevocationError::Revoked.into());
     }
-    let retry = store.transaction(|tx| {
+    let retry = store.transaction(None, |tx| {
         if tx.generation() != policy.generation {
             return Err(SessionError::StaleAuthority);
         }
@@ -241,9 +244,9 @@ pub fn establish_session(
     let session = Session::admit(&verified, request, context, policy)?;
     let replay = Replay::new(&session, claims.admission_expires_at_ns);
     let mut storage_error = None;
-    let result = ledger.with_reservation(authority.caller, &verified, authority.now_ns, || {
+    let result = ledger.with_reservation(authority.caller, &verified, authority.now_ns, |change| {
         store
-            .transaction(|tx| {
+            .transaction(Some(change), |tx| {
                 if tx.generation() != policy.generation {
                     return Err(SessionError::StaleAuthority);
                 }
@@ -279,7 +282,7 @@ pub fn authorize_session(
     if ledger.is_revoked(context.authority.caller, context.authority.now_ns)? {
         return Err(LoginRevocationError::Revoked.into());
     }
-    store.transaction(|tx| {
+    store.transaction(None, |tx| {
         if tx.generation() != policy.generation {
             return Err(SessionError::StaleAuthority);
         }
@@ -310,11 +313,13 @@ pub fn logout_session(
     now_ns: u64,
 ) -> LogoutResult {
     let mut storage_error = None;
-    let result = ledger.with_revocation(unknown_budget, caller, now_ns, || {
-        store.transaction(|tx| tx.remove(caller)).map_err(|error| {
-            storage_error = Some(error);
-            LoginRevocationError::Storage
-        })
+    let result = ledger.with_revocation(unknown_budget, caller, now_ns, |change| {
+        store
+            .transaction(Some(change), |tx| tx.remove(caller))
+            .map_err(|error| {
+                storage_error = Some(error);
+                LoginRevocationError::Storage
+            })
     });
     // Backend diagnostics stay host-side; never acknowledge a failed commit.
     if storage_error.is_some() {

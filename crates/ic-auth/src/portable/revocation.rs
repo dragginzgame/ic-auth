@@ -7,6 +7,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use thiserror::Error;
 
 const MAX_LOGIN_NS: u64 = 86_400_000_000_000;
+#[cfg(feature = "sessions")]
+const RECORD_DOMAIN: &[u8] = b"IC-AUTH-LOGIN-RECORD\0";
 
 /// A refusal leaves records unchanged; trusted clock observations are retained.
 #[derive(Clone, Copy, Debug, Error, Eq, PartialEq)]
@@ -26,6 +28,9 @@ pub enum LoginRevocationError {
 }
 
 #[derive(Clone, Copy)]
+#[cfg_attr(feature = "sessions", derive(serde::Serialize))]
+#[cfg_attr(feature = "session-restore", derive(serde::Deserialize))]
+#[cfg_attr(feature = "sessions", serde(deny_unknown_fields))]
 struct Record {
     until_ns: u64,
     login: Option<LoginBinding>,
@@ -34,11 +39,106 @@ struct Record {
 }
 
 #[derive(Clone, Copy, Eq, PartialEq)]
+#[cfg_attr(feature = "sessions", derive(serde::Serialize))]
+#[cfg_attr(feature = "session-restore", derive(serde::Deserialize))]
+#[cfg_attr(feature = "sessions", serde(deny_unknown_fields))]
 struct LoginBinding {
     issuer: Principal,
     subject: Principal,
     started_at_ns: u64,
     deadline_ns: u64,
+}
+
+/// Proposed ledger record from a serialized commit callback or trusted storage.
+/// A durable host must persist this with its session/replay changes before
+/// returning success. This is not a credential or reusable authorization result.
+pub struct LoginRevocationChange {
+    audience: AudienceId,
+    caller: Principal,
+    record: Record,
+}
+
+impl LoginRevocationChange {
+    /// Encode the proposed record for the host's atomic durable commit.
+    #[cfg(feature = "sessions")]
+    pub fn encode(&self) -> Result<Vec<u8>, LoginRevocationError> {
+        let mut bytes = RECORD_DOMAIN.to_vec();
+        bytes.extend(
+            serde_cbor::to_vec(&(self.audience, self.caller, self.record))
+                .map_err(|_| LoginRevocationError::Storage)?,
+        );
+        if bytes.len() > 1024 {
+            return Err(LoginRevocationError::InvalidPolicy);
+        }
+        Ok(bytes)
+    }
+
+    /// Decode trusted storage only; never accept these bytes from a client.
+    /// This checks shape, not provenance, completeness, rollback or live authority.
+    #[cfg(feature = "session-restore")]
+    pub fn decode(bytes: &[u8]) -> Result<Self, LoginRevocationError> {
+        if bytes.len() > 1024 {
+            return Err(LoginRevocationError::InvalidPolicy);
+        }
+        let bytes = bytes
+            .strip_prefix(RECORD_DOMAIN)
+            .ok_or(LoginRevocationError::InvalidPolicy)?;
+        let (audience, caller, record) =
+            serde_cbor::from_slice(bytes).map_err(|_| LoginRevocationError::InvalidPolicy)?;
+        let change = Self {
+            audience,
+            caller,
+            record,
+        };
+        let caller = change.caller.as_slice();
+        if caller.len() != 29 || caller.last() != Some(&2) {
+            return Err(LoginRevocationError::InvalidCaller);
+        }
+        match change.record.login {
+            Some(login)
+                if change.record.admitted_pool
+                    && login.issuer != Principal::anonymous()
+                    && login.subject != Principal::anonymous()
+                    && login.started_at_ns < login.deadline_ns
+                    && login.deadline_ns - login.started_at_ns <= MAX_LOGIN_NS => {}
+            None if !change.record.admitted_pool && change.record.revoked => {}
+            _ => return Err(LoginRevocationError::InvalidPolicy),
+        }
+        Ok(change)
+    }
+
+    /// Protected trust domain owning the record.
+    pub fn audience(&self) -> AudienceId {
+        self.audience
+    }
+    /// Authenticated runtime caller whose record changes.
+    pub fn caller(&self) -> Principal {
+        self.caller
+    }
+    /// Exclusive retention deadline, including the configured clock margin.
+    pub fn until_ns(&self) -> u64 {
+        self.record.until_ns
+    }
+    /// Whether this change denies further use of the login.
+    pub fn revoked(&self) -> bool {
+        self.record.revoked
+    }
+    /// Whether this record occupies reserved admitted-login capacity.
+    pub fn admitted_pool(&self) -> bool {
+        self.record.admitted_pool
+    }
+    /// Original issuer, account subject, login start and absolute deadline.
+    /// Unknown-login revocation has no authenticated account binding.
+    pub fn binding(&self) -> Option<(Principal, Principal, u64, u64)> {
+        self.record.login.map(|login| {
+            (
+                login.issuer,
+                login.subject,
+                login.started_at_ns,
+                login.deadline_ns,
+            )
+        })
+    }
 }
 
 /// Bounded reference ledger for one host-installed trust domain. Callers are
@@ -47,7 +147,8 @@ struct LoginBinding {
 /// Unknown callers have a separate pool and cannot consume admitted capacity.
 ///
 /// The host MUST serialize these operations with proof/session/replay state and
-/// authority changes. Commit callbacks must atomically write that other state or
+/// authority changes. Commit callbacks receive the exact proposed login record
+/// and must atomically write it with that other state in durable backends, or
 /// return an error without effects. No await/reentrancy may split the operation.
 /// This ledger commits its staged record only after callback success, with no
 /// further fallible policy/storage checks. Callbacks must not return success
@@ -72,6 +173,80 @@ pub struct MemoryLoginRevocations {
 }
 
 impl MemoryLoginRevocations {
+    /// Stream the complete physical ledger under a serialized host checkpoint.
+    /// Persist these records with occupancy, clock and session/replay/authority
+    /// state atomically; expired entries count until explicit pruning.
+    #[cfg(feature = "session-restore")]
+    pub fn records(&self) -> impl ExactSizeIterator<Item = LoginRevocationChange> + '_ {
+        self.records
+            .iter()
+            .map(|(&caller, &record)| LoginRevocationChange {
+                audience: self.audience,
+                caller,
+                record,
+            })
+    }
+
+    /// Rebuild a fresh ledger from a complete, trusted atomic storage generation.
+    /// `self` must be newly constructed at current trusted time. The host supplies
+    /// that generation's persisted clock high-water mark and physical pool counts,
+    /// including expired records, from the same transaction as the records.
+    /// Failure consumes the partial ledger; no usable partial state is returned.
+    /// Counts detect missing entries, not malicious rollback: hosts MUST protect
+    /// snapshot provenance/generation and restore reset/authority/session/replay
+    /// state together, keeping admission closed until fresh enrollment is checked.
+    #[cfg(feature = "session-restore")]
+    pub fn restore_records(
+        mut self,
+        observed_ns: u64,
+        expected_counts: (usize, usize),
+        records: impl IntoIterator<Item = LoginRevocationChange>,
+    ) -> Result<Self, LoginRevocationError> {
+        if !self.records.is_empty()
+            || observed_ns > self.observed_ns
+            || expected_counts.0 > self.max_admitted
+            || expected_counts.1 > self.max_unknown
+        {
+            return Err(LoginRevocationError::InvalidPolicy);
+        }
+        let max_until = retention(observed_ns, self.skew_ns)?;
+        for change in records {
+            if change.audience != self.audience || self.records.contains_key(&change.caller) {
+                return Err(LoginRevocationError::InvalidPolicy);
+            }
+            let record = change.record;
+            if record.until_ns == 0 || record.until_ns > max_until {
+                return Err(LoginRevocationError::InvalidPolicy);
+            }
+            if let Some(login) = record.login {
+                let minimum = login
+                    .deadline_ns
+                    .checked_add(self.skew_ns)
+                    .ok_or(LoginRevocationError::Clock)?;
+                if login.started_at_ns > observed_ns
+                    || record.until_ns < minimum
+                    || (!record.revoked && record.until_ns != minimum)
+                {
+                    return Err(LoginRevocationError::InvalidPolicy);
+                }
+            }
+            // Stop at the persisted counts, even for an unbounded input iterator.
+            let (used, expected) = if record.admitted_pool {
+                (self.admitted, expected_counts.0)
+            } else {
+                (self.unknown, expected_counts.1)
+            };
+            if used >= expected {
+                return Err(LoginRevocationError::Capacity);
+            }
+            self.install(change.caller, record);
+        }
+        if self.occupancy() != expected_counts {
+            return Err(LoginRevocationError::InvalidPolicy);
+        }
+        Ok(self)
+    }
+
     /// Fixed record counts bound memory; no caller-supplied blobs are retained.
     /// `skew_ns` is deployment-qualified protected configuration, not a default.
     pub fn new(
@@ -142,6 +317,12 @@ impl MemoryLoginRevocations {
         (self.admitted, self.unknown)
     }
 
+    /// Clock high-water mark for an atomic host checkpoint, including refusals.
+    /// Durable hosts retain this with pool counts and the complete record set.
+    pub fn observed_at_ns(&self) -> u64 {
+        self.observed_ns
+    }
+
     /// Cheap refusal before proof verification. This does not authenticate claims,
     /// reserve capacity or permit a session commit; success is only permission to
     /// continue checking. Untrusted claims can cause refusal, never admission.
@@ -163,18 +344,23 @@ impl MemoryLoginRevocations {
     /// The host still enforces current authority and replay under the same lock.
     /// A live tombstone rejects even an exact admission retry before its callback.
     /// No reservation is installed if session/replay storage in `commit` fails.
+    /// The callback receives the proposed record for that same atomic commit.
     pub fn with_reservation<T>(
         &mut self,
         caller: Principal,
         verified: &VerifiedPortableClaims,
         now_ns: u64,
-        commit: impl FnOnce() -> Result<T, LoginRevocationError>,
+        commit: impl FnOnce(&LoginRevocationChange) -> Result<T, LoginRevocationError>,
     ) -> Result<T, LoginRevocationError> {
         let record = self.reservation(caller, verified.claims(), now_ns)?;
         if verified.verified_at_ns() != now_ns {
             return Err(LoginRevocationError::InvalidPolicy);
         }
-        let value = commit()?;
+        let value = commit(&LoginRevocationChange {
+            audience: self.audience,
+            caller,
+            record,
+        })?;
         self.install(caller, record);
         Ok(value)
     }
@@ -190,12 +376,13 @@ impl MemoryLoginRevocations {
     /// unknown logout traffic cannot spend admission credit. Failure retains the
     /// charge; hosts must return normal errors rather than trap/roll back credit.
     /// Live reservations and tombstone retries do not compete for this budget.
+    /// The callback receives the proposed tombstone, including retained binding.
     pub fn with_revocation(
         &mut self,
         unknown_budget: &mut SessionAdmissionBudget,
         caller: Principal,
         now_ns: u64,
-        commit: impl FnOnce() -> Result<(), LoginRevocationError>,
+        commit: impl FnOnce(&LoginRevocationChange) -> Result<(), LoginRevocationError>,
     ) -> Result<u64, LoginRevocationError> {
         self.observe(caller, now_ns)?;
         let old = self
@@ -227,7 +414,11 @@ impl MemoryLoginRevocations {
                     AdmissionBudgetError::InvalidPolicy => LoginRevocationError::InvalidPolicy,
                 })?;
         }
-        commit()?;
+        commit(&LoginRevocationChange {
+            audience: self.audience,
+            caller,
+            record,
+        })?;
         self.install(caller, record);
         Ok(record.until_ns)
     }
@@ -249,19 +440,42 @@ impl MemoryLoginRevocations {
     /// Explicit maintenance, at most 128 expired entries; never evict live state.
     /// The host clock must be monotonic, including across failed operations.
     pub fn prune(&mut self, now_ns: u64, budget: usize) -> Result<usize, LoginRevocationError> {
+        self.prune_with_commit(now_ns, budget, |_, _| Ok(()))
+    }
+    /// Commit bounded expired-login deletion and resulting admitted/unknown counts
+    /// before heap changes. Empty work skips the callback. Failure preserves all
+    /// records but retains the trusted clock observation, as other refusals do.
+    /// Hosts persist clock/authority metadata separately even when no rows expire.
+    pub fn prune_with_commit(
+        &mut self,
+        now_ns: u64,
+        budget: usize,
+        commit: impl FnOnce(&[Principal], (usize, usize)) -> Result<(), LoginRevocationError>,
+    ) -> Result<usize, LoginRevocationError> {
         self.clock(now_ns)?;
-        let mut removed = 0;
-        for _ in 0..budget.min(128) {
-            let Some((until, caller)) = self.expiry.first().copied() else {
-                break;
-            };
-            if until > now_ns {
-                break;
-            }
-            self.remove(caller);
-            removed += 1;
+        let callers: Vec<_> = self
+            .expiry
+            .iter()
+            .take_while(|(until, _)| *until <= now_ns)
+            .take(budget.min(128))
+            .map(|(_, caller)| *caller)
+            .collect();
+        if callers.is_empty() {
+            return Ok(0);
         }
-        Ok(removed)
+        let mut counts = self.occupancy();
+        for caller in &callers {
+            if self.records[caller].admitted_pool {
+                counts.0 -= 1;
+            } else {
+                counts.1 -= 1;
+            }
+        }
+        commit(&callers, counts)?;
+        for caller in &callers {
+            self.remove(*caller);
+        }
+        Ok(callers.len())
     }
 
     fn reservation(

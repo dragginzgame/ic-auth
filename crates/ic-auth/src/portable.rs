@@ -6,7 +6,7 @@
 mod revocation;
 mod rules;
 mod verified;
-pub use revocation::{LoginRevocationError, MemoryLoginRevocations};
+pub use revocation::{LoginRevocationChange, LoginRevocationError, MemoryLoginRevocations};
 pub use rules::{PortableClaimsContext, PortableClaimsError, validate_claims_context};
 pub use verified::VerifiedPortableClaims;
 

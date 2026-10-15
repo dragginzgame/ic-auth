@@ -203,7 +203,7 @@ fn two_receivers_two_devices_retry_after_proof_expiry_and_local_logout() {
     b.logout(f.caller(), NOW + 4 * SECOND).unwrap();
     assert!(b.auth(&f, NOW + 4 * SECOND).is_err());
     a.store
-        .transaction(|tx| {
+        .transaction(None, |tx| {
             assert!(tx.replay_exists(claims_hash(&f.claims).unwrap())?);
             Ok(())
         })
@@ -246,27 +246,11 @@ struct FailingStore<'a>(&'a mut MemorySessionStore);
 impl SessionStore for FailingStore<'_> {
     fn transaction<T>(
         &mut self,
+        change: Option<&ic_auth::portable::LoginRevocationChange>,
         operation: impl FnOnce(&mut dyn SessionTransaction) -> Result<T, SessionError>,
     ) -> Result<T, SessionError> {
-        self.0.transaction(|tx| {
-            operation(tx)?;
-            Err(SessionError::StorageFailure)
-        })
-    }
-}
-// Fail only the write transaction, so proof verification and staging really happen.
-struct FailWrite<'a>(&'a mut MemorySessionStore, usize);
-impl SessionStore for FailWrite<'_> {
-    fn transaction<T>(
-        &mut self,
-        operation: impl FnOnce(&mut dyn SessionTransaction) -> Result<T, SessionError>,
-    ) -> Result<T, SessionError> {
-        self.1 += 1;
-        if self.1 == 2 {
-            FailingStore(self.0).transaction(operation)
-        } else {
-            self.0.transaction(operation)
-        }
+        self.0
+            .transaction_with_commit(change, operation, |_| Err(SessionError::StorageFailure))
     }
 }
 #[test]
@@ -279,7 +263,7 @@ fn failed_commit_is_atomic_for_session_replay_reservation_and_logout() {
     let mut budget = SessionAdmissionBudget::new(1, SECOND, NOW - SECOND).unwrap();
     assert_eq!(
         establish_session(
-            &mut FailWrite(&mut r.store, 0),
+            &mut FailingStore(&mut r.store),
             &mut r.ledger,
             &mut budget,
             &bytes,
@@ -299,7 +283,7 @@ fn failed_commit_is_atomic_for_session_replay_reservation_and_logout() {
     assert_eq!(r.ledger.occupancy(), (0, 0));
     assert_eq!(r.store.encoded_bytes(), 0);
     r.store
-        .transaction(|tx| {
+        .transaction(None, |tx| {
             assert!(!tx.replay_exists(claims_hash(&f.claims).unwrap())?);
             Ok(())
         })
@@ -572,7 +556,7 @@ fn bounded_pruning_releases_exact_bytes_and_caller_replay_capacity() {
     );
     assert_eq!(r.store.encoded_bytes(), 0);
     r.store
-        .transaction(|tx| {
+        .transaction(None, |tx| {
             assert_eq!(tx.occupancy(f.caller())?, SessionOccupancy::default());
             Ok(())
         })
@@ -603,7 +587,7 @@ fn byte_capacity_failure_preserves_previous_session_and_login_reservation() {
     assert_eq!(r.auth(&f, NOW), Ok(session));
     assert_eq!(r.ledger.occupancy(), (1, 0));
     r.store
-        .transaction(|tx| {
+        .transaction(None, |tx| {
             assert!(!tx.replay_exists(claims_hash(&f.claims).unwrap())?);
             Ok(())
         })
@@ -634,4 +618,521 @@ fn logout_reports_typed_refusals_without_acknowledging_revocation() {
         Err(LogoutResult::Unavailable(LogoutUnavailable::Clock))
     );
     assert_eq!(r.logout(f.caller(), NOW), Ok(until));
+}
+
+#[test]
+fn transaction_refuses_missing_or_mismatched_logout_change_without_partial_effects() {
+    let f = Fixture::new(1);
+    let mut r = Receiver::new(&f);
+    let session = created(f.admit(&mut r, NOW).unwrap());
+    assert_eq!(
+        r.store.transaction(None, |tx| tx.remove(f.caller())),
+        Err(SessionError::InvalidPolicyOrRecord)
+    );
+    let other = Fixture::new(2);
+    assert_eq!(
+        r.ledger
+            .with_revocation(&mut r.logout, other.caller(), NOW, |change| {
+                r.store
+                    .transaction(Some(change), |tx| tx.remove(f.caller()))
+                    .map_err(|_| LoginRevocationError::Storage)
+            }),
+        Err(LoginRevocationError::Storage)
+    );
+    assert!(!r.ledger.is_revoked(other.caller(), NOW).unwrap());
+    let mut foreign_audience = f.claims.audience;
+    foreign_audience.fleet_id = CanonicalId::from_bytes([77; 32]);
+    let mut foreign = MemoryLoginRevocations::new(foreign_audience, 4, 4, SECOND, 0).unwrap();
+    assert_eq!(
+        foreign.with_revocation(&mut r.logout, f.caller(), NOW, |change| {
+            r.store
+                .transaction(Some(change), |tx| tx.remove(f.caller()))
+                .map_err(|_| LoginRevocationError::Storage)
+        }),
+        Err(LoginRevocationError::Storage)
+    );
+    assert!(!foreign.is_revoked(f.caller(), NOW).unwrap());
+    assert_eq!(r.auth(&f, NOW), Ok(session));
+    r.logout(f.caller(), NOW).unwrap();
+    assert!(r.auth(&f, NOW).is_err());
+}
+
+#[cfg(feature = "session-restore")]
+#[test]
+fn restored_login_records_gate_retained_sessions_and_reject_revoked_retries() {
+    use ic_auth::portable::LoginRevocationChange;
+    let f = Fixture::new(1);
+    let mut r = Receiver::new(&f);
+    let session = created(f.admit(&mut r, NOW).unwrap());
+    let bytes = encode_claims(&f.claims).unwrap();
+    let signature = f.key.sign(&claims_hash(&f.claims).unwrap()).to_bytes();
+    let verified = verify_ed25519_claims(
+        &mut r.budget,
+        &bytes,
+        &signature,
+        &f.context(NOW).authority,
+        &f.key.verifying_key().to_bytes(),
+    )
+    .unwrap();
+    let mut stored = Vec::new();
+    r.ledger
+        .with_reservation(f.caller(), &verified, NOW, |change| {
+            stored = change.encode().unwrap();
+            Ok(())
+        })
+        .unwrap();
+    let restore = |bytes: &[u8]| {
+        MemoryLoginRevocations::new(f.claims.audience, 4, 4, SECOND, NOW)
+            .unwrap()
+            .restore_records(NOW, (1, 0), [LoginRevocationChange::decode(bytes).unwrap()])
+            .unwrap()
+    };
+    r.ledger = restore(&stored);
+    assert_eq!(r.auth(&f, NOW), Ok(session));
+    assert!(matches!(
+        f.admit(&mut r, NOW).unwrap(),
+        SessionEstablished::ExactRetry(_)
+    ));
+    // Deliberately retain the session to prove that restored denial gates it too.
+    r.ledger
+        .with_revocation(&mut r.logout, f.caller(), NOW, |change| {
+            stored = change.encode().unwrap();
+            Ok(())
+        })
+        .unwrap();
+    r.ledger = restore(&stored);
+    assert!(r.auth(&f, NOW).is_err());
+    assert!(f.admit(&mut r, NOW).is_err());
+}
+
+#[cfg(feature = "session-restore")]
+fn restored_store(store: &MemorySessionStore) -> MemorySessionStore {
+    MemorySessionStore::new(store.generation(), limits())
+        .unwrap()
+        .restore_records(
+            (store.session_records().len(), store.replay_records().len()),
+            store.encoded_bytes(),
+            store
+                .session_records()
+                .map(|s| Session::decode(&s.encode().unwrap()).unwrap()),
+            store
+                .replay_records()
+                .map(|r| Replay::decode(&r.encode().unwrap()).unwrap()),
+        )
+        .unwrap()
+}
+
+#[cfg(feature = "session-restore")]
+#[test]
+fn restored_store_preserves_sessions_replay_history_and_pruning_indexes() {
+    let f = Fixture::new(1);
+    let mut r = Receiver::new(&f);
+    let session = created(f.admit(&mut r, NOW).unwrap());
+    r.store = restored_store(&r.store);
+    assert_eq!(r.auth(&f, NOW), Ok(session.clone()));
+    assert_eq!(
+        f.admit(&mut r, NOW),
+        Ok(SessionEstablished::ExactRetry(session))
+    );
+    // Expired replay can be pruned before the still-live session; restore must
+    // support that valid state without inventing a replacement replay record.
+    assert_eq!(r.store.prune(NOW + 2 * SECOND, 1).replays, 1);
+    r.store = restored_store(&r.store);
+    assert!(r.auth(&f, NOW + 2 * SECOND).is_ok());
+
+    let mut r = Receiver::new(&f);
+    f.admit(&mut r, NOW).unwrap();
+    r.logout(f.caller(), NOW).unwrap();
+    r.store = restored_store(&r.store);
+    assert_eq!(r.store.session_records().len(), 0);
+    assert_eq!(r.store.replay_records().len(), 1);
+    // Even a lost login ledger must not erase consumed-proof evidence.
+    r.ledger = MemoryLoginRevocations::new(f.claims.audience, 4, 4, SECOND, NOW).unwrap();
+    assert_eq!(f.admit(&mut r, NOW), Err(SessionError::ReplayConflict));
+    r.store.advance_generation().unwrap();
+    r.store = restored_store(&r.store);
+    assert_eq!(r.store.generation(), 1);
+    assert_eq!(r.store.replay_records().len(), 1);
+    assert_eq!(r.store.prune(NOW + 2 * SECOND, 1).replays, 1);
+    assert_eq!(r.store.encoded_bytes(), 0);
+}
+
+#[cfg(feature = "session-restore")]
+#[test]
+fn store_restore_rejects_incomplete_duplicate_future_and_over_capacity_records() {
+    let f = Fixture::new(1);
+    let mut r = Receiver::new(&f);
+    let session = created(f.admit(&mut r, NOW).unwrap());
+    let replay = r.store.replay_records().next().unwrap().clone();
+    let bytes = r.store.encoded_bytes();
+    let restore = |counts, bytes, sessions: Vec<Session>, replays: Vec<Replay>| {
+        MemorySessionStore::new(0, limits())
+            .unwrap()
+            .restore_records(counts, bytes, sessions, replays)
+    };
+    assert!(restore((1, 1), bytes, vec![], vec![replay.clone()]).is_err());
+    assert!(restore((1, 1), bytes, vec![session.clone()], vec![]).is_err());
+    assert!(
+        restore(
+            (1, 1),
+            bytes - 1,
+            vec![session.clone()],
+            vec![replay.clone()]
+        )
+        .is_err()
+    );
+    assert!(
+        restore(
+            (1, 1),
+            bytes + 1,
+            vec![session.clone()],
+            vec![replay.clone()]
+        )
+        .is_err()
+    );
+    assert!(
+        restore(
+            (2, 1),
+            bytes * 2,
+            vec![session.clone(), session.clone()],
+            vec![replay.clone()]
+        )
+        .is_err()
+    );
+    assert!(
+        restore(
+            (1, 2),
+            bytes * 2,
+            vec![session.clone()],
+            vec![replay.clone(), replay.clone()]
+        )
+        .is_err()
+    );
+    assert!(restore((0, 1), bytes, vec![session.clone()], vec![replay.clone()]).is_err());
+    let mut tight = limits();
+    tight.max_encoded_bytes = bytes - 1;
+    assert!(
+        MemorySessionStore::new(0, tight)
+            .unwrap()
+            .restore_records((1, 1), bytes, [session.clone()], [replay.clone()])
+            .is_err()
+    );
+    assert!(
+        r.store
+            .restore_records((1, 1), bytes, [session.clone()], [replay.clone()])
+            .is_err()
+    );
+
+    let prefix = b"IC-AUTH-PORTABLE-REPLAY\0";
+    let encoded = replay.encode().unwrap();
+    let mut value: serde_cbor::Value = serde_cbor::from_slice(&encoded[prefix.len()..]).unwrap();
+    let serde_cbor::Value::Map(fields) = &mut value else {
+        panic!()
+    };
+    fields.insert(
+        serde_cbor::Value::Text("generation".into()),
+        serde_cbor::Value::Integer(1),
+    );
+    let mut encoded = prefix.to_vec();
+    encoded.extend(serde_cbor::to_vec(&value).unwrap());
+    let future = Replay::decode(&encoded).unwrap();
+    assert!(restore((1, 1), bytes, vec![session.clone()], vec![future.clone()]).is_err());
+    // Even when both generations are historical, a retained matching fingerprint
+    // cannot disagree with the session's caller/generation.
+    assert!(
+        MemorySessionStore::new(1, limits())
+            .unwrap()
+            .restore_records((1, 1), bytes, [session], [future])
+            .is_err()
+    );
+
+    let mut f = Fixture::new(1);
+    let mut r = Receiver::new(&f);
+    f.admit(&mut r, NOW).unwrap();
+    f.claims.nonce = [2; 16];
+    f.admit(&mut r, NOW).unwrap();
+    let mut tight = limits();
+    tight.max_replays_per_caller = 1;
+    assert!(
+        MemorySessionStore::new(0, tight)
+            .unwrap()
+            .restore_records(
+                (1, 2),
+                r.store.encoded_bytes(),
+                r.store.session_records().cloned(),
+                r.store.replay_records().cloned(),
+            )
+            .is_err()
+    );
+}
+
+#[cfg(feature = "session-restore")]
+#[test]
+fn replay_storage_decoder_rejects_wrong_domain_truncation_and_invalid_fields() {
+    let f = Fixture::new(1);
+    let mut r = Receiver::new(&f);
+    let session = created(f.admit(&mut r, NOW).unwrap());
+    let record = r.store.replay_records().next().unwrap();
+    let bytes = record.encode().unwrap();
+    assert_eq!(Replay::decode(&bytes).unwrap(), *record);
+    assert!(Replay::decode(&session.encode().unwrap()).is_err());
+    assert!(Replay::decode(&[0; 513]).is_err());
+    for cut in 0..bytes.len() {
+        assert!(Replay::decode(&bytes[..cut]).is_err());
+    }
+    let mut trailing = bytes.clone();
+    trailing.push(0);
+    assert!(Replay::decode(&trailing).is_err());
+    let prefix = b"IC-AUTH-PORTABLE-REPLAY\0";
+    let value: serde_cbor::Value = serde_cbor::from_slice(&bytes[prefix.len()..]).unwrap();
+    for (field, replacement) in [
+        ("remove_at_ns", serde_cbor::Value::Integer(0)),
+        (
+            "caller",
+            serde_cbor::value::to_value(Principal::anonymous()).unwrap(),
+        ),
+        ("unexpected", serde_cbor::Value::Null),
+    ] {
+        let mut value = value.clone();
+        let serde_cbor::Value::Map(fields) = &mut value else {
+            panic!()
+        };
+        fields.insert(serde_cbor::Value::Text(field.into()), replacement);
+        let mut invalid = prefix.to_vec();
+        invalid.extend(serde_cbor::to_vec(&value).unwrap());
+        assert!(Replay::decode(&invalid).is_err());
+    }
+}
+
+#[cfg(feature = "session-restore")]
+#[test]
+fn commit_hook_receives_only_validated_delta_and_exact_post_commit_totals() {
+    let mut f = Fixture::new(1);
+    let mut source = Receiver::new(&f);
+    let mut store = MemorySessionStore::new(0, limits()).unwrap();
+    let mut commits = 0;
+    // Exercise insertion and replacement; only the touched pair is supplied.
+    for nonce in [1, 2] {
+        f.claims.nonce = [nonce; 16];
+        let session = match f.admit(&mut source, NOW).unwrap() {
+            SessionEstablished::Created(s) | SessionEstablished::Replaced(s) => s,
+            _ => panic!("new proof"),
+        };
+        let replay = source
+            .store
+            .replay_records()
+            .find(|r| r.fingerprint() == session.fingerprint())
+            .unwrap()
+            .clone();
+        let verified = verify_ed25519_claims(
+            &mut source.budget,
+            &encode_claims(&f.claims).unwrap(),
+            &f.key.sign(&claims_hash(&f.claims).unwrap()).to_bytes(),
+            &f.context(NOW).authority,
+            &f.key.verifying_key().to_bytes(),
+        )
+        .unwrap();
+        let mut expected_bytes = 0;
+        source
+            .ledger
+            .with_reservation(f.caller(), &verified, NOW, |login| {
+                store
+                    .transaction_with_commit(
+                        Some(login),
+                        |tx| tx.stage(session.clone(), replay.clone()),
+                        |delta| {
+                            assert!(!delta.login.revoked());
+                            assert_eq!(delta.login.caller(), f.caller());
+                            assert_eq!(delta.session_count, 1);
+                            assert_eq!(delta.replay_count, nonce as usize);
+                            let (s, r) = delta.admission.unwrap();
+                            assert_eq!(s, &session);
+                            assert_eq!(r, &replay);
+                            // A durable owner has all changed records before heap publication.
+                            assert!(!delta.login.encode().unwrap().is_empty());
+                            assert!(!s.encode().unwrap().is_empty());
+                            assert!(!r.encode().unwrap().is_empty());
+                            expected_bytes = delta.encoded_bytes;
+                            commits += 1;
+                            Ok(())
+                        },
+                    )
+                    .map_err(|_| LoginRevocationError::Storage)
+            })
+            .unwrap();
+        assert_eq!(store.encoded_bytes(), expected_bytes);
+        assert_eq!(store.session_records().len(), 1);
+        assert_eq!(store.replay_records().len(), nonce as usize);
+    }
+    // Reads and invalid writes must never invoke external persistence.
+    store
+        .transaction_with_commit(None, |tx| tx.session(f.caller()), |_| panic!("read commit"))
+        .unwrap();
+    assert_eq!(
+        store.transaction_with_commit(
+            None,
+            |tx| tx.remove(f.caller()),
+            |_| panic!("invalid commit")
+        ),
+        Err(SessionError::InvalidPolicyOrRecord)
+    );
+    let before = store.encoded_bytes();
+    let session = store.session_records().next().unwrap().clone();
+    assert_eq!(
+        source
+            .ledger
+            .with_revocation(&mut source.logout, f.caller(), NOW, |login| {
+                store
+                    .transaction_with_commit(
+                        Some(login),
+                        |tx| tx.remove(f.caller()),
+                        |_| Err(SessionError::StorageFailure),
+                    )
+                    .map_err(|_| LoginRevocationError::Storage)
+            }),
+        Err(LoginRevocationError::Storage)
+    );
+    assert_eq!(store.encoded_bytes(), before);
+    assert_eq!(store.session_records().next().unwrap(), &session);
+    assert!(!source.ledger.is_revoked(f.caller(), NOW).unwrap());
+    for caller in [f.caller(), Fixture::new(2).caller()] {
+        source
+            .ledger
+            .with_revocation(&mut source.logout, caller, NOW, |login| {
+                store
+                    .transaction_with_commit(
+                        Some(login),
+                        |tx| tx.remove(caller),
+                        |delta| {
+                            assert!(delta.login.revoked());
+                            assert_eq!(delta.login.caller(), caller);
+                            assert!(delta.admission.is_none());
+                            assert_eq!((delta.session_count, delta.replay_count), (0, 2));
+                            assert_eq!(
+                                delta.encoded_bytes,
+                                before - session.encode().unwrap().len()
+                            );
+                            commits += 1;
+                            Ok(())
+                        },
+                    )
+                    .map_err(|_| LoginRevocationError::Storage)
+            })
+            .unwrap();
+    }
+    assert_eq!(commits, 4);
+    assert_eq!(store.session_records().len(), 0);
+    assert_eq!(store.replay_records().len(), 2);
+}
+
+#[cfg(feature = "session-restore")]
+#[test]
+fn durable_pruning_preserves_records_on_failure_and_commits_exact_deletions() {
+    let f = Fixture::new(1);
+    let other = Fixture::new(2);
+    let mut r = Receiver::new(&f);
+    f.admit(&mut r, NOW).unwrap();
+    other.admit(&mut r, NOW).unwrap();
+    let before = r.store.encoded_bytes();
+    assert_eq!(
+        r.store
+            .prune_with_commit(NOW, 128, |_| panic!("unexpired commit"))
+            .unwrap(),
+        SessionPruned::default()
+    );
+    assert_eq!(
+        r.store
+            .prune_with_commit(NOW + 60 * SECOND, 0, |_| panic!("zero budget commit"))
+            .unwrap(),
+        SessionPruned::default()
+    );
+    let mut failed_key = None;
+    assert_eq!(
+        r.store.prune_with_commit(NOW + 60 * SECOND, 1, |delta| {
+            assert!(delta.callers.is_empty());
+            assert_eq!(delta.fingerprints.len(), 1);
+            assert_eq!((delta.session_count, delta.replay_count), (2, 1));
+            failed_key = Some(delta.fingerprints[0]);
+            Err(SessionError::StorageFailure)
+        }),
+        Err(SessionError::StorageFailure)
+    );
+    assert_eq!(r.store.encoded_bytes(), before);
+    assert_eq!(r.store.replay_records().len(), 2);
+    assert!(r.auth(&f, NOW).is_ok());
+    let mut after = 0;
+    assert_eq!(
+        r.store
+            .prune_with_commit(NOW + 60 * SECOND, 1, |delta| {
+                assert_eq!(Some(delta.fingerprints[0]), failed_key);
+                after = delta.encoded_bytes;
+                Ok(())
+            })
+            .unwrap(),
+        SessionPruned {
+            sessions: 0,
+            replays: 1
+        }
+    );
+    assert_eq!(r.store.encoded_bytes(), after);
+    let pruned = r
+        .store
+        .prune_with_commit(NOW + 60 * SECOND, usize::MAX, |delta| {
+            assert_eq!(delta.callers.len(), 2);
+            assert_eq!(delta.fingerprints.len(), 1);
+            assert_eq!(
+                (delta.session_count, delta.replay_count, delta.encoded_bytes),
+                (0, 0, 0)
+            );
+            Ok(())
+        })
+        .unwrap();
+    assert_eq!(
+        pruned,
+        SessionPruned {
+            sessions: 2,
+            replays: 1
+        }
+    );
+    assert_eq!(r.store.encoded_bytes(), 0);
+    assert_eq!(
+        r.store
+            .prune_with_commit(u64::MAX, 128, |_| panic!("empty commit"))
+            .unwrap(),
+        SessionPruned::default()
+    );
+    // Reconstructed indexes and per-caller counts are empty too.
+    r.store = restored_store(&r.store);
+    assert_eq!(r.store.replay_records().len(), 0);
+}
+
+#[test]
+fn authority_generation_changes_only_after_host_commit() {
+    let f = Fixture::new(1);
+    let mut r = Receiver::new(&f);
+    let session = created(f.admit(&mut r, NOW).unwrap());
+    assert_eq!(
+        r.store.advance_generation_with_commit(|next| {
+            assert_eq!(next, 1);
+            Err(SessionError::StorageFailure)
+        }),
+        Err(SessionError::StorageFailure)
+    );
+    assert_eq!(r.store.generation(), 0);
+    assert_eq!(r.auth(&f, NOW), Ok(session));
+    assert_eq!(
+        r.store
+            .advance_generation_with_commit(|next| {
+                assert_eq!(next, 1);
+                Ok(())
+            })
+            .unwrap(),
+        1
+    );
+    assert!(r.auth(&f, NOW).is_err());
+    let mut exhausted = MemorySessionStore::new(u64::MAX, limits()).unwrap();
+    assert_eq!(
+        exhausted.advance_generation_with_commit(|_| panic!("overflow commit")),
+        Err(SessionError::GenerationExhausted)
+    );
 }

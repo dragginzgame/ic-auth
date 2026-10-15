@@ -324,13 +324,13 @@ fn certified_result_uses_the_same_reservation_and_logout_gate() {
     let caller = browser_principal(&c.browser_public_key);
     let mut ledger = MemoryLoginRevocations::new(c.audience, 1, 1, 0, NOW).unwrap();
     ledger
-        .with_reservation(caller, &checked, NOW, || Ok(()))
+        .with_reservation(caller, &checked, NOW, |_| Ok(()))
         .unwrap();
     ledger
-        .with_revocation(&mut budget(), caller, NOW, || Ok(()))
+        .with_revocation(&mut budget(), caller, NOW, |_| Ok(()))
         .unwrap();
     assert_eq!(
-        ledger.with_reservation::<()>(caller, &checked, NOW, || panic!("post-logout retry")),
+        ledger.with_reservation::<()>(caller, &checked, NOW, |_| panic!("post-logout retry")),
         Err(LoginRevocationError::Revoked)
     );
 }

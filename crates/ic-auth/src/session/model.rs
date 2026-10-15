@@ -3,7 +3,9 @@ use super::{SessionContext, SessionError, SessionOccupancy};
 use crate::session_request::check_scopes;
 use crate::{portable::VerifiedPortableClaims, session_request::SessionRequest};
 use ic_auth_protocol_types::{AudienceId, AuthRole, PortableMechanism, Principal};
-use serde::{Deserialize, Serialize};
+#[cfg(feature = "session-restore")]
+use serde::Deserialize;
+use serde::Serialize;
 
 /// Protected admission policy. Hosts must advance generation atomically with
 /// authority changes, including disable/re-enable and issuer revocation.
@@ -67,6 +69,7 @@ impl SessionLimits {
 }
 
 const RECORD_DOMAIN: &[u8] = b"IC-AUTH-PORTABLE-SESSION\0";
+const REPLAY_DOMAIN: &[u8] = b"IC-AUTH-PORTABLE-REPLAY\0";
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[cfg_attr(feature = "session-restore", derive(Deserialize))]
@@ -104,6 +107,27 @@ let _ = Session::decode(&[]);
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Session(SessionData);
 impl Session {
+    pub(super) fn check_login_change(
+        &self,
+        change: &crate::portable::LoginRevocationChange,
+    ) -> Result<(), SessionError> {
+        if change.caller() != self.0.caller
+            || change.audience() != self.0.audience
+            || (!change.revoked()
+                && (!change.admitted_pool()
+                    || change.until_ns() < self.0.login_deadline_ns
+                    || change.binding()
+                        != Some((
+                            self.0.issuer,
+                            self.0.subject,
+                            self.0.login_started_at_ns,
+                            self.0.login_deadline_ns,
+                        ))))
+        {
+            return Err(SessionError::InvalidPolicyOrRecord);
+        }
+        Ok(())
+    }
     pub fn caller(&self) -> Principal {
         self.0.caller
     }
@@ -263,39 +287,71 @@ impl Session {
     }
 }
 
-/// Replay tombstone retained independently of a session and of logout.
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[cfg_attr(feature = "session-restore", derive(Deserialize))]
 #[serde(deny_unknown_fields)]
-pub struct Replay {
+struct ReplayData {
     fingerprint: [u8; 32],
     caller: Principal,
     generation: u64,
     remove_at_ns: u64,
 }
+
+/// Replay tombstone retained independently of a session and of logout.
+/// Use the bounded domain-separated codec, never raw serde storage.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Replay(ReplayData);
 impl Replay {
+    /// Bounded, domain-separated storage record; not an admission credential.
+    pub fn encode(&self) -> Result<Vec<u8>, SessionError> {
+        let caller = self.0.caller.as_slice();
+        if caller.len() != 29 || caller.last() != Some(&2) || self.0.remove_at_ns == 0 {
+            return Err(SessionError::InvalidPolicyOrRecord);
+        }
+        let mut bytes = REPLAY_DOMAIN.to_vec();
+        bytes.extend(serde_cbor::to_vec(&self.0).map_err(|_| SessionError::InvalidPolicyOrRecord)?);
+        if bytes.len() > 512 {
+            return Err(SessionError::ByteCapacity);
+        }
+        Ok(bytes)
+    }
+
+    /// Trusted-storage restoration only; provenance and rollback are host-owned.
+    #[cfg(feature = "session-restore")]
+    pub fn decode(bytes: &[u8]) -> Result<Self, SessionError> {
+        if bytes.len() > 512 {
+            return Err(SessionError::ByteCapacity);
+        }
+        let bytes = bytes
+            .strip_prefix(REPLAY_DOMAIN)
+            .ok_or(SessionError::InvalidPolicyOrRecord)?;
+        let record =
+            Self(serde_cbor::from_slice(bytes).map_err(|_| SessionError::InvalidPolicyOrRecord)?);
+        record.encode()?;
+        Ok(record)
+    }
+
     pub(super) fn new(session: &Session, remove_at_ns: u64) -> Self {
-        Self {
+        Self(ReplayData {
             fingerprint: session.fingerprint(),
             caller: session.caller(),
             generation: session.generation(),
             remove_at_ns,
-        }
+        })
     }
     pub fn fingerprint(&self) -> [u8; 32] {
-        self.fingerprint
+        self.0.fingerprint
     }
     pub fn caller(&self) -> Principal {
-        self.caller
+        self.0.caller
     }
     pub fn generation(&self) -> u64 {
-        self.generation
+        self.0.generation
     }
     pub fn remove_at_ns(&self) -> u64 {
-        self.remove_at_ns
+        self.0.remove_at_ns
     }
     pub(super) fn encoded_len(&self) -> Result<usize, SessionError> {
-        serde_cbor::to_vec(self)
-            .map(|b| b.len())
-            .map_err(|_| SessionError::InvalidPolicyOrRecord)
+        self.encode().map(|bytes| bytes.len())
     }
 }

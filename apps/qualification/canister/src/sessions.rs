@@ -1,4 +1,6 @@
 //! Actual volatile receiver lifecycle for qualification, not a production issuer.
+mod checkpoint;
+pub(crate) use checkpoint::{Snapshot, capture, restore};
 #[path = "../../sessions.rs"]
 pub(crate) mod contract;
 use candid::Principal;
@@ -18,7 +20,17 @@ use ic_auth_protocol_types::{LogoutRequest, LogoutResult, LogoutUnavailable, Por
 use sha2::{Digest, Sha256};
 use std::cell::RefCell;
 const SECOND: u64 = 1_000_000_000;
+fn limits() -> SessionLimits {
+    SessionLimits {
+        max_sessions: 8,
+        max_replays: 32,
+        max_replays_per_caller: 8,
+        max_encoded_bytes: 65_536,
+    }
+}
 struct Receiver {
+    checkpoint: bool,
+    ready: bool,
     config: ReceiverConfig,
     binding: [u8; 32],
     login_floor: u64,
@@ -79,7 +91,14 @@ fn view(session: Session) -> SessionView {
 fn with_receiver<T>(
     operation: impl FnOnce(&mut Receiver) -> Result<T, String>,
 ) -> Result<T, String> {
-    RECEIVER.with(|state| operation(state.borrow_mut().as_mut().ok_or("receiver not ready")?))
+    RECEIVER.with(|state| {
+        let mut state = state.borrow_mut();
+        let host = state
+            .as_mut()
+            .filter(|host| host.ready)
+            .ok_or("receiver not ready")?;
+        operation(host)
+    })
 }
 #[ic_cdk::update]
 fn install_session_receiver(config: ReceiverConfig) -> Result<(), String> {
@@ -103,16 +122,9 @@ fn install_session_receiver(config: ReceiverConfig) -> Result<(), String> {
         ctx.authority.min_proof_issued_at_ns,
     );
     let host = Receiver {
-        store: MemorySessionStore::new(
-            0,
-            SessionLimits {
-                max_sessions: 8,
-                max_replays: 32,
-                max_replays_per_caller: 8,
-                max_encoded_bytes: 65_536,
-            },
-        )
-        .map_err(|e| e.to_string())?,
+        checkpoint: false,
+        ready: true,
+        store: MemorySessionStore::new(0, limits()).map_err(|e| e.to_string())?,
         ledger: MemoryLoginRevocations::new(config.audience, 8, 8, 0, now)
             .map_err(|e| e.to_string())?,
         admission: SessionAdmissionBudget::new(16, 1, now).map_err(|e| e.to_string())?,
@@ -188,7 +200,7 @@ fn portable_session_read() -> Result<SessionView, String> {
 fn logout_portable_session(_request: LogoutRequest) -> LogoutResult {
     RECEIVER.with(|state| {
         let mut state = state.borrow_mut();
-        let Some(host) = state.as_mut() else {
+        let Some(host) = state.as_mut().filter(|host| host.ready) else {
             return LogoutResult::Unavailable(LogoutUnavailable::ResetPending);
         };
         logout_session(
@@ -215,7 +227,7 @@ fn profile_portable_session() -> Result<SessionProfile, String> {
         let caller = ic_cdk::api::msg_caller();
         let session = host
             .store
-            .transaction(|tx| tx.session(caller))
+            .transaction(None, |tx| tx.session(caller))
             .map_err(|e| e.to_string())?
             .ok_or("no session")?;
         let encoded = session.encode().map_err(|e| e.to_string())?;

@@ -1,7 +1,7 @@
 # IC Auth Agent Instructions
 
 Apply [DRAGGINZGAME.md](DRAGGINZGAME.md), adopted from Shared Tooling revision
-`ed9c26f015691859f67b50b512a94709dcdc0c6c` and recorded in
+`3bef3f2daec7f64f875397ed4d53d5b9e2e68a08` and recorded in
 [.shared-tooling.snapshot](.shared-tooling.snapshot). Read
 [the current handoff](docs/status/current.md) before implementation.
 
@@ -67,12 +67,14 @@ Apply [DRAGGINZGAME.md](DRAGGINZGAME.md), adopted from Shared Tooling revision
   Rust 1.88.0 is the qualified common package minimum; development formatting
   and Clippy stay on 1.99.0. `make check-msrv` checks isolated Cargo package
   payloads for every supported library feature on native/Wasm, then the internal
-  applications separately. Setup explicitly prepares that compiler; checks never
+  applications separately (qualification canister: Rust 1.91.0 for IC Memory).
+  Setup explicitly prepares both compilers; checks never
   download one. See [minimum compiler qualification](docs/msrv.md).
   Focused Rust checks are `make test-types`, `make test-protocol`, `make test-chain-key-signatures`, `make test-signatures`,
   `make test-signature-store`, `make test-tokens`, `make test-sessions`,
   `make test-host-tooling`, `make test-qualification`, `make check-wasm` and `make clippy`; `make ci` is the
-  explicit complete gate. It seals declared Rust/frontend preparation inputs
+  explicit complete CI/release gate. Local validation cadence follows
+  [the shared baseline](DRAGGINZGAME.md#validation-and-evidence). It seals declared Rust/frontend preparation inputs
   between stages and refuses drift without fetching or restarting implicitly.
   `make test-formatting-hooks` checks actual staged preservation and is part of
   the complete gate. `make test-release-runner` checks the adopted runner

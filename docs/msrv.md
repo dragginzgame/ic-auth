@@ -1,21 +1,22 @@
 # Minimum Rust compiler qualification
 
-All five workspace packages inherit `rust-version = "1.88.0"` from the virtual
-root. Rust 1.99.0 remains the development compiler for formatting, Clippy and
+The public libraries, native tooling and Testkit runner inherit
+`rust-version = "1.88.0"` from the virtual root. The unpublished qualification
+canister explicitly selects Rust 1.91.0 for its IC Memory 0.40 dependency. Rust 1.99.0 remains the development compiler for formatting, Clippy and
 functional tests; it is independent of the supported minimum.
 
 The selected public native dependency path includes `psm` 0.1.32 and
 `ar_archive_writer` 0.5.3, both requiring Rust 1.88.0. A real Rust 1.85.0 check
 rejects that graph before compilation. No dependencies were downgraded to change
 the result. Rust 1.88.0 passes the selected paths below; internal CDK, IC agent,
-testkit and host packages also require that floor. A future proposed lower floor
+testkit and host packages retain that floor. A future proposed lower floor
 needs a maintained dependency selection and actual compiler qualification.
 
 ## Commands and coverage
 
-`make install-tools` explicitly prepares the minimum compiler and its Wasm target,
+`make install-tools` explicitly prepares both declared minimum compilers and their Wasm targets,
 alongside the separately selected developer tools. `make install-msrv` prepares
-only that compiler and host-tool prerequisites. `make msrv-tools-check` prints
+those compilers and host-tool prerequisites. `make msrv-tools-check` prints
 the actual rustc/Cargo versions and requires the installed Wasm target. It never
 installs a missing compiler implicitly.
 
@@ -55,7 +56,7 @@ See [Auth #21](https://github.com/dragginzgame/ic-auth/issues/21) and the adopte
 | Protocol types | Native and `wasm32-unknown-unknown`, independent normalized package |
 | Auth library | Each target with default features, isolated portable Ed25519 verification, isolated chain-key verification, signature verification, signature preparation, token verification, sessions, session restoration, and all features together |
 | Native tooling and testkit runner | Separate workspace checks of all targets/features |
-| Qualification canister | Separate `wasm32-unknown-unknown` check |
+| Qualification canister | Separate Rust 1.91.0 `wasm32-unknown-unknown` check |
 
 Build output stays under `target/msrv/`, with package inputs under
 `target/msrv-package/`; it does not clean existing output. Source/packages and

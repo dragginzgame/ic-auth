@@ -375,7 +375,7 @@ fn successful_verification_and_failed_storage_do_not_refund_credit() {
         verify_ed25519_claims(&mut budget, &bytes, &signature(), &host, &public_key()).unwrap();
     let mut ledger = MemoryLoginRevocations::new(c.audience, 1, 1, 1, 0).unwrap();
     assert_eq!(
-        ledger.with_reservation::<()>(host.caller, &checked, host.now_ns, || Err(
+        ledger.with_reservation::<()>(host.caller, &checked, host.now_ns, |_| Err(
             LoginRevocationError::Storage
         )),
         Err(LoginRevocationError::Storage)

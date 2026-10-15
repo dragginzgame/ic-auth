@@ -138,7 +138,7 @@ test-sessions:
 	+cargo test --locked --offline -p ic-auth --features sessions,token-verification,portable-signature-verification --test token portable_certified::
 	+cargo test --locked --offline -p ic-auth --features sessions,portable-signature-verification --test sessions
 	+cargo test --locked --offline -p ic-auth --features sessions --doc
-	+cargo test --locked --offline -p ic-auth --features session-restore,portable-signature-verification --test sessions
+	+cargo test --locked --offline -p ic-auth --features session-restore,portable-signature-verification --test sessions --test portable_revocation
 
 check-wasm:
 	+cargo check --locked --offline -p ic-auth --features portable-signature-verification --target wasm32-unknown-unknown
@@ -158,6 +158,7 @@ build-qualification-canister:
 	+cargo build --locked --offline -p ic-auth-qualification-canister --target wasm32-unknown-unknown --release
 
 test-qualification: testkit-tools-check
+	+cargo test --locked --offline -p ic-auth-qualification-canister --lib
 	+$(MAKE) --no-print-directory build-qualification-canister
 	+bash scripts/dev/test-qualification.sh
 

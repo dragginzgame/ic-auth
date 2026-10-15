@@ -47,8 +47,37 @@ an await.
 
 The host MUST serialize the entire engine call with authority updates and ledger
 operations, without await or reentrancy. `SessionStore::transaction` must commit
-all staged session/replay/index changes or leave them unchanged. The engine wraps
-the final transaction in the ledger reservation callback, so a failed backend
+all staged session/replay/index and proposed login-record changes or leave them
+unchanged. Its new `login_change` argument is `None` for reads and
+`Some(&LoginRevocationChange)` for admission/logout. Ledger commit callbacks now
+receive that read-only proposed record, including caller, domain, retention,
+pool and immutable account/login binding. Durable hosts must persist it in the
+same transaction; it is not a reusable credential or authority snapshot.
+The volatile store rejects missing changes, mismatched callers/domains and
+reservation-versus-revocation operation mismatches before modifying records.
+Durable adapters can reuse this staging through
+`MemorySessionStore::transaction_with_commit`. After all validation, a write-only
+callback receives `SessionCommit`: the proposed login record, the touched
+session/replay pair for admission (or no pair for logout), and exact post-commit
+session/replay counts and encoded-byte total. Reads and rejected operations do not
+invoke persistence. A callback error leaves heap records, indexes and accounting
+unchanged. Success must mean the durable transaction has completed; the reference
+store then publishes the already-validated heap changes. No whole-store clone or
+checkpoint is required for this callback. Durable atomicity, metadata generation,
+clock/budget persistence, pruning and authority changes remain host obligations;
+this hook does not itself supply a stable backend.
+Maintenance uses the same ordering: session-store `prune_with_commit` supplies
+at most 128 expired session/replay keys and exact resulting counts/bytes before
+deletion. Ledger `prune_with_commit` supplies expired callers and resulting
+admitted/unknown pool counts. Empty work skips persistence; returned failure
+preserves records/indexes/accounting. The ledger still retains its trusted clock
+observation, including on failure or empty work, so hosts must persist protected
+clock state independently. `advance_generation_with_commit` commits the proposed
+generation together with host authority before publishing it in memory; overflow
+refuses before calling persistence. These callbacks require the same serialized,
+atomic host boundary as admission/logout. Volatile methods delegate to these
+implementations with in-memory commits.
+The engine wraps the final transaction in the ledger callback, so a failed backend
 commit cannot leave an admitted reservation or acknowledge a failed logout.
 Verification and unknown-logout budget charges survive returned storage errors;
 hosts must not trap and roll back those charges.
@@ -85,7 +114,8 @@ sessions without clearing replay evidence. Capacity includes expired records
 until pruning.
 
 Enable `session-restore` only for hosts restoring serialized records. It exposes
-checked `Session::decode`; volatile consumers do not need that decoder. Cargo
+checked `Session::decode`, `Replay::decode`, `LoginRevocationChange::decode` and
+ledger/store `restore_records`; volatile consumers do not need these decoders. Cargo
 feature unification still applies, so inspect each deployed canister's selected
 graph rather than treating workspace builds as size measurements.
 
@@ -94,6 +124,20 @@ Old token-specific records are rejected, with no compatibility reader. The 0.6
 consumer transition must explicitly retire old sessions and coordinate retained
 replay/revocation state before serving. Decoding alone does not authorize a record:
 current authority and its matching retained login reservation are required.
+
+Replay storage uses its own `IC-AUTH-PORTABLE-REPLAY\0` domain and 512-byte bound;
+its encoded bytes count toward store capacity. The new domain replaces raw replay
+serialization in this pending 0.6 format; no old-format reader is supplied.
+`MemorySessionStore::session_records` and `replay_records` stream records under a
+host-serialized checkpoint boundary. Preserve both physical counts, encoded byte
+total and generation in the same atomic checkpoint as all records. Restoring into
+a fresh store rejects duplicate identities, missing/excess entries, future
+generations, inconsistent retained session/replay pairs and capacity violations.
+It rebuilds expiry indexes and per-caller replay counts without extending leases.
+Expired and old-generation records still occupy capacity until pruning. Replay
+records survive logout, and an expired replay may have been pruned before its
+session expires; restoration supports both states. Snapshot completeness and
+rollback protection remain host obligations, including when counts match.
 
 After volatile reset, advance login/proof floors using trusted boot time and the
 qualified clock-skew bound, discard lost-state-dependent sessions and authenticate
@@ -113,15 +157,30 @@ Keep this dependency in a separately selected durable adapter, outside the pure
 engine and volatile receiver graph. It must not persist the local issuer key.
 
 Adding a stable `SessionStore` alone is insufficient: the current engine takes a
-concrete `MemoryLoginRevocations`, and its callback commits session/replay state
-before installing the heap reservation or tombstone. A durable implementation must
-first provide one commit boundary covering both sets of records and protected
-reset/authority metadata. Returned failures must leave them unchanged while
+concrete `MemoryLoginRevocations`. Its callback now supplies the exact proposed
+reservation/tombstone to the store transaction before updating heap state, enabling
+a durable host to persist both together. `LoginRevocationChange::encode` (under
+`sessions`) provides a domain-separated record capped at 1024 bytes. Its checked
+decoder is trusted-storage-only, never a client admission path. `restore_records`
+consumes a freshly constructed ledger and the complete decoded record stream;
+failure returns no partial ledger. It rejects wrong domains, duplicate callers,
+invalid retention, excess/missing physical pool counts and clock rollback.
+`records()` streams the complete physical ledger for a host-serialized checkpoint.
+Expired records count until explicit pruning. Hosts persist `observed_at_ns()`
+and both occupancy counts in the same atomic generation as the records, including
+clock observations retained after refused operations. A successful restore keeps
+the new trusted clock and never extends a reservation or tombstone.
+
+These checks do not authenticate storage or detect a coherently rolled-back
+snapshot. The host must protect the generation, configuration and completeness;
+changing the qualified skew or recovering incomplete storage requires the reset
+contract. The `ic-memory` adapter remains unimplemented. A durable implementation must also
+cover protected reset/authority metadata. Returned failures leave state unchanged while
 retaining charged work budgets. Normal upgrades must restore matching reservations
 as well as sessions; incomplete recovery must enforce fresh-login reset rather
 than invent missing reservations. [Auth #58](https://github.com/dragginzgame/ic-auth/issues/58)
-owns this integration and its failure/upgrade qualification. No `ic-memory`
-dependency or persistent backend is advertised as implemented yet.
+owns this integration and its failure/upgrade qualification. The qualification host selects `ic-memory`; neither public library depends on it.
+A production per-operation persistent backend remains unimplemented.
 
 ## Evidence and remaining adoption
 
@@ -129,8 +188,25 @@ dependency or persistent backend is advertised as implemented yet.
 renewal, exact retries, logout-before-admission, authority invalidation, commit
 failures and checked record restoration. `make test-qualification` exercises the
 volatile receiver in actual Wasm, upgrades and signed ingress, plus portable
-certified admission using real IC certificates. It does not qualify production
-wallet issuance, browser fan-out, durable persistence or cross-subnet latency.
+certified admission using real IC certificates. An opt-in fixture checkpoint also
+persists sessions, replay records, login reservations/tombstones, counts, floors
+and authority generation through real upgrades. It restores closed, requires a
+new controller confirmation of the unchanged live authority, preserves lease and
+denial deadlines, and retains disabled authority across repeated upgrades. Work
+budgets restart empty, conservatively discarding unused credit.
+
+That checkpoint uses published `ic-memory` 0.40.0 with one host-bootstrapped
+namespace and a bounded 128 KiB checkpoint allocation. The host owns the complete
+declaration set, opens only admitted memory and rejects missing/malformed headers
+before decoding. Synchronous upgrade writes use IC message rollback on traps.
+This replaces raw CDK stable-save; older unpublished fixture installations must
+be reinstalled because their stable-memory layout is incompatible. Its controller
+confirmation models protected host input; it is not production Root enrollment.
+The fixture format is internal and has no compatibility reader for older test
+installations. The combined fixture Wasm includes storage and must not be used as a minimal
+volatile consumer size measurement. This evidence does not qualify the production ic-memory adapter,
+per-operation stable transactions, backup recovery, wallet issuance, browser
+fan-out or cross-subnet latency.
 
 Canic owns enrollment, endpoint/configuration adapters and fleet integration;
 [Canic #491](https://github.com/dragginzgame/canic/issues/491) tracks adoption.

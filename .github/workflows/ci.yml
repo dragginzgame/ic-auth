@@ -95,27 +95,17 @@ jobs:
           name: ic-auth-rust-tools-${{ matrix.os }}-${{ github.run_attempt }}
           temp-root: ${{ steps.tools-evidence.outputs.temp }}
           repository-root: ${{ steps.tools-evidence.outputs.consumer }}
-      - name: Wait for exact Rust-tool failure artifact discovery
+      - name: Download verified Rust-tool failure evidence by exact ID
         if: ${{ !cancelled() && steps.tools-evidence-upload.outputs.artifact-id != '' }}
-        id: tools-evidence-discovery
-        timeout-minutes: 2
+        id: tools-evidence-download
+        timeout-minutes: 3
         env:
           GH_TOKEN: ${{ github.token }}
           EVIDENCE_REPOSITORY: ${{ github.repository }}
           EVIDENCE_RUN: ${{ github.run_id }}
           EVIDENCE_ARTIFACT: ${{ steps.tools-evidence-upload.outputs.artifact-id }}
-        run: bash scripts/ci/wait-for-artifact.sh "$EVIDENCE_REPOSITORY" "$EVIDENCE_RUN" "$EVIDENCE_ARTIFACT"
-      - name: Download that exact Rust-tool failure artifact
-        if: ${{ !cancelled() && steps.tools-evidence-discovery.outcome == 'success' }}
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
-        with:
-          artifact-ids: ${{ steps.tools-evidence-upload.outputs.artifact-id }}
-          github-token: ${{ github.token }}
-          repository: ${{ github.repository }}
-          run-id: ${{ github.run_id }}
-          digest-mismatch: error
-          path: ${{ github.workspace }}/target/tools-evidence-downloaded
-          merge-multiple: true
+          EVIDENCE_DIGEST: ${{ steps.tools-evidence-upload.outputs.artifact-digest }}
+        run: bash scripts/ci/download-evidence.sh "$EVIDENCE_REPOSITORY" "$EVIDENCE_RUN" "$EVIDENCE_ARTIFACT" "$EVIDENCE_DIGEST" "$GITHUB_WORKSPACE/target/tools-evidence-downloaded"
       - name: Verify uploaded Rust-tool failure bytes
         env:
           EXPECTED_EVIDENCE: ${{ steps.tools-evidence.outputs.expected }}

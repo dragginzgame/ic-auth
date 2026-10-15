@@ -125,10 +125,11 @@ for target in native wasm32-unknown-unknown; do
         fi
     done
 done
-# Internal applications have the same qualified floor, checked separately from
-# the public dependency path. Runtime qualification remains test-qualification.
+# Native applications retain the common floor; the IC Memory qualification host
+# has its own declared minimum, separate from the public dependency path. Runtime qualification remains test-qualification.
 cargo +"$floor" check --locked --offline -p ic-auth-tooling -p ic-auth-qualification --all-targets --all-features
-cargo +"$floor" check --locked --offline -p ic-auth-qualification-canister --target wasm32-unknown-unknown
+qualification_floor="$(bash scripts/dev/msrv-tools.sh qualification-floor)"
+cargo +"$qualification_floor" check --locked --offline -p ic-auth-qualification-canister --target wasm32-unknown-unknown
 package_inputs "$fixture/Cargo.toml" "$fixture/Cargo.lock" "$fixture/src/lib.rs" > "$fixture/inputs-after"
 cmp "$fixture/inputs-before" "$fixture/inputs-after"
 printf 'Package archives, unpacked sources, manifests and locks remained unchanged\n'

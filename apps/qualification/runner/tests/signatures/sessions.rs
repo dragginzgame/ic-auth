@@ -26,12 +26,15 @@ fn measured<T>(f: &Fixture, target: Principal, label: &str, operation: impl FnOn
 }
 
 fn install(f: &Fixture, target: Principal, config: &ReceiverConfig) {
-    let result: Result<(), String> = f.pic.update_candid_as_or_panic(
-        target,
-        f.controller,
-        "install_session_receiver",
-        (config.clone(),),
-    );
+    let result: Result<(), String> = f
+        .pic
+        .update_candid_as(
+            target,
+            f.controller,
+            "install_session_receiver",
+            (config.clone(),),
+        )
+        .expect("qualified Candid transport");
     result.unwrap();
 }
 fn admission(
@@ -40,24 +43,30 @@ fn admission(
     caller: Principal,
     input: &SessionInput,
 ) -> Result<SessionView, String> {
-    f.pic.update_candid_as_or_panic(
-        target,
-        caller,
-        "establish_portable_session",
-        (input.clone(),),
-    )
+    f.pic
+        .update_candid_as(
+            target,
+            caller,
+            "establish_portable_session",
+            (input.clone(),),
+        )
+        .expect("qualified Candid transport")
 }
 fn read(f: &Fixture, target: Principal, caller: Principal) -> Result<SessionView, String> {
     f.pic
-        .update_candid_as_or_panic(target, caller, "portable_session_read", ())
+        .update_candid_as(target, caller, "portable_session_read", ())
+        .expect("qualified Candid transport")
 }
 fn logout(f: &Fixture, target: Principal, caller: Principal) -> Result<u64, LogoutResult> {
-    let result: LogoutResult = f.pic.update_candid_as_or_panic(
-        target,
-        caller,
-        "logout_portable_session",
-        (LogoutRequest {},),
-    );
+    let result: LogoutResult = f
+        .pic
+        .update_candid_as(
+            target,
+            caller,
+            "logout_portable_session",
+            (LogoutRequest {},),
+        )
+        .expect("qualified Candid transport");
     match result {
         LogoutResult::Revoked { deny_until_ns } => Ok(deny_until_ns),
         other => Err(other),
@@ -179,9 +188,10 @@ fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ingress()
         .is_ok()
     );
     logout(&f, f.resource, caller).unwrap();
-    let profile: Result<SessionProfile, String> =
-        f.pic
-            .query_candid_as_or_panic(f.signer, other_caller, "profile_portable_session", ());
+    let profile: Result<SessionProfile, String> = f
+        .pic
+        .query_candid_as(f.signer, other_caller, "profile_portable_session", ())
+        .expect("qualified Candid transport");
     let profile = profile.unwrap();
     assert!(profile.record_bytes < 2048);
     assert!(profile.decode_instructions > 0);
@@ -194,12 +204,15 @@ fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ingress()
     claims.issued_at_ns = f.now();
     claims.admission_expires_at_ns = f.now() + 2 * SECOND;
     assert!(admission(&f, f.signer, unknown, &input(&claims, &key)).is_err());
-    let result: Result<(), String> = f.pic.update_candid_as_or_panic(
-        f.signer,
-        f.controller,
-        "invalidate_session_authority",
-        (false,),
-    );
+    let result: Result<(), String> = f
+        .pic
+        .update_candid_as(
+            f.signer,
+            f.controller,
+            "invalidate_session_authority",
+            (false,),
+        )
+        .expect("qualified Candid transport");
     result.unwrap();
     assert!(read(&f, f.signer, other_caller).is_err());
     logout(&f, f.signer, other_caller).unwrap();
@@ -395,4 +408,149 @@ pub(super) fn qualify_certified(
         LogoutResult::Revoked { .. }
     ));
     assert!(authorize_session(&mut store, &mut ledger, &ctx, p).is_err());
+}
+
+#[test]
+fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_authority() {
+    let f = Fixture::new();
+    let now = f.now();
+    let key = SigningKey::from_bytes(&[42; 32]);
+    let config = ReceiverConfig {
+        audience: AudienceId {
+            canonical_network_id: CanonicalId::from_bytes([1; 32]),
+            fleet_id: CanonicalId::from_bytes([2; 32]),
+        },
+        issuer: f.signer,
+        public_key: key.verifying_key().to_bytes(),
+        role: "user".parse().unwrap(),
+        grants: vec![DelegatedRoleGrant {
+            target: "user".parse().unwrap(),
+            scopes: vec!["read".into()],
+        }],
+        valid_from_ns: now,
+        valid_until_ns: now + 120 * SECOND,
+        enrollment_until_ns: now + 120 * SECOND,
+    };
+    install(&f, f.resource, &config);
+    let enabled: Result<(), String> = f
+        .pic
+        .update_candid_as(f.resource, f.controller, "enable_session_checkpoint", ())
+        .expect("qualified Candid transport");
+    enabled.unwrap();
+    f.pic.advance_time(Duration::from_secs(1));
+    let mut claims = PortableClaims {
+        mechanism: PortableMechanism::Ed25519,
+        audience: config.audience,
+        issuer: config.issuer,
+        key_binding_id: Sha256::digest(config.public_key).into(),
+        browser_public_key: SigningKey::from_bytes(&[1; 32]).verifying_key().to_bytes(),
+        account_subject: Principal::from_slice(&[99]),
+        login_started_at_ns: f.now(),
+        login_deadline_ns: f.now() + 60 * SECOND,
+        issued_at_ns: f.now(),
+        admission_expires_at_ns: f.now() + 2 * SECOND,
+        nonce: [1; 16],
+        grants: config.grants.clone(),
+    };
+    let live = browser_principal(&claims.browser_public_key);
+    let original = input(&claims, &key);
+    let session = admission(&f, f.resource, live, &original).unwrap();
+    claims.browser_public_key = SigningKey::from_bytes(&[2; 32]).verifying_key().to_bytes();
+    let revoked = browser_principal(&claims.browser_public_key);
+    admission(&f, f.resource, revoked, &input(&claims, &key)).unwrap();
+    let denied_until = logout(&f, f.resource, revoked).unwrap();
+    let unknown_key = SigningKey::from_bytes(&[3; 32]).verifying_key().to_bytes();
+    let unknown = browser_principal(&unknown_key);
+    let unknown_until = logout(&f, f.resource, unknown).unwrap();
+    f.pic
+        .upgrade_canister(
+            f.resource,
+            f.wasm.clone(),
+            encode_args(()).unwrap(),
+            Some(f.controller),
+        )
+        .unwrap();
+    assert_eq!(
+        read(&f, f.resource, live).unwrap_err(),
+        "receiver not ready"
+    );
+    assert!(admission(&f, f.resource, live, &original).is_err());
+    assert_eq!(
+        logout(&f, f.resource, live),
+        Err(LogoutResult::Unavailable(LogoutUnavailable::ResetPending))
+    );
+    let unauthorized: Result<(), String> = f
+        .pic
+        .update_candid_as(
+            f.resource,
+            live,
+            "confirm_restored_session_authority",
+            (config.clone(),),
+        )
+        .expect("qualified Candid transport");
+    assert!(unauthorized.is_err());
+    let mut mismatch = config.clone();
+    mismatch.public_key = [7; 32];
+    let wrong: Result<(), String> = f
+        .pic
+        .update_candid_as(
+            f.resource,
+            f.controller,
+            "confirm_restored_session_authority",
+            (mismatch,),
+        )
+        .expect("qualified Candid transport");
+    assert!(wrong.is_err());
+    assert!(read(&f, f.resource, live).is_err());
+    let confirmed: Result<(), String> = f
+        .pic
+        .update_candid_as(
+            f.resource,
+            f.controller,
+            "confirm_restored_session_authority",
+            (config.clone(),),
+        )
+        .expect("qualified Candid transport");
+    confirmed.unwrap();
+    assert_eq!(read(&f, f.resource, live).unwrap(), session);
+    assert_eq!(admission(&f, f.resource, live, &original).unwrap(), session);
+    assert!(read(&f, f.resource, revoked).is_err());
+    assert_eq!(logout(&f, f.resource, revoked).unwrap(), denied_until);
+    assert_eq!(logout(&f, f.resource, unknown).unwrap(), unknown_until);
+    // Newly signed credentials for both revoked logins remain denied after boot.
+    claims.issued_at_ns = f.now();
+    claims.admission_expires_at_ns = f.now() + 2 * SECOND;
+    assert!(admission(&f, f.resource, revoked, &input(&claims, &key)).is_err());
+    claims.browser_public_key = unknown_key;
+    assert!(admission(&f, f.resource, unknown, &input(&claims, &key)).is_err());
+    let disabled: Result<(), String> = f
+        .pic
+        .update_candid_as(
+            f.resource,
+            f.controller,
+            "invalidate_session_authority",
+            (false,),
+        )
+        .expect("qualified Candid transport");
+    disabled.unwrap();
+    f.pic
+        .upgrade_canister(
+            f.resource,
+            f.wasm.clone(),
+            encode_args(()).unwrap(),
+            Some(f.controller),
+        )
+        .unwrap();
+    let confirmed: Result<(), String> = f
+        .pic
+        .update_candid_as(
+            f.resource,
+            f.controller,
+            "confirm_restored_session_authority",
+            (config,),
+        )
+        .expect("qualified Candid transport");
+    confirmed.unwrap();
+    assert!(read(&f, f.resource, live).is_err());
+    assert_eq!(logout(&f, f.resource, revoked).unwrap(), denied_until);
 }

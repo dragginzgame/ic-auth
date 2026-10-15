@@ -4,6 +4,25 @@
 
 ### Breaking
 
+- Add bounded replay-record encoding and opt-in complete session/replay store
+  restoration, rebuilding expiry indexes, per-caller counts and byte accounting.
+  Keep consumed-proof history through logout and authority generation changes;
+  reject partial, duplicate, future-generation and over-capacity restored state.
+  The pending 0.6 replay storage format now has its own domain prefix, included
+  in encoded-byte limits; use checked codecs instead of raw public Serde.
+  The stable adapter is still unfinished.
+- Pass the proposed `LoginRevocationChange` into ledger commit callbacks and
+  `SessionStore::transaction`; `None` permits reads only. Host stores must commit
+  admission/logout records with session/replay changes, rejecting mismatched
+  operations before writes. This enables durable persistence without claiming a
+  completed stable backend.
+  [#58](https://github.com/dragginzgame/ic-auth/issues/58).
+- Add bounded login-record encoding and opt-in checked ledger restoration. Restore
+  complete trusted atomic generations, rejecting duplicate/wrong-domain records,
+  invalid retention, clock rollback and missing/excess pool entries. Retain
+  tombstones, immutable login bindings and physical occupancy across restoration;
+  storage provenance, rollback protection and the ic-memory adapter remain host
+  integration requirements.
 - Replace token-specific session admission with one portable-credential session
   engine for certified and enrolled Ed25519 proofs. Hosts supply protected
   authority, receiver role/scopes, a retained revocation ledger and shared work
@@ -31,6 +50,15 @@
 
 ### Added
 
+- Extend the host commit boundary to bounded session/replay/login pruning and
+  authority-generation advancement. Failed persistence preserves records and
+  accounting; ledger clock observations remain retained. Empty pruning and
+  generation overflow do not invoke persistence. Volatile maintenance reuses the
+  same algorithms.
+- Expose the validated session write at an optional host commit boundary, including
+  its login reservation/tombstone, touched admission pair and exact resulting
+  counts/bytes. Reuse reference-store staging without whole-store cloning; skip
+  persistence on reads/refusals and preserve heap/ledger state on commit failure.
 - Add Rust-owned portable claims, credential/proof and typed logout contracts,
   canonical encoding/signing hashes, browser-principal derivation and generated
   browser Candid bindings. Both complete verifiers check runtime caller,
@@ -55,6 +83,19 @@
 
 ### Changed and fixed
 
+- Move the internal upgrade checkpoint to a host-owned IC Memory 0.40 allocation,
+  with bounded storage/header checks. Qualify its Rust 1.91 floor separately from
+  the public libraries' unchanged 1.88 minimum; explicit setup prepares both.
+  This replaces the unpublished fixture layout (reinstall old fixtures), not a
+  production per-request durable session backend.
+
+- Adapt qualification callers to Testkit 0.45's fallible Candid API with explicit
+  transport assertions, removing calls to its retired panic helpers.
+- Adopt Shared Tooling 0.15.0 and its exact-ID/digest failure-evidence downloader,
+  replacing artifact-list discovery. Preserve bounded retries and fail closed on
+  identity, digest or transport errors. Follow the shared focused-validation policy
+  for ordinary handoffs while retaining full configured CI/release gates. IC Host
+  remains at the verified latest published 0.18.6; tool pins are unchanged.
 - Keep session-only and Ed25519 session dependency graphs free of BLS/certificate
   machinery. Adapt the selected K256 0.14 and Dalek 5/3 APIs, retaining explicit
   high-S rejection versus producer normalization. Direct SHA-2 remains on 0.10.
@@ -77,6 +118,13 @@
 
 ### Qualification and scope
 
+- Exercise complete receiver checkpoints through real canister upgrades: restored
+  sessions remain closed until protected authority confirmation, logout tombstones
+  deny new proofs, original deadlines remain unchanged, and disabled authority
+  survives repeated upgrades. Keep the existing volatile-reset qualification.
+  This fixture uses CDK stable-save; it does not implement the production
+  ic-memory adapter or Root enrollment. Ledger record iteration is opt-in under
+  `session-restore` for host-serialized checkpoints.
 - Exercise portable sessions across receivers/devices, signed ingress, resets,
   replay, commit failures and logout. Add real IndexedDB cleanup/signing fixtures
   and complete Ed25519 receiver cycle measurements with artifact identity.

@@ -1,5 +1,178 @@
 # Current handoff — 2026-10-13
 
+## IC Memory checkpoint qualification (working tree, 2026-10-15)
+
+The internal canister now uses published `ic-memory` 0.40.0 for a single
+host-declared checkpoint allocation. It replaces raw CDK stable-save with a
+bounded 128 KiB payload, explicit header checks and host bootstrap before opens.
+Old unpublished fixture installations require reinstall; there is no dual layout
+reader. The public libraries and volatile session dependency graph stay unchanged.
+The combined qualification Wasm includes storage and is not a minimal volatile
+consumer size benchmark.
+
+The canister declares Rust 1.91.0 independently; public libraries, native tooling
+and Testkit runner retain 1.88.0. Explicit MSRV setup/checks now cover both declared
+compilers. No existing registry selection changed; IC Memory and its missing
+transitives were added to the single lockfile.
+
+The checkpoint bounds/replacement test and all six real-canister lifecycle tests
+passed in `target/memory-checkpoint-qualification.log`. Repeated upgrades retain
+sessions, replay records and denials, restore closed, and require fresh fixture
+controller authority confirmation. Changed-package native/Wasm Clippy, dependency
+boundaries and isolated-package/fixture MSRV checks passed in
+`target/memory-checkpoint-checks.log`.
+
+This qualifies host allocation and upgrade checkpoint recovery, not a production
+per-request stable adapter or Root enrollment. Atomic per-operation writes,
+protected metadata and capacity/failure recovery remain in
+[Auth #58](https://github.com/dragginzgame/ic-auth/issues/58). No package version,
+commit, push, release, full suite, macOS run or sibling edit was performed.
+
+## Durable maintenance commit boundaries (working tree, 2026-10-15)
+
+Session/replay pruning, login-ledger pruning and authority-generation advancement
+now support host commit callbacks before heap mutation. Pruning stages at most
+128 keys through existing expiry indexes, reports exact resulting counts/bytes,
+and skips callbacks for empty work. Returned storage errors preserve records,
+indexes and accounting; the ledger retains trusted clock observations. Generation
+overflow refuses before persistence. Volatile methods reuse these algorithms.
+See [atomicity](../sessions.md#atomicity-and-logout).
+
+Focused session/proof tests passed (`target/maintenance-commit-tests.log`),
+including failed commits, exact retry deletions, empty work, generation failure
+and overflow. Clippy, Wasm, boundaries and package MSRV passed in
+`target/maintenance-commit-checks.log`. All six real-canister tests passed in
+`target/maintenance-commit-qualification.log`, including authority invalidation
+and repeated checkpoint upgrades. Links, snapshot and diff checks also passed.
+
+The ic-memory adapter remains unfinished under
+[Auth #58](https://github.com/dragginzgame/ic-auth/issues/58); these hooks avoid
+duplicating core maintenance logic in that adapter. No dependencies, compiler
+floor, package versions, Git refs or sibling sources changed in this increment.
+No full-suite or native macOS validation is claimed.
+
+## Validated per-write host commit boundary (working tree, 2026-10-15)
+
+The reference session store now exposes `transaction_with_commit` so a durable
+adapter can reuse its staging and validation. The write-only callback receives
+the proposed login record, touched admission pair (or logout), and exact resulting
+counts/bytes. It runs before heap publication; reads/refusals never persist and
+returned failures leave records/indexes/accounting unchanged. This requires no
+whole-store cloning. See [atomicity](../sessions.md#atomicity-and-logout).
+
+The failure regression now injects an error at the real host commit boundary,
+removing the test-only second-transaction counter. Focused session tests passed
+in `target/session-commit-tests.log`; Clippy, Wasm, boundaries and package MSRV
+passed in `target/session-commit-checks.log`. All six real-canister tests passed
+in `target/session-commit-qualification.log`, including checkpoint restoration,
+volatile reset, logout and signed ingress.
+
+Durable atomic writes, protected metadata, maintenance/generation updates and
+clock/budget persistence still belong to the unfinished ic-memory adapter under
+[Auth #58](https://github.com/dragginzgame/ic-auth/issues/58). No stable dependency,
+compiler-floor or package-version changes, full-suite/macOS validation, commits,
+pushes or sibling edits were performed by this increment.
+
+## Real receiver checkpoint upgrades and Testkit 0.45 (working tree, 2026-10-15)
+
+Explicit Testkit setup completed (`target/testkit-045-setup.log`), selecting
+Testkit 0.45.0 and server 16.1.0. Qualification callers now use its fallible Candid
+API with explicit transport assertions; the retired panic helpers caused the
+first compile failure, retained in `target/checkpoint-qualification.log`.
+
+All six real-canister tests passed in `target/checkpoint-qualification-fixed.log`.
+The new opt-in fixture checkpoint restores sessions, replays, login records and
+protected metadata through real upgrades. It opens only after a new controller
+authority confirmation, preserves existing deadlines and both known/unknown-login
+tombstones, and retains disabled authority across a second upgrade. Existing
+volatile-reset and signed-ingress tests remain. See [evidence scope](../sessions.md#evidence-and-remaining-adoption).
+
+Focused session tests, changed-package Clippy and native/Wasm package MSRV passed
+in `target/checkpoint-focused.log`. Dependency inputs were checked against
+`target/checkpoint-dependency-inputs.sha256`; the independently selected Host 0.19
+and Testkit 0.45 changes were preserved, not authored by this increment. The
+previous Testkit preparation/qualification blocker is resolved.
+
+The checkpoint uses the fixture's existing stable-save owner and resets work
+budgets empty. It is not a production ic-memory adapter, per-operation stable
+transaction or Root enrollment implementation. Those remain under
+[Auth #58](https://github.com/dragginzgame/ic-auth/issues/58). No full-suite or
+macOS validation, package-version changes, commits, pushes or sibling edits.
+
+## Checked session/replay reconstruction (working tree, 2026-10-15)
+
+The pending store now streams checkpoint records and restores complete checked
+session/replay sets with physical counts, encoded bytes and generation. It rebuilds
+expiry indexes and per-caller counts, preserves replay history after logout and
+generation advancement, and rejects partial, duplicate, future-generation or
+over-capacity state. Replay uses a bounded domain-separated codec instead of
+public raw Serde. See [storage and reset](../sessions.md#storage-and-reset).
+
+Focused tests, Wasm, dependency boundaries, Clippy and isolated-package MSRV
+passed in `target/store-restore-final.log`. Tests cover authorized/exact-retry
+use after reconstruction, consumed-proof denial after logout, pruning and decoder
+corruption. These checks completed with Testkit 0.44.0 selected. The subsequent
+independent Cargo manifest/lock update to Testkit 0.45.0 was preserved; its CLI
+was not prepared, so real-canister qualification stopped at admission in
+`target/store-restore-qualification.log`. Run explicit `make install-testkit-tools`
+before repeating that qualification; no older-runtime substitution was made.
+Core library inputs are unaffected by that native fixture dependency change.
+
+No stable backend or real persistent-upgrade qualification is claimed. The
+ic-memory adapter and atomic protected metadata integration remain under
+[Auth #58](https://github.com/dragginzgame/ic-auth/issues/58). No full-suite or
+macOS check was run. This increment changed no package versions or Git refs;
+the independent dependency edits and all prior work remain intact.
+
+## Checked login-ledger restoration (working tree, 2026-10-15)
+
+The pending 0.6 library now encodes bounded login records and, with
+`session-restore`, rebuilds a ledger from a complete trusted atomic generation.
+It rejects malformed records, duplicates, wrong domains, invalid retention,
+clock rollback and missing/excess physical pool entries. It preserves original
+login bindings and tombstone deadlines; failed restoration exposes no partial
+ledger. Host-owned storage provenance, generation protection, configuration and
+fresh enrollment remain required. See [storage and reset](../sessions.md#storage-and-reset).
+
+Focused session/proof tests, Wasm, dependency boundaries and Clippy passed in
+`target/ledger-restore-final.log`; isolated package MSRV checks passed in
+`target/ledger-restore-msrv.log`. Tests cover restored reservations authorizing
+retained sessions/exact retries and restored tombstones denying both. The initial
+test compilation failure and its repaired run remain in
+`target/ledger-restore-tests.log` and `target/ledger-restore-tests-fixed.log`.
+This is native library evidence, not a durable canister upgrade qualification.
+No full-suite or native macOS check was run for this increment.
+
+The ic-memory adapter, complete session/replay restoration and atomic protected
+metadata integration remain under [Auth #58](https://github.com/dragginzgame/ic-auth/issues/58).
+No dependency, package version, index, Git ref or sibling source was changed.
+
+## Shared Tooling adoption and durable transaction input (working tree, 2026-10-15)
+
+Adopted Shared Tooling 0.15.0 at `3bef3f2daec7f64f875397ed4d53d5b9e2e68a08`
+through its canonical exporter (102 files). CI now uses its exact-ID,
+digest-verified evidence downloader. IC Host's latest published packages remain
+0.18.6, already selected here; dependency and tool catalogs needed no changes.
+The adopted baseline uses focused checks for ordinary development/handoff;
+the complete CI/release gate remains unchanged.
+
+SessionStore transactions now receive the proposed login reservation/tombstone
+so durable hosts can commit it with session/replay/index state. The volatile
+adapter rejects missing or mismatched proposals before effects, including
+cross-domain logout. See [the storage contract](../sessions.md#storage-and-reset).
+Checked ledger restoration and an ic-memory adapter remain unfinished under
+[Auth #58](https://github.com/dragginzgame/ic-auth/issues/58); Canic adaptation
+belongs in [Canic #491](https://github.com/dragginzgame/canic/issues/491).
+
+Focused Linux checks passed: formatting-hook, evidence, release-runner/release-tool
+fixtures and host tooling (`target/shared-015-focused.log`); session/proof tests
+(`target/login-change-tests.log`); MSRV, boundaries, Wasm and Clippy
+(`target/login-change-boundaries.log`); and real-canister qualification
+(`target/login-change-qualification-localhost.log`). The initial qualification
+attempt was blocked by sandbox localhost binding, retained separately in
+`target/login-change-qualification.log`. No current full-suite or native macOS
+result is claimed. Package versions, index, refs and sibling sources are unchanged.
+
 ## Library batch push review (working tree, 2026-10-15)
 
 The current library batch is prepared for a review push, not a claim that the

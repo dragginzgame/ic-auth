@@ -12,6 +12,7 @@ use serde::Deserialize;
 use std::cell::RefCell;
 
 mod sessions;
+mod storage;
 use ic_auth_protocol_types::{LogoutRequest, LogoutResult};
 use sessions::contract::{ReceiverConfig, SessionInput, SessionProfile, SessionView};
 
@@ -80,6 +81,7 @@ fn controller() -> Result<(), String> {
 #[ic_cdk::init]
 fn init(owner: Principal) {
     assert_ne!(owner, Principal::anonymous());
+    storage::bootstrap();
     STATE.with(|state| {
         *state.borrow_mut() = Some(State::new(Metadata {
             owner,
@@ -92,16 +94,20 @@ fn init(owner: Principal) {
 #[ic_cdk::pre_upgrade]
 fn pre_upgrade() {
     with_state(|state| {
-        ic_cdk::storage::stable_save((&state.metadata,)).expect("save fixture metadata");
+        let bytes = candid::encode_args((&state.metadata, sessions::capture()))
+            .expect("encode fixture metadata and optional receiver checkpoint");
+        storage::save(&bytes);
     });
 }
 
 #[ic_cdk::post_upgrade]
 fn post_upgrade() {
-    let (metadata,): (Metadata,) =
-        ic_cdk::storage::stable_restore().expect("restore fixture metadata");
+    storage::bootstrap();
+    let (metadata, receiver): (Metadata, Option<sessions::Snapshot>) =
+        candid::decode_args(&storage::load()).expect("restore fixture metadata");
     STATE.with(|state| *state.borrow_mut() = Some(State::new(metadata)));
     with_state(|state| state.publish());
+    sessions::restore(receiver);
 }
 
 #[ic_cdk::update]

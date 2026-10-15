@@ -11,7 +11,8 @@ The selected graph uses IC Host 0.18 and Testkit 0.44.0 with its admitted server
 Historical release evidence does not qualify changed working-tree inputs.
 Rust `1.99.0` remains the development compiler selected by `rust-toolchain.toml`.
 The common package minimum is Rust `1.88.0`, inherited from the root catalog and
-qualified by explicit older-compiler checks. See [MSRV coverage](msrv.md).
+qualified by explicit older-compiler checks. The internal qualification canister
+selects Rust 1.91.0 for IC Memory; both minima are prepared by explicit setup. See [MSRV coverage](msrv.md).
 Linux x86_64 is the initially exercised host.
 
 The supported host matrix is Linux x86_64 and macOS 15 on Intel and Apple Silicon.
@@ -119,7 +120,7 @@ Testkit CLI/server through `LOCAL_TOOL_INSTALL_TARGETS` and
 parallel Make. Direct host-installer callers remove `--with-ripgrep`/`--with-cloc`;
 all four host tools are required. Explicit setup reuses matching installations
 and retains earlier bundles and build evidence. `make install-msrv` prepares the
-minimum compiler alone (and its host tool prerequisites);
+two declared minimum compilers (and host tool prerequisites);
 `make msrv-tools-check` inspects its prepared versions.
 Installation is explicit; checks run
 offline. `fetch` prepares the selected lockfile without changing it.
@@ -251,8 +252,9 @@ is retained under `target/browser-client/`.
 | `make test-testkit-tools` | Locked CLI selection, setup/check failures and selection changes, prepared-input drift refusal, qualification path and actual CI evidence archive with substituted effects |
 | `make test-make-jobserver` | Actual owned Make recipes preserve pipe jobserver descriptors through Cargo/wrappers; unsafe modes refuse before substituted effects |
 
-`make ci` is the complete configured gate for delivery and CI; focused development
-uses the individual checks above.
+`make ci` is the complete configured CI/release gate. Ordinary development and
+handoff use the relevant focused checks above; local full-gate execution follows
+[Shared Tooling validation policy](../DRAGGINZGAME.md#validation-and-evidence).
 It uses the Shared Tooling 0.6.6 logger and retains failures. CI declares the
 root Cargo manifest/lock, Rust compiler selection, common host/Rust and IC pins,
 and browser package manifest/lock/Node selection as prepared inputs. Their byte
