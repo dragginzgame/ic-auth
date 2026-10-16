@@ -16,31 +16,44 @@ transactions and recovery obligations.
 
 ## Published dependency and feature selection
 
-### Current portable contract (released 0.7.4)
+### Current portable contract (released 0.7.5)
 
-Select published `ic-auth` and `ic-auth-protocol-types` 0.7.4 from the root
+Select published `ic-auth` and `ic-auth-protocol-types` 0.7.5 from the root
 dependency catalog. Both packages require Rust 1.91.0; the portable API introduced
-in 0.7.1 is unchanged. The reviewed Canic lock at
-`5b9f582a1` selects 0.7.4; production endpoint and storage acceptance remains with
+in 0.7.1 is unchanged. The reviewed Canic checkout at
+`600a831e0` selects 0.7.5; its offline canonical-role crypto closure gate passes.
+Production endpoint and storage acceptance remains with
 the consumer. Older checkpoints below are historical
 evidence, not alternative supported application-session contracts.
 
 ```toml
 [workspace.dependencies]
-ic-auth = { version = "0.7.4", default-features = false }
-ic-auth-protocol-types = "0.7.4"
+ic-auth = { version = "0.7.5", default-features = false }
+ic-auth-protocol-types = "0.7.5"
 ```
 
 The published 0.7.4 selection does not satisfy Canic's deployed-Wasm dependency
 policy: K256 0.14 and Dalek 3 introduce SHA-2 0.11 alongside the IC signature
-stack's 0.10. The local pending 0.7.5 fix selects K256 0.13.4, Dalek 2.2 and
+stack's 0.10. The published 0.7.5 fix selects K256 0.13.4, Dalek 2.2 and
 Curve25519 4.1.3, retaining the existing verification contract and no public
 upstream types. The Wasm boundary check now rejects duplicate crypto support
-packages with all Auth capabilities selected. Publication and a Canic lock update
-are still required before rerunning its actual canonical-role closure gate.
+packages with all Auth capabilities selected. Canic's actual gate passes all 12
+canonical roles, including nine signature-free roles, at the reviewed selection.
+These older dependency selections
+satisfy that build policy; the authentication protocol itself does not require
+these library versions.
 [Auth #65 — Align crypto dependencies for deployed Wasm](https://github.com/dragginzgame/ic-auth/issues/65)
-owns producer alignment; Auth's graph check is not a consumer closure pass.
+records producer alignment and the actual consumer graph acceptance. Neither
+graph check qualifies the production endpoint/store or successful facade budget.
 No credential, checkpoint or Candid regeneration/reset is required for this fix.
+
+The [real SDK admission example](ic-testkit-qualification.md#sdk-admission-through-the-portable-coordinator)
+now exercises two reference receivers, an exact retry, proof-free calls and local
+logout through `PortableAdmissionClient`. Its private adapter maps the fixture's
+endpoint contract; Canic must map its own endpoint and authenticate the successful
+reply. Issuance is injected, and production renewal/reconciliation remains open.
+This example adds no new backend API or version prerequisite beyond the current
+portable contract; it does not qualify Canic's actual endpoint/storage path.
 
 Child packages inherit the catalog selections and forward only their capabilities.
 `sessions` selects the engine without a verifier; `portable-signature-verification`

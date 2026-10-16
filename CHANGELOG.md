@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.7.6]
+
+- Qualify the portable browser coordinator's real SDK admission across two
+  receivers, exact retry, proof-free application calls and logout with
+  receiver-side renewal refusal. Issuance remains injected; production adapters
+  and renewal stay open in
+  [#3 — Browser token-session client](https://github.com/dragginzgame/ic-auth/issues/3).
+
 ## [0.7.5] - 2026-10-16
 
 - Align private secp256k1 and Ed25519 dependencies with the IC signature stack's

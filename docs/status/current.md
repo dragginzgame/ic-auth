@@ -1,9 +1,57 @@
 # Current handoff — 2026-10-16
 
-## Crypto closure alignment (pending 0.7.5)
+## Real SDK portable admission (pending 0.7.6)
+
+The maintainer delivered 0.7.5 at `f6b7a58421a73926b2b48ffc74ac7d9e2c413d98`.
+Both published package archives match their live registry checksums and embed
+that exact source identity; neither version is yanked. The recorded check of
+[release-source CI](https://github.com/dragginzgame/ic-auth/actions/runs/38919996994)
+still showed Linux/Intel macOS/ARM macOS in progress; no completed matrix is
+claimed. No Auth PRs were open. During this batch Canic advanced to `600a831e0`
+and selected Auth 0.7.5. Its actual offline crypto closure gate passes all 12
+canonical roles, with no duplicate crypto packages and nine signature-free roles.
+The sealed result is in
+`target/sdk-admission-qualification/canic-crypto-closure-sealed.log`; all 45
+graph inputs remained unchanged across the check. Their hashes and the concurrent
+owner-held dependency/Host work are recorded in `canic-crypto-inputs.json`.
+This metadata-only check ran with offline fetching and an Auth-owned target path;
+it performed no consumer compilation/download or source edit. Concurrent owner-held
+Host/dependency edits were preserved. Auth #65 now has producer delivery and consumer
+graph acceptance; production application admission remains with Canic #491.
+
+The private SDK fixture now runs `PortableAdmissionClient` against two real
+reference receivers with one Rust-produced credential. Rust confirms the fresh
+browser principal initially has no sessions. The coordinator commits issuance
+uncertainty and destinations before dispatch, authenticates actual SDK update
+replies, rejects a mismatched ingress caller and preserves the lease on an exact
+retry. Ordinary SDK calls carry no proof. Actual SDK logout completes on both
+receivers, preserves unknown issuance and refuses guarded signing before dispatch;
+retaining the raw test key still cannot authorize. Rust independently checks
+denial and newly signed renewal refusal while proof/authority remain live.
+
+All six real-canister cases and the native storage unit pass in
+`target/sdk-admission-qualification/qualification.log`; the final Node adapter
+uses cancellation-aware 250 ms polling within the existing 30-second child bound.
+All 97 existing client cases, strict TypeScript and both Candid directions pass
+in `client-tests.log`. The tests use fake IndexedDB in Node and an injected issuer
+operation returning a prepared credential. They do not qualify production issuer
+dispatch, renewal/reconciliation, browser persistence, Canic's durable store or
+its final endpoint budget. No public API, generated contract, fixture Wasm source,
+dependency selection, package version, Git ref or sibling source was changed.
+[Auth #3 — Browser token-session client](https://github.com/dragginzgame/ic-auth/issues/3)
+and [Canic #491 — Auth adoption](https://github.com/dragginzgame/canic/issues/491)
+retain the production integration scope. This example introduces no new backend
+version prerequisite beyond the existing portable contract.
+
+Runner strict Clippy and Rust 1.91 test-target compilation pass in `clippy.log`
+and `msrv-runner.log`. Formatting, local links, snapshot and diff checks pass.
+No full CI, sibling build or release operation was run for this batch.
+
+
+## Crypto closure alignment (delivered 0.7.5)
 
 [Auth #65 — Align crypto dependencies for deployed Wasm](https://github.com/dragginzgame/ic-auth/issues/65)
-has a qualified local fix. The root catalog selects K256 0.13.4, Dalek 2.2 and
+has a qualified delivered fix. The root catalog selects K256 0.13.4, Dalek 2.2 and
 Curve25519 4.1.3, matching the IC signature stack's supporting generation.
 K256's Option-returning normalization is handled explicitly: strict verification
 still refuses high-S, while producer normalization retains already-low-S bytes.
@@ -26,8 +74,8 @@ ShellCheck, links, snapshot and diff checks pass. No full CI or consumer build r
 The reference Wasm is 3,085,738 bytes, SHA-256
 `278aa75d38e7aaa72bc88730ff450c535734c6f77a52f634c0670272854ee8d9`.
 
-Publication and Canic's subsequent lock update/actual canonical-role closure
-check remain outstanding; producer qualification does not prove that gate.
+Both packages are published at 0.7.5. Canic's actual canonical-role closure check
+now passes after its 0.7.5 selection at `600a831e0`; see the current evidence above.
 [Canic #491 — Auth adoption](https://github.com/dragginzgame/canic/issues/491)
 still owns portable endpoints, protected enrollment, production atomic storage
 and the ordinary scoped-session guard. Existing

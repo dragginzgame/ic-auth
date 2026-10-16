@@ -1,7 +1,7 @@
 //! Portable receiver lifecycle against real canisters and signed ingress.
 #[path = "sessions/costs.rs"]
 mod costs;
-use super::{Agent, BasicIdentity, Fixture, Principal, decode_one, encode_args};
+use super::{Agent, BasicIdentity, Fixture, Principal, decode_one, encode_args, encode_one};
 #[path = "../../../sessions.rs"]
 mod contract;
 use contract::*;
@@ -279,6 +279,19 @@ fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ingress()
     }
     assert_eq!(read(&f, f.resource, fresh).unwrap(), fresh_session);
     assert_eq!(read(&f, f.signer, fresh).unwrap(), peer_session);
+    let mut sdk_claims = claims.clone();
+    let sdk_now = f.now();
+    sdk_claims.browser_public_key = SigningKey::from_bytes(&[9; 32]).verifying_key().to_bytes();
+    sdk_claims.login_started_at_ns = sdk_now;
+    sdk_claims.login_deadline_ns = sdk_now + 90 * SECOND;
+    sdk_claims.issued_at_ns = sdk_now;
+    sdk_claims.admission_expires_at_ns = sdk_now + 60 * SECOND;
+    sdk_claims.nonce = [9; 16];
+    let sdk_caller = browser_principal(&sdk_claims.browser_public_key);
+    for receiver in [f.signer, f.resource] {
+        assert!(read(&f, receiver, sdk_caller).is_err());
+    }
+    let sdk_credential = encode_one(input(&sdk_claims, &key).credential).unwrap();
     // Node uses the real SDK transport and trusted Testkit network root. The
     // journal uses fake IndexedDB; this does not qualify native browser storage.
     let mut command = std::process::Command::new(
@@ -300,7 +313,14 @@ fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ingress()
                 .map(|b| format!("{b:02x}"))
                 .collect::<String>(),
         )
-        .arg(f.now().to_string());
+        .arg(f.now().to_string())
+        .arg(
+            sdk_credential
+                .iter()
+                .map(|b| format!("{b:02x}"))
+                .collect::<String>(),
+        )
+        .arg(sdk_claims.account_subject.to_text());
     use ic_host_process::tool::{
         OutputLimit, OutputLimits, capture_command, format_failure_evidence,
     };
@@ -319,6 +339,14 @@ fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ingress()
     eprintln!("{}", String::from_utf8_lossy(&output.stderr));
     assert!(f.now() < fresh_session.expires_at_ns.min(peer_session.expires_at_ns));
     assert!(f.now() < config.enrollment_until_ns.min(config.valid_until_ns));
+    assert!(f.now() < sdk_claims.admission_expires_at_ns);
+    sdk_claims.issued_at_ns = f.now();
+    sdk_claims.admission_expires_at_ns = f.now() + 2 * SECOND;
+    sdk_claims.nonce = [10; 16];
+    for receiver in [f.signer, f.resource] {
+        assert!(read(&f, receiver, sdk_caller).is_err());
+        assert!(admission(&f, receiver, sdk_caller, &input(&sdk_claims, &key)).is_err());
+    }
     claims.issued_at_ns = f.now();
     claims.admission_expires_at_ns = f.now() + 2 * SECOND;
     claims.nonce = [4; 16];

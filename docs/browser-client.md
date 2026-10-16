@@ -71,8 +71,11 @@ admission contract, even when a client supplies malformed proof bytes.
 
 `issue` and `reconcile` are bound to one issuer/login and immutable grant request;
 `admit` must authenticate the update reply and resolve only on actual admission
-success. HTTP acceptance alone is insufficient. Current tests use injected
-transports, not deployed endpoints. There is no automatic renewal: expired proof
+success. HTTP acceptance alone is insufficient. Coordinator unit tests use
+injected transports; the [real SDK qualification](ic-testkit-qualification.md#sdk-admission-through-the-portable-coordinator)
+also maps a private reference receiver's actual endpoint, using signed ingress
+and certificate-verified update replies. Its issuer operation supplies a prepared
+Rust credential, rather than contacting a production issuer. There is no automatic renewal: expired proof
 material refuses without allocating a new issuance. Existing receiver sessions
 may remain usable through their separately enforced lease. Production transport,
 renewal and old-store retirement remain in [Auth #3](https://github.com/dragginzgame/ic-auth/issues/3)

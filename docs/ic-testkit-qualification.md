@@ -274,6 +274,37 @@ silently reset retained memory or add an old-format fallback to pass bootstrap.
 Production retained-state decisions remain with the owning consumer and
 [Memory #44 — Allocation pooling and downstream composition](https://github.com/dragginzgame/ic-memory/issues/44).
 
+## SDK admission through the portable coordinator
+
+The [admission fixture](../packages/client/test/qualification/admission.ts) runs
+`PortableAdmissionClient` against two live reference receivers using the real
+SDK, explicit trusted Testkit root and the existing journal/guarded identity.
+Rust first confirms this fresh browser principal has no session on either
+receiver, then supplies one signed portable credential. The injected issuer
+operation returns that prepared credential only after the coordinator commits
+its unknown-issuance marker; there is no production issuer network operation.
+
+The private adapter maps the reference `SessionInput` in
+[the fixture contracts](../apps/qualification/sessions.rs), using the generated
+portable credential descriptor. It authenticates an update reply before accepting
+admission, records each destination before dispatch and permits one update
+submission per attempt. A mismatched ingress caller refuses. One prepared proof
+admits both receivers, and an explicit exact retry preserves the original lease.
+Ordinary calls carry no proof and use the returned guarded identity.
+
+The same journal then completes actual SDK logout on both receivers, retaining
+unknown issuance and invoking its disposal callback. Guarded signing refuses
+before dispatch; deliberately retaining the raw test key still yields receiver
+authorization refusal. Rust also submits newly signed renewal credentials and
+checks they refuse while proof/authority validity remains live. This separates
+browser invalidation from receiver revocation and expiry.
+
+This is private reference-endpoint qualification with fake IndexedDB in Node.
+Canic still owns its endpoint wrappers, receiver-bound enrollment, durable atomic
+store and production issuer/reconciliation contract. No public adapter factory,
+wallet login, issuer signing cost, automatic renewal, native-browser storage,
+cross-subnet latency or final consumer facade budget is qualified here.
+
 ## SDK logout transport against live receivers
 
 The portable session/ingress case now invokes the actual browser-client

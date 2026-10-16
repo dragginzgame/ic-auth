@@ -1,14 +1,16 @@
 // Actual SDK update transport against Testkit's live, signed receiver fixture.
-// Rust admits the sessions and checks their revocation after this child exits.
+// Rust admits the logout-only device; the SDK admits another fresh device.
+// Rust independently checks both devices' revocation after this child exits.
 import assert from 'node:assert/strict';
 import { IDBFactory } from 'fake-indexeddb';
 import { Ed25519KeyIdentity } from '@icp-sdk/core/identity';
 import { Principal } from '@icp-sdk/core/principal';
 import { Endpoint, SubmitRequestType, Expiry } from '@icp-sdk/core/agent';
-import { IndexedDbLogoutStore, PortableLogoutClient, httpLogoutTransport, ClientError } from '../../src/index.js';
+import { IndexedDbLogoutStore, PortableLogoutClient, httpLogoutTransport, ClientError, credentialFromBytes } from '../../src/index.js';
+import { qualifyAdmission } from './admission.js';
 
-const [host, issuerText, receiverText, callerText, rootHex, nowText] = process.argv.slice(2);
-assert.ok(host && issuerText && receiverText && callerText && rootHex && nowText);
+const [host, issuerText, receiverText, callerText, rootHex, nowText, credentialHex, subjectText] = process.argv.slice(2);
+assert.ok(host && issuerText && receiverText && callerText && rootHex && nowText && credentialHex && subjectText);
 const issuer = Principal.fromText(issuerText);
 const receiver = Principal.fromText(receiverText);
 const identity = Ed25519KeyIdentity.generate(new Uint8Array(32).fill(4));
@@ -18,6 +20,8 @@ const started = performance.now();
 const clock = { id: 'testkit-local-clock',
   nowNs: () => origin + BigInt(Math.ceil((performance.now() - started) * 1_000_000)),
   wait: (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms)) };
+await qualifyAdmission(host, issuer, receiver, Uint8Array.from(Buffer.from(rootHex, 'hex')), origin,
+  credentialFromBytes(Uint8Array.from(Buffer.from(credentialHex, 'hex')), 131_072), Principal.fromText(subjectText));
 const submissions: string[] = [];
 let disposed = 0;
 const transport = httpLogoutTransport({ host, methodName: 'logout_portable_session',
