@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.6.4]
+## [0.6.4] - 2026-10-16
 
 - Qualify the public certified-credential admission path across independent
   receivers, including exact retries after proof expiry and receiver-local logout;
