@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.7.2]
+## [0.7.2] - 2026-10-16
 
 - Qualify restored sessions and logout across two independent receivers, including
   expired-proof exact retries and renewed credentials for a revoked login.
