@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.6.4] - Unreleased
+
+- Qualify the public certified-credential admission path across independent
+  receivers, including exact retries after proof expiry and receiver-local logout;
+  link executable endpoint references from the host adoption guide.
+
 ## [0.6.3] - 2026-10-15
 
 - Count session and replay storage bytes through the CBOR serializer without

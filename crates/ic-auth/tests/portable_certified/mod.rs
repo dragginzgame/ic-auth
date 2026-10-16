@@ -480,6 +480,13 @@ fn certified_proof_uses_the_shared_session_lifecycle() {
     let c = claims(&f);
     let encoded = encode_claims(&c).unwrap();
     let signature = proof(&c, CERTIFIED_SIGNATURE_DOMAIN, SEED, NOW);
+    let credential = PortableCredential {
+        claims: encoded.clone(),
+        proof: PortableProof::Certified {
+            delegation: Box::new(f.token.proof.clone()),
+            issuer_signature: signature,
+        },
+    };
     let host = context(&f, &c);
     let mut ctx = SessionContext {
         authority: host.claims,
@@ -515,12 +522,10 @@ fn certified_proof_uses_the_shared_session_lifecycle() {
         &ctx,
         policy,
         |budget| {
-            Ok(verify_certified_claims(
+            Ok(ic_auth::portable_credential::verify_credential(
                 budget,
-                &encoded,
-                &f.token.proof,
-                &signature,
-                &host,
+                &credential,
+                &ic_auth::portable_credential::PortableVerificationContext::Certified(&host),
             )?)
         },
     )
@@ -528,6 +533,39 @@ fn certified_proof_uses_the_shared_session_lifecycle() {
         panic!("created")
     };
     assert_eq!(session.subject(), c.account_subject);
+    // A second receiver has independent session, revocation and budget custody.
+    // The same signed envelope is admitted without issuing another credential.
+    let mut second = MemorySessionStore::new(
+        0,
+        SessionLimits {
+            max_sessions: 2,
+            max_replays: 4,
+            max_replays_per_caller: 2,
+            max_encoded_bytes: 8192,
+        },
+    )
+    .unwrap();
+    let mut second_ledger = MemoryLoginRevocations::new(c.audience, 2, 2, 0, 0).unwrap();
+    let mut second_budget =
+        ic_auth::admission_budget::SessionAdmissionBudget::new(1, 1, NOW - 1).unwrap();
+    let second_session = establish_session(
+        &mut second,
+        &mut second_ledger,
+        &mut second_budget,
+        &credential.claims,
+        &request,
+        &ctx,
+        policy,
+        |budget| {
+            Ok(ic_auth::portable_credential::verify_credential(
+                budget,
+                &credential,
+                &ic_auth::portable_credential::PortableVerificationContext::Certified(&host),
+            )?)
+        },
+    )
+    .unwrap();
+    assert_eq!(second_session, SessionEstablished::Created(session.clone()));
     ctx.authority.now_ns = 170;
     assert_eq!(
         establish_session(
@@ -544,7 +582,7 @@ fn certified_proof_uses_the_shared_session_lifecycle() {
     );
     assert_eq!(
         authorize_session(&mut store, &mut ledger, &ctx, policy),
-        Ok(session)
+        Ok(session.clone())
     );
     assert!(matches!(
         logout_session(
@@ -557,6 +595,25 @@ fn certified_proof_uses_the_shared_session_lifecycle() {
         ic_auth_protocol_types::LogoutResult::Revoked { .. }
     ));
     assert!(authorize_session(&mut store, &mut ledger, &ctx, policy).is_err());
+    assert_eq!(
+        authorize_session(&mut second, &mut second_ledger, &ctx, policy),
+        Ok(session)
+    );
+    assert_eq!(
+        establish_session(
+            &mut store,
+            &mut ledger,
+            &mut budget,
+            &credential.claims,
+            &request,
+            &ctx,
+            policy,
+            |_| panic!("revoked login must fail before cryptography"),
+        ),
+        Err(SessionError::Revocation(
+            ic_auth::portable::LoginRevocationError::Revoked
+        ))
+    );
 }
 
 #[test]

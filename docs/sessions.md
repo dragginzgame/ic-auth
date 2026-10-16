@@ -229,6 +229,23 @@ The rest of the host cut must be propagated together:
   restoration/reset in the actual host. Auth's fixture is reference evidence,
   not production Canic adoption or a completed per-operation durable backend.
 
+## Executable host integration references
+
+Use the qualification receiver's
+[`establish_portable_session` and `portable_session_read`](../apps/qualification/canister/src/sessions.rs)
+as the endpoint wiring reference: runtime caller/time, retained ledger and budgets,
+protected enrollment, and complete verification inside the admission callback.
+Its controller-installed configuration is a test boundary; production Canic must
+supply its authenticated Root enrollment and its own atomic durable store.
+
+The certified-path
+[`certified_proof_uses_the_shared_session_lifecycle`](../crates/ic-auth/tests/portable_certified/mod.rs)
+regression uses the same public credential envelope/verifier. One signed proof is
+admitted independently by two receivers; an exact retry after proof expiry retains
+the original lease. Logout blocks re-admission before cryptography on that receiver
+while the other receiver remains authorized. This is a native protocol regression,
+not deployed cross-subnet or Canic endpoint qualification. Run `make test-sessions`.
+
 ## Evidence and remaining adoption
 
 `make test-sessions` covers both proof mechanisms, independent devices/receivers,

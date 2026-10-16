@@ -1,5 +1,22 @@
 # Current handoff — 2026-10-13
 
+## Canic endpoint adoption reference (pending 0.6.4)
+
+The certified session lifecycle regression now admits the public PortableCredential
+through verify_credential on two independent receiver stores/ledgers/budgets. It
+checks unchanged exact retry after proof expiry, local logout denial before
+cryptography and the other receiver's retained authorization. The host adoption
+guide links this regression and the actual qualification receiver's endpoint wiring.
+
+`make test-sessions` passes in `target/canic-unblock-tests.log`. This is producer
+protocol evidence, not a Canic build, real cross-subnet run or production durable
+backend qualification. No runtime API or persisted format changes. Canic endpoint
+migration and acceptance remain in Canic #491, effective renewal deadlines in #506,
+non-issuing reconciliation in #507 and final endpoint budget qualification in #525.
+Auth #3's production browser adapter depends on the actual consumer endpoints;
+its injected initial-admission coordinator is not a production transport adapter.
+
+
 ## Record sizing and dependency policy cleanup (pending 0.6.3)
 
 Session/replay admission and restoration accounting now count bytes with the same
