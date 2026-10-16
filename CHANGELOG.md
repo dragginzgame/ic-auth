@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.2]
+
+- Qualify restored sessions and logout across two independent receivers, including
+  expired-proof exact retries and renewed credentials for a revoked login.
+- Correct the Canic adoption guide to the released portable session policy,
+  reset floors, feature selections and separate proof/session/revocation deadlines.
+
 ## [0.7.1] - 2026-10-16
 
 - Qualify complete certified and Ed25519 admission in the same receiver fixture,

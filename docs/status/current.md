@@ -1,5 +1,40 @@
 # Current handoff — 2026-10-16
 
+## Current Canic acceptance reference (pending 0.7.2)
+
+The maintainer delivered 0.7.1 at `9d41664677e976ec293b99d2e1f13d11b83b4d95`;
+remote main and the annotated tag were verified. Its retained enrollment selectors
+supersede the original PR #64, now closed without merging the old branch. The
+older pending headings below retain preparation-time evidence.
+
+The Canic guide now selects the released portable API and Rust 1.91 minimum,
+corrects reset floors to PortableClaimsContext with the login-start skew margin,
+and distinguishes proof admission expiry, unchanged leases and login denial
+retention. Historical token adapters/deadlines are labeled as earlier evidence.
+The existing actual-canister checkpoint case now uses two receivers: after proof
+expiry and restoration it retains the exact-retry lease, rejects fresh signed
+material for the revoked login, accepts that material on the unaffected peer,
+and preserves denial/disabled authority through another upgrade. Peer logout
+leaves the other device's session usable. Public APIs and signed/stored formats
+are unchanged; this is an internal fixture extension, not a production backend.
+
+`make test-qualification` passes all six canister cases in
+`target/canic-071-adoption-qualification.log`. Focused runner Clippy and formatting
+pass in `target/canic-071-adoption-clippy.log`; local links and the 103-file
+snapshot in `target/canic-071-adoption-docs.log`. No full CI, macOS, real browser,
+Canic build/edit or production acceptance is claimed. Source/issue review remains
+at [Canic #491 — Auth adoption](https://github.com/dragginzgame/canic/issues/491).
+Typed installed-outcome propagation and fresh completion checks are recorded in
+[Canic #506 — Effective renewal deadlines](https://github.com/dragginzgame/canic/issues/506#issuecomment-6212867923);
+replacement portable endpoint recovery in
+[Canic #507 — Non-issuing reconciliation](https://github.com/dragginzgame/canic/issues/507#issuecomment-6212868307);
+and the need to requalify successful production access in
+[Canic #525 — Actual facade budget](https://github.com/dragginzgame/canic/issues/525#issuecomment-6212868682).
+These remain consumer-owned; the current guard is fail-closed and the shared
+SessionStore is test-only, so historical successful-facade costs are not a
+current-path pass.
+
+
 ## Matched receiver costs and abuse qualification (pending 0.7.1)
 
 The internal receiver now selects protected Ed25519 or certified authority through

@@ -217,6 +217,34 @@ in the [accepted design](design/extraction.md). The existing
 remains the adoption owner. Exact local evidence belongs in the
 [current handoff](status/current.md).
 
+## Portable session restoration across independent receivers
+
+The portable receiver test uses the same caller-bound credential on two actual
+canisters. One enables a host-owned checkpoint and revokes a login locally;
+the peer retains that login and another device's independent session. After
+proof expiry and a same-contract upgrade, the checkpoint receiver refuses
+admission, authorization and logout acknowledgement until its controller confirms
+current matching authority. A production receiver must obtain authenticated
+Root enrollment instead of using this fixture-only controller endpoint.
+
+After confirmation, the original live session is unchanged. An exact retry with
+the expired claims and an empty signature returns that same lease, demonstrating
+that restored exact retry avoids fresh cryptography. The local denial survives
+and rejects a newly signed credential for the same immutable login; that exact
+new credential succeeds on the peer receiver. A second upgrade preserves disabled
+authority and denial retention, while peer sessions remain usable. Logging out
+the peer's login then denies it locally without disturbing the other device.
+
+The executable case is
+`checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_authority` in
+the [native runner](../apps/qualification/runner/tests/signatures/sessions.rs).
+Run it with the existing focused `make test-qualification` command. It covers
+reference-host protocol/lifecycle behavior, not Canic's actual facade, production
+per-operation stable writes, receiver-bound Root enrollment, separate-subnet
+latency, browser renewal or deployed acceptance. The fixture retains state by an
+explicit upgrade checkpoint; it is not the production durable adapter sought by
+[Auth #58 — Persistence and safe reset policy](https://github.com/dragginzgame/ic-auth/issues/58).
+
 ## Matched portable receiver costs and failed-proof throttling
 
 `make test-qualification` now selects both complete portable verifiers in the same

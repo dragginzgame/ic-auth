@@ -16,12 +16,31 @@ transactions and recovery obligations.
 
 ## Published dependency and feature selection
 
-### Accepted 0.6 cut; consumer implementation pending
+### Current portable contract (released 0.7.1)
+
+Select published `ic-auth` and `ic-auth-protocol-types` 0.7.1 from the root
+dependency catalog. Both packages require Rust 1.91.0. The current Canic
+working-tree lock selects that release; production endpoint and storage
+acceptance remains with the consumer. Older checkpoints below are historical
+evidence, not alternative supported application-session contracts.
+
+```toml
+[workspace.dependencies]
+ic-auth = { version = "0.7.1", default-features = false }
+ic-auth-protocol-types = "0.7.1"
+```
+
+Child packages inherit the catalog selections and forward only their capabilities.
+`sessions` selects the engine without a verifier; `portable-signature-verification`
+selects Ed25519 and `token-verification` selects complete certified verification.
+Add `session-restore` only to roles that need checked stored-record restoration.
+The host selects protected authority and calls the matching verifier; enabling a
+feature does not enroll a key or authorize a submitted credential.
 
 Use the Rust-owned `PortableCredential { claims, proof }` and `PortableProof`
 data contracts at the portable credential boundary. In the shared admission
 callback, consume the supplied decoded claims with
-`decoded.verify(budget, &credential.proof, &verification_context)`. The pending
+`decoded.verify(budget, &credential.proof, &verification_context)`. The released
 0.7 callback is `|budget, decoded|`; the prior one-argument callback must change.
 The protected enrollment selects the complete verifier; the envelope supplies no
 Ed25519 issuer key. Standalone `portable_credential::verify_credential` still
@@ -50,8 +69,12 @@ profiles. Memory reset uses a signed login-start cutoff, so renewed pre-reset
 logins also refuse; persistent normal upgrades retain revocation. All boot paths
 require fresh authenticated enrollment before serving. The
 [issuer enrollment contract](design/0.6-tee-enrollment.md) names Root approval,
-volatile-key lifecycle, optional TEE evidence, freshness and key retirement. These producer/host changes are still
-prerequisites; neither a feature toggle nor current `SessionStore` implements them.
+volatile-key lifecycle, optional TEE evidence, freshness and key retirement.
+IC Auth supplies the portable engine, checked storage codecs and reset-floor
+calculation. Canic must
+implement protected enrollment, atomic durable storage or a qualified volatile
+reset profile, and readiness; a feature toggle or trait implementation alone
+does not establish those host guarantees.
 
 The maintainer selected one application-authentication flow on 2026-10-13:
 `establish_session` now admits portable claims through either complete verifier,
@@ -89,30 +112,38 @@ Core if memory-only roles must omit its Wasm. Reject unsupported build/config
 combinations rather than silently selecting another backend. Runtime toggles
 that retain both implementations cannot claim decoder exclusion.
 
-Canic supplies the new required `SessionPolicy::min_proof_issued_at_ns`. After
-losing replay state, capture trusted install/post-upgrade time and use checked
-`time + 1` as the inclusive signed-issuance floor before serving. Do not rely on
-generation alone; the token does not carry that local generation. Preserve
-protected authority configuration independently from volatile sessions. Existing
-durable hosts keeping replay history can select `0`, or retain a stricter floor.
-Follow the [complete lifecycle contract](sessions.md#storage-selection-and-upgrade-contract-for-06).
+Reset cutoffs are fields of `PortableClaimsContext`, not `SessionPolicy`.
+After losing session/replay/revocation state, call
+`PortableClaimsContext::advance_reset_floors(qualified_clock_skew_ns)` once using
+the protected boot time, then retain both resulting floors before readiness.
+The proof-issuance floor is at least `boot_time + 1`; the immutable login-start
+floor also includes the qualified clock skew. Neither floor may decrease.
+Retain previous stricter floors, reject overflow/clock rollback and require fresh
+authenticated enrollment before serving. Never calculate these cutoffs per call.
+A fresh proof for a pre-reset login remains ineligible: the browser needs a fresh
+login principal and login window, not just re-signing old claims. Durable normal
+upgrades retaining all three record sets preserve their existing floors. Follow
+the [complete lifecycle contract](sessions.md#storage-selection-and-upgrade-contract-for-06).
 
 Consumer acceptance must cover memory-mode upgrade logout, refusal of an old
 consumed but unexpired token after upgrade, fresh signed re-admission, persistent
 session/replay restoration, disabled-backend state not being resurrected, and
-per-role resolved features/release Wasm. Toko recovery must obtain a fresh token
-when the reset floor rejects its cached one, using the existing issuer/ingress
-identity where eligible. This does not imply a wallet prompt on every upgrade.
+per-role resolved features/release Wasm. Toko recovery must start a new browser
+login when the immutable login-start floor rejects the old one. Account authentication may reuse an eligible existing
+wallet/identity login; it must not preserve the old browser caller as a new login.
+Memory-mode receiver upgrades therefore log out that receiver's existing users.
 Client orchestration must ensure admission per receiver/identity/scopes before
 ordinary calls. One fleet-wide login flag is insufficient. Reuse the same valid
-token across permitted receivers; obtain fresh issuance after expiry or a receiver
-reset cutoff, without invalidating other receivers' still-live sessions. Retry
-only bounded admission/recovery and never blindly replay application mutations
+credential across permitted receivers. Proof expiry requires fresh issuance within
+the immutable login window; a receiver reset floor can require a new browser login.
+Neither event itself invalidates another receiver's retained session. Retry only
+bounded admission/recovery and never blindly replay application mutations
 with uncertain outcomes. See [multiple receivers](sessions.md#multiple-receivers).
 
 Canic config syntax, endpoint wiring and actual host lifecycle qualification are
-pending consumer work in #491; Auth's reset regression tests model store loss
-without claiming a deployed Canic upgrade test.
+pending consumer work in #491. The Auth fixture exercises actual canister
+upgrades with volatile reset or explicit checkpoint restoration; neither mode
+qualifies Canic's production lifecycle or durable transaction backend.
 
 The read-only Toko checkpoint `44d4e2c6d41e3575b2503e79ffa369129ff3ecf2` selects
 Canic 0.110.48 and actively uses token-per-call guards. Its positive proof cache
@@ -123,12 +154,12 @@ support session adoption for repeated calls but do not qualify the actual durabl
 Canic backend or predict Toko's final Wasm size. Endpoint, frontend, lifecycle
 and performance acceptance remain in the owning issues.
 
-`Session::decode` is not called by the session engine itself. The current Canic
-durable adapter calls it when restoring `shared_session` bytes. Keep checked
+`Session::decode` is not called by the session engine itself. A durable Canic
+adapter needs it when restoring `shared_session` bytes. Keep checked
 restoration on that path; moving it to an upgrade hook still retains the decoder
 in Wasm. The 0.6 flow decision does not select a new codec or a heap-only lifecycle.
 
-### Published selections before the cut
+### Historical selections before the portable cut
 
 Both `ic-auth` and `ic-auth-protocol-types` 0.5.9 are published and unyanked.
 Their registry checksums match IC Auth release
@@ -144,8 +175,9 @@ ic-auth-protocol-types = "0.5.9"
 ```
 
 Child packages inherit these dependencies with `workspace = true`; their
-existing capability features forward only the needed library features. This is
-the recommended published selection. The read-only review below distinguishes Canic's
+existing capability features forward only the needed library features. This was
+the pre-cut selection; use the current portable selection above for new session
+adoption. The read-only review below distinguishes Canic's
 in-progress source adoption from consumer qualification.
 
 Releases 0.3.0 through 0.3.8 change developer tooling and qualification; their
@@ -271,9 +303,10 @@ same-release recovery nor a compatible Auth package patch proves that transition
 | `auth-local-application-authorization` | `sessions` | Durable transaction backend, memory IDs, generation transitions and endpoint guards |
 | Root chain-key signing and renewal | Existing Canic effect adapter | Management-canister signing, key eligibility and orchestration; there is no library signing endpoint |
 
-Token verification enables signature verification; sessions enable token
-verification. Signature preparation is independently selectable. No feature
-imports Canic, Toko, Solana, CDK, stable memory or native Host/Testkit tooling.
+Token verification enables signature and chain-key verification. Since the
+portable cut, sessions select neither verifier; select only the proof mechanisms
+needed by the receiver. Signature preparation is independently selectable. No
+feature imports Canic, Toko, Solana, CDK, stable memory or native Host/Testkit tooling.
 Library adoption does not remove a cryptographic dependency from the transitive
 graph merely by moving its direct declaration.
 
@@ -400,49 +433,52 @@ operation identity and committed lease policy. Consumer qualification belongs in
 
 ## Durable sessions and certification
 
-The target session engine calls `session::establish_session`; protected operations call
-`session::authorize_session` with current context. Use `SessionRequest::new`
-from `session_request` in released 0.5.0 for canonical scope/TTL request identity.
-Do not wrap the old session engine
-behind the library or use its public verified-authority constructor to bypass
-proof verification.
+Use `session::establish_session` for portable admission, `authorize_session` for
+ordinary scoped calls and `logout_session` for local revocation. Construct the
+canonical scope/TTL request with `session_request::SessionRequest::new`.
+Proof expiry, the committed lease and login revocation have separate owners:
 
-Align authority and expiry contracts before replacing Canic's session engine.
-The three deadlines have distinct meanings:
-
-| Deadline | Existing library contract | Consumer projection |
+| Deadline | Current portable contract | Host obligation |
 | --- | --- | --- |
-| `VerifiedToken::expires_at_ns()` | Current proof admission deadline, capped by accepted root policy | Use for proof eligibility; it is not the signed token's original expiry or a committed session lease |
-| `Session::expires_at_ns()` | Requested/default lease capped by `RootKeyPolicy::accept_until_ns` | Direct session-engine adoption must accept this authority cap explicitly |
-| `Replay::remove_at_ns()` | Original authenticated `claims.expires_at_ns` | Preserve the signed proof's replay retention independently of logout, lease expiry or a shorter current policy window |
+| `PortableClaims::admission_expires_at_ns` | Exclusive fresh-admission deadline; retained as `Replay::remove_at_ns()` | Preserve consumed-proof history until its authenticated deadline; an exact retry may return the same live session afterward |
+| `Session::expires_at_ns()` | Requested/default lease capped by immutable login deadline and protected authority/enrollment expiry | Return the unchanged lease on exact retry, restore and ordinary authorization; refreshed enrollment must not extend it |
+| `LoginRevocationChange::until_ns()` | Login reservation/tombstone retention, including the qualified clock-skew margin | Persist it with session/replay changes; proof expiry or local session removal must not discard revocation |
 
-Canic's existing workflow accepts an independently supplied committed-session
-expiry and retains replay until its authority projection's proof expiry. The
-owner has explicitly preserved independent lease semantics in its pending
-cache-removal slice. Mapping the capped verified-token deadline into that
-projection can silently shorten replay retention; applying the library session
-engine can also shorten a lease at the root-policy boundary. Do not fabricate a
-longer enrolled root window to conceal the difference. Canic must resolve that
-authority contract under [#491](https://github.com/dragginzgame/canic/issues/491)
-and [#459](https://github.com/dragginzgame/canic/issues/459) before direct engine
-adoption. This is a consumer decision, not an Auth compatibility shim or a change
-to the existing library's session policy.
-
-The released [root-deadline qualification](ic-testkit-qualification.md) exercises
-this distinction with an actual certified token: a capped session expires before
-the signed proof, and a later eligible enrollment cannot reuse it after session
-pruning. [Auth #22](https://github.com/dragginzgame/ic-auth/issues/22) owns producer
-qualification; it does not select Canic's policy or qualify consumer persistence.
+`SessionPolicy` carries generation, enablement, subject eligibility and TTL
+policy. `PortableClaimsContext` carries current enrollment, issuer/mechanism/key,
+grants, caller/time, validity and reset floors. A proof's fields cannot supply
+those protected expectations. After a stored session lookup, use its issuer,
+`mechanism()` and `key_binding_id()` only to select the exact current protected
+enrollment; then call `authorize_session`. Decoding or selecting a row is not
+permission to grant access. Account identity remains `(issuer, subject)`.
 
 Canic implements `SessionStore` and `SessionTransaction` against its actual
-durable host store. Reads, capacity checks and the staged session/replay pair
-observe one isolated synchronous transaction. Closure or commit failure leaves
-records, indexes, counters, generation and accounting unchanged. Preserve replay
-tombstones through logout, replacement and authority invalidation; advance
-protected generation atomically with invalidating configuration changes.
-`MemorySessionStore` is a volatile reference and cannot replace durable replay
-state in production. The [session contract](sessions.md) owns limits, exact retry
-and restore obligations.
+durable host store. Serialize the complete engine call, both store transactions,
+the login ledger and authority without await/reentrancy. Persist the proposed
+`LoginRevocationChange` atomically with the touched session/replay records,
+indexes, counters and accounting. A `None` change permits reads only; admission
+requires a matching reservation, and logout a matching revoked removal. Use
+`Session::check_login_change` rather than copying private association checks.
+Closure or commit failure leaves the durable state unchanged. Keep failed
+verification credit charged even on subsequent storage failure; do not trap
+ordinary refusals and roll back charges.
+
+`MemorySessionStore` can serve an explicitly selected volatile reset profile.
+Its `transaction_with_commit` hook can stage touched records for a durable host,
+but supplies no stable allocation, transaction or protected metadata itself.
+Preserve replay through logout/replacement and advance generation atomically
+with invalidating authority changes. All boot paths refuse admission and ordinary
+access until fresh authenticated enrollment. See the [session contract](sessions.md)
+for bounded restoration/pruning and memory-mode reset requirements.
+
+The [executable receiver reference](../apps/qualification/canister/src/sessions.rs)
+uses both complete verifiers through one admission path. Its
+[upgrade and multi-receiver regression](../apps/qualification/runner/tests/signatures/sessions.rs)
+checks restored sessions and tombstones, an expired-proof exact retry with the
+original lease, rejection of newly signed material for a revoked login, and an
+unaffected peer receiver. Checkpoint persistence is fixture-only: production
+per-operation durability, Root enrollment and final Canic facade costs still
+require consumer acceptance.
 
 IC Auth's `Session::encode`/`decode` is its current record format, not a reader
 for existing Canic stable records. Canic owns the frozen-format inventory,
@@ -478,7 +514,11 @@ apply the consumer's explicit pending-operation disposition. Library leaf cleanu
 does not revoke already-issued proofs, enroll an issuer or confer application
 resource authority. No Canic lifecycle or certified HTTP adapter is qualified here.
 
-## Consumer acceptance boundary
+## Historical pre-portable consumer acceptance evidence
+
+These checkpoints describe earlier token contracts. Use the current portable
+contract and session APIs above for new integration; passing historical tests
+does not establish acceptance of the current consumer graph.
 
 The maintainer's immediate priority is Canic adoption from the already-published
 libraries. Published 0.2.0 carries complete proof-transport qualification and
@@ -558,7 +598,7 @@ Wallet login is not a prerequisite for these local Rust calls. The private
 [browser client](browser-client.md#consumer-adoption) has a separate real-issuer
 adapter and publication boundary.
 
-## Current Canic adapter boundary
+## Historical Canic adapter checkpoints
 
 ### Published batch construction extraction
 
@@ -729,7 +769,7 @@ the policy-capped deadline when recording proof freshness. Retire its duplicate
 pre-token root verifier after consumer acceptance. This boundary does not block
 adoption of the existing complete token verifier. No Canic source changes or host acceptance are implied.
 
-## Pending standalone shape APIs (0.5.11)
+## Standalone shape APIs (released 0.5.11)
 
 [Auth #50](https://github.com/dragginzgame/ic-auth/issues/50) exposes the
 [scope and grant checks](certificate-issuance.md#standalone-scope-and-grant-shape-checks-pending-0511)

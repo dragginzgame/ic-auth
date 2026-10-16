@@ -439,6 +439,7 @@ fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_authority() 
         verification_refill_ns: 1,
     };
     install(&f, f.resource, &config);
+    install(&f, f.signer, &config);
     let enabled: Result<(), String> = f
         .pic
         .update_candid_as(f.resource, f.controller, "enable_session_checkpoint", ())
@@ -462,13 +463,18 @@ fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_authority() 
     let live = browser_principal(&claims.browser_public_key);
     let original = input(&claims, &key);
     let session = admission(&f, f.resource, live, &original).unwrap();
+    let peer_session = admission(&f, f.signer, live, &original).unwrap();
     claims.browser_public_key = SigningKey::from_bytes(&[2; 32]).verifying_key().to_bytes();
     let revoked = browser_principal(&claims.browser_public_key);
     admission(&f, f.resource, revoked, &input(&claims, &key)).unwrap();
+    admission(&f, f.signer, revoked, &input(&claims, &key)).unwrap();
     let denied_until = logout(&f, f.resource, revoked).unwrap();
+    assert!(read(&f, f.signer, revoked).is_ok());
     let unknown_key = SigningKey::from_bytes(&[3; 32]).verifying_key().to_bytes();
     let unknown = browser_principal(&unknown_key);
     let unknown_until = logout(&f, f.resource, unknown).unwrap();
+    f.pic.advance_time(Duration::from_secs(3));
+    assert!(f.now() >= claims.admission_expires_at_ns);
     f.pic
         .upgrade_canister(
             f.resource,
@@ -481,6 +487,8 @@ fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_authority() 
         read(&f, f.resource, live).unwrap_err(),
         "receiver not ready"
     );
+    assert_eq!(read(&f, f.signer, live).unwrap(), peer_session);
+    assert!(read(&f, f.signer, revoked).is_ok());
     assert!(admission(&f, f.resource, live, &original).is_err());
     assert_eq!(
         logout(&f, f.resource, live),
@@ -520,14 +528,23 @@ fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_authority() 
         .expect("qualified Candid transport");
     confirmed.unwrap();
     assert_eq!(read(&f, f.resource, live).unwrap(), session);
-    assert_eq!(admission(&f, f.resource, live, &original).unwrap(), session);
+    // Restoration retains the live exact retry and its original lease even
+    // though the proof expired. It must not enter fresh verification.
+    let mut retry = original.clone();
+    retry.credential.proof = PortableProof::Ed25519 { signature: vec![] };
+    assert_eq!(admission(&f, f.resource, live, &retry).unwrap(), session);
     assert!(read(&f, f.resource, revoked).is_err());
     assert_eq!(logout(&f, f.resource, revoked).unwrap(), denied_until);
     assert_eq!(logout(&f, f.resource, unknown).unwrap(), unknown_until);
     // Newly signed credentials for both revoked logins remain denied after boot.
     claims.issued_at_ns = f.now();
     claims.admission_expires_at_ns = f.now() + 2 * SECOND;
-    assert!(admission(&f, f.resource, revoked, &input(&claims, &key)).is_err());
+    claims.nonce = [2; 16];
+    let renewed = input(&claims, &key);
+    assert!(admission(&f, f.resource, revoked, &renewed).is_err());
+    let renewed_peer = admission(&f, f.signer, revoked, &renewed).unwrap();
+    assert_eq!(renewed_peer.caller, revoked);
+    assert_eq!(renewed_peer.subject, session.subject);
     claims.browser_public_key = unknown_key;
     assert!(admission(&f, f.resource, unknown, &input(&claims, &key)).is_err());
     let disabled: Result<(), String> = f
@@ -559,5 +576,11 @@ fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_authority() 
         .expect("qualified Candid transport");
     confirmed.unwrap();
     assert!(read(&f, f.resource, live).is_err());
+    assert_eq!(logout(&f, f.resource, revoked).unwrap(), denied_until);
+    assert_eq!(read(&f, f.signer, live).unwrap(), peer_session);
+    assert_eq!(read(&f, f.signer, revoked).unwrap(), renewed_peer);
+    logout(&f, f.signer, revoked).unwrap();
+    assert!(read(&f, f.signer, revoked).is_err());
+    assert_eq!(read(&f, f.signer, live).unwrap(), peer_session);
     assert_eq!(logout(&f, f.resource, revoked).unwrap(), denied_until);
 }
