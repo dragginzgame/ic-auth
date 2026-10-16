@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.7.6]
+## [0.7.6] - 2026-10-16
 
 - Qualify the portable browser coordinator's real SDK admission across two
   receivers, exact retry, proof-free application calls and logout with

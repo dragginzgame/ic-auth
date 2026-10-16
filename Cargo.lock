@@ -1198,7 +1198,7 @@ dependencies = [
 
 [[package]]
 name = "ic-auth"
-version = "0.7.5"
+version = "0.7.6"
 dependencies = [
  "curve25519-dalek",
  "ed25519-dalek",
@@ -1218,7 +1218,7 @@ dependencies = [
 
 [[package]]
 name = "ic-auth-protocol-types"
-version = "0.7.5"
+version = "0.7.6"
 dependencies = [
  "candid",
  "serde",
@@ -1227,7 +1227,7 @@ dependencies = [
 
 [[package]]
 name = "ic-auth-qualification"
-version = "0.7.5"
+version = "0.7.6"
 dependencies = [
  "candid",
  "ed25519-dalek",
@@ -1246,7 +1246,7 @@ dependencies = [
 
 [[package]]
 name = "ic-auth-qualification-canister"
-version = "0.7.5"
+version = "0.7.6"
 dependencies = [
  "candid",
  "ic-auth",
@@ -1260,7 +1260,7 @@ dependencies = [
 
 [[package]]
 name = "ic-auth-tooling"
-version = "0.7.5"
+version = "0.7.6"
 dependencies = [
  "candid",
  "ic-auth-protocol-types",
