@@ -200,6 +200,15 @@ interactive direct commands. Builds stay under this checkout's `target/`; Cargo
 tool installation retains failed build attempts under `.tools/rust/build/` and
 successful Testkit CLI builds in their versioned `.tools/rust/` selection slot.
 
+Copied-workspace experiments must use their own `CARGO_TARGET_DIR`, for example
+`target/<experiment>/cargo-target`, rather than this workspace's `target/`.
+Cargo can reuse a copied package's executable when package identity and relative
+source paths match; that executable may contain experimental fixture inputs.
+If outputs were shared accidentally, retain the executable and dependency metadata
+as evidence, run `cargo clean --offline -p ic-auth-qualification` in this workspace,
+then rerun `make test-qualification`. This clears only the native runner package;
+it does not reset canister storage or repair an incompatible retained ledger.
+
 The reviewed pre-commit hook formats selected files without building or testing,
 rejects partial staging and preserves unrelated edits. Hook activation does not
 establish independent formatting qualification.

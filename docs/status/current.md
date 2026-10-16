@@ -1,5 +1,32 @@
 # Current handoff — 2026-10-16
 
+## Qualification runner artifact recovery (pending 0.7.4)
+
+The six reported upgrade failures came from the earlier copied-source transition
+probe's executable, not the current runner. Its dependency metadata named
+`target/memory-044-adoption/transition-source`, and its binary retained the initial
+`previous-043.wasm` input. That experiment incorrectly shared this workspace's
+Cargo target directory. The current source installs and upgrades the same current
+Wasm; no authentication or storage implementation change was required.
+
+The stale executable and metadata are retained in
+`target/qualification-runner-repair/`. A package-scoped
+`cargo clean --offline -p ic-auth-qualification` removed the affected runner
+outputs without resetting canister storage. Explicit `make install-testkit-tools`
+prepared the maintainer's incoming Testkit 0.49 selection; Cargo.toml/Cargo.lock
+remain byte-for-byte unchanged from this repair's start. The rebuilt runner's
+dependency metadata names the real workspace. `make test-qualification` passes
+the native storage test and all six real-canister tests, including current-format
+upgrades, ingress delegation and SDK logout, in that directory's
+`qualification.log`. Local links, snapshot and diff checks pass. No full CI,
+release command or sibling edit was performed.
+
+[Development guidance](../development.md) now requires a separate Cargo output
+directory for copied-workspace probes and gives targeted recovery steps. The
+actual 0.43 -> 0.44 retained-ledger incompatibility below remains valid; reusing
+that probe executable in normal qualification was a separate validation mistake.
+
+
 ## IC Memory 0.44 fixture adapter repair (pending 0.7.4)
 
 The MSRV failure was an unapplied upstream API cut: 0.44 removed the default
@@ -24,7 +51,7 @@ A separate old-artifact test deliberately fails on 0.43 -> 0.44 bootstrap:
 format and physical marker (ICMESNAP -> ICMDIRCT). The unchanged Auth checkpoint
 payload does not make that ledger compatible. Evidence is retained in
 `target/memory-044-adoption/transition.log` and `transition-inputs.json`; the
-isolated runner substitutes only the initial 0.43 Wasm, then upgrades to current
+copied-source runner substitutes only the initial 0.43 Wasm, then upgrades to current
 0.44. Normal qualification already creates fresh disposable canisters; retained
 0.43 fixture state needs fresh installation. No stored data was automatically
 reset and no compatibility reader or sibling edit was added. The downstream

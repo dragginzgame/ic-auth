@@ -2,6 +2,9 @@
 
 ## [0.7.4]
 
+- Document separate Cargo output directories for copied-workspace experiments and
+  targeted recovery when an experimental qualification runner was reused.
+
 - Adopt IC Memory 0.44's explicit host-owned runtime in the qualification canister,
   retaining checkpoint keys and bytes while restoring Rust 1.91 compilation.
   Use fresh fixture installations: upstream's new ledger format rejects 0.43
