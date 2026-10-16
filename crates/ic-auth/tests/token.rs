@@ -188,7 +188,7 @@ impl Fixture {
             .unwrap(),
             public_key: root_signing_key()
                 .verifying_key()
-                .to_sec1_point(true)
+                .to_encoded_point(true)
                 .as_bytes()
                 .to_vec(),
             key_version: 4,

@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.7.5]
+
+- Align private secp256k1 and Ed25519 dependencies with the IC signature stack's
+  crypto generation, removing duplicate crypto support packages from Auth's
+  deployed Wasm graph. Preserve strict verification and signed/stored formats;
+  reject future duplicate generations in the dependency boundary check.
+  [#65 — Align crypto dependencies for deployed Wasm](https://github.com/dragginzgame/ic-auth/issues/65).
+
 ## [0.7.4] - 2026-10-16
 
 - Document separate Cargo output directories for copied-workspace experiments and

@@ -1,5 +1,73 @@
 # Current handoff — 2026-10-16
 
+## Crypto closure alignment (pending 0.7.5)
+
+[Auth #65 — Align crypto dependencies for deployed Wasm](https://github.com/dragginzgame/ic-auth/issues/65)
+has a qualified local fix. The root catalog selects K256 0.13.4, Dalek 2.2 and
+Curve25519 4.1.3, matching the IC signature stack's supporting generation.
+K256's Option-returning normalization is handled explicitly: strict verification
+still refuses high-S, while producer normalization retains already-low-S bytes.
+No dependency types escape Auth's public boundary, and credentials, Candid,
+stored bytes, package versions and Rust 1.91 minimum are unchanged. Incoming
+Host 0.23 catalog/lock selections are preserved; resolution adds no package
+identities and changes only Auth/runner dependency edges to the aligned versions.
+
+The actual all-capability Wasm normal-edge boundary check rejects duplicate
+crypto support packages. It failed against the incoming graph and passes after
+alignment. Evidence lives in `target/crypto-closure-alignment/`: 179 combined
+library/doc tests pass in `library-tests.log`; 66 focused portable checks,
+including legacy-feature canonical-scalar rejection and certified admission,
+pass in `strict-portable-and-boundaries.log`. The complete isolated package
+native/Wasm MSRV matrix and internal applications pass in `msrv.log`. All six
+actual-canister cases plus the native storage unit pass in `qualification.log`,
+including both proof mechanisms, upgrades, ingress and SDK logout. Strict library,
+runner and Wasm-host Clippy pass in the corresponding `clippy-*.log`; formatting,
+ShellCheck, links, snapshot and diff checks pass. No full CI or consumer build ran.
+The reference Wasm is 3,085,738 bytes, SHA-256
+`278aa75d38e7aaa72bc88730ff450c535734c6f77a52f634c0670272854ee8d9`.
+
+Publication and Canic's subsequent lock update/actual canonical-role closure
+check remain outstanding; producer qualification does not prove that gate.
+[Canic #491 — Auth adoption](https://github.com/dragginzgame/canic/issues/491)
+still owns portable endpoints, protected enrollment, production atomic storage
+and the ordinary scoped-session guard. Existing
+[Canic #506 — Issuer-effective deadlines](https://github.com/dragginzgame/canic/issues/506),
+[Canic #507 — Non-issuing reconciliation](https://github.com/dragginzgame/canic/issues/507)
+and [Canic #525 — Qualify application authorization budget](https://github.com/dragginzgame/canic/issues/525)
+own deadline propagation, recovery and successful facade qualification.
+No sibling source, Git ref or release effect was
+changed. The preceding audit below records why these remain integration work.
+
+
+## Canic readiness audit after Auth 0.7.4 delivery
+
+Auth 0.7.4 is committed at `8359c0b`; the clean reviewed Canic checkout at
+`5b9f582a1` selects both published Auth packages at 0.7.4. Canic's handoff still
+describes an earlier uncommitted checkpoint; current source is authoritative for
+this review. Its application guard still returns AuthorityUnavailable, its shared
+session-store adapter remains cfg(test), and its API exposes no portable
+application-session endpoint. Existing [Canic #491 — Auth adoption](https://github.com/dragginzgame/canic/issues/491)
+continues to own production enrollment, atomic storage and endpoint acceptance.
+
+The producer dependency blocker remains
+[Auth #65 — Align crypto dependencies for deployed Wasm](https://github.com/dragginzgame/ic-auth/issues/65).
+Locked offline Wasm normal-edge trees in `target/canic-readiness-audit/` confirm
+that both K256 0.14 and Dalek 3 select SHA-2 0.11, alongside SHA-2 0.10 through
+Auth/IC verification. A K256-only downgrade is insufficient for the complete
+portable receiver. No cryptographic dependency was changed or verification
+disabled during this audit. Incoming Host 0.23 manifest/lock edits are preserved.
+
+Canic's Root workflow still discards the successful typed issuer installation
+response and records declared expiry/refresh using the pre-await clock; the
+existing [Canic #506 — Issuer-effective deadlines](https://github.com/dragginzgame/canic/issues/506)
+owns that propagation. Non-issuing recovery and final successful facade budgets
+remain open in [Canic #507 — Non-issuing reconciliation](https://github.com/dragginzgame/canic/issues/507)
+and [Canic #525 — Qualify application authorization budget](https://github.com/dragginzgame/canic/issues/525).
+The adoption guide now names 0.7.4 and the unresolved closure gate. This was a
+read-only consumer source/issue review plus local documentation correction; no
+Canic edit/build, Rust suite, full gate or release ran.
+
+
 ## Qualification runner artifact recovery (pending 0.7.4)
 
 The six reported upgrade failures came from the earlier copied-source transition

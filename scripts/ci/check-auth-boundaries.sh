@@ -38,4 +38,18 @@ for feature in portable-signature-verification chain-key-verification canister-s
         exit 1
     fi
 done
+# The complete deployed verifier must share its crypto support generation with
+# the IC stack. Inspect normal Wasm edges, excluding native qualification tools.
+graph="$(cargo tree --locked --offline -p ic-auth --all-features --target wasm32-unknown-unknown --edges normal --prefix none --format '{p}')"
+duplicates="$(printf '%s\n' "$graph" | awk '
+    $1 ~ /^(base16ct|block-buffer|const-oid|crypto-bigint|crypto-common|curve25519-dalek|der|digest|ecdsa|ed25519|ed25519-dalek|elliptic-curve|ff|group|hmac|ic-canister-sig-creation|ic-certification|ic-representation-independent-hash|ic-signature-verification|ic-verify-bls-signature|ic_bls12_381|k256|pairing|pkcs8|primeorder|rfc6979|sec1|sha2|signature|spki|subtle|zeroize)$/ {
+        identity = $1 " " $2
+        if (!seen[identity]++) count[$1]++
+    }
+    END { for (name in count) if (count[name] > 1) print name }
+' | LC_ALL=C sort)"
+if [[ -n "$duplicates" ]]; then
+    printf 'Auth deployed Wasm resolves duplicate crypto packages:\n%s\n' "$duplicates" >&2
+    exit 1
+fi
 echo 'Auth dependency boundaries verified'

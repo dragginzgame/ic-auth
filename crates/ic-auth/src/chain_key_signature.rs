@@ -50,7 +50,7 @@ pub fn verify_secp256k1_prehash(
 /// high-S input; it never calls this function implicitly.
 pub fn normalize_secp256k1_signature(signature: &[u8]) -> Result<[u8; 64], ChainKeySignatureError> {
     let parsed = parse_signature(signature)?;
-    Ok(parsed.normalize_s().to_bytes().into())
+    Ok(parsed.normalize_s().unwrap_or(parsed).to_bytes().into())
 }
 
 fn parse_public_key(public_key: &[u8]) -> Result<VerifyingKey, ChainKeySignatureError> {
@@ -76,7 +76,7 @@ impl VerificationMaterial {
     ) -> Result<Self, ChainKeySignatureError> {
         let key = parse_public_key(public_key)?;
         let signature = parse_signature(signature)?;
-        if signature.normalize_s() != signature {
+        if signature.normalize_s().is_some() {
             return Err(ChainKeySignatureError::HighSSignature);
         }
         Ok(Self { key, signature })

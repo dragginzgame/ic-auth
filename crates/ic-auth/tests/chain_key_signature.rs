@@ -18,7 +18,7 @@ fn signature() -> Signature {
 
 fn high_s_signature() -> Signature {
     let signature = signature();
-    assert_eq!(signature.normalize_s(), signature);
+    assert!(signature.normalize_s().is_none());
     let (r, s) = signature.split_scalars();
     Signature::from_scalars(r.to_bytes(), (-*s).to_bytes()).unwrap()
 }
@@ -41,7 +41,7 @@ fn admits_compressed_and_uncompressed_keys_and_exact_prehash_signatures() {
     let key = signing_key();
     let signature = signature().to_bytes();
     for compressed in [true, false] {
-        let public_key = key.verifying_key().to_sec1_point(compressed);
+        let public_key = key.verifying_key().to_encoded_point(compressed);
         assert_eq!(validate_secp256k1_public_key(public_key.as_bytes()), Ok(()));
         assert_eq!(
             verify_secp256k1_prehash(public_key.as_bytes(), &PREHASH, &signature),
@@ -52,7 +52,7 @@ fn admits_compressed_and_uncompressed_keys_and_exact_prehash_signatures() {
 
 #[test]
 fn rejects_malformed_keys_for_admission_and_verification() {
-    let key = signing_key().verifying_key().to_sec1_point(true);
+    let key = signing_key().verifying_key().to_encoded_point(true);
     let mut invalid_prefix = key.as_bytes().to_vec();
     invalid_prefix[0] = 1;
     for public_key in [
@@ -76,7 +76,7 @@ fn rejects_malformed_keys_for_admission_and_verification() {
 
 #[test]
 fn rejects_noncompact_encodings_and_out_of_range_scalars() {
-    let key = signing_key().verifying_key().to_sec1_point(true);
+    let key = signing_key().verifying_key().to_encoded_point(true);
     for signature in malformed_signatures() {
         assert_eq!(
             verify_secp256k1_prehash(key.as_bytes(), &PREHASH, &signature),
@@ -87,7 +87,7 @@ fn rejects_noncompact_encodings_and_out_of_range_scalars() {
 
 #[test]
 fn explicit_normalization_preserves_low_s_and_converts_high_s_idempotently() {
-    let key = signing_key().verifying_key().to_sec1_point(true);
+    let key = signing_key().verifying_key().to_encoded_point(true);
     let low_s: [u8; 64] = signature().to_bytes().into();
     let high_s: [u8; 64] = high_s_signature().to_bytes().into();
     assert_ne!(high_s, low_s);
@@ -121,7 +121,7 @@ fn normalization_rejects_malformed_encodings_and_scalars() {
 
 #[test]
 fn normalization_success_does_not_authenticate_a_signature() {
-    let key = signing_key().verifying_key().to_sec1_point(true);
+    let key = signing_key().verifying_key().to_encoded_point(true);
     let normalized = normalize_secp256k1_signature(&high_s_signature().to_bytes()).unwrap();
     assert_eq!(
         verify_secp256k1_prehash(key.as_bytes(), &[0; 32], &normalized),
@@ -138,11 +138,11 @@ fn normalization_success_does_not_authenticate_a_signature() {
 
 #[test]
 fn rejects_changed_hash_key_and_signature() {
-    let key = signing_key().verifying_key().to_sec1_point(true);
+    let key = signing_key().verifying_key().to_encoded_point(true);
     let other_key = SigningKey::from_slice(&[8; 32])
         .unwrap()
         .verifying_key()
-        .to_sec1_point(true);
+        .to_encoded_point(true);
     let signature = signature().to_bytes();
     let mut changed_hash = PREHASH;
     changed_hash[0] ^= 1;
@@ -162,7 +162,7 @@ fn rejects_changed_hash_key_and_signature() {
 
 #[test]
 fn refuses_high_s_without_normalization_and_keeps_inputs_unchanged() {
-    let key = signing_key().verifying_key().to_sec1_point(true);
+    let key = signing_key().verifying_key().to_encoded_point(true);
     let high_s = high_s_signature().to_bytes();
     let unchanged = high_s;
     assert_eq!(
@@ -180,7 +180,7 @@ fn refuses_high_s_without_normalization_and_keeps_inputs_unchanged() {
 
 #[test]
 fn key_and_signature_shape_precede_cryptographic_rejection() {
-    let key = signing_key().verifying_key().to_sec1_point(true);
+    let key = signing_key().verifying_key().to_encoded_point(true);
     assert_eq!(
         verify_secp256k1_prehash(&[], &[0; 32], &[]),
         Err(Error::MalformedPublicKey)

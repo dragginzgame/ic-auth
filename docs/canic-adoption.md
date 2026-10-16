@@ -16,19 +16,31 @@ transactions and recovery obligations.
 
 ## Published dependency and feature selection
 
-### Current portable contract (released 0.7.1)
+### Current portable contract (released 0.7.4)
 
-Select published `ic-auth` and `ic-auth-protocol-types` 0.7.1 from the root
-dependency catalog. Both packages require Rust 1.91.0. The current Canic
-working-tree lock selects that release; production endpoint and storage
-acceptance remains with the consumer. Older checkpoints below are historical
+Select published `ic-auth` and `ic-auth-protocol-types` 0.7.4 from the root
+dependency catalog. Both packages require Rust 1.91.0; the portable API introduced
+in 0.7.1 is unchanged. The reviewed Canic lock at
+`5b9f582a1` selects 0.7.4; production endpoint and storage acceptance remains with
+the consumer. Older checkpoints below are historical
 evidence, not alternative supported application-session contracts.
 
 ```toml
 [workspace.dependencies]
-ic-auth = { version = "0.7.1", default-features = false }
-ic-auth-protocol-types = "0.7.1"
+ic-auth = { version = "0.7.4", default-features = false }
+ic-auth-protocol-types = "0.7.4"
 ```
+
+The published 0.7.4 selection does not satisfy Canic's deployed-Wasm dependency
+policy: K256 0.14 and Dalek 3 introduce SHA-2 0.11 alongside the IC signature
+stack's 0.10. The local pending 0.7.5 fix selects K256 0.13.4, Dalek 2.2 and
+Curve25519 4.1.3, retaining the existing verification contract and no public
+upstream types. The Wasm boundary check now rejects duplicate crypto support
+packages with all Auth capabilities selected. Publication and a Canic lock update
+are still required before rerunning its actual canonical-role closure gate.
+[Auth #65 — Align crypto dependencies for deployed Wasm](https://github.com/dragginzgame/ic-auth/issues/65)
+owns producer alignment; Auth's graph check is not a consumer closure pass.
+No credential, checkpoint or Candid regeneration/reset is required for this fix.
 
 Child packages inherit the catalog selections and forward only their capabilities.
 `sessions` selects the engine without a verifier; `portable-signature-verification`
