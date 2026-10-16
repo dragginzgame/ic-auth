@@ -5,7 +5,13 @@ import {
 } from './generated/protocol.did.js';
 import { ClientError } from './contracts.js';
 
+function checkMaximum(maximum: number): void {
+  // A comparison alone lets NaN or an omitted JavaScript argument disable the cap.
+  if (!Number.isSafeInteger(maximum) || maximum < 1) throw new ClientError('invalid_material');
+}
+
 export function encode(type: IDL.Type, value: unknown, maximum: number): Uint8Array {
+  checkMaximum(maximum);
   try {
     const bytes = IDL.encode([type], [value]);
     if (bytes.byteLength > maximum) throw new ClientError('invalid_material');
@@ -19,6 +25,7 @@ export function encode(type: IDL.Type, value: unknown, maximum: number): Uint8Ar
 // generated runtime descriptor with its generated TS type, without hand-written
 // DTOs, legacy JSON readers or coercions between different service declarations.
 function decode<T>(type: IDL.Type, bytes: Uint8Array, maximum: number): T {
+  checkMaximum(maximum);
   if (bytes.byteLength > maximum) throw new ClientError('invalid_material');
   try {
     // Guard the public input-stream read boundary on this decode only. The

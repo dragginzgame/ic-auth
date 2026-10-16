@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.7]
+
+- Reject missing, nonnumeric, nonfinite, fractional and unsafe browser codec
+  byte limits before inspecting material or invoking Candid. Valid limits and
+  encoded bytes are unchanged.
+  [#3 — Browser token-session client](https://github.com/dragginzgame/ic-auth/issues/3).
+
 ## [0.7.6] - 2026-10-16
 
 - Qualify the portable browser coordinator's real SDK admission across two

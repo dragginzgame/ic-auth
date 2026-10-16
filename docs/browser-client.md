@@ -16,6 +16,13 @@ those claims nor selects a trusted issuer key. Both proof variants retain their
 existing cryptographic material. Rust/TypeScript vectors qualify both Candid
 directions; certified transport also has Rust and TypeScript roundtrip checks.
 
+Codec byte limits must be positive safe-integer numbers. Missing or mistyped
+JavaScript arguments, NaN, infinity, fractions and unsafe integers refuse with
+`invalid_material` before payload inspection or Candid processing. The encoded-byte
+limit remains inclusive: an envelope whose encoded length equals the limit is
+accepted. This validates the configured ceiling; the encoder still checks final
+size after SDK encoding, rather than providing a streaming allocation budget.
+
 The shared decoder guards each SDK input-stream read against its remaining bytes.
 This rejects truncated final blobs that the selected SDK otherwise silently
 shortens. The guard is local to that decode, does not mutate generated descriptors

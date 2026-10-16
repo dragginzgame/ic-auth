@@ -1,5 +1,37 @@
 # Current handoff — 2026-10-16
 
+## Browser codec limit validation (pending 0.7.7)
+
+The maintainer pushed release 0.7.6 at
+`d8a1857a184ba48bb654aaf9c7ff561c32588dfd`. No Auth PRs were open at inspection;
+the remaining tracked scopes are browser integration, durable storage and
+production abuse qualification. The 0.7.6 remote CI run was still in progress;
+the superseded 0.7.5 run was cancelled, not a completed native-platform pass.
+
+The shared browser Candid codec previously checked only `byteLength > maximum`.
+NaN, infinity or an omitted JavaScript limit could disable that comparison.
+Encoding and decoding now require a positive safe-integer number before payload
+inspection or SDK processing. Valid limits retain inclusive boundaries and exact
+wire bytes. Existing client constructors already validated their material limits;
+this closes the independently exported codec boundary. No Rust/public schema,
+journal, dependency selection or package version changed. The encoder still
+checks final size after encoding; this is not a streaming allocation budget.
+
+Two regressions fail against the original codec in
+`target/codec-limit-validation/before-client.log`. All 99 client tests, strict
+TypeScript, generated contract comparison and both Rust/TypeScript Candid
+directions pass in `client-tests.log`, including omitted/mistyped arguments,
+nonfinite/fractional/unsafe limits, rejection before payload access and valid
+exact-size envelopes. Local links, snapshot and diff checks pass. No native Rust
+suite, canister qualification, full gate or release ran for this browser-only fix.
+[Auth #3 — Browser token-session client](https://github.com/dragginzgame/ic-auth/issues/3)
+retains production adapters, renewal and retained-intent retirement; no new
+consumer endpoint or backend version prerequisite was introduced. Canic's
+crypto gate remains resolved, while production wiring/acceptance stays in
+[Canic #491 — Auth adoption](https://github.com/dragginzgame/canic/issues/491).
+Sibling source and Git refs were left untouched.
+
+
 ## Real SDK portable admission (pending 0.7.6)
 
 The maintainer delivered 0.7.5 at `f6b7a58421a73926b2b48ffc74ac7d9e2c413d98`.

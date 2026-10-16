@@ -95,6 +95,41 @@ test('portable codec preserves both proof variants and enforces transport byte l
   }
 });
 
+test('portable codecs reject nonfinite, fractional and unsafe byte limits', () => {
+  const credential: PortableCredential = {
+    claims: new Uint8Array([0, 255]), proof: { Ed25519: { signature: new Uint8Array(64) } },
+  };
+  const bytes = credentialBytes(credential, 131_072);
+  // Reflect.apply also exercises untyped JavaScript callers omitting/mistyping the limit.
+  for (const maximum of [NaN, Infinity, -Infinity, 0, -1, 1.5, bytes.length + 0.5, Number.MAX_SAFE_INTEGER + 1, undefined, null, '131072']) {
+    assert.throws(() => Reflect.apply(credentialBytes, undefined, [credential, maximum]),
+      (error: unknown) => error instanceof ClientError && error.code === 'invalid_material', `encode limit ${maximum}`);
+    assert.throws(() => Reflect.apply(credentialFromBytes, undefined, [bytes, maximum]),
+      (error: unknown) => error instanceof ClientError && error.code === 'invalid_material', `decode limit ${maximum}`);
+  }
+  assert.deepEqual(credentialBytes(credential, bytes.length), bytes);
+  assert.deepEqual(credentialFromBytes(bytes, bytes.length), credential);
+});
+
+test('invalid codec limits refuse before reading payload fields or input bytes', () => {
+  const credential: PortableCredential = {
+    claims: new Uint8Array([1]), proof: { Ed25519: { signature: new Uint8Array(64) } },
+  };
+  const bytes = credentialBytes(credential, 131_072);
+  let reads = 0;
+  const value = new Proxy(credential, { get: (target, key, receiver) => {
+    reads++; return Reflect.get(target, key, receiver);
+  } });
+  const input = new Proxy(bytes, { get: (target, key) => {
+    reads++; return Reflect.get(target, key, target);
+  } });
+  for (const maximum of [NaN, Infinity, -Infinity, 0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1, undefined, null, '131072']) {
+    assert.throws(() => Reflect.apply(credentialBytes, undefined, [value, maximum]), ClientError);
+    assert.throws(() => Reflect.apply(credentialFromBytes, undefined, [input, maximum]), ClientError);
+  }
+  assert.equal(reads, 0);
+});
+
 test('Rust logout results preserve every refusal and exact nat64 deadlines in both directions', () => {
   const bytes = new Uint8Array(Buffer.from(readFileSync(new URL('logout-vector.hex', evidence), 'utf8').trim(), 'hex'));
   const type = IDL.Vec(LogoutResult);
