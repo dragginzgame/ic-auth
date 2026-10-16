@@ -2,6 +2,11 @@
 
 ## [0.7.4]
 
+- Adopt IC Memory 0.44's explicit host-owned runtime in the qualification canister,
+  retaining checkpoint keys and bytes while restoring Rust 1.91 compilation.
+  Use fresh fixture installations: upstream's new ledger format rejects 0.43
+  retained state. No automatic reset or compatibility reader is provided.
+
 - Repair the isolated Make jobserver fixture for qualification's client-tool check;
   surface the failed target and nested log in combined validation output.
 

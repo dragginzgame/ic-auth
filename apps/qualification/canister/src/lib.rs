@@ -83,7 +83,7 @@ fn controller() -> Result<(), String> {
 #[ic_cdk::init]
 fn init(owner: Principal) {
     assert_ne!(owner, Principal::anonymous());
-    storage::bootstrap();
+    storage::bootstrap(Default::default());
     STATE.with(|state| {
         *state.borrow_mut() = Some(State::new(Metadata {
             owner,
@@ -104,7 +104,7 @@ fn pre_upgrade() {
 
 #[ic_cdk::post_upgrade]
 fn post_upgrade() {
-    storage::bootstrap();
+    storage::bootstrap(Default::default());
     let (metadata, receiver): (Metadata, Option<sessions::Snapshot>) =
         candid::decode_args(&storage::load()).expect("restore fixture metadata");
     STATE.with(|state| *state.borrow_mut() = Some(State::new(metadata)));

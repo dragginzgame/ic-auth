@@ -245,6 +245,35 @@ latency, browser renewal or deployed acceptance. The fixture retains state by an
 explicit upgrade checkpoint; it is not the production durable adapter sought by
 [Auth #58 — Persistence and safe reset policy](https://github.com/dragginzgame/ic-auth/issues/58).
 
+## Checkpoint runtime ownership with IC Memory 0.44
+
+The qualification host retains one `MemoryRuntime<DefaultMemoryImpl>` per boot.
+Initialization and post-upgrade supply the platform backing; the host constructs
+and bootstraps that runtime with its existing declarations, pool and
+`GenericAllocationPolicy`. Checkpoint operations open their existing permanent
+key through this retained runtime. There is no library-owned default manager or
+parallel memory owner. IC Memory 0.44 removed the old global convenience helpers;
+this is an adapter update, not a Rust compiler-minimum change.
+
+The namespace, checkpoint key, schema, bucket defaults, header, payload bytes and
+128 KiB bound are unchanged. Native tests reject opens before initialization and
+a competing bootstrap without replacing the checkpoint, then drop/reconstruct
+the runtime over retained backing and check the same allocation and bytes. The
+actual-canister suite covers repeated upgrades and restored session/replay/login
+state with fresh-authority readiness. These checks remain reference-host evidence,
+not a production durable session adapter.
+
+The upstream 0.44 physical ledger contract is incompatible with 0.43. A separate
+controlled test installed the retained 0.43 Wasm and upgraded to this 0.44 host;
+bootstrap refused the old ledger with `unknown field store, expected physical`.
+The old physical marker is `ICMESNAP`; the new one is `ICMDIRCT`. Auth's unchanged
+checkpoint payload does not provide compatibility for the containing allocation
+ledger. Each normal qualification run already installs fresh disposable canisters;
+use fresh 0.44 fixture state and retain old failure evidence separately. Never
+silently reset retained memory or add an old-format fallback to pass bootstrap.
+Production retained-state decisions remain with the owning consumer and
+[Memory #44 — Allocation pooling and downstream composition](https://github.com/dragginzgame/ic-memory/issues/44).
+
 ## SDK logout transport against live receivers
 
 The portable session/ingress case now invokes the actual browser-client

@@ -1,5 +1,37 @@
 # Current handoff — 2026-10-16
 
+## IC Memory 0.44 fixture adapter repair (pending 0.7.4)
+
+The MSRV failure was an unapplied upstream API cut: 0.44 removed the default
+bootstrap/open helpers, rather than requiring a newer compiler. The fixture now
+receives platform backing at init/post_upgrade, retains one host-owned
+MemoryRuntime and opens its existing checkpoint key through that owner. Native
+coverage rejects uninitialized opens and a competing bootstrap, then reopens the
+same allocation/bytes after dropping the owner. Public library APIs, package
+versions, dependency selections and Auth checkpoint payload framing are unchanged.
+
+The complete `make check-msrv` passes at Rust 1.91 in
+`target/memory-044-adoption/check-msrv.log`, including the isolated native/Wasm
+package matrix and internal applications. Native storage tests, native/Wasm
+strict Clippy and all six actual-canister cases pass in that directory's
+`storage-test-final.log`, `clippy-native.log`, `clippy-wasm.log` and
+`qualification.log`; the last includes current-format upgrades and real SDK
+logout. Formatting, local links, snapshot and diff checks pass. No full CI or
+macOS qualification was run.
+
+A separate old-artifact test deliberately fails on 0.43 -> 0.44 bootstrap:
+`unknown field store, expected physical`. Upstream changed the containing ledger
+format and physical marker (ICMESNAP -> ICMDIRCT). The unchanged Auth checkpoint
+payload does not make that ledger compatible. Evidence is retained in
+`target/memory-044-adoption/transition.log` and `transition-inputs.json`; the
+isolated runner substitutes only the initial 0.43 Wasm, then upgrades to current
+0.44. Normal qualification already creates fresh disposable canisters; retained
+0.43 fixture state needs fresh installation. No stored data was automatically
+reset and no compatibility reader or sibling edit was added. The downstream
+retained-state finding is recorded in
+[Memory #44 — Allocation pooling and downstream composition](https://github.com/dragginzgame/ic-memory/issues/44#issuecomment-6216499939).
+
+
 ## Jobserver fixture repair (pending 0.7.4)
 
 The retained release-gate failure was an incomplete local fixture: qualification's
