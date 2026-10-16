@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.7.5]
+## [0.7.5] - 2026-10-16
 
 - Align private secp256k1 and Ed25519 dependencies with the IC signature stack's
   crypto generation, removing duplicate crypto support packages from Auth's
