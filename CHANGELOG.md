@@ -2,6 +2,9 @@
 
 ## [0.7.4]
 
+- Repair the isolated Make jobserver fixture for qualification's client-tool check;
+  surface the failed target and nested log in combined validation output.
+
 - Qualify the browser SDK logout transport against two real receiver canisters,
   including certified replies, journal completion and receiver-side revocation.
   Qualification now requires explicitly prepared client tools and dependencies;

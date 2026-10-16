@@ -1,5 +1,24 @@
 # Current handoff — 2026-10-16
 
+## Jobserver fixture repair (pending 0.7.4)
+
+The retained release-gate failure was an incomplete local fixture: qualification's
+new client-tools-check prerequisite called scripts/dev/client-tools.sh, absent
+from the disposable jobserver consumer. A check-only substitute now models that
+non-Cargo admission; the actual Cargo recipes still prove inherited descriptors.
+Nested target failures now print the target/status and retained log contents into
+the combined validation stream while preserving the failing status.
+
+`make -j4 test-make-jobserver` passes in
+`target/jobserver-client-admission-fix.log`. An injected metadata failure returns
+23 and exposes its nested error in
+`target/jobserver-diagnostic-probe/result.log`. ShellCheck, syntax, local links,
+snapshot and diff checks pass. Incoming Cargo.toml/Cargo.lock IC Memory 0.44
+changes were preserved byte-for-byte and are outside this repair's validation.
+No Rust tests, full release gate, package version, Git ref or sibling changes
+were performed by this repair.
+
+
 ## Real SDK logout transport (pending 0.7.4)
 
 The maintainer delivered 0.7.3 at `04b684a463a9f5e8070d1ee4f344be92831303fd`.

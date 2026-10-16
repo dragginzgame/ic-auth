@@ -48,6 +48,13 @@ exec cargo "$@"
 SCRIPT
 done
 printf '#!/usr/bin/env bash\nexit 0\n' > "$consumer/scripts/dev/install-host-tools.sh"
+# Admission does not invoke Cargo; its ordinary recipe need not inherit the
+# jobserver descriptors. Qualification still exercises its actual Cargo recipes.
+cat > "$consumer/scripts/dev/client-tools.sh" <<'SCRIPT'
+#!/usr/bin/env bash
+set -euo pipefail
+[[ "$*" == check ]]
+SCRIPT
 mkdir -p "$consumer/crates/ic-auth" "$consumer/crates/ic-auth-protocol-types"
 cp LICENSE "$consumer/LICENSE"
 for package in ic-auth ic-auth-protocol-types; do
@@ -66,7 +73,14 @@ targets=(fetch metadata test-types test-protocol test-chain-key-signatures test-
     release-commit-check release-committed-check release-tagged-check release-push-check release-verify)
 for target in "${targets[@]}"; do
     : > "$AUTH_JOBSERVER_LOG"
-    (cd "$consumer"; make "${options[@]}" "$target") > "$fixture/$target.log" 2>&1
+    status=0
+    (cd "$consumer"; make "${options[@]}" "$target") > "$fixture/$target.log" 2>&1 || status=$?
+    if [[ "$status" != 0 ]]; then
+        printf 'Make jobserver target failed: %s (status %s); log: %s\n' \
+            "$target" "$status" "$fixture/$target.log" >&2
+        cat "$fixture/$target.log" >&2
+        exit "$status"
+    fi
     [[ -s "$AUTH_JOBSERVER_LOG" ]]
 done
 
