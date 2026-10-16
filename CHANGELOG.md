@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.7.4]
+## [0.7.4] - 2026-10-16
 
 - Document separate Cargo output directories for copied-workspace experiments and
   targeted recovery when an experimental qualification runner was reused.
