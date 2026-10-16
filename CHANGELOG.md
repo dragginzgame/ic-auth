@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.7.1]
+## [0.7.1] - 2026-10-16
 
 - Qualify complete certified and Ed25519 admission in the same receiver fixture,
   including measured costs, cross-caller throttling after invalid proofs and
