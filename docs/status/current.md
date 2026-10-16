@@ -1,5 +1,31 @@
 # Current handoff — 2026-10-16
 
+## Shared receiver admission attempts (pending 0.7.3)
+
+The maintainer delivered 0.7.2 at `6be969ee0ea5acbf002d7600d3d74f7fb36139d3`.
+The portable browser coordinator now shares overlapping admission calls to one
+receiver within that coordinator; other receivers remain independent. Entries
+exist only for committed journal destinations and are removed on success, refusal
+or timeout. Completed admission is not cached as authority: explicit later calls
+still contact the receiver, using the same unexpired credential without another
+issuance. Logout/deadline checks and unknown issuance evidence are preserved.
+No API, journal format, generated protocol or Rust library behavior changed.
+
+The new regression reproduced nine same-receiver updates before the change;
+those overlapping calls now dispatch one update. Shared failure allows explicit
+retry, timeout invalidates the retained temporary signer and releases the attempt,
+and logout rejects shared late success. `make test-client` passes all 97 cases,
+strict TypeScript compilation, generated contract comparison and both Candid
+directions in `target/admission-single-flight-client.log`. The original failure
+remains in `target/admission-single-flight-before.log`. Tests use injected
+transports/fake IndexedDB; no deployed endpoint, native browser, full CI or Canic
+build/edit was run. Incoming Cargo.lock's IC Metrics 0.11.5 selection was preserved.
+Production adapters, renewal and retained-intent retirement remain
+[Auth #3 — Browser token-session client](https://github.com/dragginzgame/ic-auth/issues/3);
+Canic endpoint adoption remains
+[Canic #491 — Auth adoption](https://github.com/dragginzgame/canic/issues/491).
+
+
 ## Current Canic acceptance reference (pending 0.7.2)
 
 The maintainer delivered 0.7.1 at `9d41664677e976ec293b99d2e1f13d11b83b4d95`;

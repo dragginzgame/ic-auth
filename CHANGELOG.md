@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.3]
+
+- Share concurrent browser session-admission calls to the same receiver, avoiding
+  duplicate updates while preserving explicit retry, independent receivers and
+  durable logout checks. Production transport and renewal remain unfinished under
+  [#3 — Browser token-session client](https://github.com/dragginzgame/ic-auth/issues/3).
+
 ## [0.7.2] - 2026-10-16
 
 - Qualify restored sessions and logout across two independent receivers, including

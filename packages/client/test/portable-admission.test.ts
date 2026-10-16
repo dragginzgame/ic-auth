@@ -57,6 +57,103 @@ test('one issuance serves multiple receivers; each destination is durable before
   } finally { f.store.close(); }
 });
 
+test('concurrent first contact shares one receiver update while another receiver stays independent', async () => {
+  const f = await fixture();
+  const entered = deferred<void>();
+  const release = deferred<void>();
+  const calls: string[] = [];
+  const client = f.client();
+  const pending: ReturnType<typeof client.establish>[] = [];
+  try {
+    f.transport.admit = async target => {
+      calls.push(target.toText());
+      if (target.toText() === a.toText()) { entered.resolve(); await release.promise; }
+    };
+    pending.push(client.establish(a));
+    await entered.promise;
+    for (let i = 0; i < 8; i++) pending.push(client.establish(a));
+    const other = await client.establish(b);
+    assert.equal(other.getPrincipal().toText(), identity.getPrincipal().toText());
+    release.resolve();
+    const identities = await Promise.all(pending);
+    assert.ok(identities.every(value => value === identities[0]));
+    assert.equal(calls.filter(target => target === a.toText()).length, 1);
+    assert.equal(calls.filter(target => target === b.toText()).length, 1);
+    assert.equal(f.state.issues, 1);
+    assert.equal(f.state.reconciles, 0);
+  } finally {
+    release.resolve();
+    await Promise.allSettled(pending);
+    f.store.close();
+  }
+});
+
+test('shared admission failure permits explicit retry with the same proof and never caches session authority', async () => {
+  const f = await fixture();
+  const entered = deferred<void>();
+  const release = deferred<void>();
+  const client = f.client();
+  const calls: string[] = [];
+  let failing = true;
+  let settled: Promise<PromiseSettledResult<unknown>[]> | undefined;
+  try {
+    f.transport.admit = async target => {
+      calls.push(target.toText());
+      if (target.toText() === a.toText() && failing) {
+        entered.resolve(); await release.promise;
+        throw new Error('lost admission reply');
+      }
+    };
+    const first = client.establish(a);
+    await entered.promise;
+    settled = Promise.allSettled([first, client.establish(a)]);
+    await client.establish(b);
+    release.resolve();
+    const results = await settled;
+    assert.ok(results.every(result => result.status === 'rejected' && result.reason.message === 'lost admission reply'));
+    assert.equal(calls.filter(target => target === a.toText()).length, 1);
+    failing = false;
+    await client.establish(a);
+    await client.establish(a);
+    assert.equal(calls.filter(target => target === a.toText()).length, 3);
+    assert.equal(f.state.issues, 1);
+    assert.equal(f.state.reconciles, 0);
+    assert.equal((await f.journal.status('login')).issuanceUnknown, true);
+  } finally {
+    release.resolve();
+    await settled;
+    f.store.close();
+  }
+});
+
+test('admission timeout releases the shared attempt and rejects its retained signing capability', async () => {
+  const f = await fixture();
+  const entered = deferred<void>();
+  const client = new PortableAdmissionClient(f.journal, 'login', identity, issuer, f.transport, 50);
+  let retained: Parameters<PortableAdmissionTransport['admit']>[1] | undefined;
+  let calls = 0;
+  try {
+    f.transport.admit = async (_target, caller) => {
+      calls++; retained = caller; entered.resolve();
+      return new Promise<void>(() => {});
+    };
+    const first = client.establish(a);
+    const refused = assert.rejects(first, (e: ClientError) => e.code === 'timeout');
+    await entered.promise;
+    const second = assert.rejects(client.establish(a), (e: ClientError) => e.code === 'timeout');
+    await Promise.all([refused, second]);
+    assert.equal(calls, 1);
+    assert.ok(retained);
+    await assert.rejects(retained.transformRequest({} as Parameters<typeof retained.transformRequest>[0]),
+      (e: ClientError) => e.code === 'timeout');
+    f.transport.admit = async () => { calls++; };
+    await client.establish(a);
+    assert.equal(calls, 2);
+    assert.equal(f.state.issues, 1);
+    assert.equal((await f.journal.status('login')).issuanceUnknown, true);
+  } finally { f.store.close(); }
+});
+
 test('lost issuance stays uncertain across client recreation; recovery never issues again', async () => {
   const f = await fixture();
   let reopened: IndexedDbLogoutStore | undefined;
@@ -111,11 +208,13 @@ test('logout during admission retains destination and rejects late success', asy
     const entered = deferred<void>();
     const result = deferred<void>();
     f.transport.admit = async () => { entered.resolve(); await result.promise; };
-    const pending = f.client().establish(a);
+    const client = f.client();
+    const pending = Promise.allSettled([client.establish(a), client.establish(a)]);
     await entered.promise;
     await f.journal.begin('login', f.state.now + 70_000n * MS);
     result.resolve();
-    await assert.rejects(pending, (e: ClientError) => e.code === 'stale_generation');
+    assert.ok((await pending).every(result => result.status === 'rejected'
+      && result.reason instanceof ClientError && result.reason.code === 'stale_generation'));
     assert.ok((await f.journal.status('login')).targets.some(t => t.canister === a.toText()));
   } finally { f.store.close(); }
 });

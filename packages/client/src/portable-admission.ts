@@ -33,6 +33,7 @@ export interface PortableAdmissionTransport {
 export class PortableAdmissionClient {
   private cached: { bytes: Uint8Array; until: bigint } | undefined;
   private credentialFlight: Promise<{ bytes: Uint8Array; until: bigint }> | undefined;
+  private readonly admissions = new Map<string, Promise<Identity>>();
   private readonly guarded: Identity;
   private readonly caller: string;
 
@@ -108,8 +109,15 @@ export class PortableAdmissionClient {
     const value = await this.credential();
     await this.journal.destination(this.generation, target, value.until);
     if (value.until <= await this.active()) throw new ClientError('retrieval_expired');
-    await this.call((signal, identity) => this.transport.admit(target, identity,
-      credentialFromBytes(value.bytes, this.maximumBytes), signal));
-    return this.guarded;
+    // Only committed journal destinations reach this map, keeping it within the
+    // journal's target bound. Completed calls are not cached as session authority.
+    const key = target.toText();
+    const previous = this.admissions.get(key);
+    if (previous) return previous;
+    const flight = this.call((signal, identity) => this.transport.admit(target, identity,
+      credentialFromBytes(value.bytes, this.maximumBytes), signal)).then(() => this.guarded);
+    this.admissions.set(key, flight);
+    try { return await flight; }
+    finally { if (this.admissions.get(key) === flight) this.admissions.delete(key); }
   }
 }

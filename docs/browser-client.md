@@ -48,6 +48,16 @@ the crash between the journal claim and transport dispatch. Claims/proofs use th
 Rust-owned credential codecs. The coordinator does not verify signatures or infer
 trusted enrollment from response fields.
 
+Within one coordinator, overlapping `establish` calls for the same receiver share
+one admission update and its result. Different receivers proceed independently.
+The in-flight set is bounded by the committed destination inventory; entries are
+removed on success, refusal or timeout. This is not a cache of session authority:
+a later explicit call still contacts the receiver with the same unexpired proof,
+including after a lost reply. It does not issue a replacement credential, retry an
+application operation or coordinate admission calls across separate clients/tabs.
+Every caller still passes durable generation, destination and deadline checks;
+logout rejects shared late success and revokes the temporary signing capability.
+
 One detached credential is cached in memory until its original admission expiry
 and reused across receivers. Every destination is durably recorded before admission
 dispatch, including failed or uncertain attempts. The qualified adapter supplies
