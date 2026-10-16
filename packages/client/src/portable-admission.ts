@@ -1,3 +1,4 @@
+import { boundedCall } from './bounded-call.js';
 import type { Identity } from '@icp-sdk/core/agent';
 import type { Principal } from '@icp-sdk/core/principal';
 import { ClientError } from './contracts.js';
@@ -55,30 +56,23 @@ export class PortableAdmissionClient {
   }
 
   private async call<T>(operation: (signal: AbortSignal, identity: Identity) => Promise<T>): Promise<T> {
-    const controller = new AbortController();
-    const check = () => { if (controller.signal.aborted) throw new ClientError('timeout'); };
-    const identity: Identity = {
-      getPrincipal: () => this.guarded.getPrincipal(),
-      transformRequest: async request => {
-        check();
-        const signed = await this.guarded.transformRequest(request);
-        check();
-        return signed;
-      },
-    };
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    try {
-      await this.active();
-      const result = await Promise.race([
-        Promise.resolve().then(() => operation(controller.signal, identity)),
-        new Promise<never>((_, reject) => {
-          timer = setTimeout(() => { controller.abort(); reject(new ClientError('timeout')); }, this.timeoutMs);
-        }),
-      ]);
+    await this.active();
+    return boundedCall(this.timeoutMs, async signal => {
+      const check = () => { if (signal.aborted) throw new ClientError('timeout'); };
+      const identity: Identity = {
+        getPrincipal: () => this.guarded.getPrincipal(),
+        transformRequest: async request => {
+          check();
+          const signed = await this.guarded.transformRequest(request);
+          check();
+          return signed;
+        },
+      };
+      const result = await operation(signal, identity);
       await this.active();
       check();
       return result;
-    } finally { clearTimeout(timer); controller.abort(); }
+    });
   }
 
   private async credential(): Promise<{ bytes: Uint8Array; until: bigint }> {

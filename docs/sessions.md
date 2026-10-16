@@ -1,6 +1,6 @@
 # Local application sessions
 
-The pending 0.6 hard cut provides one portable application session engine in
+The portable contract provides one portable application session engine in
 `ic_auth::session`. Enable `sessions` for the engine and bounded volatile store;
 select `portable-signature-verification` for Ed25519 or `token-verification` for
 complete certified portable proofs. The engine itself does not require either
@@ -11,13 +11,26 @@ cryptographic backend. It does not depend on Canic, Toko, CDK or stable memory.
 `establish_session` takes a host store, retained login revocation ledger, shared
 work budget, canonical claims, checked `SessionRequest`, protected
 `SessionContext` and `SessionPolicy`, plus a complete verification callback.
-For a `PortableCredential` envelope, use `portable_credential::verify_credential`
-in that callback with the supplied budget and protected `PortableVerificationContext`.
-The dispatcher rejects proof/enrollment mechanism mismatches and reuses the complete
-Ed25519/certified verifiers. Pass the same protected claims context to the engine
-and dispatcher. The lower-level verifiers remain available to proof-only callers. The result is
-sealed `VerifiedPortableClaims`; decoding claims alone cannot admit a session.
-The engine rechecks the result's claims and verification time before committing.
+For a `PortableCredential` envelope, the callback receives the supplied budget
+and an owned `DecodedPortableClaims`. Consume it with the protected verifier:
+
+```rust,ignore
+|budget, decoded| {
+    Ok(decoded.verify(budget, &credential.proof, &verification_context)?)
+}
+```
+
+This pending 0.7 callback replaces the one-argument 0.6 callback. It shares the
+engine's canonical decode and SHA-256 digest with complete Ed25519/certified
+verification, without cloning the claims. The opaque value is not authenticated;
+its verifier rejects proof/enrollment mechanism mismatches. Pass the same protected
+claims context to the engine and `PortableVerificationContext`. The sealed
+`VerifiedPortableClaims` result must match the original digest and current time
+before admission can commit. Budget charges survive later refusals.
+
+`portable_credential::verify_credential` and the mechanism-specific byte verifiers
+remain independently validating entry points for standalone proof callers. Do not
+use them to decode the credential again inside the session callback.
 
 Cheap binding, revocation, request, replay and capacity refusals precede signature
 verification. Fresh admission spends receiver-wide verification credit, including
@@ -210,7 +223,8 @@ The rest of the host cut must be propagated together:
 
 - Replace old `DelegatedToken` session inputs with `PortableCredential` and a
   protected `SessionContext`/`PortableVerificationContext`. Call the complete
-  `verify_credential` inside `establish_session`'s callback using its supplied
+  `decoded.verify(budget, &credential.proof, &verification_context)` inside
+  `establish_session`'s two-argument callback using its supplied owned claims,
   shared budget and the same protected authority. Do not wrap an old token as
   new signed claims or use the standalone token verifier to authorize a session.
 - Retain one login ledger and admission/unknown-logout budgets across requests.
@@ -240,7 +254,7 @@ supply its authenticated Root enrollment and its own atomic durable store.
 
 The certified-path
 [`certified_proof_uses_the_shared_session_lifecycle`](../crates/ic-auth/tests/portable_certified/mod.rs)
-regression uses the same public credential envelope/verifier. One signed proof is
+regression uses the same public credential envelope and decoded-claims verifier. One signed proof is
 admitted independently by two receivers; an exact retry after proof expiry retains
 the original lease. Logout blocks re-admission before cryptography on that receiver
 while the other receiver remains authorized. This is a native protocol regression,

@@ -1,3 +1,4 @@
+import { boundedCall } from './bounded-call.js';
 import { Principal } from '@icp-sdk/core/principal';
 import type { Identity } from '@icp-sdk/core/agent';
 import type { LogoutResult } from './generated/protocol.did.js';
@@ -185,17 +186,12 @@ export class PortableLogoutClient {
           return signed;
         },
       };
-      const controller = new AbortController();
-      let timer: ReturnType<typeof setTimeout> | undefined;
       let response: LogoutResult | undefined;
       try {
         await checkLease();
-        response = await Promise.race([
-          Promise.resolve().then(() => this.transport.revoke(Principal.fromText(claim.canister), cleanupIdentity, controller.signal)),
-          new Promise<undefined>(resolve => { timer = setTimeout(() => { controller.abort(); resolve(undefined); }, claim.timeoutMs); }),
-        ]);
+        response = await boundedCall(claim.timeoutMs, signal =>
+          this.transport.revoke(Principal.fromText(claim.canister), cleanupIdentity, signal));
       } catch { /* Lost replies and typed failures never acknowledge revocation. */ }
-      finally { clearTimeout(timer); controller.abort(); }
       const jitter = this.random();
       if (!Number.isFinite(jitter) || jitter < 0 || jitter >= 1) throw new ClientError('configuration');
       await this.update(generation, (record, now) => {

@@ -12,14 +12,13 @@ use crate::{
     admission_budget::{AdmissionBudgetError, SessionAdmissionBudget},
     canonical::CanonicalAuthError,
     portable::{
-        LoginRevocationChange, LoginRevocationError, MemoryLoginRevocations, PortableClaimsContext,
-        PortableClaimsError, PortableEncodingError, VerifiedPortableClaims, decode_claims,
+        DecodedPortableClaims, LoginRevocationChange, LoginRevocationError, MemoryLoginRevocations,
+        PortableClaimsContext, PortableClaimsError, PortableEncodingError, VerifiedPortableClaims,
         validate_claims_context,
     },
     session_request::{SessionRequest, SessionRequestError},
 };
 use ic_auth_protocol_types::{AuthRole, LogoutResult, LogoutUnavailable, Principal};
-use sha2::{Digest, Sha256};
 use thiserror::Error;
 
 /// Protected receiver context, shared by both proof mechanisms and session checks.
@@ -172,8 +171,10 @@ impl From<SessionRequestError> for SessionError {
 }
 
 /// Admit bounded canonical portable claims through either complete verifier.
-/// `verify` MUST use the same protected authority snapshot and provided budget;
-/// it runs only for fresh admission, never exact retries or cheap refusals.
+/// `verify` MUST consume its DecodedPortableClaims with `verify`, using the same
+/// protected authority snapshot and provided budget. This shares one decode and
+/// digest; the callback runs only for fresh admission, never exact retries or cheap
+/// refusals.
 /// The sealed verified result must match the submitted claims and current time.
 /// Host serialization covers the entire call, including both store transactions,
 /// the revocation ledger and authority. No await/reentrancy is permitted. Budget
@@ -190,14 +191,16 @@ pub fn establish_session(
     request: &SessionRequest,
     context: &SessionContext<'_>,
     policy: SessionPolicy,
-    verify: impl FnOnce(&mut SessionAdmissionBudget) -> Result<VerifiedPortableClaims, SessionError>,
+    verify: impl FnOnce(
+        &mut SessionAdmissionBudget,
+        DecodedPortableClaims,
+    ) -> Result<VerifiedPortableClaims, SessionError>,
 ) -> Result<SessionEstablished, SessionError> {
     context.validate(policy, ledger)?;
     let authority = &context.authority;
-    let claims = decode_claims(encoded_claims)?;
-    // decode_claims rejects alternate encodings; hash its exact admitted bytes
-    // instead of allocating and validating a second canonical encoding.
-    let fingerprint: [u8; 32] = Sha256::digest(encoded_claims).into();
+    let decoded = DecodedPortableClaims::decode(encoded_claims)?;
+    let claims = &decoded.claims;
+    let fingerprint = decoded.fingerprint;
     if ledger.is_revoked(authority.caller, authority.now_ns)? {
         return Err(LoginRevocationError::Revoked.into());
     }
@@ -219,7 +222,7 @@ pub fn establish_session(
         if tx.replay_exists(fingerprint)? {
             return Err(SessionError::ReplayConflict);
         }
-        validate_claims_context(&claims, authority)?;
+        validate_claims_context(claims, authority)?;
         let grant = claims
             .grants
             .iter()
@@ -234,18 +237,19 @@ pub fn establish_session(
         let limits = tx.limits();
         limits.validate()?;
         limits.check_capacity(tx.occupancy(authority.caller)?, previous.is_some())?;
-        ledger.check_reservation(authority.caller, &claims, authority.now_ns)?;
+        ledger.check_reservation(authority.caller, claims, authority.now_ns)?;
         Ok(None)
     })?;
     if let Some(session) = retry {
         return Ok(SessionEstablished::ExactRetry(session));
     }
-    let verified = verify(budget)?;
-    if verified.claims() != &claims || verified.verified_at_ns() != authority.now_ns {
+    let admission_expires_at_ns = claims.admission_expires_at_ns;
+    let verified = verify(budget, decoded)?;
+    if verified.fingerprint() != fingerprint || verified.verified_at_ns() != authority.now_ns {
         return Err(SessionError::InvalidPolicyOrRecord);
     }
     let session = Session::admit(&verified, request, context, policy)?;
-    let replay = Replay::new(&session, claims.admission_expires_at_ns);
+    let replay = Replay::new(&session, admission_expires_at_ns);
     let mut storage_error = None;
     let result = ledger.with_reservation(authority.caller, &verified, authority.now_ns, |change| {
         store

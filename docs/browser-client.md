@@ -75,6 +75,26 @@ preexisting marker intentionally selects reconciliation. Stored old token intent
 are neither migrated nor deleted. The portable coordinator is an integration
 component, not a second production login service or a replacement wallet provider.
 
+### Retirement of the older token lifecycle
+
+The portable coordinator has not yet replaced `TokenSessionClient`. Removing the
+older coordinator/store is conditional on complete portable renewal and qualified
+issuer/receiver adapters, including non-issuing recovery at the consumer endpoint.
+The application must also account for retained old issuance intents before it
+retires their reader: use the original caller, request ID, bytes and saved deadline
+for qualified recovery, or retain the unresolved evidence under an explicit
+application-owned disposition. Missing/pruned evidence never authorizes reissue
+or proves no effect. Opening a new database or switching exports does not resolve
+an uncertain operation. Existing formats, stores and exports remain supported
+until that coordinated cut; [Auth #3 — Browser token-session client](https://github.com/dragginzgame/ic-auth/issues/3)
+owns completion and retirement with [Canic #507 — Non-issuing reconciliation](https://github.com/dragginzgame/canic/issues/507).
+
+Portable admission and logout share one private bounded transport-attempt helper.
+Timeout always cancels that attempt's signal and late completion cannot settle the
+returned call. Admission retains generation/signing checks; logout retains durable
+lease claims, acknowledgement validation and retry policy. The helper neither
+creates a retry nor changes stored journal/issuance state.
+
 ## Boundary
 
 The [reviewed 0.6 design](design/0.6-portable-authentication.md#browser-origin-and-key-custody)

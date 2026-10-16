@@ -1,4 +1,37 @@
-# Current handoff — 2026-10-13
+# Current handoff — 2026-10-16
+
+## Shared claims preparation and bounded browser calls (pending 0.7.0)
+
+Fresh session admission now passes its owned DecodedPortableClaims to the complete
+verifier, sharing one canonical decode/digest without cloning claims. This changes
+the callback to `(budget, decoded)`, consuming `decoded.verify(...)` with the proof
+and protected context. Standalone byte/envelope verification remains independently
+validating. The engine checks the returned digest and current time before commit;
+cheap refusals and exact retries still avoid cryptography, and failures retain
+charged credit. Candid, signed bytes and stored record formats are unchanged.
+The numbered pending changelog selects minor 0.7.0; manifests and Git refs remain
+unchanged. Consumers must adopt the callback cut when selecting that release.
+
+Portable admission/logout share a private bounded transport attempt, retaining
+separate generation, signing, durable lease and retry checks. All 94 browser cases
+and both Candid directions pass in `target/bounded-client-tests.log`; focused
+session and standalone verifier suites pass in `target/shared-claims-tests.log`
+and `target/shared-claims-verifiers.log`. New regressions reject other-claims or
+other-clock callback results without committing or refunding verification credit.
+All six canister cases pass in `target/shared-claims-qualification-unconfined.log`
+after the sandbox refused the server's loopback bind. Library/fixture strict
+Clippy, selected Wasm graphs and the isolated Rust 1.91 native/Wasm package matrix
+pass in `target/shared-claims-clippy.log`, `target/shared-claims-fixture-clippy.log`
+and `target/shared-claims-msrv.log`. No full CI, native browser or macOS run, new
+performance measurement, sibling edit, commit or release was performed.
+
+Old-browser-client retirement remains blocked by portable renewal, production
+adapters/non-issuing recovery and explicit retained-intent disposition. Existing
+exports/formats and uncertain effects were preserved. Completion is recorded in
+[Auth #3 — Browser token-session client](https://github.com/dragginzgame/ic-auth/issues/3#issuecomment-6211158111),
+with the pending callback adoption in
+[Canic #491 — Auth extraction and adoption](https://github.com/dragginzgame/canic/issues/491#issuecomment-6211209112).
+
 
 ## Release pending-heading correction (pending 0.6.4)
 

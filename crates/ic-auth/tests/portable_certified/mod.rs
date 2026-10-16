@@ -521,10 +521,10 @@ fn certified_proof_uses_the_shared_session_lifecycle() {
         &request,
         &ctx,
         policy,
-        |budget| {
-            Ok(ic_auth::portable_credential::verify_credential(
+        |budget, decoded| {
+            Ok(decoded.verify(
                 budget,
-                &credential,
+                &credential.proof,
                 &ic_auth::portable_credential::PortableVerificationContext::Certified(&host),
             )?)
         },
@@ -556,10 +556,10 @@ fn certified_proof_uses_the_shared_session_lifecycle() {
         &request,
         &ctx,
         policy,
-        |budget| {
-            Ok(ic_auth::portable_credential::verify_credential(
+        |budget, decoded| {
+            Ok(decoded.verify(
                 budget,
-                &credential,
+                &credential.proof,
                 &ic_auth::portable_credential::PortableVerificationContext::Certified(&host),
             )?)
         },
@@ -576,7 +576,7 @@ fn certified_proof_uses_the_shared_session_lifecycle() {
             &request,
             &ctx,
             policy,
-            |_| panic!("expired proof exact retry")
+            |_, _| panic!("expired proof exact retry")
         ),
         Ok(SessionEstablished::ExactRetry(session.clone()))
     );
@@ -608,7 +608,7 @@ fn certified_proof_uses_the_shared_session_lifecycle() {
             &request,
             &ctx,
             policy,
-            |_| panic!("revoked login must fail before cryptography"),
+            |_, _| panic!("revoked login must fail before cryptography"),
         ),
         Err(SessionError::Revocation(
             ic_auth::portable::LoginRevocationError::Revoked

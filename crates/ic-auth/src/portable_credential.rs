@@ -34,8 +34,9 @@ pub enum PortableCredentialError {
 /// budget. Mismatched variants fail before cryptography or budget consumption.
 /// Claims, proof bounds, time and key checks remain owned by the complete verifier.
 /// Outer Candid decoding needs a host allocation/instruction limit separately.
-/// For session admission, invoke this only inside `establish_session`'s callback
-/// with its supplied budget and the same protected authority snapshot.
+/// For session admission, use the callback's DecodedPortableClaims::verify instead
+/// with its supplied budget and the same protected authority snapshot. This entry
+/// point independently decodes a standalone credential.
 pub fn verify_credential(
     budget: &mut SessionAdmissionBudget,
     credential: &PortableCredential,
@@ -68,5 +69,50 @@ pub fn verify_credential(
             context,
         )?),
         _ => Err(PortableCredentialError::MechanismMismatch),
+    }
+}
+
+impl crate::portable::DecodedPortableClaims {
+    /// Verify the engine's exact canonical claims with the protected enrolled
+    /// mechanism and its supplied shared budget. This consumes the decode without
+    /// parsing, hashing or cloning claims again. Success is not session admission.
+    pub fn verify(
+        self,
+        budget: &mut SessionAdmissionBudget,
+        proof: &PortableProof,
+        context: &PortableVerificationContext<'_>,
+    ) -> Result<VerifiedPortableClaims, PortableCredentialError> {
+        match (context, proof) {
+            #[cfg(feature = "portable-signature-verification")]
+            (
+                PortableVerificationContext::Ed25519 { claims, public_key },
+                PortableProof::Ed25519 { signature },
+            ) => Ok(crate::portable_signature::verify_decoded(
+                budget, self, signature, claims, public_key,
+            )?),
+            #[cfg(feature = "token-verification")]
+            (
+                PortableVerificationContext::Certified(context),
+                PortableProof::Certified {
+                    delegation,
+                    issuer_signature,
+                },
+            ) => {
+                crate::portable_certified::check_bounds(
+                    self.encoded_len,
+                    delegation,
+                    issuer_signature,
+                    context,
+                )?;
+                Ok(crate::portable_certified::verify_decoded(
+                    budget,
+                    self,
+                    delegation,
+                    issuer_signature,
+                    context,
+                )?)
+            }
+            _ => Err(PortableCredentialError::MechanismMismatch),
+        }
     }
 }

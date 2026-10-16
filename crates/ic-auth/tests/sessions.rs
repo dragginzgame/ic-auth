@@ -6,6 +6,7 @@ use ic_auth::{
         LoginRevocationError, MemoryLoginRevocations, PortableClaimsContext, PortableClaimsError,
         browser_principal, claims_hash, encode_claims,
     },
+    portable_credential::PortableVerificationContext,
     portable_signature::verify_ed25519_claims,
     session::*,
     session_request::SessionRequest,
@@ -156,13 +157,16 @@ impl Fixture {
             &request(),
             &context,
             policy(),
-            |budget| {
-                Ok(verify_ed25519_claims(
+            |budget, decoded| {
+                Ok(decoded.verify(
                     budget,
-                    &bytes,
-                    &sig,
-                    &context.authority,
-                    &self.key.verifying_key().to_bytes(),
+                    &PortableProof::Ed25519 {
+                        signature: sig.to_vec(),
+                    },
+                    &PortableVerificationContext::Ed25519 {
+                        claims: &context.authority,
+                        public_key: &self.key.verifying_key().to_bytes(),
+                    },
                 )?)
             },
         )
@@ -251,7 +255,7 @@ fn two_receivers_two_devices_retry_after_proof_expiry_and_local_logout() {
             &request(),
             &ctx,
             policy(),
-            |_| panic!("exact retry must not verify again")
+            |_, _| panic!("exact retry must not verify again")
         ),
         Ok(SessionEstablished::ExactRetry(session.clone()))
     );
@@ -338,12 +342,15 @@ fn failed_commit_is_atomic_for_session_replay_reservation_and_logout() {
             &request(),
             &ctx,
             policy(),
-            |budget| Ok(verify_ed25519_claims(
+            |budget, decoded| Ok(decoded.verify(
                 budget,
-                &bytes,
-                &signature,
-                &ctx.authority,
-                &f.key.verifying_key().to_bytes()
+                &PortableProof::Ed25519 {
+                    signature: signature.to_vec()
+                },
+                &PortableVerificationContext::Ed25519 {
+                    claims: &ctx.authority,
+                    public_key: &f.key.verifying_key().to_bytes()
+                }
             )?)
         ),
         Err(SessionError::StorageFailure)
@@ -457,7 +464,7 @@ fn replay_capacity_narrowing_and_reset_refuse_before_verification() {
             &excessive,
             &f.context(NOW),
             policy(),
-            |_| panic!("scope preflight")
+            |_, _| panic!("scope preflight")
         ),
         Err(SessionError::ScopeRejected)
     );
@@ -472,7 +479,7 @@ fn replay_capacity_narrowing_and_reset_refuse_before_verification() {
             &changed,
             &f.context(NOW),
             policy(),
-            |_| panic!("exact retry mismatch")
+            |_, _| panic!("exact retry mismatch")
         ),
         Err(SessionError::ReplayConflict)
     );
@@ -496,7 +503,7 @@ fn replay_capacity_narrowing_and_reset_refuse_before_verification() {
             &request(),
             &f.context(NOW),
             policy(),
-            |_| panic!("full store")
+            |_, _| panic!("full store")
         ),
         Err(SessionError::Capacity)
     );
@@ -512,7 +519,7 @@ fn replay_capacity_narrowing_and_reset_refuse_before_verification() {
             &request(),
             &ctx,
             policy(),
-            |_| panic!("pre-reset login")
+            |_, _| panic!("pre-reset login")
         ),
         Err(SessionError::Claims(PortableClaimsError::BeforeReset))
     ));
@@ -534,6 +541,61 @@ fn portable_record_roundtrip_and_old_or_corrupt_records_are_rejected() {
 }
 
 #[test]
+fn callback_result_must_match_original_claims_and_current_clock() {
+    for changed_claims in [true, false] {
+        let f = Fixture::new(1);
+        let mut receiver = Receiver::new(&f);
+        receiver.budget = SessionAdmissionBudget::new(1, SECOND, NOW - SECOND).unwrap();
+        let bytes = encode_claims(&f.claims).unwrap();
+        let context = f.context(NOW);
+        let mut other = f.claims.clone();
+        if changed_claims {
+            other.nonce = [9; 16];
+        }
+        let other_bytes = encode_claims(&other).unwrap();
+        let signature = f.key.sign(&claims_hash(&other).unwrap()).to_bytes();
+        let mut verification = f.context(NOW);
+        if !changed_claims {
+            verification.authority.now_ns += 1;
+        }
+        assert_eq!(
+            establish_session(
+                &mut receiver.store,
+                &mut receiver.ledger,
+                &mut receiver.budget,
+                &bytes,
+                &request(),
+                &context,
+                policy(),
+                |budget, _decoded| Ok(verify_ed25519_claims(
+                    budget,
+                    &other_bytes,
+                    &signature,
+                    &verification.authority,
+                    &f.key.verifying_key().to_bytes(),
+                )?),
+            ),
+            Err(SessionError::InvalidPolicyOrRecord),
+        );
+        assert_eq!(receiver.store.encoded_bytes(), 0);
+        assert_eq!(receiver.ledger.occupancy(), (0, 0));
+        // Refused callback results must not undo work already charged by verification.
+        assert!(matches!(
+            verify_ed25519_claims(
+                &mut receiver.budget,
+                &bytes,
+                &f.key.sign(&claims_hash(&f.claims).unwrap()).to_bytes(),
+                &verification.authority,
+                &f.key.verifying_key().to_bytes(),
+            ),
+            Err(ic_auth::portable_signature::PortableSignatureError::Budget(
+                _
+            ))
+        ));
+    }
+}
+
+#[test]
 fn invalid_signature_cannot_reserve_state_and_spends_verification_credit() {
     let f = Fixture::new(1);
     let mut r = Receiver::new(&f);
@@ -548,17 +610,20 @@ fn invalid_signature_cannot_reserve_state_and_spends_verification_credit() {
         &request(),
         &ctx,
         policy(),
-        |budget| {
-            Ok(verify_ed25519_claims(
+        |budget, decoded| {
+            Ok(decoded.verify(
                 budget,
-                &bytes,
-                &[0; 64],
-                &ctx.authority,
-                &f.key.verifying_key().to_bytes(),
+                &PortableProof::Ed25519 {
+                    signature: [0; 64].to_vec(),
+                },
+                &PortableVerificationContext::Ed25519 {
+                    claims: &ctx.authority,
+                    public_key: &f.key.verifying_key().to_bytes(),
+                },
             )?)
         },
     );
-    assert!(matches!(result, Err(SessionError::Signature(_))));
+    assert!(matches!(result, Err(SessionError::Credential(_))));
     assert_eq!(r.store.encoded_bytes(), 0);
     assert_eq!(r.ledger.occupancy(), (0, 0));
     assert!(matches!(

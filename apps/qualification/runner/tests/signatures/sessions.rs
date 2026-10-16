@@ -370,10 +370,10 @@ pub(super) fn qualify_certified(
         &request,
         &ctx,
         p,
-        |budget| {
-            Ok(ic_auth::portable_credential::verify_credential(
+        |budget, decoded| {
+            Ok(decoded.verify(
                 budget,
-                &credential,
+                &credential.proof,
                 &ic_auth::portable_credential::PortableVerificationContext::Certified(
                     &proof_context,
                 ),
@@ -392,7 +392,7 @@ pub(super) fn qualify_certified(
             &request,
             &ctx,
             p,
-            |_| panic!("retry must not verify")
+            |_, _| panic!("retry must not verify")
         ),
         Ok(SessionEstablished::ExactRetry(_))
     ));

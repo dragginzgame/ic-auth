@@ -20,9 +20,12 @@ transactions and recovery obligations.
 
 Use the Rust-owned `PortableCredential { claims, proof }` and `PortableProof`
 data contracts at the portable credential boundary. In the shared admission
-callback, `portable_credential::verify_credential` takes protected enrollment
-selection and reuses the complete verifier; the envelope supplies no Ed25519
-issuer key. Browser descriptors and bounded `credentialBytes`/`credentialFromBytes`
+callback, consume the supplied decoded claims with
+`decoded.verify(budget, &credential.proof, &verification_context)`. The pending
+0.7 callback is `|budget, decoded|`; the prior one-argument callback must change.
+The protected enrollment selects the complete verifier; the envelope supplies no
+Ed25519 issuer key. Standalone `portable_credential::verify_credential` still
+validates raw credentials independently, outside session admission. Browser descriptors and bounded `credentialBytes`/`credentialFromBytes`
 are generated from that same owner. Endpoint names, argument wrappers, issuer
 operations and browser session orchestration remain consumer-owned integration.
 

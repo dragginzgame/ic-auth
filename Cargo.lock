@@ -1441,7 +1441,7 @@ dependencies = [
  "ic-auth",
  "ic-auth-protocol-types",
  "ic-canister-sig-creation",
- "ic-host-fs 0.21.0",
+ "ic-host-fs",
  "ic-testkit",
  "k256 0.14.0",
  "serde",
@@ -1469,7 +1469,7 @@ version = "0.6.4"
 dependencies = [
  "candid",
  "ic-auth-protocol-types",
- "ic-host-fs 0.21.0",
+ "ic-host-fs",
 ]
 
 [[package]]
@@ -1573,9 +1573,9 @@ dependencies = [
 
 [[package]]
 name = "ic-host-artifacts"
-version = "0.20.1"
+version = "0.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d8f4ef133fc5ab978237e1a0f69338b6afe11db984b450ff559bc75373c7bded"
+checksum = "f9a5215ee0a28d7db14cc79a05f35fa0e87f189b021134406d45dcad95831249"
 dependencies = [
  "flate2",
  "leb128",
@@ -1585,42 +1585,23 @@ dependencies = [
 ]
 
 [[package]]
-name = "ic-host-artifacts"
-version = "0.21.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f9a5215ee0a28d7db14cc79a05f35fa0e87f189b021134406d45dcad95831249"
-dependencies = [
- "sha2 0.10.9",
-]
-
-[[package]]
-name = "ic-host-fs"
-version = "0.20.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8d14b46ff9a65d40733293bc96418df880db0bd47fb0c7a753fb7b7d7dea9079"
-dependencies = [
- "ic-host-artifacts 0.20.1",
- "rustix",
-]
-
-[[package]]
 name = "ic-host-fs"
 version = "0.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "30461a795ad433f19ed23c515d47ba27fded4115033f01c7005307cbb15f6854"
 dependencies = [
- "ic-host-artifacts 0.21.0",
+ "ic-host-artifacts",
  "rustix",
 ]
 
 [[package]]
 name = "ic-host-process"
-version = "0.20.1"
+version = "0.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a3e66d55157569fcfbb48c3e150b1d79079d2c442d8dbc1e6434af768c2c79b1"
+checksum = "d052b089a517cf9f598d17712c0757d276b6b969532d68c21aabbac4a358736f"
 dependencies = [
- "ic-host-artifacts 0.20.1",
- "ic-host-fs 0.20.1",
+ "ic-host-artifacts",
+ "ic-host-fs",
  "libc",
  "rustix",
 ]
@@ -1638,9 +1619,9 @@ dependencies = [
 
 [[package]]
 name = "ic-memory"
-version = "0.42.0"
+version = "0.43.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e4a26c84ac45374bd287772d20ee8467001073c375049fe77106adc3b6d9b5e4"
+checksum = "a321697e96666e161eedcde442a61031dba53092dddb57bbb16415bab10bb0b6"
 dependencies = [
  "ciborium",
  "ic-stable-structures",
@@ -1691,14 +1672,14 @@ dependencies = [
 
 [[package]]
 name = "ic-testkit"
-version = "0.47.0"
+version = "0.48.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "798dc0371a921c8a49ae75f1d05a0280833cee0732c1655191393bc2e1b5b488"
+checksum = "71c584f66454e751d649faab9b8747189f5344f666ef04171df89b0d0f1dd040"
 dependencies = [
  "candid",
  "ic-cdk",
- "ic-host-artifacts 0.20.1",
- "ic-host-fs 0.20.1",
+ "ic-host-artifacts",
+ "ic-host-fs",
  "ic-host-process",
  "ic-metrics",
  "libc",

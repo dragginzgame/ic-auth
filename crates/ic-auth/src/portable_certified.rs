@@ -10,8 +10,8 @@ use crate::{
     canonical::{CanonicalAuthError, cert_hash},
     certificate_issuance::grants_are_subset,
     portable::{
-        PortableClaimsContext, PortableClaimsError, PortableEncodingError, VerifiedPortableClaims,
-        decode_claims, validate_claims_context,
+        DecodedPortableClaims, PortableClaimsContext, PortableClaimsError, PortableEncodingError,
+        VerifiedPortableClaims, validate_claims_context,
     },
     token::{
         DelegationProofVerificationContext, RootKeyPolicy, TokenVerificationError,
@@ -22,7 +22,6 @@ use ic_auth_protocol_types::{
     DelegationAudience, DelegationProof, IcCanisterSignatureProofV1, IssuerProofBinding,
     PortableMechanism,
 };
-use sha2::{Digest, Sha256};
 use thiserror::Error;
 
 /// IC signature framing domain, distinct from the old delegated-token message.
@@ -74,6 +73,22 @@ pub fn verify_certified_claims(
     issuer_signature: &IcCanisterSignatureProofV1,
     context: &PortableCertifiedContext<'_>,
 ) -> Result<VerifiedPortableClaims, PortableCertifiedError> {
+    check_bounds(encoded_claims.len(), delegation, issuer_signature, context)?;
+    verify_decoded(
+        budget,
+        DecodedPortableClaims::decode(encoded_claims)?,
+        delegation,
+        issuer_signature,
+        context,
+    )
+}
+
+pub(crate) fn check_bounds(
+    encoded_len: usize,
+    delegation: &DelegationProof,
+    issuer_signature: &IcCanisterSignatureProofV1,
+    context: &PortableCertifiedContext<'_>,
+) -> Result<(), PortableCertifiedError> {
     let limits = context.limits;
     if context.claims.mechanism != PortableMechanism::Certified || limits.max_future_skew_ns != 0 {
         return Err(PortableCertifiedError::BindingMismatch);
@@ -81,7 +96,7 @@ pub fn verify_certified_claims(
     // Aggregate variable-material cap precedes codec allocation and cryptography.
     let mut remaining = limits.max_variable_bytes.min(131_072);
     for length in [
-        encoded_claims.len(),
+        encoded_len,
         issuer_signature.signature_cbor.len(),
         issuer_signature.public_key_der.len(),
     ] {
@@ -93,7 +108,23 @@ pub fn verify_certified_claims(
         return Err(TokenVerificationError::InputTooLarge.into());
     }
     check_proof_size(delegation, limits.max_witness_steps, &mut remaining)?;
-    let claims = decode_claims(encoded_claims)?;
+    Ok(())
+}
+
+// Callers admit aggregate proof bounds before this verification step.
+pub(crate) fn verify_decoded(
+    budget: &mut SessionAdmissionBudget,
+    decoded: DecodedPortableClaims,
+    delegation: &DelegationProof,
+    issuer_signature: &IcCanisterSignatureProofV1,
+    context: &PortableCertifiedContext<'_>,
+) -> Result<VerifiedPortableClaims, PortableCertifiedError> {
+    let limits = context.limits;
+    let DecodedPortableClaims {
+        claims,
+        fingerprint,
+        ..
+    } = decoded;
     validate_claims_context(&claims, &context.claims)?;
     let cert = &delegation.cert;
     if cert_hash(cert)? != claims.key_binding_id
@@ -120,9 +151,6 @@ pub fn verify_certified_claims(
         },
     )?;
     let IssuerProofBinding::IcCanisterSignatureV1 { seed_hash } = cert.issuer_proof_binding;
-    // decode_claims rejects alternate encodings; hash its exact admitted bytes
-    // instead of allocating and validating a second canonical encoding.
-    let fingerprint: [u8; 32] = Sha256::digest(encoded_claims).into();
     let message = domain_separated_message(CERTIFIED_SIGNATURE_DOMAIN, fingerprint)?;
     verify_canister_signature(
         &message,

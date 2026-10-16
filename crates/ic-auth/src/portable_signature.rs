@@ -7,8 +7,8 @@
 
 use crate::admission_budget::{AdmissionBudgetError, SessionAdmissionBudget};
 use crate::portable::{
-    PortableClaimsContext, PortableClaimsError, PortableEncodingError, VerifiedPortableClaims,
-    decode_claims, validate_claims_context,
+    DecodedPortableClaims, PortableClaimsContext, PortableClaimsError, PortableEncodingError,
+    VerifiedPortableClaims, validate_claims_context,
 };
 use curve25519_dalek::scalar::Scalar;
 use ed25519_dalek::{Signature, VerifyingKey};
@@ -56,7 +56,27 @@ pub fn verify_ed25519_claims(
     context: &PortableClaimsContext<'_>,
     public_key: &[u8; 32],
 ) -> Result<VerifiedPortableClaims, PortableSignatureError> {
-    let claims = decode_claims(encoded_claims)?;
+    verify_decoded(
+        budget,
+        DecodedPortableClaims::decode(encoded_claims)?,
+        signature,
+        context,
+        public_key,
+    )
+}
+
+pub(crate) fn verify_decoded(
+    budget: &mut SessionAdmissionBudget,
+    decoded: DecodedPortableClaims,
+    signature: &[u8],
+    context: &PortableClaimsContext<'_>,
+    public_key: &[u8; 32],
+) -> Result<VerifiedPortableClaims, PortableSignatureError> {
+    let DecodedPortableClaims {
+        claims,
+        fingerprint,
+        ..
+    } = decoded;
     if context.mechanism != PortableMechanism::Ed25519 {
         return Err(PortableClaimsError::MechanismMismatch.into());
     }
@@ -75,9 +95,6 @@ pub fn verify_ed25519_claims(
     if bool::from(Scalar::from_canonical_bytes(*signature.s_bytes()).is_none()) {
         return Err(PortableSignatureError::InvalidSignature);
     }
-    // decode_claims rejects alternate encodings; hash its exact admitted bytes
-    // instead of allocating and validating a second canonical encoding.
-    let fingerprint: [u8; 32] = Sha256::digest(encoded_claims).into();
     budget.consume(context.now_ns)?;
     key.verify_strict(&fingerprint, &signature)
         .map_err(|_| PortableSignatureError::InvalidSignature)?;

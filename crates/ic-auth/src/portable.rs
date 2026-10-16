@@ -3,9 +3,21 @@
 //! Context checks do not verify signatures, enrollment provenance or revocation.
 //! No value returned by this module is sufficient for session admission.
 
+#[cfg(any(
+    feature = "sessions",
+    feature = "portable-signature-verification",
+    feature = "token-verification"
+))]
+mod decoded;
 mod revocation;
 mod rules;
 mod verified;
+#[cfg(any(
+    feature = "sessions",
+    feature = "portable-signature-verification",
+    feature = "token-verification"
+))]
+pub use decoded::DecodedPortableClaims;
 pub use revocation::{LoginRevocationChange, LoginRevocationError, MemoryLoginRevocations};
 pub use rules::{PortableClaimsContext, PortableClaimsError, validate_claims_context};
 pub use verified::VerifiedPortableClaims;

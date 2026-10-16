@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.7.0]
+
+- **Breaking:** session verification callbacks now receive `(budget, decoded)`
+  and consume `decoded.verify(...)` with the credential proof and protected
+  verifier context. Fresh admission shares one canonical decode and digest;
+  standalone verification APIs and signed/stored formats are unchanged.
+- Share browser admission/logout timeout and cancellation cleanup while retaining
+  their separate generation, durable lease and retry rules. The older token
+  client remains supported pending complete portable renewal and consumer
+  integration; retained uncertain issuance is preserved.
+
 ## [0.6.4] - 2026-10-16
 
 - Qualify the public certified-credential admission path across independent

@@ -9,7 +9,7 @@ use ic_auth::{
     admission_budget::SessionAdmissionBudget,
     certificate_issuance::validate_grants,
     portable::{MemoryLoginRevocations, PortableClaimsContext},
-    portable_credential::{PortableVerificationContext, verify_credential},
+    portable_credential::PortableVerificationContext,
     session::{
         MemorySessionStore, Session, SessionContext, SessionEstablished, SessionLimits,
         SessionPolicy, SessionStore, authorize_session, establish_session, logout_session,
@@ -159,10 +159,10 @@ fn establish_portable_session(input: SessionInput) -> Result<SessionView, String
             &request,
             &ctx,
             policy,
-            |budget| {
-                Ok(verify_credential(
+            |budget, decoded| {
+                Ok(decoded.verify(
                     budget,
-                    &input.credential,
+                    &input.credential.proof,
                     &PortableVerificationContext::Ed25519 {
                         claims: &ctx.authority,
                         public_key: &host.config.public_key,
