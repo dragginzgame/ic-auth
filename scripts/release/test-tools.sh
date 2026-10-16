@@ -176,6 +176,22 @@ printf 'retained artifact\n' > target/keep
 before="$(git rev-parse HEAD)"
 if make --no-print-directory release-minor > "$fixture/wrong-candidate.log" 2>&1; then exit 1; fi
 [[ "$(git rev-parse HEAD)" == "$before" && -z "$(git tag -l)" ]] || exit 1
+# Invalid pending syntax must name the actual heading and its correction before
+# setup/fetch/validation, while preserving notes, index and release identity.
+cp CHANGELOG.md "$fixture/pending-notes"
+cp .git/index "$fixture/pending-index"
+for suffix in ' - Unreleased' ' - 2026-10-16'; do
+    sed "s/^## \[0.1.1\]$/## [0.1.1]$suffix/" "$fixture/pending-notes" > CHANGELOG.md
+    cp CHANGELOG.md "$fixture/invalid-notes"
+    if make --no-print-directory release-patch > "$fixture/pending-heading.log" 2>&1; then exit 1; fi
+    rg -F "expected undated pending heading '## [0.1.1]'" "$fixture/pending-heading.log" > /dev/null
+    rg -F "found '## [0.1.1]$suffix'" "$fixture/pending-heading.log" > /dev/null
+    [[ ! -e target/preparation-dispatch.log ]] || exit 1
+    cmp CHANGELOG.md "$fixture/invalid-notes"
+    cmp .git/index "$fixture/pending-index"
+    [[ "$(git rev-parse HEAD)" == "$before" && -z "$(git tag -l)" ]] || exit 1
+done
+cp "$fixture/pending-notes" CHANGELOG.md
 # Common and CLI setup/admission must precede the gate and preserve release
 # identity on either failure. Neither version preparation nor a tag may start.
 for phase in common-setup cli-setup common-check cli-check; do

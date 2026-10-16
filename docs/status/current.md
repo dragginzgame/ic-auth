@@ -1,5 +1,16 @@
 # Current handoff — 2026-10-13
 
+## Release pending-heading correction (pending 0.6.4)
+
+The pending 0.6.4 heading now uses the baseline's numbered, undated form. The
+previous `- Unreleased` suffix was rejected before release preparation. Preflight
+now names the expected and observed headings and explains that preparation adds
+the date. Release fixtures reject both Unreleased and dated pending headings
+without changing notes, index, versions or tags; the valid release/recovery path
+still passes. `make test-release-tools` passes with local remotes and mocked
+registry transport in `target/changelog-preflight-tests.log`. No real release,
+publication, version changes or cleanup were executed.
+
 ## Canic endpoint adoption reference (pending 0.6.4)
 
 The certified session lifecycle regression now admits the public PortableCredential

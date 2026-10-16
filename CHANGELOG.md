@@ -1,10 +1,12 @@
 # Changelog
 
-## [0.6.4] - Unreleased
+## [0.6.4]
 
 - Qualify the public certified-credential admission path across independent
   receivers, including exact retries after proof expiry and receiver-local logout;
   link executable endpoint references from the host adoption guide.
+- Show the expected and observed pending changelog headings when release
+  preflight refuses their format or selected version.
 
 ## [0.6.3] - 2026-10-15
 
