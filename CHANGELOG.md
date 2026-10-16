@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.7.7]
+## [0.7.7] - 2026-10-16
 
 - Reject missing, nonnumeric, nonfinite, fractional and unsafe browser codec
   byte limits before inspecting material or invoking Candid. Valid limits and
