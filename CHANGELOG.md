@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.7.1]
+
+- Qualify complete certified and Ed25519 admission in the same receiver fixture,
+  including measured costs, cross-caller throttling after invalid proofs and
+  independent logout credit. See [matched receiver evidence](docs/ic-testkit-qualification.md#matched-portable-receiver-costs-and-failed-proof-throttling)
+  and [#59 — Bound expensive invalid-proof admission](https://github.com/dragginzgame/ic-auth/issues/59).
+- Expose retained session mechanism and key-binding selectors so hosts can choose
+  exact protected enrollment after restoration. Live authorization is still
+  required; signed and stored formats are unchanged. Incorporates
+  [#64 — Expose retained session enrollment selectors](https://github.com/dragginzgame/ic-auth/pull/64).
+
 ## [0.7.0] - 2026-10-16
 
 - **Breaking:** session verification callbacks now receive `(budget, decoded)`

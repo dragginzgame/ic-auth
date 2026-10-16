@@ -1,4 +1,6 @@
 //! Portable receiver lifecycle against real canisters and signed ingress.
+#[path = "sessions/costs.rs"]
+mod costs;
 use super::{Agent, BasicIdentity, Fixture, Principal, decode_one, encode_args};
 #[path = "../../../sessions.rs"]
 mod contract;
@@ -100,7 +102,7 @@ fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ingress()
             fleet_id: CanonicalId::from_bytes([2; 32]),
         },
         issuer: f.signer,
-        public_key: key.verifying_key().to_bytes(),
+        authority: ReceiverAuthority::Ed25519(key.verifying_key().to_bytes()),
         role: "user".parse().unwrap(),
         grants: vec![DelegatedRoleGrant {
             target: "user".parse().unwrap(),
@@ -109,6 +111,8 @@ fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ingress()
         valid_from_ns: now,
         valid_until_ns: now + 120 * SECOND,
         enrollment_until_ns: now + 120 * SECOND,
+        verification_burst: 16,
+        verification_refill_ns: 1,
     };
     install(&f, f.signer, &config);
     install(&f, f.resource, &config);
@@ -117,7 +121,7 @@ fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ingress()
         mechanism: PortableMechanism::Ed25519,
         audience: config.audience,
         issuer: config.issuer,
-        key_binding_id: Sha256::digest(config.public_key).into(),
+        key_binding_id: config.authority.binding(),
         browser_public_key: SigningKey::from_bytes(&[1; 32]).verifying_key().to_bytes(),
         account_subject: Principal::from_slice(&[99]),
         login_started_at_ns: f.now(),
@@ -284,6 +288,7 @@ pub(super) fn qualify_certified(
         portable_certified::{CERTIFIED_SIGNATURE_DOMAIN, PortableCertifiedContext},
         session_request::SessionRequest,
     };
+    costs::qualify(f, token, old);
     let now = f.now();
     let cert = &token.proof.cert;
     let claims = PortableClaims {
@@ -421,7 +426,7 @@ fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_authority() 
             fleet_id: CanonicalId::from_bytes([2; 32]),
         },
         issuer: f.signer,
-        public_key: key.verifying_key().to_bytes(),
+        authority: ReceiverAuthority::Ed25519(key.verifying_key().to_bytes()),
         role: "user".parse().unwrap(),
         grants: vec![DelegatedRoleGrant {
             target: "user".parse().unwrap(),
@@ -430,6 +435,8 @@ fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_authority() 
         valid_from_ns: now,
         valid_until_ns: now + 120 * SECOND,
         enrollment_until_ns: now + 120 * SECOND,
+        verification_burst: 16,
+        verification_refill_ns: 1,
     };
     install(&f, f.resource, &config);
     let enabled: Result<(), String> = f
@@ -442,7 +449,7 @@ fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_authority() 
         mechanism: PortableMechanism::Ed25519,
         audience: config.audience,
         issuer: config.issuer,
-        key_binding_id: Sha256::digest(config.public_key).into(),
+        key_binding_id: config.authority.binding(),
         browser_public_key: SigningKey::from_bytes(&[1; 32]).verifying_key().to_bytes(),
         account_subject: Principal::from_slice(&[99]),
         login_started_at_ns: f.now(),
@@ -490,7 +497,7 @@ fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_authority() 
         .expect("qualified Candid transport");
     assert!(unauthorized.is_err());
     let mut mismatch = config.clone();
-    mismatch.public_key = [7; 32];
+    mismatch.authority = ReceiverAuthority::Ed25519([7; 32]);
     let wrong: Result<(), String> = f
         .pic
         .update_candid_as(

@@ -1,5 +1,54 @@
 # Current handoff — 2026-10-16
 
+## Matched receiver costs and abuse qualification (pending 0.7.1)
+
+The internal receiver now selects protected Ed25519 or certified authority through
+one admission endpoint and configurable receiver-wide verification budget. Both
+mechanisms run in the same Wasm with matched grants/leases and fresh occupancy.
+After one invalid proof spends the only credit, another browser principal is
+throttled before verification and separate-budget logout still succeeds. Three
+fresh logins, second-receiver admission, exact retry after proof expiry and local
+logout/peer isolation also pass. Fixture checkpoints retain the selected policy;
+the changed private fixture schema uses fresh state, not old snapshot import.
+Public credential/session storage formats and pure library features are unchanged.
+
+All six canister cases pass in `target/matched-receiver-qualification-abuse.log`.
+The same-artifact median fresh admissions were 13,082,165 Ed25519 cycles versus
+459,554,099 certified cycles; ordinary authorization measured 9,640 instructions
+for both. [Qualification evidence](../ic-testkit-qualification.md#matched-portable-receiver-costs-and-failed-proof-throttling)
+records raw-sample scope, negative inputs, artifact identity and exclusions. This
+is not issuer/TEE/production throughput or Canic facade acceptance. Strict fixture
+Clippy and Rust 1.91 native/Wasm checks pass in `target/matched-receiver-checks.log`;
+staged-formatting preservation passes in `target/matched-receiver-formatting-final.log`.
+No full CI, macOS or native browser run was performed. Incoming selector work and
+lock selections were preserved; no sibling source, commit, package version or
+release effect changed.
+
+[Auth #60 — Shared workspace renderer adoption](https://github.com/dragginzgame/ic-auth/issues/60#issuecomment-6212073475)
+was closed after exact v0.6.2 delivery and Linux/Intel/ARM macOS CI verification.
+[Canic #418 — Future-start admission diagnostics](https://github.com/dragginzgame/canic/issues/418#issuecomment-6212142096)
+now has the current typed NotYetValid consumer projection requirement. Production
+issuer/enrollment, durable/browser adoption and consumer performance remain open
+at their existing GitHub trackers.
+
+
+## Retained enrollment selectors (pending 0.7.1)
+
+Ported [PR #64 — Expose retained session enrollment selectors](https://github.com/dragginzgame/ic-auth/pull/64)
+onto the current 0.7.0 source. Read-only session mechanism/key-binding accessors
+let a host select exact current enrollment among same-issuer keys. Selection does
+not authorize use; the restoration regression also rejects wrong keys, wrong
+mechanisms and expired enrollment, with retained state preserved after refusal.
+Signed/storage formats and the 0.7 admission callback are unchanged.
+
+All 22 restoration-selected session tests pass in `target/session-selectors-tests.log`.
+Strict library/session-test Clippy, Rust 1.91 native/Wasm restoration checks,
+engine-only compilation and formatting pass in `target/session-selectors-checks.log`.
+The original PR branch remains unchanged/unmerged; these are local 0.7.1 changes,
+not delivered consumer adoption. No full CI, canister runtime, sibling edit,
+commit, package version or release effect was performed for this additive batch.
+
+
 ## Shared claims preparation and bounded browser calls (pending 0.7.0)
 
 Fresh session admission now passes its owned DecodedPortableClaims to the complete

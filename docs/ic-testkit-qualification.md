@@ -217,6 +217,62 @@ in the [accepted design](design/extraction.md). The existing
 remains the adoption owner. Exact local evidence belongs in the
 [current handoff](status/current.md).
 
+## Matched portable receiver costs and failed-proof throttling
+
+`make test-qualification` now selects both complete portable verifiers in the same
+internal receiver Wasm. Controller-installed `ReceiverAuthority` chooses the
+mechanism, key binding, Root policy and network anchor independently of requests.
+Both arms use the same application subnet, role/grants, lease policy, endpoint and
+volatile store, with three fresh browser logins and matching occupancy progression.
+The first proof is also admitted on a second receiver. Native credential/root
+signing and issuer preparation are outside every receiver sample.
+
+The profile endpoint wraps the actual admission implementation. Counter 0 excludes
+Candid request decoding and response encoding; cycle-balance deltas include the
+whole instrumented update and platform charges. Raw samples, artifact hash/size
+and lifecycle outcomes are retained in the qualification log. These are small
+controlled observations, not a throughput distribution or a production price.
+
+Final local observations, Testkit 0.48.0/server 16.1.0, IC Memory 0.43.0:
+
+| Receiver operation | Ed25519 instructions / cycles | Certified instructions / cycles |
+| --- | --- | --- |
+| Fresh admission, median of three | 2,712,150 / 13,082,165 | 443,640,053 / 459,554,099 |
+| Admission on a second receiver | 2,727,784 / 12,866,537 | 457,897,630 / 473,647,681 |
+| Exact retry after proof expiry | 59,767 / 10,431,472 | 64,296 / 15,986,087 |
+| Invalid proof | 393,966 / 10,526,653 | 239,954,025 / 255,545,956 |
+| Next browser caller, verification credit exhausted | 244,729 / 10,606,567 | 97,058 / 15,937,206 |
+
+The invalid Ed25519 case corrupts an issuer signature; the certified case uses a
+valid-point network key from another network, reaching BLS signature rejection.
+They are distinct negative inputs, not universal worst-case rejection costs.
+Both deny session use. With one receiver-wide credit and a one-second refill,
+the next principal is throttled before proof verification; logout still succeeds
+using its separate budget. Switching principals cannot obtain fresh credit.
+Fixture-controlled reinstall resets the state before the valid-cost comparison;
+it is not an enrollment-refresh procedure for production.
+
+Both ordinary session authorization windows measured 9,640 instructions; whole
+session-read updates burned 7,889,379 / 7,435,474 cycles respectively. Local logout
+preserved the peer receiver's session, and expired-proof retry kept its original
+lease. The fresh-admission cycle medians differ by about 97.15% under these inputs.
+This measures ordinary Ed25519 verification, without TEE hardware qualification;
+it excludes wallet login, issuer signing/renewal, durable writes and subnet latency.
+
+The combined qualification Wasm is 3,148,668 bytes, SHA-256
+`855fd3feed660db23582d8f187e2119620ffa194f1bddad9421a6297eb3db2f8`.
+It contains both verifiers and other fixtures; this is not a minimal receiver
+footprint comparison. State directories are fresh per run. The private fixture
+configuration/checkpoint now includes its authority and budget policy; rebuild
+and start fresh qualification state rather than importing older fixture snapshots.
+No public credential or session storage format changed.
+
+[Auth #59 — Bound expensive invalid-proof admission](https://github.com/dragginzgame/ic-auth/issues/59)
+retains production issuer/enrollment, abuse and workload acceptance.
+[Canic #525 — Session authorization instruction budget](https://github.com/dragginzgame/canic/issues/525)
+still requires the actual endpoint facade at maximum durable state; these isolated
+receiver samples do not satisfy that consumer gate.
+
 ## Isolated session instruction qualification
 
 The certified-token case also produces one-scope and maximum-width (16 scopes,

@@ -527,6 +527,56 @@ fn replay_capacity_narrowing_and_reset_refuse_before_verification() {
 
 #[cfg(feature = "session-restore")]
 #[test]
+fn restored_session_selects_exact_enrollment_among_same_issuer_keys() {
+    let f = Fixture::new(1);
+    let mut r = Receiver::new(&f);
+    let admitted = created(f.admit(&mut r, NOW).unwrap());
+    let restored = Session::decode(&admitted.encode().unwrap()).unwrap();
+    let identity = (
+        restored.issuer(),
+        restored.mechanism(),
+        restored.key_binding_id(),
+    );
+    let approved = (f.claims.issuer, f.claims.mechanism, f.claims.key_binding_id);
+    let other_key = (f.claims.issuer, f.claims.mechanism, [99; 32]);
+    let other_mechanism = (
+        f.claims.issuer,
+        PortableMechanism::Certified,
+        f.claims.key_binding_id,
+    );
+    let enrollment = [other_key, other_mechanism, approved];
+    assert_eq!(
+        enrollment.iter().find(|entry| **entry == identity),
+        Some(&approved)
+    );
+
+    r.store = restored_store(&r.store);
+    assert_eq!(r.auth(&f, NOW), Ok(restored));
+    // The selected record cannot authorize another key or mechanism of that issuer.
+    for (_, mechanism, key_binding_id) in [other_key, other_mechanism] {
+        let mut context = f.context(NOW);
+        context.authority.mechanism = mechanism;
+        context.authority.key_binding_id = key_binding_id;
+        assert_eq!(
+            authorize_session(&mut r.store, &mut r.ledger, &context, policy()),
+            Err(SessionError::StaleAuthority)
+        );
+    }
+    // Selection is not authorization: expiry still closes the same authority.
+    let mut context = f.context(NOW);
+    context.authority.enrollment_expires_at_ns = NOW;
+    assert_eq!(
+        authorize_session(&mut r.store, &mut r.ledger, &context, policy()),
+        Err(SessionError::StaleAuthority)
+    );
+    assert!(
+        r.auth(&f, NOW).is_ok(),
+        "refusals preserve the retained session"
+    );
+}
+
+#[cfg(feature = "session-restore")]
+#[test]
 fn portable_record_roundtrip_and_old_or_corrupt_records_are_rejected() {
     let f = Fixture::new(1);
     let mut r = Receiver::new(&f);

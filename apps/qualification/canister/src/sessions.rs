@@ -16,8 +16,7 @@ use ic_auth::{
     },
     session_request::SessionRequest,
 };
-use ic_auth_protocol_types::{LogoutRequest, LogoutResult, LogoutUnavailable, PortableMechanism};
-use sha2::{Digest, Sha256};
+use ic_auth_protocol_types::{LogoutRequest, LogoutResult, LogoutUnavailable};
 use std::cell::RefCell;
 const SECOND: u64 = 1_000_000_000;
 fn limits() -> SessionLimits {
@@ -54,7 +53,7 @@ fn context(
         authority: PortableClaimsContext {
             audience: &config.audience,
             issuer: config.issuer,
-            mechanism: PortableMechanism::Ed25519,
+            mechanism: config.authority.mechanism(),
             key_binding_id: binding,
             grants: &config.grants,
             caller,
@@ -112,7 +111,16 @@ fn install_session_receiver(config: ReceiverConfig) -> Result<(), String> {
     {
         return Err("invalid receiver authority".into());
     }
-    let binding = Sha256::digest(config.public_key).into();
+    if let ReceiverAuthority::Certified {
+        root, network_key, ..
+    } = &config.authority
+        && (network_key.len() != 96
+            || root.root_canister_id == Principal::anonymous()
+            || config.valid_until_ns > root.accept_until_ns)
+    {
+        return Err("invalid certified receiver authority".into());
+    }
+    let binding = config.authority.binding();
     let mut ctx = context(&config, binding, (0, 0), Principal::anonymous(), now);
     ctx.authority
         .advance_reset_floors(0)
@@ -127,7 +135,12 @@ fn install_session_receiver(config: ReceiverConfig) -> Result<(), String> {
         store: MemorySessionStore::new(0, limits()).map_err(|e| e.to_string())?,
         ledger: MemoryLoginRevocations::new(config.audience, 8, 8, 0, now)
             .map_err(|e| e.to_string())?,
-        admission: SessionAdmissionBudget::new(16, 1, now).map_err(|e| e.to_string())?,
+        admission: SessionAdmissionBudget::new(
+            config.verification_burst,
+            config.verification_refill_ns,
+            now,
+        )
+        .map_err(|e| e.to_string())?,
         unknown: SessionAdmissionBudget::new(16, 1, now).map_err(|e| e.to_string())?,
         config,
         binding,
@@ -159,15 +172,39 @@ fn establish_portable_session(input: SessionInput) -> Result<SessionView, String
             &request,
             &ctx,
             policy,
-            |budget, decoded| {
-                Ok(decoded.verify(
+            |budget, decoded| match &host.config.authority {
+                ReceiverAuthority::Ed25519(key) => Ok(decoded.verify(
                     budget,
                     &input.credential.proof,
                     &PortableVerificationContext::Ed25519 {
                         claims: &ctx.authority,
-                        public_key: &host.config.public_key,
+                        public_key: key,
                     },
-                )?)
+                )?),
+                ReceiverAuthority::Certified {
+                    root, network_key, ..
+                } => {
+                    let root = root.policy();
+                    let verification = ic_auth::portable_certified::PortableCertifiedContext {
+                        claims: ctx.authority,
+                        root_key: &root,
+                        ic_root_public_key_raw: network_key,
+                        limits: ic_auth::token::TokenVerificationLimits {
+                            max_cert_ttl_ns: 120 * SECOND,
+                            max_token_ttl_ns: 60 * SECOND,
+                            max_future_skew_ns: 0,
+                            max_certificate_age_ns: 10 * SECOND,
+                            max_variable_bytes: 131_072,
+                            max_issuer_signature_bytes: 131_072,
+                            max_witness_steps: 6,
+                        },
+                    };
+                    Ok(decoded.verify(
+                        budget,
+                        &input.credential.proof,
+                        &PortableVerificationContext::Certified(&verification),
+                    )?)
+                }
             },
         )
         .map_err(|e| e.to_string())?;
@@ -178,6 +215,16 @@ fn establish_portable_session(input: SessionInput) -> Result<SessionView, String
         }))
     })
 }
+#[ic_cdk::update]
+fn profile_portable_admission(input: SessionInput) -> AdmissionProfile {
+    let start = ic_cdk::api::performance_counter(0);
+    let result = establish_portable_session(input);
+    AdmissionProfile {
+        result,
+        instructions: ic_cdk::api::performance_counter(0) - start,
+    }
+}
+
 #[ic_cdk::update]
 fn portable_session_read() -> Result<SessionView, String> {
     with_receiver(|host| {

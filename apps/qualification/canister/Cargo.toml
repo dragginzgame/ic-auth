@@ -13,7 +13,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 candid.workspace = true
-ic-auth = { workspace = true, features = ["canister-signature-preparation", "session-restore", "portable-signature-verification"] }
+ic-auth = { workspace = true, features = ["canister-signature-preparation", "session-restore", "portable-signature-verification", "token-verification"] }
 ic-auth-protocol-types.workspace = true
 ic-cdk.workspace = true
 ic-certification.workspace = true

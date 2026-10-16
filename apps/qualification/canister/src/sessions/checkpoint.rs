@@ -98,10 +98,16 @@ pub(crate) fn restore(snapshot: Option<Snapshot>) {
                 .map(|bytes| LoginRevocationChange::decode(bytes).expect("decode login")),
         )
         .expect("restore complete login ledger");
+    let admission = SessionAdmissionBudget::new(
+        saved.config.verification_burst,
+        saved.config.verification_refill_ns,
+        now,
+    )
+    .expect("admission budget");
     let host = Receiver {
         checkpoint: true,
         ready: false,
-        binding: Sha256::digest(saved.config.public_key).into(),
+        binding: saved.config.authority.binding(),
         config: saved.config,
         login_floor: saved.login_floor,
         proof_floor: saved.proof_floor,
@@ -110,7 +116,7 @@ pub(crate) fn restore(snapshot: Option<Snapshot>) {
         store,
         ledger,
         // Conservatively discard remaining credit; never refill on upgrade.
-        admission: SessionAdmissionBudget::new(16, 1, now).expect("admission budget"),
+        admission,
         unknown: SessionAdmissionBudget::new(16, 1, now).expect("logout budget"),
     };
     RECEIVER.with(|state| *state.borrow_mut() = Some(host));

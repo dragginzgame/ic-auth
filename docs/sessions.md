@@ -120,6 +120,13 @@ not guaranteed. Issuer logout and absolute login deadlines remain essential.
 
 ## Storage and reset
 
+Use `Session::issuer`, `Session::mechanism` and `Session::key_binding_id` to select
+the exact current protected enrollment entry for a retained or restored session.
+One issuer may have several approved keys; issuer identity alone is insufficient.
+These getters describe retained admission identity, not current authorization.
+Build the context from protected enrollment and call `authorize_session` to
+enforce current validity, grants, generation and logout state before serving it.
+
 `MemorySessionStore` provides bounded indexed storage, per-caller replay limits,
 encoded-byte accounting and explicit pruning of at most 128 expired records per
 call. Logout preserves replay records; authority generation advancement invalidates
