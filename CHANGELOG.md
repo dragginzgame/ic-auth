@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.7.3]
+## [0.7.3] - 2026-10-16
 
 - Share concurrent browser session-admission calls to the same receiver, avoiding
   duplicate updates while preserving explicit retry, independent receivers and
