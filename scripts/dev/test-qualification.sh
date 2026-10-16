@@ -9,6 +9,12 @@ cd -P "${script_path%/*}/../.."
 export CARGO_TARGET_DIR="$PWD/target" RUSTUP_AUTO_INSTALL=0
 POCKET_IC_BIN="$(bash scripts/dev/testkit-tools.sh check)"
 export POCKET_IC_BIN
+# This case executes the actual SDK logout adapter against the live fixture.
+# Admit already prepared client tools and rebuild source; never install here.
+bash scripts/dev/client-tools.sh check
+npm --prefix packages/client run build
+IC_AUTH_QUALIFICATION_NODE="$(command -v node)"
+export IC_AUTH_QUALIFICATION_NODE
 export IC_AUTH_QUALIFICATION_WASM="$CARGO_TARGET_DIR/wasm32-unknown-unknown/release/ic_auth_qualification_canister.wasm"
 mkdir -p "$CARGO_TARGET_DIR/portable-fixtures"
 IC_AUTH_QUALIFICATION_STATE_ROOT="$(mktemp -d "$CARGO_TARGET_DIR/portable-fixtures/qualification.XXXXXX")"

@@ -58,6 +58,8 @@ Apply [DRAGGINZGAME.md](DRAGGINZGAME.md), adopted from Shared Tooling revision
   Testkit owns server selection and admission outside the shared five-tool bundle.
   `make install-testkit-tools` explicitly prepares it, and
   `make testkit-tools-check` returns its admitted server path offline.
+  Qualification also requires the explicitly prepared browser client dependencies
+  for real SDK logout transport; see [client setup](docs/development.md#browser-client-setup).
   Changing that pairing requires successful certification, upgrade and ingress
   qualification. Testkit and native host dependencies stay outside both libraries.
 

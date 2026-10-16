@@ -237,6 +237,7 @@ fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ingress()
         Err(LogoutResult::Unavailable(LogoutUnavailable::ResetPending))
     );
     install(&f, f.resource, &config);
+    install(&f, f.signer, &config);
     f.pic.advance_time(Duration::from_secs(1));
     claims.browser_public_key = SigningKey::from_bytes(&[1; 32]).verifying_key().to_bytes();
     claims.issued_at_ns = f.now();
@@ -249,7 +250,8 @@ fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ingress()
     claims.browser_public_key = SigningKey::from_bytes(&[4; 32]).verifying_key().to_bytes();
     claims.login_started_at_ns = f.now();
     let fresh = browser_principal(&claims.browser_public_key);
-    admission(&f, f.resource, fresh, &input(&claims, &key)).unwrap();
+    let fresh_session = admission(&f, f.resource, fresh, &input(&claims, &key)).unwrap();
+    let peer_session = admission(&f, f.signer, fresh, &input(&claims, &key)).unwrap();
     let url = f.pic.make_live(None).to_string();
     let network = f.pic.root_key().unwrap();
     for device in [4, 5] {
@@ -274,6 +276,55 @@ fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ingress()
         } else {
             assert!(result.is_err())
         }
+    }
+    assert_eq!(read(&f, f.resource, fresh).unwrap(), fresh_session);
+    assert_eq!(read(&f, f.signer, fresh).unwrap(), peer_session);
+    // Node uses the real SDK transport and trusted Testkit network root. The
+    // journal uses fake IndexedDB; this does not qualify native browser storage.
+    let mut command = std::process::Command::new(
+        std::env::var_os("IC_AUTH_QUALIFICATION_NODE")
+            .expect("make test-qualification supplies the admitted Node executable"),
+    );
+    command
+        .arg(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../../packages/client/dist/test/qualification/logout.js"
+        ))
+        .arg(&url)
+        .arg(f.signer.to_text())
+        .arg(f.resource.to_text())
+        .arg(fresh.to_text())
+        .arg(
+            network
+                .iter()
+                .map(|b| format!("{b:02x}"))
+                .collect::<String>(),
+        )
+        .arg(f.now().to_string());
+    use ic_host_process::tool::{
+        OutputLimit, OutputLimits, capture_command, format_failure_evidence,
+    };
+    let output = capture_command(
+        &mut command,
+        OutputLimits {
+            stdout: OutputLimit::Terminate(65_536),
+            stderr: OutputLimit::Terminate(65_536),
+            timeout: Some(Duration::from_secs(30)),
+        },
+    )
+    .and_then(|result| result.require_success())
+    .and_then(|result| result.require_complete())
+    .unwrap_or_else(|error| panic!("{}", format_failure_evidence("SDK logout fixture", &error)));
+    eprintln!("{}", String::from_utf8_lossy(&output.stdout));
+    eprintln!("{}", String::from_utf8_lossy(&output.stderr));
+    assert!(f.now() < fresh_session.expires_at_ns.min(peer_session.expires_at_ns));
+    assert!(f.now() < config.enrollment_until_ns.min(config.valid_until_ns));
+    claims.issued_at_ns = f.now();
+    claims.admission_expires_at_ns = f.now() + 2 * SECOND;
+    claims.nonce = [4; 16];
+    for receiver in [f.signer, f.resource] {
+        assert!(read(&f, receiver, fresh).is_err());
+        assert!(admission(&f, receiver, fresh, &input(&claims, &key)).is_err());
     }
 }
 

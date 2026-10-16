@@ -245,6 +245,36 @@ latency, browser renewal or deployed acceptance. The fixture retains state by an
 explicit upgrade checkpoint; it is not the production durable adapter sought by
 [Auth #58 — Persistence and safe reset policy](https://github.com/dragginzgame/ic-auth/issues/58).
 
+## SDK logout transport against live receivers
+
+The portable session/ingress case now invokes the actual browser-client
+`httpLogoutTransport` against two live canisters after Rust admits the same fresh
+browser principal on both. The SDK receives Testkit's trusted network root from
+the fixture; it does not fetch a trust anchor from the gateway. It authenticates
+signed update/read-state traffic and decodes the shared Rust-owned logout result.
+
+The Node client commits both destinations in its journal, begins logout before
+network I/O and runs the existing journal worker. It requires exactly one update per
+receiver, two authenticated `Revoked` results, completion/disposal-callback
+invocation, retained unknown issuance evidence and refusal of the ordinary signing capability after
+logout. Rust then checks receiver authorization and re-admission refusal.
+
+`make test-qualification` admits the already prepared Node/npm/dependency selection
+and rebuilds current TypeScript offline. Prepare it explicitly with
+`make install-client-dependencies`; checks never install. The native runner uses
+published `ic-host-process` with a 30-second child deadline and separate 64 KiB
+stdout/stderr limits, retaining diagnostics on refusal. No Host process machinery
+is selected by either published library.
+
+The [SDK fixture](../packages/client/test/qualification/logout.ts) uses real SDK
+signatures, network calls and certificate verification, with fake IndexedDB in
+Node for the journal. It is not a native-browser storage test, production issuer
+renewal/reconciliation adapter, Canic endpoint qualification or cross-subnet
+latency measurement. The canister acting as the journal's issuer destination is
+another reference receiver; it does not implement a production issuer service.
+Existing [transport rejection tests](../packages/client/test/logout-http.test.ts)
+independently cover invalid certificates, abort, single submission and bounds.
+
 ## Matched portable receiver costs and failed-proof throttling
 
 `make test-qualification` now selects both complete portable verifiers in the same

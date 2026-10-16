@@ -1,5 +1,46 @@
 # Current handoff — 2026-10-16
 
+## Real SDK logout transport (pending 0.7.4)
+
+The maintainer delivered 0.7.3 at `04b684a463a9f5e8070d1ee4f344be92831303fd`.
+The actual browser SDK logout adapter now completes against two live Testkit
+receivers using their trusted network root, signed ingress and authenticated
+read-state replies. The Node journal commits invalidation before fan-out, records
+one confirmed update per receiver, preserves unknown issuance and invokes the
+disposal callback; the ordinary signing wrapper refuses afterward. Rust checks both sessions were
+live before dispatch and both leases/enrollment remain live after it, then proves
+local authorization and newly signed renewal are denied on both receivers.
+The canister in the issuer destination slot is a reference receiver, not a
+production issuer. Fake IndexedDB in Node models the journal; this does not claim
+native-browser storage or production durability.
+
+`make test-qualification` now admits prepared client tools before compilation,
+then its standalone wrapper repeats admission and rebuilds current TypeScript
+without installing. Its caller fixture proves client admission/build failures
+stop native dispatch. Published ic-host-process 0.22.1 supplies bounded native
+child execution (30 seconds, separate 64 KiB streams); no existing registry
+selection changed and both public libraries remain Host-free. No public API,
+credential/storage format, endpoint implementation or fixture Wasm source changed.
+
+All six canister cases and the native checkpoint unit pass in
+`target/sdk-logout-qualification-final.log`, including the real SDK result.
+All 97 client regressions, strict TypeScript compilation, generated contracts
+and both Candid directions pass in `target/sdk-logout-client-regressions.log`.
+Runner strict Clippy and Rust 1.91 native test-target checks pass in
+`target/sdk-logout-clippy.log` and `target/sdk-logout-msrv.log`. Setup failure
+fixtures, dependency boundaries/pins, shell checks, formatting, local links and
+the snapshot pass. The combined Wasm is 3,148,598 bytes, SHA-256
+`affc6f880e0d72603d4dee001fdd07a80879d8c84d4ca73db123795d3dd658f8`,
+Testkit 0.48.0/server 16.1.0, client Node 24.21.0/npm 12.2.0. The first SDK run
+also passed in `target/sdk-logout-qualification.log`; final assertions add causal
+lease/authority checks and a fresh renewal refusal. No full CI, macOS, real
+browser, production endpoint or Canic build/edit was performed. Production
+adapter/renewal acceptance remains
+[Auth #3 — Browser token-session client](https://github.com/dragginzgame/ic-auth/issues/3),
+with consumer wiring in
+[Canic #491 — Auth adoption](https://github.com/dragginzgame/canic/issues/491).
+
+
 ## Shared receiver admission attempts (pending 0.7.3)
 
 The maintainer delivered 0.7.2 at `6be969ee0ea5acbf002d7600d3d74f7fb36139d3`.

@@ -114,7 +114,21 @@ printf 'cargo dispatch %s\n' "$*" >> "$TESTKIT_FIXTURE_CONSUMER/cargo-dispatch.l
 [[ "$*" == 'test --locked --offline -p ic-auth-qualification --test signatures -- --nocapture' ]] || exit 1
 printf 'qualified admitted server\n' >> "$TESTKIT_FIXTURE_LOG"
 SCRIPT
-chmod +x "$TESTKIT_FIXTURE_CLI" "$fixture/bin/cargo"
+cat > "$consumer/scripts/dev/client-tools.sh" <<'SCRIPT'
+#!/usr/bin/env bash
+set -euo pipefail
+[[ "$*" == check ]] || exit 1
+printf 'client tools check\n' >> "$TESTKIT_FIXTURE_LOG"
+exit "${TESTKIT_FIXTURE_CLIENT_STATUS:-0}"
+SCRIPT
+cat > "$fixture/bin/npm" <<'SCRIPT'
+#!/usr/bin/env bash
+set -euo pipefail
+[[ "$*" == '--prefix packages/client run build' ]] || exit 1
+printf 'client build\n' >> "$TESTKIT_FIXTURE_LOG"
+exit "${TESTKIT_FIXTURE_CLIENT_BUILD_STATUS:-0}"
+SCRIPT
+chmod +x "$TESTKIT_FIXTURE_CLI" "$fixture/bin/cargo" "$fixture/bin/npm"
 cp "$consumer/scripts/dev/install-rust-tools.sh" "$fixture/mock-installer.sh"
 ln -s "$BASH" "$fixture/bin/bash"
 
@@ -172,7 +186,7 @@ for target in test-qualification ci; do
     (cd "$consumer"; make --no-print-directory -j4 "$target") \
         > "$fixture/early-$target.log" 2>&1 || status=$?
     [[ "$status" == 2 && ! -e "$consumer/cargo-dispatch.log" ]] || exit 1
-    [[ "$(tail -n 1 "$TESTKIT_FIXTURE_LOG")" == 'cli check' ]] || exit 1
+    rg -Fx 'cli check' "$TESTKIT_FIXTURE_LOG" > /dev/null
     rg -F 'make install-testkit-tools' "$fixture/early-$target.log" > /dev/null
     if [[ "$target" == ci ]]; then
         printf '%s\n' 'snapshot check' host-tools-check ic-tools-check rust-tools-check \
@@ -322,8 +336,24 @@ cp "$fixture/mock-installer.sh" "$consumer/scripts/dev/install-rust-tools.sh"
 # The real qualification caller consumes only Testkit's check-returned path.
 POCKET_IC_BIN=/unadmitted/override "$BASH" "$consumer/scripts/dev/test-qualification.sh" \
     > "$fixture/qualification.stdout" 2> "$fixture/qualification.stderr"
-[[ "$(tail -n 4 "$TESTKIT_FIXTURE_LOG")" == $'cli check\nserver check\ncli check\nqualified admitted server' ]] || exit 1
+[[ "$(tail -n 6 "$TESTKIT_FIXTURE_LOG")" == $'cli check\nserver check\ncli check\nclient tools check\nclient build\nqualified admitted server' ]] || exit 1
 [[ "$(cat "$consumer/.tools/ic/bin/pocket-ic")" == 'retained former bundle' ]] || exit 1
+
+# Client admission/build failures stop before native dispatch, without setup.
+for phase in check build; do
+    before="$(wc -l < "$consumer/cargo-dispatch.log" | tr -d ' ')"
+    status=0
+    if [[ "$phase" == check ]]; then
+        TESTKIT_FIXTURE_CLIENT_STATUS=31 "$BASH" "$consumer/scripts/dev/test-qualification.sh" \
+            > "$fixture/client-$phase.stdout" 2> "$fixture/client-$phase.stderr" || status=$?
+        [[ "$status" == 31 ]] || exit 1
+    else
+        TESTKIT_FIXTURE_CLIENT_BUILD_STATUS=32 "$BASH" "$consumer/scripts/dev/test-qualification.sh" \
+            > "$fixture/client-$phase.stdout" 2> "$fixture/client-$phase.stderr" || status=$?
+        [[ "$status" == 32 ]] || exit 1
+    fi
+    [[ "$(wc -l < "$consumer/cargo-dispatch.log" | tr -d ' ')" == "$before" ]] || exit 1
+done
 
 # Execute the actual CI extension of the shared collector, with opaque owner
 # failure bytes. The shared archiver preserves that evidence without new policy.

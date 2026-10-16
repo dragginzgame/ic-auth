@@ -1442,6 +1442,7 @@ dependencies = [
  "ic-auth-protocol-types",
  "ic-canister-sig-creation",
  "ic-host-fs 0.22.1",
+ "ic-host-process 0.22.1",
  "ic-testkit",
  "k256 0.14.0",
  "serde",
@@ -1626,6 +1627,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "ic-host-process"
+version = "0.22.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d819b7ae33a757762adc24ac78ea55cb5b6821bd47dfc60496adca86d2d57fe0"
+dependencies = [
+ "ic-host-artifacts 0.22.1",
+ "ic-host-fs 0.22.1",
+ "libc",
+ "rustix",
+]
+
+[[package]]
 name = "ic-management-canister-types"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1699,7 +1712,7 @@ dependencies = [
  "ic-cdk",
  "ic-host-artifacts 0.21.0",
  "ic-host-fs 0.21.0",
- "ic-host-process",
+ "ic-host-process 0.21.0",
  "ic-metrics",
  "libc",
  "pocket-ic",

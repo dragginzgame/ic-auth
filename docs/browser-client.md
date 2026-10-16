@@ -194,8 +194,11 @@ retry limits and the five-second attempt deadline; callers should use the adapte
 through `PortableLogoutClient`, not as an independently scheduled retry loop.
 Disposal remains the application's idempotent callback. Tests exercise actual SDK
 signing with substituted HTTP responses, invalid certificates, abort and bounded
-Candid decoding. Successful deployed issuer/receiver transport qualification and
-Canic/Toko adoption remain pending; no endpoint is installed by this adapter.
+Candid decoding. The [live receiver qualification](ic-testkit-qualification.md#sdk-logout-transport-against-live-receivers)
+also runs this adapter against two actual Testkit canisters, verifies certified
+replies and checks revocation back in Rust. Its journal uses fake IndexedDB in
+Node; production issuer/receiver endpoint qualification and Canic/Toko adoption
+remain pending. No endpoint is installed by this adapter.
 
 The clock adapter must supply one qualified, reload-stable clock domain, conservative
 IC expiry mapping and monotonic observations. An ordinary `Date.now()` clock is not

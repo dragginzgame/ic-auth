@@ -215,6 +215,12 @@ explicitly on all three hosts before its complete gate. Client source and exampl
 outputs remain under ignored `packages/client/dist/`; generated-contract evidence
 is retained under `target/browser-client/`.
 
+`make test-qualification` also requires these prepared client dependencies. It
+compiles current TypeScript before invoking the SDK logout adapter through the
+live Testkit gateway. Missing or mismatched tools refuse; checks never install.
+The Node journal uses fake IndexedDB, so this does not replace native browser
+storage qualification. See the [transport evidence](ic-testkit-qualification.md#sdk-logout-transport-against-live-receivers).
+
 ## Validation
 
 | Focused command | Purpose |
@@ -234,7 +240,7 @@ is retained under `target/browser-client/`.
 | `make test-host-tooling` | Native file-operation CLI: bounded input, exact digest output, no-follow reads and preserved create-only evidence |
 | `make check-msrv` | Isolated public package payloads and internal applications using the declared minimum compiler, with native/Wasm and feature coverage |
 | `make tasks` | Read the adopted maintenance task catalog; no task, agent or schedule starts |
-| `make test-qualification` | Build the internal Wasm host; verify real certificates, complete application tokens, live authority rejection, root composition, upgrades and authenticated ingress through `ic-testkit` with the checked server |
+| `make test-qualification` | Build the internal Wasm host; verify real certificates, complete application tokens, live authority rejection, root composition, upgrades, authenticated ingress and SDK logout through `ic-testkit` with the checked server and prepared client dependencies |
 | `make build-qualification-canister` | Build the internal host's release Wasm without starting a server |
 | `make check-wasm` | Compile-check both libraries and chain-key/signature verification/preparation, token and session capabilities for `wasm32-unknown-unknown` |
 | `make clippy` | Lint the libraries, native tooling/qualification and Wasm host with their selected targets |

@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.7.4]
+
+- Qualify the browser SDK logout transport against two real receiver canisters,
+  including certified replies, journal completion and receiver-side revocation.
+  Qualification now requires explicitly prepared client tools and dependencies;
+  it builds current client source offline and does not install during checks.
+  [#3 — Browser token-session client](https://github.com/dragginzgame/ic-auth/issues/3)
+  retains production adapter and renewal acceptance.
+
 ## [0.7.3] - 2026-10-16
 
 - Share concurrent browser session-admission calls to the same receiver, avoiding
