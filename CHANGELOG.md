@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.7.0]
+## [0.7.0] - 2026-10-16
 
 - **Breaking:** session verification callbacks now receive `(budget, decoded)`
   and consume `decoded.verify(...)` with the credential proof and protected
