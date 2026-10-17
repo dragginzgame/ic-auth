@@ -11,7 +11,7 @@ members = [
 resolver = "3"
 
 [workspace.package]
-version = "0.9.0"
+version = "0.9.1"
 edition = "2024"
 rust-version = "1.91.0"
 license = "MIT"
@@ -30,10 +30,10 @@ ed25519-dalek = { version = "2.2", default-features = false }
 # Native qualification transport only; not a dependency of the public libraries.
 ic-agent = { version = "0.49.2", default-features = false }
 ic-auth = { path = "crates/ic-auth" }
-ic-auth-protocol-types = { version = "0.9.0", path = "crates/ic-auth-protocol-types" }
+ic-auth-protocol-types = { version = "0.9.1", path = "crates/ic-auth-protocol-types" }
 # Unpublished Candid projection for qualification controller/certificate calls only.
 ic-auth-qualification-contracts = { path = "apps/qualification/contracts" }
-ic-auth-wire = { version = "0.9.0", path = "crates/ic-auth-wire" }
+ic-auth-wire = { version = "0.9.1", path = "crates/ic-auth-wire" }
 # DFINITY certificate/signature machinery is selected only by those capabilities.
 ic-canister-sig-creation = "1.3.1"
 # CDK belongs to the qualification canister, outside all public library graphs.

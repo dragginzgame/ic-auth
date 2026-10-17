@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.9.1]
+## [0.9.1] - 2026-10-17
 
 - Adopt Shared Tooling 0.23.0. Common setup/admission selects host and Rust tools;
   the unused IC executable bundle remains an explicit optional selection.
