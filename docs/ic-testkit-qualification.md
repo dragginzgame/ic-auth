@@ -274,6 +274,30 @@ silently reset retained memory or add an old-format fallback to pass bootstrap.
 Production retained-state decisions remain with the owning consumer and
 [Memory #44 — Allocation pooling and downstream composition](https://github.com/dragginzgame/ic-memory/issues/44).
 
+## Checkpoint allocation with IC Memory 0.45
+
+The selected 0.45 package removes allocator schema metadata: the fixture declares
+its authority and existing permanent key with `MemoryRequest::new(authority, key)`.
+Auth still owns and validates the checkpoint header, payload and record formats.
+Runtime ownership, the 128 KiB payload bound and explicit bootstrap remain intact.
+
+Upstream 0.45 retires earlier allocation images for its `ICMSNAP1` ledger format.
+Use fresh disposable fixture installations; the normal suite already creates new
+canisters and tests upgrades within the current format. Those tests do not prove
+0.44-to-0.45 storage compatibility. The host neither clears incompatible memory
+nor reads the retired format. Production retained-state disposition belongs to
+the consumer, independently of Auth's unchanged session record bytes.
+
+Testkit 0.50 owns the selected server pairing. Prepare its CLI explicitly with
+`make install-testkit-tools` after changing the lock; checks remain offline and
+never substitute an older installed CLI.
+The native runner imports `DecodeLimits` from published `ic-testkit-candid` and
+passes it explicitly at every Testkit typed call. Control/session replies use a
+4 KiB wire cap, 100,000 decoding work units, 10,000 skipping units, 64 type entries
+and a 4 KiB header cap. Signature replies use 256 KiB, 20,000,000 decoding units,
+100,000 skipping units, 128 type entries and an 8 KiB header cap. These are
+fixture-owned ceilings, not application endpoint defaults or instruction limits.
+
 ## SDK admission through the portable coordinator
 
 The [admission fixture](../packages/client/test/qualification/admission.ts) runs

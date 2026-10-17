@@ -23,7 +23,12 @@ limit remains inclusive: an envelope whose encoded length equals the limit is
 accepted. This validates the configured ceiling; the encoder still checks final
 size after SDK encoding, rather than providing a streaming allocation budget.
 
-The shared decoder guards each SDK input-stream read against its remaining bytes.
+The shared decoder first copies exactly the admitted byte view: the selected SDK
+starts its stream at backing-buffer offset zero, ignoring a supplied view's
+offset. Subarrays and Node Buffer slices therefore decode only their own bytes;
+an enclosing buffer's prefix cannot substitute another credential or logout
+result. The byte ceiling applies to the view before copying, not its allocation.
+The shared decoder also guards each SDK input-stream read against its remaining bytes.
 This rejects truncated final blobs that the selected SDK otherwise silently
 shortens. The guard is local to that decode, does not mutate generated descriptors
 or SDK prototypes, and preserves valid differing Rust/TypeScript Candid encodings.
@@ -34,6 +39,13 @@ These data codecs do not migrate `TokenSessionClient`'s retained issuance intent
 The injected portable admission coordinator below supplies sequencing, not a
 production issuer adapter. The old token lifecycle remains pending consumer
 transition and explicit disposition of its unresolved issuance records.
+Retirement requires a qualified production issuer/reconciliation adapter and an
+application-owned disposition for retained unknown effects. Removing the old
+server endpoint, waiting for proof expiry or adopting the portable journal does
+not establish that those effects never occurred. The current client, its stores
+and recovery behavior remain available until those obligations are resolved in
+[Auth #3 — Browser token-session client](https://github.com/dragginzgame/ic-auth/issues/3)
+and [Canic #507 — Non-issuing reconciliation](https://github.com/dragginzgame/canic/issues/507).
 
 ### Portable admission coordinator
 
@@ -194,6 +206,9 @@ and uses authenticated read-state polling. HTTP acceptance is not confirmation.
 SDK certificate verification retains its trusted root, target, request ID and
 freshness checks; the decoded Candid result is capped at 1,024 bytes. The adapter
 does not replace certificate verification or accept query replies as revocation.
+The adapter and live admission qualification use one private SDK update transport;
+the fixture owns its argument/result codecs and the journal owns retry scheduling.
+That helper is not a production admission/issuer adapter or a public client export.
 
 The default trust anchor is the SDK's IC root. Local qualification must explicitly
 provide its trusted root key; the adapter never fetches a root key from the gateway.

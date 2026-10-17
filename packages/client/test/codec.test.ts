@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { ClientError, MemoryTokenStore, tokenBytes, tokenFromBytes, credentialBytes, credentialFromBytes, type PortableCredential } from '../src/index.js';
-import { encode, requestBytes, requestFromBytes } from '../src/codec.js';
+import { encode, requestBytes, requestFromBytes, logoutResultFromBytes } from '../src/codec.js';
 import { IDL } from '@icp-sdk/core/candid';
 import { DelegatedRoleGrant, LogoutResult, LogoutRequest } from '../src/generated/protocol.did.js';
 import { harness } from './support.js';
@@ -128,6 +128,40 @@ test('invalid codec limits refuse before reading payload fields or input bytes',
     assert.throws(() => Reflect.apply(credentialFromBytes, undefined, [input, maximum]), ClientError);
   }
   assert.equal(reads, 0);
+});
+
+test('portable decode uses only the supplied byte view, including Node Buffer slices', () => {
+  const first: PortableCredential = {
+    claims: new Uint8Array([1, 2, 3]), proof: { Ed25519: { signature: new Uint8Array(64).fill(4) } },
+  };
+  const second: PortableCredential = {
+    claims: new Uint8Array([5, 6, 7]), proof: { Ed25519: { signature: new Uint8Array(64).fill(8) } },
+  };
+  const a = credentialBytes(first, 131_072);
+  const b = credentialBytes(second, 131_072);
+  assert.equal(a.length, b.length);
+  const framed = new Uint8Array(a.length + b.length);
+  framed.set(a); framed.set(b, a.length);
+  const buffer = Buffer.from(framed);
+  for (const view of [framed.subarray(a.length), buffer.subarray(a.length)]) {
+    assert.deepEqual(credentialFromBytes(view, b.length), second);
+    view.fill(0); // A valid credential outside this view must never be substituted.
+    assert.throws(() => credentialFromBytes(view, b.length), ClientError);
+  }
+  // The cap concerns the supplied view, not its enclosing allocation.
+  framed.set(b, a.length);
+  assert.deepEqual(credentialFromBytes(framed.subarray(a.length), b.length), second);
+});
+
+test('logout decode cannot substitute a confirmation outside the reply view', () => {
+  const confirmation = IDL.encode([LogoutResult], [{ Revoked: { deny_until_ns: 100n } }]);
+  const refusal = IDL.encode([LogoutResult], [{ Unavailable: { Capacity: null } }]);
+  const framed = new Uint8Array(confirmation.length + refusal.length);
+  framed.set(confirmation); framed.set(refusal, confirmation.length);
+  assert.deepEqual(logoutResultFromBytes(framed.subarray(confirmation.length)), { Unavailable: { Capacity: null } });
+  const invalid = new Uint8Array(confirmation.length * 2);
+  invalid.set(confirmation);
+  assert.throws(() => logoutResultFromBytes(invalid.subarray(confirmation.length)), ClientError);
 });
 
 test('Rust logout results preserve every refusal and exact nat64 deadlines in both directions', () => {

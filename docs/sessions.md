@@ -40,6 +40,12 @@ even after the admission proof expires. Changing the requested scope or lifetime
 on a retry is a replay conflict. Renewal uses a fresh credential within the same
 immutable issuer/account and login-start/deadline binding.
 
+Admission validates the session record's encoded size without allocating bytes
+that would be discarded. The store independently enforces its transactional
+capacity checks; persistence explicitly encodes only when bytes are needed.
+Record encoding writes CBOR directly after the existing domain prefix, preserving
+the same bytes, size bounds and error precedence.
+
 A session records the browser `caller`, account `(issuer, subject)`, audience,
 mechanism/key binding, role/scopes, authority generation, login window, lease and
 proof/request fingerprints. Two devices belonging to one account use distinct

@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.7.8]
+
+- Share one SDK update transport between browser logout and live admission
+  qualification, preserving explicit trust, one submission per attempt and
+  cancellation. Endpoint contracts and retry policy remain with their adapters.
+  [#3 — Browser token-session client](https://github.com/dragginzgame/ic-auth/issues/3).
+
+- Avoid discarded session-encoding allocations during admission and write CBOR
+  directly into the framed record buffer. Stored bytes and capacity checks remain
+  unchanged.
+
+- Adapt the checkpoint fixture to IC Memory 0.45's key-only allocation requests.
+  Use fresh fixture installations for its changed allocator ledger format;
+  no automatic clearing or older-format reader is provided.
+
+- Supply explicit bounded reply-decoding policies at the Testkit 0.50 typed-call
+  boundary. Prepare the newly selected CLI with `make install-testkit-tools`;
+  qualification checks never install it implicitly.
+
+- Decode only the supplied browser codec byte view, including subarrays and Node
+  Buffer slices. Bytes outside a credential or logout reply can no longer be
+  substituted by the selected SDK's offset-zero stream. Wire formats are unchanged.
+  [#3 — Browser token-session client](https://github.com/dragginzgame/ic-auth/issues/3).
+
 ## [0.7.7] - 2026-10-16
 
 - Reject missing, nonnumeric, nonfinite, fractional and unsafe browser codec

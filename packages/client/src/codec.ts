@@ -43,7 +43,9 @@ function decode<T>(type: IDL.Type, bytes: Uint8Array, maximum: number): T {
       };
       return type.decodeValue(pipe, wireType);
     };
-    const value = IDL.decode([boundedType], bytes)[0];
+    // The selected SDK stream starts at backing-buffer offset zero. Copy exactly
+    // this admitted view, including Buffer/subarray inputs, before decoding.
+    const value = IDL.decode([boundedType], new Uint8Array(bytes))[0];
     if (!type.covariant(value)) throw new ClientError('invalid_material');
     // Runtime admission above uses this exact generated descriptor. This is the
     // single typed boundary over the SDK's untyped decode result, not a service

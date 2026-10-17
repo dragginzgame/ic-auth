@@ -83,7 +83,13 @@ fn root_and_issuer_profiles_share_one_composed_store_without_crossing_authority(
     );
     let removed: Result<u32, String> = fixture
         .pic
-        .update_candid_as(fixture.signer, fixture.controller, "prune", (128_u32,))
+        .update_candid_as(
+            fixture.signer,
+            fixture.controller,
+            "prune",
+            (128_u32,),
+            CONTROL_REPLY_LIMITS,
+        )
         .expect("qualified Candid transport");
     assert_eq!(removed, Ok(1));
     let live_issuer = fixture

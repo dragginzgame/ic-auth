@@ -2,7 +2,7 @@
 //! Writes run synchronously in pre_upgrade; IC message rollback owns trap atomicity.
 use ic_memory::{
     GenericAllocationPolicy, MemoryAllocationPool, MemoryAuthority, MemoryRequest, MemoryRuntime,
-    RuntimeMemory, SchemaMetadata, SealedDeclarationSnapshot,
+    RuntimeMemory, SealedDeclarationSnapshot,
     ic_stable_structures::{DefaultMemoryImpl, Memory},
 };
 use std::cell::RefCell;
@@ -18,8 +18,7 @@ const HEADER: u64 = 16;
 
 pub(crate) fn bootstrap(backing: DefaultMemoryImpl) {
     let declarations = SealedDeclarationSnapshot::new(vec![
-        MemoryRequest::new("ic_auth_qualification", KEY, SchemaMetadata::default())
-            .expect("checkpoint declaration"),
+        MemoryRequest::new("ic_auth_qualification", KEY).expect("checkpoint declaration"),
     ])
     .expect("checkpoint declarations");
     let pool = MemoryAllocationPool::new(

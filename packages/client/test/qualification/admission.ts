@@ -1,8 +1,8 @@
 // Private adapter for apps/qualification/sessions.rs, not a production endpoint.
 import assert from 'node:assert/strict';
-import { setTimeout as delay } from 'node:timers/promises';
 import { IDBFactory } from 'fake-indexeddb';
-import { HttpAgent, type Identity } from '@icp-sdk/core/agent';
+import type { Identity } from '@icp-sdk/core/agent';
+import { httpUpdateTransport } from '../../src/update-http.js';
 import { IDL } from '@icp-sdk/core/candid';
 import { Ed25519KeyIdentity } from '@icp-sdk/core/identity';
 import type { Principal } from '@icp-sdk/core/principal';
@@ -27,29 +27,15 @@ export async function qualifyAdmission(host: string, issuer: Principal, receiver
   // retry an update or use a synchronous-endpoint fallback inside an attempt.
   async function update(target: Principal, methodName: string, arg: Uint8Array,
     caller: Identity, signal: AbortSignal): Promise<{ Ok?: SessionView; Err?: string }> {
-    signal.throwIfAborted();
-    let submitted = false;
-    const agent = await HttpAgent.create({ host, identity: caller, rootKey: rootKey.slice(),
-      retryTimes: 0, shouldFetchRootKey: false, shouldSyncTime: false,
+    const call = httpUpdateTransport({ host, methodName, rootKey,
       fetch: async (input, init) => {
-        signal.throwIfAborted();
         const path = new URL(input instanceof Request ? input.url : input.toString()).pathname;
-        if (path === `/api/v2/canister/${target}/call`) {
-          assert.equal(submitted, false); submitted = true; submissions.push(methodName);
-        } else assert.equal(path, `/api/v3/canister/${target}/read_state`);
-        const response = await fetch(input, { ...init, signal });
-        signal.throwIfAborted();
-        return response;
-      },
-    });
-    const result = await agent.update(target, { methodName, arg, callSync: false },
-      { preSignReadStateRequest: false, strategy: async () => {
-        signal.throwIfAborted();
-        await delay(250, undefined, { signal });
+        if (path.endsWith('/call')) submissions.push(methodName);
+        return fetch(input, init);
       } });
-    signal.throwIfAborted();
-    assert.ok(result.reply.length <= 4_096);
-    return IDL.decode([Result], result.reply)[0] as { Ok?: SessionView; Err?: string };
+    const reply = await call(target, caller, arg, signal);
+    assert.ok(reply.length <= 4_096);
+    return IDL.decode([Result], reply)[0] as { Ok?: SessionView; Err?: string };
   }
   const store = await IndexedDbLogoutStore.open(new IDBFactory(), 'testkit-admission');
   let issued = 0;

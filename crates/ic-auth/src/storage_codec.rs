@@ -38,7 +38,7 @@ pub(crate) fn encode<T: serde::Serialize, E>(
     capacity: E,
 ) -> Result<Vec<u8>, E> {
     let mut bytes = domain.to_vec();
-    bytes.extend(serde_cbor::to_vec(value).map_err(|_| invalid)?);
+    serde_cbor::to_writer(&mut bytes, value).map_err(|_| invalid)?;
     if bytes.len() > maximum {
         return Err(capacity);
     }
@@ -71,6 +71,9 @@ mod tests {
             let value = (vec!["x".repeat(length)], u64::MAX, Some(42_u64));
             for domain in [b"".as_slice(), b"record\0"] {
                 let encoded = encode(&value, domain, usize::MAX, "invalid", "capacity").unwrap();
+                let mut expected = domain.to_vec();
+                expected.extend(serde_cbor::to_vec(&value).unwrap());
+                assert_eq!(encoded, expected, "retain the stored byte contract");
                 for maximum in [encoded.len() - 1, encoded.len(), encoded.len() + 1] {
                     assert_eq!(
                         encoded_len(&value, domain, maximum, "invalid", "capacity"),

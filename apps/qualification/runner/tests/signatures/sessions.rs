@@ -1,7 +1,10 @@
 //! Portable receiver lifecycle against real canisters and signed ingress.
 #[path = "sessions/costs.rs"]
 mod costs;
-use super::{Agent, BasicIdentity, Fixture, Principal, decode_one, encode_args, encode_one};
+use super::{
+    Agent, BasicIdentity, CONTROL_REPLY_LIMITS, Fixture, Principal, decode_one, encode_args,
+    encode_one,
+};
 #[path = "../../../sessions.rs"]
 mod contract;
 use contract::*;
@@ -35,6 +38,7 @@ fn install(f: &Fixture, target: Principal, config: &ReceiverConfig) {
             f.controller,
             "install_session_receiver",
             (config.clone(),),
+            CONTROL_REPLY_LIMITS,
         )
         .expect("qualified Candid transport");
     result.unwrap();
@@ -51,12 +55,19 @@ fn admission(
             caller,
             "establish_portable_session",
             (input.clone(),),
+            CONTROL_REPLY_LIMITS,
         )
         .expect("qualified Candid transport")
 }
 fn read(f: &Fixture, target: Principal, caller: Principal) -> Result<SessionView, String> {
     f.pic
-        .update_candid_as(target, caller, "portable_session_read", ())
+        .update_candid_as(
+            target,
+            caller,
+            "portable_session_read",
+            (),
+            CONTROL_REPLY_LIMITS,
+        )
         .expect("qualified Candid transport")
 }
 fn logout(f: &Fixture, target: Principal, caller: Principal) -> Result<u64, LogoutResult> {
@@ -67,6 +78,7 @@ fn logout(f: &Fixture, target: Principal, caller: Principal) -> Result<u64, Logo
             caller,
             "logout_portable_session",
             (LogoutRequest {},),
+            CONTROL_REPLY_LIMITS,
         )
         .expect("qualified Candid transport");
     match result {
@@ -194,7 +206,13 @@ fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ingress()
     logout(&f, f.resource, caller).unwrap();
     let profile: Result<SessionProfile, String> = f
         .pic
-        .query_candid_as(f.signer, other_caller, "profile_portable_session", ())
+        .query_candid_as(
+            f.signer,
+            other_caller,
+            "profile_portable_session",
+            (),
+            CONTROL_REPLY_LIMITS,
+        )
         .expect("qualified Candid transport");
     let profile = profile.unwrap();
     assert!(profile.record_bytes < 2048);
@@ -215,6 +233,7 @@ fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ingress()
             f.controller,
             "invalidate_session_authority",
             (false,),
+            CONTROL_REPLY_LIMITS,
         )
         .expect("qualified Candid transport");
     result.unwrap();
@@ -521,7 +540,13 @@ fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_authority() 
     install(&f, f.signer, &config);
     let enabled: Result<(), String> = f
         .pic
-        .update_candid_as(f.resource, f.controller, "enable_session_checkpoint", ())
+        .update_candid_as(
+            f.resource,
+            f.controller,
+            "enable_session_checkpoint",
+            (),
+            CONTROL_REPLY_LIMITS,
+        )
         .expect("qualified Candid transport");
     enabled.unwrap();
     f.pic.advance_time(Duration::from_secs(1));
@@ -580,6 +605,7 @@ fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_authority() 
             live,
             "confirm_restored_session_authority",
             (config.clone(),),
+            CONTROL_REPLY_LIMITS,
         )
         .expect("qualified Candid transport");
     assert!(unauthorized.is_err());
@@ -592,6 +618,7 @@ fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_authority() 
             f.controller,
             "confirm_restored_session_authority",
             (mismatch,),
+            CONTROL_REPLY_LIMITS,
         )
         .expect("qualified Candid transport");
     assert!(wrong.is_err());
@@ -603,6 +630,7 @@ fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_authority() 
             f.controller,
             "confirm_restored_session_authority",
             (config.clone(),),
+            CONTROL_REPLY_LIMITS,
         )
         .expect("qualified Candid transport");
     confirmed.unwrap();
@@ -633,6 +661,7 @@ fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_authority() 
             f.controller,
             "invalidate_session_authority",
             (false,),
+            CONTROL_REPLY_LIMITS,
         )
         .expect("qualified Candid transport");
     disabled.unwrap();
@@ -651,6 +680,7 @@ fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_authority() 
             f.controller,
             "confirm_restored_session_authority",
             (config,),
+            CONTROL_REPLY_LIMITS,
         )
         .expect("qualified Candid transport");
     confirmed.unwrap();

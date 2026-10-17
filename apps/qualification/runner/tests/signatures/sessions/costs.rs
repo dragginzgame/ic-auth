@@ -16,6 +16,7 @@ fn profile(
                 caller,
                 "profile_portable_admission",
                 (input.clone(),),
+                CONTROL_REPLY_LIMITS,
             )
             .expect("profile Candid transport")
     });
@@ -206,7 +207,13 @@ pub(super) fn qualify(f: &Fixture, token: &DelegatedToken, old: &TokenVerificati
         );
         let hot: Result<SessionProfile, String> = f
             .pic
-            .query_candid_as(f.resource, caller, "profile_portable_session", ())
+            .query_candid_as(
+                f.resource,
+                caller,
+                "profile_portable_session",
+                (),
+                CONTROL_REPLY_LIMITS,
+            )
             .unwrap();
         let hot = hot.unwrap();
         assert!(hot.authorization_instructions > 0);

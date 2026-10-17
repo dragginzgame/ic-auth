@@ -14,6 +14,7 @@ use ic_testkit::{
     pic::{CandidCallExt, PocketIc, PocketIcBuilder, PocketIcManagedServer, PocketIcStartupConfig},
     pocket_ic::Time,
 };
+use ic_testkit_candid::DecodeLimits;
 use std::{
     path::{Path, PathBuf},
     sync::atomic::{AtomicUsize, Ordering},
@@ -24,6 +25,22 @@ const SEED: &[u8] = b"qualification-identity";
 const DOMAIN: &[u8] = b"canic-issuer-delegated-token";
 const INGRESS_DOMAIN: &[u8] = b"ic-request-auth-delegation";
 static NEXT_INSTANCE: AtomicUsize = AtomicUsize::new(0);
+
+// Fixture-owned wire/work ceilings, not library or production endpoint defaults.
+const CONTROL_REPLY_LIMITS: DecodeLimits = DecodeLimits {
+    reply_bytes: 4096,
+    decoding_quota: 100_000,
+    skipping_quota: 10_000,
+    type_entries: 64,
+    header_bytes: 4096,
+};
+const SIGNATURE_REPLY_LIMITS: DecodeLimits = DecodeLimits {
+    reply_bytes: 256 * 1024,
+    decoding_quota: 20_000_000,
+    skipping_quota: 100_000,
+    type_entries: 128,
+    header_bytes: 8192,
+};
 
 #[path = "signatures/application_tokens.rs"]
 mod application_tokens;
@@ -122,6 +139,7 @@ impl Fixture {
                 self.controller,
                 "prepare",
                 (seed.to_vec(), domain.to_vec(), message.to_vec(), ttl),
+                CONTROL_REPLY_LIMITS,
             )
             .expect("qualified Candid transport")
     }
@@ -147,6 +165,7 @@ impl Fixture {
                 self.signer,
                 "retrieve",
                 (seed.to_vec(), domain.to_vec(), message.to_vec()),
+                SIGNATURE_REPLY_LIMITS,
             )
             .expect("qualified Candid transport")
     }
@@ -183,14 +202,20 @@ impl Fixture {
     fn set_asset(&self, version: u64) {
         let result: Result<(), String> = self
             .pic
-            .update_candid_as(self.signer, self.controller, "set_asset", (version,))
+            .update_candid_as(
+                self.signer,
+                self.controller,
+                "set_asset",
+                (version,),
+                CONTROL_REPLY_LIMITS,
+            )
             .expect("qualified Candid transport");
         result.unwrap();
     }
 
     fn asset_version(&self) -> u64 {
         self.pic
-            .query_candid(self.signer, "asset_version", ())
+            .query_candid(self.signer, "asset_version", (), CONTROL_REPLY_LIMITS)
             .expect("qualified Candid transport")
     }
 
@@ -259,6 +284,7 @@ fn real_certificates_composition_cleanup_and_upgrade_obey_the_host_contract() {
                 payload.to_vec(),
                 60_000_000_000_u64,
             ),
+            CONTROL_REPLY_LIMITS,
         )
         .expect("qualified Candid transport");
     assert!(unauthorized.is_err());
@@ -286,7 +312,13 @@ fn real_certificates_composition_cleanup_and_upgrade_obey_the_host_contract() {
     assert!(fixture.retrieve(DOMAIN, &payload).is_err());
     let removed: Result<u32, String> = fixture
         .pic
-        .update_candid_as(fixture.signer, fixture.controller, "prune", (128_u32,))
+        .update_candid_as(
+            fixture.signer,
+            fixture.controller,
+            "prune",
+            (128_u32,),
+            CONTROL_REPLY_LIMITS,
+        )
         .expect("qualified Candid transport");
     assert_eq!(removed, Ok(1));
     fixture.prepare(DOMAIN, &payload, 60_000_000_000).unwrap();

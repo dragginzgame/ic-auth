@@ -1,5 +1,84 @@
 # Current handoff — 2026-10-16
 
+## Shared SDK transport and record allocation cleanup (pending 0.7.8)
+
+Browser logout and the live admission fixture now share one private SDK update
+transport. It preserves explicit trust, fresh per-attempt identities, one update
+submission, cancellation and authenticated read-state polling. Adapter codecs,
+endpoint contracts, identity leases and retry policy retain their existing owners;
+there is no new public transport export or production issuer implementation.
+
+Session admission counts record size without allocating discarded serialized
+bytes. Framed record encoding writes CBOR directly into its final buffer. The
+existing codec tests now compare exact bytes against the former construction,
+including length/capacity boundaries; transaction capacity and failure atomicity
+remain independently checked. No session/replay/login record format changed and
+no quantified performance saving is claimed.
+
+The incoming Host 0.24 / Memory 0.45 / Testkit 0.50 selections are retained.
+Qualification initially refused the unprepared Testkit CLI; explicit setup now
+admits 0.50 with server 16.1.0. Subsequent compile failures identified Memory's
+removed schema argument and Testkit's new mandatory decode limits. The checkpoint
+fixture now uses key-only requests, and every typed native call supplies finite
+control or signature reply limits. Published `ic-testkit-candid` is a native-only
+direct dependency, already present in the incoming lock; no external package
+selection changed. Upstream Memory 0.45 retires older ledger images, so use fresh
+fixture installations, never automatic clearing. Auth payload formats are separate.
+
+Evidence in `target/auth-simplification/`: 101 client cases and both Candid
+directions pass in `client-tests.log`; 69 session/proof/doc cases pass in
+`session-tests.log`; two codec cases pass in `storage-tests.log`. All six real
+canister cases and the native checkpoint unit pass in `qualification-final.log`,
+including real SDK admission/logout through the shared transport. Strict native
+and Wasm lint, Rust 1.91 checks of the native runner and Wasm library/canister,
+and formatting pass.
+Initial tool/compile failures remain alongside the final logs. Local links,
+snapshot, dependency pins/boundaries and diff checks pass. No complete CI,
+isolated package MSRV matrix, sibling build or release was run.
+
+The approved old-client retirement remains blocked by its stated prerequisites:
+production portable issuer/reconciliation and disposition of retained uncertain
+effects are unqualified. The reviewed Canic `93c69ada7` plus owner-held work still
+has a fail-closed application guard and no replacement issuer contract in the
+inspected Auth API. Neither removing the old server API nor proof expiry resolves
+unknown issuance. Keep the existing token client, stores and recovery behavior;
+[Auth #3 — Browser token-session client](https://github.com/dragginzgame/ic-auth/issues/3)
+and [Canic #507 — Non-issuing reconciliation](https://github.com/dragginzgame/canic/issues/507)
+own that contract and retirement evidence. Sibling source remains read-only.
+
+## Browser codec byte views (pending 0.7.8)
+
+The maintainer delivered 0.7.7 at
+`042010c`; the incoming Host 0.24, Memory 0.45 and Testkit 0.50 catalog/lock
+updates were preserved byte-for-byte. No Auth PRs were open at inspection.
+Canic's clean `aa043a579` still refuses ordinary application authorization with
+`AuthorityUnavailable` until its portable endpoint/store path is integrated;
+the resolved crypto gate does not qualify that path.
+
+The selected Candid SDK starts its input stream at backing-buffer offset zero,
+ignoring Uint8Array view offsets. A credential subarray could decode a different
+valid credential from its prefix. The shared browser decoder now copies exactly
+the supplied view after checking its byte ceiling. Credential and logout-reply
+subarrays, including Node Buffer slices, use their own bytes; invalid views
+cannot borrow a valid prefix. Generated descriptors, wire formats, public APIs,
+signature verification and retained journal formats are unchanged.
+
+Both new regressions fail against the original codec in
+`target/codec-byte-views/before-client.log`. All 101 client cases, strict
+TypeScript, generated contract comparison and both Rust/TypeScript Candid
+directions pass in `client-tests.log`. The tests cover distinct valid prefixes,
+invalid selected bytes, byte ceilings on views and a sliced logout refusal.
+Local links, snapshot integrity and diff checks pass. No native canister suite,
+full CI, sibling build, version change or release ran for this browser-only fix;
+incoming native dependency updates still need their own qualification.
+
+[Auth #3 — Browser token-session client](https://github.com/dragginzgame/ic-auth/issues/3)
+retains production issuer adapters, renewal and retained-intent disposition.
+Canic maps its endpoint to the existing transport boundary under
+[Canic #491 — Auth adoption](https://github.com/dragginzgame/canic/issues/491);
+this fix adds no backend version prerequisite. Sibling source and Git refs remain
+untouched.
+
 ## Browser codec limit validation (pending 0.7.7)
 
 The maintainer pushed release 0.7.6 at
