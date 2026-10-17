@@ -1,5 +1,24 @@
 # Current handoff — 2026-10-17
 
+## IC Memory 0.46 fixture imports (pending 0.8.0)
+
+The clean incoming source `bd6eaea` selects IC Memory 0.46. Its documented export
+cut removed `ic_memory::ic_stable_structures`; the fixture now imports
+`DefaultMemoryImpl` and its native-test `Memory` trait directly from IC Memory's
+root. The bounded `FixtureCell` lifecycle, checkpoint key, `AUTHCELL` framing and
+128 KiB payload ceiling are unchanged. No direct substrate dependency, compiler
+change, package-version change or lockfile update is needed.
+
+Evidence is retained in `target/memory-046-imports/`. The direct Rust 1.91 Wasm
+canister check passes in `msrv-canister.log`. The complete `check-msrv` target
+passes in `msrv.log`, including isolated native/Wasm package capability checks,
+internal applications and unchanged archive/source/manifest/lock seals. Both
+native checkpoint cases and all six real-canister cases pass in
+`qualification.log`: certification, signed ingress, two-receiver SDK admission/
+logout and checkpoint upgrades are qualified against the locked 0.46 selection.
+This is fixture evidence, not production stable-backend adoption. No full CI,
+release command, index/ref mutation or sibling edit was performed.
+
 ## Candid-free public types (pending 0.8.0)
 
 Public protocol types now use `ic_principal` directly, with no Candid dependency,

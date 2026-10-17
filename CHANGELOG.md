@@ -2,6 +2,9 @@
 
 ## [0.8.0]
 
+- Use IC Memory 0.46's narrow backing-memory exports in the qualification
+  fixture, restoring minimum-compiler and native test builds.
+
 - **Breaking:** remove Candid dependencies and trait implementations from public
   protocol types, retaining the same canonical `Principal` through `ic_principal`.
   There is no opt-in Candid feature. Consumers must own their endpoint encoding;

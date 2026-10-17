@@ -1,8 +1,6 @@
 //! Fixture-owned checkpoint allocation. No library bootstraps a competing manager.
 //! Writes run synchronously in pre_upgrade; IC message rollback owns trap atomicity.
-use ic_memory::{
-    MemoryManagerConfig, ic_stable_structures::DefaultMemoryImpl, testing::FixtureCell,
-};
+use ic_memory::{DefaultMemoryImpl, MemoryManagerConfig, testing::FixtureCell};
 use std::cell::RefCell;
 
 thread_local! {
@@ -67,7 +65,7 @@ pub(crate) fn load() -> Vec<u8> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ic_memory::ic_stable_structures::Memory;
+    use ic_memory::Memory;
     use std::panic::AssertUnwindSafe;
 
     #[test]
