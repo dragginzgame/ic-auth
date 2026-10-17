@@ -1,5 +1,3 @@
-import { openDatabase } from './idb-open.js';
-import { strictTransaction } from './idb-transaction.js';
 import { ClientError } from './contracts.js';
 
 /** Non-secret cleanup state. This store never holds a signing key or token. */
@@ -61,14 +59,33 @@ export class IndexedDbLogoutStore {
 
   static async open(factory: IDBFactory, databaseName: string): Promise<IndexedDbLogoutStore> {
     if (!text(databaseName)) throw new ClientError('configuration');
-    const db = await openDatabase(
-      () => factory.open(databaseName, 1), 5_000,
-      cause => new ClientError('storage_unavailable', { cause }),
-      (request, event) => {
-        if (event.oldVersion !== 0) throw new ClientError('storage_corrupt');
-        request.result.createObjectStore('journal').put(FORMAT, 'format');
-      },
-    );
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      let abandoned = false;
+      const fail = (cause: unknown) => {
+        abandoned = true;
+        clearTimeout(timer);
+        reject(new ClientError('storage_unavailable', { cause }));
+      };
+      const timer = setTimeout(() => fail(new ClientError('timeout')), 5_000);
+      let request: IDBOpenDBRequest;
+      try { request = factory.open(databaseName, 1); } catch (cause) { fail(cause); return; }
+      request.onblocked = () => fail(new ClientError('storage_unavailable'));
+      request.onerror = () => fail(request.error);
+      request.onupgradeneeded = event => {
+        if (abandoned) { request.transaction?.abort(); return; }
+        try {
+          if (event.oldVersion !== 0) throw new ClientError('storage_corrupt');
+          request.result.createObjectStore('journal').put(FORMAT, 'format');
+        } catch (cause) {
+          try { request.transaction?.abort(); } catch { /* Already inactive. */ }
+          fail(cause);
+        }
+      };
+      request.onsuccess = () => {
+        clearTimeout(timer);
+        if (abandoned) request.result.close(); else resolve(request.result);
+      };
+    });
     const store = new IndexedDbLogoutStore(db);
     try {
       if (db.objectStoreNames.length !== 1 || !db.objectStoreNames.contains('journal')) throw new ClientError('storage_corrupt');
@@ -81,10 +98,32 @@ export class IndexedDbLogoutStore {
 
   /** Synchronous mutation, isolated across tabs; resolves only after strict commit. */
   transact<T>(operation: (record: LogoutJournal | undefined) => { record: LogoutJournal; value: T } | undefined): Promise<T | undefined> {
-    return strictTransaction<T | undefined>(
-      () => this.db.transaction('journal', 'readwrite', { durability: 'strict' }),
-      5_000, cause => new ClientError('storage_unavailable', { cause }),
-      (tx, result, fail) => {
+    return new Promise((resolve, reject) => {
+      let tx: IDBTransaction;
+      try { tx = this.db.transaction('journal', 'readwrite', { durability: 'strict' }); }
+      catch (cause) { reject(new ClientError('storage_unavailable', { cause })); return; }
+      let completed = false;
+      let failed = false;
+      let value: T | undefined;
+      let failure: unknown;
+      const fail = (cause: unknown) => {
+        failed = true;
+        failure = cause;
+        try { tx.abort(); } catch { clearTimeout(timer); reject(cause); }
+      };
+      const timer = setTimeout(() => fail(new ClientError('timeout')), 5_000);
+      tx.onabort = () => {
+        clearTimeout(timer);
+        reject(failed ? failure : new ClientError('storage_unavailable', { cause: tx.error }));
+      };
+      tx.oncomplete = () => {
+        clearTimeout(timer);
+        if (failed) reject(failure);
+        else if (!completed) reject(new ClientError('storage_corrupt'));
+        else resolve(value);
+      };
+      if (tx.durability !== 'strict') { fail(new ClientError('storage_unavailable')); return; }
+      try {
         const bucket = tx.objectStore('journal');
         if (bucket.keyPath !== null || bucket.autoIncrement || bucket.indexNames.length) throw new ClientError('storage_corrupt');
         const profile = bucket.get('format');
@@ -96,11 +135,12 @@ export class IndexedDbLogoutStore {
               if (request.result !== undefined) validate(request.result);
               const change = operation(request.result);
               if (change) { validate(change.record); bucket.put(change.record, 'login'); }
-              result(change?.value);
+              value = change?.value;
+              completed = true; // Request success stages only; strict commit publishes.
             } catch (cause) { fail(cause); }
           };
         };
-      },
-    );
+      } catch (cause) { fail(cause); }
+    });
   }
 }

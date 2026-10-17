@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Offline source tests and both directions of the canonical Candid boundary.
+# Offline source tests and both directions of the canonical IC Wire boundary.
 set -euo pipefail
 script_path="${BASH_SOURCE[0]}"
 [[ "$script_path" == /* ]] || script_path="$PWD/$script_path"

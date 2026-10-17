@@ -1,47 +1,79 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { strictTransaction } from '../src/idb-transaction.js';
-import { ClientError } from '../src/contracts.js';
+import { IndexedDbLogoutStore, ClientError, type LogoutJournal } from '../src/index.js';
 
-// Inject transaction lifecycle events separately from request success.
-function transaction(durability: IDBTransactionDurability = 'strict') {
-  const tx = {
-    durability, onabort: undefined as (() => void) | undefined,
-    oncomplete: undefined as (() => void) | undefined, error: new Error('storage'),
-    abort() { queueMicrotask(() => tx.onabort?.()); },
-  };
-  return { tx, open: () => tx as unknown as IDBTransaction };
+// Drive real public journal operations while separating request success from commit.
+async function transaction() {
+  let automatic = true;
+  let durability: IDBTransactionDurability = 'strict';
+  let tx!: ReturnType<typeof next>;
+  function next() {
+    const current = {
+      durability, onabort: undefined as (() => void) | undefined,
+      oncomplete: undefined as (() => void) | undefined, error: new Error('storage'),
+      abort() { queueMicrotask(() => current.onabort?.()); },
+      objectStore: () => ({ keyPath: null, autoIncrement: false, indexNames: [], put() {},
+        get(key: string) {
+          const request = { result: key === 'format' ? 'ic-auth-logout-journal-v1' : undefined,
+            onsuccess: undefined as (() => void) | undefined };
+          queueMicrotask(() => {
+            request.onsuccess?.();
+            if (automatic && key === 'login') queueMicrotask(() => current.oncomplete?.());
+          });
+          return request;
+        },
+      }),
+    };
+    return current;
+  }
+  const db = { close() {}, onversionchange: undefined,
+    objectStoreNames: { length: 1, contains: (name: string) => name === 'journal' },
+    transaction() { tx = next(); return tx; } };
+  const factory = { open() {
+    const request = { result: db, onsuccess: undefined as (() => void) | undefined };
+    queueMicrotask(() => request.onsuccess?.());
+    return request;
+  } } as unknown as IDBFactory;
+  const store = await IndexedDbLogoutStore.open(factory, 'journal');
+  automatic = false;
+  return { store, current: () => tx, relaxed: () => { durability = 'relaxed'; } };
 }
-const storageFailure = (cause: unknown) => new ClientError('storage_unavailable', { cause });
 const error = (code: string) => (cause: unknown) => cause instanceof ClientError && cause.code === code;
+const record: LogoutJournal = { generation: 'login', caller: 'caller', issuer: 'issuer', clockId: 'test',
+  observedNs: 0n, busyUntilNs: 0n, phase: 'active', deadlineNs: 0n, issuanceUnknown: true,
+  targets: [{ canister: 'issuer', admissionUntilNs: 1n, attempts: 0, nextNs: 0n }] };
 
-test('staged result waits for commit and late abort retains storage error mapping', async () => {
-  const f = transaction();
+test('staged journal result waits for commit and late abort retains storage error mapping', async () => {
+  const f = await transaction();
   let finished = false;
-  const pending = strictTransaction(f.open, 100, storageFailure, (_tx, result) => result(42));
+  const pending = f.store.transact(() => ({ record, value: 42 }));
   void pending.then(() => { finished = true; }, () => { finished = true; });
-  await Promise.resolve();
+  await Promise.resolve(); await Promise.resolve();
   assert.equal(finished, false);
-  f.tx.onabort?.();
+  f.current().onabort?.();
   await assert.rejects(pending, error('storage_unavailable'));
-  const success = transaction();
-  const committed = strictTransaction(success.open, 100, storageFailure, (_tx, result) => result(42));
-  success.tx.oncomplete?.();
+  const committed = f.store.transact(() => ({ record, value: 42 }));
+  await Promise.resolve(); await Promise.resolve();
+  f.current().oncomplete?.();
   assert.equal(await committed, 42);
+  f.store.close();
 });
 
-test('strict durability, timeout, missing result and callback failure cannot report success', async () => {
-  const relaxed = transaction('relaxed');
-  await assert.rejects(strictTransaction(relaxed.open, 100, storageFailure, () => assert.fail('must not execute')), error('storage_unavailable'));
-  const timed = transaction();
-  await assert.rejects(strictTransaction(timed.open, 1, storageFailure, (_tx, result) => result(42)), error('timeout'));
-  const missing = transaction();
-  const noResult = strictTransaction(missing.open, 100, storageFailure, () => {});
-  missing.tx.oncomplete?.();
+test('journal strict durability, timeout, incomplete requests and callback failure cannot report success', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const relaxed = await transaction(); relaxed.relaxed();
+  await assert.rejects(relaxed.store.transact(() => assert.fail('must not execute')), error('storage_unavailable'));
+  const timed = await transaction();
+  const timeout = assert.rejects(timed.store.transact(() => undefined), error('timeout'));
+  t.mock.timers.tick(5_000); await timeout;
+  const missing = await transaction();
+  const noResult = missing.store.transact(() => undefined);
+  missing.current().oncomplete?.();
   await assert.rejects(noResult, error('storage_corrupt'));
-  const failed = transaction();
-  const refused = strictTransaction(failed.open, 100, storageFailure, (_tx, result, fail) => { result(42); fail(undefined); });
-  // Even a spurious completion and a falsy error must not acknowledge the write.
-  failed.tx.oncomplete?.();
+  const failed = await transaction();
+  const refused = failed.store.transact(() => { throw undefined; });
+  await Promise.resolve(); await Promise.resolve();
+  failed.current().oncomplete?.(); // Even spurious completion with a falsy failure refuses.
   await assert.rejects(refused, cause => cause === undefined);
+  for (const f of [relaxed, timed, missing, failed]) f.store.close();
 });

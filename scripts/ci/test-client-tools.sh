@@ -44,7 +44,7 @@ case "$*" in
         echo dependencies >> "$CLIENT_FIXTURE_EVENTS"
         [[ "${CLIENT_FIXTURE_DEPENDENCY_EXIT:-0}" == 0 ]] || exit "$CLIENT_FIXTURE_DEPENDENCY_EXIT"
         mkdir -p node_modules/.bin
-        for tool in tsc icp-bindgen; do
+        for tool in tsc; do
             printf '#!/bin/sh\nexit 0\n' > "node_modules/.bin/$tool"
             chmod +x "node_modules/.bin/$tool"
         done ;;

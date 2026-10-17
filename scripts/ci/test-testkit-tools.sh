@@ -123,12 +123,12 @@ exit "${TESTKIT_FIXTURE_CLIENT_STATUS:-0}"
 SCRIPT
 # Model contract generation/comparison effects while keeping the real runner's
 # ordering and failure propagation. The real helper admits client tools first.
-cat > "$consumer/scripts/dev/qualification-contracts.sh" <<'SCRIPT'
+cat > "$consumer/scripts/dev/client-contracts.sh" <<'SCRIPT'
 #!/usr/bin/env bash
 set -euo pipefail
 [[ "$*" == check ]] || exit 1
 bash scripts/dev/client-tools.sh check
-printf 'qualification contracts check\n' >> "$TESTKIT_FIXTURE_LOG"
+printf 'client contracts check\n' >> "$TESTKIT_FIXTURE_LOG"
 exit "${TESTKIT_FIXTURE_CONTRACTS_STATUS:-0}"
 SCRIPT
 cat > "$fixture/bin/npm" <<'SCRIPT'
@@ -352,7 +352,7 @@ POCKET_IC_BIN=/unadmitted/override "$BASH" "$consumer/scripts/dev/test-qualifica
     cat "$fixture/qualification.stderr" >&2
     exit "$status"
 }
-[[ "$(tail -n 7 "$TESTKIT_FIXTURE_LOG")" == $'cli check\nserver check\ncli check\nclient tools check\nqualification contracts check\nclient build\nqualified admitted server' ]] || exit 1
+[[ "$(tail -n 7 "$TESTKIT_FIXTURE_LOG")" == $'cli check\nserver check\ncli check\nclient tools check\nclient contracts check\nclient build\nqualified admitted server' ]] || exit 1
 [[ "$(cat "$consumer/.tools/ic/bin/pocket-ic")" == 'retained former bundle' ]] || exit 1
 
 # Client admission, contracts and build failures stop before native dispatch,
@@ -378,7 +378,7 @@ for phase in check contracts build; do
     printf '%s\n' 'cli check' 'server check' 'cli check' 'client tools check' \
         > "$fixture/expected-client-$phase.log"
     if [[ "$phase" != check ]]; then
-        printf 'qualification contracts check\n' >> "$fixture/expected-client-$phase.log"
+        printf 'client contracts check\n' >> "$fixture/expected-client-$phase.log"
     fi
     if [[ "$phase" == build ]]; then
         printf 'client build\n' >> "$fixture/expected-client-$phase.log"

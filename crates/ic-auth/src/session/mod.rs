@@ -129,7 +129,7 @@ pub enum SessionError {
     Canonical(#[from] CanonicalAuthError),
     #[cfg(any(
         feature = "portable-signature-verification",
-        feature = "token-verification"
+        feature = "certified-proof-verification"
     ))]
     #[error(transparent)]
     Credential(#[from] crate::portable_credential::PortableCredentialError),
@@ -142,7 +142,7 @@ pub enum SessionError {
     #[cfg(feature = "portable-signature-verification")]
     #[error(transparent)]
     Signature(#[from] crate::portable_signature::PortableSignatureError),
-    #[cfg(feature = "token-verification")]
+    #[cfg(feature = "certified-proof-verification")]
     #[error(transparent)]
     Certified(#[from] crate::portable_certified::PortableCertifiedError),
 }

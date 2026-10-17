@@ -42,7 +42,7 @@ Apply [DRAGGINZGAME.md](DRAGGINZGAME.md), adopted from Shared Tooling revision
   global certification root or allocate conflicting stable-memory regions.
 - Use published `ic-host-*` for applicable local file, artifact and process
   mechanics. Native host tooling belongs in `apps/tooling/` and test infrastructure
-  in unpublished `apps/qualification/`, outside both protocol libraries.
+  in unpublished `apps/qualification/`, outside the public library graphs.
   Release identity and upload/retry policy stay here.
 - Wallet login must not use SIWS/ic-siws, require a Solana transaction or depend
   on RPC. Use established signature primitives; do not implement cryptography.
@@ -61,7 +61,7 @@ Apply [DRAGGINZGAME.md](DRAGGINZGAME.md), adopted from Shared Tooling revision
   Qualification also requires the explicitly prepared browser client dependencies
   for real SDK logout transport; see [client setup](docs/development.md#browser-client-setup).
   Changing that pairing requires successful certification, upgrade and ingress
-  qualification. Testkit and native host dependencies stay outside both libraries.
+  qualification. Testkit and native host dependencies stay outside all public libraries.
 
 ## Validation and delivery
 
@@ -73,7 +73,7 @@ Apply [DRAGGINZGAME.md](DRAGGINZGAME.md), adopted from Shared Tooling revision
   Setup explicitly prepares the declared compiler; checks never
   download one. See [minimum compiler qualification](docs/msrv.md).
   Focused Rust checks are `make test-types`, `make test-protocol`, `make test-chain-key-signatures`, `make test-signatures`,
-  `make test-signature-store`, `make test-tokens`, `make test-sessions`,
+  `make test-signature-store`, `make test-certified-proofs`, `make test-sessions`,
   `make test-host-tooling`, `make test-qualification`, `make check-wasm` and `make clippy`; `make ci` is the
   explicit complete CI/release gate. Local validation cadence follows
   [the shared baseline](DRAGGINZGAME.md#validation-and-evidence). It seals declared Rust/frontend preparation inputs
@@ -89,15 +89,16 @@ Apply [DRAGGINZGAME.md](DRAGGINZGAME.md), adopted from Shared Tooling revision
   commit session/replay changes atomically and advance protected generation with
   authority changes.
 - The private browser client is in `packages/client/`, with Rust-owned generated
-  Candid data contracts and injected SDK identity/issuer/storage boundaries.
+  IC Wire contracts and injected SDK identity/issuer/storage boundaries.
   See [client contracts](docs/browser-client.md). `make install-client-dependencies`
   explicitly prepares its selected Node/npm dependencies; `make test-client`
-  checks lifecycle behavior and both Candid directions offline. Do not claim a
+  checks lifecycle behavior and Rust/TypeScript Wire interoperability offline. Do not claim a
   production issuer adapter, npm publication or consumer adoption from transport
-  fixtures. Its IndexedDB store is opt-in with a dedicated application-owned
-  database, bounded records and atomic strict-commit CAS; do not erase unknown
-  issuance intent or change its stored profile/format implicitly.
-- `make publish-dry-run` checks both package builds using live registry metadata
+  fixtures. Its logout journal uses a dedicated application-owned
+  database, bounded records and strict transactions; do not erase unknown
+  issuance or change its stored profile implicitly. The maintainer confirmed no
+  deployed old token-store records: that former client/format is retired in 0.9.
+- `make publish-dry-run` checks all three package builds using live registry metadata
   without uploading. `make test-release-tools` uses local bare remotes and mocked
   upload/registry transport. The three release targets share the complete gate
   and direct-delivery runner; `make publish` requires a clean, exactly tagged and

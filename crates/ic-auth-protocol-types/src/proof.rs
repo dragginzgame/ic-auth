@@ -15,15 +15,6 @@ pub enum RootProof {
 }
 
 //
-// IssuerProof
-//
-
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub enum IssuerProof {
-    IcCanisterSignatureV1(IcCanisterSignatureProofV1),
-}
-
-//
 // IcCanisterSignatureProofV1
 //
 

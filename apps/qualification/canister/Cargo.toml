@@ -13,13 +13,15 @@ crate-type = ["cdylib"]
 
 [dependencies]
 candid.workspace = true
-ic-auth = { workspace = true, features = ["canister-signature-preparation", "session-restore", "portable-signature-verification", "token-verification"] }
+ic-auth = { workspace = true, features = ["canister-signature-preparation", "session-restore", "portable-signature-verification", "certified-proof-verification"] }
 ic-auth-protocol-types.workspace = true
 # Candid projection is test/tooling-only, never enabled through public Auth features.
 ic-auth-qualification-contracts.workspace = true
+ic-auth-wire.workspace = true
 ic-cdk.workspace = true
 ic-certification.workspace = true
 ic-memory = { workspace = true, features = ["test-support"] }
+ic0.workspace = true
 serde.workspace = true
 sha2.workspace = true
 

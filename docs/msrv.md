@@ -20,16 +20,16 @@ installs a missing compiler implicitly.
 
 `make check-msrv` uses explicit `cargo +1.91.0` selection read from the root floor.
 It prints the compiler identities, works offline and refuses lock changes. Cargo
-on the separately selected development compiler normalizes both public package
+on the separately selected development compiler normalizes all three public package
 archives without uploading. Their bounded digests and a unique unpacked fixture
 are retained under `target/portable-fixtures/msrv.*`.
 
 An independent consumer checks the normalized packages outside the production
 workspace, so private test infrastructure cannot supply dependency features.
-Only its manifest patches crates.io to select the two exact unpacked packages;
+Only its manifest patches crates.io to select the three exact unpacked packages;
 packaged manifests and locks remain untouched. Offline metadata projects the
 fixture lock from the selected workspace graph and adds this consumer root.
-Before compilation, admission requires both exact package names, versions and
+Before compilation, admission requires all three exact package names, versions and
 manifest paths, enforces the library's forbidden-dependency boundary, and requires every
 external version, source and checksum to remain a subset of the original lock.
 Compiler checks are locked/offline, without a dependency downgrade, network
@@ -55,6 +55,7 @@ See [Auth #21](https://github.com/dragginzgame/ic-auth/issues/21) and the adopte
 | Package path | Minimum-compiler coverage |
 | --- | --- |
 | Protocol types | Native and `wasm32-unknown-unknown`, independent normalized package |
+| Wire transport | Native/Wasm independent normalized package; TypeScript generation included in the all-feature profile |
 | Auth library | Each target with default features, isolated portable Ed25519 verification, isolated chain-key verification, signature verification, signature preparation, token verification, sessions, session restoration, and all features together |
 | Native tooling, fixture transport and testkit runner | Separate workspace checks of all targets/features |
 | Qualification canister | Separate Rust 1.91.0 `wasm32-unknown-unknown` check |

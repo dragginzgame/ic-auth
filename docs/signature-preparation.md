@@ -72,7 +72,7 @@ The host owns any enclosing transaction and other application state.
 Retention limits retrieval, not cryptographic proof validity. Deleting or pruning
 a leaf cannot revoke a certificate/signature already returned to a client.
 Receiver freshness, signed payload validity and current protected authority still
-apply through the separate [signature](signatures.md) and [token](tokens.md)
+apply through the separate [signature](signatures.md) and [token](delegation.md)
 verifiers. A prepared message is neither a resource grant nor, by itself, an IC
 ingress delegation.
 

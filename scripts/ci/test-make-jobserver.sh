@@ -32,10 +32,10 @@ perl -e '
 '
 printf '%s\n' "$*" >> "$AUTH_JOBSERVER_LOG"
 if [[ "${1:-}" == publish ]]; then
-    [[ $# == 12 && "$2" == --dry-run && "$3" == --locked &&
+    [[ $# == 14 && "$2" == --dry-run && "$3" == --locked &&
        "$4" == --registry && "$5" == crates-io && "$6" == --allow-dirty &&
        "$7" == --target-dir && "$9" == -p && "${10}" == ic-auth-protocol-types &&
-       "${11}" == -p && "${12}" == ic-auth ]]
+       "${11}" == -p && "${12}" == ic-auth && "${13}" == -p && "${14}" == ic-auth-wire ]]
     staging="$8"
     [[ "$staging" == "$PWD/target/publication-dry-runs/"* &&
        -d "$staging" && ! -e "$staging/dispatched" ]]
@@ -67,9 +67,9 @@ cat > "$consumer/scripts/dev/client-tools.sh" <<'SCRIPT'
 set -euo pipefail
 [[ "$*" == check ]]
 SCRIPT
-mkdir -p "$consumer/crates/ic-auth" "$consumer/crates/ic-auth-protocol-types"
+mkdir -p "$consumer/crates/ic-auth" "$consumer/crates/ic-auth-protocol-types" "$consumer/crates/ic-auth-wire"
 cp LICENSE "$consumer/LICENSE"
-for package in ic-auth ic-auth-protocol-types; do
+for package in ic-auth ic-auth-protocol-types ic-auth-wire; do
     cp "crates/$package/LICENSE" "$consumer/crates/$package/LICENSE"
 done
 options=(--no-print-directory -j4)
@@ -77,7 +77,7 @@ if make --help | rg -q -- --jobserver-style; then
     options+=(--jobserver-style=pipe)
 fi
 targets=(fetch metadata test-types test-protocol test-chain-key-signatures test-signatures test-signature-store \
-    test-tokens test-sessions check-wasm clippy build-qualification-canister \
+    test-certified-proofs test-sessions check-wasm clippy build-qualification-canister \
     test-qualification test-host-tooling check-boundaries check-dependency-pins check-msrv \
     install-testkit-tools testkit-tools-check msrv-tools-check \
     generate-client-contracts check-client-contracts test-client publish-dry-run publish test-release-tools \

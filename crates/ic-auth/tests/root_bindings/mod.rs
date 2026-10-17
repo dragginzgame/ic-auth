@@ -1,24 +1,23 @@
-//! Both public verifier boundaries expose the same canonical Root rejection.
+//! Root verification preserves canonical binding and policy rejection order.
 
 use super::*;
-use ic_auth::token::{DelegationProofVerificationContext, verify_delegation_proof};
+use ic_auth::delegation::{DelegationProofVerificationContext, verify_delegation_proof};
 use k256::ecdsa::signature::hazmat::PrehashVerifier;
 
 fn assert_rejected(f: &Fixture, expected: Error) {
-    let unchanged = f.token.clone();
-    assert_eq!(verify_token(&f.token, &f.context()).unwrap_err(), expected);
+    let unchanged = f.proof.clone();
     let standalone = verify_delegation_proof(
-        &f.token.proof,
+        &f.proof,
         &DelegationProofVerificationContext {
             expected_issuer: p(2),
             root_key: &f.policy,
             now_ns: NOW,
-            limits: f.context().limits.into(),
+            limits: f.context().limits,
         },
     )
     .unwrap_err();
     assert_eq!(standalone, expected);
-    assert_eq!(f.token, unchanged);
+    assert_eq!(f.proof, unchanged);
 }
 
 fn resign(root: &mut IcChainKeyBatchSignatureProofV1) {
@@ -35,9 +34,9 @@ fn resign(root: &mut IcChainKeyBatchSignatureProofV1) {
 fn root_policy_and_witness_rejections_precede_isolated_crypto_errors() {
     for rejection in ["policy", "witness"] {
         let mut f = Fixture::new();
-        assert!(verify_token(&f.token, &f.context()).is_ok());
+        assert!(verify_delegation_proof(&f.proof, &f.context()).is_ok());
         f.policy.public_key = vec![0; 33];
-        let RootProof::IcChainKeyBatchSignatureV1(root) = &mut f.token.proof.root_proof;
+        let RootProof::IcChainKeyBatchSignatureV1(root) = &mut f.proof.root_proof;
         root.signature.public_key = f.policy.public_key.clone();
         root.signature.signature = vec![0; 64];
         root.header.tree_root[0] ^= 1;
@@ -57,8 +56,8 @@ fn root_policy_and_witness_rejections_precede_isolated_crypto_errors() {
 fn key_id_distinguishes_submitted_binding_from_enrollment_and_defines_precedence() {
     for mutation in ["signature", "header", "both", "policy"] {
         let mut f = Fixture::new();
-        assert!(verify_token(&f.token, &f.context()).is_ok());
-        let RootProof::IcChainKeyBatchSignatureV1(root) = &mut f.token.proof.root_proof;
+        assert!(verify_delegation_proof(&f.proof, &f.context()).is_ok());
+        let RootProof::IcChainKeyBatchSignatureV1(root) = &mut f.proof.root_proof;
         match mutation {
             "signature" => root.signature.key_id.name = "other".into(),
             "header" => {
@@ -82,7 +81,7 @@ fn key_id_distinguishes_submitted_binding_from_enrollment_and_defines_precedence
             // The header/signature really are usable with a matching enrollment;
             // the rejection above is not an accidentally invalid signature.
             f.policy.key_id.name = "other".into();
-            assert!(verify_token(&f.token, &f.context()).is_ok());
+            assert!(verify_delegation_proof(&f.proof, &f.context()).is_ok());
         }
     }
 }
@@ -91,7 +90,7 @@ fn key_id_distinguishes_submitted_binding_from_enrollment_and_defines_precedence
 fn derivation_path_distinguishes_submitted_binding_from_enrollment() {
     for mutation in ["signature", "header", "both", "policy", "empty"] {
         let mut f = Fixture::new();
-        let RootProof::IcChainKeyBatchSignatureV1(root) = &mut f.token.proof.root_proof;
+        let RootProof::IcChainKeyBatchSignatureV1(root) = &mut f.proof.root_proof;
         match mutation {
             "signature" => root.signature.derivation_path[0].push(0),
             "header" => {
@@ -118,9 +117,9 @@ fn derivation_path_distinguishes_submitted_binding_from_enrollment() {
         };
         assert_rejected(&f, expected);
         if mutation == "both" {
-            let RootProof::IcChainKeyBatchSignatureV1(root) = &f.token.proof.root_proof;
+            let RootProof::IcChainKeyBatchSignatureV1(root) = &f.proof.root_proof;
             f.policy.derivation_path_hash = root.header.derivation_path_hash;
-            assert!(verify_token(&f.token, &f.context()).is_ok());
+            assert!(verify_delegation_proof(&f.proof, &f.context()).is_ok());
         }
     }
 }
@@ -128,7 +127,7 @@ fn derivation_path_distinguishes_submitted_binding_from_enrollment() {
 #[test]
 fn root_binding_errors_preserve_guard_order_and_bounded_path_admission() {
     let mut f = Fixture::new();
-    let RootProof::IcChainKeyBatchSignatureV1(root) = &mut f.token.proof.root_proof;
+    let RootProof::IcChainKeyBatchSignatureV1(root) = &mut f.proof.root_proof;
     root.signature.key_id.name.push('x');
     f.policy.accept_until_ns = NOW;
     assert_rejected(
@@ -140,13 +139,13 @@ fn root_binding_errors_preserve_guard_order_and_bounded_path_admission() {
 
     let mut f = Fixture::new();
     f.policy.key_id.name.push('x');
-    let RootProof::IcChainKeyBatchSignatureV1(root) = &mut f.token.proof.root_proof;
+    let RootProof::IcChainKeyBatchSignatureV1(root) = &mut f.proof.root_proof;
     root.signature.derivation_path.clear();
     assert_rejected(&f, Error::RootKeyPolicyBindingMismatch { field: "key_id" });
 
     let mut f = Fixture::new();
     let too_large = f.context().limits.max_variable_bytes + 1;
-    let RootProof::IcChainKeyBatchSignatureV1(root) = &mut f.token.proof.root_proof;
+    let RootProof::IcChainKeyBatchSignatureV1(root) = &mut f.proof.root_proof;
     root.signature.derivation_path = vec![vec![0; too_large]];
     f.policy.derivation_path_hash[0] ^= 1;
     assert_rejected(&f, Error::InputTooLarge);

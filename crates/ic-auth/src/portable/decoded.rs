@@ -18,7 +18,7 @@ use sha2::{Digest, Sha256};
 pub struct DecodedPortableClaims {
     pub(crate) claims: PortableClaims,
     pub(crate) fingerprint: [u8; 32],
-    #[cfg(feature = "token-verification")]
+    #[cfg(feature = "certified-proof-verification")]
     pub(crate) encoded_len: usize,
 }
 impl DecodedPortableClaims {
@@ -27,7 +27,7 @@ impl DecodedPortableClaims {
         Ok(Self {
             claims,
             fingerprint: Sha256::digest(bytes).into(),
-            #[cfg(feature = "token-verification")]
+            #[cfg(feature = "certified-proof-verification")]
             encoded_len: bytes.len(),
         })
     }

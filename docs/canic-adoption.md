@@ -14,36 +14,72 @@ records other shared mechanisms and their contract boundaries. Library selection
 must leave one canonical mechanism while preserving the consumer's authority,
 transactions and recovery obligations.
 
-## Pending 0.8 transport boundary
+## Pending 0.9 Wire transport
 
-The pending 0.8.0 public types no longer implement `candid::CandidType` and no
-longer depend on Candid. There is no Candid feature. `Principal` still re-exports
-the same canonical `ic_principal::Principal`; canonical signed claim bytes,
-cryptographic verification and session/replay/login record formats are unchanged.
-Package versions remain at the last release until the maintainer releases the cut.
+Auth 0.8.0 removed Candid traits from public domain types. Pending 0.9.0 adds
+`ic-auth-wire`, an Auth-owned adapter over published IC Wire 0.3.4. The new package
+is implemented locally, not yet published; do not select a sibling path or copy
+its implementation into Canic. Root package versions remain 0.8.0 until release.
 
-Canic must separate its endpoint schemas from these domain values, choose and
-qualify its owned transport, and convert/admit values before authentication.
-Existing Candid derives that contain an Auth domain type will no longer compile;
-adding Candid to the consumer does not restore the removed trait implementations.
-Do not import the unpublished `apps/qualification/contracts/` fixture adapter
-into production. It preserves current test/browser Candid bytes, not a supported
-production Candid lane. IC Wire is a candidate for shared owned transport, but its
-inspected runtime/derive packages remain unpublished; no IC Wire dependency or
-consumer adoption is claimed here. Coordinate that publication and endpoint/client
-cut through the existing tracker before retiring the consumer's current transport.
+After publication, select the matching Auth/types/Wire packages. Use the generated
+bounded credential, admission, proof-free read and logout contracts; Canonical
+signed claims and session/replay/login record bytes remain unchanged. Protected
+Root/issuer enrollment, actual caller/clock, the atomic session backend, scoped
+guards, macro exports and delivery/retry policy remain Canic-owned.
 
-Default, Ed25519 and local-session normal/build graphs now reject Candid. The
-optional upstream IC certificate stack still selects Candid transitively; this
-cut does not replace platform certificate verification or external APIs that
-specify Candid. Retained uncertain browser issuance intents must retain their
-existing reconciliation/disposition rules under
-[Auth #3 — Browser token-session client](https://github.com/dragginzgame/ic-auth/issues/3).
-No transport rewrite may reinterpret or erase their retained bytes.
+Bind the Method request/response types to actual consumer exports. Admit raw
+argument/reply sizes before copying, decode with the shared method identity before
+authentication/dispatch and encode its bounded response. Encode failure after local
+mutation must trap; normal proof refusals must retain admission-budget charges.
+No Candid selector or fallback exists in the application client. Platform/third-party
+Candid and IC certificate verification are independent obligations.
 
-## Published dependency and feature selection
+The maintainer confirmed no deployed old browser token-store records or unresolved
+old issuance on 2026-10-17. That old prepare/retrieve client and format are retired.
+New portable journals still preserve unknown issuance and generation invalidation;
+production `issue`/non-issuing `reconcile` remain required under
+[Auth #3](https://github.com/dragginzgame/ic-auth/issues/3) and
+[Canic #507](https://github.com/dragginzgame/canic/issues/507).
 
-### Current portable contract (released 0.7.5)
+The reference host qualifies Wire admission/logout and both proof mechanisms,
+not Canic's final facade or production issuer. `apps/qualification/contracts/`
+now contains only private Candid controller/certificate projections and must not
+be imported into production. Wire's host TypeScript feature stays outside the
+canister selection; see [browser contracts](browser-client.md).
+
+## Pending 0.9 Rust token retirement
+
+The maintainer confirmed no deployed users or unresolved operations for the old
+Rust delegated-token flow. Its issuance/verifier API, token-only DTOs and canonical
+claim encoders are removed; there is no compatibility feature or alias. Select
+`certified-proof-verification` in place of `token-verification`. Move Root policy,
+Root proof verification and errors to `ic_auth::delegation`; use
+`portable_certified::CertifiedProofLimits` for the complete certified adapter.
+Both proof mechanisms continue to use the same session engine and unchanged
+signed portable/certificate/proof bytes.
+
+Canic's Root installation and error projections need the new imports/typed causes.
+`AuthRequestMetadata`, proof hashes and role-attestation/signature APIs remain.
+Toko's older calls are pinned to Canic `=0.110.48`; coordinate their application
+adoption in the existing trackers before selecting the new API. This source cut
+performs no deployment or retained-data reset. [Auth #69](https://github.com/dragginzgame/ic-auth/issues/69)
+records the accepted retirement. Generic Wire test calls are requested in
+[Testkit #119](https://github.com/dragginzgame/ic-testkit/issues/119); Auth keeps its
+small runnable helper until that replacement is published and qualified.
+
+## Released 0.8 public-type boundary
+
+`ic-auth-protocol-types` exposes no Candid traits or optional Candid capability.
+`Principal` remains the same `ic_principal::Principal`. Default, Ed25519,
+chain-key-only, local-session and Wire normal/build graphs reject Candid. The
+optional upstream certified-signature stack still uses Candid transitively.
+
+## Historical dependency and adoption checkpoints
+
+The following sections retain historical release/adoption evidence. Their retired
+token APIs are superseded by the pending 0.9 contracts above.
+
+### Historical 0.7.5 adoption checkpoint
 
 Select published `ic-auth` and `ic-auth-protocol-types` 0.7.5 from the root
 dependency catalog. Both packages require Rust 1.91.0; the portable API introduced
@@ -430,7 +466,7 @@ endpoint requirements, independently enrolled `RootKeyPolicy`, IC network key,
 clock and finite limits. Never populate expected authority from the token under
 verification. Key name, SEC1 bytes and derivation path are protected enrollment
 facts; a submitted chain-key proof is not their provenance. The
-[token contract](tokens.md) specifies exact binding and live-policy checks.
+[token contract](delegation.md) specifies exact binding and live-policy checks.
 
 Replace the generic proof callbacks and semantic/cache-only admission path with
 the complete verifier. Its `VerifiedToken` cannot be publicly constructed or
@@ -442,7 +478,7 @@ renewal orchestration and application resource authorization stay in Canic.
 
 [Auth #25](https://github.com/dragginzgame/ic-auth/issues/25) adds the default-feature
 `ic_auth::token_preparation` boundary described in the
-[preparation contract](token-preparation.md). Canic can project its protocol DTOs
+[preparation contract](delegation.md#retired-delegated-token-lifecycle). Canic can project its protocol DTOs
 and protected host inputs into `PrepareDelegatedTokenInput`, retain the immutable
 result, sign `claims_hash()`, and call `finish_delegated_token` after authorized
 proof retrieval. Canic now requires published 0.4.2 and its owner records
@@ -721,7 +757,7 @@ policy mismatches. The published 0.4.0 producer cut implements
 key ID and derivation-path hash in both public verifier entry points. For each
 field, inconsistent submitted signature/header material takes precedence over
 an enrollment mismatch. Other binding causes and cryptographic checks retain
-their existing contracts. See the [diagnostic migration](tokens.md#root-binding-diagnostics).
+their existing contracts. See the [diagnostic migration](delegation.md#root-binding-diagnostics).
 
 When adopting published 0.4, Canic must update its root dependency selections and
 all error matches, project the two typed origins into its existing public codes,
@@ -805,7 +841,7 @@ The pre-token installation caller has a separate boundary:
 `DelegationProof` before a completed token exists. Released 0.2.2 adds
 `token::verify_delegation_proof` with `DelegationProofVerificationContext` and
 `DelegationProofVerificationLimits`; see the
-[standalone contract](tokens.md#standalone-root-delegation-verification).
+[standalone contract](delegation.md#standalone-root-delegation-verification).
 Supply the actual issuer from protected runtime/configuration, enrolled root
 policy, host clock and finite bounds. The result is proof evidence, not issuance
 approval. Its certificate hash includes checked issue metadata that is absent

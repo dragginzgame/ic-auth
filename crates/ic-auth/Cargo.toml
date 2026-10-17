@@ -6,7 +6,7 @@ rust-version.workspace = true
 license.workspace = true
 readme.workspace = true
 repository.workspace = true
-description = "Application authentication encoding and optional IC signature, token and local session machinery"
+description = "Portable authentication, delegation proof verification and local session machinery"
 publish = ["crates-io"]
 
 [features]
@@ -24,7 +24,7 @@ canister-signature-preparation = [
 ]
 sessions = ["dep:serde", "dep:serde_cbor"]
 session-restore = ["sessions"]
-token-verification = ["canister-signature-verification", "chain-key-verification"]
+certified-proof-verification = ["canister-signature-verification", "chain-key-verification"]
 canister-signature-verification = [
     "dep:ic-canister-sig-creation",
     "dep:ic-certification",

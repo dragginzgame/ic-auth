@@ -11,8 +11,8 @@ fn claims(f: &Fixture) -> PortableClaims {
     PortableClaims {
         mechanism: PortableMechanism::Certified,
         audience: audience(),
-        issuer: f.token.proof.cert.issuer_pid,
-        key_binding_id: cert_hash(&f.token.proof.cert).unwrap(),
+        issuer: f.proof.cert.issuer_pid,
+        key_binding_id: cert_hash(&f.proof.cert).unwrap(),
         browser_public_key: [6; 32],
         account_subject: p(8),
         login_started_at_ns: 100,
@@ -24,8 +24,8 @@ fn claims(f: &Fixture) -> PortableClaims {
     }
 }
 fn context<'a>(f: &'a Fixture, trusted: &'a PortableClaims) -> PortableCertifiedContext<'a> {
-    let cert = &f.token.proof.cert;
-    let mut limits = f.context().limits;
+    let cert = &f.proof.cert;
+    let mut limits = limits();
     limits.max_future_skew_ns = 0;
     PortableCertifiedContext {
         claims: PortableClaimsContext {
@@ -52,9 +52,7 @@ fn context<'a>(f: &'a Fixture, trusted: &'a PortableClaims) -> PortableCertified
 fn proof(c: &PortableClaims, domain: &[u8], seed: &[u8], time: u64) -> IcCanisterSignatureProofV1 {
     let digest = ic_auth::portable::claims_hash(c).unwrap();
     let message = domain_separated_message(domain, digest).unwrap();
-    let IssuerProof::IcCanisterSignatureV1(proof) =
-        issuer_proof_message(c.issuer, &message, seed, time);
-    proof
+    issuer_proof_message(c.issuer, &message, seed, time)
 }
 
 #[test]
@@ -65,7 +63,7 @@ fn complete_portable_chain_authenticates_distinct_account_and_browser() {
     let result = verify_certified_claims(
         &mut budget(),
         &encode_claims(&c).unwrap(),
-        &f.token.proof,
+        &f.proof,
         &signature,
         &context(&f, &c),
     )
@@ -92,7 +90,7 @@ fn domain_seed_signature_and_claim_tampering_fail() {
             verify_certified_claims(
                 &mut budget(),
                 &encoded,
-                &f.token.proof,
+                &f.proof,
                 &signature,
                 &context(&f, &c)
             ),
@@ -106,7 +104,7 @@ fn domain_seed_signature_and_claim_tampering_fail() {
         verify_certified_claims(
             &mut budget(),
             &encode_claims(&changed).unwrap(),
-            &f.token.proof,
+            &f.proof,
             &signature,
             &context(&f, &c)
         ),
@@ -117,7 +115,7 @@ fn domain_seed_signature_and_claim_tampering_fail() {
         verify_certified_claims(
             &mut budget(),
             &encoded,
-            &f.token.proof,
+            &f.proof,
             &signature,
             &context(&f, &c)
         )
@@ -130,13 +128,13 @@ fn root_proof_is_required_even_with_a_valid_issuer_signature() {
     let mut f = Fixture::new();
     let c = claims(&f);
     let signature = proof(&c, CERTIFIED_SIGNATURE_DOMAIN, SEED, NOW);
-    let RootProof::IcChainKeyBatchSignatureV1(root) = &mut f.token.proof.root_proof;
+    let RootProof::IcChainKeyBatchSignatureV1(root) = &mut f.proof.root_proof;
     root.signature.signature[0] ^= 1;
     assert!(matches!(
         verify_certified_claims(
             &mut budget(),
             &encode_claims(&c).unwrap(),
-            &f.token.proof,
+            &f.proof,
             &signature,
             &context(&f, &c)
         ),
@@ -157,14 +155,14 @@ fn shared_checks_and_current_authority_cannot_be_bypassed_by_valid_signatures() 
         let mut ctx = context(&f, &c);
         ctx.claims.now_ns = now;
         assert_eq!(
-            verify_certified_claims(&mut budget(), &bytes, &f.token.proof, &signature, &ctx),
+            verify_certified_claims(&mut budget(), &bytes, &f.proof, &signature, &ctx),
             Err(PortableCertifiedError::Claims(error))
         );
     }
     let mut ctx = context(&f, &c);
     ctx.claims.caller = c.account_subject;
     assert_eq!(
-        verify_certified_claims(&mut budget(), &bytes, &f.token.proof, &signature, &ctx),
+        verify_certified_claims(&mut budget(), &bytes, &f.proof, &signature, &ctx),
         Err(PortableCertifiedError::Claims(
             PortableClaimsError::CallerMismatch
         ))
@@ -172,7 +170,7 @@ fn shared_checks_and_current_authority_cannot_be_bypassed_by_valid_signatures() 
     ctx = context(&f, &c);
     ctx.claims.enrollment_expires_at_ns = NOW;
     assert_eq!(
-        verify_certified_claims(&mut budget(), &bytes, &f.token.proof, &signature, &ctx),
+        verify_certified_claims(&mut budget(), &bytes, &f.proof, &signature, &ctx),
         Err(PortableCertifiedError::Claims(
             PortableClaimsError::StaleAuthority
         ))
@@ -180,7 +178,7 @@ fn shared_checks_and_current_authority_cannot_be_bypassed_by_valid_signatures() 
     ctx = context(&f, &c);
     ctx.claims.min_login_started_at_ns = 101;
     assert_eq!(
-        verify_certified_claims(&mut budget(), &bytes, &f.token.proof, &signature, &ctx),
+        verify_certified_claims(&mut budget(), &bytes, &f.proof, &signature, &ctx),
         Err(PortableCertifiedError::Claims(
             PortableClaimsError::BeforeReset
         ))
@@ -188,7 +186,7 @@ fn shared_checks_and_current_authority_cannot_be_bypassed_by_valid_signatures() 
     ctx = context(&f, &c);
     ctx.limits.max_future_skew_ns = 1;
     assert_eq!(
-        verify_certified_claims(&mut budget(), &bytes, &f.token.proof, &signature, &ctx),
+        verify_certified_claims(&mut budget(), &bytes, &f.proof, &signature, &ctx),
         Err(PortableCertifiedError::BindingMismatch)
     );
 }
@@ -206,7 +204,7 @@ fn delegation_ceiling_binding_and_certificate_time_are_enforced() {
         verify_certified_claims(
             &mut budget(),
             &encode_claims(&elevated).unwrap(),
-            &f.token.proof,
+            &f.proof,
             &sig,
             &ctx
         ),
@@ -217,19 +215,13 @@ fn delegation_ceiling_binding_and_certificate_time_are_enforced() {
     let mut ctx = context(&f, &c);
     ctx.claims.authority_expires_at_ns += 1;
     assert_eq!(
-        verify_certified_claims(&mut budget(), &bytes, &f.token.proof, &sig, &ctx),
+        verify_certified_claims(&mut budget(), &bytes, &f.proof, &sig, &ctx),
         Err(PortableCertifiedError::BindingMismatch)
     );
     for time in [NOW + 1, NOW - 101] {
         let sig = proof(&c, CERTIFIED_SIGNATURE_DOMAIN, SEED, time);
         assert!(matches!(
-            verify_certified_claims(
-                &mut budget(),
-                &bytes,
-                &f.token.proof,
-                &sig,
-                &context(&f, &c)
-            ),
+            verify_certified_claims(&mut budget(), &bytes, &f.proof, &sig, &context(&f, &c)),
             Err(PortableCertifiedError::Signature(_))
         ));
     }
@@ -244,20 +236,20 @@ fn aggregate_and_individual_bounds_precede_proof_work() {
     let mut ctx = context(&f, &c);
     ctx.limits.max_variable_bytes = bytes.len();
     assert_eq!(
-        verify_certified_claims(&mut budget(), &bytes, &f.token.proof, &sig, &ctx),
+        verify_certified_claims(&mut budget(), &bytes, &f.proof, &sig, &ctx),
         Err(PortableCertifiedError::Delegation(Error::InputTooLarge))
     );
     ctx = context(&f, &c);
     ctx.limits.max_issuer_signature_bytes = sig.signature_cbor.len() - 1;
     assert_eq!(
-        verify_certified_claims(&mut budget(), &bytes, &f.token.proof, &sig, &ctx),
+        verify_certified_claims(&mut budget(), &bytes, &f.proof, &sig, &ctx),
         Err(PortableCertifiedError::Delegation(Error::InputTooLarge))
     );
     ctx = context(&f, &c);
     ctx.limits.max_variable_bytes = usize::MAX;
     let oversized = vec![0; 131_073];
     assert_eq!(
-        verify_certified_claims(&mut budget(), &oversized, &f.token.proof, &sig, &ctx),
+        verify_certified_claims(&mut budget(), &oversized, &f.proof, &sig, &ctx),
         Err(PortableCertifiedError::Delegation(Error::InputTooLarge))
     );
 }
@@ -270,25 +262,13 @@ fn current_root_policy_network_key_and_mechanism_are_not_proof_selected() {
     let sig = proof(&c, CERTIFIED_SIGNATURE_DOMAIN, SEED, NOW);
     f.policy.min_accepted_proof_epoch = 3;
     assert!(matches!(
-        verify_certified_claims(
-            &mut budget(),
-            &bytes,
-            &f.token.proof,
-            &sig,
-            &context(&f, &c)
-        ),
+        verify_certified_claims(&mut budget(), &bytes, &f.proof, &sig, &context(&f, &c)),
         Err(PortableCertifiedError::Delegation(_))
     ));
     f.policy.min_accepted_proof_epoch = 2;
     f.ic_root = bls_key(2).public_key().serialize();
     assert!(matches!(
-        verify_certified_claims(
-            &mut budget(),
-            &bytes,
-            &f.token.proof,
-            &sig,
-            &context(&f, &c)
-        ),
+        verify_certified_claims(&mut budget(), &bytes, &f.proof, &sig, &context(&f, &c)),
         Err(PortableCertifiedError::Signature(_))
     ));
     let mut other = c.clone();
@@ -297,7 +277,7 @@ fn current_root_policy_network_key_and_mechanism_are_not_proof_selected() {
         verify_certified_claims(
             &mut budget(),
             &encode_claims(&other).unwrap(),
-            &f.token.proof,
+            &f.proof,
             &sig,
             &context(&f, &c)
         ),
@@ -316,7 +296,7 @@ fn certified_result_uses_the_same_reservation_and_logout_gate() {
     let checked = verify_certified_claims(
         &mut budget(),
         &encode_claims(&c).unwrap(),
-        &f.token.proof,
+        &f.proof,
         &sig,
         &context(&f, &c),
     )
@@ -344,8 +324,7 @@ fn certified_lease_uses_the_same_deadline_caps() {
     let encoded = encode_claims(&c).unwrap();
     let request = SessionRequest::new(vec!["read".into()], Some(1)).unwrap();
     let mut host = context(&f, &c);
-    let checked =
-        verify_certified_claims(&mut budget(), &encoded, &f.token.proof, &sig, &host).unwrap();
+    let checked = verify_certified_claims(&mut budget(), &encoded, &f.proof, &sig, &host).unwrap();
     assert_eq!(
         checked.session_expires_at_ns(&request, &role(), 1, 1800),
         Ok(400)
@@ -361,8 +340,7 @@ fn certified_lease_uses_the_same_deadline_caps() {
         Err(ic_auth::session_request::SessionRequestError::ScopeRejected)
     );
     host.claims.authority_expires_at_ns = 250;
-    let shorter =
-        verify_certified_claims(&mut budget(), &encoded, &f.token.proof, &sig, &host).unwrap();
+    let shorter = verify_certified_claims(&mut budget(), &encoded, &f.proof, &sig, &host).unwrap();
     assert_eq!(
         shorter.session_expires_at_ns(&request, &role(), 1, 1800),
         Ok(250)
@@ -389,25 +367,25 @@ fn certified_signature_failure_spends_credit_after_cheap_checks() {
     let mut budget = SessionAdmissionBudget::new(1, 1, NOW - 1).unwrap();
     host.claims.caller = Principal::anonymous();
     assert!(matches!(
-        verify_certified_claims(&mut budget, &bytes, &f.token.proof, &wrong, &host),
+        verify_certified_claims(&mut budget, &bytes, &f.proof, &wrong, &host),
         Err(PortableCertifiedError::Claims(
             PortableClaimsError::CallerMismatch
         ))
     ));
     host = context(&f, &c);
     assert!(matches!(
-        verify_certified_claims(&mut budget, &bytes, &f.token.proof, &wrong, &host),
+        verify_certified_claims(&mut budget, &bytes, &f.proof, &wrong, &host),
         Err(PortableCertifiedError::Signature(_))
     ));
     let valid = proof(&c, CERTIFIED_SIGNATURE_DOMAIN, SEED, NOW);
     assert_eq!(
-        verify_certified_claims(&mut budget, &bytes, &f.token.proof, &valid, &host),
+        verify_certified_claims(&mut budget, &bytes, &f.proof, &valid, &host),
         Err(PortableCertifiedError::Budget(
             AdmissionBudgetError::Exhausted
         ))
     );
     host.claims.now_ns += 1;
-    assert!(verify_certified_claims(&mut budget, &bytes, &f.token.proof, &valid, &host).is_ok());
+    assert!(verify_certified_claims(&mut budget, &bytes, &f.proof, &valid, &host).is_ok());
 }
 
 #[cfg(feature = "portable-signature-verification")]
@@ -445,7 +423,7 @@ fn switching_proof_mechanisms_cannot_obtain_another_allowance() {
                 verify_certified_claims(
                     &mut budget,
                     &certified_bytes,
-                    &f.token.proof,
+                    &f.proof,
                     &certified_signature,
                     &certified_host
                 ),
@@ -457,7 +435,7 @@ fn switching_proof_mechanisms_cannot_obtain_another_allowance() {
             verify_certified_claims(
                 &mut budget,
                 &certified_bytes,
-                &f.token.proof,
+                &f.proof,
                 &certified_signature,
                 &certified_host,
             )
@@ -483,7 +461,7 @@ fn certified_proof_uses_the_shared_session_lifecycle() {
     let credential = PortableCredential {
         claims: encoded.clone(),
         proof: PortableProof::Certified {
-            delegation: Box::new(f.token.proof.clone()),
+            delegation: Box::new(f.proof.clone()),
             issuer_signature: signature,
         },
     };
@@ -637,10 +615,38 @@ fn credential_variant_cannot_select_authority_or_spend_mismatched_budget() {
         verify_credential(&mut credit, &credential, &selected),
         Err(PortableCredentialError::MechanismMismatch)
     );
+    let encoded = std::mem::replace(&mut credential.claims, vec![0]);
+    assert_eq!(
+        verify_credential(&mut credit, &credential, &selected),
+        Err(PortableCredentialError::MechanismMismatch),
+        "mechanism mismatch precedes decoding malformed claims"
+    );
     credential.proof = PortableProof::Certified {
-        delegation: Box::new(f.token.proof.clone()),
+        delegation: Box::new(f.proof.clone()),
         issuer_signature: proof(&c, CERTIFIED_SIGNATURE_DOMAIN, SEED, NOW),
     };
+    let mut bounded = context(&f, &c);
+    bounded.limits.max_variable_bytes = 0;
+    assert_eq!(
+        verify_credential(
+            &mut credit,
+            &credential,
+            &PortableVerificationContext::Certified(&bounded),
+        ),
+        Err(PortableCredentialError::Certified(
+            PortableCertifiedError::Delegation(
+                ic_auth::delegation::DelegationProofError::InputTooLarge
+            )
+        )),
+        "aggregate proof bounds precede decoding malformed claims"
+    );
+    assert!(matches!(
+        verify_credential(&mut credit, &credential, &selected),
+        Err(PortableCredentialError::Certified(
+            PortableCertifiedError::Encoding(_)
+        ))
+    ));
+    credential.claims = encoded;
     assert_eq!(
         verify_credential(&mut credit, &credential, &selected)
             .unwrap()

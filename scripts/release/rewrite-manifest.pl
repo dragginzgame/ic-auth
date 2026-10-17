@@ -20,4 +20,8 @@ close $rendered or die "workspace renderer failed\n";
 defined $text or die "workspace renderer returned no manifest\n";
 my $dependency = ($text =~ s/^(ic-auth-protocol-types = \{[^\n]*?\bversion = ")\Q$previous\E(")/$1$candidate$2/mg);
 $dependency == 1 or die "unexpected root dependency declaration layout\n";
+if ($text =~ /^ic-auth-wire = /m) {
+    my $wire = ($text =~ s/^(ic-auth-wire = \{[^\n]*?\bversion = ")\Q$previous\E(")/$1$candidate$2/mg);
+    $wire == 1 or die "unexpected wire dependency declaration layout\n";
+}
 print $text or die "manifest output: $!\n";

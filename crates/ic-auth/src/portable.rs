@@ -6,7 +6,7 @@
 #[cfg(any(
     feature = "sessions",
     feature = "portable-signature-verification",
-    feature = "token-verification"
+    feature = "certified-proof-verification"
 ))]
 mod decoded;
 mod revocation;
@@ -15,7 +15,7 @@ mod verified;
 #[cfg(any(
     feature = "sessions",
     feature = "portable-signature-verification",
-    feature = "token-verification"
+    feature = "certified-proof-verification"
 ))]
 pub use decoded::DecodedPortableClaims;
 pub use revocation::{LoginRevocationChange, LoginRevocationError, MemoryLoginRevocations};

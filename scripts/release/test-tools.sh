@@ -50,6 +50,27 @@ for refusal in missing duplicate wrong-version wrong-workspace; do
     [[ ! -s "$fixture/render refused-output" ]]
     cmp "$fixture/render refused-original.toml" "$fixture/render refused.toml"
 done
+# The optional third selector preserves historical releases that predate Wire.
+# When present, it must move with both other package identities or refuse whole.
+for case_name in input expected; do
+    wire_version=0.1.0
+    [[ "$case_name" != expected ]] || wire_version=0.1.1
+    awk -v version="$wire_version" '
+        /^\[package.metadata.unrelated\]/ {
+            printf "ic-auth-wire = { version = \"%s\", path = \"crates/ic-auth-wire\" }\n", version
+        }
+        { print }
+    ' "$fixture/render $case_name.toml" > "$fixture/wire-$case_name.toml"
+done
+perl scripts/release/rewrite-manifest.pl "$fixture/wire-input.toml" 0.1.0 0.1.1 > "$fixture/wire-actual.toml"
+cmp "$fixture/wire-expected.toml" "$fixture/wire-actual.toml"
+sed '/^ic-auth-wire =/s/0.1.0/0.0.9/' "$fixture/wire-input.toml" > "$fixture/wire-refused.toml"
+if perl scripts/release/rewrite-manifest.pl "$fixture/wire-refused.toml" 0.1.0 0.1.1 \
+    > "$fixture/wire-refused-output" 2> "$fixture/wire-refused-error"; then
+    echo 'manifest renderer accepted a mismatched Wire selector' >&2
+    exit 1
+fi
+[[ ! -s "$fixture/wire-refused-output" ]]
 # Exercise the actual shared Make entrypoints before substituting the larger
 # gate below. The opt-in includes and execution probe are explicit inputs.
 TMPDIR="$fixture" bash scripts/ci/check-release-commands.sh "$root" \
@@ -74,6 +95,7 @@ rm -rf "$fixture/repo/apps"
 cp -Rp "$root/apps" "$fixture/repo/apps"
 # Include the independent client build root, never its prepared dependencies.
 mkdir -p "$fixture/repo/packages"
+rm -rf "$fixture/repo/packages/client"
 tar -C "$root/packages" --exclude=node_modules --exclude=dist -cf - client | tar -xf - -C "$fixture/repo/packages"
 overlays=(.gitignore Makefile Cargo.toml Cargo.lock CHANGELOG.md .shared-tooling.snapshot
     scripts/release/metadata.sh scripts/release/publish.sh scripts/release/test-tools.sh
@@ -288,6 +310,7 @@ case "$1" in
         mkdir -p "$CARGO_TARGET_DIR/package"
         printf types > "$CARGO_TARGET_DIR/package/ic-auth-protocol-types-0.1.1.crate"
         printf auth > "$CARGO_TARGET_DIR/package/ic-auth-0.1.1.crate"
+        printf wire > "$CARGO_TARGET_DIR/package/ic-auth-wire-0.1.1.crate"
         if [[ "$FIXTURE_MODE" == source-change ]]; then git commit --allow-empty -qm 'Concurrent fixture source'; fi
         ;;
     publish)
@@ -384,19 +407,19 @@ if bash scripts/release/publish.sh > "$fixture/unresolved.log" 2>&1; then exit 1
 touch "$fixture/observed-ic-auth-protocol-types"
 export FIXTURE_MODE=success
 bash scripts/release/publish.sh > "$fixture/publish.log" 2>&1
-[[ "$(cat "$fixture/uploads")" == $'ic-auth-protocol-types\nic-auth' ]] || exit 1
+[[ "$(cat "$fixture/uploads")" == $'ic-auth-protocol-types\nic-auth\nic-auth-wire' ]] || exit 1
 bash scripts/release/publish.sh > "$fixture/publish-retry.log" 2>&1
-[[ "$(wc -l < "$fixture/uploads")" -eq 2 ]] || exit 1
+[[ "$(wc -l < "$fixture/uploads")" -eq 3 ]] || exit 1
 export FIXTURE_MODE=yanked
 bash scripts/release/publish.sh > "$fixture/yanked-reconcile.log" 2>&1
-[[ "$(wc -l < "$fixture/uploads")" -eq 2 ]] || exit 1
+[[ "$(wc -l < "$fixture/uploads")" -eq 3 ]] || exit 1
 while IFS= read -r observation; do
     bash scripts/ci/verify-file-checksum.sh --print sha256 "$observation/http-status" >> "$fixture/lost-reply-status-after.hashes"
 done < "$fixture/lost-reply-evidence.paths"
 cmp "$fixture/lost-reply-status.hashes" "$fixture/lost-reply-status-after.hashes"
 export FIXTURE_MODE=source-change
 if bash scripts/release/publish.sh > "$fixture/source-change.log" 2>&1; then exit 1; fi
-[[ "$(wc -l < "$fixture/uploads")" -eq 2 ]] || exit 1
+[[ "$(wc -l < "$fixture/uploads")" -eq 3 ]] || exit 1
 git reset --hard "$commit" > /dev/null
 export FIXTURE_MODE=success
 

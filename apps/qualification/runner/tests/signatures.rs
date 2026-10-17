@@ -43,8 +43,8 @@ const SIGNATURE_REPLY_LIMITS: DecodeLimits = DecodeLimits {
     header_bytes: 8192,
 };
 
-#[path = "signatures/application_tokens.rs"]
-mod application_tokens;
+#[path = "signatures/certified_proofs.rs"]
+mod certified_proofs;
 
 #[path = "signatures/profile_composition.rs"]
 mod profile_composition;

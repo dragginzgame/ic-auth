@@ -1,75 +1,27 @@
-import { IDL } from '@icp-sdk/core/candid';
-import {
-  DelegatedToken, DelegatedTokenClaims, DelegatedTokenPrepareRequest,
-  DelegatedTokenPrepareResponse, PortableCredential, LogoutResult,
-} from './generated/protocol.did.js';
+import * as credential from './generated/credential.js';
+import * as logout from './generated/logout.js';
 import { ClientError } from './contracts.js';
-
-function checkMaximum(maximum: number): void {
-  // A comparison alone lets NaN or an omitted JavaScript argument disable the cap.
+export type PortableCredential = credential.Request;
+export type PortableProof = PortableCredential['proof'];
+export type LogoutResult = logout.Response;
+export type LogoutUnavailable = Extract<LogoutResult, { tag: 'Unavailable' }>['value'];
+export type LogoutRequest = logout.Request;
+function bounded<T>(maximum: number, operation: () => T): T {
   if (!Number.isSafeInteger(maximum) || maximum < 1) throw new ClientError('invalid_material');
+  try { return operation(); } catch (cause) { throw new ClientError('invalid_material', { cause }); }
 }
-
-export function encode(type: IDL.Type, value: unknown, maximum: number): Uint8Array {
-  checkMaximum(maximum);
-  try {
-    const bytes = IDL.encode([type], [value]);
-    if (bytes.byteLength > maximum) throw new ClientError('invalid_material');
-    return bytes;
-  } catch (cause) {
-    throw new ClientError('invalid_material', { cause });
-  }
-}
-
-// The SDK decoder returns untyped values. Each boundary below pairs the exact
-// generated runtime descriptor with its generated TS type, without hand-written
-// DTOs, legacy JSON readers or coercions between different service declarations.
-function decode<T>(type: IDL.Type, bytes: Uint8Array, maximum: number): T {
-  checkMaximum(maximum);
-  if (bytes.byteLength > maximum) throw new ClientError('invalid_material');
-  try {
-    // Guard the public input-stream read boundary on this decode only. The
-    // selected SDK's optimized blob decoder calls read(length) without checking
-    // availability; its stream otherwise silently returns a truncated slice.
-    // Inherit the generated descriptor without mutating it or SDK prototypes.
-    const boundedType: IDL.Type = Object.create(type);
-    boundedType.decodeValue = (pipe, wireType) => {
-      const read = pipe.read.bind(pipe);
-      pipe.read = (length: number) => {
-        if (!Number.isSafeInteger(length) || length < 0 || length > pipe.byteLength) {
-          throw new ClientError('invalid_material');
-        }
-        return read(length);
-      };
-      return type.decodeValue(pipe, wireType);
-    };
-    // The selected SDK stream starts at backing-buffer offset zero. Copy exactly
-    // this admitted view, including Buffer/subarray inputs, before decoding.
-    const value = IDL.decode([boundedType], new Uint8Array(bytes))[0];
-    if (!type.covariant(value)) throw new ClientError('invalid_material');
-    // Runtime admission above uses this exact generated descriptor. This is the
-    // single typed boundary over the SDK's untyped decode result, not a service
-    // declaration conversion or a bypass of field validation.
-    return value as T;
-  } catch (cause) {
-    throw new ClientError('invalid_material', { cause });
-  }
-}
-
-export const tokenBytes = (value: DelegatedToken, maximum: number) => encode(DelegatedToken, value, maximum);
-export const tokenFromBytes = (bytes: Uint8Array, maximum: number) => decode<DelegatedToken>(DelegatedToken, bytes, maximum);
-export const requestBytes = (value: DelegatedTokenPrepareRequest, maximum: number) => encode(DelegatedTokenPrepareRequest, value, maximum);
-export const requestFromBytes = (bytes: Uint8Array, maximum: number) => decode<DelegatedTokenPrepareRequest>(DelegatedTokenPrepareRequest, bytes, maximum);
-export const preparedBytes = (value: DelegatedTokenPrepareResponse, maximum: number) => encode(DelegatedTokenPrepareResponse, value, maximum);
-export const preparedFromBytes = (bytes: Uint8Array, maximum: number) => decode<DelegatedTokenPrepareResponse>(DelegatedTokenPrepareResponse, bytes, maximum);
-export const claimsBytes = (value: DelegatedTokenClaims, maximum: number) => encode(DelegatedTokenClaims, value, maximum);
-export function equalBytes(left: Uint8Array, right: Uint8Array): boolean {
-  return left.length === right.length && left.every((byte, index) => byte === right[index]);
-}
-
-/** Bounded transport only: preserves opaque signed bytes, never verifies claims. */
-export const credentialBytes = (value: PortableCredential, maximum: number) => encode(PortableCredential, value, maximum);
-export const credentialFromBytes = (bytes: Uint8Array, maximum: number) => decode<PortableCredential>(PortableCredential, bytes, maximum);
-
-/** Decode only after the transport authenticates the update reply. */
-export const logoutResultFromBytes = (bytes: Uint8Array) => decode<LogoutResult>(LogoutResult, bytes, 1_024);
+export const credentialBytes = (value: PortableCredential, maximum: number): Uint8Array => bounded(maximum, () => {
+  const bytes = credential.encodeRequest(value);
+  if (bytes.length > maximum) throw new ClientError('invalid_material');
+  return bytes;
+});
+export const credentialFromBytes = (bytes: Uint8Array, maximum: number): PortableCredential => bounded(maximum, () => {
+  if (bytes.length > maximum) throw new ClientError('invalid_material');
+  // Buffer.slice() aliases storage; the shared runtime accepts Uint8Array views.
+  // Give it an ordinary owned Uint8Array after admission so decoded blobs detach.
+  return credential.decodeRequest(new Uint8Array(bytes));
+});
+export const logoutResultFromBytes = (bytes: Uint8Array): LogoutResult => bounded(1024, () => {
+  if (bytes.length > 1024) throw new ClientError('invalid_material');
+  return logout.decodeResponse(new Uint8Array(bytes));
+});

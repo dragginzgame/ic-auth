@@ -31,8 +31,8 @@ let disposed = 0;
 const transport = {
   revoke: async (target, signingIdentity) => {
     assert(signingIdentity.getPrincipal().toText() === principal.toText(), 'principal changed');
-    if (target.toText() === receiver.toText() && attempts++ === 0) return { Unavailable: { Capacity: null } };
-    return { Revoked: { deny_until_ns: 86_400_000_000_000n } };
+    if (target.toText() === receiver.toText() && attempts++ === 0) return { tag: 'Unavailable', value: { tag: 'Capacity', value: null } };
+    return { tag: 'Revoked', value: 86_400_000_000_000n };
   },
   dispose: async () => { disposed++; },
 };

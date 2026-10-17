@@ -2,7 +2,7 @@
 
 The portable contract provides one portable application session engine in
 `ic_auth::session`. Enable `sessions` for the engine and bounded volatile store;
-select `portable-signature-verification` for Ed25519 or `token-verification` for
+select `portable-signature-verification` for Ed25519 or `certified-proof-verification` for
 complete certified portable proofs. The engine itself does not require either
 cryptographic backend. It does not depend on Canic, Toko, CDK or stable memory.
 

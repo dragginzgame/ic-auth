@@ -17,7 +17,7 @@ use ic_auth::{
     session_request::SessionRequest,
 };
 use ic_auth_protocol_types::{LogoutRequest, LogoutResult, LogoutUnavailable};
-use ic_auth_qualification_contracts::Candid;
+
 use std::cell::RefCell;
 const SECOND: u64 = 1_000_000_000;
 fn limits() -> SessionLimits {
@@ -153,7 +153,12 @@ fn install_session_receiver(config: ReceiverConfig) -> Result<(), String> {
     RECEIVER.with(|state| *state.borrow_mut() = Some(host));
     Ok(())
 }
-#[ic_cdk::update]
+#[ic_cdk::update(
+    hidden = true,
+    guard = "admission_guard",
+    decode_with = "decode_admission",
+    encode_with = "encode_admission"
+)]
 fn establish_portable_session(input: SessionInput) -> Result<SessionView, String> {
     let request = SessionRequest::new(input.scopes, input.ttl_secs).map_err(|e| e.to_string())?;
     with_receiver(|host| {
@@ -190,7 +195,7 @@ fn establish_portable_session(input: SessionInput) -> Result<SessionView, String
                         claims: ctx.authority,
                         root_key: &root,
                         ic_root_public_key_raw: network_key,
-                        limits: ic_auth::token::TokenVerificationLimits {
+                        limits: ic_auth::portable_certified::CertifiedProofLimits {
                             max_cert_ttl_ns: 120 * SECOND,
                             max_token_ttl_ns: 60 * SECOND,
                             max_future_skew_ns: 0,
@@ -216,7 +221,11 @@ fn establish_portable_session(input: SessionInput) -> Result<SessionView, String
         }))
     })
 }
-#[ic_cdk::update]
+#[ic_cdk::update(
+    hidden = true,
+    guard = "admission_guard",
+    decode_with = "decode_admission"
+)]
 fn profile_portable_admission(input: SessionInput) -> AdmissionProfile {
     let start = ic_cdk::api::performance_counter(0);
     let result = establish_portable_session(input);
@@ -226,7 +235,12 @@ fn profile_portable_admission(input: SessionInput) -> AdmissionProfile {
     }
 }
 
-#[ic_cdk::update]
+#[ic_cdk::update(
+    hidden = true,
+    guard = "read_guard",
+    decode_with = "decode_read",
+    encode_with = "encode_read"
+)]
 fn portable_session_read() -> Result<SessionView, String> {
     with_receiver(|host| {
         let policy = policy(host);
@@ -244,9 +258,14 @@ fn portable_session_read() -> Result<SessionView, String> {
             .map_err(|e| e.to_string())
     })
 }
-#[ic_cdk::update]
-fn logout_portable_session(_request: Candid<LogoutRequest>) -> Candid<LogoutResult> {
-    Candid(RECEIVER.with(|state| {
+#[ic_cdk::update(
+    hidden = true,
+    guard = "logout_guard",
+    decode_with = "decode_logout",
+    encode_with = "encode_logout"
+)]
+fn logout_portable_session(_request: LogoutRequest) -> LogoutResult {
+    RECEIVER.with(|state| {
         let mut state = state.borrow_mut();
         let Some(host) = state.as_mut().filter(|host| host.ready) else {
             return LogoutResult::Unavailable(LogoutUnavailable::ResetPending);
@@ -258,7 +277,7 @@ fn logout_portable_session(_request: Candid<LogoutRequest>) -> Candid<LogoutResu
             ic_cdk::api::msg_caller(),
             ic_cdk::api::time(),
         )
-    }))
+    })
 }
 #[ic_cdk::update]
 fn invalidate_session_authority(enabled: bool) -> Result<(), String> {
@@ -302,4 +321,107 @@ fn profile_portable_session() -> Result<SessionProfile, String> {
             authorization_instructions: ic_cdk::api::performance_counter(0) - start_authorization,
         })
     })
+}
+
+// Fixture exports bind the shared contract explicitly. Admit raw length before
+// CDK copying; malformed input traps before the stateful handler. Failed reply
+// encoding traps as well, rolling back local session/revocation mutations.
+fn argument_guard<M: ic_auth_wire::wire::Method>() -> Result<(), String> {
+    if ic0::msg_arg_data_size() > M::REQUEST_LIMITS.bytes {
+        Err("wire argument too large".into())
+    } else {
+        Ok(())
+    }
+}
+fn admission_guard() -> Result<(), String> {
+    argument_guard::<ic_auth_wire::EstablishSession>()
+}
+fn read_guard() -> Result<(), String> {
+    argument_guard::<ic_auth_wire::ReadSession>()
+}
+fn logout_guard() -> Result<(), String> {
+    argument_guard::<ic_auth_wire::Logout>()
+}
+fn decode_admission(bytes: Vec<u8>) -> SessionInput {
+    let input = ic_auth_wire::wire::decode_request::<ic_auth_wire::EstablishSession>(&bytes)
+        .expect("bounded admission request");
+    SessionInput {
+        credential: input
+            .credential
+            .try_into()
+            .expect("checked domain identifiers"),
+        scopes: input
+            .scopes
+            .into_vec()
+            .into_iter()
+            .map(|s| s.as_str().to_owned())
+            .collect(),
+        ttl_secs: input.ttl_secs,
+    }
+}
+fn decode_read(bytes: Vec<u8>) {
+    ic_auth_wire::wire::decode_request::<ic_auth_wire::ReadSession>(&bytes)
+        .expect("bounded read request");
+}
+fn decode_logout(bytes: Vec<u8>) -> LogoutRequest {
+    ic_auth_wire::wire::decode_request::<ic_auth_wire::Logout>(&bytes)
+        .expect("bounded logout request");
+    LogoutRequest {}
+}
+fn wire_result(
+    result: Result<SessionView, String>,
+) -> Result<ic_auth_wire::SessionView, ic_auth_wire::wire::Text<256>> {
+    use ic_auth_wire::wire::{Bytes, Text};
+    result
+        .map(|v| ic_auth_wire::SessionView {
+            caller: Bytes::new(v.caller.as_slice().to_vec()).expect("principal bound"),
+            issuer: Bytes::new(v.issuer.as_slice().to_vec()).expect("principal bound"),
+            subject: Bytes::new(v.subject.as_slice().to_vec()).expect("principal bound"),
+            expires_at_ns: v.expires_at_ns,
+        })
+        // A refusal must not trap while formatting a diagnostic: that would undo
+        // the admission charge. Preserve the bounded UTF-8 prefix for this fixture;
+        // production consumers own their structured application error contract.
+        .map_err(|mut error| {
+            let mut end = error.len().min(256);
+            while !error.is_char_boundary(end) {
+                end -= 1;
+            }
+            error.truncate(end);
+            Text::new(error).expect("bounded UTF-8 error")
+        })
+}
+fn encode_admission(result: Result<SessionView, String>) -> Vec<u8> {
+    ic_auth_wire::wire::encode_response::<ic_auth_wire::EstablishSession>(&wire_result(result))
+        .expect("bounded admission reply")
+        .into_bytes()
+}
+fn encode_read(result: Result<SessionView, String>) -> Vec<u8> {
+    ic_auth_wire::wire::encode_response::<ic_auth_wire::ReadSession>(&wire_result(result))
+        .expect("bounded read reply")
+        .into_bytes()
+}
+fn encode_logout(result: LogoutResult) -> Vec<u8> {
+    ic_auth_wire::wire::encode_response::<ic_auth_wire::Logout>(&result.into())
+        .expect("bounded logout reply")
+        .into_bytes()
+}
+
+#[cfg(test)]
+mod wire_tests {
+    #[test]
+    fn long_refusals_remain_errors_without_trapping_reply_encoding() {
+        for error in ["capacity".to_owned(), "🚫".repeat(100)] {
+            let result = super::wire_result(Err(error.clone()));
+            assert!(result.as_ref().unwrap_err().as_str().len() <= 256);
+            let bytes =
+                ic_auth_wire::wire::encode_response::<ic_auth_wire::EstablishSession>(&result)
+                    .unwrap();
+            let decoded = ic_auth_wire::wire::decode_response::<ic_auth_wire::EstablishSession>(
+                bytes.as_bytes(),
+            )
+            .unwrap();
+            assert!(error.starts_with(decoded.unwrap_err().as_str()));
+        }
+    }
 }

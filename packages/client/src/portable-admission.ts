@@ -3,7 +3,7 @@ import type { Identity } from '@icp-sdk/core/agent';
 import type { Principal } from '@icp-sdk/core/principal';
 import { ClientError } from './contracts.js';
 import { credentialBytes, credentialFromBytes } from './codec.js';
-import type { PortableCredential } from './generated/protocol.did.js';
+import type { PortableCredential } from './codec.js';
 import type { PortableLogoutClient } from './logout.js';
 
 export interface AdmissionCredential {

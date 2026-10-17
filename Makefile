@@ -15,7 +15,7 @@ export RELEASE_REMOTE RELEASE_BRANCH
 
 .PHONY: help install-hooks fetch metadata test-formatting-hooks \
         install-testkit-tools testkit-tools-check test-testkit-tools \
-        test-types test-protocol test-portable-signatures test-chain-key-signatures test-signatures test-signature-store test-tokens test-sessions check-wasm clippy check-boundaries \
+        test-types test-protocol test-portable-signatures test-chain-key-signatures test-signatures test-signature-store test-certified-proofs test-sessions check-wasm clippy check-boundaries \
         check-snapshot check-dependency-pins check-doc-links check-msrv install-msrv msrv-tools-check tasks ci \
         client-tools-check install-client-dependencies generate-client-contracts check-client-contracts test-client test-client-tools \
         publish publish-dry-run check-package-licenses test-release-tools \
@@ -27,7 +27,7 @@ export RELEASE_REMOTE RELEASE_BRANCH
 help:
 	@echo 'Setup: install-tools, tools-check, install-hooks, fetch; minimum compiler: install-msrv, msrv-tools-check'
 	@echo 'Testkit server: install-testkit-tools (explicit setup), testkit-tools-check (offline admission)'
-	@echo 'Focused checks: test-types, test-protocol, test-portable-signatures, test-chain-key-signatures, test-signatures, test-signature-store, test-tokens, test-sessions, test-host-tooling, test-qualification, check-wasm, clippy, metadata'
+	@echo 'Focused checks: test-types, test-protocol, test-portable-signatures, test-chain-key-signatures, test-signatures, test-signature-store, test-certified-proofs, test-sessions, test-host-tooling, test-qualification, check-wasm, clippy, metadata'
 	@echo 'Browser client: install-client-dependencies, client-tools-check, generate-client-contracts, check-client-contracts, test-client'
 	@echo 'Formatting: fmt, fmt-check, test-formatting-hooks'
 	@echo 'Governance: check-snapshot, check-dependency-pins, check-doc-links, check-boundaries, check-msrv; maintenance catalog: tasks'
@@ -70,7 +70,7 @@ metadata:
 	+cargo metadata --locked --offline --format-version 1 > /dev/null
 
 test-types:
-	+cargo test --locked --offline -p ic-auth-protocol-types -p ic-auth-qualification-contracts
+	+cargo test --locked --offline -p ic-auth-protocol-types -p ic-auth-wire -p ic-auth-qualification-contracts
 
 test-protocol:
 	+cargo test --locked --offline -p ic-auth
@@ -78,7 +78,7 @@ test-protocol:
 test-portable-signatures:
 	+cargo test --locked --offline -p ic-auth --features portable-signature-verification --test portable_signature --test portable_revocation
 	+cargo test --locked --offline -p ic-auth --features portable-signature-verification,ed25519-dalek/legacy_compatibility --test portable_signature --test portable_revocation
-	+cargo test --locked --offline -p ic-auth --features portable-signature-verification,token-verification --test token portable_certified::
+	+cargo test --locked --offline -p ic-auth --features portable-signature-verification,certified-proof-verification --test certified portable_certified::
 
 test-chain-key-signatures:
 	+cargo test --locked --offline -p ic-auth --features chain-key-verification --test chain_key_signature
@@ -89,27 +89,28 @@ test-signatures:
 test-signature-store:
 	+cargo test --locked --offline -p ic-auth --features canister-signature-preparation,canister-signature-verification --lib --test signature_store
 
-test-tokens:
-	+cargo test --locked --offline -p ic-auth --features token-verification --test token
+test-certified-proofs:
+	+cargo test --locked --offline -p ic-auth --features certified-proof-verification --test certified
 
 test-sessions:
-	+cargo test --locked --offline -p ic-auth --features sessions,token-verification,portable-signature-verification --test token portable_certified::
+	+cargo test --locked --offline -p ic-auth --features sessions,certified-proof-verification,portable-signature-verification --test certified portable_certified::
 	+cargo test --locked --offline -p ic-auth --features sessions,portable-signature-verification --test sessions
 	+cargo test --locked --offline -p ic-auth --features sessions --doc
 	+cargo test --locked --offline -p ic-auth --features session-restore,portable-signature-verification --test sessions --test portable_revocation
 
 check-wasm:
+	+cargo check --locked --offline -p ic-auth-wire --target wasm32-unknown-unknown
 	+cargo check --locked --offline -p ic-auth --features portable-signature-verification --target wasm32-unknown-unknown
 	+cargo check --locked --offline -p ic-auth-protocol-types -p ic-auth --target wasm32-unknown-unknown
 	+cargo check --locked --offline -p ic-auth --features chain-key-verification --target wasm32-unknown-unknown
 	+cargo check --locked --offline -p ic-auth --features canister-signature-verification --target wasm32-unknown-unknown
 	+cargo check --locked --offline -p ic-auth --features canister-signature-preparation --target wasm32-unknown-unknown
-	+cargo check --locked --offline -p ic-auth --features token-verification --target wasm32-unknown-unknown
+	+cargo check --locked --offline -p ic-auth --features certified-proof-verification --target wasm32-unknown-unknown
 	+cargo check --locked --offline -p ic-auth --features sessions --target wasm32-unknown-unknown
 	+cargo check --locked --offline -p ic-auth --features session-restore --target wasm32-unknown-unknown
 
 clippy:
-	+cargo clippy --locked --offline -p ic-auth-protocol-types -p ic-auth -p ic-auth-tooling -p ic-auth-qualification -p ic-auth-qualification-contracts --all-targets --all-features -- -D warnings
+	+cargo clippy --locked --offline -p ic-auth-protocol-types -p ic-auth -p ic-auth-wire -p ic-auth-tooling -p ic-auth-qualification -p ic-auth-qualification-contracts --all-targets --all-features -- -D warnings
 	+cargo clippy --locked --offline -p ic-auth-qualification-canister --target wasm32-unknown-unknown -- -D warnings
 
 build-qualification-canister:
@@ -157,11 +158,12 @@ ci:
 	  --input ci/tool-versions.env --input ci/ic-tools.tsv \
 	  --input packages/client/package.json --input packages/client/package-lock.json \
 	  --input packages/client/.nvmrc \
-	  check-snapshot tools-check check-dependency-pins check-doc-links test-make-jobserver fmt-check test-formatting-hooks metadata check-boundaries check-msrv test-tools-evidence test-testkit-tools test-client-tools test-client test-types test-protocol test-portable-signatures test-chain-key-signatures test-signatures test-signature-store test-tokens test-sessions test-host-tooling test-qualification check-wasm clippy publish-dry-run test-release-tools test-release-runner test-evidence-archive
+	  check-snapshot tools-check check-dependency-pins check-doc-links test-make-jobserver fmt-check test-formatting-hooks metadata check-boundaries check-msrv test-tools-evidence test-testkit-tools test-client-tools test-client test-types test-protocol test-portable-signatures test-chain-key-signatures test-signatures test-signature-store test-certified-proofs test-sessions test-host-tooling test-qualification check-wasm clippy publish-dry-run test-release-tools test-release-runner test-evidence-archive
 
 check-package-licenses:
 	@cmp LICENSE crates/ic-auth-protocol-types/LICENSE
 	@cmp LICENSE crates/ic-auth/LICENSE
+	@cmp LICENSE crates/ic-auth-wire/LICENSE
 
 # A reused temporary-registry path can retain extracted same-version source
 # across edits. Give each dry run a new registry identity and retain its evidence.
@@ -171,7 +173,7 @@ publish-dry-run: check-package-licenses
 	  staging="$$(mktemp -d "$(CURDIR)/target/publication-dry-runs/run.XXXXXX")"; \
 	  printf 'Publication dry-run evidence retained: %s\n' "$$staging"; \
 	  cargo publish --dry-run --locked --registry crates-io --allow-dirty \
-	    --target-dir "$$staging" -p ic-auth-protocol-types -p ic-auth
+	    --target-dir "$$staging" -p ic-auth-protocol-types -p ic-auth -p ic-auth-wire
 
 publish:
 	+bash scripts/release/publish.sh

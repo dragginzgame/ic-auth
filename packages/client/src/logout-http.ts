@@ -1,5 +1,4 @@
-import { IDL } from '@icp-sdk/core/candid';
-import { LogoutRequest } from './generated/protocol.did.js';
+import { encodeRequest } from './generated/logout.js';
 import { logoutResultFromBytes } from './codec.js';
 import { httpUpdateTransport } from './update-http.js';
 import type { LogoutTransport } from './logout.js';
@@ -21,7 +20,7 @@ export function httpLogoutTransport(options: HttpLogoutOptions): LogoutTransport
   return {
     dispose: options.dispose,
     async revoke(target, identity, signal) {
-      const reply = await update(target, identity, IDL.encode([LogoutRequest], [{}]), signal);
+      const reply = await update(target, identity, encodeRequest(null), signal);
       // HTTP acceptance alone is never a revocation acknowledgement.
       return logoutResultFromBytes(reply);
     },

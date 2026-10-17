@@ -21,10 +21,10 @@ async function fixture() {
   const store = await IndexedDbLogoutStore.open(factory, 'admission');
   const state = { now: 1_000n * MS, issues: 0, reconciles: 0, admissions: [] as string[] };
   const journal = new PortableLogoutClient(store, { id: 'test-clock', nowNs: () => state.now, wait: async () => {} },
-    { revoke: async () => ({ Revoked: { deny_until_ns: 100_000n * MS } }), dispose: async () => {} });
+    { revoke: async () => ({ tag: 'Revoked', value: 100_000n * MS }), dispose: async () => {} });
   await journal.start('login', identity, issuer);
   const material: AdmissionCredential = {
-    credential: { claims: new Uint8Array([1, 2, 3]), proof: { Ed25519: { signature: new Uint8Array(64) } } },
+    credential: { claims: new Uint8Array([1, 2, 3]), proof: { tag: 'Ed25519', value: new Uint8Array(64) } },
     admissionUntilNs: state.now + 60_000n * MS,
   };
   const transport: PortableAdmissionTransport = {
@@ -164,7 +164,7 @@ test('lost issuance stays uncertain across client recreation; recovery never iss
     f.store.close();
     reopened = await IndexedDbLogoutStore.open(f.factory, 'admission');
     const journal = new PortableLogoutClient(reopened, { id: 'test-clock', nowNs: () => f.state.now, wait: async () => {} },
-      { revoke: async () => ({ Revoked: { deny_until_ns: 100_000n * MS } }), dispose: async () => {} });
+      { revoke: async () => ({ tag: 'Revoked', value: 100_000n * MS }), dispose: async () => {} });
     f.transport.admit = async () => { f.state.admissions.push(b.toText()); };
     const recovered = () => new PortableAdmissionClient(journal, 'login', identity, issuer, f.transport);
     await recovered().establish(b);
@@ -256,9 +256,9 @@ test('malformed or expired recovered material never reaches a receiver or trigge
   const f = await fixture();
   try {
     await f.journal.issuing('login');
-    f.material.credential.claims = new Uint8Array(131_073);
+    f.material.credential = { ...f.material.credential, claims: new Uint8Array(131_073) };
     await assert.rejects(f.client().establish(a), (e: ClientError) => e.code === 'invalid_material');
-    f.material.credential.claims = new Uint8Array([1]);
+    f.material.credential = { ...f.material.credential, claims: new Uint8Array([1]) };
     f.material.admissionUntilNs = f.state.now;
     await assert.rejects(f.client().establish(a), (e: ClientError) => e.code === 'retrieval_expired');
     assert.equal(f.state.issues, 0);

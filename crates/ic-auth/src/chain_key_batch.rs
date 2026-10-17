@@ -92,7 +92,7 @@ struct Node {
 
 // Callers admit proof-size budgets before reconstruction. This helper is also
 // the verification side of the constructor's existing node-byte contract.
-#[cfg(feature = "token-verification")]
+#[cfg(feature = "chain-key-verification")]
 pub(crate) fn witness_root(leaf: [u8; 32], witness: &ChainKeyBatchWitnessV1) -> [u8; 32] {
     witness.steps.iter().fold(leaf, |current, step| match step {
         ChainKeyBatchWitnessStepV1::LeftSibling(hash) => node_hash(*hash, current),

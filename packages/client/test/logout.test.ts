@@ -11,7 +11,7 @@ const identity = Ed25519KeyIdentity.generate(new Uint8Array(32).fill(1));
 const other = Ed25519KeyIdentity.generate(new Uint8Array(32).fill(2));
 const issuer = Principal.fromUint8Array(new Uint8Array([1]));
 const receiver = Principal.fromUint8Array(new Uint8Array([2]));
-const revoked: LogoutResult = { Revoked: { deny_until_ns: 86_400_000_000_000n } };
+const revoked: LogoutResult = { tag: 'Revoked', value: 86_400_000_000_000n };
 
 async function fixture(revoke: LogoutTransport['revoke']) {
   const factory = new IDBFactory();
@@ -32,7 +32,7 @@ test('logout commits invalidation before fan-out and retries Capacity after late
     assert.equal((await f.client.status('login-a')).phase, 'cleanup');
     assert.equal(caller.getPrincipal().toText(), identity.getPrincipal().toText());
     calls.push(target.toText());
-    if (target.toText() === receiver.toText() && attempts++ === 0) return { Unavailable: { Capacity: null } };
+    if (target.toText() === receiver.toText() && attempts++ === 0) return { tag: 'Unavailable', value: { tag: 'Capacity', value: null } };
     return revoked;
   });
   try {
@@ -54,7 +54,7 @@ test('proof expiry does not imply logout: reserve final attempt after admission 
   const times: bigint[] = [];
   const f = await fixture(async target => {
     if (target.toText() === receiver.toText()) times.push(f.state.now);
-    return { Unavailable: { Capacity: null } };
+    return { tag: 'Unavailable', value: { tag: 'Capacity', value: null } };
   });
   try {
     const expiry = f.state.now + 20_000n * MS;

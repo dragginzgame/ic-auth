@@ -1,14 +1,12 @@
 # Development
 
-The virtual root owns two libraries, unpublished native tooling in `apps/tooling/`
-and the internal host/runner in `apps/qualification/`, plus dependency selections,
-lints and one lockfile. Package manifests remain at `0.5.10`; the working tree
-prepares the 0.6 portable session hard cut. Versions remain release-owned.
-The selected graph uses IC Host 0.18 and Testkit 0.44.0 with its admitted server
-16.1.0. No direct PocketIC dependency is introduced. Consult the
-[current handoff](status/current.md) for source-bound validation and the
-[session contract](sessions.md) for supported behavior and unfinished adapters.
-Historical release evidence does not qualify changed working-tree inputs.
+The virtual root owns the protocol/types, Auth engine and Wire transport libraries,
+unpublished native tooling in `apps/tooling/` and the reference host/runner in
+`apps/qualification/`. Package versions remain at released 0.8.0; the working tree
+prepares the 0.9.0 application-transport hard cut. The selected Host 0.25.1,
+Testkit 0.51 and Memory 0.47 stay locked. IC Wire 0.3.2 supplies the shared codec
+and TypeScript generator. The [handoff](status/current.md) records exact evidence;
+[session contracts](sessions.md) distinguish supported behavior from pending hosts.
 Rust `1.99.0` remains the development compiler selected by `rust-toolchain.toml`.
 The common package minimum is Rust `1.91.0`, inherited from the root catalog and
 qualified by explicit older-compiler checks. The internal qualification canister
@@ -78,15 +76,9 @@ After catalog adoption, explicitly run `make install-tools` and `make tools-chec
 The Makefile includes reviewed [`make/consumer.mk`](make-interface.md), which owns
 common setup, formatting, hooks, snapshot verification and release routing.
 `check-snapshot` retains its public name and depends on `shared-tooling-check`.
-The recorded snapshot selects 66 entrypoints and derives their 93-file companion
-closure from committed Shared Tooling 0.10.0
-`ed9c26f015691859f67b50b512a94709dcdc0c6c`. Its exact source `VERSION` records
-0.10.0; no release tag is inferred from that annotation. Refreshes reuse recorded
-roots with the canonical exporter. Preview the complete change and retain directly
-used helpers as entrypoints: unchanged owned payloads outside the new closure are
-retired automatically after ownership, local-edit and index checks. Do not use
-`--retire-file`. Payload replacement is atomic per file; the manifest is published
-last and interrupted refreshes retry against the same source/selection. See
+The recorded snapshot pins Shared Tooling 0.15.0 at
+`3bef3f2daec7f64f875397ed4d53d5b9e2e68a08`. Adopt its committed source and
+recorded entrypoint closure through the canonical exporter; see
 [snapshot adoption](consuming-snapshots.md#entrypoint-selection-in-070).
 The canonical verifier also supports `--read-manifest FILE`: it validates the
 complete captured syntax before emitting records, rejects NUL/extra fields, and
@@ -235,23 +227,23 @@ storage qualification. See the [transport evidence](ic-testkit-qualification.md#
 | Focused command | Purpose |
 | --- | --- |
 | `make test-client-tools` | Actual CI pipeline and Make callers: selected Node/npm path, later-step admission and first-failure controls with substituted npm effects |
-| `make test-client` | Private client lifecycle, IndexedDB transactions, compiled SDK consumer example and Rust/TypeScript Candid roundtrip |
+| `make test-client` | Portable admission/logout, strict journal transactions and Rust/TypeScript Wire roundtrips |
 | `make check-client-contracts` | Compare fresh locked bindings with the Rust-owned checked-in contracts offline |
 | `make generate-client-contracts` | Explicitly regenerate the checked-in client contracts from Rust DTOs |
-| `make test-types` | Candid-free public types plus internal fixture projection/identifier/wire checks |
+| `make test-types` | Public types, bounded Wire codecs and private fixture projections |
 | `make test-protocol` | Canonical encoding, signed vectors, ordering and size rejection |
 | `make test-portable-signatures` | Portable Ed25519 issuer proofs with protected audience/issuer/key binding, independent signature vectors and strict malformed/weak-key refusal; this does not admit sessions |
 | `make test-chain-key-signatures` | Isolated SEC1 admission, explicit producer normalization and exact prehash verification, including malformed material and strict high-S refusal |
 | `make test-signatures` | Real BLS-signed IC fixtures, signer/seed/root rejection, certificate freshness and bounded decoding |
 | `make test-signature-store` | Bounded preparation/retrieval, unchanged retry deadlines, pruning and real BLS verification with host-composed branches |
-| `make test-tokens` | Complete real secp256k1/BLS proof chains, signed binding and protected authority/window/scope rejection |
+| `make test-certified-proofs` | Portable certified secp256k1/BLS proofs, protected delegation bindings, budgets and rejection |
 | `make test-sessions` | Atomic admission/replay failure, exact retry, live authority invalidation, logout and quotas using certified and Ed25519 portable proofs |
 | `make test-host-tooling` | Native file-operation CLI: bounded input, exact digest output, no-follow reads and preserved create-only evidence |
 | `make check-msrv` | Isolated public package payloads and internal applications using the declared minimum compiler, with native/Wasm and feature coverage |
 | `make tasks` | Read the adopted maintenance task catalog; no task, agent or schedule starts |
 | `make test-qualification` | Build the internal Wasm host; verify real certificates, complete application tokens, live authority rejection, root composition, upgrades, authenticated ingress and SDK logout through `ic-testkit` with the checked server and prepared client dependencies |
 | `make build-qualification-canister` | Build the internal host's release Wasm without starting a server |
-| `make check-wasm` | Compile-check both libraries and chain-key/signature verification/preparation, token and session capabilities for `wasm32-unknown-unknown` |
+| `make check-wasm` | Compile-check the public libraries and chain-key/signature verification/preparation, token and session capabilities for `wasm32-unknown-unknown` |
 | `make clippy` | Lint the libraries, native tooling/qualification and Wasm host with their selected targets |
 | `make metadata` | Validate the selected locked graph offline |
 | `make check-boundaries` | Inspect capability graphs; reject Candid in default, Ed25519 and local-session selections |
@@ -259,7 +251,7 @@ storage qualification. See the [transport evidence](ic-testkit-qualification.md#
 | `make check-snapshot` | Verify the adopted shared files and modes |
 | `make check-dependency-pins` | Check declarations, lockfile tracking and root inheritance |
 | `make check-doc-links` | Check local Markdown targets |
-| `make publish-dry-run` | Build both distributable libraries without uploading; requires registry metadata access |
+| `make publish-dry-run` | Build all three distributable libraries without uploading; requires registry metadata access |
 | `make test-release-tools` | Exercise release/recovery and publication rejection/retry using local and mocked effects |
 | `make test-release-runner` | Adopted Shared Tooling runner regression fixtures with substituted release effects |
 | `make test-evidence-archive` | Adopted evidence archive fixtures: retained files, symlinks and literal paths |
@@ -341,7 +333,7 @@ do not establish live network trust,
 session admission, PocketIC behavior, service upgrades or independent consumer
 adoption. Token tests additionally verify root batch ECDSA signatures and issuer
 BLS certification together with caller, narrowing and current authority inputs;
-see the [signature](signatures.md) and [token](tokens.md) contracts. Session tests
+see the [signature](signatures.md) and [delegation](delegation.md) contracts. Session tests
 cover admission and authorization with a volatile backend and a failing staged
 transaction; they do not qualify stable canister storage or lifecycle. The
 [session contract](sessions.md) specifies the host's durability obligations.
@@ -349,7 +341,7 @@ Preparation tests additionally cover host-owned certification composition and
 bounded retrieval retention; see [the preparation contract](signature-preparation.md).
 They do not qualify an actual canister's root publication or query/upgrade lifecycle.
 The separate [IC Testkit command](ic-testkit-qualification.md) exercises those host
-paths, complete application tokens and real signed ingress. It consumes the locked Testkit CLI's offline
+paths, portable certified credentials and real signed ingress. It consumes the locked Testkit CLI's offline
 admission path and retains state beneath `target/`.
 It does not qualify browser/wallet login or a durable session backend.
 
@@ -366,7 +358,7 @@ make publish                       # upload a clean, delivered tagged release
 
 Released 0.4.0 carries the diagnostic hard cut at the required minor boundary.
 Released 0.4.1 adopts Shared Tooling 0.5.0 without changing the library contract.
-Released 0.4.2 adds pure [token preparation](token-preparation.md), adopts Shared
+Released 0.4.2 adds pure [token preparation](delegation.md#retired-delegated-token-lifecycle), adopts Shared
 Tooling 0.6.0 and qualifies native dependency updates. Released 0.4.3 fixes browser
 flight result validation. Released 0.4.4 adopts Shared Tooling 0.6.1's setup failure
 propagation and qualifies the incoming native selections. Released 0.4.5 adopts
@@ -580,16 +572,15 @@ consumer adapter evidence; it is not a live release or registry upload.
 
 ## Public types and fixture transport
 
-Pending 0.8.0 removes Candid from `ic-auth-protocol-types` without adding a Candid
-feature. Its `Principal` is the same narrow `ic_principal` identity type. The
-unpublished `apps/qualification/contracts/` adapter owns only existing test/browser
-Candid projections, extracted from the independent wire fixtures. Incoming values
-deserialize directly into the checked domain types; output projection uses CBOR
-inside this adapter before existing Candid encoding. Neither public library
-imports the adapter. Do not use it as a production transport dependency.
+Released 0.8.0 removed Candid traits from public domain types. Pending 0.9.0 adds
+the separate `ic-auth-wire` codec adapter and generates its TypeScript directly
+through published IC Wire. `make test-types` checks its bounds, canonical frames,
+checked identifier projections and local request/result contracts.
 
-`make test-types` runs the public package and relocated compatibility/rejection
-cases. Client contract generation seals the adapter sources along with the domain
-and generator sources. Existing generated Candid/TypeScript and retained client
-intent bytes must remain unchanged by this library cut. See the
-[consumer boundary](canic-adoption.md#pending-08-transport-boundary).
+The private Candid projection in `apps/qualification/contracts/` is limited to
+controller/certificate qualification. Its output converts fields directly; there
+is no CBOR intermediate. It is not a production consumer dependency. The generated
+application codec has one owner in `crates/ic-auth-wire/`, with no Candid fallback.
+`make generate-client-contracts` is the only artifact-update command; checks
+compare generated files and retain input seals. See the
+[consumer boundary](canic-adoption.md#pending-09-wire-transport).

@@ -114,7 +114,7 @@ The token review also used committed Canic
 hash in `domain/auth.rs` and the verified-authority invariants in
 `model/auth/application_authorization/authority.rs`. No sibling files were edited.
 
-The [token verifier](../tokens.md) incorporates validity, issuer/certificate
+The [token verifier](../delegation.md) incorporates validity, issuer/certificate
 binding, exact audience, grant narrowing, Merkle witness and protected root-key
 checks. The derivation-path hash preserves the existing domain and ordered
 length-prefixed bytes. SEC1/scalar parsing, high-s detection and prehash signature

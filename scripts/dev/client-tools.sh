@@ -16,7 +16,7 @@ if ! client_node_matches "$observed_node" || ! client_npm_matches "$observed_npm
 fi
 printf 'Client toolchain: Node %s; npm %s\n' "$selected_node" "$selected_npm"
 case "${1:-}" in
-    check) [[ -x node_modules/.bin/tsc && -x node_modules/.bin/icp-bindgen ]] || {
+    check) [[ -x node_modules/.bin/tsc ]] || {
         echo 'Run make install-client-dependencies explicitly first' >&2; exit 1;
     } ;;
     install) npm ci --ignore-scripts --no-audit --no-fund ;;

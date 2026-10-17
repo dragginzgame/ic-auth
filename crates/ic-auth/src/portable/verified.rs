@@ -1,6 +1,6 @@
 #[cfg(any(
     feature = "portable-signature-verification",
-    feature = "token-verification"
+    feature = "certified-proof-verification"
 ))]
 use super::PortableClaimsContext;
 use crate::session_request::{SessionRequest, SessionRequestError};
@@ -29,7 +29,7 @@ pub struct VerifiedPortableClaims {
 impl VerifiedPortableClaims {
     #[cfg(any(
         feature = "portable-signature-verification",
-        feature = "token-verification"
+        feature = "certified-proof-verification"
     ))]
     pub(crate) fn new(
         claims: PortableClaims,

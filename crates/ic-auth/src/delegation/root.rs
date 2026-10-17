@@ -1,4 +1,4 @@
-use super::{RootKeyPolicy, TokenVerificationError, binding, window};
+use super::{DelegationProofError, RootKeyPolicy, binding, window};
 use crate::canonical::{
     chain_key_batch_header_hash, chain_key_delegation_cert_hash, chain_key_derivation_path_hash,
 };
@@ -12,7 +12,7 @@ pub(super) fn verify(
     policy: &RootKeyPolicy,
     now_ns: u64,
     max_future_skew_ns: u64,
-) -> Result<(), TokenVerificationError> {
+) -> Result<(), DelegationProofError> {
     let RootProof::IcChainKeyBatchSignatureV1(proof) = root;
     let header = &proof.header;
     let leaf = &proof.delegation_cert;
@@ -81,25 +81,25 @@ pub(super) fn verify(
     // an enrollment mismatch. Consumers project this cause without rechecking
     // submitted metadata; neither rejection establishes verified authority.
     if signature.algorithm != header.algorithm {
-        return Err(TokenVerificationError::RootSignatureBindingMismatch { field: "algorithm" });
+        return Err(DelegationProofError::RootSignatureBindingMismatch { field: "algorithm" });
     }
     if header.algorithm != policy.algorithm {
-        return Err(TokenVerificationError::RootKeyPolicyBindingMismatch { field: "algorithm" });
+        return Err(DelegationProofError::RootKeyPolicyBindingMismatch { field: "algorithm" });
     }
     if signature.key_id != header.key_id {
-        return Err(TokenVerificationError::RootSignatureBindingMismatch { field: "key_id" });
+        return Err(DelegationProofError::RootSignatureBindingMismatch { field: "key_id" });
     }
     if header.key_id != policy.key_id {
-        return Err(TokenVerificationError::RootKeyPolicyBindingMismatch { field: "key_id" });
+        return Err(DelegationProofError::RootKeyPolicyBindingMismatch { field: "key_id" });
     }
     binding(signature.public_key == policy.public_key, "root_public_key")?;
     if chain_key_derivation_path_hash(&signature.derivation_path)? != header.derivation_path_hash {
-        return Err(TokenVerificationError::RootSignatureBindingMismatch {
+        return Err(DelegationProofError::RootSignatureBindingMismatch {
             field: "derivation_path_hash",
         });
     }
     if header.derivation_path_hash != policy.derivation_path_hash {
-        return Err(TokenVerificationError::RootKeyPolicyBindingMismatch {
+        return Err(DelegationProofError::RootKeyPolicyBindingMismatch {
             field: "derivation_path_hash",
         });
     }
@@ -122,12 +122,12 @@ pub(super) fn verify(
         ),
     ] {
         if found < minimum {
-            return Err(TokenVerificationError::StaleAuthority { field });
+            return Err(DelegationProofError::StaleAuthority { field });
         }
     }
     let ttl_ns = header.expires_at_ns - header.not_before_ns;
     if ttl_ns > policy.max_revocation_latency_ns {
-        return Err(TokenVerificationError::TtlExceeded {
+        return Err(DelegationProofError::TtlExceeded {
             target: "batch",
             ttl_ns,
             max_ttl_ns: policy.max_revocation_latency_ns,
@@ -135,7 +135,7 @@ pub(super) fn verify(
     }
     let leaf_hash = chain_key_delegation_cert_hash(leaf)?;
     if witness_root(leaf_hash, &proof.issuer_witness) != header.tree_root {
-        return Err(TokenVerificationError::InvalidMerkleWitness);
+        return Err(DelegationProofError::InvalidMerkleWitness);
     }
     let ChainKeyAlgorithm::EcdsaSecp256k1 = signature.algorithm;
     let material = VerificationMaterial::parse(&policy.public_key, &signature.signature)
@@ -145,11 +145,11 @@ pub(super) fn verify(
         .map_err(signature_error)
 }
 
-fn signature_error(error: ChainKeySignatureError) -> TokenVerificationError {
+fn signature_error(error: ChainKeySignatureError) -> DelegationProofError {
     match error {
-        ChainKeySignatureError::HighSSignature => TokenVerificationError::HighSSignature,
+        ChainKeySignatureError::HighSSignature => DelegationProofError::HighSSignature,
         ChainKeySignatureError::MalformedPublicKey
         | ChainKeySignatureError::MalformedSignature
-        | ChainKeySignatureError::InvalidSignature => TokenVerificationError::RootSignatureInvalid,
+        | ChainKeySignatureError::InvalidSignature => DelegationProofError::RootSignatureInvalid,
     }
 }

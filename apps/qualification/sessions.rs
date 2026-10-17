@@ -16,9 +16,9 @@ pub struct ReceiverConfig {
     pub verification_burst: u32,
     pub verification_refill_ns: u64,
 }
-#[derive(Clone, CandidType, Deserialize)]
+#[derive(Clone)]
 pub struct SessionInput {
-    pub credential: Candid<PortableCredential>,
+    pub credential: PortableCredential,
     pub scopes: Vec<String>,
     pub ttl_secs: Option<u64>,
 }
@@ -79,8 +79,8 @@ pub struct RootEnrollment {
     pub accept_until_ns: u64,
     pub max_revocation_latency_ns: u64,
 }
-impl From<&ic_auth::token::RootKeyPolicy> for RootEnrollment {
-    fn from(policy: &ic_auth::token::RootKeyPolicy) -> Self {
+impl From<&ic_auth::delegation::RootKeyPolicy> for RootEnrollment {
+    fn from(policy: &ic_auth::delegation::RootKeyPolicy) -> Self {
         Self {
             root_canister_id: policy.root_canister_id,
             algorithm: policy.algorithm.into(),
@@ -98,8 +98,8 @@ impl From<&ic_auth::token::RootKeyPolicy> for RootEnrollment {
     }
 }
 impl RootEnrollment {
-    pub fn policy(&self) -> ic_auth::token::RootKeyPolicy {
-        ic_auth::token::RootKeyPolicy {
+    pub fn policy(&self) -> ic_auth::delegation::RootKeyPolicy {
+        ic_auth::delegation::RootKeyPolicy {
             root_canister_id: self.root_canister_id,
             algorithm: self.algorithm.0,
             key_id: self.key_id.0.clone(),

@@ -30,9 +30,10 @@ jq -n --arg fixture "$fixture" --arg version "$version" '{
         {id: "consumer", name: "ic-auth-msrv-consumer", version: "0.0.0", source: null, manifest_path: ($fixture + "/Cargo.toml")},
         {id: "auth", name: "ic-auth", version: $version, source: null, manifest_path: ($fixture + "/ic-auth-" + $version + "/Cargo.toml")},
         {id: "types", name: "ic-auth-protocol-types", version: $version, source: null, manifest_path: ($fixture + "/ic-auth-protocol-types-" + $version + "/Cargo.toml")},
+        {id: "wire", name: "ic-auth-wire", version: $version, source: null, manifest_path: ($fixture + "/ic-auth-wire-" + $version + "/Cargo.toml")},
         {id: "external", name: "external", version: "1.0.0", source: "registry+https://github.com/rust-lang/crates.io-index"}
     ],
-    resolve: {root: "consumer", nodes: [{id: "consumer"}, {id: "auth"}, {id: "types"}, {id: "external"}]}
+    resolve: {root: "consumer", nodes: [{id: "consumer"}, {id: "auth"}, {id: "types"}, {id: "wire"}, {id: "external"}]}
 }' > "$fixture/base-metadata.json"
 cp "$fixture/base.lock" "$fixture/Cargo.lock"
 cp "$fixture/base-metadata.json" "$fixture/metadata.json"
@@ -47,6 +48,9 @@ reject_graph() {
 }
 reject_graph registry-auth '.packages[1].source = "registry+https://github.com/rust-lang/crates.io-index"'
 reject_graph live-types '.packages[2].manifest_path = "/live-workspace/crates/ic-auth-protocol-types/Cargo.toml"'
+reject_graph registry-wire '.packages[3].source = "registry+https://github.com/rust-lang/crates.io-index"'
+reject_graph live-wire '.packages[3].manifest_path = "/live-workspace/crates/ic-auth-wire/Cargo.toml"'
+reject_graph missing-wire '.packages |= map(select(.id != "wire"))'
 reject_graph wrong-version '.packages[1].version = "0.3.4"'
 reject_graph wrong-name '.packages[2].name = "other-types"'
 reject_graph duplicate-types '.packages += [.packages[2]]'
@@ -56,7 +60,7 @@ reject_graph wrong-root '.resolve.root = "auth"'
 reject_graph live-root '.packages[0].manifest_path = "/live-workspace/Cargo.toml"'
 reject_graph extra-local '.packages += [{id: "extra", name: "extra", source: null}] | .resolve.nodes += [{id: "extra"}]'
 for forbidden in canic-core toko solana-sdk ic-siws ic-host-fs ic-auth-qualification-contracts ic-auth-tooling ic-testkit pocket-ic ic-cdk ic-stable-structures ic-memory ic-timers; do
-    reject_graph "$forbidden" ".packages[3].name = \"$forbidden\""
+    reject_graph "$forbidden" ".packages[4].name = \"$forbidden\""
 done
 cp "$fixture/base-metadata.json" "$fixture/metadata.json"
 for field in name version source checksum; do

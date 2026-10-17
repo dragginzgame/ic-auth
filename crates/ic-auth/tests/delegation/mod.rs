@@ -1,5 +1,5 @@
 use super::*;
-use ic_auth::token::{
+use ic_auth::delegation::{
     DelegationProofVerificationContext, VerifiedDelegationProof, verify_delegation_proof,
 };
 
@@ -8,28 +8,22 @@ fn context(f: &Fixture) -> DelegationProofVerificationContext<'_> {
         expected_issuer: p(2),
         root_key: &f.policy,
         now_ns: NOW,
-        limits: f.context().limits.into(),
+        limits: f.context().limits,
     }
 }
 
 fn verify(f: &Fixture) -> Result<VerifiedDelegationProof<'_>, Error> {
-    verify_delegation_proof(&f.token.proof, &context(f))
+    verify_delegation_proof(&f.proof, &context(f))
 }
 
 #[test]
 fn root_delegation_authenticates_without_claims_or_an_issuer_signature() {
-    let mut f = Fixture::new();
-    let proof = f.token.proof.clone();
-    // Invalid token-only material has no role in the standalone proof call.
-    f.token.claims.subject = Principal::anonymous();
-    let IssuerProof::IcCanisterSignatureV1(issuer) = &mut f.token.issuer_proof;
-    issuer.signature_cbor.clear();
-    issuer.public_key_der.clear();
+    let f = Fixture::new();
+    let proof = f.proof.clone();
     let result = verify_delegation_proof(&proof, &context(&f)).unwrap();
     assert_eq!(result.certificate(), &proof.cert);
     assert_eq!(result.certificate_hash(), cert_hash(&proof.cert).unwrap());
     assert_eq!(result.expires_at_ns(), 500);
-    assert!(verify_token(&f.token, &f.context()).is_err());
 }
 
 #[test]
@@ -39,7 +33,7 @@ fn expected_issuer_and_independent_root_policy_are_required() {
     for issuer in [p(9), Principal::anonymous()] {
         ctx.expected_issuer = issuer;
         assert_eq!(
-            verify_delegation_proof(&f.token.proof, &ctx).unwrap_err(),
+            verify_delegation_proof(&f.proof, &ctx).unwrap_err(),
             Error::BindingMismatch {
                 field: "issuer_canister_id"
             }
@@ -48,14 +42,14 @@ fn expected_issuer_and_independent_root_policy_are_required() {
     for field in ["root", "issuer"] {
         let mut f = Fixture::new();
         if field == "root" {
-            f.token.proof.cert.root_pid = Principal::anonymous();
+            f.proof.cert.root_pid = Principal::anonymous();
         } else {
-            f.token.proof.cert.issuer_pid = Principal::anonymous();
+            f.proof.cert.issuer_pid = Principal::anonymous();
         }
         assert_eq!(verify(&f).unwrap_err(), Error::AnonymousPrincipal { field });
     }
     let mut f = Fixture::new();
-    f.token.proof.cert.root_pid = p(9);
+    f.proof.cert.root_pid = p(9);
     assert_eq!(
         verify(&f).unwrap_err(),
         Error::BindingMismatch {
@@ -86,19 +80,19 @@ fn certificate_shape_and_canonical_grants_are_checked_before_root_crypto() {
         ),
     ] {
         let mut f = Fixture::new();
-        f.token.proof.cert.grants = grants;
+        f.proof.cert.grants = grants;
         assert_eq!(verify(&f).unwrap_err(), error);
     }
     let mut f = Fixture::new();
-    f.token.proof.cert.issued_at_ns = 101;
+    f.proof.cert.issued_at_ns = 101;
     assert_eq!(
         verify(&f).unwrap_err(),
         Error::BindingMismatch {
             field: "cert_issued_at"
         }
     );
-    f.token.proof.cert.issued_at_ns = 100;
-    f.token.proof.cert.issuer_proof_binding_hash[0] ^= 1;
+    f.proof.cert.issued_at_ns = 100;
+    f.proof.cert.issuer_proof_binding_hash[0] ^= 1;
     assert_eq!(
         verify(&f).unwrap_err(),
         Error::BindingMismatch {
@@ -113,10 +107,10 @@ fn standalone_certificate_ttl_and_time_use_explicit_exact_limits() {
     let mut ctx = context(&f);
     ctx.limits.max_cert_ttl_ns = 400;
     ctx.limits.max_token_ttl_ns = 100;
-    assert!(verify_delegation_proof(&f.token.proof, &ctx).is_ok());
+    assert!(verify_delegation_proof(&f.proof, &ctx).is_ok());
     ctx.limits.max_cert_ttl_ns = 399;
     assert_eq!(
-        verify_delegation_proof(&f.token.proof, &ctx).unwrap_err(),
+        verify_delegation_proof(&f.proof, &ctx).unwrap_err(),
         Error::TtlExceeded {
             target: "certificate",
             ttl_ns: 400,
@@ -126,7 +120,7 @@ fn standalone_certificate_ttl_and_time_use_explicit_exact_limits() {
     ctx.limits.max_cert_ttl_ns = 400;
     ctx.limits.max_token_ttl_ns = 99;
     assert_eq!(
-        verify_delegation_proof(&f.token.proof, &ctx).unwrap_err(),
+        verify_delegation_proof(&f.proof, &ctx).unwrap_err(),
         Error::TtlExceeded {
             target: "max_token_ttl",
             ttl_ns: 100,
@@ -135,33 +129,33 @@ fn standalone_certificate_ttl_and_time_use_explicit_exact_limits() {
     );
     ctx.limits.max_token_ttl_ns = 100;
     ctx.now_ns = 90;
-    assert!(verify_delegation_proof(&f.token.proof, &ctx).is_ok());
+    assert!(verify_delegation_proof(&f.proof, &ctx).is_ok());
     ctx.now_ns = 89;
     assert_eq!(
-        verify_delegation_proof(&f.token.proof, &ctx).unwrap_err(),
+        verify_delegation_proof(&f.proof, &ctx).unwrap_err(),
         Error::NotYetValid {
             target: "certificate"
         }
     );
     ctx.now_ns = 499;
-    assert!(verify_delegation_proof(&f.token.proof, &ctx).is_ok());
+    assert!(verify_delegation_proof(&f.proof, &ctx).is_ok());
     ctx.now_ns = 500;
     assert_eq!(
-        verify_delegation_proof(&f.token.proof, &ctx).unwrap_err(),
+        verify_delegation_proof(&f.proof, &ctx).unwrap_err(),
         Error::Expired {
             target: "certificate"
         }
     );
     ctx.now_ns = u64::MAX;
     assert_eq!(
-        verify_delegation_proof(&f.token.proof, &ctx).unwrap_err(),
+        verify_delegation_proof(&f.proof, &ctx).unwrap_err(),
         Error::Expired {
             target: "certificate"
         }
     );
     for end in [99, 100] {
         let mut f = Fixture::new();
-        f.token.proof.cert.expires_at_ns = end;
+        f.proof.cert.expires_at_ns = end;
         assert_eq!(
             verify(&f).unwrap_err(),
             Error::InvalidWindow {
@@ -170,15 +164,15 @@ fn standalone_certificate_ttl_and_time_use_explicit_exact_limits() {
         );
     }
     let mut f = Fixture::new();
-    f.token.proof.cert.max_token_ttl_ns = 0;
+    f.proof.cert.max_token_ttl_ns = 0;
     assert_eq!(
         verify(&f).unwrap_err(),
         Error::InvalidWindow {
             target: "max_token_ttl"
         }
     );
-    f.token.proof.cert.expires_at_ns = 190;
-    f.token.proof.cert.max_token_ttl_ns = 100;
+    f.proof.cert.expires_at_ns = 190;
+    f.proof.cert.max_token_ttl_ns = 100;
     assert_eq!(
         verify(&f).unwrap_err(),
         Error::TtlExceeded {
@@ -206,16 +200,16 @@ fn every_variable_proof_component_and_witness_count_is_bounded_before_validation
         + "delegation".len();
     ctx.limits.max_variable_bytes = bytes;
     ctx.limits.max_witness_steps = 2;
-    assert!(verify_delegation_proof(&f.token.proof, &ctx).is_ok());
+    assert!(verify_delegation_proof(&f.proof, &ctx).is_ok());
     ctx.limits.max_variable_bytes -= 1;
     assert_eq!(
-        verify_delegation_proof(&f.token.proof, &ctx).unwrap_err(),
+        verify_delegation_proof(&f.proof, &ctx).unwrap_err(),
         Error::InputTooLarge
     );
     ctx.limits.max_variable_bytes = usize::MAX;
     ctx.limits.max_witness_steps = 1;
     assert_eq!(
-        verify_delegation_proof(&f.token.proof, &ctx).unwrap_err(),
+        verify_delegation_proof(&f.proof, &ctx).unwrap_err(),
         Error::InputTooLarge
     );
     for field in [
@@ -230,9 +224,9 @@ fn every_variable_proof_component_and_witness_count_is_bounded_before_validation
         "witness",
     ] {
         let mut f = Fixture::new();
-        let RootProof::IcChainKeyBatchSignatureV1(root) = &mut f.token.proof.root_proof;
+        let RootProof::IcChainKeyBatchSignatureV1(root) = &mut f.proof.root_proof;
         match field {
-            "cert_grants" => f.token.proof.cert.grants[0].scopes.push("a".repeat(2000)),
+            "cert_grants" => f.proof.cert.grants[0].scopes.push("a".repeat(2000)),
             "leaf_grants" => root.delegation_cert.grants[0].scopes.push("a".repeat(2000)),
             "header_key" => root.header.key_id.name = "a".repeat(2000),
             "signature_key" => root.signature.key_id.name = "a".repeat(2000),
@@ -249,7 +243,7 @@ fn every_variable_proof_component_and_witness_count_is_bounded_before_validation
         ctx.limits.max_variable_bytes = 1000;
         ctx.limits.max_witness_steps = usize::MAX;
         assert_eq!(
-            verify_delegation_proof(&f.token.proof, &ctx).unwrap_err(),
+            verify_delegation_proof(&f.proof, &ctx).unwrap_err(),
             Error::InputTooLarge,
             "{field}"
         );
@@ -300,7 +294,7 @@ fn previously_valid_root_proof_is_rejected_after_live_policy_changes() {
 }
 
 #[test]
-fn standalone_and_complete_token_share_root_rejection_contracts() {
+fn root_rejection_contracts_cover_bound_metadata_and_crypto() {
     for (field, error) in [
         (
             "schema",
@@ -383,7 +377,7 @@ fn standalone_and_complete_token_share_root_rejection_contracts() {
         ("signature", Error::RootSignatureInvalid),
     ] {
         let mut f = Fixture::new();
-        let RootProof::IcChainKeyBatchSignatureV1(root) = &mut f.token.proof.root_proof;
+        let RootProof::IcChainKeyBatchSignatureV1(root) = &mut f.proof.root_proof;
         match field {
             "schema" => root.header.schema_version = 2,
             "root" => root.header.root_canister_id = p(9),
@@ -413,11 +407,6 @@ fn standalone_and_complete_token_share_root_rejection_contracts() {
             _ => root.signature.signature[0] ^= 1,
         }
         assert_eq!(verify(&f).unwrap_err(), error, "standalone {field}");
-        assert_eq!(
-            verify_token(&f.token, &f.context()).unwrap_err(),
-            error,
-            "token {field}"
-        );
     }
 }
 
@@ -425,12 +414,12 @@ fn standalone_and_complete_token_share_root_rejection_contracts() {
 fn real_root_signature_requires_valid_sec1_scalars_and_low_s() {
     for signature in [vec![0; 64], vec![1; 63], vec![0xff; 64]] {
         let mut f = Fixture::new();
-        let RootProof::IcChainKeyBatchSignatureV1(root) = &mut f.token.proof.root_proof;
+        let RootProof::IcChainKeyBatchSignatureV1(root) = &mut f.proof.root_proof;
         root.signature.signature = signature;
         assert_eq!(verify(&f).unwrap_err(), Error::RootSignatureInvalid);
     }
     let mut f = Fixture::new();
-    let RootProof::IcChainKeyBatchSignatureV1(root) = &mut f.token.proof.root_proof;
+    let RootProof::IcChainKeyBatchSignatureV1(root) = &mut f.proof.root_proof;
     let sig = Signature::from_slice(&root.signature.signature).unwrap();
     let (r, s) = sig.split_scalars();
     root.signature.signature = Signature::from_scalars(r.to_bytes(), (-*s).to_bytes())
@@ -440,7 +429,7 @@ fn real_root_signature_requires_valid_sec1_scalars_and_low_s() {
     assert_eq!(verify(&f).unwrap_err(), Error::HighSSignature);
     let mut f = Fixture::new();
     f.policy.public_key = vec![0; 33];
-    let RootProof::IcChainKeyBatchSignatureV1(root) = &mut f.token.proof.root_proof;
+    let RootProof::IcChainKeyBatchSignatureV1(root) = &mut f.proof.root_proof;
     root.signature.public_key = f.policy.public_key.clone();
     assert_eq!(verify(&f).unwrap_err(), Error::RootSignatureInvalid);
 }
@@ -448,14 +437,14 @@ fn real_root_signature_requires_valid_sec1_scalars_and_low_s() {
 #[test]
 fn root_authorized_other_issuer_still_cannot_install_on_this_host() {
     let mut f = Fixture::new();
-    f.token.proof.cert.issuer_pid = p(9);
-    f.token.proof.cert.issuer_proof_binding_hash = issuer_proof_binding_hash(
+    f.proof.cert.issuer_pid = p(9);
+    f.proof.cert.issuer_proof_binding_hash = issuer_proof_binding_hash(
         p(9),
-        f.token.proof.cert.issuer_proof_alg,
-        f.token.proof.cert.issuer_proof_binding,
+        f.proof.cert.issuer_proof_alg,
+        f.proof.cert.issuer_proof_binding,
     )
     .unwrap();
-    f.token.proof.root_proof = root_proof(&f.token.proof.cert, &f.policy);
+    f.proof.root_proof = root_proof(&f.proof.cert, &f.policy);
     assert_eq!(
         verify(&f).unwrap_err(),
         Error::BindingMismatch {
@@ -464,7 +453,7 @@ fn root_authorized_other_issuer_still_cannot_install_on_this_host() {
     );
     let mut ctx = context(&f);
     ctx.expected_issuer = p(9);
-    assert!(verify_delegation_proof(&f.token.proof, &ctx).is_ok());
+    assert!(verify_delegation_proof(&f.proof, &ctx).is_ok());
 }
 
 #[test]
@@ -505,7 +494,7 @@ fn root_and_leaf_windows_cannot_override_the_certificate_or_enrollment() {
         ),
     ] {
         let mut f = Fixture::new();
-        let RootProof::IcChainKeyBatchSignatureV1(root) = &mut f.token.proof.root_proof;
+        let RootProof::IcChainKeyBatchSignatureV1(root) = &mut f.proof.root_proof;
         match field {
             "batch_start" => root.header.not_before_ns = NOW + 11,
             "batch_end" => root.header.expires_at_ns = NOW,
@@ -517,11 +506,6 @@ fn root_and_leaf_windows_cannot_override_the_certificate_or_enrollment() {
             _ => f.policy.valid_from_ns = f.policy.accept_until_ns,
         }
         assert_eq!(verify(&f).unwrap_err(), error, "{field}");
-        assert_eq!(
-            verify_token(&f.token, &f.context()).unwrap_err(),
-            error,
-            "token {field}"
-        );
     }
 }
 
@@ -529,14 +513,10 @@ fn root_and_leaf_windows_cannot_override_the_certificate_or_enrollment() {
 fn certificate_issue_metadata_is_checked_but_not_part_of_the_signed_root_leaf() {
     let mut f = Fixture::new();
     let hash = verify(&f).unwrap().certificate_hash();
-    f.token.proof.cert.issued_at_ns = 99;
+    f.proof.cert.issued_at_ns = 99;
     let result = verify(&f).unwrap();
     assert_ne!(hash, result.certificate_hash());
-    assert_eq!(
-        result.certificate_hash(),
-        cert_hash(&f.token.proof.cert).unwrap()
-    );
+    assert_eq!(result.certificate_hash(), cert_hash(&f.proof.cert).unwrap());
     // This changes the certificate hash but not the authority signed by the root.
-    // A complete token still binds the exact certificate, including this metadata.
-    f.assert_error(Error::BindingMismatch { field: "cert_hash" });
+    // Portable claims bind the exact certificate separately through key_binding_id.
 }

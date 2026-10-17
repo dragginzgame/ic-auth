@@ -140,31 +140,22 @@ is replaced or bypassed in production code.
 
 ## Evidence and limits
 
-The complete-token scenario joins the public bounded Merkle constructor,
-native test-key ECDSA root signing and an actual Testkit-certified issuer proof
-with `token::verify_token`. It verifies the narrowed local grant, then rejects
-the same token after changing caller, audience, scope ceiling, root-policy
-deadline, key/proof/registry floors or network trust anchor. Advancing the actual
-Testkit clock makes the issuer certificate stale while the claims remain valid.
-After actual upgrade, pending retrieval rejects; controller-authorized
-re-preparation of the unchanged claims verifies again with the same issuer
-identity and preserved composed asset state. See
-[Auth #18](https://github.com/dragginzgame/ic-auth/issues/18).
+The certified portable scenario joins the public bounded Merkle constructor,
+native test-key ECDSA Root signing and an actual Testkit-certified issuer proof
+with `portable_certified::verify_certified_claims`. It creates portable claims
+directly, keeping account subject distinct from the fresh browser principal.
+Caller/audience/grant ceilings, enrollment expiry, key/proof/registry floors and
+network-key changes refuse. Advancing Testkit time makes the certificate stale
+while claims remain valid. Actual upgrade clears pending retrieval; authorized
+re-preparation signs the unchanged claims with the same issuer and preserved asset
+state. No retired token preparation or verification API is involved.
 
-Released 0.4.2 routes that scenario through public
-[token preparation and finishing](token-preparation.md): explicit host authority,
-presenter, operation, clock and bounds produce the canonical signing hash; the
-actual retrieved certified issuer proof is then attached. Subsequent live-policy,
-certificate freshness and upgrade assertions still use complete verification.
-This exercises the producer API requested in
-[Auth #25](https://github.com/dragginzgame/ic-auth/issues/25).
-
-The same certified token, retrieved after issuer upgrade, also passes through
+The same certified proof, retrieved after issuer upgrade, also passes through
 `session::establish_session` and `session::authorize_session` against the bounded
 volatile reference store. A different network trust anchor or ungranted narrowing
-request rejects without consuming the proof; admission of the identical token
+request rejects without consuming the proof; admission of the identical portable credential
 then succeeds. Advancing the actual Testkit clock beyond claims expiry rejects
-fresh token verification, while exact retry returns the still-live session with
+fresh proof verification, while exact retry returns the still-live session with
 its original deadline and unchanged storage occupancy. A narrowed protected
 scope ceiling or advanced generation rejects authorization and retry. Logout
 preserves replay refusal, including after generation invalidation.
@@ -319,19 +310,14 @@ receiver, then supplies one signed portable credential. The injected issuer
 operation returns that prepared credential only after the coordinator commits
 its unknown-issuance marker; there is no production issuer network operation.
 
-The private adapter maps the reference `SessionInput` in
-[the fixture contracts](../apps/qualification/sessions.rs), using fixture-only
-[generated bindings](../packages/client/test/qualification/generated/canister.did.ts)
-for the input, view and result union. The compiled canister's exported Candid is
-extracted by the explicitly prepared pinned tool, then passed to locked SDK
-bindgen. Qualification checks both checked-in outputs before compiling the Node
-driver. Wasm identities are compared before/after generation; a mismatch refuses.
-These declarations stay under test infrastructure, outside public protocol/client
-exports. To update them intentionally after changing the Rust host:
+The private adapter uses `ic-auth-wire`'s shared admission/read/logout contracts
+and their generated TypeScript. The reference export checks argument length before
+CDK copying, decodes bounded Wire input before handling state, and encodes the reply
+under the same method identity. Only the private controller/certificate fixture
+uses Candid. Generate client codecs explicitly after changing Rust layouts:
 
 ```sh
-make build-qualification-canister
-bash scripts/dev/qualification-contracts.sh generate
+make generate-client-contracts
 ```
 
 Ordinary qualification uses `check`, never `generate`, and refuses stale bindings

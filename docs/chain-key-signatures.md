@@ -50,13 +50,13 @@ normalize untrusted proofs as an acceptance shortcut.
 
 ## Complete verification and qualification
 
-The complete [Root/token verifier](tokens.md) reuses the same parsed-material
+The complete [Root delegation verifier](delegation.md) reuses the same parsed-material
 boundary after its existing protected policy, binding, time and witness checks.
 It preserves `RootSignatureInvalid` for malformed/invalid material and
 `HighSSignature` for high-S signatures. Parsing remains before canonical header
 hash evaluation; signed bytes and existing rejection ordering are unchanged.
 
-`token-verification` enables both `chain-key-verification` and
+`certified-proof-verification` enables both `chain-key-verification` and
 `canister-signature-verification`. The isolated chain-key feature adds K256
 without certificate verification, CDK, storage or host tooling. It performs no
 management call, signing, clock acquisition or runtime write. Default features
@@ -65,8 +65,8 @@ remain empty.
 `make test-chain-key-signatures` exercises real keys/signatures, compressed and
 uncompressed controls, changed hash/key/signature, malformed encodings/scalars,
 high-S refusal, explicit normalization/idempotence and rejection precedence.
-`make test-tokens` retains complete
-proof controls and shared standalone/token rejection checks. Native/Wasm,
+`make test-certified-proofs` retains complete
+portable certified proofs and standalone Root rejection checks. Native/Wasm,
 isolated package MSRV and dependency-boundary checks include the new capability.
 
 With published 0.4.7, Canic can forward its existing ECDSA capability to

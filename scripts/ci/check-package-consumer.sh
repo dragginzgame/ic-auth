@@ -19,7 +19,7 @@ jq -e --arg forbidden "$forbidden" --arg version "$version" --arg fixture "$fixt
     and ([ $packages[] | select(.id == $root) ][0]
         | .name == "ic-auth-msrv-consumer" and .version == "0.0.0"
         and .source == null and .manifest_path == ($fixture + "/Cargo.toml"))
-    and all(["ic-auth", "ic-auth-protocol-types"][];
+    and all(["ic-auth", "ic-auth-protocol-types", "ic-auth-wire"][];
         . as $name
         | [ $packages[] | select(.name == $name) ] as $selected
         | ($selected | length == 1)
@@ -27,7 +27,7 @@ jq -e --arg forbidden "$forbidden" --arg version "$version" --arg fixture "$fixt
             and $selected[0].manifest_path == ($fixture + "/" + $name + "-" + $version + "/Cargo.toml")))
     and all($packages[]; . as $package | $resolved | index($package.id) != null)
     and all($packages[] | select(.source == null);
-        .name == "ic-auth-msrv-consumer" or .name == "ic-auth" or .name == "ic-auth-protocol-types")
+        .name == "ic-auth-msrv-consumer" or .name == "ic-auth" or .name == "ic-auth-protocol-types" or .name == "ic-auth-wire")
     and all($packages[];
         (.name | test($forbidden)) | not)
 ' "$fixture/metadata.json" > /dev/null || {

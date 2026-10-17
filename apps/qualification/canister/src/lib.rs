@@ -14,10 +14,7 @@ use std::cell::RefCell;
 
 mod sessions;
 mod storage;
-use ic_auth_protocol_types::{LogoutRequest, LogoutResult};
-use sessions::contract::{
-    AdmissionProfile, ReceiverConfig, SessionInput, SessionProfile, SessionView,
-};
+use sessions::contract::{ReceiverConfig, SessionProfile};
 
 /// Stable metadata belongs to this fixture's host. Pending signatures are
 /// deliberately volatile; upgrade clears them and republishes the combined root.

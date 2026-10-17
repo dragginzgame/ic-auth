@@ -1,4 +1,4 @@
-//! Canonical signed bytes for the existing Canic application-token protocol.
+//! Canonical signed bytes for Root delegations, proofs and role identities.
 //! Domains and tags are protocol identities, not package branding.
 //! This module does not verify signatures, authority, validity or caller binding.
 
@@ -12,18 +12,14 @@ const CHAIN_KEY_BATCH_HEADER_DOMAIN: &[u8] = b"CANIC_ROOT_DELEGATION_CHAIN_KEY_B
 const CHAIN_KEY_DELEGATION_CERT_DOMAIN: &[u8] = b"CANIC_ROOT_DELEGATION_CHAIN_KEY_ISSUER_LEAF_V1";
 const CHAIN_KEY_DERIVATION_PATH_DOMAIN: &[u8] =
     b"CANIC_ROOT_DELEGATION_CHAIN_KEY_DERIVATION_PATH_V1";
-/// Largest extension admitted by the existing application-token protocol.
-pub const MAX_TOKEN_EXT_BYTES: usize = 4096;
 
 // Domain byte assigned to one delegated-auth canonical payload family.
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum CanonicalDomain {
     DelegationCert = 1,
-    DelegatedTokenClaims = 2,
     DelegationProof = 3,
     RoleHash = 4,
-    IssuerProof = 6,
 }
 
 ///
@@ -44,8 +40,6 @@ pub enum CanonicalAuthError {
     NonCanonicalScopes,
     #[error("delegated auth role grants must be strictly sorted and unique")]
     NonCanonicalRoles,
-    #[error("delegated auth token ext is {len} bytes and exceeds max {max} bytes")]
-    TokenExtTooLarge { len: usize, max: usize },
 }
 
 /// Hash the canonical delegation certificate; this does not authenticate it.
@@ -53,19 +47,9 @@ pub fn cert_hash(cert: &DelegationCert) -> Result<[u8; 32], CanonicalAuthError> 
     Ok(hash_bytes(&cert_bytes(cert)?))
 }
 
-/// Hash canonical claims, rejecting noncanonical grants and oversized extensions.
-pub fn claims_hash(claims: &DelegatedTokenClaims) -> Result<[u8; 32], CanonicalAuthError> {
-    Ok(hash_bytes(&claims_bytes(claims)?))
-}
-
 /// Hash a certificate together with its complete root proof.
 pub fn proof_hash(proof: &DelegationProof) -> Result<[u8; 32], CanonicalAuthError> {
     Ok(hash_bytes(&proof_bytes(proof)?))
-}
-
-/// Hash issuer signature bytes together with their public key.
-pub fn issuer_proof_hash(proof: &IssuerProof) -> Result<[u8; 32], CanonicalAuthError> {
-    Ok(hash_bytes(&issuer_proof_bytes(proof)?))
 }
 
 /// Hash a chain-key batch header under its existing signed domain.
@@ -139,36 +123,12 @@ fn encode_cert(out: &mut Vec<u8>, cert: &DelegationCert) -> Result<(), Canonical
     Ok(())
 }
 
-/// Encode claims exactly, including presenter, audience, nonce and extension presence.
-pub fn claims_bytes(claims: &DelegatedTokenClaims) -> Result<Vec<u8>, CanonicalAuthError> {
-    let mut out = domain_bytes(CanonicalDomain::DelegatedTokenClaims);
-
-    encode_principal(&mut out, claims.presenter)?;
-    encode_principal(&mut out, claims.subject)?;
-    encode_principal(&mut out, claims.issuer_pid)?;
-    encode_fixed_32(&mut out, claims.cert_hash);
-    encode_u64(&mut out, claims.issued_at_ns);
-    encode_u64(&mut out, claims.expires_at_ns);
-    encode_audience(&mut out, &claims.aud);
-    encode_role_grants(&mut out, &claims.grants)?;
-    out.extend_from_slice(&claims.nonce);
-    encode_token_ext(&mut out, claims.ext.as_deref())?;
-
-    Ok(out)
-}
-
 fn proof_bytes(proof: &DelegationProof) -> Result<Vec<u8>, CanonicalAuthError> {
     let mut out = domain_bytes(CanonicalDomain::DelegationProof);
 
     encode_cert(&mut out, &proof.cert)?;
     encode_root_proof(&mut out, &proof.root_proof)?;
 
-    Ok(out)
-}
-
-fn issuer_proof_bytes(proof: &IssuerProof) -> Result<Vec<u8>, CanonicalAuthError> {
-    let mut out = domain_bytes(CanonicalDomain::IssuerProof);
-    encode_issuer_proof(&mut out, proof)?;
     Ok(out)
 }
 
@@ -357,17 +317,6 @@ fn encode_chain_key_key_id(
     Ok(())
 }
 
-fn encode_issuer_proof(out: &mut Vec<u8>, proof: &IssuerProof) -> Result<(), CanonicalAuthError> {
-    match proof {
-        IssuerProof::IcCanisterSignatureV1(proof) => {
-            out.push(1);
-            encode_bytes(out, &proof.signature_cbor)?;
-            encode_bytes(out, &proof.public_key_der)?;
-        }
-    }
-    Ok(())
-}
-
 fn encode_issuer_proof_binding(out: &mut Vec<u8>, binding: IssuerProofBinding) {
     match binding {
         IssuerProofBinding::IcCanisterSignatureV1 { seed_hash } => {
@@ -375,23 +324,6 @@ fn encode_issuer_proof_binding(out: &mut Vec<u8>, binding: IssuerProofBinding) {
             encode_fixed_32(out, seed_hash);
         }
     }
-}
-
-fn encode_token_ext(out: &mut Vec<u8>, ext: Option<&[u8]>) -> Result<(), CanonicalAuthError> {
-    match ext {
-        Some(ext) => {
-            if ext.len() > MAX_TOKEN_EXT_BYTES {
-                return Err(CanonicalAuthError::TokenExtTooLarge {
-                    len: ext.len(),
-                    max: MAX_TOKEN_EXT_BYTES,
-                });
-            }
-            out.push(1);
-            encode_bytes(out, ext)?;
-        }
-        None => out.push(0),
-    }
-    Ok(())
 }
 
 fn encode_role(out: &mut Vec<u8>, role: &AuthRole) -> Result<(), CanonicalAuthError> {

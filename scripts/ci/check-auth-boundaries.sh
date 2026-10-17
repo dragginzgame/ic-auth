@@ -5,7 +5,7 @@ set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/../.."
 source scripts/ci/auth-dependency-policy.sh
 export CARGO_NET_OFFLINE=true RUSTUP_AUTO_INSTALL=0
-for package in ic-auth-protocol-types ic-auth; do
+for package in ic-auth-protocol-types ic-auth ic-auth-wire; do
     graph="$(cargo tree --locked --offline -p "$package" --no-default-features --edges normal,build --prefix none --format '{p}')"
     if printf '%s\n' "$graph" | rg "$(auth_dependency_pattern default)"; then
         echo "$package pulls Candid, product, wallet or native host dependencies into the default graph" >&2
@@ -23,7 +23,7 @@ done
 # The selected authentication capabilities must remain free of product, wallet,
 # host tooling and service-owned storage dependencies too. Upstream IC key
 # parsing includes ic0 transitively; verification performs no runtime calls.
-for feature in portable-signature-verification chain-key-verification canister-signature-verification canister-signature-preparation token-verification sessions session-restore sessions,portable-signature-verification; do
+for feature in portable-signature-verification chain-key-verification canister-signature-verification canister-signature-preparation certified-proof-verification sessions session-restore sessions,portable-signature-verification; do
     graph="$(cargo tree --locked --offline -p ic-auth --no-default-features --features "$feature" --edges normal,build --prefix none --format '{p}')"
     if printf '%s\n' "$graph" | rg "$(auth_dependency_pattern capability)"; then
         echo "$feature pulls product, wallet, native host or runtime/storage dependencies" >&2

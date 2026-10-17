@@ -1,7 +1,7 @@
 import { boundedCall } from './bounded-call.js';
 import { Principal } from '@icp-sdk/core/principal';
 import type { Identity } from '@icp-sdk/core/agent';
-import type { LogoutResult } from './generated/protocol.did.js';
+import type { LogoutResult } from './codec.js';
 import { ClientError } from './contracts.js';
 import { IndexedDbLogoutStore, MAX_ATTEMPTS, MAX_TARGETS, type LogoutJournal } from './logout-store.js';
 
@@ -199,9 +199,9 @@ export class PortableLogoutClient {
         const target = record.targets.find(t => t.canister === claim.canister)!;
         if (target.attempts !== claim.attempt || record.busyUntilNs !== claim.lease) return;
         record.busyUntilNs = 0n;
-        if (response && 'Revoked' in response && typeof response.Revoked.deny_until_ns === 'bigint'
-          && response.Revoked.deny_until_ns > 0n && response.Revoked.deny_until_ns <= (1n << 64n) - 1n) {
-          target.confirmedUntilNs = response.Revoked.deny_until_ns;
+        if (response && response.tag === 'Revoked' && typeof response.value === 'bigint'
+          && response.value > 0n && response.value <= (1n << 64n) - 1n) {
+          target.confirmedUntilNs = response.value;
         } else target.nextNs = now + BigInt(500 + Math.floor(jitter * 1_000)) * MS;
       });
     }

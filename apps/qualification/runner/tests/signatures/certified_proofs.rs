@@ -1,28 +1,30 @@
-//! Consumer-independent complete-token qualification. Root signing uses a native
+//! Consumer-independent portable certified qualification. Root signing uses a native
 //! test key; issuer certification and upgrade use the actual Testkit canister.
 
-use super::{DOMAIN, Fixture, SEED};
+use super::{Fixture, SEED};
 use ic_auth::{
+    admission_budget::SessionAdmissionBudget,
     canister_signature::CanisterSignatureError,
     canonical::{
         chain_key_batch_header_hash, chain_key_delegation_cert_hash,
         chain_key_derivation_path_hash, issuer_proof_binding_hash,
     },
     chain_key_batch::merkle_root_and_witnesses,
-    token::{
-        RootKeyPolicy, TokenVerificationContext, TokenVerificationError as Error,
-        TokenVerificationLimits, verify_token,
+    delegation::{DelegationProofError, RootKeyPolicy},
+    portable::{
+        PortableClaimsContext, PortableClaimsError, browser_principal, claims_hash, encode_claims,
     },
-    token_preparation::{
-        PrepareDelegatedTokenInput, TokenPreparationLimits, finish_delegated_token,
-        prepare_delegated_token,
+    portable_certified::{
+        CERTIFIED_SIGNATURE_DOMAIN, CertifiedProofLimits, PortableCertifiedContext,
+        PortableCertifiedError as Error, verify_certified_claims,
     },
 };
 use ic_auth_protocol_types::{
     AudienceId, AuthRole, CanonicalId, ChainKeyAlgorithm, ChainKeyBatchHeaderV1,
     ChainKeyDelegationCertV1, ChainKeyKeyId, ChainKeyRootSignatureV1, DelegatedRoleGrant,
-    DelegationAudience, DelegationCert, DelegationProof, IcChainKeyBatchSignatureProofV1,
-    IssuerProof, IssuerProofAlgorithm, IssuerProofBinding, RootProof,
+    DelegationAudience, DelegationCert, DelegationProof, IcCanisterSignatureProofV1,
+    IcChainKeyBatchSignatureProofV1, IssuerProofAlgorithm, IssuerProofBinding, PortableClaims,
+    PortableMechanism, RootProof,
 };
 use ic_canister_sig_creation::{IC_ROOT_PK_DER, extract_raw_root_pk_from_der, hash_bytes};
 use k256::ecdsa::{Signature, SigningKey, signature::hazmat::PrehashSigner};
@@ -90,7 +92,7 @@ pub(super) fn root_proof(
 }
 
 #[test]
-fn complete_token_rechecks_live_authority_and_real_certification_after_upgrade() {
+fn portable_proof_rechecks_live_authority_and_real_certification_after_upgrade() {
     let fixture = Fixture::new();
     let started = fixture.now();
     let key = SigningKey::from_slice(&[7; 32]).unwrap();
@@ -151,45 +153,56 @@ fn complete_token_rechecks_live_authority_and_real_certification_after_upgrade()
         root_proof: root_proof(&cert, &key, &policy),
         cert,
     };
-    let prepared = prepare_delegated_token(PrepareDelegatedTokenInput {
-        proof: &proof,
-        authority_expires_at_ns: policy.accept_until_ns,
-        operation_id: [4; 32],
-        prepared_by: fixture.owner,
-        audience: proof.cert.aud.clone(),
+    let browser_key = ed25519_dalek::SigningKey::from_bytes(&[11; 32])
+        .verifying_key()
+        .to_bytes();
+    let claims = PortableClaims {
+        mechanism: PortableMechanism::Certified,
+        audience,
+        issuer: fixture.signer,
+        key_binding_id: ic_auth::canonical::cert_hash(&proof.cert).unwrap(),
+        browser_public_key: browser_key,
+        account_subject: fixture.owner,
+        login_started_at_ns: started,
+        login_deadline_ns: started + 120 * SECOND,
+        issued_at_ns: started,
+        admission_expires_at_ns: started + 60 * SECOND,
+        nonce: [4; 16],
         grants: vec![DelegatedRoleGrant {
             target: role.clone(),
             scopes: vec!["read".into()],
         }],
-        ttl_ns: 60 * SECOND,
-        ext: None,
-        now_ns: started,
-        limits: TokenPreparationLimits {
-            max_grants: 1,
-            max_scopes_per_grant: 1,
-        },
-    })
-    .unwrap();
-    let payload = prepared.claims_hash();
-    fixture.prepare(DOMAIN, &payload, 60 * SECOND).unwrap();
-    let mut token = finish_delegated_token(
-        prepared,
-        IssuerProof::IcCanisterSignatureV1(fixture.retrieve(DOMAIN, &payload).unwrap()),
-    );
-    let unchanged = token.clone();
+    };
+    let encoded = encode_claims(&claims).unwrap();
+    let payload = claims_hash(&claims).unwrap();
+    fixture
+        .prepare(CERTIFIED_SIGNATURE_DOMAIN, &payload, 60 * SECOND)
+        .unwrap();
+    let mut signature = fixture
+        .retrieve(CERTIFIED_SIGNATURE_DOMAIN, &payload)
+        .unwrap();
+    let unchanged = signature.clone();
     let network = extract_raw_root_pk_from_der(&fixture.pic.root_key().unwrap()).unwrap();
-    let allowed = vec!["read".into(), "write".into()];
-    let required = vec!["read".into()];
-    let mut context = TokenVerificationContext {
-        caller: fixture.owner,
-        audience,
-        role: &role,
-        allowed_scopes: &allowed,
-        required_scopes: &required,
+    let mut context = PortableCertifiedContext {
+        claims: PortableClaimsContext {
+            audience: &audience,
+            issuer: fixture.signer,
+            mechanism: PortableMechanism::Certified,
+            key_binding_id: claims.key_binding_id,
+            grants: &proof.cert.grants,
+            caller: browser_principal(&browser_key),
+            now_ns: fixture.now(),
+            authority_not_before_ns: started,
+            authority_expires_at_ns: proof.cert.expires_at_ns,
+            enrollment_expires_at_ns: proof.cert.expires_at_ns,
+            min_login_started_at_ns: 0,
+            min_proof_issued_at_ns: 0,
+            max_login_ttl_ns: 120 * SECOND,
+            max_proof_ttl_ns: 60 * SECOND,
+        },
         root_key: &policy,
         ic_root_public_key_raw: &network,
-        now_ns: fixture.now(),
-        limits: TokenVerificationLimits {
+        limits: CertifiedProofLimits {
             max_cert_ttl_ns: 120 * SECOND,
             max_token_ttl_ns: 60 * SECOND,
             max_future_skew_ns: 0,
@@ -199,97 +212,106 @@ fn complete_token_rechecks_live_authority_and_real_certification_after_upgrade()
             max_witness_steps: 6,
         },
     };
-    let verified = verify_token(&token, &context).unwrap();
-    assert_eq!(verified.claims_hash(), payload);
-    assert_eq!(verified.scopes(), required);
-    assert_eq!(verified.expires_at_ns(), token.claims.expires_at_ns);
-
-    context.caller = fixture.controller;
+    let verify = |signature: &IcCanisterSignatureProofV1,
+                  context: &PortableCertifiedContext<'_>| {
+        verify_certified_claims(
+            &mut SessionAdmissionBudget::new(64, 1, 0).unwrap(),
+            &encoded,
+            &proof,
+            signature,
+            context,
+        )
+    };
+    let verified = verify(&signature, &context).unwrap();
+    assert_eq!(verified.fingerprint(), payload);
+    assert_eq!(verified.claims(), &claims);
+    assert_ne!(context.claims.caller, claims.account_subject);
+    context.claims.caller = fixture.controller;
     assert_eq!(
-        verify_token(&token, &context).unwrap_err(),
-        Error::PresenterMismatch
+        verify(&signature, &context).unwrap_err(),
+        Error::Claims(PortableClaimsError::CallerMismatch)
     );
-    context.caller = fixture.owner;
-    context.audience.fleet_id = CanonicalId::from_bytes([3; 32]);
+    context.claims.caller = browser_principal(&browser_key);
+    let other_audience = AudienceId {
+        fleet_id: CanonicalId::from_bytes([3; 32]),
+        ..audience
+    };
+    context.claims.audience = &other_audience;
     assert_eq!(
-        verify_token(&token, &context).unwrap_err(),
-        Error::AudienceRejected
+        verify(&signature, &context).unwrap_err(),
+        Error::Claims(PortableClaimsError::AudienceMismatch)
     );
-    context.audience = audience;
-    context.allowed_scopes = &[];
+    context.claims.audience = &audience;
+    let narrowed = vec![DelegatedRoleGrant {
+        target: role.clone(),
+        scopes: vec!["write".into()],
+    }];
+    context.claims.grants = &narrowed;
     assert_eq!(
-        verify_token(&token, &context).unwrap_err(),
-        Error::ScopeRejected {
-            scope: "read".into()
-        }
+        verify(&signature, &context).unwrap_err(),
+        Error::Claims(PortableClaimsError::GrantsExceeded)
     );
-    context.allowed_scopes = &allowed;
-
-    let mut changed_policy = policy.clone();
-    changed_policy.accept_until_ns = context.now_ns;
-    context.root_key = &changed_policy;
+    context.claims.grants = &proof.cert.grants;
+    context.claims.enrollment_expires_at_ns = context.claims.now_ns;
     assert_eq!(
-        verify_token(&token, &context).unwrap_err(),
-        Error::Expired {
-            target: "root_key_policy"
-        }
+        verify(&signature, &context).unwrap_err(),
+        Error::Claims(PortableClaimsError::StaleAuthority)
     );
+    context.claims.enrollment_expires_at_ns = proof.cert.expires_at_ns;
     for field in ["key_version", "proof_epoch", "registry_epoch"] {
-        let mut stale_policy = policy.clone();
+        let mut stale = policy.clone();
         match field {
-            "key_version" => stale_policy.min_accepted_key_version += 1,
-            "proof_epoch" => stale_policy.min_accepted_proof_epoch += 1,
-            _ => stale_policy.min_accepted_registry_epoch += 1,
+            "key_version" => stale.min_accepted_key_version += 1,
+            "proof_epoch" => stale.min_accepted_proof_epoch += 1,
+            _ => stale.min_accepted_registry_epoch += 1,
         }
-        let context = TokenVerificationContext {
-            root_key: &stale_policy,
+        let context = PortableCertifiedContext {
+            root_key: &stale,
             ..context
         };
         assert_eq!(
-            verify_token(&token, &context).unwrap_err(),
-            Error::StaleAuthority { field }
+            verify(&signature, &context).unwrap_err(),
+            Error::Delegation(DelegationProofError::StaleAuthority { field })
         );
     }
-    context.root_key = &policy;
     context.ic_root_public_key_raw = &network[..95];
     assert_eq!(
-        verify_token(&token, &context).unwrap_err(),
-        Error::IssuerSignature(CanisterSignatureError::InvalidRootKeyLength)
+        verify(&signature, &context).unwrap_err(),
+        Error::Signature(CanisterSignatureError::InvalidRootKeyLength)
     );
-    context.ic_root_public_key_raw = &network;
-    // A valid BLS trust anchor for another network cannot authenticate this
-    // actual Testkit certificate, even after an earlier successful verification.
     let other_network = extract_raw_root_pk_from_der(IC_ROOT_PK_DER).unwrap();
     assert_ne!(network, other_network);
     context.ic_root_public_key_raw = &other_network;
     assert!(matches!(
-        verify_token(&token, &context),
-        Err(Error::IssuerSignature(
-            CanisterSignatureError::InvalidSignature(_)
-        ))
+        verify(&signature, &context),
+        Err(Error::Signature(CanisterSignatureError::InvalidSignature(
+            _
+        )))
     ));
     context.ic_root_public_key_raw = &network;
-    assert_eq!(token, unchanged);
-
+    assert_eq!(signature, unchanged);
     fixture.pic.advance_time(Duration::from_secs(30));
-    context.now_ns = fixture.now();
+    context.claims.now_ns = fixture.now();
     assert_eq!(
-        verify_token(&token, &context).unwrap_err(),
-        Error::IssuerSignature(CanisterSignatureError::CertificateTooOld)
+        verify(&signature, &context).unwrap_err(),
+        Error::Signature(CanisterSignatureError::CertificateTooOld)
     );
     fixture.set_asset(8);
     fixture.upgrade();
     assert_eq!(fixture.asset_version(), 8);
-    assert!(fixture.retrieve(DOMAIN, &payload).is_err());
-    fixture.prepare(DOMAIN, &payload, 60 * SECOND).unwrap();
-    token.issuer_proof =
-        IssuerProof::IcCanisterSignatureV1(fixture.retrieve(DOMAIN, &payload).unwrap());
-    context.now_ns = fixture.now();
-    assert_eq!(
-        verify_token(&token, &context).unwrap().claims_hash(),
-        payload
+    assert!(
+        fixture
+            .retrieve(CERTIFIED_SIGNATURE_DOMAIN, &payload)
+            .is_err()
     );
-    assert_eq!(token.claims, unchanged.claims);
-    assert_eq!(token.proof, unchanged.proof);
-    super::sessions::qualify_certified(&fixture, &token, &context);
+    fixture
+        .prepare(CERTIFIED_SIGNATURE_DOMAIN, &payload, 60 * SECOND)
+        .unwrap();
+    signature = fixture
+        .retrieve(CERTIFIED_SIGNATURE_DOMAIN, &payload)
+        .unwrap();
+    context.claims.now_ns = fixture.now();
+    assert_eq!(verify(&signature, &context).unwrap().fingerprint(), payload);
+    assert_eq!(encode_claims(&claims).unwrap(), encoded);
+    super::sessions::qualify_certified(&fixture, &proof, &context, &role);
 }

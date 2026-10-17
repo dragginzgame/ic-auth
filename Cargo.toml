@@ -6,6 +6,7 @@ members = [
     "apps/tooling",
     "crates/ic-auth",
     "crates/ic-auth-protocol-types",
+    "crates/ic-auth-wire",
 ]
 resolver = "3"
 
@@ -19,8 +20,8 @@ repository = "https://github.com/dragginzgame/ic-auth"
 
 [workspace.dependencies]
 # Catalog entries select versions; child manifests decide which capabilities link.
-# Candid is confined to internal fixture transport/tooling and the optional
-# upstream IC certificate stack. Public Auth types expose no Candid traits.
+# Candid is confined to internal controller/certificate fixtures and the optional
+# upstream IC certificate stack. Public Auth libraries expose no Candid traits.
 candid = { version = "0.10", default-features = false }
 # Portable Ed25519 verification uses Dalek without IC certificates or BLS.
 # Keep verifier support crates aligned with the IC signature stack (Auth #65).
@@ -30,17 +31,18 @@ ed25519-dalek = { version = "2.2", default-features = false }
 ic-agent = { version = "0.49.2", default-features = false }
 ic-auth = { path = "crates/ic-auth" }
 ic-auth-protocol-types = { version = "0.8.0", path = "crates/ic-auth-protocol-types" }
-# Unpublished Candid projection for existing qualification/browser fixtures only.
+# Unpublished Candid projection for qualification controller/certificate calls only.
 ic-auth-qualification-contracts = { path = "apps/qualification/contracts" }
+ic-auth-wire = { version = "0.8.0", path = "crates/ic-auth-wire" }
 # DFINITY certificate/signature machinery is selected only by those capabilities.
 ic-canister-sig-creation = "1.3.1"
-# CDK belongs to the qualification canister, outside both public library graphs.
+# CDK belongs to the qualification canister, outside all public library graphs.
 ic-cdk = "0.20.3"
 # DFINITY certificate trees, selected only by certified capabilities/fixtures.
 ic-certification = "3.2"
 # DragginzGame host utilities and fixture storage, not DFINITY runtime packages.
-ic-host-fs = { version = "0.25", default-features = false }
-ic-host-process = { version = "0.25", default-features = false }
+ic-host-fs = { version = "0.26", default-features = false }
+ic-host-process = { version = "0.26", default-features = false }
 ic-memory = "0.47"
 # DFINITY verification, absent from portable/session-only library graphs.
 ic-signature-verification = "0.3"
@@ -49,6 +51,9 @@ ic-testkit = "0.51"
 ic-testkit-candid = "0.51"
 # Direct use is test-only; certified verification also reaches it transitively.
 ic-verify-bls-signature = { version = "0.6", default-features = false, features = ["alloc"] }
+ic-wire = "0.3.4"
+# Qualification ingress byte admission before the CDK copies raw arguments.
+ic0 = "1.2.0"
 # DFINITY's narrow identity primitive, shared with platform callers; not Candid.
 ic_principal = { version = "0.1.5", default-features = false, features = ["serde", "self_authenticating"] }
 # Chain-key ECDSA verification uses RustCrypto; it does not require BLS.

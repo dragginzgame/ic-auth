@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Application-token lifecycle for injected authenticated IC identities",
+  "description": "Portable IC Auth session admission and durable logout over IC Wire",
   "license": "MIT",
   "packageManager": "npm@12.2.0",
   "engines": {
@@ -15,14 +15,13 @@
   },
   "types": "./dist/src/index.d.ts",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -b tsconfig.json",
     "test": "npm run build && node --test --test-isolation=none --test-reporter=tap dist/test/*.test.js"
   },
   "dependencies": {
     "@icp-sdk/core": "^6.1.0"
   },
   "devDependencies": {
-    "@icp-sdk/bindgen": "^0.4.1",
     "@types/node": "^24.0.0",
     "fake-indexeddb": "^6.2.5",
     "typescript": "^7.0.2"

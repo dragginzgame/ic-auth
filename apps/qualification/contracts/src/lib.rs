@@ -5,7 +5,7 @@ use candid::{
     CandidType,
     types::{Type, TypeId},
 };
-use serde::{Deserialize, Serialize, de::DeserializeOwned, ser::Error};
+use serde::{Deserialize, Serialize};
 use std::ops::Deref;
 
 pub mod model;
@@ -29,9 +29,10 @@ impl<T> From<T> for Candid<T> {
 
 /// Only the explicitly enumerated fixture contracts have a transport projection.
 pub trait FixtureModel {
-    type Model: CandidType + DeserializeOwned;
+    type Model: CandidType;
+    fn model(&self) -> Self::Model;
 }
-impl<T: FixtureModel + Serialize> CandidType for Candid<T> {
+impl<T: FixtureModel> CandidType for Candid<T> {
     fn id() -> TypeId {
         T::Model::id()
     }
@@ -42,56 +43,68 @@ impl<T: FixtureModel + Serialize> CandidType for Candid<T> {
         T::Model::_ty_doc()
     }
     fn idl_serialize<S: candid::types::Serializer>(&self, serializer: S) -> Result<(), S::Error> {
-        // Internal output projection only. Incoming Candid decodes directly into
-        // T; it never bypasses domain validation through an unchecked DTO cast.
-        let bytes = serde_cbor::to_vec(&self.0).map_err(S::Error::custom)?;
-        let model: T::Model = serde_cbor::from_slice(&bytes).map_err(S::Error::custom)?;
-        model.idl_serialize(serializer)
+        self.0.model().idl_serialize(serializer)
     }
 }
-macro_rules! fixture_models {
-    ($($name:ident),* $(,)?) => {$(
-        impl FixtureModel for ic_auth_protocol_types::$name { type Model = model::$name; }
-    )*};
+
+impl FixtureModel for ic_auth_protocol_types::AudienceId {
+    type Model = model::AudienceId;
+    fn model(&self) -> Self::Model {
+        model::AudienceId {
+            canonical_network_id: self.canonical_network_id.to_string(),
+            fleet_id: self.fleet_id.to_string(),
+        }
+    }
 }
-fixture_models!(
-    DelegationAudience,
-    AudienceId,
-    DelegatedRoleGrant,
-    AuthRequestMetadata,
-    DelegatedTokenPrepareRequest,
-    DelegatedTokenClaims,
-    DelegatedTokenPrepareResponse,
-    DelegatedTokenGetRequest,
-    RootProof,
-    IssuerProof,
-    IcCanisterSignatureProofV1,
-    ChainKeyAlgorithm,
-    ChainKeyKeyId,
-    IcChainKeyBatchSignatureProofV1,
-    ChainKeyBatchHeaderV1,
-    ChainKeyDelegationCertV1,
-    ChainKeyRootSignatureV1,
-    ChainKeyBatchWitnessV1,
-    ChainKeyBatchWitnessStepV1,
-    IssuerProofAlgorithm,
-    IssuerProofBinding,
-    DelegationCert,
-    DelegationProof,
-    DelegatedToken,
-    PortableCredential,
-    PortableProof,
-    LogoutRequest,
-    LogoutResult,
-    LogoutUnavailable,
-);
+impl FixtureModel for ic_auth_protocol_types::DelegatedRoleGrant {
+    type Model = model::DelegatedRoleGrant;
+    fn model(&self) -> Self::Model {
+        model::DelegatedRoleGrant {
+            target: self.target.as_str().to_owned(),
+            scopes: self.scopes.clone(),
+        }
+    }
+}
+impl FixtureModel for ic_auth_protocol_types::IcCanisterSignatureProofV1 {
+    type Model = model::IcCanisterSignatureProofV1;
+    fn model(&self) -> Self::Model {
+        model::IcCanisterSignatureProofV1 {
+            signature_cbor: self.signature_cbor.clone(),
+            public_key_der: self.public_key_der.clone(),
+        }
+    }
+}
+impl FixtureModel for ic_auth_protocol_types::ChainKeyAlgorithm {
+    type Model = model::ChainKeyAlgorithm;
+    fn model(&self) -> Self::Model {
+        match self {
+            Self::EcdsaSecp256k1 => model::ChainKeyAlgorithm::EcdsaSecp256k1,
+        }
+    }
+}
+impl FixtureModel for ic_auth_protocol_types::ChainKeyKeyId {
+    type Model = model::ChainKeyKeyId;
+    fn model(&self) -> Self::Model {
+        model::ChainKeyKeyId {
+            name: self.name.clone(),
+        }
+    }
+}
 impl FixtureModel for ic_auth_protocol_types::CanonicalId {
     type Model = String;
+    fn model(&self) -> Self::Model {
+        self.to_string()
+    }
 }
 impl FixtureModel for ic_auth_protocol_types::AuthRole {
     type Model = String;
+    fn model(&self) -> Self::Model {
+        self.as_str().to_owned()
+    }
 }
-
 impl<T: FixtureModel> FixtureModel for Vec<T> {
     type Model = Vec<T::Model>;
+    fn model(&self) -> Self::Model {
+        self.iter().map(FixtureModel::model).collect()
+    }
 }

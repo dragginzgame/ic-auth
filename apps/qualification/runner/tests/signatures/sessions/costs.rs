@@ -1,6 +1,6 @@
 //! Matched receiver execution; native credential production is outside the sample.
 use super::*;
-use ic_auth::token::TokenVerificationContext;
+use ic_auth::portable_certified::PortableCertifiedContext;
 
 fn profile(
     f: &Fixture,
@@ -10,15 +10,21 @@ fn profile(
     label: &str,
 ) -> AdmissionProfile {
     let report: AdmissionProfile = measured(f, target, label, || {
-        f.pic
-            .update_candid(
+        let arg = ic_auth_wire::wire::encode_request::<ic_auth_wire::EstablishSession>(
+            &wire_input(input),
+        )
+        .unwrap();
+        let reply = f
+            .pic
+            .update_call(
                 target,
                 caller,
                 "profile_portable_admission",
-                (input.clone(),),
-                CONTROL_REPLY_LIMITS,
+                arg.into_bytes(),
             )
-            .expect("profile Candid transport")
+            .expect("profile Wire input");
+        ic_testkit_candid::decode_one(&reply, CONTROL_REPLY_LIMITS)
+            .expect("bounded fixture diagnostic transport")
     });
     assert!(report.instructions > 0);
     eprintln!(
@@ -28,18 +34,23 @@ fn profile(
     report
 }
 
-pub(super) fn qualify(f: &Fixture, token: &DelegatedToken, old: &TokenVerificationContext<'_>) {
+pub(super) fn qualify(
+    f: &Fixture,
+    proof: &DelegationProof,
+    old: &PortableCertifiedContext<'_>,
+    role: &AuthRole,
+) {
     eprintln!(
         "matched receiver artifact: bytes={}, sha256={:x}; same application subnet, endpoint, grants, lease and volatile store; three fresh logins per mechanism; native issuance excluded",
         f.wasm.len(),
         Sha256::digest(&f.wasm)
     );
-    let cert = &token.proof.cert;
+    let cert = &proof.cert;
     let key = SigningKey::from_bytes(&[42; 32]);
     for certified in [false, true] {
         let mechanism = if certified { "certified" } else { "ed25519" };
         let config = ReceiverConfig {
-            audience: Candid(old.audience),
+            audience: Candid(*old.claims.audience),
             issuer: cert.issuer_pid,
             authority: if certified {
                 let root = RootEnrollment::from(old.root_key);
@@ -52,7 +63,7 @@ pub(super) fn qualify(f: &Fixture, token: &DelegatedToken, old: &TokenVerificati
             } else {
                 ReceiverAuthority::Ed25519(key.verifying_key().to_bytes())
             },
-            role: Candid(old.role.clone()),
+            role: Candid(role.clone()),
             grants: Candid(cert.grants.clone()),
             valid_from_ns: cert.not_before_ns,
             valid_until_ns: cert.expires_at_ns.min(old.root_key.accept_until_ns),
@@ -84,13 +95,13 @@ pub(super) fn qualify(f: &Fixture, token: &DelegatedToken, old: &TokenVerificati
             let domain = ic_auth::portable_certified::CERTIFIED_SIGNATURE_DOMAIN;
             f.prepare(domain, &digest, 60 * SECOND).unwrap();
             SessionInput {
-                credential: Candid(PortableCredential {
+                credential: PortableCredential {
                     claims: encode_claims(claims).unwrap(),
                     proof: PortableProof::Certified {
-                        delegation: Box::new(token.proof.clone()),
+                        delegation: Box::new(proof.clone()),
                         issuer_signature: f.retrieve(domain, &digest).unwrap(),
                     },
-                }),
+                },
                 scopes: vec!["read".into()],
                 ttl_secs: None,
             }
@@ -112,7 +123,7 @@ pub(super) fn qualify(f: &Fixture, token: &DelegatedToken, old: &TokenVerificati
         let rejected_claims = make_claims(19);
         let rejected_caller = browser_principal(&rejected_claims.browser_public_key);
         let mut rejected = make_input(&rejected_claims);
-        if let PortableProof::Ed25519 { signature } = &mut rejected.credential.0.proof {
+        if let PortableProof::Ed25519 { signature } = &mut rejected.credential.proof {
             signature[0] ^= 1;
         }
         let label = format!("matched_{mechanism}_invalid_proof");

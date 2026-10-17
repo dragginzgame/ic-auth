@@ -1,0 +1,20 @@
+[package]
+name = "ic-auth-wire"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+readme = "README.md"
+description = "Bounded IC Wire transport contracts for portable IC Auth sessions"
+publish = ["crates-io"]
+
+[features]
+typescript = ["ic-wire/typescript"]
+
+[dependencies]
+ic-auth-protocol-types.workspace = true
+ic-wire.workspace = true
+
+[lints]
+workspace = true

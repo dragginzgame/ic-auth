@@ -48,19 +48,17 @@ The producer's ordered contract covers validly constructed passive roles.
 
 Anonymous principals, current-clock acceptance, issuer approval, enrolled Root
 policy and certificate freshness are deliberately separate obligations. Complete
-[delegation/token verification](tokens.md) retains these stronger checks. It reuses
+[delegation/portable verification](delegation.md) retains these stronger checks. It reuses
 the lifetime and issuer-binding primitives while preserving its existing refusal
-order and combined minimum token-TTL diagnostic. [Token preparation](token-preparation.md)
-reuses grant validation while retaining its own errors, authority deadline,
-request order, deterministic nonce and exact signed claims. Preparation continues
-to assume a host-admitted proof; it does not implicitly run the new issuance API.
+order and combined minimum token-TTL diagnostic. The retired token-issuance path is described in the
+[0.9 retirement contract](delegation.md#retired-delegated-token-lifecycle).
 
 Canic can replace the mechanics of `delegated/cert_rules.rs`
 with this call, supplying its resolved Root and limits (currently 16 grants and
 32 scopes) and projecting typed errors at its DTO boundary. Keep protected Fleet
 and role policy resolution, issuer approval, Root signing, management effects,
 storage, endpoint authorization and current-clock checks in Canic. Construction
-and pure token-material callers must both use the same adopted owner before
+and verification callers must both use the same adopted owner before
 retiring the old rules. [Canic #491](https://github.com/dragginzgame/canic/issues/491)
 owns consumer adoption; producer qualification and publication do not establish
 Canic runtime acceptance.

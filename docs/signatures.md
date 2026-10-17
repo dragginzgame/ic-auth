@@ -52,7 +52,7 @@ A successful result authenticates only the exact message under the selected
 trust context. It does not check application-token validity, audience, subject,
 presenter, grants, scope, epochs, revocation or resource ownership, and does not
 consume a replay record or admit a session. The separate optional
-[token verifier](tokens.md) composes complete root/issuer proof and semantic checks;
+[certified portable verifier](delegation.md) composes Root/issuer proofs and portable claims checks;
 host replay/session/resource rules still apply before granting access.
 
 This module has no runtime effects: no clock acquisition, memory-region

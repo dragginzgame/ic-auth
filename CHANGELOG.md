@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.9.0]
+
+- **Breaking:** retire the never-deployed browser token prepare/retrieve client,
+  its stores and old Candid application transport. Use one portable admission
+  and durable logout client over bounded IC Wire contracts. No old records exist
+  to migrate; new unknown issuance and logout recovery remain fail-closed.
+
+- Add `ic-auth-wire` with Rust-owned bounded credential/session/logout layouts
+  and generated TypeScript. Signed claims and session storage formats are unchanged.
+
+- Share proof selection between standalone and already-decoded admission inputs,
+  retaining error precedence, proof bounds and receiver-wide budget semantics.
+
+- Replace the private fixture's CBOR-based Candid projection with direct typed
+  controller/certificate projections; qualify application admission/logout over Wire.
+
+- **Breaking:** remove the separate Rust delegated-token issuance/verifier API and
+  token-only DTOs after explicit no-deployment/no-unresolved-issuance disposition.
+  Root verification moves to `delegation`; certified portable verification uses
+  `certified-proof-verification` and `CertifiedProofLimits`. Shared signed proof
+  bytes, both portable mechanisms and session storage formats are unchanged.
+
+- Narrow IndexedDB lifecycle handling to its sole logout-journal owner, retaining
+  strict commits, late-open cleanup, timeouts and unknown issuance records.
+
+- Adopt selected IC Wire 0.3.4, regenerate canonical TypeScript under the common
+  strict compiler profile, and use owned bounded buffer extraction.
+
 ## [0.8.0] - 2026-10-17
 
 - Adopt Testkit 0.51's explicit-caller typed calls in qualification, preserving

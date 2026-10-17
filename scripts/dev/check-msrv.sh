@@ -22,9 +22,9 @@ cp Cargo.lock "$fixture/original-workspace.lock"
 # Cargo owns package normalization. Check its real payloads outside the workspace
 # so private test dependencies cannot supply features to a public consumer.
 CARGO_TARGET_DIR="$root/target/msrv-package" cargo +"$development" package \
-    --locked --offline --allow-dirty --no-verify -p ic-auth-protocol-types -p ic-auth
+    --locked --offline --allow-dirty --no-verify -p ic-auth-protocol-types -p ic-auth -p ic-auth-wire
 CARGO_TARGET_DIR="$root/target" cargo +"$development" build --locked --offline -p ic-auth-tooling
-for package in ic-auth-protocol-types ic-auth; do
+for package in ic-auth-protocol-types ic-auth ic-auth-wire; do
     archive="$root/target/msrv-package/package/tmp-crate/$package-$version.crate"
     digest="$("$root/target/debug/ic-auth-tooling" hash-file "$archive" 8388608)"
     printf '%s  %s\n' "$digest" "$archive" >> "$fixture/package-identities.sha256"
@@ -34,23 +34,25 @@ for package in ic-auth-protocol-types ic-auth; do
 done
 auth="$fixture/ic-auth-$version"
 types="$fixture/ic-auth-protocol-types-$version"
+wire="$fixture/ic-auth-wire-$version"
 package_inputs() {
-    find "$auth" "$types" ! -type d -print0 > "$fixture/input-paths"
+    find "$auth" "$types" "$wire" ! -type d -print0 > "$fixture/input-paths"
     perl -0e 'print sort <STDIN>' < "$fixture/input-paths" > "$fixture/sorted-input-paths"
     printf '%s\0' "$root/Cargo.toml" "$root/Cargo.lock" \
-        "$root/crates/ic-auth/Cargo.toml" "$root/crates/ic-auth-protocol-types/Cargo.toml" \
+        "$root/crates/ic-auth/Cargo.toml" "$root/crates/ic-auth-protocol-types/Cargo.toml" "$root/crates/ic-auth-wire/Cargo.toml" \
         "$root/target/msrv-package/package/tmp-crate/ic-auth-$version.crate" \
-        "$root/target/msrv-package/package/tmp-crate/ic-auth-protocol-types-$version.crate" "$@" \
+        "$root/target/msrv-package/package/tmp-crate/ic-auth-protocol-types-$version.crate" \
+        "$root/target/msrv-package/package/tmp-crate/ic-auth-wire-$version.crate" "$@" \
         >> "$fixture/sorted-input-paths"
     "$root/target/debug/ic-auth-tooling" hash-files0 8388608 < "$fixture/sorted-input-paths"
 }
 package_inputs > "$fixture/archive-inputs"
 # Keep normalized manifests and their locks byte-for-byte intact. Only this
 # independent consumer selects the exact unpacked archives via registry patches.
-all_features="$(yq -p toml -o json '.' "$auth/Cargo.toml" | jq -c '[.features | keys[] | "ic-auth/" + .]')"
+all_features="$(yq -p toml -o json '.' "$auth/Cargo.toml" | jq -c '[.features | keys[] | "ic-auth/" + .] + ["ic-auth-wire/typescript"]')"
 cat > "$fixture/Cargo.toml" <<TOML
 [workspace]
-exclude = ["ic-auth-$version", "ic-auth-protocol-types-$version"]
+exclude = ["ic-auth-$version", "ic-auth-protocol-types-$version", "ic-auth-wire-$version"]
 
 [package]
 name = "ic-auth-msrv-consumer"
@@ -61,6 +63,7 @@ publish = false
 
 [dependencies]
 ic-auth-protocol-types = "=$version"
+ic-auth-wire = "=$version"
 ic-auth = { version = "=$version", optional = true, default-features = false }
 
 [features]
@@ -69,10 +72,12 @@ all = $all_features
 [patch.crates-io]
 ic-auth = { path = "ic-auth-$version" }
 ic-auth-protocol-types = { path = "ic-auth-protocol-types-$version" }
+ic-auth-wire = { path = "ic-auth-wire-$version" }
 TOML
 mkdir "$fixture/src"
 cat > "$fixture/src/lib.rs" <<'RUST'
 pub use ic_auth_protocol_types;
+pub use ic_auth_wire;
 #[cfg(feature = "ic-auth")]
 pub use ic_auth;
 #[cfg(feature = "ic-auth")]
@@ -100,7 +105,7 @@ for target in native wasm32-unknown-unknown; do
     # target arguments rather than passing an empty string or weakening -u.
     cargo +"$floor" check --locked --offline --lib --no-default-features \
         --manifest-path "$fixture/Cargo.toml" ${target_args[@]+"${target_args[@]}"}
-    for feature in default portable-signature-verification chain-key-verification canister-signature-verification canister-signature-preparation token-verification sessions session-restore all; do
+    for feature in default portable-signature-verification chain-key-verification canister-signature-verification canister-signature-preparation certified-proof-verification sessions session-restore all; do
         feature_args=(--no-default-features --features ic-auth)
         case "$feature" in
             default) ;;

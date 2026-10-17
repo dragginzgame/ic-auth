@@ -10,23 +10,26 @@ contract. The libraries and reference service must not depend on either project.
 
 ## Status
 
-The working tree prepares the **0.8.0 Candid-trait hard cut**; package manifests
-remain at `0.7.8` until release preparation. It implements portable certified and enrolled
+The working tree prepares the **0.9.0 application-transport hard cut**; package
+versions remain at released `0.8.0` until maintainer release preparation. It implements portable certified and enrolled
 Ed25519 verification, one local session engine, replay/revocation bookkeeping and
 explicit protected authority/work budgets. See the [session contract](docs/sessions.md)
 and [current handoff](docs/status/current.md) for implementation and validation.
 
-The existing [signature](docs/signatures.md), [token](docs/tokens.md),
+The existing [signature](docs/signatures.md), [delegation](docs/delegation.md),
 [signature preparation](docs/signature-preparation.md),
 [certificate issuance](docs/certificate-issuance.md) and
 [chain-key](docs/chain-key-signatures.md) helpers remain reusable primitives.
 Application resource permissions and IC ingress delegation remain separate.
 
-The private [browser client](docs/browser-client.md) includes the retained token
-lifecycle plus a separate portable logout journal, guarded SDK identity and HTTP
-logout transport. It is unpublished; existing unknown issuance intents are not
-migrated or erased. Real SDK admission/logout is qualified against the internal
-canisters; production issuer, enrollment and consumer integration remain pending.
+The private [browser client](docs/browser-client.md) supplies one portable
+admission coordinator, a durable logout journal, guarded SDK identity and HTTP
+logout transport. Its Rust-owned IC Wire contracts are in `crates/ic-auth-wire/`.
+The former token prepare/retrieve client and stores are retired: the maintainer
+confirmed no deployed old records or unresolved old issuance. New portable
+journals still preserve uncertainty. The separate Rust delegated-token API is
+also retired after explicit confirmation of no deployed users or unresolved issuance. Production issuer/enrollment and consumer
+integration remain pending; reference qualification is separate from adoption.
 
 **Production issuer/enrollment lifecycle, wallet login and the durable session
 adapter remain unimplemented.** The reference receiver uses volatile state.
@@ -45,24 +48,24 @@ and acceptance belong in [Canic #491](https://github.com/dragginzgame/canic/issu
 - [Architecture and ownership](docs/design/extraction.md)
 - [Current handoff](docs/status/current.md)
 - [Developer setup and commands](docs/development.md)
-- [Browser token client and consumer boundary](docs/browser-client.md)
+- [Portable browser client and consumer boundary](docs/browser-client.md)
 - [Minimum Rust compiler and package qualification](docs/msrv.md)
 - [Shared maintenance task catalog](tasks/README.md)
 - [Canic source review and incorporation boundary](docs/design/canic-source-review.md)
 - [Extraction and Canic adoption tracker](https://github.com/dragginzgame/canic/issues/491)
 - [Agent instructions](AGENTS.md)
 
-## Application authentication for the 0.6 cut
+## Application authentication
 
 The accepted application flow is **portable proof admission → caller-bound local session
 → scoped session checks**. Each receiving canister admits the credential under its
 protected fleet, role and scope policy. Ordinary application calls use the
 authenticated ingress caller and the local session; they do not carry a token.
-Token preparation and proof verification remain the admission machinery.
+Portable credential verification and atomic admission share one session engine.
 Application resource permissions and IC ingress signatures remain distinct.
 
-This is the coordinated 0.6 consumer contract, not a claim that Canic/Toko have
-completed the cut. Their guards, Candid interfaces and frontend calls must change
+This is the coordinated portable consumer contract, not a claim that Canic/Toko have
+completed the cut. Their guards, Wire endpoints and frontend calls must change
 together under the [adoption contract](docs/canic-adoption.md).
 
 ## Workspace
@@ -72,7 +75,8 @@ Cargo.toml                     # Virtual workspace and dependency catalog
 Cargo.lock                     # One selected Rust dependency graph
 crates/
   ic-auth-protocol-types/      # Passive auth contracts and validated identifiers
-  ic-auth/                     # Encoding and optional signature/token/session machinery
+  ic-auth-wire/                # Bounded transport and generated browser codecs
+  ic-auth/                     # Encoding, proof verification and session machinery
 apps/
   tooling/                     # Unpublished native release/publication file utility
   qualification/               # Internal Wasm host and IC Testkit/IC-agent tests
@@ -86,14 +90,12 @@ package belongs to another IC-Auth project and does not implement our applicatio
 token/proof contracts. Crates.io treats hyphens and underscores as colliding
 names, so changing only the punctuation cannot resolve that conflict.
 
-The pending **0.8.0** cut removes Candid traits and dependencies from the public
-protocol types. `Principal` remains the same `ic_principal::Principal` type.
-Default Auth encoding, enrolled Ed25519 verification and local session builds
-are Candid-free; upstream certified-signature capabilities still pull Candid
-transitively. Endpoint adapters own their transport, with no Candid feature to
-enable in Auth. Existing browser/qualification Candid contracts are preserved by
-an unpublished adapter in `apps/qualification/contracts/`; it is not a production
-transport package. See the [consumer cut](docs/canic-adoption.md#pending-08-transport-boundary).
+Released 0.8.0 removed Candid traits from the public domain types; `Principal`
+remains `ic_principal::Principal`. Pending 0.9.0 replaces application-facing
+Candid with published IC Wire's bounded codec and generated TypeScript through
+an Auth-owned transport adapter. Optional upstream certified-signature capabilities
+still use Candid, as do the private controller/certificate qualification fixtures.
+See the [consumer cut](docs/canic-adoption.md#pending-09-wire-transport).
 
 The future wallet service belongs in `apps/wallet-auth/`. No accepting wallet
 endpoint is created before its complete proof verification and service contracts.
@@ -106,7 +108,7 @@ make test-protocol
 make test-chain-key-signatures
 make test-signatures
 make test-signature-store
-make test-tokens
+make test-certified-proofs
 make test-sessions
 make test-qualification
 make check-wasm

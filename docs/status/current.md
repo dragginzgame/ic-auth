@@ -1,5 +1,120 @@
 # Current handoff — 2026-10-17
 
+## Rust lifecycle and browser storage cleanup (pending 0.9.0)
+
+This continuation starts from the preceding dirty 0.9 preparation on `571a602`;
+incoming authored source is retained in `target/auth-cleanup-092/before/` for
+attribution. The incoming lock selected Wire/derive 0.3.3 and was externally
+advanced to 0.3.4 during qualification. That selection is preserved and the catalog
+now requires 0.3.4: its generator fixes strict indexing, allowing removal of the
+temporary generated-only compiler project, and its owned buffer accessors remove
+bounded projection copies. Generated code is regenerated canonically. Earlier
+0.3.3 evidence below is distinguished from final 0.3.4 qualification. Other external
+selections, package release versions, the real Git index and refs remain unchanged.
+
+The maintainer separately confirmed **no deployed Rust-token users or unresolved
+old issuance operations**, and explicitly authorized retirement of that flow.
+The old delegated-token issuance/verifier API, token-only DTOs and canonical
+encoders are removed together. Root policy, certificate/proof verification and
+typed Root errors now belong to `ic_auth::delegation` under
+`chain-key-verification`. `certified-proof-verification` replaces the old token
+feature; its complete portable adapter owns `CertifiedProofLimits`. There is no
+old feature alias or second application-token path. Both portable mechanisms and
+the one session engine remain. Certificate/proof hashes, role-attestation support,
+`AuthRequestMetadata` and existing signed/session/replay/logout bytes are retained.
+See the [current proof contract](../delegation.md) and
+[Auth #69](https://github.com/dragginzgame/ic-auth/issues/69).
+
+The real-certificate fixture now constructs portable claims and Root delegation
+directly, preserving distinct browser/account identities and upgrade/freshness
+checks. Root binding and portable budget cases remain qualified by their current
+owners instead of a removed complete-token wrapper. Canic must adopt the new
+imports/capability/error causes; the inspected Toko source still contains older
+token calls pinned to Canic `=0.110.48`. Its source references do not establish a
+deployed use contrary to the maintainer's disposition. No sibling source or
+retained application data was changed.
+
+The logout journal now owns its opening and strict transaction lifecycle directly;
+generic callbacks used by the retired token store are removed. Public-store tests
+cover blocked/timed-out opens, late connection cleanup, strict commit, abort,
+incomplete results and falsy failure without adding test hooks or changing the
+journal format. All 44 browser tests pass. The real signed SDK logout/admission
+fixture also passed after this storage change, before the Rust API cut.
+
+[Testkit #119](https://github.com/dragginzgame/ic-testkit/issues/119) requests one
+native typed Wire query/update adapter. Auth retains its small runnable helper
+until a published replacement is qualified. No sibling implementation is claimed.
+Focused Rust proof/session checks, native/Wasm Clippy and the strict 44-test browser
+suite pass. Final Wire 0.3.4 qualification passes three native units and all six
+real-canister cases, including the exact certified Rust/TypeScript round trip,
+SDK admission/logout across two receivers and checkpoint upgrades. The isolated
+three-package Rust 1.91 native/Wasm matrix passes with sealed archive/source/lock
+inputs. Its first attempt exposed a Merkle witness feature gate left under the
+old full verifier; the corrected chain-key-only gate passes. Both attempts remain
+retained. Final Cargo publication dry runs build all three payloads and abort all
+uploads. Boundary, Make jobserver, formatting-hook, snapshot, pin and link checks
+pass. Wire #3/#4 are closed after published fixes and consumer acceptance; Auth
+#69 remains open for maintainer delivery. No full CI, native browser/macOS,
+production issuer/Canic acceptance, release, deployment or upload is claimed.
+
+## Portable transport cleanup (pending 0.9.0)
+
+Starting from clean release source `571a602` (0.8.0), this batch consolidates the
+portable verifier's proof selection and cuts application/browser transport to
+published IC Wire 0.3.2. The new `crates/ic-auth-wire/` owns bounded Rust layouts,
+explicit method identities and canonical upstream-generated TypeScript. It adds
+no crypto, endpoint installation, authority or storage. Standalone and decoded
+verification retain mismatch/bounds/decoding precedence and budget semantics.
+
+The maintainer explicitly confirmed there are no deployed old client records,
+including unresolved issuance. The former prepare/retrieve browser client, token
+stores, example and application Candid bindings are retired together. There is
+one portable admission/logout client; its existing durable logout journal and
+unknown issuance obligations remain intact. Signed claims and session formats
+are unchanged. Internal Candid remains only for controller/certificate fixtures,
+with direct typed projections replacing their CBOR round trip. No application
+codec fallback or old-store reader remains. See [client contracts](../browser-client.md)
+and the [Canic transport handoff](../canic-adoption.md#pending-09-wire-transport).
+
+Qualification exports now admit raw byte lengths before CDK argument copying,
+decode bounded Wire frames and authenticate through the existing session engine.
+Rust/TypeScript vectors and an actual certified credential round trip retain exact
+signed bytes. Long refusal diagnostics are bounded without trapping and rolling
+back admission charges. The SDK still performs real signed ingress and certified
+reply checks across two receivers, proof-free reads, logout and retained-key refusal.
+Release/package/MSRV helpers now account for all three public packages, including
+exact archive identity, checksums and uncertainty-safe mocked publication ordering.
+
+Generic file-command extraction remains with [Host #76](https://github.com/dragginzgame/ic-host-tooling/issues/76).
+Auth's existing CLI is retained until a published replacement covers its NUL-safe
+batch hashes, private durable writes and setup/admission contract. Removing the
+whole tooling application is inappropriate: it also owns Auth contract generation.
+No sibling source was edited. [Wire #3](https://github.com/dragginzgame/ic-wire/issues/3)
+tracks strict-indexing compatibility in the published generated runtime; canonical
+generated output compiles in a separate strict referenced project while authored
+Auth code keeps its stricter checks. [Wire #4](https://github.com/dragginzgame/ic-wire/issues/4)
+requests owned bounded buffer extraction; current projections use bounded copies.
+The existing [Auth browser tracker](https://github.com/dragginzgame/ic-auth/issues/3)
+now describes only current production-adapter acceptance, and
+[Canic #491](https://github.com/dragginzgame/canic/issues/491#issuecomment-6233451730)
+records the coordinated transport cut and remaining consumer obligations.
+
+Focused evidence is retained under `target/auth-cleanup-081/`. Portable signature,
+session and token checks pass (68 tests); browser checks pass (44 tests), as do
+the four new Wire transport tests. Real qualification passes three native units
+and all six canister cases. Native/Wasm lint checks, isolated three-package Rust
+1.91 checks, tool fixtures and mocked release/publication recovery checks pass.
+These are reference-host and Node/Testkit checks, not production issuer or final
+Canic acceptance. No matched performance benchmark, native Chromium/macOS, full
+CI, source staging/commit/push, release or upload is claimed. Package versions
+remain 0.8.0; the changelog selects breaking 0.9.0 for maintainer delivery.
+Shared Tooling remains the reviewed 0.15.0 snapshot; no dependency upgrade beyond
+the new published Wire codec and its required graph was performed.
+The live registry-aware Cargo dry run builds all three distributable packages
+and aborts every upload (`publish-dry-run-final.log`). Both new package-name
+spellings are absent from the sparse index at inspection; this is not reservation
+or publication. Existing external dependency versions/checksums remain unchanged.
+
 ## Testkit 0.51 caller migration (pending 0.8.0)
 
 The clean incoming source `e395c49` selects Testkit/Candid 0.51, Host 0.25.1 and
@@ -3249,7 +3364,7 @@ explicit request bounds. Immutable prepared claims/hash/proof preserve Canic's
 exact nonce domain, canonical signed bytes, TTL and ordered typed refusals.
 Finishing attaches host issuer material without verification. Signing, issuer
 approval, Root enrollment, retry custody and certification publication remain
-host-owned. See the [preparation contract](../token-preparation.md) and
+host-owned. See the [preparation contract](../delegation.md#retired-delegated-token-lifecycle) and
 [consumer adoption contract](../canic-adoption.md).
 
 The first real certified-token fixture now obtains its signing hash through this
@@ -3619,7 +3734,7 @@ requiring the pre-1.0 minor boundary. The package version stays 0.3.8 until
 separately authorized release preparation; no 0.3.9 release is created. Signed
 bytes, successful acceptance, session policy, stored formats and compiler floor
 are unchanged. No retained-state reset is needed for this diagnostic change.
-The [migration contract](../tokens.md#root-binding-diagnostics) and Canic adoption
+The [migration contract](../delegation.md#root-binding-diagnostics) and Canic adoption
 notes specify mapping the typed origins and retiring post-rejection comparisons
 and path hashing in the consumer. Canic's actual adoption and its durable/session
 policy obligations stay under #491/#459; no sibling code/build is changed.
@@ -5151,7 +5266,7 @@ Two real signed-token regressions demonstrate that earlier success does not
 extend issuer certificate freshness or pin the IC network trust anchor. Exact
 age equality accepts; advancing the clock, tightening freshness or changing the
 protected BLS key rejects the same untouched token. The
-[token contract](../tokens.md#canic-verifier-integration) explains the protected
+[token contract](../delegation.md#canic-verifier-integration) explains the protected
 Canic adapter inputs and why the returned deadline is not a cache lease.
 Public APIs, signed bytes, features and package versions remain unchanged.
 The numbered next changelog is **0.2.4**, a compatible coverage/tooling batch.
@@ -5286,7 +5401,7 @@ The root-signed issuer leaf excludes certificate issue-time metadata. The new
 result validates its consistency but does not authenticate that metadata as a
 root-signed timestamp; complete tokens bind the full certificate hash through
 issuer-signed claims. This distinction is covered by a focused test and the
-[contract](../tokens.md#standalone-root-delegation-verification).
+[contract](../delegation.md#standalone-root-delegation-verification).
 Canic retains installation/issuance approval, protected network/key and
 application policy, renewal, storage and certification composition.
 
@@ -6588,7 +6703,7 @@ input limits and live epoch/version/acceptance policy are explicit host inputs.
 Both cryptographic verifiers are concrete; no accepting callbacks or retained
 identity cache can bypass a proof. Verified claims are borrowed, cannot be
 deserialized into verification evidence, and expire no later than the host's
-current root-key acceptance deadline. The [API contract](../tokens.md) explains
+current root-key acceptance deadline. The [API contract](../delegation.md) explains
 the remaining host enrollment, decoding, replay, session and resource-policy
 obligations.
 

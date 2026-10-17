@@ -1,10 +1,7 @@
 //! Portable receiver lifecycle against real canisters and signed ingress.
 #[path = "sessions/costs.rs"]
 mod costs;
-use super::{
-    Agent, BasicIdentity, CONTROL_REPLY_LIMITS, Fixture, Principal, decode_one, encode_args,
-    encode_one,
-};
+use super::{Agent, BasicIdentity, CONTROL_REPLY_LIMITS, Fixture, Principal, encode_args};
 #[path = "../../../sessions.rs"]
 mod contract;
 use contract::*;
@@ -50,51 +47,85 @@ fn admission(
     caller: Principal,
     input: &SessionInput,
 ) -> Result<SessionView, String> {
-    f.pic
-        .update_candid(
-            target,
-            caller,
-            "establish_portable_session",
-            (input.clone(),),
-            CONTROL_REPLY_LIMITS,
-        )
-        .expect("qualified Candid transport")
+    session_result(update_wire::<ic_auth_wire::EstablishSession>(
+        f,
+        target,
+        caller,
+        &wire_input(input),
+    ))
 }
 fn read(f: &Fixture, target: Principal, caller: Principal) -> Result<SessionView, String> {
-    f.pic
-        .update_candid(
-            target,
-            caller,
-            "portable_session_read",
-            (),
-            CONTROL_REPLY_LIMITS,
-        )
-        .expect("qualified Candid transport")
+    session_result(update_wire::<ic_auth_wire::ReadSession>(
+        f,
+        target,
+        caller,
+        &(),
+    ))
 }
 fn logout(f: &Fixture, target: Principal, caller: Principal) -> Result<u64, LogoutResult> {
-    let result: Candid<LogoutResult> = f
-        .pic
-        .update_candid(
-            target,
-            caller,
-            "logout_portable_session",
-            (Candid(LogoutRequest {}),),
-            CONTROL_REPLY_LIMITS,
-        )
-        .expect("qualified Candid transport");
-    match result.0 {
-        LogoutResult::Revoked { deny_until_ns } => Ok(deny_until_ns),
-        other => Err(other),
+    use ic_auth_wire::model as m;
+    match update_wire::<ic_auth_wire::Logout>(f, target, caller, &()) {
+        m::LogoutResult::Revoked(until) => Ok(until),
+        m::LogoutResult::InvalidCaller => Err(LogoutResult::InvalidCaller),
+        m::LogoutResult::Unavailable(reason) => Err(LogoutResult::Unavailable(match reason {
+            m::LogoutUnavailable::Capacity => LogoutUnavailable::Capacity,
+            m::LogoutUnavailable::Storage => LogoutUnavailable::Storage,
+            m::LogoutUnavailable::Clock => LogoutUnavailable::Clock,
+            m::LogoutUnavailable::ResetPending => LogoutUnavailable::ResetPending,
+        })),
     }
 }
+fn wire_input(input: &SessionInput) -> ic_auth_wire::SessionInput {
+    use ic_auth_wire::wire::{List, Text};
+    ic_auth_wire::SessionInput {
+        credential: input.credential.clone().try_into().unwrap(),
+        scopes: List::new(
+            input
+                .scopes
+                .iter()
+                .cloned()
+                .map(Text::new)
+                .collect::<Result<_, _>>()
+                .unwrap(),
+        )
+        .unwrap(),
+        ttl_secs: input.ttl_secs,
+    }
+}
+fn session_result(
+    result: Result<ic_auth_wire::SessionView, ic_auth_wire::wire::Text<256>>,
+) -> Result<SessionView, String> {
+    result
+        .map(|v| SessionView {
+            caller: Principal::from_slice(v.caller.as_slice()),
+            issuer: Principal::from_slice(v.issuer.as_slice()),
+            subject: Principal::from_slice(v.subject.as_slice()),
+            expires_at_ns: v.expires_at_ns,
+        })
+        .map_err(|e| e.as_str().to_owned())
+}
+fn update_wire<M: ic_auth_wire::wire::Method>(
+    f: &Fixture,
+    target: Principal,
+    caller: Principal,
+    request: &M::Request,
+) -> M::Response {
+    let arg = ic_auth_wire::wire::encode_request::<M>(request).unwrap();
+    let reply = f
+        .pic
+        .update_call(target, caller, M::NAME, arg.into_bytes())
+        .expect("qualified Wire transport");
+    ic_auth_wire::wire::decode_response::<M>(&reply).expect("bounded Wire reply")
+}
+
 fn input(claims: &PortableClaims, key: &SigningKey) -> SessionInput {
     SessionInput {
-        credential: Candid(PortableCredential {
+        credential: PortableCredential {
             claims: encode_claims(claims).unwrap(),
             proof: PortableProof::Ed25519 {
                 signature: key.sign(&claims_hash(claims).unwrap()).to_bytes().to_vec(),
             },
-        }),
+        },
         scopes: vec!["read".into()],
         ttl_secs: None,
     }
@@ -129,6 +160,26 @@ fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ingress()
     };
     install(&f, f.signer, &config);
     install(&f, f.resource, &config);
+    use ic_auth_wire::wire::Method;
+    for malformed in [
+        vec![0],
+        ic_auth_wire::wire::encode_request::<ic_auth_wire::ReadSession>(&())
+            .unwrap()
+            .into_bytes(),
+        vec![0; ic_auth_wire::EstablishSession::REQUEST_LIMITS.bytes + 1],
+    ] {
+        assert!(
+            f.pic
+                .update_call(
+                    f.resource,
+                    f.owner,
+                    ic_auth_wire::EstablishSession::NAME,
+                    malformed
+                )
+                .is_err()
+        );
+        assert!(read(&f, f.resource, f.owner).is_err());
+    }
     f.pic.advance_time(Duration::from_secs(1));
     let mut claims = PortableClaims {
         mechanism: PortableMechanism::Ed25519,
@@ -165,7 +216,7 @@ fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ingress()
     let other_caller = browser_principal(&other.browser_public_key);
     let other_input = input(&other, &key);
     let mut forged = other_input.clone();
-    let PortableProof::Ed25519 { signature } = &mut forged.credential.0.proof else {
+    let PortableProof::Ed25519 { signature } = &mut forged.credential.proof else {
         unreachable!()
     };
     signature[0] ^= 1;
@@ -182,7 +233,7 @@ fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ingress()
     .unwrap();
     f.pic.advance_time(Duration::from_secs(3));
     let mut retry = first.clone();
-    retry.credential.0.proof = PortableProof::Ed25519 { signature: vec![] };
+    retry.credential.proof = PortableProof::Ed25519 { signature: vec![] };
     assert_eq!(
         measured(&f, f.signer, "exact_retry_after_proof_expiry", || {
             admission(&f, f.signer, caller, &retry)
@@ -285,11 +336,17 @@ fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ingress()
             agent.set_root_key(network.clone());
             let bytes = agent
                 .update(&f.resource, "portable_session_read")
-                .with_arg(encode_args(()).unwrap())
+                .with_arg(
+                    ic_auth_wire::wire::encode_request::<ic_auth_wire::ReadSession>(&())
+                        .unwrap()
+                        .into_bytes(),
+                )
                 .call_and_wait()
                 .await
                 .unwrap();
-            decode_one::<Result<SessionView, String>>(&bytes).unwrap()
+            session_result(
+                ic_auth_wire::wire::decode_response::<ic_auth_wire::ReadSession>(&bytes).unwrap(),
+            )
         });
         if device == 4 {
             assert_eq!(result.unwrap().caller, fresh)
@@ -311,7 +368,11 @@ fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ingress()
     for receiver in [f.signer, f.resource] {
         assert!(read(&f, receiver, sdk_caller).is_err());
     }
-    let sdk_credential = encode_one(input(&sdk_claims, &key).credential).unwrap();
+    let sdk_credential = ic_auth_wire::wire::encode_request::<ic_auth_wire::CredentialEnvelope>(
+        &input(&sdk_claims, &key).credential.try_into().unwrap(),
+    )
+    .unwrap()
+    .into_bytes();
     // Node uses the real SDK transport and trusted Testkit network root. The
     // journal uses fake IndexedDB; this does not qualify native browser storage.
     let mut command = std::process::Command::new(
@@ -341,22 +402,10 @@ fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ingress()
                 .collect::<String>(),
         )
         .arg(sdk_claims.account_subject.to_text());
-    use ic_host_process::tool::{
-        OutputLimit, OutputLimits, capture_command, format_failure_evidence,
-    };
-    let output = capture_command(
-        &mut command,
-        OutputLimits {
-            stdout: OutputLimit::Terminate(65_536),
-            stderr: OutputLimit::Terminate(65_536),
-            timeout: Some(Duration::from_secs(30)),
-        },
-    )
-    .and_then(|result| result.require_success())
-    .and_then(|result| result.require_complete())
-    .unwrap_or_else(|error| panic!("{}", format_failure_evidence("SDK logout fixture", &error)));
-    eprintln!("{}", String::from_utf8_lossy(&output.stdout));
-    eprintln!("{}", String::from_utf8_lossy(&output.stderr));
+    eprintln!(
+        "{}",
+        String::from_utf8_lossy(&run_node(&mut command, "SDK logout fixture"))
+    );
     assert!(f.now() < fresh_session.expires_at_ns.min(peer_session.expires_at_ns));
     assert!(f.now() < config.enrollment_until_ns.min(config.valid_until_ns));
     assert!(f.now() < sdk_claims.admission_expires_at_ns);
@@ -376,10 +425,30 @@ fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ingress()
     }
 }
 
+fn run_node(command: &mut std::process::Command, label: &str) -> Vec<u8> {
+    use ic_host_process::tool::{
+        OutputLimit, OutputLimits, capture_command, format_failure_evidence,
+    };
+    let output = capture_command(
+        command,
+        OutputLimits {
+            stdout: OutputLimit::Terminate(65_536),
+            stderr: OutputLimit::Terminate(65_536),
+            timeout: Some(Duration::from_secs(30)),
+        },
+    )
+    .and_then(|result| result.require_success())
+    .and_then(|result| result.require_complete())
+    .unwrap_or_else(|error| panic!("{}", format_failure_evidence(label, &error)));
+    eprintln!("{}", String::from_utf8_lossy(&output.stderr));
+    output.stdout
+}
+
 pub(super) fn qualify_certified(
     f: &Fixture,
-    token: &DelegatedToken,
-    old: &ic_auth::token::TokenVerificationContext<'_>,
+    proof: &DelegationProof,
+    old: &ic_auth::portable_certified::PortableCertifiedContext<'_>,
+    role: &AuthRole,
 ) {
     use ic_auth::{
         admission_budget::SessionAdmissionBudget,
@@ -387,12 +456,12 @@ pub(super) fn qualify_certified(
         portable_certified::{CERTIFIED_SIGNATURE_DOMAIN, PortableCertifiedContext},
         session_request::SessionRequest,
     };
-    costs::qualify(f, token, old);
+    costs::qualify(f, proof, old, role);
     let now = f.now();
-    let cert = &token.proof.cert;
+    let cert = &proof.cert;
     let claims = PortableClaims {
         mechanism: PortableMechanism::Certified,
-        audience: old.audience,
+        audience: (*old.claims.audience),
         issuer: cert.issuer_pid,
         key_binding_id: ic_auth::canonical::cert_hash(cert).unwrap(),
         browser_public_key: SigningKey::from_bytes(&[8; 32]).verifying_key().to_bytes(),
@@ -410,7 +479,7 @@ pub(super) fn qualify_certified(
     let signature = f.retrieve(CERTIFIED_SIGNATURE_DOMAIN, &digest).unwrap();
     let now = f.now();
     let authority = PortableClaimsContext {
-        audience: &old.audience,
+        audience: old.claims.audience,
         issuer: cert.issuer_pid,
         mechanism: PortableMechanism::Certified,
         key_binding_id: claims.key_binding_id,
@@ -435,7 +504,7 @@ pub(super) fn qualify_certified(
     };
     let mut ctx = SessionContext {
         authority,
-        role: old.role,
+        role,
         required_scopes: &[],
     };
     let p = SessionPolicy {
@@ -455,16 +524,36 @@ pub(super) fn qualify_certified(
         },
     )
     .unwrap();
-    let mut ledger = MemoryLoginRevocations::new(old.audience, 1, 1, 0, 0).unwrap();
+    let mut ledger = MemoryLoginRevocations::new(*old.claims.audience, 1, 1, 0, 0).unwrap();
     let mut budget = SessionAdmissionBudget::new(8, 1, 0).unwrap();
     let bytes = encode_claims(&claims).unwrap();
     let credential = PortableCredential {
         claims: bytes.clone(),
         proof: PortableProof::Certified {
-            delegation: Box::new(token.proof.clone()),
+            delegation: Box::new(proof.clone()),
             issuer_signature: signature,
         },
     };
+    let frame = ic_auth_wire::wire::encode_request::<ic_auth_wire::CredentialEnvelope>(
+        &credential.clone().try_into().unwrap(),
+    )
+    .unwrap()
+    .into_bytes();
+    let hex: String = frame.iter().map(|byte| format!("{byte:02x}")).collect();
+    let mut command = std::process::Command::new(
+        std::env::var_os("IC_AUTH_QUALIFICATION_NODE").expect("admitted Node"),
+    );
+    command
+        .arg(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../../packages/client/dist/test/qualification/credential.js"
+        ))
+        .arg(&hex);
+    assert_eq!(
+        String::from_utf8(run_node(&mut command, "certified Wire roundtrip")).unwrap(),
+        hex
+    );
+    eprintln!("Certified Wire Rust/TypeScript/Rust projection retained exact signed/proof bytes");
     let request = SessionRequest::new(vec!["read".into()], None).unwrap();
     establish_session(
         &mut store,
@@ -639,7 +728,7 @@ fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_authority() 
     // Restoration retains the live exact retry and its original lease even
     // though the proof expired. It must not enter fresh verification.
     let mut retry = original.clone();
-    retry.credential.0.proof = PortableProof::Ed25519 { signature: vec![] };
+    retry.credential.proof = PortableProof::Ed25519 { signature: vec![] };
     assert_eq!(admission(&f, f.resource, live, &retry).unwrap(), session);
     assert!(read(&f, f.resource, revoked).is_err());
     assert_eq!(logout(&f, f.resource, revoked).unwrap(), denied_until);

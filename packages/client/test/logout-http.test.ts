@@ -1,11 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Cbor } from '@icp-sdk/core/agent';
-import { IDL } from '@icp-sdk/core/candid';
 import { Ed25519KeyIdentity } from '@icp-sdk/core/identity';
 import { Principal } from '@icp-sdk/core/principal';
 import { httpLogoutTransport, ClientError } from '../src/index.js';
-import { LogoutRequest, LogoutResult } from '../src/generated/protocol.did.js';
+import { decodeRequest, encodeResponse, type Response } from '../src/generated/logout.js';
 import { logoutResultFromBytes } from '../src/codec.js';
 
 const identity = Ed25519KeyIdentity.generate(new Uint8Array(32).fill(7));
@@ -28,7 +27,7 @@ test('HTTP logout signs one empty update with the supplied identity; HTTP accept
     if (path.endsWith('/call')) {
       assert.equal(signed.content.request_type, 'call');
       assert.equal(signed.content.method_name, methodName);
-      assert.deepEqual(IDL.decode([LogoutRequest], signed.content.arg!), [{}]);
+      assert.equal(decodeRequest(signed.content.arg!), null);
       return new Response(null, { status: 202 });
     }
     assert.equal(signed.content.request_type, 'read_state');
@@ -80,11 +79,10 @@ test('each HTTP attempt uses its current guarded identity, never a cached signer
 });
 
 test('shared logout result decoding preserves typed failures and rejects malformed/unbounded replies', () => {
-  for (const value of [{ Revoked: { deny_until_ns: 123n } }, { InvalidCaller: null },
-    ...['Capacity', 'Storage', 'Clock', 'ResetPending'].map(kind => ({ Unavailable: { [kind]: null } }))]) {
-    assert.deepEqual(logoutResultFromBytes(IDL.encode([LogoutResult], [value])), value);
-  }
-  const reply = IDL.encode([LogoutResult], [{ Revoked: { deny_until_ns: 123n } }]);
+  const values: Response[] = [{ tag: 'Revoked', value: 123n }, { tag: 'InvalidCaller', value: null },
+    ...(['Capacity', 'Storage', 'Clock', 'ResetPending'] as const).map(tag => ({ tag: 'Unavailable' as const, value: { tag, value: null } }))];
+  for (const value of values) assert.deepEqual(logoutResultFromBytes(encodeResponse(value)), value);
+  const reply = encodeResponse({ tag: 'Revoked', value: 123n });
   assert.throws(() => logoutResultFromBytes(reply.slice(0, -1)), ClientError);
   assert.throws(() => logoutResultFromBytes(new Uint8Array(1_025)), ClientError);
 });

@@ -9,10 +9,8 @@ description = "Local IC Auth release and publication file operations"
 publish = false
 
 [dependencies]
-candid = { workspace = true, features = ["printer"] }
 ic-auth-protocol-types.workspace = true
-# Candid projection is test/tooling-only, never enabled through public Auth features.
-ic-auth-qualification-contracts.workspace = true
+ic-auth-wire = { workspace = true, features = ["typescript"] }
 ic-host-fs.workspace = true
 
 [lints]

@@ -9,13 +9,14 @@ use crate::{
     },
     canonical::{CanonicalAuthError, cert_hash},
     certificate_issuance::grants_are_subset,
+    delegation::{
+        DelegationProofError, DelegationProofVerificationContext,
+        DelegationProofVerificationLimits, RootKeyPolicy, rules::check_proof_size,
+        verify_delegation_proof,
+    },
     portable::{
         DecodedPortableClaims, PortableClaimsContext, PortableClaimsError, PortableEncodingError,
         VerifiedPortableClaims, validate_claims_context,
-    },
-    token::{
-        DelegationProofVerificationContext, RootKeyPolicy, TokenVerificationError,
-        TokenVerificationLimits, rules::check_proof_size, verify_delegation_proof,
     },
 };
 use ic_auth_protocol_types::{
@@ -28,6 +29,39 @@ use thiserror::Error;
 /// Producers sign `domain_separated_message(domain, SHA256(canonical_claims))`.
 pub const CERTIFIED_SIGNATURE_DOMAIN: &[u8] = b"ic-auth-portable-credential";
 
+/// Host-selected bounds. Canic adapters retain their configured values; there
+/// are no implicit clock allowances or limits selected from submitted proofs.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct CertifiedProofLimits {
+    /// Upper bound on root-authorized issuer certificate lifetime.
+    pub max_cert_ttl_ns: u64,
+    /// Upper bound on the issuer's authorized maximum token lifetime.
+    pub max_token_ttl_ns: u64,
+    /// Inclusive allowance for future validity starts and certificate time.
+    pub max_future_skew_ns: u64,
+    /// Inclusive maximum age of the issuer's authenticated IC certificate.
+    pub max_certificate_age_ns: u64,
+    /// Budget for vector/string bytes plus one byte per variable entry, checked
+    /// before canonical allocation or cryptographic work. Not a Candid wire limit.
+    pub max_variable_bytes: usize,
+    /// Separate bound on issuer signature CBOR before parsing.
+    pub max_issuer_signature_bytes: usize,
+    /// Separate bound on the root proof's Merkle path length.
+    pub max_witness_steps: usize,
+}
+
+impl From<CertifiedProofLimits> for DelegationProofVerificationLimits {
+    fn from(limits: CertifiedProofLimits) -> Self {
+        Self {
+            max_cert_ttl_ns: limits.max_cert_ttl_ns,
+            max_token_ttl_ns: limits.max_token_ttl_ns,
+            max_future_skew_ns: limits.max_future_skew_ns,
+            max_variable_bytes: limits.max_variable_bytes,
+            max_witness_steps: limits.max_witness_steps,
+        }
+    }
+}
+
 /// Protected portable, Root and network authority for a single proof check.
 /// All fields must come from runtime/configuration, never the submitted proof.
 pub struct PortableCertifiedContext<'a> {
@@ -35,7 +69,7 @@ pub struct PortableCertifiedContext<'a> {
     pub root_key: &'a RootKeyPolicy,
     pub ic_root_public_key_raw: &'a [u8],
     /// Existing bounded proof policy. Future skew MUST be zero for this profile.
-    pub limits: TokenVerificationLimits,
+    pub limits: CertifiedProofLimits,
 }
 
 /// Proof refusal, never a session-admission result.
@@ -52,7 +86,7 @@ pub enum PortableCertifiedError {
     #[error(transparent)]
     Canonical(#[from] CanonicalAuthError),
     #[error(transparent)]
-    Delegation(#[from] TokenVerificationError),
+    Delegation(#[from] DelegationProofError),
     #[error(transparent)]
     Signature(#[from] CanisterSignatureError),
 }
@@ -102,10 +136,10 @@ pub(crate) fn check_bounds(
     ] {
         remaining = remaining
             .checked_sub(length)
-            .ok_or(TokenVerificationError::InputTooLarge)?;
+            .ok_or(DelegationProofError::InputTooLarge)?;
     }
     if issuer_signature.signature_cbor.len() > limits.max_issuer_signature_bytes {
-        return Err(TokenVerificationError::InputTooLarge.into());
+        return Err(DelegationProofError::InputTooLarge.into());
     }
     check_proof_size(delegation, limits.max_witness_steps, &mut remaining)?;
     Ok(())
