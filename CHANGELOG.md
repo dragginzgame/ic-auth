@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.9.0]
+## [0.9.0] - 2026-10-17
 
 - **Breaking:** retire the never-deployed browser token prepare/retrieve client,
   its stores and old Candid application transport. Use one portable admission
