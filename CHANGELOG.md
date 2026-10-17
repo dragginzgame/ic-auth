@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.9]
+
+- Prepare native qualification callers for Testkit 0.51's explicit-principal
+  calls and field-based installation inputs, preserving existing senders and
+  reply budgets. This draft requires Testkit publication and normal dependency
+  adoption before integration; stored product data is unchanged.
+
 ## [0.7.8] - 2026-10-17
 
 - Share one SDK update transport between browser logout and live admission

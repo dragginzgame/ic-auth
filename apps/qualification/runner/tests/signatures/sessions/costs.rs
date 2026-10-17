@@ -11,7 +11,7 @@ fn profile(
 ) -> AdmissionProfile {
     let report: AdmissionProfile = measured(f, target, label, || {
         f.pic
-            .update_candid_as(
+            .update_candid(
                 target,
                 caller,
                 "profile_portable_admission",
@@ -207,7 +207,7 @@ pub(super) fn qualify(f: &Fixture, token: &DelegatedToken, old: &TokenVerificati
         );
         let hot: Result<SessionProfile, String> = f
             .pic
-            .query_candid_as(
+            .query_candid(
                 f.resource,
                 caller,
                 "profile_portable_session",
