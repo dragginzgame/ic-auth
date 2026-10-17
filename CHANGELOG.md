@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.7.8]
+## [0.7.8] - 2026-10-17
 
 - Share one SDK update transport between browser logout and live admission
   qualification, preserving explicit trust, one submission per attempt and
