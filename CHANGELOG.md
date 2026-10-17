@@ -2,6 +2,9 @@
 
 ## [0.8.0]
 
+- Repair the Testkit caller fixture for generated-contract checks, including
+  refusal before client build/native qualification and visible failure diagnostics.
+
 - Use IC Memory 0.46's narrow backing-memory exports in the qualification
   fixture, restoring minimum-compiler and native test builds.
 

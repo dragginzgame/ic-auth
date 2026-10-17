@@ -1,5 +1,24 @@
 # Current handoff — 2026-10-17
 
+## Testkit caller fixture repair (pending 0.8.0)
+
+The clean incoming source `9bbbc66` failed `test-testkit-tools` with status 127:
+its copied qualification runner calls `qualification-contracts.sh`, which the
+minimal consumer fixture omitted. The fixture now substitutes that contract-check
+boundary, retaining its client-tool admission before generation/comparison effects.
+The actual production runner and Testkit selection/setup implementation are unchanged.
+
+The success trace includes contract checking before client build/native dispatch.
+Injected tool-admission, contract and build failures preserve their status and
+refuse native dispatch; contract refusal also prevents the client build. An
+unexpected success-path caller failure now prints its exit status and retained
+stderr, so the combined CI log includes the underlying cause.
+
+`make test-testkit-tools` passes in `target/testkit-caller-repair/`.
+An independent injected status-34 run verifies the unexpected-failure diagnostic
+and absence of client build/native dispatch. ShellCheck and Bash syntax pass.
+No Rust suite, full CI, release, package/lock change or Git index/ref effect was run.
+
 ## IC Memory 0.46 fixture imports (pending 0.8.0)
 
 The clean incoming source `bd6eaea` selects IC Memory 0.46. Its documented export

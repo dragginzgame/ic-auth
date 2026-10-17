@@ -121,6 +121,16 @@ set -euo pipefail
 printf 'client tools check\n' >> "$TESTKIT_FIXTURE_LOG"
 exit "${TESTKIT_FIXTURE_CLIENT_STATUS:-0}"
 SCRIPT
+# Model contract generation/comparison effects while keeping the real runner's
+# ordering and failure propagation. The real helper admits client tools first.
+cat > "$consumer/scripts/dev/qualification-contracts.sh" <<'SCRIPT'
+#!/usr/bin/env bash
+set -euo pipefail
+[[ "$*" == check ]] || exit 1
+bash scripts/dev/client-tools.sh check
+printf 'qualification contracts check\n' >> "$TESTKIT_FIXTURE_LOG"
+exit "${TESTKIT_FIXTURE_CONTRACTS_STATUS:-0}"
+SCRIPT
 cat > "$fixture/bin/npm" <<'SCRIPT'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -335,24 +345,45 @@ cp "$fixture/mock-installer.sh" "$consumer/scripts/dev/install-rust-tools.sh"
 
 # The real qualification caller consumes only Testkit's check-returned path.
 POCKET_IC_BIN=/unadmitted/override "$BASH" "$consumer/scripts/dev/test-qualification.sh" \
-    > "$fixture/qualification.stdout" 2> "$fixture/qualification.stderr"
-[[ "$(tail -n 6 "$TESTKIT_FIXTURE_LOG")" == $'cli check\nserver check\ncli check\nclient tools check\nclient build\nqualified admitted server' ]] || exit 1
+    > "$fixture/qualification.stdout" 2> "$fixture/qualification.stderr" || {
+    status=$?
+    printf 'Testkit qualification caller failed (exit %s); stderr: %s\n' \
+        "$status" "$fixture/qualification.stderr" >&2
+    cat "$fixture/qualification.stderr" >&2
+    exit "$status"
+}
+[[ "$(tail -n 7 "$TESTKIT_FIXTURE_LOG")" == $'cli check\nserver check\ncli check\nclient tools check\nqualification contracts check\nclient build\nqualified admitted server' ]] || exit 1
 [[ "$(cat "$consumer/.tools/ic/bin/pocket-ic")" == 'retained former bundle' ]] || exit 1
 
-# Client admission/build failures stop before native dispatch, without setup.
-for phase in check build; do
+# Client admission, contracts and build failures stop before native dispatch,
+# without setup; contract refusal must also stop before the client build.
+for phase in check contracts build; do
     before="$(wc -l < "$consumer/cargo-dispatch.log" | tr -d ' ')"
+    : > "$TESTKIT_FIXTURE_LOG"
     status=0
     if [[ "$phase" == check ]]; then
         TESTKIT_FIXTURE_CLIENT_STATUS=31 "$BASH" "$consumer/scripts/dev/test-qualification.sh" \
             > "$fixture/client-$phase.stdout" 2> "$fixture/client-$phase.stderr" || status=$?
         [[ "$status" == 31 ]] || exit 1
+    elif [[ "$phase" == contracts ]]; then
+        TESTKIT_FIXTURE_CONTRACTS_STATUS=34 "$BASH" "$consumer/scripts/dev/test-qualification.sh" \
+            > "$fixture/client-$phase.stdout" 2> "$fixture/client-$phase.stderr" || status=$?
+        [[ "$status" == 34 ]] || exit 1
     else
         TESTKIT_FIXTURE_CLIENT_BUILD_STATUS=32 "$BASH" "$consumer/scripts/dev/test-qualification.sh" \
             > "$fixture/client-$phase.stdout" 2> "$fixture/client-$phase.stderr" || status=$?
         [[ "$status" == 32 ]] || exit 1
     fi
     [[ "$(wc -l < "$consumer/cargo-dispatch.log" | tr -d ' ')" == "$before" ]] || exit 1
+    printf '%s\n' 'cli check' 'server check' 'cli check' 'client tools check' \
+        > "$fixture/expected-client-$phase.log"
+    if [[ "$phase" != check ]]; then
+        printf 'qualification contracts check\n' >> "$fixture/expected-client-$phase.log"
+    fi
+    if [[ "$phase" == build ]]; then
+        printf 'client build\n' >> "$fixture/expected-client-$phase.log"
+    fi
+    cmp "$fixture/expected-client-$phase.log" "$TESTKIT_FIXTURE_LOG"
 done
 
 # Execute the actual CI extension of the shared collector, with opaque owner
