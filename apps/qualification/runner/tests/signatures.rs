@@ -83,13 +83,18 @@ impl Fixture {
             .with_nns_subnet()
             .with_application_subnet()
             .with_max_request_time_ms(Some(30_000));
-        let owned = PocketIcStartupConfig::spawn(server, Duration::from_secs(30))
-            .with_server_output_files(
+        let owned = PocketIcStartupConfig::Spawn {
+            server_binary: server,
+            timeout: Duration::from_secs(30),
+            server_hard_ttl: None,
+            server_idle_ttl: None,
+            server_output_files: Some((
                 state_root.join(format!("{instance}.stdout.log")),
                 state_root.join(format!("{instance}.stderr.log")),
-            )
-            .build_instance(builder)
-            .expect("bounded testkit startup with the verified server");
+            )),
+        }
+        .build_instance(builder)
+        .expect("bounded testkit startup with the verified server");
         // Retain Testkit's field drop order during setup, including panic paths.
         let pic = &owned.instance;
         pic.set_time(SystemTime::now().into());

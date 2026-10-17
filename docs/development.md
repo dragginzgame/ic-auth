@@ -2,9 +2,9 @@
 
 The virtual root owns the protocol/types, Auth engine and Wire transport libraries,
 unpublished native tooling in `apps/tooling/` and the reference host/runner in
-`apps/qualification/`. Package versions remain at released 0.8.0; the working tree
-prepares the 0.9.0 application-transport hard cut. The selected Host 0.25.1,
-Testkit 0.51 and Memory 0.47 stay locked. IC Wire 0.3.2 supplies the shared codec
+`apps/qualification/`. Package versions remain at 0.9.0; the working tree prepares
+the compatible 0.9.1 cleanup. Host 0.27.0, Testkit 0.52 and Memory 0.48 are selected
+in the lockfile. IC Wire 0.3.5 supplies the shared codec
 and TypeScript generator. The [handoff](status/current.md) records exact evidence;
 [session contracts](sessions.md) distinguish supported behavior from pending hosts.
 Rust `1.99.0` remains the development compiler selected by `rust-toolchain.toml`.
@@ -61,7 +61,7 @@ make install-tools
 make tools-check
 make install-hooks
 make fetch
-export PATH="$PWD/.tools/host/bin:$PWD/.tools/ic/bin:$PWD/.tools/rust/common/bin:$PATH"
+export PATH="$PWD/.tools/host/bin:$PWD/.tools/rust/common/bin:$PATH"
 ```
 
 The first command prepares the toolchain, rustfmt, Clippy and Wasm target selected
@@ -72,12 +72,17 @@ formatting, CI cache identity and failure evidence use those same reviewed pins.
 There are no local catalog exceptions; host, IC and Rust override selections are
 independent. Compiler/MSRV and locked Testkit CLI/server selection stay local.
 After catalog adoption, explicitly run `make install-tools` and `make tools-check`.
+The ordered aggregate prepares common host/Rust tools, the minimum compiler and
+Testkit. Auth has no product caller for the separate IC executable bundle; it is
+not installed, checked or placed on PATH by the aggregate or CI. Its explicit
+`install-ic-tools` / `ic-tools-check` commands remain available, with earlier
+installations retained.
 
 The Makefile includes reviewed [`make/consumer.mk`](make-interface.md), which owns
 common setup, formatting, hooks, snapshot verification and release routing.
 `check-snapshot` retains its public name and depends on `shared-tooling-check`.
-The recorded snapshot pins Shared Tooling 0.15.0 at
-`3bef3f2daec7f64f875397ed4d53d5b9e2e68a08`. Adopt its committed source and
+The recorded snapshot pins Shared Tooling 0.23.0 at
+`0b351cd2ba2bcd8927b783a5fec89afc8013f708`. Adopt its committed source and
 recorded entrypoint closure through the canonical exporter; see
 [snapshot adoption](consuming-snapshots.md#entrypoint-selection-in-070).
 The canonical verifier also supports `--read-manifest FILE`: it validates the
@@ -101,9 +106,10 @@ from Auth's offline admission and CI. No schedule is enabled by adoption.
 The shared LOC helper also supports machine-readable workspace counts:
 `bash scripts/dev/cloc.sh --json "$PWD"`. Its package rows and totals use numeric
 fields; `make cloc` retains the human table. Fleet aggregation remains Shared-owned.
-Auth owns its tool extensions, application checks and release metadata adapters. Shared Tooling 0.3.4 admits the complete-set platform and
-selected Rust/Cargo toolchain before aggregate setup downloads, then runs the complete
-host, IC and Rust toolsets in order. These read-only preflight calls disable
+Auth owns its tool extensions, application checks and release metadata adapters.
+The shared aggregate admits the selected Rust/Cargo toolchain before setup
+downloads, then prepares the common host and Rust toolsets in order. Its
+read-only preflight disables
 automatic Rustup installation; prepare an unavailable compiler explicitly.
 Host-tool failures identify the selected tool, version, path and repair command
 without executing unauthenticated payloads. IC Auth adds its minimum compiler/Wasm target, then locked
@@ -155,9 +161,9 @@ then `make rust-tools-check`; common PATH activation requires all three pinned
 tools to pass. Earlier in-place installations, completed slots and failed attempts
 remain retained. This contributor setup change preserves IC Auth's published
 contract and uses patch notes. Shared Tooling 0.5.0 now shares verified host and IC
-bundles across checkouts through its per-user store. Run `make install-host-tools`
-and `make install-ic-tools`, then `make host-tools-check` and `make ic-tools-check`
-after adoption. Existing PATH entries remain valid; earlier physical bundles stay
+bundles across checkouts through its per-user store. Common host admission uses
+`make install-host-tools` and `make host-tools-check`; the separate IC commands
+apply only when explicitly selecting those optional executables. Existing PATH entries remain valid; earlier physical bundles stay
 retained but are no longer admitted as active installations. The default store is
 `${XDG_DATA_HOME:-$HOME/.local/share}/shared-tooling/tools`; use the same absolute
 `SHARED_TOOLING_STORE` override for setup, checks and failure collection if needed.
@@ -178,8 +184,8 @@ Run explicit Rust/Testkit setup and their separate offline checks after adopting
 this revision: the changed build-policy identity selects new shared generations.
 Lock, receipt and activation failures stop setup with failure evidence retained;
 checks never install missing tools or bypass a foreign lock.
-The common IC toolset now selects Binaryen 133; run `make install-ic-tools`
-explicitly to prepare it. This repository builds its qualification Wasm directly
+The optional IC toolset includes Binaryen 133; `make install-ic-tools`
+explicitly prepares that unselected bundle. This repository builds its qualification Wasm directly
 with Cargo and has no optimized product bundle to qualify.
 The release and tool-evidence fixtures copy that companion and its execution
 probe explicitly; qualification uses disposable checkouts and substituted effects.
@@ -436,15 +442,18 @@ before executing a release; only pending notes may be dirty at ordinary prefligh
 All three release targets use the adopted runner, the same `make ci` gate and
 direct delivery to `origin/main` by default. `RELEASE_REMOTE` and `RELEASE_BRANCH`
 select another already-authorized destination. PR delivery is not qualified here.
+`ci/release-delivery.txt` declares the supported direct delivery once; Make and
+standalone metadata use the shared read-only policy checker. CI seals this file
+with its other preparation inputs and refuses policy drift before later stages.
 Preflight reports all refused staged, unstaged and untracked paths, quotes
 unusual names, and distinguishes Git observation errors from dirty source.
 Initial refusal identifies that this attempt has not started validation or
 version preparation. Interrupted preparation retains its exact four-file
 metadata allowance and receipt checks. Admission preserves files and index bytes.
 Normal preflight fetches the selected lockfile, then runs `make install-tools`
-and `make tools-check`. The canonical ordered aggregate prepares host, IC and
-common Rust tools before the minimum compiler and lock-selected Testkit CLI/server;
-the second aggregate admits the complete selection offline. Shared host/IC
+and `make tools-check`. The canonical ordered aggregate prepares host and common
+Rust tools before the minimum compiler and lock-selected Testkit CLI/server;
+the second aggregate admits that selection offline. Shared tool
 payloads alone do not activate a checkout's missing local references.
 Explicit Cargo offline settings still apply; a failed preparation stops before
 validation or version changes. Saved-receipt recovery admits interrupted metadata

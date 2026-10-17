@@ -255,7 +255,7 @@ test('invalid identity binding and failed journal access refuse before issuance'
 test('malformed or expired recovered material never reaches a receiver or triggers issuance', async () => {
   const f = await fixture();
   try {
-    await f.journal.issuing('login');
+    assert.equal(await f.journal.claimIssuance('login'), true);
     f.material.credential = { ...f.material.credential, claims: new Uint8Array(131_073) };
     await assert.rejects(f.client().establish(a), (e: ClientError) => e.code === 'invalid_material');
     f.material.credential = { ...f.material.credential, claims: new Uint8Array([1]) };

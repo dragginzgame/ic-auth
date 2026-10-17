@@ -1,7 +1,7 @@
 # IC Auth Agent Instructions
 
 Apply [DRAGGINZGAME.md](DRAGGINZGAME.md), adopted from Shared Tooling revision
-`3bef3f2daec7f64f875397ed4d53d5b9e2e68a08` and recorded in
+`0b351cd2ba2bcd8927b783a5fec89afc8013f708` and recorded in
 [.shared-tooling.snapshot](.shared-tooling.snapshot). Read
 [the current handoff](docs/status/current.md) before implementation.
 

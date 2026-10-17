@@ -72,7 +72,8 @@ pub trait SessionTransaction {
     fn replay_exists(&self, fingerprint: [u8; 32]) -> Result<bool, SessionError>;
     fn occupancy(&self, caller: Principal) -> Result<SessionOccupancy, SessionError>;
     /// Stage exactly one session/replay pair; reject mismatched identities,
-    /// stale generation, consumed proofs and byte/capacity limits before writes.
+    /// stale generation, consumed proofs, per-record encoding ceilings and total
+    /// byte/capacity limits before writes.
     fn stage(&mut self, session: Session, replay: Replay) -> Result<(), SessionError>;
     /// Stage removal of this caller's session only; replay evidence is retained.
     fn remove(&mut self, caller: Principal) -> Result<(), SessionError>;

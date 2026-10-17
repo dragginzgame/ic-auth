@@ -69,7 +69,7 @@ jobs:
           bash scripts/dev/ci-tools.sh install
           bash scripts/dev/ci-tools.sh check
           printf '%s\n' "$GITHUB_WORKSPACE/.tools/host/bin" \
-            "$GITHUB_WORKSPACE/.tools/ic/bin" "$GITHUB_WORKSPACE/.tools/rust/common/bin" >> "$GITHUB_PATH"
+            "$GITHUB_WORKSPACE/.tools/rust/common/bin" >> "$GITHUB_PATH"
           make fetch
       # Save after setup and admission, before longer tests can be cancelled.
       # Pull requests only restore; cache hits never bypass tool admission.

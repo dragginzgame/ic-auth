@@ -8,12 +8,10 @@ fn profile(
     caller: Principal,
     input: &SessionInput,
     label: &str,
-) -> AdmissionProfile {
+) -> Result<SessionView, String> {
     let report: AdmissionProfile = measured(f, target, label, || {
-        let arg = ic_auth_wire::wire::encode_request::<ic_auth_wire::EstablishSession>(
-            &wire_input(input),
-        )
-        .unwrap();
+        let arg =
+            ic_auth_wire::wire::encode_request::<ic_auth_wire::EstablishSession>(input).unwrap();
         let reply = f
             .pic
             .update_call(
@@ -31,7 +29,9 @@ fn profile(
         "portable receiver admission instructions: {label}={}",
         report.instructions
     );
-    report
+    ic_auth_wire::wire::decode_response::<ic_auth_wire::EstablishSession>(&report.reply)
+        .expect("bounded shared admission reply")
+        .map_err(|e| e.into_string())
 }
 
 pub(super) fn qualify(
@@ -101,8 +101,10 @@ pub(super) fn qualify(
                         delegation: Box::new(proof.clone()),
                         issuer_signature: f.retrieve(domain, &digest).unwrap(),
                     },
-                },
-                scopes: vec!["read".into()],
+                }
+                .try_into()
+                .unwrap(),
+                scopes: List::new(vec![Text::new("read".into()).unwrap()]).unwrap(),
                 ttl_secs: None,
             }
         };
@@ -123,13 +125,16 @@ pub(super) fn qualify(
         let rejected_claims = make_claims(19);
         let rejected_caller = browser_principal(&rejected_claims.browser_public_key);
         let mut rejected = make_input(&rejected_claims);
-        if let PortableProof::Ed25519 { signature } = &mut rejected.credential.proof {
-            signature[0] ^= 1;
+        if let ic_auth_wire::model::PortableProof::Ed25519(signature) =
+            &mut rejected.credential.proof
+        {
+            let mut bytes = signature.as_slice().to_vec();
+            bytes[0] ^= 1;
+            *signature = Bytes::new(bytes).unwrap();
         }
         let label = format!("matched_{mechanism}_invalid_proof");
         assert!(
             profile(f, f.resource, rejected_caller, &rejected, &label)
-                .result
                 .unwrap_err()
                 .contains("signature")
         );
@@ -146,7 +151,6 @@ pub(super) fn qualify(
         );
         assert!(
             throttled
-                .result
                 .unwrap_err()
                 .contains("verification budget is exhausted")
         );
@@ -171,11 +175,18 @@ pub(super) fn qualify(
                 &input,
                 &format!("matched_{mechanism}_fresh_{device}"),
             )
-            .result
             .unwrap();
             assert_eq!(
-                (admitted.caller, admitted.issuer, admitted.subject),
-                (caller, config.issuer, f.owner)
+                (
+                    admitted.caller.as_slice(),
+                    admitted.issuer.as_slice(),
+                    admitted.subject.as_slice()
+                ),
+                (
+                    caller.as_slice(),
+                    config.issuer.as_slice(),
+                    f.owner.as_slice()
+                )
             );
             assert!(admitted.expires_at_ns <= claims.login_deadline_ns);
             if device == 20 {
@@ -186,7 +197,6 @@ pub(super) fn qualify(
                     &input,
                     &format!("matched_{mechanism}_second_receiver"),
                 )
-                .result
                 .unwrap();
                 assert_eq!(peer.subject, admitted.subject);
                 first = Some((caller, input, admitted));
@@ -202,7 +212,6 @@ pub(super) fn qualify(
                 &input,
                 &format!("matched_{mechanism}_expired_proof_retry")
             )
-            .result
             .unwrap(),
             admitted
         );

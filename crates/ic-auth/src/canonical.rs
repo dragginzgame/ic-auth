@@ -56,14 +56,18 @@ pub fn proof_hash(proof: &DelegationProof) -> Result<[u8; 32], CanonicalAuthErro
 pub fn chain_key_batch_header_hash(
     header: &ChainKeyBatchHeaderV1,
 ) -> Result<[u8; 32], CanonicalAuthError> {
-    hash_chain_key_header_payload(&chain_key_batch_header_bytes(header)?)
+    let mut payload = Vec::with_capacity(256);
+    encode_chain_key_batch_header(&mut payload, header)?;
+    hash_chain_key_header_payload(&payload)
 }
 
 /// Hash an issuer leaf under the existing chain-key Merkle leaf domain.
 pub fn chain_key_delegation_cert_hash(
     cert: &ChainKeyDelegationCertV1,
 ) -> Result<[u8; 32], CanonicalAuthError> {
-    hash_chain_key_leaf_payload(&chain_key_delegation_cert_bytes(cert)?)
+    let mut payload = Vec::with_capacity(256);
+    encode_chain_key_delegation_cert(&mut payload, cert)?;
+    hash_chain_key_leaf_payload(&payload)
 }
 
 /// Hash the exact ordered derivation path under its existing Canic domain.
@@ -183,59 +187,62 @@ pub(crate) fn encode_role_grants(
 }
 
 fn hash_chain_key_header_payload(payload: &[u8]) -> Result<[u8; 32], CanonicalAuthError> {
-    let mut out = Vec::with_capacity(CHAIN_KEY_BATCH_HEADER_DOMAIN.len() + 4 + payload.len());
-    out.extend_from_slice(CHAIN_KEY_BATCH_HEADER_DOMAIN);
-    encode_bytes(&mut out, payload)?;
-    Ok(hash_bytes(&out))
+    let len = u32::try_from(payload.len()).map_err(|_| CanonicalAuthError::LengthOverflow)?;
+    let mut hash = Sha256::new();
+    hash.update(CHAIN_KEY_BATCH_HEADER_DOMAIN);
+    hash.update(len.to_be_bytes());
+    hash.update(payload);
+    Ok(hash.finalize().into())
 }
 
 fn hash_chain_key_leaf_payload(payload: &[u8]) -> Result<[u8; 32], CanonicalAuthError> {
-    let mut out =
-        Vec::with_capacity(1 + CHAIN_KEY_DELEGATION_CERT_DOMAIN.len() + 4 + payload.len());
-    out.push(0);
-    out.extend_from_slice(CHAIN_KEY_DELEGATION_CERT_DOMAIN);
-    encode_bytes(&mut out, payload)?;
-    Ok(hash_bytes(&out))
+    let len = u32::try_from(payload.len()).map_err(|_| CanonicalAuthError::LengthOverflow)?;
+    let mut hash = Sha256::new();
+    hash.update([0]);
+    hash.update(CHAIN_KEY_DELEGATION_CERT_DOMAIN);
+    hash.update(len.to_be_bytes());
+    hash.update(payload);
+    Ok(hash.finalize().into())
 }
 
-fn chain_key_batch_header_bytes(
+fn encode_chain_key_batch_header(
+    out: &mut Vec<u8>,
     header: &ChainKeyBatchHeaderV1,
-) -> Result<Vec<u8>, CanonicalAuthError> {
-    let mut out = Vec::with_capacity(256);
-    encode_u16(&mut out, header.schema_version);
-    encode_principal(&mut out, header.root_canister_id)?;
-    encode_fixed_32(&mut out, header.batch_id);
-    encode_u64(&mut out, header.proof_epoch);
-    encode_u64(&mut out, header.registry_epoch);
-    encode_fixed_32(&mut out, header.registry_hash);
-    encode_fixed_32(&mut out, header.tree_root);
-    encode_u64(&mut out, header.not_before_ns);
-    encode_u64(&mut out, header.expires_at_ns);
-    encode_chain_key_algorithm(&mut out, header.algorithm);
-    encode_chain_key_key_id(&mut out, &header.key_id)?;
-    encode_fixed_32(&mut out, header.derivation_path_hash);
-    encode_u64(&mut out, header.key_version);
-    Ok(out)
+) -> Result<(), CanonicalAuthError> {
+    encode_u16(out, header.schema_version);
+    encode_principal(out, header.root_canister_id)?;
+    encode_fixed_32(out, header.batch_id);
+    encode_u64(out, header.proof_epoch);
+    encode_u64(out, header.registry_epoch);
+    encode_fixed_32(out, header.registry_hash);
+    encode_fixed_32(out, header.tree_root);
+    encode_u64(out, header.not_before_ns);
+    encode_u64(out, header.expires_at_ns);
+    encode_chain_key_algorithm(out, header.algorithm);
+    encode_chain_key_key_id(out, &header.key_id)?;
+    encode_fixed_32(out, header.derivation_path_hash);
+    encode_u64(out, header.key_version);
+    Ok(())
 }
 
-fn chain_key_delegation_cert_bytes(
+fn encode_chain_key_delegation_cert(
+    out: &mut Vec<u8>,
     cert: &ChainKeyDelegationCertV1,
-) -> Result<Vec<u8>, CanonicalAuthError> {
-    let mut out = Vec::with_capacity(256);
-    encode_principal(&mut out, cert.root_canister_id)?;
-    encode_principal(&mut out, cert.issuer_canister_id)?;
-    encode_u64(&mut out, cert.proof_epoch);
-    encode_issuer_proof_algorithm(&mut out, cert.issuer_proof_algorithm);
-    encode_fixed_32(&mut out, cert.issuer_proof_binding_hash);
-    encode_issuer_proof_binding(&mut out, cert.issuer_proof_binding);
-    encode_u64(&mut out, cert.max_token_ttl_ns);
-    encode_audience(&mut out, &cert.audience);
-    encode_role_grants(&mut out, &cert.grants)?;
-    encode_u64(&mut out, cert.not_before_ns);
-    encode_u64(&mut out, cert.expires_at_ns);
-    encode_u64(&mut out, cert.registry_epoch);
-    encode_fixed_32(&mut out, cert.registry_hash);
-    Ok(out)
+) -> Result<(), CanonicalAuthError> {
+    encode_principal(out, cert.root_canister_id)?;
+    encode_principal(out, cert.issuer_canister_id)?;
+    encode_u64(out, cert.proof_epoch);
+    encode_issuer_proof_algorithm(out, cert.issuer_proof_algorithm);
+    encode_fixed_32(out, cert.issuer_proof_binding_hash);
+    encode_issuer_proof_binding(out, cert.issuer_proof_binding);
+    encode_u64(out, cert.max_token_ttl_ns);
+    encode_audience(out, &cert.audience);
+    encode_role_grants(out, &cert.grants)?;
+    encode_u64(out, cert.not_before_ns);
+    encode_u64(out, cert.expires_at_ns);
+    encode_u64(out, cert.registry_epoch);
+    encode_fixed_32(out, cert.registry_hash);
+    Ok(())
 }
 
 fn encode_root_proof(out: &mut Vec<u8>, proof: &RootProof) -> Result<(), CanonicalAuthError> {
@@ -252,8 +259,8 @@ fn encode_chain_key_proof(
     out: &mut Vec<u8>,
     proof: &IcChainKeyBatchSignatureProofV1,
 ) -> Result<(), CanonicalAuthError> {
-    out.extend_from_slice(&chain_key_batch_header_bytes(&proof.header)?);
-    out.extend_from_slice(&chain_key_delegation_cert_bytes(&proof.delegation_cert)?);
+    encode_chain_key_batch_header(out, &proof.header)?;
+    encode_chain_key_delegation_cert(out, &proof.delegation_cert)?;
     encode_chain_key_witness(out, &proof.issuer_witness)?;
     encode_chain_key_signature(out, &proof.signature)?;
     Ok(())
@@ -468,6 +475,24 @@ fn encode_len(out: &mut Vec<u8>, len: usize) -> Result<(), CanonicalAuthError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn chain_key_payload_hashes_preserve_framing() {
+        for length in [0, 1, 255, 256, 4096] {
+            let payload: Vec<u8> = (0..length).map(|i| (i % 256) as u8).collect();
+            let len = (length as u32).to_be_bytes();
+            let header = [CHAIN_KEY_BATCH_HEADER_DOMAIN, &len, &payload].concat();
+            let leaf = [&[0], CHAIN_KEY_DELEGATION_CERT_DOMAIN, &len, &payload].concat();
+            assert_eq!(
+                hash_chain_key_header_payload(&payload).unwrap(),
+                <[u8; 32]>::from(Sha256::digest(header)),
+            );
+            assert_eq!(
+                hash_chain_key_leaf_payload(&payload).unwrap(),
+                <[u8; 32]>::from(Sha256::digest(leaf)),
+            );
+        }
+    }
 
     #[test]
     #[cfg(target_pointer_width = "64")]

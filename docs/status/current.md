@@ -1,5 +1,101 @@
 # Current handoff — 2026-10-17
 
+## Shared Tooling 0.23 and IC Host 0.27 (pending 0.9.1)
+
+The canonical exporter refreshed the 109-file snapshot from reviewed committed
+Shared source `0b351cd2ba2bcd8927b783a5fec89afc8013f708` (0.23.0), matching upstream
+main at inspection. Preview, ownership verification and the completed refresh
+are retained under `target/tooling-adoption-023/`. AGENTS records that revision;
+the updated baseline includes IC Memory allocation governance. Auth introduces
+no production stable store; the existing qualification allocation is test-only.
+The current repository description remains accurate and unchanged.
+
+The task-start working files and incoming diff are retained in that directory's
+`before/`. Pending 0.9.1 cleanup and the incoming 0.27 Host selectors are preserved.
+Published FS/Process 0.27.0 now qualify at Auth's native consumers. No FileIdentity
+import migration is needed here; Testkit's separate published dependency graph
+still selects Host 0.26.2 internally. All Host tooling remains outside the public
+authentication graph. Application wire, signed and retained-state formats stay
+unchanged, so these contributor-only changes extend the existing patch draft.
+
+Auth has no product caller for the separate IC executable bundle. Common setup,
+offline admission and CI PATH now follow Shared's host/Rust aggregate plus Auth's
+minimum-compiler/Testkit extensions. Explicit IC commands and old installations
+remain available. Direct-only release delivery is declared once in a local data
+file, checked before Make/metadata effects and sealed as a CI input. Caller
+fixtures cover the revised order, refusal, policy drift and absent-CLI behavior.
+Failure-evidence tests no longer assume which common Rust tool is first in the
+owner's catalog; they retain exact failure propagation and archived bytes.
+
+Explicit common setup and offline checks pass. Nine Host CLI tests, focused
+Rust 1.91 checks of both native consumers, native Clippy and all six live Testkit
+cases pass, including signed SDK transport, two receivers, logout and upgrades.
+Jobserver, Testkit-caller, failure-evidence, release/publication reconciliation,
+shared runner and staged-formatting preservation checks pass with substituted
+effects where documented. Initial stale-fixture refusals remain in the evidence.
+No full CI, native macOS qualification, real release/publication or sibling edit
+is claimed; the real index, package release versions and Git refs are unchanged.
+
+## Canonical buffers and one browser issuance API (pending 0.9.1)
+
+This continuation preserves the incoming dirty preparation on `8632c2e`;
+task-start files and the incoming diff are retained in
+`target/auth-cleanup-094/before/`. Canonical header/leaf hashing now feeds the
+same domain, checked u32 length and payload directly to SHA-256. Nested proof
+encoding appends header/leaf fields into its destination. Frozen signed hashes,
+framing boundaries and noncanonical-grant refusals pass without a format change.
+
+The private browser client exposes only the existing atomic issuance claim API.
+Direct fixtures now assert the first claim succeeds, later claims require
+reconciliation, and cleanup refuses new claims. Unknown issuance and logout
+journal bytes are unchanged. This unpublished client API cleanup does not change
+the released Rust library contract or require a retained-data reset.
+
+An external Testkit 0.52 manifest/lock update arrived during validation. Its
+selection is preserved; the fixture now uses the explicit owned `Spawn` variant
+with the same startup timeout, TTL choices and retained output paths. The initial
+client run's final Rust check refused transient manifest/lock drift; the complete
+client/interop rerun passes on the final selection. All nine canonical checks,
+27 certified-proof tests, 44 browser tests, three native fixture tests, the Wasm
+build and native/Wasm Clippy pass. After explicit setup approval, the selected
+Testkit 0.52 CLI and server were prepared/admitted. All six live-canister cases
+pass, including certified proofs, signed ingress, SDK two-receiver admission and
+logout, and checkpoint upgrades. Logs remain under `target/auth-cleanup-094/`;
+no full CI or release was run. The real Git index and refs are unchanged.
+
+[Wire #7 — Support bounded transparent Box payloads without changing canonical frames](https://github.com/dragginzgame/ic-wire/issues/7)
+owns the upstream representation request and byte/heap qualification contract.
+Auth retains its current unboxed proof until published support is qualified;
+that future public Rust representation cut requires a minor release. No sibling
+source or generated codec was edited.
+
+## Shared qualification DTOs and admission sizing (pending 0.9.1)
+
+Starting from `8632c2e`, the fixture now uses the public Wire admission and
+session-view types directly. Its private Candid profiling envelope carries the
+exact shared Wire reply; controller/checkpoint contracts remain private. Domain
+projection occurs once before stateful admission, and the instruction window
+now includes that projection. Do not compare historical profile numbers as if
+the measurement boundary were unchanged. Application frames and signed bytes
+are unchanged. Per-record size validation belongs to transaction staging;
+restoration/encoding retain independent checks. The regression qualifies failed
+stage atomicity, retained verification charges and budget-free exact retries.
+
+Incoming Cargo manifest/lock edits are preserved, including IC Memory 0.48 and
+selected Wire 0.3.5. IC Memory's removed fixture-cell setter surfaced during the
+native checkpoint test; the corruption fixture now uses its checked write API.
+All 22 restore-enabled session tests, three native canister tests and six real
+canister qualification cases pass, including certified proofs, two-receiver SDK
+admission/logout and checkpoint restoration. Evidence, including the initial
+sandbox loopback refusal, is retained under `target/auth-cleanup-093/`.
+
+[Testkit #119 — Own typed IC Wire query/update adapters for native canister qualification](https://github.com/dragginzgame/ic-testkit/issues/119#issuecomment-6236000105)
+records the explicit-caller transport contract and adoption gate. Sibling source
+remains read-only; retain the runnable local helper until a published adapter
+can replace it. No full CI, release, publication or consumer adoption is claimed.
+Native/Wasm Clippy, dependency boundaries, formatting, links and the adopted
+Shared Tooling snapshot also pass; the real Git index and refs remain unchanged.
+
 ## Host-tooling Wire fixture repair (pending 0.9.0)
 
 Starting from clean `804d301`, the reported host-tooling failure reproduced:

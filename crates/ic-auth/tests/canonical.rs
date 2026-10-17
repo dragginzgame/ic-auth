@@ -219,6 +219,31 @@ fn duplicate_roles_and_scopes_are_rejected() {
         cert_hash(&cert),
         Err(CanonicalAuthError::NonCanonicalScopes)
     );
+    for (grants, expected) in [
+        (
+            vec![grant("app", &["read"]), grant("app", &["write"])],
+            CanonicalAuthError::NonCanonicalRoles,
+        ),
+        (
+            vec![grant("app", &["read", "read"])],
+            CanonicalAuthError::NonCanonicalScopes,
+        ),
+    ] {
+        let mut proof = chain_key_proof();
+        proof.delegation_cert.grants = grants;
+        assert_eq!(
+            chain_key_delegation_cert_hash(&proof.delegation_cert).unwrap_err(),
+            expected
+        );
+        assert_eq!(
+            proof_hash(&DelegationProof {
+                cert: sample_cert(),
+                root_proof: RootProof::IcChainKeyBatchSignatureV1(proof),
+            })
+            .unwrap_err(),
+            expected,
+        );
+    }
 }
 
 #[test]

@@ -41,14 +41,14 @@ ic-cdk = "0.20.3"
 # DFINITY certificate trees, selected only by certified capabilities/fixtures.
 ic-certification = "3.2"
 # DragginzGame host utilities and fixture storage, not DFINITY runtime packages.
-ic-host-fs = { version = "0.26", default-features = false }
-ic-host-process = { version = "0.26", default-features = false }
-ic-memory = "0.47"
+ic-host-fs = { version = "0.27", default-features = false }
+ic-host-process = { version = "0.27", default-features = false }
+ic-memory = "0.48"
 # DFINITY verification, absent from portable/session-only library graphs.
 ic-signature-verification = "0.3"
 # DragginzGame native qualification tools; never a public library dependency.
-ic-testkit = "0.51"
-ic-testkit-candid = "0.51"
+ic-testkit = "0.52"
+ic-testkit-candid = "0.52"
 # Direct use is test-only; certified verification also reaches it transitively.
 ic-verify-bls-signature = { version = "0.6", default-features = false, features = ["alloc"] }
 ic-wire = "0.3.4"

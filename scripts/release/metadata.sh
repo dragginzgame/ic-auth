@@ -7,7 +7,8 @@ script_path="${BASH_SOURCE[0]}"
 cd -P "${script_path%/*}/../.."
 operation="${1:?operation required}"
 fail() { echo "release metadata refused: $*" >&2; exit 1; }
-[[ "${RELEASE_DELIVERY:-direct}" == direct ]] || fail 'this repository qualifies direct delivery only'
+bash scripts/ci/check-release-delivery.sh ci/release-delivery.txt "${RELEASE_DELIVERY:-direct}" ||
+    fail 'this repository qualifies direct delivery only'
 files=(Cargo.toml Cargo.lock CHANGELOG.md release-validation.json)
 if [[ "$operation" == files ]]; then printf '%s\0' "${files[@]}"; exit 0; fi
 for value in "${RELEASE_PREVIOUS:?}" "${RELEASE_VERSION:?}"; do

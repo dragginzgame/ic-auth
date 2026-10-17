@@ -754,6 +754,7 @@ fn byte_capacity_failure_preserves_previous_session_and_login_reservation() {
     let mut sizing = Receiver::new(&f);
     f.admit(&mut sizing, NOW).unwrap();
     let mut r = Receiver::new(&f);
+    r.budget = SessionAdmissionBudget::new(2, SECOND, 0).unwrap();
     r.store = MemorySessionStore::new(
         0,
         SessionLimits {
@@ -767,8 +768,27 @@ fn byte_capacity_failure_preserves_previous_session_and_login_reservation() {
     f.claims.nonce = [2; 16];
     assert_eq!(f.admit(&mut r, NOW), Err(SessionError::ByteCapacity));
     assert_eq!(r.store.encoded_bytes(), before);
-    assert_eq!(r.auth(&f, NOW), Ok(session));
+    assert_eq!(r.auth(&f, NOW).as_ref(), Ok(&session));
     assert_eq!(r.ledger.occupancy(), (1, 0));
+    assert_eq!(r.store.session_records().len(), 1);
+    assert_eq!(r.store.replay_records().len(), 1);
+    // The failed stage keeps its verification charge, but consumes no replay.
+    assert_eq!(
+        f.admit(&mut r, NOW),
+        Err(SessionError::Credential(
+            ic_auth::portable_credential::PortableCredentialError::Ed25519(
+                ic_auth::portable_signature::PortableSignatureError::Budget(
+                    ic_auth::admission_budget::AdmissionBudgetError::Exhausted,
+                ),
+            ),
+        )),
+    );
+    f.claims.nonce = [1; 16];
+    assert_eq!(
+        f.admit(&mut r, NOW),
+        Ok(SessionEstablished::ExactRetry(session))
+    );
+    f.claims.nonce = [2; 16];
     r.store
         .transaction(None, |tx| {
             assert!(!tx.replay_exists(claims_hash(&f.claims).unwrap())?);

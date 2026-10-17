@@ -70,16 +70,8 @@ printf '%s\n' "$TESTKIT_FIXTURE_CLI"
 SCRIPT
 cat > "$consumer/scripts/dev/install-ic-tools.sh" <<'SCRIPT'
 #!/usr/bin/env bash
-set -euo pipefail
-if [[ $# == 4 || ( $# == 5 && "${5:-}" == --check ) ]]; then
-    if [[ $# == 5 ]]; then target=ic-tools-check; else target=install-ic-tools; fi
-    printf '%s\n' "$target" >> "$TESTKIT_FIXTURE_LOG"
-    exit 0
-fi
-[[ $# == 5 && "$1" == --consumer && "$2" == "$TESTKIT_FIXTURE_CONSUMER" &&
-   "$3" == --pins && "$4" == "$TESTKIT_FIXTURE_CONSUMER/ci/ic-tools.tsv" && "$5" == --preflight ]] || exit 1
-printf 'ic preflight\n' >> "$TESTKIT_FIXTURE_LOG"
-exit "${TESTKIT_FIXTURE_IC_PREFLIGHT_STATUS:-0}"
+printf 'unexpected unselected IC tool dispatch\n' >> "$TESTKIT_FIXTURE_LOG"
+exit 99
 SCRIPT
 cat > "$TESTKIT_FIXTURE_CLI" <<'SCRIPT'
 #!/usr/bin/env bash
@@ -155,6 +147,7 @@ rg -F 'make install-testkit-tools' "$fixture/missing.stderr" > /dev/null
 # Testkit admission and the validation runner remain their actual callers.
 mkdir -p "$consumer/make" "$consumer/ci" "$consumer/scripts/ci"
 for input in Makefile make/consumer.mk make/tools.mk make/release.mk make/rust-format.mk make/execution.mk \
+    scripts/ci/check-release-delivery.sh ci/release-delivery.txt \
     ci/tool-versions.env ci/ic-tools.tsv Cargo.toml rust-toolchain.toml \
     packages/client/package.json packages/client/package-lock.json packages/client/.nvmrc \
     scripts/ci/check-make-execution.sh scripts/ci/verify-file-checksum.sh \
@@ -199,7 +192,7 @@ for target in test-qualification ci; do
     rg -Fx 'cli check' "$TESTKIT_FIXTURE_LOG" > /dev/null
     rg -F 'make install-testkit-tools' "$fixture/early-$target.log" > /dev/null
     if [[ "$target" == ci ]]; then
-        printf '%s\n' 'snapshot check' host-tools-check ic-tools-check rust-tools-check \
+        printf '%s\n' 'snapshot check' host-tools-check rust-tools-check \
             msrv-tools-check 'cli check' > "$fixture/expected-early.log"
         cmp "$fixture/expected-early.log" "$TESTKIT_FIXTURE_LOG"
     fi
@@ -208,13 +201,14 @@ done
 # The actual CI roster seals both Rust and frontend preparation before stages.
 # Each independent export mutates one declared input in the first stage; no
 # common/product admission or Cargo dispatch may follow, even under parallel Make.
-for scenario in rust frontend deleted failed-stage; do
+for scenario in rust frontend delivery deleted failed-stage; do
     mutant="$fixture/drift-$scenario"
     cp -R "$consumer" "$mutant"
     : > "$TESTKIT_FIXTURE_LOG"
     input=Cargo.lock; action=append; snapshot_status=0
     case "$scenario" in
         frontend) input=packages/client/package-lock.json ;;
+        delivery) input=ci/release-delivery.txt ;;
         deleted) input=rust-toolchain.toml; action=delete ;;
         failed-stage) snapshot_status=37 ;;
     esac
@@ -233,29 +227,21 @@ done
 # Real consumer aggregates retain common/product ordering under parallel Make.
 # Only explicit setup dispatches the selected CLI installer and server setup;
 # individual product setup targets still admit their host prerequisite.
-for failed in ic rust; do
-    : > "$TESTKIT_FIXTURE_LOG"
-    status=0
-    if [[ "$failed" == ic ]]; then
-        (cd "$consumer"; TESTKIT_FIXTURE_IC_PREFLIGHT_STATUS=37 make --no-print-directory -j4 install-tools) \
-            > "$fixture/preflight-$failed.log" 2>&1 || status=$?
-        printf 'ic preflight\n' > "$fixture/expected-preflight.log"
-    else
-        (cd "$consumer"; TESTKIT_FIXTURE_RUST_PREFLIGHT_STATUS=39 make --no-print-directory -j4 install-tools) \
-            > "$fixture/preflight-$failed.log" 2>&1 || status=$?
-        printf 'ic preflight\nrust preflight\n' > "$fixture/expected-preflight.log"
-    fi
-    [[ "$status" == 2 && ! -e "$TESTKIT_FIXTURE_READY" && ! -e "$consumer/cargo-dispatch.log" ]] || exit 1
-    cmp "$fixture/expected-preflight.log" "$TESTKIT_FIXTURE_LOG"
-done
+: > "$TESTKIT_FIXTURE_LOG"
+status=0
+(cd "$consumer"; TESTKIT_FIXTURE_RUST_PREFLIGHT_STATUS=39 make --no-print-directory -j4 install-tools) \
+    > "$fixture/preflight-rust.log" 2>&1 || status=$?
+printf 'rust preflight\n' > "$fixture/expected-preflight.log"
+[[ "$status" == 2 && ! -e "$TESTKIT_FIXTURE_READY" && ! -e "$consumer/cargo-dispatch.log" ]] || exit 1
+cmp "$fixture/expected-preflight.log" "$TESTKIT_FIXTURE_LOG"
 : > "$TESTKIT_FIXTURE_LOG"
 (cd "$consumer"; make --no-print-directory -j4 install-tools) > "$fixture/setup.log" 2>&1
-printf '%s\n' 'ic preflight' 'rust preflight' install-host-tools install-ic-tools install-rust-tools \
+printf '%s\n' 'rust preflight' install-host-tools install-rust-tools \
     install-host-tools install-msrv install-host-tools 'cli install' 'server setup' 'cli check' > "$fixture/expected-setup.log"
 cmp "$fixture/expected-setup.log" "$TESTKIT_FIXTURE_LOG"
 : > "$TESTKIT_FIXTURE_LOG"
 (cd "$consumer"; make --no-print-directory -j4 tools-check) > "$fixture/check.log" 2>&1
-printf '%s\n' host-tools-check ic-tools-check rust-tools-check msrv-tools-check \
+printf '%s\n' host-tools-check rust-tools-check msrv-tools-check \
     'cli check' 'server check' 'cli check' > "$fixture/expected-check.log"
 cmp "$fixture/expected-check.log" "$TESTKIT_FIXTURE_LOG"
 
@@ -265,7 +251,7 @@ status=0
 (cd "$consumer"; TESTKIT_FIXTURE_MSRV_STATUS=31 make --no-print-directory -j4 tools-check) \
     > "$fixture/missing-msrv.log" 2>&1 || status=$?
 [[ "$status" == 2 ]] || exit 1
-printf '%s\n' host-tools-check ic-tools-check rust-tools-check msrv-tools-check > "$fixture/expected-msrv.log"
+printf '%s\n' host-tools-check rust-tools-check msrv-tools-check > "$fixture/expected-msrv.log"
 cmp "$fixture/expected-msrv.log" "$TESTKIT_FIXTURE_LOG"
 
 # Original setup/installation/admission failures cannot report an identity.

@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.9.1]
+
+- Adopt Shared Tooling 0.23.0. Common setup/admission selects host and Rust tools;
+  the unused IC executable bundle remains an explicit optional selection.
+
+- Declare direct-only release delivery once and seal that policy through CI,
+  retaining release refusal, recovery and failure-evidence qualification.
+
+- Use published IC Host 0.27 for native file/process consumers, keeping Host
+  outside the public authentication libraries.
+
+- Hash canonical chain-key payloads without an extra framed buffer and append
+  nested proof fields directly, preserving signed bytes and rejection rules.
+
+- Remove the private browser client's redundant `issuing()` method. Callers use
+  `claimIssuance()` and honor its issue-versus-reconcile result; durable unknown
+  issuance evidence and journal storage are unchanged.
+
+- Use shared Wire admission/session DTOs directly in qualification, including
+  exact Wire reply bytes inside profiling diagnostics.
+
+- Remove duplicate session-size counting before transaction staging; retain
+  record limits, failed-admission atomicity and verification budget charges.
+
+- Use IC Memory's checked fixture-cell write for checkpoint corruption tests.
+
+- Adapt qualification startup to Testkit's explicit owned-server configuration.
+
 ## [0.9.0] - 2026-10-17
 
 - **Breaking:** retire the never-deployed browser token prepare/retrieve client,

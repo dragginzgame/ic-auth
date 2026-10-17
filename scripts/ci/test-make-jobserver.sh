@@ -15,6 +15,7 @@ mkdir -p "$consumer/make" "$consumer/ci" "$consumer/scripts/dev" \
     "$consumer/scripts/ci" "$consumer/scripts/release" "$consumer/packages/client" "$fixture/bin"
 cp packages/client/package.json packages/client/.nvmrc "$consumer/packages/client/"
 for input in Makefile make/consumer.mk make/tools.mk make/release.mk make/rust-format.mk make/execution.mk \
+    scripts/ci/check-release-delivery.sh ci/release-delivery.txt \
     ci/tool-versions.env scripts/ci/check-make-execution.sh; do
     cp -p "$input" "$consumer/$input"
 done
@@ -95,6 +96,16 @@ for target in "${targets[@]}"; do
     fi
     [[ -s "$AUTH_JOBSERVER_LOG" ]]
 done
+
+# Auth's declared delivery policy refuses unsupported modes before adapter dispatch.
+: > "$AUTH_JOBSERVER_LOG"
+if (cd "$consumer"; make --no-print-directory RELEASE_DELIVERY=pr release-version) \
+    > "$fixture/refused-delivery.log" 2>&1; then
+    echo 'unsupported delivery unexpectedly dispatched' >&2
+    exit 1
+fi
+[[ ! -s "$AUTH_JOBSERVER_LOG" ]]
+rg -F 'release delivery refused' "$fixture/refused-delivery.log" > /dev/null
 
 # Every dry run needs a fresh temporary-registry identity, even before a version
 # bump. Keep earlier evidence and propagate Cargo refusal through the recipe.

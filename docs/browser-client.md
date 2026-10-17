@@ -67,6 +67,10 @@ Ordinary calls carry no proof; receivers check their caller-bound local session.
 
 The journal atomically claims issuance before dispatch. The first claimant calls
 `issue`; overlapping instances, reloads and uncertain attempts use `reconcile`.
+The sole journal claim API is `claimIssuance(generation)`: `true` permits the first
+issuance attempt, while `false` requires reconciliation. Direct adapters must
+check that result. The redundant `issuing()` wrapper is removed; this changes no
+stored journal bytes and does not clear unknown issuance evidence.
 Reconciliation must recover the original material or refuse unresolved; it must
 not issue a replacement, extend a deadline or infer no effect from absent/pruned
 evidence. The transport owns exact intent persistence and the crash boundary

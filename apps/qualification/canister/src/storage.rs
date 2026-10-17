@@ -98,7 +98,8 @@ mod tests {
                 .borrow_mut()
                 .as_mut()
                 .unwrap()
-                .set(b"BADMAGIC".to_vec())
+                .try_set(b"BADMAGIC".to_vec())
+                .unwrap()
         });
         assert!(std::panic::catch_unwind(load).is_err());
         save(&[]);

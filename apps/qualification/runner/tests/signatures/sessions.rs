@@ -12,6 +12,10 @@ use ic_auth::{
 };
 use ic_auth_protocol_types::*;
 use ic_auth_qualification_contracts::Candid;
+use ic_auth_wire::{
+    SessionInput, SessionView,
+    wire::{Bytes, List, Text},
+};
 use ic_testkit::pic::CandidCallExt;
 use sha2::{Digest, Sha256};
 use std::time::Duration;
@@ -47,20 +51,11 @@ fn admission(
     caller: Principal,
     input: &SessionInput,
 ) -> Result<SessionView, String> {
-    session_result(update_wire::<ic_auth_wire::EstablishSession>(
-        f,
-        target,
-        caller,
-        &wire_input(input),
-    ))
+    update_wire::<ic_auth_wire::EstablishSession>(f, target, caller, input)
+        .map_err(|e| e.into_string())
 }
 fn read(f: &Fixture, target: Principal, caller: Principal) -> Result<SessionView, String> {
-    session_result(update_wire::<ic_auth_wire::ReadSession>(
-        f,
-        target,
-        caller,
-        &(),
-    ))
+    update_wire::<ic_auth_wire::ReadSession>(f, target, caller, &()).map_err(|e| e.into_string())
 }
 fn logout(f: &Fixture, target: Principal, caller: Principal) -> Result<u64, LogoutResult> {
     use ic_auth_wire::model as m;
@@ -74,35 +69,6 @@ fn logout(f: &Fixture, target: Principal, caller: Principal) -> Result<u64, Logo
             m::LogoutUnavailable::ResetPending => LogoutUnavailable::ResetPending,
         })),
     }
-}
-fn wire_input(input: &SessionInput) -> ic_auth_wire::SessionInput {
-    use ic_auth_wire::wire::{List, Text};
-    ic_auth_wire::SessionInput {
-        credential: input.credential.clone().try_into().unwrap(),
-        scopes: List::new(
-            input
-                .scopes
-                .iter()
-                .cloned()
-                .map(Text::new)
-                .collect::<Result<_, _>>()
-                .unwrap(),
-        )
-        .unwrap(),
-        ttl_secs: input.ttl_secs,
-    }
-}
-fn session_result(
-    result: Result<ic_auth_wire::SessionView, ic_auth_wire::wire::Text<256>>,
-) -> Result<SessionView, String> {
-    result
-        .map(|v| SessionView {
-            caller: Principal::from_slice(v.caller.as_slice()),
-            issuer: Principal::from_slice(v.issuer.as_slice()),
-            subject: Principal::from_slice(v.subject.as_slice()),
-            expires_at_ns: v.expires_at_ns,
-        })
-        .map_err(|e| e.as_str().to_owned())
 }
 fn update_wire<M: ic_auth_wire::wire::Method>(
     f: &Fixture,
@@ -125,8 +91,10 @@ fn input(claims: &PortableClaims, key: &SigningKey) -> SessionInput {
             proof: PortableProof::Ed25519 {
                 signature: key.sign(&claims_hash(claims).unwrap()).to_bytes().to_vec(),
             },
-        },
-        scopes: vec!["read".into()],
+        }
+        .try_into()
+        .unwrap(),
+        scopes: List::new(vec![Text::new("read".into()).unwrap()]).unwrap(),
         ttl_secs: None,
     }
 }
@@ -206,8 +174,8 @@ fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ingress()
     })
     .unwrap();
     assert_eq!(
-        (a.caller, a.issuer, a.subject),
-        (b.caller, b.issuer, b.subject)
+        (&a.caller, &a.issuer, &a.subject),
+        (&b.caller, &b.issuer, &b.subject)
     );
     assert!(b.expires_at_ns >= a.expires_at_ns);
     assert!(b.expires_at_ns <= claims.login_deadline_ns);
@@ -216,10 +184,13 @@ fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ingress()
     let other_caller = browser_principal(&other.browser_public_key);
     let other_input = input(&other, &key);
     let mut forged = other_input.clone();
-    let PortableProof::Ed25519 { signature } = &mut forged.credential.proof else {
+    let ic_auth_wire::model::PortableProof::Ed25519(signature) = &mut forged.credential.proof
+    else {
         unreachable!()
     };
-    signature[0] ^= 1;
+    let mut bytes = signature.as_slice().to_vec();
+    bytes[0] ^= 1;
+    *signature = Bytes::new(bytes).unwrap();
     assert!(
         measured(&f, f.signer, "forged_signature", || {
             admission(&f, f.signer, other_caller, &forged)
@@ -233,7 +204,8 @@ fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ingress()
     .unwrap();
     f.pic.advance_time(Duration::from_secs(3));
     let mut retry = first.clone();
-    retry.credential.proof = PortableProof::Ed25519 { signature: vec![] };
+    retry.credential.proof =
+        ic_auth_wire::model::PortableProof::Ed25519(Bytes::new(vec![]).unwrap());
     assert_eq!(
         measured(&f, f.signer, "exact_retry_after_proof_expiry", || {
             admission(&f, f.signer, caller, &retry)
@@ -344,12 +316,10 @@ fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ingress()
                 .call_and_wait()
                 .await
                 .unwrap();
-            session_result(
-                ic_auth_wire::wire::decode_response::<ic_auth_wire::ReadSession>(&bytes).unwrap(),
-            )
+            ic_auth_wire::wire::decode_response::<ic_auth_wire::ReadSession>(&bytes).unwrap()
         });
         if device == 4 {
-            assert_eq!(result.unwrap().caller, fresh)
+            assert_eq!(result.unwrap().caller.as_slice(), fresh.as_slice())
         } else {
             assert!(result.is_err())
         }
@@ -369,7 +339,7 @@ fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ingress()
         assert!(read(&f, receiver, sdk_caller).is_err());
     }
     let sdk_credential = ic_auth_wire::wire::encode_request::<ic_auth_wire::CredentialEnvelope>(
-        &input(&sdk_claims, &key).credential.try_into().unwrap(),
+        &input(&sdk_claims, &key).credential,
     )
     .unwrap()
     .into_bytes();
@@ -728,7 +698,8 @@ fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_authority() 
     // Restoration retains the live exact retry and its original lease even
     // though the proof expired. It must not enter fresh verification.
     let mut retry = original.clone();
-    retry.credential.proof = PortableProof::Ed25519 { signature: vec![] };
+    retry.credential.proof =
+        ic_auth_wire::model::PortableProof::Ed25519(Bytes::new(vec![]).unwrap());
     assert_eq!(admission(&f, f.resource, live, &retry).unwrap(), session);
     assert!(read(&f, f.resource, revoked).is_err());
     assert_eq!(logout(&f, f.resource, revoked).unwrap(), denied_until);
@@ -740,7 +711,7 @@ fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_authority() 
     let renewed = input(&claims, &key);
     assert!(admission(&f, f.resource, revoked, &renewed).is_err());
     let renewed_peer = admission(&f, f.signer, revoked, &renewed).unwrap();
-    assert_eq!(renewed_peer.caller, revoked);
+    assert_eq!(renewed_peer.caller.as_slice(), revoked.as_slice());
     assert_eq!(renewed_peer.subject, session.subject);
     claims.browser_public_key = unknown_key;
     assert!(admission(&f, f.resource, unknown, &input(&claims, &key)).is_err());

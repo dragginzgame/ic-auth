@@ -254,7 +254,6 @@ impl Session {
             request_hash: request.hash(),
         });
         session.check_live(ctx, policy)?;
-        session.encoded_len()?;
         Ok(session)
     }
     pub(super) fn check_revocation(

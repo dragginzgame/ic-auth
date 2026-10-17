@@ -37,10 +37,11 @@ test('logout commits invalidation before fan-out and retries Capacity after late
   });
   try {
     await f.client.destination('login-a', receiver, f.state.now + 2_000n * MS);
-    await f.client.issuing('login-a');
+    assert.equal(await f.client.claimIssuance('login-a'), true);
+    assert.equal(await f.client.claimIssuance('login-a'), false);
     await f.client.begin('login-a', f.state.now + 10_000n * MS);
     await assert.rejects(f.client.destination('login-a', receiver, f.state.now), ClientError);
-    await assert.rejects(f.client.issuing('login-a'), ClientError);
+    await assert.rejects(f.client.claimIssuance('login-a'), ClientError);
     const status = await f.client.cleanup('login-a', identity);
     assert.equal(status.phase, 'finished');
     assert.equal(status.issuanceUnknown, true);
@@ -60,7 +61,7 @@ test('proof expiry does not imply logout: reserve final attempt after admission 
     const expiry = f.state.now + 20_000n * MS;
     const deadline = f.state.now + 30_000n * MS;
     await f.client.destination('login-a', receiver, expiry);
-    await f.client.issuing('login-a');
+    assert.equal(await f.client.claimIssuance('login-a'), true);
     await f.client.begin('login-a', deadline);
     await f.client.begin('login-a', deadline + 100_000n * MS);
     const result = await f.client.cleanup('login-a', identity);
@@ -102,7 +103,7 @@ test('missing handle and lost replies remain unknown, never implicit success', a
   let calls = 0;
   const f = await fixture(async () => { calls++; throw new Error('reply lost'); });
   try {
-    await f.client.issuing('login-a');
+    assert.equal(await f.client.claimIssuance('login-a'), true);
     await f.client.begin('login-a', f.state.now + 10_000n * MS);
     const result = await f.client.cleanup('login-a', undefined);
     assert.equal(calls, 0);
@@ -179,7 +180,7 @@ test('a suspended callback cannot restore login or change status after cleanup d
     const result = await f.client.cleanup('login-a', identity);
     assert.equal(result.phase, 'finished');
     assert.equal(result.targets[0]!.confirmedUntilNs, undefined);
-    await assert.rejects(f.client.issuing('login-a'), ClientError);
+    await assert.rejects(f.client.claimIssuance('login-a'), ClientError);
     assert.equal(f.state.disposed, 1);
   } finally { f.store.close(); }
 });

@@ -1,9 +1,10 @@
 .DEFAULT_GOAL := help
 
 include ci/tool-versions.env
-# Extend the shared ordered aggregates after host, IC and Rust admission.
+# Extend the shared ordered aggregates after common host and Rust admission.
 LOCAL_TOOL_INSTALL_TARGETS := install-msrv install-testkit-tools
 LOCAL_TOOL_CHECK_TARGETS := msrv-tools-check testkit-tools-check
+RELEASE_DELIVERY_POLICY := $(CURDIR)/ci/release-delivery.txt
 override SHARED_TOOLING_ROOT := $(CURDIR)
 include make/consumer.mk
 
@@ -155,7 +156,7 @@ check-doc-links:
 ci:
 	+bash scripts/ci/run-validation-targets.sh --fail-fast \
 	  --input Cargo.toml --input Cargo.lock --input rust-toolchain.toml \
-	  --input ci/tool-versions.env --input ci/ic-tools.tsv \
+	  --input ci/tool-versions.env --input ci/ic-tools.tsv --input ci/release-delivery.txt \
 	  --input packages/client/package.json --input packages/client/package-lock.json \
 	  --input packages/client/.nvmrc \
 	  check-snapshot tools-check check-dependency-pins check-doc-links test-make-jobserver fmt-check test-formatting-hooks metadata check-boundaries check-msrv test-tools-evidence test-testkit-tools test-client-tools test-client test-types test-protocol test-portable-signatures test-chain-key-signatures test-signatures test-signature-store test-certified-proofs test-sessions test-host-tooling test-qualification check-wasm clippy publish-dry-run test-release-tools test-release-runner test-evidence-archive

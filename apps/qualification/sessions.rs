@@ -1,6 +1,6 @@
 //! Private controller-installed portable-session qualification contracts.
 use candid::{CandidType, Principal};
-use ic_auth_protocol_types::{AudienceId, AuthRole, DelegatedRoleGrant, PortableCredential};
+use ic_auth_protocol_types::{AudienceId, AuthRole, DelegatedRoleGrant};
 use ic_auth_qualification_contracts::Candid;
 use serde::Deserialize;
 #[derive(Clone, CandidType, Deserialize)]
@@ -15,19 +15,6 @@ pub struct ReceiverConfig {
     pub enrollment_until_ns: u64,
     pub verification_burst: u32,
     pub verification_refill_ns: u64,
-}
-#[derive(Clone)]
-pub struct SessionInput {
-    pub credential: PortableCredential,
-    pub scopes: Vec<String>,
-    pub ttl_secs: Option<u64>,
-}
-#[derive(Clone, Debug, PartialEq, Eq, CandidType, Deserialize)]
-pub struct SessionView {
-    pub caller: Principal,
-    pub issuer: Principal,
-    pub subject: Principal,
-    pub expires_at_ns: u64,
 }
 #[derive(Debug, CandidType, Deserialize)]
 pub struct SessionProfile {
@@ -116,10 +103,11 @@ impl RootEnrollment {
     }
 }
 
-/// Instruction window covers the real admission implementation, excluding Candid
-/// request decoding and response encoding. Cycle deltas include the whole update.
+/// Instruction window covers admission and domain projection, excluding Wire
+/// request decoding and reply encoding. Cycle deltas include the whole update.
 #[derive(Debug, CandidType, Deserialize)]
 pub struct AdmissionProfile {
-    pub result: Result<SessionView, String>,
+    /// Exact shared admission response, not a parallel diagnostic session DTO.
+    pub reply: Vec<u8>,
     pub instructions: u64,
 }

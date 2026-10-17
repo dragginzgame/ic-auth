@@ -380,13 +380,17 @@ volatile store, with three fresh browser logins and matching occupancy progressi
 The first proof is also admitted on a second receiver. Native credential/root
 signing and issuer preparation are outside every receiver sample.
 
-The profile endpoint wraps the actual admission implementation. Counter 0 excludes
-Candid request decoding and response encoding; cycle-balance deltas include the
-whole instrumented update and platform charges. Raw samples, artifact hash/size
+The profile endpoint wraps the actual admission implementation. Counter 0 includes
+Wire-to-domain projection but excludes Wire request decoding and reply encoding.
+Its private diagnostic envelope carries the exact shared Wire admission reply.
+Cycle-balance deltas include the whole instrumented update and platform charges.
+Raw samples, artifact hash/size
 and lifecycle outcomes are retained in the qualification log. These are small
 controlled observations, not a throughput distribution or a production price.
 
-Final local observations, Testkit 0.48.0/server 16.1.0, IC Memory 0.43.0:
+Historical local observations, Testkit 0.48.0/server 16.1.0, IC Memory 0.43.0:
+these predate the current Wire/projection measurement boundary and are not a
+matched before/after sample for the current fixture cleanup.
 
 | Receiver operation | Ed25519 instructions / cycles | Certified instructions / cycles |
 | --- | --- | --- |

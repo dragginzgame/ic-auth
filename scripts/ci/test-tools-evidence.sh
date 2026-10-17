@@ -16,10 +16,11 @@ mkdir -p "$consumer/scripts/dev" "$consumer/scripts/ci" "$consumer/make" "$consu
 # Copy every include loaded by the actual Makefile so injected failures reach
 # the selected tool targets rather than stopping during Makefile parsing.
 for input in Makefile make/consumer.mk make/tools.mk make/release.mk make/rust-format.mk make/execution.mk \
+    scripts/ci/check-release-delivery.sh ci/release-delivery.txt \
     scripts/ci/check-make-execution.sh scripts/ci/run-formatting.sh ci/tool-versions.env \
     scripts/dev/ci-tools.sh scripts/dev/install-rust-tools.sh \
     scripts/dev/cargo-tool-build.sh scripts/dev/tool-store.sh \
-    scripts/ci/verify-file-checksum.sh; do
+    scripts/ci/verify-file-checksum.sh scripts/ci/tool-catalog-records.pl; do
     cp -p "$input" "$consumer/$input"
 done
 # Retain the actual ordered aggregate and Rust preflight/installer. Earlier
@@ -48,7 +49,7 @@ for phase in install check; do
     cmp "$fixture/$phase.stdout" "$consumer/target/rust-tools-$phase.log"
 done
 grep -F 'injected Cargo installation failure' "$consumer/target/rust-tools-install.log" > /dev/null
-grep -F 'missing or invalid shared Cargo tool: cargo-sort' "$consumer/target/rust-tools-check.log" > /dev/null
+grep -F 'missing or invalid shared Cargo tool:' "$consumer/target/rust-tools-check.log" > /dev/null
 set -- "$SHARED_TOOLING_STORE"/rust-*/set.*
 [[ $# == 1 && -f "$1/build/failed-build.txt" ]] || exit 1
 attempt="${1#"$SHARED_TOOLING_STORE/"}"

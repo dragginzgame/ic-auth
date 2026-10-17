@@ -75,7 +75,8 @@ fi
 # gate below. The opt-in includes and execution probe are explicit inputs.
 TMPDIR="$fixture" bash scripts/ci/check-release-commands.sh "$root" \
     ci/tool-versions.env make/consumer.mk make/tools.mk make/release.mk make/rust-format.mk \
-    make/execution.mk scripts/ci/check-make-execution.sh
+    make/execution.mk scripts/ci/check-make-execution.sh \
+    scripts/ci/check-release-delivery.sh ci/release-delivery.txt
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR
 export GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null
 mkdir "$fixture/repo"
@@ -97,7 +98,7 @@ cp -Rp "$root/apps" "$fixture/repo/apps"
 mkdir -p "$fixture/repo/packages"
 rm -rf "$fixture/repo/packages/client"
 tar -C "$root/packages" --exclude=node_modules --exclude=dist -cf - client | tar -xf - -C "$fixture/repo/packages"
-overlays=(.gitignore Makefile Cargo.toml Cargo.lock CHANGELOG.md .shared-tooling.snapshot
+overlays=(.gitignore Makefile Cargo.toml Cargo.lock CHANGELOG.md .shared-tooling.snapshot ci/release-delivery.txt
     scripts/release/metadata.sh scripts/release/publish.sh scripts/release/test-tools.sh
     scripts/release/rewrite-manifest.pl
     scripts/dev/run-host-tooling.sh
@@ -119,6 +120,13 @@ export CDPATH=".:$fixture"
 printf '%s\0' Cargo.toml Cargo.lock CHANGELOG.md release-validation.json > "$fixture/expected-files.nul"
 bash scripts/release/metadata.sh files > "$fixture/observed-files.nul"
 cmp "$fixture/expected-files.nul" "$fixture/observed-files.nul"
+if RELEASE_DELIVERY=pr bash scripts/release/metadata.sh files \
+    > "$fixture/refused-delivery.stdout" 2> "$fixture/refused-delivery.stderr"; then
+    echo 'unsupported delivery unexpectedly admitted' >&2
+    exit 1
+fi
+[[ ! -s "$fixture/refused-delivery.stdout" ]]
+rg -F 'release delivery refused' "$fixture/refused-delivery.stderr" > /dev/null
 # Fixture releases always start at a synthetic 0.1.0, even after the real
 # workspace advances. Do not make future CI depend on today's version.
 initial="$(bash scripts/ci/read-cargo-workspace-version.sh --stable Cargo.toml)"

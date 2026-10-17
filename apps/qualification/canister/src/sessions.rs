@@ -16,7 +16,8 @@ use ic_auth::{
     },
     session_request::SessionRequest,
 };
-use ic_auth_protocol_types::{LogoutRequest, LogoutResult, LogoutUnavailable};
+use ic_auth_protocol_types::{LogoutResult, LogoutUnavailable, PortableCredential};
+use ic_auth_wire::{SessionInput, SessionView, wire::Bytes};
 
 use std::cell::RefCell;
 const SECOND: u64 = 1_000_000_000;
@@ -82,9 +83,9 @@ fn policy(host: &Receiver) -> SessionPolicy {
 }
 fn view(session: Session) -> SessionView {
     SessionView {
-        caller: session.caller(),
-        issuer: session.issuer(),
-        subject: session.subject(),
+        caller: Bytes::new(session.caller().as_slice().to_vec()).expect("principal bound"),
+        issuer: Bytes::new(session.issuer().as_slice().to_vec()).expect("principal bound"),
+        subject: Bytes::new(session.subject().as_slice().to_vec()).expect("principal bound"),
         expires_at_ns: session.expires_at_ns(),
     }
 }
@@ -160,7 +161,17 @@ fn install_session_receiver(config: ReceiverConfig) -> Result<(), String> {
     encode_with = "encode_admission"
 )]
 fn establish_portable_session(input: SessionInput) -> Result<SessionView, String> {
-    let request = SessionRequest::new(input.scopes, input.ttl_secs).map_err(|e| e.to_string())?;
+    let credential: PortableCredential = input
+        .credential
+        .try_into()
+        .map_err(|e: ic_auth_wire::wire::Error| e.to_string())?;
+    let scopes = input
+        .scopes
+        .into_vec()
+        .into_iter()
+        .map(|s| s.into_string())
+        .collect();
+    let request = SessionRequest::new(scopes, input.ttl_secs).map_err(|e| e.to_string())?;
     with_receiver(|host| {
         let policy = policy(host);
         let ctx = context(
@@ -174,14 +185,14 @@ fn establish_portable_session(input: SessionInput) -> Result<SessionView, String
             &mut host.store,
             &mut host.ledger,
             &mut host.admission,
-            &input.credential.claims,
+            &credential.claims,
             &request,
             &ctx,
             policy,
             |budget, decoded| match &host.config.authority {
                 ReceiverAuthority::Ed25519(key) => Ok(decoded.verify(
                     budget,
-                    &input.credential.proof,
+                    &credential.proof,
                     &PortableVerificationContext::Ed25519 {
                         claims: &ctx.authority,
                         public_key: key,
@@ -207,7 +218,7 @@ fn establish_portable_session(input: SessionInput) -> Result<SessionView, String
                     };
                     Ok(decoded.verify(
                         budget,
-                        &input.credential.proof,
+                        &credential.proof,
                         &PortableVerificationContext::Certified(&verification),
                     )?)
                 }
@@ -229,9 +240,10 @@ fn establish_portable_session(input: SessionInput) -> Result<SessionView, String
 fn profile_portable_admission(input: SessionInput) -> AdmissionProfile {
     let start = ic_cdk::api::performance_counter(0);
     let result = establish_portable_session(input);
+    let instructions = ic_cdk::api::performance_counter(0) - start;
     AdmissionProfile {
-        result,
-        instructions: ic_cdk::api::performance_counter(0) - start,
+        reply: encode_admission(result),
+        instructions,
     }
 }
 
@@ -264,7 +276,7 @@ fn portable_session_read() -> Result<SessionView, String> {
     decode_with = "decode_logout",
     encode_with = "encode_logout"
 )]
-fn logout_portable_session(_request: LogoutRequest) -> LogoutResult {
+fn logout_portable_session() -> LogoutResult {
     RECEIVER.with(|state| {
         let mut state = state.borrow_mut();
         let Some(host) = state.as_mut().filter(|host| host.ready) else {
@@ -343,42 +355,23 @@ fn logout_guard() -> Result<(), String> {
     argument_guard::<ic_auth_wire::Logout>()
 }
 fn decode_admission(bytes: Vec<u8>) -> SessionInput {
-    let input = ic_auth_wire::wire::decode_request::<ic_auth_wire::EstablishSession>(&bytes)
-        .expect("bounded admission request");
-    SessionInput {
-        credential: input
-            .credential
-            .try_into()
-            .expect("checked domain identifiers"),
-        scopes: input
-            .scopes
-            .into_vec()
-            .into_iter()
-            .map(|s| s.as_str().to_owned())
-            .collect(),
-        ttl_secs: input.ttl_secs,
-    }
+    ic_auth_wire::wire::decode_request::<ic_auth_wire::EstablishSession>(&bytes)
+        .expect("bounded admission request")
 }
+
 fn decode_read(bytes: Vec<u8>) {
     ic_auth_wire::wire::decode_request::<ic_auth_wire::ReadSession>(&bytes)
         .expect("bounded read request");
 }
-fn decode_logout(bytes: Vec<u8>) -> LogoutRequest {
+fn decode_logout(bytes: Vec<u8>) {
     ic_auth_wire::wire::decode_request::<ic_auth_wire::Logout>(&bytes)
         .expect("bounded logout request");
-    LogoutRequest {}
 }
 fn wire_result(
     result: Result<SessionView, String>,
 ) -> Result<ic_auth_wire::SessionView, ic_auth_wire::wire::Text<256>> {
-    use ic_auth_wire::wire::{Bytes, Text};
+    use ic_auth_wire::wire::Text;
     result
-        .map(|v| ic_auth_wire::SessionView {
-            caller: Bytes::new(v.caller.as_slice().to_vec()).expect("principal bound"),
-            issuer: Bytes::new(v.issuer.as_slice().to_vec()).expect("principal bound"),
-            subject: Bytes::new(v.subject.as_slice().to_vec()).expect("principal bound"),
-            expires_at_ns: v.expires_at_ns,
-        })
         // A refusal must not trap while formatting a diagnostic: that would undo
         // the admission charge. Preserve the bounded UTF-8 prefix for this fixture;
         // production consumers own their structured application error contract.

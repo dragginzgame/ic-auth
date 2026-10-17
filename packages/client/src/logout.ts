@@ -67,11 +67,6 @@ export class PortableLogoutClient {
     });
   }
 
-  /** Record unknown issuance before dispatch; logout never rewrites historical issuance evidence. */
-  async issuing(generation: string): Promise<void> {
-    await this.claimIssuance(generation);
-  }
-
   /** Exactly one caller may initiate issuance. Others must reconcile, never reissue. */
   async claimIssuance(generation: string): Promise<boolean> {
     return this.update(generation, record => {
