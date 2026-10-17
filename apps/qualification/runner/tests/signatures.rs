@@ -135,7 +135,7 @@ impl Fixture {
         ttl: u64,
     ) -> Result<u64, String> {
         self.pic
-            .update_candid_as(
+            .update_candid(
                 self.signer,
                 self.controller,
                 "prepare",
@@ -165,6 +165,7 @@ impl Fixture {
             .pic
             .query_candid(
                 self.signer,
+                Principal::anonymous(),
                 "retrieve",
                 (seed.to_vec(), domain.to_vec(), message.to_vec()),
                 SIGNATURE_REPLY_LIMITS,
@@ -205,7 +206,7 @@ impl Fixture {
     fn set_asset(&self, version: u64) {
         let result: Result<(), String> = self
             .pic
-            .update_candid_as(
+            .update_candid(
                 self.signer,
                 self.controller,
                 "set_asset",
@@ -218,7 +219,13 @@ impl Fixture {
 
     fn asset_version(&self) -> u64 {
         self.pic
-            .query_candid(self.signer, "asset_version", (), CONTROL_REPLY_LIMITS)
+            .query_candid(
+                self.signer,
+                Principal::anonymous(),
+                "asset_version",
+                (),
+                CONTROL_REPLY_LIMITS,
+            )
             .expect("qualified Candid transport")
     }
 
@@ -277,7 +284,7 @@ fn real_certificates_composition_cleanup_and_upgrade_obey_the_host_contract() {
     let payload = [7; 32];
     let unauthorized: Result<u64, String> = fixture
         .pic
-        .update_candid_as(
+        .update_candid(
             fixture.signer,
             fixture.owner,
             "prepare",
@@ -315,7 +322,7 @@ fn real_certificates_composition_cleanup_and_upgrade_obey_the_host_contract() {
     assert!(fixture.retrieve(DOMAIN, &payload).is_err());
     let removed: Result<u32, String> = fixture
         .pic
-        .update_candid_as(
+        .update_candid(
             fixture.signer,
             fixture.controller,
             "prune",

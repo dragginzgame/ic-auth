@@ -34,7 +34,7 @@ fn measured<T>(f: &Fixture, target: Principal, label: &str, operation: impl FnOn
 fn install(f: &Fixture, target: Principal, config: &ReceiverConfig) {
     let result: Result<(), String> = f
         .pic
-        .update_candid_as(
+        .update_candid(
             target,
             f.controller,
             "install_session_receiver",
@@ -51,7 +51,7 @@ fn admission(
     input: &SessionInput,
 ) -> Result<SessionView, String> {
     f.pic
-        .update_candid_as(
+        .update_candid(
             target,
             caller,
             "establish_portable_session",
@@ -62,7 +62,7 @@ fn admission(
 }
 fn read(f: &Fixture, target: Principal, caller: Principal) -> Result<SessionView, String> {
     f.pic
-        .update_candid_as(
+        .update_candid(
             target,
             caller,
             "portable_session_read",
@@ -74,7 +74,7 @@ fn read(f: &Fixture, target: Principal, caller: Principal) -> Result<SessionView
 fn logout(f: &Fixture, target: Principal, caller: Principal) -> Result<u64, LogoutResult> {
     let result: Candid<LogoutResult> = f
         .pic
-        .update_candid_as(
+        .update_candid(
             target,
             caller,
             "logout_portable_session",
@@ -207,7 +207,7 @@ fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ingress()
     logout(&f, f.resource, caller).unwrap();
     let profile: Result<SessionProfile, String> = f
         .pic
-        .query_candid_as(
+        .query_candid(
             f.signer,
             other_caller,
             "profile_portable_session",
@@ -229,7 +229,7 @@ fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ingress()
     assert!(admission(&f, f.signer, unknown, &input(&claims, &key)).is_err());
     let result: Result<(), String> = f
         .pic
-        .update_candid_as(
+        .update_candid(
             f.signer,
             f.controller,
             "invalidate_session_authority",
@@ -541,7 +541,7 @@ fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_authority() 
     install(&f, f.signer, &config);
     let enabled: Result<(), String> = f
         .pic
-        .update_candid_as(
+        .update_candid(
             f.resource,
             f.controller,
             "enable_session_checkpoint",
@@ -601,7 +601,7 @@ fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_authority() 
     );
     let unauthorized: Result<(), String> = f
         .pic
-        .update_candid_as(
+        .update_candid(
             f.resource,
             live,
             "confirm_restored_session_authority",
@@ -614,7 +614,7 @@ fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_authority() 
     mismatch.authority = ReceiverAuthority::Ed25519([7; 32]);
     let wrong: Result<(), String> = f
         .pic
-        .update_candid_as(
+        .update_candid(
             f.resource,
             f.controller,
             "confirm_restored_session_authority",
@@ -626,7 +626,7 @@ fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_authority() 
     assert!(read(&f, f.resource, live).is_err());
     let confirmed: Result<(), String> = f
         .pic
-        .update_candid_as(
+        .update_candid(
             f.resource,
             f.controller,
             "confirm_restored_session_authority",
@@ -657,7 +657,7 @@ fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_authority() 
     assert!(admission(&f, f.resource, unknown, &input(&claims, &key)).is_err());
     let disabled: Result<(), String> = f
         .pic
-        .update_candid_as(
+        .update_candid(
             f.resource,
             f.controller,
             "invalidate_session_authority",
@@ -676,7 +676,7 @@ fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_authority() 
         .unwrap();
     let confirmed: Result<(), String> = f
         .pic
-        .update_candid_as(
+        .update_candid(
             f.resource,
             f.controller,
             "confirm_restored_session_authority",

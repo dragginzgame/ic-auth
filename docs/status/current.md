@@ -1,5 +1,25 @@
 # Current handoff — 2026-10-17
 
+## Testkit 0.51 caller migration (pending 0.8.0)
+
+The clean incoming source `e395c49` selects Testkit/Candid 0.51, Host 0.25.1 and
+Memory 0.47. Testkit's published migration contract removes the typed `_as` names
+and requires an explicit caller on every typed call. The qualification runner now
+uses the current methods at all 19 authenticated call sites, retaining their exact
+principals. Both formerly implicit anonymous queries pass `Principal::anonymous()`.
+Control/signature reply limits, endpoint arguments and fixture wire bytes remain
+unchanged; no compatibility wrapper or public Auth API was added.
+
+Evidence is retained in `target/testkit-051-adoption/`. The direct Rust 1.91 runner
+check and complete `make check-msrv` pass, including isolated native/Wasm package
+capabilities, internal applications and unchanged archive/source/manifest/lock
+seals. `make test-qualification` passes both checkpoint units and all six real
+canister cases: certification, composed roots, signed ingress, two-receiver SDK
+session admission/logout and checkpoint upgrades. Testkit's prepared 16.1.0 server
+is admitted offline; its selected CLI and runtime stay owned by Testkit.
+No full CI, release/publication, dependency/version change, Git index/ref mutation
+or sibling edit was performed.
+
 ## Publication dry-run staging repair (pending 0.8.0)
 
 The clean incoming source `7e80598` packaged the current Candid-free types, then

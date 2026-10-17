@@ -2,6 +2,9 @@
 
 ## [0.8.0]
 
+- Adopt Testkit 0.51's explicit-caller typed calls in qualification, preserving
+  authenticated principals, public anonymous queries and bounded reply decoding.
+
 - Isolate each publication dry run's temporary registry, preventing stale
   same-version dependency source from being mixed with current package metadata.
 

@@ -83,7 +83,7 @@ fn root_and_issuer_profiles_share_one_composed_store_without_crossing_authority(
     );
     let removed: Result<u32, String> = fixture
         .pic
-        .update_candid_as(
+        .update_candid(
             fixture.signer,
             fixture.controller,
             "prune",
