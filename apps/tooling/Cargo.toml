@@ -11,6 +11,7 @@ publish = false
 [dependencies]
 candid = { workspace = true, features = ["printer"] }
 ic-auth-protocol-types.workspace = true
+ic-build.workspace = true
 ic-host-fs.workspace = true
 
 [lints]

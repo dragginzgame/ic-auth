@@ -55,7 +55,7 @@ reject_graph unresolved-auth '.resolve.nodes |= map(select(.id != "auth"))'
 reject_graph wrong-root '.resolve.root = "auth"'
 reject_graph live-root '.packages[0].manifest_path = "/live-workspace/Cargo.toml"'
 reject_graph extra-local '.packages += [{id: "extra", name: "extra", source: null}] | .resolve.nodes += [{id: "extra"}]'
-for forbidden in canic-core toko solana-sdk ic-siws ic-host-fs ic-testkit pocket-ic ic-cdk ic-stable-structures ic-memory ic-timers; do
+for forbidden in canic-core toko solana-sdk ic-siws ic-host-fs ic-build ic-testkit pocket-ic ic-cdk ic-stable-structures ic-memory ic-timers; do
     reject_graph "$forbidden" ".packages[3].name = \"$forbidden\""
 done
 cp "$fixture/base-metadata.json" "$fixture/metadata.json"
@@ -65,6 +65,18 @@ for field in name version source checksum; do
     status=0
     "$BASH" scripts/ci/check-package-consumer.sh "$fixture/original.lock" "$fixture" "$version" > "$fixture/lock-$field.log" 2>&1 || status=$?
     [[ "$status" == 1 ]] || { echo "unexpected lock admission: $field" >&2; exit 1; }
+done
+# The shared reader also refuses ambiguous or malformed lock records.
+for mode in duplicate malformed; do
+    if [[ "$mode" == duplicate ]]; then
+        cp "$fixture/base.lock" "$fixture/Cargo.lock"
+        sed -n '/^\[\[package\]\]/,$p' "$fixture/base.lock" >> "$fixture/Cargo.lock"
+    else
+        printf 'package=[false]\n' > "$fixture/Cargo.lock"
+    fi
+    status=0
+    "$BASH" scripts/ci/check-package-consumer.sh "$fixture/original.lock" "$fixture" "$version" > "$fixture/lock-$mode.log" 2>&1 || status=$?
+    [[ "$status" == 1 ]] || { echo "unexpected lock admission: $mode" >&2; exit 1; }
 done
 printf 'Package identity, isolation and external-lock refusal cases passed on Bash %s\n' "$BASH_VERSION"
 
@@ -91,6 +103,7 @@ session k256 yes
 packaged ic-testkit yes
 packaged pocket-ic yes
 packaged ic-host-fs yes
+packaged ic-build yes
 packaged candid no
 CASES
 done

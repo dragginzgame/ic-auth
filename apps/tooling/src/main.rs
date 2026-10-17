@@ -1,6 +1,7 @@
 //! Local bounded file identities and durable release/publication evidence.
 //! Callers own parent paths, locking, artifact limits and effect reconciliation.
 
+use ic_build::cargo::packages::verify_external_lock_subset;
 use ic_host_fs::{
     durable::{PublicationMode, WriteOptions, write_with},
     read::{hash_file_no_follow, read_file_no_follow},
@@ -22,7 +23,7 @@ fn run(arguments: &[OsString]) -> Result<(), Box<dyn Error>> {
             Path::new(&arguments[2]),
         );
     }
-    let usage = "usage: ic-auth-tooling hash-file PATH MAX_BYTES | {create-private|replace-private} SOURCE DESTINATION MAX_BYTES";
+    let usage = "usage: ic-auth-tooling hash-file PATH MAX_BYTES | verify-external-lock ORIGINAL CANDIDATE MAX_BYTES | {create-private|replace-private} SOURCE DESTINATION MAX_BYTES";
     let Some(operation) = arguments.first().and_then(|value| value.to_str()) else {
         return Err(usage.into());
     };
@@ -32,6 +33,11 @@ fn run(arguments: &[OsString]) -> Result<(), Box<dyn Error>> {
         .ok_or(usage)?
         .parse::<usize>()?;
     match (operation, arguments.len()) {
+        ("verify-external-lock", 4) => {
+            let original = read_file_no_follow(Path::new(&arguments[1]), limit)?;
+            let candidate = read_file_no_follow(Path::new(&arguments[2]), limit)?;
+            verify_external_lock_subset(&original, &candidate, limit)?;
+        }
         ("hash-file", 3) => {
             let identity = hash_file_no_follow(Path::new(&arguments[1]), limit as u64)?;
             println!("{}", identity.sha256);

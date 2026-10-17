@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Auth-owned graph rules; callers retain independent graph collection/admission.
 auth_dependency_pattern() {
-    local product='canic|toko|solana|ic-siws|ic-host'
+    local product='canic|toko|solana|ic-siws|ic-host|ic-build'
     local storage='ic-cdk|ic-stable-structures|ic-memory|ic-timers'
     local certificates='ic-certification|ic-signature-verification|ic-canister-sig-creation'
     local pattern

@@ -32,6 +32,11 @@ fixture lock from the selected workspace graph and adds this consumer root.
 Before compilation, admission requires both exact package names, versions and
 manifest paths, enforces the library's forbidden-dependency boundary, and requires every
 external version, source and checksum to remain a subset of the original lock.
+The native tooling command delegates that comparison to published IC Build
+0.12.1, using no-follow reads and an explicit 8 MiB limit for each lock document.
+Malformed and duplicate lock identities are refused; Auth still owns package
+identity, graph isolation and dependency policy. IC Build is excluded from the
+public libraries.
 Compiler checks are locked/offline, without a dependency downgrade, network
 fallback or `--ignore-rust-version`.
 

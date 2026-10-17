@@ -1,5 +1,33 @@
 # Current handoff — 2026-10-16
 
+## Shared external-lock admission (pending 0.7.9)
+
+The isolated contribution starts from public `8ef596db` (released 0.7.8),
+excluding the normal checkout's unpublished integration batch. Native tooling
+now uses published IC Build 0.12.1 for bounded external-lock subset admission;
+the duplicate yq/jq comparison is deleted. Auth retains metadata/package identity,
+feature/dependency policy, source sealing and release admission. The new command
+uses existing no-follow file reads with an explicit 8 MiB per-document allowance.
+The library dependency guard now explicitly refuses Build as a deployed edge.
+
+Actual Rust 1.91 tooling compilation, seven existing native tooling cases,
+package-consumer admission/refusal fixtures and the dependency boundary graph
+check pass on Linux. The consumer fixtures include changed name/version/source/
+checksum, duplicate records, malformed records and forbidden Build edges.
+Strict current all-target tooling Clippy, manifest sorting, changed-file Rust
+formatting, shell lint, dependency inheritance, links and snapshot checks pass.
+All 368 original package identities, sources and checksums remain selected; ten
+packages are added for the native Build dependency. Build's archive checksum is
+`fcf813dcc83ef430f60130b1293db9cfcba147d9537de3acb097bb3e3d256d98`.
+
+The selected next notes are compatible 0.7.9 because only contributor tooling
+changes; own package versions remain 0.7.8. No public library API or stored/wire
+format changes. Complete archive/MSRV qualification, native macOS and release
+remain separate. Evidence: `/tmp/ic-build-next-20261017/auth-*.log`.
+[Auth #66 — Adopt Build external-lock subset admission](https://github.com/dragginzgame/ic-auth/issues/66)
+retains merge and consumer acceptance.
+
+
 ## Shared SDK transport and record allocation cleanup (pending 0.7.8)
 
 Browser logout and the live admission fixture now share one private SDK update

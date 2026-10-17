@@ -33,15 +33,8 @@ jq -e --arg forbidden "$forbidden" --arg version "$version" --arg fixture "$fixt
 ' "$fixture/metadata.json" > /dev/null || {
     echo 'package consumer did not select the exact isolated library graph' >&2; exit 1;
 }
-yq -p toml -o json '.' "$workspace_lock" > "$fixture/workspace-lock.json"
-yq -p toml -o json '.' "$fixture/Cargo.lock" > "$fixture/consumer-lock.json"
-jq -se '
-    .[0].package as $selected
-    | all(.[1].package[] | select(.source != null);
-        . as $entry | any($selected[];
-            .name == $entry.name and .version == $entry.version
-            and .source == $entry.source and .checksum == $entry.checksum))
-' "$fixture/workspace-lock.json" "$fixture/consumer-lock.json" > /dev/null || {
+"$BASH" scripts/dev/run-host-tooling.sh verify-external-lock \
+    "$workspace_lock" "$fixture/Cargo.lock" 8388608 || {
     echo 'package consumer changed an external lock selection' >&2; exit 1;
 }
 printf 'Exact archive manifests and selected external dependencies admitted\n'
