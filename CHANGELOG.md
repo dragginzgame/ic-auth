@@ -24,6 +24,9 @@
 - Remove duplicate session-size counting before transaction staging; retain
   record limits, failed-admission atomicity and verification budget charges.
 
+- Fix the admission-capacity regression test to use transaction occupancy checks
+  available with or without session restoration.
+
 - Use IC Memory's checked fixture-cell write for checkpoint corruption tests.
 
 - Adapt qualification startup to Testkit's explicit owned-server configuration.

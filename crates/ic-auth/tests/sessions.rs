@@ -770,8 +770,6 @@ fn byte_capacity_failure_preserves_previous_session_and_login_reservation() {
     assert_eq!(r.store.encoded_bytes(), before);
     assert_eq!(r.auth(&f, NOW).as_ref(), Ok(&session));
     assert_eq!(r.ledger.occupancy(), (1, 0));
-    assert_eq!(r.store.session_records().len(), 1);
-    assert_eq!(r.store.replay_records().len(), 1);
     // The failed stage keeps its verification charge, but consumes no replay.
     assert_eq!(
         f.admit(&mut r, NOW),
@@ -791,6 +789,14 @@ fn byte_capacity_failure_preserves_previous_session_and_login_reservation() {
     f.claims.nonce = [2; 16];
     r.store
         .transaction(None, |tx| {
+            assert_eq!(
+                tx.occupancy(f.caller())?,
+                SessionOccupancy {
+                    sessions: 1,
+                    replays: 1,
+                    replays_for_caller: 1,
+                }
+            );
             assert!(!tx.replay_exists(claims_hash(&f.claims).unwrap())?);
             Ok(())
         })

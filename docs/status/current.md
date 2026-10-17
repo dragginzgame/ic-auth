@@ -1,5 +1,15 @@
 # Current handoff — 2026-10-17
 
+## Session regression feature coverage (pending 0.9.1)
+
+The capacity regression used restore-only record iterators in the ordinary
+session test lane. It now checks session/replay occupancy through the existing
+transaction API, retaining failed-stage atomicity, verification-charge and exact
+retry assertions without widening any library feature gates. `make test-sessions`
+passes all four lanes: 13 certified cases, 12 ordinary session cases, three
+doctests, and 22 session plus 19 revocation cases with restoration enabled.
+Evidence is retained under `target/session-feature-repair/test-sessions.log`.
+
 ## Shared Tooling 0.23 and IC Host 0.27 (pending 0.9.1)
 
 The canonical exporter refreshed the 109-file snapshot from reviewed committed
