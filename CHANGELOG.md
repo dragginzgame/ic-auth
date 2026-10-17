@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.9]
+
+- Use IC Build's shared external-lock admission in native package qualification,
+  replacing the duplicate TOML-to-JSON comparison. Retain Auth's exact package
+  and dependency policy; reject oversized, malformed and ambiguous lock inputs.
+  [#66 — Adopt Build external-lock subset admission](https://github.com/dragginzgame/ic-auth/issues/66).
+
 ## [0.7.8] - 2026-10-17
 
 - Share one SDK update transport between browser logout and live admission
