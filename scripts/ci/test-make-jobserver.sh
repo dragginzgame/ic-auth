@@ -31,6 +31,18 @@ perl -e '
     open my $writer, ">&=$2" or die "closed jobserver writer: $!\n";
 '
 printf '%s\n' "$*" >> "$AUTH_JOBSERVER_LOG"
+if [[ "${1:-}" == publish ]]; then
+    [[ $# == 12 && "$2" == --dry-run && "$3" == --locked &&
+       "$4" == --registry && "$5" == crates-io && "$6" == --allow-dirty &&
+       "$7" == --target-dir && "$9" == -p && "${10}" == ic-auth-protocol-types &&
+       "${11}" == -p && "${12}" == ic-auth ]]
+    staging="$8"
+    [[ "$staging" == "$PWD/target/publication-dry-runs/"* &&
+       -d "$staging" && ! -e "$staging/dispatched" ]]
+    touch "$staging/dispatched"
+    printf '%s\n' "$staging" >> "$AUTH_JOBSERVER_LOG.paths"
+    exit "${AUTH_JOBSERVER_PUBLISH_STATUS:-0}"
+fi
 SCRIPT
 chmod +x "$fixture/bin/cargo"
 ln -s "$BASH" "$fixture/bin/bash"
@@ -84,10 +96,25 @@ for target in "${targets[@]}"; do
     [[ -s "$AUTH_JOBSERVER_LOG" ]]
 done
 
+# Every dry run needs a fresh temporary-registry identity, even before a version
+# bump. Keep earlier evidence and propagate Cargo refusal through the recipe.
+mkdir -p "$consumer/target/package"
+printf 'retained staging cache\n' > "$consumer/target/package/keep"
+(cd "$consumer"; make "${options[@]}" publish-dry-run) > "$fixture/publish-repeat.log" 2>&1
+status=0
+(cd "$consumer"; AUTH_JOBSERVER_PUBLISH_STATUS=37 make "${options[@]}" publish-dry-run) \
+    > "$fixture/publish-refusal.log" 2>&1 || status=$?
+[[ "$status" == 2 ]]
+rg -F 'Error 37' "$fixture/publish-refusal.log" > /dev/null
+[[ "$(wc -l < "$AUTH_JOBSERVER_LOG.paths" | tr -d '[:space:]')" == 3 ]]
+[[ "$(sort -u "$AUTH_JOBSERVER_LOG.paths" | wc -l | tr -d '[:space:]')" == 3 ]]
+while IFS= read -r staging; do [[ -f "$staging/dispatched" ]]; done < "$AUTH_JOBSERVER_LOG.paths"
+[[ "$(cat "$consumer/target/package/keep")" == 'retained staging cache' ]]
+
 # Recursive marking must never make unsafe modes execute these effects, even
 # when callers erase MAKEFLAGS. The shared independent guard stays authoritative.
 for mode in -n -t -q -i; do
-    for target in fetch metadata check-dependency-pins install-testkit-tools generate-client-contracts publish test-release-tools release-prepare-version; do
+    for target in fetch metadata check-dependency-pins install-testkit-tools generate-client-contracts publish-dry-run publish test-release-tools release-prepare-version; do
         : > "$AUTH_JOBSERVER_LOG"
         status=0
         (cd "$consumer"; make "$mode" --no-print-directory "$target" MAKEFLAGS=) \

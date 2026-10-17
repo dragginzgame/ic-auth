@@ -1,5 +1,29 @@
 # Current handoff — 2026-10-17
 
+## Publication dry-run staging repair (pending 0.8.0)
+
+The clean incoming source `7e80598` packaged the current Candid-free types, then
+failed while verifying Auth against old Candid-using source extracted under
+Cargo's cached temporary-registry identity. The staged registry record and Auth
+lock describe the new dependency graph; the cached source still has the former
+manifest and derives. This is a same-version staging collision, not a missing
+public dependency or a reason to restore Candid.
+
+`publish-dry-run` now gives each invocation a fresh target/staging directory under
+`target/publication-dry-runs/`, retaining its printed path. The real multi-package
+Cargo dry run still checks both archives with locked registry metadata and full
+verification. Existing package staging and caches remain intact. The actual
+publication runner, release versions, package manifests and lockfile are unchanged.
+
+Evidence is retained in `target/publication-staging-repair/`. A fresh-target probe
+and two runs of the repaired Make target build both packages and abort every
+upload. The first sandboxed probe could not resolve registry DNS; the live
+metadata checks succeeded with network access. The Make fixture checks distinct
+directories across success/refusal, retained earlier evidence, failure propagation,
+pipe jobserver inheritance and unsafe-mode refusal using substituted Cargo effects.
+ShellCheck, Bash syntax, formatting, local links, snapshot and diff checks pass.
+No full CI, release, publication, Git index/ref mutation or sibling edit was run.
+
 ## Testkit caller fixture repair (pending 0.8.0)
 
 The clean incoming source `9bbbc66` failed `test-testkit-tools` with status 127:

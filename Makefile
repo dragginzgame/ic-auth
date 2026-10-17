@@ -163,8 +163,15 @@ check-package-licenses:
 	@cmp LICENSE crates/ic-auth-protocol-types/LICENSE
 	@cmp LICENSE crates/ic-auth/LICENSE
 
+# A reused temporary-registry path can retain extracted same-version source
+# across edits. Give each dry run a new registry identity and retain its evidence.
 publish-dry-run: check-package-licenses
-	+cargo publish --dry-run --locked --registry crates-io --allow-dirty -p ic-auth-protocol-types -p ic-auth
+	+@set -eu; \
+	  mkdir -p "$(CURDIR)/target/publication-dry-runs"; \
+	  staging="$$(mktemp -d "$(CURDIR)/target/publication-dry-runs/run.XXXXXX")"; \
+	  printf 'Publication dry-run evidence retained: %s\n' "$$staging"; \
+	  cargo publish --dry-run --locked --registry crates-io --allow-dirty \
+	    --target-dir "$$staging" -p ic-auth-protocol-types -p ic-auth
 
 publish:
 	+bash scripts/release/publish.sh

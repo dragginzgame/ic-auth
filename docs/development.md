@@ -289,6 +289,10 @@ dry run deliberately accesses registry metadata: the selected Cargo's offline
 multi-package check fails when a staged dependency has no resolved checksum.
 It never uploads packages. It is part of the complete CI/release gate; release
 logs remain under `.git/release-state/validation-logs/`.
+Each invocation retains a fresh staging/build directory under
+`target/publication-dry-runs/`. This gives Cargo's temporary registry a distinct
+identity, preventing earlier same-version source from being reused after edits.
+Existing package staging and Cargo caches are preserved.
 
 Once this workflow is delivered to `main`, an explicitly authorized qualification
 of another branch or a tag-only release can dispatch the same workflow at that ref:

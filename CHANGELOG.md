@@ -2,6 +2,9 @@
 
 ## [0.8.0]
 
+- Isolate each publication dry run's temporary registry, preventing stale
+  same-version dependency source from being mixed with current package metadata.
+
 - Repair the Testkit caller fixture for generated-contract checks, including
   refusal before client build/native qualification and visible failure diagnostics.
 
