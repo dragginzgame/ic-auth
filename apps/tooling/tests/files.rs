@@ -244,10 +244,16 @@ fn symlink_inputs_and_existing_intent_links_are_refused() {
 
 #[test]
 fn client_contract_bundle_checks_all_vectors_and_refuses_bad_input() {
+    use ic_auth_wire::{CredentialEnvelope, Logout, wire::Method};
+
+    let vectors = [
+        ("credential", CredentialEnvelope::REQUEST_LIMITS.bytes),
+        ("logout", Logout::RESPONSE_LIMITS.bytes),
+    ];
     let root = fixture();
     let generated = invoke(&root, &["client-contracts", "generate", "."]);
     assert!(generated.status.success(), "{:?}", generated);
-    for name in ["request", "credential", "logout"] {
+    for (name, _) in vectors {
         let hex = fs::read_to_string(root.join(format!("{name}-vector.hex"))).unwrap();
         let bytes: Vec<u8> = hex
             .trim()
@@ -264,10 +270,18 @@ fn client_contract_bundle_checks_all_vectors_and_refuses_bad_input() {
             .status
             .success()
     );
-    for name in ["request", "credential", "logout"] {
+    for (name, maximum) in vectors {
         let path = root.join(format!("{name}-from-ts.bin"));
         let original = fs::read(&path).unwrap();
-        for invalid in [vec![0], vec![0; 131_073]] {
+        let mut trailing = original.clone();
+        trailing.push(0);
+        let other = if name == "credential" {
+            "logout"
+        } else {
+            "credential"
+        };
+        let wrong_frame = fs::read(root.join(format!("{other}-from-ts.bin"))).unwrap();
+        for invalid in [vec![0], trailing, wrong_frame, vec![0; maximum + 1]] {
             fs::write(&path, &invalid).unwrap();
             assert!(
                 !invoke(&root, &["client-contracts", "check", "."])
@@ -276,6 +290,13 @@ fn client_contract_bundle_checks_all_vectors_and_refuses_bad_input() {
             );
             assert_eq!(fs::read(&path).unwrap(), invalid);
         }
+        fs::remove_file(&path).unwrap();
+        assert!(
+            !invoke(&root, &["client-contracts", "check", "."])
+                .status
+                .success()
+        );
+        assert!(!path.exists());
         fs::write(path, original).unwrap();
     }
 }

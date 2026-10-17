@@ -1,5 +1,17 @@
 # Current handoff — 2026-10-17
 
+## Host-tooling Wire fixture repair (pending 0.9.0)
+
+Starting from clean `804d301`, the reported host-tooling failure reproduced:
+the contract-bundle test still opened the retired `request-vector.hex`. It now
+checks the current credential/request and logout/response vectors, with oversize
+inputs derived from their declared method limits. Malformed, trailing, mismatched
+and missing frames are refused without replacing or recreating their input files.
+No retired transport is restored. All nine host-tooling tests pass; before/after
+logs are retained in `target/host-tooling-before.log` and
+`target/host-tooling-after.log`. This is a fixture repair; the CLI and application
+contracts are unchanged. The full release gate remains maintainer-owned.
+
 ## Rust lifecycle and browser storage cleanup (pending 0.9.0)
 
 This continuation starts from the preceding dirty 0.9 preparation on `571a602`;

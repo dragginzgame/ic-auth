@@ -28,6 +28,9 @@
 - Adopt selected IC Wire 0.3.4, regenerate canonical TypeScript under the common
   strict compiler profile, and use owned bounded buffer extraction.
 
+- Repair the host-tooling contract fixture for the two current Wire vectors,
+  including declared size bounds and malformed, mismatched or missing input.
+
 ## [0.8.0] - 2026-10-17
 
 - Adopt Testkit 0.51's explicit-caller typed calls in qualification, preserving
