@@ -10,7 +10,7 @@ members = [
 resolver = "3"
 
 [workspace.package]
-version = "0.7.8"
+version = "0.8.0"
 edition = "2024"
 rust-version = "1.91.0"
 license = "MIT"
@@ -29,7 +29,7 @@ ed25519-dalek = { version = "2.2", default-features = false }
 # Native qualification transport only; not a dependency of the public libraries.
 ic-agent = { version = "0.49.2", default-features = false }
 ic-auth = { path = "crates/ic-auth" }
-ic-auth-protocol-types = { version = "0.7.8", path = "crates/ic-auth-protocol-types" }
+ic-auth-protocol-types = { version = "0.8.0", path = "crates/ic-auth-protocol-types" }
 # Unpublished Candid projection for existing qualification/browser fixtures only.
 ic-auth-qualification-contracts = { path = "apps/qualification/contracts" }
 # DFINITY certificate/signature machinery is selected only by those capabilities.

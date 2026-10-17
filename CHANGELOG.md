@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.8.0]
+## [0.8.0] - 2026-10-17
 
 - Adopt Testkit 0.51's explicit-caller typed calls in qualification, preserving
   authenticated principals, public anonymous queries and bounded reply decoding.
