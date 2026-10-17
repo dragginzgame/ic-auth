@@ -37,13 +37,16 @@ fallback or `--ignore-rust-version`.
 
 The independent consumer constructs and hashes the public canonical session
 request on native and Wasm without optional features. Each default selection's
-normal/build graph is recorded and rejects K256, certificate verification, CDK
+normal/build graph is recorded and rejects Candid, K256, certificate verification, CDK
 and stable storage. The optional session engine remains a separate feature check.
 
 Admission refusal cases run as part of `check-msrv`. Hashes seal the archives and
 every unpacked file before metadata resolution and again after all compilation;
 original and consumer manifests/locks must also remain unchanged. Failed hashes,
-comparisons or compiler commands fail the check and retain their evidence. This
+comparisons or compiler commands fail the check and retain their evidence. Sealing
+uses one bounded `hash-files0` batch per round, preserving sorted NUL-delimited
+package paths and explicit manifest/archive inputs. Batching does not cache
+identities across rounds or replace the before/after comparisons. This
 qualifies local archive interoperability, not crates.io publication readiness;
 `publish-dry-run` retains ordinary Cargo registry admission.
 See [Auth #21](https://github.com/dragginzgame/ic-auth/issues/21) and the adopted
@@ -53,7 +56,7 @@ See [Auth #21](https://github.com/dragginzgame/ic-auth/issues/21) and the adopte
 | --- | --- |
 | Protocol types | Native and `wasm32-unknown-unknown`, independent normalized package |
 | Auth library | Each target with default features, isolated portable Ed25519 verification, isolated chain-key verification, signature verification, signature preparation, token verification, sessions, session restoration, and all features together |
-| Native tooling and testkit runner | Separate workspace checks of all targets/features |
+| Native tooling, fixture transport and testkit runner | Separate workspace checks of all targets/features |
 | Qualification canister | Separate Rust 1.91.0 `wasm32-unknown-unknown` check |
 
 Build output stays under `target/msrv/`, with package inputs under

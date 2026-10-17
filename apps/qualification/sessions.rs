@@ -1,14 +1,15 @@
 //! Private controller-installed portable-session qualification contracts.
 use candid::{CandidType, Principal};
 use ic_auth_protocol_types::{AudienceId, AuthRole, DelegatedRoleGrant, PortableCredential};
+use ic_auth_qualification_contracts::Candid;
 use serde::Deserialize;
 #[derive(Clone, CandidType, Deserialize)]
 pub struct ReceiverConfig {
-    pub audience: AudienceId,
+    pub audience: Candid<AudienceId>,
     pub issuer: Principal,
     pub authority: ReceiverAuthority,
-    pub role: AuthRole,
-    pub grants: Vec<DelegatedRoleGrant>,
+    pub role: Candid<AuthRole>,
+    pub grants: Candid<Vec<DelegatedRoleGrant>>,
     pub valid_from_ns: u64,
     pub valid_until_ns: u64,
     pub enrollment_until_ns: u64,
@@ -17,7 +18,7 @@ pub struct ReceiverConfig {
 }
 #[derive(Clone, CandidType, Deserialize)]
 pub struct SessionInput {
-    pub credential: PortableCredential,
+    pub credential: Candid<PortableCredential>,
     pub scopes: Vec<String>,
     pub ttl_secs: Option<u64>,
 }
@@ -66,8 +67,8 @@ impl ReceiverAuthority {
 #[derive(Clone, CandidType, Deserialize)]
 pub struct RootEnrollment {
     pub root_canister_id: Principal,
-    pub algorithm: ic_auth_protocol_types::ChainKeyAlgorithm,
-    pub key_id: ic_auth_protocol_types::ChainKeyKeyId,
+    pub algorithm: Candid<ic_auth_protocol_types::ChainKeyAlgorithm>,
+    pub key_id: Candid<ic_auth_protocol_types::ChainKeyKeyId>,
     pub derivation_path_hash: [u8; 32],
     pub public_key: Vec<u8>,
     pub key_version: u64,
@@ -82,8 +83,8 @@ impl From<&ic_auth::token::RootKeyPolicy> for RootEnrollment {
     fn from(policy: &ic_auth::token::RootKeyPolicy) -> Self {
         Self {
             root_canister_id: policy.root_canister_id,
-            algorithm: policy.algorithm,
-            key_id: policy.key_id.clone(),
+            algorithm: policy.algorithm.into(),
+            key_id: policy.key_id.clone().into(),
             derivation_path_hash: policy.derivation_path_hash,
             public_key: policy.public_key.clone(),
             key_version: policy.key_version,
@@ -100,8 +101,8 @@ impl RootEnrollment {
     pub fn policy(&self) -> ic_auth::token::RootKeyPolicy {
         ic_auth::token::RootKeyPolicy {
             root_canister_id: self.root_canister_id,
-            algorithm: self.algorithm,
-            key_id: self.key_id.clone(),
+            algorithm: self.algorithm.0,
+            key_id: self.key_id.0.clone(),
             derivation_path_hash: self.derivation_path_hash,
             public_key: self.public_key.clone(),
             key_version: self.key_version,

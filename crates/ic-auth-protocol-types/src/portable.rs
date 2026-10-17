@@ -32,7 +32,7 @@ pub struct PortableClaims {
 /// Unauthenticated portable credential transport. `claims` contains the exact
 /// canonical signed bytes, not a Candid encoding of `PortableClaims`.
 /// Hosts must bound outer decoding and verify against protected enrollment.
-#[derive(candid::CandidType, Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct PortableCredential {
     pub claims: Vec<u8>,
     pub proof: PortableProof,
@@ -41,7 +41,7 @@ pub struct PortableCredential {
 /// Transport selects proof material, never trusted authority or signing custody.
 /// Ed25519 signatures are exactly 64 bytes at verification; issuer keys are not
 /// carried here. Certified proofs reuse the existing Root and IC proof owners.
-#[derive(candid::CandidType, Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum PortableProof {
     Certified {
         delegation: Box<crate::DelegationProof>,

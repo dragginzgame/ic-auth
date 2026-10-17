@@ -37,17 +37,12 @@ types="$fixture/ic-auth-protocol-types-$version"
 package_inputs() {
     find "$auth" "$types" ! -type d -print0 > "$fixture/input-paths"
     perl -0e 'print sort <STDIN>' < "$fixture/input-paths" > "$fixture/sorted-input-paths"
-    while IFS= read -r -d '' file; do
-        digest="$("$root/target/debug/ic-auth-tooling" hash-file "$file" 8388608)" || return 1
-        printf '%s\t%s\0' "$digest" "$file"
-    done < "$fixture/sorted-input-paths"
-    for file in "$root/Cargo.toml" "$root/Cargo.lock" \
+    printf '%s\0' "$root/Cargo.toml" "$root/Cargo.lock" \
         "$root/crates/ic-auth/Cargo.toml" "$root/crates/ic-auth-protocol-types/Cargo.toml" \
         "$root/target/msrv-package/package/tmp-crate/ic-auth-$version.crate" \
-        "$root/target/msrv-package/package/tmp-crate/ic-auth-protocol-types-$version.crate" "$@"; do
-        digest="$("$root/target/debug/ic-auth-tooling" hash-file "$file" 8388608)" || return 1
-        printf '%s\t%s\0' "$digest" "$file"
-    done
+        "$root/target/msrv-package/package/tmp-crate/ic-auth-protocol-types-$version.crate" "$@" \
+        >> "$fixture/sorted-input-paths"
+    "$root/target/debug/ic-auth-tooling" hash-files0 8388608 < "$fixture/sorted-input-paths"
 }
 package_inputs > "$fixture/archive-inputs"
 # Keep normalized manifests and their locks byte-for-byte intact. Only this
@@ -120,7 +115,7 @@ for target in native wasm32-unknown-unknown; do
                 ${target_args[@]+"${target_args[@]}"} "${feature_args[@]}" \
                 --edges normal,build --prefix none --format '{p}' > "$fixture/pure-request-$target.graph"
             if rg "$(auth_dependency_pattern pure)" "$fixture/pure-request-$target.graph"; then
-                echo 'isolated pure request consumer pulls cryptographic or session storage dependencies' >&2
+                echo 'isolated pure request consumer pulls Candid, cryptographic or session storage dependencies' >&2
                 exit 1
             fi
         fi
@@ -128,7 +123,7 @@ for target in native wasm32-unknown-unknown; do
 done
 # Internal applications use the same floor with separate native/Wasm checks.
 # Runtime qualification remains test-qualification.
-cargo +"$floor" check --locked --offline -p ic-auth-tooling -p ic-auth-qualification --all-targets --all-features
+cargo +"$floor" check --locked --offline -p ic-auth-tooling -p ic-auth-qualification -p ic-auth-qualification-contracts --all-targets --all-features
 cargo +"$floor" check --locked --offline -p ic-auth-qualification-canister --target wasm32-unknown-unknown
 package_inputs "$fixture/Cargo.toml" "$fixture/Cargo.lock" "$fixture/src/lib.rs" > "$fixture/inputs-after"
 cmp "$fixture/inputs-before" "$fixture/inputs-after"

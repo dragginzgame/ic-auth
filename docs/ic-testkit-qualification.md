@@ -300,6 +300,17 @@ fixture-owned ceilings, not application endpoint defaults or instruction limits.
 
 ## SDK admission through the portable coordinator
 
+The current fixture stores its checkpoint in published
+`ic_memory::testing::FixtureCell`, enabled only in the unpublished canister.
+Initialization explicitly creates a bounded cell; post-upgrade explicitly opens
+retained state. Auth owns the `AUTHCELL` payload identity, 128 KiB data ceiling
+and metadata/session semantics. IC Memory owns Cell framing, capacity admission
+and page mechanics. Missing state or an occupied fresh-create request refuses.
+The former raw `AUTHQCP1` layout is retired: use fresh fixture installations,
+not a 0.7.8-to-current checkpoint upgrade. No automatic clearing or old reader is
+provided. A native regression proves the retired bytes survive refusal, and the
+installed suite qualifies repeated upgrades within the current format.
+
 The [admission fixture](../packages/client/test/qualification/admission.ts) runs
 `PortableAdmissionClient` against two live reference receivers using the real
 SDK, explicit trusted Testkit root and the existing journal/guarded identity.
@@ -309,8 +320,22 @@ operation returns that prepared credential only after the coordinator commits
 its unknown-issuance marker; there is no production issuer network operation.
 
 The private adapter maps the reference `SessionInput` in
-[the fixture contracts](../apps/qualification/sessions.rs), using the generated
-portable credential descriptor. It authenticates an update reply before accepting
+[the fixture contracts](../apps/qualification/sessions.rs), using fixture-only
+[generated bindings](../packages/client/test/qualification/generated/canister.did.ts)
+for the input, view and result union. The compiled canister's exported Candid is
+extracted by the explicitly prepared pinned tool, then passed to locked SDK
+bindgen. Qualification checks both checked-in outputs before compiling the Node
+driver. Wasm identities are compared before/after generation; a mismatch refuses.
+These declarations stay under test infrastructure, outside public protocol/client
+exports. To update them intentionally after changing the Rust host:
+
+```sh
+make build-qualification-canister
+bash scripts/dev/qualification-contracts.sh generate
+```
+
+Ordinary qualification uses `check`, never `generate`, and refuses stale bindings
+without overwriting them. The adapter authenticates an update reply before accepting
 admission, records each destination before dispatch and permits one update
 submission per attempt. A mismatched ingress caller refuses. One prepared proof
 admits both receivers, and an explicit exact retry preserves the original lease.
@@ -449,3 +474,16 @@ The fixture remains volatile across upgrades. Controller-installed records are
 trusted restoration inputs, never login credentials or a stable backend. The
 measurement creates no new wallet endpoint, signing authority or public library
 API, and cannot qualify Canic's atomic storage, timers, logout or browser adapter.
+
+## Internal Candid projection
+
+The pending 0.8.0 public domain types no longer carry Candid traits. The
+unpublished `apps/qualification/contracts/` package holds the Candid schemas
+extracted from the former wire tests. Its transparent wrapper decodes directly
+into checked domain values and projects fixture outputs through CBOR; the
+receiver still passes the same domain values to Auth's single session engine.
+Endpoint schemas, signed claims, session records and generated browser bindings
+remain unchanged. Request/response codec work remains outside the isolated
+admission instruction window; whole-update cycle measurements include fixture
+transport. This is not a production adapter or a performance comparison with the
+previous fixture binary. Neither public library depends on this package.

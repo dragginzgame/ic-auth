@@ -8,6 +8,8 @@ use ic_host_fs::{
 use std::{env, error::Error, ffi::OsString, io::Write, path::Path};
 
 mod client_contracts;
+#[cfg(unix)]
+mod file_hashes;
 
 fn run(arguments: &[OsString]) -> Result<(), Box<dyn Error>> {
     if arguments
@@ -22,7 +24,7 @@ fn run(arguments: &[OsString]) -> Result<(), Box<dyn Error>> {
             Path::new(&arguments[2]),
         );
     }
-    let usage = "usage: ic-auth-tooling hash-file PATH MAX_BYTES | {create-private|replace-private} SOURCE DESTINATION MAX_BYTES";
+    let usage = "usage: ic-auth-tooling hash-file PATH MAX_BYTES | hash-files0 MAX_BYTES (Unix, NUL paths on stdin) | {create-private|replace-private} SOURCE DESTINATION MAX_BYTES";
     let Some(operation) = arguments.first().and_then(|value| value.to_str()) else {
         return Err(usage.into());
     };
@@ -32,6 +34,8 @@ fn run(arguments: &[OsString]) -> Result<(), Box<dyn Error>> {
         .ok_or(usage)?
         .parse::<usize>()?;
     match (operation, arguments.len()) {
+        #[cfg(unix)]
+        ("hash-files0", 2) => file_hashes::run(limit)?,
         ("hash-file", 3) => {
             let identity = hash_file_no_follow(Path::new(&arguments[1]), limit as u64)?;
             println!("{}", identity.sha256);

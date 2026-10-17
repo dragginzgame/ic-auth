@@ -14,6 +14,8 @@ ed25519-dalek.workspace = true
 ic-agent.workspace = true
 ic-auth = { workspace = true, features = ["sessions", "token-verification", "portable-signature-verification"] }
 ic-auth-protocol-types.workspace = true
+# Candid projection is test/tooling-only, never enabled through public Auth features.
+ic-auth-qualification-contracts.workspace = true
 ic-canister-sig-creation.workspace = true
 ic-host-fs.workspace = true
 ic-host-process.workspace = true

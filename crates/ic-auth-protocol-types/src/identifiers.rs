@@ -1,7 +1,6 @@
 //! Validated protocol identifiers; deployment identity and trust enrollment stay
 //! with the host. Existing text wire representations are deliberately preserved.
 
-use candid::{CandidType, types};
 use serde::{Deserialize, Deserializer, Serialize, Serializer, de};
 use std::{fmt, str::FromStr};
 use thiserror::Error;
@@ -76,22 +75,10 @@ impl<'de> Deserialize<'de> for CanonicalId {
     }
 }
 
-impl CandidType for CanonicalId {
-    fn _ty() -> types::Type {
-        types::TypeInner::Text.into()
-    }
-
-    fn idl_serialize<S: types::Serializer>(&self, serializer: S) -> Result<(), S::Error> {
-        serializer.serialize_text(&self.to_string())
-    }
-}
-
 /// Exact network-qualified audience, with existing protocol field labels.
 /// The host owns the meaning and trusted source of both identifiers; this type
 /// contains no fleet topology, membership, derivation or installation policy.
-#[derive(
-    CandidType, Clone, Copy, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize,
-)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct AudienceId {
     pub canonical_network_id: CanonicalId,
@@ -101,7 +88,7 @@ pub struct AudienceId {
 /// Canonical role label, checked at construction and deserialization.
 /// The grammar matches the existing signed protocol; it adds no case folding,
 /// normalization, built-in roles or implicit role authority.
-#[derive(CandidType, Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 #[serde(transparent)]
 pub struct AuthRole(String);
 

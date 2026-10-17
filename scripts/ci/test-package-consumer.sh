@@ -55,7 +55,7 @@ reject_graph unresolved-auth '.resolve.nodes |= map(select(.id != "auth"))'
 reject_graph wrong-root '.resolve.root = "auth"'
 reject_graph live-root '.packages[0].manifest_path = "/live-workspace/Cargo.toml"'
 reject_graph extra-local '.packages += [{id: "extra", name: "extra", source: null}] | .resolve.nodes += [{id: "extra"}]'
-for forbidden in canic-core toko solana-sdk ic-siws ic-host-fs ic-testkit pocket-ic ic-cdk ic-stable-structures ic-memory ic-timers; do
+for forbidden in canic-core toko solana-sdk ic-siws ic-host-fs ic-auth-qualification-contracts ic-auth-tooling ic-testkit pocket-ic ic-cdk ic-stable-structures ic-memory ic-timers; do
     reject_graph "$forbidden" ".packages[3].name = \"$forbidden\""
 done
 cp "$fixture/base-metadata.json" "$fixture/metadata.json"
@@ -81,6 +81,13 @@ for engine in rg jq; do
     done <<'CASES'
 default canic-core yes
 default canicular no
+default candid yes
+default candid_derive yes
+capability ic-auth-qualification-contracts yes
+packaged ic-auth-tooling yes
+pure candid yes
+certificate-free candid yes
+session candid yes
 passive ic0 yes
 capability ic0 no
 pure ed25519-dalek yes

@@ -10,8 +10,8 @@ contract. The libraries and reference service must not depend on either project.
 
 ## Status
 
-The working tree prepares the **0.6 library hard cut**; package manifests remain
-at `0.5.10` until release preparation. It implements portable certified and enrolled
+The working tree prepares the **0.8.0 Candid-trait hard cut**; package manifests
+remain at `0.7.8` until release preparation. It implements portable certified and enrolled
 Ed25519 verification, one local session engine, replay/revocation bookkeeping and
 explicit protected authority/work budgets. See the [session contract](docs/sessions.md)
 and [current handoff](docs/status/current.md) for implementation and validation.
@@ -25,8 +25,8 @@ Application resource permissions and IC ingress delegation remain separate.
 The private [browser client](docs/browser-client.md) includes the retained token
 lifecycle plus a separate portable logout journal, guarded SDK identity and HTTP
 logout transport. It is unpublished; existing unknown issuance intents are not
-migrated or erased. Production portable login/admission, key/clock integration
-and successful deployed logout qualification remain pending.
+migrated or erased. Real SDK admission/logout is qualified against the internal
+canisters; production issuer, enrollment and consumer integration remain pending.
 
 **Production issuer/enrollment lifecycle, wallet login and the durable session
 adapter remain unimplemented.** The reference receiver uses volatile state.
@@ -85,6 +85,15 @@ The types package is `ic-auth-protocol-types` (Rust import
 package belongs to another IC-Auth project and does not implement our application
 token/proof contracts. Crates.io treats hyphens and underscores as colliding
 names, so changing only the punctuation cannot resolve that conflict.
+
+The pending **0.8.0** cut removes Candid traits and dependencies from the public
+protocol types. `Principal` remains the same `ic_principal::Principal` type.
+Default Auth encoding, enrolled Ed25519 verification and local session builds
+are Candid-free; upstream certified-signature capabilities still pull Candid
+transitively. Endpoint adapters own their transport, with no Candid feature to
+enable in Auth. Existing browser/qualification Candid contracts are preserved by
+an unpublished adapter in `apps/qualification/contracts/`; it is not a production
+transport package. See the [consumer cut](docs/canic-adoption.md#pending-08-transport-boundary).
 
 The future wallet service belongs in `apps/wallet-auth/`. No accepting wallet
 endpoint is created before its complete proof verification and service contracts.

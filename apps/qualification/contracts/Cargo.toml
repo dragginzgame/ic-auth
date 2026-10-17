@@ -1,0 +1,20 @@
+[package]
+name = "ic-auth-qualification-contracts"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+description = "Internal Candid projections for existing Auth qualification fixtures"
+
+# This adapter preserves fixture wire bytes; it is not an Auth library capability
+# or a production codec recommendation. Candid must not flow back into crates/.
+[dependencies]
+candid.workspace = true
+ic-auth-protocol-types.workspace = true
+serde.workspace = true
+serde_cbor.workspace = true
+
+[lints]
+workspace = true

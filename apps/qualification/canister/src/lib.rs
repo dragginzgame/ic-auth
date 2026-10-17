@@ -7,6 +7,7 @@ use ic_auth::signature_store::{
     SignatureInputs, SignatureLimits, SignatureSibling, SignatureStore,
 };
 use ic_auth_protocol_types::IcCanisterSignatureProofV1;
+use ic_auth_qualification_contracts::Candid;
 use ic_certification::{Hash, fork_hash, labeled, leaf};
 use serde::Deserialize;
 use std::cell::RefCell;
@@ -83,7 +84,7 @@ fn controller() -> Result<(), String> {
 #[ic_cdk::init]
 fn init(owner: Principal) {
     assert_ne!(owner, Principal::anonymous());
-    storage::bootstrap(Default::default());
+    storage::bootstrap(Default::default(), false);
     STATE.with(|state| {
         *state.borrow_mut() = Some(State::new(Metadata {
             owner,
@@ -104,7 +105,7 @@ fn pre_upgrade() {
 
 #[ic_cdk::post_upgrade]
 fn post_upgrade() {
-    storage::bootstrap(Default::default());
+    storage::bootstrap(Default::default(), true);
     let (metadata, receiver): (Metadata, Option<sessions::Snapshot>) =
         candid::decode_args(&storage::load()).expect("restore fixture metadata");
     STATE.with(|state| *state.borrow_mut() = Some(State::new(metadata)));
@@ -143,7 +144,7 @@ fn retrieve(
     seed: Vec<u8>,
     domain: Vec<u8>,
     message: Vec<u8>,
-) -> Result<IcCanisterSignatureProofV1, String> {
+) -> Result<Candid<IcCanisterSignatureProofV1>, String> {
     let certificate = ic_cdk::api::data_certificate().ok_or("query certificate absent")?;
     with_state(|state| {
         state
@@ -161,6 +162,7 @@ fn retrieve(
                     SignatureSibling::Right(state.status_root()),
                 ],
             )
+            .map(Candid)
             .map_err(|error| error.to_string())
     })
 }

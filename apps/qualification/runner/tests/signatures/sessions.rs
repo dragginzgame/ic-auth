@@ -14,6 +14,7 @@ use ic_auth::{
     session::*,
 };
 use ic_auth_protocol_types::*;
+use ic_auth_qualification_contracts::Candid;
 use ic_testkit::pic::CandidCallExt;
 use sha2::{Digest, Sha256};
 use std::time::Duration;
@@ -71,29 +72,29 @@ fn read(f: &Fixture, target: Principal, caller: Principal) -> Result<SessionView
         .expect("qualified Candid transport")
 }
 fn logout(f: &Fixture, target: Principal, caller: Principal) -> Result<u64, LogoutResult> {
-    let result: LogoutResult = f
+    let result: Candid<LogoutResult> = f
         .pic
         .update_candid_as(
             target,
             caller,
             "logout_portable_session",
-            (LogoutRequest {},),
+            (Candid(LogoutRequest {}),),
             CONTROL_REPLY_LIMITS,
         )
         .expect("qualified Candid transport");
-    match result {
+    match result.0 {
         LogoutResult::Revoked { deny_until_ns } => Ok(deny_until_ns),
         other => Err(other),
     }
 }
 fn input(claims: &PortableClaims, key: &SigningKey) -> SessionInput {
     SessionInput {
-        credential: PortableCredential {
+        credential: Candid(PortableCredential {
             claims: encode_claims(claims).unwrap(),
             proof: PortableProof::Ed25519 {
                 signature: key.sign(&claims_hash(claims).unwrap()).to_bytes().to_vec(),
             },
-        },
+        }),
         scopes: vec!["read".into()],
         ttl_secs: None,
     }
@@ -109,17 +110,17 @@ fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ingress()
     let now = f.now();
     let key = SigningKey::from_bytes(&[42; 32]);
     let config = ReceiverConfig {
-        audience: AudienceId {
+        audience: Candid(AudienceId {
             canonical_network_id: CanonicalId::from_bytes([1; 32]),
             fleet_id: CanonicalId::from_bytes([2; 32]),
-        },
+        }),
         issuer: f.signer,
         authority: ReceiverAuthority::Ed25519(key.verifying_key().to_bytes()),
-        role: "user".parse().unwrap(),
-        grants: vec![DelegatedRoleGrant {
+        role: Candid("user".parse().unwrap()),
+        grants: Candid(vec![DelegatedRoleGrant {
             target: "user".parse().unwrap(),
             scopes: vec!["read".into()],
-        }],
+        }]),
         valid_from_ns: now,
         valid_until_ns: now + 120 * SECOND,
         enrollment_until_ns: now + 120 * SECOND,
@@ -131,7 +132,7 @@ fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ingress()
     f.pic.advance_time(Duration::from_secs(1));
     let mut claims = PortableClaims {
         mechanism: PortableMechanism::Ed25519,
-        audience: config.audience,
+        audience: config.audience.0,
         issuer: config.issuer,
         key_binding_id: config.authority.binding(),
         browser_public_key: SigningKey::from_bytes(&[1; 32]).verifying_key().to_bytes(),
@@ -141,7 +142,7 @@ fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ingress()
         issued_at_ns: f.now(),
         admission_expires_at_ns: f.now() + 2 * SECOND,
         nonce: [1; 16],
-        grants: config.grants.clone(),
+        grants: config.grants.0.clone(),
     };
     let caller = browser_principal(&claims.browser_public_key);
     let first = input(&claims, &key);
@@ -164,7 +165,7 @@ fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ingress()
     let other_caller = browser_principal(&other.browser_public_key);
     let other_input = input(&other, &key);
     let mut forged = other_input.clone();
-    let PortableProof::Ed25519 { signature } = &mut forged.credential.proof else {
+    let PortableProof::Ed25519 { signature } = &mut forged.credential.0.proof else {
         unreachable!()
     };
     signature[0] ^= 1;
@@ -181,7 +182,7 @@ fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ingress()
     .unwrap();
     f.pic.advance_time(Duration::from_secs(3));
     let mut retry = first.clone();
-    retry.credential.proof = PortableProof::Ed25519 { signature: vec![] };
+    retry.credential.0.proof = PortableProof::Ed25519 { signature: vec![] };
     assert_eq!(
         measured(&f, f.signer, "exact_retry_after_proof_expiry", || {
             admission(&f, f.signer, caller, &retry)
@@ -519,17 +520,17 @@ fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_authority() 
     let now = f.now();
     let key = SigningKey::from_bytes(&[42; 32]);
     let config = ReceiverConfig {
-        audience: AudienceId {
+        audience: Candid(AudienceId {
             canonical_network_id: CanonicalId::from_bytes([1; 32]),
             fleet_id: CanonicalId::from_bytes([2; 32]),
-        },
+        }),
         issuer: f.signer,
         authority: ReceiverAuthority::Ed25519(key.verifying_key().to_bytes()),
-        role: "user".parse().unwrap(),
-        grants: vec![DelegatedRoleGrant {
+        role: Candid("user".parse().unwrap()),
+        grants: Candid(vec![DelegatedRoleGrant {
             target: "user".parse().unwrap(),
             scopes: vec!["read".into()],
-        }],
+        }]),
         valid_from_ns: now,
         valid_until_ns: now + 120 * SECOND,
         enrollment_until_ns: now + 120 * SECOND,
@@ -552,7 +553,7 @@ fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_authority() 
     f.pic.advance_time(Duration::from_secs(1));
     let mut claims = PortableClaims {
         mechanism: PortableMechanism::Ed25519,
-        audience: config.audience,
+        audience: config.audience.0,
         issuer: config.issuer,
         key_binding_id: config.authority.binding(),
         browser_public_key: SigningKey::from_bytes(&[1; 32]).verifying_key().to_bytes(),
@@ -562,7 +563,7 @@ fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_authority() 
         issued_at_ns: f.now(),
         admission_expires_at_ns: f.now() + 2 * SECOND,
         nonce: [1; 16],
-        grants: config.grants.clone(),
+        grants: config.grants.0.clone(),
     };
     let live = browser_principal(&claims.browser_public_key);
     let original = input(&claims, &key);
@@ -638,7 +639,7 @@ fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_authority() 
     // Restoration retains the live exact retry and its original lease even
     // though the proof expired. It must not enter fresh verification.
     let mut retry = original.clone();
-    retry.credential.proof = PortableProof::Ed25519 { signature: vec![] };
+    retry.credential.0.proof = PortableProof::Ed25519 { signature: vec![] };
     assert_eq!(admission(&f, f.resource, live, &retry).unwrap(), session);
     assert!(read(&f, f.resource, revoked).is_err());
     assert_eq!(logout(&f, f.resource, revoked).unwrap(), denied_until);

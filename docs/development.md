@@ -238,7 +238,7 @@ storage qualification. See the [transport evidence](ic-testkit-qualification.md#
 | `make test-client` | Private client lifecycle, IndexedDB transactions, compiled SDK consumer example and Rust/TypeScript Candid roundtrip |
 | `make check-client-contracts` | Compare fresh locked bindings with the Rust-owned checked-in contracts offline |
 | `make generate-client-contracts` | Explicitly regenerate the checked-in client contracts from Rust DTOs |
-| `make test-types` | Identifier rejection and Candid wire compatibility |
+| `make test-types` | Candid-free public types plus internal fixture projection/identifier/wire checks |
 | `make test-protocol` | Canonical encoding, signed vectors, ordering and size rejection |
 | `make test-portable-signatures` | Portable Ed25519 issuer proofs with protected audience/issuer/key binding, independent signature vectors and strict malformed/weak-key refusal; this does not admit sessions |
 | `make test-chain-key-signatures` | Isolated SEC1 admission, explicit producer normalization and exact prehash verification, including malformed material and strict high-S refusal |
@@ -254,7 +254,7 @@ storage qualification. See the [transport evidence](ic-testkit-qualification.md#
 | `make check-wasm` | Compile-check both libraries and chain-key/signature verification/preparation, token and session capabilities for `wasm32-unknown-unknown` |
 | `make clippy` | Lint the libraries, native tooling/qualification and Wasm host with their selected targets |
 | `make metadata` | Validate the selected locked graph offline |
-| `make check-boundaries` | Inspect default, chain-key/signature verification/preparation, token and session transitive dependency graphs |
+| `make check-boundaries` | Inspect capability graphs; reject Candid in default, Ed25519 and local-session selections |
 | `make fmt` / `make fmt-check` | Shared manifest sorting followed by Rust formatting |
 | `make check-snapshot` | Verify the adopted shared files and modes |
 | `make check-dependency-pins` | Check declarations, lockfile tracking and root inheritance |
@@ -408,7 +408,8 @@ to that owner, then re-admits the current CLI offline after Testkit's server
 operation. A changed selection refuses, including when the newly selected CLI
 is already installed. Checks never prepare a missing selection.
 
-`make test-formatting-hooks` checks actual staged formatting, partial-stage and
+`make test-formatting-hooks` selects current Rust files/manifests and tracked
+deletions through Shared Tooling, then checks actual staged formatting, partial-stage and
 formatter-failure preservation, lockfiles, unrelated edits and hook installation
 in disposable exports. It is included in the complete gate on all three native
 hosts. Failed checker scratch stays under `target/portable-fixtures/`; successful
@@ -503,6 +504,18 @@ private-file publication use `ic-host-fs`. The caller supplies finite byte limit
 tooling limits, not authentication protocol limits. The publication lock and
 registry uncertainty policy remain owned by the release/publication scripts.
 
+The Unix-only `ic-auth-tooling hash-files0 MAX_BYTES` operation reads ordered
+NUL-terminated paths from stdin and emits `hex_sha256<TAB>path<NUL>` records in
+the same order, retaining duplicates and raw pathname bytes. It accepts at most
+4 MiB of path input and 4,096 nonempty paths; an empty batch is valid. Each file
+uses the caller's byte ceiling and Host's no-follow regular-file hash. Malformed
+lists and failed files refuse before any identity output. This bounds the batch,
+not concurrent source mutation: callers still own source custody and input seals.
+Client contract generation builds the utility once and uses one batch per
+before/after seal, retained as `inputs.tsv0` and `inputs-after.tsv0` beside the
+path list. MSRV checks likewise keep their existing archive/source comparisons,
+using one native invocation per sealing round rather than one process per file.
+
 The native utility and qualification runner select published `ic-host-fs` 0.15.1;
 the utility uses
 `durable::write_with(path, options, producer)` with explicit create/replace modes
@@ -560,3 +573,19 @@ It covers patch/minor/major, gate failure, staged source rejection, candidate
 conflicts, interrupted preparation, exact resume, dirty/untagged publication,
 registry errors, checksum conflicts and lost-reply reconciliation. This is
 consumer adapter evidence; it is not a live release or registry upload.
+
+## Public types and fixture transport
+
+Pending 0.8.0 removes Candid from `ic-auth-protocol-types` without adding a Candid
+feature. Its `Principal` is the same narrow `ic_principal` identity type. The
+unpublished `apps/qualification/contracts/` adapter owns only existing test/browser
+Candid projections, extracted from the independent wire fixtures. Incoming values
+deserialize directly into the checked domain types; output projection uses CBOR
+inside this adapter before existing Candid encoding. Neither public library
+imports the adapter. Do not use it as a production transport dependency.
+
+`make test-types` runs the public package and relocated compatibility/rejection
+cases. Client contract generation seals the adapter sources along with the domain
+and generator sources. Existing generated Candid/TypeScript and retained client
+intent bytes must remain unchanged by this library cut. See the
+[consumer boundary](canic-adoption.md#pending-08-transport-boundary).

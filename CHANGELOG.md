@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.8.0]
+
+- **Breaking:** remove Candid dependencies and trait implementations from public
+  protocol types, retaining the same canonical `Principal` through `ic_principal`.
+  There is no opt-in Candid feature. Consumers must own their endpoint encoding;
+  canonical signed claims and session-record formats are unchanged.
+
+- Preserve existing browser/qualification wire bytes through an unpublished
+  fixture-only projection. Default, Ed25519 and local-session library graphs
+  reject Candid; the optional upstream IC certificate stack still uses it.
+
+- Replace the qualification fixture's raw checkpoint storage with IC Memory's
+  bounded byte cell. Use fresh fixture installations: the old format is rejected
+  without clearing it; normal upgrades within the new format retain state.
+
+- Generate fixture-only SDK bindings from the compiled canister's exported
+  Candid, removing handwritten admission DTOs. Qualification refuses stale
+  bindings instead of regenerating them implicitly.
+
+- Batch native file identities during client generation and MSRV input sealing,
+  preserving ordered NUL-delimited paths, no-follow reads and byte limits.
+
 ## [0.7.8] - 2026-10-17
 
 - Share one SDK update transport between browser logout and live admission

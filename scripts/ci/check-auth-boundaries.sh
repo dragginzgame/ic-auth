@@ -8,7 +8,7 @@ export CARGO_NET_OFFLINE=true RUSTUP_AUTO_INSTALL=0
 for package in ic-auth-protocol-types ic-auth; do
     graph="$(cargo tree --locked --offline -p "$package" --no-default-features --edges normal,build --prefix none --format '{p}')"
     if printf '%s\n' "$graph" | rg "$(auth_dependency_pattern default)"; then
-        echo "$package pulls product, wallet or native host dependencies into the default graph" >&2
+        echo "$package pulls Candid, product, wallet or native host dependencies into the default graph" >&2
         exit 1
     fi
     if [[ "$package" == ic-auth-protocol-types ]] && printf '%s\n' "$graph" | rg "$(auth_dependency_pattern passive)"; then

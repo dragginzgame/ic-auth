@@ -1220,7 +1220,7 @@ dependencies = [
 name = "ic-auth-protocol-types"
 version = "0.7.8"
 dependencies = [
- "candid",
+ "ic_principal",
  "serde",
  "thiserror 2.0.18",
 ]
@@ -1234,6 +1234,7 @@ dependencies = [
  "ic-agent",
  "ic-auth",
  "ic-auth-protocol-types",
+ "ic-auth-qualification-contracts",
  "ic-canister-sig-creation",
  "ic-host-fs 0.24.0",
  "ic-host-process 0.24.0",
@@ -1252,6 +1253,7 @@ dependencies = [
  "candid",
  "ic-auth",
  "ic-auth-protocol-types",
+ "ic-auth-qualification-contracts",
  "ic-cdk",
  "ic-certification",
  "ic-memory",
@@ -1260,11 +1262,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "ic-auth-qualification-contracts"
+version = "0.7.8"
+dependencies = [
+ "candid",
+ "ic-auth-protocol-types",
+ "serde",
+ "serde_cbor",
+]
+
+[[package]]
 name = "ic-auth-tooling"
 version = "0.7.8"
 dependencies = [
  "candid",
  "ic-auth-protocol-types",
+ "ic-auth-qualification-contracts",
  "ic-host-fs 0.24.0",
 ]
 
@@ -1447,9 +1460,9 @@ dependencies = [
 
 [[package]]
 name = "ic-memory"
-version = "0.45.0"
+version = "0.46.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fcb8a0005f48d001282b82eb804a3acbcb03e0572020027fab3efc8b388b2e08"
+checksum = "f8f1bcac5eb7ccf09865fd796558c3aa93ec5225eadd70d976e57d6dff8ef9f5"
 dependencies = [
  "ciborium",
  "ic-stable-structures",

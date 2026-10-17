@@ -8,6 +8,7 @@ use ic_auth::canister_signature::{
     verify_canister_signature,
 };
 use ic_auth_protocol_types::IcCanisterSignatureProofV1;
+use ic_auth_qualification_contracts::Candid;
 use ic_canister_sig_creation::{CanisterSigPublicKey, extract_raw_root_pk_from_der, hash_bytes};
 use ic_host_fs::read::read_file_no_follow;
 use ic_testkit::{
@@ -160,14 +161,16 @@ impl Fixture {
     ) -> Result<IcCanisterSignatureProofV1, String> {
         // Certificates become available after the update's state is certified.
         self.pic.tick();
-        self.pic
+        let proof: Result<Candid<IcCanisterSignatureProofV1>, String> = self
+            .pic
             .query_candid(
                 self.signer,
                 "retrieve",
                 (seed.to_vec(), domain.to_vec(), message.to_vec()),
                 SIGNATURE_REPLY_LIMITS,
             )
-            .expect("qualified Candid transport")
+            .expect("qualified Candid transport");
+        proof.map(|value| value.0)
     }
 
     fn verify(&self, domain: &[u8], payload: [u8; 32], proof: &IcCanisterSignatureProofV1) {

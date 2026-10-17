@@ -4,14 +4,14 @@
 use super::{
     AuthRequestMetadata, DelegatedRoleGrant, DelegationAudience, DelegationProof, IssuerProof,
 };
-use candid::{CandidType, Principal};
+use crate::Principal;
 use serde::{Deserialize, Serialize};
 
 //
 // DelegatedTokenClaims
 //
 
-#[derive(CandidType, Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct DelegatedTokenClaims {
     pub presenter: Principal,
     pub subject: Principal,
@@ -29,7 +29,7 @@ pub struct DelegatedTokenClaims {
 // DelegatedToken
 //
 
-#[derive(CandidType, Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct DelegatedToken {
     pub claims: DelegatedTokenClaims,
     pub proof: DelegationProof,
@@ -40,7 +40,7 @@ pub struct DelegatedToken {
 // DelegatedTokenPrepareRequest
 //
 
-#[derive(CandidType, Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct DelegatedTokenPrepareRequest {
     pub metadata: Option<AuthRequestMetadata>,
     pub aud: DelegationAudience,
@@ -53,7 +53,7 @@ pub struct DelegatedTokenPrepareRequest {
 // DelegatedTokenPrepareResponse
 //
 
-#[derive(CandidType, Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct DelegatedTokenPrepareResponse {
     pub claims: DelegatedTokenClaims,
     pub claims_hash: [u8; 32],
@@ -64,7 +64,7 @@ pub struct DelegatedTokenPrepareResponse {
 // DelegatedTokenGetRequest
 //
 
-#[derive(CandidType, Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct DelegatedTokenGetRequest {
     pub claims_hash: [u8; 32],
 }

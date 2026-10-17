@@ -17,6 +17,7 @@ use ic_auth::{
     session_request::SessionRequest,
 };
 use ic_auth_protocol_types::{LogoutRequest, LogoutResult, LogoutUnavailable};
+use ic_auth_qualification_contracts::Candid;
 use std::cell::RefCell;
 const SECOND: u64 = 1_000_000_000;
 fn limits() -> SessionLimits {
@@ -133,7 +134,7 @@ fn install_session_receiver(config: ReceiverConfig) -> Result<(), String> {
         checkpoint: false,
         ready: true,
         store: MemorySessionStore::new(0, limits()).map_err(|e| e.to_string())?,
-        ledger: MemoryLoginRevocations::new(config.audience, 8, 8, 0, now)
+        ledger: MemoryLoginRevocations::new(config.audience.0, 8, 8, 0, now)
             .map_err(|e| e.to_string())?,
         admission: SessionAdmissionBudget::new(
             config.verification_burst,
@@ -244,8 +245,8 @@ fn portable_session_read() -> Result<SessionView, String> {
     })
 }
 #[ic_cdk::update]
-fn logout_portable_session(_request: LogoutRequest) -> LogoutResult {
-    RECEIVER.with(|state| {
+fn logout_portable_session(_request: Candid<LogoutRequest>) -> Candid<LogoutResult> {
+    Candid(RECEIVER.with(|state| {
         let mut state = state.borrow_mut();
         let Some(host) = state.as_mut().filter(|host| host.ready) else {
             return LogoutResult::Unavailable(LogoutUnavailable::ResetPending);
@@ -257,7 +258,7 @@ fn logout_portable_session(_request: LogoutRequest) -> LogoutResult {
             ic_cdk::api::msg_caller(),
             ic_cdk::api::time(),
         )
-    })
+    }))
 }
 #[ic_cdk::update]
 fn invalidate_session_authority(enabled: bool) -> Result<(), String> {

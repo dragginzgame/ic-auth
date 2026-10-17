@@ -50,6 +50,77 @@ fn hash_stdout_is_exact_and_oversize_has_no_identity() {
     assert!(!invoke(&root, &["hash-file", ".", "3"]).status.success());
 }
 
+#[cfg(unix)]
+fn batch(root: &Path, input: &[u8], maximum: &str) -> Output {
+    use std::{io::Write, process::Stdio};
+    let mut child = Command::new(env!("CARGO_BIN_EXE_ic-auth-tooling"))
+        .current_dir(root)
+        .args(["hash-files0", maximum])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    child.stdin.take().unwrap().write_all(input).unwrap();
+    child.wait_with_output().unwrap()
+}
+
+#[cfg(unix)]
+#[test]
+fn batch_hashing_preserves_raw_paths_order_duplicates_and_zero_limits() {
+    use std::{ffi::OsStr, os::unix::ffi::OsStrExt};
+    let root = fixture();
+    let odd = b"space tab\tnewline\nnonutf8\xff";
+    fs::write(root.join(OsStr::from_bytes(odd)), b"abc").unwrap();
+    fs::write(root.join("plain"), b"abc").unwrap();
+    let paths = [odd.as_slice(), b"plain", odd.as_slice()];
+    let input: Vec<_> = paths
+        .iter()
+        .flat_map(|path| path.iter().copied().chain([0]))
+        .collect();
+    let result = batch(&root, &input, "3");
+    assert!(result.status.success(), "{:?}", result);
+    let mut expected = Vec::new();
+    for path in paths {
+        expected.extend_from_slice(
+            b"ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad\t",
+        );
+        expected.extend_from_slice(path);
+        expected.push(0);
+    }
+    assert_eq!(result.stdout, expected);
+    fs::write(root.join("empty"), []).unwrap();
+    assert_eq!(
+        batch(&root, b"empty\0", "0").stdout,
+        b"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\tempty\0"
+    );
+    assert!(batch(&root, b"", "0").status.success());
+}
+
+#[cfg(unix)]
+#[test]
+fn rejected_hash_batches_emit_no_partial_seal() {
+    use std::os::unix::fs::symlink;
+    let root = fixture();
+    fs::write(root.join("ok"), b"abc").unwrap();
+    fs::write(root.join("big"), b"abcd").unwrap();
+    symlink("ok", root.join("link")).unwrap();
+    for input in [
+        b"ok\0missing\0".to_vec(),
+        b"ok\0big\0".to_vec(),
+        b"ok\0link\0".to_vec(),
+        b"ok\0.\0".to_vec(),
+        b"ok\0\0".to_vec(),
+        b"ok".to_vec(),
+        b"ok\0".repeat(4097),
+        vec![b'x'; 4 * 1024 * 1024 + 1],
+    ] {
+        let result = batch(&root, &input, "3");
+        assert!(!result.status.success());
+        assert!(result.stdout.is_empty());
+    }
+}
+
 #[test]
 fn empty_file_hash_accepts_zero_limit_without_admitting_nonempty_bytes() {
     let root = fixture();

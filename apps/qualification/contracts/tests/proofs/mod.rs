@@ -1,140 +1,27 @@
 use super::{
-    SourceAudience, SourceClaims, SourceGrant, source_audience, source_claims, source_grants,
+    FixtureModel, decode_domain, encode_domain, source_audience, source_claims, source_grants,
 };
-use candid::{CandidType, decode_one, encode_one};
+use candid::CandidType;
+use candid::{decode_one, encode_one};
 use ic_auth_protocol_types::*;
-use serde::Deserialize;
+use ic_auth_qualification_contracts::model::{
+    ChainKeyAlgorithm as SourceAlgorithm, ChainKeyBatchHeaderV1 as SourceHeader,
+    ChainKeyBatchWitnessStepV1 as SourceWitnessStep, ChainKeyBatchWitnessV1 as SourceWitness,
+    ChainKeyDelegationCertV1 as SourceLeaf, ChainKeyKeyId as SourceKeyId,
+    ChainKeyRootSignatureV1 as SourceRootSignature, DelegatedToken as SourceToken,
+    DelegationAudience as SourceAudience, DelegationCert as SourceCert,
+    DelegationProof as SourceDelegationProof,
+    IcCanisterSignatureProofV1 as SourceCanisterSignature,
+    IcChainKeyBatchSignatureProofV1 as SourceBatchProof, IssuerProof as SourceIssuerProof,
+    IssuerProofAlgorithm as SourceIssuerAlgorithm, IssuerProofBinding as SourceBinding,
+    RootProof as SourceRootProof,
+};
+use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
 // Independent transport declarations from Canic c4c046f947b2b28f4342cbf6efe9221ba1ed5f70,
 // crates/canic-core/src/dto/auth/{proof,token}.rs. Sample keys/signatures are
 // intentionally synthetic: Candid compatibility does not authenticate them.
-#[derive(CandidType, Debug, Deserialize, PartialEq)]
-enum SourceRootProof {
-    IcChainKeyBatchSignatureV1(SourceBatchProof),
-}
-
-#[derive(CandidType, Debug, Deserialize, PartialEq)]
-enum SourceIssuerProof {
-    IcCanisterSignatureV1(SourceCanisterSignature),
-}
-
-#[derive(CandidType, Debug, Deserialize, PartialEq)]
-struct SourceCanisterSignature {
-    signature_cbor: Vec<u8>,
-    public_key_der: Vec<u8>,
-}
-
-#[derive(CandidType, Debug, Deserialize, PartialEq)]
-enum SourceAlgorithm {
-    EcdsaSecp256k1,
-}
-
-#[derive(CandidType, Debug, Deserialize, PartialEq)]
-struct SourceKeyId {
-    name: String,
-}
-
-#[derive(CandidType, Debug, Deserialize, PartialEq)]
-struct SourceBatchProof {
-    header: SourceHeader,
-    delegation_cert: SourceLeaf,
-    issuer_witness: SourceWitness,
-    signature: SourceRootSignature,
-}
-
-#[derive(CandidType, Debug, Deserialize, PartialEq)]
-struct SourceHeader {
-    schema_version: u16,
-    root_canister_id: Principal,
-    batch_id: [u8; 32],
-    proof_epoch: u64,
-    registry_epoch: u64,
-    registry_hash: [u8; 32],
-    tree_root: [u8; 32],
-    not_before_ns: u64,
-    expires_at_ns: u64,
-    algorithm: SourceAlgorithm,
-    key_id: SourceKeyId,
-    derivation_path_hash: [u8; 32],
-    key_version: u64,
-}
-
-#[derive(CandidType, Debug, Deserialize, PartialEq)]
-struct SourceLeaf {
-    root_canister_id: Principal,
-    issuer_canister_id: Principal,
-    proof_epoch: u64,
-    issuer_proof_algorithm: SourceIssuerAlgorithm,
-    issuer_proof_binding_hash: [u8; 32],
-    issuer_proof_binding: SourceBinding,
-    max_token_ttl_ns: u64,
-    audience: SourceAudience,
-    grants: Vec<SourceGrant>,
-    not_before_ns: u64,
-    expires_at_ns: u64,
-    registry_epoch: u64,
-    registry_hash: [u8; 32],
-}
-
-#[derive(CandidType, Debug, Deserialize, PartialEq)]
-struct SourceRootSignature {
-    algorithm: SourceAlgorithm,
-    key_id: SourceKeyId,
-    derivation_path: Vec<Vec<u8>>,
-    public_key: Vec<u8>,
-    signature: Vec<u8>,
-}
-
-#[derive(CandidType, Debug, Deserialize, PartialEq)]
-struct SourceWitness {
-    steps: Vec<SourceWitnessStep>,
-}
-
-#[derive(CandidType, Debug, Deserialize, PartialEq)]
-enum SourceWitnessStep {
-    LeftSibling([u8; 32]),
-    RightSibling([u8; 32]),
-}
-
-#[derive(CandidType, Debug, Deserialize, PartialEq)]
-enum SourceIssuerAlgorithm {
-    IcCanisterSignatureV1,
-}
-
-#[derive(CandidType, Debug, Deserialize, PartialEq)]
-enum SourceBinding {
-    IcCanisterSignatureV1 { seed_hash: [u8; 32] },
-}
-
-#[derive(CandidType, Debug, Deserialize, PartialEq)]
-struct SourceCert {
-    root_pid: Principal,
-    issuer_pid: Principal,
-    issuer_proof_alg: SourceIssuerAlgorithm,
-    issuer_proof_binding_hash: [u8; 32],
-    issuer_proof_binding: SourceBinding,
-    issued_at_ns: u64,
-    not_before_ns: u64,
-    expires_at_ns: u64,
-    max_token_ttl_ns: u64,
-    aud: SourceAudience,
-    grants: Vec<SourceGrant>,
-}
-
-#[derive(CandidType, Debug, Deserialize, PartialEq)]
-struct SourceDelegationProof {
-    cert: SourceCert,
-    root_proof: SourceRootProof,
-}
-
-#[derive(CandidType, Debug, Deserialize, PartialEq)]
-struct SourceToken {
-    claims: SourceClaims,
-    proof: SourceDelegationProof,
-    issuer_proof: SourceIssuerProof,
-}
-
 fn source_proof(steps: Vec<SourceWitnessStep>) -> SourceDelegationProof {
     let root = Principal::from_slice(&[3; 29]);
     let issuer = Principal::from_slice(&[2; 29]);
@@ -203,12 +90,12 @@ fn source_proof(steps: Vec<SourceWitnessStep>) -> SourceDelegationProof {
 
 fn assert_wire_round_trip<T, S>(source: &S)
 where
-    T: CandidType + for<'de> Deserialize<'de>,
+    T: FixtureModel + Serialize + for<'de> Deserialize<'de>,
     S: CandidType + for<'de> Deserialize<'de> + Debug + PartialEq,
 {
     let source_bytes = encode_one(source).unwrap();
-    let checked: T = decode_one(&source_bytes).unwrap();
-    let checked_bytes = encode_one(checked).unwrap();
+    let checked: T = decode_domain(&source_bytes).unwrap();
+    let checked_bytes = encode_domain(checked).unwrap();
     assert_eq!(checked_bytes, source_bytes);
     assert_eq!(&decode_one::<S>(&checked_bytes).unwrap(), source);
 }
@@ -252,20 +139,20 @@ fn retrieved_token_preserves_complete_proofs_and_optional_extensions() {
 fn nested_certificate_and_leaf_cannot_bypass_role_or_audience_validation() {
     let mut proof = source_proof(vec![]);
     proof.cert.grants[0].target = "Root".into();
-    assert!(decode_one::<DelegationProof>(&encode_one(&proof).unwrap()).is_err());
+    assert!(decode_domain::<DelegationProof>(&encode_one(&proof).unwrap()).is_err());
     proof.cert.grants = source_grants();
     let SourceAudience::Fleet(key) = &mut proof.cert.aud;
     key.fleet_id = "cd".into();
-    assert!(decode_one::<DelegationProof>(&encode_one(&proof).unwrap()).is_err());
+    assert!(decode_domain::<DelegationProof>(&encode_one(&proof).unwrap()).is_err());
     proof.cert.aud = source_audience();
     let SourceRootProof::IcChainKeyBatchSignatureV1(batch) = &mut proof.root_proof;
     batch.delegation_cert.grants[0].target = "app/read".into();
-    assert!(decode_one::<DelegationProof>(&encode_one(&proof).unwrap()).is_err());
+    assert!(decode_domain::<DelegationProof>(&encode_one(&proof).unwrap()).is_err());
     let SourceRootProof::IcChainKeyBatchSignatureV1(batch) = &mut proof.root_proof;
     batch.delegation_cert.grants = source_grants();
     let SourceAudience::Fleet(key) = &mut batch.delegation_cert.audience;
     key.canonical_network_id = "AB".repeat(32);
-    assert!(decode_one::<DelegationProof>(&encode_one(&proof).unwrap()).is_err());
+    assert!(decode_domain::<DelegationProof>(&encode_one(&proof).unwrap()).is_err());
 
     let token = SourceToken {
         claims: source_claims(None),
@@ -275,13 +162,13 @@ fn nested_certificate_and_leaf_cannot_bypass_role_or_audience_validation() {
             public_key_der: vec![],
         }),
     };
-    assert!(decode_one::<DelegatedToken>(&encode_one(token).unwrap()).is_err());
+    assert!(decode_domain::<DelegatedToken>(&encode_one(token).unwrap()).is_err());
 }
 
 #[test]
 fn portable_envelope_preserves_both_proofs_and_exact_claim_blobs() {
     let delegation =
-        decode_one::<DelegationProof>(&encode_one(source_proof(vec![])).unwrap()).unwrap();
+        decode_domain::<DelegationProof>(&encode_one(source_proof(vec![])).unwrap()).unwrap();
     for proof in [
         PortableProof::Ed25519 {
             signature: vec![7; 64],
@@ -298,12 +185,12 @@ fn portable_envelope_preserves_both_proofs_and_exact_claim_blobs() {
             claims: vec![0, 255, 128],
             proof,
         };
-        let bytes = encode_one(&credential).unwrap();
+        let bytes = encode_domain(credential.clone()).unwrap();
         assert_eq!(
-            decode_one::<PortableCredential>(&bytes).unwrap(),
+            decode_domain::<PortableCredential>(&bytes).unwrap(),
             credential
         );
-        assert!(decode_one::<DelegatedToken>(&bytes).is_err());
-        assert!(decode_one::<PortableCredential>(&bytes[..bytes.len() - 1]).is_err());
+        assert!(decode_domain::<DelegatedToken>(&bytes).is_err());
+        assert!(decode_domain::<PortableCredential>(&bytes[..bytes.len() - 1]).is_err());
     }
 }

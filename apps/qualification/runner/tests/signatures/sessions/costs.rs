@@ -39,7 +39,7 @@ pub(super) fn qualify(f: &Fixture, token: &DelegatedToken, old: &TokenVerificati
     for certified in [false, true] {
         let mechanism = if certified { "certified" } else { "ed25519" };
         let config = ReceiverConfig {
-            audience: old.audience,
+            audience: Candid(old.audience),
             issuer: cert.issuer_pid,
             authority: if certified {
                 let root = RootEnrollment::from(old.root_key);
@@ -52,8 +52,8 @@ pub(super) fn qualify(f: &Fixture, token: &DelegatedToken, old: &TokenVerificati
             } else {
                 ReceiverAuthority::Ed25519(key.verifying_key().to_bytes())
             },
-            role: old.role.clone(),
-            grants: cert.grants.clone(),
+            role: Candid(old.role.clone()),
+            grants: Candid(cert.grants.clone()),
             valid_from_ns: cert.not_before_ns,
             valid_until_ns: cert.expires_at_ns.min(old.root_key.accept_until_ns),
             enrollment_until_ns: cert.expires_at_ns.min(old.root_key.accept_until_ns),
@@ -62,7 +62,7 @@ pub(super) fn qualify(f: &Fixture, token: &DelegatedToken, old: &TokenVerificati
         };
         let make_claims = |device: u8| PortableClaims {
             mechanism: config.authority.mechanism(),
-            audience: config.audience,
+            audience: config.audience.0,
             issuer: config.issuer,
             key_binding_id: config.authority.binding(),
             browser_public_key: SigningKey::from_bytes(&[device; 32])
@@ -84,13 +84,13 @@ pub(super) fn qualify(f: &Fixture, token: &DelegatedToken, old: &TokenVerificati
             let domain = ic_auth::portable_certified::CERTIFIED_SIGNATURE_DOMAIN;
             f.prepare(domain, &digest, 60 * SECOND).unwrap();
             SessionInput {
-                credential: PortableCredential {
+                credential: Candid(PortableCredential {
                     claims: encode_claims(claims).unwrap(),
                     proof: PortableProof::Certified {
                         delegation: Box::new(token.proof.clone()),
                         issuer_signature: f.retrieve(domain, &digest).unwrap(),
                     },
-                },
+                }),
                 scopes: vec!["read".into()],
                 ttl_secs: None,
             }
@@ -112,7 +112,7 @@ pub(super) fn qualify(f: &Fixture, token: &DelegatedToken, old: &TokenVerificati
         let rejected_claims = make_claims(19);
         let rejected_caller = browser_principal(&rejected_claims.browser_public_key);
         let mut rejected = make_input(&rejected_claims);
-        if let PortableProof::Ed25519 { signature } = &mut rejected.credential.proof {
+        if let PortableProof::Ed25519 { signature } = &mut rejected.credential.0.proof {
             signature[0] ^= 1;
         }
         let label = format!("matched_{mechanism}_invalid_proof");

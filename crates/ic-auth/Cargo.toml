@@ -10,6 +10,8 @@ description = "Application authentication encoding and optional IC signature, to
 publish = ["crates-io"]
 
 [features]
+# Encoding and local sessions do not require Candid. There is no Candid feature.
+# Only the upstream certified-signature capabilities bring it in transitively.
 default = []
 portable-signature-verification = ["dep:curve25519-dalek", "dep:ed25519-dalek"]
 chain-key-verification = ["dep:k256"]

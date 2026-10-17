@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "apps/qualification/canister",
+    "apps/qualification/contracts",
     "apps/qualification/runner",
     "apps/tooling",
     "crates/ic-auth",
@@ -17,23 +18,40 @@ readme = "README.md"
 repository = "https://github.com/dragginzgame/ic-auth"
 
 [workspace.dependencies]
+# Catalog entries select versions; child manifests decide which capabilities link.
+# Candid is confined to internal fixture transport/tooling and the optional
+# upstream IC certificate stack. Public Auth types expose no Candid traits.
 candid = { version = "0.10", default-features = false }
+# Portable Ed25519 verification uses Dalek without IC certificates or BLS.
 # Keep verifier support crates aligned with the IC signature stack (Auth #65).
 curve25519-dalek = { version = "4.1.3", default-features = false }
 ed25519-dalek = { version = "2.2", default-features = false }
+# Native qualification transport only; not a dependency of the public libraries.
 ic-agent = { version = "0.49.2", default-features = false }
 ic-auth = { path = "crates/ic-auth" }
 ic-auth-protocol-types = { version = "0.7.8", path = "crates/ic-auth-protocol-types" }
+# Unpublished Candid projection for existing qualification/browser fixtures only.
+ic-auth-qualification-contracts = { path = "apps/qualification/contracts" }
+# DFINITY certificate/signature machinery is selected only by those capabilities.
 ic-canister-sig-creation = "1.3.1"
+# CDK belongs to the qualification canister, outside both public library graphs.
 ic-cdk = "0.20.3"
+# DFINITY certificate trees, selected only by certified capabilities/fixtures.
 ic-certification = "3.2"
+# DragginzGame host utilities and fixture storage, not DFINITY runtime packages.
 ic-host-fs = { version = "0.24", default-features = false }
 ic-host-process = { version = "0.24", default-features = false }
-ic-memory = "0.45"
+ic-memory = "0.46"
+# DFINITY verification, absent from portable/session-only library graphs.
 ic-signature-verification = "0.3"
+# DragginzGame native qualification tools; never a public library dependency.
 ic-testkit = "0.50"
 ic-testkit-candid = "0.50"
+# Direct use is test-only; certified verification also reaches it transitively.
 ic-verify-bls-signature = { version = "0.6", default-features = false, features = ["alloc"] }
+# DFINITY's narrow identity primitive, shared with platform callers; not Candid.
+ic_principal = { version = "0.1.5", default-features = false, features = ["serde", "self_authenticating"] }
+# Chain-key ECDSA verification uses RustCrypto; it does not require BLS.
 k256 = { version = "0.13.4", default-features = false, features = ["ecdsa"] }
 leb128 = "0.2"
 serde = { version = "1", features = ["derive"] }

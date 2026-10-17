@@ -6,6 +6,7 @@ use ic_auth_protocol_types::{
     DelegationAudience, LogoutRequest, LogoutResult, LogoutUnavailable, PortableCredential,
     PortableProof,
 };
+use ic_auth_qualification_contracts::Candid;
 
 fn request_vector() -> DelegatedTokenPrepareRequest {
     DelegatedTokenPrepareRequest {
@@ -72,20 +73,23 @@ pub(crate) fn run(
     match mode {
         "generate" => {
             let mut types = TypeContainer::new();
-            types.add::<DelegatedToken>();
-            types.add::<PortableCredential>();
+            types.add::<Candid<DelegatedToken>>();
+            types.add::<Candid<PortableCredential>>();
             // Candid elides names for empty records; retain the public request alias.
-            let logout_request = types.add::<LogoutRequest>();
+            let logout_request = types.add::<Candid<LogoutRequest>>();
             types.env.0.insert("LogoutRequest".into(), logout_request);
-            types.add::<LogoutResult>();
-            types.add::<DelegatedTokenGetRequest>();
-            types.add::<DelegatedTokenPrepareRequest>();
-            types.add::<DelegatedTokenPrepareResponse>();
+            types.add::<Candid<LogoutResult>>();
+            types.add::<Candid<DelegatedTokenGetRequest>>();
+            types.add::<Candid<DelegatedTokenPrepareRequest>>();
+            types.add::<Candid<DelegatedTokenPrepareResponse>>();
             save("protocol.did", compile(&types.env, &None).as_bytes())?;
             for (name, bytes) in [
-                ("request-vector.hex", Encode!(&request_vector())?),
-                ("credential-vector.hex", Encode!(&credential_vector())?),
-                ("logout-vector.hex", Encode!(&logout_vector())?),
+                ("request-vector.hex", Encode!(&Candid(request_vector()))?),
+                (
+                    "credential-vector.hex",
+                    Encode!(&Candid(credential_vector()))?,
+                ),
+                ("logout-vector.hex", Encode!(&Candid(logout_vector()))?),
             ] {
                 let hex: String = bytes.iter().map(|byte| format!("{byte:02x}")).collect();
                 save(name, format!("{hex}\n").as_bytes())?;
@@ -93,15 +97,15 @@ pub(crate) fn run(
         }
         "check" => {
             let bytes = read_file_no_follow(&directory.join("request-from-ts.bin"), 131_072)?;
-            if Decode!(&bytes, DelegatedTokenPrepareRequest)? != request_vector() {
+            if Decode!(&bytes, Candid<DelegatedTokenPrepareRequest>)?.0 != request_vector() {
                 return Err("request vector mismatch".into());
             }
             let bytes = read_file_no_follow(&directory.join("credential-from-ts.bin"), 131_072)?;
-            if Decode!(&bytes, PortableCredential)? != credential_vector() {
+            if Decode!(&bytes, Candid<PortableCredential>)?.0 != credential_vector() {
                 return Err("credential vector mismatch".into());
             }
             let bytes = read_file_no_follow(&directory.join("logout-from-ts.bin"), 131_072)?;
-            if Decode!(&bytes, Vec<LogoutResult>)? != logout_vector() {
+            if Decode!(&bytes, Candid<Vec<LogoutResult>>)?.0 != logout_vector() {
                 return Err("logout vector mismatch".into());
             }
         }

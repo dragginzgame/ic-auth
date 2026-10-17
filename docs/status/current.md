@@ -1,4 +1,93 @@
-# Current handoff — 2026-10-16
+# Current handoff — 2026-10-17
+
+## Candid-free public types (pending 0.8.0)
+
+Public protocol types now use `ic_principal` directly, with no Candid dependency,
+trait implementations or optional Candid feature. The same canonical principal
+type, checked identifiers, signed claim bytes and session/replay/login formats
+remain. Default, enrolled Ed25519, chain-key-only and local-session normal/build
+graphs reject Candid. Optional upstream IC certificate capabilities still select
+it transitively; this is not a replacement for platform protocols.
+
+Existing Candid wire declarations were extracted from the independent Canic
+compatibility tests into unpublished `apps/qualification/contracts/`. Its wrapper
+decodes directly into checked domain values and projects fixture outputs through
+CBOR. Only internal tooling/canister/runner packages depend on it; capability and
+packaged-consumer rules reject a reverse public-library edge. It is not a
+production transport package. Public and fixture generated Candid/TypeScript
+remain byte-for-byte unchanged. The browser keeps all retained-intent recovery
+and unknown-effect obligations; a future shared transport cut remains in
+[Auth #3 — Browser token-session client](https://github.com/dragginzgame/ic-auth/issues/3).
+Canic's adoption obligations are in the
+[consumer boundary](../canic-adoption.md#pending-08-transport-boundary).
+
+Evidence is retained under `target/candid-boundary/`. The 12 relocated wire and
+rejection cases, pure encoding tests, session/proof tests and 101 browser cases
+pass. Both directions of Rust/TypeScript exchange and generated-contract equality
+pass. All six real-canister cases pass in `qualification-final.log`, including
+two-receiver SDK admission/logout, signed ingress, certification and checkpoint
+upgrades; both checkpoint units pass. The first runtime attempt was prevented
+by sandbox loopback binding, before tests ran; local-server qualification passes
+with that access. An earlier export check found duplicate fixture type naming;
+using one projection identity/doc owner preserves the original generated files.
+
+`msrv.log` qualifies the exact normalized public package archives at Rust 1.91
+on native/Wasm with each supported capability and all features, plus internal
+applications including the new adapter. Before/after archive/source seals and
+manifests/locks remain identical. External Cargo package versions, sources and
+checksums are unchanged. Dependency policy rejection tests pass, and the new
+Candid-free gate rejects the actual pre-cut types graph. Strict native/Wasm
+Clippy, ShellCheck, formatting, local links, snapshot and dependency pins pass.
+
+The formatting-hook fixture now uses the adopted `--rust-sources` selector,
+including new manifests/Rust modules and tracked deletions instead of a static
+overlay list. Actual staged refresh, partial-stage refusal, lock preservation and
+hook installation checks pass in `formatting-hooks.log`. The incoming
+fixture/storage/hash cleanup is preserved and carried into 0.8.0.
+The public Candid-trait removal is breaking, so the numbered pending notes now
+select a minor release instead of 0.7.9. Package release versions remain at
+0.7.8. No Git refs, index, sibling source, publication or release effects changed.
+Full CI has not been run.
+
+## Fixture storage, contracts and input hashing (carried into pending 0.8.0)
+
+The maintainer delivered 0.7.8 at `8ef596d`; this batch started clean. The
+qualification host now uses published IC Memory 0.45's bounded `FixtureCell`
+through its explicit test-support capability. Init creates fresh storage and
+post-upgrade opens retained storage; neither substitutes empty state on failure.
+The custom page/length-header mechanics are removed. Auth retains a distinct
+`AUTHCELL` payload identity, its 128 KiB data ceiling and checkpoint semantics.
+The previous raw `AUTHQCP1` format is refused without clearing its bytes. Use
+fresh disposable fixture installations for this cut; same-format repeated
+upgrades remain qualified. This is not a production durable session adapter.
+
+The SDK admission fixture imports its input/view/result contracts from generated
+test-only bindings. The existing Wasm Candid export and pinned extractor/SDK
+bindgen are the owners; handwritten schemas and the loose optional-field result
+projection are gone. `test-qualification` compares the checked-in Candid and
+TypeScript before compiling its Node driver. Only explicit generation updates
+them. A stale-output probe fails without replacing it, then restores the original
+bytes. No endpoint, public client export or protocol type was added or changed.
+
+Native `hash-files0` batches ordered raw NUL-delimited paths over Host's existing
+no-follow hash operation. Path-list/file limits and failed batches refuse before
+identity output. Client generation builds the utility once and seals before and
+after generation; MSRV retains every existing archive/source comparison using
+one native batch per round. Package versions and external selections are unchanged.
+
+Evidence lives in `target/fixture-cleanups/`: nine host-tooling tests, 101 client
+cases/both Candid directions, both checkpoint units and all six real-canister
+cases pass. The final lifecycle result is in `qualification-final.log`; it covers
+certification, signed ingress, SDK admission/logout and checkpoint upgrades.
+The complete isolated Rust 1.91 native/Wasm package matrix passes in `msrv.log`,
+including unchanged archive/source/manifest/lock seals. Strict native/Wasm lint,
+formatting, ShellCheck, generated-contract comparison and stale-output refusal
+pass. The initial native test compile refusal for unwind safety is retained;
+test-only unwind assertions now explicitly wrap the injected memory handle.
+Local links, snapshot, dependency pins/boundaries and diff checks pass. No full
+CI, sibling edit/build, Git-ref change, release or publication was performed.
+Production issuer/reconciliation and the existing old-client retirement
+prerequisites remain in [Auth #3 — Browser token-session client](https://github.com/dragginzgame/ic-auth/issues/3).
 
 ## Shared SDK transport and record allocation cleanup (pending 0.7.8)
 

@@ -9,7 +9,13 @@ login and a production issuer adapter remain separate work.
 
 ## Portable credential transport for 0.6
 
-`PortableCredential` and `PortableProof` are generated from the Rust type owner.
+The Rust domain owner defines `PortableCredential` and `PortableProof`. Pending
+0.8.0 removes their public Candid traits without adding a Candid feature. Existing
+private-client bindings are generated through the unpublished fixture projection
+in `apps/qualification/contracts/`, preserving their current wire bytes. That
+adapter is not a production transport package or a dependency of either public
+library. The [consumer boundary](canic-adoption.md#pending-08-transport-boundary)
+separates this library cut from a future owned-transport replacement.
 `credentialBytes` and `credentialFromBytes` use the shared bounded Candid codec;
 claims remain opaque canonical signed bytes. A roundtrip neither authenticates
 those claims nor selects a trusted issuer key. Both proof variants retain their
@@ -466,7 +472,8 @@ fixture imports the compiled store/error modules from a localhost test server;
 it is not an application UI, production adapter or remote endpoint.
 
 The unpublished `ic-auth-tooling client-contracts generate DIRECTORY` command
-exports data-only Candid and all Rust vectors from the protocol crate's DTOs.
+exports data-only Candid and all Rust vectors through the internal fixture
+projection of the protocol crate's checked domain values.
 `client-contracts check DIRECTORY` checks all TypeScript reply vectors together;
 bounded Host file reads reject oversized inputs. Fixture generation and checking
 are no longer packaged as a protocol-crate example. Locked

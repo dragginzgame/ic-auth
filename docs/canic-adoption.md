@@ -14,6 +14,33 @@ records other shared mechanisms and their contract boundaries. Library selection
 must leave one canonical mechanism while preserving the consumer's authority,
 transactions and recovery obligations.
 
+## Pending 0.8 transport boundary
+
+The pending 0.8.0 public types no longer implement `candid::CandidType` and no
+longer depend on Candid. There is no Candid feature. `Principal` still re-exports
+the same canonical `ic_principal::Principal`; canonical signed claim bytes,
+cryptographic verification and session/replay/login record formats are unchanged.
+Package versions remain at the last release until the maintainer releases the cut.
+
+Canic must separate its endpoint schemas from these domain values, choose and
+qualify its owned transport, and convert/admit values before authentication.
+Existing Candid derives that contain an Auth domain type will no longer compile;
+adding Candid to the consumer does not restore the removed trait implementations.
+Do not import the unpublished `apps/qualification/contracts/` fixture adapter
+into production. It preserves current test/browser Candid bytes, not a supported
+production Candid lane. IC Wire is a candidate for shared owned transport, but its
+inspected runtime/derive packages remain unpublished; no IC Wire dependency or
+consumer adoption is claimed here. Coordinate that publication and endpoint/client
+cut through the existing tracker before retiring the consumer's current transport.
+
+Default, Ed25519 and local-session normal/build graphs now reject Candid. The
+optional upstream IC certificate stack still selects Candid transitively; this
+cut does not replace platform certificate verification or external APIs that
+specify Candid. Retained uncertain browser issuance intents must retain their
+existing reconciliation/disposition rules under
+[Auth #3 — Browser token-session client](https://github.com/dragginzgame/ic-auth/issues/3).
+No transport rewrite may reinterpret or erase their retained bytes.
+
 ## Published dependency and feature selection
 
 ### Current portable contract (released 0.7.5)

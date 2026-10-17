@@ -47,51 +47,8 @@ test-testkit-tools:
 test-formatting-hooks:
 	@mkdir -p target/portable-fixtures
 	+@TMPDIR="$(CURDIR)/target/portable-fixtures" bash scripts/ci/check-formatting-hooks.sh \
-		"$(CURDIR)" crates/ic-auth/src/lib.rs Cargo.toml --no-dependency-tables \
-		make/consumer.mk make/release.mk make/rust-format.mk ci/tool-versions.env \
-		crates/ic-auth/src/canonical.rs \
-		crates/ic-auth/src/portable.rs \
-		crates/ic-auth/src/portable/rules.rs \
-		crates/ic-auth/src/portable/revocation.rs \
-		crates/ic-auth/src/portable/verified.rs \
-		crates/ic-auth/tests/portable_rules.rs \
-		crates/ic-auth/tests/portable_revocation.rs \
-		crates/ic-auth/src/portable_signature.rs \
-		crates/ic-auth/src/portable_certified.rs \
-		crates/ic-auth/src/portable_credential.rs \
-		crates/ic-auth/tests/portable_certified/mod.rs \
-		crates/ic-auth/tests/portable_signature.rs \
-		crates/ic-auth/tests/portable.rs \
-		crates/ic-auth-protocol-types/src/lib.rs \
-		crates/ic-auth-protocol-types/src/portable.rs \
-		crates/ic-auth-protocol-types/src/logout.rs \
-		crates/ic-auth/src/certificate_issuance.rs \
-		crates/ic-auth/src/session_request.rs \
-		crates/ic-auth/src/session/mod.rs \
-		crates/ic-auth/src/admission_budget.rs \
-		crates/ic-auth/src/session/model.rs \
-		crates/ic-auth/Cargo.toml \
-		crates/ic-auth/src/chain_key_signature.rs \
-		crates/ic-auth/src/token/root.rs \
-		crates/ic-auth/src/token/rules.rs \
-		crates/ic-auth/src/token_preparation.rs \
-		crates/ic-auth/tests/chain_key_signature.rs \
-		crates/ic-auth/tests/certificate_issuance.rs \
-		crates/ic-auth/tests/session_request.rs \
-		crates/ic-auth/tests/sessions.rs \
-		crates/ic-auth/tests/token.rs \
-		crates/ic-auth/tests/root_bindings/mod.rs \
-		crates/ic-auth/tests/token_preparation.rs \
-		apps/qualification/runner/Cargo.toml \
-		apps/qualification/runner/tests/signatures/application_tokens.rs \
-		apps/qualification/runner/tests/signatures/sessions.rs \
-		apps/qualification/runner/tests/signatures/sessions/costs.rs \
-		apps/qualification/sessions.rs \
-		apps/qualification/canister/Cargo.toml \
-		apps/qualification/canister/src/sessions.rs \
-		apps/qualification/canister/src/lib.rs \
-		apps/qualification/runner/tests/signatures.rs \
-		apps/qualification/runner/tests/signatures/profile_composition.rs
+		"$(CURDIR)" crates/ic-auth/src/lib.rs Cargo.toml --no-dependency-tables --rust-sources \
+		make/consumer.mk make/release.mk make/rust-format.mk ci/tool-versions.env
 
 install-msrv: install-host-tools
 	bash scripts/dev/msrv-tools.sh install
@@ -113,7 +70,7 @@ metadata:
 	+cargo metadata --locked --offline --format-version 1 > /dev/null
 
 test-types:
-	+cargo test --locked --offline -p ic-auth-protocol-types
+	+cargo test --locked --offline -p ic-auth-protocol-types -p ic-auth-qualification-contracts
 
 test-protocol:
 	+cargo test --locked --offline -p ic-auth
@@ -152,7 +109,7 @@ check-wasm:
 	+cargo check --locked --offline -p ic-auth --features session-restore --target wasm32-unknown-unknown
 
 clippy:
-	+cargo clippy --locked --offline -p ic-auth-protocol-types -p ic-auth -p ic-auth-tooling -p ic-auth-qualification --all-targets --all-features -- -D warnings
+	+cargo clippy --locked --offline -p ic-auth-protocol-types -p ic-auth -p ic-auth-tooling -p ic-auth-qualification -p ic-auth-qualification-contracts --all-targets --all-features -- -D warnings
 	+cargo clippy --locked --offline -p ic-auth-qualification-canister --target wasm32-unknown-unknown -- -D warnings
 
 build-qualification-canister:

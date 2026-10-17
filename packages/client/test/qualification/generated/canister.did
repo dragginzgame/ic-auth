@@ -1,0 +1,183 @@
+// Instruction window covers the real admission implementation, excluding Candid
+// request decoding and response encoding. Cycle deltas include the whole update.
+type AdmissionProfile = record { result : Result_1; instructions : nat64 };
+// Exact network-qualified audience, with existing protocol field labels.
+// The host owns the meaning and trusted source of both identifiers; this type
+// contains no fleet topology, membership, derivation or installation policy.
+type AudienceId = record { fleet_id : text; canonical_network_id : text };
+type ChainKeyAlgorithm = variant { EcdsaSecp256k1 };
+type ChainKeyBatchHeaderV1 = record {
+  root_canister_id : principal;
+  registry_epoch : nat64;
+  algorithm : ChainKeyAlgorithm;
+  key_version : nat64;
+  key_id : ChainKeyKeyId;
+  registry_hash : blob;
+  proof_epoch : nat64;
+  batch_id : blob;
+  not_before_ns : nat64;
+  schema_version : nat16;
+  derivation_path_hash : blob;
+  tree_root : blob;
+  expires_at_ns : nat64;
+};
+type ChainKeyBatchWitnessStepV1 = variant {
+  RightSibling : blob;
+  LeftSibling : blob;
+};
+type ChainKeyBatchWitnessV1 = record { steps : vec ChainKeyBatchWitnessStepV1 };
+type ChainKeyDelegationCertV1 = record {
+  root_canister_id : principal;
+  registry_epoch : nat64;
+  grants : vec DelegatedRoleGrant;
+  max_token_ttl_ns : nat64;
+  issuer_proof_binding_hash : blob;
+  registry_hash : blob;
+  proof_epoch : nat64;
+  issuer_proof_binding : IssuerProofBinding;
+  audience : DelegationAudience;
+  not_before_ns : nat64;
+  issuer_canister_id : principal;
+  issuer_proof_algorithm : IssuerProofAlgorithm;
+  expires_at_ns : nat64;
+};
+type ChainKeyKeyId = record { name : text };
+type ChainKeyRootSignatureV1 = record {
+  algorithm : ChainKeyAlgorithm;
+  signature : blob;
+  public_key : blob;
+  key_id : ChainKeyKeyId;
+  derivation_path : vec blob;
+};
+type DelegatedRoleGrant = record { scopes : vec text; target : text };
+type DelegationAudience = variant { Fleet : AudienceId };
+type DelegationCert = record {
+  aud : DelegationAudience;
+  grants : vec DelegatedRoleGrant;
+  max_token_ttl_ns : nat64;
+  issuer_proof_binding_hash : blob;
+  issuer_proof_binding : IssuerProofBinding;
+  not_before_ns : nat64;
+  issued_at_ns : nat64;
+  issuer_pid : principal;
+  issuer_proof_alg : IssuerProofAlgorithm;
+  expires_at_ns : nat64;
+  root_pid : principal;
+};
+type DelegationProof = record { cert : DelegationCert; root_proof : RootProof };
+type IcCanisterSignatureProofV1 = record {
+  signature_cbor : blob;
+  public_key_der : blob;
+};
+type IcChainKeyBatchSignatureProofV1 = record {
+  issuer_witness : ChainKeyBatchWitnessV1;
+  signature : ChainKeyRootSignatureV1;
+  delegation_cert : ChainKeyDelegationCertV1;
+  header : ChainKeyBatchHeaderV1;
+};
+type IssuerProofAlgorithm = variant { IcCanisterSignatureV1 };
+type IssuerProofBinding = variant {
+  IcCanisterSignatureV1 : record { seed_hash : blob };
+};
+// Acknowledges only this destination's committed revocation, never global logout.
+type LogoutResult = variant {
+  InvalidCaller;
+  Unavailable : LogoutUnavailable;
+  Revoked : record { deny_until_ns : nat64 };
+};
+// No successful revocation is implied; transport failures also remain unknown.
+type LogoutUnavailable = variant { Storage; ResetPending; Capacity; Clock };
+// Unauthenticated portable credential transport. `claims` contains the exact
+// canonical signed bytes, not a Candid encoding of `PortableClaims`.
+// Hosts must bound outer decoding and verify against protected enrollment.
+type PortableCredential = record { claims : blob; proof : PortableProof };
+// Transport selects proof material, never trusted authority or signing custody.
+// Ed25519 signatures are exactly 64 bytes at verification; issuer keys are not
+// carried here. Certified proofs reuse the existing Root and IC proof owners.
+type PortableProof = variant {
+  Ed25519 : record { signature : blob };
+  Certified : record {
+    delegation : DelegationProof;
+    issuer_signature : IcCanisterSignatureProofV1;
+  };
+};
+// Controller-installed test authority; never selected from submitted proofs.
+type ReceiverAuthority = variant {
+  Ed25519 : blob;
+  Certified : record {
+    root : RootEnrollment;
+    binding : blob;
+    network_key : blob;
+  };
+};
+type ReceiverConfig = record {
+  grants : vec DelegatedRoleGrant;
+  enrollment_until_ns : nat64;
+  valid_from_ns : nat64;
+  valid_until_ns : nat64;
+  role : text;
+  audience : AudienceId;
+  verification_burst : nat32;
+  issuer : principal;
+  authority : ReceiverAuthority;
+  verification_refill_ns : nat64;
+};
+type Result = variant { Ok; Err : text };
+type Result_1 = variant { Ok : SessionView; Err : text };
+type Result_2 = variant { Ok : principal; Err : text };
+type Result_3 = variant { Ok : nat64; Err : text };
+type Result_4 = variant { Ok : SessionProfile; Err : text };
+type Result_5 = variant { Ok : nat32; Err : text };
+type Result_6 = variant { Ok : IcCanisterSignatureProofV1; Err : text };
+type RootEnrollment = record {
+  root_canister_id : principal;
+  algorithm : ChainKeyAlgorithm;
+  key_version : nat64;
+  public_key : blob;
+  key_id : ChainKeyKeyId;
+  valid_from_ns : nat64;
+  min_accepted_key_version : nat64;
+  accept_until_ns : nat64;
+  derivation_path_hash : blob;
+  min_accepted_proof_epoch : nat64;
+  min_accepted_registry_epoch : nat64;
+  max_revocation_latency_ns : nat64;
+};
+type RootProof = variant {
+  IcChainKeyBatchSignatureV1 : IcChainKeyBatchSignatureProofV1;
+};
+type SessionInput = record {
+  credential : PortableCredential;
+  scopes : vec text;
+  ttl_secs : opt nat64;
+};
+type SessionProfile = record {
+  record_bytes : nat64;
+  decode_instructions : nat64;
+  authorization_instructions : nat64;
+};
+type SessionView = record {
+  subject : principal;
+  issuer : principal;
+  caller : principal;
+  expires_at_ns : nat64;
+};
+service : (principal) -> {
+  asset_version : () -> (nat64) query;
+  // The fixture's controller attests current authority after this boot. Production
+  // requires authenticated receiver-bound Root enrollment, not this test endpoint.
+  confirm_restored_session_authority : (ReceiverConfig) -> (Result);
+  enable_session_checkpoint : () -> (Result);
+  establish_portable_session : (SessionInput) -> (Result_1);
+  install_session_receiver : (ReceiverConfig) -> (Result);
+  invalidate_session_authority : (bool) -> (Result);
+  logout_portable_session : (record {}) -> (LogoutResult);
+  owner_checked_operation : () -> (Result_2);
+  portable_session_read : () -> (Result_1);
+  prepare : (blob, blob, blob, nat64) -> (Result_3);
+  profile_portable_admission : (SessionInput) -> (AdmissionProfile);
+  profile_portable_session : () -> (Result_4) query;
+  prune : (nat32) -> (Result_5);
+  retrieve : (blob, blob, blob) -> (Result_6) query;
+  set_asset : (nat64) -> (Result);
+}

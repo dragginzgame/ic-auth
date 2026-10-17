@@ -10,7 +10,8 @@ description = "Passive application authentication protocol contracts"
 publish = ["crates-io"]
 
 [dependencies]
-candid.workspace = true
+# Preserve canonical IC principal identity without pulling in Candid.
+ic_principal.workspace = true
 serde.workspace = true
 thiserror.workspace = true
 
