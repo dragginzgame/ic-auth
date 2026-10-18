@@ -2,6 +2,10 @@
 
 ## [0.10.1]
 
+- Select Rust 1.99.1 for development formatting, Clippy and CI; keep the package
+  minimum at Rust 1.91.0.
+  [#70 — Qualify Rust 1.99.1 as the development compiler](https://github.com/dragginzgame/ic-auth/issues/70).
+
 - Make hashing qualification use filesystem-valid Unicode paths on macOS while
   retaining Linux raw-byte filenames and all-or-nothing rejection of raw path
   batches. [#71 — Qualify the raw-path hashing fixture on macOS](https://github.com/dragginzgame/ic-auth/issues/71).
