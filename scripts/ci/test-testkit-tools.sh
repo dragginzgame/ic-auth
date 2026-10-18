@@ -148,7 +148,7 @@ rg -F 'make install-testkit-tools' "$fixture/missing.stderr" > /dev/null
 mkdir -p "$consumer/make" "$consumer/ci" "$consumer/scripts/ci"
 for input in Makefile make/consumer.mk make/tools.mk make/release.mk make/rust-format.mk make/execution.mk \
     scripts/ci/check-release-delivery.sh ci/release-delivery.txt \
-    ci/tool-versions.env ci/ic-tools.tsv Cargo.toml rust-toolchain.toml \
+    ci/tool-versions.env ci/ic-tools.tsv ci/cargo-dependency-boundaries.json Cargo.toml rust-toolchain.toml \
     packages/client/package.json packages/client/package-lock.json packages/client/.nvmrc \
     scripts/ci/check-make-execution.sh scripts/ci/verify-file-checksum.sh \
     scripts/ci/run-validation-targets.sh; do
@@ -188,9 +188,14 @@ for target in test-qualification ci; do
     status=0
     (cd "$consumer"; make --no-print-directory -j4 "$target") \
         > "$fixture/early-$target.log" 2>&1 || status=$?
-    [[ "$status" == 2 && ! -e "$consumer/cargo-dispatch.log" ]] || exit 1
-    rg -Fx 'cli check' "$TESTKIT_FIXTURE_LOG" > /dev/null
-    rg -F 'make install-testkit-tools' "$fixture/early-$target.log" > /dev/null
+    if [[ "$status" != 2 || -e "$consumer/cargo-dispatch.log" ]] ||
+        ! rg -Fx 'cli check' "$TESTKIT_FIXTURE_LOG" > /dev/null ||
+        ! rg -F 'make install-testkit-tools' "$fixture/early-$target.log" > /dev/null; then
+        printf 'Unexpected early %s refusal (status %s); log: %s\n' \
+            "$target" "$status" "$fixture/early-$target.log" >&2
+        cat "$fixture/early-$target.log" >&2
+        exit 1
+    fi
     if [[ "$target" == ci ]]; then
         printf '%s\n' 'snapshot check' host-tools-check rust-tools-check \
             msrv-tools-check 'cli check' > "$fixture/expected-early.log"
@@ -201,7 +206,7 @@ done
 # The actual CI roster seals both Rust and frontend preparation before stages.
 # Each independent export mutates one declared input in the first stage; no
 # common/product admission or Cargo dispatch may follow, even under parallel Make.
-for scenario in rust frontend delivery deleted failed-stage; do
+for scenario in rust frontend delivery boundaries deleted failed-stage; do
     mutant="$fixture/drift-$scenario"
     cp -R "$consumer" "$mutant"
     : > "$TESTKIT_FIXTURE_LOG"
@@ -209,6 +214,7 @@ for scenario in rust frontend delivery deleted failed-stage; do
     case "$scenario" in
         frontend) input=packages/client/package-lock.json ;;
         delivery) input=ci/release-delivery.txt ;;
+        boundaries) input=ci/cargo-dependency-boundaries.json ;;
         deleted) input=rust-toolchain.toml; action=delete ;;
         failed-stage) snapshot_status=37 ;;
     esac

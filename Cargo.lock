@@ -1338,15 +1338,14 @@ dependencies = [
 
 [[package]]
 name = "ic-build"
-version = "0.17.4"
+version = "0.17.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "88432d2b8fdeabb0ae8327acea02bfc4eb70b9ea7223f69abc468ed9eb4efc3d"
+checksum = "2a104bff5a78e8bcc9a29b92e6b793b8b566a96d81a6a160d359fb77bd59680a"
 dependencies = [
  "cargo_metadata",
  "ic-host-artifacts",
  "ic-host-fs",
  "ic-host-process",
- "libc",
  "rustix",
  "serde",
  "serde_json",
@@ -1461,9 +1460,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "13b8109ebc6125c90fee344b65c8223c70ea4050d842f2fd23df1e6e714bd8e4"
 dependencies = [
  "flate2",
- "leb128",
  "sha2 0.10.9",
- "wasmparser",
 ]
 
 [[package]]
@@ -1515,9 +1512,9 @@ dependencies = [
 
 [[package]]
 name = "ic-metrics"
-version = "0.14.2"
+version = "0.14.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "91b2d3b70db8b344aa0bef07085682ede258216466c089db4b6d1441417ea4a8"
+checksum = "dac61137e8b7a67d649f475bdff907b278168292fe4bf103578293d1fb842651"
 
 [[package]]
 name = "ic-platform"
@@ -1638,9 +1635,9 @@ dependencies = [
 
 [[package]]
 name = "ic-wire"
-version = "0.4.1"
+version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "402feba473fddd969f6383186ab925ff173cd462612385b186c559f8ab9419e7"
+checksum = "017cc899cdaf3de5f4294749484a1c5172dcc150f3de134dcc6d853579569eb6"
 dependencies = [
  "ic-wire-derive",
  "postcard",
@@ -1650,9 +1647,9 @@ dependencies = [
 
 [[package]]
 name = "ic-wire-derive"
-version = "0.4.1"
+version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "00c93e16f19f85cd04393c00faf67245a1f101c723f8eddc9b14bb4d6a5fcbcd"
+checksum = "f6daad5bbd0ae12d49f0dc3a5b5b466fb998bd32ecca615b58b679707c5b12df"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3600,16 +3597,6 @@ dependencies = [
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
-]
-
-[[package]]
-name = "wasmparser"
-version = "0.261.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4f20f20e44f7e8aeb6744823ea9d869ede51e51be4fdaedede2852282e54d2d8"
-dependencies = [
- "bitflags",
- "indexmap",
 ]
 
 [[package]]

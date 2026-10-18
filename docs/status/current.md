@@ -10,6 +10,14 @@ Phase assertions now print unexpected status/output immediately. The focused
 no later product dispatch, redirect exclusions and all nine retained-file hashes.
 Evidence is in `target/tools-evidence-fix-20261018/`; shared payloads are unchanged.
 
+The Testkit caller fixture also now copies the CI-sealed dependency policy.
+Previously the real runner refused the missing input before reaching the intended
+Testkit admission failure. A policy-drift case proves that changing it stops CI
+before tool/Cargo dispatch; unexpected early failures now print the actual log.
+`make test-testkit-tools` passes, including setup/check ordering, lock changes,
+failure propagation, frontend admission and retained CI evidence. Task evidence:
+`target/testkit-fixture-fix-20261018/`. The incoming Cargo.lock update is preserved.
+
 ## IC Platform 0.1.12 — direct CDK removal
 
 Selected non-yanked published Platform 0.1.12, archive SHA-256
