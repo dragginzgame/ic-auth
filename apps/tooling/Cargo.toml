@@ -10,7 +10,6 @@ description = "Local IC Auth release and publication file operations"
 publish = false
 
 [dependencies]
-ic-auth-protocol-types.workspace = true
 ic-auth-wire = { workspace = true, features = ["typescript"] }
 ic-build.workspace = true
 ic-host-fs.workspace = true

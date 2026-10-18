@@ -1,5 +1,36 @@
 # Current handoff — 2026-10-18
 
+## Compatible 0.10.1 issue work
+
+Auth #71 now uses a filesystem-valid Unicode name for shared Unix hashing
+coverage, retaining spaces/tabs/newlines, ordering, duplicates and zero limits.
+Actual invalid-UTF-8 filename creation runs on Linux; invalid raw input still
+receives all-or-nothing rejection on every supported Unix host. Linux tests pass;
+native Intel/ARM macOS qualification remains required on the delivered source.
+No production path protocol or hashing behavior changes.
+
+Auth #72 removes the unused direct protocol-types edge from native tooling.
+The canister SHA-256 edge is required: `#[path = "../../sessions.rs"]` imports
+the shared authority fixture, whose Ed25519 binding hashes its key. The attempted
+removal correctly failed Wasm/Clippy checks and was restored with an ownership
+comment. All external lock identities are retained. Failure and final evidence,
+registry observations and before-images are in `target/canic-issues-20261018/`.
+
+Read-only Canic observation uses base `5583496b` plus active dirty owner changes;
+its captured catalog now selects Auth/types 0.10 but not `ic-auth-wire`. The
+access facade deliberately returns Anonymous, CallerMismatch or AuthorityUnavailable
+and has no successful session branch. This is a safe integration placeholder,
+not proof that the shipped Auth engine is missing authorization. Canic #491/#525
+own connecting and qualifying it with protected state and the real caller/clock;
+#507 owns non-issuing issuer recovery. No sibling build, source or refs changed.
+
+Ten tooling cases, strict tooling/Wasm Clippy, affected native/Wasm Rust 1.91
+checks, the release-profile fixture Wasm, generated-client contracts, package
+consumer refusals and actual graph admission pass. Format, pins, links and snapshot
+pass. No new installed-canister or native macOS qualification is claimed.
+Auth #66 is closed as already delivered in 0.10.0; the older PR #68 proposal is
+superseded by that implementation and remains separate from this working tree.
+
 ## Tool failure evidence fixture
 
 The isolated tools-evidence consumer now includes the catalog reader's declared
@@ -108,7 +139,9 @@ artifacts, native macOS or installed-IC behavior.
 
 ## Supported boundary
 
-The latest local release is 0.9.1 at `2da4dc0ea1a0a69910ab1e69a941b2072478ff12`.
+The latest local release is 0.10.0 at `1d9f9397c1599e90ad6f37bb57f1952d354be324`.
+All three packages are published and unyanked; adoption uses IC Wire 0.4 and
+Platform 0.1.12. Earlier release/adoption observations below are historical.
 Auth owns portable proof/certificate semantics, checked protocol types, local
 session/replay/revocation machinery and its bounded Wire transport. The private
 browser client coordinates admission and durable logout through injected identity,

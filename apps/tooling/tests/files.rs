@@ -116,10 +116,21 @@ fn batch(root: &Path, input: &[u8], maximum: &str) -> Output {
 fn batch_hashing_preserves_raw_paths_order_duplicates_and_zero_limits() {
     use std::{ffi::OsStr, os::unix::ffi::OsStrExt};
     let root = fixture();
-    let odd = b"space tab\tnewline\nnonutf8\xff";
+    let odd = b"space tab\tnewline\nutf8-\xc3\xa9";
     fs::write(root.join(OsStr::from_bytes(odd)), b"abc").unwrap();
     fs::write(root.join("plain"), b"abc").unwrap();
-    let paths = [odd.as_slice(), b"plain", odd.as_slice()];
+    let paths: Vec<&[u8]> = vec![odd.as_slice(), b"plain", odd.as_slice()];
+    // macOS rejects invalid UTF-8 names before the hashing protocol runs.
+    // Keep raw filesystem coverage on Linux and shared path/ordering coverage
+    // on every supported Unix host.
+    #[cfg(target_os = "linux")]
+    let paths = {
+        let non_utf8 = b"nonutf8\xff";
+        fs::write(root.join(OsStr::from_bytes(non_utf8)), b"abc").unwrap();
+        let mut paths = paths;
+        paths.push(non_utf8);
+        paths
+    };
     let input: Vec<_> = paths
         .iter()
         .flat_map(|path| path.iter().copied().chain([0]))
@@ -153,6 +164,7 @@ fn rejected_hash_batches_emit_no_partial_seal() {
     symlink("ok", root.join("link")).unwrap();
     for input in [
         b"ok\0missing\0".to_vec(),
+        b"ok\0missing\xff\0".to_vec(),
         b"ok\0big\0".to_vec(),
         b"ok\0link\0".to_vec(),
         b"ok\0.\0".to_vec(),
