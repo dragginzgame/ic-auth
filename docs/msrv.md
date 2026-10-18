@@ -2,7 +2,7 @@
 
 The public libraries, native tooling and Testkit runner inherit
 `rust-version = "1.91.0"` from the virtual root, as does the unpublished qualification
-canister. Rust 1.99.0 remains the development compiler for formatting, Clippy and
+canister. Rust 1.99.1 remains the development compiler for formatting, Clippy and
 functional tests; it is independent of the supported minimum.
 
 The workspace minimum is deliberately aligned at Rust 1.91.0. Earlier checks

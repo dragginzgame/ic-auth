@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.10.1]
+
+- Select Rust 1.99.1 for development formatting, Clippy and CI; keep the package
+  minimum at Rust 1.91.0.
+  [#70 — Qualify Rust 1.99.1 as the development compiler](https://github.com/dragginzgame/ic-auth/issues/70).
+
 ## [0.10.0] - 2026-10-18
 
 - Include the shared catalog reader's companions in tool-failure fixtures, and
