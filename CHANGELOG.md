@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.10.1]
+## [0.10.1] - 2026-10-18
 
 - Make hashing qualification use filesystem-valid Unicode paths on macOS while
   retaining Linux raw-byte filenames and all-or-nothing rejection of raw path
