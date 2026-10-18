@@ -8,7 +8,7 @@ checkpoints are retained separately in [adoption history](canic-adoption-history
 
 ## Released API and dependency direction
 
-The released Auth 0.9.1 stack contains `ic-auth-protocol-types`, `ic-auth` and
+The released Auth 0.10.0 stack contains `ic-auth-protocol-types`, `ic-auth` and
 `ic-auth-wire`. Select matching package releases in the consumer's root catalog;
 no sibling source/path override or copied codec is needed. Auth has no Canic or
 Toko dependency. Rust 1.91 is the common minimum.
@@ -26,8 +26,8 @@ Toko dependency. Rust 1.91 is the common minimum.
   SDK identity, issuer/admission transport and durable logout storage. It does
   not implement wallet login or a production issuer/reconciliation service.
 
-The pending release routes the protocol's Principal import through feature-free
-IC Platform 0.1.9. Its upstream type identity and serde/text/byte representations
+The 0.10 release routes the protocol's Principal import through feature-free
+IC Platform 0.1.12. Its upstream type identity and serde/text/byte representations
 are unchanged; consumers can keep importing Auth's `Principal`. No Candid or
 runtime capability is selected by that edge.
 
@@ -51,11 +51,11 @@ and limits. Canic binds them to actual exports, admits raw argument size before
 copying, decodes the exact method and authenticates ingress/replies. Reply-encoding
 failure after mutation must trap so that local state rolls back.
 
-The published 0.9.1 transport exposes IC Wire 0.3. The current Auth working tree
-contains a maintainer-selected Wire 0.4 update. That exposed Rust dependency
-identity requires the next Auth minor release and coordinated consumer selection;
-it is not silently part of the already released 0.9 contract. Generated files
-must come from the selected owner, never downstream patches.
+The published 0.10.0 transport exposes IC Wire 0.4. Consumers sharing its Rust
+Wire types must align that dependency and select matching Auth package releases.
+The older 0.9.1 transport retains IC Wire 0.3; these are distinct published
+dependency contracts. Generated files must come from the selected owner, never
+downstream patches.
 
 Applications may bind their own command envelope through an explicit qualified
 client transport adapter. Preserve the shared domain/signed contract and bounded

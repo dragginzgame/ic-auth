@@ -1,10 +1,16 @@
 # Changelog
 
-## [0.10.1]
+## [0.10.2]
 
 - Reuse one caller-owned runtime throughout signed-ingress qualification while
   retaining fresh per-call Agent identities and explicit trust roots.
-  [Testkit #106](https://github.com/dragginzgame/ic-testkit/issues/106).
+  [Testkit #106 — Share explicitly configured signed-ingress qualification transport](https://github.com/dragginzgame/ic-testkit/issues/106).
+
+## [0.10.1] - 2026-10-18
+
+- Select Rust 1.99.1 for development formatting, Clippy and CI; keep the package
+  minimum at Rust 1.91.0.
+  [#70 — Qualify Rust 1.99.1 as the development compiler](https://github.com/dragginzgame/ic-auth/issues/70).
 
 - Make hashing qualification use filesystem-valid Unicode paths on macOS while
   retaining Linux raw-byte filenames and all-or-nothing rejection of raw path
