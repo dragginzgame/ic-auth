@@ -7,7 +7,7 @@ IC Wire 0.4 public dependency selection requires pending 0.10.0 notes; the nativ
 tooling/ownership cleanup is independently compatible. The root catalog and lock
 select Host, Testkit, Memory, Build and the shared Wire codec/TypeScript generator. The [handoff](status/current.md) records exact evidence;
 [session contracts](sessions.md) distinguish supported behavior from pending hosts.
-Rust `1.99.0` remains the development compiler selected by `rust-toolchain.toml`.
+Rust `1.99.1` remains the development compiler selected by `rust-toolchain.toml`.
 The common package minimum is Rust `1.91.0`, inherited from the root catalog and
 qualified by explicit older-compiler checks. The internal qualification canister
 inherits the same minimum; explicit setup prepares it once. See [MSRV coverage](msrv.md).

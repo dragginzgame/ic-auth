@@ -89,7 +89,7 @@ and `ci/cargo-dependency-boundaries.json` for direct-dependency ownership.
 
 - See [developer setup](docs/development.md) for the implemented command surface.
   Rust 1.91.0 is the common package minimum; development formatting
-  and Clippy stay on 1.99.0. `make check-msrv` checks isolated Cargo package
+  and Clippy stay on 1.99.1. `make check-msrv` checks isolated Cargo package
   payloads for every supported library feature on native/Wasm, then the internal
   applications separately, all inheriting the workspace minimum.
   Setup explicitly prepares the declared compiler; checks never
