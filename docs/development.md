@@ -85,7 +85,7 @@ validate role comments mechanically, or qualify unlisted feature combinations.
 
 ## IC Platform boundary
 
-The protocol package uses published `ic-platform` 0.1.9 without features for its
+The protocol package uses published `ic-platform` 0.1.12 without features for its
 unconditional Principal re-export. This retains the same upstream identity and
 serde/self-authenticating/conversion capabilities, with no Candid or runtime edge.
 The direct `ic_principal` declaration is removed; Platform owns that selection.
@@ -95,8 +95,9 @@ Private controls and diagnostics now use bounded Wire contracts under
 `ic-auth-wire`. The runner uses Testkit raw calls with typed Wire requests/replies,
 not its Candid adapter. Init and post-upgrade arguments also use explicit Wire
 method identities. Hidden CDK exports with custom codec hooks require no direct
-Candid declaration, derive or service export. Platform selects only `ic0` in the
-host and `agent` in the native runner. The host parser stays disabled.
+Candid declaration, derive or service export. The host selects Platform
+`cdk`/`certification`; the native runner selects `agent`/`canister-sig-creation`.
+The host parser stays disabled.
 
 The maintainer authorized retiring the unpublished fixture's Candid checkpoint.
 Its replacement is a separately identified bounded Wire checkpoint with
@@ -110,13 +111,30 @@ Native Agent/delegated identities come from Platform, with native PEM support;
 caller/root-key selection, request policy and authenticated SDK behavior remain
 fixture-owned. Auth no longer needs Testkit's distinct Candid limits identity.
 
-Published Platform is still missing parts of Auth's certified capabilities:
-[canister-signature key/hash APIs (#16)](https://github.com/dragginzgame/ic-platform/issues/16),
-[tree-store exports (#17)](https://github.com/dragginzgame/ic-platform/issues/17),
-and [BLS/signature verification (#18)](https://github.com/dragginzgame/ic-platform/issues/18).
-Keep the selected upstream dependencies until these APIs are published and
-qualified. A re-export alone does not remove upstream Candid from certified
-verification; its Principal-only upstream edge also needs correction.
+Certified Auth capabilities now select Platform's `canister-sig-creation`,
+`certification` and `signature-verification` features explicitly. The `bls`
+feature is used only by native test signing; it is not forwarded by Auth's public
+features. All imports and direct upstream declarations for these four owners
+are removed ([#16](https://github.com/dragginzgame/ic-platform/issues/16),
+[#17](https://github.com/dragginzgame/ic-platform/issues/17),
+[#18](https://github.com/dragginzgame/ic-platform/issues/18)). Upstream types,
+DER/CBOR bytes, errors, resource admission and protected authority remain intact.
+Published creation still imports Candid for Principal; verification still reaches
+it transitively. No unpublished Principal patch is selected.
+
+Platform 0.1.12's `cdk` feature exports `certified_data_set` and
+`data_certificate`, resolving the host's final missing APIs
+([Platform #21](https://github.com/dragginzgame/ic-platform/issues/21)). The host's
+runtime calls and lifecycle/query/update macros now all use `ic_platform::cdk`;
+both direct CDK declarations are removed and the direct policy refuses them.
+The upstream runtime, controller Boolean/panic behavior and executor identity
+remain unchanged. Hidden/custom Wire codecs preserve byte admission, payloads,
+errors and traps. No certificate, codec or runtime wrapper is introduced.
+
+The runtime bundle includes Platform Candid; this is permitted only on the host
+graph. It does not add Candid protocol methods or relax schema/library exclusions.
+Counter-zero measurements continue using the exact raw API, equivalent to CDK's
+conversion of the same constant.
 
 `make check-boundaries` runs the adopted Shared direct-dependency checker with
 `ci/cargo-dependency-boundaries.json`. It checks canonical package identities,
@@ -127,8 +145,8 @@ selections as appropriate. Refusal fixtures cover Candid and executor leakage
 into the passive protocol graph. The reference-Wasm graph
 also rejects host parsers/native tooling and requires one executor identity.
 Private Wire schemas reject Candid/CDK/tooling on native and Wasm. The reference
-host also rejects Platform's optional Candid feature, while permitting CDK's
-existing transitive Candid dependency.
+host permits Platform's Candid capability as part of its explicit runtime bundle;
+private Wire schemas reject that feature as well as Candid package leakage.
 Certified verification still reaches upstream Candid transitively; CDK macros and
 executor remain in the qualified host. This is ownership control, not Wasm removal.
 

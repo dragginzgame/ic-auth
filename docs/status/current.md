@@ -1,5 +1,80 @@
 # Current handoff — 2026-10-18
 
+## IC Platform 0.1.12 — direct CDK removal
+
+Selected non-yanked published Platform 0.1.12, archive SHA-256
+`e0ab384614a5d8fe251bc2c27c508263d4001d776edf31382b5b985a1a4ced2d`,
+source `338b14baf97690abdfc0e386d6d5261b309a3ac8`. Its runtime now exports both
+certificate helpers requested in [Platform #21](https://github.com/dragginzgame/ic-platform/issues/21).
+The qualification host selects `cdk`/`certification`; all runtime calls and
+init/query/update/pre/post-upgrade macros use `ic_platform::cdk`. Both direct CDK
+declarations are removed. Direct policy prohibits CDK and Platform's implementation
+macro package, including aliases and non-normal dependency declarations.
+
+Only Platform is updated and its coordinated macro package added; existing
+upstream runtime/crypto versions and the single executor identity are retained.
+The host admits Platform's required Candid runtime bundle, while pure/passive and
+private Wire-schema graphs continue refusing Candid/CDK. The feature refusal
+fixture now applies to schemas; its first rerun incorrectly emitted Cargo feature
+records in a package-only observation, then was corrected. Application protocols,
+hidden/custom Wire hooks, decoder limits, controller checks, root composition,
+checkpoint bytes/allocation and upgrade rollback policy are unchanged. There are
+no remaining direct Candid, CDK-family or Principal package declarations.
+Transitive Candid/CDK remain; this does not establish their absence from Wasm.
+
+The isolated Rust 1.91 native/Wasm package capability matrix and internal apps
+pass with input/archive seals intact. Actual dependency graph/refusal checks,
+strict native/Wasm Clippy, formatting, dependency pins, links and the 118-file
+snapshot pass. Five native host tests and seven runner cases pass on the explicitly
+prepared Testkit 0.54/PocketIC 16.1.0, including real certification/composed roots,
+malformed/unauthorized Wire refusal, failed-upgrade rollback, checkpoints, signed
+ingress and two-receiver SDK admission/logout with exact proof bytes. Evidence,
+published archives, failures and incoming before-images are retained under
+`target/platform-next-20261018/`. Earlier Platform sections are historical.
+No full CI, native macOS, deployed-network, commit, release or deployment is claimed.
+
+## IC Platform 0.1.11 follow-up
+
+Selected non-yanked published Platform 0.1.11, archive SHA-256
+`8d55106ea1d1ccd65bd67c7d2a681b7d8199f3c0206ae990e24589b3ce502bdf`,
+source `ffc36b6363a1c87a4f1f4e88ee14b0ddf55db167`. All other locked package
+identities are preserved. Published source differs from 0.1.10 only by additional
+CDK counter/cycle exports, a capability not currently selected by Auth. Principal,
+crypto, tree, Agent and raw-system implementations remain unchanged.
+
+The release still lacks both `certified_data_set` and `data_certificate`, including
+their raw operations. [Platform #21](https://github.com/dragginzgame/ic-platform/issues/21)
+continues to block removing the qualification-only direct CDK declaration; no
+unpublished sibling, dependency alias or local certificate implementation is used.
+The earlier 0.1.10 sections below record historical adoption evidence.
+
+The isolated package Rust 1.91 native/Wasm capability matrix and internal app
+checks pass, with archive/input seals intact. Actual dependency boundaries and
+refusal fixtures, strict native/Wasm Clippy, formatting, dependency pins, local
+documentation links and the 118-file snapshot pass. All five native host tests
+and seven runner cases pass, including six local PocketIC scenarios, real
+certificates, signed ingress, Wire proof bytes, checkpoint upgrades and two-receiver
+SDK admission/logout. The initial sandbox run refused localhost binding; the
+same prepared Testkit 0.54/server 16.1.0 and built Wasm pass outside that restriction.
+Evidence and incoming before-images are in `target/platform-0111-20261018/`.
+No full CI, native macOS, deployed-network, release or deployment is claimed.
+
+## Jobserver fixture and CDK removal follow-up
+
+The jobserver harness now substitutes both newly added boundary entrypoints,
+matching the actual Make recipe. Its Cargo substitute checks the exact consumer
+argument with spaces and inherited descriptors. This qualifies Make dispatch,
+not the dependency checker's policy implementation. Focused harness evidence is
+retained in `target/jobserver-platform-20261018/`.
+
+A fresh live registry check still selects published Platform 0.1.10. Removing the
+qualification host's final direct CDK dependency remains blocked by the absent
+`cdk::api::{certified_data_set, data_certificate}` exports, tracked in
+[Platform #21](https://github.com/dragginzgame/ic-platform/issues/21). The published
+raw API also lacks those certificate operations. No local runtime replacement,
+dependency alias or unpublished sibling selection is introduced. Public Auth
+libraries have no direct CDK declarations; the fixture exception stays explicit.
+
 ## Shared graph observation adoption
 
 The actual boundary script delegates observation, family exclusions and optional
@@ -35,12 +110,12 @@ not those production capabilities. Both proof mechanisms share the same session
 engine; standalone signature-store prepare/retrieve is a reusable primitive, not
 the retired application-token lifecycle.
 
-## IC Platform 0.1.9 and Wire qualification
+## IC Platform 0.1.10 and Wire qualification
 
-Selected published `ic-platform` 0.1.9 after verifying its non-yanked registry
+Selected published `ic-platform` 0.1.10 after verifying its non-yanked registry
 entry, archive SHA-256
-`bdfb66170e95bae421449fbd50e3e2a26196fbd6277ae13556026bf3001974c3`
-and source `491c63d2d94ffd225d6dd7de35f04c6c4a78ff67`. The protocol uses its
+`1d3eaa384ad518116caaece25b1aca069473b7010e46e17d2fa23f0a3e1d2898`
+and source `4bf7341023939cda613f814a844142196d0ef374`. The protocol uses its
 feature-free Principal re-export with unchanged upstream 0.1.5 identity and
 serde/self-authenticating/conversion support. Native Agent/delegated identities
 also come from Platform; no sibling path or local runtime facade is introduced.
@@ -66,29 +141,48 @@ leases, replay and denial state. The host now uses canonical `RootKeyPolicy`
 instead of a duplicate domain DTO; the Wire projection remains explicitly bounded.
 Application Wire contracts and the generated browser client are unchanged.
 
-Published Platform still lacks required APIs, tracked in
-[canister-signature key/hash #16](https://github.com/dragginzgame/ic-platform/issues/16),
-[certificate-tree store #17](https://github.com/dragginzgame/ic-platform/issues/17)
-and [BLS/signature verification #18](https://github.com/dragginzgame/ic-platform/issues/18).
-Retain the corresponding upstream dependencies until published support is
-qualified. Certified verification still reaches upstream Candid; CDK and Agent
-also bring transitive Candid. Removing direct declarations is not Wasm removal.
-Pure/portable/session graphs retain their Candid/runtime/tooling exclusions.
+Published signing/key/hash, complete certificate-tree, signature-verifier and BLS
+APIs now satisfy [#16](https://github.com/dragginzgame/ic-platform/issues/16#issuecomment-6250254370),
+[#17](https://github.com/dragginzgame/ic-platform/issues/17#issuecomment-6250255038) and
+[#18](https://github.com/dragginzgame/ic-platform/issues/18#issuecomment-6250255509). Implementation,
+tests and qualification imports all use Platform; the four corresponding direct
+upstream catalog/member declarations are removed and prohibited by policy.
+The same upstream versions and crypto identities remain. Public Auth feature
+names and behavior are unchanged; their optional features forward only required
+Platform capabilities. BLS signing is selected only by native fixtures.
 
-The incoming Testkit 0.54 selection is preserved; it was not part of this Wire
-migration's dependency update. Explicit 0.54 CLI/server setup is authorized.
-Native fixture/contract tests, Rust 1.91 native/Wasm checks, strict native/Wasm
-Clippy, release Wasm build, direct/transitive boundaries, formatting, links, pins
-and the 118-file snapshot pass. Wasm exports contain no Candid service endpoint.
-Testkit 0.54 setup/check admits PocketIC 16.1.0. All six live cases and the
-shared authority-projection test pass, including actual SDK admission/logout,
-real certificate/ingress validation, checkpoint restoration and failed-upgrade
-rollback. Five canister unit tests and two Wire-contract cases also pass. Current
-before-images, checks, setup and live evidence are in `target/platform-wire-20261018/`.
-Earlier Platform/Principal evidence remains in `target/platform-recheck-20261018/`
-and `target/platform-principal-20261018/`. No full CI, native macOS,
-deployed-network qualification, Git delivery, release or deployment is claimed.
-Pending notes remain 0.10.0 for the independent public Wire 0.4 cut.
+The new CDK boundary still omits certificate read/publication helpers, now tracked
+in [#21](https://github.com/dragginzgame/ic-platform/issues/21). Keep one coherent
+existing CDK frontend/runtime until the complete host surface is supported.
+The bundled `cdk` feature enables Platform Candid, so a later host migration must
+review that gate while retaining Wire-only schemas/exports. Counter-zero samples
+use the identical raw Platform API; controller, clock and lifecycle stay intact.
+Certified verification still reaches upstream Candid for Principal; CDK and Agent
+also retain transitive Candid. No unpublished patch or smaller-Wasm claim is made.
+
+Principal-only and portable/chain-key graph exclusions now explicitly include
+independently selectable BLS. The older package-consumer test still expected all
+Platform use to fail; its obsolete expectation is corrected, with an admitted
+Platform control and retained external-lock/identity refusals. Direct dependency
+checks, actual native/Wasm graphs and new BLS-negative fixtures pass. An isolated
+published BLS-only consumer builds at Rust 1.91 on native/Wasm and excludes
+creation, certification, Candid, ic0, CDK/executor and host tooling.
+
+Testkit remains 0.54 with the explicitly prepared PocketIC 16.1.0; other locked
+package versions and public package release metadata are unchanged. The 52
+focused store/verifier/certified subjects pass. The exact isolated package MSRV
+native/Wasm matrix and internal apps pass with archive/input seals intact.
+Strict native/Wasm Clippy and boundary checks pass. Testkit 0.54/PocketIC 16.1.0
+passes all six live scenarios plus the shared authority-projection case, including
+real certification, composition/cleanup, failed-upgrade rollback, checkpoints,
+signed ingress and actual two-receiver SDK admission/logout. The five host unit
+cases also pass. Format, pins, links and the 118-file snapshot pass. Current
+archive, before-images, graph/MSRV and test evidence are in
+`target/platform-0110-20261018/`; earlier Wire qualification is retained under
+`target/platform-wire-20261018/`.
+No full CI, native macOS, deployed-network qualification, Git delivery, release
+or deployment is claimed. Pending notes remain 0.10.0 for the independent public
+Wire 0.4 cut.
 
 ## IC Platform 0.1.6 follow-up (historical)
 

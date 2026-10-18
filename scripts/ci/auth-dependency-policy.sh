@@ -9,10 +9,10 @@ auth_dependency_pattern() {
     local pattern
     case "$1" in
         default) pattern="$product|candid|candid_derive" ;;
-        passive) pattern="$storage|ic0|ic-certification" ;;
+        passive) pattern="$storage|ic0|$certificates|ic-verify-bls-signature" ;;
         pure) pattern="candid|candid_derive|curve25519-dalek|ed25519-dalek|k256|$certificates|ic-verify-bls-signature|ic-cdk|ic-stable-structures" ;;
         capability|deployment) pattern="$product|$storage" ;;
-        certificate-free) pattern="$certificates|candid|candid_derive" ;;
+        certificate-free) pattern="$certificates|ic-verify-bls-signature|candid|candid_derive" ;;
         session) pattern="candid|candid_derive|k256|$certificates|ic-verify-bls-signature" ;;
         packaged) pattern="$product|$storage" ;;
         *) echo 'unknown Auth dependency policy' >&2; return 1 ;;

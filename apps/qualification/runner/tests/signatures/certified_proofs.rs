@@ -26,7 +26,9 @@ use ic_auth_protocol_types::{
     IcChainKeyBatchSignatureProofV1, IssuerProofAlgorithm, IssuerProofBinding, PortableClaims,
     PortableMechanism, RootProof,
 };
-use ic_canister_sig_creation::{IC_ROOT_PK_DER, extract_raw_root_pk_from_der, hash_bytes};
+use ic_platform::canister_sig_creation::{
+    IC_ROOT_PK_DER, extract_raw_root_pk_from_der, hash_bytes,
+};
 use k256::ecdsa::{Signature, SigningKey, signature::hazmat::PrehashSigner};
 use std::time::Duration;
 

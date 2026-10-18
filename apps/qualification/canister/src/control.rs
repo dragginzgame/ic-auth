@@ -1,4 +1,4 @@
-//! Bind fixture-only Wire controls to the CDK raw codec hooks.
+//! Bind fixture-only Wire controls to Platform CDK raw codec hooks.
 use ic_auth_qualification_contracts::{CONTROL_LIMITS, Refusal, refusal};
 use ic_wire::Method;
 

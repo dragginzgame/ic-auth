@@ -34,7 +34,8 @@ for target in "$native_target" wasm32-unknown-unknown; do
     # Private fixture schemas must stay Wire-only even though the actual host's
     # CDK/certified verification legitimately brings transitive Candid.
     "${checker[@]}" --package ic-auth-qualification-contracts --target "$target" \
-        --forbid-pattern '^(candid|candid_derive|candid_parser|ic-cdk|ic0|ic-memory|ic-agent|ic-host|ic-build|ic-testkit|pocket-ic|tokio)([- ]|$)'
+        --forbid-pattern '^(candid|candid_derive|candid_parser|ic-cdk|ic0|ic-memory|ic-agent|ic-host|ic-build|ic-testkit|pocket-ic|tokio)([- ]|$)' \
+        --forbid-feature ic-platform/candid
 done
 # Optional crypto packages may be absent; every observed package has at most one
 # rendered version/source identity. The set and this policy remain Auth-owned.
@@ -50,6 +51,5 @@ for package in "${crypto_singletons[@]}"; do rules+=(--max-count "$package=1"); 
 "${checker[@]}" --package ic-auth --target wasm32-unknown-unknown --all-features "${rules[@]}"
 "${checker[@]}" --package ic-auth-qualification-canister --target wasm32-unknown-unknown \
     --forbid-pattern '^(candid_parser|ic-host|ic-build|ic-agent|ic-testkit|pocket-ic|tokio)([- ]|$)' \
-    --forbid-feature ic-platform/candid \
     --require ic-cdk-executor=1
 echo 'Auth dependency boundaries verified'

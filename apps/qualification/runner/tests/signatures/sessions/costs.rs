@@ -101,8 +101,8 @@ pub(super) fn qualify(
         rejecting.verification_burst = 1;
         rejecting.verification_refill_ns = SECOND;
         if let ReceiverAuthority::Certified { network_key, .. } = &mut rejecting.authority {
-            *network_key = ic_canister_sig_creation::extract_raw_root_pk_from_der(
-                ic_canister_sig_creation::IC_ROOT_PK_DER,
+            *network_key = ic_platform::canister_sig_creation::extract_raw_root_pk_from_der(
+                ic_platform::canister_sig_creation::IC_ROOT_PK_DER,
             )
             .unwrap();
             assert_ne!(network_key, old.ic_root_public_key_raw);

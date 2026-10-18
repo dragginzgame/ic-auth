@@ -6,8 +6,8 @@
 //! No runtime clock, certificate acquisition or root publication occurs here.
 
 use ic_auth_protocol_types::{IcCanisterSignatureProofV1, Principal};
-use ic_canister_sig_creation::{CanisterSigPublicKey, hash_bytes, hash_with_domain};
-use ic_certification::{
+use ic_platform::canister_sig_creation::{CanisterSigPublicKey, hash_bytes, hash_with_domain};
+use ic_platform::certification::{
     AsHashTree, Certificate, Hash, LookupResult, RbTree, fork, labeled, labeled_hash, pruned,
 };
 use serde::Serialize;
@@ -326,7 +326,7 @@ impl SignatureStore {
         struct Envelope<'a> {
             #[serde(with = "serde_bytes")]
             certificate: &'a [u8],
-            tree: ic_certification::HashTree,
+            tree: ic_platform::certification::HashTree,
         }
         let mut serializer = serde_cbor::Serializer::new(Vec::new());
         serializer

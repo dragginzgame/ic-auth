@@ -6,8 +6,8 @@ use ic_auth::signature_store::{
     SignatureInputs, SignatureLimits, SignatureSibling, SignatureStore,
 };
 use ic_auth_qualification_contracts as controls;
-use ic_certification::{Hash, fork_hash, labeled, leaf};
 use ic_platform::Principal;
+use ic_platform::certification::{Hash, fork_hash, labeled, leaf};
 use ic_wire::{Bytes, Limits, Method, Wire};
 use std::cell::RefCell;
 
@@ -36,7 +36,7 @@ impl State {
         Self {
             metadata,
             signatures: SignatureStore::new(
-                ic_cdk::api::canister_self(),
+                ic_platform::cdk::api::canister_self(),
                 SignatureLimits {
                     max_signatures: 16,
                     max_message_bytes: 1024,
@@ -57,7 +57,7 @@ impl State {
     }
 
     fn publish(&self) {
-        ic_cdk::api::certified_data_set(fork_hash(
+        ic_platform::cdk::api::certified_data_set(fork_hash(
             &fork_hash(&self.asset_root(), &self.signatures.root_hash()),
             &self.status_root(),
         ));
@@ -69,14 +69,14 @@ fn with_state<T>(f: impl FnOnce(&mut State) -> T) -> T {
 }
 
 fn controller() -> Result<(), String> {
-    let caller = ic_cdk::api::msg_caller();
-    if caller == Principal::anonymous() || !ic_cdk::api::is_controller(&caller) {
+    let caller = ic_platform::cdk::api::msg_caller();
+    if caller == Principal::anonymous() || !ic_platform::cdk::api::is_controller(&caller) {
         return Err("controller required".into());
     }
     Ok(())
 }
 
-#[ic_cdk::init(hidden = true, decode_with = "control::decode::<controls::Initialize>")]
+#[ic_platform::cdk::init(hidden = true, decode_with = "control::decode::<controls::Initialize>")]
 fn init(owner: Bytes<29>) {
     let owner = Principal::try_from_slice(owner.as_slice()).expect("owner principal");
     assert_ne!(owner, Principal::anonymous());
@@ -90,7 +90,7 @@ fn init(owner: Bytes<29>) {
     with_state(|state| state.publish());
 }
 
-#[ic_cdk::pre_upgrade]
+#[ic_platform::cdk::pre_upgrade]
 fn pre_upgrade() {
     with_state(|state| {
         let bytes = ic_wire::encode_request::<Checkpoint>(&CheckpointData {
@@ -104,7 +104,7 @@ fn pre_upgrade() {
     });
 }
 
-#[ic_cdk::post_upgrade(decode_with = "control::decode::<controls::Upgrade>")]
+#[ic_platform::cdk::post_upgrade(decode_with = "control::decode::<controls::Upgrade>")]
 fn post_upgrade() {
     storage::bootstrap(Default::default(), true);
     let CheckpointData {
@@ -122,7 +122,7 @@ fn post_upgrade() {
     sessions::restore(receiver);
 }
 
-#[ic_cdk::update(
+#[ic_platform::cdk::update(
     hidden = true,
     guard = "control::guard",
     decode_with = "control::decode::<controls::Prepare>",
@@ -149,7 +149,7 @@ fn prepare(
                     domain: domain.as_slice(),
                     message: message.as_slice(),
                 },
-                ic_cdk::api::time(),
+                ic_platform::cdk::api::time(),
                 retention_ns,
             )
             .map_err(|error| error.to_string())?;
@@ -158,7 +158,7 @@ fn prepare(
     })
 }
 
-#[ic_cdk::query(
+#[ic_platform::cdk::query(
     hidden = true,
     guard = "control::guard",
     decode_with = "control::decode::<controls::Retrieve>",
@@ -171,7 +171,8 @@ fn retrieve(
         message,
     }: controls::SignatureInput,
 ) -> Result<ic_auth_wire::model::IcCanisterSignatureProofV1, String> {
-    let certificate = ic_cdk::api::data_certificate().ok_or("query certificate absent")?;
+    let certificate =
+        ic_platform::cdk::api::data_certificate().ok_or("query certificate absent")?;
     with_state(|state| {
         state
             .signatures
@@ -181,7 +182,7 @@ fn retrieve(
                     domain: domain.as_slice(),
                     message: message.as_slice(),
                 },
-                ic_cdk::api::time(),
+                ic_platform::cdk::api::time(),
                 &certificate,
                 &[
                     SignatureSibling::Left(state.asset_root()),
@@ -194,7 +195,7 @@ fn retrieve(
     })
 }
 
-#[ic_cdk::update(
+#[ic_platform::cdk::update(
     hidden = true,
     guard = "control::guard",
     decode_with = "control::decode::<controls::Prune>",
@@ -205,14 +206,14 @@ fn prune(budget: u32) -> Result<u32, String> {
     with_state(|state| {
         let removed = state
             .signatures
-            .prune(ic_cdk::api::time(), budget as usize)
+            .prune(ic_platform::cdk::api::time(), budget as usize)
             .map_err(|error| error.to_string())?;
         state.publish();
         Ok(removed as u32)
     })
 }
 
-#[ic_cdk::update(
+#[ic_platform::cdk::update(
     hidden = true,
     guard = "control::guard",
     decode_with = "control::decode::<controls::SetAsset>",
@@ -227,7 +228,7 @@ fn set_asset(version: u64) -> Result<(), String> {
     Ok(())
 }
 
-#[ic_cdk::query(
+#[ic_platform::cdk::query(
     hidden = true,
     guard = "control::guard",
     decode_with = "control::decode::<controls::AssetVersion>",
@@ -237,14 +238,14 @@ fn asset_version() -> u64 {
     with_state(|state| state.metadata.asset_version)
 }
 
-#[ic_cdk::update(
+#[ic_platform::cdk::update(
     hidden = true,
     guard = "control::guard",
     decode_with = "control::decode::<controls::OwnerOperation>",
     encode_with = "control::encode_result::<controls::OwnerOperation, _>"
 )]
 fn owner_checked_operation() -> Result<Bytes<29>, String> {
-    let caller = ic_cdk::api::msg_caller();
+    let caller = ic_platform::cdk::api::msg_caller();
     with_state(|state| {
         if caller == state.metadata.owner {
             Ok(Bytes::new(caller.as_slice().to_vec()).expect("caller bound"))

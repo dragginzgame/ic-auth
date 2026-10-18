@@ -57,15 +57,20 @@ committed graph-check contribution, recorded in
 Use feature-free published `ic-platform` for the protocol's canonical Principal
 and its `agent` capability for native ingress identities. Application protocols,
 generated browser contracts and private qualification controls use IC Wire.
-The fixture has no Candid selector, projection or direct declaration. Its old
+The fixture exposes only Wire methods, with no Candid projection or direct
+declaration. Its old
 Candid checkpoint is explicitly retired; production storage is unaffected.
-Platform 0.1.9 lacks the CDK runtime/entrypoint APIs, so the qualification host
-retains CDK for runtime and hidden exports with explicit Wire codec hooks
-(Platform #1). Use Platform's raw argument-length API before CDK copying.
-Signature/key-format, tree-store and BLS/verifier adoption await published APIs
-tracked in Platform #16, #17 and #18. Do not recreate missing functions or hide
-residual transitive Candid behind a facade. See the current evidence in
-[the handoff](docs/status/current.md) and `ci/cargo-dependency-boundaries.json`.
+Platform 0.1.12 supplies explicit canister-signature key/hash, certificate-tree
+and verifier/BLS capabilities. Forward only the features required by each Auth
+capability; BLS fixture signing is a dev dependency. Never hide the residual
+upstream Candid graph or implement replacement cryptography.
+The qualification host selects Platform's `cdk` capability for runtime calls,
+certificate acquisition/publication and entrypoint generation (Platform #21).
+Keep hidden/custom Wire codecs and the upstream controller/runtime semantics.
+The runtime bundle includes Candid; private Wire schemas and pure library graphs
+still refuse it. Platform's raw APIs support existing admission/profiling.
+See [the handoff](docs/status/current.md), Platform #16/#17/#18 adoption evidence
+and `ci/cargo-dependency-boundaries.json` for direct-dependency ownership.
 
 ## Qualification tooling
 

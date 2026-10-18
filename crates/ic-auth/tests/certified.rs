@@ -10,9 +10,9 @@ use ic_auth::{
     portable_certified::CertifiedProofLimits,
 };
 use ic_auth_protocol_types::*;
-use ic_canister_sig_creation::CanisterSigPublicKey;
-use ic_certification::{Certificate, HashTree, fork, labeled, leaf};
-use ic_verify_bls_signature::PrivateKey;
+use ic_platform::bls::PrivateKey;
+use ic_platform::canister_sig_creation::CanisterSigPublicKey;
+use ic_platform::certification::{Certificate, HashTree, fork, labeled, leaf};
 use k256::ecdsa::{Signature, SigningKey, signature::hazmat::PrehashSigner};
 use serde::Serialize;
 use serde_bytes::ByteBuf;

@@ -6,8 +6,8 @@
 //! verification authenticates only the supplied message; it grants no authority.
 
 use ic_auth_protocol_types::{IcCanisterSignatureProofV1, Principal};
-use ic_canister_sig_creation::CanisterSigPublicKey;
-use ic_certification::{Certificate, LookupResult};
+use ic_platform::canister_sig_creation::CanisterSigPublicKey;
+use ic_platform::certification::{Certificate, LookupResult};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use thiserror::Error;
@@ -118,7 +118,7 @@ pub fn verify_canister_signature(
     if policy.ic_root_public_key_raw.len() != 96 {
         return Err(CanisterSignatureError::InvalidRootKeyLength);
     }
-    ic_signature_verification::verify_canister_sig(
+    ic_platform::signature_verification::verify_canister_sig(
         message,
         &proof.signature_cbor,
         &proof.public_key_der,

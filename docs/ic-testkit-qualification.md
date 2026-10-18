@@ -9,7 +9,7 @@ Earlier pairings and benchmarks are preserved in
 
 ## Setup and ownership
 
-The root catalog/lock select Testkit 0.54 and published Platform 0.1.9.
+The root catalog/lock select Testkit 0.54 and published Platform 0.1.12.
 Platform owns native Agent/delegated identity imports. Agent remains transitive
 with its native PEM feature; caller/root-key and request policy remain with the
 fixture. There is no direct Agent declaration or local facade. Testkit supplies
@@ -24,10 +24,15 @@ Node/npm dependencies; see [client setup](development.md#browser-client-setup).
 IC Host supplies bounded no-follow Wasm reads and native process mechanics. The
 fixture's startup limit is 30 seconds; state, stdout/stderr and SDK scratch inputs
 remain under a unique `target/portable-fixtures/qualification.*` directory after
-success or failure. CDK remains only in the canister for runtime and hidden
-exports with explicit Wire codec hooks; see [Platform #1](https://github.com/dragginzgame/ic-platform/issues/1).
+success or failure. The canister uses Platform runtime and hidden entrypoint
+macros with explicit Wire codec hooks; the direct CDK exception is removed
+([Platform #21](https://github.com/dragginzgame/ic-platform/issues/21)).
 IC Memory supplies checkpoint-cell mechanics, and Platform supplies raw length
-admission before CDK copying. No direct Candid or Testkit Candid declaration remains.
+admission before CDK copying, counter-zero measurements, certified-tree types
+and canister-signature key/hash operations. Its `cdk` capability now supplies
+certificate read/publish helpers and the original runtime/controller semantics.
+The runtime bundle includes Candid, but controls and checkpoints remain Wire.
+No direct Candid, CDK or Testkit Candid declaration remains.
 These host dependencies are absent from Auth's public libraries.
 The private generic typed Wire call adapter remains here until
 [Testkit #119 — Own typed IC Wire query/update adapters](https://github.com/dragginzgame/ic-testkit/issues/119)

@@ -32,6 +32,9 @@ perl -e '
     open my $writer, ">&=$2" or die "closed jobserver writer: $!\n";
 '
 printf '%s\n' "$*" >> "$AUTH_JOBSERVER_LOG"
+if [[ "${1:-}" == --consumer ]]; then
+    [[ $# == 2 && "$2" == "$PWD" ]]
+fi
 if [[ "${1:-}" == publish ]]; then
     [[ $# == 14 && "$2" == --dry-run && "$3" == --locked &&
        "$4" == --registry && "$5" == crates-io && "$6" == --allow-dirty &&
@@ -52,6 +55,7 @@ export PATH="$fixture/bin:$PATH"
 # recipes, includes, execution admission and Bash-to-Cargo descriptor handoff.
 for script in dev/testkit-tools.sh dev/msrv-tools.sh dev/check-msrv.sh \
     dev/test-qualification.sh dev/client-contracts.sh dev/test-client.sh \
+    ci/check-cargo-dependency-boundaries.sh ci/test-auth-boundaries.sh \
     ci/check-auth-boundaries.sh ci/check-dependency-pins.sh ci/read-cargo-workspace-version.sh \
     release/publish.sh release/metadata.sh release/test-tools.sh; do
     cat > "$consumer/scripts/$script" <<'SCRIPT'
@@ -95,6 +99,9 @@ for target in "${targets[@]}"; do
         exit "$status"
     fi
     [[ -s "$AUTH_JOBSERVER_LOG" ]]
+    if [[ "$target" == check-boundaries ]]; then
+        rg -Fx -- "--consumer $consumer" "$AUTH_JOBSERVER_LOG" > /dev/null
+    fi
 done
 
 # Auth's declared delivery policy refuses unsupported modes before adapter dispatch.

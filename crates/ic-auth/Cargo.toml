@@ -17,8 +17,9 @@ default = []
 portable-signature-verification = ["dep:curve25519-dalek", "dep:ed25519-dalek"]
 chain-key-verification = ["dep:k256"]
 canister-signature-preparation = [
-    "dep:ic-canister-sig-creation",
-    "dep:ic-certification",
+    "dep:ic-platform",
+    "ic-platform/canister-sig-creation",
+    "ic-platform/certification",
     "dep:serde",
     "dep:serde_bytes",
     "dep:serde_cbor",
@@ -27,9 +28,10 @@ sessions = ["dep:serde", "dep:serde_cbor"]
 session-restore = ["sessions"]
 certified-proof-verification = ["canister-signature-verification", "chain-key-verification"]
 canister-signature-verification = [
-    "dep:ic-canister-sig-creation",
-    "dep:ic-certification",
-    "dep:ic-signature-verification",
+    "dep:ic-platform",
+    "ic-platform/canister-sig-creation",
+    "ic-platform/certification",
+    "ic-platform/signature-verification",
     "dep:leb128",
     "dep:serde",
     "dep:serde_bytes",
@@ -40,9 +42,7 @@ canister-signature-verification = [
 curve25519-dalek = { workspace = true, optional = true }
 ed25519-dalek = { workspace = true, optional = true }
 ic-auth-protocol-types.workspace = true
-ic-canister-sig-creation = { workspace = true, optional = true }
-ic-certification = { workspace = true, optional = true }
-ic-signature-verification = { workspace = true, optional = true }
+ic-platform = { workspace = true, optional = true }
 k256 = { workspace = true, optional = true }
 leb128 = { workspace = true, optional = true }
 serde = { workspace = true, optional = true }
@@ -52,7 +52,7 @@ sha2.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
-ic-verify-bls-signature.workspace = true
+ic-platform = { workspace = true, features = ["bls"] }
 
 [lints]
 workspace = true

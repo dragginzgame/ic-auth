@@ -53,7 +53,7 @@ pub(crate) fn capture() -> Option<Snapshot> {
             proof_floor: host.proof_floor,
             generation: host.generation,
             enabled: host.enabled,
-            checkpoint_time: ic_cdk::api::time(),
+            checkpoint_time: ic_platform::cdk::api::time(),
             observed: host.ledger.observed_at_ns(),
             session_count: host.store.session_records().len() as u64,
             replay_count: host.store.replay_records().len() as u64,
@@ -90,7 +90,7 @@ pub(crate) fn capture() -> Option<Snapshot> {
 pub(crate) fn restore(snapshot: Option<Snapshot>) {
     let Some(saved) = snapshot else { return };
     let config: ReceiverConfig = saved.config.try_into().expect("checkpoint config");
-    let now = ic_cdk::api::time();
+    let now = ic_platform::cdk::api::time();
     assert!(now >= saved.checkpoint_time, "checkpoint clock rollback");
     assert!(
         saved.session_count <= 8
@@ -151,7 +151,7 @@ pub(crate) fn restore(snapshot: Option<Snapshot>) {
     RECEIVER.with(|state| *state.borrow_mut() = Some(host));
 }
 
-#[ic_cdk::update(
+#[ic_platform::cdk::update(
     hidden = true,
     guard = "crate::control::guard",
     decode_with = "crate::control::decode::<controls::EnableCheckpoint>",
@@ -167,7 +167,7 @@ fn enable_session_checkpoint() -> Result<(), String> {
 
 /// The fixture's controller attests current authority after this boot. Production
 /// requires authenticated receiver-bound Root enrollment, not this test endpoint.
-#[ic_cdk::update(
+#[ic_platform::cdk::update(
     hidden = true,
     guard = "crate::control::guard",
     decode_with = "crate::control::decode::<controls::ConfirmAuthority>",
@@ -189,7 +189,7 @@ fn confirm_restored_session_authority(
         if config != host.config {
             return Err("checkpoint authority mismatch".into());
         }
-        let now = ic_cdk::api::time();
+        let now = ic_platform::cdk::api::time();
         if config.valid_from_ns > now
             || config.valid_until_ns <= now
             || config.enrollment_until_ns <= now

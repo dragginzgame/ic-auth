@@ -29,15 +29,9 @@ ed25519-dalek = { version = "2.2", default-features = false }
 ic-auth = { path = "crates/ic-auth" }
 ic-auth-protocol-types = { version = "0.9.1", path = "crates/ic-auth-protocol-types" }
 ic-auth-wire = { version = "0.9.1", path = "crates/ic-auth-wire" }
-# Platform #16: published key/hash APIs are not exposed yet.
-ic-canister-sig-creation = "1.3.1"
-# Platform #17: signature storage also needs AsHashTree, RbTree and Hash.
-ic-certification = "3.2"
-ic-platform = { version = "0.1.9", default-features = false }
-# Platform #18: retain upstream verification until a qualified API is published.
-ic-signature-verification = "0.3"
-# Platform #18: native test signing and the certified verifier share this identity.
-ic-verify-bls-signature = { version = "0.6", default-features = false, features = ["alloc"] }
+# Explicit features preserve upstream signing/tree/verifier identities; defaults
+# stay empty so protocol, portable and session consumers select no IC runtime.
+ic-platform = { version = "0.1.12", default-features = false }
 ic-wire = "0.4"
 k256 = { version = "0.13.4", default-features = false, features = ["ecdsa"] }
 leb128 = "0.2"
@@ -50,7 +44,6 @@ thiserror = "2"
 # Tests and tooling only
 ic-auth-qualification-contracts = { path = "apps/qualification/contracts" }
 ic-build = "0.17"
-ic-cdk = "0.20.3"
 ic-host-fs = { version = "0.27", default-features = false }
 ic-host-process = { version = "0.27", default-features = false }
 ic-memory = "0.48"

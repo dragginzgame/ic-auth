@@ -39,19 +39,29 @@ if [[ "$package" == ic-auth-qualification-canister ]]; then
     if [[ "$BOUNDARY_MODE" == parser ]]; then printf 'candid_parser v0.3.0\n'; fi
     if [[ "$BOUNDARY_MODE" == executor ]]; then printf 'ic-cdk-executor v3.0.0\n'; fi
     if [[ "$BOUNDARY_MODE" == executor-source ]]; then printf 'ic-cdk-executor v2.0.0 (git+https://example.invalid/executor#12345678)\n'; fi
-    if [[ "$BOUNDARY_MODE" == control-platform-feature ]]; then printf 'ic-platform feature "candid"\n'; fi
+    # The Platform runtime bundle includes Candid; the host's payload stays Wire.
+    printf 'candid v0.10.38\n'
+    if [[ "$*" == *'--edges normal,build,features'* ]]; then
+        printf 'ic-platform feature "candid"\n'
+    fi
     exit 0
 fi
 printf '%s v0.9.1\n' "$package"
-printf 'ic-platform v0.1.9\nic_principal v0.1.5\n'
+printf 'ic-platform v0.1.12\nic_principal v0.1.5\n'
 if [[ "$BOUNDARY_MODE" == principal-candid && "$package" == ic-auth-protocol-types ]]; then
     printf 'candid v0.10.38\n'
 fi
 if [[ "$BOUNDARY_MODE" == principal-executor && "$package" == ic-auth-protocol-types ]]; then
     printf 'ic-cdk-executor v2.0.0\n'
 fi
+if [[ "$BOUNDARY_MODE" == principal-bls && "$package" == ic-auth-protocol-types ]]; then
+    printf 'ic-verify-bls-signature v0.6.0\n'
+fi
 if [[ "$BOUNDARY_MODE" == control-candid && "$package" == ic-auth-qualification-contracts ]]; then
     printf 'candid v0.10.38\n'
+fi
+if [[ "$BOUNDARY_MODE" == control-platform-feature && "$package" == ic-auth-qualification-contracts ]]; then
+    printf 'ic-platform feature "candid"\n'
 fi
 # A native near-name must not be mistaken for the actual tooling package.
 printf 'ic-agentic v1.0.0\ntokiology v1.0.0\n'
@@ -62,13 +72,15 @@ if [[ "$target" == wasm32-unknown-unknown ]]; then
         printf 'tokio v1.0.0\n'
     elif [[ "$BOUNDARY_MODE" == wasm-capability && "$features" == sessions ]]; then
         printf 'ic-testkit-candid v0.53.0\n'
+    elif [[ "$BOUNDARY_MODE" == wasm-portable-bls && "$features" == portable-signature-verification ]]; then
+        printf 'ic-verify-bls-signature v0.6.0\n'
     fi
 fi
 STUB
 chmod +x "$fixture/bin/"*
 export PATH="$fixture/bin:$root/.tools/host/bin:$PATH"
 export BOUNDARY_EVENTS="$fixture/events"
-for mode in accepted principal-candid principal-executor control-candid control-platform-feature wasm-default wasm-combined wasm-capability parser executor executor-source; do
+for mode in accepted principal-candid principal-executor principal-bls control-candid control-platform-feature wasm-default wasm-combined wasm-capability wasm-portable-bls parser executor executor-source; do
     export BOUNDARY_MODE="$mode"
     : > "$BOUNDARY_EVENTS"
     status=0
@@ -83,7 +95,7 @@ for mode in accepted principal-candid principal-executor control-candid control-
     else
         [[ "$status" != 0 ]] || { echo "missing exclusion: $mode" >&2; exit 1; }
         rg '^Cargo graph policy failed:' "$fixture/$mode.log" > /dev/null
-        rg 'ic-agent|tokio|ic-testkit-candid|candid|ic-cdk-executor' "$fixture/$mode.log" > /dev/null
+        rg 'ic-agent|tokio|ic-testkit-candid|candid|ic-cdk-executor|ic-verify-bls-signature' "$fixture/$mode.log" > /dev/null
     fi
 done
 echo 'Native/Wasm graph selections and transitive tooling refusals passed'

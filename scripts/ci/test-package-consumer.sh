@@ -59,9 +59,12 @@ reject_graph unresolved-auth '.resolve.nodes |= map(select(.id != "auth"))'
 reject_graph wrong-root '.resolve.root = "auth"'
 reject_graph live-root '.packages[0].manifest_path = "/live-workspace/Cargo.toml"'
 reject_graph extra-local '.packages += [{id: "extra", name: "extra", source: null}] | .resolve.nodes += [{id: "extra"}]'
-for forbidden in canic-core toko solana-sdk ic-siws ic-host-fs ic-build ic-auth-qualification-contracts ic-auth-tooling ic-testkit ic-agent ic-platform tokio pocket-ic ic-cdk ic-stable-structures ic-memory ic-timers; do
+for forbidden in canic-core toko solana-sdk ic-siws ic-host-fs ic-build ic-auth-qualification-contracts ic-auth-tooling ic-testkit ic-agent tokio pocket-ic ic-cdk ic-stable-structures ic-memory ic-timers; do
     reject_graph "$forbidden" ".packages[4].name = \"$forbidden\""
 done
+cp "$fixture/base.lock" "$fixture/Cargo.lock"
+jq '.packages[4].name = "ic-platform"' "$fixture/base-metadata.json" > "$fixture/metadata.json"
+"$BASH" scripts/ci/check-package-consumer.sh "$fixture/original.lock" "$fixture" "$version" > "$fixture/admitted-platform.log"
 cp "$fixture/base-metadata.json" "$fixture/metadata.json"
 for field in name version source checksum; do
     TEST_LOCK_FIELD="$field" perl -pe 's/^\Q$ENV{TEST_LOCK_FIELD}\E = ".*"$/$ENV{TEST_LOCK_FIELD} = "unselected"/' \
@@ -108,7 +111,7 @@ default ic-agent yes
 default ic-agentic no
 default tokio yes
 default tokiology no
-deployment ic-platform yes
+deployment ic-platform no
 deployment ic-agent yes
 deployment tokio yes
 deployment ic-cdk yes
@@ -126,10 +129,13 @@ pure candid yes
 certificate-free candid yes
 session candid yes
 passive ic0 yes
+passive ic-verify-bls-signature yes
+passive ic-canister-sig-creation yes
 capability ic0 no
 pure ed25519-dalek yes
 pure sha2 no
 certificate-free ic-certification yes
+certificate-free ic-verify-bls-signature yes
 session ed25519-dalek no
 session k256 yes
 packaged ic-testkit yes

@@ -5,9 +5,9 @@ use ic_auth::signature_store::{
     SignatureLimits, SignatureSibling, SignatureStore, SignatureStoreError as Error,
 };
 use ic_auth_protocol_types::Principal;
-use ic_canister_sig_creation::{CanisterSigPublicKey, hash_bytes, hash_with_domain};
-use ic_certification::{Certificate, Hash, HashTree, fork, fork_hash, labeled, leaf};
-use ic_verify_bls_signature::PrivateKey;
+use ic_platform::bls::PrivateKey;
+use ic_platform::canister_sig_creation::{CanisterSigPublicKey, hash_bytes, hash_with_domain};
+use ic_platform::certification::{Certificate, Hash, HashTree, fork, fork_hash, labeled, leaf};
 use serde::Serialize;
 
 const NOW: u64 = 10;

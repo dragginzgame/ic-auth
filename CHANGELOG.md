@@ -2,6 +2,10 @@
 
 ## [0.10.0]
 
+- Fix the jobserver fixture's substituted dependency-boundary entrypoints after
+  the Shared checker adoption. Check the quoted consumer path with spaces and
+  inherited jobserver descriptors through the actual Make recipes.
+
 - Route the public Principal re-export through feature-free IC Platform, removing
   the direct `ic_principal` declaration. Preserve the upstream type and wire
   identity; keep Candid, executor and host-tooling exclusions on pure graphs.
@@ -13,11 +17,22 @@
   rendered version/source identities. Keep the consumer refusal fixture aligned
   with the shared checker and canonical Cargo package selections.
 
-- Use published IC Platform 0.1.9 for Principal, raw argument admission and
-  native Agent/delegated identities. Request missing published signature/key,
-  certificate-tree and verification APIs in [Platform #16](https://github.com/dragginzgame/ic-platform/issues/16),
-  [#17](https://github.com/dragginzgame/ic-platform/issues/17) and
+- Adopt published IC Platform 0.1.12 for canister-signature key/hash operations,
+  certificate-tree storage, verification and native BLS fixtures; remove the four
+  direct upstream declarations and route counter-zero profiling through its raw
+  API. Preserve upstream types, encodings, errors and authority admission.
+  [Platform #16](https://github.com/dragginzgame/ic-platform/issues/16),
+  [#17](https://github.com/dragginzgame/ic-platform/issues/17),
   [#18](https://github.com/dragginzgame/ic-platform/issues/18).
+  Migrate the complete fixture runtime and entrypoint macros through Platform
+  now that its certificate helpers are published; remove and prohibit direct CDK
+  declarations ([Platform #21](https://github.com/dragginzgame/ic-platform/issues/21)).
+  Admit the required runtime bundle while preserving Wire-only schemas/codecs,
+  controller behavior and one runtime/executor identity.
+
+- Correct the older package-consumer refusal fixture to admit Platform and
+  explicitly reject independent BLS in passive/portable graphs. Preserve archive
+  identity and external-lock checks; no unpublished upstream patch is selected.
 
 - Replace private qualification Candid controls, diagnostics and init/upgrade
   arguments with bounded IC Wire. Remove the Candid projections, frozen Candid

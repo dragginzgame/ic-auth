@@ -102,7 +102,7 @@ fn with_receiver<T>(
         operation(host)
     })
 }
-#[ic_cdk::update(
+#[ic_platform::cdk::update(
     hidden = true,
     guard = "crate::control::guard",
     decode_with = "crate::control::decode::<controls::InstallReceiver>",
@@ -114,7 +114,7 @@ fn install_session_receiver(config: controls::model::ReceiverConfig) -> Result<(
         .try_into()
         .map_err(|e: ic_wire::Error| e.to_string())?;
     validate_grants(&config.grants, 16, 32).map_err(|e| e.to_string())?;
-    let now = ic_cdk::api::time();
+    let now = ic_platform::cdk::api::time();
     if config.issuer == Principal::anonymous()
         || config.valid_from_ns > now
         || config.valid_until_ns <= now
@@ -163,7 +163,7 @@ fn install_session_receiver(config: controls::model::ReceiverConfig) -> Result<(
     RECEIVER.with(|state| *state.borrow_mut() = Some(host));
     Ok(())
 }
-#[ic_cdk::update(
+#[ic_platform::cdk::update(
     hidden = true,
     guard = "admission_guard",
     decode_with = "decode_admission",
@@ -187,8 +187,8 @@ fn establish_portable_session(input: SessionInput) -> Result<SessionView, String
             &host.config,
             host.binding,
             (host.login_floor, host.proof_floor),
-            ic_cdk::api::msg_caller(),
-            ic_cdk::api::time(),
+            ic_platform::cdk::api::msg_caller(),
+            ic_platform::cdk::api::time(),
         );
         let result = establish_session(
             &mut host.store,
@@ -241,23 +241,23 @@ fn establish_portable_session(input: SessionInput) -> Result<SessionView, String
         }))
     })
 }
-#[ic_cdk::update(
+#[ic_platform::cdk::update(
     hidden = true,
     guard = "admission_guard",
     decode_with = "crate::control::decode::<controls::ProfileAdmission>",
     encode_with = "crate::control::encode::<controls::ProfileAdmission>"
 )]
 fn profile_portable_admission(input: SessionInput) -> AdmissionProfile {
-    let start = ic_cdk::api::performance_counter(0);
+    let start = ic_platform::ic0::performance_counter(0);
     let result = establish_portable_session(input);
-    let instructions = ic_cdk::api::performance_counter(0) - start;
+    let instructions = ic_platform::ic0::performance_counter(0) - start;
     AdmissionProfile {
         reply: ic_wire::Bytes::new(encode_admission(result)).expect("bounded admission diagnostic"),
         instructions,
     }
 }
 
-#[ic_cdk::update(
+#[ic_platform::cdk::update(
     hidden = true,
     guard = "read_guard",
     decode_with = "decode_read",
@@ -271,8 +271,8 @@ fn portable_session_read() -> Result<SessionView, String> {
             &host.config,
             host.binding,
             (host.login_floor, host.proof_floor),
-            ic_cdk::api::msg_caller(),
-            ic_cdk::api::time(),
+            ic_platform::cdk::api::msg_caller(),
+            ic_platform::cdk::api::time(),
         );
         ctx.required_scopes = &required;
         authorize_session(&mut host.store, &mut host.ledger, &ctx, policy)
@@ -280,7 +280,7 @@ fn portable_session_read() -> Result<SessionView, String> {
             .map_err(|e| e.to_string())
     })
 }
-#[ic_cdk::update(
+#[ic_platform::cdk::update(
     hidden = true,
     guard = "logout_guard",
     decode_with = "decode_logout",
@@ -296,12 +296,12 @@ fn logout_portable_session() -> LogoutResult {
             &mut host.store,
             &mut host.ledger,
             &mut host.unknown,
-            ic_cdk::api::msg_caller(),
-            ic_cdk::api::time(),
+            ic_platform::cdk::api::msg_caller(),
+            ic_platform::cdk::api::time(),
         )
     })
 }
-#[ic_cdk::update(
+#[ic_platform::cdk::update(
     hidden = true,
     guard = "crate::control::guard",
     decode_with = "crate::control::decode::<controls::InvalidateAuthority>",
@@ -315,7 +315,7 @@ fn invalidate_session_authority(enabled: bool) -> Result<(), String> {
         Ok(())
     })
 }
-#[ic_cdk::query(
+#[ic_platform::cdk::query(
     hidden = true,
     guard = "crate::control::guard",
     decode_with = "crate::control::decode::<controls::ProfileSession>",
@@ -323,16 +323,16 @@ fn invalidate_session_authority(enabled: bool) -> Result<(), String> {
 )]
 fn profile_portable_session() -> Result<SessionProfile, String> {
     with_receiver(|host| {
-        let caller = ic_cdk::api::msg_caller();
+        let caller = ic_platform::cdk::api::msg_caller();
         let session = host
             .store
             .transaction(None, |tx| tx.session(caller))
             .map_err(|e| e.to_string())?
             .ok_or("no session")?;
         let encoded = session.encode().map_err(|e| e.to_string())?;
-        let start = ic_cdk::api::performance_counter(0);
+        let start = ic_platform::ic0::performance_counter(0);
         let decoded = Session::decode(&encoded).map_err(|e| e.to_string())?;
-        let after_decode = ic_cdk::api::performance_counter(0);
+        let after_decode = ic_platform::ic0::performance_counter(0);
         if decoded != session {
             return Err("restoration differs".into());
         }
@@ -341,16 +341,17 @@ fn profile_portable_session() -> Result<SessionProfile, String> {
             host.binding,
             (host.login_floor, host.proof_floor),
             caller,
-            ic_cdk::api::time(),
+            ic_platform::cdk::api::time(),
         );
         let policy = policy(host);
-        let start_authorization = ic_cdk::api::performance_counter(0);
+        let start_authorization = ic_platform::ic0::performance_counter(0);
         authorize_session(&mut host.store, &mut host.ledger, &ctx, policy)
             .map_err(|e| e.to_string())?;
         Ok(SessionProfile {
             record_bytes: encoded.len() as u64,
             decode_instructions: after_decode - start,
-            authorization_instructions: ic_cdk::api::performance_counter(0) - start_authorization,
+            authorization_instructions: ic_platform::ic0::performance_counter(0)
+                - start_authorization,
         })
     })
 }

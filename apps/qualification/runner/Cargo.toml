@@ -16,10 +16,9 @@ ic-auth-protocol-types.workspace = true
 # Unpublished Wire controls for the qualification host.
 ic-auth-qualification-contracts.workspace = true
 ic-auth-wire.workspace = true
-ic-canister-sig-creation.workspace = true
 ic-host-fs.workspace = true
 ic-host-process.workspace = true
-ic-platform = { workspace = true, features = ["agent"] }
+ic-platform = { workspace = true, features = ["agent", "canister-sig-creation"] }
 ic-testkit.workspace = true
 ic-wire.workspace = true
 k256.workspace = true

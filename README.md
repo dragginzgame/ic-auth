@@ -98,11 +98,11 @@ Candid with published IC Wire's bounded codec and generated TypeScript through
 an Auth-owned transport adapter. Optional upstream certified-signature capabilities
 still use Candid transitively. Private fixture controls, diagnostics, init and
 upgrade checkpoints now use bounded Wire contracts too; the old unpublished
-Candid checkpoint format is retired. Platform 0.1.9 supplies Principal, raw
-argument admission and native Agent identities. CDK remains only in the reference
-host for runtime and raw codec exports. See the
-[platform boundary](docs/development.md#ic-platform-boundary) for pending
-signature/certification API adoption.
+Candid checkpoint format is retired. Platform 0.1.12 supplies Principal, explicit certified-signature/tree/verifier
+capabilities, raw admission/counters and native Agent identities. The reference
+host now uses its `cdk` runtime and entrypoint boundary, with no direct CDK
+declaration. See the [platform boundary](docs/development.md#ic-platform-boundary)
+for runtime ownership and the remaining transitive Candid/CDK dependencies.
 See the [consumer contract](docs/canic-adoption.md#wire-transport). The incoming
 Wire 0.4 selection requires the next Auth minor release because Wire types are
 publicly exposed; it does not change the already released 0.9 dependency contract.
