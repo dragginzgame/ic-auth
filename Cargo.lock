@@ -1322,7 +1322,6 @@ dependencies = [
 name = "ic-auth-tooling"
 version = "0.10.0"
 dependencies = [
- "ic-auth-protocol-types",
  "ic-auth-wire",
  "ic-build",
  "ic-host-fs",
