@@ -1,5 +1,15 @@
 # Current handoff — 2026-10-18
 
+## Signed-ingress runtime ownership
+
+The real ingress qualification reuses one caller-owned Tokio runtime across
+anonymous, delegated, invalid and post-upgrade identity calls. Each call still
+builds a fresh Platform Agent with its explicit identity, root bytes and existing
+expiry. No public session wrapper, dependency, retry or trust policy is added.
+The live delegation/identity case passes with freshly built Wasm and the admitted
+locked Testkit 0.54.0/server 16.1.0 pairing. Focused strict Clippy, formatting and
+actual Rust 1.91 checking pass; native macOS and the full suite remain unrun.
+
 ## Tool failure evidence fixture
 
 The isolated tools-evidence consumer now includes the catalog reader's declared

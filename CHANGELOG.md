@@ -2,6 +2,10 @@
 
 ## [0.10.1]
 
+- Reuse one caller-owned runtime throughout signed-ingress qualification while
+  retaining fresh per-call Agent identities and explicit trust roots.
+  [Testkit #106](https://github.com/dragginzgame/ic-testkit/issues/106).
+
 - Make hashing qualification use filesystem-valid Unicode paths on macOS while
   retaining Linux raw-byte filenames and all-or-nothing rejection of raw path
   batches. [#71 — Qualify the raw-path hashing fixture on macOS](https://github.com/dragginzgame/ic-auth/issues/71).

@@ -362,12 +362,15 @@ fn real_certificates_composition_cleanup_and_upgrade_obey_the_host_contract() {
 }
 
 fn ingress(
+    runtime: &tokio::runtime::Runtime,
     url: &str,
     root: &[u8],
     identity: impl Identity + 'static,
     target: Principal,
 ) -> Result<Result<Principal, String>, AgentError> {
-    tokio::runtime::Runtime::new().unwrap().block_on(async {
+    // Reuse the caller runtime, but bind a fresh Agent to this explicit identity
+    // and root on every call. Identity changes must not reuse old authority.
+    runtime.block_on(async {
         let agent = Agent::builder()
             .with_url(url)
             .with_identity(identity)
@@ -406,6 +409,7 @@ fn assert_replica_rejection(
 
 #[test]
 fn replica_checks_real_ingress_delegations_and_fresh_browser_keys_keep_identity_after_upgrade() {
+    let ingress_runtime = tokio::runtime::Runtime::new().unwrap();
     let mut fixture = Fixture::new();
     let url = fixture.pic.make_live(None).to_string();
     let network = fixture.pic.root_key().unwrap();
@@ -413,6 +417,7 @@ fn replica_checks_real_ingress_delegations_and_fresh_browser_keys_keep_identity_
     // application denial separate from transport/replica signature rejection.
     assert!(matches!(
         ingress(
+            &ingress_runtime,
             &url,
             &network,
             BasicIdentity::from_raw_key(&[6; 32]),
@@ -421,7 +426,13 @@ fn replica_checks_real_ingress_delegations_and_fresh_browser_keys_keep_identity_
         Ok(Err(_))
     ));
     assert!(matches!(
-        ingress(&url, &network, AnonymousIdentity, fixture.resource),
+        ingress(
+            &ingress_runtime,
+            &url,
+            &network,
+            AnonymousIdentity,
+            fixture.resource
+        ),
         Ok(Err(_))
     ));
     let mut previous: Option<(Vec<u8>, SignedDelegation)> = None;
@@ -439,7 +450,7 @@ fn replica_checks_real_ingress_delegations_and_fresh_browser_keys_keep_identity_
             )
             .unwrap();
             assert_eq!(
-                ingress(&url, &network, old, fixture.resource),
+                ingress(&ingress_runtime, &url, &network, old, fixture.resource),
                 Ok(Ok(fixture.owner))
             );
         }
@@ -453,7 +464,7 @@ fn replica_checks_real_ingress_delegations_and_fresh_browser_keys_keep_identity_
         )
         .unwrap();
         assert_eq!(
-            ingress(&url, &network, identity, fixture.resource),
+            ingress(&ingress_runtime, &url, &network, identity, fixture.resource),
             Ok(Ok(fixture.owner))
         );
         // Unchecked identities intentionally bypass the client's early validation
@@ -464,7 +475,7 @@ fn replica_checks_real_ingress_delegations_and_fresh_browser_keys_keep_identity_
             vec![chain.clone()],
         );
         assert_replica_rejection(
-            ingress(&url, &network, identity, fixture.signer),
+            ingress(&ingress_runtime, &url, &network, identity, fixture.signer),
             "not one of the delegation targets",
         );
         let mut changed = chain.clone();
@@ -484,7 +495,7 @@ fn replica_checks_real_ingress_delegations_and_fresh_browser_keys_keep_identity_
             vec![changed],
         );
         assert_replica_rejection(
-            ingress(&url, &network, identity, fixture.resource),
+            ingress(&ingress_runtime, &url, &network, identity, fixture.resource),
             "signature",
         );
         let identity = DelegatedIdentity::new_unchecked(
@@ -493,7 +504,7 @@ fn replica_checks_real_ingress_delegations_and_fresh_browser_keys_keep_identity_
             vec![chain.clone()],
         );
         assert_replica_rejection(
-            ingress(&url, &network, identity, fixture.resource),
+            ingress(&ingress_runtime, &url, &network, identity, fixture.resource),
             "signature",
         );
         previous = Some((public_key, chain));
@@ -507,7 +518,7 @@ fn replica_checks_real_ingress_delegations_and_fresh_browser_keys_keep_identity_
     )
     .unwrap();
     assert_replica_rejection(
-        ingress(&url, &network, identity, fixture.resource),
+        ingress(&ingress_runtime, &url, &network, identity, fixture.resource),
         "expired",
     );
 }
