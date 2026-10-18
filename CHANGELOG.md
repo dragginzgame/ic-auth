@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.10.0]
+## [0.10.0] - 2026-10-18
 
 - Include the shared catalog reader's companions in tool-failure fixtures, and
   print unexpected setup/check output instead of failing without an explanation.
