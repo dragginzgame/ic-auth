@@ -1,97 +1,90 @@
 # Independent authentication ownership
 
-Accepted direction: 2026-10-08. Implementation and Canic adoption are tracked in
-[Canic #491](https://github.com/dragginzgame/canic/issues/491).
+Accepted extraction direction: 2026-10-08; current boundary reconciled on
+2026-10-18. [Canic #491 — Extract reusable authentication, token and session machinery](https://github.com/dragginzgame/canic/issues/491)
+owns consumer implementation and acceptance. Earlier source checkpoints are
+historical evidence, not alternate current APIs.
 
 ## Purpose and scope
 
-IC Auth is the independent owner of reusable IC signature support,
-application-token protocol mechanics and local application-session machinery.
-A separately deployed wallet-auth service uses that foundation to authenticate
-wallet users and issue standard IC ingress delegations. The initial wallet
-provider is Solana message signing without SIWS or ic-siws.
+IC Auth owns reusable IC signature/proof support, portable credential contracts,
+certificate rules and caller-bound local session/replay/revocation machinery.
+Released 0.9 also supplies bounded Wire transport and a private admission/logout
+client. The separate Rust application-token lifecycle and old browser token
+prepare/retrieve client are retired after explicit deployment/uncertainty review.
 
-The larger extraction includes token contracts, canonical signed encoding,
-certificate rules, verification and cache validity, scoped session admission,
-replay rules and bounded state operations. It is not limited to a wrapper around
-DFINITY signature crates.
+A wallet-auth service remains planned. No wallet provider, accepting wallet
+endpoint or standard IC ingress-delegation service is implemented here. Its
+future identity/nonce/storage lifecycle belongs here, independently of Canic's
+fleet lifecycle. Applications retain users, business permissions and assets;
+Toko NFTs remain in Toko. Auth requires no Solana RPC, minting or asset custody.
 
-The service authenticates identities. Applications continue to own users,
-business permissions and assets. Toko NFTs remain in Toko; neither a Solana RPC
-service nor Solana token/NFT infrastructure is needed for wallet login.
+## Dependency direction and entry points
 
-## Dependency direction
+| Package | Owned implementation and public surface |
+| --- | --- |
+| `ic-auth-protocol-types` | Checked identifiers, passive claims/certificates/proofs and typed logout results. No CDK, storage, timers or certificate-tree state. |
+| `ic-auth` | Canonical signed bytes, certificate/proof verification and issuance rules, signature preparation and transaction-based local sessions. Verification/host effects are explicit capabilities; the crate installs no endpoints or trust. |
+| `ic-auth-wire` | Bounded Auth method/data layouts and structural domain projections over IC Wire. Generated browser codecs come from that dependency's generator. |
+| `packages/client` | Private portable admission coordinator, guarded SDK identity and durable logout journal/transport. Identity, issuer/admission operations and storage are injected. |
+| `apps/tooling` | Native file operations through IC Host and generic lock admission through IC Build. Auth owns release identity, exact package policy and upload/retry decisions. |
+| `apps/qualification` | Private CDK/Testkit hosts, bounded Wire controls and an IC Memory fixture checkpoint. Reference integration evidence, not production service or storage. |
+| `apps/wallet-auth` (planned) | Future wallet endpoints, protected configuration, identity mappings, nonce state, storage, certification and lifecycle. No service exists yet. |
 
-### Accepted 0.6 application authentication contract
-
-The [0.6 portable authentication design](0.6-portable-authentication.md) extends
-this contract with certified/BLS and opt-in TEE-backed Ed25519 admission into
-the same session engine, browser-driven multi-canister logout and non-TEE local
-qualification. TEE admission and the proposed Canic feature flag remain pending;
-the current implementation admits certified tokens. Receiver-to-issuer admission
-calls are not the selected multi-subnet architecture.
-
-The reviewed [protocol contract](0.6-auth-protocol.md) requires a fresh browser
-principal per application login, distinct from its issuer-authenticated account
-subject. The wallet-service stable-principal delegation below is a separate
-capability and must not be substituted as the caller-keyed application login.
-Its logout, reset and enrollment decisions supersede earlier design alternatives;
-they are implementation targets, not claims about today's token/session API.
-
-The maintainer selected a hard cut on 2026-10-13: application tokens establish
-caller-bound local sessions; ordinary application endpoints authorize those
-sessions with current protected context. Remove the superseded token-per-call
-application guard and its consumers in the coordinated Canic/Toko change, without
-a fallback or parallel compatibility route. The lower-level token verifier is
-still the proof primitive, not a second recommended application login flow.
-
-One token may admit the same caller on multiple receiving canisters whose
-protected audience, role and scopes permit it. Each receiver verifies admission
-and owns its session/replay transaction. This does not provide one global
-verification or automatically authorize every descendant in a tree.
-
-The cut does not remove stored-record validation, alter the CBOR format, or
-authorize discarding durable replay/identity state. Auth owns checked session
-records; Canic owns storage and lifecycle, and Toko owns application users and
-resource permissions. The [adoption contract](../canic-adoption.md) and
-[Canic #491](https://github.com/dragginzgame/canic/issues/491) carry consumer work.
-
-### Library graph
+The Rust public entry points are the library modules under `crates/`; the private
+browser export is `packages/client/src/index.ts`. Auth Wire methods carry layouts
+and limits, never automatically installed canister exports. Native/tooling/test
+applications are unpublished and outside all public library graphs.
 
 ```text
-ic-auth-protocol-types <--- ic-auth <--- wallet-auth service
-                              <--- Canic adapter and local authorization host
-
-wallet-auth public Candid <--- TypeScript client <--- application frontend
+ic-auth -------------------> ic-auth-protocol-types
+ic-auth-wire --------------> ic-auth-protocol-types + ic-wire codec/generator
+private browser client ----> generated Auth Wire contracts + injected SDK boundaries
+Canic/local host ----------> selected Auth verification/session capabilities
+future wallet-auth service -> Auth primitives (no Canic/Toko dependency)
 ```
 
-No IC Auth package may import Canic, Toko, their storage models or their build
-scripts. Canic supplies its trusted authority context through explicit adapter
-inputs. Its consumers select verification/session functionality without wallet
-or issuer signing dependencies when those functions are not needed.
+Use one virtual workspace/lock and root dependency catalog. Generic native file,
+process, build and canister-test mechanics belong to Host, Build and Testkit.
+Auth supplies its policies and keeps focused consumer integration assertions.
+Do not extract a generic abstraction merely because two trust boundaries validate
+similar values: signed claims, transport frames and stored records have different
+obligations. Private controller contracts and canonical application Wire projections are
+necessary transport isolation, not competing authentication engines.
 
-## Packages
+## One application authentication flow
 
-| Package | Responsibility |
-| --- | --- |
-| `ic-auth-protocol-types` | Passive public protocol contracts, validated identifiers and errors. No CDK, storage, timers or certificate-tree state. |
-| `ic-auth` | Protocol encoding, certificate/token verification and issuance rules, local session state transitions, reusable signature support and optional wallet proof verification. Pure logic and platform integration occupy separate modules. |
-| `apps/wallet-auth` | Service endpoints, protected application configuration, identity mappings, nonce state, storage backend, certified signature tree, controller policy and lifecycle. |
-| `packages/client` | Wallet discovery/signing, challenge exchange and construction of a delegated ICP client identity. |
-| `apps/tooling` | Unpublished native release/publication file operations using `ic-host-fs` and `ic-host-artifacts`. Not part of either authentication library's dependency graph. |
+The [portable authentication design](0.6-portable-authentication.md) and
+[protocol](0.6-auth-protocol.md) select proof admission, then caller-bound local
+session checks. Certified/BLS and enrolled Ed25519 proofs use the same engine.
+Both verifiers are implemented; production issuer/enrollment and optional TEE
+assurance remain open. Plain Ed25519 verification proves no hardware custody.
+Receiver-to-issuer calls are not the selected multi-subnet admission architecture.
 
-Use a virtual root with one lockfile and root-owned package/dependency catalogs.
-Create additional crates only for an established independent dependency boundary;
-do not allocate one crate per wallet, signature algorithm or source module.
+A directly authenticated fresh browser principal identifies one login/device;
+`(issuer, subject)` identifies its account. Stable-account ingress delegation is
+a separate capability, not a substitute for that browser principal. Each permitted
+receiver independently verifies admission and commits its session/replay/login
+state; one credential does not imply one global verification or automatic tree
+access. Ordinary calls carry no proof and use protected local scope checks.
 
-## Source ownership map
+Canic owns fleet/member/role authority, issuer approval and renewal, enrollment,
+real caller/time acquisition, endpoint guards, certification publication and
+atomic production storage. Toko owns account linking and resource permission.
+Auth must not discover trusted authority from client claims or depend on either
+product. Root proof verification, signature-store prepare/retrieve and certificate
+rules remain reusable primitives; they do not restore the retired token lifecycle.
+See [current Canic integration](../canic-adoption.md) and
+[session storage/reset contracts](../sessions.md).
+
+## Historical extraction input and retained owner boundary
 
 The inspected Canic source was at
 `95038e1a381ce88eb19415f5bb6d8439457b75f1`. Recheck the selected source before
 extracting: this design does not freeze another contributor's working tree.
 Paths below are relative to `crates/canic-core/src/`.
 
-| Current source | IC Auth ownership | Retained Canic ownership |
+| Original extraction input | IC Auth ownership | Retained Canic ownership |
 | --- | --- | --- |
 | `ops/auth/canister_sig_key.rs`, IC-key portions of `domain/auth.rs` | Key encoding/parsing and reusable trust-key checks. Prefer suitable upstream implementations. | Protected network/root selection and fleet-specific derivation policy. |
 | `ops/auth/root_canister_sig.rs`, `issuer_canister_sig.rs` | Common signature prepare/retrieve/verify machinery and explicit certification support. | Attestation payload meaning, issuer eligibility and role-specific domains/authority. |
@@ -148,11 +141,12 @@ limits. Use bounded record operations rather than cloning/encoding the entire
 store for each login. IC Auth owns the storage contract and engine; an embedded
 host owns stable-memory registration and supplies its backend.
 
-For 0.6, the host selects memory or persistent storage at build time per canister
+The host selects memory or persistent storage at build time per canister
 role. Both use that same engine and trait; neither IC Auth nor a standalone
 consumer depends on Canic configuration. Memory mode omits `session-restore`,
-loses sessions on upgrades and applies a protected signed-issuance cutoff after
-each loss of replay history. Persistent mode enables checked restoration and
+loses sessions on upgrades and applies protected signed login-start and proof
+issuance floors after each loss of replay history. Newly issued renewal of an old
+login must still refuse. Persistent mode enables checked restoration and
 retains replay/authority state atomically. The [storage and reset contract](../sessions.md)
 defines the clock, cutoff, client recovery and mode-switch requirements. A local
 generation increment alone cannot invalidate an old token for fresh admission.
@@ -168,12 +162,12 @@ contributions/witness construction through an explicit host-owned composition
 boundary. It must not privately call `certified_data_set` behind an independent
 subsystem's back.
 
-The standalone service owns its tree. A Canic host remains responsible for
+The future standalone service owns its tree. A Canic host remains responsible for
 composing any other certified branches. Specify preparation retention,
 retrieval, pruning, root refresh and lifecycle restoration together. A library
 move alone does not fix competing owners.
 
-## Wallet service boundary
+## Planned wallet service boundary
 
 Wallet login uses an IC Auth-owned challenge format and adapters for Solana and
 Ethereum, without SIWS or SIWE protocols or dependencies. Use established
@@ -183,9 +177,9 @@ the stable-principal ingress delegation service described below is a separate
 capability, not an alternative application endpoint authentication flow. See the
 [0.6 wallet boundary](0.6-portable-authentication.md#wallet-account-authentication).
 
-The public interaction is challenge preparation, proof submission and certified
-delegation retrieval. Final method/type names are fixed with the implementation
-and generated Candid, not duplicated manually in consumer clients.
+The proposed public interaction is challenge preparation, proof submission and
+certified delegation retrieval. Final method/type names and transport are fixed
+with the implementation, not inherited from retired application Candid bindings.
 
 The challenge binds the configured application identity/domain, wallet key,
 session public key, nonce, issue/expiry times and permitted delegation targets.

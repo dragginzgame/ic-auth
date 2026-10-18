@@ -2,10 +2,10 @@
 
 The virtual root owns the protocol/types, Auth engine and Wire transport libraries,
 unpublished native tooling in `apps/tooling/` and the reference host/runner in
-`apps/qualification/`. Package versions remain at 0.9.0; the working tree prepares
-the compatible 0.9.1 cleanup. Host 0.27.0, Testkit 0.52 and Memory 0.48 are selected
-in the lockfile. IC Wire 0.3.5 supplies the shared codec
-and TypeScript generator. The [handoff](status/current.md) records exact evidence;
+`apps/qualification/`. Package versions remain at released 0.9.1. The incoming
+IC Wire 0.4 public dependency selection requires pending 0.10.0 notes; the native
+tooling/ownership cleanup is independently compatible. The root catalog and lock
+select Host, Testkit, Memory, Build and the shared Wire codec/TypeScript generator. The [handoff](status/current.md) records exact evidence;
 [session contracts](sessions.md) distinguish supported behavior from pending hosts.
 Rust `1.99.0` remains the development compiler selected by `rust-toolchain.toml`.
 The common package minimum is Rust `1.91.0`, inherited from the root catalog and
@@ -51,6 +51,93 @@ selections retained. Ordinary checks stay offline. Snapshot and release recovery
 admit only complete 40- or 64-character Git identities; PR identity strings reject
 trailing newlines before state writes. Auth retains direct release delivery.
 
+## Dependency roles and deployment admission
+
+Shared Tooling 0.24.0 is adopted at `cab12cd3dfa4fdb34846b25397f0d72881bb9ae0`.
+The root catalog uses `Production dependencies` and `Tests and tooling only`;
+member annotations distinguish the three production libraries from internal
+qualification and native tooling packages. These roles describe graph use, not
+registry publication. Candid, ic0 and BLS verification are production entries
+because certified capabilities reach them transitively, even where Auth's direct
+edge is used only by fixtures or tests.
+
+`make fmt`, `make fmt-check` and the pre-commit hook use `cargo sort --workspace
+--grouped`. Release preparation writes that same ordering; current, prepared and
+selected committed-source checks refuse unsorted groups without rewriting them.
+`make test-formatting-hooks` derives an unsorted manifest from current inputs and
+qualifies sorting, lock preservation and staged-file isolation.
+
+`make check-boundaries` inspects locked normal/build transitive graphs on the
+compiler's native host target and `wasm32-unknown-unknown`: all three library
+defaults, each Auth capability, the session/portable combination and all Auth
+capabilities together. Negative fixtures include Wasm-only tooling leaks. The
+check runs in CI/release validation, independently of comment labels. Public
+libraries exclude native Host/Build/Testkit/Agent/Tokio, fixture packages and
+service-owned CDK/storage. Certified capabilities intentionally retain their
+upstream certificate stack; portable/session-only graphs remain certificate-free.
+
+There is no production service or deployment command here. The Memory/CDK Wasm
+host is qualification-only and legitimately uses test/tooling packages. A Canic or
+future wallet-service deployment must check its own exact target/features and
+bind source, lockfile and successful build evidence to the final artifact digest.
+This repository's graph checks do not enforce that external deployment binding,
+validate role comments mechanically, or qualify unlisted feature combinations.
+
+## IC Platform boundary
+
+The protocol package uses published `ic-platform` 0.1.9 without features for its
+unconditional Principal re-export. This retains the same upstream identity and
+serde/self-authenticating/conversion capabilities, with no Candid or runtime edge.
+The direct `ic_principal` declaration is removed; Platform owns that selection.
+
+Private controls and diagnostics now use bounded Wire contracts under
+`apps/qualification/contracts/`; public application contracts remain in
+`ic-auth-wire`. The runner uses Testkit raw calls with typed Wire requests/replies,
+not its Candid adapter. Init and post-upgrade arguments also use explicit Wire
+method identities. Hidden CDK exports with custom codec hooks require no direct
+Candid declaration, derive or service export. Platform selects only `ic0` in the
+host and `agent` in the native runner. The host parser stays disabled.
+
+The maintainer authorized retiring the unpublished fixture's Candid checkpoint.
+Its replacement is a separately identified bounded Wire checkpoint with
+`AUTHWIR2` framing; the old `AUTHCELL`/Candid payload is refused, not migrated or
+reset. IC Memory allocation and public/production storage contracts are unchanged.
+Checkpoint restores remain closed until matching controller authority is confirmed.
+
+CDK runtime/controller behavior is retained ([Platform #1](https://github.com/dragginzgame/ic-platform/issues/1)).
+No controller wrapper, executor, callback or crypto implementation is recreated.
+Native Agent/delegated identities come from Platform, with native PEM support;
+caller/root-key selection, request policy and authenticated SDK behavior remain
+fixture-owned. Auth no longer needs Testkit's distinct Candid limits identity.
+
+Published Platform is still missing parts of Auth's certified capabilities:
+[canister-signature key/hash APIs (#16)](https://github.com/dragginzgame/ic-platform/issues/16),
+[tree-store exports (#17)](https://github.com/dragginzgame/ic-platform/issues/17),
+and [BLS/signature verification (#18)](https://github.com/dragginzgame/ic-platform/issues/18).
+Keep the selected upstream dependencies until these APIs are published and
+qualified. A re-export alone does not remove upstream Candid from certified
+verification; its Principal-only upstream edge also needs correction.
+
+`make check-boundaries` runs the adopted Shared direct-dependency checker with
+`ci/cargo-dependency-boundaries.json`. It checks canonical package identities,
+including aliases and normal/build/dev/target/optional declarations, independently
+of enabled features. Transitive library checks permit principal-only Platform
+while excluding Candid and runtime dependencies from pure/portable/session
+selections as appropriate. Refusal fixtures cover Candid and executor leakage
+into the passive protocol graph. The reference-Wasm graph
+also rejects host parsers/native tooling and requires one executor identity.
+Private Wire schemas reject Candid/CDK/tooling on native and Wasm. The reference
+host also rejects Platform's optional Candid feature, while permitting CDK's
+existing transitive Candid dependency.
+Certified verification still reaches upstream Candid transitively; CDK macros and
+executor remain in the qualified host. This is ownership control, not Wasm removal.
+
+The root catalog was reviewed separately: the Shared checker does not inspect
+unused catalog entries or infer exclusions from role comments. There is one
+workspace/lockfile and no independent maintained fixture workspace. These checks
+still do not bind another application's deployed artifact to its source/lockfile;
+consumer deployment admission and native macOS qualification remain separate.
+
 ## Setup
 
 Install rustup through your normal host setup, then from this checkout:
@@ -81,8 +168,8 @@ installations retained.
 The Makefile includes reviewed [`make/consumer.mk`](make-interface.md), which owns
 common setup, formatting, hooks, snapshot verification and release routing.
 `check-snapshot` retains its public name and depends on `shared-tooling-check`.
-The recorded snapshot pins Shared Tooling 0.23.0 at
-`0b351cd2ba2bcd8927b783a5fec89afc8013f708`. Adopt its committed source and
+The recorded snapshot pins Shared Tooling 0.24.0 at
+`cab12cd3dfa4fdb34846b25397f0d72881bb9ae0`. Adopt its committed source and
 recorded entrypoint closure through the canonical exporter; see
 [snapshot adoption](consuming-snapshots.md#entrypoint-selection-in-070).
 The canonical verifier also supports `--read-manifest FILE`: it validates the
@@ -128,7 +215,7 @@ and complete validation roster. Formatting checks use the prepared checkout-loca
 tools without installing them or activating Git hooks.
 Shared Tooling 0.6.6 selects cargo-sort-derives 0.14.1 for its literal `$crate`
 macro-path fix. Run `make install-rust-tools`, then `make rust-tools-check` when
-adopting that pin. Auth's default formatter remains Cargo manifest sorting and
+adopting that pin. Auth's formatter uses grouped Cargo manifest sorting and
 rustfmt; the common tool selection does not enable derive sorting locally.
 The release/format includes also load the selected `make/execution.mk` companion,
 which rejects ignore-errors, dry-run, touch and question modes before recipes.
@@ -247,7 +334,7 @@ storage qualification. See the [transport evidence](ic-testkit-qualification.md#
 | `make test-host-tooling` | Native file-operation CLI: bounded input, exact digest output, no-follow reads and preserved create-only evidence |
 | `make check-msrv` | Isolated public package payloads and internal applications using the declared minimum compiler, with native/Wasm and feature coverage |
 | `make tasks` | Read the adopted maintenance task catalog; no task, agent or schedule starts |
-| `make test-qualification` | Build the internal Wasm host; verify real certificates, complete application tokens, live authority rejection, root composition, upgrades, authenticated ingress and SDK logout through `ic-testkit` with the checked server and prepared client dependencies |
+| `make test-qualification` | Build the internal Wasm host; verify real certificates, portable proof/session admission, live authority rejection, root composition, upgrades, authenticated ingress and SDK logout through `ic-testkit` with the checked server and prepared client dependencies |
 | `make build-qualification-canister` | Build the internal host's release Wasm without starting a server |
 | `make check-wasm` | Compile-check the public libraries and chain-key/signature verification/preparation, token and session capabilities for `wasm32-unknown-unknown` |
 | `make clippy` | Lint the libraries, native tooling/qualification and Wasm host with their selected targets |
@@ -521,42 +608,23 @@ before/after seal, retained as `inputs.tsv0` and `inputs-after.tsv0` beside the
 path list. MSRV checks likewise keep their existing archive/source comparisons,
 using one native invocation per sealing round rather than one process per file.
 
-The native utility and qualification runner select published `ic-host-fs` 0.15.1;
-the utility uses
-`durable::write_with(path, options, producer)` with explicit create/replace modes
-and owner-only permissions. Publication errors retain their typed before/after
-state through the utility's error boundary, with secondary staging cleanup
-failures included in diagnostics. The released Auth 0.4.0 lock selects Testkit
-0.33.4 and all four Host packages at 0.13.1, with no Host 0.12 duplicates.
-[Testkit #54](https://github.com/dragginzgame/ic-testkit/issues/54) owns the upstream
-native acceptance; Testkit 0.33.4 delivers corrected Host upgrade guidance for
-the public reexport identity change already shipped under patch 0.33.3.
-Auth's public libraries have no Testkit or Host
-dependency, so their contracts are unchanged. Host 0.13 removes an unused
-fixed-cadence pathname lock wrapper; Auth has no caller and needs no shim.
-The filesystem implementation rejects
-NUL-containing publication paths before parent creation. Auth retains its
-existing version rewriter and release policy.
-The qualification runner reads Wasm through the root-selected filesystem helper
-directly and obtains runtime types through Testkit. Testkit owns adoption of
-Host's breaking process API; Auth has no direct caller or compatibility shim.
-Directory-suffixed publication targets are refused before creating parents or
-replacing a stripped filename; the native utility uses that upstream guard.
-The current lock selects Testkit 0.34.3 and the four Host packages at 0.14.5.
-These updates remain in native tooling and qualification; Auth's callers do not
-use Host's replaced completed-process-result boundary. Native graph qualification
-uses the actual certification, upgrade and ingress journey, separately from
-common Rust setup; its current evidence belongs in the [handoff](status/current.md).
-Matching native CI remains required for the pending batch.
-Run `make install-testkit-tools` to prepare the selected CLI, then
-`make testkit-tools-check` for offline admission of its unchanged 16.1.0 server.
-Prior versioned CLI installations remain retained. Native Host dependencies
-remain outside both protocol libraries. See the owner adoption in
-[Testkit #47](https://github.com/dragginzgame/ic-testkit/issues/47).
-Testkit 0.30 bounds retained Cargo failure output and requires complete bounded
-identity/workspace/metadata probes; successful identities and installation receipts
-are unchanged. No Auth caller uses those process APIs directly. See
-[Testkit #49](https://github.com/dragginzgame/ic-testkit/issues/49).
+The native utility and qualification runner consume the root-selected published
+`ic-host-fs` and `ic-host-process` packages. The utility uses
+`durable::write_with` with explicit create/replace modes and owner-only
+permissions; publication errors retain their typed before/after state and
+secondary cleanup diagnostics. Host owns path admission, bounded file reads and
+process execution. Auth owns release identity, publication policy and which
+qualification commands are permitted.
+
+The qualification runner reads Wasm through Host and obtains canister runtime
+and bounded Candid-call helpers through Testkit. Its SDK qualification subprocess
+uses Host process admission directly. Testkit owns server selection, startup and
+its process integration; no compatibility shim is retained here. These dependencies
+remain outside all three public library graphs. Run `make install-testkit-tools`
+for explicit preparation, then `make testkit-tools-check` for offline admission.
+Dependency selections live in the root manifest/lock; actual certification,
+upgrade and ingress evidence belongs in [the current handoff](status/current.md).
+Earlier dependency adoption observations remain in Git history and the changelog.
 
 Receipt reconciliation uses the adopted portable checksum helper, because an
 interrupted preparation can temporarily leave incompatible manifest/lock versions
@@ -581,15 +649,16 @@ consumer adapter evidence; it is not a live release or registry upload.
 
 ## Public types and fixture transport
 
-Released 0.8.0 removed Candid traits from public domain types. Pending 0.9.0 adds
+Released 0.8.0 removed Candid traits from public domain types. Released 0.9.0 added
 the separate `ic-auth-wire` codec adapter and generates its TypeScript directly
 through published IC Wire. `make test-types` checks its bounds, canonical frames,
 checked identifier projections and local request/result contracts.
 
-The private Candid projection in `apps/qualification/contracts/` is limited to
-controller/certificate qualification. Its output converts fields directly; there
-is no CBOR intermediate. It is not a production consumer dependency. The generated
+The private Wire controls in `apps/qualification/contracts/` are limited to
+controller/certificate qualification. Bounded projections preserve checked
+identifiers; there is no Candid selector or intermediate codec. This is not a
+production consumer dependency. The generated
 application codec has one owner in `crates/ic-auth-wire/`, with no Candid fallback.
 `make generate-client-contracts` is the only artifact-update command; checks
 compare generated files and retain input seals. See the
-[consumer boundary](canic-adoption.md#pending-09-wire-transport).
+[consumer boundary](canic-adoption.md#wire-transport).

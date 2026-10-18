@@ -1,21 +1,23 @@
-use candid::{Principal, decode_one, encode_args, encode_one};
-use ic_agent::{
-    Agent, AgentError, Identity,
-    identity::{BasicIdentity, DelegatedIdentity, Delegation, SignedDelegation},
-};
 use ic_auth::canister_signature::{
     CanisterSignatureError, CanisterSignaturePolicy, domain_separated_message,
     verify_canister_signature,
 };
 use ic_auth_protocol_types::IcCanisterSignatureProofV1;
-use ic_auth_qualification_contracts::Candid;
+use ic_auth_qualification_contracts as controls;
 use ic_canister_sig_creation::{CanisterSigPublicKey, extract_raw_root_pk_from_der, hash_bytes};
 use ic_host_fs::read::read_file_no_follow;
+use ic_platform::{
+    Principal,
+    agent::{
+        Agent, AgentError, AnonymousIdentity, BasicIdentity, DelegatedIdentity, Delegation,
+        Identity, SignedDelegation,
+    },
+};
 use ic_testkit::{
-    pic::{CandidCallExt, PocketIc, PocketIcBuilder, PocketIcManagedServer, PocketIcStartupConfig},
+    pic::{PocketIc, PocketIcBuilder, PocketIcManagedServer, PocketIcStartupConfig},
     pocket_ic::Time,
 };
-use ic_testkit_candid::DecodeLimits;
+use ic_wire::{Bytes, Method};
 use std::{
     path::{Path, PathBuf},
     sync::atomic::{AtomicUsize, Ordering},
@@ -26,22 +28,6 @@ const SEED: &[u8] = b"qualification-identity";
 const DOMAIN: &[u8] = b"canic-issuer-delegated-token";
 const INGRESS_DOMAIN: &[u8] = b"ic-request-auth-delegation";
 static NEXT_INSTANCE: AtomicUsize = AtomicUsize::new(0);
-
-// Fixture-owned wire/work ceilings, not library or production endpoint defaults.
-const CONTROL_REPLY_LIMITS: DecodeLimits = DecodeLimits {
-    reply_bytes: 4096,
-    decoding_quota: 100_000,
-    skipping_quota: 10_000,
-    type_entries: 64,
-    header_bytes: 4096,
-};
-const SIGNATURE_REPLY_LIMITS: DecodeLimits = DecodeLimits {
-    reply_bytes: 256 * 1024,
-    decoding_quota: 20_000_000,
-    skipping_quota: 100_000,
-    type_entries: 128,
-    header_bytes: 8192,
-};
 
 #[path = "signatures/certified_proofs.rs"]
 mod certified_proofs;
@@ -109,7 +95,11 @@ impl Fixture {
             pic.install_canister(
                 canister,
                 wasm.clone(),
-                encode_one(owner).unwrap(),
+                ic_wire::encode_request::<controls::Initialize>(
+                    &Bytes::new(owner.as_slice().to_vec()).unwrap(),
+                )
+                .unwrap()
+                .into_bytes(),
                 Some(controller),
             );
         }
@@ -139,15 +129,19 @@ impl Fixture {
         message: &[u8],
         ttl: u64,
     ) -> Result<u64, String> {
-        self.pic
-            .update_candid(
-                self.signer,
-                self.controller,
-                "prepare",
-                (seed.to_vec(), domain.to_vec(), message.to_vec(), ttl),
-                CONTROL_REPLY_LIMITS,
-            )
-            .expect("qualified Candid transport")
+        update_control::<controls::Prepare, _>(
+            &self.pic,
+            self.signer,
+            self.controller,
+            controls::PrepareInput {
+                input: controls::SignatureInput {
+                    seed: Bytes::new(seed.to_vec()).unwrap(),
+                    domain: Bytes::new(domain.to_vec()).unwrap(),
+                    message: Bytes::new(message.to_vec()).unwrap(),
+                },
+                retention_ns: ttl,
+            },
+        )
     }
 
     fn retrieve(
@@ -166,17 +160,18 @@ impl Fixture {
     ) -> Result<IcCanisterSignatureProofV1, String> {
         // Certificates become available after the update's state is certified.
         self.pic.tick();
-        let proof: Result<Candid<IcCanisterSignatureProofV1>, String> = self
-            .pic
-            .query_candid(
+        let proof: Result<ic_auth_wire::model::IcCanisterSignatureProofV1, String> =
+            query_control::<controls::Retrieve, _>(
+                &self.pic,
                 self.signer,
                 Principal::anonymous(),
-                "retrieve",
-                (seed.to_vec(), domain.to_vec(), message.to_vec()),
-                SIGNATURE_REPLY_LIMITS,
-            )
-            .expect("qualified Candid transport");
-        proof.map(|value| value.0)
+                controls::SignatureInput {
+                    seed: Bytes::new(seed.to_vec()).unwrap(),
+                    domain: Bytes::new(domain.to_vec()).unwrap(),
+                    message: Bytes::new(message.to_vec()).unwrap(),
+                },
+            );
+        proof.map(|value| value.try_into().unwrap())
     }
 
     fn verify(&self, domain: &[u8], payload: [u8; 32], proof: &IcCanisterSignatureProofV1) {
@@ -209,29 +204,17 @@ impl Fixture {
     }
 
     fn set_asset(&self, version: u64) {
-        let result: Result<(), String> = self
-            .pic
-            .update_candid(
-                self.signer,
-                self.controller,
-                "set_asset",
-                (version,),
-                CONTROL_REPLY_LIMITS,
-            )
-            .expect("qualified Candid transport");
+        let result: Result<(), String> = update_control::<controls::SetAsset, _>(
+            &self.pic,
+            self.signer,
+            self.controller,
+            version,
+        );
         result.unwrap();
     }
 
     fn asset_version(&self) -> u64 {
-        self.pic
-            .query_candid(
-                self.signer,
-                Principal::anonymous(),
-                "asset_version",
-                (),
-                CONTROL_REPLY_LIMITS,
-            )
-            .expect("qualified Candid transport")
+        query_wire::<controls::AssetVersion>(&self.pic, self.signer, Principal::anonymous(), ())
     }
 
     fn upgrade(&self) {
@@ -240,7 +223,9 @@ impl Fixture {
                 .upgrade_canister(
                     canister,
                     self.wasm.clone(),
-                    encode_args(()).unwrap(),
+                    ic_wire::encode_request::<controls::Upgrade>(&())
+                        .unwrap()
+                        .into_bytes(),
                     Some(self.controller),
                 )
                 .unwrap();
@@ -287,21 +272,41 @@ impl Fixture {
 fn real_certificates_composition_cleanup_and_upgrade_obey_the_host_contract() {
     let fixture = Fixture::new();
     let payload = [7; 32];
-    let unauthorized: Result<u64, String> = fixture
-        .pic
-        .update_candid(
-            fixture.signer,
-            fixture.owner,
-            "prepare",
-            (
-                SEED.to_vec(),
-                DOMAIN.to_vec(),
-                payload.to_vec(),
-                60_000_000_000_u64,
-            ),
-            CONTROL_REPLY_LIMITS,
-        )
-        .expect("qualified Candid transport");
+    // The retired Candid transport, another method's envelope and an oversized
+    // request must fail before reaching the controller-installed mutation.
+    for bytes in [
+        b"DIDL\x00\x00".to_vec(),
+        ic_wire::encode_request::<controls::Prune>(&128)
+            .unwrap()
+            .into_bytes(),
+        vec![0; controls::CONTROL_LIMITS.bytes + 1],
+    ] {
+        assert!(
+            fixture
+                .pic
+                .update_call(
+                    fixture.signer,
+                    fixture.controller,
+                    controls::SetAsset::NAME,
+                    bytes
+                )
+                .is_err()
+        );
+        assert_eq!(fixture.asset_version(), 1);
+    }
+    let unauthorized: Result<u64, String> = update_control::<controls::Prepare, _>(
+        &fixture.pic,
+        fixture.signer,
+        fixture.owner,
+        controls::PrepareInput {
+            input: controls::SignatureInput {
+                seed: Bytes::new(SEED.to_vec()).unwrap(),
+                domain: Bytes::new(DOMAIN.to_vec()).unwrap(),
+                message: Bytes::new(payload.to_vec()).unwrap(),
+            },
+            retention_ns: 60_000_000_000_u64,
+        },
+    );
     assert!(unauthorized.is_err());
     let deadline = fixture.prepare(DOMAIN, &payload, 60_000_000_000).unwrap();
     assert_eq!(
@@ -317,6 +322,21 @@ fn real_certificates_composition_cleanup_and_upgrade_obey_the_host_contract() {
         payload,
         &fixture.retrieve(DOMAIN, &payload).unwrap(),
     );
+    assert!(
+        fixture
+            .pic
+            .upgrade_canister(
+                fixture.signer,
+                fixture.wasm.clone(),
+                ic_wire::encode_request::<controls::AssetVersion>(&())
+                    .unwrap()
+                    .into_bytes(),
+                Some(fixture.controller)
+            )
+            .is_err(),
+        "wrong upgrade envelope must roll back"
+    );
+    assert_eq!(fixture.asset_version(), 9);
     fixture.upgrade();
     assert_eq!(fixture.asset_version(), 9);
     assert!(fixture.retrieve(DOMAIN, &payload).is_err());
@@ -325,16 +345,12 @@ fn real_certificates_composition_cleanup_and_upgrade_obey_the_host_contract() {
         .pic
         .set_time(Time::from_nanos_since_unix_epoch(fixture.now() + 10));
     assert!(fixture.retrieve(DOMAIN, &payload).is_err());
-    let removed: Result<u32, String> = fixture
-        .pic
-        .update_candid(
-            fixture.signer,
-            fixture.controller,
-            "prune",
-            (128_u32,),
-            CONTROL_REPLY_LIMITS,
-        )
-        .expect("qualified Candid transport");
+    let removed: Result<u32, String> = update_control::<controls::Prune, _>(
+        &fixture.pic,
+        fixture.signer,
+        fixture.controller,
+        128_u32,
+    );
     assert_eq!(removed, Ok(1));
     fixture.prepare(DOMAIN, &payload, 60_000_000_000).unwrap();
     let restored = fixture.retrieve(DOMAIN, &payload).unwrap();
@@ -359,10 +375,17 @@ fn ingress(
         agent.set_root_key(root.to_vec());
         let bytes = agent
             .update(&target, "owner_checked_operation")
-            .with_arg(encode_args(()).unwrap())
+            .with_arg(
+                ic_wire::encode_request::<controls::OwnerOperation>(&())
+                    .unwrap()
+                    .into_bytes(),
+            )
             .call_and_wait()
             .await?;
-        Ok(decode_one::<Result<Principal, String>>(&bytes).unwrap())
+        Ok(ic_wire::decode_response::<controls::OwnerOperation>(&bytes)
+            .unwrap()
+            .map(|p| Principal::try_from_slice(p.as_slice()).unwrap())
+            .map_err(|e| e.into_string()))
     })
 }
 
@@ -396,12 +419,7 @@ fn replica_checks_real_ingress_delegations_and_fresh_browser_keys_keep_identity_
         Ok(Err(_))
     ));
     assert!(matches!(
-        ingress(
-            &url,
-            &network,
-            ic_agent::identity::AnonymousIdentity,
-            fixture.resource
-        ),
+        ingress(&url, &network, AnonymousIdentity, fixture.resource),
         Ok(Err(_))
     ));
     let mut previous: Option<(Vec<u8>, SignedDelegation)> = None;
@@ -490,4 +508,51 @@ fn replica_checks_real_ingress_delegations_and_fresh_browser_keys_keep_identity_
         ingress(&url, &network, identity, fixture.resource),
         "expired",
     );
+}
+
+fn update_wire<M: Method>(
+    pic: &PocketIc,
+    target: Principal,
+    caller: Principal,
+    request: &M::Request,
+) -> M::Response {
+    let arg = ic_wire::encode_request::<M>(request).expect("bounded Wire request");
+    let reply = pic
+        .update_call(target, caller, M::NAME, arg.into_bytes())
+        .expect("qualified Wire update");
+    ic_wire::decode_response::<M>(&reply).expect("bounded Wire reply")
+}
+fn query_wire<M: Method>(
+    pic: &PocketIc,
+    target: Principal,
+    caller: Principal,
+    request: M::Request,
+) -> M::Response {
+    let arg = ic_wire::encode_request::<M>(&request).expect("bounded Wire request");
+    let reply = pic
+        .query_call(target, caller, M::NAME, arg.into_bytes())
+        .expect("qualified Wire query");
+    ic_wire::decode_response::<M>(&reply).expect("bounded Wire reply")
+}
+fn update_control<M, T>(
+    pic: &PocketIc,
+    target: Principal,
+    caller: Principal,
+    request: M::Request,
+) -> Result<T, String>
+where
+    M: Method<Response = Result<T, controls::Refusal>>,
+{
+    update_wire::<M>(pic, target, caller, &request).map_err(|e| e.into_string())
+}
+fn query_control<M, T>(
+    pic: &PocketIc,
+    target: Principal,
+    caller: Principal,
+    request: M::Request,
+) -> Result<T, String>
+where
+    M: Method<Response = Result<T, controls::Refusal>>,
+{
+    query_wire::<M>(pic, target, caller, request).map_err(|e| e.into_string())
 }

@@ -10,26 +10,14 @@ fn profile(
     label: &str,
 ) -> Result<SessionView, String> {
     let report: AdmissionProfile = measured(f, target, label, || {
-        let arg =
-            ic_auth_wire::wire::encode_request::<ic_auth_wire::EstablishSession>(input).unwrap();
-        let reply = f
-            .pic
-            .update_call(
-                target,
-                caller,
-                "profile_portable_admission",
-                arg.into_bytes(),
-            )
-            .expect("profile Wire input");
-        ic_testkit_candid::decode_one(&reply, CONTROL_REPLY_LIMITS)
-            .expect("bounded fixture diagnostic transport")
+        update_wire::<controls::ProfileAdmission>(&f.pic, target, caller, input)
     });
     assert!(report.instructions > 0);
     eprintln!(
         "portable receiver admission instructions: {label}={}",
         report.instructions
     );
-    ic_auth_wire::wire::decode_response::<ic_auth_wire::EstablishSession>(&report.reply)
+    ic_auth_wire::wire::decode_response::<ic_auth_wire::EstablishSession>(report.reply.as_slice())
         .expect("bounded shared admission reply")
         .map_err(|e| e.into_string())
 }
@@ -50,11 +38,10 @@ pub(super) fn qualify(
     for certified in [false, true] {
         let mechanism = if certified { "certified" } else { "ed25519" };
         let config = ReceiverConfig {
-            audience: Candid(*old.claims.audience),
+            audience: *old.claims.audience,
             issuer: cert.issuer_pid,
             authority: if certified {
-                let root = RootEnrollment::from(old.root_key);
-                assert_eq!(root.policy(), *old.root_key, "fixture enrollment roundtrip");
+                let root = old.root_key.clone();
                 ReceiverAuthority::Certified {
                     binding: ic_auth::canonical::cert_hash(cert).unwrap(),
                     root: Box::new(root),
@@ -63,8 +50,8 @@ pub(super) fn qualify(
             } else {
                 ReceiverAuthority::Ed25519(key.verifying_key().to_bytes())
             },
-            role: Candid(role.clone()),
-            grants: Candid(cert.grants.clone()),
+            role: role.clone(),
+            grants: cert.grants.clone(),
             valid_from_ns: cert.not_before_ns,
             valid_until_ns: cert.expires_at_ns.min(old.root_key.accept_until_ns),
             enrollment_until_ns: cert.expires_at_ns.min(old.root_key.accept_until_ns),
@@ -73,7 +60,7 @@ pub(super) fn qualify(
         };
         let make_claims = |device: u8| PortableClaims {
             mechanism: config.authority.mechanism(),
-            audience: config.audience.0,
+            audience: config.audience,
             issuer: config.issuer,
             key_binding_id: config.authority.binding(),
             browser_public_key: SigningKey::from_bytes(&[device; 32])
@@ -225,16 +212,8 @@ pub(super) fn qualify(
             .unwrap(),
             admitted
         );
-        let hot: Result<SessionProfile, String> = f
-            .pic
-            .query_candid(
-                f.resource,
-                caller,
-                "profile_portable_session",
-                (),
-                CONTROL_REPLY_LIMITS,
-            )
-            .unwrap();
+        let hot: Result<SessionProfile, String> =
+            query_control::<controls::ProfileSession, _>(&f.pic, f.resource, caller, ());
         let hot = hot.unwrap();
         assert!(hot.authorization_instructions > 0);
         eprintln!("matched {mechanism} session profile: {hot:?}");

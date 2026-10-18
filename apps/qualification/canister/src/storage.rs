@@ -8,7 +8,7 @@ thread_local! {
 }
 
 const KEY: &str = "ic_auth_qualification.checkpoint.v1";
-const MAGIC: &[u8; 8] = b"AUTHCELL";
+const MAGIC: &[u8; 8] = b"AUTHWIR2";
 const MAX_BYTES: usize = 131_072;
 
 pub(crate) fn bootstrap(backing: DefaultMemoryImpl, restore: bool) {
@@ -104,6 +104,22 @@ mod tests {
         assert!(std::panic::catch_unwind(load).is_err());
         save(&[]);
         assert!(load().is_empty());
+    }
+
+    #[test]
+    fn retired_candid_checkpoint_is_refused_without_clearing() {
+        bootstrap(Default::default(), false);
+        let old = b"AUTHCELLDIDL\x00\x00".to_vec();
+        CELL.with(|state| {
+            state
+                .borrow_mut()
+                .as_mut()
+                .unwrap()
+                .try_set(old.clone())
+                .unwrap()
+        });
+        assert!(std::panic::catch_unwind(load).is_err());
+        CELL.with(|state| assert_eq!(state.borrow().as_ref().unwrap().bytes(), old));
     }
 
     #[test]

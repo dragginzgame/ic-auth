@@ -1,5 +1,5 @@
 //! Passive portable authentication and delegation contracts, independent of runtime, storage and Candid.
-//! `Principal` re-exports the canonical narrow `ic_principal` type.
+//! `Principal` comes through feature-free IC Platform with the same upstream identity.
 //! Transport schemas belong to endpoint adapters, outside these domain contracts.
 //!
 //! Decoding these values does not verify a proof or establish authority. Hosts
@@ -13,7 +13,7 @@ mod portable;
 mod proof;
 
 pub use common::*;
-pub use ic_principal::Principal;
+pub use ic_platform::Principal;
 pub use identifiers::{AudienceId, AuthRole, CanonicalId, IdentifierError};
 pub use logout::{LogoutRequest, LogoutResult, LogoutUnavailable};
 pub use portable::{PortableClaims, PortableCredential, PortableMechanism, PortableProof};

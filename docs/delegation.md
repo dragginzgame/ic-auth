@@ -7,7 +7,7 @@ alone grants neither a session nor application resource access.
 
 ## Retired delegated-token lifecycle
 
-Pending 0.9.0 removes the separate `DelegatedToken` prepare/retrieve/verify API,
+Released 0.9.0 removed the separate `DelegatedToken` prepare/retrieve/verify API,
 its claims/transport DTOs and token-only canonical encoders. The maintainer
 explicitly confirmed no deployed Rust-token users or unresolved old issuance
 operations on 2026-10-17, separately from the earlier browser-store disposition.

@@ -20,7 +20,7 @@ and an owned `DecodedPortableClaims`. Consume it with the protected verifier:
 }
 ```
 
-This pending 0.7 callback replaces the one-argument 0.6 callback. It shares the
+The callback shares the
 engine's canonical decode and SHA-256 digest with complete Ed25519/certified
 verification, without cloning the claims. The opaque value is not authenticated;
 its verifier rejects proof/enrollment mechanism mismatches. Pass the same protected
@@ -146,14 +146,14 @@ feature unification still applies, so inspect each deployed canister's selected
 graph rather than treating workspace builds as size measurements.
 
 The portable record begins with `IC-AUTH-PORTABLE-SESSION\0` before its CBOR body.
-Old token-specific records are rejected, with no compatibility reader. The 0.6
-consumer transition must explicitly retire old sessions and coordinate retained
+Old token-specific records are rejected, with no compatibility reader. Consumers
+must explicitly retire incompatible sessions and coordinate retained
 replay/revocation state before serving. Decoding alone does not authorize a record:
 current authority and its matching retained login reservation are required.
 
 Replay storage uses its own `IC-AUTH-PORTABLE-REPLAY\0` domain and 512-byte bound;
-its encoded bytes count toward store capacity. The new domain replaces raw replay
-serialization in this pending 0.6 format; no old-format reader is supplied.
+its encoded bytes count toward store capacity. Raw replay serialization is not
+supported; no old-format reader is supplied.
 `MemorySessionStore::session_records` and `replay_records` stream records under a
 host-serialized checkpoint boundary. Preserve both physical counts, encoded byte
 total and generation in the same atomic checkpoint as all records. Restoring into
@@ -174,11 +174,11 @@ implemented; the ledger supplied here is volatile.
 
 The durable adapter must use `ic-memory` for host-composed allocation ownership,
 with the host supplying the combined declarations and performing bootstrap before
-stores open. The reviewed IC Memory contract at revision
-`752263e22520e5009471b7040e2db0f14e0142b4` supplies allocation admission and
-re-exports stable structures; it does not supply Auth's record schema or transaction.
-That source declares Rust 1.91, above Auth core's qualified 1.88 floor; qualify
-the adapter's compiler independently rather than raising the pure libraries' floor.
+stores open. The selected IC Memory 0.48 supplies allocation admission and narrow
+memory types; it does not supply Auth's record schema or transaction. The internal
+checkpoint uses `ic_memory::DefaultMemoryImpl` and `testing::FixtureCell`, not the
+retired `ic_memory::ic_stable_structures` re-export. All workspace packages share
+the qualified Rust 1.91 minimum; see [minimum compiler qualification](msrv.md).
 Keep this dependency in a separately selected durable adapter, outside the pure
 engine and volatile receiver graph. It must not persist the local issuer key.
 
@@ -205,10 +205,10 @@ cover protected reset/authority metadata. Returned failures leave state unchange
 retaining charged work budgets. Normal upgrades must restore matching reservations
 as well as sessions; incomplete recovery must enforce fresh-login reset rather
 than invent missing reservations. [Auth #58](https://github.com/dragginzgame/ic-auth/issues/58)
-owns this integration and its failure/upgrade qualification. The qualification host selects `ic-memory`; neither public library depends on it.
+owns this integration and its failure/upgrade qualification. The qualification host selects `ic-memory`; none of the three public libraries depends on it.
 A production per-operation persistent backend remains unimplemented.
 
-## Custom host adoption from the pre-0.6 session API
+## Custom host transaction contract
 
 The portable engine is a protocol change, not just a renamed transaction method.
 Canic's reported integration stays in [Canic #491](https://github.com/dragginzgame/canic/issues/491).

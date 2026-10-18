@@ -63,7 +63,7 @@ retiring the old rules. [Canic #491](https://github.com/dragginzgame/canic/issue
 owns consumer adoption; producer qualification and publication do not establish
 Canic runtime acceptance.
 
-## Standalone scope and grant shape checks (pending 0.5.11)
+## Standalone scope and grant shape checks
 
 `certificate_issuance::validate_grants(grants, max_grants, max_scopes_per_grant)`
 exposes the same rules without requiring a certificate, expiry arithmetic or

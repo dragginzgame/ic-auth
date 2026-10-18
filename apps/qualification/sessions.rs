@@ -1,35 +1,28 @@
 //! Private controller-installed portable-session qualification contracts.
-use candid::{CandidType, Principal};
+use ic_auth::delegation::RootKeyPolicy;
 use ic_auth_protocol_types::{AudienceId, AuthRole, DelegatedRoleGrant};
-use ic_auth_qualification_contracts::Candid;
-use serde::Deserialize;
-#[derive(Clone, CandidType, Deserialize)]
+pub use ic_auth_qualification_contracts::model::{AdmissionProfile, SessionProfile};
+use ic_platform::Principal;
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ReceiverConfig {
-    pub audience: Candid<AudienceId>,
+    pub audience: AudienceId,
     pub issuer: Principal,
     pub authority: ReceiverAuthority,
-    pub role: Candid<AuthRole>,
-    pub grants: Candid<Vec<DelegatedRoleGrant>>,
+    pub role: AuthRole,
+    pub grants: Vec<DelegatedRoleGrant>,
     pub valid_from_ns: u64,
     pub valid_until_ns: u64,
     pub enrollment_until_ns: u64,
     pub verification_burst: u32,
     pub verification_refill_ns: u64,
 }
-#[derive(Debug, CandidType, Deserialize)]
-pub struct SessionProfile {
-    pub record_bytes: u64,
-    pub decode_instructions: u64,
-    pub authorization_instructions: u64,
-}
-
 /// Controller-installed test authority; never selected from submitted proofs.
-#[derive(Clone, CandidType, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ReceiverAuthority {
     Ed25519([u8; 32]),
     Certified {
         binding: [u8; 32],
-        root: Box<RootEnrollment>,
+        root: Box<RootKeyPolicy>,
         network_key: Vec<u8>,
     },
 }
@@ -50,64 +43,181 @@ impl ReceiverAuthority {
     }
 }
 
-// Explicit fixture DTO: keep Candid/storage derivation outside the pure library.
-#[derive(Clone, CandidType, Deserialize)]
-pub struct RootEnrollment {
-    pub root_canister_id: Principal,
-    pub algorithm: Candid<ic_auth_protocol_types::ChainKeyAlgorithm>,
-    pub key_id: Candid<ic_auth_protocol_types::ChainKeyKeyId>,
-    pub derivation_path_hash: [u8; 32],
-    pub public_key: Vec<u8>,
-    pub key_version: u64,
-    pub min_accepted_key_version: u64,
-    pub min_accepted_proof_epoch: u64,
-    pub min_accepted_registry_epoch: u64,
-    pub valid_from_ns: u64,
-    pub accept_until_ns: u64,
-    pub max_revocation_latency_ns: u64,
-}
-impl From<&ic_auth::delegation::RootKeyPolicy> for RootEnrollment {
-    fn from(policy: &ic_auth::delegation::RootKeyPolicy) -> Self {
-        Self {
-            root_canister_id: policy.root_canister_id,
-            algorithm: policy.algorithm.into(),
-            key_id: policy.key_id.clone().into(),
-            derivation_path_hash: policy.derivation_path_hash,
-            public_key: policy.public_key.clone(),
-            key_version: policy.key_version,
-            min_accepted_key_version: policy.min_accepted_key_version,
-            min_accepted_proof_epoch: policy.min_accepted_proof_epoch,
-            min_accepted_registry_epoch: policy.min_accepted_registry_epoch,
-            valid_from_ns: policy.valid_from_ns,
-            accept_until_ns: policy.accept_until_ns,
-            max_revocation_latency_ns: policy.max_revocation_latency_ns,
-        }
+impl TryFrom<ReceiverConfig> for ic_auth_qualification_contracts::model::ReceiverConfig {
+    type Error = ic_auth_wire::wire::Error;
+    fn try_from(value: ReceiverConfig) -> Result<Self, Self::Error> {
+        use ic_auth_qualification_contracts::model as w;
+        use ic_auth_wire::wire::{Bytes, List, Text};
+        Ok(Self {
+            audience: value.audience.try_into()?,
+            issuer: Bytes::new(value.issuer.as_slice().to_vec())?,
+            authority: match value.authority {
+                ReceiverAuthority::Ed25519(key) => w::ReceiverAuthority::Ed25519(key),
+                ReceiverAuthority::Certified {
+                    binding,
+                    root,
+                    network_key,
+                } => w::ReceiverAuthority::Certified(w::CertifiedAuthority {
+                    binding,
+                    root: w::RootEnrollment {
+                        root_canister_id: Bytes::new(root.root_canister_id.as_slice().to_vec())?,
+                        algorithm: match root.algorithm {
+                            ic_auth_protocol_types::ChainKeyAlgorithm::EcdsaSecp256k1 => {
+                                ic_auth_wire::model::ChainKeyAlgorithm::EcdsaSecp256k1
+                            }
+                        },
+                        key_name: Text::new(root.key_id.name)?,
+                        derivation_path_hash: root.derivation_path_hash,
+                        public_key: Bytes::new(root.public_key)?,
+                        key_version: root.key_version,
+                        min_accepted_key_version: root.min_accepted_key_version,
+                        min_accepted_proof_epoch: root.min_accepted_proof_epoch,
+                        min_accepted_registry_epoch: root.min_accepted_registry_epoch,
+                        valid_from_ns: root.valid_from_ns,
+                        accept_until_ns: root.accept_until_ns,
+                        max_revocation_latency_ns: root.max_revocation_latency_ns,
+                    },
+                    network_key: Bytes::new(network_key)?,
+                }),
+            },
+            role: Text::new(value.role.as_str().into())?,
+            grants: List::new(
+                value
+                    .grants
+                    .into_iter()
+                    .map(TryInto::try_into)
+                    .collect::<Result<_, _>>()?,
+            )?,
+            valid_from_ns: value.valid_from_ns,
+            valid_until_ns: value.valid_until_ns,
+            enrollment_until_ns: value.enrollment_until_ns,
+            verification_burst: value.verification_burst,
+            verification_refill_ns: value.verification_refill_ns,
+        })
     }
 }
-impl RootEnrollment {
-    pub fn policy(&self) -> ic_auth::delegation::RootKeyPolicy {
-        ic_auth::delegation::RootKeyPolicy {
-            root_canister_id: self.root_canister_id,
-            algorithm: self.algorithm.0,
-            key_id: self.key_id.0.clone(),
-            derivation_path_hash: self.derivation_path_hash,
-            public_key: self.public_key.clone(),
-            key_version: self.key_version,
-            min_accepted_key_version: self.min_accepted_key_version,
-            min_accepted_proof_epoch: self.min_accepted_proof_epoch,
-            min_accepted_registry_epoch: self.min_accepted_registry_epoch,
-            valid_from_ns: self.valid_from_ns,
-            accept_until_ns: self.accept_until_ns,
-            max_revocation_latency_ns: self.max_revocation_latency_ns,
-        }
+impl TryFrom<ic_auth_qualification_contracts::model::ReceiverConfig> for ReceiverConfig {
+    type Error = ic_auth_wire::wire::Error;
+    fn try_from(
+        value: ic_auth_qualification_contracts::model::ReceiverConfig,
+    ) -> Result<Self, Self::Error> {
+        use ic_auth_qualification_contracts::model as w;
+        use ic_auth_wire::wire::Error;
+        Ok(Self {
+            audience: value.audience.try_into()?,
+            issuer: Principal::try_from_slice(value.issuer.as_slice())
+                .map_err(|_| Error::Malformed)?,
+            authority: match value.authority {
+                w::ReceiverAuthority::Ed25519(key) => ReceiverAuthority::Ed25519(key),
+                w::ReceiverAuthority::Certified(w::CertifiedAuthority {
+                    binding,
+                    root,
+                    network_key,
+                }) => ReceiverAuthority::Certified {
+                    binding,
+                    root: Box::new(RootKeyPolicy {
+                        root_canister_id: Principal::try_from_slice(
+                            root.root_canister_id.as_slice(),
+                        )
+                        .map_err(|_| Error::Malformed)?,
+                        algorithm: match root.algorithm {
+                            ic_auth_wire::model::ChainKeyAlgorithm::EcdsaSecp256k1 => {
+                                ic_auth_protocol_types::ChainKeyAlgorithm::EcdsaSecp256k1
+                            }
+                        },
+                        key_id: ic_auth_protocol_types::ChainKeyKeyId {
+                            name: root.key_name.into_string(),
+                        },
+                        derivation_path_hash: root.derivation_path_hash,
+                        public_key: root.public_key.into_vec(),
+                        key_version: root.key_version,
+                        min_accepted_key_version: root.min_accepted_key_version,
+                        min_accepted_proof_epoch: root.min_accepted_proof_epoch,
+                        min_accepted_registry_epoch: root.min_accepted_registry_epoch,
+                        valid_from_ns: root.valid_from_ns,
+                        accept_until_ns: root.accept_until_ns,
+                        max_revocation_latency_ns: root.max_revocation_latency_ns,
+                    }),
+                    network_key: network_key.into_vec(),
+                },
+            },
+            role: value.role.as_str().parse().map_err(|_| Error::Malformed)?,
+            grants: value
+                .grants
+                .into_vec()
+                .into_iter()
+                .map(TryInto::try_into)
+                .collect::<Result<_, _>>()?,
+            valid_from_ns: value.valid_from_ns,
+            valid_until_ns: value.valid_until_ns,
+            enrollment_until_ns: value.enrollment_until_ns,
+            verification_burst: value.verification_burst,
+            verification_refill_ns: value.verification_refill_ns,
+        })
     }
 }
 
-/// Instruction window covers admission and domain projection, excluding Wire
-/// request decoding and reply encoding. Cycle deltas include the whole update.
-#[derive(Debug, CandidType, Deserialize)]
-pub struct AdmissionProfile {
-    /// Exact shared admission response, not a parallel diagnostic session DTO.
-    pub reply: Vec<u8>,
-    pub instructions: u64,
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ic_auth_protocol_types::{CanonicalId, ChainKeyAlgorithm, ChainKeyKeyId};
+    use ic_auth_qualification_contracts::{InstallReceiver, model as wire};
+
+    #[test]
+    fn wire_projection_preserves_protected_authority_and_checked_identifiers() {
+        let config = ReceiverConfig {
+            audience: AudienceId {
+                canonical_network_id: CanonicalId::from_bytes([1; 32]),
+                fleet_id: CanonicalId::from_bytes([2; 32]),
+            },
+            issuer: Principal::from_slice(&[3]),
+            authority: ReceiverAuthority::Ed25519([4; 32]),
+            role: "user".parse().unwrap(),
+            grants: vec![DelegatedRoleGrant {
+                target: "user".parse().unwrap(),
+                scopes: vec!["read".into()],
+            }],
+            valid_from_ns: 5,
+            valid_until_ns: 6,
+            enrollment_until_ns: 7,
+            verification_burst: 8,
+            verification_refill_ns: 9,
+        };
+        let root = RootKeyPolicy {
+            root_canister_id: Principal::from_slice(&[10]),
+            algorithm: ChainKeyAlgorithm::EcdsaSecp256k1,
+            key_id: ChainKeyKeyId {
+                name: "test_key".into(),
+            },
+            derivation_path_hash: [11; 32],
+            public_key: vec![12; 33],
+            key_version: 13,
+            min_accepted_key_version: 14,
+            min_accepted_proof_epoch: 15,
+            min_accepted_registry_epoch: 16,
+            valid_from_ns: 17,
+            accept_until_ns: 18,
+            max_revocation_latency_ns: 19,
+        };
+        for authority in [
+            config.authority.clone(),
+            ReceiverAuthority::Certified {
+                binding: [20; 32],
+                root: Box::new(root),
+                network_key: vec![21; 96],
+            },
+        ] {
+            let expected = ReceiverConfig {
+                authority,
+                ..config.clone()
+            };
+            let transport: wire::ReceiverConfig = expected.clone().try_into().unwrap();
+            let bytes = ic_wire::encode_request::<InstallReceiver>(&transport).unwrap();
+            let decoded = ic_wire::decode_request::<InstallReceiver>(bytes.as_bytes()).unwrap();
+            assert_eq!(ReceiverConfig::try_from(decoded).unwrap(), expected);
+            let mut invalid = transport;
+            invalid.role = ic_wire::Text::new("Invalid Role".into()).unwrap();
+            assert!(ReceiverConfig::try_from(invalid).is_err());
+        }
+    }
 }

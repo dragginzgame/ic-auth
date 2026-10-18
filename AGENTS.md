@@ -1,15 +1,16 @@
 # IC Auth Agent Instructions
 
-Apply [DRAGGINZGAME.md](DRAGGINZGAME.md), adopted from Shared Tooling revision
-`0b351cd2ba2bcd8927b783a5fec89afc8013f708` and recorded in
+Apply [DRAGGINZGAME.md](DRAGGINZGAME.md), adopted from Shared Tooling plus its
+committed graph-check contribution, recorded in
 [.shared-tooling.snapshot](.shared-tooling.snapshot). Read
 [the current handoff](docs/status/current.md) before implementation.
 
 ## Ownership
 
-- IC Auth owns reusable proof, token and session machinery and its standalone
-  wallet authentication service. Neither its library graph nor reference service
-  may depend on Canic or Toko.
+- IC Auth owns reusable proof/credential and session machinery, bounded Auth
+  transport contracts and its private admission/logout client. A standalone
+  wallet authentication service is planned, not implemented. Neither the library
+  graph nor that future service may depend on Canic or Toko.
 - Keep authentication, IC ingress identity delegation, application authorization
   and application resource ownership distinct. A wallet proof is not a resource
   grant. An application token is not an IC ingress delegation.
@@ -29,8 +30,8 @@ Apply [DRAGGINZGAME.md](DRAGGINZGAME.md), adopted from Shared Tooling revision
 ## Implementation boundaries
 
 - Follow [the accepted design](docs/design/extraction.md). Use a virtual root,
-  one lockfile, root-owned dependency selections, reusable packages in `crates/`
-  and the deployed service in `apps/wallet-auth/`.
+  one lockfile, root-owned dependency selections and reusable packages in `crates/`.
+  Reserve `apps/wallet-auth/` for the future service; no deployed service exists here.
 - Keep protocol/type dependencies independent of CDK and storage. Make platform
   signing and wallet functionality explicit capabilities. Canic consumers must
   not pull Solana dependencies into their selected graph.
@@ -41,7 +42,8 @@ Apply [DRAGGINZGAME.md](DRAGGINZGAME.md), adopted from Shared Tooling revision
   certification-root publication. Library operations must not secretly write a
   global certification root or allocate conflicting stable-memory regions.
 - Use published `ic-host-*` for applicable local file, artifact and process
-  mechanics. Native host tooling belongs in `apps/tooling/` and test infrastructure
+  mechanics and `ic-build` for generic Cargo lock admission. Native host tooling
+  belongs in `apps/tooling/` and test infrastructure
   in unpublished `apps/qualification/`, outside the public library graphs.
   Release identity and upload/retry policy stay here.
 - Wallet login must not use SIWS/ic-siws, require a Solana transaction or depend
@@ -50,9 +52,24 @@ Apply [DRAGGINZGAME.md](DRAGGINZGAME.md), adopted from Shared Tooling revision
   recovery policy are service contracts. Do not import Canic's reinstall-only
   lifecycle policy into this identity service.
 
+## Platform boundary
+
+Use feature-free published `ic-platform` for the protocol's canonical Principal
+and its `agent` capability for native ingress identities. Application protocols,
+generated browser contracts and private qualification controls use IC Wire.
+The fixture has no Candid selector, projection or direct declaration. Its old
+Candid checkpoint is explicitly retired; production storage is unaffected.
+Platform 0.1.9 lacks the CDK runtime/entrypoint APIs, so the qualification host
+retains CDK for runtime and hidden exports with explicit Wire codec hooks
+(Platform #1). Use Platform's raw argument-length API before CDK copying.
+Signature/key-format, tree-store and BLS/verifier adoption await published APIs
+tracked in Platform #16, #17 and #18. Do not recreate missing functions or hide
+residual transitive Candid behind a facade. See the current evidence in
+[the handoff](docs/status/current.md) and `ci/cargo-dependency-boundaries.json`.
+
 ## Qualification tooling
 
-- Native canister qualification uses published `ic-testkit` for typed calls,
+- Native canister qualification uses published `ic-testkit` for raw calls,
   bounded startup and its upstream runtime re-export. Do not add a direct
   `pocket-ic` dependency. The locked Testkit package selects the setup/check CLI;
   Testkit owns server selection and admission outside the shared five-tool bundle.

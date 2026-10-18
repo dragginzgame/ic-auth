@@ -3,7 +3,6 @@ mod checkpoint;
 pub(crate) use checkpoint::{Snapshot, capture, restore};
 #[path = "../../sessions.rs"]
 pub(crate) mod contract;
-use candid::Principal;
 use contract::*;
 use ic_auth::{
     admission_budget::SessionAdmissionBudget,
@@ -17,7 +16,9 @@ use ic_auth::{
     session_request::SessionRequest,
 };
 use ic_auth_protocol_types::{LogoutResult, LogoutUnavailable, PortableCredential};
+use ic_auth_qualification_contracts as controls;
 use ic_auth_wire::{SessionInput, SessionView, wire::Bytes};
+use ic_platform::Principal;
 
 use std::cell::RefCell;
 const SECOND: u64 = 1_000_000_000;
@@ -101,9 +102,17 @@ fn with_receiver<T>(
         operation(host)
     })
 }
-#[ic_cdk::update]
-fn install_session_receiver(config: ReceiverConfig) -> Result<(), String> {
+#[ic_cdk::update(
+    hidden = true,
+    guard = "crate::control::guard",
+    decode_with = "crate::control::decode::<controls::InstallReceiver>",
+    encode_with = "crate::control::encode_result::<controls::InstallReceiver, _>"
+)]
+fn install_session_receiver(config: controls::model::ReceiverConfig) -> Result<(), String> {
     super::controller()?;
+    let config: ReceiverConfig = config
+        .try_into()
+        .map_err(|e: ic_wire::Error| e.to_string())?;
     validate_grants(&config.grants, 16, 32).map_err(|e| e.to_string())?;
     let now = ic_cdk::api::time();
     if config.issuer == Principal::anonymous()
@@ -135,7 +144,7 @@ fn install_session_receiver(config: ReceiverConfig) -> Result<(), String> {
         checkpoint: false,
         ready: true,
         store: MemorySessionStore::new(0, limits()).map_err(|e| e.to_string())?,
-        ledger: MemoryLoginRevocations::new(config.audience.0, 8, 8, 0, now)
+        ledger: MemoryLoginRevocations::new(config.audience, 8, 8, 0, now)
             .map_err(|e| e.to_string())?,
         admission: SessionAdmissionBudget::new(
             config.verification_burst,
@@ -201,10 +210,10 @@ fn establish_portable_session(input: SessionInput) -> Result<SessionView, String
                 ReceiverAuthority::Certified {
                     root, network_key, ..
                 } => {
-                    let root = root.policy();
+                    let root = root.as_ref();
                     let verification = ic_auth::portable_certified::PortableCertifiedContext {
                         claims: ctx.authority,
-                        root_key: &root,
+                        root_key: root,
                         ic_root_public_key_raw: network_key,
                         limits: ic_auth::portable_certified::CertifiedProofLimits {
                             max_cert_ttl_ns: 120 * SECOND,
@@ -235,14 +244,15 @@ fn establish_portable_session(input: SessionInput) -> Result<SessionView, String
 #[ic_cdk::update(
     hidden = true,
     guard = "admission_guard",
-    decode_with = "decode_admission"
+    decode_with = "crate::control::decode::<controls::ProfileAdmission>",
+    encode_with = "crate::control::encode::<controls::ProfileAdmission>"
 )]
 fn profile_portable_admission(input: SessionInput) -> AdmissionProfile {
     let start = ic_cdk::api::performance_counter(0);
     let result = establish_portable_session(input);
     let instructions = ic_cdk::api::performance_counter(0) - start;
     AdmissionProfile {
-        reply: encode_admission(result),
+        reply: ic_wire::Bytes::new(encode_admission(result)).expect("bounded admission diagnostic"),
         instructions,
     }
 }
@@ -291,7 +301,12 @@ fn logout_portable_session() -> LogoutResult {
         )
     })
 }
-#[ic_cdk::update]
+#[ic_cdk::update(
+    hidden = true,
+    guard = "crate::control::guard",
+    decode_with = "crate::control::decode::<controls::InvalidateAuthority>",
+    encode_with = "crate::control::encode_result::<controls::InvalidateAuthority, _>"
+)]
 fn invalidate_session_authority(enabled: bool) -> Result<(), String> {
     super::controller()?;
     with_receiver(|host| {
@@ -300,7 +315,12 @@ fn invalidate_session_authority(enabled: bool) -> Result<(), String> {
         Ok(())
     })
 }
-#[ic_cdk::query]
+#[ic_cdk::query(
+    hidden = true,
+    guard = "crate::control::guard",
+    decode_with = "crate::control::decode::<controls::ProfileSession>",
+    encode_with = "crate::control::encode_result::<controls::ProfileSession, _>"
+)]
 fn profile_portable_session() -> Result<SessionProfile, String> {
     with_receiver(|host| {
         let caller = ic_cdk::api::msg_caller();
@@ -339,7 +359,7 @@ fn profile_portable_session() -> Result<SessionProfile, String> {
 // CDK copying; malformed input traps before the stateful handler. Failed reply
 // encoding traps as well, rolling back local session/revocation mutations.
 fn argument_guard<M: ic_auth_wire::wire::Method>() -> Result<(), String> {
-    if ic0::msg_arg_data_size() > M::REQUEST_LIMITS.bytes {
+    if ic_platform::ic0::msg_arg_data_size() > M::REQUEST_LIMITS.bytes {
         Err("wire argument too large".into())
     } else {
         Ok(())
@@ -370,19 +390,7 @@ fn decode_logout(bytes: Vec<u8>) {
 fn wire_result(
     result: Result<SessionView, String>,
 ) -> Result<ic_auth_wire::SessionView, ic_auth_wire::wire::Text<256>> {
-    use ic_auth_wire::wire::Text;
-    result
-        // A refusal must not trap while formatting a diagnostic: that would undo
-        // the admission charge. Preserve the bounded UTF-8 prefix for this fixture;
-        // production consumers own their structured application error contract.
-        .map_err(|mut error| {
-            let mut end = error.len().min(256);
-            while !error.is_char_boundary(end) {
-                end -= 1;
-            }
-            error.truncate(end);
-            Text::new(error).expect("bounded UTF-8 error")
-        })
+    result.map_err(controls::refusal)
 }
 fn encode_admission(result: Result<SessionView, String>) -> Vec<u8> {
     ic_auth_wire::wire::encode_response::<ic_auth_wire::EstablishSession>(&wire_result(result))

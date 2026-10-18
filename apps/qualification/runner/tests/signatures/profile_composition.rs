@@ -81,16 +81,12 @@ fn root_and_issuer_profiles_share_one_composed_store_without_crossing_authority(
             .retrieve_with_seed(ROOT_PROFILE, ROOT_PROFILE, &payload)
             .is_err()
     );
-    let removed: Result<u32, String> = fixture
-        .pic
-        .update_candid(
-            fixture.signer,
-            fixture.controller,
-            "prune",
-            (128_u32,),
-            CONTROL_REPLY_LIMITS,
-        )
-        .expect("qualified Candid transport");
+    let removed: Result<u32, String> = update_control::<controls::Prune, _>(
+        &fixture.pic,
+        fixture.signer,
+        fixture.controller,
+        128_u32,
+    );
     assert_eq!(removed, Ok(1));
     let live_issuer = fixture
         .retrieve_with_seed(ISSUER_PROFILE, ISSUER_PROFILE, &payload)

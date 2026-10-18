@@ -1,3 +1,4 @@
+# Tests and tooling packages
 [package]
 name = "ic-auth-qualification-contracts"
 version.workspace = true
@@ -6,14 +7,12 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 publish = false
-description = "Internal Candid projections for existing Auth qualification fixtures"
+description = "Internal bounded Wire contracts for Auth qualification"
 
-# This adapter preserves fixture wire bytes; it is not an Auth library capability
-# or a production codec recommendation. Candid must not flow back into crates/.
+# These controls are unpublished; application methods remain in ic-auth-wire.
 [dependencies]
-candid.workspace = true
-ic-auth-protocol-types.workspace = true
-serde.workspace = true
+ic-auth-wire.workspace = true
+ic-wire.workspace = true
 
 [lints]
 workspace = true

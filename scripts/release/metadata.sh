@@ -98,6 +98,7 @@ case "$operation" in
         [[ "$heading" == "## [$RELEASE_VERSION]" ]] || fail "expected undated pending heading '## [$RELEASE_VERSION]' for selected $RELEASE_KIND; found '$heading'. Remove any date or '- Unreleased' suffix; release preparation adds the date."
         awk -v version="$RELEASE_VERSION" -v previous="$RELEASE_PREVIOUS" -v date="$RELEASE_DATE" \
             -f scripts/ci/finalize-release-changelog.awk CHANGELOG.md > /dev/null
+        cargo sort --workspace --grouped --check
         cargo fetch --locked
         # Explicit release preparation includes the complete common sets and
         # local extensions, including the lock-selected Testkit executable.
@@ -135,10 +136,10 @@ case "$operation" in
             # The canonical version is replaced last so an interrupted attempt
             # can rerun preparation using the original selected version.
             cp "$scratch/Cargo.toml" Cargo.toml
-            cargo sort --workspace
+            cargo sort --workspace --grouped
         fi
         check_payload .
-        cargo metadata --locked --offline --format-version 1 > /dev/null
+        bash scripts/ci/cargo-release-metadata.sh check ic-auth --manifest-order-grouped
         make --no-print-directory fmt-check
         if [[ "$operation" == commit-check ]]; then
             git diff --quiet -- "${files[@]}" || fail 'release index differs from prepared worktree'
@@ -154,6 +155,7 @@ case "$operation" in
         cp "$scratch/committed/release-validation.json" "$scratch/receipt.json"
         render
         check_payload "$scratch/committed"
+        RELEASE_COMMIT="$selected" bash scripts/ci/cargo-release-metadata.sh check ic-auth --manifest-order-grouped
         git diff --name-only -z "$RELEASE_SOURCE" "$selected" -- > "$scratch/changed"
         while IFS= read -r -d '' path; do
             case "$path" in Cargo.toml|Cargo.lock|CHANGELOG.md|release-validation.json) ;;

@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
-# Auth-owned graph rules; callers retain independent graph collection/admission.
+# Auth-owned graph rules; Shared supplies the boundary-script observation/matching.
 auth_dependency_pattern() {
-    local product='canic|toko|solana|ic-siws|ic-host|ic-auth-qualification|ic-auth-tooling'
+    # Principal-only Platform is production; its optional capabilities are
+    # constrained by the observed Candid/runtime/host dependencies below.
+    local product='candid_parser|canic|toko|solana|ic-siws|ic-host|ic-build|ic-testkit|ic-agent|tokio|pocket-ic|ic-auth-qualification|ic-auth-tooling'
     local storage='ic-cdk|ic-stable-structures|ic-memory|ic-timers'
     local certificates='ic-certification|ic-signature-verification|ic-canister-sig-creation'
     local pattern
@@ -9,10 +11,10 @@ auth_dependency_pattern() {
         default) pattern="$product|candid|candid_derive" ;;
         passive) pattern="$storage|ic0|ic-certification" ;;
         pure) pattern="candid|candid_derive|curve25519-dalek|ed25519-dalek|k256|$certificates|ic-verify-bls-signature|ic-cdk|ic-stable-structures" ;;
-        capability) pattern="$product|$storage" ;;
+        capability|deployment) pattern="$product|$storage" ;;
         certificate-free) pattern="$certificates|candid|candid_derive" ;;
         session) pattern="candid|candid_derive|k256|$certificates|ic-verify-bls-signature" ;;
-        packaged) pattern="$product|ic-testkit|pocket-ic|$storage" ;;
+        packaged) pattern="$product|$storage" ;;
         *) echo 'unknown Auth dependency policy' >&2; return 1 ;;
     esac
     printf '^(%s)([- ]|$)\n' "$pattern"

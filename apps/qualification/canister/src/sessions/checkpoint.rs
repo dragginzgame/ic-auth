@@ -1,27 +1,42 @@
 //! Fixture-only upgrade checkpoint using the host-owned IC Memory allocation.
 //! This is not a production stable backend or a Root enrollment implementation.
 use super::*;
-use candid::CandidType;
 use ic_auth::{portable::LoginRevocationChange, session::Replay};
-use serde::Deserialize;
+use ic_auth_qualification_contracts as controls;
+use ic_wire::{Bytes, List, Wire};
 
-#[derive(CandidType, Deserialize)]
+#[derive(Wire)]
 pub(crate) struct Snapshot {
-    config: ReceiverConfig,
+    #[wire(id = 1)]
+    config: controls::model::ReceiverConfig,
+    #[wire(id = 2)]
     login_floor: u64,
+    #[wire(id = 3)]
     proof_floor: u64,
+    #[wire(id = 4)]
     generation: u64,
+    #[wire(id = 5)]
     enabled: bool,
+    #[wire(id = 6)]
     checkpoint_time: u64,
+    #[wire(id = 7)]
     observed: u64,
+    #[wire(id = 8)]
     session_count: u64,
+    #[wire(id = 9)]
     replay_count: u64,
+    #[wire(id = 10)]
     encoded_bytes: u64,
+    #[wire(id = 11)]
     admitted_count: u64,
+    #[wire(id = 12)]
     unknown_count: u64,
-    sessions: Vec<Vec<u8>>,
-    replays: Vec<Vec<u8>>,
-    logins: Vec<Vec<u8>>,
+    #[wire(id = 13)]
+    sessions: List<Bytes<65536>, 8>,
+    #[wire(id = 14)]
+    replays: List<Bytes<1024>, 32>,
+    #[wire(id = 15)]
+    logins: List<Bytes<1024>, 16>,
 }
 
 pub(crate) fn capture() -> Option<Snapshot> {
@@ -29,7 +44,11 @@ pub(crate) fn capture() -> Option<Snapshot> {
         let state = state.borrow();
         let host = state.as_ref().filter(|host| host.checkpoint)?;
         Some(Snapshot {
-            config: host.config.clone(),
+            config: host
+                .config
+                .clone()
+                .try_into()
+                .expect("bounded checkpoint config"),
             login_floor: host.login_floor,
             proof_floor: host.proof_floor,
             generation: host.generation,
@@ -41,27 +60,36 @@ pub(crate) fn capture() -> Option<Snapshot> {
             encoded_bytes: host.store.encoded_bytes() as u64,
             admitted_count: host.ledger.occupancy().0 as u64,
             unknown_count: host.ledger.occupancy().1 as u64,
-            sessions: host
-                .store
-                .session_records()
-                .map(|s| s.encode().expect("encode session"))
-                .collect(),
-            replays: host
-                .store
-                .replay_records()
-                .map(|r| r.encode().expect("encode replay"))
-                .collect(),
-            logins: host
-                .ledger
-                .records()
-                .map(|r| r.encode().expect("encode login"))
-                .collect(),
+            sessions: List::new(
+                host.store
+                    .session_records()
+                    .map(|s| {
+                        Bytes::new(s.encode().expect("encode session")).expect("session bound")
+                    })
+                    .collect(),
+            )
+            .expect("checkpoint record count"),
+            replays: List::new(
+                host.store
+                    .replay_records()
+                    .map(|r| Bytes::new(r.encode().expect("encode replay")).expect("replay bound"))
+                    .collect(),
+            )
+            .expect("checkpoint record count"),
+            logins: List::new(
+                host.ledger
+                    .records()
+                    .map(|r| Bytes::new(r.encode().expect("encode login")).expect("login bound"))
+                    .collect(),
+            )
+            .expect("checkpoint record count"),
         })
     })
 }
 
 pub(crate) fn restore(snapshot: Option<Snapshot>) {
     let Some(saved) = snapshot else { return };
+    let config: ReceiverConfig = saved.config.try_into().expect("checkpoint config");
     let now = ic_cdk::api::time();
     assert!(now >= saved.checkpoint_time, "checkpoint clock rollback");
     assert!(
@@ -79,36 +107,37 @@ pub(crate) fn restore(snapshot: Option<Snapshot>) {
             saved.encoded_bytes as usize,
             saved
                 .sessions
+                .as_slice()
                 .iter()
-                .map(|bytes| Session::decode(bytes).expect("decode session")),
+                .map(|bytes| Session::decode(bytes.as_slice()).expect("decode session")),
             saved
                 .replays
+                .as_slice()
                 .iter()
-                .map(|bytes| Replay::decode(bytes).expect("decode replay")),
+                .map(|bytes| Replay::decode(bytes.as_slice()).expect("decode replay")),
         )
         .expect("restore complete session/replay store");
-    let ledger = MemoryLoginRevocations::new(saved.config.audience.0, 8, 8, 0, now)
+    let ledger = MemoryLoginRevocations::new(config.audience, 8, 8, 0, now)
         .expect("ledger limits")
         .restore_records(
             saved.observed,
             (saved.admitted_count as usize, saved.unknown_count as usize),
-            saved
-                .logins
-                .iter()
-                .map(|bytes| LoginRevocationChange::decode(bytes).expect("decode login")),
+            saved.logins.as_slice().iter().map(|bytes| {
+                LoginRevocationChange::decode(bytes.as_slice()).expect("decode login")
+            }),
         )
         .expect("restore complete login ledger");
     let admission = SessionAdmissionBudget::new(
-        saved.config.verification_burst,
-        saved.config.verification_refill_ns,
+        config.verification_burst,
+        config.verification_refill_ns,
         now,
     )
     .expect("admission budget");
     let host = Receiver {
         checkpoint: true,
         ready: false,
-        binding: saved.config.authority.binding(),
-        config: saved.config,
+        binding: config.authority.binding(),
+        config,
         login_floor: saved.login_floor,
         proof_floor: saved.proof_floor,
         generation: saved.generation,
@@ -122,7 +151,12 @@ pub(crate) fn restore(snapshot: Option<Snapshot>) {
     RECEIVER.with(|state| *state.borrow_mut() = Some(host));
 }
 
-#[ic_cdk::update]
+#[ic_cdk::update(
+    hidden = true,
+    guard = "crate::control::guard",
+    decode_with = "crate::control::decode::<controls::EnableCheckpoint>",
+    encode_with = "crate::control::encode_result::<controls::EnableCheckpoint, _>"
+)]
 fn enable_session_checkpoint() -> Result<(), String> {
     super::super::controller()?;
     with_receiver(|host| {
@@ -133,18 +167,26 @@ fn enable_session_checkpoint() -> Result<(), String> {
 
 /// The fixture's controller attests current authority after this boot. Production
 /// requires authenticated receiver-bound Root enrollment, not this test endpoint.
-#[ic_cdk::update]
-fn confirm_restored_session_authority(config: ReceiverConfig) -> Result<(), String> {
+#[ic_cdk::update(
+    hidden = true,
+    guard = "crate::control::guard",
+    decode_with = "crate::control::decode::<controls::ConfirmAuthority>",
+    encode_with = "crate::control::encode_result::<controls::ConfirmAuthority, _>"
+)]
+fn confirm_restored_session_authority(
+    config: controls::model::ReceiverConfig,
+) -> Result<(), String> {
     super::super::controller()?;
+    let config: ReceiverConfig = config
+        .try_into()
+        .map_err(|e: ic_wire::Error| e.to_string())?;
     RECEIVER.with(|state| {
         let mut state = state.borrow_mut();
         let host = state
             .as_mut()
             .filter(|host| host.checkpoint && !host.ready)
             .ok_or("receiver is not awaiting authority")?;
-        if candid::encode_one(&config).map_err(|e| e.to_string())?
-            != candid::encode_one(&host.config).map_err(|e| e.to_string())?
-        {
+        if config != host.config {
             return Err("checkpoint authority mismatch".into());
         }
         let now = ic_cdk::api::time();

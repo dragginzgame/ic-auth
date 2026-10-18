@@ -3,15 +3,15 @@
 Independent application authentication protocol libraries for the Internet
 Computer, with a wallet-authentication service planned.
 
-The accepted scope includes IC signatures, application tokens, local application
-sessions and wallet-backed IC identities. Canic will consume the libraries;
-applications such as Toko will integrate through a documented client/service
-contract. The libraries and reference service must not depend on either project.
+The implementation owns IC signature/proof contracts, portable credential
+admission and caller-bound local sessions. Canic consumes these libraries through
+host adapters; applications such as Toko retain account and resource policy.
+Wallet-backed identities and their service are planned, not current endpoints.
+No Auth library or future service may depend on either project.
 
 ## Status
 
-The working tree prepares the **0.9.0 application-transport hard cut**; package
-versions remain at released `0.8.0` until maintainer release preparation. It implements portable certified and enrolled
+The latest local release is **0.9.1**. It implements portable certified and enrolled
 Ed25519 verification, one local session engine, replay/revocation bookkeeping and
 explicit protected authority/work budgets. See the [session contract](docs/sessions.md)
 and [current handoff](docs/status/current.md) for implementation and validation.
@@ -36,8 +36,9 @@ adapter remain unimplemented.** The reference receiver uses volatile state.
 The [IC Testkit fixture](docs/ic-testkit-qualification.md) exercises actual
 certification, portable sessions, upgrades and signed ingress; it is not a
 production wallet service or evidence of completed consumer adoption.
-The unpublished native utility in `apps/tooling/` uses `ic-host-fs` for release
-and publication file operations.
+The unpublished native utility in `apps/tooling/` delegates file operations to
+IC Host and package-lock subset admission to IC Build; release identity and
+publication/retry policy remain here.
 
 Canic is adopting the shared libraries; its complete runtime verifier and durable
 host integration remain consumer work. The
@@ -91,11 +92,20 @@ token/proof contracts. Crates.io treats hyphens and underscores as colliding
 names, so changing only the punctuation cannot resolve that conflict.
 
 Released 0.8.0 removed Candid traits from the public domain types; `Principal`
-remains `ic_principal::Principal`. Pending 0.9.0 replaces application-facing
+now comes through feature-free IC Platform, retaining the upstream
+`ic_principal::Principal` identity. Released 0.9.0 replaced application-facing
 Candid with published IC Wire's bounded codec and generated TypeScript through
 an Auth-owned transport adapter. Optional upstream certified-signature capabilities
-still use Candid, as do the private controller/certificate qualification fixtures.
-See the [consumer cut](docs/canic-adoption.md#pending-09-wire-transport).
+still use Candid transitively. Private fixture controls, diagnostics, init and
+upgrade checkpoints now use bounded Wire contracts too; the old unpublished
+Candid checkpoint format is retired. Platform 0.1.9 supplies Principal, raw
+argument admission and native Agent identities. CDK remains only in the reference
+host for runtime and raw codec exports. See the
+[platform boundary](docs/development.md#ic-platform-boundary) for pending
+signature/certification API adoption.
+See the [consumer contract](docs/canic-adoption.md#wire-transport). The incoming
+Wire 0.4 selection requires the next Auth minor release because Wire types are
+publicly exposed; it does not change the already released 0.9 dependency contract.
 
 The future wallet service belongs in `apps/wallet-auth/`. No accepting wallet
 endpoint is created before its complete proof verification and service contracts.
@@ -122,3 +132,21 @@ bridge or custody wallet assets.
 
 Canic integration uses local library calls. It must not add a remote authentication
 request to every protected application call.
+
+## Ownership and dependencies
+
+| Owner | Capability and integration boundary |
+| --- | --- |
+| IC Auth | Checked protocol types, signed byte contracts, proof/certificate semantics, session/replay/revocation transitions, bounded Auth transport layouts and the private admission/logout client. |
+| IC Wire | Canonical transport codec, bounded schema/derive and TypeScript generator. Auth projects its own domain types and generates client artifacts through this dependency. |
+| IC Host / IC Build | Native file/process operations and generic Cargo lock admission. Auth supplies paths, byte budgets, package isolation and release policy. |
+| IC Testkit | Native canister transport, server selection and lifecycle support. Auth retains its authentication-specific integration assertions. |
+| IC Memory / CDK | Memory-backed checkpoint and canister runtime support in the unpublished qualification fixture. Neither enters the published Auth library graph. |
+| Canic | Fleet authority, issuer enrollment/renewal, endpoint guards, caller/clock, certification publication and atomic production storage. |
+| Toko | User/account linking, project permissions, frontend custody and application assets. |
+
+Signed claims, bounded transport and checked stored records serve different trust
+boundaries; their independent validation is intentional. Production wallet/issuer
+and durable host acceptance remain explicit unfinished work, not alternative
+authentication flows. The [current handoff](docs/status/current.md) separates
+current evidence from [historical extraction notes](docs/status/history-through-0.9.1.md).

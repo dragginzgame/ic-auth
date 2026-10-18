@@ -32,6 +32,10 @@ fixture lock from the selected workspace graph and adds this consumer root.
 Before compilation, admission requires all three exact package names, versions and
 manifest paths, enforces the library's forbidden-dependency boundary, and requires every
 external version, source and checksum to remain a subset of the original lock.
+The native utility delegates external-lock comparison to published IC Build,
+using existing no-follow reads with an explicit 8 MiB per-document allowance.
+Malformed and duplicate lock rows are refused. Auth retains package identity,
+source/feature isolation and release policy; Build stays outside public libraries.
 Compiler checks are locked/offline, without a dependency downgrade, network
 fallback or `--ignore-rust-version`.
 
@@ -56,7 +60,7 @@ See [Auth #21](https://github.com/dragginzgame/ic-auth/issues/21) and the adopte
 | --- | --- |
 | Protocol types | Native and `wasm32-unknown-unknown`, independent normalized package |
 | Wire transport | Native/Wasm independent normalized package; TypeScript generation included in the all-feature profile |
-| Auth library | Each target with default features, isolated portable Ed25519 verification, isolated chain-key verification, signature verification, signature preparation, token verification, sessions, session restoration, and all features together |
+| Auth library | Each target with default features, isolated portable Ed25519 verification, isolated chain-key verification, signature verification, signature preparation, certified portable verification, sessions, session restoration, and all features together |
 | Native tooling, fixture transport and testkit runner | Separate workspace checks of all targets/features |
 | Qualification canister | Separate Rust 1.91.0 `wasm32-unknown-unknown` check |
 

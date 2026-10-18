@@ -6,6 +6,9 @@ LOCAL_TOOL_INSTALL_TARGETS := install-msrv install-testkit-tools
 LOCAL_TOOL_CHECK_TARGETS := msrv-tools-check testkit-tools-check
 RELEASE_DELIVERY_POLICY := $(CURDIR)/ci/release-delivery.txt
 override SHARED_TOOLING_ROOT := $(CURDIR)
+# Preserve the root catalog's dependency-role groups in every formatting path.
+FORMAT_WRITE_COMMAND = bash -ec '"$$1" sort --workspace --grouped; "$$1" fmt --all' -- "$(FORMAT_CARGO)"
+FORMAT_CHECK_COMMAND = bash -ec '"$$1" sort --workspace --grouped --check; "$$1" fmt --all -- --check' -- "$(FORMAT_CARGO)"
 include make/consumer.mk
 
 # Keep Cargo artifacts in this checkout, including CI and hook invocations.
@@ -47,8 +50,11 @@ test-testkit-tools:
 
 test-formatting-hooks:
 	@mkdir -p target/portable-fixtures
-	+@TMPDIR="$(CURDIR)/target/portable-fixtures" bash scripts/ci/check-formatting-hooks.sh \
-		"$(CURDIR)" crates/ic-auth/src/lib.rs Cargo.toml --no-dependency-tables --rust-sources \
+	+@set -e; fixture="$$(mktemp "$(CURDIR)/target/portable-fixtures/unsorted-manifest.XXXXXX")"; \
+		trap 'rm -f "$$fixture"' EXIT; \
+		perl -0777 -pe 's/^(serde_bytes = [^\n]*\n)(serde_cbor = [^\n]*\n)/$$2$$1/m or die "missing selected dependency pair"' Cargo.toml > "$$fixture"; \
+		TMPDIR="$(CURDIR)/target/portable-fixtures" bash scripts/ci/check-formatting-hooks.sh \
+		"$(CURDIR)" crates/ic-auth/src/lib.rs Cargo.toml "$$fixture" --rust-sources \
 		make/consumer.mk make/release.mk make/rust-format.mk ci/tool-versions.env
 
 install-msrv: install-host-tools
@@ -123,6 +129,8 @@ test-qualification: testkit-tools-check client-tools-check
 	+bash scripts/dev/test-qualification.sh
 
 check-boundaries:
+	+bash scripts/ci/check-cargo-dependency-boundaries.sh --consumer "$(CURDIR)"
+	+bash scripts/ci/test-auth-boundaries.sh
 	+bash scripts/ci/check-auth-boundaries.sh
 
 check-snapshot: shared-tooling-check
@@ -157,6 +165,7 @@ ci:
 	+bash scripts/ci/run-validation-targets.sh --fail-fast \
 	  --input Cargo.toml --input Cargo.lock --input rust-toolchain.toml \
 	  --input ci/tool-versions.env --input ci/ic-tools.tsv --input ci/release-delivery.txt \
+	  --input ci/cargo-dependency-boundaries.json \
 	  --input packages/client/package.json --input packages/client/package-lock.json \
 	  --input packages/client/.nvmrc \
 	  check-snapshot tools-check check-dependency-pins check-doc-links test-make-jobserver fmt-check test-formatting-hooks metadata check-boundaries check-msrv test-tools-evidence test-testkit-tools test-client-tools test-client test-types test-protocol test-portable-signatures test-chain-key-signatures test-signatures test-signature-store test-certified-proofs test-sessions test-host-tooling test-qualification check-wasm clippy publish-dry-run test-release-tools test-release-runner test-evidence-archive

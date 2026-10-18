@@ -1,3 +1,4 @@
+# Tests and tooling packages
 [package]
 name = "ic-auth-qualification-canister"
 version.workspace = true
@@ -12,17 +13,17 @@ description = "Internal canister host for IC Auth qualification"
 crate-type = ["cdylib"]
 
 [dependencies]
-candid.workspace = true
 ic-auth = { workspace = true, features = ["canister-signature-preparation", "session-restore", "portable-signature-verification", "certified-proof-verification"] }
 ic-auth-protocol-types.workspace = true
-# Candid projection is test/tooling-only, never enabled through public Auth features.
+# Private Wire controls are never part of the public Auth contract.
 ic-auth-qualification-contracts.workspace = true
 ic-auth-wire.workspace = true
+# Platform #1: runtime and entrypoint macros remain upstream CDK.
 ic-cdk.workspace = true
 ic-certification.workspace = true
 ic-memory = { workspace = true, features = ["test-support"] }
-ic0.workspace = true
-serde.workspace = true
+ic-platform = { workspace = true, features = ["ic0"] }
+ic-wire.workspace = true
 sha2.workspace = true
 
 [lints]

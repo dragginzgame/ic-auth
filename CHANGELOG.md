@@ -1,5 +1,53 @@
 # Changelog
 
+## [0.10.0]
+
+- Route the public Principal re-export through feature-free IC Platform, removing
+  the direct `ic_principal` declaration. Preserve the upstream type and wire
+  identity; keep Candid, executor and host-tooling exclusions on pure graphs.
+
+- Reuse Shared Tooling’s committed graph checker (6eb8c41, PR #285) while
+  retaining local roots, feature selections and exclusion policy. This selects
+  unmerged topic source, not a new Shared release.
+  Preserve family exclusions and optional crypto singleton checks with full
+  rendered version/source identities. Keep the consumer refusal fixture aligned
+  with the shared checker and canonical Cargo package selections.
+
+- Use published IC Platform 0.1.9 for Principal, raw argument admission and
+  native Agent/delegated identities. Request missing published signature/key,
+  certificate-tree and verification APIs in [Platform #16](https://github.com/dragginzgame/ic-platform/issues/16),
+  [#17](https://github.com/dragginzgame/ic-platform/issues/17) and
+  [#18](https://github.com/dragginzgame/ic-platform/issues/18).
+
+- Replace private qualification Candid controls, diagnostics and init/upgrade
+  arguments with bounded IC Wire. Remove the Candid projections, frozen Candid
+  vectors, service export and direct Candid/Testkit Candid declarations. Retire
+  the old unpublished checkpoint in favor of an explicitly identified Wire
+  checkpoint; preserve IC Memory allocation, runtime identity and host authority.
+  Public application methods and production storage are unchanged. Upstream
+  certified verification and CDK/Agent still bring transitive Candid.
+
+- Adopt Shared Tooling 0.24.0 with explicit production versus test/tooling catalog
+  roles, grouped manifest formatting and matching prepared/committed release
+  checks. Check native and Wasm library graphs for transitive tooling exclusions,
+  including the combined capability selection; no production deployment is implied.
+
+- Apply the same native Testkit/PocketIC exclusion to workspace and packaged
+  library graphs. Correct active protocol/session/development guidance left over
+  from Candid transport and earlier dependency/compiler selections.
+
+- **Breaking:** use IC Wire 0.4 for Auth's public transport types. Consumers
+  sharing Wire types must align their dependency. Released 0.9 packages retain
+  their original contract.
+
+- Delegate native external-lock admission to published IC Build, removing the
+  duplicate parser/comparison while retaining Auth's package and release policy.
+  [#66 — Adopt Build external-lock subset admission](https://github.com/dragginzgame/ic-auth/issues/66).
+
+- Remove an unused private qualification projection and reconcile ownership and
+  consumer guidance with the released portable session flow. Preserve historical
+  extraction/handoff evidence separately from current contracts.
+
 ## [0.9.1] - 2026-10-17
 
 - Adopt Shared Tooling 0.23.0. Common setup/admission selects host and Rust tools;

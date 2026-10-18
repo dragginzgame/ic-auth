@@ -1,9 +1,10 @@
 //! Portable receiver lifecycle against real canisters and signed ingress.
 #[path = "sessions/costs.rs"]
 mod costs;
-use super::{Agent, BasicIdentity, CONTROL_REPLY_LIMITS, Fixture, Principal, encode_args};
+use super::{Agent, BasicIdentity, Fixture, Principal};
 #[path = "../../../sessions.rs"]
 mod contract;
+use super::{controls, query_control, update_control, update_wire};
 use contract::*;
 use ed25519_dalek::{Signer, SigningKey};
 use ic_auth::{
@@ -11,12 +12,10 @@ use ic_auth::{
     session::*,
 };
 use ic_auth_protocol_types::*;
-use ic_auth_qualification_contracts::Candid;
 use ic_auth_wire::{
     SessionInput, SessionView,
     wire::{Bytes, List, Text},
 };
-use ic_testkit::pic::CandidCallExt;
 use sha2::{Digest, Sha256};
 use std::time::Duration;
 const SECOND: u64 = 1_000_000_000;
@@ -33,16 +32,12 @@ fn measured<T>(f: &Fixture, target: Principal, label: &str, operation: impl FnOn
 }
 
 fn install(f: &Fixture, target: Principal, config: &ReceiverConfig) {
-    let result: Result<(), String> = f
-        .pic
-        .update_candid(
-            target,
-            f.controller,
-            "install_session_receiver",
-            (config.clone(),),
-            CONTROL_REPLY_LIMITS,
-        )
-        .expect("qualified Candid transport");
+    let result: Result<(), String> = update_control::<controls::InstallReceiver, _>(
+        &f.pic,
+        target,
+        f.controller,
+        (config.clone()).try_into().unwrap(),
+    );
     result.unwrap();
 }
 fn admission(
@@ -51,15 +46,16 @@ fn admission(
     caller: Principal,
     input: &SessionInput,
 ) -> Result<SessionView, String> {
-    update_wire::<ic_auth_wire::EstablishSession>(f, target, caller, input)
+    update_wire::<ic_auth_wire::EstablishSession>(&f.pic, target, caller, input)
         .map_err(|e| e.into_string())
 }
 fn read(f: &Fixture, target: Principal, caller: Principal) -> Result<SessionView, String> {
-    update_wire::<ic_auth_wire::ReadSession>(f, target, caller, &()).map_err(|e| e.into_string())
+    update_wire::<ic_auth_wire::ReadSession>(&f.pic, target, caller, &())
+        .map_err(|e| e.into_string())
 }
 fn logout(f: &Fixture, target: Principal, caller: Principal) -> Result<u64, LogoutResult> {
     use ic_auth_wire::model as m;
-    match update_wire::<ic_auth_wire::Logout>(f, target, caller, &()) {
+    match update_wire::<ic_auth_wire::Logout>(&f.pic, target, caller, &()) {
         m::LogoutResult::Revoked(until) => Ok(until),
         m::LogoutResult::InvalidCaller => Err(LogoutResult::InvalidCaller),
         m::LogoutResult::Unavailable(reason) => Err(LogoutResult::Unavailable(match reason {
@@ -69,19 +65,6 @@ fn logout(f: &Fixture, target: Principal, caller: Principal) -> Result<u64, Logo
             m::LogoutUnavailable::ResetPending => LogoutUnavailable::ResetPending,
         })),
     }
-}
-fn update_wire<M: ic_auth_wire::wire::Method>(
-    f: &Fixture,
-    target: Principal,
-    caller: Principal,
-    request: &M::Request,
-) -> M::Response {
-    let arg = ic_auth_wire::wire::encode_request::<M>(request).unwrap();
-    let reply = f
-        .pic
-        .update_call(target, caller, M::NAME, arg.into_bytes())
-        .expect("qualified Wire transport");
-    ic_auth_wire::wire::decode_response::<M>(&reply).expect("bounded Wire reply")
 }
 
 fn input(claims: &PortableClaims, key: &SigningKey) -> SessionInput {
@@ -109,17 +92,17 @@ fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ingress()
     let now = f.now();
     let key = SigningKey::from_bytes(&[42; 32]);
     let config = ReceiverConfig {
-        audience: Candid(AudienceId {
+        audience: AudienceId {
             canonical_network_id: CanonicalId::from_bytes([1; 32]),
             fleet_id: CanonicalId::from_bytes([2; 32]),
-        }),
+        },
         issuer: f.signer,
         authority: ReceiverAuthority::Ed25519(key.verifying_key().to_bytes()),
-        role: Candid("user".parse().unwrap()),
-        grants: Candid(vec![DelegatedRoleGrant {
+        role: "user".parse().unwrap(),
+        grants: vec![DelegatedRoleGrant {
             target: "user".parse().unwrap(),
             scopes: vec!["read".into()],
-        }]),
+        }],
         valid_from_ns: now,
         valid_until_ns: now + 120 * SECOND,
         enrollment_until_ns: now + 120 * SECOND,
@@ -151,7 +134,7 @@ fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ingress()
     f.pic.advance_time(Duration::from_secs(1));
     let mut claims = PortableClaims {
         mechanism: PortableMechanism::Ed25519,
-        audience: config.audience.0,
+        audience: config.audience,
         issuer: config.issuer,
         key_binding_id: config.authority.binding(),
         browser_public_key: SigningKey::from_bytes(&[1; 32]).verifying_key().to_bytes(),
@@ -161,7 +144,7 @@ fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ingress()
         issued_at_ns: f.now(),
         admission_expires_at_ns: f.now() + 2 * SECOND,
         nonce: [1; 16],
-        grants: config.grants.0.clone(),
+        grants: config.grants.clone(),
     };
     let caller = browser_principal(&claims.browser_public_key);
     let first = input(&claims, &key);
@@ -228,16 +211,8 @@ fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ingress()
         .is_ok()
     );
     logout(&f, f.resource, caller).unwrap();
-    let profile: Result<SessionProfile, String> = f
-        .pic
-        .query_candid(
-            f.signer,
-            other_caller,
-            "profile_portable_session",
-            (),
-            CONTROL_REPLY_LIMITS,
-        )
-        .expect("qualified Candid transport");
+    let profile: Result<SessionProfile, String> =
+        query_control::<controls::ProfileSession, _>(&f.pic, f.signer, other_caller, ());
     let profile = profile.unwrap();
     assert!(profile.record_bytes < 2048);
     assert!(profile.decode_instructions > 0);
@@ -250,16 +225,8 @@ fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ingress()
     claims.issued_at_ns = f.now();
     claims.admission_expires_at_ns = f.now() + 2 * SECOND;
     assert!(admission(&f, f.signer, unknown, &input(&claims, &key)).is_err());
-    let result: Result<(), String> = f
-        .pic
-        .update_candid(
-            f.signer,
-            f.controller,
-            "invalidate_session_authority",
-            (false,),
-            CONTROL_REPLY_LIMITS,
-        )
-        .expect("qualified Candid transport");
+    let result: Result<(), String> =
+        update_control::<controls::InvalidateAuthority, _>(&f.pic, f.signer, f.controller, false);
     result.unwrap();
     assert!(read(&f, f.signer, other_caller).is_err());
     logout(&f, f.signer, other_caller).unwrap();
@@ -267,7 +234,9 @@ fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ingress()
         .upgrade_canister(
             f.resource,
             f.wasm.clone(),
-            encode_args(()).unwrap(),
+            ic_wire::encode_request::<controls::Upgrade>(&())
+                .unwrap()
+                .into_bytes(),
             Some(f.controller),
         )
         .unwrap();
@@ -579,17 +548,17 @@ fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_authority() 
     let now = f.now();
     let key = SigningKey::from_bytes(&[42; 32]);
     let config = ReceiverConfig {
-        audience: Candid(AudienceId {
+        audience: AudienceId {
             canonical_network_id: CanonicalId::from_bytes([1; 32]),
             fleet_id: CanonicalId::from_bytes([2; 32]),
-        }),
+        },
         issuer: f.signer,
         authority: ReceiverAuthority::Ed25519(key.verifying_key().to_bytes()),
-        role: Candid("user".parse().unwrap()),
-        grants: Candid(vec![DelegatedRoleGrant {
+        role: "user".parse().unwrap(),
+        grants: vec![DelegatedRoleGrant {
             target: "user".parse().unwrap(),
             scopes: vec!["read".into()],
-        }]),
+        }],
         valid_from_ns: now,
         valid_until_ns: now + 120 * SECOND,
         enrollment_until_ns: now + 120 * SECOND,
@@ -598,21 +567,13 @@ fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_authority() 
     };
     install(&f, f.resource, &config);
     install(&f, f.signer, &config);
-    let enabled: Result<(), String> = f
-        .pic
-        .update_candid(
-            f.resource,
-            f.controller,
-            "enable_session_checkpoint",
-            (),
-            CONTROL_REPLY_LIMITS,
-        )
-        .expect("qualified Candid transport");
+    let enabled: Result<(), String> =
+        update_control::<controls::EnableCheckpoint, _>(&f.pic, f.resource, f.controller, ());
     enabled.unwrap();
     f.pic.advance_time(Duration::from_secs(1));
     let mut claims = PortableClaims {
         mechanism: PortableMechanism::Ed25519,
-        audience: config.audience.0,
+        audience: config.audience,
         issuer: config.issuer,
         key_binding_id: config.authority.binding(),
         browser_public_key: SigningKey::from_bytes(&[1; 32]).verifying_key().to_bytes(),
@@ -622,7 +583,7 @@ fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_authority() 
         issued_at_ns: f.now(),
         admission_expires_at_ns: f.now() + 2 * SECOND,
         nonce: [1; 16],
-        grants: config.grants.0.clone(),
+        grants: config.grants.clone(),
     };
     let live = browser_principal(&claims.browser_public_key);
     let original = input(&claims, &key);
@@ -643,7 +604,9 @@ fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_authority() 
         .upgrade_canister(
             f.resource,
             f.wasm.clone(),
-            encode_args(()).unwrap(),
+            ic_wire::encode_request::<controls::Upgrade>(&())
+                .unwrap()
+                .into_bytes(),
             Some(f.controller),
         )
         .unwrap();
@@ -658,41 +621,29 @@ fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_authority() 
         logout(&f, f.resource, live),
         Err(LogoutResult::Unavailable(LogoutUnavailable::ResetPending))
     );
-    let unauthorized: Result<(), String> = f
-        .pic
-        .update_candid(
-            f.resource,
-            live,
-            "confirm_restored_session_authority",
-            (config.clone(),),
-            CONTROL_REPLY_LIMITS,
-        )
-        .expect("qualified Candid transport");
+    let unauthorized: Result<(), String> = update_control::<controls::ConfirmAuthority, _>(
+        &f.pic,
+        f.resource,
+        live,
+        (config.clone()).try_into().unwrap(),
+    );
     assert!(unauthorized.is_err());
     let mut mismatch = config.clone();
     mismatch.authority = ReceiverAuthority::Ed25519([7; 32]);
-    let wrong: Result<(), String> = f
-        .pic
-        .update_candid(
-            f.resource,
-            f.controller,
-            "confirm_restored_session_authority",
-            (mismatch,),
-            CONTROL_REPLY_LIMITS,
-        )
-        .expect("qualified Candid transport");
+    let wrong: Result<(), String> = update_control::<controls::ConfirmAuthority, _>(
+        &f.pic,
+        f.resource,
+        f.controller,
+        (mismatch).try_into().unwrap(),
+    );
     assert!(wrong.is_err());
     assert!(read(&f, f.resource, live).is_err());
-    let confirmed: Result<(), String> = f
-        .pic
-        .update_candid(
-            f.resource,
-            f.controller,
-            "confirm_restored_session_authority",
-            (config.clone(),),
-            CONTROL_REPLY_LIMITS,
-        )
-        .expect("qualified Candid transport");
+    let confirmed: Result<(), String> = update_control::<controls::ConfirmAuthority, _>(
+        &f.pic,
+        f.resource,
+        f.controller,
+        (config.clone()).try_into().unwrap(),
+    );
     confirmed.unwrap();
     assert_eq!(read(&f, f.resource, live).unwrap(), session);
     // Restoration retains the live exact retry and its original lease even
@@ -715,35 +666,25 @@ fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_authority() 
     assert_eq!(renewed_peer.subject, session.subject);
     claims.browser_public_key = unknown_key;
     assert!(admission(&f, f.resource, unknown, &input(&claims, &key)).is_err());
-    let disabled: Result<(), String> = f
-        .pic
-        .update_candid(
-            f.resource,
-            f.controller,
-            "invalidate_session_authority",
-            (false,),
-            CONTROL_REPLY_LIMITS,
-        )
-        .expect("qualified Candid transport");
+    let disabled: Result<(), String> =
+        update_control::<controls::InvalidateAuthority, _>(&f.pic, f.resource, f.controller, false);
     disabled.unwrap();
     f.pic
         .upgrade_canister(
             f.resource,
             f.wasm.clone(),
-            encode_args(()).unwrap(),
+            ic_wire::encode_request::<controls::Upgrade>(&())
+                .unwrap()
+                .into_bytes(),
             Some(f.controller),
         )
         .unwrap();
-    let confirmed: Result<(), String> = f
-        .pic
-        .update_candid(
-            f.resource,
-            f.controller,
-            "confirm_restored_session_authority",
-            (config,),
-            CONTROL_REPLY_LIMITS,
-        )
-        .expect("qualified Candid transport");
+    let confirmed: Result<(), String> = update_control::<controls::ConfirmAuthority, _>(
+        &f.pic,
+        f.resource,
+        f.controller,
+        (config).try_into().unwrap(),
+    );
     confirmed.unwrap();
     assert!(read(&f, f.resource, live).is_err());
     assert_eq!(logout(&f, f.resource, revoked).unwrap(), denied_until);

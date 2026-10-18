@@ -35,6 +35,52 @@ fn invoke(root: &Path, arguments: &[&str]) -> Output {
 }
 
 #[test]
+fn external_lock_admission_bounds_both_inputs_without_mutation() {
+    let root = fixture();
+    for name in ["original", "candidate"] {
+        fs::write(root.join(name), b"package=[]").unwrap();
+    }
+    let accepted = invoke(
+        &root,
+        &["verify-external-lock", "original", "candidate", "10"],
+    );
+    assert!(accepted.status.success(), "{accepted:?}");
+    assert!(accepted.stdout.is_empty());
+    for name in ["original", "candidate"] {
+        fs::write(root.join(name), b"package=[]\n").unwrap();
+        let refused = invoke(
+            &root,
+            &["verify-external-lock", "original", "candidate", "10"],
+        );
+        assert!(!refused.status.success());
+        assert!(refused.stdout.is_empty());
+        assert_eq!(fs::read(root.join(name)).unwrap(), b"package=[]\n");
+        fs::write(root.join(name), b"package=[]").unwrap();
+        #[cfg(unix)]
+        {
+            std::os::unix::fs::symlink(name, root.join("link")).unwrap();
+            let (original, candidate) = if name == "original" {
+                ("link", "candidate")
+            } else {
+                ("original", "link")
+            };
+            let refused = invoke(&root, &["verify-external-lock", original, candidate, "10"]);
+            assert!(!refused.status.success());
+            assert!(refused.stdout.is_empty());
+            assert!(
+                fs::symlink_metadata(root.join("link"))
+                    .unwrap()
+                    .is_symlink()
+            );
+            fs::remove_file(root.join("link")).unwrap();
+        }
+    }
+    for name in ["original", "candidate"] {
+        assert_eq!(fs::read(root.join(name)).unwrap(), b"package=[]");
+    }
+}
+
+#[test]
 fn hash_stdout_is_exact_and_oversize_has_no_identity() {
     let root = fixture();
     fs::write(root.join("input"), b"abc").unwrap();

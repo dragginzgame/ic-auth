@@ -71,12 +71,6 @@ if perl scripts/release/rewrite-manifest.pl "$fixture/wire-refused.toml" 0.1.0 0
     exit 1
 fi
 [[ ! -s "$fixture/wire-refused-output" ]]
-# Exercise the actual shared Make entrypoints before substituting the larger
-# gate below. The opt-in includes and execution probe are explicit inputs.
-TMPDIR="$fixture" bash scripts/ci/check-release-commands.sh "$root" \
-    ci/tool-versions.env make/consumer.mk make/tools.mk make/release.mk make/rust-format.mk \
-    make/execution.mk scripts/ci/check-make-execution.sh \
-    scripts/ci/check-release-delivery.sh ci/release-delivery.txt
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR
 export GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null
 mkdir "$fixture/repo"
@@ -98,7 +92,7 @@ cp -Rp "$root/apps" "$fixture/repo/apps"
 mkdir -p "$fixture/repo/packages"
 rm -rf "$fixture/repo/packages/client"
 tar -C "$root/packages" --exclude=node_modules --exclude=dist -cf - client | tar -xf - -C "$fixture/repo/packages"
-overlays=(.gitignore Makefile Cargo.toml Cargo.lock CHANGELOG.md .shared-tooling.snapshot ci/release-delivery.txt
+overlays=(.gitignore Makefile Cargo.toml Cargo.lock CHANGELOG.md .shared-tooling.snapshot ci/release-delivery.txt ci/cargo-dependency-boundaries.json
     scripts/release/metadata.sh scripts/release/publish.sh scripts/release/test-tools.sh
     scripts/release/rewrite-manifest.pl
     scripts/dev/run-host-tooling.sh
@@ -113,6 +107,12 @@ for path in "${overlays[@]}"; do
     mkdir -p "$fixture/repo/$(dirname "$path")"
     cp -p "$root/$path" "$fixture/repo/$path"
 done
+# Exercise the actual shared Make entrypoints before substituting the larger
+# gate below. The opt-in includes and execution probe are explicit inputs.
+TMPDIR="$fixture" bash scripts/ci/check-release-commands.sh "$fixture/repo" \
+    ci/tool-versions.env make/consumer.mk make/tools.mk make/release.mk make/rust-format.mk \
+    make/execution.mk scripts/ci/check-make-execution.sh \
+    scripts/ci/check-release-delivery.sh ci/release-delivery.txt
 cd "$fixture/repo"
 # Keep an inherited search path throughout release and publication flows.
 # Machine-readable metadata and digest output must not acquire a cd banner.
@@ -120,7 +120,7 @@ export CDPATH=".:$fixture"
 printf '%s\0' Cargo.toml Cargo.lock CHANGELOG.md release-validation.json > "$fixture/expected-files.nul"
 bash scripts/release/metadata.sh files > "$fixture/observed-files.nul"
 cmp "$fixture/expected-files.nul" "$fixture/observed-files.nul"
-if RELEASE_DELIVERY=pr bash scripts/release/metadata.sh files \
+if RELEASE_DELIVERY="pr" bash scripts/release/metadata.sh files \
     > "$fixture/refused-delivery.stdout" 2> "$fixture/refused-delivery.stderr"; then
     echo 'unsupported delivery unexpectedly admitted' >&2
     exit 1
@@ -445,10 +445,18 @@ export PATH="${PATH#"$fixture/bin:"}"
 printf '\n// Later fixture source fix.\n' >> crates/ic-auth/src/lib.rs
 git add crates/ic-auth/src/lib.rs
 git commit -qm 'Later fixture source fix'
+# Current working manifests are deliberately unsorted: the check must inspect
+# the selected committed source instead, without rewriting either source.
+cp Cargo.toml "$fixture/before-unsorted-current.toml"
+perl -0777 -pe 's/^(serde_bytes = [^\n]*\n)(serde_cbor = [^\n]*\n)/$2$1/m or die "missing selected dependency pair"' \
+    Cargo.toml > "$fixture/unsorted-current.toml"
+cp "$fixture/unsorted-current.toml" Cargo.toml
 RELEASE_PREVIOUS=0.1.0 RELEASE_VERSION=0.1.1 RELEASE_KIND=patch \
 RELEASE_DATE="$(jq -r .date release-validation.json)" \
 RELEASE_SOURCE="$(jq -r .source release-validation.json)" RELEASE_COMMIT="$commit" \
     bash scripts/release/metadata.sh committed-check > "$fixture/old-commit-check.log" 2>&1
+cmp "$fixture/unsorted-current.toml" Cargo.toml
+cp "$fixture/before-unsorted-current.toml" Cargo.toml
 for kind in minor major; do
     if [[ "$kind" == minor ]]; then candidate=0.2.0; else candidate=1.0.0; fi
     { printf '# Changelog\n\n## [%s]\n\n- Fixture release.\n\n' "$candidate"; tail -n +3 CHANGELOG.md; } > target/notes

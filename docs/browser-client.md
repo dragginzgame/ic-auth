@@ -7,7 +7,9 @@ Canic/Toko integration remain consumer/service work.
 
 ## Application transport hard cut
 
-Pending 0.9.0 uses `crates/ic-auth-wire/`, backed by published IC Wire 0.3.4.
+Released 0.9 uses `crates/ic-auth-wire/`, backed by published IC Wire 0.3.
+The incoming Wire 0.4 selection is pending the next Auth minor release because
+Wire types are exposed at the Rust boundary; see [consumer selection](canic-adoption.md#wire-transport).
 Rust field/variant IDs, bounded types and method identities generate both Rust
 codecs and TypeScript contracts. Application traffic has no Candid selector or
 fallback. Canonical signed claims and session/replay/login records keep their

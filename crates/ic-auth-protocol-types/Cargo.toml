@@ -1,3 +1,4 @@
+# Production packages
 [package]
 name = "ic-auth-protocol-types"
 version.workspace = true
@@ -10,8 +11,8 @@ description = "Passive application authentication protocol contracts"
 publish = ["crates-io"]
 
 [dependencies]
-# Preserve canonical IC principal identity without pulling in Candid.
-ic_principal.workspace = true
+# Platform's unconditional Principal preserves upstream identity without Candid.
+ic-platform.workspace = true
 serde.workspace = true
 thiserror.workspace = true
 
