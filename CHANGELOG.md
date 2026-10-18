@@ -2,6 +2,9 @@
 
 ## [0.10.0]
 
+- Include the shared catalog reader's companions in tool-failure fixtures, and
+  print unexpected setup/check output instead of failing without an explanation.
+
 - Fix the jobserver fixture's substituted dependency-boundary entrypoints after
   the Shared checker adoption. Check the quoted consumer path with spaces and
   inherited jobserver descriptors through the actual Make recipes.

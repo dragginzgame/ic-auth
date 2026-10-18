@@ -1,5 +1,15 @@
 # Current handoff — 2026-10-18
 
+## Tool failure evidence fixture
+
+The isolated tools-evidence consumer now includes the catalog reader's declared
+`StableVersion.pm` and IC pin-parser companions. Previously the missing Perl
+module caused an unrelated preflight failure before the injected Cargo refusal.
+Phase assertions now print unexpected status/output immediately. The focused
+`make test-tools-evidence` passes, including logger-failure status preservation,
+no later product dispatch, redirect exclusions and all nine retained-file hashes.
+Evidence is in `target/tools-evidence-fix-20261018/`; shared payloads are unchanged.
+
 ## IC Platform 0.1.12 — direct CDK removal
 
 Selected non-yanked published Platform 0.1.12, archive SHA-256

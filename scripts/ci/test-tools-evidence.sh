@@ -20,7 +20,8 @@ for input in Makefile make/consumer.mk make/tools.mk make/release.mk make/rust-f
     scripts/ci/check-make-execution.sh scripts/ci/run-formatting.sh ci/tool-versions.env \
     scripts/dev/ci-tools.sh scripts/dev/install-rust-tools.sh \
     scripts/dev/cargo-tool-build.sh scripts/dev/tool-store.sh \
-    scripts/ci/verify-file-checksum.sh scripts/ci/tool-catalog-records.pl; do
+    scripts/ci/verify-file-checksum.sh scripts/ci/tool-catalog-records.pl \
+    scripts/ci/StableVersion.pm scripts/ci/ic-tool-pins.awk; do
     cp -p "$input" "$consumer/$input"
 done
 # Retain the actual ordered aggregate and Rust preflight/installer. Earlier
@@ -45,11 +46,19 @@ for phase in install check; do
     status=0
     PATH="$fixture/compiler/bin:$fixture/bin:$PATH" "$BASH" "$consumer/scripts/dev/ci-tools.sh" "$phase" \
         > "$fixture/$phase.stdout" 2>&1 || status=$?
-    [[ "$status" == 2 ]]
-    cmp "$fixture/$phase.stdout" "$consumer/target/rust-tools-$phase.log"
+    case "$phase" in
+        install) expected='injected Cargo installation failure' ;;
+        check) expected='missing or invalid shared Cargo tool:' ;;
+    esac
+    if [[ "$status" != 2 ]] ||
+        ! cmp "$fixture/$phase.stdout" "$consumer/target/rust-tools-$phase.log" ||
+        ! grep -F "$expected" "$fixture/$phase.stdout" > /dev/null; then
+        printf 'Unexpected Rust tools %s evidence (status %s); log: %s\n' \
+            "$phase" "$status" "$fixture/$phase.stdout" >&2
+        cat "$fixture/$phase.stdout" >&2
+        exit 1
+    fi
 done
-grep -F 'injected Cargo installation failure' "$consumer/target/rust-tools-install.log" > /dev/null
-grep -F 'missing or invalid shared Cargo tool:' "$consumer/target/rust-tools-check.log" > /dev/null
 set -- "$SHARED_TOOLING_STORE"/rust-*/set.*
 [[ $# == 1 && -f "$1/build/failed-build.txt" ]] || exit 1
 attempt="${1#"$SHARED_TOOLING_STORE/"}"
