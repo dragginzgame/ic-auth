@@ -1434,15 +1434,15 @@ dependencies = [
 
 [[package]]
 name = "ic-build"
-version = "0.20.0"
+version = "0.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c04d5976e6b2152f8abc3408ec84f0712989ae2a3cce40b8e4bdef37afff4022"
+checksum = "4a6245a7d3e91449b5fc1018185a2de12dbf5c761665cb84ab3cfea765439a19"
 dependencies = [
  "cargo_metadata",
  "clap",
- "ic-host-artifacts 0.28.1",
- "ic-host-fs 0.28.1",
- "ic-host-process 0.28.1",
+ "ic-host-artifacts 0.29.0",
+ "ic-host-fs 0.29.0",
+ "ic-host-process 0.29.0",
  "rustix",
  "serde",
  "serde_json",
@@ -1563,15 +1563,6 @@ dependencies = [
 
 [[package]]
 name = "ic-host-artifacts"
-version = "0.28.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d7ae579e2e9867d975c8a028b5bca1e927dab67ea5643889da7e91c37298085e"
-dependencies = [
- "sha2 0.10.9",
-]
-
-[[package]]
-name = "ic-host-artifacts"
 version = "0.29.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5b582755683f0050badf503860efde48df207f1b8e462f2d788255ad2387ee58"
@@ -1586,17 +1577,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c32654120b530ced534af7fca1cf979df573b5addcf3af59cfebbde63b58f555"
 dependencies = [
  "ic-host-artifacts 0.27.6",
- "rustix",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "ic-host-fs"
-version = "0.28.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8769f841440afae535163474cbcce6e06c33be3e15799082b85083e3b8adab1b"
-dependencies = [
- "ic-host-artifacts 0.28.1",
  "rustix",
  "thiserror 2.0.18",
 ]
@@ -1624,19 +1604,6 @@ dependencies = [
  "command-fds",
  "ic-host-artifacts 0.27.6",
  "ic-host-fs 0.27.6",
- "libc",
- "rustix",
-]
-
-[[package]]
-name = "ic-host-process"
-version = "0.28.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a3fbf3fa22a33c9eee9963fa8423e1a219f9e245947079da527cdaa6734e525d"
-dependencies = [
- "command-fds",
- "ic-host-artifacts 0.28.1",
- "ic-host-fs 0.28.1",
  "libc",
  "rustix",
 ]
@@ -1805,9 +1772,9 @@ dependencies = [
 
 [[package]]
 name = "ic-wire"
-version = "0.4.5"
+version = "0.4.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "27c2e310a91659933843cac278f17e1f0dd57dde53cd160133c6b6fc3215c822"
+checksum = "e1b3fc0d49aa2e01cb997193bda530d9faefec2103e913bb5e0c6a3461cb0fb7"
 dependencies = [
  "ic-wire-derive",
  "postcard",
@@ -1817,9 +1784,9 @@ dependencies = [
 
 [[package]]
 name = "ic-wire-derive"
-version = "0.4.5"
+version = "0.4.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d19a21fff3618623cbd849978fa287a7d43ede6fbf912917529798653309ec32"
+checksum = "92954e4befa71a749969b0aba1e7aaf2d1156f44477fbafb85539ac3a1c15781"
 dependencies = [
  "proc-macro2",
  "quote",

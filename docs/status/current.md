@@ -25,8 +25,29 @@ Older transitive Host packages selected by Build/Testkit remain upstream-owned;
 do not force their coordinated migration through consumer overrides.
 
 Before-images, published archives, exporter preview and validation evidence are
-under `target/upstream-adoption-20261019/`. Focused checks are pending. Sibling
-checkouts remain read-only; no commit, release or publication is performed.
+under `target/upstream-adoption-20261019/`. Host tooling, chain-key and portable
+signature tests pass, including adversarial feature unification. Rust 1.91
+native/Wasm package payloads, private applications, development Wasm and strict
+Clippy pass. Direct dependency admission/refusal and actual normal/build graph
+checks pass; Host/Build/Testkit remain excluded from deployed library graphs.
+No new dependency-boundary enforcement gap was found. Snapshot integrity, pins,
+formatting and local links pass; the GitHub description remains accurate.
+
+The isolated release/publication fixture passes automatic editor setup, exact
+source/version admission, interruption/recovery and uncertain upload handling
+using the admitted Build 0.20 editor and mocked transport. Installed Testkit
+0.54.1/server 16.1.0 passes five native fixture tests and seven canister cases,
+including certification, upgrades, ingress and actual SDK two-receiver logout.
+
+The adoption tree was committed concurrently as `3c4930d`; no agent Git effects
+were performed. A later lock-only Wire/macros 0.4.6 update was preserved. Local
+canister qualification passes with that selection, and the final sealed focused
+run rechecks type/Wire and tooling tests, MSRV, Wasm, Clippy and dependency graphs
+against its exact lock. The separate existing full gate completed its release
+fixture successfully but refused the concurrent lock drift; a full release gate
+must restart against current inputs before release. No full gate was started by
+this task. Siblings remain read-only; native macOS, production deployment and
+consumer adoption are not qualified here.
 
 ## IC Platform 0.1.17 — ECDSA adoption
 
