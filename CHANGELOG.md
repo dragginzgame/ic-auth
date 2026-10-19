@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.10.5]
+## [0.10.5] - 2026-10-19
 
 - Adopt published IC Platform 0.1.18 and Host FS/Process 0.29.0, retaining explicit
   capabilities, bounded file/process operations and the existing crypto policy.
