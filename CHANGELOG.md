@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.10.2]
+## [0.10.2] - 2026-10-19
 
 <<<<<<< HEAD
 - Use published IC Platform 0.1.16 for Ed25519 primitives, retaining strict
