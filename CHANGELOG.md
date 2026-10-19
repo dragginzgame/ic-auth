@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.7]
+
+- Qualify explicit-root refusal and caller-owned signed-ingress cancellation,
+  keeping transport failures distinct from application rejection. A cancelled
+  local request does not establish that the remote update did not execute.
+  [Testkit #106 — Signed-ingress qualification transport](https://github.com/dragginzgame/ic-testkit/issues/106).
+
 ## [0.10.6] - 2026-10-19
 
 - Document an isolated release checkout workflow to prevent development dependency

@@ -10,10 +10,7 @@ use ic_platform::canister_sig_creation::{
 };
 use ic_platform::{
     Principal,
-    agent::{
-        Agent, AgentError, AnonymousIdentity, BasicIdentity, DelegatedIdentity, Delegation,
-        Identity, SignedDelegation,
-    },
+    agent::{Agent, BasicIdentity, Delegation, Identity, SignedDelegation},
 };
 use ic_testkit::{
     pic::{PocketIc, PocketIcBuilder, PocketIcManagedServer, PocketIcStartupConfig},
@@ -33,6 +30,9 @@ static NEXT_INSTANCE: AtomicUsize = AtomicUsize::new(0);
 
 #[path = "signatures/certified_proofs.rs"]
 mod certified_proofs;
+
+#[path = "signatures/ingress.rs"]
+mod ingress;
 
 #[path = "signatures/profile_composition.rs"]
 mod profile_composition;
@@ -359,168 +359,6 @@ fn real_certificates_composition_cleanup_and_upgrade_obey_the_host_contract() {
     assert_eq!(proof.public_key_der, restored.public_key_der);
     fixture.verify(DOMAIN, payload, &restored);
     assert_eq!(fixture.asset_version(), 9);
-}
-
-fn ingress(
-    runtime: &tokio::runtime::Runtime,
-    url: &str,
-    root: &[u8],
-    identity: impl Identity + 'static,
-    target: Principal,
-) -> Result<Result<Principal, String>, AgentError> {
-    // Reuse the caller runtime, but bind a fresh Agent to this explicit identity
-    // and root on every call. Identity changes must not reuse old authority.
-    runtime.block_on(async {
-        let agent = Agent::builder()
-            .with_url(url)
-            .with_identity(identity)
-            .with_ingress_expiry(Duration::from_secs(30))
-            .build()
-            .unwrap();
-        agent.set_root_key(root.to_vec());
-        let bytes = agent
-            .update(&target, "owner_checked_operation")
-            .with_arg(
-                ic_wire::encode_request::<controls::OwnerOperation>(&())
-                    .unwrap()
-                    .into_bytes(),
-            )
-            .call_and_wait()
-            .await?;
-        Ok(ic_wire::decode_response::<controls::OwnerOperation>(&bytes)
-            .unwrap()
-            .map(|p| Principal::try_from_slice(p.as_slice()).unwrap())
-            .map_err(|e| e.into_string()))
-    })
-}
-
-fn assert_replica_rejection(
-    result: Result<Result<Principal, String>, AgentError>,
-    expected_reason: &str,
-) {
-    let error = result.expect_err("invalid delegation must not reach the application");
-    assert!(
-        matches!(&error, AgentError::HttpError(response)
-            if matches!(response.status, 400 | 403)
-                && String::from_utf8_lossy(&response.content).to_lowercase().contains(expected_reason)),
-        "expected replica authentication refusal, received {error:?}"
-    );
-}
-
-#[test]
-fn replica_checks_real_ingress_delegations_and_fresh_browser_keys_keep_identity_after_upgrade() {
-    let ingress_runtime = tokio::runtime::Runtime::new().unwrap();
-    let mut fixture = Fixture::new();
-    let url = fixture.pic.make_live(None).to_string();
-    let network = fixture.pic.root_key().unwrap();
-    // Valid ingress authentication still grants no resource ownership. Keep
-    // application denial separate from transport/replica signature rejection.
-    assert!(matches!(
-        ingress(
-            &ingress_runtime,
-            &url,
-            &network,
-            BasicIdentity::from_raw_key(&[6; 32]),
-            fixture.resource
-        ),
-        Ok(Err(_))
-    ));
-    assert!(matches!(
-        ingress(
-            &ingress_runtime,
-            &url,
-            &network,
-            AnonymousIdentity,
-            fixture.resource
-        ),
-        Ok(Err(_))
-    ));
-    let mut previous: Option<(Vec<u8>, SignedDelegation)> = None;
-    for key in [7, 8] {
-        if key == 8 {
-            fixture.upgrade();
-            // Clearing pending signature leaves is not revocation of an already
-            // issued ingress delegation. The receiver's stored owner survives.
-            let (public_key, delegation) = previous.as_ref().unwrap();
-            let old = DelegatedIdentity::new_with_root_key(
-                public_key.clone(),
-                Box::new(BasicIdentity::from_raw_key(&[7; 32])),
-                vec![delegation.clone()],
-                &network,
-            )
-            .unwrap();
-            assert_eq!(
-                ingress(&ingress_runtime, &url, &network, old, fixture.resource),
-                Ok(Ok(fixture.owner))
-            );
-        }
-        let (public_key, chain) =
-            fixture.delegation(key, fixture.now() + 120_000_000_000, vec![fixture.resource]);
-        let identity = DelegatedIdentity::new_with_root_key(
-            public_key.clone(),
-            Box::new(BasicIdentity::from_raw_key(&[key; 32])),
-            vec![chain.clone()],
-            &network,
-        )
-        .unwrap();
-        assert_eq!(
-            ingress(&ingress_runtime, &url, &network, identity, fixture.resource),
-            Ok(Ok(fixture.owner))
-        );
-        // Unchecked identities intentionally bypass the client's early validation
-        // only in these negative tests, so the real replica must reject the bytes.
-        let identity = DelegatedIdentity::new_unchecked(
-            public_key.clone(),
-            Box::new(BasicIdentity::from_raw_key(&[key; 32])),
-            vec![chain.clone()],
-        );
-        assert_replica_rejection(
-            ingress(&ingress_runtime, &url, &network, identity, fixture.signer),
-            "not one of the delegation targets",
-        );
-        let mut changed = chain.clone();
-        changed.delegation.expiration += 1;
-        assert!(
-            DelegatedIdentity::new_with_root_key(
-                public_key.clone(),
-                Box::new(BasicIdentity::from_raw_key(&[key; 32])),
-                vec![changed.clone()],
-                &network
-            )
-            .is_err()
-        );
-        let identity = DelegatedIdentity::new_unchecked(
-            public_key.clone(),
-            Box::new(BasicIdentity::from_raw_key(&[key; 32])),
-            vec![changed],
-        );
-        assert_replica_rejection(
-            ingress(&ingress_runtime, &url, &network, identity, fixture.resource),
-            "signature",
-        );
-        let identity = DelegatedIdentity::new_unchecked(
-            public_key.clone(),
-            Box::new(BasicIdentity::from_raw_key(&[key + 1; 32])),
-            vec![chain.clone()],
-        );
-        assert_replica_rejection(
-            ingress(&ingress_runtime, &url, &network, identity, fixture.resource),
-            "signature",
-        );
-        previous = Some((public_key, chain));
-    }
-    let (public_key, expired) = fixture.delegation(9, fixture.now() - 1, vec![fixture.resource]);
-    let identity = DelegatedIdentity::new_with_root_key(
-        public_key,
-        Box::new(BasicIdentity::from_raw_key(&[9; 32])),
-        vec![expired],
-        &network,
-    )
-    .unwrap();
-    assert_replica_rejection(
-        ingress(&ingress_runtime, &url, &network, identity, fixture.resource),
-        "expired",
-    );
 }
 
 fn update_wire<M: Method>(

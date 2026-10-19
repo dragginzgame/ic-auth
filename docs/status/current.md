@@ -1,5 +1,23 @@
 # Current handoff — 2026-10-19
 
+## 0.10.7 — signed-ingress trust and cancellation
+
+Source baseline is released 0.10.6 `7af3b54`. Qualification keeps one caller-owned
+runtime and fresh per-request Platform Agents with explicit identity, root and
+30-second expiry. The read-only installed operation rejects an incorrect root
+with the typed certificate-verification error, then accepts the real root.
+Synthetic loopback cases distinguish malformed response errors from application
+rejection and confirm cancellation after full request dispatch closes local
+transport without a detached task or resubmission. They make no claim about
+remote execution after cancellation. Socket acceptance and bounded HTTP framing
+come from published Host; no generic Testkit session or transport is introduced.
+
+Focused evidence is in `target/ingress-acceptance/`. The supplying PR and
+[Testkit #106](https://github.com/dragginzgame/ic-testkit/issues/106) retain the
+integration/native-host acceptance; package versions and dependency lock
+selections remain unchanged.
+
+
 ## 0.10.6 — release isolation, native CLI and browser admission
 
 Source baseline is released 0.10.5 `d3c462546fd7cf9cbe15b209246d7f026fa8d8d3`.
