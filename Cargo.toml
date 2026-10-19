@@ -28,9 +28,8 @@ ic-auth-protocol-types = { version = "0.10.3", path = "crates/ic-auth-protocol-t
 ic-auth-wire = { version = "0.10.3", path = "crates/ic-auth-wire" }
 # Explicit features preserve upstream signing/tree/verifier identities; defaults
 # stay empty so protocol, portable and session consumers select no IC runtime.
-ic-platform = { version = "0.1.16", default-features = false }
+ic-platform = { version = "0.1.17", default-features = false }
 ic-wire = "0.4"
-k256 = { version = "0.13.4", default-features = false, features = ["ecdsa"] }
 leb128 = "0.2"
 serde = { version = "1", features = ["derive"] }
 serde_bytes = "0.11"

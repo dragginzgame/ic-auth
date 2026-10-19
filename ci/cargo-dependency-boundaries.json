@@ -1,4 +1,5 @@
 [
+  {"dependency": "k256", "allowed_packages": []},
   {"dependency": "curve25519-dalek", "allowed_packages": []},
   {"dependency": "ed25519-dalek", "allowed_packages": ["ic-auth-feature-unification"]},
   {"dependency": "candid", "allowed_packages": []},

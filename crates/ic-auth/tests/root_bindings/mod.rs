@@ -2,7 +2,7 @@
 
 use super::*;
 use ic_auth::delegation::{DelegationProofVerificationContext, verify_delegation_proof};
-use k256::ecdsa::signature::hazmat::PrehashVerifier;
+use ic_platform::ecdsa::PrehashVerifier;
 
 fn assert_rejected(f: &Fixture, expected: Error) {
     let unchanged = f.proof.clone();

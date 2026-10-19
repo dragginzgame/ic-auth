@@ -5,7 +5,7 @@
 //! the meaning of the supplied 32-byte prehash. Verification performs no hashing
 //! or normalization. Normalization is a separate explicit producer operation.
 
-use k256::ecdsa::{Signature, VerifyingKey, signature::hazmat::PrehashVerifier};
+use ic_platform::ecdsa::{PrehashVerifier, Signature, VerifyingKey};
 use thiserror::Error;
 
 /// Rejection of isolated chain-key signature material.

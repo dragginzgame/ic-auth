@@ -1,5 +1,40 @@
 # Current handoff — 2026-10-19
 
+## IC Platform 0.1.17 — ECDSA adoption
+
+Selected latest non-yanked published Platform 0.1.17, archive SHA-256
+`98b4d131913792a85fc9f134f40a436c7a3a36c39ebc3546200facbc4f6993d8`,
+source `51784c904ec25d7da1ba10bdc526b9bf694f5487`. The independent `ecdsa`
+capability re-exports K256's original key/signature/prehash traits with defaults
+and RNG disabled. Auth and native signing fixtures now import those exports;
+the root catalog and both direct K256 dependency edges are removed. Direct
+boundary policy prohibits K256 in normal/build/dev/target tables, including aliases.
+Auth's feature names, prehash bytes, SEC1 admission, high-S rejection, producer
+normalization, error precedence and wire/storage contracts remain unchanged.
+
+The incoming lock already selected Platform/macros 0.1.17; preserve that update.
+No general-purpose serialization/hash crates are exposed by the published API;
+keep those direct dependencies with their current consumers. Testkit owns the
+qualification runtime/server boundary. The direct Dalek dev edge solely triggers
+permissive feature unification and remains excluded from production graphs.
+
+Before-images, published archive and qualification evidence are retained under
+`target/platform-dependency-audit-20261019/`. Focused chain-key, certified,
+session/restore and portable signature tests pass, including the adversarial
+feature-unification harness. Rust 1.91 isolated package payloads and private
+applications pass on native/Wasm; development Wasm and strict native/Wasm Clippy
+pass. Direct dependency admission, consumer refusal fixtures and actual graph
+exclusions pass. The isolated ECDSA Wasm normal/build graph selects Platform's
+`ecdsa` and K256 0.13.4 without Candid, CDK or an OS RNG backend.
+
+Installed Testkit 0.54.1/server 16.1.0 qualification passes: five native fixture
+tests and seven real-canister cases, including certified proofs, upgrades,
+signed ingress and actual SDK two-receiver admission/logout. Formatting, pins,
+local links and the Shared snapshot pass. External registry package identities
+match the incoming lock; only dependency edges changed in this task. No full CI,
+native macOS, installed-IC production qualification, release or publication was
+performed; this does not establish Canic adoption.
+
 ## Release editor selection repair — 2026-10-19
 
 The reported clean-shell failure was an Auth adoption defect: metadata required

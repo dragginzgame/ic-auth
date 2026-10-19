@@ -13,7 +13,7 @@ use ic_auth_protocol_types::*;
 use ic_platform::bls::PrivateKey;
 use ic_platform::canister_sig_creation::CanisterSigPublicKey;
 use ic_platform::certification::{Certificate, HashTree, fork, labeled, leaf};
-use k256::ecdsa::{Signature, SigningKey, signature::hazmat::PrehashSigner};
+use ic_platform::ecdsa::{PrehashSigner, Signature, SigningKey};
 use serde::Serialize;
 use serde_bytes::ByteBuf;
 use sha2::{Digest, Sha256};

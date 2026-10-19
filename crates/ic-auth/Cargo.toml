@@ -15,7 +15,7 @@ publish = ["crates-io"]
 # Only the upstream certified-signature capabilities bring it in transitively.
 default = []
 portable-signature-verification = ["dep:ic-platform", "ic-platform/ed25519"]
-chain-key-verification = ["dep:k256"]
+chain-key-verification = ["dep:ic-platform", "ic-platform/ecdsa"]
 canister-signature-preparation = [
     "dep:ic-platform",
     "ic-platform/canister-sig-creation",
@@ -41,7 +41,6 @@ canister-signature-verification = [
 [dependencies]
 ic-auth-protocol-types.workspace = true
 ic-platform = { workspace = true, optional = true }
-k256 = { workspace = true, optional = true }
 leb128 = { workspace = true, optional = true }
 serde = { workspace = true, optional = true }
 serde_bytes = { workspace = true, optional = true }
@@ -50,7 +49,7 @@ sha2.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
-ic-platform = { workspace = true, features = ["bls", "ed25519"] }
+ic-platform = { workspace = true, features = ["bls", "ecdsa", "ed25519"] }
 
 [lints]
 workspace = true

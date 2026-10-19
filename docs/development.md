@@ -77,6 +77,18 @@ is performed by either setup/check command. The old Perl editors and Auth's
 manifest rewrite wrapper are retired; application APIs and package versions are
 unchanged.
 
+## Crypto dependency boundary
+
+Auth selects Platform 0.1.17's independent `ecdsa` capability for chain-key
+verification and `ed25519` for portable signatures. Original K256/Dalek types and
+cryptography stay upstream. Auth owns prehash construction, high-S refusal,
+explicit producer normalization, canonical-scalar checks and verification policy.
+There are no direct K256 imports or declarations; a test-only Dalek feature
+trigger remains in the unpublished adversarial harness. SHA-256, CBOR and LEB128
+remain direct general-purpose dependencies with current Auth-owned consumers.
+Testkit retains the native simulator and server-lifecycle interface; routing its
+already shared runtime re-export again would not remove a direct dependency.
+
 ## Dependency roles and deployment admission
 
 Shared Tooling 0.25.0 source is adopted at

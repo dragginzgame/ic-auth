@@ -60,10 +60,11 @@ generated browser contracts and private qualification controls use IC Wire.
 The fixture exposes only Wire methods, with no Candid projection or direct
 declaration. Its old
 Candid checkpoint is explicitly retired; production storage is unaffected.
-Platform 0.1.16 supplies explicit canister-signature key/hash, certificate-tree,
-verifier/BLS and Ed25519 capabilities. All Ed25519 API imports use Platform;
-Auth retains canonical-scalar admission and strict verification policy. The
-unpublished feature-unification harness alone has a direct Dalek dev dependency
+Platform 0.1.17 supplies explicit canister-signature key/hash, certificate-tree,
+verifier/BLS, ECDSA and Ed25519 capabilities. All K256 and Ed25519 API imports use
+Platform; Auth retains prehash/high-S policy, explicit normalization,
+canonical-scalar admission and strict verification. The unpublished
+feature-unification harness alone has a direct Dalek dev dependency
 to enable permissive parsing adversarially, never in a deployed graph. Forward only the features required by each Auth
 capability; BLS fixture signing is a dev dependency. Never hide the residual
 upstream Candid graph or implement replacement cryptography.

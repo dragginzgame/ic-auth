@@ -29,7 +29,7 @@ use ic_auth_protocol_types::{
 use ic_platform::canister_sig_creation::{
     IC_ROOT_PK_DER, extract_raw_root_pk_from_der, hash_bytes,
 };
-use k256::ecdsa::{Signature, SigningKey, signature::hazmat::PrehashSigner};
+use ic_platform::ecdsa::{PrehashSigner, Signature, SigningKey};
 use std::time::Duration;
 
 const SECOND: u64 = 1_000_000_000;

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.10.4]
+
+- Use published IC Platform 0.1.17 for ECDSA primitives in chain-key verification
+  and signing fixtures. Remove direct K256 declarations while preserving exact
+  prehash verification, high-S refusal, explicit normalization and error ordering.
+
 ## [0.10.3] - 2026-10-19
 
 - Adopt Shared Tooling 0.25.0 source and its grouped formatting defaults. Use the

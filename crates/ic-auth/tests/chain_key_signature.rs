@@ -4,7 +4,7 @@ use ic_auth::chain_key_signature::{
     ChainKeySignatureError as Error, normalize_secp256k1_signature, validate_secp256k1_public_key,
     verify_secp256k1_prehash,
 };
-use k256::ecdsa::{Signature, SigningKey, signature::hazmat::PrehashSigner};
+use ic_platform::ecdsa::{PrehashSigner, Signature, SigningKey};
 
 const PREHASH: [u8; 32] = [42; 32];
 
