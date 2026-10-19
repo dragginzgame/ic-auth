@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.10.4]
+## [0.10.4] - 2026-10-19
 
 - Use published IC Platform 0.1.17 for ECDSA primitives in chain-key verification
   and signing fixtures. Remove direct K256 declarations while preserving exact
