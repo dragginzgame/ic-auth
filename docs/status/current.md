@@ -1,5 +1,50 @@
 # Current handoff — 2026-10-19
 
+## 0.10.6 — release isolation, native CLI and browser admission
+
+Source baseline is released 0.10.5 `d3c462546fd7cf9cbe15b209246d7f026fa8d8d3`.
+Preserve the incoming lock-only Wire 0.4.7 update and the later concurrent 0.4.8
+selection. Package versions remain 0.10.5; compatible notes are under 0.10.6.
+Before-images and evidence are in `target/three-improvements-20261019/`.
+
+The development guide now gives the dedicated clean release-checkout workflow,
+including fast-forward admission, source isolation and same-checkout recovery
+without deleting plans, publication intent, tools or evidence. This uses existing
+Git/release commands, not a second release runner or a disabled input-drift guard.
+No release checkout, release or publication was created/executed by this batch.
+
+Clap owns the existing native CLI grammar, path/limit values, modes, help/version
+and argument errors; refusal status remains 1 and operation bytes are unchanged.
+Its explicit native-only features exclude color/suggestion backends. Generic
+file-command removal remains [Auth #78](https://github.com/dragginzgame/ic-auth/issues/78),
+blocked on [Shared #289](https://github.com/dragginzgame/shared-tooling/issues/289):
+the reviewed installer cannot select Host's required `cli` feature or bind that
+selection into receipt/cache identity. Keep the usable adapter until canonical
+setup/admission and consumer qualification permit deletion. Parser delivery is
+tracked separately in [Auth #77](https://github.com/dragginzgame/ic-auth/issues/77).
+
+`httpAdmissionTransport` now supplies shared-Wire receiver admission through the
+existing SDK update owner: fixed scopes/TTL, generated bounded encoding/decoding,
+current guarded identity, one update submission, authenticated response and
+same-caller success. The real two-receiver SDK test uses it. Issuer issue/reconcile
+operations and Canic's own command envelope remain injected/consumer-owned.
+[Auth #3](https://github.com/dragginzgame/ic-auth/issues/3),
+[Canic #491](https://github.com/dragginzgame/canic/issues/491) and
+[#507](https://github.com/dragginzgame/canic/issues/507) retain production acceptance;
+read-only Canic inspection still found no portable browser issue/reconcile
+endpoint contract. No wallet service, production issuer or sibling edit is claimed.
+
+47 client tests, 11 native tooling tests, Rust 1.91 tooling compilation, strict
+tooling Clippy, dependency boundaries, snapshot/pins/formatting and local links
+pass. Installed Testkit 0.55.2/server 16.1.0 passes five native fixture tests and
+seven canister cases, including the new HTTP adapter and real SDK logout.
+The actual Build 0.21 editor/local mocked release fixture passes interruption,
+resume, private-write preservation and uncertain-publication reconciliation.
+Final sealed current-input checks pass with Wire 0.4.8, including all-target Rust
+1.91 tooling compilation, development Clippy, tooling/client tests, boundaries and source/input
+integrity. No full CI, native macOS, real-browser
+IndexedDB or production issuer/deployment qualification was performed.
+
 ## Platform 0.1.18, Host 0.29.0 and Shared Tooling 0.25.1
 
 Verified the latest non-yanked published Platform/macros 0.1.18 and Host

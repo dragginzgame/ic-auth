@@ -144,6 +144,9 @@ and `ci/cargo-dependency-boundaries.json` for direct-dependency ownership.
   contracts; use PocketIC for real canister lifecycle and ingress delegation.
 - Check for active builds before compilation or source mutation. Keep build
   output in this repository and preserve other work.
+- Use the [dedicated release checkout workflow](docs/development.md#release-checkout-isolation)
+  for releases. Keep development and dependency edits outside an active release
+  checkout; never disable input-drift admission or discard recovery state to retry.
 - No package commands, runtime capabilities or qualification may be advertised
   before they exist and are checked. Do not create placeholder auth endpoints
   that accept requests without complete verification.

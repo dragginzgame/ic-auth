@@ -52,6 +52,35 @@ trailing newlines before state writes. Auth retains direct release delivery.
 
 ## Release editor setup
 
+### Release checkout isolation
+
+Keep a dedicated clean checkout for release/publication and a separate checkout
+for development and dependency updates. Finish and commit the dependency batch
+before bringing it into the release checkout. For initial setup:
+
+```sh
+git clone https://github.com/dragginzgame/ic-auth.git /path/to/ic-auth-release
+cd /path/to/ic-auth-release
+git status --short
+```
+
+Run the existing `make release-patch`, `make release-minor` or
+`make release-major` there only with release authority. Keep agents, editors,
+dependency updaters and other validation out of that checkout for the entire
+attempt. The release still performs source admission and the complete gate;
+the input hash guard remains necessary. A separate checkout prevents ordinary
+development edits from changing its files; it does not serialize competing
+remote releases or make a failed gate reusable.
+
+Before later releases, fast-forward the clean release checkout with
+`git pull --ff-only` only when there is no unfinished release. Resume an
+interrupted attempt in its original checkout through the normal release command,
+preserving `.git/release-state`, publication intent, prepared tools and `target`
+evidence. Do not reset, re-clone or clean away that recovery state. After delivery,
+fast-forward the development checkout when its own pending work permits it.
+
+### Editor preparation and recovery
+
 Shared 0.25.1 delegates Cargo manifest and lock rendering to the released IC Build
 editor. Auth's normal release preflight prepares and admits the selected editor
 after source and changelog admission, alongside the other required tools. The
@@ -92,6 +121,15 @@ Native file and process callers select Host FS/Process 0.29.0 with defaults
 disabled. Auth uses library APIs, not the optional `ic-host-file` CLI, certificate
 decoder or Wasm text/encoding backends. Those new Host capabilities do not replace
 an existing direct dependency here. Keep them out of the production library graph.
+
+The native Auth CLI uses Clap for argument grammar, values and help. Its generic
+file-operation adapter is retained until Shared's verified selected-tool installer
+can select Host's required `cli` feature
+([Shared #289](https://github.com/dragginzgame/shared-tooling/issues/289));
+[Auth #78](https://github.com/dragginzgame/ic-auth/issues/78) owns consumer cutover. Do not
+add a bespoke store, implicit Cargo flags or an older-binary fallback. Cut over
+only after explicit setup/offline admission and Auth's real file/release fixtures
+qualify the published CLI; preserve Auth's byte/path limits and recovery policy.
 
 ## Dependency roles and deployment admission
 

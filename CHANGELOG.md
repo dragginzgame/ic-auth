@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.10.6]
+
+- Document an isolated release checkout workflow to prevent development dependency
+  edits from invalidating long-running validation; retain input-drift admission.
+- Use Clap for native tooling arguments, preserving file-operation bytes, limits
+  and refusal status. Host CLI cutover awaits
+  [Shared #289 — Selected Cargo tool features](https://github.com/dragginzgame/shared-tooling/issues/289).
+  [Auth #77 — Native CLI argument handling](https://github.com/dragginzgame/ic-auth/issues/77).
+- Add the browser HTTP receiver-admission adapter over the shared bounded Wire
+  contract and SDK-authenticated update replies. Issuance/reconciliation stays
+  injected; production issuer acceptance remains
+  [Auth #3](https://github.com/dragginzgame/ic-auth/issues/3) and
+  [Canic #491](https://github.com/dragginzgame/canic/issues/491).
+
 ## [0.10.5] - 2026-10-19
 
 - Adopt published IC Platform 0.1.18 and Host FS/Process 0.29.0, retaining explicit

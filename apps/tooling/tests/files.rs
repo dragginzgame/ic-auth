@@ -35,6 +35,58 @@ fn invoke(root: &Path, arguments: &[&str]) -> Output {
 }
 
 #[test]
+fn argument_refusals_are_effect_free_and_help_and_version_succeed() {
+    let root = fixture();
+    fs::write(root.join("input"), b"protected").unwrap();
+    for arguments in [
+        vec![],
+        vec!["unknown"],
+        vec!["hash-file", "input"],
+        vec!["hash-file", "input", "invalid"],
+        vec!["hash-file", "input", "-1"],
+        vec!["hash-file", "input", "8", "excess"],
+        vec!["client-contracts", "unknown", "."],
+        vec!["create-private", "input", "output"],
+        vec!["create-private", "input", "output", "8", "excess"],
+    ] {
+        let result = invoke(&root, &arguments);
+        assert_eq!(result.status.code(), Some(1), "{arguments:?}: {result:?}");
+        assert!(result.stdout.is_empty());
+        assert!(!result.stderr.is_empty());
+        assert_eq!(fs::read(root.join("input")).unwrap(), b"protected");
+        assert!(!root.join("output").exists());
+    }
+    for arguments in [
+        vec!["--help"],
+        vec!["--version"],
+        vec!["hash-file", "--help"],
+    ] {
+        let result = invoke(&root, &arguments);
+        assert!(result.status.success(), "{result:?}");
+        assert!(!result.stdout.is_empty());
+    }
+    for name in ["space path", "-input"] {
+        fs::write(root.join(name), b"abc").unwrap();
+        let result = invoke(&root, &["hash-file", name, "3"]);
+        assert!(result.status.success(), "{result:?}");
+    }
+    #[cfg(target_os = "linux")]
+    {
+        use std::{ffi::OsStr, os::unix::ffi::OsStrExt};
+        let name = OsStr::from_bytes(b"nonutf8\xff");
+        fs::write(root.join(name), b"abc").unwrap();
+        let result = Command::new(env!("CARGO_BIN_EXE_ic-auth-tooling"))
+            .current_dir(&root)
+            .arg("hash-file")
+            .arg(name)
+            .arg("3")
+            .output()
+            .unwrap();
+        assert!(result.status.success(), "{result:?}");
+    }
+}
+
+#[test]
 fn external_lock_admission_bounds_both_inputs_without_mutation() {
     let root = fixture();
     for name in ["original", "candidate"] {

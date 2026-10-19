@@ -9,8 +9,8 @@ import { Ed25519KeyIdentity } from '@icp-sdk/core/identity';
 import { Principal } from '@icp-sdk/core/principal';
 type SessionResult = establish.Response;
 type SessionView = Extract<SessionResult, { ok: unknown }>['ok'];
-import { IndexedDbLogoutStore, PortableAdmissionClient, PortableLogoutClient, httpLogoutTransport,
-  type PortableCredential } from '../../src/index.js';
+import { IndexedDbLogoutStore, PortableAdmissionClient, PortableLogoutClient, httpAdmissionTransport, httpLogoutTransport,
+  ClientError, type PortableCredential } from '../../src/index.js';
 
 export async function qualifyAdmission(host: string, issuer: Principal, receiver: Principal,
   rootKey: Uint8Array, origin: bigint, credential: PortableCredential, subject: Principal): Promise<void> {
@@ -38,7 +38,12 @@ export async function qualifyAdmission(host: string, issuer: Principal, receiver
   let issued = 0;
   let disposed = 0;
   const admitted = new Map<string, SessionView>();
-  const request = (value: PortableCredential) => establish.encodeRequest({ credential: value, scopes: ['read'], ttl_secs: null });
+  const admit = httpAdmissionTransport({ host, methodName: 'establish_portable_session', rootKey,
+    scopes: ['read'], fetch: async (input, init) => {
+      const path = new URL(input instanceof Request ? input.url : input.toString()).pathname;
+      if (path.endsWith('/call')) submissions.push('establish_portable_session');
+      return fetch(input, init);
+    } });
   const signal = new AbortController().signal;
   try {
     const journal = new PortableLogoutClient(store, clock, httpLogoutTransport({ host,
@@ -54,7 +59,8 @@ export async function qualifyAdmission(host: string, issuer: Principal, receiver
       reconcile: async () => { throw new Error('fixture has no production issuer lookup'); },
       admit: async (target, caller, proof, signal) => {
         assert.ok((await journal.status('sdk-admission')).targets.some(t => t.canister === target.toText()));
-        const result = await update(target, 'establish_portable_session', request(proof), caller, signal);
+        await admit(target, caller, proof, signal);
+        const result = await update(target, 'portable_session_read', sessionRead.encodeRequest(null), caller, signal);
         assert.ok('ok' in result, 'err' in result ? result.err : undefined);
         assert.equal(Principal.fromUint8Array(result.ok.caller).toText(), identity.getPrincipal().toText());
         assert.equal(Principal.fromUint8Array(result.ok.issuer).toText(), issuer.toText());
@@ -66,7 +72,8 @@ export async function qualifyAdmission(host: string, issuer: Principal, receiver
       },
     });
     const wrong = Ed25519KeyIdentity.generate(new Uint8Array(32).fill(10));
-    assert.ok('err' in await update(receiver, 'establish_portable_session', request(credential), wrong, signal));
+    await assert.rejects(admit(receiver, wrong, credential, signal),
+      (error: unknown) => error instanceof ClientError && error.code === 'transport');
     const guarded = await client.establish(issuer);
     await client.establish(receiver);
     await client.establish(receiver); // Explicit retry reuses the original credential.
@@ -78,7 +85,7 @@ export async function qualifyAdmission(host: string, issuer: Principal, receiver
       assert.deepEqual(read.ok, admitted.get(target.toText())); // No proof in application arguments.
     }
     assert.equal(submissions.filter(method => method === 'establish_portable_session').length, 4);
-    assert.equal(submissions.filter(method => method === 'portable_session_read').length, 2);
+    assert.equal(submissions.filter(method => method === 'portable_session_read').length, 5);
     await journal.begin('sdk-admission', clock.nowNs() + 70_000_000_000n);
     const result = await journal.cleanup('sdk-admission', identity);
     assert.equal(result.phase, 'finished');

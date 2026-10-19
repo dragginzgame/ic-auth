@@ -2,7 +2,7 @@ import { HttpAgent, type Identity } from '@icp-sdk/core/agent';
 import type { Principal } from '@icp-sdk/core/principal';
 import { ClientError } from './contracts.js';
 
-interface HttpUpdateOptions {
+export interface HttpUpdateOptions {
   host: string;
   methodName: string;
   rootKey?: Uint8Array;

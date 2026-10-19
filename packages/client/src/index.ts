@@ -4,4 +4,5 @@ export type { PortableCredential, PortableProof, LogoutRequest, LogoutResult, Lo
 export { IndexedDbLogoutStore, type LogoutJournal, type LogoutTarget } from './logout-store.js';
 export { PortableLogoutClient, type LogoutClock, type LogoutTransport } from './logout.js';
 export { httpLogoutTransport, type HttpLogoutOptions } from './logout-http.js';
+export { httpAdmissionTransport, type HttpAdmissionOptions } from './admission-http.js';
 export { PortableAdmissionClient, type PortableAdmissionTransport, type AdmissionCredential } from './portable-admission.js';

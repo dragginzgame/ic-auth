@@ -1,60 +1,116 @@
 //! Local bounded file identities and durable release/publication evidence.
 //! Callers own parent paths, locking, artifact limits and effect reconciliation.
 
+use clap::{Parser, Subcommand, ValueEnum};
 use ic_build::cargo::packages::verify_external_lock_subset;
 use ic_host_fs::{
     durable::{PublicationMode, WriteOptions, write_with},
     read::{hash_file_no_follow, read_file_no_follow},
 };
-use std::{env, error::Error, ffi::OsString, io::Write, path::Path};
+use std::{error::Error, io::Write, path::PathBuf};
 
 mod client_contracts;
 #[cfg(unix)]
 mod file_hashes;
 
-fn run(arguments: &[OsString]) -> Result<(), Box<dyn Error>> {
-    if arguments
-        .first()
-        .is_some_and(|value| value == "client-contracts")
-    {
-        if arguments.len() != 3 {
-            return Err("client-contracts requires generate|check DIRECTORY".into());
+#[derive(Parser)]
+#[command(
+    version,
+    about = "Bounded IC Auth file, release and client-contract operations"
+)]
+struct Arguments {
+    #[command(subcommand)]
+    command: Command,
+}
+
+#[derive(Clone, Copy, ValueEnum)]
+enum ContractMode {
+    Generate,
+    Check,
+}
+
+#[derive(Subcommand)]
+enum Command {
+    ClientContracts {
+        #[arg(value_enum)]
+        mode: ContractMode,
+        #[arg(allow_hyphen_values = true)]
+        directory: PathBuf,
+    },
+    VerifyExternalLock {
+        #[arg(allow_hyphen_values = true)]
+        original: PathBuf,
+        #[arg(allow_hyphen_values = true)]
+        candidate: PathBuf,
+        max_bytes: usize,
+    },
+    HashFile {
+        #[arg(allow_hyphen_values = true)]
+        path: PathBuf,
+        max_bytes: usize,
+    },
+    #[cfg(unix)]
+    HashFiles0 { max_bytes: usize },
+    CreatePrivate {
+        #[arg(allow_hyphen_values = true)]
+        source: PathBuf,
+        #[arg(allow_hyphen_values = true)]
+        destination: PathBuf,
+        max_bytes: usize,
+    },
+    ReplacePrivate {
+        #[arg(allow_hyphen_values = true)]
+        source: PathBuf,
+        #[arg(allow_hyphen_values = true)]
+        destination: PathBuf,
+        max_bytes: usize,
+    },
+}
+
+fn run(command: Command) -> Result<(), Box<dyn Error>> {
+    match command {
+        Command::ClientContracts { mode, directory } => {
+            client_contracts::run(
+                match mode {
+                    ContractMode::Generate => "generate",
+                    ContractMode::Check => "check",
+                },
+                &directory,
+            )?;
         }
-        return client_contracts::run(
-            arguments[1].to_str().ok_or("invalid mode")?,
-            Path::new(&arguments[2]),
-        );
-    }
-    let usage = "usage: ic-auth-tooling hash-file PATH MAX_BYTES | verify-external-lock ORIGINAL CANDIDATE MAX_BYTES | hash-files0 MAX_BYTES (Unix, NUL paths on stdin) | {create-private|replace-private} SOURCE DESTINATION MAX_BYTES";
-    let Some(operation) = arguments.first().and_then(|value| value.to_str()) else {
-        return Err(usage.into());
-    };
-    let limit = arguments
-        .last()
-        .and_then(|value| value.to_str())
-        .ok_or(usage)?
-        .parse::<usize>()?;
-    match (operation, arguments.len()) {
-        ("verify-external-lock", 4) => {
-            let original = read_file_no_follow(Path::new(&arguments[1]), limit)?;
-            let candidate = read_file_no_follow(Path::new(&arguments[2]), limit)?;
-            verify_external_lock_subset(&original, &candidate, limit)?;
+        Command::VerifyExternalLock {
+            original,
+            candidate,
+            max_bytes,
+        } => {
+            let original = read_file_no_follow(&original, max_bytes)?;
+            let candidate = read_file_no_follow(&candidate, max_bytes)?;
+            verify_external_lock_subset(&original, &candidate, max_bytes)?;
         }
         #[cfg(unix)]
-        ("hash-files0", 2) => file_hashes::run(limit)?,
-        ("hash-file", 3) => {
-            let identity = hash_file_no_follow(Path::new(&arguments[1]), limit as u64)?;
+        Command::HashFiles0 { max_bytes } => file_hashes::run(max_bytes)?,
+        Command::HashFile { path, max_bytes } => {
+            let identity = hash_file_no_follow(&path, max_bytes as u64)?;
             println!("{}", identity.sha256);
         }
-        ("create-private" | "replace-private", 4) => {
-            let bytes = read_file_no_follow(Path::new(&arguments[1]), limit)?;
-            let mode = if operation == "create-private" {
+        Command::CreatePrivate {
+            ref source,
+            ref destination,
+            max_bytes,
+        }
+        | Command::ReplacePrivate {
+            ref source,
+            ref destination,
+            max_bytes,
+        } => {
+            let bytes = read_file_no_follow(source, max_bytes)?;
+            let mode = if matches!(command, Command::CreatePrivate { .. }) {
                 PublicationMode::CreateNew
             } else {
                 PublicationMode::Replace
             };
             write_with(
-                Path::new(&arguments[2]),
+                destination,
                 WriteOptions {
                     mode,
                     permissions: 0o600,
@@ -62,13 +118,24 @@ fn run(arguments: &[OsString]) -> Result<(), Box<dyn Error>> {
                 |file| file.write_all(&bytes),
             )?;
         }
-        _ => return Err(usage.into()),
     }
     Ok(())
 }
 
 fn main() -> std::process::ExitCode {
-    match run(&env::args_os().skip(1).collect::<Vec<_>>()) {
+    let arguments = match Arguments::try_parse() {
+        Ok(arguments) => arguments,
+        Err(error) => {
+            let failure = error.use_stderr();
+            let _ = error.print();
+            return if failure {
+                std::process::ExitCode::FAILURE
+            } else {
+                std::process::ExitCode::SUCCESS
+            };
+        }
+    };
+    match run(arguments.command) {
         Ok(()) => std::process::ExitCode::SUCCESS,
         Err(error) => {
             eprintln!("host file operation refused: {error}");

@@ -38,13 +38,14 @@ sha2 = "0.10"
 thiserror = "2"
 
 # Tests and tooling only
+clap = { version = "4", default-features = false, features = ["derive", "error-context", "help", "std", "usage"] }
 # Adversarial feature trigger only; production and test crypto APIs use Platform.
 ed25519-dalek = { version = "2.2", default-features = false }
 ic-auth-qualification-contracts = { path = "apps/qualification/contracts" }
 ic-build = "0.21"
 ic-host-fs = { version = "0.29", default-features = false }
 ic-host-process = { version = "0.29", default-features = false }
-ic-memory = "0.48"
+ic-memory = "0.49"
 ic-testkit = "0.55"
 tokio = { version = "1", features = ["rt-multi-thread"] }
 

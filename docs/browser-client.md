@@ -7,9 +7,9 @@ Canic/Toko integration remain consumer/service work.
 
 ## Application transport hard cut
 
-Released 0.9 uses `crates/ic-auth-wire/`, backed by published IC Wire 0.3.
-The incoming Wire 0.4 selection is pending the next Auth minor release because
-Wire types are exposed at the Rust boundary; see [consumer selection](canic-adoption.md#wire-transport).
+Auth 0.10 uses `crates/ic-auth-wire/`, backed by published IC Wire 0.4.
+The historical Auth 0.9 stack used Wire 0.3; these exposed Rust dependency
+contracts must not be mixed. See [consumer selection](canic-adoption.md#wire-transport).
 Rust field/variant IDs, bounded types and method identities generate both Rust
 codecs and TypeScript contracts. Application traffic has no Candid selector or
 fallback. Canonical signed claims and session/replay/login records keep their
@@ -78,6 +78,27 @@ not issue a replacement, extend a deadline or infer no effect from absent/pruned
 evidence. The transport owns exact intent persistence and the crash boundary
 between journal claim and issuer dispatch. It must authenticate admission replies.
 A production issuer/reconciliation adapter remains unimplemented here.
+
+`httpAdmissionTransport({ host, methodName, scopes, ttlSecs?, rootKey?, fetch? })`
+supplies the receiver `admit` operation. Compose it with the application's existing
+`issue` and non-issuing `reconcile` operations; it installs no issuer endpoint or
+recovery policy. The method must implement the shared `EstablishSession` Wire
+contract. Scopes and requested TTL are fixed when the adapter is constructed.
+The adapter encodes through the generated codec, uses the current guarded signer,
+submits one update, authenticates the reply through the SDK and decodes the bounded
+response. HTTP acceptance alone is insufficient; a receiver error refuses and a
+successful reply must name the same caller. Root trust is explicit, never fetched
+from credentials or an endpoint. The coordinator retains retry and logout rules.
+
+For Canic's own command envelope, its adapter remains Canic-owned; do not wrap
+Candid in Wire or copy an Auth codec. Freeze the production issuer's exact saved
+request identity, request bytes/grants, original credential and original admission
+deadline before supplying `issue`/`reconcile`. Missing/pruned evidence stays
+unresolved and must not allocate, sign, renew or extend a deadline. Acceptance
+remains in [Auth #3](https://github.com/dragginzgame/ic-auth/issues/3),
+[Canic #491](https://github.com/dragginzgame/canic/issues/491) and
+[Canic #507](https://github.com/dragginzgame/canic/issues/507); the reference SDK
+receiver test does not establish production issuer or browser acceptance.
 
 One detached credential is cached only until its original admission deadline and
 reused across receivers. The transport supplies `admissionUntilNs` conservatively
