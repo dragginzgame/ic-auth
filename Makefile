@@ -6,9 +6,6 @@ LOCAL_TOOL_INSTALL_TARGETS := install-msrv install-testkit-tools
 LOCAL_TOOL_CHECK_TARGETS := msrv-tools-check testkit-tools-check
 RELEASE_DELIVERY_POLICY := $(CURDIR)/ci/release-delivery.txt
 override SHARED_TOOLING_ROOT := $(CURDIR)
-# Preserve the root catalog's dependency-role groups in every formatting path.
-FORMAT_WRITE_COMMAND = bash -ec '"$$1" sort --workspace --grouped; "$$1" fmt --all' -- "$(FORMAT_CARGO)"
-FORMAT_CHECK_COMMAND = bash -ec '"$$1" sort --workspace --grouped --check; "$$1" fmt --all -- --check' -- "$(FORMAT_CARGO)"
 include make/consumer.mk
 
 # Keep Cargo artifacts in this checkout, including CI and hook invocations.
@@ -18,7 +15,7 @@ export RELEASE_DELIVERY := direct
 export RELEASE_REMOTE RELEASE_BRANCH
 
 .PHONY: help install-hooks fetch metadata test-formatting-hooks \
-        install-testkit-tools testkit-tools-check test-testkit-tools \
+        install-testkit-tools testkit-tools-check test-testkit-tools install-release-tools release-tools-check \
         test-types test-protocol test-portable-signatures test-chain-key-signatures test-signatures test-signature-store test-certified-proofs test-sessions check-wasm clippy check-boundaries \
         check-snapshot check-dependency-pins check-doc-links check-msrv install-msrv msrv-tools-check tasks ci \
         client-tools-check install-client-dependencies generate-client-contracts check-client-contracts test-client test-client-tools \
@@ -30,6 +27,7 @@ export RELEASE_REMOTE RELEASE_BRANCH
 
 help:
 	@echo 'Setup: install-tools, tools-check, install-hooks, fetch; minimum compiler: install-msrv, msrv-tools-check'
+	@echo 'Release editor: install-release-tools (explicit setup), release-tools-check (offline path admission)'
 	@echo 'Testkit server: install-testkit-tools (explicit setup), testkit-tools-check (offline admission)'
 	@echo 'Focused checks: test-types, test-protocol, test-portable-signatures, test-chain-key-signatures, test-signatures, test-signature-store, test-certified-proofs, test-sessions, test-host-tooling, test-qualification, check-wasm, clippy, metadata'
 	@echo 'Browser client: install-client-dependencies, client-tools-check, generate-client-contracts, check-client-contracts, test-client'
@@ -44,6 +42,12 @@ install-testkit-tools: install-host-tools
 
 testkit-tools-check:
 	+@bash scripts/dev/testkit-tools.sh check
+
+install-release-tools: install-host-tools
+	+bash scripts/dev/release-tools.sh install
+
+release-tools-check:
+	+@bash scripts/dev/release-tools.sh check
 
 test-testkit-tools:
 	bash scripts/ci/test-testkit-tools.sh

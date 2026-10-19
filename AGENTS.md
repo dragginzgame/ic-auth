@@ -1,7 +1,7 @@
 # IC Auth Agent Instructions
 
-Apply [DRAGGINZGAME.md](DRAGGINZGAME.md), adopted from Shared Tooling plus its
-committed graph-check contribution, recorded in
+Apply [DRAGGINZGAME.md](DRAGGINZGAME.md), adopted from Shared Tooling 0.25.0
+source `2a79f5f93383f3d2a8a38d65406c7d52c2f77913`, recorded in
 [.shared-tooling.snapshot](.shared-tooling.snapshot). Read
 [the current handoff](docs/status/current.md) before implementation.
 
@@ -123,6 +123,11 @@ and `ci/cargo-dependency-boundaries.json` for direct-dependency ownership.
   database, bounded records and strict transactions; do not erase unknown
   issuance or change its stored profile implicitly. The maintainer confirmed no
   deployed old token-store records: that former client/format is retired in 0.9.
+- Release metadata rendering requires the explicitly prepared locked IC Build
+  editor: `make install-release-tools`, then export its absolute admitted path
+  with `CARGO_RELEASE_METADATA_EDITOR="$(make -s release-tools-check)"`.
+  Auth retains saved-source admission, an 8 MiB input limit and recovery custody;
+  checks never install the editor or rebuild it from partially prepared metadata.
 - `make publish-dry-run` checks all three package builds using live registry metadata
   without uploading. `make test-release-tools` uses local bare remotes and mocked
   upload/registry transport. The three release targets share the complete gate

@@ -1,5 +1,50 @@
 # Current handoff — 2026-10-19
 
+## Shared Tooling 0.25.0 source adoption
+
+The snapshot now selects remote main commit
+`2a79f5f93383f3d2a8a38d65406c7d52c2f77913`, whose version annotation is 0.25.0;
+this is committed source adoption, not a claim of a matching published tag.
+The canonical exporter preview and refresh retain the selected closure, retire
+both Perl Cargo editors and add the upstream transaction/context helpers.
+Shared now owns grouped formatting defaults, so paired local overrides are gone.
+Dependency-role labels, release ordering checks and actual normal/build graph
+exclusions remain in place; the snapshot alone does not qualify deployment.
+
+Auth's release adapter calls the published IC Build editor with its bounded
+manifest/lock interface. The caller explicitly prepares it using
+`make install-release-tools` and retains the absolute admitted path in
+`CARGO_RELEASE_METADATA_EDITOR` for the whole attempt. Auth owns the 8 MiB limit,
+validation receipts and recovery checks. Saved-source member context comes from
+Shared's Git reader rather than today's member files. The local manifest wrapper
+is removed. CI explicitly prepares the optional editor before release fixtures;
+ordinary checks never install it. Existing source and external lock selections,
+including the incoming Host 0.28.1 update, are preserved.
+
+Snapshot integrity, grouped formatting/hooks, dependency pins and local links
+pass. Native/Wasm normal/build graph admission, consumer refusal fixtures,
+Make jobserver handoff, tools/Testkit/client failure-evidence suites and the
+release-runner command-stub suite pass. Tracked modes and package license inputs
+are regular files; dependency selections and the incoming lock bytes are intact.
+The GitHub description matches the implemented library/private-client scope.
+
+The lock-selected IC Build 0.19.0 editor was explicitly prepared with maintainer
+approval and admitted offline. The release/publication fixture passes against its
+actual published renderer: coordinated requirements, external-lock preservation,
+source refusal, local tag/push and exact resume, interrupted preparation with
+both restored and committed dispositions, and uncertain upload reconciliation.
+Git effects stay in local fixture repositories; registry/upload effects are
+mocked. Before the next real release, export the admitted absolute path using
+`CARGO_RELEASE_METADATA_EDITOR="$(make -s release-tools-check)"`.
+[Auth #77 — Adopt Clap for native tooling CLI argument handling](https://github.com/dragginzgame/ic-auth/issues/77)
+records the existing handwritten native parser under the new baseline; no broad
+CLI refactor is folded into this adoption. Policy/snapshot adoption does not
+claim that this independent conformance work is complete.
+
+Before-images, preview and retained evidence are under
+`target/shared-tooling-025-20261019/`. No full CI, native macOS, installed-canister
+qualification, real release, commit, push or deployment is performed.
+
 ## IC Platform 0.1.16 — Ed25519 adoption
 
 Selected non-yanked published Platform 0.1.16, archive SHA-256

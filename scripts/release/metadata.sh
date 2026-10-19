@@ -15,6 +15,12 @@ for value in "${RELEASE_PREVIOUS:?}" "${RELEASE_VERSION:?}"; do
     [[ "$value" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] || fail 'invalid selected version'
 done
 [[ "${RELEASE_SOURCE:?}" =~ ^[0-9a-f]{40,64}$ && "${RELEASE_DATE:?}" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] || fail 'invalid source/date'
+# Select the editor before entering recovery: it must not be rebuilt or selected
+# from a partially prepared manifest/lock pair. Setup and path admission are
+# explicit; the caller retains the same absolute editor across the whole attempt.
+editor="${CARGO_RELEASE_METADATA_EDITOR:?run make install-release-tools, then export CARGO_RELEASE_METADATA_EDITOR from make -s release-tools-check}"
+[[ "$editor" == /* && -f "$editor" && -x "$editor" ]] || fail 'select an absolute regular executable IC Build editor'
+limit=8388608
 state="$(git rev-parse --absolute-git-dir)/release-state"
 [[ ! -L "$state" ]] || fail 'symlinked release state'
 mkdir -p "$state"
@@ -44,14 +50,25 @@ render() {
     git show "$RELEASE_SOURCE:Cargo.toml" > "$scratch/base.toml"
     yq -p toml -o json '.' "$scratch/base.toml" | jq -e --arg previous "$RELEASE_PREVIOUS" \
         '.workspace.package.version == $previous and .workspace.dependencies."ic-auth-protocol-types".version == $previous' > /dev/null || fail 'source version mismatch'
-    perl scripts/release/rewrite-manifest.pl "$scratch/base.toml" "$RELEASE_PREVIOUS" "$RELEASE_VERSION" > "$scratch/Cargo.toml"
+    yq -p toml -o json '.' "$scratch/base.toml" > "$scratch/base.json"
+    jq -e --arg previous "$RELEASE_PREVIOUS" '
+        .workspace.dependencies."ic-auth-wire" as $wire |
+        $wire == null or $wire.version == $previous
+    ' "$scratch/base.json" > /dev/null || fail 'source Wire version mismatch'
+    jq -er '.workspace.members[]' "$scratch/base.json" > "$scratch/member-directories"
+    member_directories=()
+    while IFS= read -r directory; do member_directories+=("$directory"); done < "$scratch/member-directories"
+    bash scripts/ci/read-cargo-source-context.sh "$PWD" "$RELEASE_SOURCE" \
+        "$scratch/base.json" "${member_directories[@]}" > "$scratch/context.json"
+    "$editor" --max-input-bytes "$limit" manifest "$scratch/base.toml" \
+        "$RELEASE_PREVIOUS" "$RELEASE_VERSION" "$scratch/context.json" > "$scratch/Cargo.toml"
     # The saved source owns its local package set. Late checks must also admit
     # releases that predate the addition of the native utility.
     yq -p toml -o json '.' "$scratch/base.lock" | jq -r '.package[] | select(.source == null) | .name' > "$scratch/packages"
     local_packages=()
     while IFS= read -r package; do local_packages+=("$package"); done < "$scratch/packages"
     [[ ${#local_packages[@]} -gt 0 ]] || fail 'validated source has no local packages'
-    perl scripts/ci/rewrite-local-lock-versions.pl "$scratch/base.lock" "$RELEASE_PREVIOUS" "$RELEASE_VERSION" \
+    "$editor" --max-input-bytes "$limit" lock "$scratch/base.lock" "$RELEASE_PREVIOUS" "$RELEASE_VERSION" \
         "${local_packages[@]}" > "$scratch/Cargo.lock"
     # -j adds no extra LF: the receipt preserves the original notes byte-for-byte.
     jq -j .changelog "$scratch/receipt.json" > "$scratch/notes"

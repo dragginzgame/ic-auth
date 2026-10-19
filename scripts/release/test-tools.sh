@@ -12,65 +12,11 @@ export CARGO_NET_OFFLINE=true RUSTUP_AUTO_INSTALL=0
 mkdir -p "$root/target/portable-fixtures"
 fixture="$(mktemp -d "$root/target/portable-fixtures/release-tools.XXXXXX")"
 echo "Release/publication fixture evidence: $fixture"
-# The shared renderer owns only workspace.package.version. Auth retains the
-# exact local dependency selector, with no partial output on either refusal.
-cat > "$fixture/render input.toml" <<'TOML'
-[workspace.package]
-version = "0.1.0" # preserve this comment
-[workspace.dependencies]
-ic-auth-protocol-types = { version = "0.1.0", path = "crates/ic-auth-protocol-types" }
-[package.metadata.unrelated]
-version = "0.1.0"
-TOML
-cat > "$fixture/render expected.toml" <<'TOML'
-[workspace.package]
-version = "0.1.1" # preserve this comment
-[workspace.dependencies]
-ic-auth-protocol-types = { version = "0.1.1", path = "crates/ic-auth-protocol-types" }
-[package.metadata.unrelated]
-version = "0.1.0"
-TOML
-cp "$fixture/render input.toml" "$fixture/render original.toml"
-perl scripts/release/rewrite-manifest.pl "$fixture/render input.toml" 0.1.0 0.1.1 > "$fixture/render actual.toml"
-cmp "$fixture/render expected.toml" "$fixture/render actual.toml"
-cmp "$fixture/render original.toml" "$fixture/render input.toml"
-for refusal in missing duplicate wrong-version wrong-workspace; do
-    case "$refusal" in
-        missing) sed '/^ic-auth-protocol-types =/d' "$fixture/render input.toml" ;;
-        duplicate) cat "$fixture/render input.toml"; sed -n '/^ic-auth-protocol-types =/p' "$fixture/render input.toml" ;;
-        wrong-version) sed '/^ic-auth-protocol-types =/s/0.1.0/0.0.9/' "$fixture/render input.toml" ;;
-        wrong-workspace) sed '/^version =.*# preserve/s/0.1.0/0.0.9/' "$fixture/render input.toml" ;;
-    esac > "$fixture/render refused.toml"
-    cp "$fixture/render refused.toml" "$fixture/render refused-original.toml"
-    if perl scripts/release/rewrite-manifest.pl "$fixture/render refused.toml" 0.1.0 0.1.1 \
-        > "$fixture/render refused-output" 2> "$fixture/render refused-error"; then
-        echo "manifest renderer unexpectedly accepted $refusal" >&2
-        exit 1
-    fi
-    [[ ! -s "$fixture/render refused-output" ]]
-    cmp "$fixture/render refused-original.toml" "$fixture/render refused.toml"
-done
-# The optional third selector preserves historical releases that predate Wire.
-# When present, it must move with both other package identities or refuse whole.
-for case_name in input expected; do
-    wire_version=0.1.0
-    [[ "$case_name" != expected ]] || wire_version=0.1.1
-    awk -v version="$wire_version" '
-        /^\[package.metadata.unrelated\]/ {
-            printf "ic-auth-wire = { version = \"%s\", path = \"crates/ic-auth-wire\" }\n", version
-        }
-        { print }
-    ' "$fixture/render $case_name.toml" > "$fixture/wire-$case_name.toml"
-done
-perl scripts/release/rewrite-manifest.pl "$fixture/wire-input.toml" 0.1.0 0.1.1 > "$fixture/wire-actual.toml"
-cmp "$fixture/wire-expected.toml" "$fixture/wire-actual.toml"
-sed '/^ic-auth-wire =/s/0.1.0/0.0.9/' "$fixture/wire-input.toml" > "$fixture/wire-refused.toml"
-if perl scripts/release/rewrite-manifest.pl "$fixture/wire-refused.toml" 0.1.0 0.1.1 \
-    > "$fixture/wire-refused-output" 2> "$fixture/wire-refused-error"; then
-    echo 'manifest renderer accepted a mismatched Wire selector' >&2
-    exit 1
-fi
-[[ ! -s "$fixture/wire-refused-output" ]]
+# The published owner renders candidates; this suite qualifies Auth's actual
+# saved-source selection, coordinated requirements and recovery below.
+CARGO_RELEASE_METADATA_EDITOR="$(bash scripts/dev/release-tools.sh check)"
+export CARGO_RELEASE_METADATA_EDITOR CARGO_RELEASE_METADATA_MAX_BYTES=8388608
+editor="$CARGO_RELEASE_METADATA_EDITOR"
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR
 export GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null
 mkdir "$fixture/repo"
@@ -82,6 +28,12 @@ while IFS=$'\t' read -r record _digest _mode path; do
     mkdir -p "$fixture/repo/$(dirname "$path")"
     cp -p "$root/$path" "$fixture/repo/$path"
 done < "$root/.shared-tooling.snapshot"
+# HEAD may still contain the retired payloads during uncommitted adoption.
+# Keep the fixture faithful to the working source rather than leaving old
+# implementations available as accidental fallbacks.
+rm -f "$fixture/repo/scripts/ci/render-cargo-workspace-version.pl" \
+    "$fixture/repo/scripts/ci/rewrite-local-lock-versions.pl" \
+    "$fixture/repo/scripts/release/rewrite-manifest.pl"
 # Use the complete working package trees so package moves and import changes
 # are tested together, rather than mixing current manifests with archived code.
 rm -rf "$fixture/repo/crates"
@@ -94,7 +46,7 @@ rm -rf "$fixture/repo/packages/client"
 tar -C "$root/packages" --exclude=node_modules --exclude=dist -cf - client | tar -xf - -C "$fixture/repo/packages"
 overlays=(.gitignore Makefile Cargo.toml Cargo.lock CHANGELOG.md .shared-tooling.snapshot ci/release-delivery.txt ci/cargo-dependency-boundaries.json
     scripts/release/metadata.sh scripts/release/publish.sh scripts/release/test-tools.sh
-    scripts/release/rewrite-manifest.pl
+    scripts/dev/release-tools.sh
     scripts/dev/run-host-tooling.sh
     scripts/dev/client-tools.sh scripts/dev/client-contracts.sh scripts/dev/test-client.sh
     scripts/dev/prepare-client-ci.sh scripts/ci/test-client-tools.sh .github/workflows/ci.yml
@@ -102,7 +54,7 @@ overlays=(.gitignore Makefile Cargo.toml Cargo.lock CHANGELOG.md .shared-tooling
     scripts/dev/test-qualification.sh scripts/dev/testkit-tools.sh
     scripts/ci/test-testkit-tools.sh
     scripts/dev/msrv-tools.sh scripts/dev/check-msrv.sh
-    scripts/ci/check-release-tag.sh scripts/ci/rewrite-local-lock-versions.pl)
+    scripts/ci/check-release-tag.sh)
 for path in "${overlays[@]}"; do
     mkdir -p "$fixture/repo/$(dirname "$path")"
     cp -p "$root/$path" "$fixture/repo/$path"
@@ -131,11 +83,18 @@ rg -F 'release delivery refused' "$fixture/refused-delivery.stderr" > /dev/null
 # workspace advances. Do not make future CI depend on today's version.
 initial="$(bash scripts/ci/read-cargo-workspace-version.sh --stable Cargo.toml)"
 if [[ "$initial" != 0.1.0 ]]; then
-    perl scripts/release/rewrite-manifest.pl Cargo.toml "$initial" 0.1.0 > "$fixture/manifest"
+    yq -p toml -o json '.' Cargo.toml > "$fixture/manifest.json"
+    cargo metadata --locked --offline --no-deps --format-version 1 > "$fixture/metadata.json"
+    jq -n --slurpfile manifest "$fixture/manifest.json" --slurpfile metadata "$fixture/metadata.json" '
+        {manifest: $manifest[0], members: ($metadata[0] | . as $m |
+            [.packages[] | select(.id as $id | $m.workspace_members | index($id)) |
+                {name, manifest_path}])}' > "$fixture/context.json"
+    "$editor" --max-input-bytes 8388608 manifest Cargo.toml "$initial" 0.1.0 \
+        "$fixture/context.json" > "$fixture/manifest"
     yq -p toml -o json '.' Cargo.lock | jq -r '.package[] | select(.source == null) | .name' > "$fixture/local-packages"
     local_packages=()
     while IFS= read -r package; do local_packages+=("$package"); done < "$fixture/local-packages"
-    perl scripts/ci/rewrite-local-lock-versions.pl Cargo.lock "$initial" 0.1.0 "${local_packages[@]}" > "$fixture/lock"
+    "$editor" --max-input-bytes 8388608 lock Cargo.lock "$initial" 0.1.0 "${local_packages[@]}" > "$fixture/lock"
     cp "$fixture/manifest" Cargo.toml
     cp "$fixture/lock" Cargo.lock
 fi

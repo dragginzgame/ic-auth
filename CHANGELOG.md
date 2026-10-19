@@ -1,17 +1,22 @@
 # Changelog
 
+## [0.10.3]
+
+- Adopt Shared Tooling 0.25.0 source and its grouped formatting defaults. Use the
+  released IC Build editor for release candidates, retaining saved-source
+  admission and coordinated package requirements. Prepare it with
+  `make install-release-tools` and export `CARGO_RELEASE_METADATA_EDITOR` from
+  `make -s release-tools-check` before release or recovery.
+
 ## [0.10.2] - 2026-10-19
 
-<<<<<<< HEAD
 - Use published IC Platform 0.1.16 for Ed25519 primitives, retaining strict
   signature verification, canonical scalar checks and existing proof/session
   behavior. Remove production direct Dalek dependencies; keep the permissive
   feature-unification regression in an unpublished consumer harness.
-=======
 - Reuse one caller-owned runtime throughout signed-ingress qualification while
   retaining fresh per-call Agent identities and explicit trust roots.
   [Testkit #106 — Share explicitly configured signed-ingress qualification transport](https://github.com/dragginzgame/ic-testkit/issues/106).
->>>>>>> 17083f12ec92c1216ec4861150816d3278776291
 
 ## [0.10.1] - 2026-10-18
 

@@ -54,7 +54,7 @@ export PATH="$fixture/bin:$PATH"
 # Substitute application/installation/publication effects, keeping actual root
 # recipes, includes, execution admission and Bash-to-Cargo descriptor handoff.
 for script in dev/testkit-tools.sh dev/msrv-tools.sh dev/check-msrv.sh \
-    dev/test-qualification.sh dev/client-contracts.sh dev/test-client.sh \
+    dev/test-qualification.sh dev/client-contracts.sh dev/test-client.sh dev/release-tools.sh \
     ci/check-cargo-dependency-boundaries.sh ci/test-auth-boundaries.sh \
     ci/check-auth-boundaries.sh ci/check-dependency-pins.sh ci/read-cargo-workspace-version.sh \
     release/publish.sh release/metadata.sh release/test-tools.sh; do
@@ -84,7 +84,7 @@ fi
 targets=(fetch metadata test-types test-protocol test-chain-key-signatures test-signatures test-signature-store \
     test-certified-proofs test-sessions check-wasm clippy build-qualification-canister \
     test-qualification test-host-tooling check-boundaries check-dependency-pins check-msrv \
-    install-testkit-tools testkit-tools-check msrv-tools-check \
+    install-testkit-tools testkit-tools-check msrv-tools-check install-release-tools release-tools-check \
     generate-client-contracts check-client-contracts test-client publish-dry-run publish test-release-tools \
     release-version release-preflight release-prepare-version release-prepared-check release-files \
     release-commit-check release-committed-check release-tagged-check release-push-check release-verify)

@@ -68,6 +68,7 @@ jobs:
         run: |
           bash scripts/dev/ci-tools.sh install
           bash scripts/dev/ci-tools.sh check
+          make --no-print-directory install-release-tools release-tools-check
           printf '%s\n' "$GITHUB_WORKSPACE/.tools/host/bin" \
             "$GITHUB_WORKSPACE/.tools/rust/common/bin" >> "$GITHUB_PATH"
           make fetch

@@ -51,18 +51,40 @@ selections retained. Ordinary checks stay offline. Snapshot and release recovery
 admit only complete 40- or 64-character Git identities; PR identity strings reject
 trailing newlines before state writes. Auth retains direct release delivery.
 
+## Release editor setup
+
+Shared 0.25.0 delegates Cargo manifest and lock rendering to the released IC Build
+editor. Prepare the version selected by this workspace lockfile explicitly:
+
+```sh
+make install-release-tools
+export CARGO_RELEASE_METADATA_EDITOR="$(make -s release-tools-check)"
+```
+
+Keep that absolute admitted editor path for the whole release or recovery attempt.
+Auth uses an 8 MiB per-input allowance. Recovery reads member identities from the
+validated Git source, so newer or partially prepared live manifests cannot change
+its package roster. Rendering does not build an editor or resolve a damaged live
+graph. The optional release tool is separate from `make install-tools`; CI prepares
+and checks it explicitly before release-fixture tests. No release/publication is
+performed by either setup command. The old Perl editors and Auth's manifest
+rewrite wrapper are retired; application APIs and package versions are unchanged.
+
 ## Dependency roles and deployment admission
 
-Shared Tooling 0.24.0 is adopted at `cab12cd3dfa4fdb34846b25397f0d72881bb9ae0`.
+Shared Tooling 0.25.0 source is adopted at
+`2a79f5f93383f3d2a8a38d65406c7d52c2f77913` (the version annotation on current
+Shared main, not a release tag).
 The root catalog uses `Production dependencies` and `Tests and tooling only`;
 member annotations distinguish the three production libraries from internal
 qualification and native tooling packages. These roles describe graph use, not
-registry publication. Candid, ic0 and BLS verification are production entries
-because certified capabilities reach them transitively, even where Auth's direct
-edge is used only by fixtures or tests.
+registry publication. Platform is a production entry; its optional capabilities
+are admitted per graph. Candid, ic0 and BLS verification can remain transitive in
+certified/runtime selections. Native Host, Build and Testkit selections remain
+tests/tooling entries.
 
-`make fmt`, `make fmt-check` and the pre-commit hook use `cargo sort --workspace
---grouped`. Release preparation writes that same ordering; current, prepared and
+`make fmt`, `make fmt-check` and the pre-commit hook use Shared's grouped Cargo
+sorting default; Auth no longer repeats paired formatter overrides. Release preparation writes that same ordering; current, prepared and
 selected committed-source checks refuse unsorted groups without rewriting them.
 `make test-formatting-hooks` derives an unsorted manifest from current inputs and
 qualifies sorting, lock preservation and staged-file isolation.
@@ -363,6 +385,7 @@ storage qualification. See the [transport evidence](ic-testkit-qualification.md#
 | `make check-dependency-pins` | Check declarations, lockfile tracking and root inheritance |
 | `make check-doc-links` | Check local Markdown targets |
 | `make publish-dry-run` | Build all three distributable libraries without uploading; requires registry metadata access |
+| `make install-release-tools` / `make release-tools-check` | Explicitly prepare the lock-selected IC Build editor, or admit and print its absolute path offline |
 | `make test-release-tools` | Exercise release/recovery and publication rejection/retry using local and mocked effects |
 | `make test-release-runner` | Adopted Shared Tooling runner regression fixtures with substituted release effects |
 | `make test-evidence-archive` | Adopted evidence archive fixtures: retained files, symlinks and literal paths |
@@ -457,6 +480,9 @@ admission path and retains state beneath `target/`.
 It does not qualify browser/wallet login or a durable session backend.
 
 ## Releases and publication
+
+[Prepare the release editor](#release-editor-setup) and export its admitted path
+before starting or resuming a release.
 
 ```sh
 make release-patch                 # compatible patch increment: 0.4.4 -> 0.4.5
