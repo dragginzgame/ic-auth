@@ -14,9 +14,11 @@ fixture="$(mktemp -d "$root/target/portable-fixtures/release-tools.XXXXXX")"
 echo "Release/publication fixture evidence: $fixture"
 # The published owner renders candidates; this suite qualifies Auth's actual
 # saved-source selection, coordinated requirements and recovery below.
-CARGO_RELEASE_METADATA_EDITOR="$(bash scripts/dev/release-tools.sh check)"
-export CARGO_RELEASE_METADATA_EDITOR CARGO_RELEASE_METADATA_MAX_BYTES=8388608
-editor="$CARGO_RELEASE_METADATA_EDITOR"
+# Run the normal entrypoints in a fresh shell: a pre-export used to mask a
+# production preflight failure. Only substituted installer effects know this path.
+editor="$(bash scripts/dev/release-tools.sh check)"
+export IC_AUTH_FIXTURE_EDITOR="$editor"
+unset CARGO_RELEASE_METADATA_EDITOR CARGO_RELEASE_METADATA_MAX_BYTES
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR
 export GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null
 mkdir "$fixture/repo"
@@ -104,7 +106,7 @@ printf '# Changelog\n\n## [0.1.1]\n\n- Fixture release.\n' > CHANGELOG.md
 cat > scripts/ci/run-validation-targets.sh <<'SCRIPT'
 #!/usr/bin/env bash
 set -euo pipefail
-[[ -f target/common-tools-ready && -f target/testkit-ready ]] || exit 1
+[[ -f target/common-tools-ready && -f target/testkit-ready && -f target/release-editor-ready ]] || exit 1
 printf 'gate\n' >> target/preparation-dispatch.log
 [[ ! -f target/fail-gate ]] || exit 1
 echo fixture-complete-gate
@@ -121,9 +123,33 @@ else
     touch target/common-tools-ready
 fi
 SCRIPT
-for script in install-ic-tools install-rust-tools msrv-tools; do
+for script in install-ic-tools msrv-tools; do
     printf '#!/usr/bin/env bash\nexit 0\n' > "scripts/dev/$script.sh"
 done
+cat > scripts/dev/install-rust-tools.sh <<'SCRIPT'
+#!/usr/bin/env bash
+set -euo pipefail
+# Common Rust effects are already substituted above. Editor selection must use
+# the saved source, including when today's root lock cannot be parsed.
+[[ " $* " == *' --package ic-build '* ]] || exit 0
+lock=''
+previous=''
+for argument in "$@"; do
+    if [[ "$previous" == --lockfile ]]; then lock="$argument"; fi
+    previous="$argument"
+done
+[[ "$lock" == "$PWD/.git/release-state/metadata."*/base.lock && -f "$lock" ]]
+git show "$RELEASE_SOURCE:Cargo.lock" | cmp - "$lock"
+if [[ "${*: -1}" == --check ]]; then
+    printf 'check\n' >> target/editor-events.log
+    [[ ! -f target/fail-editor-check && -f target/release-editor-ready ]] || exit 38
+else
+    printf 'install\n' >> target/editor-events.log
+    [[ ! -f target/fail-editor-setup ]] || exit 37
+    touch target/release-editor-ready
+fi
+printf '%s\n' "$IC_AUTH_FIXTURE_EDITOR"
+SCRIPT
 cat > scripts/dev/testkit-tools.sh <<'SCRIPT'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -183,7 +209,7 @@ done
 cp "$fixture/pending-notes" CHANGELOG.md
 # Common and CLI setup/admission must precede the gate and preserve release
 # identity on either failure. Neither version preparation nor a tag may start.
-for phase in common-setup cli-setup common-check cli-check; do
+for phase in common-setup cli-setup common-check cli-check editor-setup editor-check; do
     : > target/preparation-dispatch.log
     touch "target/fail-$phase"
     if make --no-print-directory release-patch > "$fixture/$phase-failure.log" 2>&1; then exit 1; fi
@@ -193,7 +219,7 @@ for phase in common-setup cli-setup common-check cli-check; do
         common-setup) expected='common setup' ;;
         cli-setup) expected=$'common setup\ncommon setup\ncommon setup\ncli setup' ;;
         common-check) expected=$'common setup\ncommon setup\ncommon setup\ncli setup\ncommon check' ;;
-        cli-check) expected=$'common setup\ncommon setup\ncommon setup\ncli setup\ncommon check\ncli check' ;;
+        cli-check|editor-setup|editor-check) expected=$'common setup\ncommon setup\ncommon setup\ncli setup\ncommon check\ncli check' ;;
     esac
     [[ "$(cat target/preparation-dispatch.log)" == "$expected" ]] || exit 1
     rm "target/fail-$phase"
@@ -205,6 +231,7 @@ if make --no-print-directory release-patch > "$fixture/gate-failure.log" 2>&1; t
 [[ -z "$(git tag -l)" && -f target/keep ]] || exit 1
 [[ "$(cat target/preparation-dispatch.log)" == $'common setup\ncommon setup\ncommon setup\ncli setup\ncommon check\ncli check\ngate' ]] || exit 1
 rm target/fail-gate
+[[ "$(tail -n 2 target/editor-events.log)" == $'install\ncheck' ]] || exit 1
 
 # Initial admission names a changed lock and refuses before validation or
 # preparation, without changing source or index bytes.
@@ -410,11 +437,18 @@ cp Cargo.toml "$fixture/before-unsorted-current.toml"
 perl -0777 -pe 's/^(serde_bytes = [^\n]*\n)(serde_cbor = [^\n]*\n)/$2$1/m or die "missing selected dependency pair"' \
     Cargo.toml > "$fixture/unsorted-current.toml"
 cp "$fixture/unsorted-current.toml" Cargo.toml
+cp Cargo.lock "$fixture/before-broken-current.lock"
+printf 'deliberately invalid live lockfile\n' > Cargo.lock
+cp Cargo.lock "$fixture/broken-current.lock"
+editor_installs="$(awk '/^install$/ { n++ } END { print n+0 }' target/editor-events.log)"
 RELEASE_PREVIOUS=0.1.0 RELEASE_VERSION=0.1.1 RELEASE_KIND=patch \
 RELEASE_DATE="$(jq -r .date release-validation.json)" \
 RELEASE_SOURCE="$(jq -r .source release-validation.json)" RELEASE_COMMIT="$commit" \
     bash scripts/release/metadata.sh committed-check > "$fixture/old-commit-check.log" 2>&1
 cmp "$fixture/unsorted-current.toml" Cargo.toml
+cmp "$fixture/broken-current.lock" Cargo.lock
+[[ "$(awk '/^install$/ { n++ } END { print n+0 }' target/editor-events.log)" == "$editor_installs" ]] || exit 1
+cp "$fixture/before-broken-current.lock" Cargo.lock
 cp "$fixture/before-unsorted-current.toml" Cargo.toml
 for kind in minor major; do
     if [[ "$kind" == minor ]]; then candidate=0.2.0; else candidate=1.0.0; fi
@@ -428,10 +462,12 @@ for kind in minor major; do
         [[ "$(make -s release-version)" == 0.1.1 && -z "$(git tag -l v0.2.0)" ]] || exit 1
         rm target/interrupt-prepare
         cp target/preparation-dispatch.log "$fixture/interrupted-dispatch.log"
+        editor_installs="$(awk '/^install$/ { n++ } END { print n+0 }' target/editor-events.log)"
     fi
     make --no-print-directory "release-$kind" > "$fixture/$kind.log" 2>&1
     if [[ "$kind" == minor ]]; then
         cmp target/preparation-dispatch.log "$fixture/interrupted-dispatch.log"
+        [[ "$(awk '/^install$/ { n++ } END { print n+0 }' target/editor-events.log)" == "$editor_installs" ]] || exit 1
     fi
     [[ "$(make -s release-version)" == "$candidate" ]] || exit 1
     bash scripts/ci/check-release-tag.sh "$(git rev-parse HEAD)" "$candidate"

@@ -15,11 +15,6 @@ for value in "${RELEASE_PREVIOUS:?}" "${RELEASE_VERSION:?}"; do
     [[ "$value" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] || fail 'invalid selected version'
 done
 [[ "${RELEASE_SOURCE:?}" =~ ^[0-9a-f]{40,64}$ && "${RELEASE_DATE:?}" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] || fail 'invalid source/date'
-# Select the editor before entering recovery: it must not be rebuilt or selected
-# from a partially prepared manifest/lock pair. Setup and path admission are
-# explicit; the caller retains the same absolute editor across the whole attempt.
-editor="${CARGO_RELEASE_METADATA_EDITOR:?run make install-release-tools, then export CARGO_RELEASE_METADATA_EDITOR from make -s release-tools-check}"
-[[ "$editor" == /* && -f "$editor" && -x "$editor" ]] || fail 'select an absolute regular executable IC Build editor'
 limit=8388608
 state="$(git rev-parse --absolute-git-dir)/release-state"
 [[ ! -L "$state" ]] || fail 'symlinked release state'
@@ -47,6 +42,11 @@ read_receipt() {
     [[ "$(bash scripts/ci/verify-file-checksum.sh --print sha256 "$scratch/base.lock")" == "$(jq -r .lock_sha256 "$1")" ]] || fail 'validated lockfile mismatch'
 }
 render() {
+    # Select from the already validated source lock, never a shell export or a
+    # partially prepared live graph. Recovery/checks admit only; no setup here.
+    local editor
+    editor="$(bash scripts/dev/release-tools.sh check "$scratch/base.lock")" ||
+        fail 'saved-source release editor is not prepared; run make install-release-tools'
     git show "$RELEASE_SOURCE:Cargo.toml" > "$scratch/base.toml"
     yq -p toml -o json '.' "$scratch/base.toml" | jq -e --arg previous "$RELEASE_PREVIOUS" \
         '.workspace.package.version == $previous and .workspace.dependencies."ic-auth-protocol-types".version == $previous' > /dev/null || fail 'source version mismatch'
@@ -123,6 +123,11 @@ case "$operation" in
         # Interrupted metadata recovery above must not install a partial graph.
         make --no-print-directory install-tools
         make --no-print-directory tools-check
+        # A fresh, explicitly requested release prepares every required product
+        # tool before validation. Recovery above only admits the saved selection.
+        git show "$RELEASE_SOURCE:Cargo.lock" > "$scratch/base.lock"
+        bash scripts/dev/release-tools.sh install "$scratch/base.lock"
+        bash scripts/dev/release-tools.sh check "$scratch/base.lock" > /dev/null
         ;;
     verify)
         [[ "$(git rev-parse HEAD)" == "$RELEASE_SOURCE" ]] || fail 'validation source mismatch'

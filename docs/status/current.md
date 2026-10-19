@@ -1,5 +1,40 @@
 # Current handoff — 2026-10-19
 
+## Release editor selection repair — 2026-10-19
+
+The reported clean-shell failure was an Auth adoption defect: metadata required
+`CARGO_RELEASE_METADATA_EDITOR` before preflight could prepare tools. The release
+fixture pre-exported that variable, masking the normal entrypoint failure.
+Source baseline is `e4decd05a475fbcf2cc8d12a864c0065626c5a9c`; its package version
+remains 0.10.2 with pending 0.10.3 notes. No package version or release ref changed.
+
+Fresh release preflight now prepares and admits the editor only after source and
+notes admission. Rendering independently admits its absolute path from the
+validated Git-source lock, with no ambient export or mutable live-lock selection.
+Recovery and ordinary checks remain offline and never install. Tests run with
+both editor variables unset, assert saved-lock selection, inject setup/check
+refusals and check that broken live metadata stays untouched without recovery
+installation. Current locked Build 0.20.0 was prepared through the existing
+approved setup command; initial missing-source/admission evidence is retained.
+The complete local/mocked release/publication fixture passes with the actual
+published Build 0.20.0 editor, including fresh-shell patch/minor/major entrypoints,
+setup/check failure preservation, invalid-live-lock saved-source admission,
+interrupted preparation and exact resume with no recovery installation.
+Source-following ShellCheck, Make jobserver, snapshot, grouped formatting, pins,
+local links and diff checks pass. Evidence, initial missing-tool refusal and
+before-images are under `target/release-editor-selection-20261019/`.
+No full CI, native macOS or real release/publication was performed.
+
+Read-only sibling inspection confirms the same preflight export requirement on
+IC Jobs `14d9005bee1d6a9d5ded9e68155024bae34df7fe`; Build and Metrics already select
+inside their adapters. Shared remains pinned at `2a79f5f`; its renderer requires
+an explicit path, while normal caller selection and setup remain consumer-owned.
+The common caller/test gap is reported on
+[Shared #273 — Adopt the IC Build Cargo editor](https://github.com/dragginzgame/shared-tooling/issues/273#issuecomment-6265505248).
+Shared main has since advanced to `b66071b`; its own setup wiring does not update
+frozen consumer adapters automatically. No sibling files or refs were edited.
+Earlier manual-export guidance below is historical and superseded by this repair.
+
 ## Shared Tooling 0.25.0 source adoption
 
 The snapshot now selects remote main commit

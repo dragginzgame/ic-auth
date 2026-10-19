@@ -123,11 +123,12 @@ and `ci/cargo-dependency-boundaries.json` for direct-dependency ownership.
   database, bounded records and strict transactions; do not erase unknown
   issuance or change its stored profile implicitly. The maintainer confirmed no
   deployed old token-store records: that former client/format is retired in 0.9.
-- Release metadata rendering requires the explicitly prepared locked IC Build
-  editor: `make install-release-tools`, then export its absolute admitted path
-  with `CARGO_RELEASE_METADATA_EDITOR="$(make -s release-tools-check)"`.
-  Auth retains saved-source admission, an 8 MiB input limit and recovery custody;
-  checks never install the editor or rebuild it from partially prepared metadata.
+- Fresh release preflight prepares the lock-selected IC Build editor after
+  source/notes admission. The adapter selects its absolute admitted path from
+  the validated source lockfile; no shell export is required. Manual setup is
+  `make install-release-tools`. Recovery and ordinary checks only admit the saved
+  selection offline; they never install or rebuild from partially prepared
+  metadata. Auth retains an 8 MiB input limit and recovery custody.
 - `make publish-dry-run` checks all three package builds using live registry metadata
   without uploading. `make test-release-tools` uses local bare remotes and mocked
   upload/registry transport. The three release targets share the complete gate

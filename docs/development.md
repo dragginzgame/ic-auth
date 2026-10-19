@@ -54,21 +54,28 @@ trailing newlines before state writes. Auth retains direct release delivery.
 ## Release editor setup
 
 Shared 0.25.0 delegates Cargo manifest and lock rendering to the released IC Build
-editor. Prepare the version selected by this workspace lockfile explicitly:
+editor. Auth's normal release preflight prepares and admits the selected editor
+after source and changelog admission, alongside the other required tools. The
+adapter selects the absolute path internally; no shell export is required.
+
+For offline checks outside a release, explicitly prepare the current selection:
 
 ```sh
 make install-release-tools
-export CARGO_RELEASE_METADATA_EDITOR="$(make -s release-tools-check)"
+make release-tools-check
 ```
 
-Keep that absolute admitted editor path for the whole release or recovery attempt.
-Auth uses an 8 MiB per-input allowance. Recovery reads member identities from the
-validated Git source, so newer or partially prepared live manifests cannot change
-its package roster. Rendering does not build an editor or resolve a damaged live
-graph. The optional release tool is separate from `make install-tools`; CI prepares
-and checks it explicitly before release-fixture tests. No release/publication is
-performed by either setup command. The old Perl editors and Auth's manifest
-rewrite wrapper are retired; application APIs and package versions are unchanged.
+The check prints the admitted path and never installs anything. Auth uses an
+8 MiB per-input allowance. Recovery reads both member identities and the editor
+selection from the validated Git source, so a newer or partially prepared live
+manifest/lock cannot change either. Recovery/checks only admit the already
+prepared saved-source editor offline; they never install or rebuild it. The
+manual setup target uses today's lockfile; `scripts/dev/release-tools.sh` also
+accepts an explicit saved `LOCKFILE` for deliberate historical tool preparation.
+CI prepares and checks the editor before release fixtures. No release/publication
+is performed by either setup/check command. The old Perl editors and Auth's
+manifest rewrite wrapper are retired; application APIs and package versions are
+unchanged.
 
 ## Dependency roles and deployment admission
 
@@ -481,8 +488,8 @@ It does not qualify browser/wallet login or a durable session backend.
 
 ## Releases and publication
 
-[Prepare the release editor](#release-editor-setup) and export its admitted path
-before starting or resuming a release.
+Fresh release preflight includes [release editor setup](#release-editor-setup).
+Exact recovery uses the already prepared saved-source selection offline.
 
 ```sh
 make release-patch                 # compatible patch increment: 0.4.4 -> 0.4.5

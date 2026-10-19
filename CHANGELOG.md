@@ -4,9 +4,11 @@
 
 - Adopt Shared Tooling 0.25.0 source and its grouped formatting defaults. Use the
   released IC Build editor for release candidates, retaining saved-source
-  admission and coordinated package requirements. Prepare it with
-  `make install-release-tools` and export `CARGO_RELEASE_METADATA_EDITOR` from
-  `make -s release-tools-check` before release or recovery.
+  admission and coordinated package requirements. Fresh release preflight
+  prepares and selects the editor automatically, without a shell export.
+  Recovery/checks admit the validated source's selection offline, preserving
+  broken live metadata and refusing missing tools before candidate installation.
+  [Shared #273 — Adopt the IC Build Cargo editor](https://github.com/dragginzgame/shared-tooling/issues/273#issuecomment-6265505248).
 
 ## [0.10.2] - 2026-10-19
 
