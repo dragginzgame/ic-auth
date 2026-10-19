@@ -28,7 +28,7 @@ ic-auth-protocol-types = { version = "0.10.4", path = "crates/ic-auth-protocol-t
 ic-auth-wire = { version = "0.10.4", path = "crates/ic-auth-wire" }
 # Explicit features preserve upstream signing/tree/verifier identities; defaults
 # stay empty so protocol, portable and session consumers select no IC runtime.
-ic-platform = { version = "0.1.17", default-features = false }
+ic-platform = { version = "0.1.18", default-features = false }
 ic-wire = "0.4"
 leb128 = "0.2"
 serde = { version = "1", features = ["derive"] }
@@ -42,8 +42,8 @@ thiserror = "2"
 ed25519-dalek = { version = "2.2", default-features = false }
 ic-auth-qualification-contracts = { path = "apps/qualification/contracts" }
 ic-build = "0.20"
-ic-host-fs = { version = "0.28", default-features = false }
-ic-host-process = { version = "0.28", default-features = false }
+ic-host-fs = { version = "0.29", default-features = false }
+ic-host-process = { version = "0.29", default-features = false }
 ic-memory = "0.48"
 ic-testkit = "0.54"
 tokio = { version = "1", features = ["rt-multi-thread"] }

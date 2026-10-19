@@ -1,5 +1,33 @@
 # Current handoff — 2026-10-19
 
+## Platform 0.1.18, Host 0.29.0 and Shared Tooling 0.25.1
+
+Verified the latest non-yanked published Platform/macros 0.1.18 and Host
+FS/Process/Artifacts 0.29.0 against their registry checksums and actual archives.
+The incoming dirty root/lock already selected Host 0.29 and Platform 0.1.18;
+retain those bytes/selections and raise the root Platform minimum to 0.1.18.
+Package versions remain 0.10.4; compatible follow-up notes are under 0.10.5.
+
+Shared's canonical exporter preview and refresh adopt reviewed remote HEAD
+`d57c631206e3618755e45bebf2c88c673564ddc1` (0.25.1) with the existing entrypoint
+closure. This updates the normative release-setup rule and shared guides, without
+changing selected scripts or executable pins. Auth's existing automatic fresh
+preflight setup and offline saved-source recovery already implement that rule.
+
+Platform's published crypto exports are unchanged from 0.1.17; Auth already routes
+K256, Dalek, Principal and its IC runtime/certificate APIs through them. Its
+general-purpose SHA-256, CBOR and LEB128 consumers remain active. Keep the isolated
+adversarial Dalek dev feature trigger and Testkit's native runtime boundary.
+Host's new CLI, capability, certificate and Wasm text/encoding APIs replace no
+remaining direct dependency in Auth. Existing Host file reads, durable writes and
+bounded process capture retain their public contracts; no extra feature is needed.
+Older transitive Host packages selected by Build/Testkit remain upstream-owned;
+do not force their coordinated migration through consumer overrides.
+
+Before-images, published archives, exporter preview and validation evidence are
+under `target/upstream-adoption-20261019/`. Focused checks are pending. Sibling
+checkouts remain read-only; no commit, release or publication is performed.
+
 ## IC Platform 0.1.17 — ECDSA adoption
 
 Selected latest non-yanked published Platform 0.1.17, archive SHA-256

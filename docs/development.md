@@ -2,10 +2,9 @@
 
 The virtual root owns the protocol/types, Auth engine and Wire transport libraries,
 unpublished native tooling in `apps/tooling/` and the reference host/runner in
-`apps/qualification/`. Package versions remain at released 0.9.1. The incoming
-IC Wire 0.4 public dependency selection requires pending 0.10.0 notes; the native
-tooling/ownership cleanup is independently compatible. The root catalog and lock
-select Host, Testkit, Memory, Build and the shared Wire codec/TypeScript generator. The [handoff](status/current.md) records exact evidence;
+`apps/qualification/`. The root catalog and lock select published Platform 0.1.18,
+Host FS/Process 0.29.0, Testkit, Memory, Build and the shared Wire codec/TypeScript
+generator. The [handoff](status/current.md) records exact evidence;
 [session contracts](sessions.md) distinguish supported behavior from pending hosts.
 Rust `1.99.1` remains the development compiler selected by `rust-toolchain.toml`.
 The common package minimum is Rust `1.91.0`, inherited from the root catalog and
@@ -53,7 +52,7 @@ trailing newlines before state writes. Auth retains direct release delivery.
 
 ## Release editor setup
 
-Shared 0.25.0 delegates Cargo manifest and lock rendering to the released IC Build
+Shared 0.25.1 delegates Cargo manifest and lock rendering to the released IC Build
 editor. Auth's normal release preflight prepares and admits the selected editor
 after source and changelog admission, alongside the other required tools. The
 adapter selects the absolute path internally; no shell export is required.
@@ -79,7 +78,7 @@ unchanged.
 
 ## Crypto dependency boundary
 
-Auth selects Platform 0.1.17's independent `ecdsa` capability for chain-key
+Auth selects Platform 0.1.18's independent `ecdsa` capability for chain-key
 verification and `ed25519` for portable signatures. Original K256/Dalek types and
 cryptography stay upstream. Auth owns prehash construction, high-S refusal,
 explicit producer normalization, canonical-scalar checks and verification policy.
@@ -89,11 +88,16 @@ remain direct general-purpose dependencies with current Auth-owned consumers.
 Testkit retains the native simulator and server-lifecycle interface; routing its
 already shared runtime re-export again would not remove a direct dependency.
 
+Native file and process callers select Host FS/Process 0.29.0 with defaults
+disabled. Auth uses library APIs, not the optional `ic-host-file` CLI, certificate
+decoder or Wasm text/encoding backends. Those new Host capabilities do not replace
+an existing direct dependency here. Keep them out of the production library graph.
+
 ## Dependency roles and deployment admission
 
-Shared Tooling 0.25.0 source is adopted at
-`2a79f5f93383f3d2a8a38d65406c7d52c2f77913` (the version annotation on current
-Shared main, not a release tag).
+Shared Tooling 0.25.1 source is adopted at
+`d57c631206e3618755e45bebf2c88c673564ddc1` (reviewed committed source, not a
+claim of registry publication or a matching release tag).
 The root catalog uses `Production dependencies` and `Tests and tooling only`;
 member annotations distinguish the three production libraries from internal
 qualification and native tooling packages. These roles describe graph use, not

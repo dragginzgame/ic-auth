@@ -1,7 +1,7 @@
 # IC Auth Agent Instructions
 
-Apply [DRAGGINZGAME.md](DRAGGINZGAME.md), adopted from Shared Tooling 0.25.0
-source `2a79f5f93383f3d2a8a38d65406c7d52c2f77913`, recorded in
+Apply [DRAGGINZGAME.md](DRAGGINZGAME.md), adopted from Shared Tooling 0.25.1
+source `d57c631206e3618755e45bebf2c88c673564ddc1`, recorded in
 [.shared-tooling.snapshot](.shared-tooling.snapshot). Read
 [the current handoff](docs/status/current.md) before implementation.
 
@@ -60,7 +60,7 @@ generated browser contracts and private qualification controls use IC Wire.
 The fixture exposes only Wire methods, with no Candid projection or direct
 declaration. Its old
 Candid checkpoint is explicitly retired; production storage is unaffected.
-Platform 0.1.17 supplies explicit canister-signature key/hash, certificate-tree,
+Platform 0.1.18 supplies explicit canister-signature key/hash, certificate-tree,
 verifier/BLS, ECDSA and Ed25519 capabilities. All K256 and Ed25519 API imports use
 Platform; Auth retains prehash/high-S policy, explicit normalization,
 canonical-scalar admission and strict verification. The unpublished

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.5]
+
+- Adopt published IC Platform 0.1.18 and Host FS/Process 0.29.0, retaining explicit
+  capabilities, bounded file/process operations and the existing crypto policy.
+- Refresh the Shared Tooling snapshot to 0.25.1. Keep automatic fresh-release
+  tool preparation and offline saved-source recovery in Auth's release adapter.
+
 ## [0.10.4] - 2026-10-19
 
 - Use published IC Platform 0.1.17 for ECDSA primitives in chain-key verification
