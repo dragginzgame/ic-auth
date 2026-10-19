@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.10.6]
+## [0.10.6] - 2026-10-19
 
 - Document an isolated release checkout workflow to prevent development dependency
   edits from invalidating long-running validation; retain input-drift admission.
