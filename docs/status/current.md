@@ -36,6 +36,23 @@ signed bytes, ingress, checkpoint upgrades and two-receiver SDK logout.
 No full CI, native macOS, deployed-network, release or deployment is claimed.
 Earlier evidence below is historical.
 
+## Signed-ingress runtime ownership — pending 0.10.2
+
+PR #76 retains one caller-owned Tokio runtime across anonymous, delegated,
+invalid and post-upgrade identity calls. Every call still builds a fresh Platform
+Agent from its explicit identity, root bytes and existing expiry. No public
+session wrapper, dependency, retry or trust policy is added. The branch includes
+released 0.10.1 without rewriting shared history; package versions are unchanged.
+
+Focused compilation, strict Clippy, Rust 1.91 checking and fresh release-profile
+Wasm pass. The five native fixture cases and all seven installed-canister cases
+pass with the explicitly prepared locked Testkit 0.54.1/server 16.1.0 pairing and
+Platform 0.1.13. The first nested-checkout run exceeded Unix socket path limits;
+its logs are retained. Rerunning the same build with a shorter repository-owned
+state directory passes, including real SDK admission/logout, upgrade and signed
+ingress. Evidence is in `target/backlog-20261018/pr76-*` and `target/q76.qTI8lF/`.
+Native macOS and full hosted checks remain required before integration.
+
 ## Compatible 0.10.1 issue work
 
 Auth #71 now uses a filesystem-valid Unicode name for shared Unix hashing

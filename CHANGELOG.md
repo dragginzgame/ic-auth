@@ -2,10 +2,16 @@
 
 ## [0.10.2]
 
+<<<<<<< HEAD
 - Use published IC Platform 0.1.16 for Ed25519 primitives, retaining strict
   signature verification, canonical scalar checks and existing proof/session
   behavior. Remove production direct Dalek dependencies; keep the permissive
   feature-unification regression in an unpublished consumer harness.
+=======
+- Reuse one caller-owned runtime throughout signed-ingress qualification while
+  retaining fresh per-call Agent identities and explicit trust roots.
+  [Testkit #106 — Share explicitly configured signed-ingress qualification transport](https://github.com/dragginzgame/ic-testkit/issues/106).
+>>>>>>> 17083f12ec92c1216ec4861150816d3278776291
 
 ## [0.10.1] - 2026-10-18
 
