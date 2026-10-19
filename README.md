@@ -98,14 +98,15 @@ Candid with published IC Wire's bounded codec and generated TypeScript through
 an Auth-owned transport adapter. Optional upstream certified-signature capabilities
 still use Candid transitively. Private fixture controls, diagnostics, init and
 upgrade checkpoints now use bounded Wire contracts too; the old unpublished
-Candid checkpoint format is retired. Platform 0.1.12 supplies Principal, explicit certified-signature/tree/verifier
-capabilities, raw admission/counters and native Agent identities. The reference
-host now uses its `cdk` runtime and entrypoint boundary, with no direct CDK
-declaration. See the [platform boundary](docs/development.md#ic-platform-boundary)
-for runtime ownership and the remaining transitive Candid/CDK dependencies.
-See the [consumer contract](docs/canic-adoption.md#wire-transport). The incoming
-Wire 0.4 selection requires the next Auth minor release because Wire types are
-publicly exposed; it does not change the already released 0.9 dependency contract.
+Candid checkpoint format is retired. Platform 0.2.1 supplies Principal, explicit
+certified-signature/tree/verifier capabilities, raw admission/counters and native
+Agent identities. The reference
+host uses its Candid-free maintained runtime and explicit Wire entrypoints;
+the full CDK and its macros are absent. See the
+[platform boundary](docs/development.md#ic-platform-boundary) for runtime ownership,
+the shared executor and the certified stack's remaining transitive Candid.
+See the [consumer contract](docs/canic-adoption.md#wire-transport). Released
+0.10.0 adopted Wire 0.4; the public Wire types retain that dependency identity.
 
 The future wallet service belongs in `apps/wallet-auth/`. No accepting wallet
 endpoint is created before its complete proof verification and service contracts.

@@ -4,7 +4,7 @@ mod costs;
 use super::{Agent, BasicIdentity, Fixture, Principal};
 #[path = "../../../sessions.rs"]
 mod contract;
-use super::{controls, query_control, update_control, update_wire};
+use super::{controls, query_control, update_control};
 use contract::*;
 use ic_auth::{
     portable::{browser_principal, claims_hash, encode_claims},
@@ -16,6 +16,7 @@ use ic_auth_wire::{
     wire::{Bytes, List, Text},
 };
 use ic_platform::ed25519::{Signer, SigningKey};
+use ic_testkit::pic::update_wire;
 use sha2::{Digest, Sha256};
 use std::time::Duration;
 const SECOND: u64 = 1_000_000_000;
@@ -47,15 +48,19 @@ fn admission(
     input: &SessionInput,
 ) -> Result<SessionView, String> {
     update_wire::<ic_auth_wire::EstablishSession>(&f.pic, target, caller, input)
+        .expect("qualified Wire admission")
         .map_err(|e| e.into_string())
 }
 fn read(f: &Fixture, target: Principal, caller: Principal) -> Result<SessionView, String> {
     update_wire::<ic_auth_wire::ReadSession>(&f.pic, target, caller, &())
+        .expect("qualified Wire session read")
         .map_err(|e| e.into_string())
 }
 fn logout(f: &Fixture, target: Principal, caller: Principal) -> Result<u64, LogoutResult> {
     use ic_auth_wire::model as m;
-    match update_wire::<ic_auth_wire::Logout>(&f.pic, target, caller, &()) {
+    match update_wire::<ic_auth_wire::Logout>(&f.pic, target, caller, &())
+        .expect("qualified Wire logout")
+    {
         m::LogoutResult::Revoked(until) => Ok(until),
         m::LogoutResult::InvalidCaller => Err(LogoutResult::InvalidCaller),
         m::LogoutResult::Unavailable(reason) => Err(LogoutResult::Unavailable(match reason {
