@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.10.7]
+## [0.10.7] - 2026-10-19
 
 - Adopt published IC Platform 0.2.1 with its Candid-free runtime boundary for
   qualification. Preserve explicit Wire codecs and shared executor identity;
