@@ -14,7 +14,7 @@ publish = ["crates-io"]
 # Encoding and local sessions do not require Candid. There is no Candid feature.
 # Only the upstream certified-signature capabilities bring it in transitively.
 default = []
-portable-signature-verification = ["dep:curve25519-dalek", "dep:ed25519-dalek"]
+portable-signature-verification = ["dep:ic-platform", "ic-platform/ed25519"]
 chain-key-verification = ["dep:k256"]
 canister-signature-preparation = [
     "dep:ic-platform",
@@ -39,8 +39,6 @@ canister-signature-verification = [
 ]
 
 [dependencies]
-curve25519-dalek = { workspace = true, optional = true }
-ed25519-dalek = { workspace = true, optional = true }
 ic-auth-protocol-types.workspace = true
 ic-platform = { workspace = true, optional = true }
 k256 = { workspace = true, optional = true }
@@ -52,7 +50,7 @@ sha2.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
-ic-platform = { workspace = true, features = ["bls"] }
+ic-platform = { workspace = true, features = ["bls", "ed25519"] }
 
 [lints]
 workspace = true

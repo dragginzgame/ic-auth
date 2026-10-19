@@ -1,6 +1,5 @@
 #![cfg(feature = "portable-signature-verification")]
 
-use ed25519_dalek::{Signer, SigningKey};
 use ic_auth::portable::{
     LoginRevocationError as Error, MemoryLoginRevocations, PortableClaimsContext,
     VerifiedPortableClaims, browser_principal, claims_hash, encode_claims,
@@ -9,6 +8,7 @@ use ic_auth::portable_signature::verify_ed25519_claims;
 use ic_auth_protocol_types::{
     AudienceId, CanonicalId, DelegatedRoleGrant, PortableClaims, PortableMechanism, Principal,
 };
+use ic_platform::ed25519::{Signer, SigningKey};
 use sha2::{Digest, Sha256};
 
 fn audience() -> AudienceId {

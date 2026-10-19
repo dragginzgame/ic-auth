@@ -1,0 +1,36 @@
+# Tests and tooling packages
+[package]
+name = "ic-auth-feature-unification"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+description = "Adversarial consumer feature-unification checks for portable Auth"
+
+[features]
+default = ["portable-signature-verification"]
+portable-signature-verification = ["ic-auth/portable-signature-verification"]
+session-restore = ["ic-auth/session-restore"]
+
+[dev-dependencies]
+# Deliberately act as another consumer enabling permissive upstream parsing.
+# This is a feature trigger, not an API import or a production dependency.
+ed25519-dalek = { workspace = true, features = ["legacy_compatibility"] }
+ic-auth.workspace = true
+ic-auth-protocol-types.workspace = true
+ic-platform = { workspace = true, features = ["ed25519"] }
+serde_cbor.workspace = true
+sha2.workspace = true
+
+[[test]]
+name = "portable_signature"
+path = "../../../crates/ic-auth/tests/portable_signature.rs"
+
+[[test]]
+name = "portable_revocation"
+path = "../../../crates/ic-auth/tests/portable_revocation.rs"
+
+[lints]
+workspace = true

@@ -1,4 +1,40 @@
-# Current handoff — 2026-10-18
+# Current handoff — 2026-10-19
+
+## IC Platform 0.1.16 — Ed25519 adoption
+
+Selected non-yanked published Platform 0.1.16, archive SHA-256
+`c11b873bf01a0a82774b073a3c0489ec6aa096eb1aacda7b438251a98e81d888`,
+source `af02ca56327f239d05538bfa773dcdcf4956c1ca`. Its optional `ed25519`
+capability re-exports the original Dalek types with defaults disabled. Production
+and fixture cryptographic imports now use it; Auth's direct Dalek edges are
+removed. Canonical-scalar checks, weak-key refusal, strict verification, budget
+ordering, errors, public APIs and wire/storage contracts are unchanged.
+
+The unpublished feature-unification consumer retains one direct Dalek dev edge
+solely to enable `legacy_compatibility`; all API imports still use Platform. It
+reuses the canonical signature/revocation suites to prove Auth remains strict
+when another consumer enables permissive upstream parsing. Direct boundary policy
+allows this exception only there and prohibits direct curve dependencies.
+Native Clippy and the internal MSRV check include the harness.
+
+The incoming Build 0.19 and lock changes are preserved. No external package
+identity changed relative to the captured working-tree baseline; Dalek remains
+transitive through Platform at curve 4.1.3 / Ed25519 2.2.0. Evidence, published
+source and before-images are in `target/platform-dalek-20261019/`.
+Portable signature/revocation suites pass both normally and with permissive
+feature unification, including canonical-scalar and weak-key refusal. Session,
+replay, logout and restore suites pass. Isolated Rust 1.91 native/Wasm package
+checks and internal apps, development Wasm checks, strict native/Wasm Clippy,
+actual graph/refusal checks, formatting, pins, local links and the 118-file
+snapshot pass. The production portable graph has no Dalek default or legacy
+features; the adversarial graph alone enables legacy parsing.
+
+The selected Testkit 0.54.1 CLI/server 16.1.0 was explicitly prepared under the
+existing setup authorization. Five native host tests and seven Linux local
+Testkit runner cases pass, covering real certification/composed roots, Wire
+signed bytes, ingress, checkpoint upgrades and two-receiver SDK logout.
+No full CI, native macOS, deployed-network, release or deployment is claimed.
+Earlier evidence below is historical.
 
 ## Compatible 0.10.1 issue work
 

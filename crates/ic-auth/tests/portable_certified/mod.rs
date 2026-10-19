@@ -391,9 +391,9 @@ fn certified_signature_failure_spends_credit_after_cheap_checks() {
 #[cfg(feature = "portable-signature-verification")]
 #[test]
 fn switching_proof_mechanisms_cannot_obtain_another_allowance() {
-    use ed25519_dalek::{Signer, SigningKey};
     use ic_auth::admission_budget::{AdmissionBudgetError, SessionAdmissionBudget};
     use ic_auth::portable_signature::{PortableSignatureError, verify_ed25519_claims};
+    use ic_platform::ed25519::{Signer, SigningKey};
     use sha2::{Digest, Sha256};
     let f = Fixture::new();
     let c = claims(&f);
@@ -671,7 +671,7 @@ fn credential_variant_cannot_select_authority_or_spend_mismatched_budget() {
             Err(PortableCredentialError::MechanismMismatch)
         );
         // Both mechanisms draw from the same retained receiver-wide credit.
-        use ed25519_dalek::{Signer, SigningKey};
+        use ic_platform::ed25519::{Signer, SigningKey};
         use sha2::{Digest, Sha256};
         let signing = SigningKey::from_bytes(&[42; 32]);
         let key = signing.verifying_key().to_bytes();

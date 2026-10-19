@@ -155,7 +155,7 @@ fn portable_proof_rechecks_live_authority_and_real_certification_after_upgrade()
         root_proof: root_proof(&cert, &key, &policy),
         cert,
     };
-    let browser_key = ed25519_dalek::SigningKey::from_bytes(&[11; 32])
+    let browser_key = ic_platform::ed25519::SigningKey::from_bytes(&[11; 32])
         .verifying_key()
         .to_bytes();
     let claims = PortableClaims {

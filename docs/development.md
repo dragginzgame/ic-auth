@@ -343,7 +343,7 @@ storage qualification. See the [transport evidence](ic-testkit-qualification.md#
 | `make generate-client-contracts` | Explicitly regenerate the checked-in client contracts from Rust DTOs |
 | `make test-types` | Public types, bounded Wire codecs and private fixture projections |
 | `make test-protocol` | Canonical encoding, signed vectors, ordering and size rejection |
-| `make test-portable-signatures` | Portable Ed25519 issuer proofs with protected audience/issuer/key binding, independent signature vectors and strict malformed/weak-key refusal; this does not admit sessions |
+| `make test-portable-signatures` | Portable Ed25519 issuer proofs with protected audience/issuer/key binding, independent signature vectors and strict malformed/weak-key refusal, including an unpublished consumer enabling permissive Dalek parsing through feature unification; this does not admit sessions |
 | `make test-chain-key-signatures` | Isolated SEC1 admission, explicit producer normalization and exact prehash verification, including malformed material and strict high-S refusal |
 | `make test-signatures` | Real BLS-signed IC fixtures, signer/seed/root rejection, certificate freshness and bounded decoding |
 | `make test-signature-store` | Bounded preparation/retrieval, unchanged retry deadlines, pruning and real BLS verification with host-composed branches |

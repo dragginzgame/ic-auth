@@ -84,7 +84,7 @@ test-protocol:
 
 test-portable-signatures:
 	+cargo test --locked --offline -p ic-auth --features portable-signature-verification --test portable_signature --test portable_revocation
-	+cargo test --locked --offline -p ic-auth --features portable-signature-verification,ed25519-dalek/legacy_compatibility --test portable_signature --test portable_revocation
+	+cargo test --locked --offline -p ic-auth-feature-unification --test portable_signature --test portable_revocation
 	+cargo test --locked --offline -p ic-auth --features portable-signature-verification,certified-proof-verification --test certified portable_certified::
 
 test-chain-key-signatures:
@@ -117,7 +117,7 @@ check-wasm:
 	+cargo check --locked --offline -p ic-auth --features session-restore --target wasm32-unknown-unknown
 
 clippy:
-	+cargo clippy --locked --offline -p ic-auth-protocol-types -p ic-auth -p ic-auth-wire -p ic-auth-tooling -p ic-auth-qualification -p ic-auth-qualification-contracts --all-targets --all-features -- -D warnings
+	+cargo clippy --locked --offline -p ic-auth-protocol-types -p ic-auth -p ic-auth-wire -p ic-auth-tooling -p ic-auth-qualification -p ic-auth-qualification-contracts -p ic-auth-feature-unification --all-targets --all-features -- -D warnings
 	+cargo clippy --locked --offline -p ic-auth-qualification-canister --target wasm32-unknown-unknown -- -D warnings
 
 build-qualification-canister:

@@ -1,5 +1,4 @@
 #![cfg(all(feature = "sessions", feature = "portable-signature-verification"))]
-use ed25519_dalek::{Signer, SigningKey};
 use ic_auth::{
     admission_budget::SessionAdmissionBudget,
     portable::{
@@ -12,6 +11,7 @@ use ic_auth::{
     session_request::SessionRequest,
 };
 use ic_auth_protocol_types::*;
+use ic_platform::ed25519::{Signer, SigningKey};
 use sha2::{Digest, Sha256};
 const SECOND: u64 = 1_000_000_000;
 const NOW: u64 = 10 * SECOND;

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.2]
+
+- Use published IC Platform 0.1.16 for Ed25519 primitives, retaining strict
+  signature verification, canonical scalar checks and existing proof/session
+  behavior. Remove production direct Dalek dependencies; keep the permissive
+  feature-unification regression in an unpublished consumer harness.
+
 ## [0.10.1] - 2026-10-18
 
 - Select Rust 1.99.1 for development formatting, Clippy and CI; keep the package

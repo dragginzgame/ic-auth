@@ -6,7 +6,6 @@ use super::{Agent, BasicIdentity, Fixture, Principal};
 mod contract;
 use super::{controls, query_control, update_control, update_wire};
 use contract::*;
-use ed25519_dalek::{Signer, SigningKey};
 use ic_auth::{
     portable::{browser_principal, claims_hash, encode_claims},
     session::*,
@@ -16,6 +15,7 @@ use ic_auth_wire::{
     SessionInput, SessionView,
     wire::{Bytes, List, Text},
 };
+use ic_platform::ed25519::{Signer, SigningKey};
 use sha2::{Digest, Sha256};
 use std::time::Duration;
 const SECOND: u64 = 1_000_000_000;

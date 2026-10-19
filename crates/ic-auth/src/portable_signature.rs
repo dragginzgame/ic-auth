@@ -10,9 +10,8 @@ use crate::portable::{
     DecodedPortableClaims, PortableClaimsContext, PortableClaimsError, PortableEncodingError,
     VerifiedPortableClaims, validate_claims_context,
 };
-use curve25519_dalek::scalar::Scalar;
-use ed25519_dalek::{Signature, VerifyingKey};
 use ic_auth_protocol_types::PortableMechanism;
+use ic_platform::ed25519::{Scalar, Signature, VerifyingKey};
 use sha2::{Digest, Sha256};
 use thiserror::Error;
 
