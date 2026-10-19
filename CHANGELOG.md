@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.10.3]
+## [0.10.3] - 2026-10-19
 
 - Adopt Shared Tooling 0.25.0 source and its grouped formatting defaults. Use the
   released IC Build editor for release candidates, retaining saved-source
