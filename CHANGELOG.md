@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.11.0]
+## [0.11.0] - 2026-10-20
 
 - Use published `ic-host-file` for file identities and private create/replace,
   removing Auth's local file-command and batch implementation. Run explicit
