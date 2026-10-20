@@ -148,7 +148,8 @@ rg -F 'make install-testkit-tools' "$fixture/missing.stderr" > /dev/null
 mkdir -p "$consumer/make" "$consumer/ci" "$consumer/scripts/ci"
 for input in Makefile make/consumer.mk make/tools.mk make/release.mk make/rust-format.mk make/execution.mk \
     scripts/ci/check-release-delivery.sh ci/release-delivery.txt \
-    ci/tool-versions.env ci/ic-tools.tsv ci/cargo-dependency-boundaries.json Cargo.toml rust-toolchain.toml \
+    ci/tool-versions.env ci/ic-tools.tsv ci/cargo-dependency-boundaries.json ci/host-file.env \
+    scripts/dev/run-host-file.sh Cargo.toml rust-toolchain.toml \
     packages/client/package.json packages/client/package-lock.json packages/client/.nvmrc \
     scripts/ci/check-make-execution.sh scripts/ci/verify-file-checksum.sh \
     scripts/ci/run-validation-targets.sh; do
@@ -167,6 +168,14 @@ set -euo pipefail
 case "$1" in
     install) printf 'install-msrv\n' >> "$TESTKIT_FIXTURE_LOG" ;;
     check) printf 'msrv-tools-check\n' >> "$TESTKIT_FIXTURE_LOG"; exit "${TESTKIT_FIXTURE_MSRV_STATUS:-0}" ;;
+    *) exit 2 ;;
+esac
+SCRIPT
+cat > "$consumer/scripts/dev/host-file-tools.sh" <<'SCRIPT'
+#!/usr/bin/env bash
+set -euo pipefail
+case "$1" in
+    install|check) printf 'file tools %s\n' "$1" >> "$TESTKIT_FIXTURE_LOG" ;;
     *) exit 2 ;;
 esac
 SCRIPT
@@ -206,7 +215,7 @@ done
 # The actual CI roster seals both Rust and frontend preparation before stages.
 # Each independent export mutates one declared input in the first stage; no
 # common/product admission or Cargo dispatch may follow, even under parallel Make.
-for scenario in rust frontend delivery boundaries deleted failed-stage; do
+for scenario in rust frontend delivery boundaries file-pin file-selector file-runner deleted failed-stage; do
     mutant="$fixture/drift-$scenario"
     cp -R "$consumer" "$mutant"
     : > "$TESTKIT_FIXTURE_LOG"
@@ -215,6 +224,9 @@ for scenario in rust frontend delivery boundaries deleted failed-stage; do
         frontend) input=packages/client/package-lock.json ;;
         delivery) input=ci/release-delivery.txt ;;
         boundaries) input=ci/cargo-dependency-boundaries.json ;;
+        file-pin) input=ci/host-file.env ;;
+        file-selector) input=scripts/dev/host-file-tools.sh ;;
+        file-runner) input=scripts/dev/run-host-file.sh ;;
         deleted) input=rust-toolchain.toml; action=delete ;;
         failed-stage) snapshot_status=37 ;;
     esac
@@ -243,12 +255,13 @@ cmp "$fixture/expected-preflight.log" "$TESTKIT_FIXTURE_LOG"
 : > "$TESTKIT_FIXTURE_LOG"
 (cd "$consumer"; make --no-print-directory -j4 install-tools) > "$fixture/setup.log" 2>&1
 printf '%s\n' 'rust preflight' install-host-tools install-rust-tools \
-    install-host-tools install-msrv install-host-tools 'cli install' 'server setup' 'cli check' > "$fixture/expected-setup.log"
+    install-host-tools install-msrv install-host-tools 'cli install' 'server setup' 'cli check' \
+    install-host-tools 'file tools install' > "$fixture/expected-setup.log"
 cmp "$fixture/expected-setup.log" "$TESTKIT_FIXTURE_LOG"
 : > "$TESTKIT_FIXTURE_LOG"
 (cd "$consumer"; make --no-print-directory -j4 tools-check) > "$fixture/check.log" 2>&1
 printf '%s\n' host-tools-check rust-tools-check msrv-tools-check \
-    'cli check' 'server check' 'cli check' > "$fixture/expected-check.log"
+    'cli check' 'server check' 'cli check' 'file tools check' > "$fixture/expected-check.log"
 cmp "$fixture/expected-check.log" "$TESTKIT_FIXTURE_LOG"
 
 # Missing minimum compiler refuses before Testkit, without installation.

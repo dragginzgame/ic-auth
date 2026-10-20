@@ -33,7 +33,7 @@ jq -e --arg forbidden "$forbidden" --arg version "$version" --arg fixture "$fixt
 ' "$fixture/metadata.json" > /dev/null || {
     echo 'package consumer did not select the exact isolated library graph' >&2; exit 1;
 }
-"$BASH" scripts/dev/run-host-tooling.sh verify-external-lock \
+cargo run --quiet --locked --offline -p ic-auth-tooling -- verify-external-lock \
     "$workspace_lock" "$fixture/Cargo.lock" 8388608 || {
     echo 'package consumer changed an external lock selection' >&2; exit 1;
 }
