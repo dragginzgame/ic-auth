@@ -1,7 +1,7 @@
 # IC Auth Agent Instructions
 
-Apply [DRAGGINZGAME.md](DRAGGINZGAME.md), adopted from Shared Tooling 0.25.6
-source `84a8742c7c2e3f5611647f9c0f67fed049960327`, recorded in
+Apply [DRAGGINZGAME.md](DRAGGINZGAME.md), adopted from Shared Tooling 0.25.8
+source `0a2d2ee3b5e0ae77755c2915ac28836d4d5ba359`, recorded in
 [.shared-tooling.snapshot](.shared-tooling.snapshot). Read
 [the current handoff](docs/status/current.md) before implementation.
 
@@ -60,7 +60,7 @@ generated browser contracts and private qualification controls use IC Wire.
 The fixture exposes only Wire methods, with no Candid projection or direct
 declaration. Its old
 Candid checkpoint is explicitly retired; production storage is unaffected.
-Platform 0.4.0 owns Principal and its parse errors. Convert explicitly through
+Platform 0.5.0 owns Principal and its parse errors. Convert explicitly through
 `principal::ExternalPrincipal` at upstream Agent/Testkit/crypto boundaries; keep
 application/runtime identities owned and preserve original bytes. It supplies
 Platform-owned canister-signature key/hash code and upstream certificate-tree,
@@ -72,7 +72,8 @@ to enable permissive parsing adversarially, never in a deployed graph. Forward o
 capability; BLS fixture signing is a dev dependency. Preserve imported crypto provenance; do not implement replacement cryptography.
 The qualification host selects Platform's `cdk` capability for runtime calls,
 certificate acquisition/publication and entrypoint generation (Platform #21).
-Keep hidden/custom Wire codecs and the upstream controller/runtime semantics.
+Keep explicit Wire codecs and the upstream controller/runtime semantics; the
+retired no-op `hidden` macro option is not accepted.
 Platform owns the maintained non-cryptographic runtime adapters and generator;
 the registry executor identity stays shared. Its `cdk` feature is Candid-free.
 All public library capability graphs and the reference Wasm refuse Candid.

@@ -111,8 +111,13 @@ case "$operation" in
         fi
         bash scripts/ci/check-release-source.sh --allow CHANGELOG.md
         [[ "$(bash scripts/ci/read-cargo-workspace-version.sh --stable Cargo.toml)" == "$RELEASE_PREVIOUS" ]] || fail 'current version mismatch'
-        heading="$(awk '/^## / { print; exit }' CHANGELOG.md)"
-        [[ "$heading" == "## [$RELEASE_VERSION]" ]] || fail "expected undated pending heading '## [$RELEASE_VERSION]' for selected $RELEASE_KIND; found '$heading'. Remove any date or '- Unreleased' suffix; release preparation adds the date."
+        # Preserve Auth's selected-pending-section requirement while accepting
+        # the shared finalizer's heading whitespace normalization.
+        heading="$(awk '{ sub(/[ \t]+$/, ""); gsub(/[ \t]+/, " "); if (/^## /) { print; exit } }' CHANGELOG.md)"
+        case "$heading" in
+            "## [$RELEASE_VERSION]"|"## [$RELEASE_VERSION] - Unreleased") ;;
+            *) fail "expected pending heading '## [$RELEASE_VERSION]' or '## [$RELEASE_VERSION] - Unreleased' for selected $RELEASE_KIND; found '$heading'. Release preparation adds the date." ;;
+        esac
         awk -v version="$RELEASE_VERSION" -v previous="$RELEASE_PREVIOUS" -v date="$RELEASE_DATE" \
             -f scripts/ci/finalize-release-changelog.awk CHANGELOG.md > /dev/null
         cargo sort --workspace --grouped --check

@@ -222,11 +222,11 @@ if make --no-print-directory release-minor > "$fixture/wrong-candidate.log" 2>&1
 # setup/fetch/validation, while preserving notes, index and release identity.
 cp CHANGELOG.md "$fixture/pending-notes"
 cp .git/index "$fixture/pending-index"
-for suffix in ' - Unreleased' ' - 2026-10-16'; do
+for suffix in ' - Draft' ' - 2026-10-16'; do
     sed "s/^## \[0.1.1\]$/## [0.1.1]$suffix/" "$fixture/pending-notes" > CHANGELOG.md
     cp CHANGELOG.md "$fixture/invalid-notes"
     if make --no-print-directory release-patch > "$fixture/pending-heading.log" 2>&1; then exit 1; fi
-    rg -F "expected undated pending heading '## [0.1.1]'" "$fixture/pending-heading.log" > /dev/null
+    rg -F "expected pending heading '## [0.1.1]'" "$fixture/pending-heading.log" > /dev/null
     rg -F "found '## [0.1.1]$suffix'" "$fixture/pending-heading.log" > /dev/null
     [[ ! -e target/preparation-dispatch.log ]] || exit 1
     cmp CHANGELOG.md "$fixture/invalid-notes"
@@ -291,8 +291,13 @@ rg -F 'this attempt has not started validation or version preparation' "$fixture
 cmp .git/index "$fixture/staged-index"
 cmp crates/ic-auth/src/lib.rs "$fixture/staged-worktree"
 git restore --staged crates/ic-auth/src/lib.rs
+# Standard preparation accepts the numbered marker and replaces it with its
+# saved UTC date before committing/tagging. Earlier refusal cases cover the bare
+# numbered spelling; do not require a manual heading edit for this path.
+awk '{ if ($0 == "## [0.1.1]") print "##\t[0.1.1]  -\tUnreleased \t"; else print }' "$fixture/pending-notes" > CHANGELOG.md
 make --no-print-directory release-patch > "$fixture/patch.log" 2>&1
 [[ "$(make -s release-version)" == 0.1.1 ]] || exit 1
+[[ "$(awk '/^## / { print; exit }' CHANGELOG.md)" == "## [0.1.1] - $(jq -r .date release-validation.json)" ]] || exit 1
 commit="$(git rev-parse HEAD)"
 bash scripts/ci/check-release-tag.sh "$commit" 0.1.1
 [[ "$(git --git-dir="$fixture/remote.git" rev-parse main)" == "$commit" ]] || exit 1

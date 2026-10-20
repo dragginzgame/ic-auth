@@ -173,6 +173,8 @@ check-dependency-pins:
 check-doc-links:
 	@rg --files -g '*.md' -0 | xargs -0 perl scripts/ci/check-documentation-links.pl --root "$(CURDIR)"
 
+# Sequential validation also holds under parallel Make: admit tools, then run
+# the complete existing lint gate before product tests, builds or packaging.
 ci:
 	+bash scripts/ci/run-validation-targets.sh --fail-fast \
 	  --input Cargo.toml --input Cargo.lock --input rust-toolchain.toml \
@@ -181,7 +183,7 @@ ci:
 	  --input ci/host-file.env --input scripts/dev/host-file-tools.sh --input scripts/dev/run-host-file.sh \
 	  --input packages/client/package.json --input packages/client/package-lock.json \
 	  --input packages/client/.nvmrc \
-	  check-snapshot tools-check check-dependency-pins check-doc-links test-make-jobserver fmt-check test-formatting-hooks metadata check-boundaries check-msrv test-tools-evidence test-testkit-tools test-client-tools test-client test-types test-protocol test-portable-signatures test-chain-key-signatures test-signatures test-signature-store test-certified-proofs test-sessions test-host-tooling test-qualification check-wasm clippy publish-dry-run test-release-tools test-release-runner test-evidence-archive
+	  check-snapshot tools-check clippy check-dependency-pins check-doc-links test-make-jobserver fmt-check test-formatting-hooks metadata check-boundaries check-msrv test-tools-evidence test-testkit-tools test-client-tools test-client test-types test-protocol test-portable-signatures test-chain-key-signatures test-signatures test-signature-store test-certified-proofs test-sessions test-host-tooling test-qualification check-wasm publish-dry-run test-release-tools test-release-runner test-evidence-archive
 
 check-package-licenses:
 	@cmp LICENSE crates/ic-auth-protocol-types/LICENSE

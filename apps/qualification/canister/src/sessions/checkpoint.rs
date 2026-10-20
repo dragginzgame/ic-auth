@@ -152,7 +152,6 @@ pub(crate) fn restore(snapshot: Option<Snapshot>) {
 }
 
 #[ic_platform::cdk::update(
-    hidden = true,
     guard = "crate::control::guard",
     decode_with = "crate::control::decode::<controls::EnableCheckpoint>",
     encode_with = "crate::control::encode_result::<controls::EnableCheckpoint, _>"
@@ -168,7 +167,6 @@ fn enable_session_checkpoint() -> Result<(), String> {
 /// The fixture's controller attests current authority after this boot. Production
 /// requires authenticated receiver-bound Root enrollment, not this test endpoint.
 #[ic_platform::cdk::update(
-    hidden = true,
     guard = "crate::control::guard",
     decode_with = "crate::control::decode::<controls::ConfirmAuthority>",
     encode_with = "crate::control::encode_result::<controls::ConfirmAuthority, _>"

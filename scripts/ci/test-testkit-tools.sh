@@ -264,6 +264,62 @@ printf '%s\n' host-tools-check rust-tools-check msrv-tools-check \
     'cli check' 'server check' 'cli check' 'file tools check' > "$fixture/expected-check.log"
 cmp "$fixture/expected-check.log" "$TESTKIT_FIXTURE_LOG"
 
+# Exercise the actual sequential CI recipe under parallel Make. Substitute only
+# compiler effects and the first post-lint check: both native and Wasm lint must
+# succeed before anything later runs. Keep the real tool-admission ordering.
+lint_consumer="$fixture/lint consumer"
+cp -R "$consumer" "$lint_consumer"
+mkdir "$fixture/lint-bin"
+cat > "$fixture/lint-bin/cargo" <<'SCRIPT'
+#!/usr/bin/env bash
+set -euo pipefail
+[[ "${1:-}" == clippy ]] || exit 99
+case " $* " in
+    *' --target wasm32-unknown-unknown '*) phase=wasm ;;
+    *) phase=native ;;
+esac
+printf 'clippy %s\n' "$phase" >> "$TESTKIT_FIXTURE_LOG"
+if [[ "$phase" == native ]]; then exit "${TESTKIT_FIXTURE_NATIVE_LINT_STATUS:-0}"; fi
+exit "${TESTKIT_FIXTURE_WASM_LINT_STATUS:-0}"
+SCRIPT
+chmod +x "$fixture/lint-bin/cargo"
+cat > "$lint_consumer/scripts/ci/check-dependency-pins.sh" <<'SCRIPT'
+#!/usr/bin/env bash
+set -euo pipefail
+printf 'post-lint gate\n' >> "$TESTKIT_FIXTURE_LOG"
+exit 41
+SCRIPT
+for scenario in native wasm success; do
+    : > "$TESTKIT_FIXTURE_LOG"
+    native_status=0; wasm_status=0
+    case "$scenario" in
+        native) native_status=37 ;;
+        wasm) wasm_status=38 ;;
+    esac
+    status=0
+    (cd "$lint_consumer"; PATH="$fixture/lint-bin:$PATH" \
+        TESTKIT_FIXTURE_CONSUMER="$lint_consumer" \
+        TESTKIT_FIXTURE_NATIVE_LINT_STATUS="$native_status" \
+        TESTKIT_FIXTURE_WASM_LINT_STATUS="$wasm_status" \
+        make --no-print-directory -j4 ci) > "$fixture/lint-$scenario.log" 2>&1 || status=$?
+    [[ "$status" == 2 ]]
+    printf 'snapshot check\n' > "$fixture/expected-lint-$scenario.log"
+    cat "$fixture/expected-check.log" >> "$fixture/expected-lint-$scenario.log"
+    printf 'clippy native\n' >> "$fixture/expected-lint-$scenario.log"
+    if [[ "$scenario" != native ]]; then
+        printf 'clippy wasm\n' >> "$fixture/expected-lint-$scenario.log"
+    fi
+    if [[ "$scenario" == success ]]; then
+        printf 'post-lint gate\n' >> "$fixture/expected-lint-$scenario.log"
+        rg -F 'Error 41' "$fixture/lint-$scenario.log" > /dev/null
+    else
+        if [[ "$scenario" == native ]]; then expected_status=37; else expected_status=38; fi
+        rg -F "Error $expected_status" "$fixture/lint-$scenario.log" > /dev/null
+        rg -F 'VALIDATION FAILED: clippy' "$fixture/lint-$scenario.log" > /dev/null
+    fi
+    cmp "$fixture/expected-lint-$scenario.log" "$TESTKIT_FIXTURE_LOG"
+done
+
 # Missing minimum compiler refuses before Testkit, without installation.
 : > "$TESTKIT_FIXTURE_LOG"
 status=0
@@ -405,4 +461,4 @@ mkdir "$fixture/unpacked"
 tar -xzf "$archive" -C "$fixture/unpacked"
 cmp "$consumer/.tools/testkit-server/setup.log" "$fixture/unpacked/.tools/testkit-server/setup.log"
 if rg 'warning: (overriding recipe|ignoring old recipe)' "$fixture"/*.log; then exit 1; fi
-printf 'Testkit explicit setup, offline admission, failure propagation, qualification path and retained CI bytes verified\n'
+printf 'Testkit admission, fail-fast native/Wasm CI lint, input seals and qualification transport verified\n'

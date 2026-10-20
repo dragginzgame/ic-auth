@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.12.0]
+
+- **Breaking Rust dependency identity:** adopt published IC Platform 0.5.0.
+  Consumers sharing Platform-owned Principals must align
+  to Platform 0.5. Signed claims, Wire frames and retained records keep their bytes.
+  Remove the retired no-op `hidden` option from the private Wire fixture's macros.
+- Accept numbered `- Unreleased` changelog headings during release preflight;
+  preparation replaces the marker with its saved UTC date before commit/tag/push.
+
+- Adopt Shared Tooling 0.25.8 and run the existing full Clippy gate immediately
+  after snapshot/tool admission, before tests, product builds and packaging.
+  A native or Wasm lint failure stops later stages under parallel Make; release
+  validation uses the same gate. Lint scope and recovery contracts are unchanged.
+
 ## [0.11.1] - 2026-10-20
 
 - Adopt Shared Tooling 0.25.6 for independently qualified fixture exports and

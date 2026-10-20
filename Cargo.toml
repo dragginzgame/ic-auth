@@ -28,7 +28,7 @@ ic-auth-protocol-types = { version = "0.11.1", path = "crates/ic-auth-protocol-t
 ic-auth-wire = { version = "0.11.1", path = "crates/ic-auth-wire" }
 # Platform owns Principal and imported signature code; other crypto identities stay upstream.
 # Empty defaults keep protocol, portable and session consumers free of IC runtime.
-ic-platform = { version = "0.4", default-features = false }
+ic-platform = { version = "0.5", default-features = false }
 ic-wire = "0.5"
 leb128 = "0.2"
 serde = { version = "1", features = ["derive"] }

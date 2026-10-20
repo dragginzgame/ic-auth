@@ -2,7 +2,7 @@
 
 The virtual root owns the protocol/types, Auth engine and Wire transport libraries,
 unpublished native tooling in `apps/tooling/` and the reference host/runner in
-`apps/qualification/`. The root catalog and lock select published Platform 0.4.1,
+`apps/qualification/`. The root catalog and lock select published Platform 0.5.0,
 Host FS/Process 0.31.2, Testkit, Memory, Build and the shared Wire codec/TypeScript
 generator. The [handoff](status/current.md) records exact evidence;
 [session contracts](sessions.md) distinguish supported behavior from pending hosts.
@@ -107,7 +107,7 @@ unchanged.
 
 ## Crypto dependency boundary
 
-Auth selects Platform 0.4.0's independent `ecdsa` capability for chain-key
+Auth selects Platform 0.5.0's independent `ecdsa` capability for chain-key
 verification and `ed25519` for portable signatures. Original K256/Dalek types and
 cryptography stay upstream. Auth owns prehash construction, high-S refusal,
 explicit producer normalization, canonical-scalar checks and verification policy.
@@ -129,8 +129,8 @@ for the existing byte/path limits and release-recovery boundary.
 
 ## Dependency roles and deployment admission
 
-Shared Tooling 0.25.6 source is adopted at
-`84a8742c7c2e3f5611647f9c0f67fed049960327` (reviewed committed source, not a
+Shared Tooling 0.25.8 source is adopted at
+`0a2d2ee3b5e0ae77755c2915ac28836d4d5ba359` (reviewed committed source, not a
 claim of registry publication or a matching release tag).
 The root catalog uses `Production dependencies` and `Tests and tooling only`;
 member annotations distinguish the three production libraries from internal
@@ -209,18 +209,20 @@ its Principal field remains external. DER/CBOR bytes, cryptographic bodies, erro
 resource admission and protected authority stay intact. These capabilities now
 select no Candid, raw IC calls or executor; no local replacement is introduced.
 
-Platform 0.4.0's `cdk` feature supplies maintained runtime adapters and explicit
+Platform 0.5.0's `cdk` feature supplies maintained runtime adapters and explicit
 codec entrypoints without depending on the full CDK or selecting Candid. The
 host's runtime calls and lifecycle/query/update macros use `ic_platform::cdk`;
 no local runtime wrapper is introduced. Explicit Wire hooks, including unit RPCs,
 retain byte admission, payloads, errors and traps. Controller Boolean/panic
 behavior and the registry executor 2.0.0/ic0 1.2.0 identities are retained.
-The old `hidden = true` spelling remains accepted.
+The retired no-op `hidden = true` option is removed from all fixture entrypoints;
+explicit Wire decoding/encoding and endpoint exports remain unchanged.
 
-Auth does not expose Platform's changed runtime-specific call/error types in its
-public libraries, so their upstream type-identity change requires no Auth public
-API migration. Its RejectCode/raw-call convenience cut also affects no Auth
-call site. Native Agent/Testkit retain their separate transitive Candid graph.
+Auth keeps runtime-specific call/error types internal and uses none of the
+retired storage or `change_timeout` APIs. Its public Principal acquires a Platform 0.5 crate identity, so consumers
+sharing that type
+must align to Platform 0.5; see [the migration](canic-adoption.md#platform-05-migration).
+Native Agent/Testkit retain their independently selected Platform/Candid graph.
 Counter-zero measurements continue using the exact raw API, equivalent to CDK's
 conversion of the same constant.
 
@@ -275,8 +277,8 @@ installations retained.
 The Makefile includes reviewed [`make/consumer.mk`](make-interface.md), which owns
 common setup, formatting, hooks, snapshot verification and release routing.
 `check-snapshot` retains its public name and depends on `shared-tooling-check`.
-The recorded snapshot pins Shared Tooling 0.24.0 at
-`cab12cd3dfa4fdb34846b25397f0d72881bb9ae0`. Adopt its committed source and
+The recorded snapshot pins Shared Tooling 0.25.8 at
+`0a2d2ee3b5e0ae77755c2915ac28836d4d5ba359`. Adopt its committed source and
 recorded entrypoint closure through the canonical exporter; see
 [snapshot adoption](consuming-snapshots.md#entrypoint-selection-in-070).
 The canonical verifier also supports `--read-manifest FILE`: it validates the
@@ -424,6 +426,13 @@ storage qualification. See the [transport evidence](ic-testkit-qualification.md#
 
 ## Validation
 
+The complete CI/release gate admits the snapshot and prepared tools, then runs
+`make clippy` before other validation targets. It keeps the same native all-target/
+all-feature and Wasm lint scope. The sequential runner stops on either lint
+failure even under parallel Make, before tests, package builds or publication
+qualification. Standard releases call this same gate; publication requires its
+source-bound release receipt. This library repository has no deployment target.
+
 | Focused command | Purpose |
 | --- | --- |
 | `make test-client-tools` | Actual CI pipeline and Make callers: selected Node/npm path, later-step admission and first-failure controls with substituted npm effects |
@@ -569,6 +578,11 @@ propagation and qualifies the incoming native selections. Released 0.4.5 adopts
 Shared Tooling 0.6.3's restart of committed preparation. Existing Rust APIs,
 signed bytes, stored formats and consumer build requirements remain unchanged.
 Release execution still requires an explicit request for the selected command.
+
+Pending numbered changelog headings may use `## [X.Y.Z]` or
+`## [X.Y.Z] - Unreleased`. Standard release preparation replaces the marker with
+the saved UTC date before commit/tag/push. Other suffixes and conflicting dates
+still refuse; interrupted recovery retains its exact saved notes and date.
 
 The [shared restart contract](releases.md#source-changes-after-saved-preparation-intent)
 applies to IC Auth's direct delivery. Its preparation adapter writes only local

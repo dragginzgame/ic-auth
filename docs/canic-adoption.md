@@ -84,7 +84,7 @@ TypeScript remain unchanged. No login/journal/checkpoint reset is authorized.
 
 ## Platform 0.4 migration
 
-Pending Auth 0.11 also adopts published Platform 0.4.0. Auth's `Principal` path
+Released Auth 0.11 adopts published Platform 0.4.0. Auth's `Principal` path
 is unchanged, but the type and parse errors now belong to Platform. Rust consumers
 must align their application types to Platform 0.4; mixing its owned Principal
 with the former upstream identity requires explicit conversion. Application and
@@ -115,6 +115,25 @@ unchanged. All Auth capabilities and reference Wasm now reject Candid and the
 retired registry signature-package edges. Runtime RejectCode/raw-call convenience
 changes affect no Auth call sites; the qualified host keeps explicit Wire codecs.
 Native Agent/Testkit still select their independently maintained Candid graph.
+
+## Platform 0.5 migration
+
+Pending Auth 0.12 selects published Platform 0.5.0. Auth exposes its owned
+`Principal`, so Rust consumers sharing that type must align their direct Platform
+dependency to 0.5. Import paths stay unchanged;
+0.4 and 0.5 are distinct Rust crate/type identities. Required external DTOs and
+Agent/Testkit parameters still use `principal::ExternalPrincipal` with explicit
+byte-preserving conversions. Do not override Testkit or Memory's independently
+published Platform 0.4 selection or add a local identity compatibility facade.
+
+Signed claims, frozen Wire frames, session/replay/login encodings and generated
+TypeScript retain their bytes. This is a Rust dependency-identity cut, with no
+journal/checkpoint reset or storage migration. The private host removes the
+retired no-op `hidden` macro option while retaining explicit Wire hooks and its
+existing endpoints. It uses none of the removed checkpoint/reader APIs or
+`Call::change_timeout`; there is no replacement storage abstraction or wait-policy
+change in Auth. The host still requires `cdk` for entrypoint generation; public
+proof/type/session capabilities select no runtime feature.
 
 ## One application flow and host obligations
 

@@ -103,7 +103,6 @@ fn with_receiver<T>(
     })
 }
 #[ic_platform::cdk::update(
-    hidden = true,
     guard = "crate::control::guard",
     decode_with = "crate::control::decode::<controls::InstallReceiver>",
     encode_with = "crate::control::encode_result::<controls::InstallReceiver, _>"
@@ -164,7 +163,6 @@ fn install_session_receiver(config: controls::model::ReceiverConfig) -> Result<(
     Ok(())
 }
 #[ic_platform::cdk::update(
-    hidden = true,
     guard = "admission_guard",
     decode_with = "decode_admission",
     encode_with = "encode_admission"
@@ -242,7 +240,6 @@ fn establish_portable_session(input: SessionInput) -> Result<SessionView, String
     })
 }
 #[ic_platform::cdk::update(
-    hidden = true,
     guard = "admission_guard",
     decode_with = "crate::control::decode::<controls::ProfileAdmission>",
     encode_with = "crate::control::encode::<controls::ProfileAdmission>"
@@ -258,7 +255,6 @@ fn profile_portable_admission(input: SessionInput) -> AdmissionProfile {
 }
 
 #[ic_platform::cdk::update(
-    hidden = true,
     guard = "read_guard",
     decode_with = "decode_read",
     encode_with = "encode_read"
@@ -281,7 +277,6 @@ fn portable_session_read() -> Result<SessionView, String> {
     })
 }
 #[ic_platform::cdk::update(
-    hidden = true,
     guard = "logout_guard",
     decode_with = "decode_logout",
     encode_with = "encode_logout"
@@ -302,7 +297,6 @@ fn logout_portable_session() -> LogoutResult {
     })
 }
 #[ic_platform::cdk::update(
-    hidden = true,
     guard = "crate::control::guard",
     decode_with = "crate::control::decode::<controls::InvalidateAuthority>",
     encode_with = "crate::control::encode_result::<controls::InvalidateAuthority, _>"
@@ -316,7 +310,6 @@ fn invalidate_session_authority(enabled: bool) -> Result<(), String> {
     })
 }
 #[ic_platform::cdk::query(
-    hidden = true,
     guard = "crate::control::guard",
     decode_with = "crate::control::decode::<controls::ProfileSession>",
     encode_with = "crate::control::encode_result::<controls::ProfileSession, _>"

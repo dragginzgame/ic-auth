@@ -76,7 +76,7 @@ fn controller() -> Result<(), String> {
     Ok(())
 }
 
-#[ic_platform::cdk::init(hidden = true, decode_with = "control::decode::<controls::Initialize>")]
+#[ic_platform::cdk::init(decode_with = "control::decode::<controls::Initialize>")]
 fn init(owner: Bytes<29>) {
     let owner = Principal::try_from_slice(owner.as_slice()).expect("owner principal");
     assert_ne!(owner, Principal::anonymous());
@@ -123,7 +123,6 @@ fn post_upgrade() {
 }
 
 #[ic_platform::cdk::update(
-    hidden = true,
     guard = "control::guard",
     decode_with = "control::decode::<controls::Prepare>",
     encode_with = "control::encode_result::<controls::Prepare, _>"
@@ -159,7 +158,6 @@ fn prepare(
 }
 
 #[ic_platform::cdk::query(
-    hidden = true,
     guard = "control::guard",
     decode_with = "control::decode::<controls::Retrieve>",
     encode_with = "control::encode_result::<controls::Retrieve, _>"
@@ -196,7 +194,6 @@ fn retrieve(
 }
 
 #[ic_platform::cdk::update(
-    hidden = true,
     guard = "control::guard",
     decode_with = "control::decode::<controls::Prune>",
     encode_with = "control::encode_result::<controls::Prune, _>"
@@ -214,7 +211,6 @@ fn prune(budget: u32) -> Result<u32, String> {
 }
 
 #[ic_platform::cdk::update(
-    hidden = true,
     guard = "control::guard",
     decode_with = "control::decode::<controls::SetAsset>",
     encode_with = "control::encode_result::<controls::SetAsset, _>"
@@ -229,7 +225,6 @@ fn set_asset(version: u64) -> Result<(), String> {
 }
 
 #[ic_platform::cdk::query(
-    hidden = true,
     guard = "control::guard",
     decode_with = "control::decode::<controls::AssetVersion>",
     encode_with = "control::encode::<controls::AssetVersion>"
@@ -239,7 +234,6 @@ fn asset_version() -> u64 {
 }
 
 #[ic_platform::cdk::update(
-    hidden = true,
     guard = "control::guard",
     decode_with = "control::decode::<controls::OwnerOperation>",
     encode_with = "control::encode_result::<controls::OwnerOperation, _>"

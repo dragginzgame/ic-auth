@@ -9,7 +9,7 @@ Earlier pairings and benchmarks are preserved in
 
 ## Setup and ownership
 
-The root catalog/lock select published Testkit 0.57.0 and Platform 0.4.0.
+The root catalog/lock select published Testkit 0.59.0 and Platform 0.5.0.
 Application identities use owned Principal; direct Testkit/Agent calls convert
 explicitly to their retained external type. Testkit's own Platform 0.2 dependency
 stays native; it is not overridden to force its separate migration.
@@ -36,7 +36,7 @@ IC Memory supplies checkpoint-cell mechanics, and Platform supplies raw length
 admission before CDK copying, counter-zero measurements, certified-tree types
 and canister-signature key/hash operations. Its `cdk` capability now supplies
 certificate read/publish helpers and the original runtime/controller semantics.
-Platform 0.4's runtime and imported certified-verifier stack are Candid-free.
+The selected Platform runtime and imported certified-verifier stack are Candid-free.
 The reference Wasm rejects Candid; native Agent/Testkit still bring it transitively.
 Controls and checkpoints remain Wire.
 No direct Candid, CDK or Testkit Candid declaration remains.
