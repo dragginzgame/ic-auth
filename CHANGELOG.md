@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.11.1]
+
+- Use published `ic-host-file` for file identities and private create/replace,
+  removing Auth's local file-command and batch implementation. Run explicit
+  `make install-host-file` once; checks and release recovery only admit prepared
+  tools. Auth retains batch limits, publication intent and recovery policy
+  ([#78 — Adopt the published Host file CLI](https://github.com/dragginzgame/ic-auth/issues/78)).
+- Include the file-tool pin and delegation scripts in CI input sealing and
+  qualify the extended setup/check order with the Testkit caller fixture.
+
 ## [0.11.0] - 2026-10-20
 
 - Adopt Shared Tooling 0.25.4, including explicit Cargo-tool feature selection

@@ -138,13 +138,13 @@ case "$operation" in
         admit_changes
         cmp -s CHANGELOG.md "$scratch/notes" || fail 'notes changed during validation'
         git diff --quiet HEAD -- Cargo.toml Cargo.lock release-validation.json || fail 'metadata changed during validation'
-        lock_digest="$(bash scripts/dev/run-host-tooling.sh hash-file Cargo.lock 8388608)"
+        lock_digest="$(bash scripts/dev/run-host-file.sh hash-file Cargo.lock 8388608)"
         jq -n --arg source "$RELEASE_SOURCE" --arg previous "$RELEASE_PREVIOUS" --arg candidate "$RELEASE_VERSION" \
             --arg kind "$RELEASE_KIND" --arg date "$RELEASE_DATE" --rawfile notes "$scratch/notes" \
             --arg lock "$lock_digest" --arg verified "$(date -u +%FT%TZ)" \
             '{schema:1, gate:"ci", source:$source, previous:$previous, candidate:$candidate,
               kind:$kind, date:$date, verified_at:$verified, lock_sha256:$lock, changelog:$notes}' > "$scratch/receipt.json"
-        bash scripts/dev/run-host-tooling.sh replace-private "$scratch/receipt.json" "$receipt" 1048576
+        bash scripts/dev/run-host-file.sh replace-private "$scratch/receipt.json" "$receipt" 1048576
         ;;
     prepare-version|prepared-check|commit-check)
         [[ "$(git rev-parse HEAD)" == "$RELEASE_SOURCE" ]] || fail 'preparation source changed'

@@ -29,7 +29,7 @@ done
 for script in install-host-tools install-ic-tools; do
     printf '#!/usr/bin/env bash\nexit 0\n' > "$consumer/scripts/dev/$script.sh"
 done
-for script in msrv-tools testkit-tools; do
+for script in msrv-tools testkit-tools host-file-tools; do
     cat > "$consumer/scripts/dev/$script.sh" <<'SCRIPT'
 #!/usr/bin/env bash
 set -euo pipefail

@@ -6,7 +6,7 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Local IC Auth release and publication file operations"
+description = "IC Auth client-contract generation and external Cargo-lock admission"
 publish = false
 
 [dependencies]

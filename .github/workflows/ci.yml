@@ -63,7 +63,7 @@ jobs:
           path: |
             ${{ steps.tool-cache-key.outputs.root }}/cargo-cache
             ${{ steps.tool-cache-key.outputs.root }}/rust-*
-          key: cargo-tools-${{ runner.os }}-${{ runner.arch }}-${{ steps.tool-cache-key.outputs.key }}
+          key: cargo-tools-${{ runner.os }}-${{ runner.arch }}-${{ steps.tool-cache-key.outputs.key }}-${{ hashFiles('ci/host-file.env') }}
       - name: Install reviewed tools and prepare the selected dependency cache
         run: |
           bash scripts/dev/ci-tools.sh install
@@ -83,7 +83,7 @@ jobs:
           path: |
             ${{ steps.tool-cache-key.outputs.root }}/cargo-cache
             ${{ steps.tool-cache-key.outputs.root }}/rust-*
-          key: cargo-tools-${{ runner.os }}-${{ runner.arch }}-${{ steps.tool-cache-key.outputs.key }}
+          key: cargo-tools-${{ runner.os }}-${{ runner.arch }}-${{ steps.tool-cache-key.outputs.key }}-${{ hashFiles('ci/host-file.env') }}
       - name: Qualify Rust-tool setup and check failure collection
         id: tools-evidence
         run: bash scripts/ci/test-tools-evidence.sh
