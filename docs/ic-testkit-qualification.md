@@ -9,10 +9,12 @@ Earlier pairings and benchmarks are preserved in
 
 ## Setup and ownership
 
-The root catalog/lock select published Testkit 0.59.0 and Platform 0.5.0.
+The root catalog/lock select published Testkit 0.62.0 from
+[IC Tooling](https://github.com/dragginzgame/ic-tooling) and Platform 0.5.0.
 Application identities use owned Principal; direct Testkit/Agent calls convert
-explicitly to their retained external type. Testkit's own Platform 0.2 dependency
-stays native; it is not overridden to force its separate migration.
+explicitly to their retained external type. Testkit now selects Platform 0.5
+itself; no dependency override is needed. Its native Candid capability remains
+outside public Auth library and deployed-Wasm graphs.
 Platform owns native Agent/delegated identity imports. Agent remains transitive
 with its native PEM feature; caller/root-key and request policy remain with the
 fixture. There is no direct Agent declaration or local facade. Testkit supplies
@@ -29,10 +31,11 @@ Node/npm dependencies; see [client setup](development.md#browser-client-setup).
 IC Host supplies bounded no-follow Wasm reads and native process mechanics. The
 fixture's startup limit is 30 seconds; state, stdout/stderr and SDK scratch inputs
 remain under a unique `target/portable-fixtures/qualification.*` directory after
-success or failure. The canister uses Platform runtime and hidden entrypoint
+success or failure. The canister uses Platform runtime and generated entrypoint
 macros with explicit Wire codec hooks; the direct CDK exception is removed
 ([Platform #21](https://github.com/dragginzgame/ic-platform/issues/21)).
-IC Memory supplies checkpoint-cell mechanics, and Platform supplies raw length
+IC Memory 0.50.0 from [IC Persistence](https://github.com/dragginzgame/ic-persistence)
+supplies checkpoint-cell mechanics, and Platform supplies raw length
 admission before CDK copying, counter-zero measurements, certified-tree types
 and canister-signature key/hash operations. Its `cdk` capability now supplies
 certificate read/publish helpers and the original runtime/controller semantics.

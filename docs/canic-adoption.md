@@ -118,13 +118,15 @@ Native Agent/Testkit still select their independently maintained Candid graph.
 
 ## Platform 0.5 migration
 
-Pending Auth 0.12 selects published Platform 0.5.0. Auth exposes its owned
+Auth 0.12 selects published Platform 0.5.0. Auth exposes its owned
 `Principal`, so Rust consumers sharing that type must align their direct Platform
 dependency to 0.5. Import paths stay unchanged;
 0.4 and 0.5 are distinct Rust crate/type identities. Required external DTOs and
 Agent/Testkit parameters still use `principal::ExternalPrincipal` with explicit
-byte-preserving conversions. Do not override Testkit or Memory's independently
-published Platform 0.4 selection or add a local identity compatibility facade.
+byte-preserving conversions. Consume Testkit and Memory's independently
+published selections without a local identity compatibility facade or override.
+Current Testkit 0.62 selects Platform 0.5 too; older Testkit releases retain their
+own Platform identity.
 
 Signed claims, frozen Wire frames, session/replay/login encodings and generated
 TypeScript retain their bytes. This is a Rust dependency-identity cut, with no

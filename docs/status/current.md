@@ -2,78 +2,89 @@
 
 ## Source and pending release
 
-Baseline is published Auth 0.11.1 at
-`0e64aa852e5f284b8d36dbc32df5702373f48149`, plus the preserved incoming Shared
-0.25.7/early-Clippy work, Platform 0.5 selection and lock-only updates. Own
-package versions remain 0.11.1. Pending notes select **0.12.0**, because Auth
-exposes the new Platform Principal crate identity. No release/version mutation,
-commit, push, publication or deployment is authorized by dependency adoption.
+Baseline is released Auth 0.12.0 at
+`6f0d68db56a0d10fc27ac0bacbd76acaeb8d5b2f`. Own package versions remain 0.12.0;
+pending notes select **0.12.1**. The current incoming manifest/lock are preserved
+byte-for-byte. This pass synchronizes adoption notes with the coordinated
+upstream releases; it does not perform a dependency update, commit, release,
+publication or deployment. Earlier qualification below covers the older graph.
 
-Published Platform/macros **0.5.0** archives are verified unyanked and
-checksum-matched to Cargo.lock; Platform's source is
-`b840423928f0ca7f14d7fc860508730c87356640`. The incoming root already selected
-Platform 0.5. The manifest and lock are preserved byte-for-byte, including Memory
-0.49.3, Wire 0.5.1, Metrics 0.14.11, Host FS/Process 0.31.2, Build 0.23.0 and
-Testkit 0.59.0. No sibling/path override or broad resolver update is used.
+The registry and archive checksums verify published Host FS/Process, Build and
+Testkit **0.62.0**, now owned by [IC Tooling](https://github.com/dragginzgame/ic-tooling),
+and Memory **0.50.0**, now owned by [IC Persistence](https://github.com/dragginzgame/ic-persistence).
+Wire/derive **0.5.3**, Metrics **0.14.12** and Platform/macros **0.5.0** remain current. These are
+registry releases, not sibling/path overrides. Testkit now selects Platform 0.5,
+removing the older 0.4 copy from the lock. Testkit, Build and Auth's direct native
+callers now share Host 0.62; the old Host 0.31/0.32 copies are gone without overrides.
+The independently pinned file CLI remains 0.31.1.
 
-## Platform 0.5 adoption
+## Compatibility and ownership
 
-Auth's public Principal now has Platform 0.5's Rust identity. Consumers sharing
-it must align their direct Platform selection; see the
-[migration](../canic-adoption.md#platform-05-migration). External Agent/Testkit/
-cryptographic parameters retain byte-preserving conversions. The independently
-published Testkit/Memory graphs still select Platform 0.4.1; these are not forced
-onto the new Rust identity. Crypto implementations, DER/CBOR/signed bytes,
-protected signer/root/seed/freshness policy and frozen record/frame bytes remain
-unchanged. There is no storage, journal or checkpoint migration.
+Published Host, Build, Testkit and Memory implementation bodies are unchanged
+from the previously qualified selections; one Host process-test expression changes.
+Their package/dependency identities advance. Tooling packages declare Rust 1.91,
+matching Auth's existing minimum. Testkit retains simulator
+external Principals, explicit Wire calls, limits, server 16.1.0 and lifecycle
+policy. Wire 0.5.2 changed initial bounded encoder allocation, not frames or IDs;
+0.5.3 retains that implementation. Metrics 0.14.12 has unchanged source bodies.
+The inspected source and dependency declarations indicate no Auth public API,
+signed-byte, browser journal or storage migration. Memory's normal dependencies
+are unchanged; Auth uses it only in the unpublished checkpoint fixture.
+The released Platform 0.5 migration and explicit external Principal
+conversions remain in force; see [consumer guidance](../canic-adoption.md).
 
-Only the unpublished host removes retired no-op `hidden` macro arguments. It
-keeps explicit Wire codecs, endpoint identities, controller checks and lifecycle
-hooks. It uses none of the removed storage/readers or `change_timeout` APIs.
-`cdk` remains necessary for its entrypoints; public library capabilities remain
-runtime-free. The runtime retains exactly the qualified registry executor 2.0.0
-and ic0 1.2.0 identities. Public capabilities and reference Wasm exclude Candid;
-native Agent/Testkit still retain Candid transitively. No direct Candid/CDK or
-replacement crypto/runtime implementation is added.
+The existing boundary policy excludes Candid from public library capability
+graphs and the reference Wasm; its checks have not been rerun for this selection.
+Native Agent/Testkit retain Candid through Platform. Host/Build/Testkit remain
+outside the public library graphs. No raw CDK dependency or local replacement
+crypto/runtime code is introduced. The Shared Tooling 0.25.8 snapshot, full early
+Clippy gate and source-bound release recovery contracts remain unchanged.
 
-## Shared Tooling 0.25.8
+## Other dependency observations
 
-The canonical 118-file snapshot is pinned to
-`0a2d2ee3b5e0ae77755c2915ac28836d4d5ba359`. Preserve the incoming complete-Clippy
-ordering and its parallel-Make rejection coverage from 0.25.7. The selected
-0.25.8 finalizer accepts numbered `- Unreleased` headings and dates them before
-commit/tag/push. Auth's preflight now admits both supported spellings. The local
-release fixture accepts the marker through a complete synthetic release and
-checks the saved UTC date on the finalized heading; unsupported suffixes and
-conflicting dates still refuse before setup/validation. Recovery retains its
-source-bound original notes and date. No new installer/build policy or tool
-selection is introduced by this snapshot refresh.
+Testkit 0.62 uses a compatible `thiserror` requirement rather than 0.60's exact
+2.0.18 pin, so that previous patch-update blocker is gone. The lock still selects
+2.0.18; this documentation pass does not update it. SHA-2 0.11 and Dalek 3 are separate major migrations:
+Auth keeps SHA-2 0.10 shared with Platform, and the adversarial Dalek 2.2 feature
+trigger must match Platform's verifier identity.
 
-## Qualification and ownership
+The previous browser check found SDK 6.1.1 and fake-indexeddb 6.2.6 patch updates.
+They are not included in this incoming Rust batch; its prepared client remains
+SDK 6.1.0/fake-indexeddb 6.2.5. TypeScript 7.0.2 is current; Node 26 type packages
+do not match the selected Node 24 runtime. No npm lock or installation changed.
 
-Full native/Wasm Clippy, protocol/type/Wire, chain-key, portable/adversarial,
-canister signature/store, certified proof and session/restore suites pass.
-The isolated Rust 1.91 public-package native/Wasm capability matrix and internal
-apps pass, with unchanged archives/inputs. Five native fixture tests, fresh
-release Wasm and all nine local Testkit 0.59/server 16.1.0 scenarios pass:
-certification/composed roots, upgrades/checkpoint recovery, explicit-root and
-signed ingress, cancellation and actual SDK two-receiver admission/logout.
-The issuer lookup and IndexedDB are injected reference boundaries, not
-production issuer or browser-persistence acceptance.
+## Validation and delivery
 
-All 11 Host-tooling tests, Wasm capability builds, actual dependency-boundary
-exclusions/refusal fixtures, formatting, pins, links, snapshot, Make jobserver,
-early-Clippy input-seal cases and the substituted release runner pass. Three
-coordinated package dry runs pass without uploads. The actual local/mocked
-release/recovery fixture passes with Unreleased finalization. No new Platform
-API gap or in-repo exclusion blocker was found; native macOS and full CI remain
-unrun for this pending source.
+The previous Host 0.32/Build 0.24/Testkit 0.60/Memory 0.49.3 graph passed full
+native/Wasm Clippy, isolated Rust 1.91 package/native/Wasm checks, all Auth
+protocol/type/signature/store/certified-proof/session suites, Wasm capabilities,
+11 host-tooling tests and 47 browser-client tests. Dependency exclusions,
+snapshot, pins, Testkit caller/early-lint fixtures and the substituted release
+runner passed. All three package dry runs passed with live registry metadata and
+without uploads. No full CI or native macOS qualification is claimed.
 
-Auth owns proof/certificate semantics, checked types, local session/replay/denial
-machinery and bounded Wire transport. Canic owns protected fleet authority,
-production stores/guards and issuer orchestration. Remaining production acceptance
-stays in Auth #3/#58/#59 and Canic #491/#507. No sibling files were edited.
-Before-images, archive/graph observations, qualification artifact identity and
-logs are retained under `target/platform050-shared0258-20261020/`. The saved
-incoming Git patch plus baseline reconstruct all incoming tracked files. Earlier
-evidence remains separate. The real index and release metadata are preserved.
+The maintainer-approved Testkit 0.60 and Build 0.24 executables are prepared and
+admitted offline. Five native fixture tests, fresh release Wasm and all nine
+local canister scenarios pass, including certification, composed roots, upgrade
+recovery, signed ingress and SDK two-receiver admission/logout. The issuer lookup
+and IndexedDB remain injected boundaries, not production issuer/persistence
+acceptance. The actual local/mocked release/recovery fixtures pass with the new
+editor, including interrupted preparation and publication reconciliation. These
+results were repeated against Wire 0.5.3/Metrics 0.14.12 after the late lock
+update; the final input seal remained unchanged. Logs prefixed `late-lock-`
+record this final selection; earlier logs retain the original selection.
+
+Those results do not qualify the incoming Tooling 0.62/Memory 0.50 graph. This
+pass verified published metadata, checksums and source/dependency differences,
+then checked documentation links, snapshot integrity and the diff. No Rust
+suite or executable installation was run for the notes correction. The new
+Testkit/Build selections require their explicit setup/admission before live
+canister and release/recovery qualification; earlier setup covered 0.60/0.24.
+
+Auth owns reusable proofs, checked types, local session/replay/denial machinery
+and bounded Wire transport. Canic owns protected fleet authority, production
+stores/guards and issuer orchestration. Remaining production acceptance belongs
+to Auth #3/#58/#59 and Canic #491/#507; no sibling edits were made.
+Evidence and exact incoming before-images are in
+`target/upstream-adoption-notes-20261020/`. Previous qualification remains in
+`target/dependency-refresh-20261020/`; earlier release evidence remains separate.

@@ -3,8 +3,10 @@
 The virtual root owns the protocol/types, Auth engine and Wire transport libraries,
 unpublished native tooling in `apps/tooling/` and the reference host/runner in
 `apps/qualification/`. The root catalog and lock select published Platform 0.5.0,
-Host FS/Process 0.31.2, Testkit, Memory, Build and the shared Wire codec/TypeScript
-generator. The [handoff](status/current.md) records exact evidence;
+the coordinated Host FS/Process, Build and Testkit 0.62.0 packages from
+[IC Tooling](https://github.com/dragginzgame/ic-tooling), Memory 0.50.0 from
+[IC Persistence](https://github.com/dragginzgame/ic-persistence) and the Wire 0.5.3
+codec/TypeScript generator. The [handoff](status/current.md) records exact evidence;
 [session contracts](sessions.md) distinguish supported behavior from pending hosts.
 Rust `1.99.1` remains the development compiler selected by `rust-toolchain.toml`.
 The common package minimum is Rust `1.91.0`, inherited from the root catalog and
@@ -117,9 +119,12 @@ remain direct general-purpose dependencies with current Auth-owned consumers.
 Testkit retains the native simulator and server-lifecycle interface; routing its
 already shared runtime re-export again would not remove a direct dependency.
 
-Native file and process callers select Host FS/Process 0.31.2 with defaults
+Native file and process callers select Host FS/Process 0.62.0 with defaults
 disabled. Library use does not enable Host's optional CLI, certificate decoder
 or Wasm text/encoding backends. Host stays outside the production library graph.
+Build and Testkit 0.62 select the same Host 0.62 identities as Auth's direct
+callers; no dependency override or old Host family is needed. The independently
+pinned file CLI is unchanged by library upgrades.
 
 The native Auth CLI uses Clap for its client-contract generation and external-lock
 commands. Generic file operations now use the separately prepared published

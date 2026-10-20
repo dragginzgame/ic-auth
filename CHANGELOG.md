@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.12.1]
+
+- Adopt the coordinated IC Tooling 0.62.0 packages: Host FS/Process, Build and
+  Testkit, now maintained in `dragginzgame/ic-tooling`. Native tooling and
+  qualification share one Host 0.62 family instead of retaining Host 0.31/0.32.
+  Testkit retains Platform 0.5, external simulator identities, explicit Wire
+  calls, caller budgets and server selection; native tooling stays outside
+  public Auth library graphs.
+- Adopt IC Memory 0.50.0 from `dragginzgame/ic-persistence` for the private
+  qualification checkpoint fixture. Its implementation and normal dependencies
+  are unchanged; no stored-format migration or production backend adoption.
+- Select Wire/derive 0.5.3 and transitive Metrics 0.14.12, retaining frozen frame
+  bytes and bounded admission.
+  No public Auth API or retained-record migration is required.
+
 ## [0.12.0] - 2026-10-20
 
 - **Breaking Rust dependency identity:** adopt published IC Platform 0.5.0.
