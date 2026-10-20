@@ -10,7 +10,7 @@ import { Principal } from '@icp-sdk/core/principal';
 type SessionResult = establish.Response;
 type SessionView = Extract<SessionResult, { ok: unknown }>['ok'];
 import { IndexedDbLogoutStore, PortableAdmissionClient, PortableLogoutClient, httpAdmissionTransport, httpLogoutTransport,
-  ClientError, type PortableCredential } from '../../src/index.js';
+  ClientError, credentialBytes, type PortableCredential } from '../../src/index.js';
 
 export async function qualifyAdmission(host: string, issuer: Principal, receiver: Principal,
   rootKey: Uint8Array, origin: bigint, credential: PortableCredential, subject: Principal): Promise<void> {
@@ -34,8 +34,13 @@ export async function qualifyAdmission(host: string, issuer: Principal, receiver
     assert.ok(reply.length <= 4_096);
     return methodName === 'portable_session_read' ? sessionRead.decodeResponse(reply) : establish.decodeResponse(reply);
   }
-  const store = await IndexedDbLogoutStore.open(new IDBFactory(), 'testkit-admission');
+  const factory = new IDBFactory();
+  let store = await IndexedDbLogoutStore.open(factory, 'testkit-admission');
+  const original = { credential, admissionUntilNs: origin + 60_000_000_000n };
+  const originalFrame = credentialBytes(credential, 131_072);
   let issued = 0;
+  let reconciled = 0;
+  let lookupReady = false;
   let disposed = 0;
   const admitted = new Map<string, SessionView>();
   const admit = httpAdmissionTransport({ host, methodName: 'establish_portable_session', rootKey,
@@ -46,18 +51,26 @@ export async function qualifyAdmission(host: string, issuer: Principal, receiver
     } });
   const signal = new AbortController().signal;
   try {
-    const journal = new PortableLogoutClient(store, clock, httpLogoutTransport({ host,
+    const reopenJournal = () => new PortableLogoutClient(store, clock, httpLogoutTransport({ host,
       methodName: 'logout_portable_session', rootKey,
       dispose: async generation => { assert.equal(generation, 'sdk-admission'); disposed++; } }), () => 0);
+    let journal = reopenJournal();
     await journal.start('sdk-admission', identity, issuer);
-    const client = new PortableAdmissionClient(journal, 'sdk-admission', identity, issuer, {
+    const clientFor = () => new PortableAdmissionClient(journal, 'sdk-admission', identity, issuer, {
       issue: async () => {
         issued++;
         assert.equal((await journal.status('sdk-admission')).issuanceUnknown, true);
-        return { credential, admissionUntilNs: origin + 60_000_000_000n };
+        throw new Error('injected lost issuer reply');
       },
-      reconcile: async () => { throw new Error('fixture has no production issuer lookup'); },
+      // Injected issuer lookup only: this does not qualify a production endpoint.
+      reconcile: async () => {
+        reconciled++;
+        assert.equal(issued, 1);
+        if (!lookupReady) throw new Error('original issuer result unavailable');
+        return original; // Preserve exact credential and the original deadline.
+      },
       admit: async (target, caller, proof, signal) => {
+        assert.deepEqual(credentialBytes(proof, 131_072), originalFrame);
         assert.ok((await journal.status('sdk-admission')).targets.some(t => t.canister === target.toText()));
         await admit(target, caller, proof, signal);
         const result = await update(target, 'portable_session_read', sessionRead.encodeRequest(null), caller, signal);
@@ -74,10 +87,24 @@ export async function qualifyAdmission(host: string, issuer: Principal, receiver
     const wrong = Ed25519KeyIdentity.generate(new Uint8Array(32).fill(10));
     await assert.rejects(admit(receiver, wrong, credential, signal),
       (error: unknown) => error instanceof ClientError && error.code === 'transport');
+    let client = clientFor();
+    const beforeRecovery = submissions.length;
+    await assert.rejects(client.establish(issuer), /injected lost issuer reply/);
+    assert.equal((await journal.status('sdk-admission')).issuanceUnknown, true);
+    store.close();
+    store = await IndexedDbLogoutStore.open(factory, 'testkit-admission');
+    journal = reopenJournal();
+    client = clientFor();
+    await assert.rejects(client.establish(issuer), /original issuer result unavailable/);
+    assert.equal(submissions.length, beforeRecovery);
+    assert.equal((await journal.status('sdk-admission')).issuanceUnknown, true);
+    assert.equal(issued, 1);
+    lookupReady = true;
     const guarded = await client.establish(issuer);
     await client.establish(receiver);
     await client.establish(receiver); // Explicit retry reuses the original credential.
     assert.equal(issued, 1);
+    assert.equal(reconciled, 2);
     assert.equal(admitted.size, 2);
     for (const target of [issuer, receiver]) {
       const read = await update(target, 'portable_session_read', sessionRead.encodeRequest(null), guarded, signal);
@@ -99,6 +126,6 @@ export async function qualifyAdmission(host: string, issuer: Principal, receiver
       // Even retaining the raw test key cannot bypass the receiver's revocation.
       assert.ok('err' in await update(target, 'portable_session_read', sessionRead.encodeRequest(null), identity, signal));
     }
-    console.log('SDK admission qualified: one prepared proof; two receivers; caller mismatch rejected; exact retry; proof-free reads; durable logout; retained-key refusal');
+    console.log('SDK admission qualified: injected issuer lost reply; reopened journal; unresolved lookup retained; original proof recovered without reissuance; two receivers; caller mismatch rejected; exact retry; proof-free reads; durable logout; retained-key refusal');
   } finally { store.close(); }
 }

@@ -90,8 +90,8 @@ impl Fixture {
         let pic = &owned.instance;
         pic.set_time(SystemTime::now().into());
         let controller = Principal::self_authenticating(b"qualification controller");
-        let signer = pic.create_canister_with_settings(Some(controller), None);
-        let resource = pic.create_canister_with_settings(Some(controller), None);
+        let signer = pic.create_canister_with_settings(Some(controller.into()), None);
+        let resource = pic.create_canister_with_settings(Some(controller.into()), None);
         let owner = Principal::self_authenticating(
             CanisterSigPublicKey::new(signer, SEED.to_vec()).to_der(),
         );
@@ -105,14 +105,14 @@ impl Fixture {
                 )
                 .unwrap()
                 .into_bytes(),
-                Some(controller),
+                Some(controller.into()),
             );
         }
         Self {
             pic: owned.instance,
             _server: owned.server,
-            signer,
-            resource,
+            signer: signer.into(),
+            resource: resource.into(),
             controller,
             owner,
             wasm,
@@ -219,20 +219,25 @@ impl Fixture {
     }
 
     fn asset_version(&self) -> u64 {
-        query_wire::<controls::AssetVersion>(&self.pic, self.signer, Principal::anonymous(), &())
-            .expect("qualified Wire query")
+        query_wire::<controls::AssetVersion>(
+            &self.pic,
+            self.signer.into(),
+            Principal::anonymous().into(),
+            &(),
+        )
+        .expect("qualified Wire query")
     }
 
     fn upgrade(&self) {
         for canister in [self.signer, self.resource] {
             self.pic
                 .upgrade_canister(
-                    canister,
+                    canister.into(),
                     self.wasm.clone(),
                     ic_wire::encode_request::<controls::Upgrade>(&())
                         .unwrap()
                         .into_bytes(),
-                    Some(self.controller),
+                    Some(self.controller.into()),
                 )
                 .unwrap();
         }
@@ -249,7 +254,7 @@ impl Fixture {
                 .public_key()
                 .unwrap(),
             expiration,
-            targets: Some(targets),
+            targets: Some(targets.into_iter().map(Into::into).collect()),
             permissions: None,
         };
         // The IC agent owns request-ID encoding. Only split its standard domain
@@ -291,8 +296,8 @@ fn real_certificates_composition_cleanup_and_upgrade_obey_the_host_contract() {
             fixture
                 .pic
                 .update_call(
-                    fixture.signer,
-                    fixture.controller,
+                    fixture.signer.into(),
+                    fixture.controller.into(),
                     controls::SetAsset::NAME,
                     bytes
                 )
@@ -302,17 +307,21 @@ fn real_certificates_composition_cleanup_and_upgrade_obey_the_host_contract() {
     }
     // A query cannot dispatch the controller mutation. Keep transport refusal
     // distinct from an encoded application refusal returned by a valid update.
-    let refused =
-        query_wire::<controls::SetAsset>(&fixture.pic, fixture.signer, fixture.controller, &99);
+    let refused = query_wire::<controls::SetAsset>(
+        &fixture.pic,
+        fixture.signer.into(),
+        fixture.controller.into(),
+        &99,
+    );
     assert!(matches!(refused, Err(WireCallError::Call { context, .. })
-        if context.canister_id == fixture.signer
-            && context.caller == fixture.controller
+        if Principal::from(context.canister_id) == fixture.signer
+            && Principal::from(context.caller) == fixture.controller
             && context.method == controls::SetAsset::NAME));
     assert_eq!(fixture.asset_version(), 1);
     let unauthorized = update_wire::<controls::Prepare>(
         &fixture.pic,
-        fixture.signer,
-        fixture.owner,
+        fixture.signer.into(),
+        fixture.owner.into(),
         &controls::PrepareInput {
             input: controls::SignatureInput {
                 seed: Bytes::new(SEED.to_vec()).unwrap(),
@@ -341,12 +350,12 @@ fn real_certificates_composition_cleanup_and_upgrade_obey_the_host_contract() {
         fixture
             .pic
             .upgrade_canister(
-                fixture.signer,
+                fixture.signer.into(),
                 fixture.wasm.clone(),
                 ic_wire::encode_request::<controls::AssetVersion>(&())
                     .unwrap()
                     .into_bytes(),
-                Some(fixture.controller)
+                Some(fixture.controller.into())
             )
             .is_err(),
         "wrong upgrade envelope must roll back"
@@ -392,7 +401,7 @@ fn ingress(
             .unwrap();
         agent.set_root_key(root.to_vec());
         let bytes = agent
-            .update(&target, "owner_checked_operation")
+            .update(&target.into(), "owner_checked_operation")
             .with_arg(
                 ic_wire::encode_request::<controls::OwnerOperation>(&())
                     .unwrap()
@@ -544,8 +553,9 @@ fn update_control<M, T>(
 ) -> Result<T, String>
 where
     M: Method<Response = Result<T, controls::Refusal>>,
+    T: serde::de::DeserializeOwned,
 {
-    update_wire::<M>(pic, target, caller, &request)
+    update_wire::<M>(pic, target.into(), caller.into(), &request)
         .expect("qualified Wire update")
         .map_err(|e| e.into_string())
 }
@@ -557,8 +567,9 @@ fn query_control<M, T>(
 ) -> Result<T, String>
 where
     M: Method<Response = Result<T, controls::Refusal>>,
+    T: serde::de::DeserializeOwned,
 {
-    query_wire::<M>(pic, target, caller, &request)
+    query_wire::<M>(pic, target.into(), caller.into(), &request)
         .expect("qualified Wire query")
         .map_err(|e| e.into_string())
 }

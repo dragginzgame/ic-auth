@@ -2,8 +2,8 @@
 
 The virtual root owns the protocol/types, Auth engine and Wire transport libraries,
 unpublished native tooling in `apps/tooling/` and the reference host/runner in
-`apps/qualification/`. The root catalog and lock select published Platform 0.2.1,
-Host FS/Process 0.30.0, Testkit, Memory, Build and the shared Wire codec/TypeScript
+`apps/qualification/`. The root catalog and lock select published Platform 0.4.0,
+Host FS/Process 0.31.1, Testkit, Memory, Build and the shared Wire codec/TypeScript
 generator. The [handoff](status/current.md) records exact evidence;
 [session contracts](sessions.md) distinguish supported behavior from pending hosts.
 Rust `1.99.1` remains the development compiler selected by `rust-toolchain.toml`.
@@ -107,7 +107,7 @@ unchanged.
 
 ## Crypto dependency boundary
 
-Auth selects Platform 0.2.1's independent `ecdsa` capability for chain-key
+Auth selects Platform 0.4.0's independent `ecdsa` capability for chain-key
 verification and `ed25519` for portable signatures. Original K256/Dalek types and
 cryptography stay upstream. Auth owns prehash construction, high-S refusal,
 explicit producer normalization, canonical-scalar checks and verification policy.
@@ -117,7 +117,7 @@ remain direct general-purpose dependencies with current Auth-owned consumers.
 Testkit retains the native simulator and server-lifecycle interface; routing its
 already shared runtime re-export again would not remove a direct dependency.
 
-Native file and process callers select Host FS/Process 0.30.0 with defaults
+Native file and process callers select Host FS/Process 0.31.1 with defaults
 disabled. Auth uses library APIs, not the optional `ic-host-file` CLI, certificate
 decoder or Wasm text/encoding backends. Those new Host capabilities do not replace
 an existing direct dependency here. Keep them out of the production library graph.
@@ -133,15 +133,16 @@ qualify the published CLI; preserve Auth's byte/path limits and recovery policy.
 
 ## Dependency roles and deployment admission
 
-Shared Tooling 0.25.1 source is adopted at
-`d57c631206e3618755e45bebf2c88c673564ddc1` (reviewed committed source, not a
+Shared Tooling 0.25.4 source is adopted at
+`db555ab6cf4a93af9a183f18d921d3b0ee97c725` (reviewed committed source, not a
 claim of registry publication or a matching release tag).
 The root catalog uses `Production dependencies` and `Tests and tooling only`;
 member annotations distinguish the three production libraries from internal
 qualification and native tooling packages. These roles describe graph use, not
 registry publication. Platform is a production entry; its optional capabilities
-are admitted per graph. Candid, ic0 and BLS verification can remain transitive in
-certified/runtime selections. Native Host, Build and Testkit selections remain
+are admitted per graph. Certified libraries select BLS, while all library
+capabilities refuse Candid and ic0. Only the runtime host selects ic0/executor.
+Native Host, Build and Testkit selections remain
 tests/tooling entries.
 
 `make fmt`, `make fmt-check` and the pre-commit hook use Shared's grouped Cargo
@@ -168,10 +169,14 @@ validate role comments mechanically, or qualify unlisted feature combinations.
 
 ## IC Platform boundary
 
-The protocol package uses published `ic-platform` 0.2.1 without features for its
-unconditional Principal re-export. This retains the same upstream identity and
-serde/self-authenticating/conversion capabilities, with no Candid or runtime edge.
-The direct `ic_principal` declaration is removed; Platform owns that selection.
+The protocol package uses published `ic-platform` 0.4.0 without features for its
+owned Principal and parse-error types, with no Candid or runtime edge. Convert
+explicitly at Agent/Testkit/crypto boundaries using Platform's
+`principal::ExternalPrincipal`; the upstream type and cryptography remain there.
+Significant bytes, ordering and binary serialization remain compatible; text
+longer than 63 bytes is now refused before normalization. See the
+[consumer migration](canic-adoption.md#platform-04-migration). No storage migration
+or replacement cryptography is introduced.
 
 Private controls and diagnostics now use bounded Wire contracts under
 `apps/qualification/contracts/`; public application contracts remain in
@@ -198,15 +203,17 @@ fixture-owned. Auth no longer needs Testkit's distinct Candid limits identity.
 Certified Auth capabilities now select Platform's `canister-sig-creation`,
 `certification` and `signature-verification` features explicitly. The `bls`
 feature is used only by native test signing; it is not forwarded by Auth's public
-features. All imports and direct upstream declarations for these four owners
-are removed ([#16](https://github.com/dragginzgame/ic-platform/issues/16),
+features. All direct registry creation/verifier declarations and local crypto
+implementations remain absent ([#16](https://github.com/dragginzgame/ic-platform/issues/16),
 [#17](https://github.com/dragginzgame/ic-platform/issues/17),
-[#18](https://github.com/dragginzgame/ic-platform/issues/18)). Upstream types,
-DER/CBOR bytes, errors, resource admission and protected authority remain intact.
-Published creation still imports Candid for Principal; verification still reaches
-it transitively. No unpublished Principal patch is selected.
+[#18](https://github.com/dragginzgame/ic-platform/issues/18)).
+Platform 0.4 packages the original creation/verifier code and retained licenses,
+without the unexposed store or Candid import. The key type has a Platform identity;
+its Principal field remains external. DER/CBOR bytes, cryptographic bodies, errors,
+resource admission and protected authority stay intact. These capabilities now
+select no Candid, raw IC calls or executor; no local replacement is introduced.
 
-Platform 0.2.1's `cdk` feature supplies maintained runtime adapters and explicit
+Platform 0.4.0's `cdk` feature supplies maintained runtime adapters and explicit
 codec entrypoints without depending on the full CDK or selecting Candid. The
 host's runtime calls and lifecycle/query/update macros use `ic_platform::cdk`;
 no local runtime wrapper is introduced. Explicit Wire hooks, including unit RPCs,
@@ -216,8 +223,8 @@ The old `hidden = true` spelling remains accepted.
 
 Auth does not expose Platform's changed runtime-specific call/error types in its
 public libraries, so their upstream type-identity change requires no Auth public
-API migration. The certified-signature stack still brings Candid transitively;
-this does not select Platform's separate `candid` feature.
+API migration. Its RejectCode/raw-call convenience cut also affects no Auth
+call site. Native Agent/Testkit retain their separate transitive Candid graph.
 Counter-zero measurements continue using the exact raw API, equivalent to CDK's
 conversion of the same constant.
 
@@ -225,13 +232,13 @@ conversion of the same constant.
 `ci/cargo-dependency-boundaries.json`. It checks canonical package identities,
 including aliases and normal/build/dev/target/optional declarations, independently
 of enabled features. Transitive library checks permit principal-only Platform
-while excluding Candid and runtime dependencies from pure/portable/session
-selections as appropriate. Refusal fixtures cover Candid and executor leakage
+while excluding Candid, raw IC calls and registry signature packages from every
+public capability, including certified verification and isolated package consumers. Refusal fixtures cover Candid and executor leakage
 into the passive protocol graph. The reference-Wasm graph
 also rejects host parsers/native tooling and requires one executor identity.
 Private Wire schemas reject Candid/CDK/tooling on native and Wasm. The reference
 host now rejects the full `ic-cdk` and `ic-cdk-macros` packages and Platform's
-`candid` feature, while admitting Candid required by certified verification.
+`candid` feature, plus all Candid packages and retired signature-registry edges.
 Negative fixtures cover each refusal. Platform's generator and the shared
 executor remain in the qualified host; dependency removal alone is not a Wasm
 size or performance measurement.
@@ -443,7 +450,7 @@ storage qualification. See the [transport evidence](ic-testkit-qualification.md#
 | `make check-wasm` | Compile-check the public libraries and chain-key/signature verification/preparation, token and session capabilities for `wasm32-unknown-unknown` |
 | `make clippy` | Lint the libraries, native tooling/qualification and Wasm host with their selected targets |
 | `make metadata` | Validate the selected locked graph offline |
-| `make check-boundaries` | Inspect capability graphs; reject Candid in default, Ed25519 and local-session selections |
+| `make check-boundaries` | Inspect every capability graph; reject Candid/raw IC dependencies in libraries and Candid in reference Wasm |
 | `make fmt` / `make fmt-check` | Shared manifest sorting followed by Rust formatting |
 | `make check-snapshot` | Verify the adopted shared files and modes |
 | `make check-dependency-pins` | Check declarations, lockfile tracking and root inheritance |

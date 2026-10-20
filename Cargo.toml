@@ -26,10 +26,10 @@ repository = "https://github.com/dragginzgame/ic-auth"
 ic-auth = { path = "crates/ic-auth" }
 ic-auth-protocol-types = { version = "0.10.7", path = "crates/ic-auth-protocol-types" }
 ic-auth-wire = { version = "0.10.7", path = "crates/ic-auth-wire" }
-# Explicit features preserve upstream signing/tree/verifier identities; defaults
-# stay empty so protocol, portable and session consumers select no IC runtime.
-ic-platform = { version = "0.2.1", default-features = false }
-ic-wire = "0.4"
+# Platform owns Principal and imported signature code; other crypto identities stay upstream.
+# Empty defaults keep protocol, portable and session consumers free of IC runtime.
+ic-platform = { version = "0.4", default-features = false }
+ic-wire = "0.5"
 leb128 = "0.2"
 serde = { version = "1", features = ["derive"] }
 serde_bytes = "0.11"
@@ -43,10 +43,10 @@ clap = { version = "4", default-features = false, features = ["derive", "error-c
 ed25519-dalek = { version = "2.2", default-features = false }
 ic-auth-qualification-contracts = { path = "apps/qualification/contracts" }
 ic-build = "0.22"
-ic-host-fs = { version = "0.30", default-features = false }
-ic-host-process = { version = "0.30", default-features = false }
+ic-host-fs = { version = "0.31", default-features = false }
+ic-host-process = { version = "0.31", default-features = false }
 ic-memory = "0.49"
-ic-testkit = "0.55"
+ic-testkit = "0.57"
 tokio = { version = "1", features = ["rt-multi-thread"] }
 
 [workspace.lints.rust]

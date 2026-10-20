@@ -9,7 +9,10 @@ pub(crate) fn guard() -> Result<(), String> {
         Ok(())
     }
 }
-pub(crate) fn decode<M: Method>(bytes: Vec<u8>) -> M::Request {
+pub(crate) fn decode<M: Method>(bytes: Vec<u8>) -> M::Request
+where
+    M::Request: serde::de::DeserializeOwned,
+{
     ic_wire::decode_request::<M>(&bytes).expect("bounded fixture Wire request")
 }
 pub(crate) fn encode<M: Method>(value: M::Response) -> Vec<u8> {

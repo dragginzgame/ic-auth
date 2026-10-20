@@ -84,6 +84,40 @@ fn storage_record_domains_and_capacity_errors_remain_distinct() {
     ));
 }
 
+#[cfg(feature = "session-restore")]
+#[test]
+fn platform_02_claims_and_records_survive_the_owned_principal_cut() {
+    use ic_auth::portable::LoginRevocationChange;
+    // Captured from released Auth 0.10.7 / Platform 0.2.1, not produced by the
+    // decoder under test. The subject starts with 0x02, which is identity data.
+    let f = Fixture::new(1);
+    let mut r = Receiver::new(&f);
+    f.admit(&mut r, NOW).unwrap();
+    let claims = include_bytes!("fixtures/platform-02/claims.bin").as_slice();
+    let session = include_bytes!("fixtures/platform-02/session.bin").as_slice();
+    let replay = include_bytes!("fixtures/platform-02/replay.bin").as_slice();
+    let login = include_bytes!("fixtures/platform-02/login.bin").as_slice();
+    assert_eq!(encode_claims(&f.claims).unwrap(), claims);
+    assert_eq!(
+        r.store.session_records().next().unwrap().encode().unwrap(),
+        session
+    );
+    assert_eq!(
+        r.store.replay_records().next().unwrap().encode().unwrap(),
+        replay
+    );
+    assert_eq!(r.ledger.records().next().unwrap().encode().unwrap(), login);
+    assert_eq!(Session::decode(session).unwrap().encode().unwrap(), session);
+    assert_eq!(Replay::decode(replay).unwrap().encode().unwrap(), replay);
+    assert_eq!(
+        LoginRevocationChange::decode(login)
+            .unwrap()
+            .encode()
+            .unwrap(),
+        login
+    );
+}
+
 struct Fixture {
     key: SigningKey,
     claims: PortableClaims,

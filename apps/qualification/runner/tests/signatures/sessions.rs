@@ -24,9 +24,11 @@ const SECOND: u64 = 1_000_000_000;
 // Balance deltas include platform/update charges and fixture work. They are not
 // instruction counters, production prices, issuer costs or subnet latency.
 fn measured<T>(f: &Fixture, target: Principal, label: &str, operation: impl FnOnce() -> T) -> T {
-    let before = f.pic.cycle_balance(target);
+    let before = f.pic.cycle_balance(target.into());
     let result = operation();
-    let spent = before.checked_sub(f.pic.cycle_balance(target)).unwrap();
+    let spent = before
+        .checked_sub(f.pic.cycle_balance(target.into()))
+        .unwrap();
     assert!(spent > 0, "an update must consume cycles");
     eprintln!("portable receiver cycles: {label}={spent}");
     result
@@ -47,18 +49,18 @@ fn admission(
     caller: Principal,
     input: &SessionInput,
 ) -> Result<SessionView, String> {
-    update_wire::<ic_auth_wire::EstablishSession>(&f.pic, target, caller, input)
+    update_wire::<ic_auth_wire::EstablishSession>(&f.pic, target.into(), caller.into(), input)
         .expect("qualified Wire admission")
         .map_err(|e| e.into_string())
 }
 fn read(f: &Fixture, target: Principal, caller: Principal) -> Result<SessionView, String> {
-    update_wire::<ic_auth_wire::ReadSession>(&f.pic, target, caller, &())
+    update_wire::<ic_auth_wire::ReadSession>(&f.pic, target.into(), caller.into(), &())
         .expect("qualified Wire session read")
         .map_err(|e| e.into_string())
 }
 fn logout(f: &Fixture, target: Principal, caller: Principal) -> Result<u64, LogoutResult> {
     use ic_auth_wire::model as m;
-    match update_wire::<ic_auth_wire::Logout>(&f.pic, target, caller, &())
+    match update_wire::<ic_auth_wire::Logout>(&f.pic, target.into(), caller.into(), &())
         .expect("qualified Wire logout")
     {
         m::LogoutResult::Revoked(until) => Ok(until),
@@ -127,8 +129,8 @@ fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ingress()
         assert!(
             f.pic
                 .update_call(
-                    f.resource,
-                    f.owner,
+                    f.resource.into(),
+                    f.owner.into(),
                     ic_auth_wire::EstablishSession::NAME,
                     malformed
                 )
@@ -237,12 +239,12 @@ fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ingress()
     logout(&f, f.signer, other_caller).unwrap();
     f.pic
         .upgrade_canister(
-            f.resource,
+            f.resource.into(),
             f.wasm.clone(),
             ic_wire::encode_request::<controls::Upgrade>(&())
                 .unwrap()
                 .into_bytes(),
-            Some(f.controller),
+            Some(f.controller.into()),
         )
         .unwrap();
     assert_eq!(
@@ -281,7 +283,7 @@ fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ingress()
                 .unwrap();
             agent.set_root_key(network.clone());
             let bytes = agent
-                .update(&f.resource, "portable_session_read")
+                .update(&f.resource.into(), "portable_session_read")
                 .with_arg(
                     ic_auth_wire::wire::encode_request::<ic_auth_wire::ReadSession>(&())
                         .unwrap()
@@ -607,12 +609,12 @@ fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_authority() 
     assert!(f.now() >= claims.admission_expires_at_ns);
     f.pic
         .upgrade_canister(
-            f.resource,
+            f.resource.into(),
             f.wasm.clone(),
             ic_wire::encode_request::<controls::Upgrade>(&())
                 .unwrap()
                 .into_bytes(),
-            Some(f.controller),
+            Some(f.controller.into()),
         )
         .unwrap();
     assert_eq!(
@@ -676,12 +678,12 @@ fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_authority() 
     disabled.unwrap();
     f.pic
         .upgrade_canister(
-            f.resource,
+            f.resource.into(),
             f.wasm.clone(),
             ic_wire::encode_request::<controls::Upgrade>(&())
                 .unwrap()
                 .into_bytes(),
-            Some(f.controller),
+            Some(f.controller.into()),
         )
         .unwrap();
     let confirmed: Result<(), String> = update_control::<controls::ConfirmAuthority, _>(

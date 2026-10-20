@@ -11,7 +11,7 @@ description = "Passive application authentication protocol contracts"
 publish = ["crates-io"]
 
 [dependencies]
-# Platform's unconditional Principal preserves upstream identity without Candid.
+# Platform owns the unconditional application Principal, without Candid/runtime.
 ic-platform.workspace = true
 serde.workspace = true
 thiserror.workspace = true

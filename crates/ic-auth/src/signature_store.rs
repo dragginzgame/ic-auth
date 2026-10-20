@@ -341,8 +341,11 @@ impl SignatureStore {
         }
         Ok(IcCanisterSignatureProofV1 {
             signature_cbor,
-            public_key_der: CanisterSigPublicKey::new(self.signing_canister, inputs.seed.to_vec())
-                .to_der(),
+            public_key_der: CanisterSigPublicKey::new(
+                self.signing_canister.into(),
+                inputs.seed.to_vec(),
+            )
+            .to_der(),
         })
     }
 

@@ -7,9 +7,12 @@ Canic/Toko integration remain consumer/service work.
 
 ## Application transport hard cut
 
-Auth 0.10 uses `crates/ic-auth-wire/`, backed by published IC Wire 0.4.
-The historical Auth 0.9 stack used Wire 0.3; these exposed Rust dependency
-contracts must not be mixed. See [consumer selection](canic-adoption.md#wire-transport).
+Pending Auth 0.11 uses `crates/ic-auth-wire/` with published IC Wire 0.5.
+Released Auth 0.10 uses Wire 0.4 and Auth 0.9 uses Wire 0.3; consumers sharing
+Rust Wire types must align that dependency identity. Wire 0.5 separates owned
+deserialization from `Wire`; generic decoders require an explicit Serde bound.
+Auth keeps owned DTOs, existing frame bytes and generated browser contracts; no
+browser storage reset or journal migration is needed. See [consumer selection](canic-adoption.md#wire-transport).
 Rust field/variant IDs, bounded types and method identities generate both Rust
 codecs and TypeScript contracts. Application traffic has no Candid selector or
 fallback. Canonical signed claims and session/replay/login records keep their

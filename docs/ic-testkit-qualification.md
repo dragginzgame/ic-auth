@@ -9,7 +9,10 @@ Earlier pairings and benchmarks are preserved in
 
 ## Setup and ownership
 
-The root catalog/lock select published Testkit 0.55.2 and Platform 0.2.1.
+The root catalog/lock select published Testkit 0.57.0 and Platform 0.4.0.
+Application identities use owned Principal; direct Testkit/Agent calls convert
+explicitly to their retained external type. Testkit's own Platform 0.2 dependency
+stays native; it is not overridden to force its separate migration.
 Platform owns native Agent/delegated identity imports. Agent remains transitive
 with its native PEM feature; caller/root-key and request policy remain with the
 fixture. There is no direct Agent declaration or local facade. Testkit supplies
@@ -33,8 +36,9 @@ IC Memory supplies checkpoint-cell mechanics, and Platform supplies raw length
 admission before CDK copying, counter-zero measurements, certified-tree types
 and canister-signature key/hash operations. Its `cdk` capability now supplies
 certificate read/publish helpers and the original runtime/controller semantics.
-Platform's 0.2 runtime is Candid-free; the certified-verifier stack retains
-transitive Candid. Controls and checkpoints remain Wire.
+Platform 0.4's runtime and imported certified-verifier stack are Candid-free.
+The reference Wasm rejects Candid; native Agent/Testkit still bring it transitively.
+Controls and checkpoints remain Wire.
 No direct Candid, CDK or Testkit Candid declaration remains.
 These host dependencies are absent from Auth's public libraries.
 Testkit owns generic typed call transport; Auth retains application refusal
@@ -74,6 +78,9 @@ The six live runner cases cover:
   binding, upgrade and rejection checks; no retired Rust token lifecycle is used.
 - Two receivers/devices with local portable admission, proof expiry/exact retry,
   receiver-local logout, failed-proof credit retention and actual SDK transport.
+  Its issuer callback injects a lost reply and unavailable lookup, then recovers
+  exact original credential material after reopening the journal without issuing
+  again. This callback does not implement Canic receipt or issuer policy.
 - Same-contract checkpoint upgrades retaining sessions/replay/denials while
   starting closed until current matching test authority is confirmed.
 

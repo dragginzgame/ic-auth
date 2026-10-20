@@ -99,7 +99,7 @@ fn both_canic_domains_keep_the_exact_certified_path_and_der_key() {
             .unwrap();
         assert_eq!(
             proof.public_key_der,
-            CanisterSigPublicKey::new(signer(), domain.to_vec()).to_der()
+            CanisterSigPublicKey::new(signer().into(), domain.to_vec()).to_der()
         );
         assert_eq!(&proof.signature_cbor[..3], &[0xd9, 0xd9, 0xf7]);
     }

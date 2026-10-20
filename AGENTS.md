@@ -1,7 +1,7 @@
 # IC Auth Agent Instructions
 
-Apply [DRAGGINZGAME.md](DRAGGINZGAME.md), adopted from Shared Tooling 0.25.1
-source `d57c631206e3618755e45bebf2c88c673564ddc1`, recorded in
+Apply [DRAGGINZGAME.md](DRAGGINZGAME.md), adopted from Shared Tooling 0.25.4
+source `db555ab6cf4a93af9a183f18d921d3b0ee97c725`, recorded in
 [.shared-tooling.snapshot](.shared-tooling.snapshot). Read
 [the current handoff](docs/status/current.md) before implementation.
 
@@ -60,21 +60,24 @@ generated browser contracts and private qualification controls use IC Wire.
 The fixture exposes only Wire methods, with no Candid projection or direct
 declaration. Its old
 Candid checkpoint is explicitly retired; production storage is unaffected.
-Platform 0.2.1 supplies explicit canister-signature key/hash, certificate-tree,
+Platform 0.4.0 owns Principal and its parse errors. Convert explicitly through
+`principal::ExternalPrincipal` at upstream Agent/Testkit/crypto boundaries; keep
+application/runtime identities owned and preserve original bytes. It supplies
+Platform-owned canister-signature key/hash code and upstream certificate-tree,
 verifier/BLS, ECDSA and Ed25519 capabilities. All K256 and Ed25519 API imports use
 Platform; Auth retains prehash/high-S policy, explicit normalization,
 canonical-scalar admission and strict verification. The unpublished
 feature-unification harness alone has a direct Dalek dev dependency
 to enable permissive parsing adversarially, never in a deployed graph. Forward only the features required by each Auth
-capability; BLS fixture signing is a dev dependency. Never hide the residual
-upstream Candid graph or implement replacement cryptography.
+capability; BLS fixture signing is a dev dependency. Preserve imported crypto provenance; do not implement replacement cryptography.
 The qualification host selects Platform's `cdk` capability for runtime calls,
 certificate acquisition/publication and entrypoint generation (Platform #21).
 Keep hidden/custom Wire codecs and the upstream controller/runtime semantics.
 Platform owns the maintained non-cryptographic runtime adapters and generator;
 the registry executor identity stays shared. Its `cdk` feature is Candid-free.
-The certified-verifier stack still imports Candid transitively; private Wire
-schemas and pure library graphs refuse it. Platform's raw APIs support existing admission/profiling.
+All public library capability graphs and the reference Wasm refuse Candid.
+Native Agent/Testkit still bring it transitively. Platform's raw APIs support
+existing admission/profiling; only the actual host selects IC0/executor.
 See [the handoff](docs/status/current.md), Platform #16/#17/#18 adoption evidence
 and `ci/cargo-dependency-boundaries.json` for direct-dependency ownership.
 

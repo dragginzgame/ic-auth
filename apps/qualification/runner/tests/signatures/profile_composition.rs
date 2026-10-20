@@ -25,7 +25,7 @@ fn root_and_issuer_profiles_share_one_composed_store_without_crossing_authority(
     for (profile, proof) in [(ROOT_PROFILE, &root), (ISSUER_PROFILE, &issuer)] {
         assert_eq!(
             proof.public_key_der,
-            CanisterSigPublicKey::new(fixture.signer, profile.to_vec()).to_der()
+            CanisterSigPublicKey::new(fixture.signer.into(), profile.to_vec()).to_der()
         );
         assert_eq!(
             fixture.verify_result(profile, profile, payload, proof),

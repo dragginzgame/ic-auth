@@ -85,7 +85,7 @@ fn proof(
             certificate: ByteBuf::from(cbor(&certificate(cert_tree, certificate_key, delegation))),
             tree,
         }),
-        public_key_der: CanisterSigPublicKey::new(signer(), SEED.to_vec()).to_der(),
+        public_key_der: CanisterSigPublicKey::new(signer().into(), SEED.to_vec()).to_der(),
     }
 }
 
@@ -190,13 +190,13 @@ fn submitted_keys_cannot_select_their_own_signer_or_seed() {
     let root = key(1).public_key().serialize();
     let mut proof = proof(&message(), Some(time_bytes(NOW)), &key(1), None);
     proof.public_key_der =
-        CanisterSigPublicKey::new(Principal::from_slice(&[2; 10]), SEED.to_vec()).to_der();
+        CanisterSigPublicKey::new(Principal::from_slice(&[2; 10]).into(), SEED.to_vec()).to_der();
     assert_eq!(
         verify_canister_signature(&message(), &proof, &policy(&root)),
         Err(Error::CanisterMismatch)
     );
     proof.public_key_der =
-        CanisterSigPublicKey::new(signer(), b"unapproved seed".to_vec()).to_der();
+        CanisterSigPublicKey::new(signer().into(), b"unapproved seed".to_vec()).to_der();
     assert_eq!(
         verify_canister_signature(&message(), &proof, &policy(&root)),
         Err(Error::SeedMismatch)
@@ -359,7 +359,7 @@ fn rejects_every_truncated_key_and_inconsistent_der_without_panicking() {
         verify_canister_signature(&message(), &proof, &policy(&root)),
         Err(Error::InvalidPublicKey)
     );
-    proof.public_key_der = CanisterSigPublicKey::new(signer(), vec![0; 128]).to_der();
+    proof.public_key_der = CanisterSigPublicKey::new(signer().into(), vec![0; 128]).to_der();
     assert_eq!(
         verify_canister_signature(&message(), &proof, &policy(&root)),
         Err(Error::InvalidPublicKey)
