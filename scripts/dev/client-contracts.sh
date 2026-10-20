@@ -17,6 +17,7 @@ printf '%s\0' Cargo.toml Cargo.lock crates/ic-auth-protocol-types/Cargo.toml \
     apps/tooling/Cargo.toml apps/tooling/src/*.rs crates/ic-auth-protocol-types/src/*.rs \
     crates/ic-auth-wire/Cargo.toml crates/ic-auth-wire/src/*.rs \
     packages/client/package.json packages/client/package-lock.json packages/client/.nvmrc packages/client/.npmrc \
+    ci/host-file.env rust-toolchain.toml scripts/dev/host-file-tools.sh scripts/dev/run-host-file.sh \
     scripts/dev/client-contracts.sh > "$candidate/input-paths0"
 bash scripts/dev/run-host-file.sh hash-files0 4194304 4194304 4096 < "$candidate/input-paths0" > "$candidate/inputs.tsv0"
 {

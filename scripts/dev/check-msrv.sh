@@ -39,6 +39,8 @@ package_inputs() {
     find "$auth" "$types" "$wire" ! -type d -print0 > "$fixture/input-paths"
     perl -0e 'print sort <STDIN>' < "$fixture/input-paths" > "$fixture/sorted-input-paths"
     printf '%s\0' "$root/Cargo.toml" "$root/Cargo.lock" \
+        "$root/ci/host-file.env" "$root/rust-toolchain.toml" \
+        "$root/scripts/dev/host-file-tools.sh" "$root/scripts/dev/run-host-file.sh" \
         "$root/crates/ic-auth/Cargo.toml" "$root/crates/ic-auth-protocol-types/Cargo.toml" "$root/crates/ic-auth-wire/Cargo.toml" \
         "$root/target/msrv-package/package/tmp-crate/ic-auth-$version.crate" \
         "$root/target/msrv-package/package/tmp-crate/ic-auth-protocol-types-$version.crate" \
