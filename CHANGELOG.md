@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.12.0]
+## [0.12.0] - 2026-10-20
 
 - **Breaking Rust dependency identity:** adopt published IC Platform 0.5.0.
   Consumers sharing Platform-owned Principals must align
