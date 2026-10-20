@@ -80,7 +80,7 @@ fn main() -> std::process::ExitCode {
     match run(arguments.command) {
         Ok(()) => std::process::ExitCode::SUCCESS,
         Err(error) => {
-            eprintln!("host file operation refused: {error}");
+            eprintln!("Auth tooling operation refused: {error}");
             std::process::ExitCode::FAILURE
         }
     }
