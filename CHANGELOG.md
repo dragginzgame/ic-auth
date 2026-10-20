@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.12.1]
+## [0.12.1] - 2026-10-20
 
 - Adopt the coordinated IC Tooling 0.62.0 packages: Host FS/Process, Build and
   Testkit, now maintained in `dragginzgame/ic-tooling`. Native tooling and
