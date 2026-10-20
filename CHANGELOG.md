@@ -2,6 +2,11 @@
 
 ## [0.11.1]
 
+- Qualify explicit-root refusal and caller-owned signed-ingress cancellation.
+  Transport failures stay distinct from application rejection; cancelling a local
+  request does not establish that the remote update did not execute.
+  [Testkit #106 — Signed-ingress qualification transport](https://github.com/dragginzgame/ic-testkit/issues/106).
+
 - Use published `ic-host-file` for file identities and private create/replace,
   removing Auth's local file-command and batch implementation. Run explicit
   `make install-host-file` once; checks and release recovery only admit prepared

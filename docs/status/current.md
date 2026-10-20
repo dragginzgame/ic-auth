@@ -4,7 +4,7 @@
 
 Auth 0.11.0 is released at `5cfc065`; own package versions remain 0.11.0.
 The pending [0.11.1 notes](../../CHANGELOG.md) cover the native Host file-CLI
-cutover. Staging, release, publication and deployment remain separately owned.
+cutover and caller-owned ingress qualification. Staging, release, publication and deployment remain separately owned.
 Sibling checkouts are read-only; this contribution uses an isolated PR checkout.
 GitHub issues own follow-up tracking.
 
@@ -71,3 +71,25 @@ Native macOS, full local CI, browser runtime and installed-canister checks were
 not run for this native-only patch. Required hosted checks and owner review remain
 before PR integration. Auth #78 owns the remaining default-branch consumer
 acceptance; Host's published producer does not require another implementation.
+
+## Ingress caller qualification — PR #79
+
+[PR #79](https://github.com/dragginzgame/ic-auth/pull/79) retains its original
+contributor history and merges released 0.11.0 plus
+[PR #80](https://github.com/dragginzgame/ic-auth/pull/80) to resolve their shared
+changelog/handoff edits. Integrate #80 first; #79's hosted gate checks the combined
+source. Library selections, typed Wire transport and stored/signed bytes stay
+unchanged. Platform-owned application Principals convert only at the external
+Agent boundary.
+
+A fresh Agent binds each identity, explicit root and ingress expiry. Tests retain
+signed delegation/upgrade behavior and distinguish wrong-root/protocol failures
+from application denial. Deadline/manual cancellation is observed only after the
+full request was dispatched, then abort is awaited and the transport disconnects.
+This proves local cleanup, not that the remote update did not execute or may be
+retried. Refreshed Platform 0.4/Testkit 0.57 Linux qualification passes all three
+ingress cases against fresh release Wasm, Rust 1.91 checking, strict Clippy,
+actual native/Wasm exclusions, formatting, pins, links and snapshot. The combined
+source repeats all three ingress cases and static checks successfully; its hosted
+checks remain pending. Evidence is retained under
+`target/pr-followup-20261020/` in the maintainer checkout.
