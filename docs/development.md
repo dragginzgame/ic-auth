@@ -2,8 +2,8 @@
 
 The virtual root owns the protocol/types, Auth engine and Wire transport libraries,
 unpublished native tooling in `apps/tooling/` and the reference host/runner in
-`apps/qualification/`. The root catalog and lock select published Platform 0.4.0,
-Host FS/Process 0.31.1, Testkit, Memory, Build and the shared Wire codec/TypeScript
+`apps/qualification/`. The root catalog and lock select published Platform 0.4.1,
+Host FS/Process 0.31.2, Testkit, Memory, Build and the shared Wire codec/TypeScript
 generator. The [handoff](status/current.md) records exact evidence;
 [session contracts](sessions.md) distinguish supported behavior from pending hosts.
 Rust `1.99.1` remains the development compiler selected by `rust-toolchain.toml`.
@@ -117,24 +117,20 @@ remain direct general-purpose dependencies with current Auth-owned consumers.
 Testkit retains the native simulator and server-lifecycle interface; routing its
 already shared runtime re-export again would not remove a direct dependency.
 
-Native file and process callers select Host FS/Process 0.31.1 with defaults
-disabled. Auth uses library APIs, not the optional `ic-host-file` CLI, certificate
-decoder or Wasm text/encoding backends. Those new Host capabilities do not replace
-an existing direct dependency here. Keep them out of the production library graph.
+Native file and process callers select Host FS/Process 0.31.2 with defaults
+disabled. Library use does not enable Host's optional CLI, certificate decoder
+or Wasm text/encoding backends. Host stays outside the production library graph.
 
-The native Auth CLI uses Clap for argument grammar, values and help. Its generic
-file-operation adapter is retained until Shared's verified selected-tool installer
-can select Host's required `cli` feature
-([Shared #289](https://github.com/dragginzgame/shared-tooling/issues/289));
-[Auth #78](https://github.com/dragginzgame/ic-auth/issues/78) owns consumer cutover. Do not
-add a bespoke store, implicit Cargo flags or an older-binary fallback. Cut over
-only after explicit setup/offline admission and Auth's real file/release fixtures
-qualify the published CLI; preserve Auth's byte/path limits and recovery policy.
+The native Auth CLI uses Clap for its client-contract generation and external-lock
+commands. Generic file operations now use the separately prepared published
+`ic-host-file`, pinned independently in `ci/host-file.env`. There is no local
+implementation or fallback. See [release and file-tool mechanics](#releases-and-publication)
+for the existing byte/path limits and release-recovery boundary.
 
 ## Dependency roles and deployment admission
 
-Shared Tooling 0.25.4 source is adopted at
-`db555ab6cf4a93af9a183f18d921d3b0ee97c725` (reviewed committed source, not a
+Shared Tooling 0.25.6 source is adopted at
+`84a8742c7c2e3f5611647f9c0f67fed049960327` (reviewed committed source, not a
 claim of registry publication or a matching release tag).
 The root catalog uses `Production dependencies` and `Tests and tooling only`;
 member annotations distinguish the three production libraries from internal
@@ -700,8 +696,8 @@ implicit. See [Cargo publication](https://doc.rust-lang.org/cargo/commands/cargo
 for credentials, dry-run and index-propagation semantics.
 
 File mechanics use the published `ic-host-file` executable. Auth pins 0.31.1 in
-`ci/host-file.env`, independently of the multiple transitive Host FS versions in
-Cargo.lock. `make install-host-file` prepares it through Shared Tooling with
+`ci/host-file.env`, independently of the library versions selected by Cargo.lock.
+`make install-host-file` prepares it through Shared Tooling with
 `--features cli`; `make host-file-check` admits that exact selection offline. The
 common aggregates include both. CI cache keys include the executable pin.
 

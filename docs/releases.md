@@ -849,6 +849,14 @@ committed source instead of reading newer working metadata. No version selection
 fetch, tool installation, Git staging/ref mutation or publication is implicit.
 Consumer preflight and late source/index admission remain outside this helper.
 
+When `check` or `check-graph` dispatches Cargo metadata, failures retain its stdout
+(including an empty JSON file), streamed stderr, separate Cargo/logger statuses,
+the selected physical root and copies of its root `Cargo.toml`/`Cargo.lock`.
+A Cargo failure takes priority over a simultaneous logger failure; a logger
+failure also refuses an otherwise successful check. Root input copies do not freeze member manifests or Cargo
+configuration in a live workspace. A selected committed-source check additionally
+retains its exported tree. Neither path retries Cargo or repairs the lockfile.
+
 IC Metrics adopts the corrected helper from committed Shared Tooling 0.11.1
 through normal snapshot distribution, retaining its local policy in a thin adapter.
 Other Cargo consumers must retain their own file set, recovery and metadata policy

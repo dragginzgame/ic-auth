@@ -2,6 +2,18 @@
 
 ## [0.11.1]
 
+- Adopt Shared Tooling 0.25.6 for independently qualified fixture exports and
+  retained Cargo metadata failure diagnostics, root inputs and command/logger
+  statuses. Checks preserve the original failure without retrying or repairing.
+- Adopt published IC Build 0.23 for native external-lock admission and the release
+  editor; align the selected Host patch to 0.31.2 and Metrics to 0.14.10.
+  Deployment dependency exclusions and application protocols remain unchanged.
+
+- Qualify the native runner with published Testkit 0.59 and its selected server,
+  retaining typed Wire transport and explicit external Principal conversions.
+  Certification, upgrade, signed ingress and SDK two-receiver recovery/logout
+  keep their existing contracts; no library API, wire or storage migration.
+
 - Qualify explicit-root refusal and caller-owned signed-ingress cancellation.
   Transport failures stay distinct from application rejection; cancelling a local
   request does not establish that the remote update did not execute.

@@ -1,8 +1,8 @@
 # Shared Tooling snapshot v1
-# version	0.25.4
+# version	0.25.6
 format	1
 source	https://github.com/dragginzgame/shared-tooling
-revision	db555ab6cf4a93af9a183f18d921d3b0ee97c725
+revision	84a8742c7c2e3f5611647f9c0f67fed049960327
 # entrypoint	.githooks/pre-commit
 # entrypoint	.github/actions/retain-failure-evidence/action.yml
 # entrypoint	DRAGGINZGAME.md
@@ -94,7 +94,7 @@ file	72a6e34f90aea62c00aa612d65f21815dc7dc9d543c48998b541983ec7a42dce	-	docs/pri
 file	378fa05af602ee00ac81fbfdba024ed9e3009b23746344e7cb0cc2635d023305	-	docs/principles/rust-code-hygiene.md
 file	457fd38e0073c91ba470b918d4facd9faac3c5200ebd38c97e9d6b76acdaea55	-	docs/principles/simplicity-and-maintainability.md
 file	24ae0ec5c25a4d1d1b073e626b2706c69c3af9e46f1339d14e8e927a1649d44e	-	docs/provenance.md
-file	f2a7c39121295d70f335de888c3e6f70fc41e7e2e17356ab93bfbd0b29dcf4eb	-	docs/releases.md
+file	31d3a44cef748a0469aea097d58265b63c46ab1ffcdb6dbb110c11777c8d8e9c	-	docs/releases.md
 file	bed4a3ec58de41956039b2b04baf357024ae7901c1f7d301b294cb35a8c44bcd	-	docs/supported-hosts.md
 file	1063002468575e2f821cfec71524bde06a64634bf30455d64d2d9fed872969d6	-	docs/tag-maintenance.md
 file	198b559c57d96f28f7540ffd562b243575550d0de7cd00020c2002e598448c3d	-	docs/verification-helpers.md
@@ -139,7 +139,7 @@ file	a9ed416a02f737d420723642935de94ffdd53cf92f75bb06ab4b0bc1c68430dc	-	tasks/ca
 file	4c2ee09c8e87b43397d2df28bdbc1b5fc0197a10ebe0a94d89cb46916b93a9ca	x	scripts/ci/cargo-tool-cache-key.sh
 file	fa96fe86ee2ccf61002fbce2b09603298550fd239d28131cbdcf6449a8247923	-	rules/change-reporting.md
 file	7906b5d35d5947d5f2e6cd088733fd7331943a456df70d491cfdb5e4b9586e50	x	scripts/ci/download-evidence.sh
-file	6020a4cb5bc9524cd6c63895d1338bc3e955231be4f4df74f6dc9d2ffca8a379	x	scripts/ci/cargo-release-metadata.sh
+file	b46a945b4a4edda01fd73fcc0d84f5e126fd376ae7197c9a23c0c1ecfd6ac1e1	x	scripts/ci/cargo-release-metadata.sh
 file	918815a81861abd80684fea14f71cb5a298644317afc0f5860a3d1b6506a0a16	x	scripts/ci/next-release-version.sh
 file	d38467ef1b8e143e9d8daca99975b93f6957fa3796f825b830997b3dc7f0b145	-	scripts/ci/check-cargo-dependency-boundaries.sh
 file	30e6fcb2548324d1a9ca464aa90c7d5003c5ae8c2fe4d0c71b00bcc87fcbf71b	-	scripts/ci/test-cargo-dependency-boundaries.sh
