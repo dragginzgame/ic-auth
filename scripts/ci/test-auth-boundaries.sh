@@ -39,9 +39,12 @@ if [[ "$package" == ic-auth-qualification-canister ]]; then
     if [[ "$BOUNDARY_MODE" == parser ]]; then printf 'candid_parser v0.3.0\n'; fi
     if [[ "$BOUNDARY_MODE" == executor ]]; then printf 'ic-cdk-executor v3.0.0\n'; fi
     if [[ "$BOUNDARY_MODE" == executor-source ]]; then printf 'ic-cdk-executor v2.0.0 (git+https://example.invalid/executor#12345678)\n'; fi
-    # The Platform runtime bundle includes Candid; the host's payload stays Wire.
+    # Certified verification still imports Candid, while the Wire runtime must
+    # not select Platform Candid or the retired full CDK packages.
     printf 'candid v0.10.38\n'
-    if [[ "$*" == *'--edges normal,build,features'* ]]; then
+    if [[ "$BOUNDARY_MODE" == host-cdk ]]; then printf 'ic-cdk v0.20.3\n'; fi
+    if [[ "$BOUNDARY_MODE" == host-cdk-macros ]]; then printf 'ic-cdk-macros v0.20.3\n'; fi
+    if [[ "$BOUNDARY_MODE" == host-platform-feature ]]; then
         printf 'ic-platform feature "candid"\n'
     fi
     exit 0
@@ -80,7 +83,7 @@ STUB
 chmod +x "$fixture/bin/"*
 export PATH="$fixture/bin:$root/.tools/host/bin:$PATH"
 export BOUNDARY_EVENTS="$fixture/events"
-for mode in accepted principal-candid principal-executor principal-bls control-candid control-platform-feature wasm-default wasm-combined wasm-capability wasm-portable-bls parser executor executor-source; do
+for mode in accepted principal-candid principal-executor principal-bls control-candid control-platform-feature wasm-default wasm-combined wasm-capability wasm-portable-bls parser executor executor-source host-cdk host-cdk-macros host-platform-feature; do
     export BOUNDARY_MODE="$mode"
     : > "$BOUNDARY_EVENTS"
     status=0
@@ -95,7 +98,7 @@ for mode in accepted principal-candid principal-executor principal-bls control-c
     else
         [[ "$status" != 0 ]] || { echo "missing exclusion: $mode" >&2; exit 1; }
         rg '^Cargo graph policy failed:' "$fixture/$mode.log" > /dev/null
-        rg 'ic-agent|tokio|ic-testkit-candid|candid|ic-cdk-executor|ic-verify-bls-signature' "$fixture/$mode.log" > /dev/null
+        rg 'ic-agent|tokio|ic-testkit-candid|candid|ic-cdk|ic-verify-bls-signature' "$fixture/$mode.log" > /dev/null
     fi
 done
 echo 'Native/Wasm graph selections and transitive tooling refusals passed'

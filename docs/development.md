@@ -2,8 +2,8 @@
 
 The virtual root owns the protocol/types, Auth engine and Wire transport libraries,
 unpublished native tooling in `apps/tooling/` and the reference host/runner in
-`apps/qualification/`. The root catalog and lock select published Platform 0.1.18,
-Host FS/Process 0.29.0, Testkit, Memory, Build and the shared Wire codec/TypeScript
+`apps/qualification/`. The root catalog and lock select published Platform 0.2.1,
+Host FS/Process 0.30.0, Testkit, Memory, Build and the shared Wire codec/TypeScript
 generator. The [handoff](status/current.md) records exact evidence;
 [session contracts](sessions.md) distinguish supported behavior from pending hosts.
 Rust `1.99.1` remains the development compiler selected by `rust-toolchain.toml`.
@@ -107,7 +107,7 @@ unchanged.
 
 ## Crypto dependency boundary
 
-Auth selects Platform 0.1.18's independent `ecdsa` capability for chain-key
+Auth selects Platform 0.2.1's independent `ecdsa` capability for chain-key
 verification and `ed25519` for portable signatures. Original K256/Dalek types and
 cryptography stay upstream. Auth owns prehash construction, high-S refusal,
 explicit producer normalization, canonical-scalar checks and verification policy.
@@ -117,7 +117,7 @@ remain direct general-purpose dependencies with current Auth-owned consumers.
 Testkit retains the native simulator and server-lifecycle interface; routing its
 already shared runtime re-export again would not remove a direct dependency.
 
-Native file and process callers select Host FS/Process 0.29.0 with defaults
+Native file and process callers select Host FS/Process 0.30.0 with defaults
 disabled. Auth uses library APIs, not the optional `ic-host-file` CLI, certificate
 decoder or Wasm text/encoding backends. Those new Host capabilities do not replace
 an existing direct dependency here. Keep them out of the production library graph.
@@ -168,17 +168,18 @@ validate role comments mechanically, or qualify unlisted feature combinations.
 
 ## IC Platform boundary
 
-The protocol package uses published `ic-platform` 0.1.12 without features for its
+The protocol package uses published `ic-platform` 0.2.1 without features for its
 unconditional Principal re-export. This retains the same upstream identity and
 serde/self-authenticating/conversion capabilities, with no Candid or runtime edge.
 The direct `ic_principal` declaration is removed; Platform owns that selection.
 
 Private controls and diagnostics now use bounded Wire contracts under
 `apps/qualification/contracts/`; public application contracts remain in
-`ic-auth-wire`. The runner uses Testkit raw calls with typed Wire requests/replies,
-not its Candid adapter. Init and post-upgrade arguments also use explicit Wire
-method identities. Hidden CDK exports with custom codec hooks require no direct
-Candid declaration, derive or service export. The host selects Platform
+`ic-auth-wire`. The runner uses Testkit's opt-in typed Wire calls for ordinary
+requests/replies, with raw calls retained for malformed inputs and explicit byte
+evidence. Init and post-upgrade arguments also use explicit Wire method identities.
+Platform entrypoints with explicit codec hooks require no direct Candid declaration,
+derive or service export. The host selects Platform
 `cdk`/`certification`; the native runner selects `agent`/`canister-sig-creation`.
 The host parser stays disabled.
 
@@ -205,17 +206,18 @@ DER/CBOR bytes, errors, resource admission and protected authority remain intact
 Published creation still imports Candid for Principal; verification still reaches
 it transitively. No unpublished Principal patch is selected.
 
-Platform 0.1.12's `cdk` feature exports `certified_data_set` and
-`data_certificate`, resolving the host's final missing APIs
-([Platform #21](https://github.com/dragginzgame/ic-platform/issues/21)). The host's
-runtime calls and lifecycle/query/update macros now all use `ic_platform::cdk`;
-both direct CDK declarations are removed and the direct policy refuses them.
-The upstream runtime, controller Boolean/panic behavior and executor identity
-remain unchanged. Hidden/custom Wire codecs preserve byte admission, payloads,
-errors and traps. No certificate, codec or runtime wrapper is introduced.
+Platform 0.2.1's `cdk` feature supplies maintained runtime adapters and explicit
+codec entrypoints without depending on the full CDK or selecting Candid. The
+host's runtime calls and lifecycle/query/update macros use `ic_platform::cdk`;
+no local runtime wrapper is introduced. Explicit Wire hooks, including unit RPCs,
+retain byte admission, payloads, errors and traps. Controller Boolean/panic
+behavior and the registry executor 2.0.0/ic0 1.2.0 identities are retained.
+The old `hidden = true` spelling remains accepted.
 
-The runtime bundle includes Platform Candid; this is permitted only on the host
-graph. It does not add Candid protocol methods or relax schema/library exclusions.
+Auth does not expose Platform's changed runtime-specific call/error types in its
+public libraries, so their upstream type-identity change requires no Auth public
+API migration. The certified-signature stack still brings Candid transitively;
+this does not select Platform's separate `candid` feature.
 Counter-zero measurements continue using the exact raw API, equivalent to CDK's
 conversion of the same constant.
 
@@ -228,10 +230,11 @@ selections as appropriate. Refusal fixtures cover Candid and executor leakage
 into the passive protocol graph. The reference-Wasm graph
 also rejects host parsers/native tooling and requires one executor identity.
 Private Wire schemas reject Candid/CDK/tooling on native and Wasm. The reference
-host permits Platform's Candid capability as part of its explicit runtime bundle;
-private Wire schemas reject that feature as well as Candid package leakage.
-Certified verification still reaches upstream Candid transitively; CDK macros and
-executor remain in the qualified host. This is ownership control, not Wasm removal.
+host now rejects the full `ic-cdk` and `ic-cdk-macros` packages and Platform's
+`candid` feature, while admitting Candid required by certified verification.
+Negative fixtures cover each refusal. Platform's generator and the shared
+executor remain in the qualified host; dependency removal alone is not a Wasm
+size or performance measurement.
 
 The root catalog was reviewed separately: the Shared checker does not inspect
 unused catalog entries or infer exclusions from role comments. There is one
@@ -721,9 +724,9 @@ secondary cleanup diagnostics. Host owns path admission, bounded file reads and
 process execution. Auth owns release identity, publication policy and which
 qualification commands are permitted.
 
-The qualification runner reads Wasm through Host and obtains canister runtime
-and bounded Candid-call helpers through Testkit. Its SDK qualification subprocess
-uses Host process admission directly. Testkit owns server selection, startup and
+The qualification runner reads Wasm through Host and obtains the simulator
+client and bounded typed Wire calls through Testkit. Its SDK qualification
+subprocess uses Host process admission directly. Testkit owns server selection, startup and
 its process integration; no compatibility shim is retained here. These dependencies
 remain outside all three public library graphs. Run `make install-testkit-tools`
 for explicit preparation, then `make testkit-tools-check` for offline admission.

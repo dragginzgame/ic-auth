@@ -9,13 +9,15 @@ Earlier pairings and benchmarks are preserved in
 
 ## Setup and ownership
 
-The root catalog/lock select Testkit 0.54 and published Platform 0.1.12.
+The root catalog/lock select published Testkit 0.55.2 and Platform 0.2.1.
 Platform owns native Agent/delegated identity imports. Agent remains transitive
 with its native PEM feature; caller/root-key and request policy remain with the
 fixture. There is no direct Agent declaration or local facade. Testkit supplies
-raw calls and bounded startup through its upstream runtime re-export; the
-fixture uses typed IC Wire contracts rather than a Candid call adapter. Testkit
-owns server selection, authenticated asset preparation and bounded startup.
+typed Wire query/update calls and bounded startup through its upstream runtime
+re-export. Only the native runner enables its `wire` feature; IC Wire owns the
+codec and finite method limits. Deliberately malformed inputs and byte-level
+evidence continue to use raw calls. Testkit owns server selection, authenticated
+asset preparation and bounded startup.
 `make install-testkit-tools` explicitly prepares the selected CLI/server;
 `make testkit-tools-check` admits it offline. Tests do not install or select an
 older executable. The browser fixture separately requires explicitly prepared
@@ -31,13 +33,16 @@ IC Memory supplies checkpoint-cell mechanics, and Platform supplies raw length
 admission before CDK copying, counter-zero measurements, certified-tree types
 and canister-signature key/hash operations. Its `cdk` capability now supplies
 certificate read/publish helpers and the original runtime/controller semantics.
-The runtime bundle includes Candid, but controls and checkpoints remain Wire.
+Platform's 0.2 runtime is Candid-free; the certified-verifier stack retains
+transitive Candid. Controls and checkpoints remain Wire.
 No direct Candid, CDK or Testkit Candid declaration remains.
 These host dependencies are absent from Auth's public libraries.
-The private generic typed Wire call adapter remains here until
-[Testkit #119 — Own typed IC Wire query/update adapters](https://github.com/dragginzgame/ic-testkit/issues/119)
-provides a published, qualified replacement. It is transport integration, not a
-second codec or proof-verification implementation.
+Testkit owns generic typed call transport; Auth retains application refusal
+projection, trust/session assertions and distinct profiling controls. Calls keep
+explicit target/caller and method identity, bounded encoding/decoding and one
+update without retry. Codec/transport errors remain distinct from encoded
+application refusals. See
+[Auth #75 — Adopt Testkit typed Wire calls](https://github.com/dragginzgame/ic-auth/issues/75).
 
 ## Host and trust boundaries
 

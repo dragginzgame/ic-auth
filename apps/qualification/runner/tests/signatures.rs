@@ -13,7 +13,10 @@ use ic_platform::{
     agent::{Agent, BasicIdentity, Delegation, Identity, SignedDelegation},
 };
 use ic_testkit::{
-    pic::{PocketIc, PocketIcBuilder, PocketIcManagedServer, PocketIcStartupConfig},
+    pic::{
+        PocketIc, PocketIcBuilder, PocketIcManagedServer, PocketIcStartupConfig, WireCallError,
+        query_wire, update_wire,
+    },
     pocket_ic::Time,
 };
 use ic_wire::{Bytes, Method};
@@ -216,7 +219,8 @@ impl Fixture {
     }
 
     fn asset_version(&self) -> u64 {
-        query_wire::<controls::AssetVersion>(&self.pic, self.signer, Principal::anonymous(), ())
+        query_wire::<controls::AssetVersion>(&self.pic, self.signer, Principal::anonymous(), &())
+            .expect("qualified Wire query")
     }
 
     fn upgrade(&self) {
@@ -296,11 +300,20 @@ fn real_certificates_composition_cleanup_and_upgrade_obey_the_host_contract() {
         );
         assert_eq!(fixture.asset_version(), 1);
     }
-    let unauthorized: Result<u64, String> = update_control::<controls::Prepare, _>(
+    // A query cannot dispatch the controller mutation. Keep transport refusal
+    // distinct from an encoded application refusal returned by a valid update.
+    let refused =
+        query_wire::<controls::SetAsset>(&fixture.pic, fixture.signer, fixture.controller, &99);
+    assert!(matches!(refused, Err(WireCallError::Call { context, .. })
+        if context.canister_id == fixture.signer
+            && context.caller == fixture.controller
+            && context.method == controls::SetAsset::NAME));
+    assert_eq!(fixture.asset_version(), 1);
+    let unauthorized = update_wire::<controls::Prepare>(
         &fixture.pic,
         fixture.signer,
         fixture.owner,
-        controls::PrepareInput {
+        &controls::PrepareInput {
             input: controls::SignatureInput {
                 seed: Bytes::new(SEED.to_vec()).unwrap(),
                 domain: Bytes::new(DOMAIN.to_vec()).unwrap(),
@@ -309,7 +322,7 @@ fn real_certificates_composition_cleanup_and_upgrade_obey_the_host_contract() {
             retention_ns: 60_000_000_000_u64,
         },
     );
-    assert!(unauthorized.is_err());
+    assert!(matches!(unauthorized, Ok(Err(_))));
     let deadline = fixture.prepare(DOMAIN, &payload, 60_000_000_000).unwrap();
     assert_eq!(
         fixture.prepare(DOMAIN, &payload, 60_000_000_000),
@@ -361,30 +374,6 @@ fn real_certificates_composition_cleanup_and_upgrade_obey_the_host_contract() {
     assert_eq!(fixture.asset_version(), 9);
 }
 
-fn update_wire<M: Method>(
-    pic: &PocketIc,
-    target: Principal,
-    caller: Principal,
-    request: &M::Request,
-) -> M::Response {
-    let arg = ic_wire::encode_request::<M>(request).expect("bounded Wire request");
-    let reply = pic
-        .update_call(target, caller, M::NAME, arg.into_bytes())
-        .expect("qualified Wire update");
-    ic_wire::decode_response::<M>(&reply).expect("bounded Wire reply")
-}
-fn query_wire<M: Method>(
-    pic: &PocketIc,
-    target: Principal,
-    caller: Principal,
-    request: M::Request,
-) -> M::Response {
-    let arg = ic_wire::encode_request::<M>(&request).expect("bounded Wire request");
-    let reply = pic
-        .query_call(target, caller, M::NAME, arg.into_bytes())
-        .expect("qualified Wire query");
-    ic_wire::decode_response::<M>(&reply).expect("bounded Wire reply")
-}
 fn update_control<M, T>(
     pic: &PocketIc,
     target: Principal,
@@ -394,7 +383,9 @@ fn update_control<M, T>(
 where
     M: Method<Response = Result<T, controls::Refusal>>,
 {
-    update_wire::<M>(pic, target, caller, &request).map_err(|e| e.into_string())
+    update_wire::<M>(pic, target, caller, &request)
+        .expect("qualified Wire update")
+        .map_err(|e| e.into_string())
 }
 fn query_control<M, T>(
     pic: &PocketIc,
@@ -405,5 +396,7 @@ fn query_control<M, T>(
 where
     M: Method<Response = Result<T, controls::Refusal>>,
 {
-    query_wire::<M>(pic, target, caller, request).map_err(|e| e.into_string())
+    query_wire::<M>(pic, target, caller, &request)
+        .expect("qualified Wire query")
+        .map_err(|e| e.into_string())
 }

@@ -1312,10 +1312,10 @@ dependencies = [
 
 [[package]]
 name = "ic-auth"
-version = "0.10.6"
+version = "0.10.7"
 dependencies = [
  "ic-auth-protocol-types",
- "ic-platform",
+ "ic-platform 0.2.1",
  "leb128",
  "serde",
  "serde_bytes",
@@ -1326,36 +1326,36 @@ dependencies = [
 
 [[package]]
 name = "ic-auth-feature-unification"
-version = "0.10.6"
+version = "0.10.7"
 dependencies = [
  "ed25519-dalek",
  "ic-auth",
  "ic-auth-protocol-types",
- "ic-platform",
+ "ic-platform 0.2.1",
  "serde_cbor",
  "sha2 0.10.9",
 ]
 
 [[package]]
 name = "ic-auth-protocol-types"
-version = "0.10.6"
+version = "0.10.7"
 dependencies = [
- "ic-platform",
+ "ic-platform 0.2.1",
  "serde",
  "thiserror 2.0.18",
 ]
 
 [[package]]
 name = "ic-auth-qualification"
-version = "0.10.6"
+version = "0.10.7"
 dependencies = [
  "ic-auth",
  "ic-auth-protocol-types",
  "ic-auth-qualification-contracts",
  "ic-auth-wire",
- "ic-host-fs",
- "ic-host-process",
- "ic-platform",
+ "ic-host-fs 0.30.0",
+ "ic-host-process 0.30.0",
+ "ic-platform 0.2.1",
  "ic-testkit",
  "ic-wire",
  "sha2 0.10.9",
@@ -1364,21 +1364,21 @@ dependencies = [
 
 [[package]]
 name = "ic-auth-qualification-canister"
-version = "0.10.6"
+version = "0.10.7"
 dependencies = [
  "ic-auth",
  "ic-auth-protocol-types",
  "ic-auth-qualification-contracts",
  "ic-auth-wire",
  "ic-memory",
- "ic-platform",
+ "ic-platform 0.2.1",
  "ic-wire",
  "sha2 0.10.9",
 ]
 
 [[package]]
 name = "ic-auth-qualification-contracts"
-version = "0.10.6"
+version = "0.10.7"
 dependencies = [
  "ic-auth-wire",
  "ic-wire",
@@ -1386,17 +1386,17 @@ dependencies = [
 
 [[package]]
 name = "ic-auth-tooling"
-version = "0.10.6"
+version = "0.10.7"
 dependencies = [
  "clap",
  "ic-auth-wire",
  "ic-build",
- "ic-host-fs",
+ "ic-host-fs 0.30.0",
 ]
 
 [[package]]
 name = "ic-auth-wire"
-version = "0.10.6"
+version = "0.10.7"
 dependencies = [
  "ic-auth-protocol-types",
  "ic-wire",
@@ -1404,15 +1404,15 @@ dependencies = [
 
 [[package]]
 name = "ic-build"
-version = "0.21.0"
+version = "0.22.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4a6245a7d3e91449b5fc1018185a2de12dbf5c761665cb84ab3cfea765439a19"
+checksum = "d1fb079aff07eee2c8f1af7ad263628f14146a8858ea0011c1062a3be3ef66e9"
 dependencies = [
  "cargo_metadata",
  "clap",
- "ic-host-artifacts",
- "ic-host-fs",
- "ic-host-process",
+ "ic-host-artifacts 0.30.0",
+ "ic-host-fs 0.30.0",
+ "ic-host-process 0.30.0",
  "rustix",
  "serde",
  "serde_json",
@@ -1442,22 +1442,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ic-cdk"
-version = "0.20.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fc6ad46670baa42b9d802e46cb0741e5da2d747b5b74b9ac8019aec9388b05b2"
-dependencies = [
- "candid",
- "ic-cdk-executor",
- "ic-cdk-macros",
- "ic-error-types",
- "ic0",
- "pin-project-lite",
- "serde",
- "thiserror 2.0.18",
-]
-
-[[package]]
 name = "ic-cdk-executor"
 version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1466,19 +1450,6 @@ dependencies = [
  "ic0",
  "slotmap",
  "smallvec",
-]
-
-[[package]]
-name = "ic-cdk-macros"
-version = "0.20.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9583454462627a6a816ffa91422c8ab7e6a21f75f63eb255d03f710248d45453"
-dependencies = [
- "candid",
- "darling",
- "proc-macro2",
- "quote",
- "syn 2.0.119",
 ]
 
 [[package]]
@@ -1532,6 +1503,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "ic-host-artifacts"
+version = "0.30.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "44bba54ae405baf6849816c20ce00b79cd47e751efc494cd4f84699bf420d124"
+dependencies = [
+ "sha2 0.10.9",
+]
+
+[[package]]
 name = "ic-host-fs"
 version = "0.29.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1539,9 +1519,20 @@ checksum = "95fe251effd7c48e9f364da515a7b3fab4d987447333973cd632e6c13511299a"
 dependencies = [
  "cap-fs-ext",
  "cap-std",
- "ic-host-artifacts",
+ "ic-host-artifacts 0.29.0",
  "rustix",
  "tempfile",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "ic-host-fs"
+version = "0.30.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8799a269455def6035808f2d6b2c7872bd42b2a0f71a22fd95b713e6730aa405"
+dependencies = [
+ "ic-host-artifacts 0.30.0",
+ "rustix",
  "thiserror 2.0.18",
 ]
 
@@ -1552,8 +1543,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b3f74806dd1c5dff74ef8fd4994d1eec0a50604f3b70c36d8a8fdf61d8c40708"
 dependencies = [
  "command-fds",
- "ic-host-artifacts",
- "ic-host-fs",
+ "ic-host-artifacts 0.29.0",
+ "ic-host-fs 0.29.0",
+ "libc",
+ "rustix",
+]
+
+[[package]]
+name = "ic-host-process"
+version = "0.30.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7131fc84dbcc5a0c51cd145600ac16af3a8c3c887a1f040ec5847e2a1a3c97b6"
+dependencies = [
+ "command-fds",
+ "ic-host-artifacts 0.30.0",
+ "ic-host-fs 0.30.0",
  "libc",
  "rustix",
 ]
@@ -1583,9 +1587,9 @@ dependencies = [
 
 [[package]]
 name = "ic-metrics"
-version = "0.14.5"
+version = "0.14.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b7e25938776b03b0b716b3cf6cc5dc0e7088c118f483cefb1583f3fbc4fc5cdb"
+checksum = "ebf68481eda34c7472d770d78cd3b958809d908b8655c7848ea1f784eb0007a1"
 
 [[package]]
 name = "ic-platform"
@@ -1594,28 +1598,40 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "227ba911212a849bd24263879c289c58eecf1e4775d729443df7acb9810e1469"
 dependencies = [
  "candid",
+ "ic0",
+ "ic_principal",
+ "pocket-ic",
+ "serde",
+]
+
+[[package]]
+name = "ic-platform"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "73506580e1ea0f78adacdd44560717eb9057e86274169e6525bbb024d1dd1c83"
+dependencies = [
  "curve25519-dalek",
  "ed25519-dalek",
  "ic-agent",
  "ic-canister-sig-creation",
- "ic-cdk",
  "ic-cdk-executor",
  "ic-certification",
+ "ic-error-types",
  "ic-platform-macros",
  "ic-signature-verification",
  "ic-verify-bls-signature",
  "ic0",
  "ic_principal",
  "k256",
- "pocket-ic",
- "serde",
+ "pin-project-lite",
+ "thiserror 2.0.18",
 ]
 
 [[package]]
 name = "ic-platform-macros"
-version = "0.1.18"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1bd224b709eb0411be55f343b67078fd424a0576e38cabe27284a0302be6c95b"
+checksum = "5fe30b668cc1c29e38d34b633de246f6db30ba39003dc5aef2edcb0ae2a3eadb"
 dependencies = [
  "darling",
  "proc-macro2",
@@ -1664,11 +1680,12 @@ version = "0.55.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "31917cf9efa9b8f975a3f8f41baed5afe8a75fdd750aabde895fcc10bc5fa0f3"
 dependencies = [
- "ic-host-artifacts",
- "ic-host-fs",
- "ic-host-process",
+ "ic-host-artifacts 0.29.0",
+ "ic-host-fs 0.29.0",
+ "ic-host-process 0.29.0",
  "ic-metrics",
- "ic-platform",
+ "ic-platform 0.1.18",
+ "ic-wire",
  "libc",
  "thiserror 2.0.18",
  "tokio",
@@ -1708,9 +1725,9 @@ dependencies = [
 
 [[package]]
 name = "ic-wire"
-version = "0.4.8"
+version = "0.4.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6edb6cfdfd0ae0a22e01dd0919bdd53c41996d9fc40a10743fa51978ff9f312d"
+checksum = "f2461da88e0dea3098608c9f8b980a012940596bc9f04fe3ebcc362bb735e4fa"
 dependencies = [
  "ic-wire-derive",
  "postcard",
@@ -1720,9 +1737,9 @@ dependencies = [
 
 [[package]]
 name = "ic-wire-derive"
-version = "0.4.8"
+version = "0.4.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1809eca3dae034cf4126617b2ee63db557b00c81554477bef3bde9bbc8943ede"
+checksum = "3b70ab01ccf85163f17f1c318136d6ab9a132857d46a9f34342f020d3c4df738"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3322,9 +3339,9 @@ checksum = "fd3ca314f692efd6c868f8408f53fe444634a845f96c028b97d35f6a1f79f0ee"
 
 [[package]]
 name = "tokio"
-version = "1.53.3"
+version = "1.54.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ce3335fa71841cda333a58d7615b03901380ecf09d59b3296d21f8bbac0dde4e"
+checksum = "a0c168a474b95bfecfe908a65d4bdffc523144b649a74c09c286afb35d53e0bc"
 dependencies = [
  "bytes",
  "libc",

@@ -1,11 +1,24 @@
 # Changelog
 
-## [0.10.7]
+## [0.10.8]
 
-- Qualify explicit-root refusal and caller-owned signed-ingress cancellation,
-  keeping transport failures distinct from application rejection. A cancelled
-  local request does not establish that the remote update did not execute.
+- Qualify explicit-root refusal and caller-owned signed-ingress cancellation.
+  Transport failures stay distinct from application rejection; cancelling a local
+  request does not establish that the remote update did not execute.
   [Testkit #106 — Signed-ingress qualification transport](https://github.com/dragginzgame/ic-testkit/issues/106).
+
+## [0.10.7] - 2026-10-19
+
+- Adopt published IC Platform 0.2.1 with its Candid-free runtime boundary for
+  qualification. Preserve explicit Wire codecs and shared executor identity;
+  reject full CDK packages and accidental Platform Candid selection in Wasm.
+
+- Adopt Host FS/Process 0.30.0 for native file and qualification operations. Keep
+  optional capability/tempfile backends disabled; public library graphs are unchanged.
+
+- Use published Testkit typed Wire transport in native qualification, retaining
+  Auth-specific refusal projections and raw malformed-request checks.
+  [Auth #75 — Adopt Testkit typed Wire calls](https://github.com/dragginzgame/ic-auth/issues/75).
 
 ## [0.10.6] - 2026-10-19
 

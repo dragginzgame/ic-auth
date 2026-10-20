@@ -60,7 +60,7 @@ generated browser contracts and private qualification controls use IC Wire.
 The fixture exposes only Wire methods, with no Candid projection or direct
 declaration. Its old
 Candid checkpoint is explicitly retired; production storage is unaffected.
-Platform 0.1.18 supplies explicit canister-signature key/hash, certificate-tree,
+Platform 0.2.1 supplies explicit canister-signature key/hash, certificate-tree,
 verifier/BLS, ECDSA and Ed25519 capabilities. All K256 and Ed25519 API imports use
 Platform; Auth retains prehash/high-S policy, explicit normalization,
 canonical-scalar admission and strict verification. The unpublished
@@ -71,15 +71,17 @@ upstream Candid graph or implement replacement cryptography.
 The qualification host selects Platform's `cdk` capability for runtime calls,
 certificate acquisition/publication and entrypoint generation (Platform #21).
 Keep hidden/custom Wire codecs and the upstream controller/runtime semantics.
-The runtime bundle includes Candid; private Wire schemas and pure library graphs
-still refuse it. Platform's raw APIs support existing admission/profiling.
+Platform owns the maintained non-cryptographic runtime adapters and generator;
+the registry executor identity stays shared. Its `cdk` feature is Candid-free.
+The certified-verifier stack still imports Candid transitively; private Wire
+schemas and pure library graphs refuse it. Platform's raw APIs support existing admission/profiling.
 See [the handoff](docs/status/current.md), Platform #16/#17/#18 adoption evidence
 and `ci/cargo-dependency-boundaries.json` for direct-dependency ownership.
 
 ## Qualification tooling
 
-- Native canister qualification uses published `ic-testkit` for raw calls,
-  bounded startup and its upstream runtime re-export. Do not add a direct
+- Native canister qualification uses published `ic-testkit` for typed Wire calls,
+  deliberate raw-call evidence, bounded startup and its upstream runtime re-export. Do not add a direct
   `pocket-ic` dependency. The locked Testkit package selects the setup/check CLI;
   Testkit owns server selection and admission outside the shared five-tool bundle.
   `make install-testkit-tools` explicitly prepares it, and

@@ -1,22 +1,113 @@
 # Current handoff — 2026-10-19
 
-## 0.10.7 — signed-ingress trust and cancellation
+## PR #79 refresh against released 0.10.7
 
-Source baseline is released 0.10.6 `7af3b54`. Qualification keeps one caller-owned
-runtime and fresh per-request Platform Agents with explicit identity, root and
-30-second expiry. The read-only installed operation rejects an incorrect root
-with the typed certificate-verification error, then accepts the real root.
-Synthetic loopback cases distinguish malformed response errors from application
-rejection and confirm cancellation after full request dispatch closes local
-transport without a detached task or resubmission. They make no claim about
-remote execution after cancellation. Socket acceptance and bounded HTTP framing
-come from published Host; no generic Testkit session or transport is introduced.
+Merged default main into the existing PR history without reverting published
+Testkit typed Wire calls or Platform/Host selections. Caller-owned asynchronous
+ingress keeps fresh per-call identity/root binding; malformed-response, wrong-root
+and deadline/manual cancellation cases retain the uncertain-update boundary.
+The PR remains scoped to qualification against released dependency selections.
+The maintainer's separate pending Wire 0.5/Testkit 0.57 migration stays outside
+this branch. Refreshed-source Linux qualification passes all three ingress cases on the
+already-admitted Testkit 0.55.2/server 16.1.0 pairing, plus Rust 1.91 checking,
+strict Clippy, actual native/Wasm exclusions, formatting, pins, links and snapshot.
+The first format check exposed an import-wrap difference; formatting was applied
+and all three cases passed again. Native macOS and fresh hosted CI remain pending.
 
-Focused evidence is in `target/ingress-acceptance/`. The supplying PR and
-[Testkit #106](https://github.com/dragginzgame/ic-testkit/issues/106) retain the
-integration/native-host acceptance; package versions and dependency lock
-selections remain unchanged.
+## Platform 0.2.1 adoption — pending 0.10.7
 
+Source baseline remains released 0.10.6 `7af3b544de2258ad0a963fa12fcede2df968e18e`
+plus pending Testkit/Host work and incoming Platform 0.2.0 / Build 0.22 selections.
+Verified published Platform/macros 0.2.0 and their archives first. Release 0.2.1
+appeared during qualification; checksum-verified both supplying 0.2.1 archives,
+raised the Platform minimum and lock to 0.2.1 and repeated checks on that exact
+selection. The point release changes documentation/provenance, not the runtime
+or macro implementation. All unrelated lock identities/edges remain unchanged.
+
+Platform owns maintained non-cryptographic runtime adapters and explicit-codec
+entrypoints, without the full CDK/macros dependencies. The executor remains the
+registry 2.0.0 identity and ic0 remains 1.2.0. Auth already supplies finite Wire
+hooks, including unit RPCs, and needs no local adapter, Candid fallback, storage
+migration or endpoint rewrite. Crypto/identity exports retain their upstream
+identities. Changed runtime call/error identities are confined to the unpublished
+fixture, so Auth's public API remains compatible and pending notes stay 0.10.7.
+Own package versions remain 0.10.6.
+
+Reference-Wasm admission now rejects full `ic-cdk`, `ic-cdk-macros` and Platform's
+`candid` feature, with new refusal fixtures, while requiring one executor identity.
+Candid remains transitive in certified-signature verification and native
+Agent/Testkit; there is no direct Candid/CDK declaration. Testkit 0.55.2 still
+uses Platform 0.1.18 natively; no override forces its separate migration. Incoming
+Build 0.22 now selects Host 0.30; its release-editor workflow was not requalified.
+
+Final 0.2.1 checks pass: isolated Rust 1.91 native/Wasm package capability matrix
+and private apps; type/Wire, chain-key, portable/adversarial, canister signature,
+store, certified proof and session/restore tests; strict native/Wasm Clippy;
+direct/transitive boundaries and refusals; formatting, pins, ShellCheck, links
+and snapshot. Five native fixture tests and all seven installed local Testkit
+0.55.2/server 16.1.0 runner cases pass, including real certification, upgrade,
+checkpoint recovery, signed ingress and actual SDK two-receiver admission/logout.
+Sealed inputs and authored Rust source are unchanged across final qualification.
+Evidence and before-images are under `target/platform-adoption-020-20261019/`;
+`*-021` logs belong to the final release selection. No full CI, native macOS,
+production-network/issuer qualification, sibling edit, Git delivery, executable
+installation, release or publication is claimed. No missing Platform API blocked adoption.
+
+## Host 0.30.0 adoption — pending 0.10.7
+
+Verified published latest non-yanked FS, Process and Artifacts 0.30.0 from the
+public registry index and checksum-verified their actual archives. The incoming
+root and lock already selected FS/Process 0.30.0; preserve them byte-for-byte,
+along with pending Testkit adoption and Metrics/Wire selections. Own package
+versions remain 0.10.6 and compatible notes extend the pending 0.10.7 entry.
+
+FS 0.30 makes held-capability and scoped-tempfile APIs opt-in. Auth uses neither;
+empty selected features retain bounded reads, hashes, durable writes and process
+capture. Those used implementations are unchanged from 0.29, so no source adapter
+or extra feature is needed. The selected 0.30 FS/Process normal/build closures
+exclude cap-* and tempfile. Build 0.21 and Testkit 0.55.2 still select older Host
+0.29 transitively; their graphs retain those backends. No override or unrelated
+producer upgrade is used to erase valid lock entries. Generic CLI cutover still
+belongs to Auth #78 / Shared #289, not this feature-selection adoption.
+
+Rust 1.91 all-target tooling/runner compilation, strict development Clippy and
+11 tooling tests pass. Five native fixture tests, release Wasm construction and
+all seven installed local Testkit 0.55.2/server 16.1.0 runner cases pass, including
+SDK admission/logout through Host 0.30 process capture. Direct boundaries and
+actual native/Wasm exclusions, formatting, pins, links, snapshot and sealed input
+checks pass. Evidence and incoming before-images are under
+`target/host-adoption-20261019/`. No full CI, native macOS, production deployment,
+release, publication, executable installation or Git index/ref mutation is claimed.
+
+## Testkit typed Wire adoption — pending 0.10.7
+
+Source baseline is released 0.10.6 `7af3b544de2258ad0a963fa12fcede2df968e18e`.
+Preserve the incoming lock-only Metrics 0.14.6 and Wire/macros 0.4.9 selections.
+Own package versions remain 0.10.6; compatible internal qualification notes select
+0.10.7 with no public API, wire, storage or consumer regeneration change.
+
+Published locked Testkit 0.55.2 supplies typed query/update calls through its
+opt-in `wire` feature, now selected only by the native runner. The local generic
+encode/call/decode implementation is removed. Auth retains application refusal
+projections, trust/session assertions, raw malformed-input evidence and distinct
+profiling controls. Explicit caller/target/method identity, method bounds and
+single-update/no-retry behavior remain unchanged.
+[Auth #75 — Adopt Testkit typed Wire calls](https://github.com/dragginzgame/ic-auth/issues/75)
+remains open until this adoption reaches the default branch. The already shipped
+Clap fix was confirmed on default-branch 0.10.6 and Auth #77 is closed.
+
+Rust 1.91 all-target runner compilation and strict development Clippy pass.
+Five native fixture tests and the Wasm release build pass. The sandbox denied
+PocketIC's localhost bind before six scenarios could start; the same prepared
+Testkit/server 16.1.0 pairing passes all seven runner cases with localhost access.
+These include typed transport versus application refusal, certification, upgrades,
+checkpoint recovery, signed ingress and actual SDK admission/logout on two
+receivers. Native/Wasm dependency boundaries, formatting, pins, local links and
+the Shared snapshot pass. Sealed Rust/frontend inputs remain unchanged; the only
+new lock edge is Testkit to the already selected IC Wire package. No full CI,
+native macOS, deployed-network or production issuer qualification, commit,
+release or publication is claimed. Before-images and logs are retained under
+`target/testkit-wire-20261019/`.
 
 ## 0.10.6 — release isolation, native CLI and browser admission
 

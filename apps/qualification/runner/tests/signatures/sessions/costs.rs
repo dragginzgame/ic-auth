@@ -11,6 +11,7 @@ fn profile(
 ) -> Result<SessionView, String> {
     let report: AdmissionProfile = measured(f, target, label, || {
         update_wire::<controls::ProfileAdmission>(&f.pic, target, caller, input)
+            .expect("qualified Wire admission profile")
     });
     assert!(report.instructions > 0);
     eprintln!(

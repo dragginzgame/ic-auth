@@ -51,5 +51,7 @@ for package in "${crypto_singletons[@]}"; do rules+=(--max-count "$package=1"); 
 "${checker[@]}" --package ic-auth --target wasm32-unknown-unknown --all-features "${rules[@]}"
 "${checker[@]}" --package ic-auth-qualification-canister --target wasm32-unknown-unknown \
     --forbid-pattern '^(candid_parser|ic-host|ic-build|ic-agent|ic-testkit|pocket-ic|tokio)([- ]|$)' \
+    --forbid ic-cdk --forbid ic-cdk-macros \
+    --forbid-feature ic-platform/candid \
     --require ic-cdk-executor=1
 echo 'Auth dependency boundaries verified'
