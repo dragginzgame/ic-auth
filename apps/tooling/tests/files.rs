@@ -27,11 +27,18 @@ fn fixture() -> PathBuf {
 }
 
 fn invoke(root: &Path, arguments: &[&str]) -> Output {
-    Command::new(env!("CARGO_BIN_EXE_ic-auth-tooling"))
-        .current_dir(root)
-        .args(arguments)
-        .output()
-        .unwrap()
+    let mut command = if matches!(
+        arguments.first(),
+        Some(&"client-contracts" | &"verify-external-lock")
+    ) {
+        Command::new(env!("CARGO_BIN_EXE_ic-auth-tooling"))
+    } else {
+        let mut command = Command::new("bash");
+        command
+            .arg(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../scripts/dev/run-host-file.sh"));
+        command
+    };
+    command.current_dir(root).args(arguments).output().unwrap()
 }
 
 #[test]
@@ -67,7 +74,7 @@ fn argument_refusals_are_effect_free_and_help_and_version_succeed() {
     }
     for name in ["space path", "-input"] {
         fs::write(root.join(name), b"abc").unwrap();
-        let result = invoke(&root, &["hash-file", name, "3"]);
+        let result = invoke(&root, &["hash-file", "--", name, "3"]);
         assert!(result.status.success(), "{result:?}");
     }
     #[cfg(target_os = "linux")]
@@ -75,7 +82,8 @@ fn argument_refusals_are_effect_free_and_help_and_version_succeed() {
         use std::{ffi::OsStr, os::unix::ffi::OsStrExt};
         let name = OsStr::from_bytes(b"nonutf8\xff");
         fs::write(root.join(name), b"abc").unwrap();
-        let result = Command::new(env!("CARGO_BIN_EXE_ic-auth-tooling"))
+        let result = Command::new("bash")
+            .arg(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../scripts/dev/run-host-file.sh"))
             .current_dir(&root)
             .arg("hash-file")
             .arg(name)
@@ -151,9 +159,10 @@ fn hash_stdout_is_exact_and_oversize_has_no_identity() {
 #[cfg(unix)]
 fn batch(root: &Path, input: &[u8], maximum: &str) -> Output {
     use std::{io::Write, process::Stdio};
-    let mut child = Command::new(env!("CARGO_BIN_EXE_ic-auth-tooling"))
+    let mut child = Command::new("bash")
+        .arg(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../scripts/dev/run-host-file.sh"))
         .current_dir(root)
-        .args(["hash-files0", maximum])
+        .args(["hash-files0", maximum, "4194304", "4096"])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())

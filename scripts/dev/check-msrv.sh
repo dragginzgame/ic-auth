@@ -26,7 +26,7 @@ CARGO_TARGET_DIR="$root/target/msrv-package" cargo +"$development" package \
 CARGO_TARGET_DIR="$root/target" cargo +"$development" build --locked --offline -p ic-auth-tooling
 for package in ic-auth-protocol-types ic-auth ic-auth-wire; do
     archive="$root/target/msrv-package/package/tmp-crate/$package-$version.crate"
-    digest="$("$root/target/debug/ic-auth-tooling" hash-file "$archive" 8388608)"
+    digest="$(bash scripts/dev/run-host-file.sh hash-file "$archive" 8388608)"
     printf '%s  %s\n' "$digest" "$archive" >> "$fixture/package-identities.sha256"
     # Cargo archives normalize mtimes. Fresh extraction times prevent reuse of
     # stale local-package metadata in the shared target directory after edits.
@@ -44,7 +44,7 @@ package_inputs() {
         "$root/target/msrv-package/package/tmp-crate/ic-auth-protocol-types-$version.crate" \
         "$root/target/msrv-package/package/tmp-crate/ic-auth-wire-$version.crate" "$@" \
         >> "$fixture/sorted-input-paths"
-    "$root/target/debug/ic-auth-tooling" hash-files0 8388608 < "$fixture/sorted-input-paths"
+    bash scripts/dev/run-host-file.sh hash-files0 8388608 4194304 4096 < "$fixture/sorted-input-paths"
 }
 package_inputs > "$fixture/archive-inputs"
 # Keep normalized manifests and their locks byte-for-byte intact. Only this

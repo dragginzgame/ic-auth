@@ -2,8 +2,8 @@
 
 include ci/tool-versions.env
 # Extend the shared ordered aggregates after common host and Rust admission.
-LOCAL_TOOL_INSTALL_TARGETS := install-msrv install-testkit-tools
-LOCAL_TOOL_CHECK_TARGETS := msrv-tools-check testkit-tools-check
+LOCAL_TOOL_INSTALL_TARGETS := install-msrv install-testkit-tools install-host-file
+LOCAL_TOOL_CHECK_TARGETS := msrv-tools-check testkit-tools-check host-file-check
 RELEASE_DELIVERY_POLICY := $(CURDIR)/ci/release-delivery.txt
 override SHARED_TOOLING_ROOT := $(CURDIR)
 include make/consumer.mk
@@ -28,6 +28,7 @@ export RELEASE_REMOTE RELEASE_BRANCH
 help:
 	@echo 'Setup: install-tools, tools-check, install-hooks, fetch; minimum compiler: install-msrv, msrv-tools-check'
 	@echo 'Release editor: install-release-tools (explicit setup), release-tools-check (offline path admission)'
+	@echo 'File CLI: install-host-file (explicit setup), host-file-check (offline path admission)'
 	@echo 'Testkit server: install-testkit-tools (explicit setup), testkit-tools-check (offline admission)'
 	@echo 'Focused checks: test-types, test-protocol, test-portable-signatures, test-chain-key-signatures, test-signatures, test-signature-store, test-certified-proofs, test-sessions, test-host-tooling, test-qualification, check-wasm, clippy, metadata'
 	@echo 'Browser client: install-client-dependencies, client-tools-check, generate-client-contracts, check-client-contracts, test-client'
@@ -45,6 +46,13 @@ testkit-tools-check:
 
 install-release-tools: install-host-tools
 	+bash scripts/dev/release-tools.sh install
+
+.PHONY: install-host-file host-file-check
+install-host-file: install-host-tools
+	+bash scripts/dev/host-file-tools.sh install
+
+host-file-check:
+	+@bash scripts/dev/host-file-tools.sh check
 
 release-tools-check:
 	+@bash scripts/dev/release-tools.sh check
@@ -195,7 +203,7 @@ publish:
 test-release-tools:
 	+bash scripts/release/test-tools.sh
 
-test-host-tooling:
+test-host-tooling: host-file-check
 	+cargo test --locked --offline -p ic-auth-tooling
 
 test-release-runner:

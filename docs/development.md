@@ -699,37 +699,31 @@ archives remain in `target/`; no cleanup, GitHub Release object or deployment is
 implicit. See [Cargo publication](https://doc.rust-lang.org/cargo/commands/cargo-publish.html)
 for credentials, dry-run and index-propagation semantics.
 
-`scripts/dev/run-host-tooling.sh` runs the unpublished utility through locked,
-offline Cargo with output in this checkout. The wrapper and release adapters
-resolve their physical checkout without emitting inherited `CDPATH` banners;
-digest stdout and NUL-delimited release paths retain their exact contracts.
-File identities use
-`ic-host-artifacts::artifact::Sha256Digest`; no-follow regular reads and durable
-private-file publication use `ic-host-fs`. The caller supplies finite byte limits:
-8 MiB for lockfiles, 64 MiB for package archives, 1 MiB for validation receipts,
-64 KiB for publication intent and 1 KiB for dispatch markers. These are local
-tooling limits, not authentication protocol limits. The publication lock and
-registry uncertainty policy remain owned by the release/publication scripts.
+File mechanics use the published `ic-host-file` executable. Auth pins 0.31.1 in
+`ci/host-file.env`, independently of the multiple transitive Host FS versions in
+Cargo.lock. `make install-host-file` prepares it through Shared Tooling with
+`--features cli`; `make host-file-check` admits that exact selection offline. The
+common aggregates include both. CI cache keys include the executable pin.
 
-The Unix-only `ic-auth-tooling hash-files0 MAX_BYTES` operation reads ordered
-NUL-terminated paths from stdin and emits `hex_sha256<TAB>path<NUL>` records in
-the same order, retaining duplicates and raw pathname bytes. It accepts at most
-4 MiB of path input and 4,096 nonempty paths; an empty batch is valid. Each file
-uses the caller's byte ceiling and Host's no-follow regular-file hash. Malformed
-lists and failed files refuse before any identity output. This bounds the batch,
-not concurrent source mutation: callers still own source custody and input seals.
-Client contract generation builds the utility once and uses one batch per
-before/after seal, retained as `inputs.tsv0` and `inputs-after.tsv0` beside the
-path list. MSRV checks likewise keep their existing archive/source comparisons,
-using one native invocation per sealing round rather than one process per file.
+`scripts/dev/run-host-file.sh` only admits and executes that binary, preserving
+the invocation directory and raw arguments. It never builds the workspace or
+falls back to a local command. Checks, publication and release recovery require
+prior setup; admitted fresh release preflight prepares the complete toolset.
+The independent pin is not rewritten during workspace release preparation.
 
-The native utility and qualification runner consume the root-selected published
-`ic-host-fs` and `ic-host-process` packages. The utility uses
-`durable::write_with` with explicit create/replace modes and owner-only
-permissions; publication errors retain their typed before/after state and
-secondary cleanup diagnostics. Host owns path admission, bounded file reads and
-process execution. Auth owns release identity, publication policy and which
-qualification commands are permitted.
+Callers retain byte limits: 8 MiB for lockfiles, 64 MiB for package archives,
+1 MiB for validation receipts, 64 KiB for publication intent and 1 KiB for
+dispatch markers. NUL batches explicitly pass 4194304 path bytes and 4096 files,
+preserving order, duplicates and raw paths with no successful output prefix on
+refusal. Host owns hashing, no-follow admission, mode 0600 and durable
+create/replace. Auth owns source custody, input seals, publication intent and
+uncertain-effect reconciliation.
+
+The unpublished Rust utility retains Auth client-contract generation and
+Build-owned external-lock admission. Client generation and MSRV archive sealing
+use the admitted Host file tool for their before/after identities. Actual binary
+file tests and the local/mocked release fixture qualify this boundary; native
+macOS remains part of hosted qualification.
 
 The qualification runner reads Wasm through Host and obtains the simulator
 client and bounded typed Wire calls through Testkit. Its SDK qualification

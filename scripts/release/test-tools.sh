@@ -18,6 +18,20 @@ echo "Release/publication fixture evidence: $fixture"
 # production preflight failure. Only substituted installer effects know this path.
 editor="$(bash scripts/dev/release-tools.sh check)"
 export IC_AUTH_FIXTURE_EDITOR="$editor"
+IC_AUTH_REAL_HOST_FILE="$(bash scripts/dev/host-file-tools.sh check)"
+export IC_AUTH_REAL_HOST_FILE
+source ci/host-file.env
+export IC_AUTH_FIXTURE_FILE_VERSION="$HOST_FILE_VERSION"
+export IC_AUTH_FIXTURE_HOST_FILE="$fixture/host-file"
+cat > "$IC_AUTH_FIXTURE_HOST_FILE" <<'SCRIPT'
+#!/usr/bin/env bash
+set -euo pipefail
+if [[ "${FIXTURE_MODE:-}" == marker-source-change && "${1:-}" == create-private ]]; then
+    git commit --allow-empty -qm 'Concurrent fixture marker source'
+fi
+exec "$IC_AUTH_REAL_HOST_FILE" "$@"
+SCRIPT
+chmod +x "$IC_AUTH_FIXTURE_HOST_FILE"
 unset CARGO_RELEASE_METADATA_EDITOR CARGO_RELEASE_METADATA_MAX_BYTES
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR
 export GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null
@@ -49,7 +63,7 @@ tar -C "$root/packages" --exclude=node_modules --exclude=dist -cf - client | tar
 overlays=(.gitignore Makefile Cargo.toml Cargo.lock CHANGELOG.md .shared-tooling.snapshot ci/release-delivery.txt ci/cargo-dependency-boundaries.json
     scripts/release/metadata.sh scripts/release/publish.sh scripts/release/test-tools.sh
     scripts/dev/release-tools.sh
-    scripts/dev/run-host-tooling.sh
+    scripts/dev/run-host-file.sh scripts/dev/host-file-tools.sh ci/host-file.env
     scripts/dev/client-tools.sh scripts/dev/client-contracts.sh scripts/dev/test-client.sh
     scripts/dev/prepare-client-ci.sh scripts/ci/test-client-tools.sh .github/workflows/ci.yml
     scripts/ci/test-artifact-discovery.sh
@@ -106,7 +120,7 @@ printf '# Changelog\n\n## [0.1.1]\n\n- Fixture release.\n' > CHANGELOG.md
 cat > scripts/ci/run-validation-targets.sh <<'SCRIPT'
 #!/usr/bin/env bash
 set -euo pipefail
-[[ -f target/common-tools-ready && -f target/testkit-ready && -f target/release-editor-ready ]] || exit 1
+[[ -f target/common-tools-ready && -f target/testkit-ready && -f target/host-file-ready && -f target/release-editor-ready ]] || exit 1
 printf 'gate\n' >> target/preparation-dispatch.log
 [[ ! -f target/fail-gate ]] || exit 1
 echo fixture-complete-gate
@@ -131,6 +145,19 @@ cat > scripts/dev/install-rust-tools.sh <<'SCRIPT'
 set -euo pipefail
 # Common Rust effects are already substituted above. Editor selection must use
 # the saved source, including when today's root lock cannot be parsed.
+if [[ " $* " == *' --package ic-host-fs '* ]]; then
+    [[ " $* " == *" --version $IC_AUTH_FIXTURE_FILE_VERSION "* && " $* " == *' --features cli '* ]] || exit 1
+    if [[ "${*: -1}" == --check ]]; then
+        printf 'file check\n' >> target/preparation-dispatch.log
+        [[ ! -f target/fail-file-check && -f target/host-file-ready ]] || exit 1
+    else
+        printf 'file setup\n' >> target/preparation-dispatch.log
+        [[ ! -f target/fail-file-setup ]] || exit 1
+        touch target/host-file-ready
+    fi
+    printf '%s\n' "$IC_AUTH_FIXTURE_HOST_FILE"
+    exit 0
+fi
 [[ " $* " == *' --package ic-build '* ]] || exit 0
 lock=''
 previous=''
@@ -209,7 +236,7 @@ done
 cp "$fixture/pending-notes" CHANGELOG.md
 # Common and CLI setup/admission must precede the gate and preserve release
 # identity on either failure. Neither version preparation nor a tag may start.
-for phase in common-setup cli-setup common-check cli-check editor-setup editor-check; do
+for phase in common-setup cli-setup file-setup common-check cli-check file-check editor-setup editor-check; do
     : > target/preparation-dispatch.log
     touch "target/fail-$phase"
     if make --no-print-directory release-patch > "$fixture/$phase-failure.log" 2>&1; then exit 1; fi
@@ -218,8 +245,10 @@ for phase in common-setup cli-setup common-check cli-check editor-setup editor-c
     case "$phase" in
         common-setup) expected='common setup' ;;
         cli-setup) expected=$'common setup\ncommon setup\ncommon setup\ncli setup' ;;
-        common-check) expected=$'common setup\ncommon setup\ncommon setup\ncli setup\ncommon check' ;;
-        cli-check|editor-setup|editor-check) expected=$'common setup\ncommon setup\ncommon setup\ncli setup\ncommon check\ncli check' ;;
+        file-setup) expected=$'common setup\ncommon setup\ncommon setup\ncli setup\ncommon setup\nfile setup' ;;
+        common-check) expected=$'common setup\ncommon setup\ncommon setup\ncli setup\ncommon setup\nfile setup\ncommon check' ;;
+        cli-check) expected=$'common setup\ncommon setup\ncommon setup\ncli setup\ncommon setup\nfile setup\ncommon check\ncli check' ;;
+        file-check|editor-setup|editor-check) expected=$'common setup\ncommon setup\ncommon setup\ncli setup\ncommon setup\nfile setup\ncommon check\ncli check\nfile check' ;;
     esac
     [[ "$(cat target/preparation-dispatch.log)" == "$expected" ]] || exit 1
     rm "target/fail-$phase"
@@ -229,7 +258,7 @@ touch target/fail-gate
 if make --no-print-directory release-patch > "$fixture/gate-failure.log" 2>&1; then exit 1; fi
 [[ "$(git rev-parse HEAD)" == "$before" && "$(make -s release-version)" == 0.1.0 ]] || exit 1
 [[ -z "$(git tag -l)" && -f target/keep ]] || exit 1
-[[ "$(cat target/preparation-dispatch.log)" == $'common setup\ncommon setup\ncommon setup\ncli setup\ncommon check\ncli check\ngate' ]] || exit 1
+[[ "$(cat target/preparation-dispatch.log)" == $'common setup\ncommon setup\ncommon setup\ncli setup\ncommon setup\nfile setup\ncommon check\ncli check\nfile check\ngate' ]] || exit 1
 rm target/fail-gate
 [[ "$(tail -n 2 target/editor-events.log)" == $'install\ncheck' ]] || exit 1
 
@@ -294,12 +323,6 @@ cat > "$fixture/bin/cargo" <<'SH'
 #!/usr/bin/env bash
 set -euo pipefail
 case "$1" in
-    run)
-        if [[ "$FIXTURE_MODE" == marker-source-change && " $* " == *' create-private '* ]]; then
-            git commit --allow-empty -qm 'Concurrent fixture marker source'
-        fi
-        exec "$FIXTURE_CARGO" "$@"
-        ;;
     package)
         mkdir -p "$CARGO_TARGET_DIR/package"
         printf types > "$CARGO_TARGET_DIR/package/ic-auth-protocol-types-0.1.1.crate"
@@ -334,7 +357,7 @@ while [[ $# -gt 0 ]]; do
 done
 [[ -z "$diagnostics" ]] || : > "$diagnostics"
 package="$(basename "$(dirname "$url")")"
-checksum="$(bash scripts/dev/run-host-tooling.sh hash-file "$CARGO_TARGET_DIR/package/$package-0.1.1.crate" 67108864)"
+checksum="$(bash scripts/dev/run-host-file.sh hash-file "$CARGO_TARGET_DIR/package/$package-0.1.1.crate" 67108864)"
 case "$FIXTURE_MODE" in
     unknown) printf 503 ;;
     conflict)
@@ -536,7 +559,7 @@ for disposition in restored prepared; do
     [[ "$(git rev-parse HEAD)" == "$current_source" && -z "$(git tag -l "v$candidate")" ]] || exit 1
     git diff --quiet HEAD -- Cargo.toml Cargo.lock CHANGELOG.md release-validation.json
     git diff --cached --quiet HEAD --
-    { cat "$fixture/$disposition-before-restart.log"; printf 'common setup\ncommon setup\ncommon setup\ncli setup\ncommon check\ncli check\ngate\n'; } > "$fixture/$disposition-expected-failed-dispatch.log"
+    { cat "$fixture/$disposition-before-restart.log"; printf 'common setup\ncommon setup\ncommon setup\ncli setup\ncommon setup\nfile setup\ncommon check\ncli check\nfile check\ngate\n'; } > "$fixture/$disposition-expected-failed-dispatch.log"
     cmp target/preparation-dispatch.log "$fixture/$disposition-expected-failed-dispatch.log"
     make --no-print-directory "release-$kind" > "$fixture/$disposition-restarted.log" 2>&1
     [[ "$(make -s release-version)" == "$candidate" && -f target/keep ]] || exit 1
