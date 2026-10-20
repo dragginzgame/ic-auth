@@ -53,7 +53,7 @@ ln -s "$BASH" "$fixture/bin/bash"
 export PATH="$fixture/bin:$PATH"
 # Substitute application/installation/publication effects, keeping actual root
 # recipes, includes, execution admission and Bash-to-Cargo descriptor handoff.
-for script in dev/testkit-tools.sh dev/msrv-tools.sh dev/check-msrv.sh \
+for script in dev/testkit-tools.sh dev/msrv-tools.sh dev/host-file-tools.sh dev/check-msrv.sh \
     dev/test-qualification.sh dev/client-contracts.sh dev/test-client.sh dev/release-tools.sh \
     ci/check-cargo-dependency-boundaries.sh ci/test-auth-boundaries.sh \
     ci/check-auth-boundaries.sh ci/check-dependency-pins.sh ci/read-cargo-workspace-version.sh \
@@ -85,6 +85,7 @@ targets=(fetch metadata test-types test-protocol test-chain-key-signatures test-
     test-certified-proofs test-sessions check-wasm clippy build-qualification-canister \
     test-qualification test-host-tooling check-boundaries check-dependency-pins check-msrv \
     install-testkit-tools testkit-tools-check msrv-tools-check install-release-tools release-tools-check \
+    install-host-file host-file-check \
     generate-client-contracts check-client-contracts test-client publish-dry-run publish test-release-tools \
     release-version release-preflight release-prepare-version release-prepared-check release-files \
     release-commit-check release-committed-check release-tagged-check release-push-check release-verify)
@@ -132,7 +133,7 @@ while IFS= read -r staging; do [[ -f "$staging/dispatched" ]]; done < "$AUTH_JOB
 # Recursive marking must never make unsafe modes execute these effects, even
 # when callers erase MAKEFLAGS. The shared independent guard stays authoritative.
 for mode in -n -t -q -i; do
-    for target in fetch metadata check-dependency-pins install-testkit-tools generate-client-contracts publish-dry-run publish test-release-tools release-prepare-version; do
+    for target in fetch metadata check-dependency-pins install-testkit-tools install-host-file generate-client-contracts publish-dry-run publish test-release-tools release-prepare-version; do
         : > "$AUTH_JOBSERVER_LOG"
         status=0
         (cd "$consumer"; make "$mode" --no-print-directory "$target" MAKEFLAGS=) \
