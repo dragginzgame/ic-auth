@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.11.1]
+## [0.11.1] - 2026-10-20
 
 - Adopt Shared Tooling 0.25.6 for independently qualified fixture exports and
   retained Cargo metadata failure diagnostics, root inputs and command/logger
