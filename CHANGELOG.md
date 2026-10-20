@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.11.0]
+## [0.11.0] - 2026-10-20
 
 - Adopt Shared Tooling 0.25.4, including explicit Cargo-tool feature selection
   bound into setup/admission receipts, fixture retention and clarified failure-evidence
