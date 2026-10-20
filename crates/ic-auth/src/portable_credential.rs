@@ -36,7 +36,7 @@ pub enum PortableCredentialError {
 /// Verify the envelope using the host-selected mechanism and the retained shared
 /// budget. Mismatched variants fail before cryptography or budget consumption.
 /// Claims, proof bounds, time and key checks remain owned by the complete verifier.
-/// Outer Candid decoding needs a host allocation/instruction limit separately.
+/// Outer transport decoding needs a host allocation/instruction limit separately.
 /// For session admission, use the callback's DecodedPortableClaims::verify instead
 /// with its supplied budget and the same protected authority snapshot. This entry
 /// point independently decodes a standalone credential.

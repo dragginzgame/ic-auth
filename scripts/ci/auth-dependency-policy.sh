@@ -11,10 +11,9 @@ auth_dependency_pattern() {
         default) pattern="$product|candid|candid_derive" ;;
         passive) pattern="$storage|ic0|$certificates|ic-verify-bls-signature" ;;
         pure) pattern="candid|candid_derive|curve25519-dalek|ed25519-dalek|k256|$certificates|ic-verify-bls-signature|ic-cdk|ic-stable-structures" ;;
-        capability|deployment) pattern="$product|$storage" ;;
+        capability|deployment|packaged) pattern="$product|$storage|candid|candid_derive|ic0|ic-canister-sig-creation|ic-signature-verification" ;;
         certificate-free) pattern="$certificates|ic-verify-bls-signature|candid|candid_derive" ;;
         session) pattern="candid|candid_derive|k256|$certificates|ic-verify-bls-signature" ;;
-        packaged) pattern="$product|$storage" ;;
         *) echo 'unknown Auth dependency policy' >&2; return 1 ;;
     esac
     printf '^(%s)([- ]|$)\n' "$pattern"

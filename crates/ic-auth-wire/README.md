@@ -25,3 +25,10 @@ This is a coordinated application-transport hard cut. There is no Candid fallbac
 or previous browser token-store reader. The maintainer confirmed there are no
 deployed old records or unresolved old issuance effects to preserve. New portable
 logout journals continue to retain unknown issuance and durable invalidation.
+
+Pending Auth 0.11 exposes IC Wire 0.5 through `wire`; released Auth 0.10 uses
+Wire 0.4. Align consumers sharing these Rust types. `Wire` no longer implies
+owned deserialization: generic decoders of owned replies/requests need explicit
+`serde::de::DeserializeOwned` bounds; encoding-only callers need no new bound.
+Auth's concrete DTOs remain owned. The method IDs, bounds, encoded frames and
+TypeScript contracts are unchanged, as are signed claims and retained records.

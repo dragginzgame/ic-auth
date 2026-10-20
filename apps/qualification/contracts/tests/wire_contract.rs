@@ -7,6 +7,7 @@ use ic_wire::{
 fn refusal_contract<M, T>()
 where
     M: Method<Response = Result<T, Refusal>>,
+    T: serde::de::DeserializeOwned,
 {
     let encoded = encode_response::<M>(&Err(refusal("controller required".into()))).unwrap();
     assert!(

@@ -1,11 +1,39 @@
 # Changelog
 
-## [0.10.8]
+## [0.11.1]
 
 - Qualify explicit-root refusal and caller-owned signed-ingress cancellation.
   Transport failures stay distinct from application rejection; cancelling a local
   request does not establish that the remote update did not execute.
   [Testkit #106 — Signed-ingress qualification transport](https://github.com/dragginzgame/ic-testkit/issues/106).
+
+## [0.11.0] - 2026-10-20
+
+- Adopt Shared Tooling 0.25.4, including explicit Cargo-tool feature selection
+  bound into setup/admission receipts, fixture retention and clarified failure-evidence
+  collection through the canonical orchestrator.
+
+- **Breaking Rust identity contract:** adopt published IC Platform 0.4.0. Auth
+  now exposes Platform-owned Principal and parse errors; external Agent, Testkit
+  and cryptographic APIs use explicit byte-preserving conversions. Principal text
+  admission is bounded at 63 bytes. Frozen released claims and retained records
+  keep their bytes and decode without a storage reset.
+- Consume Platform-owned imported signature creation/verifier code, removing
+  transitive Candid/raw IC dependencies from every public capability. Enforce
+  those exclusions and reject Candid in the reference Wasm. Cryptographic bodies,
+  DER/CBOR bytes, admission limits and authority policy remain unchanged.
+- Adopt published Host FS/Process 0.31.1 for native tooling, with optional
+  capability/tempfile backends still disabled and deployed graphs unchanged.
+- **Breaking Rust dependency contract:** adopt IC Wire 0.5. Consumers sharing
+  `ic-auth-wire::wire` types must align to Wire 0.5 and add explicit Serde decode
+  bounds to generic decoders. Owned DTOs, frame/signed bytes and stored records
+  are unchanged; no browser storage reset or data migration is required.
+- Qualify the native runner with Testkit 0.57 and retain its typed Wire transport.
+  Add frozen credential/read/logout frames captured from Auth 0.10.7.
+- Exercise lost issuer replies, journal reopen and non-issuing recovery before
+  real SDK admission/logout on two local receivers. The issuer lookup remains
+  injected; production acceptance stays with
+  [Auth #3 — Production issuer adapter](https://github.com/dragginzgame/ic-auth/issues/3).
 
 ## [0.10.7] - 2026-10-19
 

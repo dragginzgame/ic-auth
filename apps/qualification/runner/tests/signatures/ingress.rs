@@ -22,7 +22,7 @@ async fn ingress(
         .unwrap();
     agent.set_root_key(root.to_vec());
     let bytes = agent
-        .update(&target, "owner_checked_operation")
+        .update(&target.into(), "owner_checked_operation")
         .with_arg(
             ic_wire::encode_request::<controls::OwnerOperation>(&())
                 .unwrap()

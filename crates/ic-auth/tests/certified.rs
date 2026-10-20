@@ -101,7 +101,7 @@ fn issuer_proof_message(
             certificate: ByteBuf::from(cbor(&certificate)),
             tree,
         }),
-        public_key_der: CanisterSigPublicKey::new(issuer, seed.to_vec()).to_der(),
+        public_key_der: CanisterSigPublicKey::new(issuer.into(), seed.to_vec()).to_der(),
     }
 }
 

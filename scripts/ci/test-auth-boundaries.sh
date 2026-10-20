@@ -39,9 +39,9 @@ if [[ "$package" == ic-auth-qualification-canister ]]; then
     if [[ "$BOUNDARY_MODE" == parser ]]; then printf 'candid_parser v0.3.0\n'; fi
     if [[ "$BOUNDARY_MODE" == executor ]]; then printf 'ic-cdk-executor v3.0.0\n'; fi
     if [[ "$BOUNDARY_MODE" == executor-source ]]; then printf 'ic-cdk-executor v2.0.0 (git+https://example.invalid/executor#12345678)\n'; fi
-    # Certified verification still imports Candid, while the Wire runtime must
-    # not select Platform Candid or the retired full CDK packages.
-    printf 'candid v0.10.38\n'
+    # Neither certified verification nor the Wire runtime may import Candid.
+    if [[ "$BOUNDARY_MODE" == host-candid ]]; then printf 'candid v0.10.38\n'; fi
+    if [[ "$BOUNDARY_MODE" == host-candid-derive ]]; then printf 'candid_derive v0.10.38\n'; fi
     if [[ "$BOUNDARY_MODE" == host-cdk ]]; then printf 'ic-cdk v0.20.3\n'; fi
     if [[ "$BOUNDARY_MODE" == host-cdk-macros ]]; then printf 'ic-cdk-macros v0.20.3\n'; fi
     if [[ "$BOUNDARY_MODE" == host-platform-feature ]]; then
@@ -77,13 +77,20 @@ if [[ "$target" == wasm32-unknown-unknown ]]; then
         printf 'ic-testkit-candid v0.53.0\n'
     elif [[ "$BOUNDARY_MODE" == wasm-portable-bls && "$features" == portable-signature-verification ]]; then
         printf 'ic-verify-bls-signature v0.6.0\n'
+    elif [[ "$features" == certified-proof-verification ]]; then
+        case "$BOUNDARY_MODE" in
+            wasm-certified-candid) printf 'candid v0.10.38\n' ;;
+            wasm-certified-ic0) printf 'ic0 v1.2.0\n' ;;
+            wasm-certified-creation) printf 'ic-canister-sig-creation v1.3.1\n' ;;
+            wasm-certified-verifier) printf 'ic-signature-verification v0.3.0\n' ;;
+        esac
     fi
 fi
 STUB
 chmod +x "$fixture/bin/"*
 export PATH="$fixture/bin:$root/.tools/host/bin:$PATH"
 export BOUNDARY_EVENTS="$fixture/events"
-for mode in accepted principal-candid principal-executor principal-bls control-candid control-platform-feature wasm-default wasm-combined wasm-capability wasm-portable-bls parser executor executor-source host-cdk host-cdk-macros host-platform-feature; do
+for mode in accepted principal-candid principal-executor principal-bls control-candid control-platform-feature wasm-default wasm-combined wasm-capability wasm-portable-bls wasm-certified-candid wasm-certified-ic0 wasm-certified-creation wasm-certified-verifier host-candid host-candid-derive parser executor executor-source host-cdk host-cdk-macros host-platform-feature; do
     export BOUNDARY_MODE="$mode"
     : > "$BOUNDARY_EVENTS"
     status=0
@@ -98,7 +105,7 @@ for mode in accepted principal-candid principal-executor principal-bls control-c
     else
         [[ "$status" != 0 ]] || { echo "missing exclusion: $mode" >&2; exit 1; }
         rg '^Cargo graph policy failed:' "$fixture/$mode.log" > /dev/null
-        rg 'ic-agent|tokio|ic-testkit-candid|candid|ic-cdk|ic-verify-bls-signature' "$fixture/$mode.log" > /dev/null
+        rg 'ic-agent|tokio|ic-testkit-candid|candid|ic-cdk|ic0|ic-canister-sig-creation|ic-signature-verification|ic-verify-bls-signature' "$fixture/$mode.log" > /dev/null
     fi
 done
 echo 'Native/Wasm graph selections and transitive tooling refusals passed'

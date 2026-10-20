@@ -92,21 +92,25 @@ token/proof contracts. Crates.io treats hyphens and underscores as colliding
 names, so changing only the punctuation cannot resolve that conflict.
 
 Released 0.8.0 removed Candid traits from the public domain types; `Principal`
-now comes through feature-free IC Platform, retaining the upstream
-`ic_principal::Principal` identity. Released 0.9.0 replaced application-facing
+comes through feature-free IC Platform; the released 0.10.7 type retains the
+upstream identity. Pending 0.11 adopts Platform 0.4's owned Principal, with explicit
+external conversions and unchanged identity/record bytes; see the
+[Principal migration](docs/canic-adoption.md#platform-04-migration). Released 0.9.0 replaced application-facing
 Candid with published IC Wire's bounded codec and generated TypeScript through
-an Auth-owned transport adapter. Optional upstream certified-signature capabilities
-still use Candid transitively. Private fixture controls, diagnostics, init and
+an Auth-owned transport adapter. Platform now packages the original signature creation/verifier code without
+Candid or raw IC dependencies; native Agent/Testkit still use Candid transitively.
+Private fixture controls, diagnostics, init and
 upgrade checkpoints now use bounded Wire contracts too; the old unpublished
-Candid checkpoint format is retired. Platform 0.2.1 supplies Principal, explicit
+Candid checkpoint format is retired. Platform 0.4.0 supplies owned Principal, explicit
 certified-signature/tree/verifier capabilities, raw admission/counters and native
 Agent identities. The reference
 host uses its Candid-free maintained runtime and explicit Wire entrypoints;
 the full CDK and its macros are absent. See the
 [platform boundary](docs/development.md#ic-platform-boundary) for runtime ownership,
-the shared executor and the certified stack's remaining transitive Candid.
+the shared executor and the remaining native-only Candid boundary.
 See the [consumer contract](docs/canic-adoption.md#wire-transport). Released
-0.10.0 adopted Wire 0.4; the public Wire types retain that dependency identity.
+0.10.0 adopted Wire 0.4. Pending 0.11 selects Wire 0.5, a Rust dependency/API cut
+with unchanged encoded frames; see the [consumer migration](docs/canic-adoption.md#wire-05-migration).
 
 The future wallet service belongs in `apps/wallet-auth/`. No accepting wallet
 endpoint is created before its complete proof verification and service contracts.

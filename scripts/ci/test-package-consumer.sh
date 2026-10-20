@@ -116,8 +116,8 @@ deployment ic-agent yes
 deployment tokio yes
 deployment ic-cdk yes
 deployment ic-memory yes
-deployment candid no
-deployment ic0 no
+deployment candid yes
+deployment ic0 yes
 deployment ic-verify-bls-signature no
 capability ic-testkit yes
 capability ic-testkit-candid yes
@@ -131,7 +131,7 @@ session candid yes
 passive ic0 yes
 passive ic-verify-bls-signature yes
 passive ic-canister-sig-creation yes
-capability ic0 no
+capability ic0 yes
 pure ed25519-dalek yes
 pure sha2 no
 certificate-free ic-certification yes
@@ -142,7 +142,11 @@ packaged ic-testkit yes
 packaged pocket-ic yes
 packaged ic-host-fs yes
 packaged ic-build yes
-packaged candid no
+packaged candid yes
+packaged ic0 yes
+packaged ic-canister-sig-creation yes
+capability ic-signature-verification yes
+capability candid_derive yes
 CASES
 done
 if auth_dependency_pattern unknown >/dev/null 2>&1; then exit 1; fi

@@ -14,5 +14,8 @@ description = "Internal bounded Wire contracts for Auth qualification"
 ic-auth-wire.workspace = true
 ic-wire.workspace = true
 
+[dev-dependencies]
+serde.workspace = true
+
 [lints]
 workspace = true

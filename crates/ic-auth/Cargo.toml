@@ -11,8 +11,8 @@ description = "Portable authentication, delegation proof verification and local 
 publish = ["crates-io"]
 
 [features]
-# Encoding and local sessions do not require Candid. There is no Candid feature.
-# Only the upstream certified-signature capabilities bring it in transitively.
+# Every library capability is Candid/runtime-free, including certified signatures.
+# Platform owns the imported creation/verifier code; Auth owns admission policy.
 default = []
 portable-signature-verification = ["dep:ic-platform", "ic-platform/ed25519"]
 chain-key-verification = ["dep:ic-platform", "ic-platform/ecdsa"]
