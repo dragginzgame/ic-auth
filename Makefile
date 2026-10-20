@@ -178,6 +178,7 @@ ci:
 	  --input Cargo.toml --input Cargo.lock --input rust-toolchain.toml \
 	  --input ci/tool-versions.env --input ci/ic-tools.tsv --input ci/release-delivery.txt \
 	  --input ci/cargo-dependency-boundaries.json \
+	  --input ci/host-file.env --input scripts/dev/host-file-tools.sh --input scripts/dev/run-host-file.sh \
 	  --input packages/client/package.json --input packages/client/package-lock.json \
 	  --input packages/client/.nvmrc \
 	  check-snapshot tools-check check-dependency-pins check-doc-links test-make-jobserver fmt-check test-formatting-hooks metadata check-boundaries check-msrv test-tools-evidence test-testkit-tools test-client-tools test-client test-types test-protocol test-portable-signatures test-chain-key-signatures test-signatures test-signature-store test-certified-proofs test-sessions test-host-tooling test-qualification check-wasm clippy publish-dry-run test-release-tools test-release-runner test-evidence-archive

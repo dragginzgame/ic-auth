@@ -64,7 +64,10 @@ Tool setup/check failure evidence, formatting, snapshot/pins/links, ShellCheck a
 Actionlint pass. Default/all-feature public Wasm graphs exclude Host/Build/Testkit.
 Tooling tests, Clippy and the release fixture also pass after integrating the
 published 0.11.0 release metadata; root manifests/lock and release receipt match main.
+The hosted Linux failure at `61af6cc` exposed the Testkit caller fixture's old
+aggregate-tool roster. Its updated fixture now passes locally, including drift
+refusal for the file-tool pin and delegation scripts sealed by CI.
 Native macOS, full local CI, browser runtime and installed-canister checks were
 not run for this native-only patch. Required hosted checks and owner review remain
-before PR integration. Do not close Auth #78 or Host #76 before default-branch
-consumer acceptance is confirmed.
+before PR integration. Auth #78 owns the remaining default-branch consumer
+acceptance; Host's published producer does not require another implementation.
