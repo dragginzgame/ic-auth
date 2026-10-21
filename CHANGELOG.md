@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.13.3]
+## [0.13.3] - 2026-10-21
 
 - Clarify Canic receiver feature selection so production builds explicitly
   enable the complete portable verifier instead of inheriting it from tests.
