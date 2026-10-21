@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.13.2]
+## [0.13.2] - 2026-10-21
 
 - Adopt Shared Tooling 0.25.9: refuse a new release increment past an
   undelivered committed preparation, preserving its saved plan and evidence.
