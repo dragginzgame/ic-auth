@@ -508,6 +508,17 @@ fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ingress()
     )
     .unwrap()
     .into_bytes();
+    let mut sdk_peer_claims = sdk_claims.clone();
+    sdk_peer_claims.browser_public_key =
+        SigningKey::from_bytes(&[10; 32]).verifying_key().to_bytes();
+    sdk_peer_claims.nonce = [10; 16];
+    let sdk_peer_caller = browser_principal(&sdk_peer_claims.browser_public_key);
+    let sdk_peer_credential =
+        ic_auth_wire::wire::encode_request::<ic_auth_wire::CredentialEnvelope>(
+            &input(&sdk_peer_claims, &key).credential,
+        )
+        .unwrap()
+        .into_bytes();
     // Node uses the real SDK transport and trusted Testkit network root. The
     // journal uses fake IndexedDB; this does not qualify native browser storage.
     let mut command = std::process::Command::new(
@@ -537,7 +548,13 @@ fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ingress()
                 .collect::<String>(),
         )
         .arg(sdk_claims.account_subject.to_text())
-        .arg(sdk_claims.admission_expires_at_ns.to_string());
+        .arg(sdk_claims.admission_expires_at_ns.to_string())
+        .arg(
+            sdk_peer_credential
+                .iter()
+                .map(|b| format!("{b:02x}"))
+                .collect::<String>(),
+        );
     eprintln!(
         "{}",
         String::from_utf8_lossy(&run_node(&mut command, "SDK logout fixture"))
@@ -548,9 +565,22 @@ fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ingress()
     sdk_claims.issued_at_ns = f.now();
     sdk_claims.admission_expires_at_ns = f.now() + 2 * SECOND;
     sdk_claims.nonce = [10; 16];
+    sdk_peer_claims.issued_at_ns = f.now();
+    sdk_peer_claims.admission_expires_at_ns = f.now() + 2 * SECOND;
+    sdk_peer_claims.nonce = [11; 16];
     for receiver in [f.signer, f.resource] {
         assert!(read(&f, receiver, sdk_caller).is_err());
         assert!(admission(&f, receiver, sdk_caller, &input(&sdk_claims, &key)).is_err());
+        assert!(read(&f, receiver, sdk_peer_caller).is_err());
+        assert!(
+            admission(
+                &f,
+                receiver,
+                sdk_peer_caller,
+                &input(&sdk_peer_claims, &key)
+            )
+            .is_err()
+        );
     }
     claims.issued_at_ns = f.now();
     claims.admission_expires_at_ns = f.now() + 2 * SECOND;

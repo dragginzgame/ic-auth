@@ -2,105 +2,89 @@
 
 ## Source and selections
 
-Delivered baseline is Auth **0.13.3** at
-`7a1183ba8556ab7c6e7880332a8695af2b86c44f`. Package versions remain 0.13.3.
-Pending notes select **0.14.0** because the admission error reply is a breaking
-Wire contract change. Update receiver encoders and generated clients together;
-no old text-error reader or parallel admission flow is retained.
-The private browser constructor also changes to explicit `{ browser, account }`
-roles so Canic's issuer caller does not get replaced by a fresh receiver key.
+Delivered baseline is Auth **0.14.0** at
+`39a572404374388117b01eb1518321526fe8cee5`; package versions remain 0.14.0.
+Pending compatible notes select **0.14.1** for expanded SDK integration coverage
+and corrected adoption guidance. No public API, Wire, credential, session or
+journal format changes are pending in this task.
 
-The incoming lock selects Platform **0.6.4**, IC Tooling/Testkit **0.63.2**,
-Memory **0.50.8** and Wire/derive **0.5.16**. This batch preserves those incoming
-selections. Shared Tooling remains the reviewed 118-file **0.25.9** snapshot at
-`85aded191d85ac4a8c0e5deab207f6be18895862`. There are no sibling/path overrides.
-Development tools use Rust 1.99.1; the package minimum remains 1.91.
+The incoming, already dirty lock selects Platform **0.6.5**, Wire/derive
+**0.5.18**, IC Tooling/Testkit **0.63.2** and Memory **0.50.8**. Its bytes and
+unrelated dependency changes are preserved. Shared Tooling remains the 118-file
+**0.25.9** snapshot at `85aded191d85ac4a8c0e5deab207f6be18895862`.
+There are no sibling/path overrides. Development tools use Rust 1.99.1 and the
+package minimum remains 1.91.
 
-## Admission refusal boundary
+## Current Canic alignment
 
-Auth owns canonical credentials/proofs, session/replay/revocation machinery,
-bounded Wire contracts and the private admission/logout client. Canic owns
-protected enrollment, actual caller/clock, issuer orchestration, atomic production
-storage, endpoint exports and scoped guards. No sibling files were edited.
+Auth owns credentials/proofs, session/replay/revocation semantics, bounded Wire
+contracts and the private admission/logout client. Canic owns protected enrollment,
+actual caller/clock, issuer orchestration, atomic production stores, exports and
+scoped guards. Sibling source remains read-only.
 
-The passive `AdmissionRefusal` contract and the core
-`SessionError::admission_refusal()` projection preserve diagnostic categories
-without parsing strings. Wire's admission reply carries its bounded enum; the
-SDK adapter throws `AdmissionError` with the generated refusal tag. Detailed
-backend/crypto errors stay host-side. There is no automatic retry or issuance.
-Only `NotYetValid` is a future-start hint, not evidence of a valid proof; the
-caller must retain the same credential, original deadline and active generation.
-Expiry, invalid proofs, stale authority, reset and throttling remain distinct.
+Canic's active owner checkout has adopted published Auth 0.14.0 and reports
+passing shared-engine typed refusal and native/Wasm consumer checks. This is
+local owner work, not default-main delivery or installed production acceptance.
+It selects both complete verifiers, retains issuer-scoped account identity and
+locally repairs effective renewal deadlines, protected cleanup time and pruning.
+The actual receiver store remains test-gated and successful authorization is
+still fail-closed; no missing producer API was established.
 
-Admission requests, successful replies, method identities, read/logout contracts,
-canonical signed bytes and session/replay/login/journal storage are unchanged.
-Production stores and memory migration are outside this batch. The generator
-owns the changed TypeScript schema; checked-in artifacts are never hand-patched.
-See [Canic adoption](../canic-adoption.md) and [browser contracts](../browser-client.md).
+Released 0.14 separates explicit account/browser signers. Issue/reconcile receive
+an issuer-bound account capability; receiver admission and ordinary calls use the
+fresh browser principal. The original account, browser key/login, immutable
+request/grants and admission deadline belong to the issuer adapter's saved intent.
+Reconciliation recovers original evidence or remains unresolved, never reissues.
+Issuer logout must resolve the browser key to that retained login binding without
+requiring the account provider. No second intent store or production issuer exists
+here. Typed admission refusals distinguish future starts from other failures;
+only bounded explicit retries of the same credential are permitted.
 
-The coordinator supplies a temporary account signer only to issuer issue/lookup
-operations and a separate browser signer to receiver admission. Both are bounded
-by durable generation/cancellation and principal/target checks; only the browser
-identity is returned for ordinary calls. The issuer adapter's saved intent must
-retain the original account caller, separate browser key and immutable request.
-No second journal, account store, receipt policy or production issuer was added.
+## Pending SDK acceptance coverage
+
+The existing SDK/Testkit case now runs two browser logins for one authenticated
+account, each with a separate journal, across two actual local receivers.
+Both devices retain their own issuer/subject metadata and original sessions.
+Logging out the first preserves the second's exact session and permits its exact
+admission retry without reissuance. Both logouts receive authenticated replies;
+retained raw keys and newly signed renewal credentials cannot revive either login.
+Durable guards refuse post-logout signing before network dispatch.
+
+Issuer results are still injected and account calls are authenticated read-only
+probes, not issue/lookup endpoints. Fake IndexedDB in Node does not qualify
+native-browser persistence. The fixture's issuer also acts as a reference receiver;
+its local logout export does not implement Canic's issuer receipt lifecycle.
 
 ## Validation and limits
 
-Focused checks pass: all three refusal-projection cases, six Wire transport
-cases, 14 volatile and 25 restoration-enabled session cases, portable revocation
-and certified cases, 50 browser tests with three bidirectional Rust/TypeScript
-vectors, and 11 host-tooling cases. Strict native/Wasm Clippy passes. Isolated
-Rust 1.91 package native/Wasm feature matrices and internal applications pass;
-normalized package archives, sources, manifests and locks remain unchanged.
-Dependency boundaries, exact generated-source comparison, documentation links,
-shared snapshot and scoped formatting/diff checks pass.
+Current evidence: `target/canic-014-followthrough/`. All 50 client tests pass with
+three Rust/TypeScript vectors and exact comparison of all five generated files
+against incoming Wire 0.5.18; no generated changes were needed. Strict runner
+Clippy, Rust 1.91 runner checking and TypeScript compilation pass. Five native fixture cases and all eleven
+live Testkit cases pass with a freshly built reference Wasm using incoming
+Platform 0.6.5/Wire 0.5.18 and already prepared Testkit 0.63.2/server 16.1.0.
+This is controlled Linux reference-host evidence, not a production skew bound,
+TEE qualification, native macOS, installed IC or native-browser acceptance.
+Local links, snapshot integrity, scoped formatting and whitespace checks pass.
+The incoming lock remains byte-for-byte unchanged. No executable installation,
+release, commit, publication or deployment ran.
 
-Five native fixture cases and all eleven live Testkit cases pass, including
-actual SDK-authenticated future-start, expiry, bad-signature and stale-authority
-refusals. The same future credential succeeds later; exact retry preserves the
-original session lease. Earlier session regressions separately prove no
-session/replay mutation before the start and one verification across exact retry.
-The SDK transport performs no automatic admission retry or issuer signing.
-The account/browser follow-through also passes all eleven live cases with
-distinct ingress signers, immutable lost-reply recovery and browser-key logout.
-The fixture passes the original signed proof expiry explicitly instead of
-rebasing it on the later gateway/client startup time.
-Issuer callbacks use authenticated read-only probes in the reference fixture;
-this is not a production issue/lookup implementation. Three added browser cases
-cover issuer target confinement, logout blocking late account signing and account
-principal changes during signing. Evidence: `target/canic-account-0140/`.
+Full CI and the full isolated public-package MSRV matrix were not rerun for this
+test/documentation-only batch. Earlier delivered 0.14 projection/session/feature
+matrix evidence remains at its [source-bound handoff](https://github.com/dragginzgame/ic-auth/blob/39a572404374388117b01eb1518321526fe8cee5/docs/status/current.md).
 
-Evidence is retained in `target/typed-admission-0140/`. The first sandboxed
-attempt could not bind localhost; the run with loopback access passes using the
-same already prepared Testkit 0.63.2 CLI/server and a fresh reference Wasm.
-Rust/frontend input seals match across final checks and the incoming lock stays
-byte-for-byte unchanged. Full CI, production IC, native macOS and native-browser
-qualification are not claimed. No executable installation, commit, release,
-publication or deployment ran.
+## Remaining production acceptance
 
-## Production acceptance
-
-Auth [#3 — Production issuer/browser acceptance](https://github.com/dragginzgame/ic-auth/issues/3),
-[#58 — Production session persistence/reset acceptance](https://github.com/dragginzgame/ic-auth/issues/58)
+[Auth #3 — Production issuer/browser acceptance](https://github.com/dragginzgame/ic-auth/issues/3),
+[#58 — Production persistence/reset acceptance](https://github.com/dragginzgame/ic-auth/issues/58)
 and [#59 — Production abuse/workload qualification](https://github.com/dragginzgame/ic-auth/issues/59)
-remain open. Reference SDK/Testkit tests use protected fixture enrollment and
-injected issuer operations; they do not establish a production issuer or backend.
-
-Canic's active owner checkout now explicitly selects the complete certified
-verifier and locally fixes effective renewal deadlines. It preserves issuer-scoped
-account identity, protected cleanup time and shared transactional login pruning.
-Those owner-reported native/backend checks are not production integration; the
-authorization facade remains deliberately fail-closed. Protected runtime
-admission, retained ledgers/budgets, Root enrollment and successful guards remain in
-[Canic #491](https://github.com/dragginzgame/canic/issues/491). Actual non-issuing
-issuer reconciliation remains [Canic #507](https://github.com/dragginzgame/canic/issues/507);
-future-start endpoint/client acceptance remains [Canic #418](https://github.com/dragginzgame/canic/issues/418).
-Local consumer work is distinct from its default branch and installed acceptance.
-The maintainer's production skew bound remains unqualified and live activation
-stays closed. TEE-required hardware/enrollment evidence is separately unavailable;
-controlled-clock software tests do not supply either qualification.
-
-Previous delivery, tooling/release recovery and source-bound 0.13.3 validation
-records remain in [the delivered handoff](https://github.com/dragginzgame/ic-auth/blob/7a1183ba8556ab7c6e7880332a8695af2b86c44f/docs/status/current.md).
-Their retained evidence is not deleted or relabelled by this handoff refresh.
+stay open for actual consumer acceptance, not additional competing auth flows.
+Protected Root enrollment, retained receiver ledgers/budgets, actual exports and
+successful scoped authorization remain in
+[Canic #491](https://github.com/dragginzgame/canic/issues/491).
+Portable issuance, non-issuing reconciliation and browser-key issuer logout remain
+[Canic #507](https://github.com/dragginzgame/canic/issues/507); actual future-start
+endpoint/client acceptance remains [Canic #418](https://github.com/dragginzgame/canic/issues/418).
+The private client's production distribution/integration is still consumer work.
+Production clock-skew activation stays closed by maintainer direction; controlled
+clocks cannot qualify it. TEE-required evidence remains a separate activation gate.

@@ -8,7 +8,7 @@ checkpoints are retained separately in [adoption history](canic-adoption-history
 
 ## Released API and dependency direction
 
-The released Auth 0.13.3 stack contains `ic-auth-protocol-types`, `ic-auth` and
+The released Auth 0.14.0 stack contains `ic-auth-protocol-types`, `ic-auth` and
 `ic-auth-wire`. Select matching package releases in the consumer's root catalog;
 no sibling source/path override or copied codec is needed. Auth has no Canic or
 Toko dependency. Rust 1.91 is the common minimum.
@@ -26,7 +26,7 @@ Toko dependency. Rust 1.91 is the common minimum.
   SDK identity, issuer/admission transport and durable logout storage. It does
   not implement wallet login or a production issuer/reconciliation service.
 
-Auth 0.13 selects Platform 0.6 and enables only `principal` for passive types.
+Auth 0.14 selects Platform 0.6 and enables only `principal` for passive types.
 Consumers sharing that owned Rust type must align to Platform 0.6; external
 Agent/Testkit/crypto APIs keep explicit `principal::ExternalPrincipal`
 conversions. Do not select the older upstream Principal identity or downgrade
@@ -79,7 +79,7 @@ and limits. Canic binds them to actual exports, admits raw argument size before
 copying, decodes the exact method and authenticates ingress/replies. Reply-encoding
 failure after mutation must trap so that local state rolls back.
 
-The published Auth 0.13 transport exposes IC Wire 0.5. Consumers sharing its Rust
+The published Auth 0.14 transport exposes IC Wire 0.5. Consumers sharing its Rust
 Wire types must align that dependency and select matching Auth package releases.
 Auth 0.10 and 0.9 used Wire 0.4 and 0.3 respectively; those are historical
 dependency contracts, not current selection instructions. Generated files must
@@ -94,8 +94,8 @@ schemas. Linking any Auth crate installs no endpoint or authority.
 
 ## Wire 0.5 migration
 
-Auth 0.11 introduced the Wire 0.5 dependency cut; Auth 0.13 retains it. Consumers
-sharing `ic-auth-wire::wire` Rust types select matching Auth 0.13 packages and
+Auth 0.11 introduced the Wire 0.5 dependency cut; Auth 0.14 retains it. Consumers
+sharing `ic-auth-wire::wire` Rust types select matching Auth 0.14 packages and
 Wire 0.5. Consumers using only domain/session APIs need no new codec or DTO
 translation merely for this dependency change.
 
@@ -207,7 +207,7 @@ checkpoint does not supply a production per-operation backend.
 
 Preserve the typed `PortableClaimsError::NotYetValid` refusal through the host
 endpoint and client adapter as a bounded retry hint, never authenticated success.
-Pending Auth 0.14 replaces `EstablishSession` error text with
+Auth 0.14 replaces `EstablishSession` error text with
 `model::AdmissionRefusal`. Project the core error with
 `SessionError::admission_refusal()` and convert it into the Wire type with
 `.into()`; keep the original error in host diagnostics. The SDK adapter throws
@@ -237,7 +237,7 @@ that account principal must not become the receiver's browser identity. Issuing
 for another account requires separate explicit authority. Receiver account lookup
 still uses `(issuer, account_subject)`, not the browser caller alone.
 
-Pending Auth 0.14's coordinator therefore takes explicit `{ browser, account }`
+Auth 0.14's coordinator therefore takes explicit `{ browser, account }`
 identities. Its `issue`/`reconcile` callbacks receive a temporary issuer-bound
 account signer; `admit` receives a receiver-bound browser signer. Both use the
 same durable logout generation and bounded attempt. The issuer adapter binds the
@@ -258,7 +258,7 @@ Logout durably invalidates the browser generation before fan-out, and only
 authenticated acknowledgements mark receiver revocation. Preserve unknown effects.
 See [browser contracts](browser-client.md),
 [Auth #3 — Qualify portable browser admission/logout with a production issuer adapter](https://github.com/dragginzgame/ic-auth/issues/3)
-and [Canic #507 — Qualify non-issuing token prepare reconciliation after replay receipt expiry](https://github.com/dragginzgame/canic/issues/507).
+and [Canic #507 — Portable issuance and non-issuing reconciliation](https://github.com/dragginzgame/canic/issues/507).
 
 Toko owns account linking, frontend origin/key custody, project authorization and
 its NFT ledger. Auth's native/Wasm tests and real-canister SDK fixture qualify the
@@ -287,6 +287,10 @@ Auth's real SDK fixture now injects a lost issuer reply, reopens its journal,
 retains unresolved lookup and recovers the original material before authenticating
 to two actual local receivers. It proves coordinator/receiver composition, not
 Canic's issuer lookup, production stable backend or native-browser persistence.
+The SDK fixture also admits two browser devices for the same account to both
+receivers. Each retains its own session and original lease; logging out one
+device leaves the other active, and neither retained key can revive its revoked
+login with a newly signed credential. The two devices use separate journals.
 The fixture's authenticated account reads exercise distinct ingress signers;
 they are read-only probes, not a portable issuer endpoint or account-login service.
 Keep acceptance with [Canic #491 — Auth integration](https://github.com/dragginzgame/canic/issues/491)

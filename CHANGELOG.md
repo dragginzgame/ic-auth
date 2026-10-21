@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.14.1]
+
+- Extend SDK/receiver qualification to two browser logins for the same account
+  across two receivers. Check independent sessions and logout, original lease
+  preservation and refusal of retained keys and newly signed renewal credentials
+  after revocation. Production Canic issuer/runtime acceptance remains separate.
+- Align the Canic and browser adoption guides with released Auth 0.14, including
+  explicit account/browser identities and typed admission replies.
+
 ## [0.14.0] - 2026-10-21
 
 - **Breaking browser construction:** require explicit account and browser

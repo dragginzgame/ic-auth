@@ -26,13 +26,13 @@ or previous browser token-store reader. The maintainer confirmed there are no
 deployed old records or unresolved old issuance effects to preserve. New portable
 logout journals continue to retain unknown issuance and durable invalidation.
 
-Released Auth 0.13 exposes IC Wire 0.5 through `wire`; historical Auth 0.10 uses
+Released Auth 0.14 exposes IC Wire 0.5 through `wire`; historical Auth 0.10 uses
 Wire 0.4. Align consumers sharing these Rust types. `Wire` no longer implies
 owned deserialization: generic decoders of owned replies/requests need explicit
 `serde::de::DeserializeOwned` bounds; encoding-only callers need no new bound.
 Auth's concrete DTOs remain owned.
 
-Pending Auth 0.14 changes `EstablishSession::Response` to
+Auth 0.14 changes `EstablishSession::Response` to
 `Result<SessionView, model::AdmissionRefusal>`. Hosts convert the core
 `SessionError::admission_refusal()` result with `.into()` and retain detailed
 errors locally. Regenerate and update receiver/client reply handling together;

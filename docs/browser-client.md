@@ -7,7 +7,7 @@ Canic/Toko integration remain consumer/service work.
 
 ## Application transport hard cut
 
-Released Auth 0.13 uses `crates/ic-auth-wire/` with published IC Wire 0.5.
+Released Auth 0.14 uses `crates/ic-auth-wire/` with published IC Wire 0.5.
 Historical Auth 0.10 uses Wire 0.4 and Auth 0.9 uses Wire 0.3; consumers sharing
 Rust Wire types must align that dependency identity. Wire 0.5 separates owned
 deserialization from `Wire`; generic decoders require an explicit Serde bound.
@@ -70,7 +70,7 @@ fresh generation, explicit `{ browser, account }` identities, protected issuer a
 durably before admission and returns a generation-guarded identity on success.
 Ordinary calls carry no proof; receivers check their caller-bound local session.
 
-Pending 0.14 requires the identity object instead of the former single signer.
+Auth 0.14 requires the identity object instead of the former single signer.
 `account` authenticates `issue`/`reconcile` to the issuer; `browser` is the fresh,
 directly authenticated receiver login and the only identity returned for ordinary
 calls. Start the logout journal with `browser` and use that identity for receiver
@@ -117,7 +117,7 @@ response. HTTP acceptance alone is insufficient; a receiver error refuses and a
 successful reply must name the same caller. Root trust is explicit, never fetched
 from credentials or an endpoint. The coordinator retains retry and logout rules.
 
-Pending Auth 0.14 changes only admission's error reply from text to the bounded
+Auth 0.14 changes only admission's error reply from text to the bounded
 `AdmissionRefusal` enum. Receiver adapters use the core
 `SessionError::admission_refusal()` projection and the Wire enum conversion.
 The browser throws `AdmissionError` (`code === 'admission_refused'`) with the
@@ -190,7 +190,8 @@ lifetimes and authority freshness continue to bound the residual window.
 `make test-client` checks generation, Rust/TypeScript vectors, bounded/canonical
 rejections, detached byte views, admission flights and durable logout/cancellation.
 `make test-qualification` exercises real certified SDK replies across two receivers,
-caller mismatch, exact retry, proof-free reads, retained-key revocation, both proof
+two browser devices for one account, independent logout, caller mismatch, exact
+retry, proof-free reads, retained-key revocation, both proof
 mechanisms, certification and upgrades. This is a reference host with prepared
 proofs and fake IndexedDB in Node, not production issuer or Canic acceptance.
 
