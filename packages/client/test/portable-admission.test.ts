@@ -65,6 +65,63 @@ test('one issuance serves multiple receivers; each destination is durable before
   } finally { f.store.close(); }
 });
 
+test('mutable SDK Principal cannot retarget admission beyond its durable logout destination', async () => {
+  const f = await fixture();
+  let signatures = 0;
+  const originalAdmit = f.transport.admit;
+  const browser = { getPrincipal: () => identity.getPrincipal(),
+    transformRequest: async (request: Parameters<typeof identity.transformRequest>[0]) => {
+      signatures++;
+      return identity.transformRequest(request);
+    } };
+  try {
+    f.transport.admit = async (target, caller) => {
+      assert.equal(target.toText(), a.toText());
+      // The SDK exposes mutable backing bytes. Transport must not be able to
+      // change the signer's permitted target after that target was journaled.
+      target.toUint8Array().set(b.toUint8Array());
+      await caller.transformRequest(signingRequest(caller, target));
+    };
+    const client = new PortableAdmissionClient(f.journal, 'login', { browser, account }, issuer, f.transport);
+    await assert.rejects(client.establish(Principal.fromText(a.toText())),
+      (error: unknown) => error instanceof ClientError && error.code === 'configuration');
+    assert.equal(signatures, 0);
+    const targets = (await f.journal.status('login')).targets.map(target => target.canister);
+    assert.ok(targets.includes(a.toText()));
+    assert.ok(!targets.includes(b.toText()));
+    f.transport.admit = originalAdmit;
+    await client.establish(a);
+    assert.deepEqual(f.state.admissions, [a.toText()]);
+    assert.equal(f.state.issues, 1);
+  } finally { f.store.close(); }
+});
+
+test('mutable caller Principal cannot change an admission destination while issuance is pending', async () => {
+  const f = await fixture();
+  const entered = deferred<void>();
+  const release = deferred<void>();
+  const target = Principal.fromText(a.toText());
+  let pending: Promise<unknown> | undefined;
+  try {
+    const issue = f.transport.issue;
+    f.transport.issue = async (caller, signal) => {
+      entered.resolve(); await release.promise;
+      return issue(caller, signal);
+    };
+    pending = f.client().establish(target);
+    await entered.promise;
+    target.toUint8Array().set(b.toUint8Array());
+    release.resolve();
+    await pending;
+    assert.equal(target.toText(), b.toText()); // Caller still owns its mutable object.
+    assert.deepEqual(f.state.admissions, [a.toText()]);
+    const targets = (await f.journal.status('login')).targets.map(item => item.canister);
+    assert.ok(targets.includes(a.toText()));
+    assert.ok(!targets.includes(b.toText()));
+    assert.equal(f.state.issues, 1);
+  } finally { release.resolve(); await pending; f.store.close(); }
+});
+
 test('account signing is issuer-bound; receiver admission and returned identity use the browser key', async () => {
   const f = await fixture();
   let accountSignatures = 0;

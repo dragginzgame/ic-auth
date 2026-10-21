@@ -80,7 +80,12 @@ principal: ordinary ingress delegation preserves its delegating caller.
 Each transport attempt receives a temporary signer restricted to its issuer or
 receiver destination. Durable active-generation, fixed-principal and cancellation
 checks surround signing and completion for both roles. The account signer is not
-returned as receiver authority. Applications retain their underlying keys;
+returned as receiver authority. Receiver destinations are captured as canonical
+text before the first asynchronous step. The journal and admission-flight key use
+that fixed destination; transport adapters receive a separate Principal object.
+Mutating an SDK Principal's backing bytes cannot redirect the signing capability
+or silently change the destination during pending issuance.
+Applications retain their underlying keys;
 signatures already produced and requests already accepted cannot be recalled.
 The account signer is separate from the browser cleanup key, so application
 key-disposal policy must distinguish them too.
@@ -180,7 +185,11 @@ alone is insufficient. The worker owns retry/disposal; the transport does not
 fetch trust, resubmit an update, cache a signer or install endpoint policy.
 
 `guardedIdentity` checks durable generation at signing. A cleanup identity is
-restricted to its current target/lease and refuses after cancellation or deadline.
+restricted to its current target/lease and the individual transport attempt's
+cancellation signal. Completion, failure or timeout permanently closes that
+capability, even if a later destination receives the same lease timestamp from a
+coarse clock. Checks before and after asynchronous signing prevent late results
+from escaping; already returned signatures still cannot be recalled.
 The host owns idempotent key disposal. Browser logout cannot promise synchronous
 fleet-wide revocation of offline destinations; receiver limits, proof/session
 lifetimes and authority freshness continue to bound the residual window.
@@ -189,11 +198,13 @@ lifetimes and authority freshness continue to bound the residual window.
 
 `make test-client` checks generation, Rust/TypeScript vectors, bounded/canonical
 rejections, detached byte views, admission flights and durable logout/cancellation.
-`make test-qualification` exercises real certified SDK replies across two receivers,
-two browser devices for one account, independent logout, caller mismatch, exact
-retry, proof-free reads, retained-key revocation, both proof
-mechanisms, certification and upgrades. This is a reference host with prepared
-proofs and fake IndexedDB in Node, not production issuer or Canic acceptance.
+`make test-qualification` exercises real SDK-certified replies. Its Ed25519 browser
+scenario places two receivers on explicitly distinct Testkit application subnets,
+covering two devices for one account, independent logout, caller mismatch, exact
+retry, proof-free reads and retained-key revocation. Separate fixtures cover
+certified portable proofs, certification and upgrades; their existing cost-sampling
+topology is unchanged. This is a reference host with prepared proofs and fake
+IndexedDB in Node, not production issuer, clock-skew, latency or Canic acceptance.
 
 The native [logout fixture](../packages/client/test/browser/logout.html) remains
 available for application-owned browser checks. No new native Chromium run is

@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.14.2]
+
+- Expire each browser logout signing capability when its transport attempt ends,
+  even if the next destination receives an identical lease timestamp. Reject
+  late signing and read-state polling after successful, failed or timed-out
+  attempts without changing journal bytes, retries or authenticated revocation
+  reporting. Fixes [#83 — Expire browser logout signing capabilities when each transport attempt completes](https://github.com/dragginzgame/ic-auth/issues/83).
+- Bind browser admission to the receiver captured before asynchronous work.
+  Mutating a caller's or adapter's SDK Principal can no longer redirect signing
+  away from the durable logout inventory. Ordinary retries reuse the original
+  credential. Fixes [#84 — Bind browser admission to an immutable receiver destination](https://github.com/dragginzgame/ic-auth/issues/84).
+- Exercise the Ed25519 SDK admission/logout scenario on two explicitly distinct
+  Testkit application subnets, covering two devices for one account, original
+  credential recovery and independent logout. Production deployment and clock
+  qualification remain separate.
+- Qualify the selected Platform 0.6.6 and Memory 0.50.10 updates. Public Auth APIs,
+  signed bytes and stored formats are unchanged.
+
 ## [0.14.1] - 2026-10-21
 
 - Extend SDK/receiver qualification to two browser logins for the same account

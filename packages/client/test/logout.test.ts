@@ -330,10 +330,80 @@ test('cleanup signing cannot escape its selected destination or survive completi
   } finally { store.close(); f.store.close(); }
 });
 
-test('signed read-state polling is phase-gated and a nonresponding cleanup call ends at its deadline', async () => {
+for (const outcome of ['confirmed', 'lost'] as const) {
+  test(`completed ${outcome} cleanup signer cannot reuse the next destination's equal-clock lease`, async () => {
+    let retained: Parameters<LogoutTransport['revoke']>[1] | undefined;
+    let firstSignal: AbortSignal | undefined;
+    let refused: PromiseSettledResult<unknown>[] = [];
+    let late: Promise<PromiseSettledResult<unknown>[]> | undefined;
+    let releaseSigning!: () => void;
+    let signingStarted!: () => void;
+    const started = new Promise<void>(resolve => { signingStarted = resolve; });
+    const released = new Promise<void>(resolve => { releaseSigning = resolve; });
+    let pauseSigning = false;
+    let signatures = 0;
+    const signer = { getPrincipal: () => identity.getPrincipal(),
+      transformRequest: async (request: Parameters<typeof identity.transformRequest>[0]) => {
+        signatures++;
+        if (pauseSigning) { signingStarted(); await released; }
+        return identity.transformRequest(request);
+      } };
+    const f = await fixture(async (target, guarded, signal) => {
+      if (target.toText() === issuer.toText()) {
+        if (!retained) {
+          retained = guarded;
+          firstSignal = signal;
+          await guarded.transformRequest(signingRequest(issuer));
+          pauseSigning = true;
+          late = Promise.allSettled([guarded.transformRequest(signingRequest(issuer))]);
+          await started; // This signing operation began during the first attempt.
+          if (outcome === 'lost') throw new Error('lost first reply');
+        }
+        return revoked;
+      }
+      // No clock advance: both claims have the same busyUntilNs. Durable
+      // generation and timestamp alone cannot distinguish these attempts.
+      assert.equal(firstSignal?.aborted, true);
+      releaseSigning();
+      const readState: Parameters<typeof identity.transformRequest>[0] = {
+        endpoint: Endpoint.ReadState, request: { method: 'POST' },
+        body: { request_type: ReadRequestType.ReadState, paths: [], sender: identity.getPrincipal(),
+          ingress_expiry: Expiry.fromJSON('{"__expiry__":"100000000000"}') },
+      };
+      refused = await Promise.allSettled([
+        retained!.transformRequest(signingRequest(issuer)),
+        retained!.transformRequest(readState),
+      ]);
+      return revoked;
+    });
+    try {
+      await f.client.destination('login-a', receiver, f.state.now + 2_000n * MS);
+      await f.client.begin('login-a', f.state.now + 10_000n * MS);
+      const result = await f.client.cleanup('login-a', signer);
+      assert.equal(result.phase, 'finished');
+      assert.equal(refused.length, 2);
+      assert.ok(refused.every(item => item.status === 'rejected'
+        && item.reason instanceof ClientError && item.reason.code === 'stale_generation'));
+      const lateResults = await late;
+      assert.equal(lateResults?.length, 1);
+      assert.ok(lateResults?.every(item => item.status === 'rejected'
+        && item.reason instanceof ClientError && item.reason.code === 'stale_generation'));
+      assert.equal(signatures, 2); // Active and already-started work only; no late result escapes.
+      assert.equal(result.targets[1]!.attempts, 1);
+      assert.ok(result.targets.every(target => target.confirmedUntilNs !== undefined));
+      assert.equal(f.state.disposed, 1);
+    } finally { releaseSigning(); await late; f.store.close(); }
+  });
+}
+
+test('signed read-state polling is phase-gated and a nonresponding cleanup call ends at its deadline', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  let dispatched!: () => void;
+  const started = new Promise<void>(resolve => { dispatched = resolve; });
   let aborted = false;
   const f = await fixture(async (_target, _identity, signal) => {
     signal.addEventListener('abort', () => { aborted = true; });
+    dispatched();
     return new Promise<LogoutResult>(() => {});
   });
   try {
@@ -348,7 +418,10 @@ test('signed read-state polling is phase-gated and a nonresponding cleanup call 
     await f.client.begin('login-a', deadline);
     await assert.rejects(guarded.transformRequest(request), ClientError);
     f.state.now = deadline - MS;
-    const result = await f.client.cleanup('login-a', identity);
+    const pending = f.client.cleanup('login-a', identity);
+    await started; // The timeout must exercise an in-flight transport, not race IndexedDB.
+    t.mock.timers.tick(1);
+    const result = await pending;
     assert.equal(aborted, true);
     assert.equal(result.phase, 'finished');
     assert.equal(result.targets[0]!.confirmedUntilNs, undefined);

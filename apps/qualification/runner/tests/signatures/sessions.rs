@@ -278,9 +278,13 @@ fn issuer_scoped_accounts_survive_wire_projection_and_independent_logout() {
 
 #[test]
 fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ingress() {
-    let mut f = Fixture::new();
+    let mut f = Fixture::with_application_subnets(2);
+    assert_ne!(
+        f.pic.get_subnet(f.signer.into()),
+        f.pic.get_subnet(f.resource.into())
+    );
     eprintln!(
-        "portable receiver artifact: bytes={}, sha256={:x}; Testkit application subnet; volatile storage; issuer signing excluded",
+        "portable receiver artifact: bytes={}, sha256={:x}; two Testkit application subnets; volatile storage; issuer signing excluded",
         f.wasm.len(),
         Sha256::digest(&f.wasm)
     );

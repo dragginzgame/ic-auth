@@ -68,7 +68,7 @@ export class PortableAdmissionClient {
     return state.observedNs;
   }
 
-  private async call<T>(signer: Identity, caller: string, target: Principal,
+  private async call<T>(signer: Identity, caller: string, target: string,
     operation: (signal: AbortSignal, identity: Identity) => Promise<T>): Promise<T> {
     await this.active();
     return boundedCall(this.timeoutMs, async signal => {
@@ -84,7 +84,7 @@ export class PortableAdmissionClient {
           await check();
           if (request.body.request_type !== 'read_state') {
             const destination = request.body.canister_id;
-            if (!(destination instanceof Principal) || destination.toText() !== target.toText()) {
+            if (!(destination instanceof Principal) || destination.toText() !== target) {
               throw new ClientError('configuration');
             }
           }
@@ -109,7 +109,7 @@ export class PortableAdmissionClient {
     if (this.credentialFlight) return this.credentialFlight;
     const flight = (async () => {
       const first = await this.journal.claimIssuance(this.generation);
-      const result = await this.call(this.identities.account, this.accountCaller, this.issuer, (signal, identity) => first
+      const result = await this.call(this.identities.account, this.accountCaller, this.issuer.toText(), (signal, identity) => first
         ? this.transport.issue(identity, signal) : this.transport.reconcile(identity, signal));
       // Copy returned bytes before another asynchronous boundary. Transport decoding
       // is not authentication; the receiver remains the verifier.
@@ -130,15 +130,17 @@ export class PortableAdmissionClient {
    */
   async establish(target: Principal): Promise<Identity> {
     if (target.isAnonymous()) throw new ClientError('configuration');
+    // SDK Principals expose mutable backing bytes. Own the destination before
+    // any await and keep transport objects separate from signing authority.
+    const key = target.toText();
     const value = await this.credential();
-    await this.journal.destination(this.generation, target, value.until);
+    await this.journal.destination(this.generation, Principal.fromText(key), value.until);
     if (value.until <= await this.active()) throw new ClientError('retrieval_expired');
     // Only committed journal destinations reach this map, keeping it within the
     // journal's target bound. Completed calls are not cached as session authority.
-    const key = target.toText();
     const previous = this.admissions.get(key);
     if (previous) return previous;
-    const flight = this.call(this.identities.browser, this.caller, target, (signal, identity) => this.transport.admit(target, identity,
+    const flight = this.call(this.identities.browser, this.caller, key, (signal, identity) => this.transport.admit(Principal.fromText(key), identity,
       credentialFromBytes(value.bytes, this.maximumBytes), signal)).then(() => this.guarded);
     this.admissions.set(key, flight);
     try { return await flight; }

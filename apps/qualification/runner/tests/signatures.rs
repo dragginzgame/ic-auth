@@ -56,6 +56,11 @@ struct Fixture {
 
 impl Fixture {
     fn new() -> Self {
+        Self::with_application_subnets(1)
+    }
+
+    fn with_application_subnets(count: usize) -> Self {
+        assert!(matches!(count, 1 | 2));
         let server = PathBuf::from(
             std::env::var_os("POCKET_IC_BIN")
                 .expect("make test-qualification supplies verified server"),
@@ -69,11 +74,14 @@ impl Fixture {
         );
         let instance = format!("instance-{}", NEXT_INSTANCE.fetch_add(1, Ordering::Relaxed));
         let state_path = state_root.join(&instance);
-        let builder = PocketIcBuilder::new()
+        let mut builder = PocketIcBuilder::new()
             .with_state_dir(state_path)
             .with_nns_subnet()
             .with_application_subnet()
             .with_max_request_time_ms(Some(30_000));
+        if count == 2 {
+            builder = builder.with_application_subnet();
+        }
         let owned = PocketIcStartupConfig::Spawn {
             server_binary: server,
             timeout: Duration::from_secs(30),
@@ -90,8 +98,13 @@ impl Fixture {
         let pic = &owned.instance;
         pic.set_time(SystemTime::now().into());
         let controller = Principal::self_authenticating(b"qualification controller");
-        let signer = pic.create_canister_with_settings(Some(controller.into()), None);
-        let resource = pic.create_canister_with_settings(Some(controller.into()), None);
+        let subnets = pic.topology().get_app_subnets();
+        assert_eq!(subnets.len(), count);
+        let signer = pic.create_canister_on_subnet(Some(controller.into()), None, subnets[0]);
+        let resource =
+            pic.create_canister_on_subnet(Some(controller.into()), None, subnets[count - 1]);
+        assert_eq!(pic.get_subnet(signer), Some(subnets[0]));
+        assert_eq!(pic.get_subnet(resource), Some(subnets[count - 1]));
         let owner = Principal::self_authenticating(
             CanisterSigPublicKey::new(signer, SEED.to_vec()).to_der(),
         );

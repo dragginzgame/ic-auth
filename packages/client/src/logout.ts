@@ -161,31 +161,36 @@ export class PortableLogoutClient {
         await this.clock.wait(Math.max(1, Math.min(1_000, Number((next - this.clock.nowNs()) / MS))));
         continue;
       }
-      const checkLease = async () => {
-        await this.update(generation, (record, now) => {
-          if (record.phase !== 'cleanup' || record.busyUntilNs !== claim.lease
-            || now >= claim.lease || now >= record.deadlineNs
-            || record.caller !== identity.getPrincipal().toText()) throw new ClientError('stale_generation');
-        });
-      };
-      const cleanupIdentity: Identity = {
-        getPrincipal: () => identity.getPrincipal(),
-        transformRequest: async request => {
-          await checkLease();
-          if (request.body.request_type !== 'read_state') {
-            const target = request.body.canister_id;
-            if (!(target instanceof Principal) || target.toText() !== claim.canister) throw new ClientError('configuration');
-          }
-          const signed = await identity.transformRequest(request);
-          await checkLease();
-          return signed;
-        },
-      };
       let response: LogoutResult | undefined;
       try {
-        await checkLease();
-        response = await boundedCall(claim.timeoutMs, signal =>
-          this.transport.revoke(Principal.fromText(claim.canister), cleanupIdentity, signal));
+        response = await boundedCall(claim.timeoutMs, async signal => {
+          const checkLease = async () => {
+            // A completed attempt stays closed even if a later claim receives
+            // the same timestamp from a coarse clock.
+            if (signal.aborted) throw new ClientError('stale_generation');
+            await this.update(generation, (record, now) => {
+              if (record.phase !== 'cleanup' || record.busyUntilNs !== claim.lease
+                || now >= claim.lease || now >= record.deadlineNs
+                || record.caller !== identity.getPrincipal().toText()) throw new ClientError('stale_generation');
+            });
+            if (signal.aborted) throw new ClientError('stale_generation');
+          };
+          const cleanupIdentity: Identity = {
+            getPrincipal: () => identity.getPrincipal(),
+            transformRequest: async request => {
+              await checkLease();
+              if (request.body.request_type !== 'read_state') {
+                const target = request.body.canister_id;
+                if (!(target instanceof Principal) || target.toText() !== claim.canister) throw new ClientError('configuration');
+              }
+              const signed = await identity.transformRequest(request);
+              await checkLease();
+              return signed;
+            },
+          };
+          await checkLease();
+          return this.transport.revoke(Principal.fromText(claim.canister), cleanupIdentity, signal);
+        });
       } catch { /* Lost replies and typed failures never acknowledge revocation. */ }
       const jitter = this.random();
       if (!Number.isFinite(jitter) || jitter < 0 || jitter >= 1) throw new ClientError('configuration');
