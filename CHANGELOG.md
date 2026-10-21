@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.14.2]
+## [0.14.2] - 2026-10-21
 
 - Expire each browser logout signing capability when its transport attempt ends,
   even if the next destination receives an identical lease timestamp. Reject

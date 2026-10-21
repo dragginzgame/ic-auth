@@ -14,7 +14,7 @@ members = [
 resolver = "3"
 
 [workspace.package]
-version = "0.14.1"
+version = "0.14.2"
 edition = "2024"
 rust-version = "1.91.0"
 license = "MIT"
@@ -24,8 +24,8 @@ repository = "https://github.com/dragginzgame/ic-auth"
 [workspace.dependencies]
 # Production dependencies
 ic-auth = { path = "crates/ic-auth" }
-ic-auth-protocol-types = { version = "0.14.1", path = "crates/ic-auth-protocol-types" }
-ic-auth-wire = { version = "0.14.1", path = "crates/ic-auth-wire" }
+ic-auth-protocol-types = { version = "0.14.2", path = "crates/ic-auth-protocol-types" }
+ic-auth-wire = { version = "0.14.2", path = "crates/ic-auth-wire" }
 # Platform owns Principal and imported signature code; other crypto identities stay upstream.
 # Principal is explicit; protocol, portable and session consumers need no IC runtime.
 ic-platform = { version = "0.6", default-features = false }
