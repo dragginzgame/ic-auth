@@ -135,3 +135,25 @@ pass; Rust/product suites are not rerun for prose. The independently changing
 Cargo.lock remains outside this batch; dependency updates need their own generated-client and product qualification before release. No issue is
 closed solely because the reusable Auth pieces already shipped. Evidence and
 before-images: `target/auth-production-followthrough-20261021/`.
+
+## Repeated generated-runtime mismatch repair
+
+At source `92f288e520812aa19bfb5a9246746fab1141232b`, the incoming lock selects
+Wire/derive 0.5.9 while the checked-in browser runtime still predates Wire 0.5.8's
+bounded float checks/shared DataViews. `make generate-client-contracts` refreshed
+only `wire-runtime.ts`; all four Auth contract modules remain unchanged. No DTO,
+method, frame or stored-record migration is introduced.
+
+The actual stale check was reproduced before regeneration. It now reports the
+regeneration command and retained candidate path, preserves the original compare
+status, and leaves source bytes unchanged. The local agent instructions require
+Wire selection changes to regenerate and run `make test-client` in the same
+adoption batch. Checks still refuse drift rather than rewriting source.
+
+All 47 client tests, both Rust/TypeScript directions, type/Wire tests and a fresh
+exact-output comparison pass. Formatting, shell lint, local links and diff checks
+pass. No full CI, native macOS or new production acceptance is claimed. The
+incoming lockfile is retained without further dependency changes; qualification
+of other incoming dependency updates is outside this focused repair. Evidence:
+`target/client-runtime-refresh-20261021/`. Package versions, index and refs remain
+unchanged; pending notes stay 0.13.1.

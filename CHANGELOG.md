@@ -2,6 +2,12 @@
 
 ## [0.13.1]
 
+- Refresh the generated browser runtime for locked Wire 0.5.9, including its
+  bounded float handling and shared frame views. Auth DTOs and frame bytes remain
+  unchanged. Stale-output checks now print the regeneration command and retained
+  candidate path while preserving the comparison failure and source files.
+- Require Wire dependency updates to regenerate and qualify browser artifacts in
+  the same adoption batch, even when Auth's DTOs do not change.
 - Correct the current Canic/browser adoption guides to select released Auth
   0.13, Wire 0.5 and Platform 0.6 with explicit `principal`. Remove obsolete
   pending-release instructions and the old upstream Principal recommendation.

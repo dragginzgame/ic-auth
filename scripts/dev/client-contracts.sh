@@ -29,7 +29,16 @@ bash scripts/dev/run-host-file.sh hash-files0 4194304 4194304 4096 < "$candidate
 bash scripts/dev/run-host-file.sh hash-files0 4194304 4194304 4096 < "$candidate/input-paths0" > "$candidate/inputs-after.tsv0"
 cmp "$candidate/inputs.tsv0" "$candidate/inputs-after.tsv0"
 case "${1:-}" in
-    check) for name in credential.ts establish.ts read.ts logout.ts wire-runtime.ts; do cmp "$candidate/$name" "packages/client/src/generated/$name"; done ;;
+    check)
+        for name in credential.ts establish.ts read.ts logout.ts wire-runtime.ts; do
+            cmp "$candidate/$name" "packages/client/src/generated/$name" || {
+                status=$?
+                printf 'Client contract check refused: packages/client/src/generated/%s is missing, unreadable or differs from the locked generator.\n' "$name" >&2
+                echo 'Run make generate-client-contracts, review the generated files with the dependency/DTO change, then rerun make test-client.' >&2
+                printf 'Generated candidate retained: %s\n' "$candidate" >&2
+                exit "$status"
+            }
+        done ;;
     generate) for name in credential.ts establish.ts read.ts logout.ts wire-runtime.ts; do cp "$candidate/$name" packages/client/src/generated/; done ;;
 esac
 for name in credential logout; do

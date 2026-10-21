@@ -130,6 +130,10 @@ and `ci/cargo-dependency-boundaries.json` for direct-dependency ownership.
   database, bounded records and strict transactions; do not erase unknown
   issuance or change its stored profile implicitly. The maintainer confirmed no
   deployed old token-store records: that former client/format is retired in 0.9.
+- A locked IC Wire update also selects the browser runtime generator. In the
+  same adoption batch, run `make generate-client-contracts`, review all five
+  generated files and run `make test-client`, even when Auth DTOs are unchanged.
+  Validation compares generated source and never repairs it automatically.
 - Fresh release preflight prepares the lock-selected IC Build editor after
   source/notes admission. The adapter selects its absolute admitted path from
   the validated source lockfile; no shell export is required. Manual setup is
