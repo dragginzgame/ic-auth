@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.13.2]
+
+- Adopt Shared Tooling 0.25.9: refuse a new release increment past an
+  undelivered committed preparation, preserving its saved plan and evidence.
+  Tool pins, package APIs and dependency selections are unchanged.
+
 ## [0.13.1] - 2026-10-21
 
 - Refresh the generated browser runtime for locked Wire 0.5.9, including its

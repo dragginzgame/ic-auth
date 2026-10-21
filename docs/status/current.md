@@ -2,9 +2,9 @@
 
 ## Source and selections
 
-Baseline is released/published Auth **0.13.0** at
-`d1d3607ea391d0cf20469211bfd46d4624e69ca3`; package versions remain 0.13.0.
-Pending notes select **0.13.1** for the current adoption-documentation repair.
+Baseline is released Auth **0.13.1** at
+`71adfa6e07c781f6aa3a4802dbb92c7ee7eaa661`; package versions remain 0.13.1.
+Pending notes select **0.13.2** for the compatible release-retry tooling repair.
 Platform 0.6 owns Auth's public Principal/signature-key Rust identities;
 consumers sharing them align to Platform 0.6. The protocol-types dependency
 explicitly selects `principal` without runtime/Candid.
@@ -15,8 +15,9 @@ Host FS/Process/Artifacts), Memory **0.50.3**, Wire/derive **0.5.7**, native
 Candid/derive **0.10.39** and Platform/macros **0.6.0**. Downloaded archive
 checksums and packaged migration contracts were reviewed against that source. Testkit no longer selects IC Metrics or
 Platform 0.5, removing both from the lock. The separately pinned file CLI stays
-0.31.1. Shared Tooling 0.25.8 and its canonical 118-file snapshot are unchanged;
-there are no sibling/path overrides or Auth version changes.
+0.31.1. The current 118-file snapshot adopts reviewed Shared Tooling 0.25.9
+source `85aded191d85ac4a8c0e5deab207f6be18895862`; there are no sibling/path
+overrides or Auth version changes in this adoption.
 
 ## Boundary and cleanup
 
@@ -157,3 +158,28 @@ incoming lockfile is retained without further dependency changes; qualification
 of other incoming dependency updates is outside this focused repair. Evidence:
 `target/client-runtime-refresh-20261021/`. Package versions, index and refs remain
 unchanged; pending notes stay 0.13.1.
+
+## Release retry PR follow-through
+
+PR #81 is refreshed against released 0.13.1 without replacing its original
+commits. The canonical Shared Tooling 0.25.9 runner refuses a second increment
+from a committed candidate until its annotated tag and saved destination branch
+prove Git delivery. Refusal retains the plan, receipt and dispatch history;
+confirmed delivery permits fresh validation, not reuse of the previous receipt.
+The current working-source export, saved editor features and browser generation
+instructions remain intact. Only compatible contributor tooling changes are
+pending for 0.13.2; library APIs, formats, dependencies and package versions stay
+unchanged.
+
+The runner's substituted-effect suite and Auth's actual metadata/recovery/local
+bare-remote publication fixtures pass. Snapshot integrity, shell lint, local
+documentation links and diff checks pass. Fixtures use the already prepared
+editor/file tools; no executable installation, real release, publication or
+production qualification is performed. Hosted checks for the refreshed PR remain
+separate. Evidence: `target/issue-pr-followthrough-20261021/`.
+
+Auth #3/#58/#59 now lead with their precise remaining production acceptance and
+retain prior scope as historical evidence. Their delivered producer mechanisms
+are not being reimplemented, and the issues remain open for the real Canic
+issuer/store/facade and complete workload/browser acceptance in Canic #491/#507.
+No sibling source was edited.

@@ -142,8 +142,8 @@ for the existing byte/path limits and release-recovery boundary.
 
 ## Dependency roles and deployment admission
 
-Shared Tooling 0.25.8 source is adopted at
-`0a2d2ee3b5e0ae77755c2915ac28836d4d5ba359` (reviewed committed source, not a
+Shared Tooling 0.25.9 source is adopted at
+`85aded191d85ac4a8c0e5deab207f6be18895862` (reviewed committed source, not a
 claim of registry publication or a matching release tag).
 The root catalog uses `Production dependencies` and `Tests and tooling only`;
 member annotations distinguish the three production libraries from internal
@@ -318,8 +318,8 @@ installations retained.
 The Makefile includes reviewed [`make/consumer.mk`](make-interface.md), which owns
 common setup, formatting, hooks, snapshot verification and release routing.
 `check-snapshot` retains its public name and depends on `shared-tooling-check`.
-The recorded snapshot pins Shared Tooling 0.25.8 at
-`0a2d2ee3b5e0ae77755c2915ac28836d4d5ba359`. Adopt its committed source and
+The recorded snapshot pins Shared Tooling 0.25.9 at
+`85aded191d85ac4a8c0e5deab207f6be18895862`. Adopt its committed source and
 recorded entrypoint closure through the canonical exporter; see
 [snapshot adoption](consuming-snapshots.md#entrypoint-selection-in-070).
 The canonical verifier also supports `--read-manifest FILE`: it validates the

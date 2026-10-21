@@ -507,8 +507,8 @@ for kind in minor major; do
 done
 [[ -f target/keep ]] || exit 1
 # Qualify the consumer's actual local metadata/receipt owner when a maintainer
-# commits the disposition of interrupted preparation. The runner must archive
-# the old intent and validate the current source before preparing again.
+# commits the disposition of interrupted preparation. A bumped candidate needs
+# confirmed Git delivery before the runner may archive intent and advance again.
 for disposition in restored prepared; do
     base="$(make -s release-version)"
     saved_candidate="$(bash scripts/ci/next-release-version.sh "$base" patch)"
@@ -535,7 +535,7 @@ for disposition in restored prepared; do
         kind=minor
     else
         # The fully written local candidate is committed without any runner
-        # staging, release commit, tag or push. Increment from that metadata.
+        # staging, release commit, tag or push. It must not advance yet.
         kind='patch'
     fi
     base="$(make -s release-version)"
@@ -556,6 +556,20 @@ for disposition in restored prepared; do
     cmp "$old_receipt" "$fixture/$disposition-saved-receipt.json"
     cmp target/preparation-dispatch.log "$fixture/$disposition-before-restart.log"
     [[ ! -e "$state/lock" && "$(git rev-parse HEAD)" == "$current_source" ]] || exit 1
+    if [[ "$disposition" == prepared ]]; then
+        # No candidate delivery: preserve the saved plan, receipt, version and
+        # dispatch history instead of silently selecting a second increment.
+        if make --no-print-directory "release-$kind" > "$fixture/prepared-undelivered.log" 2>&1; then exit 1; fi
+        cmp "$old_plan" "$fixture/$disposition-saved.plan"
+        cmp "$old_receipt" "$fixture/$disposition-saved-receipt.json"
+        cmp target/preparation-dispatch.log "$fixture/$disposition-before-restart.log"
+        [[ "$(make -s release-version)" == "$base" && "$(git rev-parse HEAD)" == "$current_source" &&
+           ! -e "$state/$candidate.plan" && -z "$(git tag -l "v$saved_candidate")" ]] || exit 1
+        # A separately delivered candidate can advance after fresh validation.
+        # All effects stay inside this fixture and its local bare remote.
+        git tag -a "v$saved_candidate" "$current_source" -m "Release $saved_candidate"
+        git push --quiet --atomic origin HEAD:refs/heads/main "refs/tags/v$saved_candidate"
+    fi
     # Refuse the fresh gate once: archiving intent cannot imply preparation or
     # permit reuse of the old source's successful validation receipt.
     touch target/fail-gate
