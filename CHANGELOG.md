@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.13.0]
+## [0.13.0] - 2026-10-21
 
 - Regenerate the browser Wire runtime from the locked IC Wire 0.5.7 generator,
   fixing `test-client`'s exact-output mismatch. Auth DTO bindings and wire frames
