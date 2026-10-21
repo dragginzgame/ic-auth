@@ -13,7 +13,7 @@ See [consumer migration](../canic-adoption.md#platform-06-migration).
 Adopt published coordinated IC Tooling **0.63.0** (Build, Testkit, Host
 FS/Process/Artifacts). Exact downloaded archives match Cargo.lock checksums;
 packaged source and migration contracts were reviewed. Preserve the incoming
-Memory **0.50.3**, Wire/derive **0.5.6**, native Candid/derive **0.10.39** and
+Memory **0.50.3**, Wire/derive **0.5.7**, native Candid/derive **0.10.39** and
 Platform/macros **0.6.0** selections. Testkit no longer selects IC Metrics or
 Platform 0.5, removing both from the lock. The separately pinned file CLI stays
 0.31.1. Shared Tooling 0.25.8 and its canonical 118-file snapshot are unchanged;
@@ -44,7 +44,13 @@ Platform 0.6 adds explicit Principal feature selection and omits unused imported
 creation-only delegation/CBOR helpers. Auth keeps its crypto policy and exact
 signed bytes. No storage or browser-journal migration is introduced. SHA-2/Dalek
 major changes remain separate; the adversarial Dalek trigger remains test-only.
-Browser dependencies and generated contracts are unchanged.
+Browser dependencies and Auth DTO bindings are unchanged. The committed runtime
+was stale after the Wire selection changed; `make generate-client-contracts` now
+refreshes it from locked Wire 0.5.7. Its registry-size cache is per codec operation,
+with unchanged frames and alias/limit checks. `make test-client` passes all 47 tests
+and Rust/TypeScript roundtrips. Checks still compare rather than repair outputs.
+Repair evidence and before-images: `target/client-runtime-fix-20261021/`, against
+committed adoption `1ee44227e8c52caef0dfd8d3d3db7d7875616830`.
 
 ## Tooling features, recovery and native Candid
 

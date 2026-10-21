@@ -5,7 +5,7 @@ unpublished native tooling in `apps/tooling/` and the reference host/runner in
 `apps/qualification/`. The root catalog and lock select published Platform 0.6.0,
 the coordinated Host FS/Process, Build and Testkit 0.63.0 packages from
 [IC Tooling](https://github.com/dragginzgame/ic-tooling), Memory 0.50.3 from
-[IC Persistence](https://github.com/dragginzgame/ic-persistence) and the Wire 0.5.6
+[IC Persistence](https://github.com/dragginzgame/ic-persistence) and the Wire 0.5.7
 codec/TypeScript generator. The [handoff](status/current.md) records exact evidence;
 [session contracts](sessions.md) distinguish supported behavior from pending hosts.
 Rust `1.99.1` remains the development compiler selected by `rust-toolchain.toml`.
@@ -459,6 +459,11 @@ explicitly on all three hosts before its complete gate. Client source and exampl
 outputs remain under ignored `packages/client/dist/`; generated-contract evidence
 is retained under `target/browser-client/`.
 
+After changing the locked IC Wire selection, run `make generate-client-contracts`
+and `make test-client`. Generation refreshes both the Auth DTO bindings and Wire's
+supplied TypeScript runtime; unchanged DTOs do not imply an unchanged runtime.
+The check compares all five files and refuses drift rather than rewriting source.
+
 `make test-qualification` also requires these prepared client dependencies. It
 compiles current TypeScript before invoking the SDK logout adapter through the
 live Testkit gateway. Missing or mismatched tools refuse; checks never install.
@@ -479,7 +484,7 @@ source-bound release receipt. This library repository has no deployment target.
 | `make test-client-tools` | Actual CI pipeline and Make callers: selected Node/npm path, later-step admission and first-failure controls with substituted npm effects |
 | `make test-client` | Portable admission/logout, strict journal transactions and Rust/TypeScript Wire roundtrips |
 | `make check-client-contracts` | Compare fresh locked bindings with the Rust-owned checked-in contracts offline |
-| `make generate-client-contracts` | Explicitly regenerate the checked-in client contracts from Rust DTOs |
+| `make generate-client-contracts` | Explicitly regenerate Auth DTO bindings and the locked Wire TypeScript runtime |
 | `make test-types` | Public types, bounded Wire codecs and private fixture projections |
 | `make test-protocol` | Canonical encoding, signed vectors, ordering and size rejection |
 | `make test-portable-signatures` | Portable Ed25519 issuer proofs with protected audience/issuer/key binding, independent signature vectors and strict malformed/weak-key refusal, including an unpublished consumer enabling permissive Dalek parsing through feature unification; this does not admit sessions |

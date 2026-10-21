@@ -2,12 +2,15 @@
 
 ## [0.13.0]
 
+- Regenerate the browser Wire runtime from the locked IC Wire 0.5.7 generator,
+  fixing `test-client`'s exact-output mismatch. Auth DTO bindings and wire frames
+  are unchanged. Document runtime regeneration alongside Wire dependency updates.
 - **Breaking Rust dependency identity:** select published Platform/macros 0.6.0.
   Consumers sharing Auth's Principal or signature-key types must align to Platform
   0.6; type-only consumers explicitly select `principal`. Signed bytes, Wire
   frames, storage and runtime semantics are unchanged.
 - Select coordinated IC Tooling 0.63.0, preserving incoming Memory 0.50.3 and
-  Wire/derive 0.5.6. Testkit removes its Candid call adapter and IC Metrics edge,
+  Wire/derive 0.5.7. Testkit removes its Candid call adapter and IC Metrics edge,
   and aligns to Platform 0.6; the old native Platform 0.5 identity leaves the lock.
   Retain the preceding Platform cache/message-buffer improvements and remove
   unused upstream creation-only delegation/CBOR helpers; no cryptography changes.
