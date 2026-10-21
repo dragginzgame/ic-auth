@@ -75,6 +75,10 @@ class Writer {
   varint(value: bigint) {
     do { const byte = Number(value & 127n); value >>= 7n; this.byte(value ? byte | 128 : byte); } while (value);
   }
+  // Only admitted unsigned 16/32-bit values, ZigZag results and u32 tags enter here.
+  numberVarint(value: number) {
+    do { const byte = value & 127; value >>>= 7; this.byte(value ? byte | 128 : byte); } while (value);
+  }
   float(value: number, bits: number) {
     const length = bits / 8;
     if (length > this.bytes.length - this.offset) fail('limit');
@@ -111,11 +115,32 @@ class Reader {
     }
     return fail('malformed');
   }
+  numberVarint(bits: number): number {
+    let value = 0;
+    for (let i = 0; i < Math.ceil(bits / 7); i++) {
+      const byte = this.byte(); value += (byte & 127) * 2 ** (i * 7);
+      if (!(byte & 128)) {
+        if (value >= 2 ** bits || (i > 0 && byte === 0)) return fail('malformed');
+        return value;
+      }
+    }
+    return fail('malformed');
+  }
   length(max: number): number { const n = this.varint(64); if (n > BigInt(max)) return fail('limit'); return Number(n); }
   raw(length: number): Uint8Array {
     if (length > this.bytes.length - this.offset) return fail('malformed');
     const value = this.bytes.subarray(this.offset, this.offset + length); this.offset += length; return value;
   }
+}
+function writeNumber(s: Extract<Schema, { k: 'u' | 'i' | 'float' }>, value: unknown, out: Writer): void {
+  if (typeof value !== 'number' || !Number.isSafeInteger(value)) fail('value');
+  const n = value as number, signed = s.k === 'i';
+  const min = signed ? -(2 ** (s.bits - 1)) : 0, max = 2 ** (s.bits - (signed ? 1 : 0)) - 1;
+  if (n < min || n > max) fail('limit');
+  if (s.min !== undefined && n < s.min || s.max !== undefined && n > s.max) fail('value');
+  if (s.bits === 8) out.byte(n & 255);
+  else out.numberVarint(signed ? (n < 0 ? -n * 2 - 1 : n * 2) : n);
+  return;
 }
 function write(s: Schema, value: unknown, out: Writer, budget: Budget, depth: number, types: Types, checks: Checks): void {
   budget.visit(depth);
@@ -125,12 +150,12 @@ function write(s: Schema, value: unknown, out: Writer, budget: Budget, depth: nu
     case 'unit': if (value !== null) fail('value'); return;
     case 'bool': if (typeof value !== 'boolean') fail('value'); out.byte(value ? 1 : 0); return;
     case 'u': case 'i': {
-      if (s.bits <= 32 ? typeof value !== 'number' || !Number.isSafeInteger(value) : typeof value !== 'bigint') fail('value');
+      if (s.bits <= 32) return writeNumber(s, value, out);
+      if (typeof value !== 'bigint') fail('value');
       const n = BigInt(value as number | bigint), bits = BigInt(s.bits), signed = s.k === 'i';
       const min = signed ? -(1n << (bits - 1n)) : 0n, max = (1n << (bits - (signed ? 1n : 0n))) - 1n;
       if (n < min || n > max) fail('limit');
       if (s.min !== undefined && n < BigInt(s.min) || s.max !== undefined && n > BigInt(s.max)) fail('value');
-      if (s.bits === 8) { out.byte(Number(n & 255n)); return; }
       out.varint(signed ? (n << 1n) ^ (n >> (bits - 1n)) : n); return;
     }
     case 'float': {
@@ -188,7 +213,7 @@ function write(s: Schema, value: unknown, out: Writer, budget: Budget, depth: nu
     case 'enum': {
       const record = object(value, ['tag', 'value']);
       const variant = s.variants.find(v => v.name === record.tag); if (!variant) return fail('value');
-      out.varint(BigInt(variant.id)); child(variant.value, record.value); return;
+      out.numberVarint(variant.id); child(variant.value, record.value); return;
     }
   }
 }
@@ -197,6 +222,12 @@ function read(s: Schema, input: Reader, budget: Budget, depth: number, types: Ty
   resolve(s, types, budget, schema => validate(schema, value, checks));
   return value;
 }
+function readNumber(s: Extract<Schema, { k: 'u' | 'i' | 'float' }>, input: Reader): number {
+  let n = s.bits === 8 ? input.byte() : input.numberVarint(s.bits);
+  if (s.k === 'i') n = s.bits === 8 ? (n >= 128 ? n - 256 : n) : (n % 2 ? -(n + 1) / 2 : n / 2);
+  if (s.min !== undefined && n < s.min || s.max !== undefined && n > s.max) fail('malformed');
+  return n;
+}
 function readValue(s: Schema, input: Reader, budget: Budget, depth: number, types: Types, checks: Checks): unknown {
   budget.visit(depth);
   const child = (schema: Schema) => read(schema, input, budget, depth + 1, types, checks);
@@ -204,10 +235,11 @@ function readValue(s: Schema, input: Reader, budget: Budget, depth: number, type
     case 'unit': return null;
     case 'bool': { const n = input.byte(); if (n > 1) return fail('malformed'); return n === 1; }
     case 'u': case 'i': {
-      let n = s.bits === 8 ? BigInt(input.byte()) : input.varint(s.bits);
-      if (s.k === 'i') n = s.bits === 8 ? (n >= 128n ? n - 256n : n) : (n >> 1n) ^ -(n & 1n);
+      if (s.bits <= 32) return readNumber(s, input);
+      let n = input.varint(s.bits);
+      if (s.k === 'i') n = (n >> 1n) ^ -(n & 1n);
       if (s.min !== undefined && n < BigInt(s.min) || s.max !== undefined && n > BigInt(s.max)) fail('malformed');
-      return s.bits <= 32 ? Number(n) : n;
+      return n;
     }
     case 'float': {
       const value = input.float(s.bits);
@@ -216,7 +248,7 @@ function readValue(s: Schema, input: Reader, budget: Budget, depth: number, type
     case 'bytes': {
       const length = input.length(s.max ?? input.bytes.length - input.offset);
       if (s.min !== undefined && length < s.min) fail('malformed');
-      return input.raw(length).slice();
+      return new Uint8Array(input.raw(length));
     }
     case 'text': {
       const text = utf8.decode(input.raw(input.length(Math.min(s.max ?? input.bytes.length, input.bytes.length - input.offset))));
@@ -248,7 +280,7 @@ function readValue(s: Schema, input: Reader, budget: Budget, depth: number, type
       return value;
     }
     case 'enum': {
-      const id = input.varint(32), variant = s.variants.find(v => BigInt(v.id) === id);
+      const id = input.numberVarint(32), variant = s.variants.find(v => v.id === id);
       if (!variant) return fail('malformed');
       return { tag: variant.name, value: child(variant.value) };
     }

@@ -265,6 +265,104 @@ fn created(value: SessionEstablished) -> Session {
 }
 
 #[test]
+fn future_start_retry_keeps_original_credential_and_verifies_only_once() {
+    let mut f = Fixture::new(1);
+    let start = NOW + SECOND;
+    f.claims.issued_at_ns = start;
+    let bytes = encode_claims(&f.claims).unwrap();
+    let proof = PortableProof::Ed25519 {
+        signature: f
+            .key
+            .sign(&claims_hash(&f.claims).unwrap())
+            .to_bytes()
+            .to_vec(),
+    };
+    let mut r = Receiver::new(&f);
+    r.budget = SessionAdmissionBudget::new(1, SECOND, NOW).unwrap();
+    let mut verifications = 0;
+    let mut admit = |r: &mut Receiver, now| {
+        let context = f.context(now);
+        establish_session(
+            &mut r.store,
+            &mut r.ledger,
+            &mut r.budget,
+            &bytes,
+            &request(),
+            &context,
+            policy(),
+            |budget, decoded| {
+                verifications += 1;
+                Ok(decoded.verify(
+                    budget,
+                    &proof,
+                    &PortableVerificationContext::Ed25519 {
+                        claims: &context.authority,
+                        public_key: &f.key.verifying_key().to_bytes(),
+                    },
+                )?)
+            },
+        )
+    };
+    assert_eq!(
+        admit(&mut r, start - 1),
+        Err(SessionError::Claims(PortableClaimsError::NotYetValid))
+    );
+    assert_eq!(r.store.encoded_bytes(), 0);
+    assert_eq!(r.ledger.occupancy(), (0, 0));
+    let session = created(admit(&mut r, start).unwrap());
+    let stored_bytes = r.store.encoded_bytes();
+    assert_eq!(
+        admit(&mut r, start + 1),
+        Ok(SessionEstablished::ExactRetry(session.clone()))
+    );
+    assert_eq!(verifications, 1);
+    assert_eq!(r.store.encoded_bytes(), stored_bytes);
+    assert_eq!(r.ledger.occupancy(), (1, 0));
+    assert_eq!(r.auth(&f, start + 1), Ok(session));
+    assert_eq!(encode_claims(&f.claims).unwrap(), bytes);
+}
+
+#[test]
+fn equal_subjects_from_different_issuers_keep_distinct_sessions_and_logouts() {
+    let first = Fixture::new(1);
+    let mut second = Fixture::new(2);
+    second.claims.issuer = Principal::from_slice(&[3]);
+    second.key = SigningKey::from_bytes(&[43; 32]);
+    second.claims.key_binding_id = Sha256::digest(second.key.verifying_key().to_bytes()).into();
+    let mut r = Receiver::new(&first);
+    let a = created(first.admit(&mut r, NOW).unwrap());
+    let b = created(second.admit(&mut r, NOW).unwrap());
+    assert_eq!(a.subject(), b.subject());
+    assert_ne!(a.issuer(), b.issuer());
+    assert_ne!(a.caller(), b.caller());
+    assert_eq!(r.auth(&first, NOW), Ok(a.clone()));
+    assert_eq!(r.auth(&second, NOW), Ok(b.clone()));
+
+    // A matching subject cannot substitute the other issuer's protected context.
+    let mut wrong = first.context(NOW);
+    wrong.authority.issuer = second.claims.issuer;
+    wrong.authority.key_binding_id = second.claims.key_binding_id;
+    assert_eq!(
+        authorize_session(&mut r.store, &mut r.ledger, &wrong, policy()),
+        Err(SessionError::StaleAuthority)
+    );
+    // Nor can a new issuer replace the account attached to the same browser login.
+    second.claims.browser_public_key = first.claims.browser_public_key;
+    assert_eq!(
+        second.admit(&mut r, NOW),
+        Err(SessionError::Revocation(
+            LoginRevocationError::InvalidPolicy
+        ))
+    );
+    second.claims.browser_public_key = SigningKey::from_bytes(&[2; 32]).verifying_key().to_bytes();
+    assert_eq!(r.auth(&first, NOW), Ok(a));
+    assert_eq!(r.auth(&second, NOW), Ok(b.clone()));
+    r.logout(first.caller(), NOW).unwrap();
+    assert!(r.auth(&first, NOW).is_err());
+    assert_eq!(r.auth(&second, NOW), Ok(b));
+}
+
+#[test]
 fn two_receivers_two_devices_retry_after_proof_expiry_and_local_logout() {
     let f = Fixture::new(1);
     let other = Fixture::new(2);

@@ -89,6 +89,95 @@ fn input(claims: &PortableClaims, key: &SigningKey) -> SessionInput {
     }
 }
 #[test]
+fn issuer_scoped_accounts_survive_wire_projection_and_independent_logout() {
+    let f = Fixture::new();
+    let first_key = SigningKey::from_bytes(&[42; 32]);
+    let second_key = SigningKey::from_bytes(&[43; 32]);
+    let now = f.now();
+    let first = ReceiverConfig {
+        audience: AudienceId {
+            canonical_network_id: CanonicalId::from_bytes([1; 32]),
+            fleet_id: CanonicalId::from_bytes([2; 32]),
+        },
+        issuer: f.signer,
+        authority: ReceiverAuthority::Ed25519(first_key.verifying_key().to_bytes()),
+        role: "user".parse().unwrap(),
+        grants: vec![DelegatedRoleGrant {
+            target: "user".parse().unwrap(),
+            scopes: vec!["read".into()],
+        }],
+        valid_from_ns: now,
+        valid_until_ns: now + 120 * SECOND,
+        enrollment_until_ns: now + 120 * SECOND,
+        verification_burst: 16,
+        verification_refill_ns: 1,
+    };
+    let second = ReceiverConfig {
+        issuer: f.resource,
+        authority: ReceiverAuthority::Ed25519(second_key.verifying_key().to_bytes()),
+        ..first.clone()
+    };
+    install(&f, f.signer, &first);
+    install(&f, f.resource, &second);
+    f.pic.advance_time(Duration::from_secs(1));
+    let first_claims = PortableClaims {
+        mechanism: PortableMechanism::Ed25519,
+        audience: first.audience,
+        issuer: first.issuer,
+        key_binding_id: first.authority.binding(),
+        browser_public_key: SigningKey::from_bytes(&[1; 32]).verifying_key().to_bytes(),
+        account_subject: Principal::from_slice(&[99]),
+        login_started_at_ns: f.now(),
+        login_deadline_ns: f.now() + 60 * SECOND,
+        issued_at_ns: f.now(),
+        admission_expires_at_ns: f.now() + 5 * SECOND,
+        nonce: [1; 16],
+        grants: first.grants.clone(),
+    };
+    let second_claims = PortableClaims {
+        issuer: second.issuer,
+        key_binding_id: second.authority.binding(),
+        browser_public_key: SigningKey::from_bytes(&[2; 32]).verifying_key().to_bytes(),
+        ..first_claims.clone()
+    };
+    let first_caller = browser_principal(&first_claims.browser_public_key);
+    let second_caller = browser_principal(&second_claims.browser_public_key);
+    let a = admission(
+        &f,
+        f.signer,
+        first_caller,
+        &input(&first_claims, &first_key),
+    )
+    .unwrap();
+    let b = admission(
+        &f,
+        f.resource,
+        second_caller,
+        &input(&second_claims, &second_key),
+    )
+    .unwrap();
+    assert_eq!(a.subject, b.subject);
+    assert_ne!(a.issuer, b.issuer);
+    assert_ne!(a.caller, b.caller);
+    assert_eq!(read(&f, f.signer, first_caller).unwrap(), a);
+    assert_eq!(read(&f, f.resource, second_caller).unwrap(), b);
+    assert!(
+        admission(
+            &f,
+            f.signer,
+            second_caller,
+            &input(&second_claims, &second_key),
+        )
+        .is_err()
+    );
+    assert!(read(&f, f.signer, second_caller).is_err());
+    assert_eq!(read(&f, f.signer, first_caller).unwrap(), a);
+    logout(&f, f.signer, first_caller).unwrap();
+    assert!(read(&f, f.signer, first_caller).is_err());
+    assert_eq!(read(&f, f.resource, second_caller).unwrap(), b);
+}
+
+#[test]
 fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ingress() {
     let mut f = Fixture::new();
     eprintln!(

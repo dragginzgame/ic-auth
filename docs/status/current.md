@@ -2,9 +2,10 @@
 
 ## Source and selections
 
-Baseline is released Auth **0.13.1** at
-`71adfa6e07c781f6aa3a4802dbb92c7ee7eaa661`; package versions remain 0.13.1.
-Pending notes select **0.13.2** for the compatible release-retry tooling repair.
+Baseline is released Auth **0.13.2** at
+`30cfea736114af74c6d9f9cb22106680a0fd83c9`; package versions remain 0.13.2.
+Pending notes select **0.13.3** for compatible consumer guidance and integration
+regressions.
 Platform 0.6 owns Auth's public Principal/signature-key Rust identities;
 consumers sharing them align to Platform 0.6. The protocol-types dependency
 explicitly selects `principal` without runtime/Candid.
@@ -183,3 +184,66 @@ retain prior scope as historical evidence. Their delivered producer mechanisms
 are not being reimplemented, and the issues remain open for the real Canic
 issuer/store/facade and complete workload/browser acceptance in Canic #491/#507.
 No sibling source was edited.
+
+## Current Canic readiness review — Auth 0.13.2
+
+Canic default main `4caeec25db7d81f6121db1c95ba7a2d91d319c60` still selects
+Auth 0.10. The moving owner checkout over `c63bdca...` selects Auth 0.13.2,
+Platform 0.6.3 and Wire 0.5.13. Both inspected facades remain fail-closed and
+their shared session adapter is test-only. These are separate source states;
+the owner's focused backend tests do not prove a delivered runtime login.
+
+A registry-only consumer using all three published Auth 0.13.2 packages passes
+Rust 1.91 native and Wasm checks with Platform 0.6.3 and Wire 0.5.13. It checks
+the shared Principal identity, SessionStore read contract, issuer/subject getters,
+both verifier selectors and Wire method limits. Its normal/build Wasm graph
+excludes Candid/CDK/ic0, native clients/tooling and Solana. Without the complete
+certified capability, the captured normal Canic Auth feature selection fails to
+name the certified verifier; its dev dependency currently masks that omission.
+The adoption guide now states explicit receiver feature profiles and requires
+issuer-scoped successful account projection. No Auth API or format changes.
+
+The concrete findings and completion order are on Canic #491/#507. Existing
+effective-renewal, retry, cleanup and successful-path budget acceptance remain
+with their owner issues. Related Wire/Testkit/memory/checkpoint PRs do not supply
+the missing production issuer/store/facade and are not all qualified. Sibling
+checkouts remain read-only; no Canic build, native macOS, installed-IC or full
+workspace result is claimed. Source snapshots, reproduction and graph evidence:
+`target/canic-integration-review-20261021/`. The incoming Auth lockfile remains
+byte-for-byte unchanged; notes select compatible 0.13.3 and package versions stay
+0.13.2.
+
+## Producer integration regressions for 0.13.3
+
+The session tests now exercise a pre-signed future-start credential: refusal one
+nanosecond before its start leaves session/login state empty, exact start admits,
+and an exact retry with exhausted credit reuses the verified session without
+extending its lease. A second case admits equal subjects from distinct protected
+issuers, refuses crossed authority and issuer substitution on the original
+browser login, and keeps the other account usable after local logout.
+
+All 14 volatile and 25 restoration-enabled session cases pass, including the
+latter on Rust 1.91. The qualification runner also checks on Rust 1.91. Strict
+Clippy passes for the session tests, runner and Wasm reference canister. The
+explicitly approved Testkit 0.63.2 CLI is prepared and admitted offline. All five
+native host tests and ten live qualification cases pass with a fresh reference
+Wasm, including issuer/subject Wire projection, wrong-issuer refusal, independent
+logout, certification, upgrades, signed ingress and SDK admission/recovery/logout.
+
+The incoming Wire selection exposed another stale generated runtime. Canonical
+generation changes only the runtime; all four Auth DTO modules remain unchanged.
+The lock advanced externally from Wire 0.5.14 to 0.5.15 during the first live run.
+The earlier pass was not reused: the newly selected sources were explicitly
+prepared, generated source checked again, and affected checks repeated. All 47
+client tests, Rust/TypeScript directions, type tests, runner MSRV/Clippy and the
+fresh native/Wasm/live qualification pass for 0.5.15. Captured Rust/frontend input
+hashes match before and after the final stages. The adopted dependency-boundary
+checks also pass for public capabilities and the reference Wasm. No wire, signing
+or stored format was changed by this batch.
+
+This is producer/reference coverage, not a Canic runtime implementation or
+production issuer acceptance. Incoming dependency edits are preserved; this task
+changes no lock selections. The final graph includes Platform 0.6.4 and Testkit
+0.63.2. Complete CI, native browser/macOS and production IC qualification are not
+claimed. Evidence and task before-images are under
+`target/canic-integration-regressions-0133/`; sibling source stays read-only.

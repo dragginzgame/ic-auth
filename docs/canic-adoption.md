@@ -8,7 +8,7 @@ checkpoints are retained separately in [adoption history](canic-adoption-history
 
 ## Released API and dependency direction
 
-The released Auth 0.13.0 stack contains `ic-auth-protocol-types`, `ic-auth` and
+The released Auth 0.13.2 stack contains `ic-auth-protocol-types`, `ic-auth` and
 `ic-auth-wire`. Select matching package releases in the consumer's root catalog;
 no sibling source/path override or copied codec is needed. Auth has no Canic or
 Toko dependency. Rust 1.91 is the common minimum.
@@ -42,6 +42,31 @@ restoration. Signature-store preparation and canister-signature verification
 remain separate optional primitives. Native Testkit/Host/Build, CDK and fixture
 contracts stay out of the public Auth graphs. All public library capabilities, including certified verification, now reject
 Candid and raw IC calls. Native qualification still brings Candid through Agent/Testkit.
+
+### Receiver feature selection
+
+Select the complete verifier at the receiver's normal dependency edge, rather
+than relying on a test dependency to enable it:
+
+| Receiver capability | `ic-auth` features, with defaults disabled |
+| --- | --- |
+| Volatile sessions with Ed25519 admission | `sessions`, `portable-signature-verification` |
+| Volatile sessions with certified admission | `sessions`, `certified-proof-verification` |
+| Volatile sessions accepting both enrolled mechanisms | `sessions`, `portable-signature-verification`, `certified-proof-verification` |
+| Checked persistent restoration | Replace `sessions` above with `session-restore`; retain the selected verifier features. |
+
+`certified-proof-verification` enables the complete portable certified verifier
+and its Root/canister-signature prerequisites. Enabling only those lower-level
+primitives does not enable `portable_certified` or
+`PortableVerificationContext::Certified`. Ed25519-only receivers need no certified
+verifier. The protected enrollment selects the mechanism; the submitted proof
+cannot enable another one.
+
+Qualify the receiver without dev dependencies on native and Wasm. A test build
+can unify features from a dev dependency and hide a missing production feature.
+Use the shared Auth Wire methods through `ic-auth-wire`, or the explicitly
+qualified consumer transport described below; neither transport supplies a
+verifier, enrollment or endpoint automatically.
 
 <a id="pending-09-wire-transport"></a>
 
@@ -166,6 +191,11 @@ clock and generation. A wallet/account proof, IC ingress delegation and applicat
 resource grant are distinct. Account identity is `(issuer, subject)`; the browser
 principal identifies this login/device.
 
+Successful application authorization must preserve both `Session::issuer()` and
+`Session::subject()` for account resolution. Returning the subject alone loses
+its issuer namespace. Two approved issuers naming the same subject are distinct
+accounts; qualify that case before enabling the successful facade path.
+
 Canic owns fleet/member/role policy, issuer approval/renewal, protected Root/key
 selection, enrollment freshness, real caller/time acquisition and scoped endpoint
 guards. Its store implements Auth's transaction contract, including capacity,
@@ -174,6 +204,13 @@ signed reset floors and starts closed; persistent mode restores complete checked
 state and still requires fresh authority. See [sessions](sessions.md) and
 [certification composition](signature-preparation.md). The fixture's IC Memory
 checkpoint does not supply a production per-operation backend.
+
+Preserve the typed `PortableClaimsError::NotYetValid` refusal through the host
+endpoint and client adapter as a bounded retry hint, never authenticated success.
+Keep strict admission starts and the original proof deadline; do not add clock
+grace or automatically retry expiry, invalid signatures, stale authority or reset
+floor failures. Consumer acceptance remains in
+[Canic #418 — Future-start admission and retry diagnostics](https://github.com/dragginzgame/canic/issues/418).
 
 The old Rust delegated-token issuance/verifier API and browser prepare/retrieve
 client were retired in 0.9 after explicit no-deployed-user/no-unresolved-effect

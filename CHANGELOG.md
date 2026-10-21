@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.13.3]
+
+- Clarify Canic receiver feature selection so production builds explicitly
+  enable the complete portable verifier instead of inheriting it from tests.
+  Require successful account projection to retain issuer and subject together.
+  Published APIs and credential, session and Wire formats are unchanged.
+- Expand session integration regressions for same-credential future-start
+  retries, verification reuse, issuer-scoped account separation, blocked issuer
+  substitution and independent logout. Add a reference receiver Wire case for
+  account metadata and logout isolation; production Canic wiring remains separate.
+- Refresh the generated browser runtime from locked Wire 0.5.15 so dependency
+  adoption and client artifact checks agree. Auth DTOs and protocol bytes remain
+  unchanged.
+
 ## [0.13.2] - 2026-10-21
 
 - Adopt Shared Tooling 0.25.9: refuse a new release increment past an
