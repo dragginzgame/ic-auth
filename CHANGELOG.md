@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.14.0]
+## [0.14.0] - 2026-10-21
 
 - **Breaking browser construction:** require explicit account and browser
   identities. Issue/reconcile calls use a temporary issuer-bound account signer;
