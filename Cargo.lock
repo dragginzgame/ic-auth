@@ -1418,9 +1418,9 @@ dependencies = [
 
 [[package]]
 name = "ic-memory"
-version = "0.50.4"
+version = "0.50.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "773167fd96487b1baca49f06ef669aa9cf48f078f3a4406f3f63f3d707d941f7"
+checksum = "d13a0d6b3f063fbb5f60e0e0b6d9b2bafb66867aa1e4a23d0121cab9db26bd6e"
 dependencies = [
  "ic-stable-structures",
  "serde",
@@ -1430,9 +1430,9 @@ dependencies = [
 
 [[package]]
 name = "ic-platform"
-version = "0.6.1"
+version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6d895a280a0d7542d5a1636f72ae44fed177a7f14c68bc666ccbd3451ffd4983"
+checksum = "5fe3c6c29dbf9ac6bcae2d27447c9a1e342963c01649b6529a6fbb1e66e9f056"
 dependencies = [
  "crc32fast",
  "curve25519-dalek",
@@ -1457,9 +1457,9 @@ dependencies = [
 
 [[package]]
 name = "ic-platform-macros"
-version = "0.6.1"
+version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c88ba3f2b228f60aba3db053f76cef8d1a4681c3d55e3f6d5153baeee09b6dcd"
+checksum = "f1dddc511610090af16d191918adb45a618438696c088daaec111f82ad47f5c4"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1526,9 +1526,9 @@ dependencies = [
 
 [[package]]
 name = "ic-wire"
-version = "0.5.7"
+version = "0.5.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8e39a54966658523666d9af6f567d050cecf5541f7a5073187a3666bff5a6dcf"
+checksum = "2428801e2f427afe516bf71b5fa32456a464ce19764676f3c321c4a0737cf526"
 dependencies = [
  "ic-wire-derive",
  "postcard",
@@ -1538,9 +1538,9 @@ dependencies = [
 
 [[package]]
 name = "ic-wire-derive"
-version = "0.5.7"
+version = "0.5.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d4ffc6d84952bc60efa2f5b1cdc6a0946f40d758c9cf79cbfeadaddf03aedd17"
+checksum = "18b29995a4d9f9d894f5b4ad2b672bf8ed785649f01636a49179d27ef34b2d99"
 dependencies = [
  "proc-macro2",
  "quote",

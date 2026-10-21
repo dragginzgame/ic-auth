@@ -1,5 +1,5 @@
 //! Passive portable authentication and delegation contracts, independent of runtime, storage and Candid.
-//! `Principal` is owned by feature-free IC Platform; external IC APIs convert at their boundary.
+//! `Principal` is owned by IC Platform's explicit `principal` feature; external IC APIs convert at their boundary.
 //! Transport schemas belong to endpoint adapters, outside these domain contracts.
 //!
 //! Decoding these values does not verify a proof or establish authority. Hosts

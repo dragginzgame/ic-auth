@@ -8,13 +8,13 @@ checkpoints are retained separately in [adoption history](canic-adoption-history
 
 ## Released API and dependency direction
 
-The released Auth 0.10.7 stack contains `ic-auth-protocol-types`, `ic-auth` and
+The released Auth 0.13.0 stack contains `ic-auth-protocol-types`, `ic-auth` and
 `ic-auth-wire`. Select matching package releases in the consumer's root catalog;
 no sibling source/path override or copied codec is needed. Auth has no Canic or
 Toko dependency. Rust 1.91 is the common minimum.
 
 - `ic-auth-protocol-types` owns checked identifiers, portable claims, certificate/
-  proof contracts and typed logout outcomes. It exposes `ic_principal::Principal`,
+  proof contracts and typed logout outcomes. It exposes Platform-owned `Principal`,
   with no Candid traits, CDK, stable-memory owner or production endpoints.
 - `ic-auth` owns canonical signed bytes, proof verification, certificate rules,
   bounded signature preparation and the transaction-based session engine. Pure
@@ -26,10 +26,13 @@ Toko dependency. Rust 1.91 is the common minimum.
   SDK identity, issuer/admission transport and durable logout storage. It does
   not implement wallet login or a production issuer/reconciliation service.
 
-The 0.10.7 release routes the protocol's Principal import through feature-free
-IC Platform 0.2.1. Its upstream type identity and serde/text/byte representations
-are unchanged; consumers can keep importing Auth's `Principal`. No Candid or
-runtime capability is selected by that edge.
+Auth 0.13 selects Platform 0.6 and enables only `principal` for passive types.
+Consumers sharing that owned Rust type must align to Platform 0.6; external
+Agent/Testkit/crypto APIs keep explicit `principal::ExternalPrincipal`
+conversions. Do not select the older upstream Principal identity or downgrade
+Auth to follow a historical example. No Candid or runtime capability is selected
+by the passive edge. [The published-type acceptance](https://github.com/dragginzgame/ic-auth/issues/82#issuecomment-6312237287)
+qualifies direct exchange with Platform 0.6.1 on Rust 1.91, native and Wasm.
 
 Forward only required capabilities. `portable-signature-verification` selects
 Ed25519, `chain-key-verification` supplies standalone Root verification, and
@@ -51,11 +54,11 @@ and limits. Canic binds them to actual exports, admits raw argument size before
 copying, decodes the exact method and authenticates ingress/replies. Reply-encoding
 failure after mutation must trap so that local state rolls back.
 
-The published 0.10.7 transport exposes IC Wire 0.4. Consumers sharing its Rust
+The published Auth 0.13 transport exposes IC Wire 0.5. Consumers sharing its Rust
 Wire types must align that dependency and select matching Auth package releases.
-The older 0.9.1 transport retains IC Wire 0.3; these are distinct published
-dependency contracts. Generated files must come from the selected owner, never
-downstream patches.
+Auth 0.10 and 0.9 used Wire 0.4 and 0.3 respectively; those are historical
+dependency contracts, not current selection instructions. Generated files must
+come from the selected owner, never downstream patches.
 
 Applications may bind their own command envelope through an explicit qualified
 client transport adapter. Preserve the shared domain/signed contract and bounded
@@ -66,11 +69,10 @@ schemas. Linking any Auth crate installs no endpoint or authority.
 
 ## Wire 0.5 migration
 
-Pending Auth 0.11 selects published Wire 0.5 and native Testkit 0.57. Package
-versions remain 0.10.7 until the maintainer releases the minor. Consumers that
-share `ic-auth-wire::wire` Rust types must select matching Auth 0.11 packages and
-Wire 0.5 after publication. Consumers using only domain/session APIs need no new
-codec or DTO translation merely for this dependency change.
+Auth 0.11 introduced the Wire 0.5 dependency cut; Auth 0.13 retains it. Consumers
+sharing `ic-auth-wire::wire` Rust types select matching Auth 0.13 packages and
+Wire 0.5. Consumers using only domain/session APIs need no new codec or DTO
+translation merely for this dependency change.
 
 Wire no longer implies owned deserialization. Add an explicit
 `serde::de::DeserializeOwned` bound to `M::Request` in owned generic request
@@ -139,7 +141,7 @@ proof/type/session capabilities select no runtime feature.
 
 ## Platform 0.6 migration
 
-Pending Auth 0.13 adopts published Platform/macros 0.6.0. Consumers sharing Auth's
+Released Auth 0.13 adopts published Platform/macros 0.6.0. Consumers sharing Auth's
 owned Principal, parse errors or imported canister-signature key type must align
 their direct Platform dependency to 0.6. Type-only consumers must select
 `features = ["principal"]` with defaults disabled. Auth's protocol-types package

@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.13.1]
+
+- Correct the current Canic/browser adoption guides to select released Auth
+  0.13, Wire 0.5 and Platform 0.6 with explicit `principal`. Remove obsolete
+  pending-release instructions and the old upstream Principal recommendation.
+  Production issuer, durable host and abuse acceptance remain in their existing
+  owning issues; no endpoint, storage adapter or deployment is implied.
+
 ## [0.13.0] - 2026-10-21
 
 - Regenerate the browser Wire runtime from the locked IC Wire 0.5.7 generator,

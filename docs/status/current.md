@@ -2,19 +2,18 @@
 
 ## Source and selections
 
-Baseline is released Auth 0.12.1 at
-`88edebd5aa4394f70fd6c9f1ecb949905c470164`. Own package versions remain 0.12.1.
-Pending notes now select **0.13.0** because published Platform/macros **0.6.0**
-change the public Rust Principal/signature-key crate identity. Consumers sharing
-these types must align to Platform 0.6; type-only consumers explicitly select
-`principal`. Auth's protocol-types manifest selects it without runtime/Candid.
+Baseline is released/published Auth **0.13.0** at
+`d1d3607ea391d0cf20469211bfd46d4624e69ca3`; package versions remain 0.13.0.
+Pending notes select **0.13.1** for the current adoption-documentation repair.
+Platform 0.6 owns Auth's public Principal/signature-key Rust identities;
+consumers sharing them align to Platform 0.6. The protocol-types dependency
+explicitly selects `principal` without runtime/Candid.
 See [consumer migration](../canic-adoption.md#platform-06-migration).
 
-Adopt published coordinated IC Tooling **0.63.0** (Build, Testkit, Host
-FS/Process/Artifacts). Exact downloaded archives match Cargo.lock checksums;
-packaged source and migration contracts were reviewed. Preserve the incoming
-Memory **0.50.3**, Wire/derive **0.5.7**, native Candid/derive **0.10.39** and
-Platform/macros **0.6.0** selections. Testkit no longer selects IC Metrics or
+The released 0.13.0 qualification selected IC Tooling **0.63.0** (Build, Testkit,
+Host FS/Process/Artifacts), Memory **0.50.3**, Wire/derive **0.5.7**, native
+Candid/derive **0.10.39** and Platform/macros **0.6.0**. Downloaded archive
+checksums and packaged migration contracts were reviewed against that source. Testkit no longer selects IC Metrics or
 Platform 0.5, removing both from the lock. The separately pinned file CLI stays
 0.31.1. Shared Tooling 0.25.8 and its canonical 118-file snapshot are unchanged;
 there are no sibling/path overrides or Auth version changes.
@@ -44,7 +43,7 @@ Platform 0.6 adds explicit Principal feature selection and omits unused imported
 creation-only delegation/CBOR helpers. Auth keeps its crypto policy and exact
 signed bytes. No storage or browser-journal migration is introduced. SHA-2/Dalek
 major changes remain separate; the adversarial Dalek trigger remains test-only.
-Browser dependencies and Auth DTO bindings are unchanged. The committed runtime
+Browser dependencies and Auth DTO bindings were unchanged by the 0.13 release. The committed runtime
 was stale after the Wire selection changed; `make generate-client-contracts` now
 refreshes it from locked Wire 0.5.7. Its registry-size cache is per codec operation,
 with unchanged frames and alias/limit checks. `make test-client` passes all 47 tests
@@ -103,10 +102,36 @@ publication or deployment is performed.
 Formatting, shell lint, documentation links, snapshot and dependency pins pass.
 No complete CI, production wallet issuer, durable backend or Canic deployment
 acceptance is claimed. The released receipt qualifies its older source/lock,
-not this working batch. Pending numbered notes remain 0.13.0.
+not the independent incoming Wire 0.5.8 lockfile update.
 
 Task before-images, incoming diff, published archive/source identities, graph
 observations and checks are in `target/ic-tooling-adoption-20261021/`. Prior
 cleanup and dependency evidence remains in `target/local-cleanup-20261021/` and
 `target/candid-upstream-review-20261021/` respectively. Incoming unrelated work,
 the real index, HEAD and package versions are preserved; siblings stay read-only.
+
+## Production issue follow-through
+
+Auth #82 is closed: published protocol-types 0.13 directly exchanges Principal
+with Platform 0.6.1 in an isolated Rust 1.91 native/Wasm consumer. The three
+remaining trackers retain their original acceptance: [issuer/browser integration
+#3](https://github.com/dragginzgame/ic-auth/issues/3), [durable host acceptance
+#58](https://github.com/dragginzgame/ic-auth/issues/58), and [production abuse
+qualification #59](https://github.com/dragginzgame/ic-auth/issues/59). Corrected
+current adoption guidance no longer tells consumers to use 0.10.7, upstream
+Principal or wait for already-published 0.11/0.13 dependency cuts.
+
+Read-only Canic source at `c63bdca652bc7b4dd82afafc2e16e0de7b6637b7`
+plus active owner changes selects Auth 0.13. Its authorization facade still
+returns only denials; the shared SessionStore module is test-only, with active
+owner edits. The issuer API still exposes proof install/status, not production
+portable issuance/reconciliation. These observations are not a Canic build or
+deployment audit. Consumer acceptance remains in Canic #491/#507; do not replace
+it with another Auth endpoint, stable allocator or fixture-based completion claim.
+
+This documentation batch changes no authentication implementation, public API,
+format, endpoint or backend. Formatting, local links, snapshot and diff checks
+pass; Rust/product suites are not rerun for prose. The independently changing
+Cargo.lock remains outside this batch; dependency updates need their own generated-client and product qualification before release. No issue is
+closed solely because the reusable Auth pieces already shipped. Evidence and
+before-images: `target/auth-production-followthrough-20261021/`.
