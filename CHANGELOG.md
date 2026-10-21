@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.13.1]
+## [0.13.1] - 2026-10-21
 
 - Refresh the generated browser runtime for locked Wire 0.5.9, including its
   bounded float handling and shared frame views. Auth DTOs and frame bytes remain
