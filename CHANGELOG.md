@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.14.1]
+## [0.14.1] - 2026-10-21
 
 - Extend SDK/receiver qualification to two browser logins for the same account
   across two receivers. Check independent sessions and logout, original lease
