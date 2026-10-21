@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.13.0]
+
+- **Breaking Rust dependency identity:** select published Platform/macros 0.6.0.
+  Consumers sharing Auth's Principal or signature-key types must align to Platform
+  0.6; type-only consumers explicitly select `principal`. Signed bytes, Wire
+  frames, storage and runtime semantics are unchanged.
+- Select coordinated IC Tooling 0.63.0, preserving incoming Memory 0.50.3 and
+  Wire/derive 0.5.6. Testkit removes its Candid call adapter and IC Metrics edge,
+  and aligns to Platform 0.6; the old native Platform 0.5 identity leaves the lock.
+  Retain the preceding Platform cache/message-buffer improvements and remove
+  unused upstream creation-only delegation/CBOR helpers; no cryptography changes.
+- Prepare Build/Testkit executables with explicit `cli` features, keeping them
+  disabled for library dependencies. Bind release-editor features to the saved
+  source manifest alongside its lock, preserving pre-CLI recovery and refusing
+  invalid feature policy. Retain the independent file-CLI pin and server bytes.
+- Document the native qualification paths that retain Candid 0.10.39 through
+  Agent, Testkit and PocketIC. Public Auth capability and qualification-Wasm
+  dependency graphs continue to exclude Candid; application endpoints use Wire.
+- Export release fixtures from one current Git working-source selection instead
+  of archived HEAD plus manual overlays. Qualify additions, staged differences,
+  deletions, ignored output and source/index preservation; Shared Tooling retains
+  file admission and copying. Real release/recovery/publication policy is unchanged.
+- Centralize private grant, scope and label ceilings while preserving their
+  independent validation boundaries, values and error precedence. Keep session
+  request scopes distinct from offered grant scopes.
+- Replace stale release history in current guides with current contracts and
+  correct the documented publication list to include `ic-auth-wire`.
+
 ## [0.12.1] - 2026-10-20
 
 - Adopt the coordinated IC Tooling 0.62.0 packages: Host FS/Process, Build and

@@ -54,13 +54,13 @@ source `0a2d2ee3b5e0ae77755c2915ac28836d4d5ba359`, recorded in
 
 ## Platform boundary
 
-Use feature-free published `ic-platform` for the protocol's canonical Principal
-and its `agent` capability for native ingress identities. Application protocols,
+Use published `ic-platform` with only `principal` for the protocol's canonical
+Principal and its `agent` capability for native ingress identities. Application protocols,
 generated browser contracts and private qualification controls use IC Wire.
 The fixture exposes only Wire methods, with no Candid projection or direct
 declaration. Its old
 Candid checkpoint is explicitly retired; production storage is unaffected.
-Platform 0.5.0 owns Principal and its parse errors. Convert explicitly through
+Platform 0.6 owns Principal and its parse errors. Convert explicitly through
 `principal::ExternalPrincipal` at upstream Agent/Testkit/crypto boundaries; keep
 application/runtime identities owned and preserve original bytes. It supplies
 Platform-owned canister-signature key/hash code and upstream certificate-tree,

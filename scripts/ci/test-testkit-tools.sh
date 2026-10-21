@@ -41,13 +41,14 @@ if [[ $# == 5 && "$1" == --consumer && "$2" == "$TESTKIT_FIXTURE_CONSUMER" &&
     printf 'rust preflight\n' >> "$TESTKIT_FIXTURE_LOG"
     exit "${TESTKIT_FIXTURE_RUST_PREFLIGHT_STATUS:-0}"
 fi
-[[ $# == 10 || $# == 11 ]] || exit 1
+[[ $# == 12 || $# == 13 ]] || exit 1
 [[ "$1" == --consumer && "$2" == "$TESTKIT_FIXTURE_CONSUMER" &&
    "$3" == --package && "$4" == ic-testkit && "$5" == --lockfile &&
    "$6" == Cargo.lock && "$7" == --bin && "$8" == ic-testkit-server &&
-   "$9" == --profile && "${10}" == debug ]] || exit 1
-if [[ $# == 11 ]]; then
-    [[ "${11}" == --check ]] || exit 1
+   "$9" == --profile && "${10}" == debug &&
+   "${11}" == --features && "${12}" == cli ]] || exit 1
+if [[ $# == 13 ]]; then
+    [[ "${13}" == --check ]] || exit 1
     printf 'cli check\n' >> "$TESTKIT_FIXTURE_LOG"
     if ! cmp -s "$TESTKIT_FIXTURE_LOCK" "$TESTKIT_FIXTURE_CONSUMER/Cargo.lock"; then
         if [[ "${TESTKIT_FIXTURE_CHANGED_CLI_READY:-0}" == 1 ]]; then

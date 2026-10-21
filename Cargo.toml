@@ -27,8 +27,8 @@ ic-auth = { path = "crates/ic-auth" }
 ic-auth-protocol-types = { version = "0.12.1", path = "crates/ic-auth-protocol-types" }
 ic-auth-wire = { version = "0.12.1", path = "crates/ic-auth-wire" }
 # Platform owns Principal and imported signature code; other crypto identities stay upstream.
-# Empty defaults keep protocol, portable and session consumers free of IC runtime.
-ic-platform = { version = "0.5", default-features = false }
+# Principal is explicit; protocol, portable and session consumers need no IC runtime.
+ic-platform = { version = "0.6", default-features = false }
 ic-wire = "0.5"
 leb128 = "0.2"
 serde = { version = "1", features = ["derive"] }
@@ -42,12 +42,16 @@ clap = { version = "4", default-features = false, features = ["derive", "error-c
 # Adversarial feature trigger only; production and test crypto APIs use Platform.
 ed25519-dalek = { version = "2.2", default-features = false }
 ic-auth-qualification-contracts = { path = "apps/qualification/contracts" }
-ic-build = "0.62"
-ic-host-fs = { version = "0.62", default-features = false }
-ic-host-process = { version = "0.62", default-features = false }
+ic-build = { version = "0.63", default-features = false }
+ic-host-fs = { version = "0.63", default-features = false }
+ic-host-process = { version = "0.63", default-features = false }
 ic-memory = "0.50"
-ic-testkit = "0.62"
+ic-testkit = { version = "0.63", default-features = false }
 tokio = { version = "1", features = ["rt-multi-thread", "sync", "time"] }
+
+[workspace.metadata.ic-auth]
+# Executable features are source-owned recovery inputs, not library features.
+release-editor-features = ["cli"]
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

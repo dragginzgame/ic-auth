@@ -101,7 +101,7 @@ pub(crate) fn validate_ttl_policy(default: u64, maximum: u64) -> Result<(), Sess
 }
 
 pub(crate) fn check_scopes(scopes: &[String]) -> Result<(), SessionRequestError> {
-    if scopes.is_empty() || scopes.len() > 16 {
+    if scopes.is_empty() || scopes.len() > crate::limits::MAX_SESSION_SCOPES {
         return Err(SessionRequestError::InvalidRequest);
     }
     // The count bound and canonical 64-byte label bound imply <=1024 bytes.

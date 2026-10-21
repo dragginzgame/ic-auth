@@ -59,10 +59,10 @@ pub(crate) fn check_proof_size(
 
 fn grants_valid(grants: &[DelegatedRoleGrant]) -> Result<(), DelegationProofError> {
     if grants.is_empty()
-        || grants.len() > 16
-        || grants
-            .iter()
-            .any(|grant| grant.scopes.is_empty() || grant.scopes.len() > 32)
+        || grants.len() > crate::limits::MAX_GRANTS
+        || grants.iter().any(|grant| {
+            grant.scopes.is_empty() || grant.scopes.len() > crate::limits::MAX_SCOPES_PER_GRANT
+        })
     {
         return Err(DelegationProofError::InvalidGrants);
     }

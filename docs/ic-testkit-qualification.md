@@ -9,12 +9,16 @@ Earlier pairings and benchmarks are preserved in
 
 ## Setup and ownership
 
-The root catalog/lock select published Testkit 0.62.0 from
-[IC Tooling](https://github.com/dragginzgame/ic-tooling) and Platform 0.5.0.
+The root catalog/lock select published Testkit 0.63.0 from
+[IC Tooling](https://github.com/dragginzgame/ic-tooling) and Auth's Platform 0.6.0.
 Application identities use owned Principal; direct Testkit/Agent calls convert
-explicitly to their retained external type. Testkit now selects Platform 0.5
-itself; no dependency override is needed. Its native Candid capability remains
-outside public Auth library and deployed-Wasm graphs.
+explicitly to their retained external type. Testkit also selects Platform 0.6
+itself; no dependency override is needed. The remaining native Candid dependencies stay
+outside public Auth library and deployed-Wasm graphs. Testkit no longer supplies
+Candid helpers or selects Platform's `candid` feature; native Agent/PocketIC
+still require their own Candid dependencies.
+See [the native Candid paths](development.md#why-candid-appears-in-cargolock) for
+the Agent, Testkit and PocketIC dependencies retained in the workspace lockfile.
 Platform owns native Agent/delegated identity imports. Agent remains transitive
 with its native PEM feature; caller/root-key and request policy remain with the
 fixture. There is no direct Agent declaration or local facade. Testkit supplies
@@ -23,7 +27,8 @@ re-export. Only the native runner enables its `wire` feature; IC Wire owns the
 codec and finite method limits. Deliberately malformed inputs and byte-level
 evidence continue to use raw calls. Testkit owns server selection, authenticated
 asset preparation and bounded startup.
-`make install-testkit-tools` explicitly prepares the selected CLI/server;
+`make install-testkit-tools` explicitly prepares the selected CLI/server with
+the required `cli` feature; library consumers keep it disabled;
 `make testkit-tools-check` admits it offline. Tests do not install or select an
 older executable. The browser fixture separately requires explicitly prepared
 Node/npm dependencies; see [client setup](development.md#browser-client-setup).
@@ -34,7 +39,7 @@ remain under a unique `target/portable-fixtures/qualification.*` directory after
 success or failure. The canister uses Platform runtime and generated entrypoint
 macros with explicit Wire codec hooks; the direct CDK exception is removed
 ([Platform #21](https://github.com/dragginzgame/ic-platform/issues/21)).
-IC Memory 0.50.0 from [IC Persistence](https://github.com/dragginzgame/ic-persistence)
+IC Memory 0.50.3 from [IC Persistence](https://github.com/dragginzgame/ic-persistence)
 supplies checkpoint-cell mechanics, and Platform supplies raw length
 admission before CDK copying, counter-zero measurements, certified-tree types
 and canister-signature key/hash operations. Its `cdk` capability now supplies

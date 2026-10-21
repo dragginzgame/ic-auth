@@ -2,10 +2,10 @@
 
 The virtual root owns the protocol/types, Auth engine and Wire transport libraries,
 unpublished native tooling in `apps/tooling/` and the reference host/runner in
-`apps/qualification/`. The root catalog and lock select published Platform 0.5.0,
-the coordinated Host FS/Process, Build and Testkit 0.62.0 packages from
-[IC Tooling](https://github.com/dragginzgame/ic-tooling), Memory 0.50.0 from
-[IC Persistence](https://github.com/dragginzgame/ic-persistence) and the Wire 0.5.3
+`apps/qualification/`. The root catalog and lock select published Platform 0.6.0,
+the coordinated Host FS/Process, Build and Testkit 0.63.0 packages from
+[IC Tooling](https://github.com/dragginzgame/ic-tooling), Memory 0.50.3 from
+[IC Persistence](https://github.com/dragginzgame/ic-persistence) and the Wire 0.5.6
 codec/TypeScript generator. The [handoff](status/current.md) records exact evidence;
 [session contracts](sessions.md) distinguish supported behavior from pending hosts.
 Rust `1.99.1` remains the development compiler selected by `rust-toolchain.toml`.
@@ -84,8 +84,10 @@ fast-forward the development checkout when its own pending work permits it.
 ### Editor preparation and recovery
 
 Shared 0.25.1 delegates Cargo manifest and lock rendering to the released IC Build
-editor. Auth's normal release preflight prepares and admits the selected editor
-after source and changelog admission, alongside the other required tools. The
+editor. The selected Build 0.63 binary requires `cli`; Auth records its executable
+features in `workspace.metadata.ic-auth.release-editor-features`, separately from
+its feature-free library dependency. Auth's normal release preflight prepares and
+admits the selected editor after source and changelog admission, alongside the other required tools. The
 adapter selects the absolute path internally; no shell export is required.
 
 For offline checks outside a release, explicitly prepare the current selection:
@@ -97,11 +99,13 @@ make release-tools-check
 
 The check prints the admitted path and never installs anything. Auth uses an
 8 MiB per-input allowance. Recovery reads both member identities and the editor
-selection from the validated Git source, so a newer or partially prepared live
-manifest/lock cannot change either. Recovery/checks only admit the already
-prepared saved-source editor offline; they never install or rebuild it. The
+selection, including executable features, from the validated Git source, so a
+newer or partially prepared live manifest/lock cannot change either. Recovery
+and checks only admit the already prepared saved-source editor offline; they never install or rebuild it. The
 manual setup target uses today's lockfile; `scripts/dev/release-tools.sh` also
-accepts an explicit saved `LOCKFILE` for deliberate historical tool preparation.
+accepts an explicit saved `LOCKFILE` and `SOURCE_MANIFEST` for deliberate historical
+tool preparation. Sources before CLI feature gating have no feature declaration;
+their existing feature-free editor selection stays valid.
 CI prepares and checks the editor before release fixtures. No release/publication
 is performed by either setup/check command. The old Perl editors and Auth's
 manifest rewrite wrapper are retired; application APIs and package versions are
@@ -109,7 +113,7 @@ unchanged.
 
 ## Crypto dependency boundary
 
-Auth selects Platform 0.5.0's independent `ecdsa` capability for chain-key
+Auth selects Platform 0.6.0's independent `ecdsa` capability for chain-key
 verification and `ed25519` for portable signatures. Original K256/Dalek types and
 cryptography stay upstream. Auth owns prehash construction, high-S refusal,
 explicit producer normalization, canonical-scalar checks and verification policy.
@@ -119,12 +123,16 @@ remain direct general-purpose dependencies with current Auth-owned consumers.
 Testkit retains the native simulator and server-lifecycle interface; routing its
 already shared runtime re-export again would not remove a direct dependency.
 
-Native file and process callers select Host FS/Process 0.62.0 with defaults
+Native file and process callers select Host FS/Process 0.63.0 with defaults
 disabled. Library use does not enable Host's optional CLI, certificate decoder
 or Wasm text/encoding backends. Host stays outside the production library graph.
-Build and Testkit 0.62 select the same Host 0.62 identities as Auth's direct
+Build and Testkit 0.63 select the same Host 0.63 identities as Auth's direct
 callers; no dependency override or old Host family is needed. The independently
 pinned file CLI is unchanged by library upgrades.
+Build and Testkit libraries keep `cli` disabled; only the prepared executable
+selections request it. Testkit 0.63 owns its benchmark-average errors and no longer
+selects IC Metrics. Auth uses neither the removed Candid helpers nor Metrics
+error identities, so no call adapter or compatibility layer is needed.
 
 The native Auth CLI uses Clap for its client-contract generation and external-lock
 commands. Generic file operations now use the separately prepared published
@@ -170,13 +178,13 @@ validate role comments mechanically, or qualify unlisted feature combinations.
 
 ## IC Platform boundary
 
-The protocol package uses published `ic-platform` 0.4.0 without features for its
-owned Principal and parse-error types, with no Candid or runtime edge. Convert
+The protocol package selects published `ic-platform` 0.6.0 with only `principal`
+for its owned Principal and parse-error types, with no Candid or runtime edge. Convert
 explicitly at Agent/Testkit/crypto boundaries using Platform's
 `principal::ExternalPrincipal`; the upstream type and cryptography remain there.
 Significant bytes, ordering and binary serialization remain compatible; text
 longer than 63 bytes is now refused before normalization. See the
-[consumer migration](canic-adoption.md#platform-04-migration). No storage migration
+[consumer migration](canic-adoption.md#platform-06-migration). No storage migration
 or replacement cryptography is introduced.
 
 Private controls and diagnostics now use bounded Wire contracts under
@@ -214,7 +222,7 @@ its Principal field remains external. DER/CBOR bytes, cryptographic bodies, erro
 resource admission and protected authority stay intact. These capabilities now
 select no Candid, raw IC calls or executor; no local replacement is introduced.
 
-Platform 0.5.0's `cdk` feature supplies maintained runtime adapters and explicit
+Platform 0.6.0's `cdk` feature supplies maintained runtime adapters and explicit
 codec entrypoints without depending on the full CDK or selecting Candid. The
 host's runtime calls and lifecycle/query/update macros use `ic_platform::cdk`;
 no local runtime wrapper is introduced. Explicit Wire hooks, including unit RPCs,
@@ -224,9 +232,9 @@ The retired no-op `hidden = true` option is removed from all fixture entrypoints
 explicit Wire decoding/encoding and endpoint exports remain unchanged.
 
 Auth keeps runtime-specific call/error types internal and uses none of the
-retired storage or `change_timeout` APIs. Its public Principal acquires a Platform 0.5 crate identity, so consumers
-sharing that type
-must align to Platform 0.5; see [the migration](canic-adoption.md#platform-05-migration).
+retired storage or `change_timeout` APIs. Its public Principal has a Platform 0.6
+crate identity, so consumers sharing that type must align to Platform 0.6 and explicitly select `principal` when
+using Platform types alone; see [the migration](canic-adoption.md#platform-06-migration).
 Native Agent/Testkit retain their independently selected Platform/Candid graph.
 Counter-zero measurements continue using the exact raw API, equivalent to CDK's
 conversion of the same constant.
@@ -251,6 +259,34 @@ unused catalog entries or infer exclusions from role comments. There is one
 workspace/lockfile and no independent maintained fixture workspace. These checks
 still do not bind another application's deployed artifact to its source/lockfile;
 consumer deployment admission and native macOS qualification remain separate.
+
+### Why Candid appears in Cargo.lock
+
+The one workspace lockfile includes native qualification dependencies as well as
+the deployed packages. The runner in `apps/qualification/runner/` selects
+Platform's `agent` feature for real signed ingress, and Testkit's `wire` feature
+for application calls. Candid still arrives through two native paths:
+
+- Platform `agent` selects IC Agent, which depends on Candid and IC transport types.
+- Testkit selects Platform `pocket-ic`; PocketIC's client, transport and management
+  types also depend on Candid.
+
+Testkit 0.63 removes its own Candid helpers and no longer enables Platform's
+`candid` feature. Platform's boundary does not remove Agent or PocketIC's native
+dependencies. All Auth application requests remain Wire frames.
+
+A workspace-wide reverse tree unifies Platform features across selected members,
+so it can print Candid beneath shared Auth dependencies. Inspect isolated package
+and target graphs to determine deployment dependencies. These checks are offline:
+
+```sh
+cargo tree --locked --offline --workspace -i candid
+make check-boundaries
+```
+
+The first command explains the native paths; the second checks every supported
+public library capability on native/Wasm and the qualification canister's Wasm
+normal/build graph, rejecting Candid and its Platform feature where prohibited.
 
 ## Setup
 
@@ -546,8 +582,8 @@ Signature tests exercise real cryptography with deterministic fixture trust keys
 including root/subnet chains, and preserve Canic's signature-domain bytes. They
 do not establish live network trust,
 session admission, PocketIC behavior, service upgrades or independent consumer
-adoption. Token tests additionally verify root batch ECDSA signatures and issuer
-BLS certification together with caller, narrowing and current authority inputs;
+adoption. Certified-proof tests additionally verify root batch ECDSA signatures
+and issuer BLS certification together with caller, narrowing and current authority inputs;
 see the [signature](signatures.md) and [delegation](delegation.md) contracts. Session tests
 cover admission and authorization with a volatile backend and a failing staged
 transaction; they do not qualify stable canister storage or lifecycle. The
@@ -566,23 +602,22 @@ Fresh release preflight includes [release editor setup](#release-editor-setup).
 Exact recovery uses the already prepared saved-source selection offline.
 
 ```sh
-make release-patch                 # compatible patch increment: 0.4.4 -> 0.4.5
-make release-minor                 # breaking pre-1.0 contract: 0.4.4 -> 0.5.0
-make release-major                 # explicit major decision: 0.4.4 -> 1.0.0
+make release-patch                 # compatible patch increment
+make release-minor                 # breaking pre-1.0 contract
+make release-major                 # explicit major decision
 make release-resume VERSION=X.Y.Z   # reconcile the exact saved attempt
 make publish-dry-run               # validate packages without upload
 make publish                       # upload a clean, delivered tagged release
 ```
 
-Released 0.4.0 carries the diagnostic hard cut at the required minor boundary.
-Released 0.4.1 adopts Shared Tooling 0.5.0 without changing the library contract.
-Released 0.4.2 adds pure [token preparation](delegation.md#retired-delegated-token-lifecycle), adopts Shared
-Tooling 0.6.0 and qualifies native dependency updates. Released 0.4.3 fixes browser
-flight result validation. Released 0.4.4 adopts Shared Tooling 0.6.1's setup failure
-propagation and qualifies the incoming native selections. Released 0.4.5 adopts
-Shared Tooling 0.6.3's restart of committed preparation. Existing Rust APIs,
-signed bytes, stored formats and consumer build requirements remain unchanged.
-Release execution still requires an explicit request for the selected command.
+Release execution requires an explicit request for the selected command.
+Release-by-release adoption history belongs in the [changelog](../CHANGELOG.md).
+
+`make test-release-tools` exercises current working sources in a disposable
+export, including nonignored additions and deletions. Git-ignored build output
+and prepared dependencies stay out. The shared fixture helper admits and copies
+files; local regression tests check selection and preserve source/index bytes.
+This test export does not relax actual release preflight's clean-source rule.
 
 Pending numbered changelog headings may use `## [X.Y.Z]` or
 `## [X.Y.Z] - Unreleased`. Standard release preparation replaces the marker with
@@ -604,28 +639,13 @@ destinations and plans with staging or later effects keep exact-source refusal.
 See [Auth #28](https://github.com/dragginzgame/ic-auth/issues/28) and
 [Shared #126](https://github.com/dragginzgame/shared-tooling/issues/126).
 
-Released `0.1.13` adopts Shared Tooling 0.1.36's selected Cargo installer and
-receipt/path/failure-status checks, dependency-preparation guidance and Host
-Tooling 0.8.9. Product CLI selections and profiles remain consumer-owned;
-that release preserved its then-current PocketIC setup. Released `0.1.14` documents
-the [Canic library adoption contract](canic-adoption.md) and qualifies its token
-issuance Candid envelopes in both directions. Released `0.2.0`
-extends that qualification to complete tokens and root/issuer proof transport.
-It also adopts Shared Tooling 0.2.0's breaking PocketIC ownership handoff. Run
-explicit `make install-tools` after updating: the shared IC bundle now holds
-five tools, and the locked Testkit CLI owns server setup and offline admission.
-`make install-testkit-tools` prepares only that CLI/server route;
-`make testkit-tools-check` returns the admitted absolute server path without
-downloading. A lockfile update that changes Testkit selects a new versioned CLI,
-even when its PocketIC server is unchanged. Explicitly rerun
-`make install-testkit-tools` before qualification; a missing CLI check reports
-the selected package/version and preparation command, preserving its failure
-status without installing or falling back to an older CLI.
-Shared 0.3.7 owns the lockfile selection directly through the Cargo installer's
-`--lockfile Cargo.lock` argument. The wrapper delegates parsing and CLI admission
-to that owner, then re-admits the current CLI offline after Testkit's server
-operation. A changed selection refuses, including when the newly selected CLI
-is already installed. Checks never prepare a missing selection.
+The locked Testkit package selects its versioned setup/check CLI, even when
+its server version is unchanged. After a selection change, explicitly run
+`make install-testkit-tools`; `make testkit-tools-check` returns the admitted
+absolute server path offline. The Cargo installer owns lockfile selection and
+CLI admission; Auth re-admits the same CLI after its server operation. Missing
+or changed selections refuse with the preparation command and original failure
+status. Checks never install or fall back to an older CLI.
 
 `make test-formatting-hooks` selects current Rust files/manifests and tracked
 deletions through Shared Tooling, then checks actual staged formatting, partial-stage and
@@ -639,21 +659,7 @@ integrity. Standalone qualification admits Testkit before dispatching the Wasm
 build, with explicit sequencing that also applies to parallel Make.
 `make test-testkit-tools` checks caller selection, failures and
 offline qualification with substituted effects. Canic's actual adapter and
-durable host qualification remain consumer-owned. Released
-`0.1.12` added portable MSRV checking, retained setup evidence
-and Shared Tooling 0.1.34 optional fleet selection/path handling, plus Host 0.8.8
-streaming file identities and Testkit 0.25.4 runtime qualification. Released `0.1.11` added
-Host Tooling 0.8.5 and opt-in transactional browser storage. See
-[the handoff](ic-tools.md#pocketic-ownership-handoff) for the new server owner and
-retained-bundle disposition.
-Released `0.1.8` added qualified minimum-compiler
-coverage and Shared Tooling 0.1.28 adoption. Existing encoding, signature, token
-and session APIs and signed bytes are unchanged. Released `0.1.7` added IC Testkit
-qualification; signature preparation was introduced in `0.1.6`. Native SDK/CDK
-dependencies belong only to the qualification apps.
-The earlier `0.1.2` rename used the maintainer's explicitly selected exception
-to the usual pre-1.0 minor requirement; later changes follow the normal
-[shared release contract](releases.md). Commit the implementation
+durable host qualification remain consumer-owned. Commit the implementation
 before executing a release; only pending notes may be dirty at ordinary preflight.
 
 All three release targets use the adopted runner, the same `make ci` gate and
@@ -689,8 +695,8 @@ and build artifacts on failure and success. Rerun the same normal target for
 recovery; explicit resume selects one saved version. Late checks read the selected
 release commit even if HEAD contains later work. Releases do not publish crates.
 
-`make publish` selects only `ic-auth-protocol-types` and `ic-auth`, in that dependency order,
-and always targets crates.io. It requires a clean worktree, the exact annotated
+`make publish` selects `ic-auth-protocol-types`, `ic-auth` and `ic-auth-wire`,
+in that dependency order, and always targets crates.io. It requires a clean worktree, the exact annotated
 tag at HEAD, a validated release receipt and the same tag object on the selected
 remote. Cargo builds the distributable archives before dispatch. Each package
 includes its MIT notice; the package-local copies must match the root license.

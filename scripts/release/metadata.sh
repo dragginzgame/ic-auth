@@ -45,9 +45,9 @@ render() {
     # Select from the already validated source lock, never a shell export or a
     # partially prepared live graph. Recovery/checks admit only; no setup here.
     local editor
-    editor="$(bash scripts/dev/release-tools.sh check "$scratch/base.lock")" ||
-        fail 'saved-source release editor is not prepared; run make install-release-tools'
     git show "$RELEASE_SOURCE:Cargo.toml" > "$scratch/base.toml"
+    editor="$(bash scripts/dev/release-tools.sh check "$scratch/base.lock" "$scratch/base.toml")" ||
+        fail 'saved-source release editor is not prepared; run make install-release-tools'
     yq -p toml -o json '.' "$scratch/base.toml" | jq -e --arg previous "$RELEASE_PREVIOUS" \
         '.workspace.package.version == $previous and .workspace.dependencies."ic-auth-protocol-types".version == $previous' > /dev/null || fail 'source version mismatch'
     yq -p toml -o json '.' "$scratch/base.toml" > "$scratch/base.json"
@@ -131,8 +131,9 @@ case "$operation" in
         # A fresh, explicitly requested release prepares every required product
         # tool before validation. Recovery above only admits the saved selection.
         git show "$RELEASE_SOURCE:Cargo.lock" > "$scratch/base.lock"
-        bash scripts/dev/release-tools.sh install "$scratch/base.lock"
-        bash scripts/dev/release-tools.sh check "$scratch/base.lock" > /dev/null
+        git show "$RELEASE_SOURCE:Cargo.toml" > "$scratch/base.toml"
+        bash scripts/dev/release-tools.sh install "$scratch/base.lock" "$scratch/base.toml"
+        bash scripts/dev/release-tools.sh check "$scratch/base.lock" "$scratch/base.toml" > /dev/null
         ;;
     verify)
         [[ "$(git rev-parse HEAD)" == "$RELEASE_SOURCE" ]] || fail 'validation source mismatch'

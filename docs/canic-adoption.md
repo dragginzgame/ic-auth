@@ -118,15 +118,15 @@ Native Agent/Testkit still select their independently maintained Candid graph.
 
 ## Platform 0.5 migration
 
-Auth 0.12 selects published Platform 0.5.0. Auth exposes its owned
+Auth 0.12 introduced published Platform 0.5.0. Auth exposes its owned
 `Principal`, so Rust consumers sharing that type must align their direct Platform
 dependency to 0.5. Import paths stay unchanged;
 0.4 and 0.5 are distinct Rust crate/type identities. Required external DTOs and
 Agent/Testkit parameters still use `principal::ExternalPrincipal` with explicit
 byte-preserving conversions. Consume Testkit and Memory's independently
 published selections without a local identity compatibility facade or override.
-Current Testkit 0.62 selects Platform 0.5 too; older Testkit releases retain their
-own Platform identity.
+Testkit 0.62 paired with Platform 0.5; current Testkit 0.63 aligns to Platform
+0.6. Older Testkit releases retain their own Platform identity.
 
 Signed claims, frozen Wire frames, session/replay/login encodings and generated
 TypeScript retain their bytes. This is a Rust dependency-identity cut, with no
@@ -136,6 +136,23 @@ existing endpoints. It uses none of the removed checkpoint/reader APIs or
 `Call::change_timeout`; there is no replacement storage abstraction or wait-policy
 change in Auth. The host still requires `cdk` for entrypoint generation; public
 proof/type/session capabilities select no runtime feature.
+
+## Platform 0.6 migration
+
+Pending Auth 0.13 adopts published Platform/macros 0.6.0. Consumers sharing Auth's
+owned Principal, parse errors or imported canister-signature key type must align
+their direct Platform dependency to 0.6. Type-only consumers must select
+`features = ["principal"]` with defaults disabled. Auth's protocol-types package
+selects this explicitly; `runtime`, `cdk`, native clients and signature creation
+also select it upstream. No runtime feature is needed for passive protocol types.
+
+The independently published Testkit 0.63 now selects Platform 0.6 too.
+Auth keeps explicit external Principal conversions; no override or compatibility
+facade is needed. The qualification host and all
+public Auth capabilities select Platform 0.6. Signature creation drops unused
+upstream CBOR/delegation helpers; verification retains its required parser.
+Signed claims, Wire frames, stored records, crypto policy and lifecycle semantics
+remain unchanged; no storage or browser-journal migration is introduced.
 
 ## One application flow and host obligations
 

@@ -103,7 +103,12 @@ pub fn validate_claims_context(
         || context.issuer == Principal::anonymous()
         || context.authority_not_before_ns >= context.authority_expires_at_ns
         || context.enrollment_expires_at_ns == 0
-        || validate_grants(context.grants, 16, 32).is_err()
+        || validate_grants(
+            context.grants,
+            crate::limits::MAX_GRANTS,
+            crate::limits::MAX_SCOPES_PER_GRANT,
+        )
+        .is_err()
     {
         return Err(Error::InvalidContext);
     }

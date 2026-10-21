@@ -24,6 +24,7 @@ pub use verified::VerifiedPortableClaims;
 
 use crate::canonical::{CanonicalAuthError, encode_principal, encode_role_grants};
 use crate::certificate_issuance::{GrantValidationError, validate_grants};
+use crate::limits::{MAX_GRANTS, MAX_LABEL_BYTES, MAX_SCOPES_PER_GRANT};
 use ic_auth_protocol_types::{
     AudienceId, CanonicalId, DelegatedRoleGrant, PortableClaims, PortableMechanism, Principal,
 };
@@ -32,9 +33,6 @@ use thiserror::Error;
 
 const DOMAIN: &[u8] = b"IC-AUTH-PORTABLE-CREDENTIAL\0";
 const SCHEMA: u16 = 1;
-const MAX_GRANTS: usize = 16;
-const MAX_SCOPES: usize = 32;
-const MAX_LABEL_BYTES: usize = 64;
 
 /// Hard cap on the signed claims blob, independent of outer transport limits.
 pub const MAX_CLAIMS_BYTES: usize = 65_536;
@@ -131,7 +129,7 @@ pub fn decode_claims(bytes: &[u8]) -> Result<PortableClaims, PortableEncodingErr
             .label()?
             .parse()
             .map_err(|_| PortableEncodingError::InvalidShape)?;
-        let count = input.count(MAX_SCOPES)?;
+        let count = input.count(MAX_SCOPES_PER_GRANT)?;
         let mut scopes = Vec::with_capacity(count);
         for _ in 0..count {
             scopes.push(input.label()?.to_owned());
@@ -182,7 +180,7 @@ fn validate_shape(claims: &PortableClaims) -> Result<(), PortableEncodingError> 
     if claims.account_subject == Principal::anonymous() {
         return Err(PortableEncodingError::AnonymousSubject);
     }
-    validate_grants(&claims.grants, MAX_GRANTS, MAX_SCOPES)?;
+    validate_grants(&claims.grants, MAX_GRANTS, MAX_SCOPES_PER_GRANT)?;
     if claims
         .grants
         .iter()

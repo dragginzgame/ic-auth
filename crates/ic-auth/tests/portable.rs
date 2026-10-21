@@ -187,6 +187,16 @@ fn no_normalization_or_unbounded_grants() {
     let bytes = encode_claims(&value).unwrap();
     assert!(bytes.len() < MAX_CLAIMS_BYTES);
     assert_eq!(decode_claims(&bytes).unwrap(), value);
+    // A grant may offer 32 scopes, while a session request narrows to at most 16.
+    // Keep these independent protocol ceilings even though grants/requests each
+    // happen to have a 16-item limit in different dimensions.
+    use ic_auth::session_request::{SessionRequest, SessionRequestError};
+    let offered = &value.grants[0].scopes;
+    assert!(SessionRequest::new(offered[..16].to_vec(), None).is_ok());
+    assert_eq!(
+        SessionRequest::new(offered[..17].to_vec(), None),
+        Err(SessionRequestError::InvalidRequest)
+    );
     value.grants[0].scopes.push("z".into());
     assert!(encode_claims(&value).is_err());
     value.grants[0].scopes.pop();
