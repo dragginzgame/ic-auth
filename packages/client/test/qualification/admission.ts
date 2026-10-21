@@ -3,18 +3,20 @@ import assert from 'node:assert/strict';
 import { IDBFactory } from 'fake-indexeddb';
 import type { Identity } from '@icp-sdk/core/agent';
 import { httpUpdateTransport } from '../../src/update-http.js';
-import * as establish from '../../src/generated/establish.js';
 import * as sessionRead from '../../src/generated/read.js';
 import { Ed25519KeyIdentity } from '@icp-sdk/core/identity';
 import { Principal } from '@icp-sdk/core/principal';
-type SessionResult = establish.Response;
+type SessionResult = sessionRead.Response;
 type SessionView = Extract<SessionResult, { ok: unknown }>['ok'];
 import { IndexedDbLogoutStore, PortableAdmissionClient, PortableLogoutClient, httpAdmissionTransport, httpLogoutTransport,
-  ClientError, credentialBytes, type PortableCredential } from '../../src/index.js';
+  AdmissionError, credentialBytes, type PortableCredential } from '../../src/index.js';
 
 export async function qualifyAdmission(host: string, issuer: Principal, receiver: Principal,
-  rootKey: Uint8Array, origin: bigint, credential: PortableCredential, subject: Principal): Promise<void> {
+  rootKey: Uint8Array, origin: bigint, credential: PortableCredential, subject: Principal, admissionUntilNs: bigint): Promise<void> {
   const identity = Ed25519KeyIdentity.generate(new Uint8Array(32).fill(9));
+  const account = Ed25519KeyIdentity.generate(new Uint8Array(32).fill(81));
+  assert.equal(account.getPrincipal().toText(), subject.toText());
+  assert.notEqual(account.getPrincipal().toText(), identity.getPrincipal().toText());
   const started = performance.now();
   const clock = { id: 'testkit-admission-clock',
     nowNs: () => origin + BigInt(Math.ceil((performance.now() - started) * 1_000_000)),
@@ -32,16 +34,18 @@ export async function qualifyAdmission(host: string, issuer: Principal, receiver
       } });
     const reply = await call(target, caller, arg, signal);
     assert.ok(reply.length <= 4_096);
-    return methodName === 'portable_session_read' ? sessionRead.decodeResponse(reply) : establish.decodeResponse(reply);
+    return sessionRead.decodeResponse(reply);
   }
   const factory = new IDBFactory();
   let store = await IndexedDbLogoutStore.open(factory, 'testkit-admission');
-  const original = { credential, admissionUntilNs: origin + 60_000_000_000n };
+  assert.ok(admissionUntilNs > origin);
+  const original = { credential, admissionUntilNs }; // Native issuer supplies the immutable original deadline.
   const originalFrame = credentialBytes(credential, 131_072);
   let issued = 0;
   let reconciled = 0;
   let lookupReady = false;
   let disposed = 0;
+  let accountProbes = 0;
   const admitted = new Map<string, SessionView>();
   const admit = httpAdmissionTransport({ host, methodName: 'establish_portable_session', rootKey,
     scopes: ['read'], fetch: async (input, init) => {
@@ -56,14 +60,22 @@ export async function qualifyAdmission(host: string, issuer: Principal, receiver
       dispose: async generation => { assert.equal(generation, 'sdk-admission'); disposed++; } }), () => 0);
     let journal = reopenJournal();
     await journal.start('sdk-admission', identity, issuer);
-    const clientFor = () => new PortableAdmissionClient(journal, 'sdk-admission', identity, issuer, {
-      issue: async () => {
+    const probeAccount = async (caller: Identity, signal: AbortSignal) => {
+      assert.equal(caller.getPrincipal().toText(), account.getPrincipal().toText());
+      const result = await update(issuer, 'portable_session_read', sessionRead.encodeRequest(null), caller, signal);
+      assert.ok('err' in result, 'account identity has no browser session');
+      accountProbes++;
+    };
+    const clientFor = () => new PortableAdmissionClient(journal, 'sdk-admission', { browser: identity, account }, issuer, {
+      issue: async (caller, signal) => {
+        await probeAccount(caller, signal);
         issued++;
         assert.equal((await journal.status('sdk-admission')).issuanceUnknown, true);
         throw new Error('injected lost issuer reply');
       },
       // Injected issuer lookup only: this does not qualify a production endpoint.
-      reconcile: async () => {
+      reconcile: async (caller, signal) => {
+        await probeAccount(caller, signal);
         reconciled++;
         assert.equal(issued, 1);
         if (!lookupReady) throw new Error('original issuer result unavailable');
@@ -86,7 +98,7 @@ export async function qualifyAdmission(host: string, issuer: Principal, receiver
     });
     const wrong = Ed25519KeyIdentity.generate(new Uint8Array(32).fill(10));
     await assert.rejects(admit(receiver, wrong, credential, signal),
-      (error: unknown) => error instanceof ClientError && error.code === 'transport');
+      (error: unknown) => error instanceof AdmissionError && error.refusal === 'InvalidCredential');
     let client = clientFor();
     const beforeRecovery = submissions.length;
     await assert.rejects(client.establish(issuer), /injected lost issuer reply/);
@@ -96,7 +108,7 @@ export async function qualifyAdmission(host: string, issuer: Principal, receiver
     journal = reopenJournal();
     client = clientFor();
     await assert.rejects(client.establish(issuer), /original issuer result unavailable/);
-    assert.equal(submissions.length, beforeRecovery);
+    assert.equal(submissions.length, beforeRecovery + accountProbes);
     assert.equal((await journal.status('sdk-admission')).issuanceUnknown, true);
     assert.equal(issued, 1);
     lookupReady = true;
@@ -106,13 +118,16 @@ export async function qualifyAdmission(host: string, issuer: Principal, receiver
     assert.equal(issued, 1);
     assert.equal(reconciled, 2);
     assert.equal(admitted.size, 2);
+    assert.ok((await journal.status('sdk-admission')).targets.every(target => target.admissionUntilNs === admissionUntilNs));
     for (const target of [issuer, receiver]) {
       const read = await update(target, 'portable_session_read', sessionRead.encodeRequest(null), guarded, signal);
       assert.ok('ok' in read, 'err' in read ? read.err : undefined);
       assert.deepEqual(read.ok, admitted.get(target.toText())); // No proof in application arguments.
     }
+    await probeAccount(account, signal); // Even after browser admission, the account signer has no session.
+    assert.equal(accountProbes, 4);
     assert.equal(submissions.filter(method => method === 'establish_portable_session').length, 4);
-    assert.equal(submissions.filter(method => method === 'portable_session_read').length, 5);
+    assert.equal(submissions.filter(method => method === 'portable_session_read').length, 5 + accountProbes);
     await journal.begin('sdk-admission', clock.nowNs() + 70_000_000_000n);
     const result = await journal.cleanup('sdk-admission', identity);
     assert.equal(result.phase, 'finished');
@@ -126,6 +141,6 @@ export async function qualifyAdmission(host: string, issuer: Principal, receiver
       // Even retaining the raw test key cannot bypass the receiver's revocation.
       assert.ok('err' in await update(target, 'portable_session_read', sessionRead.encodeRequest(null), identity, signal));
     }
-    console.log('SDK admission qualified: injected issuer lost reply; reopened journal; unresolved lookup retained; original proof recovered without reissuance; two receivers; caller mismatch rejected; exact retry; proof-free reads; durable logout; retained-key refusal');
+    console.log('SDK admission qualified: distinct account/browser signers over authenticated reads; injected issuer lost reply; reopened journal; unresolved lookup retained; original proof recovered without reissuance; two receivers; caller mismatch rejected; exact retry; proof-free reads; durable logout; retained-key refusal');
   } finally { store.close(); }
 }

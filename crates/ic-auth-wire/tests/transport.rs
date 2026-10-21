@@ -119,12 +119,48 @@ fn caller_only_requests_and_all_logout_outcomes_have_bounded_distinct_frames() {
         subject: Bytes::new(vec![3]).unwrap(),
         expires_at_ns: u64::MAX,
     };
-    for response in [Ok(view), Err(Text::new("capacity".into()).unwrap())] {
+    for response in [Ok(view), Err(model::AdmissionRefusal::Capacity)] {
         let bytes = wire::encode_response::<EstablishSession>(&response).unwrap();
         assert_eq!(
             wire::decode_response::<EstablishSession>(bytes.as_bytes()).unwrap(),
             response
         );
+    }
+}
+
+#[test]
+fn admission_refusals_are_typed_distinct_and_reject_retired_text() {
+    use model::AdmissionRefusal as R;
+    let mut frames = std::collections::BTreeSet::new();
+    for refusal in [
+        R::NotYetValid,
+        R::Expired,
+        R::InvalidCredential,
+        R::AuthorityUnavailable,
+        R::BeforeReset,
+        R::ScopeRejected,
+        R::ReplayConflict,
+        R::Revoked,
+        R::Capacity,
+        R::Throttled,
+        R::Unavailable,
+    ] {
+        let result = Err(refusal);
+        let encoded = wire::encode_response::<EstablishSession>(&result).unwrap();
+        assert_eq!(
+            wire::decode_response::<EstablishSession>(encoded.as_bytes()).unwrap(),
+            result
+        );
+        assert!(frames.insert(encoded.into_bytes()));
+    }
+    let encoded = wire::encode_response::<EstablishSession>(&Err(R::NotYetValid)).unwrap();
+    // Retired text replies used a length followed by UTF-8 bytes. In particular,
+    // empty text (zero) must not accidentally become the future-start hint.
+    for message in ["", "capacity", "portable proof is not yet valid"] {
+        let mut retired = encoded.as_bytes()[..encoded.as_bytes().len() - 1].to_vec();
+        retired.push(u8::try_from(message.len()).unwrap());
+        retired.extend_from_slice(message.as_bytes());
+        assert!(wire::decode_response::<EstablishSession>(&retired).is_err());
     }
 }
 

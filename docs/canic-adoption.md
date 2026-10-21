@@ -8,7 +8,7 @@ checkpoints are retained separately in [adoption history](canic-adoption-history
 
 ## Released API and dependency direction
 
-The released Auth 0.13.2 stack contains `ic-auth-protocol-types`, `ic-auth` and
+The released Auth 0.13.3 stack contains `ic-auth-protocol-types`, `ic-auth` and
 `ic-auth-wire`. Select matching package releases in the consumer's root catalog;
 no sibling source/path override or copied codec is needed. Auth has no Canic or
 Toko dependency. Rust 1.91 is the common minimum.
@@ -207,6 +207,14 @@ checkpoint does not supply a production per-operation backend.
 
 Preserve the typed `PortableClaimsError::NotYetValid` refusal through the host
 endpoint and client adapter as a bounded retry hint, never authenticated success.
+Pending Auth 0.14 replaces `EstablishSession` error text with
+`model::AdmissionRefusal`. Project the core error with
+`SessionError::admission_refusal()` and convert it into the Wire type with
+`.into()`; keep the original error in host diagnostics. The SDK adapter throws
+`AdmissionError` with the generated refusal tag, rather than a generic transport
+failure. Update receiver reply encoders and clients together; old text replies
+are refused. Requests, successful replies, signed credentials, stored records
+and read/logout methods retain their existing contracts.
 Keep strict admission starts and the original proof deadline; do not add clock
 grace or automatically retry expiry, invalid signatures, stale authority or reset
 floor failures. Consumer acceptance remains in
@@ -221,6 +229,26 @@ certificate issuance rules and role-attestation primitives remain supported;
 their similar names do not make them another application login flow.
 
 ## Browser and production acceptance
+
+Canic's selected issuer policy derives `account_subject` from the authenticated
+issuance-call principal. It receives the fresh browser public key as a separate
+request binding. Standard IC identity delegation retains the delegating caller;
+that account principal must not become the receiver's browser identity. Issuing
+for another account requires separate explicit authority. Receiver account lookup
+still uses `(issuer, account_subject)`, not the browser caller alone.
+
+Pending Auth 0.14's coordinator therefore takes explicit `{ browser, account }`
+identities. Its `issue`/`reconcile` callbacks receive a temporary issuer-bound
+account signer; `admit` receives a receiver-bound browser signer. Both use the
+same durable logout generation and bounded attempt. The issuer adapter binds the
+original account caller, browser key, login, requested grants and exact request in
+its saved intent before dispatch. Recovery cannot substitute the currently logged-in
+account or infer a fresh request from missing receipts. The browser journal does
+not duplicate that intent store or retain account signing keys.
+Issuer logout authenticates the browser cleanup identity and resolves its retained
+login binding; it must not reinterpret that browser caller as the account subject.
+Losing account-provider access must not prevent browser-key logout. Losing the
+browser cleanup key still has the documented residual revocation limits.
 
 Use the portable admission coordinator and durable logout journal, or a consumer
 adapter qualified against those contracts. Issuance intent precedes dispatch;
@@ -249,6 +277,7 @@ Use these observable outcomes when qualifying that actual adapter:
 
 | Boundary | Required observation |
 | --- | --- |
+| Issuer/account and receiver/browser identities | The issuer authenticates the account caller and binds the separate browser key; successful receiver calls use the browser principal and preserve issuer-scoped account metadata. Logout/cancellation prevents late signing with either temporary capability. |
 | Lost issuance reply and journal reopen | Recover only the original credential bytes and original admission deadline; issuance/signing counters stay at one. |
 | Missing/pruned issuer evidence | Keep issuance unknown; no replacement signing, allocation or receiver submission. |
 | Receiver admission and scoped operation | Bind actual caller/clock and protected authority to Auth's atomic session/replay/login store; successful scoped access must reach the real facade. |
@@ -258,5 +287,23 @@ Auth's real SDK fixture now injects a lost issuer reply, reopens its journal,
 retains unresolved lookup and recovers the original material before authenticating
 to two actual local receivers. It proves coordinator/receiver composition, not
 Canic's issuer lookup, production stable backend or native-browser persistence.
+The fixture's authenticated account reads exercise distinct ingress signers;
+they are read-only probes, not a portable issuer endpoint or account-login service.
 Keep acceptance with [Canic #491 — Auth integration](https://github.com/dragginzgame/canic/issues/491)
 and [Canic #507 — Non-issuing reconciliation](https://github.com/dragginzgame/canic/issues/507).
+
+### Activation and software qualification
+
+Canic's owner has kept live activation closed because no production issuer/receiver
+clock-skew bound is qualified. Controlled clocks may qualify the software contract,
+but fixture values, including zero skew, must not become production configuration
+or evidence. Persist protected clock observations and reset/retention margins;
+refresh receiver-bound Root authority before readiness. Keep admission starts
+strict; a future-start hint supplies no grace or deadline extension.
+
+TEE key/enrollment evidence is a separate requirement for TEE-required deployments.
+Ordinary Ed25519 tests do not supply it. Continue software integration without
+inventing TEE evidence, silently downgrading custody, enabling production or adding
+a routine online issuer call to receiver admission. The actual runtime/store,
+issuer receipt endpoints and browser distribution remain consumer/service work
+under the existing trackers, not missing proof-verifier APIs.

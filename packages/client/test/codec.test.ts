@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { ClientError, credentialBytes, credentialFromBytes, type PortableCredential } from '../src/index.js';
+import { AdmissionError, ClientError, credentialBytes, credentialFromBytes, type PortableCredential } from '../src/index.js';
 import { logoutResultFromBytes } from '../src/codec.js';
 import * as logout from '../src/generated/logout.js';
 import * as admission from '../src/generated/establish.js';
@@ -19,6 +19,15 @@ test('Rust to TypeScript to Rust preserves opaque signed bytes and u64 replies',
   const result = logoutResultFromBytes(reply);
   assert.deepEqual(result, { tag: 'Revoked', value: 9_007_199_254_740_993n });
   writeFileSync(fileURLToPath(new URL('logout-from-ts.bin', evidence)), logout.encodeResponse(result));
+  const refused = new Uint8Array(Buffer.from(readFileSync(new URL('admission-vector.hex', evidence), 'utf8').trim(), 'hex'));
+  const refusal = admission.decodeResponse(refused);
+  assert.deepEqual(refusal, { err: { tag: 'NotYetValid', value: null } });
+  assert.ok('err' in refusal);
+  const error = new AdmissionError(refusal.err.tag);
+  assert.equal(error.code, 'admission_refused');
+  assert.equal(error.refusal, 'NotYetValid');
+  assert.ok(error instanceof ClientError);
+  writeFileSync(fileURLToPath(new URL('admission-from-ts.bin', evidence)), admission.encodeResponse(refusal));
 });
 test('wire rejects truncation, trailing bytes, wrong method/direction and unsafe limits', () => {
   const bytes = credentialBytes(value, 131_072);

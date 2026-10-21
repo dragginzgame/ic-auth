@@ -41,6 +41,6 @@ case "${1:-}" in
         done ;;
     generate) for name in credential.ts establish.ts read.ts logout.ts wire-runtime.ts; do cp "$candidate/$name" packages/client/src/generated/; done ;;
 esac
-for name in credential logout; do
+for name in credential logout admission; do
     cp "$candidate/$name-vector.hex" "target/browser-client/$name-vector.hex"
 done

@@ -228,6 +228,38 @@ impl Field<domain::PortableProof> for PortableProof {
     }
 }
 record!(PortableCredential { 1: claims: Bytes<65536>, 2: proof: PortableProof });
+// Admission diagnostics are independent of proof validity and retry policy.
+unit_enum!(AdmissionRefusal {
+    1: NotYetValid,
+    2: Expired,
+    3: InvalidCredential,
+    4: AuthorityUnavailable,
+    5: BeforeReset,
+    6: ScopeRejected,
+    7: ReplayConflict,
+    8: Revoked,
+    9: Capacity,
+    10: Throttled,
+    11: Unavailable
+});
+impl From<domain::AdmissionRefusal> for AdmissionRefusal {
+    fn from(value: domain::AdmissionRefusal) -> Self {
+        use domain::AdmissionRefusal as R;
+        match value {
+            R::NotYetValid => Self::NotYetValid,
+            R::Expired => Self::Expired,
+            R::InvalidCredential => Self::InvalidCredential,
+            R::AuthorityUnavailable => Self::AuthorityUnavailable,
+            R::BeforeReset => Self::BeforeReset,
+            R::ScopeRejected => Self::ScopeRejected,
+            R::ReplayConflict => Self::ReplayConflict,
+            R::Revoked => Self::Revoked,
+            R::Capacity => Self::Capacity,
+            R::Throttled => Self::Throttled,
+            R::Unavailable => Self::Unavailable,
+        }
+    }
+}
 unit_enum!(LogoutUnavailable {
     0: Capacity,
     1: Storage,

@@ -1,6 +1,6 @@
 import { Principal } from '@icp-sdk/core/principal';
 import * as establish from './generated/establish.js';
-import { ClientError } from './contracts.js';
+import { AdmissionError, ClientError } from './contracts.js';
 import { httpUpdateTransport, type HttpUpdateOptions } from './update-http.js';
 import type { PortableAdmissionTransport } from './portable-admission.js';
 
@@ -29,6 +29,6 @@ export function httpAdmissionTransport(options: HttpAdmissionOptions): PortableA
         throw new Error('admission caller mismatch');
       }
     } catch (cause) { throw new ClientError('invalid_material', { cause }); }
-    if ('err' in result) throw new ClientError('transport', { cause: new Error(result.err) });
+    if ('err' in result) throw new AdmissionError(result.err.tag);
   };
 }

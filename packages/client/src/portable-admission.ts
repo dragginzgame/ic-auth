@@ -1,6 +1,6 @@
 import { boundedCall } from './bounded-call.js';
 import type { Identity } from '@icp-sdk/core/agent';
-import type { Principal } from '@icp-sdk/core/principal';
+import { Principal } from '@icp-sdk/core/principal';
 import { ClientError } from './contracts.js';
 import { credentialBytes, credentialFromBytes } from './codec.js';
 import type { PortableCredential } from './codec.js';
@@ -15,7 +15,8 @@ export interface AdmissionCredential {
 }
 
 export interface PortableAdmissionTransport {
-  /** Bound to one issuer, login and immutable requested grant set. Persist exact
+  /** The signer is the account identity, not the receiver's browser identity.
+   * Bound to one issuer, account caller, browser login and immutable requested grant set. Persist exact
    * intent before dispatch; a lost reply must remain recoverable by reconcile.
    */
   issue(identity: Identity, signal: AbortSignal): Promise<AdmissionCredential>;
@@ -27,6 +28,12 @@ export interface PortableAdmissionTransport {
   admit(target: Principal, identity: Identity, credential: PortableCredential, signal: AbortSignal): Promise<void>;
 }
 
+/** Separate account authentication at the issuer from fresh receiver ingress. */
+export interface PortableAdmissionIdentities {
+  browser: Identity;
+  account: Identity;
+}
+
 /** One portable proof across receivers for an already started browser login.
  * No endpoint installation, automatic renewal, retained credential format or app-call retry.
  */
@@ -36,15 +43,20 @@ export class PortableAdmissionClient {
   private readonly admissions = new Map<string, Promise<Identity>>();
   private readonly guarded: Identity;
   private readonly caller: string;
+  private readonly accountCaller: string;
+  private readonly identities: PortableAdmissionIdentities;
 
   constructor(private readonly journal: PortableLogoutClient, private readonly generation: string,
-    identity: Identity, private readonly issuer: Principal,
+    identities: PortableAdmissionIdentities, private readonly issuer: Principal,
     private readonly transport: PortableAdmissionTransport,
     private readonly timeoutMs = 5_000, private readonly maximumBytes = 131_072) {
-    if (issuer.isAnonymous() || !Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 5_000
+    if (issuer.isAnonymous() || identities.account.getPrincipal().isAnonymous()
+      || !Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 5_000
       || !Number.isSafeInteger(maximumBytes) || maximumBytes < 1 || maximumBytes > 1_048_576) throw new ClientError('configuration');
-    this.caller = identity.getPrincipal().toText();
-    this.guarded = journal.guardedIdentity(generation, identity);
+    this.identities = { browser: identities.browser, account: identities.account };
+    this.caller = identities.browser.getPrincipal().toText();
+    this.accountCaller = identities.account.getPrincipal().toText();
+    this.guarded = journal.guardedIdentity(generation, identities.browser);
   }
 
   private async active(): Promise<bigint> {
@@ -56,22 +68,34 @@ export class PortableAdmissionClient {
     return state.observedNs;
   }
 
-  private async call<T>(operation: (signal: AbortSignal, identity: Identity) => Promise<T>): Promise<T> {
+  private async call<T>(signer: Identity, caller: string, target: Principal,
+    operation: (signal: AbortSignal, identity: Identity) => Promise<T>): Promise<T> {
     await this.active();
     return boundedCall(this.timeoutMs, async signal => {
-      const check = () => { if (signal.aborted) throw new ClientError('timeout'); };
+      const check = async () => {
+        if (signal.aborted) throw new ClientError('timeout');
+        await this.active();
+        if (signal.aborted) throw new ClientError('timeout');
+        if (signer.getPrincipal().toText() !== caller) throw new ClientError('stale_generation');
+      };
       const identity: Identity = {
-        getPrincipal: () => this.guarded.getPrincipal(),
+        getPrincipal: () => Principal.fromText(caller),
         transformRequest: async request => {
-          check();
-          const signed = await this.guarded.transformRequest(request);
-          check();
+          await check();
+          if (request.body.request_type !== 'read_state') {
+            const destination = request.body.canister_id;
+            if (!(destination instanceof Principal) || destination.toText() !== target.toText()) {
+              throw new ClientError('configuration');
+            }
+          }
+          const signed = await signer.transformRequest(request);
+          await check();
           return signed;
         },
       };
+      await check();
       const result = await operation(signal, identity);
-      await this.active();
-      check();
+      await check();
       return result;
     });
   }
@@ -85,7 +109,7 @@ export class PortableAdmissionClient {
     if (this.credentialFlight) return this.credentialFlight;
     const flight = (async () => {
       const first = await this.journal.claimIssuance(this.generation);
-      const result = await this.call((signal, identity) => first
+      const result = await this.call(this.identities.account, this.accountCaller, this.issuer, (signal, identity) => first
         ? this.transport.issue(identity, signal) : this.transport.reconcile(identity, signal));
       // Copy returned bytes before another asynchronous boundary. Transport decoding
       // is not authentication; the receiver remains the verifier.
@@ -114,7 +138,7 @@ export class PortableAdmissionClient {
     const key = target.toText();
     const previous = this.admissions.get(key);
     if (previous) return previous;
-    const flight = this.call((signal, identity) => this.transport.admit(target, identity,
+    const flight = this.call(this.identities.browser, this.caller, target, (signal, identity) => this.transport.admit(target, identity,
       credentialFromBytes(value.bytes, this.maximumBytes), signal)).then(() => this.guarded);
     this.admissions.set(key, flight);
     try { return await flight; }

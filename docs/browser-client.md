@@ -65,10 +65,29 @@ successful decode is never a session or application resource grant.
 ## Portable admission coordinator
 
 Construct `PortableAdmissionClient` with an existing `PortableLogoutClient`, a
-fresh generation, directly authenticated browser identity, protected issuer and
+fresh generation, explicit `{ browser, account }` identities, protected issuer and
 `PortableAdmissionTransport`. `establish(receiver)` records that destination
 durably before admission and returns a generation-guarded identity on success.
 Ordinary calls carry no proof; receivers check their caller-bound local session.
+
+Pending 0.14 requires the identity object instead of the former single signer.
+`account` authenticates `issue`/`reconcile` to the issuer; `browser` is the fresh,
+directly authenticated receiver login and the only identity returned for ordinary
+calls. Start the logout journal with `browser` and use that identity for receiver
+logout. Do not use a different delegated signing key as proof of a different
+principal: ordinary ingress delegation preserves its delegating caller.
+
+Each transport attempt receives a temporary signer restricted to its issuer or
+receiver destination. Durable active-generation, fixed-principal and cancellation
+checks surround signing and completion for both roles. The account signer is not
+returned as receiver authority. Applications retain their underlying keys;
+signatures already produced and requests already accepted cannot be recalled.
+The account signer is separate from the browser cleanup key, so application
+key-disposal policy must distinguish them too.
+Cleanup uses the retained browser identity without requiring the account provider
+to remain signed in. The issuer's logout endpoint must resolve that browser login
+to its original issuance/account binding; it cannot treat the browser caller as a
+new account subject. This does not provide a production issuer logout endpoint.
 
 The journal atomically claims issuance before dispatch. The first claimant calls
 `issue`; overlapping instances, reloads and uncertain attempts use `reconcile`.
@@ -81,6 +100,11 @@ not issue a replacement, extend a deadline or infer no effect from absent/pruned
 evidence. The transport owns exact intent persistence and the crash boundary
 between journal claim and issuer dispatch. It must authenticate admission replies.
 A production issuer/reconciliation adapter remains unimplemented here.
+Its exact saved intent must also bind the original account caller and browser
+public key. Reopening with a different account must not recover or reissue for
+the old intent. The logout journal's unchanged profile does not store that issuer
+request/account binding; this remains the issuer adapter's existing intent owner.
+Do not recover it by replacing the account caller with the browser principal.
 
 `httpAdmissionTransport({ host, methodName, scopes, ttlSecs?, rootKey?, fetch? })`
 supplies the receiver `admit` operation. Compose it with the application's existing
@@ -92,6 +116,22 @@ submits one update, authenticates the reply through the SDK and decodes the boun
 response. HTTP acceptance alone is insufficient; a receiver error refuses and a
 successful reply must name the same caller. Root trust is explicit, never fetched
 from credentials or an endpoint. The coordinator retains retry and logout rules.
+
+Pending Auth 0.14 changes only admission's error reply from text to the bounded
+`AdmissionRefusal` enum. Receiver adapters use the core
+`SessionError::admission_refusal()` projection and the Wire enum conversion.
+The browser throws `AdmissionError` (`code === 'admission_refused'`) with the
+generated `refusal` tag. Network failures remain transport failures. Upgrade
+receiver encoders and generated clients together; there is no text-error fallback.
+Successful admission replies, requests, credential bytes, journal/storage formats
+and read/logout contracts are unchanged.
+
+`NotYetValid` is a retry hint, not evidence that the submitted proof is valid.
+The caller may explicitly retry the identical credential with bounded backoff
+inside its original proof/operation deadline and active login generation. Neither
+the transport nor coordinator automatically retries or renews. Expiry, invalid
+signatures, authority failures, reset and other refusal tags must not be treated
+as future-start hints. Never parse diagnostic strings to select retry policy.
 
 For Canic's own command envelope, its adapter remains Canic-owned; do not wrap
 Candid in Wire or copy an Auth codec. Freeze the production issuer's exact saved

@@ -112,6 +112,7 @@ test-certified-proofs:
 	+cargo test --locked --offline -p ic-auth --features certified-proof-verification --test certified
 
 test-sessions:
+	+cargo test --locked --offline -p ic-auth --features sessions,certified-proof-verification,portable-signature-verification --test admission_refusals
 	+cargo test --locked --offline -p ic-auth --features sessions,certified-proof-verification,portable-signature-verification --test certified portable_certified::
 	+cargo test --locked --offline -p ic-auth --features sessions,portable-signature-verification --test sessions
 	+cargo test --locked --offline -p ic-auth --features sessions --doc

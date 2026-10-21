@@ -9,8 +9,8 @@ import { Endpoint, SubmitRequestType, Expiry } from '@icp-sdk/core/agent';
 import { IndexedDbLogoutStore, PortableLogoutClient, httpLogoutTransport, ClientError, credentialFromBytes } from '../../src/index.js';
 import { qualifyAdmission } from './admission.js';
 
-const [host, issuerText, receiverText, callerText, rootHex, nowText, credentialHex, subjectText] = process.argv.slice(2);
-assert.ok(host && issuerText && receiverText && callerText && rootHex && nowText && credentialHex && subjectText);
+const [host, issuerText, receiverText, callerText, rootHex, nowText, credentialHex, subjectText, admissionUntilText] = process.argv.slice(2);
+assert.ok(host && issuerText && receiverText && callerText && rootHex && nowText && credentialHex && subjectText && admissionUntilText);
 const issuer = Principal.fromText(issuerText);
 const receiver = Principal.fromText(receiverText);
 const identity = Ed25519KeyIdentity.generate(new Uint8Array(32).fill(4));
@@ -21,7 +21,7 @@ const clock = { id: 'testkit-local-clock',
   nowNs: () => origin + BigInt(Math.ceil((performance.now() - started) * 1_000_000)),
   wait: (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms)) };
 await qualifyAdmission(host, issuer, receiver, Uint8Array.from(Buffer.from(rootHex, 'hex')), origin,
-  credentialFromBytes(Uint8Array.from(Buffer.from(credentialHex, 'hex')), 131_072), Principal.fromText(subjectText));
+  credentialFromBytes(Uint8Array.from(Buffer.from(credentialHex, 'hex')), 131_072), Principal.fromText(subjectText), BigInt(admissionUntilText));
 const submissions: string[] = [];
 let disposed = 0;
 const transport = httpLogoutTransport({ host, methodName: 'logout_portable_session',

@@ -4,6 +4,7 @@
 
 mod memory;
 mod model;
+mod refusal;
 
 pub use memory::{MemorySessionStore, SessionCommit, SessionPrune, SessionPruned};
 pub use model::{Replay, Session, SessionLimits, SessionPolicy};

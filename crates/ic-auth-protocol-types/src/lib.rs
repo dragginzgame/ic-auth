@@ -6,12 +6,14 @@
 //! must obtain expected audience, caller, time and issuer policy independently.
 //! Application credentials are not IC ingress delegations.
 
+mod admission;
 mod common;
 mod identifiers;
 mod logout;
 mod portable;
 mod proof;
 
+pub use admission::AdmissionRefusal;
 pub use common::*;
 pub use ic_platform::Principal;
 pub use identifiers::{AudienceId, AuthRole, CanonicalId, IdentifierError};

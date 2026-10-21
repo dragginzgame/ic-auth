@@ -17,7 +17,7 @@ use ic_auth::{
 };
 use ic_auth_protocol_types::{LogoutResult, LogoutUnavailable, PortableCredential};
 use ic_auth_qualification_contracts as controls;
-use ic_auth_wire::{SessionInput, SessionView, wire::Bytes};
+use ic_auth_wire::{SessionInput, SessionView, model::AdmissionRefusal, wire::Bytes};
 use ic_platform::Principal;
 
 use std::cell::RefCell;
@@ -167,18 +167,19 @@ fn install_session_receiver(config: controls::model::ReceiverConfig) -> Result<(
     decode_with = "decode_admission",
     encode_with = "encode_admission"
 )]
-fn establish_portable_session(input: SessionInput) -> Result<SessionView, String> {
+fn establish_portable_session(input: SessionInput) -> Result<SessionView, AdmissionRefusal> {
     let credential: PortableCredential = input
         .credential
         .try_into()
-        .map_err(|e: ic_auth_wire::wire::Error| e.to_string())?;
+        .map_err(|_: ic_auth_wire::wire::Error| AdmissionRefusal::InvalidCredential)?;
     let scopes = input
         .scopes
         .into_vec()
         .into_iter()
         .map(|s| s.into_string())
         .collect();
-    let request = SessionRequest::new(scopes, input.ttl_secs).map_err(|e| e.to_string())?;
+    let request = SessionRequest::new(scopes, input.ttl_secs)
+        .map_err(|_| AdmissionRefusal::InvalidCredential)?;
     with_receiver(|host| {
         let policy = policy(host);
         let ctx = context(
@@ -230,14 +231,18 @@ fn establish_portable_session(input: SessionInput) -> Result<SessionView, String
                     )?)
                 }
             },
-        )
-        .map_err(|e| e.to_string())?;
-        Ok(view(match result {
-            SessionEstablished::Created(s)
-            | SessionEstablished::Replaced(s)
-            | SessionEstablished::ExactRetry(s) => s,
-        }))
+        );
+        Ok(result
+            .map(|result| {
+                view(match result {
+                    SessionEstablished::Created(s)
+                    | SessionEstablished::Replaced(s)
+                    | SessionEstablished::ExactRetry(s) => s,
+                })
+            })
+            .map_err(|error| error.admission_refusal().into()))
     })
+    .map_err(|_| AdmissionRefusal::Unavailable)?
 }
 #[ic_platform::cdk::update(
     guard = "admission_guard",
@@ -386,8 +391,8 @@ fn wire_result(
 ) -> Result<ic_auth_wire::SessionView, ic_auth_wire::wire::Text<256>> {
     result.map_err(controls::refusal)
 }
-fn encode_admission(result: Result<SessionView, String>) -> Vec<u8> {
-    ic_auth_wire::wire::encode_response::<ic_auth_wire::EstablishSession>(&wire_result(result))
+fn encode_admission(result: Result<SessionView, AdmissionRefusal>) -> Vec<u8> {
+    ic_auth_wire::wire::encode_response::<ic_auth_wire::EstablishSession>(&result)
         .expect("bounded admission reply")
         .into_bytes()
 }
@@ -410,12 +415,10 @@ mod wire_tests {
             let result = super::wire_result(Err(error.clone()));
             assert!(result.as_ref().unwrap_err().as_str().len() <= 256);
             let bytes =
-                ic_auth_wire::wire::encode_response::<ic_auth_wire::EstablishSession>(&result)
+                ic_auth_wire::wire::encode_response::<ic_auth_wire::ReadSession>(&result).unwrap();
+            let decoded =
+                ic_auth_wire::wire::decode_response::<ic_auth_wire::ReadSession>(bytes.as_bytes())
                     .unwrap();
-            let decoded = ic_auth_wire::wire::decode_response::<ic_auth_wire::EstablishSession>(
-                bytes.as_bytes(),
-            )
-            .unwrap();
             assert!(error.starts_with(decoded.unwrap_err().as_str()));
         }
     }

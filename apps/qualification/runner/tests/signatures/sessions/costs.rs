@@ -8,7 +8,7 @@ fn profile(
     caller: Principal,
     input: &SessionInput,
     label: &str,
-) -> Result<SessionView, String> {
+) -> Result<SessionView, AdmissionRefusal> {
     let report: AdmissionProfile = measured(f, target, label, || {
         update_wire::<controls::ProfileAdmission>(&f.pic, target.into(), caller.into(), input)
             .expect("qualified Wire admission profile")
@@ -20,7 +20,6 @@ fn profile(
     );
     ic_auth_wire::wire::decode_response::<ic_auth_wire::EstablishSession>(report.reply.as_slice())
         .expect("bounded shared admission reply")
-        .map_err(|e| e.into_string())
 }
 
 pub(super) fn qualify(
@@ -121,10 +120,9 @@ pub(super) fn qualify(
             *signature = Bytes::new(bytes).unwrap();
         }
         let label = format!("matched_{mechanism}_invalid_proof");
-        assert!(
-            profile(f, f.resource, rejected_caller, &rejected, &label)
-                .unwrap_err()
-                .contains("signature")
+        assert_eq!(
+            profile(f, f.resource, rejected_caller, &rejected, &label),
+            Err(AdmissionRefusal::InvalidCredential)
         );
         assert!(read(f, f.resource, rejected_caller).is_err());
         let another = make_claims(18);
@@ -137,11 +135,7 @@ pub(super) fn qualify(
             &another_input,
             &format!("matched_{mechanism}_throttled_other_caller"),
         );
-        assert!(
-            throttled
-                .unwrap_err()
-                .contains("verification budget is exhausted")
-        );
+        assert_eq!(throttled, Err(AdmissionRefusal::Throttled));
         assert!(read(f, f.resource, another_caller).is_err());
         // Fresh-verification exhaustion cannot consume the separate logout budget.
         logout(f, f.resource, rejected_caller).unwrap();
@@ -225,10 +219,9 @@ pub(super) fn qualify(
             || logout(f, f.resource, caller),
         )
         .unwrap();
-        assert!(
-            admission(f, f.resource, caller, &input)
-                .unwrap_err()
-                .contains("revoked")
+        assert_eq!(
+            admission(f, f.resource, caller, &input),
+            Err(AdmissionRefusal::Revoked)
         );
         assert!(
             read(f, f.signer, caller).is_ok(),

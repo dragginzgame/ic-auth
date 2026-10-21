@@ -68,6 +68,13 @@ pub(crate) fn run(
                     ))?
                     .into_bytes(),
                 ),
+                (
+                    "admission-vector.hex",
+                    wire::encode_response::<EstablishSession>(&Err(
+                        model::AdmissionRefusal::NotYetValid,
+                    ))?
+                    .into_bytes(),
+                ),
             ] {
                 let hex: String = bytes.iter().map(|byte| format!("{byte:02x}")).collect();
                 save(name, format!("{hex}\n").as_bytes())?;
@@ -89,6 +96,15 @@ pub(crate) fn run(
                 != model::LogoutResult::Revoked(9_007_199_254_740_993)
             {
                 return Err("logout vector mismatch".into());
+            }
+            let bytes = read_file_no_follow(
+                &directory.join("admission-from-ts.bin"),
+                EstablishSession::RESPONSE_LIMITS.bytes,
+            )?;
+            if wire::decode_response::<EstablishSession>(&bytes)?
+                != Err(model::AdmissionRefusal::NotYetValid)
+            {
+                return Err("admission vector mismatch".into());
             }
         }
         _ => return Err("client-contracts requires generate|check DIRECTORY".into()),

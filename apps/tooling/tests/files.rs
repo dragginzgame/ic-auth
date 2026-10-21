@@ -363,11 +363,12 @@ fn symlink_inputs_and_existing_intent_links_are_refused() {
 
 #[test]
 fn client_contract_bundle_checks_all_vectors_and_refuses_bad_input() {
-    use ic_auth_wire::{CredentialEnvelope, Logout, wire::Method};
+    use ic_auth_wire::{CredentialEnvelope, EstablishSession, Logout, wire::Method};
 
     let vectors = [
         ("credential", CredentialEnvelope::REQUEST_LIMITS.bytes),
         ("logout", Logout::RESPONSE_LIMITS.bytes),
+        ("admission", EstablishSession::RESPONSE_LIMITS.bytes),
     ];
     let root = fixture();
     let generated = invoke(&root, &["client-contracts", "generate", "."]);

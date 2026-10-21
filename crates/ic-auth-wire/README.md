@@ -26,9 +26,17 @@ or previous browser token-store reader. The maintainer confirmed there are no
 deployed old records or unresolved old issuance effects to preserve. New portable
 logout journals continue to retain unknown issuance and durable invalidation.
 
-Pending Auth 0.11 exposes IC Wire 0.5 through `wire`; released Auth 0.10 uses
+Released Auth 0.13 exposes IC Wire 0.5 through `wire`; historical Auth 0.10 uses
 Wire 0.4. Align consumers sharing these Rust types. `Wire` no longer implies
 owned deserialization: generic decoders of owned replies/requests need explicit
 `serde::de::DeserializeOwned` bounds; encoding-only callers need no new bound.
-Auth's concrete DTOs remain owned. The method IDs, bounds, encoded frames and
-TypeScript contracts are unchanged, as are signed claims and retained records.
+Auth's concrete DTOs remain owned.
+
+Pending Auth 0.14 changes `EstablishSession::Response` to
+`Result<SessionView, model::AdmissionRefusal>`. Hosts convert the core
+`SessionError::admission_refusal()` result with `.into()` and retain detailed
+errors locally. Regenerate and update receiver/client reply handling together;
+there is no text-error fallback. The method IDs, request and successful-reply
+bytes, read/logout contracts, signed claims and retained records are unchanged.
+`NotYetValid` permits no early admission or deadline extension: it is only a
+bounded same-credential retry hint. The enum does not implement retry policy.

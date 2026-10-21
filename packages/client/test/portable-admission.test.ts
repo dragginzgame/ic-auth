@@ -2,12 +2,14 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { IDBFactory } from 'fake-indexeddb';
 import { Principal } from '@icp-sdk/core/principal';
+import { Endpoint, SubmitRequestType, Expiry, type Identity } from '@icp-sdk/core/agent';
 import { Ed25519KeyIdentity } from '@icp-sdk/core/identity';
 import { PortableAdmissionClient, PortableLogoutClient, IndexedDbLogoutStore, ClientError,
   type AdmissionCredential, type PortableAdmissionTransport } from '../src/index.js';
 
 const MS = 1_000_000n;
 const identity = Ed25519KeyIdentity.generate(new Uint8Array(32).fill(1));
+const account = Ed25519KeyIdentity.generate(new Uint8Array(32).fill(81));
 const issuer = Principal.fromUint8Array(new Uint8Array([1]));
 const a = Principal.fromUint8Array(new Uint8Array([2]));
 const b = Principal.fromUint8Array(new Uint8Array([3]));
@@ -15,6 +17,12 @@ function deferred<T>() {
   let resolve!: (value: T) => void;
   const promise = new Promise<T>(done => { resolve = done; });
   return { promise, resolve };
+}
+function signingRequest(signer: Identity, target: Principal): Parameters<Identity['transformRequest']>[0] {
+  return { endpoint: Endpoint.Call, request: { method: 'POST' },
+    body: { request_type: SubmitRequestType.Call, canister_id: target, method_name: 'issue',
+      arg: new Uint8Array(), sender: signer.getPrincipal(),
+      ingress_expiry: Expiry.fromJSON('{"__expiry__":"100000000000"}') } };
 }
 async function fixture() {
   const factory = new IDBFactory();
@@ -28,8 +36,8 @@ async function fixture() {
     admissionUntilNs: state.now + 60_000n * MS,
   };
   const transport: PortableAdmissionTransport = {
-    issue: async () => { state.issues++; assert.equal((await journal.status('login')).issuanceUnknown, true); return material; },
-    reconcile: async () => { state.reconciles++; return material; },
+    issue: async caller => { assert.equal(caller.getPrincipal().toText(), account.getPrincipal().toText()); state.issues++; assert.equal((await journal.status('login')).issuanceUnknown, true); return material; },
+    reconcile: async caller => { assert.equal(caller.getPrincipal().toText(), account.getPrincipal().toText()); state.reconciles++; return material; },
     admit: async (target, caller, credential) => {
       assert.equal(caller.getPrincipal().toText(), identity.getPrincipal().toText());
       assert.ok((await journal.status('login')).targets.some(t => t.canister === target.toText()));
@@ -37,7 +45,7 @@ async function fixture() {
       state.admissions.push(target.toText());
     },
   };
-  const client = () => new PortableAdmissionClient(journal, 'login', identity, issuer, transport);
+  const client = () => new PortableAdmissionClient(journal, 'login', { browser: identity, account }, issuer, transport);
   return { factory, store, state, journal, material, transport, client };
 }
 
@@ -54,6 +62,82 @@ test('one issuance serves multiple receivers; each destination is durable before
     f.state.now = f.material.admissionUntilNs;
     await assert.rejects(client.establish(b), (e: ClientError) => e.code === 'retrieval_expired');
     assert.equal(f.state.issues, 1); // no automatic renewal or application-call retry
+  } finally { f.store.close(); }
+});
+
+test('account signing is issuer-bound; receiver admission and returned identity use the browser key', async () => {
+  const f = await fixture();
+  let accountSignatures = 0;
+  const accountSigner: Identity = {
+    getPrincipal: () => account.getPrincipal(),
+    transformRequest: async request => { accountSignatures++; return account.transformRequest(request); },
+  };
+  let retained: Identity | undefined;
+  try {
+    f.transport.issue = async caller => {
+      retained = caller;
+      assert.equal(caller.getPrincipal().toText(), account.getPrincipal().toText());
+      await assert.rejects(caller.transformRequest(signingRequest(caller, a)), (e: ClientError) => e.code === 'configuration');
+      assert.equal(accountSignatures, 0);
+      await caller.transformRequest(signingRequest(caller, issuer));
+      return f.material;
+    };
+    const client = new PortableAdmissionClient(f.journal, 'login', { browser: identity, account: accountSigner }, issuer, f.transport);
+    const browser = await client.establish(a);
+    assert.equal(browser.getPrincipal().toText(), identity.getPrincipal().toText());
+    assert.notEqual(browser.getPrincipal().toText(), account.getPrincipal().toText());
+    await browser.transformRequest(signingRequest(browser, a));
+    assert.equal(accountSignatures, 1);
+    assert.ok(retained);
+    await assert.rejects(retained.transformRequest(signingRequest(retained, issuer)), (e: ClientError) => e.code === 'timeout');
+    assert.equal(accountSignatures, 1);
+  } finally { f.store.close(); }
+});
+
+test('durable logout blocks a retained account signer before it can sign issuance', async () => {
+  const f = await fixture();
+  const entered = deferred<void>();
+  const release = deferred<void>();
+  let accountSignatures = 0;
+  const accountSigner: Identity = { getPrincipal: () => account.getPrincipal(),
+    transformRequest: async request => { accountSignatures++; return account.transformRequest(request); } };
+  let pending: Promise<unknown> | undefined;
+  try {
+    f.transport.issue = async caller => {
+      entered.resolve(); await release.promise;
+      await caller.transformRequest(signingRequest(caller, issuer));
+      return f.material;
+    };
+    const client = new PortableAdmissionClient(f.journal, 'login', { browser: identity, account: accountSigner }, issuer, f.transport);
+    pending = assert.rejects(client.establish(a), (e: ClientError) => e.code === 'stale_generation');
+    await entered.promise;
+    await f.journal.begin('login', f.state.now + 10_000n * MS);
+    release.resolve();
+    await pending;
+    assert.equal(accountSignatures, 0);
+    assert.equal(f.state.admissions.length, 0);
+    assert.equal((await f.journal.status('login')).issuanceUnknown, true);
+  } finally { release.resolve(); await pending; f.store.close(); }
+});
+
+test('account principal changes during signing refuse before receiver admission', async () => {
+  const f = await fixture();
+  let current = account;
+  const accountSigner: Identity = { getPrincipal: () => current.getPrincipal(),
+    transformRequest: async request => {
+      const signed = await current.transformRequest(request);
+      current = Ed25519KeyIdentity.generate(new Uint8Array(32).fill(82));
+      return signed;
+    } };
+  try {
+    f.transport.issue = async caller => {
+      await caller.transformRequest(signingRequest(caller, issuer));
+      return f.material;
+    };
+    const client = new PortableAdmissionClient(f.journal, 'login', { browser: identity, account: accountSigner }, issuer, f.transport);
+    await assert.rejects(client.establish(a), (e: ClientError) => e.code === 'stale_generation');
+    assert.equal(f.state.admissions.length, 0);
+    assert.equal((await f.journal.status('login')).issuanceUnknown, true);
   } finally { f.store.close(); }
 });
 
@@ -129,7 +213,7 @@ test('shared admission failure permits explicit retry with the same proof and ne
 test('admission timeout releases the shared attempt and rejects its retained signing capability', async () => {
   const f = await fixture();
   const entered = deferred<void>();
-  const client = new PortableAdmissionClient(f.journal, 'login', identity, issuer, f.transport, 50);
+  const client = new PortableAdmissionClient(f.journal, 'login', { browser: identity, account }, issuer, f.transport, 50);
   let retained: Parameters<PortableAdmissionTransport['admit']>[1] | undefined;
   let calls = 0;
   try {
@@ -166,7 +250,7 @@ test('lost issuance stays uncertain across client recreation; recovery never iss
     const journal = new PortableLogoutClient(reopened, { id: 'test-clock', nowNs: () => f.state.now, wait: async () => {} },
       { revoke: async () => ({ tag: 'Revoked', value: 100_000n * MS }), dispose: async () => {} });
     f.transport.admit = async () => { f.state.admissions.push(b.toText()); };
-    const recovered = () => new PortableAdmissionClient(journal, 'login', identity, issuer, f.transport);
+    const recovered = () => new PortableAdmissionClient(journal, 'login', { browser: identity, account }, issuer, f.transport);
     await recovered().establish(b);
     assert.equal(f.state.issues, 1);
     assert.equal(f.state.reconciles, 1);
@@ -225,7 +309,7 @@ test('timeout preserves uncertainty and aborts the per-call identity capability'
     let retained: Parameters<PortableAdmissionTransport['issue']>[0] | undefined;
     const late = deferred<AdmissionCredential>();
     f.transport.issue = async caller => { retained = caller; return late.promise; };
-    const client = new PortableAdmissionClient(f.journal, 'login', identity, issuer, f.transport, 5);
+    const client = new PortableAdmissionClient(f.journal, 'login', { browser: identity, account }, issuer, f.transport, 5);
     await assert.rejects(client.establish(a), (e: ClientError) => e.code === 'timeout');
     assert.ok(retained);
     // Cancellation must refuse before inspecting or signing any request.
@@ -243,7 +327,7 @@ test('invalid identity binding and failed journal access refuse before issuance'
   const f = await fixture();
   try {
     const wrong = Ed25519KeyIdentity.generate(new Uint8Array(32).fill(4));
-    await assert.rejects(new PortableAdmissionClient(f.journal, 'login', wrong, issuer, f.transport).establish(a),
+    await assert.rejects(new PortableAdmissionClient(f.journal, 'login', { browser: wrong, account }, issuer, f.transport).establish(a),
       (e: ClientError) => e.code === 'stale_generation');
     assert.equal((await f.journal.status('login')).issuanceUnknown, false);
     f.store.close();

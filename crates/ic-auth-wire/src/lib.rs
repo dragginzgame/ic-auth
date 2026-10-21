@@ -60,7 +60,7 @@ impl Method for CredentialEnvelope {
 pub struct EstablishSession;
 impl Method for EstablishSession {
     type Request = SessionInput;
-    type Response = Result<SessionView, Text<256>>;
+    type Response = Result<SessionView, model::AdmissionRefusal>;
     const ID: u64 = 0x415554480002;
     const NAME: &'static str = "establish_portable_session";
     const REQUEST_LIMITS: Limits = CREDENTIAL_LIMITS;

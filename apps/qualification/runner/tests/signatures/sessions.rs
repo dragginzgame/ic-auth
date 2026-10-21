@@ -13,6 +13,7 @@ use ic_auth::{
 use ic_auth_protocol_types::*;
 use ic_auth_wire::{
     SessionInput, SessionView,
+    model::AdmissionRefusal,
     wire::{Bytes, List, Text},
 };
 use ic_platform::ed25519::{Signer, SigningKey};
@@ -48,10 +49,9 @@ fn admission(
     target: Principal,
     caller: Principal,
     input: &SessionInput,
-) -> Result<SessionView, String> {
+) -> Result<SessionView, AdmissionRefusal> {
     update_wire::<ic_auth_wire::EstablishSession>(&f.pic, target.into(), caller.into(), input)
         .expect("qualified Wire admission")
-        .map_err(|e| e.into_string())
 }
 fn read(f: &Fixture, target: Principal, caller: Principal) -> Result<SessionView, String> {
     update_wire::<ic_auth_wire::ReadSession>(&f.pic, target.into(), caller.into(), &())
@@ -87,6 +87,105 @@ fn input(claims: &PortableClaims, key: &SigningKey) -> SessionInput {
         scopes: List::new(vec![Text::new("read".into()).unwrap()]).unwrap(),
         ttl_secs: None,
     }
+}
+
+#[test]
+fn sdk_preserves_typed_refusals_and_retries_the_original_future_credential() {
+    let mut f = Fixture::new();
+    let key = SigningKey::from_bytes(&[42; 32]);
+    let now = f.now();
+    let config = ReceiverConfig {
+        audience: AudienceId {
+            canonical_network_id: CanonicalId::from_bytes([1; 32]),
+            fleet_id: CanonicalId::from_bytes([2; 32]),
+        },
+        issuer: f.signer,
+        authority: ReceiverAuthority::Ed25519(key.verifying_key().to_bytes()),
+        role: "user".parse().unwrap(),
+        grants: vec![DelegatedRoleGrant {
+            target: "user".parse().unwrap(),
+            scopes: vec!["read".into()],
+        }],
+        valid_from_ns: now,
+        valid_until_ns: now + 120 * SECOND,
+        enrollment_until_ns: now + 120 * SECOND,
+        verification_burst: 16,
+        verification_refill_ns: 1,
+    };
+    install(&f, f.signer, &config);
+    install(
+        &f,
+        f.resource,
+        &ReceiverConfig {
+            enrollment_until_ns: now + SECOND,
+            ..config.clone()
+        },
+    );
+    f.pic.advance_time(Duration::from_secs(1));
+    let now = f.now();
+    let valid = PortableClaims {
+        mechanism: PortableMechanism::Ed25519,
+        audience: config.audience,
+        issuer: config.issuer,
+        key_binding_id: config.authority.binding(),
+        browser_public_key: SigningKey::from_bytes(&[71; 32]).verifying_key().to_bytes(),
+        account_subject: Principal::from_slice(&[99]),
+        login_started_at_ns: now,
+        login_deadline_ns: now + 90 * SECOND,
+        issued_at_ns: now,
+        admission_expires_at_ns: now + 30 * SECOND,
+        nonce: [71; 16],
+        grants: config.grants.clone(),
+    };
+    let future = input(
+        &PortableClaims {
+            issued_at_ns: now + 10 * SECOND,
+            ..valid.clone()
+        },
+        &key,
+    );
+    let expired = input(
+        &PortableClaims {
+            admission_expires_at_ns: now + 1,
+            ..valid.clone()
+        },
+        &key,
+    );
+    let mut invalid = input(&valid, &key);
+    invalid.credential.proof =
+        ic_auth_wire::model::PortableProof::Ed25519(Bytes::new(vec![0; 64]).unwrap());
+    let url = f.pic.make_live(None).to_string();
+    let hex = |bytes: &[u8]| {
+        bytes
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect::<String>()
+    };
+    let mut command = std::process::Command::new(
+        std::env::var_os("IC_AUTH_QUALIFICATION_NODE").expect("admitted Node executable"),
+    );
+    command
+        .arg(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../../packages/client/dist/test/qualification/admission-refusals.js"
+        ))
+        .arg(&url)
+        .arg(f.signer.to_text())
+        .arg(f.resource.to_text())
+        .arg(hex(&f.pic.root_key().unwrap()));
+    for value in [&future, &expired, &invalid] {
+        let frame = ic_auth_wire::wire::encode_request::<ic_auth_wire::CredentialEnvelope>(
+            &value.credential,
+        )
+        .unwrap();
+        command.arg(hex(frame.as_bytes()));
+    }
+    eprintln!(
+        "{}",
+        String::from_utf8_lossy(&run_node(&mut command, "SDK typed admission refusals"))
+    );
+    assert!(read(&f, f.signer, browser_principal(&valid.browser_public_key)).is_ok());
+    assert!(read(&f, f.resource, browser_principal(&valid.browser_public_key)).is_err());
 }
 #[test]
 fn issuer_scoped_accounts_survive_wire_projection_and_independent_logout() {
@@ -350,10 +449,9 @@ fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ingress()
     claims.browser_public_key = SigningKey::from_bytes(&[1; 32]).verifying_key().to_bytes();
     claims.issued_at_ns = f.now();
     claims.admission_expires_at_ns = f.now() + 2 * SECOND;
-    assert!(
-        admission(&f, f.resource, caller, &input(&claims, &key))
-            .unwrap_err()
-            .contains("reset")
+    assert_eq!(
+        admission(&f, f.resource, caller, &input(&claims, &key)),
+        Err(AdmissionRefusal::BeforeReset)
     );
     claims.browser_public_key = SigningKey::from_bytes(&[4; 32]).verifying_key().to_bytes();
     claims.login_started_at_ns = f.now();
@@ -394,6 +492,8 @@ fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ingress()
     let mut sdk_claims = claims.clone();
     let sdk_now = f.now();
     sdk_claims.browser_public_key = SigningKey::from_bytes(&[9; 32]).verifying_key().to_bytes();
+    sdk_claims.account_subject =
+        browser_principal(&SigningKey::from_bytes(&[81; 32]).verifying_key().to_bytes());
     sdk_claims.login_started_at_ns = sdk_now;
     sdk_claims.login_deadline_ns = sdk_now + 90 * SECOND;
     sdk_claims.issued_at_ns = sdk_now;
@@ -436,7 +536,8 @@ fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ingress()
                 .map(|b| format!("{b:02x}"))
                 .collect::<String>(),
         )
-        .arg(sdk_claims.account_subject.to_text());
+        .arg(sdk_claims.account_subject.to_text())
+        .arg(sdk_claims.admission_expires_at_ns.to_string());
     eprintln!(
         "{}",
         String::from_utf8_lossy(&run_node(&mut command, "SDK logout fixture"))

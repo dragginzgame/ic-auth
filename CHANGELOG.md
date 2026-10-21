@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.14.0]
+
+- **Breaking browser construction:** require explicit account and browser
+  identities. Issue/reconcile calls use a temporary issuer-bound account signer;
+  receiver calls use the browser signer. Logout/cancellation gates both without
+  changing journal bytes. This supports Canic's account-caller issuance contract
+  in [Canic #507 — Portable issuance and non-issuing reconciliation](https://github.com/dragginzgame/canic/issues/507).
+- **Breaking admission replies:** replace receiver error text with bounded typed
+  refusals, preserved by the browser adapter as `AdmissionError.refusal`.
+  Update receiver error projection and regenerate clients together; retired text
+  errors have no fallback reader. Requests, successful admission replies, signed
+  credentials, stored records and read/logout contracts are unchanged.
+- Preserve future-start refusals as bounded same-credential retry hints, distinct
+  from expiry, invalid proofs, unavailable authority, reset and throttling. Retry
+  orchestration remains caller-owned; no clock grace or automatic reissuance is
+  introduced. Add SDK/Wire qualification of the receiver-to-browser error path
+  for [Canic #418 — Future-start admission and retry diagnostics](https://github.com/dragginzgame/canic/issues/418).
+
 ## [0.13.3] - 2026-10-21
 
 - Clarify Canic receiver feature selection so production builds explicitly
