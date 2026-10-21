@@ -1,10 +1,70 @@
 # Changelog
 
-## [0.12.1]
+## [0.13.2]
 
 - Adopt Shared Tooling 0.25.9: refuse a new release increment past an
   undelivered committed preparation, preserving its saved plan and evidence.
   Tool pins, package APIs and dependency selections are unchanged.
+
+## [0.13.1] - 2026-10-21
+
+- Refresh the generated browser runtime for locked Wire 0.5.9, including its
+  bounded float handling and shared frame views. Auth DTOs and frame bytes remain
+  unchanged. Stale-output checks now print the regeneration command and retained
+  candidate path while preserving the comparison failure and source files.
+- Require Wire dependency updates to regenerate and qualify browser artifacts in
+  the same adoption batch, even when Auth's DTOs do not change.
+- Correct the current Canic/browser adoption guides to select released Auth
+  0.13, Wire 0.5 and Platform 0.6 with explicit `principal`. Remove obsolete
+  pending-release instructions and the old upstream Principal recommendation.
+  Production issuer, durable host and abuse acceptance remain in their existing
+  owning issues; no endpoint, storage adapter or deployment is implied.
+
+## [0.13.0] - 2026-10-21
+
+- Regenerate the browser Wire runtime from the locked IC Wire 0.5.7 generator,
+  fixing `test-client`'s exact-output mismatch. Auth DTO bindings and wire frames
+  are unchanged. Document runtime regeneration alongside Wire dependency updates.
+- **Breaking Rust dependency identity:** select published Platform/macros 0.6.0.
+  Consumers sharing Auth's Principal or signature-key types must align to Platform
+  0.6; type-only consumers explicitly select `principal`. Signed bytes, Wire
+  frames, storage and runtime semantics are unchanged.
+- Select coordinated IC Tooling 0.63.0, preserving incoming Memory 0.50.3 and
+  Wire/derive 0.5.7. Testkit removes its Candid call adapter and IC Metrics edge,
+  and aligns to Platform 0.6; the old native Platform 0.5 identity leaves the lock.
+  Retain the preceding Platform cache/message-buffer improvements and remove
+  unused upstream creation-only delegation/CBOR helpers; no cryptography changes.
+- Prepare Build/Testkit executables with explicit `cli` features, keeping them
+  disabled for library dependencies. Bind release-editor features to the saved
+  source manifest alongside its lock, preserving pre-CLI recovery and refusing
+  invalid feature policy. Retain the independent file-CLI pin and server bytes.
+- Document the native qualification paths that retain Candid 0.10.39 through
+  Agent, Testkit and PocketIC. Public Auth capability and qualification-Wasm
+  dependency graphs continue to exclude Candid; application endpoints use Wire.
+- Export release fixtures from one current Git working-source selection instead
+  of archived HEAD plus manual overlays. Qualify additions, staged differences,
+  deletions, ignored output and source/index preservation; Shared Tooling retains
+  file admission and copying. Real release/recovery/publication policy is unchanged.
+- Centralize private grant, scope and label ceilings while preserving their
+  independent validation boundaries, values and error precedence. Keep session
+  request scopes distinct from offered grant scopes.
+- Replace stale release history in current guides with current contracts and
+  correct the documented publication list to include `ic-auth-wire`.
+
+## [0.12.1] - 2026-10-20
+
+- Adopt the coordinated IC Tooling 0.62.0 packages: Host FS/Process, Build and
+  Testkit, now maintained in `dragginzgame/ic-tooling`. Native tooling and
+  qualification share one Host 0.62 family instead of retaining Host 0.31/0.32.
+  Testkit retains Platform 0.5, external simulator identities, explicit Wire
+  calls, caller budgets and server selection; native tooling stays outside
+  public Auth library graphs.
+- Adopt IC Memory 0.50.0 from `dragginzgame/ic-persistence` for the private
+  qualification checkpoint fixture. Its implementation and normal dependencies
+  are unchanged; no stored-format migration or production backend adoption.
+- Select Wire/derive 0.5.3 and transitive Metrics 0.14.12, retaining frozen frame
+  bytes and bounded admission.
+  No public Auth API or retained-record migration is required.
 
 ## [0.12.0] - 2026-10-20
 

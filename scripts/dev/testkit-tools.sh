@@ -15,7 +15,7 @@ esac
 # Shared Tooling owns executable installation/receipts; Testkit owns server
 # assets, compatibility and offline admission. No cache glob or fallback route.
 selection=(--consumer "$PWD" --package ic-testkit --lockfile Cargo.lock
-    --bin ic-testkit-server --profile debug)
+    --bin ic-testkit-server --profile debug --features cli)
 [[ "$phase" != check ]] || selection+=(--check)
 cli="$(bash scripts/dev/install-rust-tools.sh "${selection[@]}")" || {
     status=$?

@@ -390,10 +390,10 @@ pub const fn validate_scope_label_detailed(scope: &str) -> Result<(), ScopeLabel
     if bytes.is_empty() {
         return Err(ScopeLabelError::Empty);
     }
-    if bytes.len() > 64 {
+    if bytes.len() > crate::limits::MAX_LABEL_BYTES {
         return Err(ScopeLabelError::TooLong {
             bytes: bytes.len(),
-            max: 64,
+            max: crate::limits::MAX_LABEL_BYTES,
         });
     }
     let mut segment_start = true;

@@ -35,46 +35,45 @@ chmod +x "$IC_AUTH_FIXTURE_HOST_FILE"
 unset CARGO_RELEASE_METADATA_EDITOR CARGO_RELEASE_METADATA_MAX_BYTES
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR
 export GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null
-mkdir "$fixture/repo"
-git -C "$root" archive HEAD | tar -xf - -C "$fixture/repo"
-# Qualify the actual adopted snapshot, including additions not committed yet.
-bash "$root/scripts/ci/verify-shared-tooling-snapshot.sh"
-while IFS=$'\t' read -r record _digest _mode path; do
-    [[ "$record" == file ]] || continue
-    mkdir -p "$fixture/repo/$(dirname "$path")"
-    cp -p "$root/$path" "$fixture/repo/$path"
-done < "$root/.shared-tooling.snapshot"
-# HEAD may still contain the retired payloads during uncommitted adoption.
-# Keep the fixture faithful to the working source rather than leaving old
-# implementations available as accidental fallbacks.
-rm -f "$fixture/repo/scripts/ci/render-cargo-workspace-version.pl" \
-    "$fixture/repo/scripts/ci/rewrite-local-lock-versions.pl" \
-    "$fixture/repo/scripts/release/rewrite-manifest.pl"
-# Use the complete working package trees so package moves and import changes
-# are tested together, rather than mixing current manifests with archived code.
-rm -rf "$fixture/repo/crates"
-cp -Rp "$root/crates" "$fixture/repo/crates"
-rm -rf "$fixture/repo/apps"
-cp -Rp "$root/apps" "$fixture/repo/apps"
-# Include the independent client build root, never its prepared dependencies.
-mkdir -p "$fixture/repo/packages"
-rm -rf "$fixture/repo/packages/client"
-tar -C "$root/packages" --exclude=node_modules --exclude=dist -cf - client | tar -xf - -C "$fixture/repo/packages"
-overlays=(.gitignore Makefile Cargo.toml Cargo.lock CHANGELOG.md .shared-tooling.snapshot ci/release-delivery.txt ci/cargo-dependency-boundaries.json
-    scripts/release/metadata.sh scripts/release/publish.sh scripts/release/test-tools.sh
-    scripts/dev/release-tools.sh
-    scripts/dev/run-host-file.sh scripts/dev/host-file-tools.sh ci/host-file.env
-    scripts/dev/client-tools.sh scripts/dev/client-contracts.sh scripts/dev/test-client.sh
-    scripts/dev/prepare-client-ci.sh scripts/ci/test-client-tools.sh .github/workflows/ci.yml
-    scripts/ci/test-artifact-discovery.sh
-    scripts/dev/test-qualification.sh scripts/dev/testkit-tools.sh
-    scripts/ci/test-testkit-tools.sh
-    scripts/dev/msrv-tools.sh scripts/dev/check-msrv.sh
-    scripts/ci/check-release-tag.sh)
-for path in "${overlays[@]}"; do
-    mkdir -p "$fixture/repo/$(dirname "$path")"
-    cp -p "$root/$path" "$fixture/repo/$path"
+# Qualify both current feature admission and saved pre-CLI selections without
+# installing another executable or depending on today's Cargo metadata.
+mkdir -p "$fixture/editor-selection/scripts/dev"
+cp "$root/scripts/dev/release-tools.sh" "$fixture/editor-selection/scripts/dev/"
+cp "$root/Cargo.toml" "$fixture/editor-selection/Cargo.toml"
+printf '[workspace]\n' > "$fixture/pre-cli.toml"
+cat > "$fixture/editor-selection/scripts/dev/install-rust-tools.sh" <<'SCRIPT'
+#!/usr/bin/env bash
+set -euo pipefail
+[[ "$*" == *' --lockfile saved.lock --bin ic-build-release-metadata --profile debug'* ]]
+if [[ "$IC_AUTH_FIXTURE_EXPECT_CLI" == yes ]]; then
+    [[ $# == 13 && "${11}" == --features && "${12}" == cli && "${13}" == --check ]]
+else
+    [[ $# == 11 && "${11}" == --check ]]
+fi
+printf '%s\n' "$IC_AUTH_FIXTURE_EDITOR"
+SCRIPT
+for profile in current pre-cli; do
+    if [[ "$profile" == current ]]; then
+        manifest="$fixture/editor-selection/Cargo.toml"; expected=yes
+    else
+        manifest="$fixture/pre-cli.toml"; expected=no
+    fi
+    observed="$(IC_AUTH_FIXTURE_EXPECT_CLI="$expected" bash \
+        "$fixture/editor-selection/scripts/dev/release-tools.sh" check saved.lock "$manifest")"
+    [[ "$observed" == "$editor" ]]
 done
+printf '[workspace.metadata.ic-auth]\nrelease-editor-features = false\n' > "$fixture/invalid-editor-features.toml"
+if IC_AUTH_FIXTURE_EXPECT_CLI=yes bash \
+    "$fixture/editor-selection/scripts/dev/release-tools.sh" check saved.lock \
+    "$fixture/invalid-editor-features.toml" > "$fixture/invalid-editor-features.log" 2>&1; then
+    echo 'invalid saved editor features unexpectedly admitted' >&2; exit 1
+fi
+rg -F 'invalid release editor features' "$fixture/invalid-editor-features.log" > /dev/null
+mkdir "$fixture/repo"
+# Qualify one coherent working source, including uncommitted additions/deletions.
+bash "$root/scripts/ci/verify-shared-tooling-snapshot.sh"
+bash "$root/scripts/ci/test-release-fixture-source.sh"
+bash "$root/scripts/release/export-fixture-source.sh" "$root" "$fixture/repo"
 # Exercise the actual shared Make entrypoints before substituting the larger
 # gate below. The opt-in includes and execution probe are explicit inputs.
 TMPDIR="$fixture" bash scripts/ci/check-release-commands.sh "$fixture/repo" \
@@ -167,6 +166,7 @@ for argument in "$@"; do
 done
 [[ "$lock" == "$PWD/.git/release-state/metadata."*/base.lock && -f "$lock" ]]
 git show "$RELEASE_SOURCE:Cargo.lock" | cmp - "$lock"
+[[ " $* " == *' --features cli '* ]] || exit 1
 if [[ "${*: -1}" == --check ]]; then
     printf 'check\n' >> target/editor-events.log
     [[ ! -f target/fail-editor-check && -f target/release-editor-ready ]] || exit 38
@@ -465,6 +465,11 @@ cp Cargo.toml "$fixture/before-unsorted-current.toml"
 perl -0777 -pe 's/^(serde_bytes = [^\n]*\n)(serde_cbor = [^\n]*\n)/$2$1/m or die "missing selected dependency pair"' \
     Cargo.toml > "$fixture/unsorted-current.toml"
 cp "$fixture/unsorted-current.toml" Cargo.toml
+# Recovery must keep the saved CLI feature set, not today's edited policy.
+sed 's/release-editor-features = \["cli"\]/release-editor-features = ["not-the-saved-feature"]/' \
+    Cargo.toml > "$fixture/changed-editor-features.toml"
+cp "$fixture/changed-editor-features.toml" Cargo.toml
+cp Cargo.toml "$fixture/unsorted-current.toml"
 cp Cargo.lock "$fixture/before-broken-current.lock"
 printf 'deliberately invalid live lockfile\n' > Cargo.lock
 cp Cargo.lock "$fixture/broken-current.lock"

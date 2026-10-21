@@ -91,26 +91,20 @@ package belongs to another IC-Auth project and does not implement our applicatio
 token/proof contracts. Crates.io treats hyphens and underscores as colliding
 names, so changing only the punctuation cannot resolve that conflict.
 
-Released 0.8.0 removed Candid traits from the public domain types; `Principal`
-comes through feature-free IC Platform; the released 0.10.7 type retains the
-upstream identity. Pending 0.11 adopts Platform 0.4's owned Principal, with explicit
-external conversions and unchanged identity/record bytes; see the
-[Principal migration](docs/canic-adoption.md#platform-04-migration). Released 0.9.0 replaced application-facing
-Candid with published IC Wire's bounded codec and generated TypeScript through
-an Auth-owned transport adapter. Platform now packages the original signature creation/verifier code without
-Candid or raw IC dependencies; native Agent/Testkit still use Candid transitively.
-Private fixture controls, diagnostics, init and
-upgrade checkpoints now use bounded Wire contracts too; the old unpublished
-Candid checkpoint format is retired. Platform 0.4.0 supplies owned Principal, explicit
-certified-signature/tree/verifier capabilities, raw admission/counters and native
-Agent identities. The reference
-host uses its Candid-free maintained runtime and explicit Wire entrypoints;
-the full CDK and its macros are absent. See the
-[platform boundary](docs/development.md#ic-platform-boundary) for runtime ownership,
-the shared executor and the remaining native-only Candid boundary.
-See the [consumer contract](docs/canic-adoption.md#wire-transport). Released
-0.10.0 adopted Wire 0.4. Pending 0.11 selects Wire 0.5, a Rust dependency/API cut
-with unchanged encoded frames; see the [consumer migration](docs/canic-adoption.md#wire-05-migration).
+The public domain types use IC Platform 0.6's owned `Principal` through its
+explicit `principal` feature, with byte-preserving conversions at external
+Agent/Testkit/crypto boundaries. Public library capabilities and the reference
+Wasm exclude Candid; native Agent/Testkit retain their required Candid dependencies.
+Platform supplies signature creation/verification and the Candid-free runtime;
+Auth retains admission limits, protected authority and session policy. See the
+[Platform migration](docs/canic-adoption.md#platform-06-migration) and
+[dependency boundary](docs/development.md#ic-platform-boundary).
+
+Application endpoints, generated TypeScript, private fixture controls and upgrade
+checkpoints use bounded IC Wire 0.5 contracts. The unpublished Candid checkpoint
+format is retired. Signed bytes, Wire frames and retained records keep their
+formats; no implicit browser or production storage reset is permitted. See the
+[consumer transport contract](docs/canic-adoption.md#wire-transport).
 
 The future wallet service belongs in `apps/wallet-auth/`. No accepting wallet
 endpoint is created before its complete proof verification and service contracts.

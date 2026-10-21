@@ -54,13 +54,13 @@ source `85aded191d85ac4a8c0e5deab207f6be18895862`, recorded in
 
 ## Platform boundary
 
-Use feature-free published `ic-platform` for the protocol's canonical Principal
-and its `agent` capability for native ingress identities. Application protocols,
+Use published `ic-platform` with only `principal` for the protocol's canonical
+Principal and its `agent` capability for native ingress identities. Application protocols,
 generated browser contracts and private qualification controls use IC Wire.
 The fixture exposes only Wire methods, with no Candid projection or direct
 declaration. Its old
 Candid checkpoint is explicitly retired; production storage is unaffected.
-Platform 0.5.0 owns Principal and its parse errors. Convert explicitly through
+Platform 0.6 owns Principal and its parse errors. Convert explicitly through
 `principal::ExternalPrincipal` at upstream Agent/Testkit/crypto boundaries; keep
 application/runtime identities owned and preserve original bytes. It supplies
 Platform-owned canister-signature key/hash code and upstream certificate-tree,
@@ -130,6 +130,10 @@ and `ci/cargo-dependency-boundaries.json` for direct-dependency ownership.
   database, bounded records and strict transactions; do not erase unknown
   issuance or change its stored profile implicitly. The maintainer confirmed no
   deployed old token-store records: that former client/format is retired in 0.9.
+- A locked IC Wire update also selects the browser runtime generator. In the
+  same adoption batch, run `make generate-client-contracts`, review all five
+  generated files and run `make test-client`, even when Auth DTOs are unchanged.
+  Validation compares generated source and never repairs it automatically.
 - Fresh release preflight prepares the lock-selected IC Build editor after
   source/notes admission. The adapter selects its absolute admitted path from
   the validated source lockfile; no shell export is required. Manual setup is
