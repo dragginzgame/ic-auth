@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.14.3]
+## [0.14.3] - 2026-10-22
 
 - Adopt published Platform 0.6.7 and IC Build/Host/Testkit 0.63.3. Public Auth APIs,
   signed bytes, Wire contracts and stored formats are unchanged.
