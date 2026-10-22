@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.14.4]
+## [0.14.4] - 2026-10-22
 
 - Adopt published IC Build/Host/Testkit 0.64.0. The native qualification runner
   imports PocketIC types directly from Platform while retaining Testkit-owned
