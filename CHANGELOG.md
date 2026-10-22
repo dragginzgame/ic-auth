@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.14.3]
+
+- Adopt published Platform 0.6.7 and IC Build/Host/Testkit 0.63.3. Public Auth APIs,
+  signed bytes, Wire contracts and stored formats are unchanged.
+- The lock-selected Testkit and release-editor tools require preparation for
+  0.63.3 before their offline checks; use `make install-testkit-tools` and
+  `make install-release-tools`.
+
 ## [0.14.2] - 2026-10-21
 
 - Expire each browser logout signing capability when its transport attempt ends,
