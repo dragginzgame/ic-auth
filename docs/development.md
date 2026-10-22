@@ -2,10 +2,10 @@
 
 The virtual root owns the protocol/types, Auth engine and Wire transport libraries,
 unpublished native tooling in `apps/tooling/` and the reference host/runner in
-`apps/qualification/`. The root catalog and lock select published Platform 0.6.0,
-the coordinated Host FS/Process, Build and Testkit 0.63.0 packages from
-[IC Tooling](https://github.com/dragginzgame/ic-tooling), Memory 0.50.3 from
-[IC Persistence](https://github.com/dragginzgame/ic-persistence) and the Wire 0.5.7
+`apps/qualification/`. The root catalog and lock select published Platform 0.6.7,
+the coordinated Host FS/Process, Build and Testkit 0.64.0 packages from
+[IC Tooling](https://github.com/dragginzgame/ic-tooling), Memory 0.50.10 from
+[IC Persistence](https://github.com/dragginzgame/ic-persistence) and the Wire 0.5.20
 codec/TypeScript generator. The [handoff](status/current.md) records exact evidence;
 [session contracts](sessions.md) distinguish supported behavior from pending hosts.
 Rust `1.99.1` remains the development compiler selected by `rust-toolchain.toml`.
@@ -120,17 +120,18 @@ explicit producer normalization, canonical-scalar checks and verification policy
 There are no direct K256 imports or declarations; a test-only Dalek feature
 trigger remains in the unpublished adversarial harness. SHA-256, CBOR and LEB128
 remain direct general-purpose dependencies with current Auth-owned consumers.
-Testkit retains the native simulator and server-lifecycle interface; routing its
-already shared runtime re-export again would not remove a direct dependency.
+Platform's explicit `pocket-ic` capability owns native simulator clients and DTOs.
+Testkit owns bounded server startup, lifecycle extensions and typed Wire calls;
+only the native runner selects these capabilities.
 
-Native file and process callers select Host FS/Process 0.63.0 with defaults
+Native file and process callers select Host FS/Process 0.64.0 with defaults
 disabled. Library use does not enable Host's optional CLI, certificate decoder
 or Wasm text/encoding backends. Host stays outside the production library graph.
-Build and Testkit 0.63 select the same Host 0.63 identities as Auth's direct
+Build and Testkit 0.64 select the same Host 0.64 identities as Auth's direct
 callers; no dependency override or old Host family is needed. The independently
 pinned file CLI is unchanged by library upgrades.
 Build and Testkit libraries keep `cli` disabled; only the prepared executable
-selections request it. Testkit 0.63 owns its benchmark-average errors and no longer
+selections request it. Testkit owns its benchmark-average errors and no longer
 selects IC Metrics. Auth uses neither the removed Candid helpers nor Metrics
 error identities, so no call adapter or compatibility layer is needed.
 

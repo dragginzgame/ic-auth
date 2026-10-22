@@ -11,13 +11,10 @@ use ic_platform::canister_sig_creation::{
 use ic_platform::{
     Principal,
     agent::{Agent, BasicIdentity, Delegation, Identity, SignedDelegation},
+    pocket_ic::{PocketIc, PocketIcBuilder, Time},
 };
-use ic_testkit::{
-    pic::{
-        PocketIc, PocketIcBuilder, PocketIcManagedServer, PocketIcStartupConfig, WireCallError,
-        query_wire, update_wire,
-    },
-    pocket_ic::Time,
+use ic_testkit::pic::{
+    PocketIcManagedServer, PocketIcStartupConfig, WireCallError, query_wire, update_wire,
 };
 use ic_wire::{Bytes, Method};
 use std::{

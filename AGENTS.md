@@ -85,7 +85,8 @@ and `ci/cargo-dependency-boundaries.json` for direct-dependency ownership.
 ## Qualification tooling
 
 - Native canister qualification uses published `ic-testkit` for typed Wire calls,
-  deliberate raw-call evidence, bounded startup and its upstream runtime re-export. Do not add a direct
+  deliberate raw-call evidence and bounded startup. Import simulator clients and
+  DTOs from Platform's `pocket-ic` capability in the native runner only. Do not add a direct
   `pocket-ic` dependency. The locked Testkit package selects the setup/check CLI;
   Testkit owns server selection and admission outside the shared five-tool bundle.
   `make install-testkit-tools` explicitly prepares it, and

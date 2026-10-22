@@ -152,7 +152,7 @@ dependency to 0.5. Import paths stay unchanged;
 Agent/Testkit parameters still use `principal::ExternalPrincipal` with explicit
 byte-preserving conversions. Consume Testkit and Memory's independently
 published selections without a local identity compatibility facade or override.
-Testkit 0.62 paired with Platform 0.5; current Testkit 0.63 aligns to Platform
+Testkit 0.62 paired with Platform 0.5; Testkit 0.63 and 0.64 align to Platform
 0.6. Older Testkit releases retain their own Platform identity.
 
 Signed claims, frozen Wire frames, session/replay/login encodings and generated
@@ -173,7 +173,9 @@ their direct Platform dependency to 0.6. Type-only consumers must select
 selects this explicitly; `runtime`, `cdk`, native clients and signature creation
 also select it upstream. No runtime feature is needed for passive protocol types.
 
-The independently published Testkit 0.63 now selects Platform 0.6 too.
+The independently published Testkit 0.64 selects Platform 0.6 too. Native
+qualification imports simulator clients and DTOs directly from Platform;
+Testkit retains startup, lifecycle extensions and Wire calls.
 Auth keeps explicit external Principal conversions; no override or compatibility
 facade is needed. The qualification host and all
 public Auth capabilities select Platform 0.6. Signature creation drops unused

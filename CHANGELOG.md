@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.14.4]
+
+- Adopt published IC Build/Host/Testkit 0.64.0. The native qualification runner
+  imports PocketIC types directly from Platform while retaining Testkit-owned
+  startup and Wire calls. Public Auth APIs, protocol bytes and storage are unchanged.
+- Adopt Wire 0.5.20 while preserving Auth's generated browser contracts and
+  frozen request/reply bytes.
+- Prepare the newly selected Testkit and release-editor executables with
+  `make install-testkit-tools` and `make install-release-tools` before offline checks.
+
 ## [0.14.3] - 2026-10-22
 
 - Adopt published Platform 0.6.7 and IC Build/Host/Testkit 0.63.3. Public Auth APIs,
