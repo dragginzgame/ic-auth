@@ -9,13 +9,13 @@ FS/Process, Build and Testkit **0.66.0**, plus Shared Tooling **0.26.8**.
 This is compatible at Auth's public boundary: APIs, signed material, method IDs,
 transport bytes, storage and browser journal formats are unchanged from 0.15.0.
 
-The incoming lock already selected Wire/derive **0.6.7**; it is preserved.
+The current lock selects Wire/derive **0.6.10**; the initial adoption used 0.6.7.
 The reference batch preserves incoming Memory **0.50.13** and file CLI **0.31.1**. The
 bounded update changed only the five requested Host/Build/Testkit selections.
 A separate late lock update selected Platform/macros **0.6.10** after initial
 qualification with 0.6.9; it is preserved and affected checks now pass.
 Both published source trees are identical to 0.6.9; the only dependency requirement
-change selects Wire metadata 0.6.7, already locked here. No sibling/path override
+change raises the Wire metadata minimum to 0.6.7, satisfied by this lock. No sibling/path override
 or storage migration was added. Commit `4d28772071cb5bc1b40b54938fec1c3c459399ef`
 recorded the adoption externally during qualification. This agent performed no
 commit, push, own version change, release or publication.
@@ -37,9 +37,10 @@ Setup panic paths retain the original owner. Auth adds no wrapper, runtime polic
 or public capability. Native simulator clients and DTOs still come from Platform;
 Testkit owns startup, lifecycle and typed Wire dispatch.
 
-Wire 0.6.7 only reuses equivalent signed-i64 serialization. Its TypeScript
-generator/runtime sources are unchanged from 0.6.6. Explicit regeneration reviewed
-all five browser files; they remain byte-for-byte unchanged.
+Wire 0.6.10 changes generated helper names, built-in TypeScript qualifications
+and the shared runtime. Explicit regeneration updates all five browser files;
+Auth's method identities, budgets and payload schemas remain unchanged. Auth
+does not select the newer optional packed-field schema. See the repair below.
 
 The user approved executable preparation. `make install-tools` and
 `make install-release-tools` completed: existing common Rust/File CLI tools were re-prepared
@@ -50,6 +51,9 @@ focused reruns pass after setup, with no product-code workaround. Checks never
 repair or fetch tools implicitly. Development Rust remains 1.99.1; MSRV is 1.91.
 
 ## Upstream-adoption qualification
+
+These adoption results used Wire 0.6.7. The later 0.6.10 client checks are recorded
+separately below; no earlier full-graph qualification is relabelled as 0.6.10.
 
 Evidence: `target/shared-0268-host-066/`, including incoming bytes, source
 comparisons, canonical snapshot preview, setup logs and selected-input seals.
@@ -108,6 +112,23 @@ here, without a new storage migration or full Memory-library qualification claim
 The [Canic adoption tracker](https://github.com/dragginzgame/canic/issues/491#issuecomment-6368395382)
 records the reference and the remaining production boundary. No new Auth release
 or API is required for Canic to use the equivalent shared-engine call.
+
+## Client regeneration repair — Wire 0.6.10
+
+The release gate at source `8cbd43c486defe8872c2593a860a54c16bcf507d` selected
+Wire 0.6.10 while the committed browser files still matched 0.6.7. The retained
+`contracts.zJLs5K` candidate correctly refused that stale output at `test-client`.
+The original failure logs and release-validation state remain untouched.
+
+`make generate-client-contracts` now refreshes all five files from the actual
+locked owner, with no downstream runtime patch. The four generated registries
+have identical method identity, budgets and payload schema before/after; the
+runtime is byte-identical to published Wire 0.6.10. Frozen Rust frames and all
+three Rust/TypeScript vectors pass. `make test-client test-types` passes all 54
+client cases, eight public transport and two private contract cases. Evidence is
+retained under `target/client-wire-0610/` with unchanged manifest/lock seals.
+No DTO, signed-byte, browser journal or storage migration is needed. Full release
+validation was not rerun and no release, recovery, commit or publication ran.
 
 ## Consumer acceptance
 

@@ -5,7 +5,7 @@ unpublished native tooling in `apps/tooling/` and the reference host/runner in
 `apps/qualification/`. The root catalog and lock select published Platform 0.6.10,
 the coordinated Host FS/Process, Build and Testkit 0.66.0 packages from
 [IC Tooling](https://github.com/dragginzgame/ic-tooling), Memory 0.50.13 from
-[IC Persistence](https://github.com/dragginzgame/ic-persistence) and the Wire 0.6.7
+[IC Persistence](https://github.com/dragginzgame/ic-persistence) and the Wire 0.6.10
 codec/TypeScript generator. The [handoff](status/current.md) records exact evidence;
 [session contracts](sessions.md) distinguish supported behavior from pending hosts.
 Rust `1.99.1` remains the development compiler selected by `rust-toolchain.toml`.

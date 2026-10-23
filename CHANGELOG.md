@@ -9,8 +9,9 @@
 - Adopt Shared Tooling 0.26.8's Cargo setup lock-withdrawal fix and independent
   source-cache initialization. Rerun explicit Cargo-tool setup under the new
   build policy before offline admission.
-- Qualify incoming Platform 0.6.10, Memory 0.50.13 and Wire 0.6.7; regenerate
-  browser contracts with the locked generator. Signed material and stored
+- Qualify incoming Platform 0.6.10 and Memory 0.50.13. Refresh browser contracts
+  and runtime from locked Wire 0.6.10, fixing stale generated-source refusals in
+  `test-client`. Auth method IDs, payload schemas, signed material and stored
   formats are unchanged.
 - Qualify proof-free scoped application writes in the private receiver: signed
   ingress, narrowed scopes, expired admission proofs, independent cross-subnet
