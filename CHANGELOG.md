@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.15.1]
+## [0.15.1] - 2026-10-23
 
 - Adopt published Host/Build/Testkit 0.66.0. The private qualification fixture
   borrows its client during setup, then explicitly transfers client/server
