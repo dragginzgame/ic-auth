@@ -8,7 +8,7 @@ checkpoints are retained separately in [adoption history](canic-adoption-history
 
 ## Released API and dependency direction
 
-The pending Auth 0.15 source contains `ic-auth-protocol-types`, `ic-auth` and
+Released Auth 0.15 contains `ic-auth-protocol-types`, `ic-auth` and
 `ic-auth-wire`. Select matching package releases in the consumer's root catalog;
 no sibling source/path override or copied codec is needed. Auth has no Canic or
 Toko dependency. Rust 1.91 is the common minimum.
@@ -79,7 +79,7 @@ codecs and limits. Canic binds them to actual exports, admits raw argument size 
 copying, decodes the exact method and authenticates ingress/replies. Reply-encoding
 failure after mutation must trap so that local state rolls back.
 
-The pending Auth 0.15 transport exposes IC Wire 0.6. Released Auth 0.14 uses
+Auth 0.15 transport exposes IC Wire 0.6. Earlier Auth 0.14 uses
 Wire 0.5; update the Rust transport and generated clients together. Consumers sharing its Rust
 Wire types must align that dependency and select matching Auth package releases.
 Auth 0.10 and 0.9 used Wire 0.4 and 0.3 respectively; those are historical
@@ -107,7 +107,7 @@ Credential/read/logout frames retain their frozen bytes and IDs. Signed claims,
 session/replay/login records and the browser journal profile are unchanged.
 No storage reset or replay of unknown issuance is authorized.
 
-Native Testkit 0.65 takes a `WireCallSpec` with the contract's `NAME`, `ID`,
+Native Testkit 0.65 and 0.66 take a `WireCallSpec` with the contract's `NAME`, `ID`,
 `REQUEST_LIMITS` and `RESPONSE_LIMITS`, plus explicit request/response Serde
 types. Canister adapters use the same native codecs and pre-copy byte limits;
 normal errors must retain admission charges, while reply-encoding failure after
@@ -165,7 +165,7 @@ dependency to 0.5. Import paths stay unchanged;
 Agent/Testkit parameters still use `principal::ExternalPrincipal` with explicit
 byte-preserving conversions. Consume Testkit and Memory's independently
 published selections without a local identity compatibility facade or override.
-Testkit 0.62 paired with Platform 0.5; Testkit 0.63 through 0.65 align to Platform
+Testkit 0.62 paired with Platform 0.5; Testkit 0.63 through 0.66 align to Platform
 0.6. Older Testkit releases retain their own Platform identity.
 
 Signed claims, frozen Wire frames, session/replay/login encodings and generated
@@ -186,7 +186,7 @@ their direct Platform dependency to 0.6. Type-only consumers must select
 selects this explicitly; `runtime`, `cdk`, native clients and signature creation
 also select it upstream. No runtime feature is needed for passive protocol types.
 
-The independently published Testkit 0.65 selects Platform 0.6 too. Native
+The independently published Testkit 0.66 selects Platform 0.6 too. Native
 qualification imports simulator clients and DTOs directly from Platform;
 Testkit retains startup, lifecycle extensions and Wire calls.
 Auth keeps explicit external Principal conversions; no override or compatibility
@@ -229,7 +229,7 @@ Auth 0.14 replaces `EstablishSession` error text with
 `AdmissionError` with the generated refusal tag, rather than a generic transport
 failure. Update receiver reply encoders and clients together; old text replies
 are refused. Signed credentials, stored records and read/logout methods retain their existing
-contracts. Pending 0.15 admission uses the new identity described above.
+contracts. Auth 0.15 admission uses the new identity described above.
 Keep strict admission starts and the original proof deadline; do not add clock
 grace or automatically retry expiry, invalid signatures, stale authority or reset
 floor failures. Consumer acceptance remains in

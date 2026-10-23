@@ -7,7 +7,7 @@ Canic/Toko integration remain consumer/service work.
 
 ## Application transport hard cut
 
-Pending Auth 0.15 uses `crates/ic-auth-wire/` with published IC Wire 0.6 native
+Auth 0.15 uses `crates/ic-auth-wire/` with published IC Wire 0.6 native
 Serde. Released Auth 0.14 uses Wire 0.5; update receivers and generated clients
 together. Admission changes its ID to `0x415554480012` to isolate zero-based
 refusal tags; the retired ID is refused. Credential/read/logout identities and

@@ -27,7 +27,7 @@ used that old format. There is no Candid fallback. Current portable logout
 journals retain unknown issuance and durable invalidation; this migration does
 not authorize discarding them.
 
-The pending Auth 0.15 source exposes IC Wire 0.6 through `wire`. Released
+Auth 0.15 exposes IC Wire 0.6 through `wire`. Earlier
 Auth 0.14 uses Wire 0.5. The finite `Method` trait, serializer derive and typed
 retained frames are removed. Use the contract's pure `encode_request`,
 `decode_request`, `encode_response` and `decode_response` functions. They bind

@@ -9,7 +9,7 @@ Earlier pairings and benchmarks are preserved in
 
 ## Setup and ownership
 
-The root catalog/lock select published Testkit 0.65.0 from
+The root catalog/lock select published Testkit 0.66.0 from
 [IC Tooling](https://github.com/dragginzgame/ic-tooling) and Auth's Platform 0.6.9.
 Application identities use owned Principal; direct Testkit/Agent calls convert
 explicitly to their retained external type. Testkit also selects Platform 0.6
@@ -24,7 +24,10 @@ with its native PEM feature; caller/root-key and request policy remain with the
 fixture. There is no direct Agent declaration or local facade. Testkit supplies
 typed Wire query/update calls and bounded startup. The native runner imports
 `PocketIc`, `PocketIcBuilder` and `Time` directly from Platform's `pocket-ic`
-capability; Testkit no longer re-exports those types. Only the native runner
+capability; Testkit no longer re-exports those types. Setup borrows the managed
+owner's client through `instance()`, then uses `into_parts()` to retain the client
+and optional server in the fixture's client-before-server field order. The owner
+also preserves that order if setup panics before the transfer. Only the native runner
 enables Testkit's `wire` feature; IC Wire owns the
 native Serde codec; Auth owns method identities and explicit traversal limits.
 Deliberately malformed inputs and byte-level

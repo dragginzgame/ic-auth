@@ -11,7 +11,7 @@ No Auth library or future service may depend on either project.
 
 ## Status
 
-The latest local release is **0.9.1**. It implements portable certified and enrolled
+The latest release is **0.15.0**. It implements portable certified and enrolled
 Ed25519 verification, one local session engine, replay/revocation bookkeeping and
 explicit protected authority/work budgets. See the [session contract](docs/sessions.md)
 and [current handoff](docs/status/current.md) for implementation and validation.
@@ -101,8 +101,8 @@ Auth retains admission limits, protected authority and session policy. See the
 [dependency boundary](docs/development.md#ic-platform-boundary).
 
 Application endpoints, generated TypeScript, private fixture controls and upgrade
-checkpoints use bounded native Serde IC Wire 0.6 contracts in the pending 0.15
-source. Admission uses a new method identity; update its receiver and client
+checkpoints use bounded native Serde IC Wire 0.6 contracts in Auth 0.15.
+Admission uses a new method identity; update its receiver and client
 together. Credential/read/logout frames, signed material and retained production
 records keep their formats. The unpublished finite-Wire checkpoint is retired;
 no implicit browser or production storage reset is permitted. See the

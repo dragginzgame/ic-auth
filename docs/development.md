@@ -3,9 +3,9 @@
 The virtual root owns the protocol/types, Auth engine and Wire transport libraries,
 unpublished native tooling in `apps/tooling/` and the reference host/runner in
 `apps/qualification/`. The root catalog and lock select published Platform 0.6.9,
-the coordinated Host FS/Process, Build and Testkit 0.65.0 packages from
+the coordinated Host FS/Process, Build and Testkit 0.66.0 packages from
 [IC Tooling](https://github.com/dragginzgame/ic-tooling), Memory 0.50.12 from
-[IC Persistence](https://github.com/dragginzgame/ic-persistence) and the Wire 0.6.6
+[IC Persistence](https://github.com/dragginzgame/ic-persistence) and the Wire 0.6.7
 codec/TypeScript generator. The [handoff](status/current.md) records exact evidence;
 [session contracts](sessions.md) distinguish supported behavior from pending hosts.
 Rust `1.99.1` remains the development compiler selected by `rust-toolchain.toml`.
@@ -124,10 +124,10 @@ Platform's explicit `pocket-ic` capability owns native simulator clients and DTO
 Testkit owns bounded server startup, lifecycle extensions and typed Wire calls;
 only the native runner selects these capabilities.
 
-Native file and process callers select Host FS/Process 0.65.0 with defaults
+Native file and process callers select Host FS/Process 0.66.0 with defaults
 disabled. Library use does not enable Host's optional CLI, certificate decoder
 or Wasm text/encoding backends. Host stays outside the production library graph.
-Build and Testkit 0.65 select the same Host 0.65 identities as Auth's direct
+Build and Testkit 0.66 select the same Host 0.66 identities as Auth's direct
 callers; no dependency override or old Host family is needed. The independently
 pinned file CLI is unchanged by library upgrades.
 Build and Testkit libraries keep `cli` disabled; only the prepared executable
@@ -143,8 +143,8 @@ for the existing byte/path limits and release-recovery boundary.
 
 ## Dependency roles and deployment admission
 
-Shared Tooling 0.26.7 source is adopted at
-`3e8d7cd3e7e9b7b79a5e800c30daf0be2710dab0` (reviewed committed source, not a
+Shared Tooling 0.26.8 source is adopted at
+`0b07c2a3163a5a66328e100b553baf93afd8ed07` (reviewed committed source, not a
 claim of registry publication or a matching release tag).
 The root catalog uses `Production dependencies` and `Tests and tooling only`;
 member annotations distinguish the three production libraries from internal
@@ -319,8 +319,8 @@ installations retained.
 The Makefile includes reviewed [`make/consumer.mk`](make-interface.md), which owns
 common setup, formatting, hooks, snapshot verification and release routing.
 `check-snapshot` retains its public name and depends on `shared-tooling-check`.
-The recorded snapshot pins Shared Tooling 0.26.7 at
-`3e8d7cd3e7e9b7b79a5e800c30daf0be2710dab0`. Adopt its committed source and
+The recorded snapshot pins Shared Tooling 0.26.8 at
+`0b07c2a3163a5a66328e100b553baf93afd8ed07`. Adopt its committed source and
 recorded entrypoint closure through the canonical exporter; see
 [snapshot adoption](consuming-snapshots.md#entrypoint-selection-in-070).
 The canonical verifier also supports `--read-manifest FILE`: it validates the

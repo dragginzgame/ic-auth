@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.15.1]
+
+- Adopt published Host/Build/Testkit 0.66.0. The private qualification fixture
+  borrows its client during setup, then explicitly transfers client/server
+  ownership while retaining their teardown order. Public Auth APIs and formats
+  are unchanged.
+- Adopt Shared Tooling 0.26.8's Cargo setup lock-withdrawal fix and independent
+  source-cache initialization. Rerun explicit Cargo-tool setup under the new
+  build policy before offline admission.
+- Qualify the incoming Wire 0.6.7 selection and regenerate browser contracts
+  with its locked generator; signed material and stored formats are unchanged.
+
 ## [0.15.0] - 2026-10-23
 
 - **Breaking transport API:** adopt Wire 0.6 native Serde and Host/Build/Testkit

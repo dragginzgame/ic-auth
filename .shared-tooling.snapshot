@@ -1,8 +1,8 @@
 # Shared Tooling snapshot v1
-# version	0.26.7
+# version	0.26.8
 format	1
 source	https://github.com/dragginzgame/shared-tooling
-revision	3e8d7cd3e7e9b7b79a5e800c30daf0be2710dab0
+revision	0b07c2a3163a5a66328e100b553baf93afd8ed07
 # entrypoint	.githooks/pre-commit
 # entrypoint	.github/actions/retain-failure-evidence/action.yml
 # entrypoint	DRAGGINZGAME.md
@@ -87,7 +87,7 @@ file	8aa442dcbe08e4092e3f5209ff5d6feac188f4959c63171dd9e6dfbff8d57366	-	audits/m
 file	1b64cf2ba0393ab329ec29eb05a696d47ef5933f5ab9bff6e1fe4a7e7b294075	-	audits/module-surface-hardening.md
 file	a8ee0ef056c34fc25703cb94feedbfc7afaf264329917f5da23621ea550cee21	-	docs/consuming-snapshots.md
 file	f280d8dcb6b92d5ac3d051c7456a158ba8a724722e50cb252bf0ea754ad2b9be	-	docs/ic-tools.md
-file	8b29c6f91255ffbe8c1845222fa0b17d094ff15637cafb3f4c9a458930be5931	-	docs/local-setup.md
+file	341ed52a00404590c0cd8bff01027ec25464ad42fa6aa8a16a0951dbb393b53e	-	docs/local-setup.md
 file	b504048aee31664bb51cfeb14061a43d13fbc1cfff6d84aa6951f1809d424294	-	docs/make-interface.md
 file	59f6cb0b47fcfa698396776bbb391737292ebf34457ad7c65803fe7b36961499	-	docs/principles/README.md
 file	9315c9faffa4f36cfab496342535bf49d728ddd2111e8e127cbc44b3fac89ce7	-	docs/principles/decision-artifact-discipline.md
@@ -172,8 +172,8 @@ file	f6fefe35aff870cf38057e4f319b139edab2d2e2ba00f46e505c3b3e1b64583b	x	scripts/
 file	d2670d079e6fe54ccb72f0f6fab328723bf1baf7829b852ba8157cc9ddebd27b	x	scripts/ci/validate-release-inputs.pl
 file	040a856599110c89c33e2e2c9e45a8ff330b68069225cd0c4d60f89b1432c624	-	scripts/ci/finalize-release-changelog.awk
 file	a5ccc8563a7a9c3206700b8f7af41f75ac2c4bd37bd7213c74aab4b0c31a7c74	x	scripts/ci/tool-catalog-records.pl
-file	518c9185b4f6112ec4d012808bd7809f6e9c15293f27053fb1f6c4c29ca27ee9	-	scripts/dev/tool-store.sh
-file	cc7daae8e361e31207b52a7c47e236f3a0277bd5fd49b9ab46e50a08c9185d16	-	scripts/dev/cargo-tool-build.sh
+file	e2eede6b9c71700361cbcc9eb54e412d9653223db06d7a9a0af6963423054ec3	-	scripts/dev/tool-store.sh
+file	5d55c982b343ac07d3ba38e684f9cd80d1081c531e1164402ca9b34f16cb5a03	-	scripts/dev/cargo-tool-build.sh
 file	7d68c9443a11e53ff2b46bde5db2720889768606590a9d2882599c37cd8cd052	-	ci/tool-versions.env
 file	40268196f193f767ca0ecabecde1d81554eba0a77681bd71f292a5f55716f8bb	-	tasks/README.md
 file	59e1a1c641b49879f13dc211fd9081a7ad1d5ee0932dcb9844338a2b8f061afd	-	tasks/maintenance-prompt.md

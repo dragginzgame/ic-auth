@@ -105,7 +105,7 @@ impl Fixture {
         .build_instance(builder)
         .expect("bounded testkit startup with the verified server");
         // Retain Testkit's field drop order during setup, including panic paths.
-        let pic = &owned.instance;
+        let pic = owned.instance();
         pic.set_time(SystemTime::now().into());
         let controller = Principal::self_authenticating(b"qualification controller");
         let subnets = pic.topology().get_app_subnets();
@@ -130,9 +130,11 @@ impl Fixture {
                 Some(controller.into()),
             );
         }
+        // Fixture fields retain client-before-server teardown after this transfer.
+        let (pic, server) = owned.into_parts();
         Self {
-            pic: owned.instance,
-            _server: owned.server,
+            pic,
+            _server: server,
             signer: signer.into(),
             resource: resource.into(),
             controller,
