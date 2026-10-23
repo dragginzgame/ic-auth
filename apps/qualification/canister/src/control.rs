@@ -61,3 +61,4 @@ bind!(ProfileSession, (), result controls::model::SessionProfile);
 bind!(ProfileAdmission, ic_auth_wire::SessionInput, value controls::model::AdmissionProfile);
 bind!(EnableCheckpoint, (), result());
 bind!(ConfirmAuthority, controls::model::ReceiverConfig, result());
+bind!(SetSessionAsset, u64, result());

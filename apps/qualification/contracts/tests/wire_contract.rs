@@ -39,6 +39,7 @@ fn controls_refuse_old_transport_wrong_identity_and_unbounded_requests() {
     refusal_contract!(ProfileSession);
     refusal_contract!(EnableCheckpoint);
     refusal_contract!(ConfirmAuthority);
+    refusal_contract!(SetSessionAsset);
 }
 #[test]
 fn fixture_diagnostics_keep_admission_reply_opaque_and_bounded() {

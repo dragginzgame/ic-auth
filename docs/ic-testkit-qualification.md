@@ -10,7 +10,7 @@ Earlier pairings and benchmarks are preserved in
 ## Setup and ownership
 
 The root catalog/lock select published Testkit 0.66.0 from
-[IC Tooling](https://github.com/dragginzgame/ic-tooling) and Auth's Platform 0.6.9.
+[IC Tooling](https://github.com/dragginzgame/ic-tooling) and Auth's Platform 0.6.10.
 Application identities use owned Principal; direct Testkit/Agent calls convert
 explicitly to their retained external type. Testkit also selects Platform 0.6
 itself; no dependency override is needed. The remaining native Candid dependencies stay
@@ -45,7 +45,7 @@ remain under a unique `target/portable-fixtures/qualification.*` directory after
 success or failure. The canister uses Platform runtime and generated entrypoint
 macros with explicit Wire codec hooks; the direct CDK exception is removed
 ([Platform #21](https://github.com/dragginzgame/ic-platform/issues/21)).
-IC Memory 0.50.12 from [IC Persistence](https://github.com/dragginzgame/ic-persistence)
+IC Memory 0.50.13 from [IC Persistence](https://github.com/dragginzgame/ic-persistence)
 supplies checkpoint-cell mechanics, and Platform supplies raw length
 admission before CDK copying, counter-zero measurements, certified-tree types
 and canister-signature key/hash operations. Its `cdk` capability now supplies
@@ -122,6 +122,25 @@ while its peer's independent session can remain valid. Production receivers
 require authenticated Root enrollment and per-operation atomic persistence;
 the checkpoint is not the backend acceptance in
 [Auth #58 — Support host-selected session persistence with safe volatile reset admission](https://github.com/dragginzgame/ic-auth/issues/58).
+
+## Scoped application effects
+
+The private `session_set_asset` Wire update accepts a single `u64` and requires
+the stored session's `write` scope. Its host-owned caller/time/authority projection
+and shared `authorize_session` call are synchronous with the existing asset
+mutation; no proof, claimed identity or client-selected required scope is accepted.
+This one fixture asset has deliberately simple scope policy. Application account
+mapping and resource ownership remain separate consumer responsibilities.
+
+The [installed case](../apps/qualification/runner/tests/signatures/sessions/application.rs)
+checks that a credential granting read/write can be narrowed to a read-only
+session, and that real signed writes then refuse without changing the asset.
+An independently admitted writer succeeds after its short admission proof expires.
+Raw retained keys refuse after local logout, while the independently admitted
+session on the other application subnet still writes. Advancing that receiver's
+authority generation refuses its next write. Anonymous and missing-session calls
+also preserve the application value. This adds no production export or checkpoint
+field and does not qualify a production issuer or Canic's host integration.
 
 ## SDK admission through the portable coordinator
 

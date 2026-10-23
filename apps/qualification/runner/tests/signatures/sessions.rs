@@ -1,4 +1,6 @@
 //! Portable receiver lifecycle against real canisters and signed ingress.
+#[path = "sessions/application.rs"]
+mod application;
 #[path = "sessions/costs.rs"]
 mod costs;
 use super::{Agent, BasicIdentity, Fixture, Principal};

@@ -68,6 +68,32 @@ Use the shared Auth Wire methods through `ic-auth-wire`, or the explicitly
 qualified consumer transport described below; neither transport supplies a
 verifier, enrollment or endpoint automatically.
 
+### Synchronous protected application writes
+
+The [reference receiver](../apps/qualification/canister/src/sessions.rs) now
+shows a complete ordinary application update: `session_set_asset` accepts only
+the new value, obtains the actual runtime caller, clock and protected authority,
+and calls `ic_auth::session::authorize_session` with its server-selected `write`
+scope. It uses the same retained store/ledger and authorization helper as reads.
+No credential or claimed caller is submitted, and no await separates the decision
+from the fixture's state mutation and certification publication.
+
+Canic can use the existing Auth 0.15 API for this path. Keep its production
+authority, retained ledger/store and endpoint error projection local. Resolve the
+returned session's `(issuer, subject)` through application account/resource policy
+before effects; the fixture deliberately gives its one asset to any admitted
+`write` session. A scope is not a general resource-ownership grant. If application
+work awaits another canister, recheck current authorization before subsequent
+effects rather than carrying the pre-await decision forward unchecked.
+
+The [installed test](../apps/qualification/runner/tests/signatures/sessions/application.rs)
+uses real Agent-signed updates. It checks narrowed read-only sessions, unknown
+callers, writes after admission-proof expiry, retained keys after logout,
+independent receiver sessions on two subnets and authority-generation changes.
+Each refusal leaves the observable application value unchanged. This is volatile,
+enrolled-Ed25519 reference evidence, not Canic's production adapter, resource
+policy, issuer or TEE qualification. Production acceptance remains in #491.
+
 <a id="pending-09-wire-transport"></a>
 
 ## Wire transport

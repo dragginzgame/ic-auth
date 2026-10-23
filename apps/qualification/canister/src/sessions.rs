@@ -265,9 +265,14 @@ fn profile_portable_admission(input: SessionInput) -> AdmissionProfile {
     encode_with = "encode_read"
 )]
 fn portable_session_read() -> Result<SessionView, String> {
+    authorize(&["read".into()]).map(view)
+}
+
+// Runtime caller, clock, authority and required scopes are host inputs. Ordinary
+// operations reuse the retained session; they decode no credential or proof.
+fn authorize(required_scopes: &[String]) -> Result<Session, String> {
     with_receiver(|host| {
         let policy = policy(host);
-        let required = ["read".into()];
         let mut ctx = context(
             &host.config,
             host.binding,
@@ -275,11 +280,27 @@ fn portable_session_read() -> Result<SessionView, String> {
             ic_platform::cdk::api::msg_caller(),
             ic_platform::cdk::api::time(),
         );
-        ctx.required_scopes = &required;
+        ctx.required_scopes = required_scopes;
         authorize_session(&mut host.store, &mut host.ledger, &ctx, policy)
-            .map(view)
             .map_err(|e| e.to_string())
     })
+}
+
+// One fixture application asset is writable by the protected "write" scope.
+// Real application resource/account policy remains the consuming host's job.
+#[ic_platform::cdk::update(
+    guard = "crate::control::guard",
+    decode_with = "crate::control::SetSessionAsset::decode",
+    encode_with = "crate::control::SetSessionAsset::encode"
+)]
+fn session_set_asset(version: u64) -> Result<(), String> {
+    authorize(&["write".into()])?;
+    // No await separates the session decision from the application effect.
+    super::with_state(|state| {
+        state.metadata.asset_version = version;
+        state.publish();
+    });
+    Ok(())
 }
 #[ic_platform::cdk::update(
     guard = "logout_guard",

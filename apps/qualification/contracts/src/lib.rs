@@ -121,6 +121,7 @@ impl ProfileAdmission {
 }
 method!(EnableCheckpoint, 0x41555449f00d, "enable_session_checkpoint", (), Result<(), Refusal>, REPLY_LIMITS);
 method!(ConfirmAuthority, 0x41555449f00e, "confirm_restored_session_authority", ReceiverConfig, Result<(), Refusal>, REPLY_LIMITS);
+method!(SetSessionAsset, 0x41555449f00f, "session_set_asset", u64, Result<(), Refusal>, REPLY_LIMITS);
 
 /// Bounded UTF-8 diagnostics cannot trap and roll back admission charges.
 pub fn refusal(mut error: String) -> Refusal {

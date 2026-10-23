@@ -9,8 +9,13 @@
 - Adopt Shared Tooling 0.26.8's Cargo setup lock-withdrawal fix and independent
   source-cache initialization. Rerun explicit Cargo-tool setup under the new
   build policy before offline admission.
-- Qualify the incoming Wire 0.6.7 selection and regenerate browser contracts
-  with its locked generator; signed material and stored formats are unchanged.
+- Qualify incoming Platform 0.6.10, Memory 0.50.13 and Wire 0.6.7; regenerate
+  browser contracts with the locked generator. Signed material and stored
+  formats are unchanged.
+- Qualify proof-free scoped application writes in the private receiver: signed
+  ingress, narrowed scopes, expired admission proofs, independent cross-subnet
+  sessions, logout and authority invalidation. Denials preserve application state.
+  Document the host wiring Canic can follow; no production endpoint is installed.
 
 ## [0.15.0] - 2026-10-23
 
