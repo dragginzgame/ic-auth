@@ -15,9 +15,9 @@ fn credential() -> domain::PortableCredential {
 fn signed_bytes_roundtrip_without_intermediate_encoding_or_authority() {
     let original = credential();
     let value: model::PortableCredential = original.clone().try_into().unwrap();
-    let frame = wire::encode_request::<CredentialEnvelope>(&value).unwrap();
-    assert_eq!(&frame.as_bytes()[..2], b"IW");
-    let decoded = wire::decode_request::<CredentialEnvelope>(frame.as_bytes()).unwrap();
+    let frame = CredentialEnvelope::encode_request(&value).unwrap();
+    assert_eq!(&frame.as_slice()[..2], b"IW");
+    let decoded = CredentialEnvelope::decode_request(frame.as_slice()).unwrap();
     assert_eq!(
         domain::PortableCredential::try_from(decoded).unwrap(),
         original
@@ -39,18 +39,16 @@ fn signed_bytes_roundtrip_without_intermediate_encoding_or_authority() {
 #[test]
 fn frame_identity_direction_exact_consumption_and_bounds_are_independent() {
     let value: model::PortableCredential = credential().try_into().unwrap();
-    let encoded = wire::encode_request::<CredentialEnvelope>(&value)
-        .unwrap()
-        .into_bytes();
+    let encoded = CredentialEnvelope::encode_request(&value).unwrap();
     for end in 0..encoded.len() {
-        assert!(wire::decode_request::<CredentialEnvelope>(&encoded[..end]).is_err());
+        assert!(CredentialEnvelope::decode_request(&encoded[..end]).is_err());
     }
     let mut trailing = encoded.clone();
     trailing.push(0);
-    assert!(wire::decode_request::<CredentialEnvelope>(&trailing).is_err());
-    assert!(wire::decode_request::<EstablishSession>(&encoded).is_err());
-    let wrong_direction = wire::encode_response::<CredentialEnvelope>(&value).unwrap();
-    assert!(wire::decode_request::<CredentialEnvelope>(wrong_direction.as_bytes()).is_err());
+    assert!(CredentialEnvelope::decode_request(&trailing).is_err());
+    assert!(EstablishSession::decode_request(&encoded).is_err());
+    let wrong_direction = CredentialEnvelope::encode_response(&value).unwrap();
+    assert!(CredentialEnvelope::decode_request(wrong_direction.as_slice()).is_err());
     let mut too_large = credential();
     too_large.claims = vec![0; 65537];
     assert!(model::PortableCredential::try_from(too_large).is_err());
@@ -62,10 +60,10 @@ fn frame_identity_direction_exact_consumption_and_bounds_are_independent() {
     let mut maximum = credential();
     maximum.claims = vec![255; 65536];
     let value: model::PortableCredential = maximum.clone().try_into().unwrap();
-    let bytes = wire::encode_request::<CredentialEnvelope>(&value).unwrap();
+    let bytes = CredentialEnvelope::encode_request(&value).unwrap();
     assert_eq!(
         domain::PortableCredential::try_from(
-            wire::decode_request::<CredentialEnvelope>(bytes.as_bytes()).unwrap()
+            CredentialEnvelope::decode_request(bytes.as_slice()).unwrap()
         )
         .unwrap(),
         maximum
@@ -95,9 +93,9 @@ fn checked_role_projection_rejects_invalid_text_instead_of_coercing_it() {
 
 #[test]
 fn caller_only_requests_and_all_logout_outcomes_have_bounded_distinct_frames() {
-    let request = wire::encode_request::<Logout>(&()).unwrap();
-    assert_eq!(request.as_bytes().len(), 11);
-    assert!(wire::decode_request::<ReadSession>(request.as_bytes()).is_err());
+    let request = Logout::encode_request(&()).unwrap();
+    assert_eq!(request.as_slice().len(), 11);
+    assert!(ReadSession::decode_request(request.as_slice()).is_err());
     for value in [
         model::LogoutResult::Revoked(u64::MAX),
         model::LogoutResult::InvalidCaller,
@@ -106,12 +104,9 @@ fn caller_only_requests_and_all_logout_outcomes_have_bounded_distinct_frames() {
         model::LogoutResult::Unavailable(model::LogoutUnavailable::Clock),
         model::LogoutResult::Unavailable(model::LogoutUnavailable::ResetPending),
     ] {
-        let bytes = wire::encode_response::<Logout>(&value).unwrap();
-        assert_eq!(
-            wire::decode_response::<Logout>(bytes.as_bytes()).unwrap(),
-            value
-        );
-        assert!(wire::decode_request::<Logout>(bytes.as_bytes()).is_err());
+        let bytes = Logout::encode_response(&value).unwrap();
+        assert_eq!(Logout::decode_response(bytes.as_slice()).unwrap(), value);
+        assert!(Logout::decode_request(bytes.as_slice()).is_err());
     }
     let view = ic_auth_wire::SessionView {
         caller: Bytes::new(vec![1; 29]).unwrap(),
@@ -120,9 +115,9 @@ fn caller_only_requests_and_all_logout_outcomes_have_bounded_distinct_frames() {
         expires_at_ns: u64::MAX,
     };
     for response in [Ok(view), Err(model::AdmissionRefusal::Capacity)] {
-        let bytes = wire::encode_response::<EstablishSession>(&response).unwrap();
+        let bytes = EstablishSession::encode_response(&response).unwrap();
         assert_eq!(
-            wire::decode_response::<EstablishSession>(bytes.as_bytes()).unwrap(),
+            EstablishSession::decode_response(bytes.as_slice()).unwrap(),
             response
         );
     }
@@ -146,21 +141,22 @@ fn admission_refusals_are_typed_distinct_and_reject_retired_text() {
         R::Unavailable,
     ] {
         let result = Err(refusal);
-        let encoded = wire::encode_response::<EstablishSession>(&result).unwrap();
+        let encoded = EstablishSession::encode_response(&result).unwrap();
         assert_eq!(
-            wire::decode_response::<EstablishSession>(encoded.as_bytes()).unwrap(),
+            EstablishSession::decode_response(encoded.as_slice()).unwrap(),
             result
         );
-        assert!(frames.insert(encoded.into_bytes()));
+        assert!(frames.insert(encoded));
     }
-    let encoded = wire::encode_response::<EstablishSession>(&Err(R::NotYetValid)).unwrap();
+    let encoded = EstablishSession::encode_response(&Err(R::NotYetValid)).unwrap();
     // Retired text replies used a length followed by UTF-8 bytes. In particular,
     // empty text (zero) must not accidentally become the future-start hint.
     for message in ["", "capacity", "portable proof is not yet valid"] {
-        let mut retired = encoded.as_bytes()[..encoded.as_bytes().len() - 1].to_vec();
+        let mut retired = encoded.as_slice()[..encoded.as_slice().len() - 1].to_vec();
+        retired[2..10].copy_from_slice(&0x415554480002_u64.to_le_bytes());
         retired.push(u8::try_from(message.len()).unwrap());
         retired.extend_from_slice(message.as_bytes());
-        assert!(wire::decode_response::<EstablishSession>(&retired).is_err());
+        assert!(EstablishSession::decode_response(&retired).is_err());
     }
 }
 
@@ -179,27 +175,83 @@ fn released_010_frames_survive_the_wire_05_rust_api_cut() {
     let credential_frame = decode(
         "4957010048545541000000030080ff0140000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f",
     );
-    let decoded = wire::decode_request::<CredentialEnvelope>(&credential_frame).unwrap();
+    let decoded = CredentialEnvelope::decode_request(&credential_frame).unwrap();
     assert_eq!(
         domain::PortableCredential::try_from(decoded.clone()).unwrap(),
         credential()
     );
     assert_eq!(
-        wire::encode_request::<CredentialEnvelope>(&decoded)
+        CredentialEnvelope::encode_request(&decoded)
             .unwrap()
-            .as_bytes(),
+            .as_slice(),
         credential_frame
     );
     let logout_frame = decode("4957040048545541000000");
-    wire::decode_request::<Logout>(&logout_frame).unwrap();
+    Logout::decode_request(&logout_frame).unwrap();
     assert_eq!(
-        wire::encode_request::<Logout>(&()).unwrap().as_bytes(),
+        Logout::encode_request(&()).unwrap().as_slice(),
         logout_frame
     );
     let read_frame = decode("4957030048545541000000");
-    wire::decode_request::<ReadSession>(&read_frame).unwrap();
+    ReadSession::decode_request(&read_frame).unwrap();
     assert_eq!(
-        wire::encode_request::<ReadSession>(&()).unwrap().as_bytes(),
+        ReadSession::encode_request(&()).unwrap().as_slice(),
         read_frame
     );
+}
+
+#[test]
+fn retired_admission_identity_cannot_reinterpret_refusal_tags() {
+    let value: Result<ic_auth_wire::SessionView, model::AdmissionRefusal> =
+        Err(model::AdmissionRefusal::NotYetValid);
+    let frame = EstablishSession::encode_response(&value).unwrap();
+    assert_eq!(&frame[2..10], &0x415554480012_u64.to_le_bytes());
+    assert_eq!(&frame[11..], &[1, 0]); // Serde Result::Err, then NotYetValid.
+    let mut retired = frame.clone();
+    retired[2..10].copy_from_slice(&0x415554480002_u64.to_le_bytes());
+    retired[12] = 1; // The former NotYetValid tag now means Expired.
+    assert_eq!(
+        EstablishSession::decode_response(&retired),
+        Err(wire::Error::Identity)
+    );
+    assert_eq!(EstablishSession::decode_response(&frame).unwrap(), value);
+}
+
+#[test]
+fn native_traversal_budgets_refuse_without_relaxing_field_bounds() {
+    let value: model::PortableCredential = credential().try_into().unwrap();
+    let frame = CredentialEnvelope::encode_request(&value).unwrap();
+    let baseline = CredentialEnvelope::REQUEST_LIMITS;
+    for limits in [
+        wire::Limits {
+            bytes: frame.len() - 1,
+            ..baseline
+        },
+        wire::Limits {
+            allocation: baseline.bytes,
+            ..baseline
+        },
+        wire::Limits {
+            nodes: 1,
+            ..baseline
+        },
+        wire::Limits {
+            depth: 1,
+            ..baseline
+        },
+    ] {
+        assert_eq!(
+            wire::native::encode_request(CredentialEnvelope::ID, &value, limits),
+            Err(wire::Error::Limit)
+        );
+        assert_eq!(
+            wire::native::decode_request::<model::PortableCredential>(
+                CredentialEnvelope::ID,
+                &frame,
+                limits
+            ),
+            Err(wire::Error::Limit)
+        );
+    }
+    assert_eq!(CredentialEnvelope::decode_request(&frame).unwrap(), value);
 }

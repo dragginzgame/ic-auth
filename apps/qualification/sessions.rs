@@ -212,8 +212,8 @@ mod tests {
                 ..config.clone()
             };
             let transport: wire::ReceiverConfig = expected.clone().try_into().unwrap();
-            let bytes = ic_wire::encode_request::<InstallReceiver>(&transport).unwrap();
-            let decoded = ic_wire::decode_request::<InstallReceiver>(bytes.as_bytes()).unwrap();
+            let bytes = InstallReceiver::encode_request(&transport).unwrap();
+            let decoded = InstallReceiver::decode_request(bytes.as_slice()).unwrap();
             assert_eq!(ReceiverConfig::try_from(decoded).unwrap(), expected);
             let mut invalid = transport;
             invalid.role = ic_wire::Text::new("Invalid Role".into()).unwrap();

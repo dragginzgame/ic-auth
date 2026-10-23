@@ -5,13 +5,13 @@ session reads and logout. This package depends on passive Auth types and publish
 IC Wire; it has no Candid, CDK, crypto, Canic, Toko or storage dependency.
 
 Convert domain credentials with `model::PortableCredential::try_from`, then use
-`wire::encode_request::<CredentialEnvelope>` for detached data. Conversion back
+`CredentialEnvelope::encode_request` for detached data. Conversion back
 retains the signed claim bytes and validates checked identifier syntax. It does
 not authenticate any proof. Admission still requires the complete Auth session
 engine against protected host authority, caller, clock and atomic storage.
 
-The method IDs, explicit field/variant IDs and finite bounds are the transport
-contract. Consumers own actual endpoint names, ingress authentication, raw
+The method IDs, Serde field/variant declaration order, bounded field types and
+explicit native traversal allowances are the transport contract. Consumers own actual endpoint names, ingress authentication, raw
 argument/reply allocation, dispatch, cancellation and retries. No endpoint is
 installed by linking this library. Response encoding failure after mutation must
 trap so local effects roll back. Never retry an unknown issuance as new work.
@@ -21,22 +21,28 @@ should leave it disabled. Generated TypeScript and Rust use the same layouts and
 IC Wire's canonical bounded codec. Signed claims and session records retain their
 existing independent formats.
 
-This is a coordinated application-transport hard cut. There is no Candid fallback
-or previous browser token-store reader. The maintainer confirmed there are no
-deployed old records or unresolved old issuance effects to preserve. New portable
-logout journals continue to retain unknown issuance and durable invalidation.
+The earlier Auth 0.9 application-transport cut retired the old token-store reader
+after the maintainer confirmed no deployed records or unresolved issuance effects
+used that old format. There is no Candid fallback. Current portable logout
+journals retain unknown issuance and durable invalidation; this migration does
+not authorize discarding them.
 
-Released Auth 0.14 exposes IC Wire 0.5 through `wire`; historical Auth 0.10 uses
-Wire 0.4. Align consumers sharing these Rust types. `Wire` no longer implies
-owned deserialization: generic decoders of owned replies/requests need explicit
-`serde::de::DeserializeOwned` bounds; encoding-only callers need no new bound.
-Auth's concrete DTOs remain owned.
+The pending Auth 0.15 source exposes IC Wire 0.6 through `wire`. Released
+Auth 0.14 uses Wire 0.5. The finite `Method` trait, serializer derive and typed
+retained frames are removed. Use the contract's pure `encode_request`,
+`decode_request`, `encode_response` and `decode_response` functions. They bind
+the concrete DTO, method identity and limits to Wire's native codec and return
+ordinary owned bytes. Retain those bytes unchanged across uncertain effects.
+Generic native Testkit callers supply `WireCallSpec`; no replacement method trait
+is provided. `typescript` derives host-only Serde metadata for regeneration.
 
-Auth 0.14 changes `EstablishSession::Response` to
-`Result<SessionView, model::AdmissionRefusal>`. Hosts convert the core
-`SessionError::admission_refusal()` result with `.into()` and retain detailed
-errors locally. Regenerate and update receiver/client reply handling together;
-there is no text-error fallback. The method IDs, request and successful-reply
-bytes, read/logout contracts, signed claims and retained records are unchanged.
-`NotYetValid` permits no early admission or deadline extension: it is only a
-bounded same-credential retry hint. The enum does not implement retry policy.
+Admission keeps its name but changes its ID from `0x415554480002` to
+`0x415554480012`. Serde uses zero-based refusal tags; the new ID prevents
+misinterpreting old tags. Update admission clients and receivers together.
+Credential, read and logout IDs and their frozen bytes remain unchanged, as do
+signed claims, session/replay records and browser logout journals. No fallback
+reader, implicit reissuance or storage reset is introduced.
+
+Hosts project `SessionError::admission_refusal()` into `model::AdmissionRefusal`
+and retain detailed diagnostics locally. `NotYetValid` is a same-credential retry
+hint, never permission for early admission or extending the original deadline.

@@ -23,14 +23,10 @@ async fn ingress(
     agent.set_root_key(root.to_vec());
     let bytes = agent
         .update(&target.into(), "owner_checked_operation")
-        .with_arg(
-            ic_wire::encode_request::<controls::OwnerOperation>(&())
-                .unwrap()
-                .into_bytes(),
-        )
+        .with_arg(controls::OwnerOperation::encode_request(&()).unwrap())
         .call_and_wait()
         .await?;
-    Ok(ic_wire::decode_response::<controls::OwnerOperation>(&bytes)
+    Ok(controls::OwnerOperation::decode_response(&bytes)
         .unwrap()
         .map(|p| Principal::try_from_slice(p.as_slice()).unwrap())
         .map_err(|e| e.into_string()))

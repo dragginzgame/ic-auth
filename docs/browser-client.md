@@ -7,14 +7,16 @@ Canic/Toko integration remain consumer/service work.
 
 ## Application transport hard cut
 
-Released Auth 0.14 uses `crates/ic-auth-wire/` with published IC Wire 0.5.
-Historical Auth 0.10 uses Wire 0.4 and Auth 0.9 uses Wire 0.3; consumers sharing
-Rust Wire types must align that dependency identity. Wire 0.5 separates owned
-deserialization from `Wire`; generic decoders require an explicit Serde bound.
-Auth keeps owned DTOs, existing frame bytes and generated browser contracts; no
-browser storage reset or journal migration is needed. See [consumer selection](canic-adoption.md#wire-transport).
-Rust field/variant IDs, bounded types and method identities generate both Rust
-codecs and TypeScript contracts. Application traffic has no Candid selector or
+Pending Auth 0.15 uses `crates/ic-auth-wire/` with published IC Wire 0.6 native
+Serde. Released Auth 0.14 uses Wire 0.5; update receivers and generated clients
+together. Admission changes its ID to `0x415554480012` to isolate zero-based
+refusal tags; the retired ID is refused. Credential/read/logout identities and
+frozen frames remain unchanged. No browser storage reset or journal migration
+is needed. See [consumer selection](canic-adoption.md#wire-transport).
+Serde declaration order, bounded fields, explicit native traversal limits and
+method identities own the Rust codecs and generated TypeScript contracts.
+Metadata derives belong only to the host generator, not deployed dependencies.
+Application traffic has no Candid selector or
 fallback. Canonical signed claims and session/replay/login records keep their
 independent existing bytes. Platform ingress certificates and management protocols
 remain distinct from this application codec.
@@ -56,7 +58,7 @@ into an ordinary Uint8Array so Buffer/subarray inputs cannot retain aliases.
 Generated records may have null prototypes; consumers should use their declared
 fields rather than assume Object prototype methods. u64 fields remain bigint.
 
-Consumers own endpoint exports and transport. Use the corresponding Method's
+Consumers own endpoint exports and transport. Use the corresponding contract's
 request encoder and response decoder around the raw SDK call; its NAME is a
 reference binding, not endpoint installation. Hosts admit raw argument lengths
 before copying/decoding and authenticate ingress independently. A credential or

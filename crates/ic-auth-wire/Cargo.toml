@@ -16,6 +16,7 @@ typescript = ["ic-wire/typescript"]
 [dependencies]
 ic-auth-protocol-types.workspace = true
 ic-wire.workspace = true
+serde.workspace = true
 
 [lints]
 workspace = true

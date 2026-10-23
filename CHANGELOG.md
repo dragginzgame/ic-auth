@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.15.0]
+
+- **Breaking transport API:** adopt Wire 0.6 native Serde and Host/Build/Testkit
+  0.65. Replace the removed finite `Method` API with contract-owned native codec
+  functions and explicit Testkit call specifications; regenerate browser bindings.
+- **Breaking admission identity:** use method ID `0x415554480012` and Serde refusal
+  tags. Update receivers and clients together; the retired admission ID is refused.
+  Frozen credential, read and logout frames, signed material, production storage
+  and browser logout journals retain their formats.
+- Refresh Shared Tooling to 0.26.7, including bounded setup contention waits,
+  explicit IC-tool selection and hardened validation/evidence handling.
+- Retire the unpublished fixture's finite-Wire controls/checkpoint; use fresh
+  disposable fixtures. Production session storage is unaffected.
+
 ## [0.14.4] - 2026-10-22
 
 - Adopt published IC Build/Host/Testkit 0.64.0. The native qualification runner

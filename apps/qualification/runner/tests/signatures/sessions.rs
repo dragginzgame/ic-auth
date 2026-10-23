@@ -36,10 +36,11 @@ fn measured<T>(f: &Fixture, target: Principal, label: &str, operation: impl FnOn
 }
 
 fn install(f: &Fixture, target: Principal, config: &ReceiverConfig) {
-    let result: Result<(), String> = update_control::<controls::InstallReceiver, _>(
+    let result: Result<(), String> = update_control::<controls::model::ReceiverConfig, ()>(
         &f.pic,
         target,
         f.controller,
+        spec!(controls::InstallReceiver),
         (config.clone()).try_into().unwrap(),
     );
     result.unwrap();
@@ -50,18 +51,39 @@ fn admission(
     caller: Principal,
     input: &SessionInput,
 ) -> Result<SessionView, AdmissionRefusal> {
-    update_wire::<ic_auth_wire::EstablishSession>(&f.pic, target.into(), caller.into(), input)
-        .expect("qualified Wire admission")
+    update_wire::<
+        ic_auth_wire::SessionInput,
+        Result<ic_auth_wire::SessionView, ic_auth_wire::model::AdmissionRefusal>,
+    >(
+        &f.pic,
+        target.into(),
+        caller.into(),
+        spec!(ic_auth_wire::EstablishSession),
+        input,
+    )
+    .expect("qualified Wire admission")
 }
 fn read(f: &Fixture, target: Principal, caller: Principal) -> Result<SessionView, String> {
-    update_wire::<ic_auth_wire::ReadSession>(&f.pic, target.into(), caller.into(), &())
-        .expect("qualified Wire session read")
-        .map_err(|e| e.into_string())
+    update_wire::<(), Result<ic_auth_wire::SessionView, ic_wire::Text<256>>>(
+        &f.pic,
+        target.into(),
+        caller.into(),
+        spec!(ic_auth_wire::ReadSession),
+        &(),
+    )
+    .expect("qualified Wire session read")
+    .map_err(|e| e.into_string())
 }
 fn logout(f: &Fixture, target: Principal, caller: Principal) -> Result<u64, LogoutResult> {
     use ic_auth_wire::model as m;
-    match update_wire::<ic_auth_wire::Logout>(&f.pic, target.into(), caller.into(), &())
-        .expect("qualified Wire logout")
+    match update_wire::<(), ic_auth_wire::model::LogoutResult>(
+        &f.pic,
+        target.into(),
+        caller.into(),
+        spec!(ic_auth_wire::Logout),
+        &(),
+    )
+    .expect("qualified Wire logout")
     {
         m::LogoutResult::Revoked(until) => Ok(until),
         m::LogoutResult::InvalidCaller => Err(LogoutResult::InvalidCaller),
@@ -174,11 +196,8 @@ fn sdk_preserves_typed_refusals_and_retries_the_original_future_credential() {
         .arg(f.resource.to_text())
         .arg(hex(&f.pic.root_key().unwrap()));
     for value in [&future, &expired, &invalid] {
-        let frame = ic_auth_wire::wire::encode_request::<ic_auth_wire::CredentialEnvelope>(
-            &value.credential,
-        )
-        .unwrap();
-        command.arg(hex(frame.as_bytes()));
+        let frame = ic_auth_wire::CredentialEnvelope::encode_request(&value.credential).unwrap();
+        command.arg(hex(frame.as_slice()));
     }
     eprintln!(
         "{}",
@@ -310,12 +329,9 @@ fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ingress()
     };
     install(&f, f.signer, &config);
     install(&f, f.resource, &config);
-    use ic_auth_wire::wire::Method;
     for malformed in [
         vec![0],
-        ic_auth_wire::wire::encode_request::<ic_auth_wire::ReadSession>(&())
-            .unwrap()
-            .into_bytes(),
+        ic_auth_wire::ReadSession::encode_request(&()).unwrap(),
         vec![0; ic_auth_wire::EstablishSession::REQUEST_LIMITS.bytes + 1],
     ] {
         assert!(
@@ -411,7 +427,13 @@ fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ingress()
     );
     logout(&f, f.resource, caller).unwrap();
     let profile: Result<SessionProfile, String> =
-        query_control::<controls::ProfileSession, _>(&f.pic, f.signer, other_caller, ());
+        query_control::<(), controls::model::SessionProfile>(
+            &f.pic,
+            f.signer,
+            other_caller,
+            spec!(controls::ProfileSession),
+            (),
+        );
     let profile = profile.unwrap();
     assert!(profile.record_bytes < 2048);
     assert!(profile.decode_instructions > 0);
@@ -424,8 +446,13 @@ fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ingress()
     claims.issued_at_ns = f.now();
     claims.admission_expires_at_ns = f.now() + 2 * SECOND;
     assert!(admission(&f, f.signer, unknown, &input(&claims, &key)).is_err());
-    let result: Result<(), String> =
-        update_control::<controls::InvalidateAuthority, _>(&f.pic, f.signer, f.controller, false);
+    let result: Result<(), String> = update_control::<bool, ()>(
+        &f.pic,
+        f.signer,
+        f.controller,
+        spec!(controls::InvalidateAuthority),
+        false,
+    );
     result.unwrap();
     assert!(read(&f, f.signer, other_caller).is_err());
     logout(&f, f.signer, other_caller).unwrap();
@@ -433,9 +460,7 @@ fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ingress()
         .upgrade_canister(
             f.resource.into(),
             f.wasm.clone(),
-            ic_wire::encode_request::<controls::Upgrade>(&())
-                .unwrap()
-                .into_bytes(),
+            controls::Upgrade::encode_request(&()).unwrap(),
             Some(f.controller.into()),
         )
         .unwrap();
@@ -475,15 +500,11 @@ fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ingress()
             agent.set_root_key(network.clone());
             let bytes = agent
                 .update(&f.resource.into(), "portable_session_read")
-                .with_arg(
-                    ic_auth_wire::wire::encode_request::<ic_auth_wire::ReadSession>(&())
-                        .unwrap()
-                        .into_bytes(),
-                )
+                .with_arg(ic_auth_wire::ReadSession::encode_request(&()).unwrap())
                 .call_and_wait()
                 .await
                 .unwrap();
-            ic_auth_wire::wire::decode_response::<ic_auth_wire::ReadSession>(&bytes).unwrap()
+            ic_auth_wire::ReadSession::decode_response(&bytes).unwrap()
         });
         if device == 4 {
             assert_eq!(result.unwrap().caller.as_slice(), fresh.as_slice())
@@ -507,22 +528,17 @@ fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ingress()
     for receiver in [f.signer, f.resource] {
         assert!(read(&f, receiver, sdk_caller).is_err());
     }
-    let sdk_credential = ic_auth_wire::wire::encode_request::<ic_auth_wire::CredentialEnvelope>(
-        &input(&sdk_claims, &key).credential,
-    )
-    .unwrap()
-    .into_bytes();
+    let sdk_credential =
+        ic_auth_wire::CredentialEnvelope::encode_request(&input(&sdk_claims, &key).credential)
+            .unwrap();
     let mut sdk_peer_claims = sdk_claims.clone();
     sdk_peer_claims.browser_public_key =
         SigningKey::from_bytes(&[10; 32]).verifying_key().to_bytes();
     sdk_peer_claims.nonce = [10; 16];
     let sdk_peer_caller = browser_principal(&sdk_peer_claims.browser_public_key);
     let sdk_peer_credential =
-        ic_auth_wire::wire::encode_request::<ic_auth_wire::CredentialEnvelope>(
-            &input(&sdk_peer_claims, &key).credential,
-        )
-        .unwrap()
-        .into_bytes();
+        ic_auth_wire::CredentialEnvelope::encode_request(&input(&sdk_peer_claims, &key).credential)
+            .unwrap();
     // Node uses the real SDK transport and trusted Testkit network root. The
     // journal uses fake IndexedDB; this does not qualify native browser storage.
     let mut command = std::process::Command::new(
@@ -704,11 +720,9 @@ pub(super) fn qualify_certified(
             issuer_signature: signature,
         },
     };
-    let frame = ic_auth_wire::wire::encode_request::<ic_auth_wire::CredentialEnvelope>(
-        &credential.clone().try_into().unwrap(),
-    )
-    .unwrap()
-    .into_bytes();
+    let frame =
+        ic_auth_wire::CredentialEnvelope::encode_request(&credential.clone().try_into().unwrap())
+            .unwrap();
     let hex: String = frame.iter().map(|byte| format!("{byte:02x}")).collect();
     let mut command = std::process::Command::new(
         std::env::var_os("IC_AUTH_QUALIFICATION_NODE").expect("admitted Node"),
@@ -798,8 +812,13 @@ fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_authority() 
     };
     install(&f, f.resource, &config);
     install(&f, f.signer, &config);
-    let enabled: Result<(), String> =
-        update_control::<controls::EnableCheckpoint, _>(&f.pic, f.resource, f.controller, ());
+    let enabled: Result<(), String> = update_control::<(), ()>(
+        &f.pic,
+        f.resource,
+        f.controller,
+        spec!(controls::EnableCheckpoint),
+        (),
+    );
     enabled.unwrap();
     f.pic.advance_time(Duration::from_secs(1));
     let mut claims = PortableClaims {
@@ -835,9 +854,7 @@ fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_authority() 
         .upgrade_canister(
             f.resource.into(),
             f.wasm.clone(),
-            ic_wire::encode_request::<controls::Upgrade>(&())
-                .unwrap()
-                .into_bytes(),
+            controls::Upgrade::encode_request(&()).unwrap(),
             Some(f.controller.into()),
         )
         .unwrap();
@@ -852,27 +869,30 @@ fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_authority() 
         logout(&f, f.resource, live),
         Err(LogoutResult::Unavailable(LogoutUnavailable::ResetPending))
     );
-    let unauthorized: Result<(), String> = update_control::<controls::ConfirmAuthority, _>(
+    let unauthorized: Result<(), String> = update_control::<controls::model::ReceiverConfig, ()>(
         &f.pic,
         f.resource,
         live,
+        spec!(controls::ConfirmAuthority),
         (config.clone()).try_into().unwrap(),
     );
     assert!(unauthorized.is_err());
     let mut mismatch = config.clone();
     mismatch.authority = ReceiverAuthority::Ed25519([7; 32]);
-    let wrong: Result<(), String> = update_control::<controls::ConfirmAuthority, _>(
+    let wrong: Result<(), String> = update_control::<controls::model::ReceiverConfig, ()>(
         &f.pic,
         f.resource,
         f.controller,
+        spec!(controls::ConfirmAuthority),
         (mismatch).try_into().unwrap(),
     );
     assert!(wrong.is_err());
     assert!(read(&f, f.resource, live).is_err());
-    let confirmed: Result<(), String> = update_control::<controls::ConfirmAuthority, _>(
+    let confirmed: Result<(), String> = update_control::<controls::model::ReceiverConfig, ()>(
         &f.pic,
         f.resource,
         f.controller,
+        spec!(controls::ConfirmAuthority),
         (config.clone()).try_into().unwrap(),
     );
     confirmed.unwrap();
@@ -897,23 +917,27 @@ fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_authority() 
     assert_eq!(renewed_peer.subject, session.subject);
     claims.browser_public_key = unknown_key;
     assert!(admission(&f, f.resource, unknown, &input(&claims, &key)).is_err());
-    let disabled: Result<(), String> =
-        update_control::<controls::InvalidateAuthority, _>(&f.pic, f.resource, f.controller, false);
+    let disabled: Result<(), String> = update_control::<bool, ()>(
+        &f.pic,
+        f.resource,
+        f.controller,
+        spec!(controls::InvalidateAuthority),
+        false,
+    );
     disabled.unwrap();
     f.pic
         .upgrade_canister(
             f.resource.into(),
             f.wasm.clone(),
-            ic_wire::encode_request::<controls::Upgrade>(&())
-                .unwrap()
-                .into_bytes(),
+            controls::Upgrade::encode_request(&()).unwrap(),
             Some(f.controller.into()),
         )
         .unwrap();
-    let confirmed: Result<(), String> = update_control::<controls::ConfirmAuthority, _>(
+    let confirmed: Result<(), String> = update_control::<controls::model::ReceiverConfig, ()>(
         &f.pic,
         f.resource,
         f.controller,
+        spec!(controls::ConfirmAuthority),
         (config).try_into().unwrap(),
     );
     confirmed.unwrap();

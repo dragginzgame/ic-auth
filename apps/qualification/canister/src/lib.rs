@@ -8,7 +8,7 @@ use ic_auth::signature_store::{
 use ic_auth_qualification_contracts as controls;
 use ic_platform::Principal;
 use ic_platform::certification::{Hash, fork_hash, labeled, leaf};
-use ic_wire::{Bytes, Limits, Method, Wire};
+use ic_wire::{Bytes, Limits};
 use std::cell::RefCell;
 
 mod control;
@@ -76,7 +76,7 @@ fn controller() -> Result<(), String> {
     Ok(())
 }
 
-#[ic_platform::cdk::init(decode_with = "control::decode::<controls::Initialize>")]
+#[ic_platform::cdk::init(decode_with = "control::Initialize::decode")]
 fn init(owner: Bytes<29>) {
     let owner = Principal::try_from_slice(owner.as_slice()).expect("owner principal");
     assert_ne!(owner, Principal::anonymous());
@@ -93,25 +93,28 @@ fn init(owner: Bytes<29>) {
 #[ic_platform::cdk::pre_upgrade]
 fn pre_upgrade() {
     with_state(|state| {
-        let bytes = ic_wire::encode_request::<Checkpoint>(&CheckpointData {
-            owner: Bytes::new(state.metadata.owner.as_slice().to_vec()).expect("owner bound"),
-            asset_version: state.metadata.asset_version,
-            receiver: sessions::capture(),
-        })
-        .expect("encode Wire fixture checkpoint")
-        .into_bytes();
+        let bytes = ic_wire::native::encode_request(
+            CHECKPOINT_ID,
+            &CheckpointData {
+                owner: Bytes::new(state.metadata.owner.as_slice().to_vec()).expect("owner bound"),
+                asset_version: state.metadata.asset_version,
+                receiver: sessions::capture(),
+            },
+            CHECKPOINT_LIMITS,
+        )
+        .expect("encode Wire fixture checkpoint");
         storage::save(&bytes);
     });
 }
 
-#[ic_platform::cdk::post_upgrade(decode_with = "control::decode::<controls::Upgrade>")]
+#[ic_platform::cdk::post_upgrade(decode_with = "control::Upgrade::decode")]
 fn post_upgrade() {
     storage::bootstrap(Default::default(), true);
     let CheckpointData {
         owner,
         asset_version,
         receiver,
-    } = ic_wire::decode_request::<Checkpoint>(&storage::load())
+    } = ic_wire::native::decode_request(CHECKPOINT_ID, &storage::load(), CHECKPOINT_LIMITS)
         .expect("restore Wire fixture checkpoint");
     let metadata = Metadata {
         owner: Principal::try_from_slice(owner.as_slice()).expect("checkpoint owner"),
@@ -124,8 +127,8 @@ fn post_upgrade() {
 
 #[ic_platform::cdk::update(
     guard = "control::guard",
-    decode_with = "control::decode::<controls::Prepare>",
-    encode_with = "control::encode_result::<controls::Prepare, _>"
+    decode_with = "control::Prepare::decode",
+    encode_with = "control::Prepare::encode"
 )]
 fn prepare(
     controls::PrepareInput {
@@ -159,8 +162,8 @@ fn prepare(
 
 #[ic_platform::cdk::query(
     guard = "control::guard",
-    decode_with = "control::decode::<controls::Retrieve>",
-    encode_with = "control::encode_result::<controls::Retrieve, _>"
+    decode_with = "control::Retrieve::decode",
+    encode_with = "control::Retrieve::encode"
 )]
 fn retrieve(
     controls::SignatureInput {
@@ -195,8 +198,8 @@ fn retrieve(
 
 #[ic_platform::cdk::update(
     guard = "control::guard",
-    decode_with = "control::decode::<controls::Prune>",
-    encode_with = "control::encode_result::<controls::Prune, _>"
+    decode_with = "control::Prune::decode",
+    encode_with = "control::Prune::encode"
 )]
 fn prune(budget: u32) -> Result<u32, String> {
     controller()?;
@@ -212,8 +215,8 @@ fn prune(budget: u32) -> Result<u32, String> {
 
 #[ic_platform::cdk::update(
     guard = "control::guard",
-    decode_with = "control::decode::<controls::SetAsset>",
-    encode_with = "control::encode_result::<controls::SetAsset, _>"
+    decode_with = "control::SetAsset::decode",
+    encode_with = "control::SetAsset::encode"
 )]
 fn set_asset(version: u64) -> Result<(), String> {
     controller()?;
@@ -226,8 +229,8 @@ fn set_asset(version: u64) -> Result<(), String> {
 
 #[ic_platform::cdk::query(
     guard = "control::guard",
-    decode_with = "control::decode::<controls::AssetVersion>",
-    encode_with = "control::encode::<controls::AssetVersion>"
+    decode_with = "control::AssetVersion::decode",
+    encode_with = "control::AssetVersion::encode"
 )]
 fn asset_version() -> u64 {
     with_state(|state| state.metadata.asset_version)
@@ -235,8 +238,8 @@ fn asset_version() -> u64 {
 
 #[ic_platform::cdk::update(
     guard = "control::guard",
-    decode_with = "control::decode::<controls::OwnerOperation>",
-    encode_with = "control::encode_result::<controls::OwnerOperation, _>"
+    decode_with = "control::OwnerOperation::decode",
+    encode_with = "control::OwnerOperation::encode"
 )]
 fn owner_checked_operation() -> Result<Bytes<29>, String> {
     let caller = ic_platform::cdk::api::msg_caller();
@@ -251,26 +254,16 @@ fn owner_checked_operation() -> Result<Bytes<29>, String> {
 
 // The maintainer explicitly retired the old unpublished Candid checkpoint.
 // Production storage profiles and IC Memory allocation are unaffected.
-#[derive(Wire)]
+#[derive(serde::Serialize, serde::Deserialize)]
 struct CheckpointData {
-    #[wire(id = 1)]
     owner: Bytes<29>,
-    #[wire(id = 2)]
     asset_version: u64,
-    #[wire(id = 3)]
     receiver: Option<sessions::Snapshot>,
 }
-struct Checkpoint;
-impl Method for Checkpoint {
-    type Request = CheckpointData;
-    type Response = ();
-    const ID: u64 = 0x41555448f100;
-    const NAME: &'static str = "fixture_checkpoint_v2";
-    const REQUEST_LIMITS: Limits = Limits {
-        bytes: 2097152,
-        allocation: 8388608,
-        nodes: 65536,
-        depth: 64,
-    };
-    const RESPONSE_LIMITS: Limits = Self::REQUEST_LIMITS;
-}
+const CHECKPOINT_ID: u64 = 0x41555449f100;
+const CHECKPOINT_LIMITS: Limits = Limits {
+    bytes: 2097152,
+    allocation: 8388608,
+    nodes: 65536,
+    depth: 64,
+};

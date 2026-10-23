@@ -1,6 +1,6 @@
 //! Bounded transport projections. Conversion is structural, never verification.
 use ic_auth_protocol_types as domain;
-use ic_wire::{Bytes, Error, List, Text, Wire};
+use ic_wire::{Bytes, Error, List, Text};
 
 trait Field<D>: Sized {
     fn from_domain(value: D) -> Result<Self, Error>;
@@ -69,12 +69,13 @@ impl Field<domain::AuthRole> for Text<64> {
         self.as_str().parse().map_err(|_| Error::Malformed)
     }
 }
-// One declaration owns each transport field, its explicit ID and both typed
+// One declaration owns each Serde transport field and both typed
 // projections. Rust checks the domain field names/types; no intermediate codec.
 macro_rules! record {
-    ($name:ident { $($id:literal: $field:ident: $ty:ty),* $(,)? }) => {
-        #[derive(Clone, Debug, Eq, PartialEq, Wire)]
-        pub struct $name { $(#[wire(id = $id)] pub $field: $ty),* }
+    ($name:ident { $($field:ident: $ty:ty),* $(,)? }) => {
+        #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "typescript", derive(ic_wire::Wire))]
+        pub struct $name { $(pub $field: $ty),* }
         impl TryFrom<domain::$name> for $name {
             type Error = Error;
             fn try_from(value: domain::$name) -> Result<Self, Error> {
@@ -94,9 +95,10 @@ macro_rules! record {
     };
 }
 macro_rules! unit_enum {
-    ($name:ident { $($id:literal: $variant:ident),* $(,)? }) => {
-        #[derive(Clone, Debug, Eq, PartialEq, Wire)]
-        pub enum $name { $(#[wire(id = $id)] $variant),* }
+    ($name:ident { $($variant:ident),* $(,)? }) => {
+        #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "typescript", derive(ic_wire::Wire))]
+        pub enum $name { $($variant),* }
         impl Field<domain::$name> for $name {
             fn from_domain(value: domain::$name) -> Result<Self, Error> {
                 Ok(match value { $(domain::$name::$variant => Self::$variant),* })
@@ -108,9 +110,10 @@ macro_rules! unit_enum {
     };
 }
 macro_rules! tuple_enum {
-    ($name:ident { $($id:literal: $variant:ident($ty:ty)),* $(,)? }) => {
-        #[derive(Clone, Debug, Eq, PartialEq, Wire)]
-        pub enum $name { $(#[wire(id = $id)] $variant($ty)),* }
+    ($name:ident { $($variant:ident($ty:ty)),* $(,)? }) => {
+        #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "typescript", derive(ic_wire::Wire))]
+        pub enum $name { $($variant($ty)),* }
         impl Field<domain::$name> for $name {
             fn from_domain(value: domain::$name) -> Result<Self, Error> {
                 Ok(match value { $(domain::$name::$variant(v) => Self::$variant(Field::from_domain(v)?)),* })
@@ -121,19 +124,22 @@ macro_rules! tuple_enum {
         }
     };
 }
-record!(AudienceId { 1: canonical_network_id: [u8; 32], 2: fleet_id: [u8; 32] });
-record!(DelegatedRoleGrant { 1: target: Text<64>, 2: scopes: List<Text<64>, 32> });
+record!(AudienceId {
+    canonical_network_id: [u8; 32],
+    fleet_id: [u8; 32]
+});
+record!(DelegatedRoleGrant { target: Text<64>, scopes: List<Text<64>, 32> });
 tuple_enum!(DelegationAudience {
-    0: Fleet(AudienceId)
+    Fleet(AudienceId)
 });
-unit_enum!(ChainKeyAlgorithm { 0: EcdsaSecp256k1 });
-record!(ChainKeyKeyId { 1: name: Text<128> });
+unit_enum!(ChainKeyAlgorithm { EcdsaSecp256k1 });
+record!(ChainKeyKeyId { name: Text<128> });
 unit_enum!(IssuerProofAlgorithm {
-    0: IcCanisterSignatureV1
+    IcCanisterSignatureV1
 });
-#[derive(Clone, Debug, Eq, PartialEq, Wire)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "typescript", derive(ic_wire::Wire))]
 pub enum IssuerProofBinding {
-    #[wire(id = 0)]
     IcCanisterSignatureV1([u8; 32]),
 }
 impl Field<domain::IssuerProofBinding> for IssuerProofBinding {
@@ -146,60 +152,63 @@ impl Field<domain::IssuerProofBinding> for IssuerProofBinding {
         Ok(domain::IssuerProofBinding::IcCanisterSignatureV1 { seed_hash })
     }
 }
-record!(IcCanisterSignatureProofV1 { 1: signature_cbor: Bytes<131072>, 2: public_key_der: Bytes<256> });
+record!(IcCanisterSignatureProofV1 { signature_cbor: Bytes<131072>, public_key_der: Bytes<256> });
 record!(ChainKeyBatchHeaderV1 {
-    1: schema_version: u16, 2: root_canister_id: Bytes<29>, 3: batch_id: [u8; 32],
-    4: proof_epoch: u64, 5: registry_epoch: u64, 6: registry_hash: [u8; 32],
-    7: tree_root: [u8; 32], 8: not_before_ns: u64, 9: expires_at_ns: u64,
-    10: algorithm: ChainKeyAlgorithm, 11: key_id: ChainKeyKeyId,
-    12: derivation_path_hash: [u8; 32], 13: key_version: u64,
+    schema_version: u16, root_canister_id: Bytes<29>, batch_id: [u8; 32],
+    proof_epoch: u64, registry_epoch: u64, registry_hash: [u8; 32],
+    tree_root: [u8; 32], not_before_ns: u64, expires_at_ns: u64,
+    algorithm: ChainKeyAlgorithm, key_id: ChainKeyKeyId,
+    derivation_path_hash: [u8; 32], key_version: u64,
 });
 record!(ChainKeyDelegationCertV1 {
-    1: root_canister_id: Bytes<29>, 2: issuer_canister_id: Bytes<29>, 3: proof_epoch: u64,
-    4: issuer_proof_algorithm: IssuerProofAlgorithm, 5: issuer_proof_binding_hash: [u8; 32],
-    6: issuer_proof_binding: IssuerProofBinding, 7: max_token_ttl_ns: u64,
-    8: audience: DelegationAudience, 9: grants: List<DelegatedRoleGrant, 16>,
-    10: not_before_ns: u64, 11: expires_at_ns: u64, 12: registry_epoch: u64, 13: registry_hash: [u8; 32],
+    root_canister_id: Bytes<29>, issuer_canister_id: Bytes<29>, proof_epoch: u64,
+    issuer_proof_algorithm: IssuerProofAlgorithm, issuer_proof_binding_hash: [u8; 32],
+    issuer_proof_binding: IssuerProofBinding, max_token_ttl_ns: u64,
+    audience: DelegationAudience, grants: List<DelegatedRoleGrant, 16>,
+    not_before_ns: u64, expires_at_ns: u64, registry_epoch: u64, registry_hash: [u8; 32],
 });
 record!(ChainKeyRootSignatureV1 {
-    1: algorithm: ChainKeyAlgorithm, 2: key_id: ChainKeyKeyId,
-    3: derivation_path: List<Bytes<256>, 32>, 4: public_key: Bytes<65>, 5: signature: Bytes<64>,
+    algorithm: ChainKeyAlgorithm, key_id: ChainKeyKeyId,
+    derivation_path: List<Bytes<256>, 32>, public_key: Bytes<65>, signature: Bytes<64>,
 });
 tuple_enum!(ChainKeyBatchWitnessStepV1 {
-    0: LeftSibling([u8; 32]),
-    1: RightSibling([u8; 32])
+    LeftSibling([u8; 32]),
+    RightSibling([u8; 32])
 });
-record!(ChainKeyBatchWitnessV1 { 1: steps: List<ChainKeyBatchWitnessStepV1, 64> });
+record!(ChainKeyBatchWitnessV1 { steps: List<ChainKeyBatchWitnessStepV1, 64> });
 record!(IcChainKeyBatchSignatureProofV1 {
-    1: header: ChainKeyBatchHeaderV1, 2: delegation_cert: ChainKeyDelegationCertV1,
-    3: issuer_witness: ChainKeyBatchWitnessV1, 4: signature: ChainKeyRootSignatureV1,
+    header: ChainKeyBatchHeaderV1,
+    delegation_cert: ChainKeyDelegationCertV1,
+    issuer_witness: ChainKeyBatchWitnessV1,
+    signature: ChainKeyRootSignatureV1,
 });
 tuple_enum!(RootProof {
-    0: IcChainKeyBatchSignatureV1(IcChainKeyBatchSignatureProofV1)
+    IcChainKeyBatchSignatureV1(IcChainKeyBatchSignatureProofV1)
 });
 record!(DelegationCert {
-    1: root_pid: Bytes<29>, 2: issuer_pid: Bytes<29>, 3: issuer_proof_alg: IssuerProofAlgorithm,
-    4: issuer_proof_binding_hash: [u8; 32], 5: issuer_proof_binding: IssuerProofBinding,
-    6: issued_at_ns: u64, 7: not_before_ns: u64, 8: expires_at_ns: u64,
-    9: max_token_ttl_ns: u64, 10: aud: DelegationAudience, 11: grants: List<DelegatedRoleGrant, 16>,
+    root_pid: Bytes<29>, issuer_pid: Bytes<29>, issuer_proof_alg: IssuerProofAlgorithm,
+    issuer_proof_binding_hash: [u8; 32], issuer_proof_binding: IssuerProofBinding,
+    issued_at_ns: u64, not_before_ns: u64, expires_at_ns: u64,
+    max_token_ttl_ns: u64, aud: DelegationAudience, grants: List<DelegatedRoleGrant, 16>,
 });
-record!(DelegationProof { 1: cert: DelegationCert, 2: root_proof: RootProof });
-#[derive(Clone, Debug, Eq, PartialEq, Wire)]
+record!(DelegationProof {
+    cert: DelegationCert,
+    root_proof: RootProof
+});
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "typescript", derive(ic_wire::Wire))]
 pub struct CertifiedProof {
-    #[wire(id = 1)]
     pub delegation: DelegationProof,
-    #[wire(id = 2)]
     pub issuer_signature: IcCanisterSignatureProofV1,
 }
-#[derive(Clone, Debug, Eq, PartialEq, Wire)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "typescript", derive(ic_wire::Wire))]
 #[allow(
     clippy::large_enum_variant,
-    reason = "The upstream derive has no Box shape; retain its bounded canonical schema instead of adding a private codec"
+    reason = "Keep the bounded transport projection and explicit domain conversion"
 )]
 pub enum PortableProof {
-    #[wire(id = 0)]
     Certified(CertifiedProof),
-    #[wire(id = 1)]
     Ed25519(Bytes<64>),
 }
 impl Field<domain::PortableProof> for PortableProof {
@@ -227,20 +236,20 @@ impl Field<domain::PortableProof> for PortableProof {
         })
     }
 }
-record!(PortableCredential { 1: claims: Bytes<65536>, 2: proof: PortableProof });
+record!(PortableCredential { claims: Bytes<65536>, proof: PortableProof });
 // Admission diagnostics are independent of proof validity and retry policy.
 unit_enum!(AdmissionRefusal {
-    1: NotYetValid,
-    2: Expired,
-    3: InvalidCredential,
-    4: AuthorityUnavailable,
-    5: BeforeReset,
-    6: ScopeRejected,
-    7: ReplayConflict,
-    8: Revoked,
-    9: Capacity,
-    10: Throttled,
-    11: Unavailable
+    NotYetValid,
+    Expired,
+    InvalidCredential,
+    AuthorityUnavailable,
+    BeforeReset,
+    ScopeRejected,
+    ReplayConflict,
+    Revoked,
+    Capacity,
+    Throttled,
+    Unavailable
 });
 impl From<domain::AdmissionRefusal> for AdmissionRefusal {
     fn from(value: domain::AdmissionRefusal) -> Self {
@@ -261,18 +270,16 @@ impl From<domain::AdmissionRefusal> for AdmissionRefusal {
     }
 }
 unit_enum!(LogoutUnavailable {
-    0: Capacity,
-    1: Storage,
-    2: Clock,
-    3: ResetPending
+    Capacity,
+    Storage,
+    Clock,
+    ResetPending
 });
-#[derive(Clone, Debug, Eq, PartialEq, Wire)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "typescript", derive(ic_wire::Wire))]
 pub enum LogoutResult {
-    #[wire(id = 0)]
     Revoked(u64),
-    #[wire(id = 1)]
     InvalidCaller,
-    #[wire(id = 2)]
     Unavailable(LogoutUnavailable),
 }
 impl From<domain::LogoutResult> for LogoutResult {

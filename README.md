@@ -101,9 +101,11 @@ Auth retains admission limits, protected authority and session policy. See the
 [dependency boundary](docs/development.md#ic-platform-boundary).
 
 Application endpoints, generated TypeScript, private fixture controls and upgrade
-checkpoints use bounded IC Wire 0.5 contracts. The unpublished Candid checkpoint
-format is retired. Signed bytes, Wire frames and retained records keep their
-formats; no implicit browser or production storage reset is permitted. See the
+checkpoints use bounded native Serde IC Wire 0.6 contracts in the pending 0.15
+source. Admission uses a new method identity; update its receiver and client
+together. Credential/read/logout frames, signed material and retained production
+records keep their formats. The unpublished finite-Wire checkpoint is retired;
+no implicit browser or production storage reset is permitted. See the
 [consumer transport contract](docs/canic-adoption.md#wire-transport).
 
 The future wallet service belongs in `apps/wallet-auth/`. No accepting wallet

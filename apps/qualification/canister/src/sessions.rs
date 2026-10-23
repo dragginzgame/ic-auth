@@ -104,8 +104,8 @@ fn with_receiver<T>(
 }
 #[ic_platform::cdk::update(
     guard = "crate::control::guard",
-    decode_with = "crate::control::decode::<controls::InstallReceiver>",
-    encode_with = "crate::control::encode_result::<controls::InstallReceiver, _>"
+    decode_with = "crate::control::InstallReceiver::decode",
+    encode_with = "crate::control::InstallReceiver::encode"
 )]
 fn install_session_receiver(config: controls::model::ReceiverConfig) -> Result<(), String> {
     super::controller()?;
@@ -246,8 +246,8 @@ fn establish_portable_session(input: SessionInput) -> Result<SessionView, Admiss
 }
 #[ic_platform::cdk::update(
     guard = "admission_guard",
-    decode_with = "crate::control::decode::<controls::ProfileAdmission>",
-    encode_with = "crate::control::encode::<controls::ProfileAdmission>"
+    decode_with = "crate::control::ProfileAdmission::decode",
+    encode_with = "crate::control::ProfileAdmission::encode"
 )]
 fn profile_portable_admission(input: SessionInput) -> AdmissionProfile {
     let start = ic_platform::ic0::performance_counter(0);
@@ -303,8 +303,8 @@ fn logout_portable_session() -> LogoutResult {
 }
 #[ic_platform::cdk::update(
     guard = "crate::control::guard",
-    decode_with = "crate::control::decode::<controls::InvalidateAuthority>",
-    encode_with = "crate::control::encode_result::<controls::InvalidateAuthority, _>"
+    decode_with = "crate::control::InvalidateAuthority::decode",
+    encode_with = "crate::control::InvalidateAuthority::encode"
 )]
 fn invalidate_session_authority(enabled: bool) -> Result<(), String> {
     super::controller()?;
@@ -316,8 +316,8 @@ fn invalidate_session_authority(enabled: bool) -> Result<(), String> {
 }
 #[ic_platform::cdk::query(
     guard = "crate::control::guard",
-    decode_with = "crate::control::decode::<controls::ProfileSession>",
-    encode_with = "crate::control::encode_result::<controls::ProfileSession, _>"
+    decode_with = "crate::control::ProfileSession::decode",
+    encode_with = "crate::control::ProfileSession::encode"
 )]
 fn profile_portable_session() -> Result<SessionProfile, String> {
     with_receiver(|host| {
@@ -357,34 +357,31 @@ fn profile_portable_session() -> Result<SessionProfile, String> {
 // Fixture exports bind the shared contract explicitly. Admit raw length before
 // CDK copying; malformed input traps before the stateful handler. Failed reply
 // encoding traps as well, rolling back local session/revocation mutations.
-fn argument_guard<M: ic_auth_wire::wire::Method>() -> Result<(), String> {
-    if ic_platform::ic0::msg_arg_data_size() > M::REQUEST_LIMITS.bytes {
+fn argument_guard(maximum: usize) -> Result<(), String> {
+    if ic_platform::ic0::msg_arg_data_size() > maximum {
         Err("wire argument too large".into())
     } else {
         Ok(())
     }
 }
 fn admission_guard() -> Result<(), String> {
-    argument_guard::<ic_auth_wire::EstablishSession>()
+    argument_guard(ic_auth_wire::EstablishSession::REQUEST_LIMITS.bytes)
 }
 fn read_guard() -> Result<(), String> {
-    argument_guard::<ic_auth_wire::ReadSession>()
+    argument_guard(ic_auth_wire::ReadSession::REQUEST_LIMITS.bytes)
 }
 fn logout_guard() -> Result<(), String> {
-    argument_guard::<ic_auth_wire::Logout>()
+    argument_guard(ic_auth_wire::Logout::REQUEST_LIMITS.bytes)
 }
 fn decode_admission(bytes: Vec<u8>) -> SessionInput {
-    ic_auth_wire::wire::decode_request::<ic_auth_wire::EstablishSession>(&bytes)
-        .expect("bounded admission request")
+    ic_auth_wire::EstablishSession::decode_request(&bytes).expect("bounded admission request")
 }
 
 fn decode_read(bytes: Vec<u8>) {
-    ic_auth_wire::wire::decode_request::<ic_auth_wire::ReadSession>(&bytes)
-        .expect("bounded read request");
+    ic_auth_wire::ReadSession::decode_request(&bytes).expect("bounded read request");
 }
 fn decode_logout(bytes: Vec<u8>) {
-    ic_auth_wire::wire::decode_request::<ic_auth_wire::Logout>(&bytes)
-        .expect("bounded logout request");
+    ic_auth_wire::Logout::decode_request(&bytes).expect("bounded logout request");
 }
 fn wire_result(
     result: Result<SessionView, String>,
@@ -392,19 +389,13 @@ fn wire_result(
     result.map_err(controls::refusal)
 }
 fn encode_admission(result: Result<SessionView, AdmissionRefusal>) -> Vec<u8> {
-    ic_auth_wire::wire::encode_response::<ic_auth_wire::EstablishSession>(&result)
-        .expect("bounded admission reply")
-        .into_bytes()
+    ic_auth_wire::EstablishSession::encode_response(&result).expect("bounded admission reply")
 }
 fn encode_read(result: Result<SessionView, String>) -> Vec<u8> {
-    ic_auth_wire::wire::encode_response::<ic_auth_wire::ReadSession>(&wire_result(result))
-        .expect("bounded read reply")
-        .into_bytes()
+    ic_auth_wire::ReadSession::encode_response(&wire_result(result)).expect("bounded read reply")
 }
 fn encode_logout(result: LogoutResult) -> Vec<u8> {
-    ic_auth_wire::wire::encode_response::<ic_auth_wire::Logout>(&result.into())
-        .expect("bounded logout reply")
-        .into_bytes()
+    ic_auth_wire::Logout::encode_response(&result.into()).expect("bounded logout reply")
 }
 
 #[cfg(test)]
@@ -414,11 +405,8 @@ mod wire_tests {
         for error in ["capacity".to_owned(), "🚫".repeat(100)] {
             let result = super::wire_result(Err(error.clone()));
             assert!(result.as_ref().unwrap_err().as_str().len() <= 256);
-            let bytes =
-                ic_auth_wire::wire::encode_response::<ic_auth_wire::ReadSession>(&result).unwrap();
-            let decoded =
-                ic_auth_wire::wire::decode_response::<ic_auth_wire::ReadSession>(bytes.as_bytes())
-                    .unwrap();
+            let bytes = ic_auth_wire::ReadSession::encode_response(&result).unwrap();
+            let decoded = ic_auth_wire::ReadSession::decode_response(bytes.as_slice()).unwrap();
             assert!(error.starts_with(decoded.unwrap_err().as_str()));
         }
     }

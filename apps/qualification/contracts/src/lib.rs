@@ -1,29 +1,24 @@
 //! Unpublished, bounded Wire controls for the real-canister qualification host.
 //! These are test endpoints, not an issuer or application authorization API.
-use ic_wire::{Bytes, Limits, Method, Wire};
+use ic_wire::{Bytes, Limits};
 pub mod model;
 use model::{AdmissionProfile, ReceiverConfig, SessionProfile};
 
 pub type Refusal = ic_wire::Text<256>;
-#[derive(Clone, Debug, Eq, PartialEq, Wire)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct SignatureInput {
-    #[wire(id = 1)]
     pub seed: Bytes<1024>,
-    #[wire(id = 2)]
     pub domain: Bytes<255>,
-    #[wire(id = 3)]
     pub message: Bytes<1024>,
 }
-#[derive(Clone, Debug, Eq, PartialEq, Wire)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct PrepareInput {
-    #[wire(id = 1)]
     pub input: SignatureInput,
-    #[wire(id = 2)]
     pub retention_ns: u64,
 }
 pub const CONTROL_LIMITS: Limits = Limits {
     bytes: 65536,
-    allocation: 262144,
+    allocation: 1048576,
     nodes: 8192,
     depth: 32,
 };
@@ -33,28 +28,42 @@ const REPLY_LIMITS: Limits = Limits {
     nodes: 256,
     depth: 16,
 };
+const PROFILE_LIMITS: Limits = Limits {
+    allocation: 65536,
+    ..REPLY_LIMITS
+};
 const SIGNATURE_LIMITS: Limits = Limits {
     bytes: 262144,
-    allocation: 1048576,
+    allocation: 2097152,
     nodes: 4096,
     depth: 32,
 };
 macro_rules! method {
     ($name:ident, $id:literal, $entry:literal, $request:ty, $response:ty, $limits:expr) => {
         pub struct $name;
-        impl Method for $name {
-            type Request = $request;
-            type Response = $response;
-            const ID: u64 = $id;
-            const NAME: &'static str = $entry;
-            const REQUEST_LIMITS: Limits = CONTROL_LIMITS;
-            const RESPONSE_LIMITS: Limits = $limits;
+        impl $name {
+            pub const ID: u64 = $id;
+            pub const NAME: &'static str = $entry;
+            pub const REQUEST_LIMITS: Limits = CONTROL_LIMITS;
+            pub const RESPONSE_LIMITS: Limits = $limits;
+            pub fn encode_request(value: &$request) -> Result<Vec<u8>, ic_wire::Error> {
+                ic_wire::native::encode_request(Self::ID, value, Self::REQUEST_LIMITS)
+            }
+            pub fn decode_request(bytes: &[u8]) -> Result<$request, ic_wire::Error> {
+                ic_wire::native::decode_request(Self::ID, bytes, Self::REQUEST_LIMITS)
+            }
+            pub fn encode_response(value: &$response) -> Result<Vec<u8>, ic_wire::Error> {
+                ic_wire::native::encode_response(Self::ID, value, Self::RESPONSE_LIMITS)
+            }
+            pub fn decode_response(bytes: &[u8]) -> Result<$response, ic_wire::Error> {
+                ic_wire::native::decode_response(Self::ID, bytes, Self::RESPONSE_LIMITS)
+            }
         }
     };
 }
 method!(
     Initialize,
-    0x41555448f001,
+    0x41555449f001,
     "init",
     Bytes<29>,
     (),
@@ -62,19 +71,19 @@ method!(
 );
 method!(
     Upgrade,
-    0x41555448f002,
+    0x41555449f002,
     "post_upgrade",
     (),
     (),
     REPLY_LIMITS
 );
-method!(Prepare, 0x41555448f003, "prepare", PrepareInput, Result<u64, Refusal>, REPLY_LIMITS);
-method!(Retrieve, 0x41555448f004, "retrieve", SignatureInput, Result<ic_auth_wire::model::IcCanisterSignatureProofV1, Refusal>, SIGNATURE_LIMITS);
-method!(Prune, 0x41555448f005, "prune", u32, Result<u32, Refusal>, REPLY_LIMITS);
-method!(SetAsset, 0x41555448f006, "set_asset", u64, Result<(), Refusal>, REPLY_LIMITS);
+method!(Prepare, 0x41555449f003, "prepare", PrepareInput, Result<u64, Refusal>, REPLY_LIMITS);
+method!(Retrieve, 0x41555449f004, "retrieve", SignatureInput, Result<ic_auth_wire::model::IcCanisterSignatureProofV1, Refusal>, SIGNATURE_LIMITS);
+method!(Prune, 0x41555449f005, "prune", u32, Result<u32, Refusal>, REPLY_LIMITS);
+method!(SetAsset, 0x41555449f006, "set_asset", u64, Result<(), Refusal>, REPLY_LIMITS);
 method!(
     AssetVersion,
-    0x41555448f007,
+    0x41555449f007,
     "asset_version",
     (),
     u64,
@@ -82,26 +91,36 @@ method!(
 );
 method!(
     OwnerOperation,
-    0x41555448f008,
+    0x41555449f008,
     "owner_checked_operation",
     (),
     Result<Bytes<29>, Refusal>,
     REPLY_LIMITS
 );
-method!(InstallReceiver, 0x41555448f009, "install_session_receiver", ReceiverConfig, Result<(), Refusal>, REPLY_LIMITS);
-method!(InvalidateAuthority, 0x41555448f00a, "invalidate_session_authority", bool, Result<(), Refusal>, REPLY_LIMITS);
-method!(ProfileSession, 0x41555448f00b, "profile_portable_session", (), Result<SessionProfile, Refusal>, REPLY_LIMITS);
+method!(InstallReceiver, 0x41555449f009, "install_session_receiver", ReceiverConfig, Result<(), Refusal>, REPLY_LIMITS);
+method!(InvalidateAuthority, 0x41555449f00a, "invalidate_session_authority", bool, Result<(), Refusal>, REPLY_LIMITS);
+method!(ProfileSession, 0x41555449f00b, "profile_portable_session", (), Result<SessionProfile, Refusal>, REPLY_LIMITS);
 pub struct ProfileAdmission;
-impl Method for ProfileAdmission {
-    type Request = ic_auth_wire::SessionInput;
-    type Response = AdmissionProfile;
-    const ID: u64 = 0x41555448f00c;
-    const NAME: &'static str = "profile_portable_admission";
-    const REQUEST_LIMITS: Limits = <ic_auth_wire::EstablishSession as Method>::REQUEST_LIMITS;
-    const RESPONSE_LIMITS: Limits = REPLY_LIMITS;
+impl ProfileAdmission {
+    pub const ID: u64 = 0x41555449f00c;
+    pub const NAME: &'static str = "profile_portable_admission";
+    pub const REQUEST_LIMITS: Limits = ic_auth_wire::EstablishSession::REQUEST_LIMITS;
+    pub const RESPONSE_LIMITS: Limits = PROFILE_LIMITS;
+    pub fn encode_request(value: &ic_auth_wire::SessionInput) -> Result<Vec<u8>, ic_wire::Error> {
+        ic_wire::native::encode_request(Self::ID, value, Self::REQUEST_LIMITS)
+    }
+    pub fn decode_request(bytes: &[u8]) -> Result<ic_auth_wire::SessionInput, ic_wire::Error> {
+        ic_wire::native::decode_request(Self::ID, bytes, Self::REQUEST_LIMITS)
+    }
+    pub fn encode_response(value: &AdmissionProfile) -> Result<Vec<u8>, ic_wire::Error> {
+        ic_wire::native::encode_response(Self::ID, value, Self::RESPONSE_LIMITS)
+    }
+    pub fn decode_response(bytes: &[u8]) -> Result<AdmissionProfile, ic_wire::Error> {
+        ic_wire::native::decode_response(Self::ID, bytes, Self::RESPONSE_LIMITS)
+    }
 }
-method!(EnableCheckpoint, 0x41555448f00d, "enable_session_checkpoint", (), Result<(), Refusal>, REPLY_LIMITS);
-method!(ConfirmAuthority, 0x41555448f00e, "confirm_restored_session_authority", ReceiverConfig, Result<(), Refusal>, REPLY_LIMITS);
+method!(EnableCheckpoint, 0x41555449f00d, "enable_session_checkpoint", (), Result<(), Refusal>, REPLY_LIMITS);
+method!(ConfirmAuthority, 0x41555449f00e, "confirm_restored_session_authority", ReceiverConfig, Result<(), Refusal>, REPLY_LIMITS);
 
 /// Bounded UTF-8 diagnostics cannot trap and roll back admission charges.
 pub fn refusal(mut error: String) -> Refusal {

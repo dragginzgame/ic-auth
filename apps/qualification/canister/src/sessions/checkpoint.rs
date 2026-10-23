@@ -3,39 +3,24 @@
 use super::*;
 use ic_auth::{portable::LoginRevocationChange, session::Replay};
 use ic_auth_qualification_contracts as controls;
-use ic_wire::{Bytes, List, Wire};
+use ic_wire::{Bytes, List};
 
-#[derive(Wire)]
+#[derive(serde::Serialize, serde::Deserialize)]
 pub(crate) struct Snapshot {
-    #[wire(id = 1)]
     config: controls::model::ReceiverConfig,
-    #[wire(id = 2)]
     login_floor: u64,
-    #[wire(id = 3)]
     proof_floor: u64,
-    #[wire(id = 4)]
     generation: u64,
-    #[wire(id = 5)]
     enabled: bool,
-    #[wire(id = 6)]
     checkpoint_time: u64,
-    #[wire(id = 7)]
     observed: u64,
-    #[wire(id = 8)]
     session_count: u64,
-    #[wire(id = 9)]
     replay_count: u64,
-    #[wire(id = 10)]
     encoded_bytes: u64,
-    #[wire(id = 11)]
     admitted_count: u64,
-    #[wire(id = 12)]
     unknown_count: u64,
-    #[wire(id = 13)]
     sessions: List<Bytes<65536>, 8>,
-    #[wire(id = 14)]
     replays: List<Bytes<1024>, 32>,
-    #[wire(id = 15)]
     logins: List<Bytes<1024>, 16>,
 }
 
@@ -153,8 +138,8 @@ pub(crate) fn restore(snapshot: Option<Snapshot>) {
 
 #[ic_platform::cdk::update(
     guard = "crate::control::guard",
-    decode_with = "crate::control::decode::<controls::EnableCheckpoint>",
-    encode_with = "crate::control::encode_result::<controls::EnableCheckpoint, _>"
+    decode_with = "crate::control::EnableCheckpoint::decode",
+    encode_with = "crate::control::EnableCheckpoint::encode"
 )]
 fn enable_session_checkpoint() -> Result<(), String> {
     super::super::controller()?;
@@ -168,8 +153,8 @@ fn enable_session_checkpoint() -> Result<(), String> {
 /// requires authenticated receiver-bound Root enrollment, not this test endpoint.
 #[ic_platform::cdk::update(
     guard = "crate::control::guard",
-    decode_with = "crate::control::decode::<controls::ConfirmAuthority>",
-    encode_with = "crate::control::encode_result::<controls::ConfirmAuthority, _>"
+    decode_with = "crate::control::ConfirmAuthority::decode",
+    encode_with = "crate::control::ConfirmAuthority::encode"
 )]
 fn confirm_restored_session_authority(
     config: controls::model::ReceiverConfig,

@@ -10,15 +10,21 @@ fn profile(
     label: &str,
 ) -> Result<SessionView, AdmissionRefusal> {
     let report: AdmissionProfile = measured(f, target, label, || {
-        update_wire::<controls::ProfileAdmission>(&f.pic, target.into(), caller.into(), input)
-            .expect("qualified Wire admission profile")
+        update_wire::<ic_auth_wire::SessionInput, controls::model::AdmissionProfile>(
+            &f.pic,
+            target.into(),
+            caller.into(),
+            spec!(controls::ProfileAdmission),
+            input,
+        )
+        .expect("qualified Wire admission profile")
     });
     assert!(report.instructions > 0);
     eprintln!(
         "portable receiver admission instructions: {label}={}",
         report.instructions
     );
-    ic_auth_wire::wire::decode_response::<ic_auth_wire::EstablishSession>(report.reply.as_slice())
+    ic_auth_wire::EstablishSession::decode_response(report.reply.as_slice())
         .expect("bounded shared admission reply")
 }
 
@@ -208,7 +214,13 @@ pub(super) fn qualify(
             admitted
         );
         let hot: Result<SessionProfile, String> =
-            query_control::<controls::ProfileSession, _>(&f.pic, f.resource, caller, ());
+            query_control::<(), controls::model::SessionProfile>(
+                &f.pic,
+                f.resource,
+                caller,
+                spec!(controls::ProfileSession),
+                (),
+            );
         let hot = hot.unwrap();
         assert!(hot.authorization_instructions > 0);
         eprintln!("matched {mechanism} session profile: {hot:?}");

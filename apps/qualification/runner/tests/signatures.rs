@@ -14,14 +14,27 @@ use ic_platform::{
     pocket_ic::{PocketIc, PocketIcBuilder, Time},
 };
 use ic_testkit::pic::{
-    PocketIcManagedServer, PocketIcStartupConfig, WireCallError, query_wire, update_wire,
+    PocketIcManagedServer, PocketIcStartupConfig, WireCallError, WireCallSpec, query_wire,
+    update_wire,
 };
-use ic_wire::{Bytes, Method};
+use ic_wire::Bytes;
 use std::{
     path::{Path, PathBuf},
     sync::atomic::{AtomicUsize, Ordering},
     time::{Duration, SystemTime},
 };
+
+// Select the upstream transport spec from the canonical contract constants.
+macro_rules! spec {
+    ($method:path) => {
+        ic_testkit::pic::WireCallSpec {
+            method: <$method>::NAME,
+            method_id: <$method>::ID,
+            request_limits: <$method>::REQUEST_LIMITS,
+            response_limits: <$method>::RESPONSE_LIMITS,
+        }
+    };
+}
 
 const SEED: &[u8] = b"qualification-identity";
 const DOMAIN: &[u8] = b"canic-issuer-delegated-token";
@@ -110,11 +123,10 @@ impl Fixture {
             pic.install_canister(
                 canister,
                 wasm.clone(),
-                ic_wire::encode_request::<controls::Initialize>(
+                controls::Initialize::encode_request(
                     &Bytes::new(owner.as_slice().to_vec()).unwrap(),
                 )
-                .unwrap()
-                .into_bytes(),
+                .unwrap(),
                 Some(controller.into()),
             );
         }
@@ -144,10 +156,11 @@ impl Fixture {
         message: &[u8],
         ttl: u64,
     ) -> Result<u64, String> {
-        update_control::<controls::Prepare, _>(
+        update_control::<controls::PrepareInput, u64>(
             &self.pic,
             self.signer,
             self.controller,
+            spec!(controls::Prepare),
             controls::PrepareInput {
                 input: controls::SignatureInput {
                     seed: Bytes::new(seed.to_vec()).unwrap(),
@@ -175,17 +188,20 @@ impl Fixture {
     ) -> Result<IcCanisterSignatureProofV1, String> {
         // Certificates become available after the update's state is certified.
         self.pic.tick();
-        let proof: Result<ic_auth_wire::model::IcCanisterSignatureProofV1, String> =
-            query_control::<controls::Retrieve, _>(
-                &self.pic,
-                self.signer,
-                Principal::anonymous(),
-                controls::SignatureInput {
-                    seed: Bytes::new(seed.to_vec()).unwrap(),
-                    domain: Bytes::new(domain.to_vec()).unwrap(),
-                    message: Bytes::new(message.to_vec()).unwrap(),
-                },
-            );
+        let proof: Result<ic_auth_wire::model::IcCanisterSignatureProofV1, String> = query_control::<
+            controls::SignatureInput,
+            ic_auth_wire::model::IcCanisterSignatureProofV1,
+        >(
+            &self.pic,
+            self.signer,
+            Principal::anonymous(),
+            spec!(controls::Retrieve),
+            controls::SignatureInput {
+                seed: Bytes::new(seed.to_vec()).unwrap(),
+                domain: Bytes::new(domain.to_vec()).unwrap(),
+                message: Bytes::new(message.to_vec()).unwrap(),
+            },
+        );
         proof.map(|value| value.try_into().unwrap())
     }
 
@@ -219,20 +235,22 @@ impl Fixture {
     }
 
     fn set_asset(&self, version: u64) {
-        let result: Result<(), String> = update_control::<controls::SetAsset, _>(
+        let result: Result<(), String> = update_control::<u64, ()>(
             &self.pic,
             self.signer,
             self.controller,
+            spec!(controls::SetAsset),
             version,
         );
         result.unwrap();
     }
 
     fn asset_version(&self) -> u64 {
-        query_wire::<controls::AssetVersion>(
+        query_wire::<(), u64>(
             &self.pic,
             self.signer.into(),
             Principal::anonymous().into(),
+            spec!(controls::AssetVersion),
             &(),
         )
         .expect("qualified Wire query")
@@ -244,9 +262,7 @@ impl Fixture {
                 .upgrade_canister(
                     canister.into(),
                     self.wasm.clone(),
-                    ic_wire::encode_request::<controls::Upgrade>(&())
-                        .unwrap()
-                        .into_bytes(),
+                    controls::Upgrade::encode_request(&()).unwrap(),
                     Some(self.controller.into()),
                 )
                 .unwrap();
@@ -297,9 +313,7 @@ fn real_certificates_composition_cleanup_and_upgrade_obey_the_host_contract() {
     // request must fail before reaching the controller-installed mutation.
     for bytes in [
         b"DIDL\x00\x00".to_vec(),
-        ic_wire::encode_request::<controls::Prune>(&128)
-            .unwrap()
-            .into_bytes(),
+        controls::Prune::encode_request(&128).unwrap(),
         vec![0; controls::CONTROL_LIMITS.bytes + 1],
     ] {
         assert!(
@@ -317,10 +331,11 @@ fn real_certificates_composition_cleanup_and_upgrade_obey_the_host_contract() {
     }
     // A query cannot dispatch the controller mutation. Keep transport refusal
     // distinct from an encoded application refusal returned by a valid update.
-    let refused = query_wire::<controls::SetAsset>(
+    let refused = query_wire::<u64, Result<(), controls::Refusal>>(
         &fixture.pic,
         fixture.signer.into(),
         fixture.controller.into(),
+        spec!(controls::SetAsset),
         &99,
     );
     assert!(matches!(refused, Err(WireCallError::Call { context, .. })
@@ -328,10 +343,11 @@ fn real_certificates_composition_cleanup_and_upgrade_obey_the_host_contract() {
             && Principal::from(context.caller) == fixture.controller
             && context.method == controls::SetAsset::NAME));
     assert_eq!(fixture.asset_version(), 1);
-    let unauthorized = update_wire::<controls::Prepare>(
+    let unauthorized = update_wire::<controls::PrepareInput, Result<u64, controls::Refusal>>(
         &fixture.pic,
         fixture.signer.into(),
         fixture.owner.into(),
+        spec!(controls::Prepare),
         &controls::PrepareInput {
             input: controls::SignatureInput {
                 seed: Bytes::new(SEED.to_vec()).unwrap(),
@@ -362,9 +378,7 @@ fn real_certificates_composition_cleanup_and_upgrade_obey_the_host_contract() {
             .upgrade_canister(
                 fixture.signer.into(),
                 fixture.wasm.clone(),
-                ic_wire::encode_request::<controls::AssetVersion>(&())
-                    .unwrap()
-                    .into_bytes(),
+                controls::AssetVersion::encode_request(&()).unwrap(),
                 Some(fixture.controller.into())
             )
             .is_err(),
@@ -379,10 +393,11 @@ fn real_certificates_composition_cleanup_and_upgrade_obey_the_host_contract() {
         .pic
         .set_time(Time::from_nanos_since_unix_epoch(fixture.now() + 10));
     assert!(fixture.retrieve(DOMAIN, &payload).is_err());
-    let removed: Result<u32, String> = update_control::<controls::Prune, _>(
+    let removed: Result<u32, String> = update_control::<u32, u32>(
         &fixture.pic,
         fixture.signer,
         fixture.controller,
+        spec!(controls::Prune),
         128_u32,
     );
     assert_eq!(removed, Ok(1));
@@ -393,31 +408,45 @@ fn real_certificates_composition_cleanup_and_upgrade_obey_the_host_contract() {
     assert_eq!(fixture.asset_version(), 9);
 }
 
-fn update_control<M, T>(
+fn update_control<Request, T>(
     pic: &PocketIc,
     target: Principal,
     caller: Principal,
-    request: M::Request,
+    spec: WireCallSpec,
+    request: Request,
 ) -> Result<T, String>
 where
-    M: Method<Response = Result<T, controls::Refusal>>,
-    T: serde::de::DeserializeOwned,
+    Request: serde::Serialize,
+    T: serde::Serialize + serde::de::DeserializeOwned,
 {
-    update_wire::<M>(pic, target.into(), caller.into(), &request)
-        .expect("qualified Wire update")
-        .map_err(|e| e.into_string())
+    update_wire::<Request, Result<T, controls::Refusal>>(
+        pic,
+        target.into(),
+        caller.into(),
+        spec,
+        &request,
+    )
+    .expect("qualified Wire update")
+    .map_err(|e| e.into_string())
 }
-fn query_control<M, T>(
+fn query_control<Request, T>(
     pic: &PocketIc,
     target: Principal,
     caller: Principal,
-    request: M::Request,
+    spec: WireCallSpec,
+    request: Request,
 ) -> Result<T, String>
 where
-    M: Method<Response = Result<T, controls::Refusal>>,
-    T: serde::de::DeserializeOwned,
+    Request: serde::Serialize,
+    T: serde::Serialize + serde::de::DeserializeOwned,
 {
-    query_wire::<M>(pic, target.into(), caller.into(), &request)
-        .expect("qualified Wire query")
-        .map_err(|e| e.into_string())
+    query_wire::<Request, Result<T, controls::Refusal>>(
+        pic,
+        target.into(),
+        caller.into(),
+        spec,
+        &request,
+    )
+    .expect("qualified Wire query")
+    .map_err(|e| e.into_string())
 }

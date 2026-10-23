@@ -8,7 +8,7 @@ checkpoints are retained separately in [adoption history](canic-adoption-history
 
 ## Released API and dependency direction
 
-The released Auth 0.14.0 stack contains `ic-auth-protocol-types`, `ic-auth` and
+The pending Auth 0.15 source contains `ic-auth-protocol-types`, `ic-auth` and
 `ic-auth-wire`. Select matching package releases in the consumer's root catalog;
 no sibling source/path override or copied codec is needed. Auth has no Canic or
 Toko dependency. Rust 1.91 is the common minimum.
@@ -74,12 +74,13 @@ verifier, enrollment or endpoint automatically.
 
 Use `CredentialEnvelope` for credential data, `EstablishSession` for admission,
 `ReadSession` for a proof-free local read, and `Logout` for caller-authenticated
-local revocation. Their `Method` types own identity, bounded request/reply types
-and limits. Canic binds them to actual exports, admits raw argument size before
+local revocation. Their contract markers own identity, concrete request/reply
+codecs and limits. Canic binds them to actual exports, admits raw argument size before
 copying, decodes the exact method and authenticates ingress/replies. Reply-encoding
 failure after mutation must trap so that local state rolls back.
 
-The published Auth 0.14 transport exposes IC Wire 0.5. Consumers sharing its Rust
+The pending Auth 0.15 transport exposes IC Wire 0.6. Released Auth 0.14 uses
+Wire 0.5; update the Rust transport and generated clients together. Consumers sharing its Rust
 Wire types must align that dependency and select matching Auth package releases.
 Auth 0.10 and 0.9 used Wire 0.4 and 0.3 respectively; those are historical
 dependency contracts, not current selection instructions. Generated files must
@@ -92,19 +93,31 @@ application-token flow. The bounded Wire controls under `apps/qualification/cont
 serve private controller/certificate qualification only and are not production
 schemas. Linking any Auth crate installs no endpoint or authority.
 
-## Wire 0.5 migration
+## Wire 0.6 migration
 
-Auth 0.11 introduced the Wire 0.5 dependency cut; Auth 0.14 retains it. Consumers
-sharing `ic-auth-wire::wire` Rust types select matching Auth 0.14 packages and
-Wire 0.5. Consumers using only domain/session APIs need no new codec or DTO
-translation merely for this dependency change.
+The finite `Method` trait, static shape admission and typed retained frames are
+retired. DTOs use ordinary Serde; the contract marker's `encode_request`,
+`decode_request`, `encode_response` and `decode_response` functions bind
+its concrete types, ID and limits to Wire's native codec. Results are ordinary
+owned byte vectors. Keep exact bytes for any authorized uncertain-effect retry.
 
-Wire no longer implies owned deserialization. Add an explicit
-`serde::de::DeserializeOwned` bound to `M::Request` in owned generic request
-decoders, or to `M::Response` for owned reply decoding. Encoding-only functions need no decode
-bound. Auth keeps concrete owned DTOs; this migration introduces no borrowed
-public Auth lifetime or alternate browser codec. Frozen 0.10.7 frames and generated
-TypeScript remain unchanged. No login/journal/checkpoint reset is authorized.
+Admission changes its ID to `0x415554480012` because refusal tags now follow
+zero-based Serde order. Retired admission frames are refused by identity.
+Credential/read/logout frames retain their frozen bytes and IDs. Signed claims,
+session/replay/login records and the browser journal profile are unchanged.
+No storage reset or replay of unknown issuance is authorized.
+
+Native Testkit 0.65 takes a `WireCallSpec` with the contract's `NAME`, `ID`,
+`REQUEST_LIMITS` and `RESPONSE_LIMITS`, plus explicit request/response Serde
+types. Canister adapters use the same native codecs and pre-copy byte limits;
+normal errors must retain admission charges, while reply-encoding failure after
+mutation must trap for rollback. Requalify native traversal allowances as well
+as field and frame caps; the removed static `SchemaLimit` is not a native error.
+
+Wire metadata derives belong only in the host generator. Regenerate all five
+browser files with the selected runtime and qualify Rust/TypeScript frames.
+The private fixture's controls/checkpoint have new identities and require fresh
+disposable installations; this changes no production memory allocation or layout.
 
 
 <a id="platform-03-migration"></a>
@@ -152,7 +165,7 @@ dependency to 0.5. Import paths stay unchanged;
 Agent/Testkit parameters still use `principal::ExternalPrincipal` with explicit
 byte-preserving conversions. Consume Testkit and Memory's independently
 published selections without a local identity compatibility facade or override.
-Testkit 0.62 paired with Platform 0.5; Testkit 0.63 and 0.64 align to Platform
+Testkit 0.62 paired with Platform 0.5; Testkit 0.63 through 0.65 align to Platform
 0.6. Older Testkit releases retain their own Platform identity.
 
 Signed claims, frozen Wire frames, session/replay/login encodings and generated
@@ -173,7 +186,7 @@ their direct Platform dependency to 0.6. Type-only consumers must select
 selects this explicitly; `runtime`, `cdk`, native clients and signature creation
 also select it upstream. No runtime feature is needed for passive protocol types.
 
-The independently published Testkit 0.64 selects Platform 0.6 too. Native
+The independently published Testkit 0.65 selects Platform 0.6 too. Native
 qualification imports simulator clients and DTOs directly from Platform;
 Testkit retains startup, lifecycle extensions and Wire calls.
 Auth keeps explicit external Principal conversions; no override or compatibility
@@ -215,8 +228,8 @@ Auth 0.14 replaces `EstablishSession` error text with
 `.into()`; keep the original error in host diagnostics. The SDK adapter throws
 `AdmissionError` with the generated refusal tag, rather than a generic transport
 failure. Update receiver reply encoders and clients together; old text replies
-are refused. Requests, successful replies, signed credentials, stored records
-and read/logout methods retain their existing contracts.
+are refused. Signed credentials, stored records and read/logout methods retain their existing
+contracts. Pending 0.15 admission uses the new identity described above.
 Keep strict admission starts and the original proof deadline; do not add clock
 grace or automatically retry expiry, invalid signatures, stale authority or reset
 floor failures. Consumer acceptance remains in

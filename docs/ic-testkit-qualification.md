@@ -9,8 +9,8 @@ Earlier pairings and benchmarks are preserved in
 
 ## Setup and ownership
 
-The root catalog/lock select published Testkit 0.64.0 from
-[IC Tooling](https://github.com/dragginzgame/ic-tooling) and Auth's Platform 0.6.7.
+The root catalog/lock select published Testkit 0.65.0 from
+[IC Tooling](https://github.com/dragginzgame/ic-tooling) and Auth's Platform 0.6.9.
 Application identities use owned Principal; direct Testkit/Agent calls convert
 explicitly to their retained external type. Testkit also selects Platform 0.6
 itself; no dependency override is needed. The remaining native Candid dependencies stay
@@ -26,7 +26,8 @@ typed Wire query/update calls and bounded startup. The native runner imports
 `PocketIc`, `PocketIcBuilder` and `Time` directly from Platform's `pocket-ic`
 capability; Testkit no longer re-exports those types. Only the native runner
 enables Testkit's `wire` feature; IC Wire owns the
-codec and finite method limits. Deliberately malformed inputs and byte-level
+native Serde codec; Auth owns method identities and explicit traversal limits.
+Deliberately malformed inputs and byte-level
 evidence continue to use raw calls. Testkit owns server selection, authenticated
 asset preparation and bounded startup.
 `make install-testkit-tools` explicitly prepares the selected CLI/server with
@@ -41,7 +42,7 @@ remain under a unique `target/portable-fixtures/qualification.*` directory after
 success or failure. The canister uses Platform runtime and generated entrypoint
 macros with explicit Wire codec hooks; the direct CDK exception is removed
 ([Platform #21](https://github.com/dragginzgame/ic-platform/issues/21)).
-IC Memory 0.50.10 from [IC Persistence](https://github.com/dragginzgame/ic-persistence)
+IC Memory 0.50.12 from [IC Persistence](https://github.com/dragginzgame/ic-persistence)
 supplies checkpoint-cell mechanics, and Platform supplies raw length
 admission before CDK copying, counter-zero measurements, certified-tree types
 and canister-signature key/hash operations. Its `cdk` capability now supplies
@@ -68,14 +69,14 @@ The caller cannot install trusted issuer/network/Root state through a credential
 
 The host exposes bounded Wire controller/certificate and application calls.
 `ic-auth-wire` owns application layouts and generated TypeScript;
-`apps/qualification/contracts/` owns only finite private controls, diagnostics,
+`apps/qualification/contracts/` owns only bounded native private controls, diagnostics,
 init/upgrade arguments and their explicit method identities. Controllers still
 authorize state changes after structural decoding. No Candid fallback, projection
 wrapper, generated Candid service or parallel codec remains in this fixture.
 
 ## Exercised scenarios
 
-The six live runner cases cover:
+The live runner cases cover:
 
 - Real canister signatures, malformed/domain/key refusal, composed root branches,
   bounded cleanup, malformed/old control transport refusal, failed-upgrade rollback
@@ -128,7 +129,7 @@ it after the journal claims issuance. This does not exercise a production issuer
 network call or reconciliation endpoint.
 
 Each destination is journaled before admission. The host rejects raw arguments
-above the Method limit before CDK copying, decodes the exact Wire request and
+above the contract byte limit before CDK copying, decodes the exact Wire request and
 encodes its bounded reply. The SDK authenticates the update reply; caller mismatch
 refuses, and exact retry preserves the lease. Ordinary operations carry no proof.
 Generate artifacts explicitly with `make generate-client-contracts` after owned

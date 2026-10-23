@@ -1,6 +1,6 @@
 //! Generate bounded Rust-owned IC Wire contracts; no endpoint is installed.
 use ic_auth_wire::{CredentialEnvelope, EstablishSession, Logout, ReadSession, model, wire};
-use wire::{Bytes, Method};
+use wire::Bytes;
 
 fn credential() -> model::PortableCredential {
     model::PortableCredential {
@@ -34,23 +34,46 @@ pub(crate) fn run(
             for (name, source) in [
                 (
                     "credential.ts",
-                    wire::typescript::generate::<CredentialEnvelope>()
-                        .map_err(|error| format!("IC Wire generation refused: {error:?}"))?,
+                    generate::<model::PortableCredential, model::PortableCredential>(
+                        CredentialEnvelope::NAME,
+                        CredentialEnvelope::ID,
+                        CredentialEnvelope::REQUEST_LIMITS,
+                        CredentialEnvelope::RESPONSE_LIMITS,
+                    )
+                    .map_err(|error| format!("IC Wire generation refused: {error:?}"))?,
                 ),
                 (
                     "establish.ts",
-                    wire::typescript::generate::<EstablishSession>()
-                        .map_err(|error| format!("IC Wire generation refused: {error:?}"))?,
+                    generate::<
+                        ic_auth_wire::SessionInput,
+                        Result<ic_auth_wire::SessionView, model::AdmissionRefusal>,
+                    >(
+                        EstablishSession::NAME,
+                        EstablishSession::ID,
+                        EstablishSession::REQUEST_LIMITS,
+                        EstablishSession::RESPONSE_LIMITS,
+                    )
+                    .map_err(|error| format!("IC Wire generation refused: {error:?}"))?,
                 ),
                 (
                     "read.ts",
-                    wire::typescript::generate::<ReadSession>()
-                        .map_err(|error| format!("IC Wire generation refused: {error:?}"))?,
+                    generate::<(), Result<ic_auth_wire::SessionView, wire::Text<256>>>(
+                        ReadSession::NAME,
+                        ReadSession::ID,
+                        ReadSession::REQUEST_LIMITS,
+                        ReadSession::RESPONSE_LIMITS,
+                    )
+                    .map_err(|error| format!("IC Wire generation refused: {error:?}"))?,
                 ),
                 (
                     "logout.ts",
-                    wire::typescript::generate::<Logout>()
-                        .map_err(|error| format!("IC Wire generation refused: {error:?}"))?,
+                    generate::<(), model::LogoutResult>(
+                        Logout::NAME,
+                        Logout::ID,
+                        Logout::REQUEST_LIMITS,
+                        Logout::RESPONSE_LIMITS,
+                    )
+                    .map_err(|error| format!("IC Wire generation refused: {error:?}"))?,
                 ),
             ] {
                 save(name, source.as_bytes())?;
@@ -59,21 +82,15 @@ pub(crate) fn run(
             for (name, bytes) in [
                 (
                     "credential-vector.hex",
-                    wire::encode_request::<CredentialEnvelope>(&credential())?.into_bytes(),
+                    CredentialEnvelope::encode_request(&credential())?,
                 ),
                 (
                     "logout-vector.hex",
-                    wire::encode_response::<Logout>(&model::LogoutResult::Revoked(
-                        9_007_199_254_740_993,
-                    ))?
-                    .into_bytes(),
+                    Logout::encode_response(&model::LogoutResult::Revoked(9_007_199_254_740_993))?,
                 ),
                 (
                     "admission-vector.hex",
-                    wire::encode_response::<EstablishSession>(&Err(
-                        model::AdmissionRefusal::NotYetValid,
-                    ))?
-                    .into_bytes(),
+                    EstablishSession::encode_response(&Err(model::AdmissionRefusal::NotYetValid))?,
                 ),
             ] {
                 let hex: String = bytes.iter().map(|byte| format!("{byte:02x}")).collect();
@@ -85,14 +102,14 @@ pub(crate) fn run(
                 &directory.join("credential-from-ts.bin"),
                 CredentialEnvelope::REQUEST_LIMITS.bytes,
             )?;
-            if wire::decode_request::<CredentialEnvelope>(&bytes)? != credential() {
+            if CredentialEnvelope::decode_request(&bytes)? != credential() {
                 return Err("credential vector mismatch".into());
             }
             let bytes = read_file_no_follow(
                 &directory.join("logout-from-ts.bin"),
                 Logout::RESPONSE_LIMITS.bytes,
             )?;
-            if wire::decode_response::<Logout>(&bytes)?
+            if Logout::decode_response(&bytes)?
                 != model::LogoutResult::Revoked(9_007_199_254_740_993)
             {
                 return Err("logout vector mismatch".into());
@@ -101,7 +118,7 @@ pub(crate) fn run(
                 &directory.join("admission-from-ts.bin"),
                 EstablishSession::RESPONSE_LIMITS.bytes,
             )?;
-            if wire::decode_response::<EstablishSession>(&bytes)?
+            if EstablishSession::decode_response(&bytes)?
                 != Err(model::AdmissionRefusal::NotYetValid)
             {
                 return Err("admission vector mismatch".into());
@@ -110,4 +127,31 @@ pub(crate) fn run(
         _ => return Err("client-contracts requires generate|check DIRECTORY".into()),
     }
     Ok(())
+}
+
+// Metadata comes from the DTO's Serde layout; identities and budgets stay with Auth.
+fn generate<Request: wire::typescript::Wire, Response: wire::typescript::Wire>(
+    name: &str,
+    id: u64,
+    request: wire::Limits,
+    response: wire::Limits,
+) -> Result<String, wire::typescript::GenerationError> {
+    use serde_json::json;
+    let types = std::collections::BTreeMap::from([
+        (
+            "Request".into(),
+            wire::typescript::native_schema::<Request>()?,
+        ),
+        (
+            "Response".into(),
+            wire::typescript::native_schema::<Response>()?,
+        ),
+    ]);
+    let method = json!({"name":"contract", "mode":"update", "id":id.to_string(),
+        "request":{"k":"ref","name":"Request"}, "response":{"k":"ref","name":"Response"},
+        "requestBytes":request.bytes, "requestNodes":request.nodes, "requestDepth":request.depth,
+        "responseBytes":response.bytes, "responseNodes":response.nodes, "responseDepth":response.depth});
+    let mut source = wire::typescript::generate_registry(&types, &[method], "./wire-runtime.js")?;
+    source.push_str(&format!("\nexport const methodName = {};\nexport const {{ encodeRequest, decodeRequest, encodeResponse, decodeResponse }} = contract;\n", json!(name)));
+    Ok(source)
 }
