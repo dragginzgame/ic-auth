@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.15.0]
+## [0.15.0] - 2026-10-23
 
 - **Breaking transport API:** adopt Wire 0.6 native Serde and Host/Build/Testkit
   0.65. Replace the removed finite `Method` API with contract-owned native codec
