@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.16.0] - Unreleased
+## [0.16.0] - 2026-10-24
 
 - **Breaking Rust dependency boundary:** adopt published IC Wire 0.7.1 through
   `ic-auth-wire::wire`. Consumers sharing Wire types must align to 0.7; the
