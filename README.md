@@ -102,8 +102,9 @@ Auth retains admission limits, protected authority and session policy. See the
 [dependency boundary](docs/development.md#ic-platform-boundary).
 
 Application endpoints, generated TypeScript, private fixture controls and upgrade
-checkpoints use bounded native Serde IC Wire 0.6 contracts in Auth 0.15.
-Admission uses a new method identity; update its receiver and client
+checkpoints use bounded native Serde IC Wire 0.7 contracts in pending Auth 0.16.
+Wire 0.7 preserves encoder bytes and IDs; its Rust types differ from 0.6.
+The Auth 0.15 admission cut uses a new method identity; update its receiver and client
 together. Credential/read/logout frames, signed material and retained production
 records keep their formats. The unpublished finite-Wire checkpoint is retired;
 no implicit browser or production storage reset is permitted. See the

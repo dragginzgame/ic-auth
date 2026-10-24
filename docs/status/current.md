@@ -2,30 +2,35 @@
 
 ## Delivered source and local work
 
-The checkout is based on release **0.15.3**, commit
-`0ee62d9f030050c1d28c29840025bc5d66a9f0dd`; package versions remain 0.15.3.
-Pending **0.15.4** notes cover local implementation and fixture simplification.
-No commit, push, package version change or release ran for this cleanup.
+The checkout is based on release **0.15.4**, commit
+`754ef9cb0dfd19653e70f594e86378d90ae76a13`; package versions remain 0.15.4.
+Pending **0.16.0** notes cover published IC Wire **0.7.1** and Tooling **0.68.0** adoption. The minor
+cut reflects the public `ic-auth-wire::wire` Rust type/error boundary, not a
+change to encoder bytes, method IDs, signed claims or retained storage formats.
+No commit, push, package version change or release ran for this adoption.
 
-The incoming lockfile selects Platform/macros **0.6.14** and Memory **0.50.16**;
-those dependency edits were preserved, not made by the cleanup. Wire/derive
-remain **0.6.12** and Host FS/Process, Build and Testkit **0.67.0**. The independent
-file CLI remains **0.31.1**. Shared Tooling is the 121-file snapshot at
-`4c0f198e56d4c6d27b12a5c2d515e0e01070151e`: its committed VERSION and canonical
-snapshot say **0.26.10**, although the producer changelog names **0.26.11**.
+Public Auth contracts, native Testkit, private control contracts and the reference
+Wasm now share Wire/derive **0.7.1**. The temporary Wire 0.6 selection is removed.
+Published Wire source is `2978dee37ddaf62c09ce1df411a0b1b6c9748bcd`;
+Host FS/Process, Build and Testkit **0.68.0** come from
+`8f281177faaeee0adc51edc1031d4a7b268b0ce0`. Platform/macros **0.6.14** and
+Memory **0.50.16** are unchanged. The independent file CLI remains **0.31.1**.
+Shared Tooling remains the 121-file snapshot at
+`4c0f198e56d4c6d27b12a5c2d515e0e01070151e`: canonical VERSION **0.26.10**,
+although the producer changelog names **0.26.11**.
 
-Session transaction staging now permits one of unchanged, admission or removal.
-The reference receiver reads generation from its store; checkpoint field order,
-values and bounds are unchanged. Fixture capacities have one local definition.
-Browser signing mechanics are shared while active-login and cleanup-lease policy
-remain separate. Admission and logout share the network-call ceiling; storage
-transaction timeouts remain independent. HTTP options and cleanup completion
-predicates no longer have competing definitions.
+Wire 0.7 decodes once without reserialization. Auth transport has no normalizing
+maps/sets/custom DTO visitors: it preserves lists and opaque signed bytes.
+Semantic scope/grant checks remain in Auth. Primitive encodings remain strict;
+`Error::Noncanonical` is removed and malformed primitives return `Malformed`.
+Keep original frame bytes for exact retries, hashes and signatures.
 
-The Testkit caller fixture exports maintained working sources using the existing
-source exporter, then installs explicit substitutes. Generated client filenames
-have one shell list and the tooling command remains typed through dispatch.
-Public APIs, method identities, signed bytes and stored formats are unchanged.
+The native runner passes canonical limits directly to Testkit's `WireCallSpec`.
+The temporary alias/helper and response-only Serialize bounds are removed,
+adopting [Tooling #248](https://github.com/dragginzgame/ic-tooling/issues/248).
+All five generated browser files were refreshed. Only the shared runtime changes,
+adding Packed<i8>/Int8Array support; Auth's four schemas remain byte-identical.
+The optional Wire bulk-schema advice is not enabled and no fields are migrated.
 
 ## Implementation and consumer boundary
 
@@ -33,54 +38,50 @@ Auth delivers both portable proof verifiers, one session engine, host-selected
 storage/reset interfaces, bounded Wire contracts and the private browser
 admission/logout coordinator. Canic owns topology, authority approval/renewal,
 endpoint guards, production enrollment, deployment configuration and its durable
-host adapter. The future standalone wallet service is not implemented.
+host adapter. The standalone wallet service is not implemented.
 
 The [Canic adoption guide](../canic-adoption.md) describes config, Wire endpoint
-wiring, capability profiles, synchronous application authorization and the
-separation of `(issuer, subject)` from browser ingress caller. Private fixtures
-are software evidence, not production Canic adoption or TEE custody evidence.
+wiring, capability profiles and the distinction between `(issuer, subject)` and
+browser ingress caller. Consumers sharing Rust Wire types must align to 0.7.
+Auth 0.15's admission method ID remains `0x415554480012`. Do not reset portable
+journals, replay unknown issuance or restore retired private checkpoint formats.
 
 [Canic #491](https://github.com/dragginzgame/canic/issues/491#issuecomment-6382815988)
 retains runtime/store/reset/load acceptance. [Canic #507](https://github.com/dragginzgame/canic/issues/507#issuecomment-6382816186)
-retains issuer policy, issuance abuse, exact credential reconciliation and browser
-integration. Auth #58/#59 are closed as superseded coordination, not production
-acceptance. Auth [#3](https://github.com/dragginzgame/ic-auth/issues/3) owns remaining
-real-browser client/journal qualification.
-
-Auth 0.15 admission uses method ID `0x415554480012`; receiver and client must
-adopt it together. Do not reset portable journals or replay unknown issuance.
-Retired private fixture checkpoint formats remain retired; production storage is
-independent. The browser package stays private.
+retains issuer policy, issuance abuse, reconciliation and browser integration.
+Auth #58/#59 were superseded coordination, not production acceptance. Auth
+[#3](https://github.com/dragginzgame/ic-auth/issues/3) owns real-browser journal
+qualification. The browser package stays private; fixtures do not prove production
+Canic adoption, clock skew or TEE custody.
 
 ## Retained interfaces and follow-up
 
-`AuthRequestMetadata`, Rust's empty `LogoutRequest` and the older session error
-conversions remain supported public surfaces during Canic integration. See the
+`AuthRequestMetadata`, Rust's empty `LogoutRequest` and older session error
+conversions remain supported during Canic integration. See the
 [consumer review](https://github.com/dragginzgame/canic/issues/491#issuecomment-6382404160).
-They require an intentional API cut, not incidental cleanup.
-
-[Platform #51](https://github.com/dragginzgame/ic-platform/issues/51) tracks the
-authenticated-time verifier result. This cleanup does not migrate Auth's existing
-certificate decoding/freshness checks to a different upstream API.
+This adoption does not change certificate freshness handling for
+[Platform #51](https://github.com/dragginzgame/ic-platform/issues/51).
 [Auth #85](https://github.com/dragginzgame/ic-auth/issues/85) retains the
-crypto-bigint advisory correction/exemption and consumer qualification through
+crypto-bigint advisory correction/exemption and qualification through
 [Platform #50](https://github.com/dragginzgame/ic-platform/issues/50).
-Production skew, optional TEE evidence and consumer deployment remain separate.
 
 ## Validation and evidence
 
-Cleanup evidence is retained under `target/cleanup-0154/`. The initial focused
-pass covers sessions, host tooling, all 54 browser tests and Rust/TypeScript
-vectors, Testkit caller admission/drift checks and jobserver propagation.
-The second session pass adds all four double-write staging combinations,
-checking refusal without invoking host commit or publishing records.
-Native/reference-Wasm Clippy, isolated native/Wasm MSRV, six fixture unit tests
-and all 12 qualification runner cases pass. The initial sandboxed run was unable
-to bind localhost; the rerun with local networking passed. Formatting and local
-documentation links pass. Manifest/lock input hashes remain unchanged.
-The prepared Testkit/Build 0.67 tools are reused without installation or release.
+Current adoption evidence and incoming working-tree copies are retained under
+`target/wire071-tooling068/`. Type/transport tests and all 54 browser tests pass,
+including Rust/TypeScript vectors and the existing nonminimal-length/scope-order
+regression. Host-tooling tests, native/reference-Wasm Clippy, dependency boundaries,
+isolated native/Wasm MSRV and six fixture unit tests pass. Formatting, dependency
+pins and local links pass; manifest/lock hashes remained unchanged. The selected
+Testkit and Build 0.68 executables are missing; explicit preparation approval is
+pending before live-canister and release/recovery qualification. The source
+adoption evidence is posted on [Tooling #248](https://github.com/dragginzgame/ic-tooling/issues/248#issuecomment-6384815492).
 
-Earlier upstream qualification and original working-source evidence remain in
-`target/upstream-02610-067/`; the [0.15.3 handoff](https://github.com/dragginzgame/ic-auth/blob/0ee62d9/docs/status/current.md)
-records that pass and its release-fixture lock distinction. No full CI/release
+Earlier Wire 0.7.0/Testkit 0.67 evidence is in `target/wire-070/`, including
+Clippy, MSRV, boundaries, six fixture unit tests and all 12 runner cases. Those
+results do not qualify the new Tooling selection. The earlier incoming edits
+are preserved; published source, not dirty sibling work, supplies this adoption.
+
+The [0.15.4 handoff](https://github.com/dragginzgame/ic-auth/blob/754ef9c/docs/status/current.md)
+records earlier cleanup evidence in `target/cleanup-0154/`. No full CI/release
 gate, native macOS, installed-IC or production-browser result is claimed here.

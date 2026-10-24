@@ -180,7 +180,7 @@ codecs and limits. Canic binds them to actual exports, admits raw argument size 
 copying, decodes the exact method and authenticates ingress/replies. Reply-encoding
 failure after mutation must trap so that local state rolls back.
 
-Auth 0.15 transport exposes IC Wire 0.6. Earlier Auth 0.14 uses
+Pending Auth 0.16 transport exposes IC Wire 0.7; Auth 0.15 used 0.6. Earlier Auth 0.14 uses
 Wire 0.5; update the Rust transport and generated clients together. Consumers sharing its Rust
 Wire types must align that dependency and select matching Auth package releases.
 Auth 0.10 and 0.9 used Wire 0.4 and 0.3 respectively; those are historical
@@ -196,6 +196,16 @@ schemas. Linking any Auth crate installs no endpoint or authority.
 
 ## Wire 0.6 migration
 
+The subsequent Wire 0.7 adoption preserves these encoder bytes and IDs, but
+removes decode-time reserialization and `Error::Noncanonical`. Invalid primitive
+encodings return `Malformed`; custom Serde normalization is consumer-owned.
+Auth's DTOs retain ordered lists and opaque signed bytes. Keep original frames
+for exact retries and do not substitute decoding for Auth's semantic validation.
+Align consumers of the re-exported Rust Wire types to 0.7. Testkit 0.68 uses
+the same Wire 0.7 types directly, resolving
+[Tooling #248](https://github.com/dragginzgame/ic-tooling/issues/248).
+The public library, native qualification and reference canister select only Wire 0.7.
+
 The finite `Method` trait, static shape admission and typed retained frames are
 retired. DTOs use ordinary Serde; the contract marker's `encode_request`,
 `decode_request`, `encode_response` and `decode_response` functions bind
@@ -208,7 +218,7 @@ Credential/read/logout frames retain their frozen bytes and IDs. Signed claims,
 session/replay/login records and the browser journal profile are unchanged.
 No storage reset or replay of unknown issuance is authorized.
 
-Native Testkit 0.65 through 0.67 take a `WireCallSpec` with the contract's `NAME`, `ID`,
+Native Testkit 0.68 takes a `WireCallSpec` with the contract's `NAME`, `ID`,
 `REQUEST_LIMITS` and `RESPONSE_LIMITS`, plus explicit request/response Serde
 types. Canister adapters use the same native codecs and pre-copy byte limits;
 normal errors must retain admission charges, while reply-encoding failure after
@@ -234,7 +244,7 @@ their direct Platform dependency to 0.6. Type-only consumers must select
 selects this explicitly; `runtime`, `cdk`, native clients and signature creation
 also select it upstream. No runtime feature is needed for passive protocol types.
 
-The independently published Testkit 0.67 selects Platform 0.6 too. Native
+The independently published Testkit 0.68 selects Platform 0.6 too. Native
 qualification imports simulator clients and DTOs directly from Platform;
 Testkit retains startup, lifecycle extensions and Wire calls.
 Auth keeps explicit external Principal conversions; no override or compatibility

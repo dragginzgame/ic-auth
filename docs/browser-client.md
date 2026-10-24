@@ -7,7 +7,7 @@ Canic/Toko integration remain consumer/service work.
 
 ## Application transport hard cut
 
-Auth 0.15 uses `crates/ic-auth-wire/` with published IC Wire 0.6 native
+Pending Auth 0.16 uses `crates/ic-auth-wire/` with published IC Wire 0.7 native
 Serde. Released Auth 0.14 uses Wire 0.5; update receivers and generated clients
 together. Admission changes its ID to `0x415554480012` to isolate zero-based
 refusal tags; the retired ID is refused. Credential/read/logout identities and
@@ -53,7 +53,10 @@ submitted fields cannot install a key or choose trust.
 
 A maximum must be a positive safe integer. The outer cap precedes input copying;
 IC Wire enforces finite fields, frame identity/direction, exact consumption,
-canonical encoding, UTF-8 and traversal bounds. Decoding copies the admitted view
+minimal primitive encodings, UTF-8 and traversal bounds. Wire 0.7 does not
+reserialize decoded values to check normalization. Auth's DTOs preserve lists
+and opaque signed claim bytes; grant/scope semantics remain receiver-owned.
+Decoding copies the admitted view
 into an ordinary Uint8Array so Buffer/subarray inputs cannot retain aliases.
 Generated records may have null prototypes; consumers should use their declared
 fields rather than assume Object prototype methods. u64 fields remain bigint.

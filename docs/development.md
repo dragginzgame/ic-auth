@@ -2,11 +2,11 @@
 
 The virtual root owns the protocol/types, Auth engine and Wire transport libraries,
 unpublished native tooling in `apps/tooling/` and the reference host/runner in
-`apps/qualification/`. The root catalog and lock select published Platform 0.6.10,
-the coordinated Host FS/Process, Build and Testkit 0.66.0 packages from
-[IC Tooling](https://github.com/dragginzgame/ic-tooling), Memory 0.50.13 from
-[IC Persistence](https://github.com/dragginzgame/ic-persistence) and the Wire 0.6.10
-codec/TypeScript generator. The [handoff](status/current.md) records exact evidence;
+`apps/qualification/`. The root catalog selects published Platform, the
+Host FS/Process, Build and Testkit packages from
+[IC Tooling](https://github.com/dragginzgame/ic-tooling), Memory from
+[IC Persistence](https://github.com/dragginzgame/ic-persistence) and the Wire 0.7
+codec/TypeScript generator. The lock and [handoff](status/current.md) record exact selections and evidence;
 [session contracts](sessions.md) distinguish supported behavior from pending hosts.
 Rust `1.99.1` remains the development compiler selected by `rust-toolchain.toml`.
 The common package minimum is Rust `1.91.0`, inherited from the root catalog and
@@ -124,10 +124,10 @@ Platform's explicit `pocket-ic` capability owns native simulator clients and DTO
 Testkit owns bounded server startup, lifecycle extensions and typed Wire calls;
 only the native runner selects these capabilities.
 
-Native file and process callers select Host FS/Process 0.66.0 with defaults
+Native file and process callers select Host FS/Process 0.68.0 with defaults
 disabled. Library use does not enable Host's optional CLI, certificate decoder
 or Wasm text/encoding backends. Host stays outside the production library graph.
-Build and Testkit 0.66 select the same Host 0.66 identities as Auth's direct
+Build and Testkit 0.68 select the same Host 0.68 identities as Auth's direct
 callers; no dependency override or old Host family is needed. The independently
 pinned file CLI is unchanged by library upgrades.
 Build and Testkit libraries keep `cli` disabled; only the prepared executable

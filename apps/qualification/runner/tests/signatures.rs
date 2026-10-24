@@ -419,7 +419,7 @@ fn update_control<Request, T>(
 ) -> Result<T, String>
 where
     Request: serde::Serialize,
-    T: serde::Serialize + serde::de::DeserializeOwned,
+    T: serde::de::DeserializeOwned,
 {
     update_wire::<Request, Result<T, controls::Refusal>>(
         pic,
@@ -440,7 +440,7 @@ fn query_control<Request, T>(
 ) -> Result<T, String>
 where
     Request: serde::Serialize,
-    T: serde::Serialize + serde::de::DeserializeOwned,
+    T: serde::de::DeserializeOwned,
 {
     query_wire::<Request, Result<T, controls::Refusal>>(
         pic,

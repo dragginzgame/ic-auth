@@ -37,6 +37,38 @@ fn signed_bytes_roundtrip_without_intermediate_encoding_or_authority() {
 }
 
 #[test]
+fn single_pass_decode_preserves_scope_order_and_rejects_nonminimal_lengths() {
+    let value: model::PortableCredential = credential().try_into().unwrap();
+    let frame = CredentialEnvelope::encode_request(&value).unwrap();
+    assert_eq!(frame[11], 3); // Opaque claims byte length, after the frame header.
+    let mut overlong = frame[..11].to_vec();
+    overlong.extend_from_slice(&[0x83, 0]);
+    overlong.extend_from_slice(&frame[12..]);
+    assert_eq!(
+        CredentialEnvelope::decode_request(&overlong),
+        Err(wire::Error::Malformed)
+    );
+
+    // Transport must not sort or deduplicate scopes. The session engine owns
+    // semantic normalization/rejection and request identity after this boundary.
+    let request = ic_auth_wire::SessionInput {
+        credential: value,
+        scopes: wire::List::new(
+            ["write", "read", "write"]
+                .into_iter()
+                .map(|scope| Text::new(scope.into()).unwrap())
+                .collect(),
+        )
+        .unwrap(),
+        ttl_secs: Some(30),
+    };
+    let bytes = EstablishSession::encode_request(&request).unwrap();
+    let decoded = EstablishSession::decode_request(&bytes).unwrap();
+    assert_eq!(decoded, request);
+    assert_eq!(EstablishSession::encode_request(&decoded).unwrap(), bytes);
+}
+
+#[test]
 fn frame_identity_direction_exact_consumption_and_bounds_are_independent() {
     let value: model::PortableCredential = credential().try_into().unwrap();
     let encoded = CredentialEnvelope::encode_request(&value).unwrap();

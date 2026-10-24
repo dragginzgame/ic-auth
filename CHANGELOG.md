@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.16.0] - Unreleased
+
+- **Breaking Rust dependency boundary:** adopt published IC Wire 0.7.1 through
+  `ic-auth-wire::wire`. Consumers sharing Wire types must align to 0.7; the
+  removed `Noncanonical` error becomes `Malformed` for invalid primitive input.
+  Method IDs, encoder bytes, signed claims and stored formats are unchanged.
+- Wire decoding no longer reserializes values. Auth transport preserves opaque
+  signed bytes and ordered lists; semantic scope/grant validation remains in Auth.
+  Regenerate browser contracts with the selected runtime.
+- Adopt coordinated Host/Build/Testkit 0.68.0. Native qualification now shares
+  Wire 0.7 directly, removing the temporary 0.6 dependency and limit adapter;
+  response decoding no longer requires serialization. This adopts
+  [Tooling #248](https://github.com/dragginzgame/ic-tooling/issues/248).
+
 ## [0.15.4] - 2026-10-24
 
 - Simplify session transaction staging into mutually exclusive internal states;
