@@ -5,6 +5,7 @@ script_path="${BASH_SOURCE[0]}"
 [[ "$script_path" == /* ]] || script_path="$PWD/$script_path"
 cd -P "${script_path%/*}/../.."
 root="$PWD"
+outputs=(credential.ts establish.ts read.ts logout.ts wire-runtime.ts)
 case "${1:-}" in check|generate) ;; *) echo 'usage: client-contracts.sh check|generate' >&2; exit 2 ;; esac
 export CARGO_TARGET_DIR="$root/target" RUSTUP_AUTO_INSTALL=0
 mkdir -p target/browser-client
@@ -23,7 +24,7 @@ bash scripts/dev/run-host-file.sh hash-files0 4194304 4194304 4096 < "$candidate
 cmp "$candidate/inputs.tsv0" "$candidate/inputs-after.tsv0"
 case "${1:-}" in
     check)
-        for name in credential.ts establish.ts read.ts logout.ts wire-runtime.ts; do
+        for name in "${outputs[@]}"; do
             cmp "$candidate/$name" "packages/client/src/generated/$name" || {
                 status=$?
                 printf 'Client contract check refused: packages/client/src/generated/%s is missing, unreadable or differs from the locked generator.\n' "$name" >&2
@@ -32,7 +33,7 @@ case "${1:-}" in
                 exit "$status"
             }
         done ;;
-    generate) for name in credential.ts establish.ts read.ts logout.ts wire-runtime.ts; do cp "$candidate/$name" packages/client/src/generated/; done ;;
+    generate) for name in "${outputs[@]}"; do cp "$candidate/$name" packages/client/src/generated/; done ;;
 esac
 for name in credential logout admission; do
     cp "$candidate/$name-vector.hex" "target/browser-client/$name-vector.hex"

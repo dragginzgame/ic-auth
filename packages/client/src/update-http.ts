@@ -3,8 +3,11 @@ import type { Principal } from '@icp-sdk/core/principal';
 import { ClientError } from './contracts.js';
 
 export interface HttpUpdateOptions {
+  /** Protected gateway configuration, never obtained from a credential. */
   host: string;
+  /** Consumer-owned endpoint implementing the selected Wire contract. */
   methodName: string;
+  /** Explicitly trusted local/test root; omitted uses the SDK's IC root. Never fetched. */
   rootKey?: Uint8Array;
   fetch?: typeof fetch;
 }

@@ -1,16 +1,9 @@
 import { encodeRequest } from './generated/logout.js';
 import { logoutResultFromBytes } from './codec.js';
-import { httpUpdateTransport } from './update-http.js';
+import { httpUpdateTransport, type HttpUpdateOptions } from './update-http.js';
 import type { LogoutTransport } from './logout.js';
 
-export interface HttpLogoutOptions {
-  /** Protected gateway configuration, never obtained from a credential. */
-  host: string;
-  /** Consumer-owned endpoint implementing the shared empty request/result. */
-  methodName: string;
-  /** Explicitly trusted local/test root; omitted uses the SDK's IC root. Never fetched. */
-  rootKey?: Uint8Array;
-  fetch?: typeof fetch;
+export interface HttpLogoutOptions extends HttpUpdateOptions {
   dispose: LogoutTransport['dispose'];
 }
 

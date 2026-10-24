@@ -9,8 +9,9 @@ mkdir -p target/portable-fixtures
 fixture="$(mktemp -d "$root/target/portable-fixtures/testkit-tools.XXXXXX")"
 printf 'Testkit caller evidence retained: %s\n' "$fixture"
 consumer="$fixture/consumer with spaces"
-mkdir -p "$consumer/scripts/dev" "$consumer/.tools/ic/bin" "$fixture/bin"
-cp scripts/dev/testkit-tools.sh scripts/dev/test-qualification.sh "$consumer/scripts/dev/"
+mkdir -p "$consumer" "$fixture/bin"
+bash scripts/release/export-fixture-source.sh "$root" "$consumer"
+mkdir -p "$consumer/.tools/ic/bin"
 cat > "$consumer/Cargo.lock" <<'LOCK'
 version = 4
 [[package]]
@@ -145,17 +146,6 @@ rg -F 'make install-testkit-tools' "$fixture/missing.stderr" > /dev/null
 # Actual Make entry points refuse before Wasm compilation or any later CI lane,
 # including parallel Make. Substitute the already-prepared common bundle only;
 # Testkit admission and the validation runner remain their actual callers.
-mkdir -p "$consumer/make" "$consumer/ci" "$consumer/scripts/ci"
-for input in Makefile make/consumer.mk make/tools.mk make/release.mk make/rust-format.mk make/execution.mk \
-    scripts/ci/check-release-delivery.sh ci/release-delivery.txt \
-    ci/tool-versions.env ci/ic-tools.tsv ci/cargo-dependency-boundaries.json ci/external-ic-dependencies.txt ci/host-file.env \
-    scripts/dev/run-host-file.sh Cargo.toml rust-toolchain.toml \
-    packages/client/package.json packages/client/package-lock.json packages/client/.nvmrc \
-    scripts/ci/check-make-execution.sh scripts/ci/verify-file-checksum.sh \
-    scripts/ci/run-validation-targets.sh; do
-    mkdir -p "$consumer/$(dirname "$input")"
-    cp -p "$input" "$consumer/$input"
-done
 cat > "$consumer/scripts/dev/install-host-tools.sh" <<'SCRIPT'
 #!/usr/bin/env bash
 set -euo pipefail

@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.15.4] - Unreleased
+
+- Simplify session transaction staging into mutually exclusive internal states;
+  remove the qualification receiver's duplicate generation and consolidate its
+  checkpoint capacity constants without changing checkpoint bytes.
+- Share browser signing-wrapper mechanics, the admission/logout call ceiling,
+  logout completion checks and HTTP options while retaining distinct active-login
+  and cleanup-lease authority checks.
+- Export maintained sources for Testkit caller fixtures instead of maintaining
+  another dependency copy list; consolidate generated-client filenames and keep
+  client-contract command selection typed through dispatch.
+
 ## [0.15.3] - 2026-10-24
 
 - Adopt published Host/Build/Testkit 0.67.0 and qualify the incoming Platform

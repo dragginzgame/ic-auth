@@ -19,9 +19,9 @@ pub(crate) struct Snapshot {
     encoded_bytes: u64,
     admitted_count: u64,
     unknown_count: u64,
-    sessions: List<Bytes<65536>, 8>,
-    replays: List<Bytes<1024>, 32>,
-    logins: List<Bytes<1024>, 16>,
+    sessions: List<Bytes<MAX_ENCODED_BYTES>, MAX_SESSIONS>,
+    replays: List<Bytes<MAX_SMALL_RECORD_BYTES>, MAX_REPLAYS>,
+    logins: List<Bytes<MAX_SMALL_RECORD_BYTES>, MAX_LOGIN_RECORDS>,
 }
 
 pub(crate) fn capture() -> Option<Snapshot> {
@@ -36,7 +36,7 @@ pub(crate) fn capture() -> Option<Snapshot> {
                 .expect("bounded checkpoint config"),
             login_floor: host.login_floor,
             proof_floor: host.proof_floor,
-            generation: host.generation,
+            generation: host.store.generation(),
             enabled: host.enabled,
             checkpoint_time: ic_platform::cdk::api::time(),
             observed: host.ledger.observed_at_ns(),
@@ -78,11 +78,11 @@ pub(crate) fn restore(snapshot: Option<Snapshot>) {
     let now = ic_platform::cdk::api::time();
     assert!(now >= saved.checkpoint_time, "checkpoint clock rollback");
     assert!(
-        saved.session_count <= 8
-            && saved.replay_count <= 32
-            && saved.admitted_count <= 8
-            && saved.unknown_count <= 8
-            && saved.encoded_bytes <= 65_536,
+        saved.session_count <= MAX_SESSIONS as u64
+            && saved.replay_count <= MAX_REPLAYS as u64
+            && saved.admitted_count <= MAX_ADMITTED_LOGINS as u64
+            && saved.unknown_count <= MAX_UNKNOWN_LOGINS as u64
+            && saved.encoded_bytes <= MAX_ENCODED_BYTES as u64,
         "checkpoint bounds"
     );
     let store = MemorySessionStore::new(saved.generation, limits())
@@ -102,7 +102,14 @@ pub(crate) fn restore(snapshot: Option<Snapshot>) {
                 .map(|bytes| Replay::decode(bytes.as_slice()).expect("decode replay")),
         )
         .expect("restore complete session/replay store");
-    let ledger = MemoryLoginRevocations::new(config.audience, 8, 8, 0, now)
+    let ledger =
+        MemoryLoginRevocations::new(
+            config.audience,
+            MAX_ADMITTED_LOGINS,
+            MAX_UNKNOWN_LOGINS,
+            0,
+            now,
+        )
         .expect("ledger limits")
         .restore_records(
             saved.observed,
@@ -125,7 +132,6 @@ pub(crate) fn restore(snapshot: Option<Snapshot>) {
         config,
         login_floor: saved.login_floor,
         proof_floor: saved.proof_floor,
-        generation: saved.generation,
         enabled: saved.enabled,
         store,
         ledger,

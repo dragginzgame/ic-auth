@@ -1,5 +1,8 @@
 import { ClientError } from './contracts.js';
 
+/** Admission's maximum in-flight duration, also reserved by logout cleanup. */
+export const MAX_NETWORK_CALL_MS = 5_000;
+
 /** One transport attempt. The owner retains generation, lease and retry policy. */
 export async function boundedCall<T>(timeoutMs: number, operation: (signal: AbortSignal) => Promise<T>): Promise<T> {
   const controller = new AbortController();

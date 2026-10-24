@@ -1247,6 +1247,38 @@ fn replay_storage_decoder_rejects_wrong_domain_truncation_and_invalid_fields() {
 
 #[cfg(feature = "session-restore")]
 #[test]
+fn transaction_refuses_second_write_without_publishing() {
+    let f = Fixture::new(1);
+    let mut source = Receiver::new(&f);
+    let session = created(f.admit(&mut source, NOW).unwrap());
+    let replay = source.store.replay_records().next().unwrap().clone();
+    for first_admission in [false, true] {
+        for second_admission in [false, true] {
+            let mut store = MemorySessionStore::new(0, limits()).unwrap();
+            let result = store.transaction_with_commit(
+                None,
+                |tx| {
+                    for admission in [first_admission, second_admission] {
+                        if admission {
+                            tx.stage(session.clone(), replay.clone())?;
+                        } else {
+                            tx.remove(f.caller())?;
+                        }
+                    }
+                    panic!("a second write must be refused during staging");
+                },
+                |_| panic!("refused staging must not call the host commit"),
+            );
+            assert_eq!(result, Err::<(), _>(SessionError::InvalidPolicyOrRecord));
+            assert_eq!(store.encoded_bytes(), 0);
+            assert_eq!(store.session_records().len(), 0);
+            assert_eq!(store.replay_records().len(), 0);
+        }
+    }
+}
+
+#[cfg(feature = "session-restore")]
+#[test]
 fn commit_hook_receives_only_validated_delta_and_exact_post_commit_totals() {
     let mut f = Fixture::new(1);
     let mut source = Receiver::new(&f);

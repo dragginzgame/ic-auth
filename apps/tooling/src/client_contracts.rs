@@ -10,7 +10,7 @@ fn credential() -> model::PortableCredential {
 }
 
 pub(crate) fn run(
-    mode: &str,
+    mode: crate::ContractMode,
     directory: &std::path::Path,
 ) -> Result<(), Box<dyn std::error::Error>> {
     use ic_host_fs::{
@@ -30,7 +30,7 @@ pub(crate) fn run(
         Ok(())
     };
     match mode {
-        "generate" => {
+        crate::ContractMode::Generate => {
             for (name, source) in [
                 (
                     "credential.ts",
@@ -102,7 +102,7 @@ pub(crate) fn run(
                 save(name, format!("{hex}\n").as_bytes())?;
             }
         }
-        "check" => {
+        crate::ContractMode::Check => {
             let bytes = read_file_no_follow(
                 &directory.join("credential-from-ts.bin"),
                 CredentialEnvelope::REQUEST_LIMITS.bytes,
@@ -129,7 +129,6 @@ pub(crate) fn run(
                 return Err("admission vector mismatch".into());
             }
         }
-        _ => return Err("client-contracts requires generate|check DIRECTORY".into()),
     }
     Ok(())
 }

@@ -43,13 +43,7 @@ enum Command {
 fn run(command: Command) -> Result<(), Box<dyn Error>> {
     match command {
         Command::ClientContracts { mode, directory } => {
-            client_contracts::run(
-                match mode {
-                    ContractMode::Generate => "generate",
-                    ContractMode::Check => "check",
-                },
-                &directory,
-            )?;
+            client_contracts::run(mode, &directory)?;
         }
         Command::VerifyExternalLock {
             original,

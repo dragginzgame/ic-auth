@@ -308,8 +308,19 @@ impl MemorySessionStore {
 
 struct Transaction<'a> {
     store: &'a MemorySessionStore,
-    staged: Option<(Stored<Session>, Stored<Replay>, usize)>,
-    removed: Option<Principal>,
+    change: TransactionChange,
+}
+
+// One synchronous transaction owns at most one pair, as before the enum.
+// Keep staging inline rather than allocating a box for each admission.
+#[expect(
+    clippy::large_enum_variant,
+    reason = "bounded inline transaction staging"
+)]
+enum TransactionChange {
+    Unchanged,
+    Admission(Stored<Session>, Stored<Replay>, usize),
+    Removal(Principal),
 }
 impl SessionTransaction for Transaction<'_> {
     fn generation(&self) -> u64 {
@@ -332,15 +343,14 @@ impl SessionTransaction for Transaction<'_> {
         })
     }
     fn remove(&mut self, caller: Principal) -> Result<(), SessionError> {
-        if self.staged.is_some() || self.removed.is_some() {
+        if !matches!(self.change, TransactionChange::Unchanged) {
             return Err(SessionError::InvalidPolicyOrRecord);
         }
-        self.removed = Some(caller);
+        self.change = TransactionChange::Removal(caller);
         Ok(())
     }
     fn stage(&mut self, session: Session, replay: Replay) -> Result<(), SessionError> {
-        if self.staged.is_some()
-            || self.removed.is_some()
+        if !matches!(self.change, TransactionChange::Unchanged)
             || session.caller() != replay.caller()
             || session.fingerprint() != replay.fingerprint()
             || session.generation() != replay.generation()
@@ -366,7 +376,7 @@ impl SessionTransaction for Transaction<'_> {
             .and_then(|b| b.checked_add(replay_bytes))
             .filter(|b| *b <= limits.max_encoded_bytes)
             .ok_or(SessionError::ByteCapacity)?;
-        self.staged = Some((
+        self.change = TransactionChange::Admission(
             Stored {
                 value: session,
                 bytes: session_bytes,
@@ -376,7 +386,7 @@ impl SessionTransaction for Transaction<'_> {
                 bytes: replay_bytes,
             },
             total,
-        ));
+        );
         Ok(())
     }
 }
@@ -407,17 +417,18 @@ impl MemorySessionStore {
     ) -> Result<T, SessionError> {
         let mut tx = Transaction {
             store: self,
-            staged: None,
-            removed: None,
+            change: TransactionChange::Unchanged,
         };
         let result = operation(&mut tx)?;
-        match (&tx.staged, tx.removed, login_change) {
-            (None, None, None) => {}
-            (Some((session, _, _)), None, Some(change)) if !change.revoked() => {
+        match (&tx.change, login_change) {
+            (TransactionChange::Unchanged, None) => {}
+            (TransactionChange::Admission(session, _, _), Some(change)) if !change.revoked() => {
                 session.value.check_login_change(change)?;
             }
-            (None, Some(caller), Some(change)) if change.revoked() && change.caller() == caller => {
-                if let Some(session) = self.sessions.get(&caller) {
+            (TransactionChange::Removal(caller), Some(change))
+                if change.revoked() && change.caller() == *caller =>
+            {
+                if let Some(session) = self.sessions.get(caller) {
                     session.value.check_login_change(change)?;
                 }
             }
@@ -426,7 +437,7 @@ impl MemorySessionStore {
         if let Some(login) = login_change {
             let old = self.sessions.get(&login.caller());
             let (admission, session_count, replay_count, encoded_bytes) =
-                if let Some((session, replay, total)) = &tx.staged {
+                if let TransactionChange::Admission(session, replay, total) = &tx.change {
                     (
                         Some((&session.value, &replay.value)),
                         self.sessions.len() + usize::from(old.is_none()),
@@ -449,11 +460,11 @@ impl MemorySessionStore {
                 encoded_bytes,
             })?;
         }
-        let (staged, removed) = (tx.staged, tx.removed);
-        if let Some(caller) = removed {
+        let change = tx.change;
+        if let TransactionChange::Removal(caller) = change {
             self.clear(caller);
         }
-        if let Some((session, replay, total)) = staged {
+        if let TransactionChange::Admission(session, replay, total) = change {
             let caller = session.value.caller();
             let fingerprint = replay.value.fingerprint();
             if let Some(old) = self.sessions.remove(&caller) {

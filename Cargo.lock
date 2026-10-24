@@ -1431,9 +1431,9 @@ dependencies = [
 
 [[package]]
 name = "ic-memory"
-version = "0.50.15"
+version = "0.50.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "61a55b3a2edd1eaaea265fbfa949885405c10a548568ea1753528c9e742f0571"
+checksum = "5b044a893ddca926f08027afc8f3592e675cc741de3a65ea7f5a72f660313e34"
 dependencies = [
  "ic-platform",
  "serde",
@@ -1443,9 +1443,9 @@ dependencies = [
 
 [[package]]
 name = "ic-platform"
-version = "0.6.13"
+version = "0.6.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5ab36c233d4cf865bf888c66f374c9a9959f9cbef456fc35fb2481518d4dd6aa"
+checksum = "f8a573232e49513639fcff89999a2439d8216c58efee4abc4b89f53917f6708d"
 dependencies = [
  "candid",
  "crc32fast",
@@ -1473,9 +1473,9 @@ dependencies = [
 
 [[package]]
 name = "ic-platform-macros"
-version = "0.6.13"
+version = "0.6.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7cd8b32122a122d0a9885fa9fc2cba2c1ce0500d9677649c0690388af967ab00"
+checksum = "df2343e7026c3c965eea3eefccd8e66dca6e6463a20cbb1439ddb4f1dafc5eb7"
 dependencies = [
  "proc-macro2",
  "quote",

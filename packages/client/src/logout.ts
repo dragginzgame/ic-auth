@@ -1,4 +1,5 @@
-import { boundedCall } from './bounded-call.js';
+import { boundedCall, MAX_NETWORK_CALL_MS as CALL_MS } from './bounded-call.js';
+import { checkedIdentity, checkDestination } from './checked-identity.js';
 import { Principal } from '@icp-sdk/core/principal';
 import type { Identity } from '@icp-sdk/core/agent';
 import type { LogoutResult } from './codec.js';
@@ -7,7 +8,10 @@ import { IndexedDbLogoutStore, MAX_ATTEMPTS, MAX_TARGETS, type LogoutJournal } f
 
 const MS = 1_000_000n;
 const MAX_CLEANUP_NS = 300_000n * MS;
-const CALL_MS = 5_000;
+
+function cleanupComplete(record: LogoutJournal, now: bigint): boolean {
+  return now >= record.deadlineNs || record.targets.every(target => target.confirmedUntilNs !== undefined);
+}
 
 export interface LogoutClock {
   /** Stable across reloads; adapter must bound IC clock uncertainty and rollback. */
@@ -90,23 +94,10 @@ export class PortableLogoutClient {
       await this.update(generation, record => {
         if (record.phase !== 'active' || record.caller !== principal.toText()
           || identity.getPrincipal().toText() !== record.caller) throw new ClientError('stale_generation');
-        if (request.body.request_type !== 'read_state') {
-          const target = request.body.canister_id;
-          if (!(target instanceof Principal) || !record.targets.some(t => t.canister === target.toText())) {
-            throw new ClientError('configuration');
-          }
-        }
+        checkDestination(request, target => record.targets.some(t => t.canister === target));
       });
     };
-    return {
-      getPrincipal: () => principal,
-      transformRequest: async request => {
-        await check(request);
-        const signed = await identity.transformRequest(request);
-        await check(request);
-        return signed;
-      },
-    };
+    return checkedIdentity(identity, () => principal, check);
   }
 
   /** Durable invalidation before any logout I/O. Repeating cannot extend the deadline. */
@@ -124,8 +115,7 @@ export class PortableLogoutClient {
   async cleanup(generation: string, identity: Identity | undefined): Promise<LogoutJournal> {
     for (;;) {
       const current = await this.update(generation, (record, now) => {
-        if (record.phase === 'cleanup' && (now >= record.deadlineNs
-          || record.targets.every(target => target.confirmedUntilNs !== undefined))) record.phase = 'finished';
+        if (record.phase === 'cleanup' && cleanupComplete(record, now)) record.phase = 'finished';
         return structuredClone(record);
       });
       if (current.phase === 'active') throw new ClientError('configuration');
@@ -138,7 +128,7 @@ export class PortableLogoutClient {
       // a crash consumes the attempt and the claim expires after its call bound.
       const claim = await this.update(generation, (record, now) => {
         if (record.phase !== 'cleanup') return undefined;
-        if (now >= record.deadlineNs || record.targets.every(t => t.confirmedUntilNs !== undefined)) {
+        if (cleanupComplete(record, now)) {
           record.phase = 'finished'; return undefined;
         }
         if (record.busyUntilNs > now) return undefined;
@@ -175,19 +165,10 @@ export class PortableLogoutClient {
             });
             if (signal.aborted) throw new ClientError('stale_generation');
           };
-          const cleanupIdentity: Identity = {
-            getPrincipal: () => identity.getPrincipal(),
-            transformRequest: async request => {
-              await checkLease();
-              if (request.body.request_type !== 'read_state') {
-                const target = request.body.canister_id;
-                if (!(target instanceof Principal) || target.toText() !== claim.canister) throw new ClientError('configuration');
-              }
-              const signed = await identity.transformRequest(request);
-              await checkLease();
-              return signed;
-            },
-          };
+          const cleanupIdentity = checkedIdentity(identity, () => identity.getPrincipal(), async request => {
+            await checkLease();
+            checkDestination(request, target => target === claim.canister);
+          }, checkLease);
           await checkLease();
           return this.transport.revoke(Principal.fromText(claim.canister), cleanupIdentity, signal);
         });

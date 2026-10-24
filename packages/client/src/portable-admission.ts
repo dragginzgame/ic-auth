@@ -1,4 +1,5 @@
-import { boundedCall } from './bounded-call.js';
+import { boundedCall, MAX_NETWORK_CALL_MS } from './bounded-call.js';
+import { checkedIdentity, checkDestination } from './checked-identity.js';
 import type { Identity } from '@icp-sdk/core/agent';
 import { Principal } from '@icp-sdk/core/principal';
 import { ClientError } from './contracts.js';
@@ -49,9 +50,9 @@ export class PortableAdmissionClient {
   constructor(private readonly journal: PortableLogoutClient, private readonly generation: string,
     identities: PortableAdmissionIdentities, private readonly issuer: Principal,
     private readonly transport: PortableAdmissionTransport,
-    private readonly timeoutMs = 5_000, private readonly maximumBytes = 131_072) {
+    private readonly timeoutMs = MAX_NETWORK_CALL_MS, private readonly maximumBytes = 131_072) {
     if (issuer.isAnonymous() || identities.account.getPrincipal().isAnonymous()
-      || !Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 5_000
+      || !Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > MAX_NETWORK_CALL_MS
       || !Number.isSafeInteger(maximumBytes) || maximumBytes < 1 || maximumBytes > 1_048_576) throw new ClientError('configuration');
     this.identities = { browser: identities.browser, account: identities.account };
     this.caller = identities.browser.getPrincipal().toText();
@@ -78,21 +79,10 @@ export class PortableAdmissionClient {
         if (signal.aborted) throw new ClientError('timeout');
         if (signer.getPrincipal().toText() !== caller) throw new ClientError('stale_generation');
       };
-      const identity: Identity = {
-        getPrincipal: () => Principal.fromText(caller),
-        transformRequest: async request => {
-          await check();
-          if (request.body.request_type !== 'read_state') {
-            const destination = request.body.canister_id;
-            if (!(destination instanceof Principal) || destination.toText() !== target) {
-              throw new ClientError('configuration');
-            }
-          }
-          const signed = await signer.transformRequest(request);
-          await check();
-          return signed;
-        },
-      };
+      const identity = checkedIdentity(signer, () => Principal.fromText(caller), async request => {
+        await check();
+        checkDestination(request, destination => destination === target);
+      }, check);
       await check();
       const result = await operation(signal, identity);
       await check();

@@ -22,12 +22,20 @@ use ic_platform::Principal;
 
 use std::cell::RefCell;
 const SECOND: u64 = 1_000_000_000;
+const MAX_SESSIONS: usize = 8;
+const MAX_REPLAYS: usize = 32;
+const MAX_REPLAYS_PER_CALLER: usize = 8;
+const MAX_ENCODED_BYTES: usize = 65_536;
+const MAX_ADMITTED_LOGINS: usize = 8;
+const MAX_UNKNOWN_LOGINS: usize = 8;
+const MAX_LOGIN_RECORDS: usize = MAX_ADMITTED_LOGINS + MAX_UNKNOWN_LOGINS;
+const MAX_SMALL_RECORD_BYTES: usize = 1024;
 fn limits() -> SessionLimits {
     SessionLimits {
-        max_sessions: 8,
-        max_replays: 32,
-        max_replays_per_caller: 8,
-        max_encoded_bytes: 65_536,
+        max_sessions: MAX_SESSIONS,
+        max_replays: MAX_REPLAYS,
+        max_replays_per_caller: MAX_REPLAYS_PER_CALLER,
+        max_encoded_bytes: MAX_ENCODED_BYTES,
     }
 }
 struct Receiver {
@@ -37,7 +45,6 @@ struct Receiver {
     binding: [u8; 32],
     login_floor: u64,
     proof_floor: u64,
-    generation: u64,
     enabled: bool,
     store: MemorySessionStore,
     ledger: MemoryLoginRevocations,
@@ -75,7 +82,7 @@ fn context(
 }
 fn policy(host: &Receiver) -> SessionPolicy {
     SessionPolicy {
-        generation: host.generation,
+        generation: host.store.generation(),
         enabled: host.enabled,
         subject_admissible: true,
         default_ttl_secs: 30,
@@ -143,8 +150,14 @@ fn install_session_receiver(config: controls::model::ReceiverConfig) -> Result<(
         checkpoint: false,
         ready: true,
         store: MemorySessionStore::new(0, limits()).map_err(|e| e.to_string())?,
-        ledger: MemoryLoginRevocations::new(config.audience, 8, 8, 0, now)
-            .map_err(|e| e.to_string())?,
+        ledger: MemoryLoginRevocations::new(
+            config.audience,
+            MAX_ADMITTED_LOGINS,
+            MAX_UNKNOWN_LOGINS,
+            0,
+            now,
+        )
+        .map_err(|e| e.to_string())?,
         admission: SessionAdmissionBudget::new(
             config.verification_burst,
             config.verification_refill_ns,
@@ -156,7 +169,6 @@ fn install_session_receiver(config: controls::model::ReceiverConfig) -> Result<(
         binding,
         login_floor: floors.0,
         proof_floor: floors.1,
-        generation: 0,
         enabled: true,
     };
     RECEIVER.with(|state| *state.borrow_mut() = Some(host));
@@ -330,7 +342,7 @@ fn logout_portable_session() -> LogoutResult {
 fn invalidate_session_authority(enabled: bool) -> Result<(), String> {
     super::controller()?;
     with_receiver(|host| {
-        host.generation = host.store.advance_generation().map_err(|e| e.to_string())?;
+        host.store.advance_generation().map_err(|e| e.to_string())?;
         host.enabled = enabled;
         Ok(())
     })
