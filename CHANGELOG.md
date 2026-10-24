@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.16.0] - Unreleased
+## [0.16.0] - 2026-10-24
 
 - Adopt Platform 0.6.15 and Shared Tooling 0.26.14; retain latest published
   Tooling 0.68.0. Release recovery waits up to 60 seconds for the saved editor
