@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.15.3] - Unreleased
+## [0.15.3] - 2026-10-24
 
 - Adopt published Host/Build/Testkit 0.67.0 and qualify the incoming Platform
   0.6.13 and Memory 0.50.15 selections. Auth's public APIs, method identities,
