@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.15.2] - Unreleased
+## [0.15.2] - 2026-10-24
 
 - Consolidate structural protocol ceilings in protocol-types and use them in
   validation and Wire projections. Preserve the existing limits, signed bytes,
