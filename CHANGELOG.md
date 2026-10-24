@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.15.4] - Unreleased
+## [0.15.4] - 2026-10-24
 
 - Simplify session transaction staging into mutually exclusive internal states;
   remove the qualification receiver's duplicate generation and consolidate its
