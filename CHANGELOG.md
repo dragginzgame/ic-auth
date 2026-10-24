@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.15.3] - Unreleased
+
+- Adopt published Host/Build/Testkit 0.67.0 and qualify the incoming Platform
+  0.6.13 and Memory 0.50.15 selections. Auth's public APIs, method identities,
+  signed material and storage formats are unchanged.
+- Refresh the reviewed Shared Tooling snapshot with Cargo-tool setup phase
+  diagnostics and the common external IC dependency inventory. Compose common
+  exclusions with Auth's stricter local policy and seal the inventory during
+  validation; retain the independent file CLI selection.
+
+- Remove stale release/implementation status from the portable design and README;
+  distinguish delivered Auth libraries/client machinery from Canic production
+  integration and real-browser qualification. Consolidate storage/reset and
+  production-abuse adoption tracking under the existing Canic owners, retaining
+  Auth #58/#59 as historical evidence.
+
 ## [0.15.2] - 2026-10-24
 
 - Consolidate structural protocol ceilings in protocol-types and use them in

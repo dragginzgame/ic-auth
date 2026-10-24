@@ -120,8 +120,10 @@ extended. Restored exact retry works after proof expiry without fresh signature
 verification; a retained denial rejects a newly signed renewal for that login,
 while its peer's independent session can remain valid. Production receivers
 require authenticated Root enrollment and per-operation atomic persistence;
-the checkpoint is not the backend acceptance in
-[Auth #58 — Support host-selected session persistence with safe volatile reset admission](https://github.com/dragginzgame/ic-auth/issues/58).
+the checkpoint does not qualify Canic's production backend. That consumer
+acceptance belongs to [Canic #491](https://github.com/dragginzgame/canic/issues/491).
+[Auth #58](https://github.com/dragginzgame/ic-auth/issues/58) retains the delivered
+library storage/reset contract's historical evidence.
 
 ## Scoped application effects
 

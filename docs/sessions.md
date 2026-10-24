@@ -200,13 +200,15 @@ the new trusted clock and never extends a reservation or tombstone.
 These checks do not authenticate storage or detect a coherently rolled-back
 snapshot. The host must protect the generation, configuration and completeness;
 changing the qualified skew or recovering incomplete storage requires the reset
-contract. The `ic-memory` adapter remains unimplemented. A durable implementation must also
-cover protected reset/authority metadata. Returned failures leave state unchanged while
-retaining charged work budgets. Normal upgrades must restore matching reservations
+contract. Canic's production per-operation persistent adapter remains unimplemented.
+A durable implementation must cover protected reset/authority metadata. Returned
+failures leave state unchanged while retaining charged work budgets. Normal upgrades must restore matching reservations
 as well as sessions; incomplete recovery must enforce fresh-login reset rather
-than invent missing reservations. [Auth #58](https://github.com/dragginzgame/ic-auth/issues/58)
-owns this integration and its failure/upgrade qualification. The qualification host selects `ic-memory`; none of the three public libraries depends on it.
-A production per-operation persistent backend remains unimplemented.
+than invent missing reservations. [Canic #491](https://github.com/dragginzgame/canic/issues/491)
+owns that consumer integration and its failure/upgrade qualification. Auth's
+storage/reset interfaces are delivered; [Auth #58](https://github.com/dragginzgame/ic-auth/issues/58)
+retains their historical implementation evidence. The qualification host selects
+`ic-memory`; none of the three public libraries depends on it.
 
 ## Custom host transaction contract
 

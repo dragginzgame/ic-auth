@@ -208,7 +208,7 @@ Credential/read/logout frames retain their frozen bytes and IDs. Signed claims,
 session/replay/login records and the browser journal profile are unchanged.
 No storage reset or replay of unknown issuance is authorized.
 
-Native Testkit 0.65 and 0.66 take a `WireCallSpec` with the contract's `NAME`, `ID`,
+Native Testkit 0.65 through 0.67 take a `WireCallSpec` with the contract's `NAME`, `ID`,
 `REQUEST_LIMITS` and `RESPONSE_LIMITS`, plus explicit request/response Serde
 types. Canister adapters use the same native codecs and pre-copy byte limits;
 normal errors must retain admission charges, while reply-encoding failure after
@@ -234,7 +234,7 @@ their direct Platform dependency to 0.6. Type-only consumers must select
 selects this explicitly; `runtime`, `cdk`, native clients and signature creation
 also select it upstream. No runtime feature is needed for passive protocol types.
 
-The independently published Testkit 0.66 selects Platform 0.6 too. Native
+The independently published Testkit 0.67 selects Platform 0.6 too. Native
 qualification imports simulator clients and DTOs directly from Platform;
 Testkit retains startup, lifecycle extensions and Wire calls.
 Auth keeps explicit external Principal conversions; no override or compatibility

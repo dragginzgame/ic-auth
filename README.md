@@ -11,9 +11,9 @@ No Auth library or future service may depend on either project.
 
 ## Status
 
-The latest release is **0.15.0**. It implements portable certified and enrolled
-Ed25519 verification, one local session engine, replay/revocation bookkeeping and
-explicit protected authority/work budgets. See the [session contract](docs/sessions.md)
+Release history is in the [changelog](CHANGELOG.md). The libraries implement
+portable certified and enrolled Ed25519 verification, one local session engine,
+replay/revocation bookkeeping and explicit protected authority/work budgets. See the [session contract](docs/sessions.md)
 and [current handoff](docs/status/current.md) for implementation and validation.
 
 The existing [signature](docs/signatures.md), [delegation](docs/delegation.md),
@@ -31,8 +31,9 @@ journals still preserve uncertainty. The separate Rust delegated-token API is
 also retired after explicit confirmation of no deployed users or unresolved issuance. Production issuer/enrollment and consumer
 integration remain pending; reference qualification is separate from adoption.
 
-**Production issuer/enrollment lifecycle, wallet login and the durable session
-adapter remain unimplemented.** The reference receiver uses volatile state.
+**Production issuer/enrollment lifecycle, wallet login and Canic's per-operation
+persistent session adapter remain unimplemented.** The reference receiver uses
+volatile state, with a separate fixture checkpoint for upgrade qualification.
 The [IC Testkit fixture](docs/ic-testkit-qualification.md) exercises actual
 certification, portable sessions, upgrades and signed ingress; it is not a
 production wallet service or evidence of completed consumer adoption.

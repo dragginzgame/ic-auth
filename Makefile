@@ -134,7 +134,7 @@ test-qualification: testkit-tools-check client-tools-check
 	+bash scripts/dev/test-qualification.sh
 
 check-boundaries:
-	+bash scripts/ci/check-cargo-dependency-boundaries.sh --consumer "$(CURDIR)"
+	+bash scripts/ci/check-cargo-dependency-boundaries.sh --consumer "$(CURDIR)" --external-ic
 	+bash scripts/ci/test-auth-boundaries.sh
 	+bash scripts/ci/check-auth-boundaries.sh
 
@@ -172,7 +172,7 @@ ci:
 	+bash scripts/ci/run-validation-targets.sh --fail-fast \
 	  --input Cargo.toml --input Cargo.lock --input rust-toolchain.toml \
 	  --input ci/tool-versions.env --input ci/ic-tools.tsv --input ci/release-delivery.txt \
-	  --input ci/cargo-dependency-boundaries.json \
+	  --input ci/cargo-dependency-boundaries.json --input ci/external-ic-dependencies.txt \
 	  --input ci/host-file.env --input scripts/dev/host-file-tools.sh --input scripts/dev/run-host-file.sh \
 	  --input packages/client/package.json --input packages/client/package-lock.json \
 	  --input packages/client/.nvmrc \

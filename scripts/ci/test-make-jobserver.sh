@@ -27,7 +27,7 @@ perl -e '
 '
 printf '%s\n' "$*" >> "$AUTH_JOBSERVER_LOG"
 if [[ "${1:-}" == --consumer ]]; then
-    [[ $# == 2 && "$2" == "$PWD" ]]
+    [[ $# == 3 && "$2" == "$PWD" && "$3" == --external-ic ]]
 fi
 if [[ "${1:-}" == publish ]]; then
     [[ $# == 14 && "$2" == --dry-run && "$3" == --locked &&
@@ -104,7 +104,7 @@ while IFS= read -r target; do
     fi
     [[ -s "$AUTH_JOBSERVER_LOG" ]]
     if [[ "$target" == check-boundaries ]]; then
-        rg -Fx -- "--consumer $consumer" "$AUTH_JOBSERVER_LOG" > /dev/null
+        rg -Fx -- "--consumer $consumer --external-ic" "$AUTH_JOBSERVER_LOG" > /dev/null
     fi
 done < "$fixture/targets"
 

@@ -2,9 +2,16 @@
 set -euo pipefail
 # Prepare the same substituted Cargo effect boundary for portable and native
 # retention qualification. This creates no installation and contacts no registry.
-[[ $# == 1 && ! -e "$1" && ! -L "$1" ]] || exit 2
-mkdir -p "$1/bin"
-fixture="$(cd -P "$1" && pwd -P)"
+[[ $# == 1 && -n "$1" && ! -e "$1" && ! -L "$1" ]] || exit 2
+fixture="$1"
+case "$fixture" in *$'\r'*|*$'\n'*) echo 'fixture directory contains CR/LF' >&2; exit 2 ;; esac
+[[ "$fixture" == /* ]] || fixture="$PWD/$fixture"
+mkdir -p "$fixture/bin"
+fixture="$(CDPATH='' cd -P -- "$fixture" && printf '%s/.' "$PWD")"
+fixture="${fixture%/.}"
+case "$fixture" in
+    *$'\r'*|*$'\n'*) printf 'Invalid physical fixture directory retained: %q\n' "$fixture" >&2; exit 2 ;;
+esac
 real_rustc="$(command -v rustc)"
 printf '#!%s\n' "$BASH" > "$fixture/bin/rustc"
 printf 'fixture=%q\nreal_rustc=%q\n' "$fixture" "$real_rustc" >> "$fixture/bin/rustc"
