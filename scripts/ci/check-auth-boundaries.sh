@@ -5,6 +5,7 @@ cd "$(dirname "${BASH_SOURCE[0]}")/../.."
 source scripts/ci/auth-dependency-policy.sh
 native_target="$(rustc -vV | sed -n 's/^host: //p')"
 [[ -n "$native_target" ]] || { echo 'missing compiler host target' >&2; exit 1; }
+selections="$(bash scripts/ci/auth-feature-selections.sh)"
 checker=(perl scripts/ci/check-cargo-graph.pl --consumer "$PWD")
 for target in "$native_target" wasm32-unknown-unknown; do
     for package in ic-auth-protocol-types ic-auth ic-auth-wire; do
@@ -19,7 +20,8 @@ for target in "$native_target" wasm32-unknown-unknown; do
         "${checker[@]}" --package "$package" --target "$target" --no-default-features "${rules[@]}"
     done
     # Platform owns imported signature code; library graphs need no Candid/IC0.
-    for feature in portable-signature-verification chain-key-verification canister-signature-verification canister-signature-preparation certified-proof-verification sessions session-restore sessions,portable-signature-verification all; do
+    while IFS= read -r feature; do
+        [[ "$feature" != default ]] || continue
         selected=(--no-default-features --features "$feature")
         [[ "$feature" != all ]] || selected=(--all-features)
         rules=(--forbid-pattern "$(auth_dependency_pattern capability)")
@@ -30,7 +32,7 @@ for target in "$native_target" wasm32-unknown-unknown; do
             rules+=(--forbid-pattern "$(auth_dependency_pattern session)")
         fi
         "${checker[@]}" --package ic-auth --target "$target" "${selected[@]}" "${rules[@]}"
-    done
+    done <<< "$selections"
     # Private fixture schemas must stay Wire-only even though the actual host's
     # runtime selects an executor, but neither path requires Candid.
     "${checker[@]}" --package ic-auth-qualification-contracts --target "$target" \

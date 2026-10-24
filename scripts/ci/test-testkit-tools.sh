@@ -115,12 +115,11 @@ printf 'client tools check\n' >> "$TESTKIT_FIXTURE_LOG"
 exit "${TESTKIT_FIXTURE_CLIENT_STATUS:-0}"
 SCRIPT
 # Model contract generation/comparison effects while keeping the real runner's
-# ordering and failure propagation. The real helper admits client tools first.
+# ordering and failure propagation. The runner admits client tools separately.
 cat > "$consumer/scripts/dev/client-contracts.sh" <<'SCRIPT'
 #!/usr/bin/env bash
 set -euo pipefail
 [[ "$*" == check ]] || exit 1
-bash scripts/dev/client-tools.sh check
 printf 'client contracts check\n' >> "$TESTKIT_FIXTURE_LOG"
 exit "${TESTKIT_FIXTURE_CONTRACTS_STATUS:-0}"
 SCRIPT

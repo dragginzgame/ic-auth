@@ -464,6 +464,9 @@ After changing the locked IC Wire selection, run `make generate-client-contracts
 and `make test-client`. Generation refreshes both the Auth DTO bindings and Wire's
 supplied TypeScript runtime; unchanged DTOs do not imply an unchanged runtime.
 The check compares all five files and refuses drift rather than rewriting source.
+Generation and `make check-client-contracts` use Rust and the admitted file tool;
+they do not require Node, npm or installed browser dependencies. `make test-client`
+and live qualification admit those browser tools explicitly before using them.
 
 `make test-qualification` also requires these prepared client dependencies. It
 compiles current TypeScript before invoking the SDK logout adapter through the

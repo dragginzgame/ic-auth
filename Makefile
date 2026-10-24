@@ -119,15 +119,7 @@ test-sessions:
 	+cargo test --locked --offline -p ic-auth --features session-restore,portable-signature-verification --test sessions --test portable_revocation
 
 check-wasm:
-	+cargo check --locked --offline -p ic-auth-wire --target wasm32-unknown-unknown
-	+cargo check --locked --offline -p ic-auth --features portable-signature-verification --target wasm32-unknown-unknown
-	+cargo check --locked --offline -p ic-auth-protocol-types -p ic-auth --target wasm32-unknown-unknown
-	+cargo check --locked --offline -p ic-auth --features chain-key-verification --target wasm32-unknown-unknown
-	+cargo check --locked --offline -p ic-auth --features canister-signature-verification --target wasm32-unknown-unknown
-	+cargo check --locked --offline -p ic-auth --features canister-signature-preparation --target wasm32-unknown-unknown
-	+cargo check --locked --offline -p ic-auth --features certified-proof-verification --target wasm32-unknown-unknown
-	+cargo check --locked --offline -p ic-auth --features sessions --target wasm32-unknown-unknown
-	+cargo check --locked --offline -p ic-auth --features session-restore --target wasm32-unknown-unknown
+	+bash scripts/dev/check-wasm.sh
 
 clippy:
 	+cargo clippy --locked --offline -p ic-auth-protocol-types -p ic-auth -p ic-auth-wire -p ic-auth-tooling -p ic-auth-qualification -p ic-auth-qualification-contracts -p ic-auth-feature-unification --all-targets --all-features -- -D warnings

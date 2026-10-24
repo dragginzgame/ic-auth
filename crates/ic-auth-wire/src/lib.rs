@@ -1,6 +1,7 @@
 //! Controlled portable-session transport. No endpoint installation, authority,
 //! cryptography, session storage or delivery/retry policy is supplied here.
 pub mod model;
+use ic_auth_protocol_types::limits::{MAX_LABEL_BYTES, MAX_SESSION_SCOPES};
 pub use ic_wire as wire;
 use ic_wire::{Limits, List, Text};
 use model::{LogoutResult, PortableCredential};
@@ -10,7 +11,7 @@ use model::{LogoutResult, PortableCredential};
 #[cfg_attr(feature = "typescript", derive(ic_wire::Wire))]
 pub struct SessionInput {
     pub credential: PortableCredential,
-    pub scopes: List<Text<64>, 16>,
+    pub scopes: List<Text<MAX_LABEL_BYTES>, MAX_SESSION_SCOPES>,
     pub ttl_secs: Option<u64>,
 }
 /// A receiver's authenticated local reply, never a transferable authorization.

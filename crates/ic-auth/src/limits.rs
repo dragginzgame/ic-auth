@@ -1,9 +1,8 @@
 //! Protocol ceilings, shared by live validation and trusted-storage restoration.
 
-pub(crate) const MAX_GRANTS: usize = 16;
-pub(crate) const MAX_SCOPES_PER_GRANT: usize = 32;
-pub(crate) const MAX_SESSION_SCOPES: usize = 16;
-pub(crate) const MAX_LABEL_BYTES: usize = 64;
+pub(crate) use ic_auth_protocol_types::limits::{
+    MAX_GRANTS, MAX_LABEL_BYTES, MAX_SCOPES_PER_GRANT, MAX_SESSION_SCOPES,
+};
 
 pub(crate) const NS_PER_SECOND: u64 = 1_000_000_000;
 pub(crate) const MAX_LOGIN_NS: u64 = 86_400 * NS_PER_SECOND;

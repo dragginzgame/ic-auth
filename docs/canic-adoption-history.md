@@ -1,8 +1,71 @@
-# Historical Canic adoption evidence through Auth 0.9.1
+# Historical Canic adoption evidence
 
 Archived on 2026-10-18. Earlier source checkpoints, proposals and measurements
 below are preserved verbatim. Retired features and pending-publication statements
 are not current guidance; use [the adoption contract](canic-adoption.md).
+
+## Completed Platform identity migrations
+
+The following Auth 0.11/0.12 migration notes were moved from the current guide
+on 2026-10-24. Their dependency versions describe those releases, not the current
+selection. Current consumers use the [Platform 0.6 contract](canic-adoption.md#platform-06-migration).
+
+<a id="platform-03-migration"></a>
+
+## Platform 0.4 migration
+
+Released Auth 0.11 adopts published Platform 0.4.0. Auth's `Principal` path
+is unchanged, but the type and parse errors now belong to Platform. Rust consumers
+must align their application types to Platform 0.4; mixing its owned Principal
+with the former upstream identity requires explicit conversion. Application and
+runtime state use the owned type. Agent, Testkit and required external DTOs
+keep their original types at those boundaries:
+
+```rust
+let application = ic_auth_protocol_types::Principal::anonymous();
+let external: ic_platform::principal::ExternalPrincipal = application.into();
+assert_eq!(ic_auth_protocol_types::Principal::from(external), application);
+```
+
+Conversions preserve significant bytes. Signing/self-authentication algorithms,
+method frames and persisted profiles do not change. Frozen Auth 0.10.7 signed
+claims and session/replay/login records remain exact and decodable; no reset is
+authorized. Text longer than 63 bytes now returns Platform's `TextTooLong` before
+normalization. Required Candid DTOs must keep the external Principal; the owned
+type intentionally has no Candid trait or marker handling. Do not add a Candid
+feature, a local Principal alias facade or a replacement cryptographic parser.
+Testkit 0.57 still selects Platform 0.2 natively; Auth's explicit call conversions
+support that released pairing without a forced Testkit upgrade.
+
+Platform 0.4 owns the imported canister-signature key and verifier implementations.
+`CanisterSigPublicKey` changes crate identity; its Principal field remains the
+external type, so existing constructor conversions stay required. DER/raw bytes,
+short-DER pre-admission and protected signer/seed/root/freshness checks are
+unchanged. All Auth capabilities and reference Wasm now reject Candid and the
+retired registry signature-package edges. Runtime RejectCode/raw-call convenience
+changes affect no Auth call sites; the qualified host keeps explicit Wire codecs.
+Native Agent/Testkit still select their independently maintained Candid graph.
+
+## Platform 0.5 migration
+
+Auth 0.12 introduced published Platform 0.5.0. Auth exposes its owned
+`Principal`, so Rust consumers sharing that type must align their direct Platform
+dependency to 0.5. Import paths stay unchanged;
+0.4 and 0.5 are distinct Rust crate/type identities. Required external DTOs and
+Agent/Testkit parameters still use `principal::ExternalPrincipal` with explicit
+byte-preserving conversions. Consume Testkit and Memory's independently
+published selections without a local identity compatibility facade or override.
+Testkit 0.62 paired with Platform 0.5; Testkit 0.63 through 0.66 align to Platform
+0.6. Older Testkit releases retain their own Platform identity.
+
+Signed claims, frozen Wire frames, session/replay/login encodings and generated
+TypeScript retain their bytes. This is a Rust dependency-identity cut, with no
+journal/checkpoint reset or storage migration. The private host removes the
+retired no-op `hidden` macro option while retaining explicit Wire hooks and its
+existing endpoints. It uses none of the removed checkpoint/reader APIs or
+`Call::change_timeout`; there is no replacement storage abstraction or wait-policy
+change in Auth. The host still requires `cdk` for entrypoint generation; public
+proof/type/session capabilities select no runtime feature.
 
 # Canic library adoption contract
 

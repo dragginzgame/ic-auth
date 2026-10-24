@@ -8,9 +8,14 @@ mkdir -p target/portable-fixtures
 fixture="$(mktemp -d "$root/target/portable-fixtures/auth-boundaries.XXXXXX")"
 printf 'Dependency boundary evidence: %s\n' "$fixture"
 mkdir -p "$fixture/repo/scripts/ci" "$fixture/bin"
-cp scripts/ci/{check-auth-boundaries,auth-dependency-policy}.sh "$fixture/repo/scripts/ci/"
+cp scripts/ci/{check-auth-boundaries,auth-dependency-policy,auth-feature-selections}.sh "$fixture/repo/scripts/ci/"
 cp scripts/ci/check-cargo-graph.pl "$fixture/repo/scripts/ci/"
+mkdir -p "$fixture/repo/crates/ic-auth"
+# A new capability must enter both target checks without another curated list.
+awk '{ print } /^\[features\]$/ { print "future-capability = []" }' \
+    crates/ic-auth/Cargo.toml > "$fixture/repo/crates/ic-auth/Cargo.toml"
 printf '[workspace]\n' > "$fixture/repo/Cargo.toml"
+selection_count="$(bash scripts/ci/auth-feature-selections.sh "$fixture/repo/crates/ic-auth/Cargo.toml" | wc -l | tr -d '[:space:]')"
 cat > "$fixture/bin/rustc" <<'STUB'
 #!/usr/bin/env bash
 printf 'host: x86_64-unknown-linux-gnu\n'
@@ -97,9 +102,10 @@ for mode in accepted principal-candid principal-executor principal-bls control-c
     bash "$fixture/repo/scripts/ci/check-auth-boundaries.sh" > "$fixture/$mode.log" 2>&1 || status=$?
     if [[ "$mode" == accepted ]]; then
         [[ "$status" == 0 ]] || { cat "$fixture/$mode.log"; exit 1; }
-        # Three public defaults, nine feature selections and the private Wire
-        # schema on both targets, plus crypto-generation and reference host.
-        [[ "$(wc -l < "$BOUNDARY_EVENTS")" == 28 ]]
+        # Replace Auth's default selection with all three public defaults, then
+        # add the private Wire schema on each target and two final host checks.
+        [[ "$(wc -l < "$BOUNDARY_EVENTS")" == "$((2 * (selection_count + 3) + 2))" ]]
+        [[ "$(rg -c -- '--features future-capability' "$BOUNDARY_EVENTS")" == 2 ]]
         rg -- '--target x86_64-unknown-linux-gnu' "$BOUNDARY_EVENTS" > /dev/null
         rg -- '--target wasm32-unknown-unknown' "$BOUNDARY_EVENTS" > /dev/null
     else

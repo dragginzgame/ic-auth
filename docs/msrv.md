@@ -78,3 +78,9 @@ native-target array under Bash's strict unset-variable checks. The current fix
 preserves zero native arguments and the unchanged Wasm/feature matrix using
 Bash 3.2-safe expansion. That full matrix passes on Linux using actual Bash
 3.2.57; it does not establish native macOS qualification before matching CI runs.
+
+The individual Auth feature selections come from the selected package manifest
+through `scripts/ci/auth-feature-selections.sh`, shared with dependency-boundary
+and development Wasm checks. The session/portable-signature combination and
+all-features selection are explicit additional profiles. Adding a feature no
+longer requires editing three separate lists.

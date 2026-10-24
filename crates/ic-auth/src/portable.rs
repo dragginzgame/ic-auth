@@ -35,7 +35,7 @@ const DOMAIN: &[u8] = b"IC-AUTH-PORTABLE-CREDENTIAL\0";
 const SCHEMA: u16 = 1;
 
 /// Hard cap on the signed claims blob, independent of outer transport limits.
-pub const MAX_CLAIMS_BYTES: usize = 65_536;
+pub use ic_auth_protocol_types::limits::MAX_CLAIMS_BYTES;
 
 /// Structural codec errors, never proof-verification outcomes.
 #[derive(Debug, Error, PartialEq, Eq)]

@@ -100,6 +100,7 @@ package_inputs "$fixture/Cargo.toml" "$fixture/Cargo.lock" "$fixture/src/lib.rs"
 cmp Cargo.toml "$fixture/original-workspace.toml"
 cmp Cargo.lock "$fixture/original-workspace.lock"
 export CARGO_TARGET_DIR="$root/target/msrv"
+selections="$(bash scripts/ci/auth-feature-selections.sh "$auth/Cargo.toml")"
 for target in native wasm32-unknown-unknown; do
     target_args=()
     [[ "$target" == native ]] || target_args=(--target "$target")
@@ -107,12 +108,12 @@ for target in native wasm32-unknown-unknown; do
     # target arguments rather than passing an empty string or weakening -u.
     cargo +"$floor" check --locked --offline --lib --no-default-features \
         --manifest-path "$fixture/Cargo.toml" ${target_args[@]+"${target_args[@]}"}
-    for feature in default portable-signature-verification chain-key-verification canister-signature-verification canister-signature-preparation certified-proof-verification sessions session-restore all; do
+    while IFS= read -r feature; do
         feature_args=(--no-default-features --features ic-auth)
         case "$feature" in
             default) ;;
             all) feature_args=(--all-features) ;;
-            *) feature_args=(--no-default-features --features "ic-auth/$feature") ;;
+            *) feature_args=(--no-default-features --features "ic-auth/${feature//,/,ic-auth/}") ;;
         esac
         printf 'MSRV %s: ic-auth %s on %s\n' "$floor" "$feature" "$target"
         cargo +"$floor" check --locked --offline --lib --manifest-path "$fixture/Cargo.toml" \
@@ -126,7 +127,7 @@ for target in native wasm32-unknown-unknown; do
                 exit 1
             fi
         fi
-    done
+    done <<< "$selections"
 done
 # Internal applications use the same floor with separate native/Wasm checks.
 # Runtime qualification remains test-qualification.

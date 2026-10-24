@@ -34,44 +34,49 @@ pub(crate) fn run(
             for (name, source) in [
                 (
                     "credential.ts",
-                    generate::<model::PortableCredential, model::PortableCredential>(
+                    generate(
                         CredentialEnvelope::NAME,
                         CredentialEnvelope::ID,
                         CredentialEnvelope::REQUEST_LIMITS,
                         CredentialEnvelope::RESPONSE_LIMITS,
+                        CredentialEnvelope::encode_request,
+                        CredentialEnvelope::decode_response,
                     )
                     .map_err(|error| format!("IC Wire generation refused: {error:?}"))?,
                 ),
                 (
                     "establish.ts",
-                    generate::<
-                        ic_auth_wire::SessionInput,
-                        Result<ic_auth_wire::SessionView, model::AdmissionRefusal>,
-                    >(
+                    generate(
                         EstablishSession::NAME,
                         EstablishSession::ID,
                         EstablishSession::REQUEST_LIMITS,
                         EstablishSession::RESPONSE_LIMITS,
+                        EstablishSession::encode_request,
+                        EstablishSession::decode_response,
                     )
                     .map_err(|error| format!("IC Wire generation refused: {error:?}"))?,
                 ),
                 (
                     "read.ts",
-                    generate::<(), Result<ic_auth_wire::SessionView, wire::Text<256>>>(
+                    generate(
                         ReadSession::NAME,
                         ReadSession::ID,
                         ReadSession::REQUEST_LIMITS,
                         ReadSession::RESPONSE_LIMITS,
+                        ReadSession::encode_request,
+                        ReadSession::decode_response,
                     )
                     .map_err(|error| format!("IC Wire generation refused: {error:?}"))?,
                 ),
                 (
                     "logout.ts",
-                    generate::<(), model::LogoutResult>(
+                    generate(
                         Logout::NAME,
                         Logout::ID,
                         Logout::REQUEST_LIMITS,
                         Logout::RESPONSE_LIMITS,
+                        Logout::encode_request,
+                        Logout::decode_response,
                     )
                     .map_err(|error| format!("IC Wire generation refused: {error:?}"))?,
                 ),
@@ -135,6 +140,8 @@ fn generate<Request: wire::typescript::Wire, Response: wire::typescript::Wire>(
     id: u64,
     request: wire::Limits,
     response: wire::Limits,
+    _encode_request: fn(&Request) -> Result<Vec<u8>, wire::Error>,
+    _decode_response: fn(&[u8]) -> Result<Response, wire::Error>,
 ) -> Result<String, wire::typescript::GenerationError> {
     use serde_json::json;
     let types = std::collections::BTreeMap::from([

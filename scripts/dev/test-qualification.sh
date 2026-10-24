@@ -11,6 +11,7 @@ POCKET_IC_BIN="$(bash scripts/dev/testkit-tools.sh check)"
 export POCKET_IC_BIN
 # This case executes the actual SDK logout adapter against the live fixture.
 # Admit already prepared client tools and rebuild source; never install here.
+bash scripts/dev/client-tools.sh check
 bash scripts/dev/client-contracts.sh check
 npm --prefix packages/client run build
 IC_AUTH_QUALIFICATION_NODE="$(command -v node)"

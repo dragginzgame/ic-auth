@@ -158,4 +158,52 @@ for scenario in separate-prefix wrong-node setup-failure wrong-prepared-npm depe
 
 done
 echo 'Actual client CI pipeline: selected-prefix activation, later-step admission and first-failure preservation passed (substituted npm effects)'
+# Contract generation uses Rust alone; deliberately unavailable browser tools
+# must not prevent generation/checking, or get consulted by either operation.
+consumer="$fixture/rust-contracts"
+mkdir -p "$consumer/scripts/dev" "$consumer/packages/client/src/generated" "$consumer/bin"
+cp "$root/scripts/dev/client-contracts.sh" "$consumer/scripts/dev/"
+cat > "$consumer/scripts/dev/client-tools.sh" <<'SCRIPT'
+#!/usr/bin/env bash
+exit 89
+SCRIPT
+for tool in node npm tsc; do
+    cp "$consumer/scripts/dev/client-tools.sh" "$consumer/bin/$tool"
+    chmod +x "$consumer/bin/$tool"
+done
+# Substitute Rust and file-tool effects; execute the actual generation driver.
+cat > "$consumer/scripts/dev/run-host-file.sh" <<'SCRIPT'
+#!/usr/bin/env bash
+set -eu
+[[ "$1" == hash-files0 ]]
+cat
+SCRIPT
+cat > "$consumer/bin/cargo" <<'SCRIPT'
+#!/usr/bin/env bash
+set -eu
+[[ "$*" == 'build --quiet --locked --offline -p ic-auth-tooling' ]]
+mkdir -p "$CARGO_TARGET_DIR/debug"
+cp "$PWD/generator" "$CARGO_TARGET_DIR/debug/ic-auth-tooling"
+SCRIPT
+cat > "$consumer/generator" <<'SCRIPT'
+#!/usr/bin/env bash
+set -eu
+[[ "$1 $2" == 'client-contracts generate' ]]
+for name in credential.ts establish.ts read.ts logout.ts wire-runtime.ts credential-vector.hex logout-vector.hex admission-vector.hex; do
+    printf 'rust-owned %s\n' "$name" > "$3/$name"
+done
+SCRIPT
+chmod +x "$consumer/bin/cargo" "$consumer/generator"
+for mode in generate check; do
+    (cd "$consumer"; PATH="$consumer/bin:$PATH" bash scripts/dev/client-contracts.sh "$mode") \
+        > "$fixture/contracts-$mode.log" 2>&1
+done
+printf 'stale\n' > "$consumer/packages/client/src/generated/credential.ts"
+if (cd "$consumer"; PATH="$consumer/bin:$PATH" bash scripts/dev/client-contracts.sh check) \
+    > "$fixture/contracts-stale.log" 2>&1; then
+    echo 'stale generated contract unexpectedly accepted' >&2; exit 1
+fi
+rg -F 'differs from the locked generator' "$fixture/contracts-stale.log" > /dev/null
+[[ "$(cat "$consumer/packages/client/src/generated/credential.ts")" == stale ]]
+echo 'Rust-only contract generation, comparison and effect-free stale refusal passed (substituted Rust effects)'
 complete=true

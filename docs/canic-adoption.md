@@ -26,7 +26,7 @@ Toko dependency. Rust 1.91 is the common minimum.
   SDK identity, issuer/admission transport and durable logout storage. It does
   not implement wallet login or a production issuer/reconciliation service.
 
-Auth 0.14 selects Platform 0.6 and enables only `principal` for passive types.
+Auth 0.15 selects Platform 0.6 and enables only `principal` for passive types.
 Consumers sharing that owned Rust type must align to Platform 0.6; external
 Agent/Testkit/crypto APIs keep explicit `principal::ExternalPrincipal`
 conversions. Do not select the older upstream Principal identity or downgrade
@@ -67,6 +67,81 @@ can unify features from a dev dependency and hide a missing production feature.
 Use the shared Auth Wire methods through `ic-auth-wire`, or the explicitly
 qualified consumer transport described below; neither transport supplies a
 verifier, enrollment or endpoint automatically.
+
+### Canic configuration and endpoint wiring
+
+Source inspection on 2026-10-24 used Canic's working tree based on
+`cf2d3d1fba84a00a76cdbc541ae7e68fe36e9bb5`, including pending 0.112 Wire work.
+These are source findings, not published Canic or installed-receiver acceptance.
+The existing schema and its parse test accept this stanza for an existing
+`default` component spec:
+
+```toml
+[component_specs.default.auth.local_application_authorization]
+allowed_scopes = ["my_app:read", "my_app:write"]
+default_session_ttl_secs = 900
+maximum_session_ttl_secs = 1800
+```
+
+Canic canonicalizes the scopes and rejects invalid/duplicate scopes and invalid
+TTL bounds; its present maximum is 1,800 seconds. This config declares local
+policy, but does not activate portable login: `access/auth::authorize_local_application`
+still returns a denial, and the Auth-backed `application_sessions/shared` store
+is compiled only for tests. Existing delegated issuer/verifier switches and
+proof install/status APIs do not supply portable issuance or reconciliation.
+
+Keep local scope/TTL policy separate from Root-authenticated enrollment. The
+latter supplies issuer/key/mechanism, validity and authority revision; a request
+must never supply its own trusted authority. Receiver persistence needs an
+explicit host choice, independent of issuer custody: volatile state loses logins
+on reset and requires protected reset floors; persistent state must commit and
+restore sessions, replay, login reservations/denials and authority/clock metadata
+consistently. The current schema has no implemented persistence or TEE selector;
+do not add example keys that its strict parser rejects. Production activation
+still requires the qualified skew/reset and enrollment contracts.
+
+Canic's current `auth-local-application-authorization` feature enables both proof
+verifiers, restoration and older delegated verification prerequisites. Forward
+the minimal receiver feature profile from the table above for each actual build;
+runtime configuration alone cannot remove those compiled capabilities. Ed25519
+verification does not imply TEE custody, and neither determines session persistence.
+
+Canic's draft `canic_raw_update(..., wire(id = ..., request = ..., response = ...))`
+path, already used by its Blob adapter, can mount Auth's owner codecs. Select
+matching `ic-auth-wire` alongside the two existing Auth dependencies, and use
+each marker's `NAME`, `ID`, `REQUEST_LIMITS`, `RESPONSE_LIMITS` and concrete codecs.
+Preserve Canic's normal lifecycle/deployment fences; admission and logout cannot
+require an already established session. The reference uses updates for all three:
+
+| Export / owner marker | Synchronous host work |
+| --- | --- |
+| `establish_portable_session` / `EstablishSession` | Authenticate runtime caller; verify decoded claims against protected enrollment with retained budgets; atomically establish session/replay/login reservation. |
+| `portable_session_read` / `ReadSession` | Check the caller's live local session and return bounded metadata without extending its lease. |
+| `logout_portable_session` / `Logout` | Revoke the runtime caller and remove its session atomically; acknowledge only after commit, including the bounded absent-session path. |
+
+Decode no client-supplied caller. Preserve normal refusal charges; trap on reply
+encoding failure after mutation. Host schema registration must describe these
+same owner DTOs, IDs, modes and budgets; enable TypeScript metadata only in the
+native generator. Do not copy the fixture's literal `read` business scope into
+a generic status check: define that endpoint's required scopes explicitly.
+
+For ordinary application updates, authorize inside the synchronous workflow
+before effects and accept only business arguments. Canic's current `AccessCheck`
+contract requires side-effect-free predicates, whereas Auth's `authorize_session`
+observes retained clock state through the revocation ledger. Do not disguise it
+as a pure custom guard or discard that bookkeeping. A dedicated mutable auth
+guard would need an explicit Canic contract; query authorization also needs its
+own qualification. The tested update path below is usable without that redesign.
+
+The browser supplies separate account and fresh browser identities to
+`PortableAdmissionClient`: account identity authorizes issuance/lookup, browser
+identity admits and calls each receiver. `establish(receiver)` journals that
+destination before dispatch and returns a guarded identity for business calls.
+Canic still owns the production issuer and lookup-only reconciliation adapter,
+plus enrollment/renewal and browser logout integration. Those requirements remain
+in [#491](https://github.com/dragginzgame/canic/issues/491) and
+[#507](https://github.com/dragginzgame/canic/issues/507); the private client is not
+an installed Canic service or published npm package.
 
 ### Synchronous protected application writes
 
@@ -146,62 +221,9 @@ The private fixture's controls/checkpoint have new identities and require fresh
 disposable installations; this changes no production memory allocation or layout.
 
 
-<a id="platform-03-migration"></a>
-
-## Platform 0.4 migration
-
-Released Auth 0.11 adopts published Platform 0.4.0. Auth's `Principal` path
-is unchanged, but the type and parse errors now belong to Platform. Rust consumers
-must align their application types to Platform 0.4; mixing its owned Principal
-with the former upstream identity requires explicit conversion. Application and
-runtime state use the owned type. Agent, Testkit and required external DTOs
-keep their original types at those boundaries:
-
-```rust
-let application = ic_auth_protocol_types::Principal::anonymous();
-let external: ic_platform::principal::ExternalPrincipal = application.into();
-assert_eq!(ic_auth_protocol_types::Principal::from(external), application);
-```
-
-Conversions preserve significant bytes. Signing/self-authentication algorithms,
-method frames and persisted profiles do not change. Frozen Auth 0.10.7 signed
-claims and session/replay/login records remain exact and decodable; no reset is
-authorized. Text longer than 63 bytes now returns Platform's `TextTooLong` before
-normalization. Required Candid DTOs must keep the external Principal; the owned
-type intentionally has no Candid trait or marker handling. Do not add a Candid
-feature, a local Principal alias facade or a replacement cryptographic parser.
-Testkit 0.57 still selects Platform 0.2 natively; Auth's explicit call conversions
-support that released pairing without a forced Testkit upgrade.
-
-Platform 0.4 owns the imported canister-signature key and verifier implementations.
-`CanisterSigPublicKey` changes crate identity; its Principal field remains the
-external type, so existing constructor conversions stay required. DER/raw bytes,
-short-DER pre-admission and protected signer/seed/root/freshness checks are
-unchanged. All Auth capabilities and reference Wasm now reject Candid and the
-retired registry signature-package edges. Runtime RejectCode/raw-call convenience
-changes affect no Auth call sites; the qualified host keeps explicit Wire codecs.
-Native Agent/Testkit still select their independently maintained Candid graph.
-
-## Platform 0.5 migration
-
-Auth 0.12 introduced published Platform 0.5.0. Auth exposes its owned
-`Principal`, so Rust consumers sharing that type must align their direct Platform
-dependency to 0.5. Import paths stay unchanged;
-0.4 and 0.5 are distinct Rust crate/type identities. Required external DTOs and
-Agent/Testkit parameters still use `principal::ExternalPrincipal` with explicit
-byte-preserving conversions. Consume Testkit and Memory's independently
-published selections without a local identity compatibility facade or override.
-Testkit 0.62 paired with Platform 0.5; Testkit 0.63 through 0.66 align to Platform
-0.6. Older Testkit releases retain their own Platform identity.
-
-Signed claims, frozen Wire frames, session/replay/login encodings and generated
-TypeScript retain their bytes. This is a Rust dependency-identity cut, with no
-journal/checkpoint reset or storage migration. The private host removes the
-retired no-op `hidden` macro option while retaining explicit Wire hooks and its
-existing endpoints. It uses none of the removed checkpoint/reader APIs or
-`Call::change_timeout`; there is no replacement storage abstraction or wait-policy
-change in Auth. The host still requires `cdk` for entrypoint generation; public
-proof/type/session capabilities select no runtime feature.
+Earlier identity cuts are historical evidence in the
+[Platform 0.4/0.5 migration record](canic-adoption-history.md#platform-04-migration).
+Use the current Platform 0.6 boundary below for new consumers.
 
 ## Platform 0.6 migration
 

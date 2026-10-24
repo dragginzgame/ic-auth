@@ -11,14 +11,8 @@ mkdir -p target/portable-fixtures
 fixture="$(mktemp -d "$root/target/portable-fixtures/make-jobserver.XXXXXX")"
 printf 'Make jobserver evidence retained: %s\n' "$fixture"
 consumer="$fixture/consumer with spaces"
-mkdir -p "$consumer/make" "$consumer/ci" "$consumer/scripts/dev" \
-    "$consumer/scripts/ci" "$consumer/scripts/release" "$consumer/packages/client" "$fixture/bin"
-cp packages/client/package.json packages/client/.nvmrc "$consumer/packages/client/"
-for input in Makefile make/consumer.mk make/tools.mk make/release.mk make/rust-format.mk make/execution.mk \
-    scripts/ci/check-release-delivery.sh ci/release-delivery.txt \
-    ci/tool-versions.env scripts/ci/check-make-execution.sh; do
-    cp -p "$input" "$consumer/$input"
-done
+mkdir -p "$consumer" "$fixture/bin"
+bash scripts/release/export-fixture-source.sh "$root" "$consumer"
 export AUTH_JOBSERVER_LOG="$fixture/cargo-effects.log"
 cat > "$fixture/bin/cargo" <<'SCRIPT'
 #!/usr/bin/env bash
@@ -53,10 +47,10 @@ ln -s "$BASH" "$fixture/bin/bash"
 export PATH="$fixture/bin:$PATH"
 # Substitute application/installation/publication effects, keeping actual root
 # recipes, includes, execution admission and Bash-to-Cargo descriptor handoff.
-for script in dev/testkit-tools.sh dev/msrv-tools.sh dev/host-file-tools.sh dev/check-msrv.sh \
+for script in dev/testkit-tools.sh dev/msrv-tools.sh dev/host-file-tools.sh dev/check-msrv.sh dev/check-wasm.sh \
     dev/test-qualification.sh dev/client-contracts.sh dev/test-client.sh dev/release-tools.sh \
     ci/check-cargo-dependency-boundaries.sh ci/test-auth-boundaries.sh \
-    ci/check-auth-boundaries.sh ci/check-dependency-pins.sh ci/read-cargo-workspace-version.sh \
+    ci/check-auth-boundaries.sh ci/test-client-tools.sh ci/check-dependency-pins.sh ci/read-cargo-workspace-version.sh \
     release/publish.sh release/metadata.sh release/test-tools.sh; do
     cat > "$consumer/scripts/$script" <<'SCRIPT'
 #!/usr/bin/env bash
@@ -72,24 +66,33 @@ cat > "$consumer/scripts/dev/client-tools.sh" <<'SCRIPT'
 set -euo pipefail
 [[ "$*" == check ]]
 SCRIPT
-mkdir -p "$consumer/crates/ic-auth" "$consumer/crates/ic-auth-protocol-types" "$consumer/crates/ic-auth-wire"
-cp LICENSE "$consumer/LICENSE"
-for package in ic-auth ic-auth-protocol-types ic-auth-wire; do
-    cp "crates/$package/LICENSE" "$consumer/crates/$package/LICENSE"
-done
 options=(--no-print-directory -j4)
 if make --help | rg -q -- --jobserver-style; then
     options+=(--jobserver-style=pipe)
 fi
-targets=(fetch metadata test-types test-protocol test-chain-key-signatures test-signatures test-signature-store \
-    test-certified-proofs test-sessions check-wasm clippy build-qualification-canister \
-    test-qualification test-host-tooling check-boundaries check-dependency-pins check-msrv \
-    install-testkit-tools testkit-tools-check msrv-tools-check install-release-tools release-tools-check \
-    install-host-file host-file-check \
-    generate-client-contracts check-client-contracts test-client publish-dry-run publish test-release-tools \
-    release-version release-preflight release-prepare-version release-prepared-check release-files \
-    release-commit-check release-committed-check release-tagged-check release-push-check release-verify)
-for target in "${targets[@]}"; do
+# Root recipes marked recursive must pass the descriptors. Derive coverage from
+# those recipes so adding a Cargo target cannot silently omit it from this test.
+# The full gate and Git-hook fixture intentionally have their own harnesses.
+awk '
+    {
+        line=line $0
+        if (sub(/\\$/, "", line)) next
+        print line; line=""
+    }
+' "$consumer/Makefile" | awk '
+    /^[[:alnum:]_-]+([[:space:]]+[[:alnum:]_-]+)*:/ {
+        targets=$0; sub(/:.*/, "", targets)
+    }
+    /^\t[@+-]*[+]/ {
+        count=split(targets, names, /[[:space:]]+/)
+        for (i=1; i<=count; i++)
+            if (names[i] != "ci" && names[i] != "test-formatting-hooks") print names[i]
+    }
+' | sort -u > "$fixture/targets"
+# Guard the parser against accidentally dropping known multiline/normal recipes.
+rg -Fx test-portable-signatures "$fixture/targets" > /dev/null
+rg -Fx release-prepare-version "$fixture/targets" > /dev/null
+while IFS= read -r target; do
     : > "$AUTH_JOBSERVER_LOG"
     status=0
     (cd "$consumer"; make "${options[@]}" "$target") > "$fixture/$target.log" 2>&1 || status=$?
@@ -103,7 +106,7 @@ for target in "${targets[@]}"; do
     if [[ "$target" == check-boundaries ]]; then
         rg -Fx -- "--consumer $consumer" "$AUTH_JOBSERVER_LOG" > /dev/null
     fi
-done
+done < "$fixture/targets"
 
 # Auth's declared delivery policy refuses unsupported modes before adapter dispatch.
 : > "$AUTH_JOBSERVER_LOG"

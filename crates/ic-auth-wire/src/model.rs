@@ -1,5 +1,8 @@
 //! Bounded transport projections. Conversion is structural, never verification.
 use ic_auth_protocol_types as domain;
+use ic_auth_protocol_types::limits::{
+    MAX_CLAIMS_BYTES, MAX_GRANTS, MAX_LABEL_BYTES, MAX_SCOPES_PER_GRANT,
+};
 use ic_wire::{Bytes, Error, List, Text};
 
 trait Field<D>: Sized {
@@ -61,7 +64,7 @@ impl Field<domain::CanonicalId> for [u8; 32] {
         Ok(domain::CanonicalId::from_bytes(self))
     }
 }
-impl Field<domain::AuthRole> for Text<64> {
+impl Field<domain::AuthRole> for Text<MAX_LABEL_BYTES> {
     fn from_domain(value: domain::AuthRole) -> Result<Self, Error> {
         Self::new(value.as_str().to_owned())
     }
@@ -128,7 +131,7 @@ record!(AudienceId {
     canonical_network_id: [u8; 32],
     fleet_id: [u8; 32]
 });
-record!(DelegatedRoleGrant { target: Text<64>, scopes: List<Text<64>, 32> });
+record!(DelegatedRoleGrant { target: Text<MAX_LABEL_BYTES>, scopes: List<Text<MAX_LABEL_BYTES>, MAX_SCOPES_PER_GRANT> });
 tuple_enum!(DelegationAudience {
     Fleet(AudienceId)
 });
@@ -164,7 +167,7 @@ record!(ChainKeyDelegationCertV1 {
     root_canister_id: Bytes<29>, issuer_canister_id: Bytes<29>, proof_epoch: u64,
     issuer_proof_algorithm: IssuerProofAlgorithm, issuer_proof_binding_hash: [u8; 32],
     issuer_proof_binding: IssuerProofBinding, max_token_ttl_ns: u64,
-    audience: DelegationAudience, grants: List<DelegatedRoleGrant, 16>,
+    audience: DelegationAudience, grants: List<DelegatedRoleGrant, MAX_GRANTS>,
     not_before_ns: u64, expires_at_ns: u64, registry_epoch: u64, registry_hash: [u8; 32],
 });
 record!(ChainKeyRootSignatureV1 {
@@ -189,7 +192,7 @@ record!(DelegationCert {
     root_pid: Bytes<29>, issuer_pid: Bytes<29>, issuer_proof_alg: IssuerProofAlgorithm,
     issuer_proof_binding_hash: [u8; 32], issuer_proof_binding: IssuerProofBinding,
     issued_at_ns: u64, not_before_ns: u64, expires_at_ns: u64,
-    max_token_ttl_ns: u64, aud: DelegationAudience, grants: List<DelegatedRoleGrant, 16>,
+    max_token_ttl_ns: u64, aud: DelegationAudience, grants: List<DelegatedRoleGrant, MAX_GRANTS>,
 });
 record!(DelegationProof {
     cert: DelegationCert,
@@ -236,7 +239,7 @@ impl Field<domain::PortableProof> for PortableProof {
         })
     }
 }
-record!(PortableCredential { claims: Bytes<65536>, proof: PortableProof });
+record!(PortableCredential { claims: Bytes<MAX_CLAIMS_BYTES>, proof: PortableProof });
 // Admission diagnostics are independent of proof validity and retry policy.
 unit_enum!(AdmissionRefusal {
     NotYetValid,

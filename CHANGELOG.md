@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.15.2] - Unreleased
+
+- Consolidate structural protocol ceilings in protocol-types and use them in
+  validation and Wire projections. Preserve the existing limits, signed bytes,
+  method identities and storage formats. Infer generated TypeScript request/reply
+  types from the actual Rust codecs instead of maintaining separate type lists.
+- Generate/check Rust-owned browser contracts without requiring Node/npm setup;
+  browser tests and live qualification admit their browser tools explicitly.
+  Refresh the canonical runtime for the incoming locked Wire 0.6.12 selection;
+  the four Auth contract schemas are unchanged.
+- Derive feature checks from Auth's manifest for dependency boundaries, packaged
+  MSRV consumers and Wasm. Derive recursive jobserver coverage from the Makefile,
+  including portable signatures, and reuse the maintained source-fixture exporter.
+- Replace copied Host file-CLI implementation tests with Auth adapter coverage;
+  validate the actual Auth CLI's refusal/help/version behavior. Move completed
+  Platform identity migration notes out of the current Canic adoption guide.
+
 ## [0.15.1] - 2026-10-23
 
 - Adopt published Host/Build/Testkit 0.66.0. The private qualification fixture
