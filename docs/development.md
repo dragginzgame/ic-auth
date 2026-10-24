@@ -83,6 +83,11 @@ fast-forward the development checkout when its own pending work permits it.
 
 ### Editor preparation and recovery
 
+Saved-source release editor admission uses a 60-second read-only contention wait.
+Busy or timeout retains status 75 and the saved release; it never installs tools.
+Missing/corrupt selections remain failures. Ordinary `release-tools-check` stays
+immediate; `scripts/dev/release-tools.sh check-wait` selects bounded waiting.
+
 Shared 0.25.1 delegates Cargo manifest and lock rendering to the released IC Build
 editor. The selected Build 0.63 binary requires `cli`; Auth records its executable
 features in `workspace.metadata.ic-auth.release-editor-features`, separately from
@@ -143,8 +148,8 @@ for the existing byte/path limits and release-recovery boundary.
 
 ## Dependency roles and deployment admission
 
-Shared Tooling 0.26.8 source is adopted at
-`0b07c2a3163a5a66328e100b553baf93afd8ed07` (reviewed committed source, not a
+Shared Tooling 0.26.14 source is adopted at
+`e14050bcc0c627f9c8a9064051699cac44fd7ab3` (reviewed committed source, not a
 claim of registry publication or a matching release tag).
 The root catalog uses `Production dependencies` and `Tests and tooling only`;
 member annotations distinguish the three production libraries from internal
@@ -319,8 +324,8 @@ installations retained.
 The Makefile includes reviewed [`make/consumer.mk`](make-interface.md), which owns
 common setup, formatting, hooks, snapshot verification and release routing.
 `check-snapshot` retains its public name and depends on `shared-tooling-check`.
-The recorded snapshot pins Shared Tooling 0.26.8 at
-`0b07c2a3163a5a66328e100b553baf93afd8ed07`. Adopt its committed source and
+The recorded snapshot pins Shared Tooling 0.26.14 at
+`e14050bcc0c627f9c8a9064051699cac44fd7ab3`. Adopt its committed source and
 recorded entrypoint closure through the canonical exporter; see
 [snapshot adoption](consuming-snapshots.md#entrypoint-selection-in-070).
 The canonical verifier also supports `--read-manifest FILE`: it validates the

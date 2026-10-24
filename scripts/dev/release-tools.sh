@@ -5,7 +5,7 @@ script_path="${BASH_SOURCE[0]}"
 cd -P "${script_path%/*}/../.."
 export PATH="$PWD/.tools/host/bin:$PATH" RUSTUP_AUTO_INSTALL=0
 [[ $# -ge 1 && $# -le 3 ]] || {
-    echo 'usage: release-tools.sh install|check [LOCKFILE [SOURCE_MANIFEST]]' >&2; exit 2;
+    echo 'usage: release-tools.sh install|check|check-wait [LOCKFILE [SOURCE_MANIFEST]]' >&2; exit 2;
 }
 selection=(--consumer "$PWD" --package ic-build --lockfile "${2:-Cargo.lock}"
     --bin ic-build-release-metadata --profile debug)
@@ -20,6 +20,7 @@ features="$(yq -p toml -o json '.' "${3:-Cargo.toml}" | jq -er '
 case "$1" in
     install) ;;
     check) selection+=(--check) ;;
-    *) echo 'usage: release-tools.sh install|check [LOCKFILE [SOURCE_MANIFEST]]' >&2; exit 2 ;;
+    check-wait) selection+=(--check --wait-seconds 60) ;;
+    *) echo 'usage: release-tools.sh install|check|check-wait [LOCKFILE [SOURCE_MANIFEST]]' >&2; exit 2 ;;
 esac
 exec bash scripts/dev/install-rust-tools.sh "${selection[@]}"

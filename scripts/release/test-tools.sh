@@ -45,11 +45,17 @@ cat > "$fixture/editor-selection/scripts/dev/install-rust-tools.sh" <<'SCRIPT'
 #!/usr/bin/env bash
 set -euo pipefail
 [[ "$*" == *' --lockfile saved.lock --bin ic-build-release-metadata --profile debug'* ]]
+if [[ "${IC_AUTH_FIXTURE_WAIT:-no}" == yes ]]; then
+    [[ "${@: -2:1}" == --wait-seconds && "${@: -1}" == 60 ]]
+    set -- "${@:1:$#-2}"
+fi
 if [[ "$IC_AUTH_FIXTURE_EXPECT_CLI" == yes ]]; then
     [[ $# == 13 && "${11}" == --features && "${12}" == cli && "${13}" == --check ]]
 else
     [[ $# == 11 && "${11}" == --check ]]
 fi
+exit_status="${IC_AUTH_FIXTURE_STATUS:-0}"
+[[ "$exit_status" == 0 ]] || exit "$exit_status"
 printf '%s\n' "$IC_AUTH_FIXTURE_EDITOR"
 SCRIPT
 for profile in current pre-cli; do
@@ -62,6 +68,15 @@ for profile in current pre-cli; do
         "$fixture/editor-selection/scripts/dev/release-tools.sh" check saved.lock "$manifest")"
     [[ "$observed" == "$editor" ]]
 done
+observed="$(IC_AUTH_FIXTURE_EXPECT_CLI=yes IC_AUTH_FIXTURE_WAIT=yes bash \
+    "$fixture/editor-selection/scripts/dev/release-tools.sh" check-wait saved.lock \
+    "$fixture/editor-selection/Cargo.toml")"
+[[ "$observed" == "$editor" ]]
+status=0
+IC_AUTH_FIXTURE_EXPECT_CLI=yes IC_AUTH_FIXTURE_WAIT=yes IC_AUTH_FIXTURE_STATUS=75 bash \
+    "$fixture/editor-selection/scripts/dev/release-tools.sh" check-wait saved.lock \
+    "$fixture/editor-selection/Cargo.toml" > "$fixture/busy-editor.out" || status=$?
+[[ "$status" == 75 && ! -s "$fixture/busy-editor.out" ]]
 printf '[workspace.metadata.ic-auth]\nrelease-editor-features = false\n' > "$fixture/invalid-editor-features.toml"
 if IC_AUTH_FIXTURE_EXPECT_CLI=yes bash \
     "$fixture/editor-selection/scripts/dev/release-tools.sh" check saved.lock \
@@ -127,7 +142,7 @@ SCRIPT
 cat > scripts/dev/install-host-tools.sh <<'SCRIPT'
 #!/usr/bin/env bash
 set -euo pipefail
-if [[ "${*: -1}" == --check ]]; then
+if [[ " $* " == *' --check '* ]]; then
     printf 'common check\n' >> target/preparation-dispatch.log
     [[ ! -f target/fail-common-check && -f target/common-tools-ready ]] || exit 1
 else
@@ -146,7 +161,7 @@ set -euo pipefail
 # the saved source, including when today's root lock cannot be parsed.
 if [[ " $* " == *' --package ic-host-fs '* ]]; then
     [[ " $* " == *" --version $IC_AUTH_FIXTURE_FILE_VERSION "* && " $* " == *' --features cli '* ]] || exit 1
-    if [[ "${*: -1}" == --check ]]; then
+    if [[ " $* " == *' --check '* ]]; then
         printf 'file check\n' >> target/preparation-dispatch.log
         [[ ! -f target/fail-file-check && -f target/host-file-ready ]] || exit 1
     else
@@ -167,8 +182,9 @@ done
 [[ "$lock" == "$PWD/.git/release-state/metadata."*/base.lock && -f "$lock" ]]
 git show "$RELEASE_SOURCE:Cargo.lock" | cmp - "$lock"
 [[ " $* " == *' --features cli '* ]] || exit 1
-if [[ "${*: -1}" == --check ]]; then
+if [[ " $* " == *' --check '* ]]; then
     printf 'check\n' >> target/editor-events.log
+    [[ ! -f target/editor-busy ]] || exit 75
     [[ ! -f target/fail-editor-check && -f target/release-editor-ready ]] || exit 38
 else
     printf 'install\n' >> target/editor-events.log
@@ -474,6 +490,18 @@ cp Cargo.lock "$fixture/before-broken-current.lock"
 printf 'deliberately invalid live lockfile\n' > Cargo.lock
 cp Cargo.lock "$fixture/broken-current.lock"
 editor_installs="$(awk '/^install$/ { n++ } END { print n+0 }' target/editor-events.log)"
+touch target/editor-busy
+status=0
+RELEASE_PREVIOUS=0.1.0 RELEASE_VERSION=0.1.1 RELEASE_KIND=patch \
+RELEASE_DATE="$(jq -r .date release-validation.json)" \
+RELEASE_SOURCE="$(jq -r .source release-validation.json)" RELEASE_COMMIT="$commit" \
+    bash scripts/release/metadata.sh committed-check > "$fixture/busy-commit-check.log" 2>&1 || status=$?
+[[ "$status" == 75 ]]
+rg -F 'release metadata busy:' "$fixture/busy-commit-check.log" > /dev/null
+cmp "$fixture/unsorted-current.toml" Cargo.toml
+cmp "$fixture/broken-current.lock" Cargo.lock
+[[ "$(awk '/^install$/ { n++ } END { print n+0 }' target/editor-events.log)" == "$editor_installs" ]]
+rm target/editor-busy
 RELEASE_PREVIOUS=0.1.0 RELEASE_VERSION=0.1.1 RELEASE_KIND=patch \
 RELEASE_DATE="$(jq -r .date release-validation.json)" \
 RELEASE_SOURCE="$(jq -r .source release-validation.json)" RELEASE_COMMIT="$commit" \
@@ -507,8 +535,8 @@ for kind in minor major; do
 done
 [[ -f target/keep ]] || exit 1
 # Qualify the consumer's actual local metadata/receipt owner when a maintainer
-# commits the disposition of interrupted preparation. A bumped candidate needs
-# confirmed Git delivery before the runner may archive intent and advance again.
+# commits the disposition of interrupted preparation. Shared 0.26.13 permits
+# advancing from committed metadata without pretending the earlier release shipped.
 for disposition in restored prepared; do
     base="$(make -s release-version)"
     saved_candidate="$(bash scripts/ci/next-release-version.sh "$base" patch)"
@@ -535,7 +563,7 @@ for disposition in restored prepared; do
         kind=minor
     else
         # The fully written local candidate is committed without any runner
-        # staging, release commit, tag or push. It must not advance yet.
+        # staging, release commit, tag or push. Fresh validation may advance it.
         kind='patch'
     fi
     base="$(make -s release-version)"
@@ -556,20 +584,6 @@ for disposition in restored prepared; do
     cmp "$old_receipt" "$fixture/$disposition-saved-receipt.json"
     cmp target/preparation-dispatch.log "$fixture/$disposition-before-restart.log"
     [[ ! -e "$state/lock" && "$(git rev-parse HEAD)" == "$current_source" ]] || exit 1
-    if [[ "$disposition" == prepared ]]; then
-        # No candidate delivery: preserve the saved plan, receipt, version and
-        # dispatch history instead of silently selecting a second increment.
-        if make --no-print-directory "release-$kind" > "$fixture/prepared-undelivered.log" 2>&1; then exit 1; fi
-        cmp "$old_plan" "$fixture/$disposition-saved.plan"
-        cmp "$old_receipt" "$fixture/$disposition-saved-receipt.json"
-        cmp target/preparation-dispatch.log "$fixture/$disposition-before-restart.log"
-        [[ "$(make -s release-version)" == "$base" && "$(git rev-parse HEAD)" == "$current_source" &&
-           ! -e "$state/$candidate.plan" && -z "$(git tag -l "v$saved_candidate")" ]] || exit 1
-        # A separately delivered candidate can advance after fresh validation.
-        # All effects stay inside this fixture and its local bare remote.
-        git tag -a "v$saved_candidate" "$current_source" -m "Release $saved_candidate"
-        git push --quiet --atomic origin HEAD:refs/heads/main "refs/tags/v$saved_candidate"
-    fi
     # Refuse the fresh gate once: archiving intent cannot imply preparation or
     # permit reuse of the old source's successful validation receipt.
     touch target/fail-gate
@@ -593,6 +607,10 @@ for disposition in restored prepared; do
     [[ "$(git --git-dir="$fixture/remote.git" rev-parse main)" == "$(git rev-parse HEAD)" ]] || exit 1
     cmp "$archive_plan" "$fixture/$disposition-saved.plan"
     cmp "$old_receipt" "$fixture/$disposition-saved-receipt.json"
+    if [[ "$disposition" == prepared ]]; then
+        [[ -z "$(git tag -l "v$saved_candidate")" ]]
+        [[ -z "$(git --git-dir="$fixture/remote.git" tag -l "v$saved_candidate")" ]]
+    fi
     yq -p toml -o json '.' Cargo.lock | jq -S '[.package[] | select(.source != null)]' > "$fixture/$disposition-external.json"
     cmp "$fixture/external-before.json" "$fixture/$disposition-external.json"
 done

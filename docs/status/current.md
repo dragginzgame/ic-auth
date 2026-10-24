@@ -2,22 +2,30 @@
 
 ## Delivered source and local work
 
-The checkout is based on release **0.15.4**, commit
-`754ef9cb0dfd19653e70f594e86378d90ae76a13`; package versions remain 0.15.4.
-Pending **0.16.0** notes cover published IC Wire **0.7.1** and Tooling **0.68.0** adoption. The minor
-cut reflects the public `ic-auth-wire::wire` Rust type/error boundary, not a
-change to encoder bytes, method IDs, signed claims or retained storage formats.
-No commit, push, package version change or release ran for this adoption.
+This checkout contains manually committed 0.16.0 metadata at `f22bab5`, but
+0.16.0 has no remote tag or published packages at this review. Shared Tooling
+0.26.14 and Auth's qualified recovery adapter are now adopted here. The original
+saved plan and validation receipt remain untouched; no release was executed.
 
-Public Auth contracts, native Testkit, private control contracts and the reference
-Wasm now share Wire/derive **0.7.1**. The temporary Wire 0.6 selection is removed.
-Published Wire source is `2978dee37ddaf62c09ce1df411a0b1b6c9748bcd`;
-Host FS/Process, Build and Testkit **0.68.0** come from
-`8f281177faaeee0adc51edc1031d4a7b268b0ce0`. Platform/macros **0.6.14** and
-Memory **0.50.16** are unchanged. The independent file CLI remains **0.31.1**.
-Shared Tooling remains the 121-file snapshot at
-`4c0f198e56d4c6d27b12a5c2d515e0e01070151e`: canonical VERSION **0.26.10**,
-although the producer changelog names **0.26.11**.
+To target exactly 0.16.0 with fresh validation, reviewed base manifests are
+prepared in `target/release-016-base/` for explicit maintainer application. They
+restore only local package versions and sibling requirements to 0.15.4, retaining
+all external selections (verified structurally). Commit that disposition together
+with this adoption, then run `make release-minor`. The new runner archives the
+old preparation plan without claiming delivery and runs a new complete gate.
+Do not use exact resume after the source changes or manually tag the old commit.
+
+Pending 0.16.0 adopts published Platform/macros **0.6.15**, Wire/derive **0.7.2**
+and Shared Tooling **0.26.14** at
+`e14050bcc0c627f9c8a9064051699cac44fd7ab3` (121-file snapshot).
+Host/Build/Testkit **0.68.0** remain the latest published selection;
+Tooling 0.68.1 is an unpublished draft. Memory and the File CLI are unchanged.
+
+Shared Tooling #306 supplies explicit read-only admission waiting and busy status
+75. Auth's saved-source release editor uses a 60-second wait and preserves busy
+status without installing, repairing or selecting a partially prepared graph.
+Ordinary offline checks remain immediate. The exact saved source continues to
+own the lockfile, manifest and editor features.
 
 Wire 0.7 decodes once without reserialization. Auth transport has no normalizing
 maps/sets/custom DTO visitors: it preserves lists and opaque signed bytes.
@@ -67,21 +75,30 @@ crypto-bigint advisory correction/exemption and qualification through
 
 ## Validation and evidence
 
-Current adoption evidence and incoming working-tree copies are retained under
-`target/wire071-tooling068/`. Type/transport tests and all 54 browser tests pass,
-including Rust/TypeScript vectors and the existing nonminimal-length/scope-order
-regression. Host-tooling tests, native/reference-Wasm Clippy, dependency boundaries,
-isolated native/Wasm MSRV and six fixture unit tests pass. Formatting, dependency
-pins and local links pass; manifest/lock hashes remained unchanged. The selected
-Testkit and Build 0.68 executables are missing; explicit preparation approval is
-pending before live-canister and release/recovery qualification. The source
-adoption evidence is posted on [Tooling #248](https://github.com/dragginzgame/ic-tooling/issues/248#issuecomment-6384815492).
+The exact recovery scripts were qualified in `target/upstream-adoption/` before
+adoption here. `target/upstream-adoption-*.log` retains that qualification output;
+`target/shared02614-adoption/` retains current-checkout adoption checks.
+Type/transport and all 54 browser tests, Host tooling, dependency boundaries,
+isolated native/Wasm Rust 1.91.0 MSRV and Clippy pass. All five generated browser
+files were refreshed and remain byte-identical. Published Platform 0.6.15's
+`src` tree is identical to 0.6.14; its Wire dependency selection changes.
 
-Earlier Wire 0.7.0/Testkit 0.67 evidence is in `target/wire-070/`, including
-Clippy, MSRV, boundaries, six fixture unit tests and all 12 runner cases. Those
-results do not qualify the new Tooling selection. The earlier incoming edits
-are preserved; published source, not dirty sibling work, supplies this adoption.
+The Auth release/recovery fixture passes with explicit waiting, busy-status
+propagation through the actual metadata adapter, and no installation or metadata
+mutation on contention. It also qualifies Shared 0.26.13's fresh-release behavior
+from manually committed metadata without inventing an earlier delivery. Initial
+fixtures assumed `--check` was last and required earlier delivery; both were
+updated to the adopted contracts.
+The first PocketIC run hit Unix socket path length in this nested checkout;
+all 12 cases pass with a short temporary state directory and the same compiled
+Wasm, native runner and admitted server. These initial failures remain in their
+logs and are not passing evidence. Testkit caller, failure-evidence, jobserver
+and formatting-hook fixtures, dependency pins and source-following ShellCheck
+also pass. Shared runner recovery tests, snapshot integrity, formatting and
+517 local documentation references pass.
 
-The [0.15.4 handoff](https://github.com/dragginzgame/ic-auth/blob/754ef9c/docs/status/current.md)
-records earlier cleanup evidence in `target/cleanup-0154/`. No full CI/release
-gate, native macOS, installed-IC or production-browser result is claimed here.
+The saved 0.16.0 release plan and receipt are unchanged. Root package versions
+remain 0.16.0 until the maintainer applies the prepared base files. This batch
+needs fresh source validation; never reuse the old receipt for changed inputs.
+No full CI gate, native macOS, installed-IC or production-browser result is
+claimed. No commit, push, publication or real release was run.

@@ -44,10 +44,18 @@ read_receipt() {
 render() {
     # Select from the already validated source lock, never a shell export or a
     # partially prepared live graph. Recovery/checks admit only; no setup here.
-    local editor
+    local editor status
     git show "$RELEASE_SOURCE:Cargo.toml" > "$scratch/base.toml"
-    editor="$(bash scripts/dev/release-tools.sh check "$scratch/base.lock" "$scratch/base.toml")" ||
-        fail 'saved-source release editor is not prepared; run make install-release-tools'
+    if editor="$(bash scripts/dev/release-tools.sh check-wait "$scratch/base.lock" "$scratch/base.toml")"; then
+        :
+    else
+        status=$?
+        if [[ "$status" == 75 ]]; then
+            echo 'release metadata busy: saved-source editor admission timed out; retry the saved release after the installation owner finishes' >&2
+            exit 75
+        fi
+        fail 'saved-source release editor admission failed; inspect the diagnostic above before preparing tools'
+    fi
     yq -p toml -o json '.' "$scratch/base.toml" | jq -e --arg previous "$RELEASE_PREVIOUS" \
         '.workspace.package.version == $previous and .workspace.dependencies."ic-auth-protocol-types".version == $previous' > /dev/null || fail 'source version mismatch'
     yq -p toml -o json '.' "$scratch/base.toml" > "$scratch/base.json"
