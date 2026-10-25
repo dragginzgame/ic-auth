@@ -129,7 +129,7 @@ Platform's explicit `pocket-ic` capability owns native simulator clients and DTO
 Testkit owns bounded server startup, lifecycle extensions and typed Wire calls;
 only the native runner selects these capabilities.
 
-Native file and process callers select Host FS/Process 0.68.1 with defaults
+Native file and process callers select Host FS/Process 0.68.4 with defaults
 disabled. Library use does not enable Host's optional CLI, certificate decoder
 or Wasm text/encoding backends. Host stays outside the production library graph.
 Build and Testkit 0.68 select the same Host 0.68 identities as Auth's direct
@@ -148,8 +148,8 @@ for the existing byte/path limits and release-recovery boundary.
 
 ## Dependency roles and deployment admission
 
-Shared Tooling 0.26.14 source is adopted at
-`e14050bcc0c627f9c8a9064051699cac44fd7ab3` (reviewed committed source, not a
+Shared Tooling 0.26.16 source is adopted at
+`2077c934efb82b181bea58fe50078dbad289c1aa` (reviewed committed source, not a
 claim of registry publication or a matching release tag).
 The root catalog uses `Production dependencies` and `Tests and tooling only`;
 member annotations distinguish the three production libraries from internal

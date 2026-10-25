@@ -7,3 +7,5 @@ export const contract = (() => { const codec = $createCodec({"id":"7183474203033
 
 export const methodName = "credential";
 export const { encodeRequest, decodeRequest, encodeResponse, decodeResponse } = contract;
+export const defaultMaximumBytes = 131072;
+export const maximumConfiguredBytes = 1048576;

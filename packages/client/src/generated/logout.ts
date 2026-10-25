@@ -7,3 +7,4 @@ export const contract = (() => { const codec = $createCodec({"id":"7183474203034
 
 export const methodName = "logout_portable_session";
 export const { encodeRequest, decodeRequest, encodeResponse, decodeResponse } = contract;
+export const maximumResponseBytes = 1024;

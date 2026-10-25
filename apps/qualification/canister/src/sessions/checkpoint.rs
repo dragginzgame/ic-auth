@@ -119,12 +119,7 @@ pub(crate) fn restore(snapshot: Option<Snapshot>) {
             }),
         )
         .expect("restore complete login ledger");
-    let admission = SessionAdmissionBudget::new(
-        config.verification_burst,
-        config.verification_refill_ns,
-        now,
-    )
-    .expect("admission budget");
+    let (admission, unknown) = budgets(&config, now).expect("restored budgets");
     let host = Receiver {
         checkpoint: true,
         ready: false,
@@ -137,7 +132,7 @@ pub(crate) fn restore(snapshot: Option<Snapshot>) {
         ledger,
         // Conservatively discard remaining credit; never refill on upgrade.
         admission,
-        unknown: SessionAdmissionBudget::new(16, 1, now).expect("logout budget"),
+        unknown,
     };
     RECEIVER.with(|state| *state.borrow_mut() = Some(host));
 }

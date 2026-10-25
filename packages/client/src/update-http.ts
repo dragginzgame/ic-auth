@@ -1,5 +1,5 @@
 import { HttpAgent, type Identity } from '@icp-sdk/core/agent';
-import type { Principal } from '@icp-sdk/core/principal';
+import { Principal } from '@icp-sdk/core/principal';
 import { ClientError } from './contracts.js';
 
 export interface HttpUpdateOptions {
@@ -25,6 +25,8 @@ export function httpUpdateTransport(options: HttpUpdateOptions) {
   return async (target: Principal, identity: Identity, arg: Uint8Array, signal: AbortSignal): Promise<Uint8Array> => {
     signal.throwIfAborted();
     if (target.isAnonymous() || identity.getPrincipal().isAnonymous()) throw new ClientError('configuration');
+    const destination = target.toText();
+    const canister = Principal.fromText(destination);
     let submitted = false;
     // Each attempt uses its current signing capability, including read-state.
     const agent = await HttpAgent.create({
@@ -34,10 +36,10 @@ export function httpUpdateTransport(options: HttpUpdateOptions) {
       fetch: async (input, init) => {
         signal.throwIfAborted();
         const path = new URL(input instanceof Request ? input.url : input.toString()).pathname;
-        if (path === `/api/v2/canister/${target.toText()}/call`) {
+        if (path === `/api/v2/canister/${destination}/call`) {
           if (submitted) throw new ClientError('transport');
           submitted = true;
-        } else if (path !== `/api/v3/canister/${target.toText()}/read_state`) {
+        } else if (path !== `/api/v3/canister/${destination}/read_state`) {
           throw new ClientError('transport');
         }
         const response = await fetcher(input, { ...init, signal });
@@ -46,7 +48,7 @@ export function httpUpdateTransport(options: HttpUpdateOptions) {
       },
     });
     signal.throwIfAborted();
-    const result = await agent.update(target, { methodName, arg, callSync: false }, {
+    const result = await agent.update(canister, { methodName, arg, callSync: false }, {
       preSignReadStateRequest: false,
       strategy: async () => {
         signal.throwIfAborted();

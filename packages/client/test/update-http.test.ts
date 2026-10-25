@@ -27,3 +27,21 @@ test('HTTP trust configuration owns Buffer and subarray bytes across attempts', 
   }
   assert.deepEqual(observed, [[1, 2, 3], [1, 2, 3], [1, 2, 3], [1, 2, 3]]);
 });
+
+test('HTTP submission and polling keep the destination captured before SDK creation', async () => {
+  const identity = Ed25519KeyIdentity.generate(new Uint8Array(32).fill(7));
+  const target = Principal.fromUint8Array(new Uint8Array([1]));
+  const original = target.toText();
+  const paths: string[] = [];
+  const update = httpUpdateTransport({ host: 'https://gateway.invalid', methodName: 'auth_logout',
+    fetch: async input => {
+      const path = new URL(input.toString()).pathname;
+      paths.push(path);
+      if (path.endsWith('/call')) return new Response(null, { status: 202 });
+      return new Response(new Uint8Array([0])); // Cannot authenticate a reply.
+    } });
+  const pending = update(target, identity, new Uint8Array(), new AbortController().signal);
+  target.toUint8Array().set([2]);
+  await assert.rejects(pending);
+  assert.deepEqual(paths, [`/api/v2/canister/${original}/call`, `/api/v3/canister/${original}/read_state`]);
+});

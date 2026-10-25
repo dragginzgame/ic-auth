@@ -194,7 +194,7 @@ cat > "$consumer/generator" <<'SCRIPT'
 set -eu
 [[ "$1 $2" == 'client-contracts generate' ]]
 if [[ "${CLIENT_CONTRACT_MUTATION:-}" == generate ]]; then echo changed >> "${CLIENT_CONTRACT_MUTATION_FILE:-Cargo.toml}"; fi
-for name in credential.ts establish.ts read.ts logout.ts wire-runtime.ts credential-vector.hex logout-vector.hex admission-vector.hex; do
+for name in credential.ts establish.ts read.ts logout.ts wire-runtime.ts credential-vector.hex logout-vector.hex admission-vector.hex codec-policy.json; do
     printf 'rust-owned %s\n' "$name" > "$3/$name"
 done
 SCRIPT

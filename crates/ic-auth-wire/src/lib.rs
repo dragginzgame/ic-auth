@@ -6,6 +6,17 @@ pub use ic_wire as wire;
 use ic_wire::{Limits, List, Text};
 use model::{LogoutResult, PortableCredential};
 
+/// Default browser retention cap for a complete credential frame. Larger
+/// certified envelopes require an explicitly selected client cap; Wire's own
+/// frame/field budgets continue to apply. Refusal is client `invalid_material`.
+pub const BROWSER_DEFAULT_CREDENTIAL_BYTES: usize = 131_072;
+/// Maximum configurable browser retention cap, not an override of Wire limits.
+/// Preserves the client option range; actual frames remain bounded by the codec.
+pub const BROWSER_MAX_CONFIGURED_CREDENTIAL_BYTES: usize = 1_048_576;
+/// Browser logout response frame cap. All current reply variants fit; extensions
+/// must review this intentionally narrower policy than the shared reply budget.
+pub const BROWSER_LOGOUT_RESPONSE_BYTES: usize = 1024;
+
 /// Admission narrowing accompanies the exact opaque signed credential.
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 #[cfg_attr(feature = "typescript", derive(ic_wire::Wire))]

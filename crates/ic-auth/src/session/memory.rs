@@ -111,15 +111,10 @@ impl MemorySessionStore {
                 .checked_add(bytes)
                 .filter(|total| *total <= expected_encoded_bytes)
                 .ok_or(SessionError::ByteCapacity)?;
-            self.session_expiry
-                .insert((session.expires_at_ns(), session.caller()));
-            self.sessions.insert(
-                session.caller(),
-                Stored {
-                    value: session,
-                    bytes,
-                },
-            );
+            self.install_session(Stored {
+                value: session,
+                bytes,
+            });
         }
         for replay in replays {
             if self.replays.len() >= expected_counts.1 {
@@ -144,16 +139,10 @@ impl MemorySessionStore {
                 .checked_add(bytes)
                 .filter(|total| *total <= expected_encoded_bytes)
                 .ok_or(SessionError::ByteCapacity)?;
-            self.replay_expiry
-                .insert((replay.remove_at_ns(), replay.fingerprint()));
-            self.replay_counts.insert(replay.caller(), count + 1);
-            self.replays.insert(
-                replay.fingerprint(),
-                Stored {
-                    value: replay,
-                    bytes,
-                },
-            );
+            self.install_replay(Stored {
+                value: replay,
+                bytes,
+            });
         }
         if (self.sessions.len(), self.replays.len()) != expected_counts
             || self.encoded_bytes != expected_encoded_bytes
@@ -171,6 +160,28 @@ impl MemorySessionStore {
             }
         }
         Ok(self)
+    }
+
+    // Callers validate before reaching these infallible index updates. Durable
+    // admission invokes them only after commit; restore admits each record first.
+    fn install_session(&mut self, session: Stored<Session>) {
+        let caller = session.value.caller();
+        if let Some(old) = self.sessions.remove(&caller) {
+            self.session_expiry
+                .remove(&(old.value.expires_at_ns(), caller));
+        }
+        self.session_expiry
+            .insert((session.value.expires_at_ns(), caller));
+        self.sessions.insert(caller, session);
+    }
+
+    fn install_replay(&mut self, replay: Stored<Replay>) {
+        let caller = replay.value.caller();
+        let fingerprint = replay.value.fingerprint();
+        self.replay_expiry
+            .insert((replay.value.remove_at_ns(), fingerprint));
+        self.replays.insert(fingerprint, replay);
+        *self.replay_counts.entry(caller).or_default() += 1;
     }
 
     pub fn new(generation: u64, limits: SessionLimits) -> Result<Self, SessionError> {
@@ -459,19 +470,8 @@ impl MemorySessionStore {
                 self.clear(caller);
             }
             TransactionChange::Admission(session, replay, total) => {
-                let caller = session.value.caller();
-                let fingerprint = replay.value.fingerprint();
-                if let Some(old) = self.sessions.remove(&caller) {
-                    self.session_expiry
-                        .remove(&(old.value.expires_at_ns(), caller));
-                }
-                self.session_expiry
-                    .insert((session.value.expires_at_ns(), caller));
-                self.replay_expiry
-                    .insert((replay.value.remove_at_ns(), fingerprint));
-                self.sessions.insert(caller, session);
-                self.replays.insert(fingerprint, replay);
-                *self.replay_counts.entry(caller).or_default() += 1;
+                self.install_session(session);
+                self.install_replay(replay);
                 self.encoded_bytes = total;
             }
         }

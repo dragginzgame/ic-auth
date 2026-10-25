@@ -39,3 +39,5 @@ esac
 for name in credential logout admission; do
     cp "$candidate/$name-vector.hex" "target/browser-client/$name-vector.hex"
 done
+
+cp "$candidate/codec-policy.json" target/browser-client/codec-policy.json

@@ -1603,3 +1603,46 @@ fn session_liveness_keeps_proof_policy_separate_from_shared_authority_shape() {
         ));
     }
 }
+
+#[cfg(feature = "session-restore")]
+#[test]
+fn restored_store_replacement_removes_old_expiry_and_rebuilds_replay_counts() {
+    let mut f = Fixture::new(1);
+    let mut r = Receiver::new(&f);
+    let first = created(f.admit(&mut r, NOW).unwrap());
+    r.store = restored_store(&r.store);
+    f.claims.nonce = [2; 16];
+    f.claims.issued_at_ns = NOW + SECOND;
+    f.claims.admission_expires_at_ns = NOW + 3 * SECOND;
+    let SessionEstablished::Replaced(second) = f.admit(&mut r, NOW + SECOND).unwrap() else {
+        panic!("replacement after restoration");
+    };
+    assert!(second.expires_at_ns() > first.expires_at_ns());
+    r.store = restored_store(&r.store);
+    let pruned = r.store.prune(first.expires_at_ns(), 128);
+    assert_eq!(pruned.sessions, 0, "old expiry cannot remove replacement");
+    assert_eq!(pruned.replays, 2);
+    assert_eq!(r.auth(&f, first.expires_at_ns()), Ok(second));
+    f.claims.nonce = [3; 16];
+    f.claims.issued_at_ns = first.expires_at_ns();
+    f.claims.admission_expires_at_ns = first.expires_at_ns() + 2 * SECOND;
+    assert!(matches!(
+        f.admit(&mut r, first.expires_at_ns()),
+        Ok(SessionEstablished::Replaced(_))
+    ));
+    r.store
+        .transaction(None, |tx| {
+            assert_eq!(tx.occupancy(f.caller())?.replays_for_caller, 1);
+            Ok(())
+        })
+        .unwrap();
+    r.store = restored_store(&r.store);
+    assert_eq!(
+        r.store.prune(NOW + 60 * SECOND, 128),
+        SessionPruned {
+            sessions: 1,
+            replays: 1
+        }
+    );
+    assert_eq!(r.store.encoded_bytes(), 0);
+}

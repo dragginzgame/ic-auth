@@ -9,7 +9,7 @@ Earlier pairings and benchmarks are preserved in
 
 ## Setup and ownership
 
-The root catalog/lock select published Testkit 0.68.1 from
+The root catalog/lock select published Testkit 0.68.4 from
 [IC Tooling](https://github.com/dragginzgame/ic-tooling) and Auth's Platform 0.6.
 Testkit and Auth share Wire 0.7 types directly. `WireCallSpec` takes the canonical
 contract limits without conversion; responses require only `DeserializeOwned`.
@@ -49,7 +49,7 @@ remain under a unique `target/portable-fixtures/qualification.*` directory after
 success or failure. The canister uses Platform runtime and generated entrypoint
 macros with explicit Wire codec hooks; the direct CDK exception is removed
 ([Platform #21](https://github.com/dragginzgame/ic-platform/issues/21)).
-IC Memory 0.51.0 from [IC Persistence](https://github.com/dragginzgame/ic-persistence)
+IC Memory 0.51.1 from [IC Persistence](https://github.com/dragginzgame/ic-persistence)
 supplies checkpoint-cell mechanics, and Platform supplies raw length
 admission before CDK copying, counter-zero measurements, certified-tree types
 and canister-signature key/hash operations. Its `cdk` capability now supplies

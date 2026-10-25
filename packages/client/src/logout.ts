@@ -74,13 +74,16 @@ export class PortableLogoutClient {
     const caller = identity.getPrincipal();
     const bytes = caller.toUint8Array();
     if (bytes.length !== 29 || bytes[28] !== 2 || issuer.isAnonymous()) throw new ClientError('configuration');
+    const callerText = caller.toText();
+    const issuerText = issuer.toText();
+    const clockId = this.clock.id;
     const now = this.clock.nowNs();
     await this.store.transact(previous => {
       // Never overwrite cleanup or its uncertainty to make room for another login.
       if (previous) throw new ClientError('storage_conflict');
-      return { record: { generation, caller: caller.toText(), issuer: issuer.toText(), clockId: this.clock.id,
+      return { record: { generation, caller: callerText, issuer: issuerText, clockId,
         observedNs: now, busyUntilNs: 0n, phase: 'active', deadlineNs: 0n, issuanceUnknown: false,
-        targets: [{ canister: issuer.toText(), admissionUntilNs: now, attempts: 0, nextNs: now }] }, value: undefined };
+        targets: [{ canister: issuerText, admissionUntilNs: now, attempts: 0, nextNs: now }] }, value: undefined };
     });
   }
 
@@ -98,14 +101,16 @@ export class PortableLogoutClient {
 
   /** Commit BEFORE dispatching admission; expiry is conservatively mapped by the admitted clock. */
   async destination(generation: string, target: Principal, admissionUntilNs: bigint): Promise<void> {
+    const key = target.toText();
+    const anonymous = target.isAnonymous();
     await this.update(generation, (record, now) => {
       if (record.phase !== 'active') throw new ClientError('stale_generation');
-      if (target.isAnonymous() || admissionUntilNs < now || admissionUntilNs + BigInt(CALL_MS) * MS >= now + MAX_CLEANUP_NS) throw new ClientError('configuration');
-      const existing = record.targets.find(item => item.canister === target.toText());
+      if (anonymous || admissionUntilNs < now || admissionUntilNs + BigInt(CALL_MS) * MS >= now + MAX_CLEANUP_NS) throw new ClientError('configuration');
+      const existing = record.targets.find(item => item.canister === key);
       if (existing) existing.admissionUntilNs = existing.admissionUntilNs > admissionUntilNs ? existing.admissionUntilNs : admissionUntilNs;
       else {
         if (record.targets.length === MAX_TARGETS) throw new ClientError('storage_capacity');
-        record.targets.push({ canister: target.toText(), admissionUntilNs, attempts: 0, nextNs: now });
+        record.targets.push({ canister: key, admissionUntilNs, attempts: 0, nextNs: now });
       }
     });
   }
@@ -128,15 +133,15 @@ export class PortableLogoutClient {
    * Already returned signatures/accepted requests cannot be recalled by this gate.
    */
   guardedIdentity(generation: string, identity: Identity): Identity {
-    const principal = identity.getPrincipal();
+    const caller = identity.getPrincipal().toText();
     const check = async (request: Parameters<Identity['transformRequest']>[0]) => {
       await this.update(generation, record => {
-        if (record.phase !== 'active' || record.caller !== principal.toText()
+        if (record.phase !== 'active' || record.caller !== caller
           || identity.getPrincipal().toText() !== record.caller) throw new ClientError('stale_generation');
         checkDestination(request, target => record.targets.some(t => t.canister === target));
       });
     };
-    return checkedIdentity(identity, () => principal, check);
+    return checkedIdentity(identity, () => Principal.fromText(caller), check);
   }
 
   /** Durable invalidation before any logout I/O. Repeating cannot extend the deadline. */

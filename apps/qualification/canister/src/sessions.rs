@@ -80,6 +80,36 @@ fn context(
         required_scopes: &[],
     }
 }
+// Expand field borrows separately so context can coexist with mutable store and
+// ledger borrows. An &Receiver accessor would borrow the entire host.
+macro_rules! receiver_context {
+    ($host:ident, $caller:expr, $now:expr $(,)?) => {
+        context(
+            &$host.config,
+            $host.binding,
+            ($host.login_floor, $host.proof_floor),
+            $caller,
+            $now,
+        )
+    };
+}
+
+// Both installation and checkpoint restoration start with empty budgets.
+fn budgets(
+    config: &ReceiverConfig,
+    now: u64,
+) -> Result<(SessionAdmissionBudget, SessionAdmissionBudget), String> {
+    Ok((
+        SessionAdmissionBudget::new(
+            config.verification_burst,
+            config.verification_refill_ns,
+            now,
+        )
+        .map_err(|e| e.to_string())?,
+        SessionAdmissionBudget::new(16, 1, now).map_err(|e| e.to_string())?,
+    ))
+}
+
 fn policy(host: &Receiver) -> SessionPolicy {
     SessionPolicy {
         generation: host.store.generation(),
@@ -146,6 +176,7 @@ fn install_session_receiver(config: controls::model::ReceiverConfig) -> Result<(
         ctx.authority.min_login_started_at_ns,
         ctx.authority.min_proof_issued_at_ns,
     );
+    let (admission, unknown) = budgets(&config, now)?;
     let host = Receiver {
         checkpoint: false,
         ready: true,
@@ -158,13 +189,8 @@ fn install_session_receiver(config: controls::model::ReceiverConfig) -> Result<(
             now,
         )
         .map_err(|e| e.to_string())?,
-        admission: SessionAdmissionBudget::new(
-            config.verification_burst,
-            config.verification_refill_ns,
-            now,
-        )
-        .map_err(|e| e.to_string())?,
-        unknown: SessionAdmissionBudget::new(16, 1, now).map_err(|e| e.to_string())?,
+        admission,
+        unknown,
         config,
         binding,
         login_floor: floors.0,
@@ -194,10 +220,8 @@ fn establish_portable_session(input: SessionInput) -> Result<SessionView, Admiss
         .map_err(|_| AdmissionRefusal::InvalidCredential)?;
     with_receiver(|host| {
         let policy = policy(host);
-        let ctx = context(
-            &host.config,
-            host.binding,
-            (host.login_floor, host.proof_floor),
+        let ctx = receiver_context!(
+            host,
             ic_platform::cdk::api::msg_caller(),
             ic_platform::cdk::api::time(),
         );
@@ -285,10 +309,8 @@ fn portable_session_read() -> Result<SessionView, String> {
 fn authorize(required_scopes: &[String]) -> Result<Session, String> {
     with_receiver(|host| {
         let policy = policy(host);
-        let mut ctx = context(
-            &host.config,
-            host.binding,
-            (host.login_floor, host.proof_floor),
+        let mut ctx = receiver_context!(
+            host,
             ic_platform::cdk::api::msg_caller(),
             ic_platform::cdk::api::time(),
         );
@@ -367,13 +389,7 @@ fn profile_portable_session() -> Result<SessionProfile, String> {
         if decoded != session {
             return Err("restoration differs".into());
         }
-        let ctx = context(
-            &host.config,
-            host.binding,
-            (host.login_floor, host.proof_floor),
-            caller,
-            ic_platform::cdk::api::time(),
-        );
+        let ctx = receiver_context!(host, caller, ic_platform::cdk::api::time(),);
         let policy = policy(host);
         let start_authorization = ic_platform::ic0::performance_counter(0);
         authorize_session(&mut host.store, &mut host.ledger, &ctx, policy)

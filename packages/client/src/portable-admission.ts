@@ -4,6 +4,7 @@ import type { Identity } from '@icp-sdk/core/agent';
 import { Principal } from '@icp-sdk/core/principal';
 import { ClientError } from './contracts.js';
 import { credentialBytes, credentialFromBytes } from './codec.js';
+import { defaultMaximumBytes, maximumConfiguredBytes } from './generated/credential.js';
 import type { PortableCredential } from './codec.js';
 import type { PortableLogoutClient } from './logout.js';
 
@@ -35,10 +36,6 @@ export interface PortableAdmissionIdentities {
   account: Identity;
 }
 
-// Browser retention policy, additional to the Rust-generated Wire limits.
-const DEFAULT_CREDENTIAL_BYTES = 131_072;
-const MAX_CONFIGURED_CREDENTIAL_BYTES = 1_048_576;
-
 /** One portable proof across receivers for an already started browser login.
  * No endpoint installation, automatic renewal, retained credential format or app-call retry.
  */
@@ -55,10 +52,10 @@ export class PortableAdmissionClient {
   constructor(private readonly journal: PortableLogoutClient, private readonly generation: string,
     identities: PortableAdmissionIdentities, issuer: Principal,
     private readonly transport: PortableAdmissionTransport,
-    private readonly timeoutMs = MAX_NETWORK_CALL_MS, private readonly maximumBytes = DEFAULT_CREDENTIAL_BYTES) {
+    private readonly timeoutMs = MAX_NETWORK_CALL_MS, private readonly maximumBytes = defaultMaximumBytes) {
     if (issuer.isAnonymous() || identities.account.getPrincipal().isAnonymous()
       || !Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > MAX_NETWORK_CALL_MS
-      || !Number.isSafeInteger(maximumBytes) || maximumBytes < 1 || maximumBytes > MAX_CONFIGURED_CREDENTIAL_BYTES) throw new ClientError('configuration');
+      || !Number.isSafeInteger(maximumBytes) || maximumBytes < 1 || maximumBytes > maximumConfiguredBytes) throw new ClientError('configuration');
     this.issuer = issuer.toText();
     this.identities = { browser: identities.browser, account: identities.account };
     this.caller = identities.browser.getPrincipal().toText();

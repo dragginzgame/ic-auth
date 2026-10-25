@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.16.2] - Unreleased
+
+- Adopt Shared Tooling 0.26.16 and verify published Platform/macros 0.6.16,
+  Wire/derive 0.7.10, Host/Build/Testkit 0.68.4 and Memory 0.51.1. Keep SHA-2
+  and Dalek on the Platform-compatible lines; PocketIC pins thiserror 2.0.18.
+- Generate existing browser cap values from Auth's Rust-owned transport policy
+  and use Wire's directional budget projection. Observe actual generated codec
+  configuration and reject byte/node/depth drift without changing admitted limits.
+
+- Share validated session/replay index installation between restore and commit;
+  preserve durable commit ordering and byte/count admission.
+- Capture browser journal and HTTP destination identities before asynchronous
+  work; guarded identities return detached Principal values.
+- Consolidate private qualification context/budget wiring and client generator
+  bindings. Preserve public APIs, stored formats and method identities.
+- Regenerate the selected Wire 0.7 browser runtime; Auth schemas and
+  cross-language bytes remain unchanged.
+
 ## [0.16.1] - 2026-10-25
 
 - Own HTTP trust-root bytes even when configured with a Buffer or subarray;

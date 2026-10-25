@@ -474,3 +474,40 @@ test('admission windows reserve enough room for immediate bounded logout', async
     assert.equal((await f.client.status('login-a')).phase, 'cleanup');
   } finally { f.store.close(); }
 });
+
+test('login journal owns caller, issuer and destination before IndexedDB callbacks', async () => {
+  const store = await IndexedDbLogoutStore.open(new IDBFactory(), 'captured-login');
+  const client = new PortableLogoutClient(store,
+    { id: 'clock', nowNs: () => 1_000n * MS, wait: async () => {} },
+    { revoke: async () => revoked, dispose: async () => {} });
+  const caller = Principal.fromText(identity.getPrincipal().toText());
+  const root = Principal.fromText(issuer.toText());
+  const signer = { getPrincipal: () => caller, transformRequest: identity.transformRequest.bind(identity) };
+  try {
+    const started = client.start('captured', signer, root);
+    caller.toUint8Array().fill(0);
+    root.toUint8Array().set(receiver.toUint8Array());
+    await started;
+    const status = await client.status('captured');
+    assert.equal(status.caller, identity.getPrincipal().toText());
+    assert.equal(status.issuer, issuer.toText());
+    const destination = Principal.fromText(receiver.toText());
+    const recorded = client.destination('captured', destination, 2_000n * MS);
+    destination.toUint8Array().set(issuer.toUint8Array());
+    await recorded;
+    assert.deepEqual((await client.status('captured')).targets.map(t => t.canister), [issuer.toText(), receiver.toText()]);
+  } finally { store.close(); }
+});
+
+test('guarded identity returns detached Principals while preserving signing authority', async () => {
+  const f = await fixture(async () => revoked);
+  const caller = Principal.fromText(identity.getPrincipal().toText());
+  const signer = { getPrincipal: () => caller, transformRequest: identity.transformRequest.bind(identity) };
+  try {
+    const guarded = f.client.guardedIdentity('login-a', signer);
+    guarded.getPrincipal().toUint8Array().fill(0);
+    assert.equal(caller.toText(), identity.getPrincipal().toText());
+    assert.equal(guarded.getPrincipal().toText(), identity.getPrincipal().toText());
+    assert.deepEqual(await guarded.transformRequest(signingRequest(issuer)), await identity.transformRequest(signingRequest(issuer)));
+  } finally { f.store.close(); }
+});

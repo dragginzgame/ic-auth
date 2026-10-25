@@ -9,6 +9,22 @@ fn credential() -> model::PortableCredential {
     }
 }
 
+// Infer request/response types through the canonical codecs and take all other
+// metadata from the same contract. No independent registry/schema declarations.
+macro_rules! binding {
+    ($contract:ty) => {
+        generate(
+            <$contract>::NAME,
+            <$contract>::ID,
+            <$contract>::REQUEST_LIMITS,
+            <$contract>::RESPONSE_LIMITS,
+            <$contract>::encode_request,
+            <$contract>::decode_response,
+        )
+        .map_err(|error| format!("IC Wire generation refused: {error:?}"))?
+    };
+}
+
 pub(crate) fn run(
     mode: crate::ContractMode,
     directory: &std::path::Path,
@@ -32,58 +48,40 @@ pub(crate) fn run(
     match mode {
         crate::ContractMode::Generate => {
             for (name, source) in [
-                (
-                    "credential.ts",
-                    generate(
-                        CredentialEnvelope::NAME,
-                        CredentialEnvelope::ID,
-                        CredentialEnvelope::REQUEST_LIMITS,
-                        CredentialEnvelope::RESPONSE_LIMITS,
-                        CredentialEnvelope::encode_request,
-                        CredentialEnvelope::decode_response,
-                    )
-                    .map_err(|error| format!("IC Wire generation refused: {error:?}"))?,
-                ),
-                (
-                    "establish.ts",
-                    generate(
-                        EstablishSession::NAME,
-                        EstablishSession::ID,
-                        EstablishSession::REQUEST_LIMITS,
-                        EstablishSession::RESPONSE_LIMITS,
-                        EstablishSession::encode_request,
-                        EstablishSession::decode_response,
-                    )
-                    .map_err(|error| format!("IC Wire generation refused: {error:?}"))?,
-                ),
-                (
-                    "read.ts",
-                    generate(
-                        ReadSession::NAME,
-                        ReadSession::ID,
-                        ReadSession::REQUEST_LIMITS,
-                        ReadSession::RESPONSE_LIMITS,
-                        ReadSession::encode_request,
-                        ReadSession::decode_response,
-                    )
-                    .map_err(|error| format!("IC Wire generation refused: {error:?}"))?,
-                ),
-                (
-                    "logout.ts",
-                    generate(
-                        Logout::NAME,
-                        Logout::ID,
-                        Logout::REQUEST_LIMITS,
-                        Logout::RESPONSE_LIMITS,
-                        Logout::encode_request,
-                        Logout::decode_response,
-                    )
-                    .map_err(|error| format!("IC Wire generation refused: {error:?}"))?,
-                ),
+                ("credential.ts", binding!(CredentialEnvelope)),
+                ("establish.ts", binding!(EstablishSession)),
+                ("read.ts", binding!(ReadSession)),
+                ("logout.ts", binding!(Logout)),
             ] {
-                save(name, source.as_bytes())?;
+                let policy = match name {
+                    "credential.ts" => format!(
+                        "export const defaultMaximumBytes = {};\nexport const maximumConfiguredBytes = {};\n",
+                        ic_auth_wire::BROWSER_DEFAULT_CREDENTIAL_BYTES,
+                        ic_auth_wire::BROWSER_MAX_CONFIGURED_CREDENTIAL_BYTES,
+                    ),
+                    "logout.ts" => format!(
+                        "export const maximumResponseBytes = {};\n",
+                        ic_auth_wire::BROWSER_LOGOUT_RESPONSE_BYTES,
+                    ),
+                    _ => String::new(),
+                };
+                save(name, format!("{source}{policy}").as_bytes())?;
             }
             save("wire-runtime.ts", wire::typescript::RUNTIME.as_bytes())?;
+            // Structured policy evidence for observing the actual generated codec
+            // configuration. Expected settings come directly from the Rust owner.
+            let policy = |request, response| {
+                wire::typescript::method_limits(request, response)
+                    .map_err(|error| format!("IC Wire policy refused: {error:?}"))
+            };
+            let policies = serde_json::json!({
+                CredentialEnvelope::ID.to_string(): policy(CredentialEnvelope::REQUEST_LIMITS, CredentialEnvelope::RESPONSE_LIMITS)?,
+                EstablishSession::ID.to_string(): policy(EstablishSession::REQUEST_LIMITS, EstablishSession::RESPONSE_LIMITS)?,
+                ReadSession::ID.to_string(): policy(ReadSession::REQUEST_LIMITS, ReadSession::RESPONSE_LIMITS)?,
+                Logout::ID.to_string(): policy(Logout::REQUEST_LIMITS, Logout::RESPONSE_LIMITS)?,
+            });
+            save("codec-policy.json", &serde_json::to_vec(&policies)?)?;
+
             for (name, bytes) in [
                 (
                     "credential-vector.hex",
@@ -153,10 +151,17 @@ fn generate<Request: wire::typescript::Wire, Response: wire::typescript::Wire>(
             wire::typescript::native_schema::<Response>()?,
         ),
     ]);
-    let method = json!({"name":"contract", "mode":"update", "id":id.to_string(),
-        "request":{"k":"ref","name":"Request"}, "response":{"k":"ref","name":"Response"},
-        "requestBytes":request.bytes, "requestNodes":request.nodes, "requestDepth":request.depth,
-        "responseBytes":response.bytes, "responseNodes":response.nodes, "responseDepth":response.depth});
+    let mut method = wire::typescript::method_limits(request, response)?;
+    method
+        .as_object_mut()
+        .expect("Wire method limit object")
+        .extend(
+            json!({"name":"contract", "mode":"update", "id":id.to_string(),
+            "request":{"k":"ref","name":"Request"}, "response":{"k":"ref","name":"Response"}})
+            .as_object()
+            .expect("method metadata object")
+            .clone(),
+        );
     let mut source = wire::typescript::generate_registry(&types, &[method], "./wire-runtime.js")?;
     source.push_str(&format!("\nexport const methodName = {};\nexport const {{ encodeRequest, decodeRequest, encodeResponse, decodeResponse }} = contract;\n", json!(name)));
     Ok(source)

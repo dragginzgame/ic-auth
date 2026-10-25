@@ -61,7 +61,15 @@ into an ordinary Uint8Array so Buffer/subarray inputs cannot retain aliases.
 Generated records may have null prototypes; consumers should use their declared
 fields rather than assume Object prototype methods. u64 fields remain bigint.
 
-Browser retention policy is separate from these generated protocol limits.
+Auth's Rust-owned transport policy in `ic-auth-wire` supplies both the native
+protocol budgets and the intentional browser retention/reply caps. The existing
+generator projects codec budgets through Wire's `method_limits` API and emits
+the extra browser caps into the credential/logout modules; the client imports
+those values. Browser caps count complete Wire frames and preserve typed
+`invalid_material` refusal. They do not change native allocation allowances or
+establish a JavaScript heap bound.
+
+Browser retention policy is separate from the generated protocol limits.
 Rust and the generated credential codec both enforce a 524,288-byte frame cap.
 `PortableAdmissionClient` additionally defaults to 131,072 bytes; callers can
 select a positive safe integer up to 1,048,576, but that never overrides Wire's
@@ -69,6 +77,14 @@ smaller bound. The default can reject structurally valid larger certified proofs
 `signature_cbor` alone allows 131,072 bytes before the rest of the credential.
 Choose the client cap with the issuer's supported proof sizes. Successful codec
 admission still says nothing about cryptographic validity.
+
+`make test-client` also observes the effective metadata passed into all four
+generated codecs and compares it with structured evidence from Rust's policy.
+Isolated request/reply byte, node and depth mutations refuse; unchanged policy
+passes again. This is configuration qualification. Existing native/TypeScript
+vectors, large certified envelopes and byte-policy tests do not establish full
+below/at/above traversal equivalence or real-browser behavior; those remain
+explicit qualification gaps under Auth #3.
 
 The browser's additional logout reply cap is 1,024 bytes, while Rust's shared
 reply budget is 4,096. All current typed logout replies fit the smaller cap;
