@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.16.1] - Unreleased
+## [0.16.1] - 2026-10-25
 
 - Own HTTP trust-root bytes even when configured with a Buffer or subarray;
   each SDK attempt receives a separate copy. Include local Cargo configuration
