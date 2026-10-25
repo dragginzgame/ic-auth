@@ -51,6 +51,7 @@ fi
 if [[ $# == 13 ]]; then
     [[ "${13}" == --check ]] || exit 1
     printf 'cli check\n' >> "$TESTKIT_FIXTURE_LOG"
+    [[ "${TESTKIT_FIXTURE_CLI_CHECK_STATUS:-0}" == 0 ]] || exit "$TESTKIT_FIXTURE_CLI_CHECK_STATUS"
     if ! cmp -s "$TESTKIT_FIXTURE_LOCK" "$TESTKIT_FIXTURE_CONSUMER/Cargo.lock"; then
         if [[ "${TESTKIT_FIXTURE_CHANGED_CLI_READY:-0}" == 1 ]]; then
             printf '%s-next\n' "$TESTKIT_FIXTURE_CLI"
@@ -334,6 +335,17 @@ TESTKIT_FIXTURE_INSTALL_STATUS=23 "$BASH" "$consumer/scripts/dev/testkit-tools.s
     > "$fixture/failed-cli.stdout" 2> "$fixture/failed-cli.stderr" || status=$?
 [[ "$status" == 23 && ! -s "$fixture/failed-cli.stdout" ]] || exit 1
 [[ "$(tail -n 1 "$TESTKIT_FIXTURE_LOG")" == 'cli install' ]] || exit 1
+
+# Contention is retryable, not evidence of a missing executable. Preserve status
+# and do not dispatch server work or recommend another installation.
+: > "$TESTKIT_FIXTURE_LOG"
+status=0
+TESTKIT_FIXTURE_CLI_CHECK_STATUS=75 "$BASH" "$consumer/scripts/dev/testkit-tools.sh" check \
+    > "$fixture/busy-cli.stdout" 2> "$fixture/busy-cli.stderr" || status=$?
+[[ "$status" == 75 && ! -s "$fixture/busy-cli.stdout" ]]
+[[ "$(cat "$TESTKIT_FIXTURE_LOG")" == 'cli check' ]]
+rg -F 'retry after its owner finishes' "$fixture/busy-cli.stderr" > /dev/null
+if rg -F 'make install-testkit-tools' "$fixture/busy-cli.stderr"; then exit 1; fi
 
 # A changed locked selection cannot report the former selection as success.
 for phase in install check; do

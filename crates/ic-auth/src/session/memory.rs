@@ -420,65 +420,60 @@ impl MemorySessionStore {
             change: TransactionChange::Unchanged,
         };
         let result = operation(&mut tx)?;
-        match (&tx.change, login_change) {
-            (TransactionChange::Unchanged, None) => {}
-            (TransactionChange::Admission(session, _, _), Some(change)) if !change.revoked() => {
-                session.value.check_login_change(change)?;
-            }
-            (TransactionChange::Removal(caller), Some(change))
-                if change.revoked() && change.caller() == *caller =>
+        let delta = match (&tx.change, login_change) {
+            (TransactionChange::Unchanged, None) => return Ok(result),
+            (TransactionChange::Admission(session, replay, total), Some(login))
+                if !login.revoked() =>
             {
-                if let Some(session) = self.sessions.get(caller) {
-                    session.value.check_login_change(change)?;
+                session.value.check_login_change(login)?;
+                SessionCommit {
+                    login,
+                    admission: Some((&session.value, &replay.value)),
+                    session_count: self.sessions.len()
+                        + usize::from(!self.sessions.contains_key(&login.caller())),
+                    replay_count: self.replays.len() + 1,
+                    encoded_bytes: *total,
+                }
+            }
+            (TransactionChange::Removal(caller), Some(login))
+                if login.revoked() && login.caller() == *caller =>
+            {
+                let old = self.sessions.get(caller);
+                if let Some(session) = old {
+                    session.value.check_login_change(login)?;
+                }
+                SessionCommit {
+                    login,
+                    admission: None,
+                    session_count: self.sessions.len() - usize::from(old.is_some()),
+                    replay_count: self.replays.len(),
+                    encoded_bytes: self.encoded_bytes - old.map_or(0, |s| s.bytes),
                 }
             }
             _ => return Err(SessionError::InvalidPolicyOrRecord),
-        }
-        if let Some(login) = login_change {
-            let old = self.sessions.get(&login.caller());
-            let (admission, session_count, replay_count, encoded_bytes) =
-                if let TransactionChange::Admission(session, replay, total) = &tx.change {
-                    (
-                        Some((&session.value, &replay.value)),
-                        self.sessions.len() + usize::from(old.is_none()),
-                        self.replays.len() + 1,
-                        *total,
-                    )
-                } else {
-                    (
-                        None,
-                        self.sessions.len() - usize::from(old.is_some()),
-                        self.replays.len(),
-                        self.encoded_bytes - old.map_or(0, |s| s.bytes),
-                    )
-                };
-            commit(SessionCommit {
-                login,
-                admission,
-                session_count,
-                replay_count,
-                encoded_bytes,
-            })?;
-        }
-        let change = tx.change;
-        if let TransactionChange::Removal(caller) = change {
-            self.clear(caller);
-        }
-        if let TransactionChange::Admission(session, replay, total) = change {
-            let caller = session.value.caller();
-            let fingerprint = replay.value.fingerprint();
-            if let Some(old) = self.sessions.remove(&caller) {
-                self.session_expiry
-                    .remove(&(old.value.expires_at_ns(), caller));
+        };
+        commit(delta)?;
+        match tx.change {
+            TransactionChange::Unchanged => unreachable!("read-only transactions returned above"),
+            TransactionChange::Removal(caller) => {
+                self.clear(caller);
             }
-            self.session_expiry
-                .insert((session.value.expires_at_ns(), caller));
-            self.replay_expiry
-                .insert((replay.value.remove_at_ns(), fingerprint));
-            self.sessions.insert(caller, session);
-            self.replays.insert(fingerprint, replay);
-            *self.replay_counts.entry(caller).or_default() += 1;
-            self.encoded_bytes = total;
+            TransactionChange::Admission(session, replay, total) => {
+                let caller = session.value.caller();
+                let fingerprint = replay.value.fingerprint();
+                if let Some(old) = self.sessions.remove(&caller) {
+                    self.session_expiry
+                        .remove(&(old.value.expires_at_ns(), caller));
+                }
+                self.session_expiry
+                    .insert((session.value.expires_at_ns(), caller));
+                self.replay_expiry
+                    .insert((replay.value.remove_at_ns(), fingerprint));
+                self.sessions.insert(caller, session);
+                self.replays.insert(fingerprint, replay);
+                *self.replay_counts.entry(caller).or_default() += 1;
+                self.encoded_bytes = total;
+            }
         }
         Ok(result)
     }

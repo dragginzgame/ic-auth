@@ -1569,3 +1569,37 @@ fn custom_store_checks_login_binding_through_public_api() {
         );
     }
 }
+
+#[test]
+fn session_liveness_keeps_proof_policy_separate_from_shared_authority_shape() {
+    let f = Fixture::new(1);
+    let mut r = Receiver::new(&f);
+    f.admit(&mut r, NOW).unwrap();
+    let mut context = f.context(NOW);
+    // Proof admission policy is irrelevant to an already established session.
+    context.authority.max_proof_ttl_ns = 0;
+    assert_eq!(
+        ic_auth::portable::validate_claims_context(&f.claims, &context.authority),
+        Err(ic_auth::portable::PortableClaimsError::InvalidContext)
+    );
+    authorize_session(&mut r.store, &mut r.ledger, &context, policy()).unwrap();
+    for defect in 0..3 {
+        let mut context = f.context(NOW);
+        match defect {
+            0 => context.authority.issuer = Principal::anonymous(),
+            1 => {
+                context.authority.authority_expires_at_ns =
+                    context.authority.authority_not_before_ns
+            }
+            _ => context.authority.grants = &[],
+        }
+        assert_eq!(
+            ic_auth::portable::validate_claims_context(&f.claims, &context.authority),
+            Err(ic_auth::portable::PortableClaimsError::InvalidContext)
+        );
+        assert!(matches!(
+            authorize_session(&mut r.store, &mut r.ledger, &context, policy()),
+            Err(SessionError::InvalidPolicyOrRecord)
+        ));
+    }
+}

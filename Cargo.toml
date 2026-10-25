@@ -45,7 +45,7 @@ ic-auth-qualification-contracts = { path = "apps/qualification/contracts" }
 ic-build = { version = "0.68", default-features = false }
 ic-host-fs = { version = "0.68", default-features = false }
 ic-host-process = { version = "0.68", default-features = false }
-ic-memory = "0.50"
+ic-memory = "0.51"
 ic-testkit = { version = "0.68", default-features = false }
 serde_json = "1"
 tokio = { version = "1", features = ["rt-multi-thread", "sync", "time"] }

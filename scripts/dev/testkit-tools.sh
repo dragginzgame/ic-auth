@@ -20,7 +20,9 @@ selection=(--consumer "$PWD" --package ic-testkit --lockfile Cargo.lock
 cli="$(bash scripts/dev/install-rust-tools.sh "${selection[@]}")" || {
     status=$?
     printf 'Testkit CLI ic-testkit-server selected by Cargo.lock %s failed (exit %s).\n' "$phase" "$status" >&2
-    if [[ "$phase" == check ]]; then
+    if [[ "$status" == 75 ]]; then
+        echo 'Selected Testkit tool store is busy; retry after its owner finishes. No installation is needed for contention.' >&2
+    elif [[ "$phase" == check ]]; then
         echo 'Prepare the selected CLI with make install-testkit-tools; checks never install tools.' >&2
     fi
     exit "$status"
@@ -34,7 +36,11 @@ esac
 [[ "$phase" != install ]] || selection+=(--check)
 observed_cli="$(bash scripts/dev/install-rust-tools.sh "${selection[@]}")" || {
     status=$?
-    echo 'locked Testkit CLI could not be re-admitted after server setup/check; rerun explicit setup/check' >&2
+    if [[ "$status" == 75 ]]; then
+        echo 'Selected Testkit tool store is busy; retry the check after its owner finishes.' >&2
+    else
+        echo 'locked Testkit CLI could not be re-admitted after server setup/check; rerun explicit setup/check' >&2
+    fi
     exit "$status"
 }
 [[ "$observed_cli" == "$cli" ]] || {

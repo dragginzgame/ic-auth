@@ -2,24 +2,61 @@
 
 ## Delivered source and local work
 
-This checkout contains manually committed 0.16.0 metadata at `f22bab5`, but
-0.16.0 has no remote tag or published packages at this review. Shared Tooling
-0.26.14 and Auth's qualified recovery adapter are now adopted here. The original
-saved plan and validation receipt remain untouched; no release was executed.
+The maintainer completed release **0.16.0** at `bf0b9ce`; its saved release plan
+is marked complete. The earlier instructions to restore the 0.15.4 release base
+are obsolete and must not be repeated.
 
-To target exactly 0.16.0 with fresh validation, reviewed base manifests are
-prepared in `target/release-016-base/` for explicit maintainer application. They
-restore only local package versions and sibling requirements to 0.15.4, retaining
-all external selections (verified structurally). Commit that disposition together
-with this adoption, then run `make release-minor`. The new runner archives the
-old preparation plan without claiming delivery and runs a new complete gate.
-Do not use exact resume after the source changes or manually tag the old commit.
+Pending **0.16.1** preserves the incoming lockfile selection of published
+Host/Build/Testkit **0.68.1** and Memory **0.51.0**. Platform/macros **0.6.15**,
+Wire/derive **0.7.6**, the independent File CLI **0.31.1** and Shared Tooling
+**0.26.14** (`e14050bcc0c627f9c8a9064051699cac44fd7ab3`) are unchanged.
+Tooling's published source is `c9c5ef7c44e3d0c3b23c8531a5d43c1800656c0a`.
+The selected Tooling crates have identical `src` trees to their previous patch
+release. Memory 0.51.0 changes the separate Metrics adapter release boundary,
+which Auth does not consume. The pending Wire 0.7.6 lock update is preserved. The updates align published dependencies and producer
+qualification; Auth uses no new API or storage format. No capability is enabled.
 
-Pending 0.16.0 adopts published Platform/macros **0.6.15**, Wire/derive **0.7.2**
-and Shared Tooling **0.26.14** at
-`e14050bcc0c627f9c8a9064051699cac44fd7ab3` (121-file snapshot).
-Host/Build/Testkit **0.68.0** remain the latest published selection;
-Tooling 0.68.1 is an unpublished draft. Memory and the File CLI are unchanged.
+The browser cleanup batch seals generator inputs before compilation and refuses
+build/generation drift before output publication. Testkit busy status 75 now
+recommends retry rather than installation. Private logout claim/scheduling/result
+transitions remain synchronous under the existing journal transactions, preserving
+public APIs, stored format, attempt limits and deadlines. Browser byte caps are
+explicit local policy: the generated credential limit is 512 KiB, while admission
+defaults to 128 KiB. A structurally valid larger certified envelope is covered;
+this does not establish a cryptographically valid proof or a generator mismatch.
+
+Focused Linux validation: `make test-client` passes 57 browser tests and Rust/TS
+vectors with unchanged generated sources; `make test-client-tools` and
+`make test-testkit-tools` pass source-drift and contention regressions using
+substituted effects. ShellCheck, formatting and doc links pass. Evidence is in
+`target/browser-cleanup/`. This batch did not run live-canister qualification,
+macOS validation, the complete release gate or executable installation.
+
+The follow-on cleanup captures the browser issuer as immutable canonical text,
+shares only structural authority validation between proof/session paths, and
+prepares validated durable session deltas in one exhaustive match before commit.
+Private Wire forwarding and session/replay/revocation byte ceilings are
+consolidated without changing public signatures, method IDs, bounds or records.
+Independent crypto/rule/revocation test fixtures remain separate: they use distinct
+keys and clock/grant windows, including fixed signature vectors. Sharing them
+would couple evidence that should remain independent.
+
+`target/cleanup-next/` records passing session/admission/refusal/restore suites,
+protocol/type/Wire tests, 58 browser tests and Rust/TS interoperability, isolated
+Rust 1.91 native/Wasm package checks and native/Wasm Clippy. Tests distinguish
+stored-session liveness from proof-admission policy and exercise mutable issuer
+input. Generated browser sources are unchanged. Doc links, formatting and diff
+checks pass. No live Testkit run, macOS qualification or full CI is claimed.
+
+The audit follow-ups detach configured HTTP trust-root bytes from Buffer/subarray
+storage and preserve a separate copy per SDK attempt. Browser contract seals now
+include `.cargo/config.toml`. Source/config mutation fixtures cover both build
+and generation, in check/generate modes, with no output publication on drift.
+`target/audit-followups/` records 59 passing browser tests, Rust/TS interoperability
+and client-tool fixtures. ShellCheck, formatting, doc links and diff checks pass.
+The root-key regression inspects SDK construction; it does not qualify certificate
+verification or replace the outstanding live-canister run. Public APIs and
+generated contract bytes are unchanged.
 
 Shared Tooling #306 supplies explicit read-only admission waiting and busy status
 75. Auth's saved-source release editor uses a 60-second wait and preserves busy
@@ -75,30 +112,25 @@ crypto-bigint advisory correction/exemption and qualification through
 
 ## Validation and evidence
 
-The exact recovery scripts were qualified in `target/upstream-adoption/` before
-adoption here. `target/upstream-adoption-*.log` retains that qualification output;
-`target/shared02614-adoption/` retains current-checkout adoption checks.
-Type/transport and all 54 browser tests, Host tooling, dependency boundaries,
-isolated native/Wasm Rust 1.91.0 MSRV and Clippy pass. All five generated browser
-files were refreshed and remain byte-identical. Published Platform 0.6.15's
-`src` tree is identical to 0.6.14; its Wire dependency selection changes.
+Current adoption evidence is under `target/deps0681/`, including the incoming
+lockfile and diff. The lockfile update predates this task and is preserved.
+The selected Testkit and Build 0.68.1 executables are missing; explicit setup
+approval is pending before real-canister and release/recovery qualification.
+Type/transport and Host tooling tests, dependency boundaries, isolated native/Wasm
+MSRV, Clippy and all six fixture unit tests pass. Snapshot integrity, dependency
+pins, formatting and local documentation links pass; the incoming manifest/lock
+selection remained unchanged. Earlier 0.68.0 qualification is recorded in
+`target/upstream-adoption-*.log`; it does not qualify the new executable selection.
 
-The Auth release/recovery fixture passes with explicit waiting, busy-status
-propagation through the actual metadata adapter, and no installation or metadata
-mutation on contention. It also qualifies Shared 0.26.13's fresh-release behavior
-from manually committed metadata without inventing an earlier delivery. Initial
-fixtures assumed `--check` was last and required earlier delivery; both were
-updated to the adopted contracts.
-The first PocketIC run hit Unix socket path length in this nested checkout;
-all 12 cases pass with a short temporary state directory and the same compiled
-Wasm, native runner and admitted server. These initial failures remain in their
-logs and are not passing evidence. Testkit caller, failure-evidence, jobserver
-and formatting-hook fixtures, dependency pins and source-following ShellCheck
-also pass. Shared runner recovery tests, snapshot integrity, formatting and
-517 local documentation references pass.
+No release, commit, push, publication or deployed application update was run for
+this batch. The root package version remains 0.16.0; notes target 0.16.1.
 
-The saved 0.16.0 release plan and receipt are unchanged. Root package versions
-remain 0.16.0 until the maintainer applies the prepared base files. This batch
-needs fresh source validation; never reuse the old receipt for changed inputs.
-No full CI gate, native macOS, installed-IC or production-browser result is
-claimed. No commit, push, publication or real release was run.
+Memory 0.51 adoption evidence is retained under `target/memory051/`. Its manifest
+requirement moves from 0.50 to 0.51 only in the native/test catalog; production
+Auth libraries still do not depend on Memory. The published Memory `src` tree
+is byte-identical to 0.50.17. Type/transport and all 54 browser tests, six native
+checkpoint fixture tests, dependency boundaries, native/Wasm MSRV and Clippy pass.
+The incoming Wire 0.7.6 selection regenerated all five browser files with no byte
+changes. Snapshot, pin, formatting and documentation checks pass. Manifest/lock
+inputs stayed fixed. Live qualification remains pending the previously requested
+Testkit 0.68.1 setup approval; no old executable was substituted.

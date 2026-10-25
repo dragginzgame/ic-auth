@@ -13,6 +13,45 @@ function cleanupComplete(record: LogoutJournal, now: bigint): boolean {
   return now >= record.deadlineNs || record.targets.every(target => target.confirmedUntilNs !== undefined);
 }
 
+// Synchronous journal transitions; callers commit them through update before I/O.
+// One live lease across tabs. A crash consumes its attempt; the lease expires
+// after the call bound. Keep the last attempt for after admission expiry.
+function claimCleanup(record: LogoutJournal, now: bigint) {
+  if (record.phase !== 'cleanup') return undefined;
+  if (cleanupComplete(record, now)) {
+    record.phase = 'finished'; return undefined;
+  }
+  if (record.busyUntilNs > now) return undefined;
+  const target = record.targets.find(t => t.confirmedUntilNs === undefined && t.attempts < MAX_ATTEMPTS && t.nextNs <= now);
+  if (!target) return undefined;
+  if (target.attempts === MAX_ATTEMPTS - 1 && now <= target.admissionUntilNs) {
+    target.nextNs = target.admissionUntilNs + 1n; return undefined;
+  }
+  target.attempts++;
+  target.nextNs = now + BigInt(CALL_MS) * MS;
+  record.busyUntilNs = target.nextNs;
+  return { lease: record.busyUntilNs, canister: target.canister, attempt: target.attempts, timeoutMs: Math.max(1, Math.min(CALL_MS, Number((record.deadlineNs - now) / MS))) };
+}
+
+function cleanupWaitMs(status: LogoutJournal, now: bigint): number {
+  let next = status.targets.filter(t => t.confirmedUntilNs === undefined && t.attempts < MAX_ATTEMPTS)
+    .reduce((time, t) => t.nextNs < time ? t.nextNs : time, status.deadlineNs);
+  if (status.busyUntilNs > next) next = status.busyUntilNs < status.deadlineNs ? status.busyUntilNs : status.deadlineNs;
+  return Math.max(1, Math.min(1_000, Number((next - now) / MS)));
+}
+
+function settleCleanup(record: LogoutJournal, now: bigint,
+  claim: NonNullable<ReturnType<typeof claimCleanup>>, response: LogoutResult | undefined, jitter: number): void {
+  if (record.phase !== 'cleanup' || now >= record.deadlineNs) return;
+  const target = record.targets.find(t => t.canister === claim.canister)!;
+  if (target.attempts !== claim.attempt || record.busyUntilNs !== claim.lease) return;
+  record.busyUntilNs = 0n;
+  if (response && response.tag === 'Revoked' && typeof response.value === 'bigint'
+    && response.value > 0n && response.value <= (1n << 64n) - 1n) {
+    target.confirmedUntilNs = response.value;
+  } else target.nextNs = now + BigInt(500 + Math.floor(jitter * 1_000)) * MS;
+}
+
 export interface LogoutClock {
   /** Stable across reloads; adapter must bound IC clock uncertainty and rollback. */
   id: string;
@@ -124,31 +163,12 @@ export class PortableLogoutClient {
       // A tab without a local handle must not cancel another tab's worker or
       // delete its shared key. Completion depends on remote evidence or deadline.
       if (!identity) return current;
-      // Persist a claim before dispatch. One live dispatch lease across tabs;
-      // a crash consumes the attempt and the claim expires after its call bound.
-      const claim = await this.update(generation, (record, now) => {
-        if (record.phase !== 'cleanup') return undefined;
-        if (cleanupComplete(record, now)) {
-          record.phase = 'finished'; return undefined;
-        }
-        if (record.busyUntilNs > now) return undefined;
-        const target = record.targets.find(t => t.confirmedUntilNs === undefined && t.attempts < MAX_ATTEMPTS && t.nextNs <= now);
-        if (!target) return undefined;
-        if (target.attempts === MAX_ATTEMPTS - 1 && now <= target.admissionUntilNs) {
-          target.nextNs = target.admissionUntilNs + 1n; return undefined;
-        }
-        target.attempts++;
-        target.nextNs = now + BigInt(CALL_MS) * MS;
-        record.busyUntilNs = target.nextNs;
-        return { lease: record.busyUntilNs, canister: target.canister, attempt: target.attempts, timeoutMs: Math.max(1, Math.min(CALL_MS, Number((record.deadlineNs - now) / MS))) };
-      });
+      // Persist the attempt and cross-tab dispatch lease before network I/O.
+      const claim = await this.update(generation, claimCleanup);
       if (!claim) {
         const status = await this.status(generation);
         if (status.phase === 'finished') continue;
-        let next = status.targets.filter(t => t.confirmedUntilNs === undefined && t.attempts < MAX_ATTEMPTS)
-          .reduce((time, t) => t.nextNs < time ? t.nextNs : time, status.deadlineNs);
-        if (status.busyUntilNs > next) next = status.busyUntilNs < status.deadlineNs ? status.busyUntilNs : status.deadlineNs;
-        await this.clock.wait(Math.max(1, Math.min(1_000, Number((next - this.clock.nowNs()) / MS))));
+        await this.clock.wait(cleanupWaitMs(status, this.clock.nowNs()));
         continue;
       }
       let response: LogoutResult | undefined;
@@ -175,16 +195,7 @@ export class PortableLogoutClient {
       } catch { /* Lost replies and typed failures never acknowledge revocation. */ }
       const jitter = this.random();
       if (!Number.isFinite(jitter) || jitter < 0 || jitter >= 1) throw new ClientError('configuration');
-      await this.update(generation, (record, now) => {
-        if (record.phase !== 'cleanup' || now >= record.deadlineNs) return;
-        const target = record.targets.find(t => t.canister === claim.canister)!;
-        if (target.attempts !== claim.attempt || record.busyUntilNs !== claim.lease) return;
-        record.busyUntilNs = 0n;
-        if (response && response.tag === 'Revoked' && typeof response.value === 'bigint'
-          && response.value > 0n && response.value <= (1n << 64n) - 1n) {
-          target.confirmedUntilNs = response.value;
-        } else target.nextNs = now + BigInt(500 + Math.floor(jitter * 1_000)) * MS;
-      });
+      await this.update(generation, (record, now) => settleCleanup(record, now, claim, response, jitter));
     }
   }
 }

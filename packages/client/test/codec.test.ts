@@ -62,3 +62,67 @@ test('field bounds, extra fields and malformed tags reject before returning a va
   const bytes = credentialBytes(value, 131_072); bytes[11] = 255;
   assert.throws(() => credentialFromBytes(bytes, 131_072), ClientError);
 });
+
+test('client byte policy can tighten but cannot relax generated field bounds', () => {
+  const maximumClaims = { ...value, claims: new Uint8Array(65_536) };
+  const bytes = credentialBytes(maximumClaims, 1_048_576);
+  assert.deepEqual({ ...credentialFromBytes(bytes, 1_048_576) }, maximumClaims);
+  assert.throws(() => credentialBytes(maximumClaims, bytes.length - 1), ClientError);
+  assert.throws(() => credentialFromBytes(bytes, bytes.length - 1), ClientError);
+  // A permissive outer cap must never bypass the Rust-owned field bound.
+  assert.throws(() => credentialBytes({ ...value, claims: new Uint8Array(65_537) }, 1_048_576), ClientError);
+});
+test('every current logout response fits the additional browser cap', () => {
+  const replies: logout.Response[] = [
+    { tag: 'Revoked', value: (1n << 64n) - 1n },
+    { tag: 'InvalidCaller', value: null },
+    ...(['Capacity', 'Storage', 'Clock', 'ResetPending'] as const).map(tag => ({
+      tag: 'Unavailable' as const, value: { tag, value: null },
+    })),
+  ];
+  for (const reply of replies) {
+    assert.deepEqual(logoutResultFromBytes(logout.encodeResponse(reply)), reply);
+  }
+});
+test('a bounded certified envelope can exceed the default browser policy', () => {
+  // Structural transport evidence only: these are not cryptographically valid proofs.
+  const hash = Array<number>(32).fill(0);
+  const pid = new Uint8Array([1]);
+  const audience = { tag: 'Fleet' as const, value: { canonical_network_id: hash, fleet_id: hash } };
+  const algorithm = { tag: 'EcdsaSecp256k1' as const, value: null };
+  const key_id = { name: 'key' };
+  const proofAlgorithm = { tag: 'IcCanisterSignatureV1' as const, value: null };
+  const binding = { tag: 'IcCanisterSignatureV1' as const, value: hash };
+  const large: PortableCredential = { claims: value.claims, proof: { tag: 'Certified', value: {
+    delegation: {
+      cert: {
+        root_pid: pid, issuer_pid: pid, issuer_proof_alg: proofAlgorithm,
+        issuer_proof_binding_hash: hash, issuer_proof_binding: binding,
+        issued_at_ns: 1n, not_before_ns: 1n, expires_at_ns: 2n, max_token_ttl_ns: 1n,
+        aud: audience, grants: [],
+      },
+      root_proof: { tag: 'IcChainKeyBatchSignatureV1', value: {
+        header: {
+          schema_version: 1, root_canister_id: pid, batch_id: hash,
+          proof_epoch: 1n, registry_epoch: 1n, registry_hash: hash, tree_root: hash,
+          not_before_ns: 1n, expires_at_ns: 2n, algorithm, key_id,
+          derivation_path_hash: hash, key_version: 1n,
+        },
+        delegation_cert: {
+          root_canister_id: pid, issuer_canister_id: pid, proof_epoch: 1n,
+          issuer_proof_algorithm: proofAlgorithm, issuer_proof_binding_hash: hash,
+          issuer_proof_binding: binding, max_token_ttl_ns: 1n, audience, grants: [],
+          not_before_ns: 1n, expires_at_ns: 2n, registry_epoch: 1n, registry_hash: hash,
+        },
+        issuer_witness: { steps: [] },
+        signature: { algorithm, key_id, derivation_path: [], public_key: new Uint8Array(33), signature: new Uint8Array(64) },
+      } },
+    },
+    issuer_signature: { signature_cbor: new Uint8Array(131_072), public_key_der: new Uint8Array(0) },
+  } } };
+  const bytes = credentialBytes(large, 524_288);
+  assert.ok(bytes.length > 131_072);
+  assert.equal(credentialFromBytes(bytes, 524_288).proof.tag, 'Certified');
+  assert.throws(() => credentialBytes(large, 131_072), ClientError);
+  assert.throws(() => credentialFromBytes(bytes, 131_072), ClientError);
+});

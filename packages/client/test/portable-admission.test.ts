@@ -122,6 +122,33 @@ test('mutable caller Principal cannot change an admission destination while issu
   } finally { release.resolve(); await pending; f.store.close(); }
 });
 
+test('issuer binding is captured before caller mutation and stays fixed across issuance', async () => {
+  const f = await fixture();
+  const mutableIssuer = Principal.fromText(issuer.toText());
+  let signatures = 0;
+  const signer: Identity = { getPrincipal: () => account.getPrincipal(), transformRequest: async request => {
+    signatures++;
+    return account.transformRequest(request);
+  } };
+  try {
+    const issue = f.transport.issue;
+    f.transport.issue = async (caller, signal) => {
+      // Even after constructor input mutation, only the original issuer may sign.
+      await assert.rejects(caller.transformRequest(signingRequest(caller, mutableIssuer)),
+        (error: ClientError) => error.code === 'configuration');
+      await caller.transformRequest(signingRequest(caller, issuer));
+      return issue(caller, signal);
+    };
+    const client = new PortableAdmissionClient(f.journal, 'login', { browser: identity, account: signer }, mutableIssuer, f.transport);
+    mutableIssuer.toUint8Array().set(b.toUint8Array());
+    await client.establish(a);
+    await client.establish(b);
+    assert.equal(signatures, 1);
+    assert.equal(f.state.issues, 1);
+    assert.equal((await f.journal.status('login')).issuer, issuer.toText());
+  } finally { f.store.close(); }
+});
+
 test('account signing is issuer-bound; receiver admission and returned identity use the browser key', async () => {
   const f = await fixture();
   let accountSignatures = 0;

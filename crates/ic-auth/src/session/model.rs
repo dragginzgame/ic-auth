@@ -69,6 +69,8 @@ impl SessionLimits {
 }
 
 const RECORD_DOMAIN: &[u8] = b"IC-AUTH-PORTABLE-SESSION\0";
+const MAX_SESSION_RECORD_BYTES: usize = 2048;
+const MAX_REPLAY_RECORD_BYTES: usize = 512;
 const REPLAY_DOMAIN: &[u8] = b"IC-AUTH-PORTABLE-REPLAY\0";
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
@@ -183,7 +185,7 @@ impl Session {
         crate::storage_codec::encode(
             &self.0,
             RECORD_DOMAIN,
-            2048,
+            MAX_SESSION_RECORD_BYTES,
             SessionError::InvalidPolicyOrRecord,
             SessionError::ByteCapacity,
         )
@@ -192,7 +194,7 @@ impl Session {
         crate::storage_codec::encoded_len(
             &self.0,
             RECORD_DOMAIN,
-            2048,
+            MAX_SESSION_RECORD_BYTES,
             SessionError::InvalidPolicyOrRecord,
             SessionError::ByteCapacity,
         )
@@ -203,7 +205,7 @@ impl Session {
         let data: SessionData = crate::storage_codec::decode(
             bytes,
             RECORD_DOMAIN,
-            2048,
+            MAX_SESSION_RECORD_BYTES,
             || SessionError::InvalidPolicyOrRecord,
             SessionError::ByteCapacity,
         )?;
@@ -339,7 +341,7 @@ impl Replay {
         crate::storage_codec::encode(
             &self.0,
             REPLAY_DOMAIN,
-            512,
+            MAX_REPLAY_RECORD_BYTES,
             SessionError::InvalidPolicyOrRecord,
             SessionError::ByteCapacity,
         )
@@ -359,7 +361,7 @@ impl Replay {
         let record = Self(crate::storage_codec::decode(
             bytes,
             REPLAY_DOMAIN,
-            512,
+            MAX_REPLAY_RECORD_BYTES,
             || SessionError::InvalidPolicyOrRecord,
             SessionError::ByteCapacity,
         )?);
@@ -392,7 +394,7 @@ impl Replay {
         crate::storage_codec::encoded_len(
             &self.0,
             REPLAY_DOMAIN,
-            512,
+            MAX_REPLAY_RECORD_BYTES,
             SessionError::InvalidPolicyOrRecord,
             SessionError::ByteCapacity,
         )

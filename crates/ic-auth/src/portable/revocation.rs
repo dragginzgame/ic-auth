@@ -8,6 +8,8 @@ use thiserror::Error;
 
 #[cfg(feature = "sessions")]
 const RECORD_DOMAIN: &[u8] = b"IC-AUTH-LOGIN-RECORD\0";
+#[cfg(feature = "sessions")]
+const MAX_RECORD_BYTES: usize = 1024;
 
 /// A refusal leaves records unchanged; trusted clock observations are retained.
 #[derive(Clone, Copy, Debug, Error, Eq, PartialEq)]
@@ -64,7 +66,7 @@ impl LoginRevocationChange {
         crate::storage_codec::encode(
             &(self.audience, self.caller, self.record),
             RECORD_DOMAIN,
-            1024,
+            MAX_RECORD_BYTES,
             LoginRevocationError::Storage,
             LoginRevocationError::InvalidPolicy,
         )
@@ -77,7 +79,7 @@ impl LoginRevocationChange {
         let (audience, caller, record) = crate::storage_codec::decode(
             bytes,
             RECORD_DOMAIN,
-            1024,
+            MAX_RECORD_BYTES,
             || LoginRevocationError::InvalidPolicy,
             LoginRevocationError::InvalidPolicy,
         )?;

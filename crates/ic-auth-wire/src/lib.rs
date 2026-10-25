@@ -42,6 +42,25 @@ const EMPTY_LIMITS: Limits = Limits {
     depth: 4,
 };
 
+// Keep method identities and limits explicit; only the four native codec
+// forwarders are mechanical. This macro is private and emits the existing API.
+macro_rules! codecs {
+    ($request:ty, $response:ty) => {
+        pub fn encode_request(value: &$request) -> Result<Vec<u8>, ic_wire::Error> {
+            ic_wire::native::encode_request(Self::ID, value, Self::REQUEST_LIMITS)
+        }
+        pub fn decode_request(bytes: &[u8]) -> Result<$request, ic_wire::Error> {
+            ic_wire::native::decode_request(Self::ID, bytes, Self::REQUEST_LIMITS)
+        }
+        pub fn encode_response(value: &$response) -> Result<Vec<u8>, ic_wire::Error> {
+            ic_wire::native::encode_response(Self::ID, value, Self::RESPONSE_LIMITS)
+        }
+        pub fn decode_response(bytes: &[u8]) -> Result<$response, ic_wire::Error> {
+            ic_wire::native::decode_response(Self::ID, bytes, Self::RESPONSE_LIMITS)
+        }
+    };
+}
+
 /// Data-envelope identity, not a callable issuer method or signing format.
 pub struct CredentialEnvelope;
 impl CredentialEnvelope {
@@ -49,18 +68,7 @@ impl CredentialEnvelope {
     pub const NAME: &'static str = "credential";
     pub const REQUEST_LIMITS: Limits = CREDENTIAL_LIMITS;
     pub const RESPONSE_LIMITS: Limits = CREDENTIAL_LIMITS;
-    pub fn encode_request(value: &PortableCredential) -> Result<Vec<u8>, ic_wire::Error> {
-        ic_wire::native::encode_request(Self::ID, value, Self::REQUEST_LIMITS)
-    }
-    pub fn decode_request(bytes: &[u8]) -> Result<PortableCredential, ic_wire::Error> {
-        ic_wire::native::decode_request(Self::ID, bytes, Self::REQUEST_LIMITS)
-    }
-    pub fn encode_response(value: &PortableCredential) -> Result<Vec<u8>, ic_wire::Error> {
-        ic_wire::native::encode_response(Self::ID, value, Self::RESPONSE_LIMITS)
-    }
-    pub fn decode_response(bytes: &[u8]) -> Result<PortableCredential, ic_wire::Error> {
-        ic_wire::native::decode_response(Self::ID, bytes, Self::RESPONSE_LIMITS)
-    }
+    codecs!(PortableCredential, PortableCredential);
 }
 /// Controlled admission contract; consumers bind it to their own update export.
 pub struct EstablishSession;
@@ -69,22 +77,7 @@ impl EstablishSession {
     pub const NAME: &'static str = "establish_portable_session";
     pub const REQUEST_LIMITS: Limits = CREDENTIAL_LIMITS;
     pub const RESPONSE_LIMITS: Limits = REPLY_LIMITS;
-    pub fn encode_request(value: &SessionInput) -> Result<Vec<u8>, ic_wire::Error> {
-        ic_wire::native::encode_request(Self::ID, value, Self::REQUEST_LIMITS)
-    }
-    pub fn decode_request(bytes: &[u8]) -> Result<SessionInput, ic_wire::Error> {
-        ic_wire::native::decode_request(Self::ID, bytes, Self::REQUEST_LIMITS)
-    }
-    pub fn encode_response(
-        value: &Result<SessionView, model::AdmissionRefusal>,
-    ) -> Result<Vec<u8>, ic_wire::Error> {
-        ic_wire::native::encode_response(Self::ID, value, Self::RESPONSE_LIMITS)
-    }
-    pub fn decode_response(
-        bytes: &[u8],
-    ) -> Result<Result<SessionView, model::AdmissionRefusal>, ic_wire::Error> {
-        ic_wire::native::decode_response(Self::ID, bytes, Self::RESPONSE_LIMITS)
-    }
+    codecs!(SessionInput, Result<SessionView, model::AdmissionRefusal>);
 }
 /// Proof-free local read contract; the runtime caller selects the session.
 pub struct ReadSession;
@@ -93,20 +86,7 @@ impl ReadSession {
     pub const NAME: &'static str = "portable_session_read";
     pub const REQUEST_LIMITS: Limits = EMPTY_LIMITS;
     pub const RESPONSE_LIMITS: Limits = REPLY_LIMITS;
-    pub fn encode_request(value: &()) -> Result<Vec<u8>, ic_wire::Error> {
-        ic_wire::native::encode_request(Self::ID, value, Self::REQUEST_LIMITS)
-    }
-    pub fn decode_request(bytes: &[u8]) -> Result<(), ic_wire::Error> {
-        ic_wire::native::decode_request(Self::ID, bytes, Self::REQUEST_LIMITS)
-    }
-    pub fn encode_response(
-        value: &Result<SessionView, Text<256>>,
-    ) -> Result<Vec<u8>, ic_wire::Error> {
-        ic_wire::native::encode_response(Self::ID, value, Self::RESPONSE_LIMITS)
-    }
-    pub fn decode_response(bytes: &[u8]) -> Result<Result<SessionView, Text<256>>, ic_wire::Error> {
-        ic_wire::native::decode_response(Self::ID, bytes, Self::RESPONSE_LIMITS)
-    }
+    codecs!((), Result<SessionView, Text<256>>);
 }
 /// Caller-authenticated logout; no submitted proof or caller identity is trusted.
 pub struct Logout;
@@ -115,16 +95,5 @@ impl Logout {
     pub const NAME: &'static str = "logout_portable_session";
     pub const REQUEST_LIMITS: Limits = EMPTY_LIMITS;
     pub const RESPONSE_LIMITS: Limits = REPLY_LIMITS;
-    pub fn encode_request(value: &()) -> Result<Vec<u8>, ic_wire::Error> {
-        ic_wire::native::encode_request(Self::ID, value, Self::REQUEST_LIMITS)
-    }
-    pub fn decode_request(bytes: &[u8]) -> Result<(), ic_wire::Error> {
-        ic_wire::native::decode_request(Self::ID, bytes, Self::REQUEST_LIMITS)
-    }
-    pub fn encode_response(value: &LogoutResult) -> Result<Vec<u8>, ic_wire::Error> {
-        ic_wire::native::encode_response(Self::ID, value, Self::RESPONSE_LIMITS)
-    }
-    pub fn decode_response(bytes: &[u8]) -> Result<LogoutResult, ic_wire::Error> {
-        ic_wire::native::decode_response(Self::ID, bytes, Self::RESPONSE_LIMITS)
-    }
+    codecs!((), LogoutResult);
 }

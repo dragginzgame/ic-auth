@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.16.1] - Unreleased
+
+- Own HTTP trust-root bytes even when configured with a Buffer or subarray;
+  each SDK attempt receives a separate copy. Include local Cargo configuration
+  in browser generator input seals and refuse changes before output publication.
+
+- Capture browser issuer identity independently of mutable SDK Principal bytes.
+  Share structural authority checks while retaining separate proof/session
+  lifetime policy, prepare durable transaction deltas in one exhaustive match,
+  and consolidate private Wire forwarding and storage record byte ceilings.
+  Public APIs, wire bytes, record formats and commit failure behavior are unchanged.
+
+- Seal browser contract generator inputs before compilation and reject drift
+  before publishing output. Distinguish busy Testkit tool admission from missing
+  tools. Simplify private logout transitions without changing journal or retry
+  behavior; document and test browser byte policy versus generated Wire bounds.
+
+- Adopt published Host/Build/Testkit 0.68.1 and Memory 0.51.0, aligned with
+  Platform 0.6.15 and the pending Wire 0.7.6 selection. Preserve Auth protocols, stored formats and
+  capability boundaries; no application or storage migration is required.
+
 ## [0.16.0] - 2026-10-24
 
 - Adopt Platform 0.6.15 and Shared Tooling 0.26.14; retain latest published

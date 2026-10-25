@@ -19,7 +19,8 @@ export function httpUpdateTransport(options: HttpUpdateOptions) {
     || host.search || host.hash || !/^[a-zA-Z_][a-zA-Z0-9_]{0,127}$/.test(options.methodName)
     || (options.rootKey !== undefined && options.rootKey.length === 0)) throw new ClientError('configuration');
   const methodName = options.methodName;
-  const rootKey = options.rootKey?.slice();
+  // Buffer.slice() retains shared storage; own the configured trust bytes.
+  const rootKey = options.rootKey === undefined ? undefined : new Uint8Array(options.rootKey);
   const fetcher = options.fetch ?? globalThis.fetch.bind(globalThis);
   return async (target: Principal, identity: Identity, arg: Uint8Array, signal: AbortSignal): Promise<Uint8Array> => {
     signal.throwIfAborted();

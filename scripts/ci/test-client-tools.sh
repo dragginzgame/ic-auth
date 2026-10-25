@@ -176,7 +176,10 @@ cat > "$consumer/scripts/dev/run-host-file.sh" <<'SCRIPT'
 #!/usr/bin/env bash
 set -eu
 [[ "$1" == hash-files0 ]]
-cat
+while IFS= read -r -d '' path; do
+    printf '%s\0' "$path"
+    case "$path" in Cargo.toml|.cargo/config.toml) cksum "$path" ;; esac
+done
 SCRIPT
 cat > "$consumer/bin/cargo" <<'SCRIPT'
 #!/usr/bin/env bash
@@ -184,16 +187,21 @@ set -eu
 [[ "$*" == 'build --quiet --locked --offline -p ic-auth-tooling' ]]
 mkdir -p "$CARGO_TARGET_DIR/debug"
 cp "$PWD/generator" "$CARGO_TARGET_DIR/debug/ic-auth-tooling"
+if [[ "${CLIENT_CONTRACT_MUTATION:-}" == build ]]; then echo changed >> "${CLIENT_CONTRACT_MUTATION_FILE:-Cargo.toml}"; fi
 SCRIPT
 cat > "$consumer/generator" <<'SCRIPT'
 #!/usr/bin/env bash
 set -eu
 [[ "$1 $2" == 'client-contracts generate' ]]
+if [[ "${CLIENT_CONTRACT_MUTATION:-}" == generate ]]; then echo changed >> "${CLIENT_CONTRACT_MUTATION_FILE:-Cargo.toml}"; fi
 for name in credential.ts establish.ts read.ts logout.ts wire-runtime.ts credential-vector.hex logout-vector.hex admission-vector.hex; do
     printf 'rust-owned %s\n' "$name" > "$3/$name"
 done
 SCRIPT
 chmod +x "$consumer/bin/cargo" "$consumer/generator"
+mkdir -p "$consumer/.cargo"
+printf 'original config\n' > "$consumer/.cargo/config.toml"
+printf 'original source\n' > "$consumer/Cargo.toml"
 for mode in generate check; do
     (cd "$consumer"; PATH="$consumer/bin:$PATH" bash scripts/dev/client-contracts.sh "$mode") \
         > "$fixture/contracts-$mode.log" 2>&1
@@ -206,4 +214,24 @@ fi
 rg -F 'differs from the locked generator' "$fixture/contracts-stale.log" > /dev/null
 [[ "$(cat "$consumer/packages/client/src/generated/credential.ts")" == stale ]]
 echo 'Rust-only contract generation, comparison and effect-free stale refusal passed (substituted Rust effects)'
+# A change during compilation or generation must refuse before publishing either
+# tracked contracts or interoperability vectors. This catches sealing too late.
+for input in Cargo.toml .cargo/config.toml; do
+    for stage in build generate; do
+        for mode in generate check; do
+            printf 'original source\n' > "$consumer/Cargo.toml"
+            printf 'original config\n' > "$consumer/.cargo/config.toml"
+            printf 'retained vector\n' > "$consumer/target/browser-client/credential-vector.hex"
+            log="$fixture/contracts-drift-${input##*/}-$stage-$mode.log"
+            if (cd "$consumer"; CLIENT_CONTRACT_MUTATION="$stage" CLIENT_CONTRACT_MUTATION_FILE="$input" PATH="$consumer/bin:$PATH" \
+                bash scripts/dev/client-contracts.sh "$mode") > "$log" 2>&1; then
+                echo 'changed generator inputs unexpectedly accepted' >&2; exit 1
+            fi
+            [[ "$(cat "$consumer/packages/client/src/generated/credential.ts")" == stale ]]
+            [[ "$(cat "$consumer/target/browser-client/credential-vector.hex")" == 'retained vector' ]]
+            rg -F 'inputs.tsv0' "$log" > /dev/null
+        done
+    done
+done
+echo 'Generator source/config drift during build/generation refused before publication'
 complete=true

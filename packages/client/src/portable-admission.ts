@@ -35,6 +35,10 @@ export interface PortableAdmissionIdentities {
   account: Identity;
 }
 
+// Browser retention policy, additional to the Rust-generated Wire limits.
+const DEFAULT_CREDENTIAL_BYTES = 131_072;
+const MAX_CONFIGURED_CREDENTIAL_BYTES = 1_048_576;
+
 /** One portable proof across receivers for an already started browser login.
  * No endpoint installation, automatic renewal, retained credential format or app-call retry.
  */
@@ -45,15 +49,17 @@ export class PortableAdmissionClient {
   private readonly guarded: Identity;
   private readonly caller: string;
   private readonly accountCaller: string;
+  private readonly issuer: string;
   private readonly identities: PortableAdmissionIdentities;
 
   constructor(private readonly journal: PortableLogoutClient, private readonly generation: string,
-    identities: PortableAdmissionIdentities, private readonly issuer: Principal,
+    identities: PortableAdmissionIdentities, issuer: Principal,
     private readonly transport: PortableAdmissionTransport,
-    private readonly timeoutMs = MAX_NETWORK_CALL_MS, private readonly maximumBytes = 131_072) {
+    private readonly timeoutMs = MAX_NETWORK_CALL_MS, private readonly maximumBytes = DEFAULT_CREDENTIAL_BYTES) {
     if (issuer.isAnonymous() || identities.account.getPrincipal().isAnonymous()
       || !Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > MAX_NETWORK_CALL_MS
-      || !Number.isSafeInteger(maximumBytes) || maximumBytes < 1 || maximumBytes > 1_048_576) throw new ClientError('configuration');
+      || !Number.isSafeInteger(maximumBytes) || maximumBytes < 1 || maximumBytes > MAX_CONFIGURED_CREDENTIAL_BYTES) throw new ClientError('configuration');
+    this.issuer = issuer.toText();
     this.identities = { browser: identities.browser, account: identities.account };
     this.caller = identities.browser.getPrincipal().toText();
     this.accountCaller = identities.account.getPrincipal().toText();
@@ -62,7 +68,7 @@ export class PortableAdmissionClient {
 
   private async active(): Promise<bigint> {
     const state = await this.journal.status(this.generation);
-    if (state.phase !== 'active' || state.caller !== this.caller || state.issuer !== this.issuer.toText()) {
+    if (state.phase !== 'active' || state.caller !== this.caller || state.issuer !== this.issuer) {
       this.cached = undefined;
       throw new ClientError('stale_generation');
     }
@@ -99,7 +105,7 @@ export class PortableAdmissionClient {
     if (this.credentialFlight) return this.credentialFlight;
     const flight = (async () => {
       const first = await this.journal.claimIssuance(this.generation);
-      const result = await this.call(this.identities.account, this.accountCaller, this.issuer.toText(), (signal, identity) => first
+      const result = await this.call(this.identities.account, this.accountCaller, this.issuer, (signal, identity) => first
         ? this.transport.issue(identity, signal) : this.transport.reconcile(identity, signal));
       // Copy returned bytes before another asynchronous boundary. Transport decoding
       // is not authentication; the receiver remains the verifier.

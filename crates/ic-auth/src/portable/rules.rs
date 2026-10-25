@@ -33,6 +33,19 @@ pub struct PortableClaimsContext<'a> {
 }
 
 impl PortableClaimsContext<'_> {
+    // Shared structural authority policy, independent of clock, proof lifetime,
+    // caller and session liveness. Each path preserves its own refusal type.
+    pub(crate) fn authority_shape_valid(&self) -> bool {
+        self.issuer != Principal::anonymous()
+            && self.authority_not_before_ns < self.authority_expires_at_ns
+            && validate_grants(
+                self.grants,
+                crate::limits::MAX_GRANTS,
+                crate::limits::MAX_SCOPES_PER_GRANT,
+            )
+            .is_ok()
+    }
+
     /// Advance both admission cutoffs after losing session/replay/revocation state.
     /// Uses this context's trusted boot time and deployment-qualified skew bound;
     /// the host must reject unavailable/rolled-back clocks before calling this.
@@ -100,15 +113,8 @@ pub fn validate_claims_context(
         || context.max_login_ttl_ns > crate::limits::MAX_LOGIN_NS
         || context.max_proof_ttl_ns == 0
         || context.max_proof_ttl_ns > crate::limits::MAX_PROOF_NS
-        || context.issuer == Principal::anonymous()
-        || context.authority_not_before_ns >= context.authority_expires_at_ns
+        || !context.authority_shape_valid()
         || context.enrollment_expires_at_ns == 0
-        || validate_grants(
-            context.grants,
-            crate::limits::MAX_GRANTS,
-            crate::limits::MAX_SCOPES_PER_GRANT,
-        )
-        .is_err()
     {
         return Err(Error::InvalidContext);
     }

@@ -41,14 +41,7 @@ impl SessionContext<'_> {
             return Err(SessionError::Disabled);
         }
         if ledger.audience() != *self.authority.audience
-            || self.authority.issuer == Principal::anonymous()
-            || self.authority.authority_not_before_ns >= self.authority.authority_expires_at_ns
-            || crate::certificate_issuance::validate_grants(
-                self.authority.grants,
-                crate::limits::MAX_GRANTS,
-                crate::limits::MAX_SCOPES_PER_GRANT,
-            )
-            .is_err()
+            || !self.authority.authority_shape_valid()
             || self.required_scopes.len() > crate::limits::MAX_SESSION_SCOPES
         {
             return Err(SessionError::InvalidPolicyOrRecord);

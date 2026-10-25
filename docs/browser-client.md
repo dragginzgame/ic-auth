@@ -61,6 +61,21 @@ into an ordinary Uint8Array so Buffer/subarray inputs cannot retain aliases.
 Generated records may have null prototypes; consumers should use their declared
 fields rather than assume Object prototype methods. u64 fields remain bigint.
 
+Browser retention policy is separate from these generated protocol limits.
+Rust and the generated credential codec both enforce a 524,288-byte frame cap.
+`PortableAdmissionClient` additionally defaults to 131,072 bytes; callers can
+select a positive safe integer up to 1,048,576, but that never overrides Wire's
+smaller bound. The default can reject structurally valid larger certified proofs:
+`signature_cbor` alone allows 131,072 bytes before the rest of the credential.
+Choose the client cap with the issuer's supported proof sizes. Successful codec
+admission still says nothing about cryptographic validity.
+
+The browser's additional logout reply cap is 1,024 bytes, while Rust's shared
+reply budget is 4,096. All current typed logout replies fit the smaller cap;
+coverage includes every variant and the largest u64. A future reply-schema
+extension must review this policy. These are local client limits, not a second
+handwritten wire schema or evidence of differing generated Rust/TypeScript limits.
+
 Consumers own endpoint exports and transport. Use the corresponding contract's
 request encoder and response decoder around the raw SDK call; its NAME is a
 reference binding, not endpoint installation. Hosts admit raw argument lengths
@@ -85,8 +100,8 @@ principal: ordinary ingress delegation preserves its delegating caller.
 Each transport attempt receives a temporary signer restricted to its issuer or
 receiver destination. Durable active-generation, fixed-principal and cancellation
 checks surround signing and completion for both roles. The account signer is not
-returned as receiver authority. Receiver destinations are captured as canonical
-text before the first asynchronous step. The journal and admission-flight key use
+returned as receiver authority. The issuer is captured as canonical text at construction; receiver destinations
+are captured as canonical text before the first asynchronous step. The journal and admission-flight key use
 that fixed destination; transport adapters receive a separate Principal object.
 Mutating an SDK Principal's backing bytes cannot redirect the signing capability
 or silently change the destination during pending issuance.
