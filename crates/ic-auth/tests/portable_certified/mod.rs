@@ -25,8 +25,7 @@ fn claims(f: &Fixture) -> PortableClaims {
 }
 fn context<'a>(f: &'a Fixture, trusted: &'a PortableClaims) -> PortableCertifiedContext<'a> {
     let cert = &f.proof.cert;
-    let mut limits = limits();
-    limits.max_future_skew_ns = 0;
+    let limits = limits();
     PortableCertifiedContext {
         claims: PortableClaimsContext {
             audience: &trusted.audience,
@@ -75,6 +74,28 @@ fn complete_portable_chain_authenticates_distinct_account_and_browser() {
     );
     assert_eq!(result.verified_at_ns(), NOW);
     assert_ne!(c.account_subject, browser_principal(&c.browser_public_key));
+}
+
+#[test]
+fn certified_profile_refuses_future_root_authority_without_a_skew_option() {
+    let mut f = Fixture::new();
+    // Standalone root verification permits its explicit ten-unit allowance.
+    f.policy.valid_from_ns = NOW + 1;
+    verify_delegation_proof(&f.proof, &f.context()).unwrap();
+    let c = claims(&f);
+    let signature = proof(&c, CERTIFIED_SIGNATURE_DOMAIN, SEED, NOW);
+    assert_eq!(
+        verify_certified_claims(
+            &mut budget(),
+            &encode_claims(&c).unwrap(),
+            &f.proof,
+            &signature,
+            &context(&f, &c)
+        ),
+        Err(PortableCertifiedError::Delegation(Error::NotYetValid {
+            target: "root_key_policy"
+        }))
+    );
 }
 
 #[test]
@@ -182,12 +203,6 @@ fn shared_checks_and_current_authority_cannot_be_bypassed_by_valid_signatures() 
         Err(PortableCertifiedError::Claims(
             PortableClaimsError::BeforeReset
         ))
-    );
-    ctx = context(&f, &c);
-    ctx.limits.max_future_skew_ns = 1;
-    assert_eq!(
-        verify_certified_claims(&mut budget(), &bytes, &f.proof, &signature, &ctx),
-        Err(PortableCertifiedError::BindingMismatch)
     );
 }
 
@@ -304,13 +319,28 @@ fn certified_result_uses_the_same_reservation_and_logout_gate() {
     let caller = browser_principal(&c.browser_public_key);
     let mut ledger = MemoryLoginRevocations::new(c.audience, 1, 1, 0, NOW).unwrap();
     ledger
-        .with_reservation(caller, &checked, NOW, |_| Ok(()))
+        .with_reservation::<_, ic_auth::portable::LoginRevocationError>(
+            caller,
+            &checked,
+            NOW,
+            |_| Ok(()),
+        )
         .unwrap();
     ledger
-        .with_revocation(&mut budget(), caller, NOW, |_| Ok(()))
+        .with_revocation::<ic_auth::portable::LoginRevocationError>(
+            &mut budget(),
+            caller,
+            NOW,
+            |_| Ok(()),
+        )
         .unwrap();
     assert_eq!(
-        ledger.with_reservation::<()>(caller, &checked, NOW, |_| panic!("post-logout retry")),
+        ledger.with_reservation::<(), ic_auth::portable::LoginRevocationError>(
+            caller,
+            &checked,
+            NOW,
+            |_| panic!("post-logout retry")
+        ),
         Err(LoginRevocationError::Revoked)
     );
 }

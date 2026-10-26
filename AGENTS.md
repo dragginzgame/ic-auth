@@ -1,9 +1,11 @@
 # IC Auth Agent Instructions
 
-Apply [DRAGGINZGAME.md](DRAGGINZGAME.md), adopted from Shared Tooling 0.26.19
-source `c830c33447f0a84e015bda7fa14b6c096a58368e`, recorded in
+Apply [DRAGGINZGAME.md](DRAGGINZGAME.md), adopted from Shared Tooling 0.26.20
+source `a7f85d45d4212d4c39225f58597580560a333550`, recorded in
 [.shared-tooling.snapshot](.shared-tooling.snapshot). Read
 [the current handoff](docs/status/current.md) before implementation.
+Read task-specific references when their subject applies; the local constraints
+below supplement the shared core.
 
 ## Ownership
 
@@ -17,10 +19,10 @@ source `c830c33447f0a84e015bda7fa14b6c096a58368e`, recorded in
 - Canic owns fleet topology, member/role authority, issuer approval and renewal
   orchestration, endpoint guards and deployment configuration. Toko owns its user
   records, account-linking policy and NFT ledger semantics.
-- Keep sibling repositories read-only. Record findings and consumer adoption
-  requirements in the owning GitHub issues, using existing trackers where they
-  match; do not request sibling edits as part of IC Auth work. An extraction must
-  coordinate consumer adoption and retain one canonical owner when completed.
+- Preserve sibling working checkouts. Inspect them as needed; relevant repairs
+  use the [standing isolated PR workflow](rules/contributions.md#cross-repository-pull-requests)
+  and its exclusions. Record findings and adoption in owning issues. An extraction
+  coordinates consumer adoption and retains one canonical owner.
 - GitHub issues are the work tracker. IC Auth-specific work belongs in
   [IC Auth issues](https://github.com/dragginzgame/ic-auth/issues).
   [Canic #491](https://github.com/dragginzgame/canic/issues/491) remains the existing
@@ -105,15 +107,17 @@ and `ci/cargo-dependency-boundaries.json` for direct-dependency ownership.
   applications separately, all inheriting the workspace minimum.
   Setup explicitly prepares the declared compiler; checks never
   download one. See [minimum compiler qualification](docs/msrv.md).
-  Focused Rust checks are `make test-types`, `make test-protocol`, `make test-chain-key-signatures`, `make test-signatures`,
-  `make test-signature-store`, `make test-certified-proofs`, `make test-sessions`,
-  `make test-host-tooling`, `make test-qualification`, `make check-wasm` and `make clippy`; `make ci` is the
-  explicit complete CI/release gate. Local validation cadence follows
-  [the shared baseline](DRAGGINZGAME.md#validation-and-evidence). It seals declared Rust/frontend preparation inputs
+  Choose the package, test and capability affected by the completed batch;
+  [developer setup](docs/development.md#validation) distinguishes narrow commands
+  from aggregate suites. `make ci` is the explicit complete CI/release gate.
+  Local validation cadence follows
+  [the shared baseline](DRAGGINZGAME.md#validation-and-evidence). The validation
+  runner seals declared Rust/frontend preparation inputs
   between stages and refuses drift without fetching or restarting implicitly.
   `make test-formatting-hooks` checks actual staged preservation and is part of
-  the complete gate. `make test-release-runner` checks the adopted runner
-  with substituted effects.
+  the complete gate. Auth's release/recovery and evidence caller fixtures remain
+  in CI; generic Shared runner/archive matrices are opt-in for changed-contract
+  adoption or a named missing consumer proof.
   Current publication and implementation status belongs in
   [the handoff](docs/status/current.md), not this instruction file. The internal
   IC Testkit fixture qualifies certification, composed roots, protected metadata

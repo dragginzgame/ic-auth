@@ -207,7 +207,6 @@ fn portable_proof_rechecks_live_authority_and_real_certification_after_upgrade()
         limits: CertifiedProofLimits {
             max_cert_ttl_ns: 120 * SECOND,
             max_token_ttl_ns: 60 * SECOND,
-            max_future_skew_ns: 0,
             max_certificate_age_ns: 10 * SECOND,
             max_variable_bytes: 256 * 1024,
             max_issuer_signature_bytes: 128 * 1024,

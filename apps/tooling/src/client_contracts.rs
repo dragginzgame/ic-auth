@@ -47,24 +47,27 @@ pub(crate) fn run(
     };
     match mode {
         crate::ContractMode::Generate => {
-            for (name, source) in [
-                ("credential.ts", binding!(CredentialEnvelope)),
-                ("establish.ts", binding!(EstablishSession)),
-                ("read.ts", binding!(ReadSession)),
-                ("logout.ts", binding!(Logout)),
-            ] {
-                let policy = match name {
-                    "credential.ts" => format!(
+            for (name, source, policy) in [
+                (
+                    "credential.ts",
+                    binding!(CredentialEnvelope),
+                    format!(
                         "export const defaultMaximumBytes = {};\nexport const maximumConfiguredBytes = {};\n",
                         ic_auth_wire::BROWSER_DEFAULT_CREDENTIAL_BYTES,
                         ic_auth_wire::BROWSER_MAX_CONFIGURED_CREDENTIAL_BYTES,
                     ),
-                    "logout.ts" => format!(
+                ),
+                ("establish.ts", binding!(EstablishSession), String::new()),
+                ("read.ts", binding!(ReadSession), String::new()),
+                (
+                    "logout.ts",
+                    binding!(Logout),
+                    format!(
                         "export const maximumResponseBytes = {};\n",
                         ic_auth_wire::BROWSER_LOGOUT_RESPONSE_BYTES,
                     ),
-                    _ => String::new(),
-                };
+                ),
+            ] {
                 save(name, format!("{source}{policy}").as_bytes())?;
             }
             save("wire-runtime.ts", wire::typescript::RUNTIME.as_bytes())?;

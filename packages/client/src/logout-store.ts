@@ -8,18 +8,24 @@ export interface LogoutTarget {
   nextNs: bigint;
   confirmedUntilNs?: bigint;
 }
-export interface LogoutJournal {
+interface JournalCommon {
   generation: string;
   caller: string;
   issuer: string;
   clockId: string;
   observedNs: bigint;
-  busyUntilNs: bigint;
-  phase: 'active' | 'cleanup' | 'finished';
-  deadlineNs: bigint;
   issuanceUnknown: boolean;
   targets: LogoutTarget[];
 }
+
+/** Active logins have neither a cleanup deadline nor a dispatch lease. The
+ * flat record shape is also the existing persisted profile; no conversion or
+ * migration is performed when narrowing its phase in memory.
+ */
+export type LogoutJournal = JournalCommon & (
+  | { phase: 'active'; deadlineNs: 0n; busyUntilNs: 0n }
+  | { phase: 'cleanup' | 'finished'; deadlineNs: bigint; busyUntilNs: bigint }
+);
 
 const FORMAT = 'ic-auth-logout-journal-v1';
 const U64_MAX = (1n << 64n) - 1n;
@@ -97,6 +103,8 @@ export class IndexedDbLogoutStore {
   close(): void { this.db.close(); }
 
   /** Synchronous mutation, isolated across tabs; resolves only after strict commit. */
+  transact<T>(operation: (record: LogoutJournal | undefined) => { record: LogoutJournal; value: T }): Promise<T>;
+  transact<T>(operation: (record: LogoutJournal | undefined) => { record: LogoutJournal; value: T } | undefined): Promise<T | undefined>;
   transact<T>(operation: (record: LogoutJournal | undefined) => { record: LogoutJournal; value: T } | undefined): Promise<T | undefined> {
     return new Promise((resolve, reject) => {
       let tx: IDBTransaction;

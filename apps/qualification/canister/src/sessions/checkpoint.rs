@@ -30,12 +30,13 @@ pub(crate) fn capture() -> Option<Snapshot> {
         let host = state.as_ref().filter(|host| host.checkpoint)?;
         Some(Snapshot {
             config: host
+                .inputs
                 .config
                 .clone()
                 .try_into()
                 .expect("bounded checkpoint config"),
-            login_floor: host.login_floor,
-            proof_floor: host.proof_floor,
+            login_floor: host.inputs.login_floor,
+            proof_floor: host.inputs.proof_floor,
             generation: host.store.generation(),
             enabled: host.enabled,
             checkpoint_time: ic_platform::cdk::api::time(),
@@ -123,10 +124,12 @@ pub(crate) fn restore(snapshot: Option<Snapshot>) {
     let host = Receiver {
         checkpoint: true,
         ready: false,
-        binding: config.authority.binding(),
-        config,
-        login_floor: saved.login_floor,
-        proof_floor: saved.proof_floor,
+        inputs: ReceiverInputs {
+            binding: config.authority.binding(),
+            config,
+            login_floor: saved.login_floor,
+            proof_floor: saved.proof_floor,
+        },
         enabled: saved.enabled,
         store,
         ledger,
@@ -170,7 +173,7 @@ fn confirm_restored_session_authority(
             .as_mut()
             .filter(|host| host.checkpoint && !host.ready)
             .ok_or("receiver is not awaiting authority")?;
-        if config != host.config {
+        if config != host.inputs.config {
             return Err("checkpoint authority mismatch".into());
         }
         let now = ic_platform::cdk::api::time();

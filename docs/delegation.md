@@ -53,7 +53,9 @@ canister-signature verification with shared portable caller, account, issuer,
 audience, grants and lifetime checks. Its protected `PortableCertifiedContext`
 contains the actual ingress caller/clock, approved enrollment, Root key policy,
 IC network key and `CertifiedProofLimits`. `CertifiedProofLimits::into()` projects
-the Root verifier's five applicable bounds.
+the applicable bounds with zero future skew. This profile has no skew option:
+future Root validity starts and future signing-certificate times are refused.
+Standalone Root verification retains its independently selected skew allowance.
 
 The issuer signs `domain_separated_message(CERTIFIED_SIGNATURE_DOMAIN,
 SHA256(canonical_portable_claims))`. Host admission bounds aggregate material before

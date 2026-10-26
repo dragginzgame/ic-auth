@@ -38,21 +38,26 @@ logs="$(mktemp -d "${CARGO_TARGET_DIR:-$PWD/target}/publication-$version.XXXXXX"
 echo "Publication evidence retained: $logs"
 step() { "$@" 2>&1 | tee -a "$logs/output.log"; }
 packages=(ic-auth-protocol-types ic-auth ic-auth-wire)
+package_args=()
+for package in "${packages[@]}"; do package_args+=(-p "$package"); done
 step make --no-print-directory check-package-licenses
-step cargo package --locked --registry crates-io -p ic-auth-protocol-types -p ic-auth -p ic-auth-wire
+step cargo package --locked --registry crates-io "${package_args[@]}"
 assert_source
 plan="$state/$version.json"
 candidate="$logs/intent.json"
 hashes=()
+package_records="$logs/packages.jsonl"
 for package in "${packages[@]}"; do
     archive="${CARGO_TARGET_DIR:-$PWD/target}/package/$package-$version.crate"
     [[ -f "$archive" && ! -L "$archive" ]] || fail "missing package archive: $archive"
-    hashes+=("$(bash scripts/dev/run-host-file.sh hash-file "$archive" 67108864)")
+    checksum="$(bash scripts/dev/run-host-file.sh hash-file "$archive" 67108864)"
+    hashes+=("$checksum")
+    jq -n --arg name "$package" --arg checksum "$checksum" \
+        '{name:$name,checksum:$checksum}' >> "$package_records"
 done
-jq -n --arg source "$source" --arg version "$version" --arg tag "$tag" \
-    --arg types "${hashes[0]}" --arg auth "${hashes[1]}" --arg wire "${hashes[2]}" \
+jq -s --arg source "$source" --arg version "$version" --arg tag "$tag" \
     '{schema:1, source:$source, version:$version, tag:$tag, registry:"crates-io",
-      packages:[{name:"ic-auth-protocol-types",checksum:$types},{name:"ic-auth",checksum:$auth},{name:"ic-auth-wire",checksum:$wire}]}' > "$candidate"
+      packages:.}' "$package_records" > "$candidate"
 if [[ -e "$plan" || -L "$plan" ]]; then
     if [[ -L "$plan" ]] || ! cmp -s "$candidate" "$plan"; then
         fail 'saved publication intent conflicts with the current source or archives'

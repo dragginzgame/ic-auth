@@ -7,7 +7,7 @@ use ic_auth::canister_signature::{
 use ic_auth_protocol_types::{IcCanisterSignatureProofV1, Principal};
 use ic_platform::bls::PrivateKey;
 use ic_platform::canister_sig_creation::{CanisterSigPublicKey, IC_ROOT_PK_DER_PREFIX};
-use ic_platform::certification::{Certificate, Delegation, HashTree, fork, labeled, leaf};
+use ic_platform::certification::{Certificate, Delegation, HashTree, fork, labeled, leaf, pruned};
 use serde::{Deserialize, Serialize};
 use serde_bytes::ByteBuf;
 use sha2::{Digest, Sha256};
@@ -261,6 +261,58 @@ fn rejects_absent_truncated_overflow_and_trailing_certificate_time() {
     policy.now_ns = u64::MAX;
     assert_eq!(
         verify_canister_signature(&message(), &proof, &policy),
+        Ok(())
+    );
+}
+
+#[test]
+fn authenticated_time_requires_one_visible_leaf_after_signature_verification() {
+    let root = key(1).public_key().serialize();
+    let original = proof(&message(), None, &key(1), None);
+    let envelope: Envelope = serde_cbor::from_slice(&original.signature_cbor).unwrap();
+    let base: Certificate = serde_cbor::from_slice(&envelope.certificate).unwrap();
+    for time in [
+        labeled(b"time".to_vec(), pruned([0; 32])),
+        labeled(
+            b"time".to_vec(),
+            labeled(b"child".to_vec(), leaf(time_bytes(NOW))),
+        ),
+        fork(
+            labeled(b"time".to_vec(), leaf(time_bytes(NOW))),
+            labeled(b"time".to_vec(), leaf(time_bytes(NOW))),
+        ),
+    ] {
+        let mut cert = certificate(fork(base.tree.clone(), time), &key(1), None);
+        let mut candidate = original.clone();
+        candidate.signature_cbor = cbor(&Envelope {
+            certificate: ByteBuf::from(cbor(&cert)),
+            tree: envelope.tree.clone(),
+        });
+        assert_eq!(
+            verify_canister_signature(&message(), &candidate, &policy(&root)),
+            Err(Error::InvalidCertificateTime)
+        );
+        cert.signature[0] ^= 1;
+        candidate.signature_cbor = cbor(&Envelope {
+            certificate: ByteBuf::from(cbor(&cert)),
+            tree: envelope.tree.clone(),
+        });
+        assert!(matches!(
+            verify_canister_signature(&message(), &candidate, &policy(&root)),
+            Err(Error::InvalidSignature(_))
+        ));
+    }
+}
+
+#[test]
+fn complete_nonminimal_certificate_time_retains_its_admission() {
+    let root = key(1).public_key().serialize();
+    let mut bytes = time_bytes(NOW);
+    *bytes.last_mut().unwrap() |= 0x80;
+    bytes.push(0);
+    let candidate = proof(&message(), Some(bytes), &key(1), None);
+    assert_eq!(
+        verify_canister_signature(&message(), &candidate, &policy(&root)),
         Ok(())
     );
 }

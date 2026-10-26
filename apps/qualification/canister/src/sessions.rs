@@ -41,10 +41,7 @@ fn limits() -> SessionLimits {
 struct Receiver {
     checkpoint: bool,
     ready: bool,
-    config: ReceiverConfig,
-    binding: [u8; 32],
-    login_floor: u64,
-    proof_floor: u64,
+    inputs: ReceiverInputs,
     enabled: bool,
     store: MemorySessionStore,
     ledger: MemoryLoginRevocations,
@@ -52,46 +49,35 @@ struct Receiver {
     unknown: SessionAdmissionBudget,
 }
 thread_local! { static RECEIVER: RefCell<Option<Receiver>> = const { RefCell::new(None) }; }
-fn context(
-    config: &ReceiverConfig,
+struct ReceiverInputs {
+    config: ReceiverConfig,
     binding: [u8; 32],
-    floors: (u64, u64),
-    caller: Principal,
-    now: u64,
-) -> SessionContext<'_> {
-    SessionContext {
-        authority: PortableClaimsContext {
-            audience: &config.audience,
-            issuer: config.issuer,
-            mechanism: config.authority.mechanism(),
-            key_binding_id: binding,
-            grants: &config.grants,
-            caller,
-            now_ns: now,
-            authority_not_before_ns: config.valid_from_ns,
-            authority_expires_at_ns: config.valid_until_ns,
-            enrollment_expires_at_ns: config.enrollment_until_ns,
-            min_login_started_at_ns: floors.0,
-            min_proof_issued_at_ns: floors.1,
-            max_login_ttl_ns: 86_400 * SECOND,
-            max_proof_ttl_ns: 60 * SECOND,
-        },
-        role: &config.role,
-        required_scopes: &[],
-    }
+    login_floor: u64,
+    proof_floor: u64,
 }
-// Expand field borrows separately so context can coexist with mutable store and
-// ledger borrows. An &Receiver accessor would borrow the entire host.
-macro_rules! receiver_context {
-    ($host:ident, $caller:expr, $now:expr $(,)?) => {
-        context(
-            &$host.config,
-            $host.binding,
-            ($host.login_floor, $host.proof_floor),
-            $caller,
-            $now,
-        )
-    };
+impl ReceiverInputs {
+    fn context(&self, caller: Principal, now: u64) -> SessionContext<'_> {
+        SessionContext {
+            authority: PortableClaimsContext {
+                audience: &self.config.audience,
+                issuer: self.config.issuer,
+                mechanism: self.config.authority.mechanism(),
+                key_binding_id: self.binding,
+                grants: &self.config.grants,
+                caller,
+                now_ns: now,
+                authority_not_before_ns: self.config.valid_from_ns,
+                authority_expires_at_ns: self.config.valid_until_ns,
+                enrollment_expires_at_ns: self.config.enrollment_until_ns,
+                min_login_started_at_ns: self.login_floor,
+                min_proof_issued_at_ns: self.proof_floor,
+                max_login_ttl_ns: 86_400 * SECOND,
+                max_proof_ttl_ns: 60 * SECOND,
+            },
+            role: &self.config.role,
+            required_scopes: &[],
+        }
+    }
 }
 
 // Both installation and checkpoint restoration start with empty budgets.
@@ -167,8 +153,13 @@ fn install_session_receiver(config: controls::model::ReceiverConfig) -> Result<(
     {
         return Err("invalid certified receiver authority".into());
     }
-    let binding = config.authority.binding();
-    let mut ctx = context(&config, binding, (0, 0), Principal::anonymous(), now);
+    let mut inputs = ReceiverInputs {
+        binding: config.authority.binding(),
+        config,
+        login_floor: 0,
+        proof_floor: 0,
+    };
+    let mut ctx = inputs.context(Principal::anonymous(), now);
     ctx.authority
         .advance_reset_floors(0)
         .map_err(|e| e.to_string())?;
@@ -176,13 +167,15 @@ fn install_session_receiver(config: controls::model::ReceiverConfig) -> Result<(
         ctx.authority.min_login_started_at_ns,
         ctx.authority.min_proof_issued_at_ns,
     );
-    let (admission, unknown) = budgets(&config, now)?;
+    inputs.login_floor = floors.0;
+    inputs.proof_floor = floors.1;
+    let (admission, unknown) = budgets(&inputs.config, now)?;
     let host = Receiver {
         checkpoint: false,
         ready: true,
         store: MemorySessionStore::new(0, limits()).map_err(|e| e.to_string())?,
         ledger: MemoryLoginRevocations::new(
-            config.audience,
+            inputs.config.audience,
             MAX_ADMITTED_LOGINS,
             MAX_UNKNOWN_LOGINS,
             0,
@@ -191,10 +184,7 @@ fn install_session_receiver(config: controls::model::ReceiverConfig) -> Result<(
         .map_err(|e| e.to_string())?,
         admission,
         unknown,
-        config,
-        binding,
-        login_floor: floors.0,
-        proof_floor: floors.1,
+        inputs,
         enabled: true,
     };
     RECEIVER.with(|state| *state.borrow_mut() = Some(host));
@@ -220,8 +210,7 @@ fn establish_portable_session(input: SessionInput) -> Result<SessionView, Admiss
         .map_err(|_| AdmissionRefusal::InvalidCredential)?;
     with_receiver(|host| {
         let policy = policy(host);
-        let ctx = receiver_context!(
-            host,
+        let ctx = host.inputs.context(
             ic_platform::cdk::api::msg_caller(),
             ic_platform::cdk::api::time(),
         );
@@ -233,7 +222,7 @@ fn establish_portable_session(input: SessionInput) -> Result<SessionView, Admiss
             &request,
             &ctx,
             policy,
-            |budget, decoded| match &host.config.authority {
+            |budget, decoded| match &host.inputs.config.authority {
                 ReceiverAuthority::Ed25519(key) => Ok(decoded.verify(
                     budget,
                     &credential.proof,
@@ -253,7 +242,6 @@ fn establish_portable_session(input: SessionInput) -> Result<SessionView, Admiss
                         limits: ic_auth::portable_certified::CertifiedProofLimits {
                             max_cert_ttl_ns: 120 * SECOND,
                             max_token_ttl_ns: 60 * SECOND,
-                            max_future_skew_ns: 0,
                             max_certificate_age_ns: 10 * SECOND,
                             max_variable_bytes: 131_072,
                             max_issuer_signature_bytes: 131_072,
@@ -309,8 +297,7 @@ fn portable_session_read() -> Result<SessionView, String> {
 fn authorize(required_scopes: &[String]) -> Result<Session, String> {
     with_receiver(|host| {
         let policy = policy(host);
-        let mut ctx = receiver_context!(
-            host,
+        let mut ctx = host.inputs.context(
             ic_platform::cdk::api::msg_caller(),
             ic_platform::cdk::api::time(),
         );
@@ -389,7 +376,7 @@ fn profile_portable_session() -> Result<SessionProfile, String> {
         if decoded != session {
             return Err("restoration differs".into());
         }
-        let ctx = receiver_context!(host, caller, ic_platform::cdk::api::time(),);
+        let ctx = host.inputs.context(caller, ic_platform::cdk::api::time());
         let policy = policy(host);
         let start_authorization = ic_platform::ic0::performance_counter(0);
         authorize_session(&mut host.store, &mut host.ledger, &ctx, policy)

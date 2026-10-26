@@ -37,8 +37,6 @@ pub struct CertifiedProofLimits {
     pub max_cert_ttl_ns: u64,
     /// Upper bound on the issuer's authorized maximum token lifetime.
     pub max_token_ttl_ns: u64,
-    /// Inclusive allowance for future validity starts and certificate time.
-    pub max_future_skew_ns: u64,
     /// Inclusive maximum age of the issuer's authenticated IC certificate.
     pub max_certificate_age_ns: u64,
     /// Budget for vector/string bytes plus one byte per variable entry, checked
@@ -55,7 +53,7 @@ impl From<CertifiedProofLimits> for DelegationProofVerificationLimits {
         Self {
             max_cert_ttl_ns: limits.max_cert_ttl_ns,
             max_token_ttl_ns: limits.max_token_ttl_ns,
-            max_future_skew_ns: limits.max_future_skew_ns,
+            max_future_skew_ns: 0,
             max_variable_bytes: limits.max_variable_bytes,
             max_witness_steps: limits.max_witness_steps,
         }
@@ -68,7 +66,7 @@ pub struct PortableCertifiedContext<'a> {
     pub claims: PortableClaimsContext<'a>,
     pub root_key: &'a RootKeyPolicy,
     pub ic_root_public_key_raw: &'a [u8],
-    /// Existing bounded proof policy. Future skew MUST be zero for this profile.
+    /// Bounded proof policy. This profile always refuses future validity starts.
     pub limits: CertifiedProofLimits,
 }
 
@@ -124,7 +122,7 @@ pub(crate) fn check_bounds(
     context: &PortableCertifiedContext<'_>,
 ) -> Result<(), PortableCertifiedError> {
     let limits = context.limits;
-    if context.claims.mechanism != PortableMechanism::Certified || limits.max_future_skew_ns != 0 {
+    if context.claims.mechanism != PortableMechanism::Certified {
         return Err(PortableCertifiedError::BindingMismatch);
     }
     // Aggregate variable-material cap precedes codec allocation and cryptography.

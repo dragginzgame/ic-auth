@@ -7,8 +7,7 @@
 
 use ic_auth_protocol_types::{IcCanisterSignatureProofV1, Principal};
 use ic_platform::canister_sig_creation::CanisterSigPublicKey;
-use ic_platform::certification::{Certificate, LookupResult};
-use serde::Deserialize;
+use ic_platform::signature_verification::{CanisterSigTimeError, verify_canister_sig_with_time};
 use sha2::{Digest, Sha256};
 use thiserror::Error;
 
@@ -118,33 +117,20 @@ pub fn verify_canister_signature(
     if policy.ic_root_public_key_raw.len() != 96 {
         return Err(CanisterSignatureError::InvalidRootKeyLength);
     }
-    ic_platform::signature_verification::verify_canister_sig(
+    let time_ns = verify_canister_sig_with_time(
         message,
         &proof.signature_cbor,
         &proof.public_key_der,
         policy.ic_root_public_key_raw,
     )
-    .map_err(CanisterSignatureError::InvalidSignature)?;
-
-    // Only interpret the timestamp as authenticated after upstream verification
-    // has checked the certificate, witness and exact seed/message tree path.
-    let envelope: SignatureEnvelope = serde_cbor::from_slice(&proof.signature_cbor)
-        .map_err(|err| CanisterSignatureError::InvalidSignature(err.to_string()))?;
-    let certificate: Certificate = serde_cbor::from_slice(&envelope.certificate)
-        .map_err(|err| CanisterSignatureError::InvalidSignature(err.to_string()))?;
-    let LookupResult::Found(mut time_bytes) = certificate.tree.lookup_path([b"time".as_slice()])
-    else {
-        return Err(CanisterSignatureError::InvalidCertificateTime);
-    };
-    // A u64 takes at most ten bytes. Reject overflow/truncation/trailing bytes.
-    if time_bytes.len() > 10 {
-        return Err(CanisterSignatureError::InvalidCertificateTime);
-    }
-    let time_ns = leb128::read::unsigned(&mut time_bytes)
-        .map_err(|_| CanisterSignatureError::InvalidCertificateTime)?;
-    if !time_bytes.is_empty() {
-        return Err(CanisterSignatureError::InvalidCertificateTime);
-    }
+    .map_err(|error| match error {
+        CanisterSigTimeError::Verification(message) => {
+            CanisterSignatureError::InvalidSignature(message)
+        }
+        CanisterSigTimeError::InvalidCertificateTime => {
+            CanisterSignatureError::InvalidCertificateTime
+        }
+    })?;
     if time_ns <= policy.now_ns {
         if policy.now_ns - time_ns > policy.max_certificate_age_ns {
             return Err(CanisterSignatureError::CertificateTooOld);
@@ -153,9 +139,4 @@ pub fn verify_canister_signature(
         return Err(CanisterSignatureError::CertificateInFuture);
     }
     Ok(())
-}
-
-#[derive(Deserialize)]
-struct SignatureEnvelope {
-    certificate: serde_bytes::ByteBuf,
 }

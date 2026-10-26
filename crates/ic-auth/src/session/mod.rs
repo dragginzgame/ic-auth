@@ -139,12 +139,6 @@ pub enum SessionError {
     Encoding(#[from] PortableEncodingError),
     #[error(transparent)]
     Revocation(#[from] LoginRevocationError),
-    #[cfg(feature = "portable-signature-verification")]
-    #[error(transparent)]
-    Signature(#[from] crate::portable_signature::PortableSignatureError),
-    #[cfg(feature = "certified-proof-verification")]
-    #[error(transparent)]
-    Certified(#[from] crate::portable_certified::PortableCertifiedError),
 }
 
 impl From<AdmissionBudgetError> for SessionError {
@@ -250,30 +244,20 @@ pub fn establish_session(
     }
     let session = Session::admit(&verified, request, context, policy)?;
     let replay = Replay::new(&session, admission_expires_at_ns);
-    let mut storage_error = None;
-    let result = ledger.with_reservation(authority.caller, &verified, authority.now_ns, |change| {
-        store
-            .transaction(Some(change), |tx| {
-                if tx.generation() != policy.generation {
-                    return Err(SessionError::StaleAuthority);
-                }
-                let replacing = tx.session(authority.caller)?.is_some();
-                tx.stage(session.clone(), replay)?;
-                Ok(if replacing {
-                    SessionEstablished::Replaced(session)
-                } else {
-                    SessionEstablished::Created(session)
-                })
+    ledger.with_reservation(authority.caller, &verified, authority.now_ns, |change| {
+        store.transaction(Some(change), |tx| {
+            if tx.generation() != policy.generation {
+                return Err(SessionError::StaleAuthority);
+            }
+            let replacing = tx.session(authority.caller)?.is_some();
+            tx.stage(session.clone(), replay)?;
+            Ok(if replacing {
+                SessionEstablished::Replaced(session)
+            } else {
+                SessionEstablished::Created(session)
             })
-            .map_err(|error| {
-                storage_error = Some(error);
-                LoginRevocationError::Storage
-            })
-    });
-    match storage_error {
-        Some(error) => Err(error),
-        None => result.map_err(SessionError::from),
-    }
+        })
+    })
 }
 
 /// Check the caller's local session against current enrollment, generation,
@@ -319,19 +303,12 @@ pub fn logout_session(
     caller: Principal,
     now_ns: u64,
 ) -> LogoutResult {
-    let mut storage_error = None;
     let result = ledger.with_revocation(unknown_budget, caller, now_ns, |change| {
         store
             .transaction(Some(change), |tx| tx.remove(caller))
-            .map_err(|error| {
-                storage_error = Some(error);
-                LoginRevocationError::Storage
-            })
+            .map_err(|_| LoginRevocationError::Storage)
     });
     // Backend diagnostics stay host-side; never acknowledge a failed commit.
-    if storage_error.is_some() {
-        return LogoutResult::Unavailable(LogoutUnavailable::Storage);
-    }
     match result {
         Ok(deny_until_ns) => LogoutResult::Revoked { deny_until_ns },
         Err(LoginRevocationError::InvalidCaller) => LogoutResult::InvalidCaller,
