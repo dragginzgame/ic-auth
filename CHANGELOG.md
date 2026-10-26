@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.16.2] - Unreleased
+## [0.16.2] - 2026-10-26
 
 - Update the host generator for Wire 0.7.11+'s required acknowledgement map
   and diagnostic callback. Surface bulk advice on stderr and declare the matching
