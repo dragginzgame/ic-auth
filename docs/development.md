@@ -74,12 +74,13 @@ the input hash guard remains necessary. A separate checkout prevents ordinary
 development edits from changing its files; it does not serialize competing
 remote releases or make a failed gate reusable.
 
-Before later releases, fast-forward the clean release checkout with
-`git pull --ff-only` only when there is no unfinished release. Resume an
-interrupted attempt in its original checkout through the normal release command,
-preserving `.git/release-state`, publication intent, prepared tools and `target`
-evidence. Do not reset, re-clone or clean away that recovery state. After delivery,
-fast-forward the development checkout when its own pending work permits it.
+For exact recovery, keep the original checkout and run
+`make release-resume VERSION=X.Y.Z`, preserving `.git/release-state`, publication
+intent, prepared tools and `target` evidence. Do not reset, re-clone or clean away
+that recovery state. For a fresh later release, fast-forward a clean checkout as
+appropriate and use a normal release target from current committed metadata;
+historical plans are not inputs to that new attempt. After delivery, fast-forward
+the development checkout when its own pending work permits it.
 
 ### Editor preparation and recovery
 
@@ -148,8 +149,8 @@ for the existing byte/path limits and release-recovery boundary.
 
 ## Dependency roles and deployment admission
 
-Shared Tooling 0.26.16 source is adopted at
-`2077c934efb82b181bea58fe50078dbad289c1aa` (reviewed committed source, not a
+Shared Tooling 0.26.18 source is adopted at
+`37652c087fff16f55f83d18d27ba17c83f34021c` (reviewed committed source, not a
 claim of registry publication or a matching release tag).
 The root catalog uses `Production dependencies` and `Tests and tooling only`;
 member annotations distinguish the three production libraries from internal
@@ -639,19 +640,21 @@ the saved UTC date before commit/tag/push. Other suffixes and conflicting dates
 still refuse; interrupted recovery retains its exact saved notes and date.
 
 The [shared restart contract](releases.md#source-changes-after-saved-preparation-intent)
-applies to IC Auth's direct delivery. Its preparation adapter writes only local
-Cargo manifest/lock, changelog and validation receipt, with the manifest last;
-Git staging and delivery remain runner-owned. At unchanged HEAD, interruption
-still resumes the exact saved version. Once the maintainer commits the disposition
-of that metadata in a clean descendant, a standard target archives the old
-`prepare` plan unchanged and selects its requested increment from current metadata.
-It repeats setup/admission and the complete gate before preparing again. Old
-source/candidate-bound validation receipts remain in `.git/release-state/` and
-cannot qualify the new source. No separate preparation journal or retirement
-helper is added. Explicit `release-resume`, dirty/divergent source, changed
-destinations and plans with staging or later effects keep exact-source refusal.
-See [Auth #28](https://github.com/dragginzgame/ic-auth/issues/28) and
-[Shared #126](https://github.com/dragginzgame/shared-tooling/issues/126).
+applies to IC Auth's direct delivery. Normal patch/minor/major targets always
+select from current clean, committed metadata and run fresh preflight, setup and
+the complete gate. They do not scan older plans, reuse their validation or replay
+their commit/tag/push effects. The new candidate's stale local plan/staging/PR
+receipts may be superseded; older build and validation evidence keeps its source
+identity. Missing older tags or malformed historical plans do not block a new
+release. Current source/index, lock, candidate ref/payload, destination and branch
+protection conflicts still refuse.
+
+Use `make release-resume VERSION=X.Y.Z` to continue one specific interrupted
+attempt against its saved source, version, payload and destination. Auth's
+preparation adapter owns manifest/lock, changelog and validation receipt writes;
+Git staging and delivery remain runner-owned. Neither path installs a saved
+editor implicitly during recovery or weakens source/receipt admission.
+See [Shared #309](https://github.com/dragginzgame/shared-tooling/issues/309).
 
 The locked Testkit package selects its versioned setup/check CLI, even when
 its server version is unchanged. After a selection change, explicitly run

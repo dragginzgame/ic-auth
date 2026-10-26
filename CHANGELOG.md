@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.3] - Unreleased
+
+- Adopt Shared Tooling 0.26.18. Normal release targets start fresh from clean
+  committed metadata without scanning or replaying historical plans; exact
+  recovery uses `release-resume VERSION=X.Y.Z`. Retain current source, candidate,
+  destination and validation checks, and qualify the behavior in Auth fixtures.
+
 ## [0.16.2] - 2026-10-26
 
 - Update the host generator for Wire 0.7.11+'s required acknowledgement map

@@ -240,6 +240,10 @@ cp CHANGELOG.md "$fixture/pending-notes"
 cp .git/index "$fixture/pending-index"
 for suffix in ' - Draft' ' - 2026-10-16'; do
     sed "s/^## \[0.1.1\]$/## [0.1.1]$suffix/" "$fixture/pending-notes" > CHANGELOG.md
+    git add CHANGELOG.md
+    git commit -qm 'Commit invalid fixture heading for preflight admission'
+    before="$(git rev-parse HEAD)"
+    cp .git/index "$fixture/pending-index"
     cp CHANGELOG.md "$fixture/invalid-notes"
     if make --no-print-directory release-patch > "$fixture/pending-heading.log" 2>&1; then exit 1; fi
     rg -F "expected pending heading '## [0.1.1]'" "$fixture/pending-heading.log" > /dev/null
@@ -250,6 +254,9 @@ for suffix in ' - Draft' ' - 2026-10-16'; do
     [[ "$(git rev-parse HEAD)" == "$before" && -z "$(git tag -l)" ]] || exit 1
 done
 cp "$fixture/pending-notes" CHANGELOG.md
+git add CHANGELOG.md
+git commit -qm 'Restore valid fixture heading'
+before="$(git rev-parse HEAD)"
 # Common and CLI setup/admission must precede the gate and preserve release
 # identity on either failure. Neither version preparation nor a tag may start.
 for phase in common-setup cli-setup file-setup common-check cli-check file-check editor-setup editor-check; do
@@ -278,15 +285,14 @@ if make --no-print-directory release-patch > "$fixture/gate-failure.log" 2>&1; t
 rm target/fail-gate
 [[ "$(tail -n 2 target/editor-events.log)" == $'install\ncheck' ]] || exit 1
 
-# Initial admission names a changed lock and refuses before validation or
+# Normal release source admission refuses a dirty lock before validation or
 # preparation, without changing source or index bytes.
 printf '\n' >> Cargo.lock
 cp Cargo.lock "$fixture/dirty-lock"
 cp .git/index "$fixture/dirty-index"
 cp target/preparation-dispatch.log "$fixture/dirty-dispatch.log"
 if make --no-print-directory release-patch > "$fixture/lock-source.log" 2>&1; then exit 1; fi
-rg -F 'unstaged: Cargo.lock' "$fixture/lock-source.log" > /dev/null
-rg -F 'this attempt has not started validation or version preparation' "$fixture/lock-source.log" > /dev/null
+rg -F 'commit or restore worktree changes before starting a release' "$fixture/lock-source.log" > /dev/null
 if rg -F 'fixture-complete-gate' "$fixture/lock-source.log" > /dev/null; then exit 1; fi
 cmp Cargo.lock "$fixture/dirty-lock"
 cmp .git/index "$fixture/dirty-index"
@@ -301,9 +307,7 @@ git show HEAD:crates/ic-auth/src/lib.rs > crates/ic-auth/src/lib.rs
 cp .git/index "$fixture/staged-index"
 cp crates/ic-auth/src/lib.rs "$fixture/staged-worktree"
 if make --no-print-directory release-patch > "$fixture/staged-source.log" 2>&1; then exit 1; fi
-rg -F 'staged: crates/ic-auth/src/lib.rs' "$fixture/staged-source.log" > /dev/null
-rg -F 'unstaged: crates/ic-auth/src/lib.rs' "$fixture/staged-source.log" > /dev/null
-rg -F 'this attempt has not started validation or version preparation' "$fixture/staged-source.log" > /dev/null
+rg -F 'commit or restore staged changes before starting a release' "$fixture/staged-source.log" > /dev/null
 cmp .git/index "$fixture/staged-index"
 cmp crates/ic-auth/src/lib.rs "$fixture/staged-worktree"
 git restore --staged crates/ic-auth/src/lib.rs
@@ -311,6 +315,8 @@ git restore --staged crates/ic-auth/src/lib.rs
 # saved UTC date before committing/tagging. Earlier refusal cases cover the bare
 # numbered spelling; do not require a manual heading edit for this path.
 awk '{ if ($0 == "## [0.1.1]") print "##\t[0.1.1]  -\tUnreleased \t"; else print }' "$fixture/pending-notes" > CHANGELOG.md
+git add CHANGELOG.md
+git commit -qm 'Prepare numbered fixture heading'
 make --no-print-directory release-patch > "$fixture/patch.log" 2>&1
 [[ "$(make -s release-version)" == 0.1.1 ]] || exit 1
 [[ "$(awk '/^## / { print; exit }' CHANGELOG.md)" == "## [0.1.1] - $(jq -r .date release-validation.json)" ]] || exit 1
@@ -525,7 +531,11 @@ for kind in minor major; do
         cp target/preparation-dispatch.log "$fixture/interrupted-dispatch.log"
         editor_installs="$(awk '/^install$/ { n++ } END { print n+0 }' target/editor-events.log)"
     fi
-    make --no-print-directory "release-$kind" > "$fixture/$kind.log" 2>&1
+    if [[ "$kind" == minor ]]; then
+        make --no-print-directory release-resume VERSION="$candidate" > "$fixture/$kind.log" 2>&1
+    else
+        make --no-print-directory "release-$kind" > "$fixture/$kind.log" 2>&1
+    fi
     if [[ "$kind" == minor ]]; then
         cmp target/preparation-dispatch.log "$fixture/interrupted-dispatch.log"
         [[ "$(awk '/^install$/ { n++ } END { print n+0 }' target/editor-events.log)" == "$editor_installs" ]] || exit 1
@@ -535,8 +545,8 @@ for kind in minor major; do
 done
 [[ -f target/keep ]] || exit 1
 # Qualify the consumer's actual local metadata/receipt owner when a maintainer
-# commits the disposition of interrupted preparation. Shared 0.26.13 permits
-# advancing from committed metadata without pretending the earlier release shipped.
+# commits the disposition of interrupted preparation. Shared 0.26.18 starts
+# afresh from that metadata without reading or replaying the historical journal.
 for disposition in restored prepared; do
     base="$(make -s release-version)"
     saved_candidate="$(bash scripts/ci/next-release-version.sh "$base" patch)"
@@ -554,6 +564,8 @@ for disposition in restored prepared; do
     [[ "$(tail -n 1 "$old_plan")" == prepare && ! -e "$old_plan.files" ]] || exit 1
     cp "$old_plan" "$fixture/$disposition-saved.plan"
     cp "$old_receipt" "$fixture/$disposition-saved-receipt.json"
+    printf 'malformed historical journal\n' > "$state/0.0.0.plan"
+    cp "$state/0.0.0.plan" "$fixture/malformed-historical.plan"
     if [[ "$disposition" == restored ]]; then
         # Restore the whole partially written roster, then request a different
         # increment. The superseded patch must not control today's selection.
@@ -584,16 +596,14 @@ for disposition in restored prepared; do
     cmp "$old_receipt" "$fixture/$disposition-saved-receipt.json"
     cmp target/preparation-dispatch.log "$fixture/$disposition-before-restart.log"
     [[ ! -e "$state/lock" && "$(git rev-parse HEAD)" == "$current_source" ]] || exit 1
-    # Refuse the fresh gate once: archiving intent cannot imply preparation or
-    # permit reuse of the old source's successful validation receipt.
+    # Refuse the fresh gate once: ignored historical intent cannot permit
+    # reuse of the old source's successful validation receipt.
     touch target/fail-gate
     if make --no-print-directory "release-$kind" > "$fixture/$disposition-fresh-gate-failure.log" 2>&1; then exit 1; fi
     rm target/fail-gate
-    set -- "$state/$saved_candidate".attempt.*/"$saved_candidate.plan"
-    [[ $# == 1 && -f "$1" && ! -L "$1" ]] || exit 1
-    archive_plan="$1"
-    cmp "$archive_plan" "$fixture/$disposition-saved.plan"
-    [[ ! -e "$old_plan" && ! -e "$state/$candidate.plan" && "$(make -s release-version)" == "$base" ]] || exit 1
+    cmp "$old_plan" "$fixture/$disposition-saved.plan"
+    cmp "$state/0.0.0.plan" "$fixture/malformed-historical.plan"
+    [[ ! -e "$state/$candidate.plan" && "$(make -s release-version)" == "$base" ]] || exit 1
     [[ "$(git rev-parse HEAD)" == "$current_source" && -z "$(git tag -l "v$candidate")" ]] || exit 1
     git diff --quiet HEAD -- Cargo.toml Cargo.lock CHANGELOG.md release-validation.json
     git diff --cached --quiet HEAD --
@@ -605,7 +615,8 @@ for disposition in restored prepared; do
     [[ "$(jq -r .candidate release-validation.json)" == "$candidate" && "$(jq -r .kind release-validation.json)" == "$kind" ]] || exit 1
     bash scripts/ci/check-release-tag.sh "$(git rev-parse HEAD)" "$candidate"
     [[ "$(git --git-dir="$fixture/remote.git" rev-parse main)" == "$(git rev-parse HEAD)" ]] || exit 1
-    cmp "$archive_plan" "$fixture/$disposition-saved.plan"
+    cmp "$old_plan" "$fixture/$disposition-saved.plan"
+    cmp "$state/0.0.0.plan" "$fixture/malformed-historical.plan"
     cmp "$old_receipt" "$fixture/$disposition-saved-receipt.json"
     if [[ "$disposition" == prepared ]]; then
         [[ -z "$(git tag -l "v$saved_candidate")" ]]

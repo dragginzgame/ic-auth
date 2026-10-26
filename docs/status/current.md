@@ -2,14 +2,14 @@
 
 ## Checkout and pending work
 
-The checkout is at maintainer commit `262c500` (candidate 0.16.2). Package
-versions remain 0.16.1 and notes target **0.16.2**; the latest reported release
-attempt stopped at Clippy before version preparation. This repair has not
-committed, released, pushed or published anything, or altered release state.
+The maintainer completed release **0.16.2** at `9928476`; its saved release
+plan is complete. Package versions remain 0.16.2 and notes target **0.16.3**.
+This adoption has not committed, released, pushed, published or changed the
+real checkout's release recovery state.
 
 The current locked selection is Platform/macros **0.6.16**, Wire/derive
 **0.7.12**, Host/Build/Testkit **0.68.5**, Memory **0.51.3**, File CLI **0.31.1**
-and Shared Tooling **0.26.16** (`2077c934efb82b181bea58fe50078dbad289c1aa`,
+and Shared Tooling **0.26.18** (`37652c087fff16f55f83d18d27ba17c83f34021c`,
 122 files). The incoming lockfile is preserved. SHA-2 0.10 and Dalek 2 stay on
 the Platform-compatible lines. No application/storage format or runtime
 capability changes.
@@ -60,21 +60,25 @@ include certificate freshness [Platform #51](https://github.com/dragginzgame/ic-
 and advisory tracking [Auth #85](https://github.com/dragginzgame/ic-auth/issues/85)
 through [Platform #50](https://github.com/dragginzgame/ic-platform/issues/50).
 
-## Validation
+## Release behavior and validation
 
-Current repair evidence is under `target/wire-generator-fix/`. Native and Wasm
-Clippy, all 63 client tests, Rust/TypeScript interoperability, host-tooling tests,
-transport/type tests, isolated Rust 1.91 native/Wasm package checks and dependency
-boundaries pass. Dependency pins, formatting, local links and diff checks pass.
-The generator produced no bulk advice for the current Auth schemas; no paths
-are acknowledged or silently suppressed.
+Shared Tooling 0.26.18 makes normal patch/minor/major releases fresh attempts
+from current clean committed metadata. Historical plans do not select or block
+those attempts. Explicit `release-resume VERSION=X.Y.Z` retains exact-source,
+version, payload and destination checks. Auth's fixtures cover interrupted exact
+resume, dirty-source refusal, fresh validation from committed metadata and an
+unrelated malformed historical plan. Build/validation evidence remains retained.
 
-Earlier cleanup/adoption evidence remains under `target/cleanup-seven/`,
-`target/deps-latest/` and `target/upstream-next/`. The 12 live-canister and
-release/recovery results for older tool selections are historical. This host
-API repair did not rerun the complete CI gate, live-canister or release/recovery
-qualification of 0.68.5, or native macOS/real-browser qualification.
-No saved release or validation state was removed or reused for changed inputs.
+`target/shared02618/` records passing shared runner, Auth release/publication
+fixtures (local/mocked effects), native/Wasm Clippy, snapshot integrity, dependency
+pins, Make jobserver, ShellCheck, formatting and local links. The real manifests,
+lockfile and completed 0.16.2 plan remain unchanged. Full CI, installed-canister
+and native macOS qualification were not rerun for this script-only adoption.
+
+The Wire generator API fix is already in release 0.16.2. Earlier evidence under
+`target/wire-generator-fix/` includes 63 client tests, Rust/TypeScript vectors,
+host/type tests, native/Wasm MSRV and dependency boundaries. That repair displays
+bulk advice on stderr; Shared Tooling does not replace the required Wire API call.
 
 [Historical handoff](history-0.16.1-adoption.md) retains previous adoption and
 validation details; its release labels and tool availability are historical.
