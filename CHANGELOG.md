@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.16.4]
+
+- Adopt published Platform/macros 0.6.18, Wire/derive 0.7.16 and coordinated
+  Host/Build/Testkit 0.68.6. Preserve Auth's selected capabilities, signed bytes,
+  application contracts and stored formats; regenerate the browser contracts
+  with the selected Wire generator.
+- Adopt Shared Tooling 0.26.19. Archived `Draft` labels in historical changelog
+  sections no longer block a new release; active draft/candidate conflicts
+  continue to refuse.
+
 ## [0.16.3] - 2026-10-26
 
 - Adopt Shared Tooling 0.26.18. Normal release targets start fresh from clean
