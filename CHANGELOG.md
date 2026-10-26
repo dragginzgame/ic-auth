@@ -10,7 +10,7 @@
 
 ## [0.17.0] - 2026-10-26
 
-### Breaking
+### ⚠️ Breaking
 
 - Remove the zero-only `CertifiedProofLimits::max_future_skew_ns` field. Omit it
   from struct initializers; certified portable admission always uses zero future
@@ -22,7 +22,7 @@
   Replace `SessionError::Signature` / `Certified` and their direct `From`
   conversions with `SessionError::Credential` through `PortableCredentialError`.
 
-### Changed
+### 🔧 Changed
 
 - Use Platform's authenticated signing-certificate time result, removing Auth's
   duplicate envelope/certificate decoding. Require Platform 0.6.14 or later;
