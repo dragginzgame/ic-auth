@@ -5,7 +5,7 @@ use ic_auth::{
         LoginRevocationError, MemoryLoginRevocations, PortableClaimsContext, PortableClaimsError,
         browser_principal, claims_hash, encode_claims,
     },
-    portable_credential::PortableVerificationContext,
+    portable_credential::{PortableCredentialError, PortableVerificationContext},
     portable_signature::verify_ed25519_claims,
     session::*,
     session_request::SessionRequest,
@@ -446,7 +446,7 @@ fn renewal_replaces_only_within_original_login_and_logout_blocks_fresh_proofs() 
     assert!(f.admit(&mut absent, NOW + 4 * SECOND).is_err());
 }
 
-struct FailingStore<'a>(&'a mut MemorySessionStore);
+struct FailingStore<'a>(&'a mut MemorySessionStore, fn() -> SessionError);
 impl SessionStore for FailingStore<'_> {
     fn transaction<T>(
         &mut self,
@@ -454,7 +454,7 @@ impl SessionStore for FailingStore<'_> {
         operation: impl FnOnce(&mut dyn SessionTransaction) -> Result<T, SessionError>,
     ) -> Result<T, SessionError> {
         self.0
-            .transaction_with_commit(change, operation, |_| Err(SessionError::StorageFailure))
+            .transaction_with_commit(change, operation, |_| Err((self.1)()))
     }
 }
 #[test]
@@ -467,7 +467,7 @@ fn failed_commit_is_atomic_for_session_replay_reservation_and_logout() {
     let mut budget = SessionAdmissionBudget::new(1, SECOND, NOW - SECOND).unwrap();
     assert_eq!(
         establish_session(
-            &mut FailingStore(&mut r.store),
+            &mut FailingStore(&mut r.store, || SessionError::ByteCapacity),
             &mut r.ledger,
             &mut budget,
             &bytes,
@@ -485,7 +485,7 @@ fn failed_commit_is_atomic_for_session_replay_reservation_and_logout() {
                 }
             )?)
         ),
-        Err(SessionError::StorageFailure)
+        Err(SessionError::ByteCapacity)
     );
     assert_eq!(r.ledger.occupancy(), (0, 0));
     assert_eq!(r.store.encoded_bytes(), 0);
@@ -509,7 +509,7 @@ fn failed_commit_is_atomic_for_session_replay_reservation_and_logout() {
     let size = r.store.encoded_bytes();
     assert_eq!(
         logout_session(
-            &mut FailingStore(&mut r.store),
+            &mut FailingStore(&mut r.store, || SessionError::Capacity),
             &mut r.ledger,
             &mut r.logout,
             f.caller(),
@@ -755,7 +755,8 @@ fn callback_result_must_match_original_claims_and_current_clock() {
                     &signature,
                     &verification.authority,
                     &f.key.verifying_key().to_bytes(),
-                )?),
+                )
+                .map_err(PortableCredentialError::from)?),
             ),
             Err(SessionError::InvalidPolicyOrRecord),
         );
@@ -972,12 +973,16 @@ fn transaction_refuses_missing_or_mismatched_logout_change_without_partial_effec
     );
     let other = Fixture::new(2);
     assert_eq!(
-        r.ledger
-            .with_revocation(&mut r.logout, other.caller(), NOW, |change| {
+        r.ledger.with_revocation::<LoginRevocationError>(
+            &mut r.logout,
+            other.caller(),
+            NOW,
+            |change| {
                 r.store
                     .transaction(Some(change), |tx| tx.remove(f.caller()))
                     .map_err(|_| LoginRevocationError::Storage)
-            }),
+            }
+        ),
         Err(LoginRevocationError::Storage)
     );
     assert!(!r.ledger.is_revoked(other.caller(), NOW).unwrap());
@@ -985,7 +990,7 @@ fn transaction_refuses_missing_or_mismatched_logout_change_without_partial_effec
     foreign_audience.fleet_id = CanonicalId::from_bytes([77; 32]);
     let mut foreign = MemoryLoginRevocations::new(foreign_audience, 4, 4, SECOND, 0).unwrap();
     assert_eq!(
-        foreign.with_revocation(&mut r.logout, f.caller(), NOW, |change| {
+        foreign.with_revocation::<LoginRevocationError>(&mut r.logout, f.caller(), NOW, |change| {
             r.store
                 .transaction(Some(change), |tx| tx.remove(f.caller()))
                 .map_err(|_| LoginRevocationError::Storage)
@@ -1017,7 +1022,7 @@ fn restored_login_records_gate_retained_sessions_and_reject_revoked_retries() {
     .unwrap();
     let mut stored = Vec::new();
     r.ledger
-        .with_reservation(f.caller(), &verified, NOW, |change| {
+        .with_reservation::<_, LoginRevocationError>(f.caller(), &verified, NOW, |change| {
             stored = change.encode().unwrap();
             Ok(())
         })
@@ -1036,7 +1041,7 @@ fn restored_login_records_gate_retained_sessions_and_reject_revoked_retries() {
     ));
     // Deliberately retain the session to prove that restored denial gates it too.
     r.ledger
-        .with_revocation(&mut r.logout, f.caller(), NOW, |change| {
+        .with_revocation::<LoginRevocationError>(&mut r.logout, f.caller(), NOW, |change| {
             stored = change.encode().unwrap();
             Ok(())
         })
@@ -1308,7 +1313,7 @@ fn commit_hook_receives_only_validated_delta_and_exact_post_commit_totals() {
         let mut expected_bytes = 0;
         source
             .ledger
-            .with_reservation(f.caller(), &verified, NOW, |login| {
+            .with_reservation::<_, LoginRevocationError>(f.caller(), &verified, NOW, |login| {
                 store
                     .transaction_with_commit(
                         Some(login),
@@ -1352,9 +1357,11 @@ fn commit_hook_receives_only_validated_delta_and_exact_post_commit_totals() {
     let before = store.encoded_bytes();
     let session = store.session_records().next().unwrap().clone();
     assert_eq!(
-        source
-            .ledger
-            .with_revocation(&mut source.logout, f.caller(), NOW, |login| {
+        source.ledger.with_revocation::<LoginRevocationError>(
+            &mut source.logout,
+            f.caller(),
+            NOW,
+            |login| {
                 store
                     .transaction_with_commit(
                         Some(login),
@@ -1362,7 +1369,8 @@ fn commit_hook_receives_only_validated_delta_and_exact_post_commit_totals() {
                         |_| Err(SessionError::StorageFailure),
                     )
                     .map_err(|_| LoginRevocationError::Storage)
-            }),
+            }
+        ),
         Err(LoginRevocationError::Storage)
     );
     assert_eq!(store.encoded_bytes(), before);
@@ -1371,7 +1379,7 @@ fn commit_hook_receives_only_validated_delta_and_exact_post_commit_totals() {
     for caller in [f.caller(), Fixture::new(2).caller()] {
         source
             .ledger
-            .with_revocation(&mut source.logout, caller, NOW, |login| {
+            .with_revocation::<LoginRevocationError>(&mut source.logout, caller, NOW, |login| {
                 store
                     .transaction_with_commit(
                         Some(login),

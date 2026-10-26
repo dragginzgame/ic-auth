@@ -682,8 +682,7 @@ pub(super) fn qualify_certified(
         max_login_ttl_ns: 86_400 * SECOND,
         max_proof_ttl_ns: 60 * SECOND,
     };
-    let mut limits = old.limits;
-    limits.max_future_skew_ns = 0;
+    let limits = old.limits;
     let proof_context = PortableCertifiedContext {
         claims: authority,
         root_key: old.root_key,

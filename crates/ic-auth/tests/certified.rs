@@ -232,7 +232,10 @@ impl Fixture {
             expected_issuer: p(2),
             root_key: &self.policy,
             now_ns: NOW,
-            limits: limits().into(),
+            limits: ic_auth::delegation::DelegationProofVerificationLimits {
+                max_future_skew_ns: 10,
+                ..limits().into()
+            },
         }
     }
     fn assert_error(&self, expected: Error) {
@@ -246,7 +249,6 @@ fn limits() -> CertifiedProofLimits {
     CertifiedProofLimits {
         max_cert_ttl_ns: 600,
         max_token_ttl_ns: 120,
-        max_future_skew_ns: 10,
         max_certificate_age_ns: 100,
         max_variable_bytes: 64 * 1024,
         max_issuer_signature_bytes: 16 * 1024,

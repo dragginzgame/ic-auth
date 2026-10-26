@@ -149,8 +149,8 @@ for the existing byte/path limits and release-recovery boundary.
 
 ## Dependency roles and deployment admission
 
-Shared Tooling 0.26.18 source is adopted at
-`37652c087fff16f55f83d18d27ba17c83f34021c` (reviewed committed source, not a
+Shared Tooling 0.26.20 source is adopted at
+`a7f85d45d4212d4c39225f58597580560a333550` (reviewed committed source, not a
 claim of registry publication or a matching release tag).
 The root catalog uses `Production dependencies` and `Tests and tooling only`;
 member annotations distinguish the three production libraries from internal
@@ -489,7 +489,17 @@ failure even under parallel Make, before tests, package builds or publication
 qualification. Standard releases call this same gate; publication requires its
 source-bound release receipt. This library repository has no deployment target.
 
-| Focused command | Purpose |
+For ordinary development, select checks for the completed behavior change and
+its callers. For example, a change to portable revocation can use
+`cargo test --locked --offline -p ic-auth --features sessions,portable-signature-verification --test portable_revocation`;
+a native generator change can use
+`cargo clippy --locked --offline -p ic-auth-tooling --all-targets -- -D warnings`
+and `make check-client-contracts`. These are selections, not a required sequence.
+Run broader capability, native/Wasm or minimum-compiler matrices only when the
+changed contract requires that coverage. The table lists available commands;
+multi-package, multi-feature and multi-target entries are aggregate suites.
+
+| Command or aggregate suite | Purpose |
 | --- | --- |
 | `make test-client-tools` | Actual CI pipeline and Make callers: selected Node/npm path, later-step admission and first-failure controls with substituted npm effects |
 | `make test-client` | Portable admission/logout, strict journal transactions and Rust/TypeScript Wire roundtrips |
@@ -504,12 +514,12 @@ source-bound release receipt. This library repository has no deployment target.
 | `make test-certified-proofs` | Portable certified secp256k1/BLS proofs, protected delegation bindings, budgets and rejection |
 | `make test-sessions` | Atomic admission/replay failure, exact retry, live authority invalidation, logout and quotas using certified and Ed25519 portable proofs |
 | `make test-host-tooling` | Native file-operation CLI: bounded input, exact digest output, no-follow reads and preserved create-only evidence |
-| `make check-msrv` | Isolated public package payloads and internal applications using the declared minimum compiler, with native/Wasm and feature coverage |
+| `make check-msrv` | Aggregate: isolated public package payloads and internal applications using the declared minimum compiler, with native/Wasm and feature coverage |
 | `make tasks` | Read the adopted maintenance task catalog; no task, agent or schedule starts |
 | `make test-qualification` | Build the internal Wasm host; verify real certificates, portable proof/session admission, live authority rejection, root composition, upgrades, authenticated ingress and SDK logout through `ic-testkit` with the checked server and prepared client dependencies |
 | `make build-qualification-canister` | Build the internal host's release Wasm without starting a server |
-| `make check-wasm` | Compile-check the public libraries and chain-key/signature verification/preparation, token and session capabilities for `wasm32-unknown-unknown` |
-| `make clippy` | Lint the libraries, native tooling/qualification and Wasm host with their selected targets |
+| `make check-wasm` | Aggregate: compile-check all supported public library capabilities for `wasm32-unknown-unknown` |
+| `make clippy` | Aggregate: lint all libraries, native tooling/qualification and the Wasm host |
 | `make metadata` | Validate the selected locked graph offline |
 | `make check-boundaries` | Inspect every capability graph; reject Candid/raw IC dependencies in libraries and Candid in reference Wasm |
 | `make fmt` / `make fmt-check` | Shared manifest sorting followed by Rust formatting |
@@ -526,7 +536,7 @@ source-bound release receipt. This library repository has no deployment target.
 | `make test-make-jobserver` | Actual owned Make recipes preserve pipe jobserver descriptors through Cargo/wrappers; unsafe modes refuse before substituted effects |
 
 `make ci` is the complete configured CI/release gate. Ordinary development and
-handoff use the relevant focused checks above; local full-gate execution follows
+handoff select the relevant checks above; local full-gate execution follows
 [Shared Tooling validation policy](../DRAGGINZGAME.md#validation-and-evidence).
 It uses the Shared Tooling 0.6.6 logger and retains failures. CI declares the
 root Cargo manifest/lock, Rust compiler selection, common host/Rust and IC pins,

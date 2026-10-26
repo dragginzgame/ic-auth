@@ -32,16 +32,11 @@ canister-signature-verification = [
     "ic-platform/canister-sig-creation",
     "ic-platform/certification",
     "ic-platform/signature-verification",
-    "dep:leb128",
-    "dep:serde",
-    "dep:serde_bytes",
-    "dep:serde_cbor",
 ]
 
 [dependencies]
 ic-auth-protocol-types.workspace = true
 ic-platform = { workspace = true, optional = true }
-leb128 = { workspace = true, optional = true }
 serde = { workspace = true, optional = true }
 serde_bytes = { workspace = true, optional = true }
 serde_cbor = { workspace = true, optional = true }
@@ -50,6 +45,10 @@ thiserror.workspace = true
 
 [dev-dependencies]
 ic-platform = { workspace = true, features = ["bls", "ecdsa", "ed25519"] }
+leb128.workspace = true
+serde.workspace = true
+serde_bytes.workspace = true
+serde_cbor.workspace = true
 
 [lints]
 workspace = true
