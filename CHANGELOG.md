@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.16.4]
+## [0.16.4] - 2026-10-26
 
 - Adopt published Platform/macros 0.6.18, Wire/derive 0.7.16 and coordinated
   Host/Build/Testkit 0.68.6. Preserve Auth's selected capabilities, signed bytes,
