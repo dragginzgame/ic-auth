@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.16.3] - Unreleased
+## [0.16.3] - 2026-10-26
 
 - Adopt Shared Tooling 0.26.18. Normal release targets start fresh from clean
   committed metadata without scanning or replaying historical plans; exact
