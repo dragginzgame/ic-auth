@@ -2,26 +2,51 @@
 
 ## Checkout and selection
 
-The maintainer completed release **0.16.3** at `a51fa31`. Package versions
-remain 0.16.3; pending notes target **0.16.4**. This adoption has not committed,
-pushed, released, published or changed the real checkout's recovery state.
+The maintainer completed release **0.16.4** at `ca70a9b`. Package versions remain
+0.16.4. The working tree prepares **0.17.0** for the certified-limit field removal
+and ledger/session-error API changes. Consumers omit the zero-only
+`CertifiedProofLimits::max_future_skew_ns`, select callback error types as needed,
+and route complete proof errors through `SessionError::Credential`.
+No real checkout staging, commit, tag, push, release or publication occurred.
 
-The incoming lockfile already selected published Platform/macros **0.6.18**,
-Wire/derive **0.7.16** and Host/Build/Testkit **0.68.6**. Registry metadata was
-verified and that lockfile was preserved byte-for-byte. Memory **0.51.3** and
-the separate File CLI **0.31.1** selection remain unchanged. SHA-2 0.10 and
-Dalek 2 stay on Platform's compatible lines; no new capability is enabled.
+The upstream-adoption batch's incoming lock already selects Platform/macros
+**0.6.19**, Host/Build/Testkit **0.68.8**, Wire/derive **0.7.17** and Memory
+**0.51.4**, alongside crypto-common **0.1.6** and generic-array **0.14.9**.
+It was preserved byte-for-byte; locked source preparation succeeds. The Build
+editor and Testkit CLI/server were explicitly prepared and pass offline admission.
+The separate File CLI remains **0.31.1**.
+Shared Tooling **0.26.20** is adopted at
+`a7f85d45d4212d4c39225f58597580560a333550` (124 files). The exporter also selects
+the Node guide newly referenced by dependency policy. Local guidance distinguishes
+narrow checks from aggregate suites; detailed change accounting is opt-in.
 
-Shared Tooling **0.26.19** is adopted at committed source
-`c830c33447f0a84e015bda7fa14b6c096a58368e` (122 files), exported from a clean
-copy without using the sibling's pending edits. Its changelog finalizer accepts
-archived `Draft` labels below historical releases while retaining active
-candidate/draft refusals.
+## Auth-local simplification
 
-The locked Wire generator was run and all five browser files remain identical.
-Auth still supplies explicit bulk-diagnostic handling. Numeric browser policy
-stays Rust-owned; native allocation policy is not a JavaScript heap bound.
-No application protocol, signed bytes, stored format or public API changed.
+Canister verification now uses Platform's authenticated signing-certificate time
+result. The dependency minimum is 0.6.14; Auth retains DER/bounds, protected trust,
+freshness and future-skew policy. Ambiguous time leaves are rejected, and complete
+nonminimal LEB128 times remain accepted. This implements the local adoption in
+[Auth #86 — Adopt authenticated signing-certificate time without duplicate CBOR decoding](https://github.com/dragginzgame/ic-auth/issues/86).
+
+The login ledger represents reservations and revocations explicitly and derives
+pool ownership from retained binding. One frozen storage projection preserves
+current record bytes. The browser journal carries phase-specific types and commits
+complete transitions while retaining its existing flat profile, uncertain issuance,
+strict transactions, lease checks and original recovery deadlines.
+
+Wire unit-enum projections share their declarations; publication arguments and
+intent derive from one ordered package list. Browser policy accompanies its output
+rather than being recovered from filenames. All five generated browser files are
+unchanged. The private fixture groups protected context inputs separately from
+mutable stores/budgets and no longer needs a field-borrowing context macro.
+
+All ten Auth improvements are now implemented. Ledger callbacks return their
+host error `E: From<LoginRevocationError>` directly; admission no longer captures
+errors outside the callback. Logout still maps backend commit failures to storage
+unavailability, keeping ledger capacity/clock refusals distinct. Complete proof
+failures use only `SessionError::Credential`; direct `Signature` / `Certified`
+variants and their `From` conversions are removed. Atomicity, work charges and
+public refusal tags are preserved. See [session contracts](../sessions.md).
 
 ## Ownership and acceptance
 
@@ -31,42 +56,46 @@ topology, authority approval/renewal, endpoint guards, production enrollment,
 deployment configuration and its durable host adapter. No standalone wallet
 service is implemented. See the [Canic adoption guide](../canic-adoption.md).
 
-[Canic #491](https://github.com/dragginzgame/canic/issues/491) retains runtime,
-store, reset and load acceptance; [Canic #507](https://github.com/dragginzgame/canic/issues/507)
+[Canic #491 — Extraction and consumer adoption](https://github.com/dragginzgame/canic/issues/491)
+retains runtime/store/reset/load acceptance. The
+[0.17 API adoption handoff](https://github.com/dragginzgame/canic/issues/491#issuecomment-6420966334)
+records the two inspected ledger-only test callbacks needing explicit error types
+and the session-error projection change. Canic source remains untouched.
+`AuthRequestMetadata` and empty Rust `LogoutRequest` also remain supported.
+[Canic #507 — Non-issuing reconciliation qualification](https://github.com/dragginzgame/canic/issues/507)
 retains issuance policy, abuse, reconciliation and browser integration.
-[Auth #3](https://github.com/dragginzgame/ic-auth/issues/3) owns real-browser
-journal qualification. Local canister/SDK fixtures do not establish production
-adoption, clock-skew qualification or TEE custody. Host stores still own atomic
-session/replay/revocation commits and protected authority generations.
+[Auth #3 — Real-browser portable admission/logout qualification](https://github.com/dragginzgame/ic-auth/issues/3)
+remains open. Local fixtures do not establish production adoption, clock-skew
+qualification or TEE custody. Hosts still own atomic storage and protected generations.
 
-`AuthRequestMetadata`, empty Rust `LogoutRequest` and older session error
-conversions remain supported during Canic integration. The browser retains its
-direct SDK dependency pending the published-export prerequisite in
-[Auth #87](https://github.com/dragginzgame/ic-auth/issues/87) /
-[Platform #59](https://github.com/dragginzgame/ic-platform/issues/59).
-Certificate-time API adoption remains [Auth #86](https://github.com/dragginzgame/ic-auth/issues/86);
-the crypto advisory remains [Auth #85](https://github.com/dragginzgame/ic-auth/issues/85)
-through [Platform #50](https://github.com/dragginzgame/ic-platform/issues/50).
+The browser retains its direct SDK dependency pending
+[Auth #87 — Adopt Platform's npm SDK Core boundary](https://github.com/dragginzgame/ic-auth/issues/87)
+and [Platform #59 — Required browser exports](https://github.com/dragginzgame/ic-platform/issues/59).
+The crypto advisory remains in
+[Auth #85 — Qualify the crypto-bigint advisory](https://github.com/dragginzgame/ic-auth/issues/85)
+through [Platform #50 — Crypto capability qualification](https://github.com/dragginzgame/ic-platform/issues/50).
 
 ## Validation and release behavior
 
-Evidence is retained under `target/upstream-20261026/`: native/Wasm Clippy,
-locked metadata, direct/transitive dependency boundaries, dependency pins,
-Make jobserver, formatting/links, 63 client tests and Rust/TypeScript vectors,
-type/tooling and signature tests, isolated Rust 1.91 package consumers on
-native/Wasm, and the Wasm capability checks pass. All five generated outputs
-were reviewed unchanged. Both locked 0.68.6 executables were explicitly prepared.
+Current upstream evidence is under `target/upstream-adoption-20261026/`.
+Targeted native Clippy covers the tooling and qualification runner; Wasm Clippy
+covers the fixture. `validation.7l21Ib` records passing snapshot/link checks,
+four host-tool tests and native/Wasm dependency boundaries. Testkit 0.68.8 passes
+six fixture tests and all 12 local qualification cases, including real
+certification, upgrades, signed ingress and SDK admission/logout, in
+`validation.BdD2ja`. Live state is retained in
+`target/portable-fixtures/qualification.BvC8FB/`. Prepared input seals remain intact.
 
-Local Testkit qualification passes six fixture tests and all 12 integration
-cases, including real certification, upgrades, ingress, issuer-scoped accounts,
-multiple receivers/devices and SDK admission/logout. The initial sandboxed run
-could not bind loopback sockets; the host-permitted rerun passed. This is Linux
-local-canister evidence, not native macOS or actual-browser qualification.
+Earlier simplification evidence remains under `target/complexity-last-two-20261026/`:
+session/proof tests, all 63 client tests, generated-source comparison, library
+Wasm and isolated Rust 1.91 payload checks, including the permissive-parsing
+harness. All five generated files were unchanged with Wire 0.7.17. Those suites
+were not repeated for this upstream batch, which changes no Auth Rust/browser
+source or supported minimum compiler. Earlier local/mocked release fixtures
+remain under `target/complexity-20261026/`. No full CI, native macOS or
+actual-browser qualification, registry upload or deployment was run.
 
-Shared changelog/runner and Auth release/publication fixtures pass with
-substituted/local effects. No full CI or registry upload was run. Normal release
-targets start fresh from clean committed metadata; explicit
+Normal release targets start fresh from clean committed metadata; explicit
 `release-resume VERSION=X.Y.Z` retains exact-source recovery checks. Preserve old
-plans and evidence. Detailed prior validation remains in the
-[committed 0.16.3 handoff](https://github.com/dragginzgame/ic-auth/blob/a51fa3113914ab8a8a23040a35e7728b450207b1/docs/status/current.md)
-and [historical handoff](history-0.16.1-adoption.md).
+plans/evidence. Prior evidence remains in `target/upstream-20261026/` and the
+[committed 0.16.4 handoff](https://github.com/dragginzgame/ic-auth/blob/ca70a9bbd63f6522fc2dc8188b970514a8041077/docs/status/current.md).

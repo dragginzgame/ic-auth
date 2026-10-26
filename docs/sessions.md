@@ -32,6 +32,15 @@ before admission can commit. Budget charges survive later refusals.
 remain independently validating entry points for standalone proof callers. Do not
 use them to decode the credential again inside the session callback.
 
+Both proof mechanisms enter `SessionError` through
+`SessionError::Credential(PortableCredentialError::Ed25519(error))` or
+`SessionError::Credential(PortableCredentialError::Certified(error))`.
+Auth 0.17 removes the direct `Signature` / `Certified` variants and their
+`From` conversions. The typed credential verifier already returns the shared
+wrapper; standalone verifier callers explicitly map their error through
+`PortableCredentialError::from` before converting to `SessionError`.
+`admission_refusal()` preserves the existing public refusal categories.
+
 Cheap binding, revocation, request, replay and capacity refusals precede signature
 verification. Fresh admission spends receiver-wide verification credit, including
 invalid signatures and later storage failures. Never recreate the budget per
@@ -72,6 +81,17 @@ unchanged. Its new `login_change` argument is `None` for reads and
 receive that read-only proposed record, including caller, domain, retention,
 pool and immutable account/login binding. Durable hosts must persist it in the
 same transaction; it is not a reusable credential or authority snapshot.
+
+The ledger's `with_reservation<T, E>` and `with_revocation<E>` return the commit
+callback's error type `E`, with `E: From<LoginRevocationError>`. Callback errors
+propagate unchanged; ledger refusals convert through that bound. When inference
+has no error context, select `with_reservation::<T, LoginRevocationError>` or
+`with_revocation::<LoginRevocationError>` for the ledger-only error surface.
+Admission selects `SessionError` and returns backend errors directly. Logout
+projects backend commit failures to unavailable storage at its public result
+boundary; a backend capacity error must not be confused with ledger capacity.
+The ledger still installs a proposed record only after successful host commit.
+
 The volatile store rejects missing changes, mismatched callers/domains and
 reservation-versus-revocation operation mismatches before modifying records.
 Durable adapters can reuse this staging through

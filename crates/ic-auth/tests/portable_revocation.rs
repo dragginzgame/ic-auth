@@ -94,18 +94,18 @@ fn ledger(admitted: usize, unknown: usize) -> MemoryLoginRevocations {
 fn unknown_flood_cannot_steal_admitted_logout_capacity() {
     let mut store = ledger(1, 1);
     store
-        .with_reservation::<()>(caller(1), &verified(1, 100, 1), 1, |_| Ok(()))
+        .with_reservation::<(), Error>(caller(1), &verified(1, 100, 1), 1, |_| Ok(()))
         .unwrap();
     store
-        .with_revocation(&mut budget(), caller(2), 2, |_| Ok(()))
+        .with_revocation::<Error>(&mut budget(), caller(2), 2, |_| Ok(()))
         .unwrap();
     assert_eq!(store.occupancy(), (1, 1));
     assert_eq!(
-        store.with_revocation(&mut budget(), caller(3), 3, |_| panic!("must not commit")),
+        store.with_revocation::<Error>(&mut budget(), caller(3), 3, |_| panic!("must not commit")),
         Err(Error::Capacity)
     );
     assert_eq!(
-        store.with_reservation::<()>(caller(4), &verified(4, 100, 3), 3, |_| panic!(
+        store.with_reservation::<(), Error>(caller(4), &verified(4, 100, 3), 3, |_| panic!(
             "must not commit"
         )),
         Err(Error::Capacity)
@@ -113,13 +113,13 @@ fn unknown_flood_cannot_steal_admitted_logout_capacity() {
     // Even after the short session lease (say 5), the login keeps its reservation.
     assert_eq!(store.prune(6, 128), Ok(0));
     let deadline = store
-        .with_revocation(&mut budget(), caller(1), 6, |_| Ok(()))
+        .with_revocation::<Error>(&mut budget(), caller(1), 6, |_| Ok(()))
         .unwrap();
     assert_eq!(deadline, 6 + DAY + 20);
     assert_eq!(store.occupancy(), (1, 1));
     assert!(store.is_revoked(caller(1), 6).unwrap());
     assert_eq!(
-        store.with_reservation::<()>(caller(1), &verified(1, 100, 7), 7, |_| panic!(
+        store.with_reservation::<(), Error>(caller(1), &verified(1, 100, 7), 7, |_| panic!(
             "renewal after logout"
         )),
         Err(Error::Revoked)
@@ -131,13 +131,13 @@ fn logout_before_admission_and_admission_before_logout_both_deny() {
     let mut store = ledger(2, 2);
     let mut session = false;
     store
-        .with_revocation(&mut budget(), caller(1), 1, |_| {
+        .with_revocation::<Error>(&mut budget(), caller(1), 1, |_| {
             session = false;
             Ok(())
         })
         .unwrap();
     assert_eq!(
-        store.with_reservation::<()>(caller(1), &verified(1, 100, 2), 2, |_| {
+        store.with_reservation::<(), Error>(caller(1), &verified(1, 100, 2), 2, |_| {
             session = true;
             Ok(())
         }),
@@ -145,14 +145,14 @@ fn logout_before_admission_and_admission_before_logout_both_deny() {
     );
     assert!(!session);
     store
-        .with_reservation::<()>(caller(2), &verified(2, 100, 2), 2, |_| {
+        .with_reservation::<(), Error>(caller(2), &verified(2, 100, 2), 2, |_| {
             session = true;
             Ok(())
         })
         .unwrap();
     assert!(session);
     store
-        .with_revocation(&mut budget(), caller(2), 3, |_| {
+        .with_revocation::<Error>(&mut budget(), caller(2), 3, |_| {
             session = false;
             Ok(())
         })
@@ -160,7 +160,7 @@ fn logout_before_admission_and_admission_before_logout_both_deny() {
     assert!(!session);
     assert!(store.is_revoked(caller(2), 3).unwrap());
     assert_eq!(
-        store.with_reservation::<()>(caller(2), &verified(2, 100, 3), 3, |_| panic!(
+        store.with_reservation::<(), Error>(caller(2), &verified(2, 100, 3), 3, |_| panic!(
             "exact retry after logout"
         )),
         Err(Error::Revoked)
@@ -171,35 +171,35 @@ fn logout_before_admission_and_admission_before_logout_both_deny() {
 fn storage_failure_never_commits_reservation_or_revocation() {
     let mut store = ledger(1, 1);
     assert_eq!(
-        store.with_reservation::<()>(caller(1), &verified(1, 100, 1), 1, |_| Err::<(), _>(
+        store.with_reservation::<(), Error>(caller(1), &verified(1, 100, 1), 1, |_| Err::<(), _>(
             Error::Storage
         )),
         Err(Error::Storage)
     );
     assert_eq!(store.occupancy(), (0, 0));
     assert_eq!(
-        store.with_revocation(&mut budget(), caller(2), 2, |_| Err(Error::Storage)),
+        store.with_revocation::<Error>(&mut budget(), caller(2), 2, |_| Err(Error::Storage)),
         Err(Error::Storage)
     );
     assert_eq!(store.occupancy(), (0, 0));
     store
-        .with_reservation::<()>(caller(1), &verified(1, 100, 3), 3, |_| Ok(()))
+        .with_reservation::<(), Error>(caller(1), &verified(1, 100, 3), 3, |_| Ok(()))
         .unwrap();
     assert_eq!(
-        store.with_revocation(&mut budget(), caller(1), 4, |_| Err(Error::Storage)),
+        store.with_revocation::<Error>(&mut budget(), caller(1), 4, |_| Err(Error::Storage)),
         Err(Error::Storage)
     );
     assert!(!store.is_revoked(caller(1), 4).unwrap());
     assert_eq!(store.occupancy(), (1, 0));
     let until = store
-        .with_revocation(&mut budget(), caller(1), 5, |_| Ok(()))
+        .with_revocation::<Error>(&mut budget(), caller(1), 5, |_| Ok(()))
         .unwrap();
     assert_eq!(
-        store.with_revocation(&mut budget(), caller(1), 6, |_| Err(Error::Storage)),
+        store.with_revocation::<Error>(&mut budget(), caller(1), 6, |_| Err(Error::Storage)),
         Err(Error::Storage)
     );
     assert_eq!(
-        store.with_revocation(&mut budget(), caller(1), 7, |_| Ok(())),
+        store.with_revocation::<Error>(&mut budget(), caller(1), 7, |_| Ok(())),
         Ok(until)
     );
     assert_eq!(store.prune(until - 1, 128), Ok(0));
@@ -207,20 +207,78 @@ fn storage_failure_never_commits_reservation_or_revocation() {
     assert_eq!(store.occupancy(), (0, 0));
 }
 
+#[cfg(feature = "session-restore")]
+#[test]
+fn host_commit_errors_propagate_without_installing_state_or_refunding_logout_credit() {
+    use ic_auth::{admission_budget::SessionAdmissionBudget, session::SessionError};
+
+    let mut store = ledger(1, 1);
+    let checked = verified(1, 100, 1);
+    assert_eq!(
+        store.with_reservation::<(), SessionError>(caller(1), &checked, 1, |_| Err(
+            SessionError::ByteCapacity
+        )),
+        Err(SessionError::ByteCapacity),
+    );
+    assert_eq!(store.occupancy(), (0, 0));
+    store
+        .with_reservation::<_, SessionError>(caller(1), &checked, 1, |_| Ok(()))
+        .unwrap();
+
+    let mut unknown_budget = SessionAdmissionBudget::new(1, 1, 0).unwrap();
+    assert_eq!(
+        store.with_revocation::<SessionError>(&mut unknown_budget, caller(1), 2, |_| Err(
+            SessionError::ScopeRejected
+        )),
+        Err(SessionError::ScopeRejected),
+    );
+    assert!(!store.is_revoked(caller(1), 2).unwrap());
+    assert_eq!(
+        store.with_revocation::<SessionError>(&mut unknown_budget, caller(2), 2, |_| Err(
+            SessionError::StorageFailure
+        )),
+        Err(SessionError::StorageFailure),
+    );
+    assert!(!store.is_revoked(caller(2), 2).unwrap());
+    assert_eq!(store.occupancy(), (1, 0));
+    assert_eq!(
+        store.with_revocation::<SessionError>(&mut unknown_budget, caller(2), 2, |_| panic!(
+            "spent unknown-logout credit"
+        )),
+        Err(SessionError::Revocation(Error::Capacity)),
+    );
+    assert_eq!(
+        store.with_revocation::<SessionError>(&mut unknown_budget, caller(2), 1, |_| panic!(
+            "clock rollback"
+        )),
+        Err(SessionError::Revocation(Error::Clock)),
+    );
+    assert_eq!(
+        store.with_reservation::<(), SessionError>(caller(1), &checked, 3, |_| panic!(
+            "verification time mismatch"
+        )),
+        Err(SessionError::Revocation(Error::InvalidPolicy)),
+    );
+    assert_eq!(store.occupancy(), (1, 0));
+}
+
 #[test]
 fn reservation_retention_and_renewal_deadline_are_exact() {
     let mut store = ledger(1, 1);
     store
-        .with_reservation::<()>(caller(1), &verified(1, 100, 1), 1, |_| Ok(()))
+        .with_reservation::<(), Error>(caller(1), &verified(1, 100, 1), 1, |_| Ok(()))
         .unwrap();
     store
-        .with_reservation::<()>(caller(1), &verified(1, 100, 2), 2, |_| Ok(()))
+        .with_reservation::<(), Error>(caller(1), &verified(1, 100, 2), 2, |_| Ok(()))
         .unwrap();
     for altered in [99, 101] {
         assert_eq!(
-            store.with_reservation::<()>(caller(1), &verified(1, altered, 2), 2, |_| panic!(
-                "changed login"
-            )),
+            store.with_reservation::<(), Error>(
+                caller(1),
+                &verified(1, altered, 2),
+                2,
+                |_| panic!("changed login")
+            ),
             Err(Error::InvalidPolicy)
         );
     }
@@ -229,7 +287,7 @@ fn reservation_retention_and_renewal_deadline_are_exact() {
     assert_eq!(store.prune(110, 128), Ok(1));
     // A distinct device has independent capacity and denial state.
     store
-        .with_reservation::<()>(caller(2), &verified(2, 200, 110), 110, |_| Ok(()))
+        .with_reservation::<(), Error>(caller(2), &verified(2, 200, 110), 110, |_| Ok(()))
         .unwrap();
     assert!(!store.is_revoked(caller(2), 110).unwrap());
 }
@@ -238,16 +296,16 @@ fn reservation_retention_and_renewal_deadline_are_exact() {
 fn idempotent_retention_never_slides_and_expired_pool_transfer_is_atomic() {
     let mut store = ledger(1, 1);
     let until = store
-        .with_revocation(&mut budget(), caller(1), 1, |_| Ok(()))
+        .with_revocation::<Error>(&mut budget(), caller(1), 1, |_| Ok(()))
         .unwrap();
     assert_eq!(
-        store.with_revocation(&mut budget(), caller(1), until - 1, |_| Ok(())),
+        store.with_revocation::<Error>(&mut budget(), caller(1), until - 1, |_| Ok(())),
         Ok(until)
     );
     assert!(!store.is_revoked(caller(1), until).unwrap());
     // A failed callback must preserve the old entry and pool accounting.
     assert_eq!(
-        store.with_reservation::<()>(
+        store.with_reservation::<(), Error>(
             caller(1),
             &verified(1, until + 100, until),
             until,
@@ -257,13 +315,13 @@ fn idempotent_retention_never_slides_and_expired_pool_transfer_is_atomic() {
     );
     assert_eq!(store.occupancy(), (0, 1));
     store
-        .with_reservation::<()>(caller(1), &verified(1, until + 100, until), until, |_| {
+        .with_reservation::<(), Error>(caller(1), &verified(1, until + 100, until), until, |_| {
             Ok(())
         })
         .unwrap();
     assert_eq!(store.occupancy(), (1, 0));
     store
-        .with_revocation(&mut budget(), caller(2), until, |_| Ok(()))
+        .with_revocation::<Error>(&mut budget(), caller(2), until, |_| Ok(()))
         .unwrap();
     assert_eq!(store.occupancy(), (1, 1));
     // Same caller may belong to another independently installed trust domain.
@@ -280,40 +338,40 @@ fn invalid_callers_clock_rollback_and_overflow_cannot_acknowledge_logout() {
         Principal::from_slice(&[2]),
     ] {
         assert_eq!(
-            store.with_revocation(&mut budget(), invalid, 1, |_| panic!("invalid caller")),
+            store.with_revocation::<Error>(&mut budget(), invalid, 1, |_| panic!("invalid caller")),
             Err(Error::InvalidCaller)
         );
         assert_eq!(
-            store.with_reservation::<()>(invalid, &verified(1, 100, 1), 1, |_| panic!(
+            store.with_reservation::<(), Error>(invalid, &verified(1, 100, 1), 1, |_| panic!(
                 "invalid caller"
             )),
             Err(Error::InvalidCaller)
         );
     }
     assert_eq!(
-        store.with_reservation::<()>(caller(1), &verified(1, 100, 1), 2, |_| panic!(
+        store.with_reservation::<(), Error>(caller(1), &verified(1, 100, 1), 2, |_| panic!(
             "stale verification"
         )),
         Err(Error::InvalidPolicy)
     );
     assert_eq!(
-        store.with_reservation::<()>(caller(1), &verified(2, 100, 2), 2, |_| panic!(
+        store.with_reservation::<(), Error>(caller(1), &verified(2, 100, 2), 2, |_| panic!(
             "wrong caller"
         )),
         Err(Error::InvalidPolicy)
     );
     assert_eq!(
-        store.with_revocation(&mut budget(), caller(1), 10, |_| Err(Error::Storage)),
+        store.with_revocation::<Error>(&mut budget(), caller(1), 10, |_| Err(Error::Storage)),
         Err(Error::Storage)
     );
     assert_eq!(
-        store.with_revocation(&mut budget(), caller(1), 9, |_| panic!("rollback")),
+        store.with_revocation::<Error>(&mut budget(), caller(1), 9, |_| panic!("rollback")),
         Err(Error::Clock)
     );
     assert_eq!(store.is_revoked(caller(1), 9), Err(Error::Clock));
     assert_eq!(store.prune(9, 128), Err(Error::Clock));
     assert_eq!(
-        store.with_revocation(&mut budget(), caller(1), u64::MAX, |_| panic!("overflow")),
+        store.with_revocation::<Error>(&mut budget(), caller(1), u64::MAX, |_| panic!("overflow")),
         Err(Error::Clock)
     );
     assert_eq!(store.occupancy(), (0, 0));
@@ -328,7 +386,12 @@ fn invalid_callers_clock_rollback_and_overflow_cannot_acknowledge_logout() {
     let mut boundary =
         MemoryLoginRevocations::new(audience(), 1, 1, 10, u64::MAX - DAY - 20).unwrap();
     assert_eq!(
-        boundary.with_revocation(&mut budget(), caller(1), u64::MAX - DAY - 20, |_| Ok(())),
+        boundary.with_revocation::<Error>(
+            &mut budget(),
+            caller(1),
+            u64::MAX - DAY - 20,
+            |_| Ok(())
+        ),
         Ok(u64::MAX)
     );
     assert!(boundary.is_revoked(caller(1), u64::MAX - 1).unwrap());
@@ -340,7 +403,7 @@ fn maintenance_is_bounded_and_does_not_scan_or_evict_live_entries() {
     let mut store = ledger(1, 130);
     for n in 0..130 {
         store
-            .with_revocation(&mut budget(), caller(n), 1, |_| Ok(()))
+            .with_revocation::<Error>(&mut budget(), caller(n), 1, |_| Ok(()))
             .unwrap();
     }
     assert_eq!(store.prune(1 + DAY + 19, usize::MAX), Ok(0));
@@ -356,7 +419,7 @@ fn maintenance_is_bounded_and_does_not_scan_or_evict_live_entries() {
 fn signed_renewal_cannot_replace_account_issuer_or_original_login_start() {
     let mut store = ledger(1, 1);
     store
-        .with_reservation(caller(1), &verified(1, 100, 1), 1, |_| Ok(()))
+        .with_reservation::<_, Error>(caller(1), &verified(1, 100, 1), 1, |_| Ok(()))
         .unwrap();
     let original = claims(1, 100, 2);
     let mutations: [fn(&mut PortableClaims); 4] = [
@@ -371,7 +434,7 @@ fn signed_renewal_cannot_replace_account_issuer_or_original_login_start() {
         // Even a newly valid signature under approved authority cannot rebind a login.
         let checked = verify(&renewal, 2);
         assert_eq!(
-            store.with_reservation::<()>(caller(1), &checked, 2, |_| panic!("rebind")),
+            store.with_reservation::<(), Error>(caller(1), &checked, 2, |_| panic!("rebind")),
             Err(Error::InvalidPolicy)
         );
         assert_eq!(store.occupancy(), (1, 0));
@@ -379,7 +442,7 @@ fn signed_renewal_cannot_replace_account_issuer_or_original_login_start() {
     let renewed = verify(&original, 2);
     assert_eq!(renewed.fingerprint(), claims_hash(&original).unwrap());
     store
-        .with_reservation(caller(1), &renewed, 2, |_| Ok(()))
+        .with_reservation::<_, Error>(caller(1), &renewed, 2, |_| Ok(()))
         .unwrap();
     // Editing a copy does not edit authenticated evidence.
     let mut copy = renewed.claims().clone();
@@ -393,22 +456,26 @@ fn domain_mismatch_and_failed_commit_do_not_pin_a_login() {
     let mut c = claims(1, 100, 1);
     c.audience.fleet_id = CanonicalId::from_bytes([9; 32]);
     assert_eq!(
-        store.with_reservation::<()>(caller(1), &verify(&c, 1), 1, |_| panic!("wrong domain")),
+        store.with_reservation::<(), Error>(caller(1), &verify(&c, 1), 1, |_| panic!(
+            "wrong domain"
+        )),
         Err(Error::InvalidPolicy)
     );
     assert_eq!(store.occupancy(), (0, 0));
     let checked = verified(1, 100, 1);
     assert_eq!(
-        store.with_reservation::<()>(caller(1), &checked, 1, |_| Err(Error::Storage)),
+        store.with_reservation::<(), Error>(caller(1), &checked, 1, |_| Err(Error::Storage)),
         Err(Error::Storage)
     );
     c = claims(1, 100, 1);
     c.account_subject = Principal::from_slice(&[9]);
     store
-        .with_reservation(caller(1), &verify(&c, 1), 1, |_| Ok(()))
+        .with_reservation::<_, Error>(caller(1), &verify(&c, 1), 1, |_| Ok(()))
         .unwrap();
     assert_eq!(
-        store.with_reservation::<()>(caller(1), &checked, 1, |_| panic!("first failed binding")),
+        store.with_reservation::<(), Error>(caller(1), &checked, 1, |_| panic!(
+            "first failed binding"
+        )),
         Err(Error::InvalidPolicy)
     );
 }
@@ -427,7 +494,7 @@ fn preflight_never_reserves_or_authenticates_and_commit_rechecks_state() {
     assert_eq!(store.occupancy(), (0, 0));
     // Unauthenticated preflight must not pin the claimed account identity.
     store
-        .with_reservation(caller(1), &verified(1, 100, 1), 1, |_| Ok(()))
+        .with_reservation::<_, Error>(caller(1), &verified(1, 100, 1), 1, |_| Ok(()))
         .unwrap();
     assert_eq!(
         store.check_reservation(caller(1), &untrusted, 1),
@@ -442,10 +509,10 @@ fn preflight_never_reserves_or_authenticates_and_commit_rechecks_state() {
         .unwrap();
     // Preflight is not a permit that can survive a logout at the same clock tick.
     store
-        .with_revocation(&mut budget(), caller(1), 1, |_| Ok(()))
+        .with_revocation::<Error>(&mut budget(), caller(1), 1, |_| Ok(()))
         .unwrap();
     assert_eq!(
-        store.with_reservation::<()>(caller(1), &verified(1, 100, 1), 1, |_| panic!(
+        store.with_reservation::<(), Error>(caller(1), &verified(1, 100, 1), 1, |_| panic!(
             "logout must prevent commit"
         )),
         Err(Error::Revoked)
@@ -457,10 +524,10 @@ fn preflight_never_reserves_or_authenticates_and_commit_rechecks_state() {
         .check_reservation(caller(1), &claims(1, 100, 1), 1)
         .unwrap();
     store
-        .with_reservation(caller(2), &verified(2, 100, 1), 1, |_| Ok(()))
+        .with_reservation::<_, Error>(caller(2), &verified(2, 100, 1), 1, |_| Ok(()))
         .unwrap();
     assert_eq!(
-        store.with_reservation::<()>(caller(1), &verified(1, 100, 1), 1, |_| panic!(
+        store.with_reservation::<(), Error>(caller(1), &verified(1, 100, 1), 1, |_| panic!(
             "capacity must be rechecked"
         )),
         Err(Error::Capacity)
@@ -478,14 +545,14 @@ fn host_ordering_refuses_revoked_and_full_before_spending_crypto_credit() {
         let sender = browser_principal(&c.browser_public_key);
         store.check_reservation(sender, c, 1)?;
         let verified = verify_with_budget(c, 1, budget).map_err(|_| Error::Storage)?;
-        store.with_reservation(sender, &verified, 1, |_| Ok(()))
+        store.with_reservation::<_, Error>(sender, &verified, 1, |_| Ok(()))
     }
     let mut store = ledger(1, 1);
     store
-        .with_reservation(caller(1), &verified(1, 100, 1), 1, |_| Ok(()))
+        .with_reservation::<_, Error>(caller(1), &verified(1, 100, 1), 1, |_| Ok(()))
         .unwrap();
     store
-        .with_revocation(&mut budget(), caller(1), 1, |_| Ok(()))
+        .with_revocation::<Error>(&mut budget(), caller(1), 1, |_| Ok(()))
         .unwrap();
     let mut budget = SessionAdmissionBudget::new(1, 1, 0).unwrap();
     assert_eq!(
@@ -548,17 +615,17 @@ fn unknown_logout_flood_cannot_throttle_admitted_users_or_live_retries() {
     use ic_auth::admission_budget::SessionAdmissionBudget;
     let mut store = ledger(1, 4);
     store
-        .with_reservation(caller(1), &verified(1, 100, 1), 1, |_| Ok(()))
+        .with_reservation::<_, Error>(caller(1), &verified(1, 100, 1), 1, |_| Ok(()))
         .unwrap();
     let mut unknown = SessionAdmissionBudget::new(2, 5, 0).unwrap();
     let first = store
-        .with_revocation(&mut unknown, caller(2), 10, |_| Ok(()))
+        .with_revocation::<Error>(&mut unknown, caller(2), 10, |_| Ok(()))
         .unwrap();
     store
-        .with_revocation(&mut unknown, caller(3), 10, |_| Ok(()))
+        .with_revocation::<Error>(&mut unknown, caller(3), 10, |_| Ok(()))
         .unwrap();
     assert_eq!(
-        store.with_revocation(&mut unknown, caller(4), 10, |_| panic!(
+        store.with_revocation::<Error>(&mut unknown, caller(4), 10, |_| panic!(
             "exhausted budget must not call storage"
         )),
         Err(Error::Capacity)
@@ -566,22 +633,22 @@ fn unknown_logout_flood_cannot_throttle_admitted_users_or_live_retries() {
     assert_eq!(store.occupancy(), (1, 2));
     // Reserved capacity and already-installed denial survive a fresh-principal flood.
     store
-        .with_revocation(&mut unknown, caller(1), 10, |_| Ok(()))
+        .with_revocation::<Error>(&mut unknown, caller(1), 10, |_| Ok(()))
         .unwrap();
     assert_eq!(
-        store.with_revocation(&mut unknown, caller(2), 10, |_| Ok(())),
+        store.with_revocation::<Error>(&mut unknown, caller(2), 10, |_| Ok(())),
         Ok(first)
     );
     assert_eq!(
-        store.with_revocation(&mut unknown, caller(2), 11, |_| Err(Error::Storage)),
+        store.with_revocation::<Error>(&mut unknown, caller(2), 11, |_| Err(Error::Storage)),
         Err(Error::Storage)
     );
     assert_eq!(
-        store.with_revocation(&mut unknown, caller(4), 14, |_| panic!("refill boundary")),
+        store.with_revocation::<Error>(&mut unknown, caller(4), 14, |_| panic!("refill boundary")),
         Err(Error::Capacity)
     );
     store
-        .with_revocation(&mut unknown, caller(4), 15, |_| Ok(()))
+        .with_revocation::<Error>(&mut unknown, caller(4), 15, |_| Ok(()))
         .unwrap();
     assert_eq!(store.occupancy(), (1, 3));
 }
@@ -592,31 +659,31 @@ fn unknown_logout_failure_spends_credit_without_installing_denial() {
     let mut store = ledger(1, 2);
     let mut unknown = SessionAdmissionBudget::new(1, 10, 0).unwrap();
     assert_eq!(
-        store.with_revocation(&mut unknown, caller(1), 10, |_| Err(Error::Storage)),
+        store.with_revocation::<Error>(&mut unknown, caller(1), 10, |_| Err(Error::Storage)),
         Err(Error::Storage)
     );
     assert_eq!(store.occupancy(), (0, 0));
     assert!(!store.is_revoked(caller(1), 10).unwrap());
     for n in [1, 2] {
         assert_eq!(
-            store.with_revocation(&mut unknown, caller(n), 10, |_| panic!(
+            store.with_revocation::<Error>(&mut unknown, caller(n), 10, |_| panic!(
                 "failed storage must not refund"
             )),
             Err(Error::Capacity)
         );
     }
     store
-        .with_revocation(&mut unknown, caller(1), 20, |_| Ok(()))
+        .with_revocation::<Error>(&mut unknown, caller(1), 20, |_| Ok(()))
         .unwrap();
     assert_eq!(store.occupancy(), (0, 1));
     let mut reset = SessionAdmissionBudget::new(100, 1, 20).unwrap();
     assert_eq!(
-        store.with_revocation(&mut reset, caller(2), 20, |_| panic!("empty reset")),
+        store.with_revocation::<Error>(&mut reset, caller(2), 20, |_| panic!("empty reset")),
         Err(Error::Capacity)
     );
     let mut future = SessionAdmissionBudget::new(1, 1, 30).unwrap();
     assert_eq!(
-        store.with_revocation(&mut future, caller(2), 20, |_| panic!(
+        store.with_revocation::<Error>(&mut future, caller(2), 20, |_| panic!(
             "budget clock rollback"
         )),
         Err(Error::Clock)
@@ -629,25 +696,25 @@ fn cheap_logout_refusals_preserve_credit_and_expired_retries_need_new_credit() {
     let mut store = ledger(1, 1);
     let mut unknown = SessionAdmissionBudget::new(1, 1, 0).unwrap();
     assert_eq!(
-        store.with_revocation(&mut unknown, Principal::anonymous(), 1, |_| panic!(
+        store.with_revocation::<Error>(&mut unknown, Principal::anonymous(), 1, |_| panic!(
             "invalid caller"
         )),
         Err(Error::InvalidCaller)
     );
     let until = store
-        .with_revocation(&mut unknown, caller(1), 1, |_| Ok(()))
+        .with_revocation::<Error>(&mut unknown, caller(1), 1, |_| Ok(()))
         .unwrap();
     assert_eq!(
-        store.with_revocation(&mut unknown, caller(2), 2, |_| panic!("full pool")),
+        store.with_revocation::<Error>(&mut unknown, caller(2), 2, |_| panic!("full pool")),
         Err(Error::Capacity)
     );
     // A full pool did not spend this interval's credit.
     ledger(1, 1)
-        .with_revocation(&mut unknown, caller(2), 2, |_| Ok(()))
+        .with_revocation::<Error>(&mut unknown, caller(2), 2, |_| Ok(()))
         .unwrap();
     let mut empty = SessionAdmissionBudget::new(1, 1, until).unwrap();
     assert_eq!(
-        store.with_revocation(&mut empty, caller(1), until, |_| panic!(
+        store.with_revocation::<Error>(&mut empty, caller(1), until, |_| panic!(
             "expired tombstone is not a live retry"
         )),
         Err(Error::Capacity)
@@ -655,7 +722,7 @@ fn cheap_logout_refusals_preserve_credit_and_expired_retries_need_new_credit() {
     assert!(!store.is_revoked(caller(1), until).unwrap());
     assert_eq!(store.occupancy(), (0, 1));
     let renewed = store
-        .with_revocation(&mut empty, caller(1), until + 1, |_| Ok(()))
+        .with_revocation::<Error>(&mut empty, caller(1), until + 1, |_| Ok(()))
         .unwrap();
     assert!(renewed > until);
     assert_eq!(store.occupancy(), (0, 1));
@@ -666,25 +733,26 @@ fn commit_receives_complete_login_change_before_any_ledger_installation() {
     let mut store = ledger(2, 2);
     let checked = verified(1, 100, 1);
     let c = checked.claims();
-    let result: Result<(), Error> = store.with_reservation(caller(1), &checked, 1, |change| {
-        assert_eq!(change.audience(), audience());
-        assert_eq!(change.caller(), caller(1));
-        assert_eq!(change.until_ns(), 110);
-        assert!(!change.revoked());
-        assert!(change.admitted_pool());
-        assert_eq!(
-            change.binding(),
-            Some((c.issuer, c.account_subject, 0, 100))
-        );
-        Err(Error::Storage)
-    });
+    let result: Result<(), Error> =
+        store.with_reservation::<_, Error>(caller(1), &checked, 1, |change| {
+            assert_eq!(change.audience(), audience());
+            assert_eq!(change.caller(), caller(1));
+            assert_eq!(change.until_ns(), 110);
+            assert!(!change.revoked());
+            assert!(change.admitted_pool());
+            assert_eq!(
+                change.binding(),
+                Some((c.issuer, c.account_subject, 0, 100))
+            );
+            Err(Error::Storage)
+        });
     assert_eq!(result, Err(Error::Storage));
     assert_eq!(store.occupancy(), (0, 0));
     store
-        .with_reservation(caller(1), &checked, 1, |_| Ok(()))
+        .with_reservation::<_, Error>(caller(1), &checked, 1, |_| Ok(()))
         .unwrap();
     let until = store
-        .with_revocation(&mut budget(), caller(1), 2, |change| {
+        .with_revocation::<Error>(&mut budget(), caller(1), 2, |change| {
             assert!(change.revoked());
             assert!(change.admitted_pool());
             assert_eq!(
@@ -696,13 +764,13 @@ fn commit_receives_complete_login_change_before_any_ledger_installation() {
         })
         .unwrap();
     store
-        .with_revocation(&mut budget(), caller(1), 3, |change| {
+        .with_revocation::<Error>(&mut budget(), caller(1), 3, |change| {
             assert_eq!(change.until_ns(), until);
             Ok(())
         })
         .unwrap();
     store
-        .with_revocation(&mut budget(), caller(2), 3, |change| {
+        .with_revocation::<Error>(&mut budget(), caller(2), 3, |change| {
             assert_eq!(change.caller(), caller(2));
             assert!(change.revoked());
             assert!(!change.admitted_pool());
@@ -721,7 +789,7 @@ fn restore_retains_reservations_tombstones_and_clock_without_partial_results() {
     let caller = browser_principal(&proof.claims().browser_public_key);
     let mut reservation = Vec::new();
     ledger
-        .with_reservation(caller, &proof, 1, |change| {
+        .with_reservation::<_, Error>(caller, &proof, 1, |change| {
             reservation = change.encode().unwrap();
             Ok(())
         })
@@ -729,7 +797,7 @@ fn restore_retains_reservations_tombstones_and_clock_without_partial_results() {
     let mut tombstone = Vec::new();
     let unknown = browser_principal(&browser_key(2));
     ledger
-        .with_revocation(&mut budget(), unknown, 2, |change| {
+        .with_revocation::<Error>(&mut budget(), unknown, 2, |change| {
             tombstone = change.encode().unwrap();
             Ok(())
         })
@@ -783,10 +851,61 @@ fn restore_retains_reservations_tombstones_and_clock_without_partial_results() {
     let mut restored = restore(vec![tombstone], (0, 1), 2, 3).unwrap();
     assert_eq!(
         restored
-            .with_revocation(&mut budget(), unknown, 3, |_| Ok(()))
+            .with_revocation::<Error>(&mut budget(), unknown, 3, |_| Ok(()))
             .unwrap(),
         2 + DAY + 20
     );
+}
+
+#[cfg(feature = "session-restore")]
+#[test]
+fn stored_login_flags_admit_only_the_three_current_states() {
+    use ic_auth::portable::LoginRevocationChange;
+    use serde_cbor::Value;
+    let mut ledger = ledger(1, 1);
+    let mut bytes = Vec::new();
+    ledger
+        .with_reservation::<_, Error>(caller(1), &verified(1, 100, 1), 1, |change| {
+            bytes = change.encode().unwrap();
+            Ok(())
+        })
+        .unwrap();
+    let prefix = b"IC-AUTH-LOGIN-RECORD\0";
+    let original: Value = serde_cbor::from_slice(&bytes[prefix.len()..]).unwrap();
+    for bound in [false, true] {
+        for revoked in [false, true] {
+            for admitted in [false, true] {
+                let mut value = original.clone();
+                let Value::Array(fields) = &mut value else {
+                    panic!()
+                };
+                let Value::Map(record) = &mut fields[2] else {
+                    panic!()
+                };
+                if !bound {
+                    record.insert(Value::Text("login".into()), Value::Null);
+                }
+                record.insert(Value::Text("revoked".into()), Value::Bool(revoked));
+                record.insert(Value::Text("admitted_pool".into()), Value::Bool(admitted));
+                let mut encoded = prefix.to_vec();
+                encoded.extend(serde_cbor::to_vec(&value).unwrap());
+                let decoded = LoginRevocationChange::decode(&encoded);
+                if (bound && admitted) || (!bound && revoked && !admitted) {
+                    let decoded = decoded.unwrap();
+                    assert_eq!(decoded.binding().is_some(), bound);
+                    assert_eq!(decoded.revoked(), revoked);
+                    assert_eq!(decoded.admitted_pool(), admitted);
+                    assert_eq!(
+                        serde_cbor::from_slice::<Value>(&decoded.encode().unwrap()[prefix.len()..])
+                            .unwrap(),
+                        value
+                    );
+                } else {
+                    assert!(matches!(decoded, Err(Error::InvalidPolicy)));
+                }
+            }
+        }
+    }
 }
 
 #[cfg(feature = "session-restore")]
@@ -798,7 +917,7 @@ fn login_record_decoder_and_restoration_reject_corruption_and_retention_changes(
     let caller = browser_principal(&proof.claims().browser_public_key);
     let mut bytes = Vec::new();
     ledger
-        .with_reservation(caller, &proof, 1, |change| {
+        .with_reservation::<_, Error>(caller, &proof, 1, |change| {
             bytes = change.encode().unwrap();
             Ok(())
         })
@@ -857,11 +976,11 @@ fn durable_ledger_pruning_retains_denials_and_clock_on_commit_failure() {
     let proof = verified(1, 100, 1);
     let admitted = browser_principal(&proof.claims().browser_public_key);
     ledger
-        .with_reservation(admitted, &proof, 1, |_| Ok(()))
+        .with_reservation::<_, Error>(admitted, &proof, 1, |_| Ok(()))
         .unwrap();
     let unknown = browser_principal(&browser_key(2));
     ledger
-        .with_revocation(&mut budget(), unknown, 2, |_| Ok(()))
+        .with_revocation::<Error>(&mut budget(), unknown, 2, |_| Ok(()))
         .unwrap();
     assert_eq!(
         ledger

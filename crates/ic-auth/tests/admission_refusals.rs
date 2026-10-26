@@ -53,15 +53,11 @@ fn signature_wrappers_preserve_categories_without_matching_messages() {
             R::Unavailable,
         ),
     ] {
-        assert_eq!(SessionError::Signature(error).admission_refusal(), expected);
+        assert_eq!(
+            SessionError::Credential(PortableCredentialError::Ed25519(error)).admission_refusal(),
+            expected,
+        );
     }
-    assert_eq!(
-        SessionError::Credential(PortableCredentialError::Ed25519(E::Claims(
-            PortableClaimsError::NotYetValid,
-        )))
-        .admission_refusal(),
-        R::NotYetValid,
-    );
 }
 
 #[cfg(feature = "certified-proof-verification")]
@@ -71,19 +67,14 @@ fn certified_wrappers_preserve_categories_without_matching_messages() {
         portable_certified::PortableCertifiedError as E,
         portable_credential::PortableCredentialError,
     };
-    assert_eq!(
-        SessionError::Certified(E::Claims(PortableClaimsError::NotYetValid)).admission_refusal(),
-        R::NotYetValid,
-    );
-    assert_eq!(
-        SessionError::Credential(PortableCredentialError::Certified(E::Claims(
-            PortableClaimsError::Expired,
-        )))
-        .admission_refusal(),
-        R::Expired,
-    );
-    assert_eq!(
-        SessionError::Certified(E::BindingMismatch).admission_refusal(),
-        R::InvalidCredential
-    );
+    for (error, expected) in [
+        (E::Claims(PortableClaimsError::NotYetValid), R::NotYetValid),
+        (E::Claims(PortableClaimsError::Expired), R::Expired),
+        (E::BindingMismatch, R::InvalidCredential),
+    ] {
+        assert_eq!(
+            SessionError::Credential(PortableCredentialError::Certified(error)).admission_refusal(),
+            expected,
+        );
+    }
 }

@@ -301,6 +301,18 @@ errors, and `portable_certified::CertifiedProofLimits` for certified admission.
 certificate issuance rules and role-attestation primitives remain supported;
 their similar names do not make them another application login flow.
 
+Auth 0.17 generalizes ledger commit errors: `with_reservation<T, E>` and
+`with_revocation<E>` require `E: From<LoginRevocationError>` and return callback
+errors unchanged. Ledger-only callers with untyped `Ok(())` callbacks select
+`with_revocation::<LoginRevocationError>` or
+`with_reservation::<_, LoginRevocationError>` explicitly. Stored login records,
+commit ordering and unknown-logout work charges keep the same contract.
+Complete-verifier failures now use only `SessionError::Credential`, wrapping
+`PortableCredentialError::Ed25519` / `Certified`; the direct session variants and
+their `From` conversions are removed. Use `DecodedPortableClaims::verify` inside
+admission and retain `admission_refusal()` projection. Consumer adoption belongs
+to [Canic #491 — Extract authentication machinery into independent IC Auth](https://github.com/dragginzgame/canic/issues/491).
+
 ## Browser and production acceptance
 
 Canic's selected issuer policy derives `account_subject` from the authenticated

@@ -207,6 +207,15 @@ test('journal rejects incompatible stored shape without overwriting retained sta
       return { record: { ...record, unknownFutureField: true }, value: undefined };
     }), (error: unknown) => error instanceof ClientError && error.code === 'storage_corrupt');
     assert.equal((await f.client.status('login-a')).phase, 'active');
+    await assert.rejects(f.store.transact(record => {
+      assert.ok(record);
+      // @ts-expect-error Active records cannot carry a cleanup deadline.
+      const invalid: import('../src/index.js').LogoutJournal = { ...record, phase: 'active', deadlineNs: 1n };
+      return { record: invalid, value: undefined };
+    }), (error: unknown) => error instanceof ClientError && error.code === 'storage_corrupt');
+    const retained = await f.client.status('login-a');
+    assert.equal(retained.phase, 'active');
+    assert.equal(retained.deadlineNs, 0n);
     const wrongClock = new PortableLogoutClient(f.store, { ...f.clock, id: 'different-domain' }, f.transport);
     await assert.rejects(wrongClock.begin('login-a', f.state.now + 10_000n * MS), ClientError);
     assert.equal((await f.client.status('login-a')).phase, 'active');

@@ -1,21 +1,11 @@
 # IC Auth Agent Instructions
 
-Apply [DRAGGINZGAME.md](DRAGGINZGAME.md), adopted from Shared Tooling 0.26.19
-source `c830c33447f0a84e015bda7fa14b6c096a58368e`, recorded in
+Apply [DRAGGINZGAME.md](DRAGGINZGAME.md), adopted from Shared Tooling 0.26.20
+source `a7f85d45d4212d4c39225f58597580560a333550`, recorded in
 [.shared-tooling.snapshot](.shared-tooling.snapshot). Read
 [the current handoff](docs/status/current.md) before implementation.
-
-## Maintainer-approved flow exception — 2026-10-26
-
-To reduce repeated agent work while the pinned baseline is awaiting adoption:
-read its adoption, scope, ownership, complete-change, validation and handoff
-sections at startup; read specialist sections and linked guides when relevant.
-Finish a coherent edit batch, then run selected checks once. During development,
-check to answer a specific question; reuse passing evidence for unchanged inputs.
-Detailed line metrics and symbol inventories are opt-in, including for inspections.
-This scoped exception changes reading, cadence and reporting only. Product,
-recovery and release requirements remain. Retire it when adopting a reviewed
-Shared baseline with these rules; do not patch the current snapshot in place.
+Read task-specific references when their subject applies; the local constraints
+below supplement the shared core.
 
 ## Ownership
 
@@ -117,14 +107,12 @@ and `ci/cargo-dependency-boundaries.json` for direct-dependency ownership.
   applications separately, all inheriting the workspace minimum.
   Setup explicitly prepares the declared compiler; checks never
   download one. See [minimum compiler qualification](docs/msrv.md).
-  Select a changed package/test and its actual features using the
-  [focused examples](docs/development.md#validation). Product test targets are
-  contract selections, not a checklist for every edit. `make clippy`,
-  `make check-msrv` and `make check-wasm` are aggregate qualification targets;
-  `make test-qualification` builds and exercises the live fixture. Use these
-  only for an affected obligation. `make ci` is the complete CI/release gate.
+  Choose the package, test and capability affected by the completed batch;
+  [developer setup](docs/development.md#validation) distinguishes narrow commands
+  from aggregate suites. `make ci` is the explicit complete CI/release gate.
   Local validation cadence follows
-  [the shared baseline](DRAGGINZGAME.md#validation-and-evidence). It seals declared Rust/frontend preparation inputs
+  [the shared baseline](DRAGGINZGAME.md#validation-and-evidence). The validation
+  runner seals declared Rust/frontend preparation inputs
   between stages and refuses drift without fetching or restarting implicitly.
   `make test-formatting-hooks` checks actual staged preservation and is part of
   the complete gate. Auth's release/recovery and evidence caller fixtures remain

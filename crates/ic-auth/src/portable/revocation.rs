@@ -30,13 +30,60 @@ pub enum LoginRevocationError {
 
 #[derive(Clone, Copy)]
 #[cfg_attr(feature = "sessions", derive(serde::Serialize))]
-#[cfg_attr(feature = "session-restore", derive(serde::Deserialize))]
-#[cfg_attr(feature = "sessions", serde(deny_unknown_fields))]
+#[cfg_attr(feature = "sessions", serde(into = "RecordFields"))]
 struct Record {
+    until_ns: u64,
+    state: LoginState,
+}
+
+// A reservation always owns admitted capacity; a tombstone retains that pool
+// exactly when it retains an authenticated login binding.
+#[derive(Clone, Copy)]
+enum LoginState {
+    Reserved(LoginBinding),
+    Revoked(Option<LoginBinding>),
+}
+
+impl Record {
+    fn login(self) -> Option<LoginBinding> {
+        match self.state {
+            LoginState::Reserved(login) => Some(login),
+            LoginState::Revoked(login) => login,
+        }
+    }
+
+    fn revoked(self) -> bool {
+        matches!(self.state, LoginState::Revoked(_))
+    }
+
+    fn admitted_pool(self) -> bool {
+        self.login().is_some()
+    }
+}
+
+// The current storage fields and ordering are frozen independently of the
+// internal state representation. This is the sole record format, not a fallback.
+#[cfg(feature = "sessions")]
+#[derive(serde::Serialize)]
+#[cfg_attr(feature = "session-restore", derive(serde::Deserialize))]
+#[serde(deny_unknown_fields)]
+struct RecordFields {
     until_ns: u64,
     login: Option<LoginBinding>,
     revoked: bool,
     admitted_pool: bool,
+}
+
+#[cfg(feature = "sessions")]
+impl From<Record> for RecordFields {
+    fn from(record: Record) -> Self {
+        Self {
+            until_ns: record.until_ns,
+            login: record.login(),
+            revoked: record.revoked(),
+            admitted_pool: record.admitted_pool(),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Eq, PartialEq)]
@@ -76,32 +123,43 @@ impl LoginRevocationChange {
     /// This checks shape, not provenance, completeness, rollback or live authority.
     #[cfg(feature = "session-restore")]
     pub fn decode(bytes: &[u8]) -> Result<Self, LoginRevocationError> {
-        let (audience, caller, record) = crate::storage_codec::decode(
-            bytes,
-            RECORD_DOMAIN,
-            MAX_RECORD_BYTES,
-            || LoginRevocationError::InvalidPolicy,
-            LoginRevocationError::InvalidPolicy,
-        )?;
-        let change = Self {
-            audience,
-            caller,
-            record,
-        };
-        let caller = change.caller.as_slice();
-        if caller.len() != 29 || caller.last() != Some(&2) {
+        let (audience, caller, fields): (_, Principal, RecordFields) =
+            crate::storage_codec::decode(
+                bytes,
+                RECORD_DOMAIN,
+                MAX_RECORD_BYTES,
+                || LoginRevocationError::InvalidPolicy,
+                LoginRevocationError::InvalidPolicy,
+            )?;
+        let caller_bytes = caller.as_slice();
+        if caller_bytes.len() != 29 || caller_bytes.last() != Some(&2) {
             return Err(LoginRevocationError::InvalidCaller);
         }
-        match change.record.login {
+        let state = match fields.login {
             Some(login)
-                if change.record.admitted_pool
+                if fields.admitted_pool
                     && login.issuer != Principal::anonymous()
                     && login.subject != Principal::anonymous()
                     && login.started_at_ns < login.deadline_ns
-                    && login.deadline_ns - login.started_at_ns <= crate::limits::MAX_LOGIN_NS => {}
-            None if !change.record.admitted_pool && change.record.revoked => {}
+                    && login.deadline_ns - login.started_at_ns <= crate::limits::MAX_LOGIN_NS =>
+            {
+                if fields.revoked {
+                    LoginState::Revoked(Some(login))
+                } else {
+                    LoginState::Reserved(login)
+                }
+            }
+            None if !fields.admitted_pool && fields.revoked => LoginState::Revoked(None),
             _ => return Err(LoginRevocationError::InvalidPolicy),
-        }
+        };
+        let change = Self {
+            audience,
+            caller,
+            record: Record {
+                until_ns: fields.until_ns,
+                state,
+            },
+        };
         Ok(change)
     }
 
@@ -119,16 +177,16 @@ impl LoginRevocationChange {
     }
     /// Whether this change denies further use of the login.
     pub fn revoked(&self) -> bool {
-        self.record.revoked
+        self.record.revoked()
     }
     /// Whether this record occupies reserved admitted-login capacity.
     pub fn admitted_pool(&self) -> bool {
-        self.record.admitted_pool
+        self.record.admitted_pool()
     }
     /// Original issuer, account subject, login start and absolute deadline.
     /// Unknown-login revocation has no authenticated account binding.
     pub fn binding(&self) -> Option<(Principal, Principal, u64, u64)> {
-        self.record.login.map(|login| {
+        self.record.login().map(|login| {
             (
                 login.issuer,
                 login.subject,
@@ -216,20 +274,20 @@ impl MemoryLoginRevocations {
             if record.until_ns == 0 || record.until_ns > max_until {
                 return Err(LoginRevocationError::InvalidPolicy);
             }
-            if let Some(login) = record.login {
+            if let Some(login) = record.login() {
                 let minimum = login
                     .deadline_ns
                     .checked_add(self.skew_ns)
                     .ok_or(LoginRevocationError::Clock)?;
                 if login.started_at_ns > observed_ns
                     || record.until_ns < minimum
-                    || (!record.revoked && record.until_ns != minimum)
+                    || (!record.revoked() && record.until_ns != minimum)
                 {
                     return Err(LoginRevocationError::InvalidPolicy);
                 }
             }
             // Stop at the persisted counts, even for an unbounded input iterator.
-            let (used, expected) = if record.admitted_pool {
+            let (used, expected) = if record.admitted_pool() {
                 (self.admitted, expected_counts.0)
             } else {
                 (self.unknown, expected_counts.1)
@@ -294,10 +352,10 @@ impl MemoryLoginRevocations {
             .get(&caller)
             .filter(|record| record.until_ns > now_ns)
             .ok_or(LoginRevocationError::InvalidPolicy)?;
-        if record.revoked {
+        if record.revoked() {
             return Err(LoginRevocationError::Revoked);
         }
-        if record.login
+        if record.login()
             != Some(LoginBinding {
                 issuer,
                 subject,
@@ -343,16 +401,18 @@ impl MemoryLoginRevocations {
     /// A live tombstone rejects even an exact admission retry before its callback.
     /// No reservation is installed if session/replay storage in `commit` fails.
     /// The callback receives the proposed record for that same atomic commit.
-    pub fn with_reservation<T>(
+    /// Its error is returned unchanged; `E` also carries ledger refusals through
+    /// `From<LoginRevocationError>`. No separate storage-error channel is needed.
+    pub fn with_reservation<T, E: From<LoginRevocationError>>(
         &mut self,
         caller: Principal,
         verified: &VerifiedPortableClaims,
         now_ns: u64,
-        commit: impl FnOnce(&LoginRevocationChange) -> Result<T, LoginRevocationError>,
-    ) -> Result<T, LoginRevocationError> {
+        commit: impl FnOnce(&LoginRevocationChange) -> Result<T, E>,
+    ) -> Result<T, E> {
         let record = self.reservation(caller, verified.claims(), now_ns)?;
         if verified.verified_at_ns() != now_ns {
-            return Err(LoginRevocationError::InvalidPolicy);
+            return Err(LoginRevocationError::InvalidPolicy.into());
         }
         let value = commit(&LoginRevocationChange {
             audience: self.audience,
@@ -375,31 +435,31 @@ impl MemoryLoginRevocations {
     /// charge; hosts must return normal errors rather than trap/roll back credit.
     /// Live reservations and tombstone retries do not compete for this budget.
     /// The callback receives the proposed tombstone, including retained binding.
-    pub fn with_revocation(
+    /// Its error is returned unchanged; `E` also carries ledger refusals through
+    /// `From<LoginRevocationError>`. A failed callback never installs denial.
+    pub fn with_revocation<E: From<LoginRevocationError>>(
         &mut self,
         unknown_budget: &mut SessionAdmissionBudget,
         caller: Principal,
         now_ns: u64,
-        commit: impl FnOnce(&LoginRevocationChange) -> Result<(), LoginRevocationError>,
-    ) -> Result<u64, LoginRevocationError> {
+        commit: impl FnOnce(&LoginRevocationChange) -> Result<(), E>,
+    ) -> Result<u64, E> {
         self.observe(caller, now_ns)?;
         let old = self
             .records
             .get(&caller)
             .copied()
             .filter(|r| r.until_ns > now_ns);
-        let record = if let Some(old) = old.filter(|r| r.revoked) {
+        let record = if let Some(old) = old.filter(|r| r.revoked()) {
             old
         } else {
             let until_ns = retention(now_ns, self.skew_ns)?;
             if old.is_some_and(|r| r.until_ns > until_ns) {
-                return Err(LoginRevocationError::Clock);
+                return Err(LoginRevocationError::Clock.into());
             }
             Record {
                 until_ns,
-                login: old.and_then(|r| r.login),
-                revoked: true,
-                admitted_pool: old.is_some_and(|r| r.admitted_pool),
+                state: LoginState::Revoked(old.and_then(Record::login)),
             }
         };
         self.capacity(caller, record)?;
@@ -432,7 +492,7 @@ impl MemoryLoginRevocations {
         Ok(self
             .records
             .get(&caller)
-            .is_some_and(|r| r.revoked && r.until_ns > now_ns))
+            .is_some_and(|r| r.revoked() && r.until_ns > now_ns))
     }
 
     /// Explicit maintenance, at most 128 expired entries; never evict live state.
@@ -463,7 +523,7 @@ impl MemoryLoginRevocations {
         }
         let mut counts = self.occupancy();
         for caller in &callers {
-            if self.records[caller].admitted_pool {
+            if self.records[caller].admitted_pool() {
                 counts.0 -= 1;
             } else {
                 counts.1 -= 1;
@@ -500,18 +560,16 @@ impl MemoryLoginRevocations {
             deadline_ns: login_deadline_ns,
         };
         if let Some(old) = self.records.get(&caller).filter(|r| r.until_ns > now_ns) {
-            if old.revoked {
+            if old.revoked() {
                 return Err(LoginRevocationError::Revoked);
             }
-            if old.login != Some(login) {
+            if old.login() != Some(login) {
                 return Err(LoginRevocationError::InvalidPolicy);
             }
         }
         let record = Record {
             until_ns,
-            login: Some(login),
-            revoked: false,
-            admitted_pool: true,
+            state: LoginState::Reserved(login),
         };
         self.capacity(caller, record)?;
         Ok(record)
@@ -537,8 +595,8 @@ impl MemoryLoginRevocations {
         let reuses_pool = self
             .records
             .get(&caller)
-            .is_some_and(|old| old.admitted_pool == record.admitted_pool);
-        let (count, limit) = if record.admitted_pool {
+            .is_some_and(|old| old.admitted_pool() == record.admitted_pool());
+        let (count, limit) = if record.admitted_pool() {
             (self.admitted, self.max_admitted)
         } else {
             (self.unknown, self.max_unknown)
@@ -552,7 +610,7 @@ impl MemoryLoginRevocations {
     fn remove(&mut self, caller: Principal) {
         if let Some(old) = self.records.remove(&caller) {
             self.expiry.remove(&(old.until_ns, caller));
-            if old.admitted_pool {
+            if old.admitted_pool() {
                 self.admitted -= 1;
             } else {
                 self.unknown -= 1;
@@ -562,7 +620,7 @@ impl MemoryLoginRevocations {
 
     fn install(&mut self, caller: Principal, record: Record) {
         self.remove(caller);
-        if record.admitted_pool {
+        if record.admitted_pool() {
             self.admitted += 1;
         } else {
             self.unknown += 1;

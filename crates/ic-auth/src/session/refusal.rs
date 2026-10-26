@@ -53,10 +53,6 @@ impl SessionError {
                     certified(error)
                 }
             },
-            #[cfg(feature = "portable-signature-verification")]
-            Self::Signature(error) => signature(error),
-            #[cfg(feature = "certified-proof-verification")]
-            Self::Certified(error) => certified(error),
         }
     }
 }

@@ -104,10 +104,15 @@ macro_rules! unit_enum {
         pub enum $name { $($variant),* }
         impl Field<domain::$name> for $name {
             fn from_domain(value: domain::$name) -> Result<Self, Error> {
-                Ok(match value { $(domain::$name::$variant => Self::$variant),* })
+                Ok(value.into())
             }
             fn into_domain(self) -> Result<domain::$name, Error> {
                 Ok(match self { $(Self::$variant => domain::$name::$variant),* })
+            }
+        }
+        impl From<domain::$name> for $name {
+            fn from(value: domain::$name) -> Self {
+                match value { $(domain::$name::$variant => Self::$variant),* }
             }
         }
     };
@@ -254,24 +259,6 @@ unit_enum!(AdmissionRefusal {
     Throttled,
     Unavailable
 });
-impl From<domain::AdmissionRefusal> for AdmissionRefusal {
-    fn from(value: domain::AdmissionRefusal) -> Self {
-        use domain::AdmissionRefusal as R;
-        match value {
-            R::NotYetValid => Self::NotYetValid,
-            R::Expired => Self::Expired,
-            R::InvalidCredential => Self::InvalidCredential,
-            R::AuthorityUnavailable => Self::AuthorityUnavailable,
-            R::BeforeReset => Self::BeforeReset,
-            R::ScopeRejected => Self::ScopeRejected,
-            R::ReplayConflict => Self::ReplayConflict,
-            R::Revoked => Self::Revoked,
-            R::Capacity => Self::Capacity,
-            R::Throttled => Self::Throttled,
-            R::Unavailable => Self::Unavailable,
-        }
-    }
-}
 unit_enum!(LogoutUnavailable {
     Capacity,
     Storage,
@@ -290,12 +277,7 @@ impl From<domain::LogoutResult> for LogoutResult {
         match value {
             domain::LogoutResult::Revoked { deny_until_ns } => Self::Revoked(deny_until_ns),
             domain::LogoutResult::InvalidCaller => Self::InvalidCaller,
-            domain::LogoutResult::Unavailable(reason) => Self::Unavailable(match reason {
-                domain::LogoutUnavailable::Capacity => LogoutUnavailable::Capacity,
-                domain::LogoutUnavailable::Storage => LogoutUnavailable::Storage,
-                domain::LogoutUnavailable::Clock => LogoutUnavailable::Clock,
-                domain::LogoutUnavailable::ResetPending => LogoutUnavailable::ResetPending,
-            }),
+            domain::LogoutResult::Unavailable(reason) => Self::Unavailable(reason.into()),
         }
     }
 }
