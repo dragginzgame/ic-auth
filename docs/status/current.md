@@ -2,12 +2,17 @@
 
 ## Checkout and selection
 
-The maintainer completed release **0.16.4** at `ca70a9b`. Package versions remain
-0.16.4. The working tree prepares **0.17.0** for the certified-limit field removal
-and ledger/session-error API changes. Consumers omit the zero-only
+The maintainer completed release **0.17.0** at `d4a5295`; package versions remain
+0.17.0. It includes the certified-limit field removal and ledger/session-error
+API changes. Consumers omit the zero-only
 `CertifiedProofLimits::max_future_skew_ns`, select callback error types as needed,
 and route complete proof errors through `SessionError::Credential`.
-No real checkout staging, commit, tag, push, release or publication occurred.
+The authorized merges of [PR #88 — Reduce routine agent checks](https://github.com/dragginzgame/ic-auth/pull/88)
+and [PR #89 — Latest root changelog sections](https://github.com/dragginzgame/ic-auth/pull/89)
+are on main at `bd5cae3`; the checkout was fast-forwarded. Compatible workflow
+and documentation notes collect under **0.17.1**. Shared adoption remains
+uncommitted; the incoming openssl-probe 0.2.2 lock edit is preserved. No release
+or publication was executed in this merge/adoption batch.
 
 The upstream-adoption batch's incoming lock already selects Platform/macros
 **0.6.19**, Host/Build/Testkit **0.68.8**, Wire/derive **0.7.17** and Memory
@@ -15,38 +20,25 @@ The upstream-adoption batch's incoming lock already selects Platform/macros
 It was preserved byte-for-byte; locked source preparation succeeds. The Build
 editor and Testkit CLI/server were explicitly prepared and pass offline admission.
 The separate File CLI remains **0.31.1**.
-Shared Tooling **0.26.20** is adopted at
-`a7f85d45d4212d4c39225f58597580560a333550` (124 files). The exporter also selects
-the Node guide newly referenced by dependency policy. Local guidance distinguishes
-narrow checks from aggregate suites; detailed change accounting is opt-in.
+Shared Tooling **0.26.21** is adopted at
+`66c91c4412856baa147482e648fc80428db8b179` (124 files), including the Node guide.
+Root release notes use its emoji category headings. Narrow checks and aggregate
+suites remain distinct; generic Shared runner/archive matrices are opt-in while
+Auth's actual adapter, evidence and product proofs remain in CI.
 
 ## Auth-local simplification
 
-Canister verification now uses Platform's authenticated signing-certificate time
-result. The dependency minimum is 0.6.14; Auth retains DER/bounds, protected trust,
-freshness and future-skew policy. Ambiguous time leaves are rejected, and complete
-nonminimal LEB128 times remain accepted. This implements the local adoption in
-[Auth #86 — Adopt authenticated signing-certificate time without duplicate CBOR decoding](https://github.com/dragginzgame/ic-auth/issues/86).
-
-The login ledger represents reservations and revocations explicitly and derives
-pool ownership from retained binding. One frozen storage projection preserves
-current record bytes. The browser journal carries phase-specific types and commits
-complete transitions while retaining its existing flat profile, uncertain issuance,
-strict transactions, lease checks and original recovery deadlines.
-
-Wire unit-enum projections share their declarations; publication arguments and
-intent derive from one ordered package list. Browser policy accompanies its output
-rather than being recovered from filenames. All five generated browser files are
-unchanged. The private fixture groups protected context inputs separately from
-mutable stores/budgets and no longer needs a field-borrowing context macro.
-
-All ten Auth improvements are now implemented. Ledger callbacks return their
-host error `E: From<LoginRevocationError>` directly; admission no longer captures
-errors outside the callback. Logout still maps backend commit failures to storage
-unavailability, keeping ledger capacity/clock refusals distinct. Complete proof
-failures use only `SessionError::Credential`; direct `Signature` / `Certified`
-variants and their `From` conversions are removed. Atomicity, work charges and
-public refusal tags are preserved. See [session contracts](../sessions.md).
+Release 0.17.0 implements all ten Auth improvements; see the
+[changelog](../../CHANGELOG.md) and [session contracts](../sessions.md).
+Platform's authenticated certificate time replaces duplicate decoding; the
+minimum is 0.6.14. Auth retains protected trust, bounds and freshness policy
+([Auth #86 — Authenticated signing-certificate time](https://github.com/dragginzgame/ic-auth/issues/86)).
+Explicit ledger/journal states preserve stored formats, atomicity, work charges,
+uncertain issuance and recovery deadlines. Callback errors propagate directly;
+logout still projects backend failures to storage while ledger capacity/clock
+refusals remain distinct. Complete proof errors use `SessionError::Credential`.
+Wire projections, publication inventory and private fixture/generator wiring
+share their existing owners; generated browser bytes remain unchanged.
 
 ## Ownership and acceptance
 
@@ -77,7 +69,16 @@ through [Platform #50 — Crypto capability qualification](https://github.com/dr
 
 ## Validation and release behavior
 
-Current upstream evidence is under `target/upstream-adoption-20261026/`.
+Merge/adoption evidence is under `target/pr-integration-20261026/`.
+The reconciled PR #88 passes actual Make jobserver, tool-evidence and Testkit
+caller fixtures with substituted effects in the isolated checkout
+`/tmp/ic-auth-pr-integration-20261026/target/portable-fixtures/`. PR #89's exact
+content proof preserves release text and older history. Snapshot/link and diff
+checks cover Shared's documentation-only update; no new Rust suite is needed.
+[Post-merge CI](https://github.com/dragginzgame/ic-auth/actions/runs/40363871947)
+is pending; no full local gate or native macOS rerun was made for this batch.
+
+Earlier upstream evidence is under `target/upstream-adoption-20261026/`.
 Targeted native Clippy covers the tooling and qualification runner; Wasm Clippy
 covers the fixture. `validation.7l21Ib` records passing snapshot/link checks,
 four host-tool tests and native/Wasm dependency boundaries. Testkit 0.68.8 passes

@@ -8,6 +8,11 @@
   release/recovery, evidence-caller and product qualification in CI. Distinguish
   aggregate qualification from package/test-specific development checks.
 
+### 📚 Documentation
+
+- Adopt Shared Tooling 0.26.21 and its IcyDB-style emoji category headings for
+  current and future root release notes; preserve older release history.
+
 ## [0.17.0] - 2026-10-26
 
 ### ⚠️ Breaking

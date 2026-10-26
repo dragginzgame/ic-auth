@@ -149,8 +149,8 @@ for the existing byte/path limits and release-recovery boundary.
 
 ## Dependency roles and deployment admission
 
-Shared Tooling 0.26.20 source is adopted at
-`a7f85d45d4212d4c39225f58597580560a333550` (reviewed committed source, not a
+Shared Tooling 0.26.21 source is adopted at
+`66c91c4412856baa147482e648fc80428db8b179` (reviewed committed source, not a
 claim of registry publication or a matching release tag).
 The root catalog uses `Production dependencies` and `Tests and tooling only`;
 member annotations distinguish the three production libraries from internal
