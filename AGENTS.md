@@ -19,10 +19,10 @@ below supplement the shared core.
 - Canic owns fleet topology, member/role authority, issuer approval and renewal
   orchestration, endpoint guards and deployment configuration. Toko owns its user
   records, account-linking policy and NFT ledger semantics.
-- Keep sibling repositories read-only. Record findings and consumer adoption
-  requirements in the owning GitHub issues, using existing trackers where they
-  match; do not request sibling edits as part of IC Auth work. An extraction must
-  coordinate consumer adoption and retain one canonical owner when completed.
+- Preserve sibling working checkouts. Inspect them as needed; relevant repairs
+  use the [standing isolated PR workflow](rules/contributions.md#cross-repository-pull-requests)
+  and its exclusions. Record findings and adoption in owning issues. An extraction
+  coordinates consumer adoption and retains one canonical owner.
 - GitHub issues are the work tracker. IC Auth-specific work belongs in
   [IC Auth issues](https://github.com/dragginzgame/ic-auth/issues).
   [Canic #491](https://github.com/dragginzgame/canic/issues/491) remains the existing
@@ -115,8 +115,9 @@ and `ci/cargo-dependency-boundaries.json` for direct-dependency ownership.
   runner seals declared Rust/frontend preparation inputs
   between stages and refuses drift without fetching or restarting implicitly.
   `make test-formatting-hooks` checks actual staged preservation and is part of
-  the complete gate. `make test-release-runner` checks the adopted runner
-  with substituted effects.
+  the complete gate. Auth's release/recovery and evidence caller fixtures remain
+  in CI; generic Shared runner/archive matrices are opt-in for changed-contract
+  adoption or a named missing consumer proof.
   Current publication and implementation status belongs in
   [the handoff](docs/status/current.md), not this instruction file. The internal
   IC Testkit fixture qualifies certification, composed roots, protected metadata

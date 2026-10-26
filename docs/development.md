@@ -529,8 +529,8 @@ multi-package, multi-feature and multi-target entries are aggregate suites.
 | `make publish-dry-run` | Build all three distributable libraries without uploading; requires registry metadata access |
 | `make install-release-tools` / `make release-tools-check` | Explicitly prepare the lock-selected IC Build editor, or admit and print its absolute path offline |
 | `make test-release-tools` | Exercise release/recovery and publication rejection/retry using local and mocked effects |
-| `make test-release-runner` | Adopted Shared Tooling runner regression fixtures with substituted release effects |
-| `make test-evidence-archive` | Adopted evidence archive fixtures: retained files, symlinks and literal paths |
+| `make test-release-runner` | Opt-in producer runner matrix for changed-contract adoption or a named missing consumer proof |
+| `make test-evidence-archive` | Opt-in producer archive matrix for changed-contract adoption or a named missing consumer proof |
 | `make test-tools-evidence` | Actual setup/check caller failure status and adopted collector archive bytes, with Cargo installation substituted |
 | `make test-testkit-tools` | Locked CLI selection, setup/check failures and selection changes, prepared-input drift refusal, qualification path and actual CI evidence archive with substituted effects |
 | `make test-make-jobserver` | Actual owned Make recipes preserve pipe jobserver descriptors through Cargo/wrappers; unsafe modes refuse before substituted effects |
@@ -538,6 +538,13 @@ multi-package, multi-feature and multi-target entries are aggregate suites.
 `make ci` is the complete configured CI/release gate. Ordinary development and
 handoff select the relevant checks above; local full-gate execution follows
 [Shared Tooling validation policy](../DRAGGINZGAME.md#validation-and-evidence).
+The generic runner/archive matrices stay at Shared Tooling and remain explicitly
+callable here. Auth retains `test-release-tools` for its actual metadata,
+release/recovery and publication rejection/retry; `test-tools-evidence` and
+`test-testkit-tools` exercise its setup and CI archive callers, including failure
+and retained evidence. Snapshot integrity still qualifies adopted bytes. No
+product, native-host or release-adapter coverage is removed by this roster change.
+
 It uses the Shared Tooling 0.6.6 logger and retains failures. CI declares the
 root Cargo manifest/lock, Rust compiler selection, common host/Rust and IC pins,
 and browser package manifest/lock/Node selection as prepared inputs. Their byte
