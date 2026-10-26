@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.16.5]
+
+- Keep generic Shared runner/archive matrices opt-in while retaining Auth's actual
+  release/recovery, evidence-caller and product qualification in CI. Distinguish
+  aggregate qualification from package/test-specific development checks.
+
 ## [0.16.4] - 2026-10-26
 
 - Adopt published Platform/macros 0.6.18, Wire/derive 0.7.16 and coordinated

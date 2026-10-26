@@ -489,7 +489,20 @@ failure even under parallel Make, before tests, package builds or publication
 qualification. Standard releases call this same gate; publication requires its
 source-bound release receipt. This library repository has no deployment target.
 
-| Focused command | Purpose |
+For a local implementation change, finish the coherent batch and select the
+smallest test that proves its behavior. For example (replace the filter and
+select the actual changed package/features):
+
+```sh
+cargo test --locked --offline -p ic-auth --lib test_name_filter
+cargo clippy --locked --offline -p ic-auth --lib -- -D warnings
+```
+
+These are alternatives for their respective test/lint questions, not a mandatory
+pair. Add an integration test, feature or Wasm selection only when the change
+requires it. The commands below vary in scope; they are not a per-edit checklist.
+
+| Command | Scope and purpose |
 | --- | --- |
 | `make test-client-tools` | Actual CI pipeline and Make callers: selected Node/npm path, later-step admission and first-failure controls with substituted npm effects |
 | `make test-client` | Portable admission/logout, strict journal transactions and Rust/TypeScript Wire roundtrips |
@@ -504,12 +517,12 @@ source-bound release receipt. This library repository has no deployment target.
 | `make test-certified-proofs` | Portable certified secp256k1/BLS proofs, protected delegation bindings, budgets and rejection |
 | `make test-sessions` | Atomic admission/replay failure, exact retry, live authority invalidation, logout and quotas using certified and Ed25519 portable proofs |
 | `make test-host-tooling` | Native file-operation CLI: bounded input, exact digest output, no-follow reads and preserved create-only evidence |
-| `make check-msrv` | Isolated public package payloads and internal applications using the declared minimum compiler, with native/Wasm and feature coverage |
+| `make check-msrv` | Aggregate: isolated public package payloads and internal applications using the declared minimum compiler, with native/Wasm and feature coverage |
 | `make tasks` | Read the adopted maintenance task catalog; no task, agent or schedule starts |
 | `make test-qualification` | Build the internal Wasm host; verify real certificates, portable proof/session admission, live authority rejection, root composition, upgrades, authenticated ingress and SDK logout through `ic-testkit` with the checked server and prepared client dependencies |
 | `make build-qualification-canister` | Build the internal host's release Wasm without starting a server |
-| `make check-wasm` | Compile-check the public libraries and chain-key/signature verification/preparation, token and session capabilities for `wasm32-unknown-unknown` |
-| `make clippy` | Lint the libraries, native tooling/qualification and Wasm host with their selected targets |
+| `make check-wasm` | Aggregate: compile-check the public libraries and chain-key/signature verification/preparation, token and session capabilities for `wasm32-unknown-unknown` |
+| `make clippy` | Aggregate: lint the libraries, native tooling/qualification and Wasm host with their selected targets |
 | `make metadata` | Validate the selected locked graph offline |
 | `make check-boundaries` | Inspect every capability graph; reject Candid/raw IC dependencies in libraries and Candid in reference Wasm |
 | `make fmt` / `make fmt-check` | Shared manifest sorting followed by Rust formatting |
@@ -519,15 +532,22 @@ source-bound release receipt. This library repository has no deployment target.
 | `make publish-dry-run` | Build all three distributable libraries without uploading; requires registry metadata access |
 | `make install-release-tools` / `make release-tools-check` | Explicitly prepare the lock-selected IC Build editor, or admit and print its absolute path offline |
 | `make test-release-tools` | Exercise release/recovery and publication rejection/retry using local and mocked effects |
-| `make test-release-runner` | Adopted Shared Tooling runner regression fixtures with substituted release effects |
-| `make test-evidence-archive` | Adopted evidence archive fixtures: retained files, symlinks and literal paths |
+| `make test-release-runner` | Opt-in producer runner matrix for changed-contract adoption or a named missing consumer proof |
+| `make test-evidence-archive` | Opt-in producer archive matrix for changed-contract adoption or a named missing consumer proof |
 | `make test-tools-evidence` | Actual setup/check caller failure status and adopted collector archive bytes, with Cargo installation substituted |
 | `make test-testkit-tools` | Locked CLI selection, setup/check failures and selection changes, prepared-input drift refusal, qualification path and actual CI evidence archive with substituted effects |
 | `make test-make-jobserver` | Actual owned Make recipes preserve pipe jobserver descriptors through Cargo/wrappers; unsafe modes refuse before substituted effects |
 
 `make ci` is the complete configured CI/release gate. Ordinary development and
-handoff use the relevant focused checks above; local full-gate execution follows
+handoff select the relevant checks above; local full-gate execution follows
 [Shared Tooling validation policy](../DRAGGINZGAME.md#validation-and-evidence).
+The generic runner/archive matrices stay at Shared Tooling and remain explicitly
+callable here. Auth retains `test-release-tools` for its actual metadata,
+release/recovery and publication rejection/retry; `test-tools-evidence` and
+`test-testkit-tools` exercise its setup and CI archive callers, including failure
+and retained evidence. Snapshot integrity still qualifies adopted bytes. No
+product, native-host or release-adapter coverage is removed by this roster change.
+
 It uses the Shared Tooling 0.6.6 logger and retains failures. CI declares the
 root Cargo manifest/lock, Rust compiler selection, common host/Rust and IC pins,
 and browser package manifest/lock/Node selection as prepared inputs. Their byte
