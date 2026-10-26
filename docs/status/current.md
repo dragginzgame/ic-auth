@@ -1,27 +1,28 @@
-# Current handoff — 2026-10-25
+# Current handoff — 2026-10-26
 
 ## Checkout and pending work
 
-The checkout is at release **0.16.1**, commit `964a55a`; its saved release plan
-is complete. Package versions remain 0.16.1. Source notes target **0.16.2**;
-this cleanup has not committed, released, pushed or published anything.
+The checkout is at maintainer commit `262c500` (candidate 0.16.2). Package
+versions remain 0.16.1 and notes target **0.16.2**; the latest reported release
+attempt stopped at Clippy before version preparation. This repair has not
+committed, released, pushed or published anything, or altered release state.
 
-The published selection is Platform/macros **0.6.16**, Wire/derive **0.7.10**,
-Host/Build/Testkit **0.68.4**, Memory **0.51.1**, File CLI **0.31.1** and Shared
-Tooling **0.26.16** (`2077c934efb82b181bea58fe50078dbad289c1aa`, 122 files).
-Registry metadata and packaged VCS identities were inspected; source evidence is
-under `target/deps-latest/`. The lockfile selections were incoming and remain
-preserved. PocketIC pins thiserror 2.0.18; SHA-2 0.10 and Dalek 2 remain aligned
-with Platform. No application/storage format or runtime capability changes.
+The current locked selection is Platform/macros **0.6.16**, Wire/derive
+**0.7.12**, Host/Build/Testkit **0.68.5**, Memory **0.51.3**, File CLI **0.31.1**
+and Shared Tooling **0.26.16** (`2077c934efb82b181bea58fe50078dbad289c1aa`,
+122 files). The incoming lockfile is preserved. SHA-2 0.10 and Dalek 2 stay on
+the Platform-compatible lines. No application/storage format or runtime
+capability changes.
 
-The five browser files were regenerated with Wire 0.7.10. Existing browser cap
-values now come from Rust's Auth transport policy; protocol budgets use Wire's
-`method_limits` projection. The generated codec configuration is observed and
-compared to structured Rust policy, with request/reply byte/node/depth mutation
-refusals. Intentional browser byte asymmetry retains its former values and
-behavioral coverage. Native allocation policy is not a JavaScript heap bound.
-Full native/browser boundary equivalence and real-browser execution remain
-qualification gaps under [Auth #3](https://github.com/dragginzgame/ic-auth/issues/3).
+Wire 0.7.11 replaced the silent host generator with required acknowledgement
+and diagnostic arguments. Auth now passes an empty acknowledgement map and
+prints nonempty advice to stderr. The workspace declares the matching 0.7.11
+minimum while retaining the selected 0.7.12 source. Regeneration preserves all
+five browser files byte-for-byte. Browser cap values remain Rust-owned, with
+structured configuration and byte/node/depth drift tests.
+Native allocation policy is not a JavaScript heap bound. Full native/browser
+boundary equivalence and real-browser execution remain qualification gaps under
+[Auth #3](https://github.com/dragginzgame/ic-auth/issues/3).
 
 ## Current cleanup
 
@@ -61,34 +62,19 @@ through [Platform #50](https://github.com/dragginzgame/ic-platform/issues/50).
 
 ## Validation
 
-The earlier cleanup evidence remains under `target/cleanup-seven/`, including
-62 browser tests, six fixture unit tests and all 12 installed local Testkit
-0.68.1 canister tests. It does not qualify the incoming 0.68.3 executable pairing.
+Current repair evidence is under `target/wire-generator-fix/`. Native and Wasm
+Clippy, all 63 client tests, Rust/TypeScript interoperability, host-tooling tests,
+transport/type tests, isolated Rust 1.91 native/Wasm package checks and dependency
+boundaries pass. Dependency pins, formatting, local links and diff checks pass.
+The generator produced no bulk advice for the current Auth schemas; no paths
+are acknowledged or silently suppressed.
 
-The previous dependency evidence is under `target/deps-latest/`: regeneration and all
-63 browser tests, Rust/TypeScript interoperability and client tool fixtures pass.
-The approved Testkit/Build 0.68.3 executables are prepared. All six fixture unit
-tests and all 12 live-canister tests pass, including certification, upgrades,
-signed ingress and browser SDK admission/logout. Native/Wasm Rust 1.91 package
-checks, Clippy, dependency boundaries and focused crypto/session/host suites pass.
-Release/publication recovery fixtures and the command-stub runner pass with
-local/mocked effects. Snapshot, pins, formatting, ShellCheck and doc links pass.
-
-The next incoming update selects published Host/Build/Testkit 0.68.4 from
-Tooling source `41f5d1688bbf4321be89d352974f17957a0ef0bc` (packaged identities
-are recorded under `target/upstream-next/`). It raises its Platform/Wire minimums
-to the already selected versions and simplifies CLI/build/filesystem mechanics.
-Auth uses the same APIs and features; no migration is required. All 63 client
-tests, transport/type and host tests, Clippy, isolated native/Wasm MSRV and
-boundary checks pass under `target/upstream-next/`. Regeneration preserves all
-five browser files byte-for-byte. Snapshot, pins, formatting and doc links pass.
-The 0.68.4 Testkit/Build executables are missing; explicit setup approval is
-pending before live-canister and release/recovery qualification. The 0.68.3
-runtime/editor results above remain historical and do not qualify this pairing.
-
-The previous lockfile remained unchanged during qualification. No commit, release, push,
-publication or deployment was run. Full CI, native macOS and real-browser
-execution were not run; traversal-boundary equivalence remains explicitly open.
+Earlier cleanup/adoption evidence remains under `target/cleanup-seven/`,
+`target/deps-latest/` and `target/upstream-next/`. The 12 live-canister and
+release/recovery results for older tool selections are historical. This host
+API repair did not rerun the complete CI gate, live-canister or release/recovery
+qualification of 0.68.5, or native macOS/real-browser qualification.
+No saved release or validation state was removed or reused for changed inputs.
 
 [Historical handoff](history-0.16.1-adoption.md) retains previous adoption and
 validation details; its release labels and tool availability are historical.

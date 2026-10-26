@@ -162,7 +162,17 @@ fn generate<Request: wire::typescript::Wire, Response: wire::typescript::Wire>(
             .expect("method metadata object")
             .clone(),
         );
-    let mut source = wire::typescript::generate_registry(&types, &[method], "./wire-runtime.js")?;
+    let mut source = wire::typescript::generate_registry(
+        &types,
+        &[method],
+        "./wire-runtime.js",
+        &std::collections::BTreeMap::new(),
+        |report| {
+            if !report.is_clean() {
+                eprintln!("IC Wire bulk advice for {name}:\n{report}");
+            }
+        },
+    )?;
     source.push_str(&format!("\nexport const methodName = {};\nexport const {{ encodeRequest, decodeRequest, encodeResponse, decodeResponse }} = contract;\n", json!(name)));
     Ok(source)
 }

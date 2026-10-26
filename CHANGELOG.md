@@ -2,8 +2,12 @@
 
 ## [0.16.2] - Unreleased
 
-- Adopt Shared Tooling 0.26.16 and verify published Platform/macros 0.6.16,
-  Wire/derive 0.7.10, Host/Build/Testkit 0.68.4 and Memory 0.51.1. Keep SHA-2
+- Update the host generator for Wire 0.7.11+'s required acknowledgement map
+  and diagnostic callback. Surface bulk advice on stderr and declare the matching
+  dependency minimum; generated contracts and byte budgets remain unchanged.
+
+- Adopt Shared Tooling 0.26.16 and align the selected Platform/macros 0.6.16,
+  Wire/derive 0.7.12, Host/Build/Testkit 0.68.5 and Memory 0.51.3. Keep SHA-2
   and Dalek on the Platform-compatible lines; PocketIC pins thiserror 2.0.18.
 - Generate existing browser cap values from Auth's Rust-owned transport policy
   and use Wire's directional budget projection. Observe actual generated codec

@@ -42,6 +42,11 @@ is removed. Rust projections recover owned byte/text buffers without copying.
 [Wire #3](https://github.com/dragginzgame/ic-wire/issues/3) and
 [Wire #4](https://github.com/dragginzgame/ic-wire/issues/4) retain upstream history.
 No generated runtime is patched downstream.
+Wire 0.7.11+ requires the host to receive bulk-field advice. Auth passes an empty
+acknowledgement map and displays nonempty reports on stderr during generation
+and checking. Advice remains advisory; it does not alter schemas, byte budgets
+or runtime admission. No warning suppression or schema migration is introduced.
+
 
 ## Portable credential transport
 
