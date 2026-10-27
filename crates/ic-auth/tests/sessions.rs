@@ -284,6 +284,64 @@ fn created(value: SessionEstablished) -> Session {
 }
 
 #[test]
+fn required_scopes_accept_any_order_but_never_borrow_another_roles_grant() {
+    let f = Fixture::new(1);
+    let mut r = Receiver::new(&f);
+    let context = f.claims_context(NOW);
+    let key = f.key.verifying_key().to_bytes();
+    let credential = f.credential();
+    let admitted = created(
+        establish_session(
+            &mut r.store,
+            &mut r.ledger,
+            &mut r.budget,
+            &credential,
+            &SessionRequest::new(vec!["write".into(), "read".into()], None).unwrap(),
+            &SessionAdmissionContext {
+                verification: PortableVerificationContext::Ed25519 {
+                    claims: &context,
+                    public_key: &key,
+                },
+                role: &f.role,
+                ttl: ttl(),
+            },
+            policy(),
+        )
+        .unwrap(),
+    );
+    let required = ["write".into(), "read".into(), "write".into()];
+    let mut live = f.context(NOW);
+    live.required_scopes = &required;
+    assert_eq!(
+        authorize_session(&mut r.store, &mut r.ledger, &live, policy()),
+        Ok(admitted)
+    );
+
+    let mut grants = f.claims.grants.clone();
+    grants.insert(
+        0,
+        DelegatedRoleGrant {
+            target: "admin".parse().unwrap(),
+            scopes: vec!["write".into()],
+        },
+    );
+    grants[1].scopes = vec!["read".into()];
+    live.authority.grants = &grants;
+    assert_eq!(
+        authorize_session(&mut r.store, &mut r.ledger, &live, policy()),
+        Err(SessionError::ScopeRejected)
+    );
+    // An unsorted protected ceiling is rejected before ordered membership.
+    let mut unsorted = grants.clone();
+    unsorted.reverse();
+    live.authority.grants = &unsorted;
+    assert_eq!(
+        authorize_session(&mut r.store, &mut r.ledger, &live, policy()),
+        Err(SessionError::InvalidPolicyOrRecord)
+    );
+}
+
+#[test]
 fn future_start_retry_keeps_original_credential_and_verifies_only_once() {
     let mut f = Fixture::new(1);
     let start = NOW + SECOND;

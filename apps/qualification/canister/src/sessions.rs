@@ -1,5 +1,6 @@
 //! Actual volatile receiver lifecycle for qualification, not a production issuer.
 mod checkpoint;
+mod profiling;
 pub(crate) use checkpoint::{Snapshot, capture, restore};
 #[path = "../../sessions.rs"]
 pub(crate) mod contract;
@@ -31,6 +32,15 @@ const MAX_ADMITTED_LOGINS: usize = 8;
 const MAX_UNKNOWN_LOGINS: usize = 8;
 const MAX_LOGIN_RECORDS: usize = MAX_ADMITTED_LOGINS + MAX_UNKNOWN_LOGINS;
 const MAX_SMALL_RECORD_BYTES: usize = 1024;
+const CERTIFIED_LIMITS: ic_auth::portable_certified::CertifiedProofLimits =
+    ic_auth::portable_certified::CertifiedProofLimits {
+        max_cert_ttl_ns: 120 * SECOND,
+        max_token_ttl_ns: 60 * SECOND,
+        max_certificate_age_ns: 10 * SECOND,
+        max_variable_bytes: 131_072,
+        max_issuer_signature_bytes: 131_072,
+        max_witness_steps: 6,
+    };
 fn limits() -> SessionLimits {
     SessionLimits {
         max_sessions: MAX_SESSIONS,
@@ -248,14 +258,7 @@ fn establish_portable_session(input: SessionInput) -> Result<SessionView, Admiss
                     claims: ctx,
                     root_key: root,
                     ic_root_public_key_raw: network_key,
-                    limits: ic_auth::portable_certified::CertifiedProofLimits {
-                        max_cert_ttl_ns: 120 * SECOND,
-                        max_token_ttl_ns: 60 * SECOND,
-                        max_certificate_age_ns: 10 * SECOND,
-                        max_variable_bytes: 131_072,
-                        max_issuer_signature_bytes: 131_072,
-                        max_witness_steps: 6,
-                    },
+                    limits: CERTIFIED_LIMITS,
                 };
                 PortableVerificationContext::Certified(&certified)
             }

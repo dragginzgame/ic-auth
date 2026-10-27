@@ -228,9 +228,8 @@ impl From<GrantValidationError> for CertificateIssuanceError {
     }
 }
 
-// Preparation checks narrowing before hashing the parent certificate, so retain
-// first-match semantics even for malformed duplicate parent roles. Verification
-// hashes/checks canonical parents first, where first-match and any-match agree.
+// Both callers admit canonical parent scopes first: protected claims authority
+// through validate_grants, or the delegation certificate through cert_hash.
 pub(crate) fn grants_are_subset(
     grants: &[DelegatedRoleGrant],
     ceiling: &[DelegatedRoleGrant],
@@ -239,12 +238,21 @@ pub(crate) fn grants_are_subset(
         ceiling
             .iter()
             .find(|parent| parent.target == child.target)
-            .is_some_and(|parent| {
-                child
-                    .scopes
-                    .iter()
-                    .all(|scope| parent.scopes.contains(scope))
-            })
+            .is_some_and(|parent| scopes_are_subset(&child.scopes, &parent.scopes))
+    })
+}
+
+// The ceiling must already be canonical. Requested scopes need not be ordered
+// (ordinary authorization accepts host-required scopes in any order).
+pub(crate) fn scopes_are_subset(requested: &[String], ceiling: &[String]) -> bool {
+    requested.iter().all(|scope| {
+        // The measured one/two-scope profile is cheaper with a direct scan;
+        // wider canonical ceilings avoid repeated full scans through search.
+        if ceiling.len() <= 2 {
+            ceiling.contains(scope)
+        } else {
+            ceiling.binary_search(scope).is_ok()
+        }
     })
 }
 
@@ -254,4 +262,50 @@ pub(crate) fn issuer_binding_matches(cert: &DelegationCert) -> Result<bool, Cano
         cert.issuer_proof_alg,
         cert.issuer_proof_binding,
     )? == cert.issuer_proof_binding_hash)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn scope_narrowing_matches_set_inclusion_for_sparse_and_unordered_requests() {
+        for allowed in 0_u32..64 {
+            let ceiling: Vec<_> = (0..6)
+                .filter(|bit| allowed & (1 << bit) != 0)
+                .map(|bit| format!("scope{bit}"))
+                .collect();
+            for wanted in 0_u32..64 {
+                let mut requested: Vec<_> = (0..6)
+                    .filter(|bit| wanted & (1 << bit) != 0)
+                    .map(|bit| format!("scope{bit}"))
+                    .collect();
+                requested.reverse();
+                requested.extend(requested.clone());
+                assert_eq!(
+                    scopes_are_subset(&requested, &ceiling),
+                    wanted & !allowed == 0
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn grant_narrowing_keeps_role_boundaries_and_missing_scope_refusals() {
+        let grant = |role: &str, scopes: &[&str]| DelegatedRoleGrant {
+            target: role.parse().unwrap(),
+            scopes: scopes.iter().map(|scope| (*scope).into()).collect(),
+        };
+        let ceiling = [grant("a", &["read", "write"]), grant("c", &["read"])];
+        for (requested, expected) in [
+            (vec![], true),
+            (vec![grant("a", &["write"]), grant("c", &["read"])], true),
+            (vec![grant("b", &["read"])], false),
+            (vec![grant("d", &["read"])], false),
+            (vec![grant("c", &["write"])], false),
+            (vec![grant("a", &["read", "read_all"])], false),
+        ] {
+            assert_eq!(grants_are_subset(&requested, &ceiling), expected);
+        }
+    }
 }

@@ -305,12 +305,7 @@ impl Session {
             .iter()
             .find(|grant| &grant.target == ctx.role)
             .ok_or(SessionError::ScopeRejected)?;
-        if self
-            .0
-            .scopes
-            .iter()
-            .any(|scope| !grant.scopes.contains(scope))
-        {
+        if !crate::certificate_issuance::scopes_are_subset(&self.0.scopes, &grant.scopes) {
             return Err(SessionError::ScopeRejected);
         }
         Ok(())

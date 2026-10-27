@@ -98,7 +98,8 @@ runs rustfmt through `scripts/ci/run-rust-formatting.pl`. Each pass shows progre
 and elapsed time while its verbose output stays in a private log; failures retain
 the log and exact exit status. Blank-separated dependency sections are preserved.
 Use reviewed literal `FORMAT_RUST_ARGS` for extra workspaces, optional derive
-sorting and root/extra manifest order, instead of copying the orchestration:
+sorting, root/extra manifest order and standalone Rust files, instead of copying
+the orchestration:
 
 ```make
 FORMAT_RUST_ARGS = --sort-derives \
@@ -115,6 +116,25 @@ sorter's ignore-aware traversal. `--manifest-order` selects root ordering;
 `--extra-manifest-order` selects ordering for extra roots. Extra roots must be
 distinct directories inside this checkout. Reuse a consumer's existing roster
 when constructing these arguments; do not create another workspace registry.
+
+For sources outside Cargo's formatter inventory, repeat `--rustfmt-source PATH`
+and select `--rustfmt-edition 2015|2018|2021|2024` explicitly. These files are
+formatted in a separate timed pass after all workspaces. Missing, duplicate or
+outside-checkout files and unsupported editions reject before any write. Direct
+Rustfmt is admitted before workspace mutations; `--rustfmt PATH` selects one
+executable, and target-specific `RUSTUP_TOOLCHAIN` applies to it too. For example:
+
+```make
+FORMAT_RUST_ARGS = --extra-workspace testing/runtime-qualification \
+    --rustfmt-source testing/package-consumer.rs --rustfmt-edition 2024
+```
+
+Use the consumer's existing file list; if it contains globs, expand them with
+Make's `$(wildcard ...)` and emit one option per file with `$(foreach ...)`.
+Selections containing standalone files run uncached, including their workspace
+passes, because arbitrary standalone modules/configuration are not inventoried
+by the cache contract. This preserves full coverage and visible progress rather
+than certifying an incomplete input set.
 
 Before running passes, the driver can reuse a successful result for identical
 workspace/source/manifests/lock/configuration, formatter identities and policy.
@@ -163,9 +183,8 @@ target-specific environment applies to those checks and the formatter.
 A snapshot refresh preserves explicit command overrides; migrating a supported
 Rust-only adapter requires removing both overrides and selecting its inputs with
 `FORMAT_RUST_ARGS`. Update the actual caller and hook fixtures, including manual
-shared-file copies and aggregate-output assertions. The standard driver does not
-yet accept standalone Rustfmt file lists or their edition settings. Keep adapters
-that cover those files until an equivalent shared interface is qualified. Nesting
+shared-file copies and aggregate-output assertions. Preserve standalone file and
+edition inputs when replacing their adapter. Nesting
 the driver inside a custom command still captures its progress in the aggregate
 log; it does not provide live per-pass output.
 

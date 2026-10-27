@@ -1282,6 +1282,8 @@ dependencies = [
  "ic-platform",
  "ic-wire",
  "serde",
+ "serde_bytes",
+ "serde_cbor",
  "sha2 0.10.9",
 ]
 

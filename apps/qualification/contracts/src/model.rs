@@ -52,3 +52,19 @@ pub struct AdmissionProfile {
     pub reply: Bytes<4096>,
     pub instructions: u64,
 }
+
+/// Independent component probes after complete verification of the same proof.
+/// Component values overlap and are not an additive trace of the full verifier.
+#[derive(Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct CertifiedProfile {
+    pub credential_instructions: u64,
+    pub root_delegation_instructions: u64,
+    pub issuer_instructions: u64,
+    pub decode_instructions: u64,
+    pub tree_hash_instructions: u64,
+    pub signing_bls_instructions: u64,
+    pub subnet_bls_instructions: u64,
+    pub signature_bytes: u64,
+    pub certificate_bytes: u64,
+    pub subnet_certificate_bytes: u64,
+}

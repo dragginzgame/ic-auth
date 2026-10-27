@@ -96,6 +96,10 @@ pub(super) fn root_proof(
 #[test]
 fn portable_proof_rechecks_live_authority_and_real_certification_after_upgrade() {
     let fixture = Fixture::new();
+    // Freeze signed timestamps as well as topology/keys for matched Wasm costs.
+    fixture
+        .pic
+        .set_time((std::time::UNIX_EPOCH + Duration::from_secs(1_800_000_000)).into());
     let started = fixture.now();
     let key = SigningKey::from_slice(&[7; 32]).unwrap();
     let policy = RootKeyPolicy {

@@ -178,6 +178,10 @@ pub(super) fn qualify(
             );
             assert!(admitted.expires_at_ns <= claims.login_deadline_ns);
             if device == 20 {
+                if certified {
+                    components(f, caller, &input);
+                    assert_eq!(read(f, f.resource, caller).unwrap(), admitted);
+                }
                 let peer = profile(
                     f,
                     f.signer,
@@ -187,10 +191,10 @@ pub(super) fn qualify(
                 )
                 .unwrap();
                 assert_eq!(peer.subject, admitted.subject);
-                first = Some((caller, input, admitted));
+                first = Some((caller, input, admitted, claims));
             }
         }
-        let (caller, input, admitted) = first.unwrap();
+        let (caller, input, mut admitted, original_claims) = first.unwrap();
         f.pic.advance_time(Duration::from_secs(3));
         assert_eq!(
             profile(
@@ -203,6 +207,23 @@ pub(super) fn qualify(
             .unwrap(),
             admitted
         );
+        // A new signed proof within the same login is a fresh renewal, even
+        // while its previous lease remains live. Exact retries above skip it.
+        let mut renewal = original_claims;
+        renewal.issued_at_ns = f.now();
+        renewal.admission_expires_at_ns = f.now() + 2 * SECOND;
+        renewal.nonce[0] ^= 1;
+        let renewal_input = make_input(&renewal);
+        let renewed = profile(
+            f,
+            f.resource,
+            caller,
+            &renewal_input,
+            &format!("matched_{mechanism}_renewal"),
+        )
+        .unwrap();
+        assert!(renewed.expires_at_ns > admitted.expires_at_ns);
+        admitted = renewed;
         assert_eq!(
             measured(
                 f,
@@ -239,5 +260,116 @@ pub(super) fn qualify(
             read(f, f.signer, caller).is_ok(),
             "local logout preserves peer lease"
         );
+        if !certified {
+            qualify_wide_grants(f, &config, &key);
+        }
+    }
+}
+
+fn components(f: &Fixture, caller: Principal, input: &SessionInput) {
+    let call = |caller, input: &SessionInput| {
+        update_wire::<
+            ic_auth_wire::SessionInput,
+            Result<controls::model::CertifiedProfile, controls::Refusal>,
+        >(
+            &f.pic,
+            f.resource.into(),
+            caller,
+            spec!(controls::ProfileCertified),
+            input,
+        )
+        .expect("bounded certified component probe")
+    };
+    for sample in 0..3 {
+        let report = call(caller.into(), input).unwrap();
+        assert!(report.credential_instructions > 0);
+        assert!(report.root_delegation_instructions > 0);
+        assert!(report.issuer_instructions > 0);
+        assert!(report.decode_instructions > 0);
+        assert!(report.tree_hash_instructions > 0);
+        assert!(report.signing_bls_instructions > 0);
+        assert!(
+            report.subnet_bls_instructions > 0,
+            "real application-subnet delegation"
+        );
+        eprintln!("certified components sample {sample}: {report:?}");
+    }
+    assert!(
+        call(Principal::anonymous().into(), input).is_err(),
+        "caller binding precedes component results"
+    );
+    let mut invalid = input.clone();
+    let ic_auth_wire::model::PortableProof::Certified(proof) = &mut invalid.credential.proof else {
+        panic!("certified fixture");
+    };
+    proof.issuer_signature.signature_cbor = Bytes::new(vec![0]).unwrap();
+    assert!(
+        call(caller.into(), &invalid).is_err(),
+        "complete verification precedes component results"
+    );
+}
+
+// Same executable and endpoints as the one-scope sample, with the maximum
+// grant/scope cardinalities and 16 requested scopes. Native signing is excluded.
+fn qualify_wide_grants(f: &Fixture, base: &ReceiverConfig, key: &SigningKey) {
+    let mut config = base.clone();
+    let scopes: Vec<String> = std::iter::once("read".into())
+        .chain((0..31).map(|n| format!("scope{n:02}")))
+        .collect();
+    config.grants = (0..16)
+        .map(|n| DelegatedRoleGrant {
+            target: format!("role{n:02}").parse().unwrap(),
+            scopes: scopes.clone(),
+        })
+        .collect();
+    config.role = config.grants.last().unwrap().target.clone();
+    install(f, f.resource, &config);
+    f.pic.advance_time(Duration::from_secs(1));
+    for device in 30..33 {
+        let claims = PortableClaims {
+            mechanism: config.authority.mechanism(),
+            audience: config.audience,
+            issuer: config.issuer,
+            key_binding_id: config.authority.binding(),
+            browser_public_key: SigningKey::from_bytes(&[device; 32])
+                .verifying_key()
+                .to_bytes(),
+            account_subject: f.owner,
+            login_started_at_ns: f.now(),
+            login_deadline_ns: f.now() + 60 * SECOND,
+            issued_at_ns: f.now(),
+            admission_expires_at_ns: f.now() + 2 * SECOND,
+            nonce: [device; 16],
+            grants: config.grants.clone(),
+        };
+        let caller = browser_principal(&claims.browser_public_key);
+        let mut input = input(&claims, key);
+        input.scopes = List::new(
+            std::iter::once("read")
+                .chain(scopes[17..].iter().map(String::as_str))
+                .map(|scope| Text::new(scope.to_owned()).unwrap())
+                .collect(),
+        )
+        .unwrap();
+        assert_eq!(input.scopes.as_slice().len(), 16);
+        let admitted = profile(
+            f,
+            f.resource,
+            caller,
+            &input,
+            &format!("wide_ed25519_fresh_{device}"),
+        )
+        .unwrap();
+        assert_eq!(read(f, f.resource, caller).unwrap(), admitted);
+        let hot = query_control::<(), controls::model::SessionProfile>(
+            &f.pic,
+            f.resource,
+            caller,
+            spec!(controls::ProfileSession),
+            (),
+        )
+        .unwrap();
+        eprintln!("wide ed25519 session profile {device}: {hot:?}");
+        assert!(hot.authorization_instructions > 0);
     }
 }

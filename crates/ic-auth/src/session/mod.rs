@@ -229,7 +229,8 @@ pub fn establish_session(
             return Err(SessionError::StaleAuthority);
         }
         let previous = tx.session(authority.caller)?;
-        if let Some(session) = &previous
+        let replacing = previous.is_some();
+        if let Some(session) = previous
             && session.fingerprint() == fingerprint
         {
             if session.request_hash() != request.hash() {
@@ -237,7 +238,7 @@ pub fn establish_session(
             }
             session.check_live(&context, policy)?;
             session.check_revocation(ledger, authority.now_ns)?;
-            return Ok(Some(session.clone()));
+            return Ok(Some(session));
         }
         if tx.replay_exists(fingerprint)? {
             return Err(SessionError::ReplayConflict);
@@ -251,7 +252,7 @@ pub fn establish_session(
         )?;
         let limits = tx.limits();
         limits.validate()?;
-        limits.check_capacity(tx.occupancy(authority.caller)?, previous.is_some())?;
+        limits.check_capacity(tx.occupancy(authority.caller)?, replacing)?;
         ledger.check_reservation(authority.caller, claims, authority.now_ns)?;
         Ok(None)
     })?;
@@ -294,11 +295,10 @@ pub fn authorize_session(
             .ok_or(SessionError::MissingOrExpired)?;
         session.check_live(context, policy)?;
         session.check_revocation(ledger, context.authority.now_ns)?;
-        if context
-            .required_scopes
-            .iter()
-            .any(|scope| !session.scopes().contains(scope))
-        {
+        if !crate::certificate_issuance::scopes_are_subset(
+            context.required_scopes,
+            session.scopes(),
+        ) {
             return Err(SessionError::ScopeRejected);
         }
         Ok(session)

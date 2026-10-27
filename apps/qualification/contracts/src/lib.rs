@@ -122,6 +122,29 @@ impl ProfileAdmission {
 method!(EnableCheckpoint, 0x41555449f00d, "enable_session_checkpoint", (), Result<(), Refusal>, REPLY_LIMITS);
 method!(ConfirmAuthority, 0x41555449f00e, "confirm_restored_session_authority", ReceiverConfig, Result<(), Refusal>, REPLY_LIMITS);
 method!(SetSessionAsset, 0x41555449f00f, "session_set_asset", u64, Result<(), Refusal>, REPLY_LIMITS);
+pub struct ProfileCertified;
+impl ProfileCertified {
+    pub const ID: u64 = 0x41555449f010;
+    pub const NAME: &'static str = "profile_certified_proof";
+    pub const REQUEST_LIMITS: Limits = ic_auth_wire::EstablishSession::REQUEST_LIMITS;
+    pub const RESPONSE_LIMITS: Limits = PROFILE_LIMITS;
+    pub fn encode_request(value: &ic_auth_wire::SessionInput) -> Result<Vec<u8>, ic_wire::Error> {
+        ic_wire::native::encode_request(Self::ID, value, Self::REQUEST_LIMITS)
+    }
+    pub fn decode_request(bytes: &[u8]) -> Result<ic_auth_wire::SessionInput, ic_wire::Error> {
+        ic_wire::native::decode_request(Self::ID, bytes, Self::REQUEST_LIMITS)
+    }
+    pub fn encode_response(
+        value: &Result<model::CertifiedProfile, Refusal>,
+    ) -> Result<Vec<u8>, ic_wire::Error> {
+        ic_wire::native::encode_response(Self::ID, value, Self::RESPONSE_LIMITS)
+    }
+    pub fn decode_response(
+        bytes: &[u8],
+    ) -> Result<Result<model::CertifiedProfile, Refusal>, ic_wire::Error> {
+        ic_wire::native::decode_response(Self::ID, bytes, Self::RESPONSE_LIMITS)
+    }
+}
 
 /// Bounded UTF-8 diagnostics cannot trap and roll back admission charges.
 pub fn refusal(mut error: String) -> Refusal {

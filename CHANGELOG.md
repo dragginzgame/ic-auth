@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.19.1] - Unreleased
+
+### 🔧 Changed
+
+- Adopt Shared Tooling 0.26.25 at revision `6b6bbd9`, including opaque
+  submodule handling in formatting hooks and standalone-source formatter support.
+  Auth keeps its existing workspace formatting coverage and CI gate selection.
+  [#92 — Adopt latest Shared Tooling revision](https://github.com/dragginzgame/ic-auth/issues/92).
+- Share ordered scope-membership checks across credential narrowing, session
+  requests and authorization, and remove an extra session clone on exact retries.
+  Matched qualification reduces maximum-width admission instructions by about
+  20%, authorization by 12.8% and reference Wasm size by 1,058 bytes; small-scope
+  authorization adds 22 instructions. Public APIs and signed/stored/Wire bytes
+  are unchanged.
+  [#93 — Reduce repeated Rust admission work with measured Wasm qualification](https://github.com/dragginzgame/ic-auth/issues/93).
+- Add private certified-proof component probes and renewal measurements. Two BLS
+  checks account for about 98.8% of the measured complete verifier; retain the
+  existing verifier under the accepted decision and document workload scenarios.
+  Verification behavior, trust policy and public library sources are unchanged
+  by this probe.
+  [#94 — Measure certified-proof admission stages and operational frequency](https://github.com/dragginzgame/ic-auth/issues/94).
+
 ## [0.19.0] - 2026-10-27
 
 ### ⚠️ Breaking

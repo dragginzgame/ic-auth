@@ -111,7 +111,7 @@ impl SessionRequest {
             .ok_or(SessionRequestError::InvalidLifetime)
     }
     fn check_granted_scopes(&self, granted: &[String]) -> Result<(), SessionRequestError> {
-        if self.scopes.iter().any(|scope| !granted.contains(scope)) {
+        if !crate::certificate_issuance::scopes_are_subset(&self.scopes, granted) {
             return Err(SessionRequestError::ScopeRejected);
         }
         Ok(())

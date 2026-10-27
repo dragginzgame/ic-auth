@@ -40,6 +40,7 @@ fn controls_refuse_old_transport_wrong_identity_and_unbounded_requests() {
     refusal_contract!(EnableCheckpoint);
     refusal_contract!(ConfirmAuthority);
     refusal_contract!(SetSessionAsset);
+    refusal_contract!(ProfileCertified);
 }
 #[test]
 fn fixture_diagnostics_keep_admission_reply_opaque_and_bounded() {
@@ -55,4 +56,25 @@ fn fixture_diagnostics_keep_admission_reply_opaque_and_bounded() {
     let error = refusal("🚫".repeat(100));
     assert!(error.as_str().len() <= 256);
     assert!("🚫".repeat(100).starts_with(error.as_str()));
+
+    let profile = Ok(model::CertifiedProfile {
+        credential_instructions: 1,
+        root_delegation_instructions: 2,
+        issuer_instructions: 3,
+        decode_instructions: 4,
+        tree_hash_instructions: 5,
+        signing_bls_instructions: 6,
+        subnet_bls_instructions: 7,
+        signature_bytes: 8,
+        certificate_bytes: 9,
+        subnet_certificate_bytes: 10,
+    });
+    let bytes = ProfileCertified::encode_response(&profile).unwrap();
+    assert_eq!(ProfileCertified::decode_response(&bytes).unwrap(), profile);
+    assert!(ProfileAdmission::decode_response(&bytes).is_err());
+    assert!(ProfileCertified::decode_response(&encoded).is_err());
+    assert!(
+        ProfileCertified::decode_request(&vec![0; ProfileCertified::REQUEST_LIMITS.bytes + 1])
+            .is_err()
+    );
 }
