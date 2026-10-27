@@ -3,34 +3,38 @@
 The portable contract provides one portable application session engine in
 `ic_auth::session`. Enable `sessions` for the engine and bounded volatile store;
 select `portable-signature-verification` for Ed25519 or `certified-proof-verification` for
-complete certified portable proofs. The engine itself does not require either
-cryptographic backend. It does not depend on Canic, Toko, CDK or stable memory.
+complete certified portable proofs. Fresh admission is available only with a complete
+verifier selected; session-only builds retain authorization, logout and storage. It does not depend on Canic, Toko, CDK or stable memory.
 
 ## Admission and ordinary calls
 
-`establish_session` takes a host store, retained login revocation ledger, shared
-work budget, canonical claims, checked `SessionRequest`, protected
-`SessionContext` and `SessionPolicy`, plus a complete verification callback.
-For a `PortableCredential` envelope, the callback receives the supplied budget
-and an owned `DecodedPortableClaims`. Consume it with the protected verifier:
+`establish_session` takes a host store, retained login ledger, shared work budget,
+the complete `PortableCredential`, a checked `SessionRequest`,
+`SessionAdmissionContext` and `SessionPolicy`. Admission owns the canonical
+claims decode, digest and complete verification. There is no verification callback
+or public decoded-admission value that a host can substitute.
 
-```rust,ignore
-|budget, decoded| {
-    Ok(decoded.verify(budget, &credential.proof, &verification_context)?)
-}
-```
+`SessionAdmissionContext` contains the protected `PortableVerificationContext`,
+receiver role and checked `SessionTtlPolicy`. That verifier selection supplies the
+single `PortableClaimsContext` used by both preflight and proof verification.
+The request cannot select a key or enrollment. `PortableClaimsContext` contains
+shared `PortableAuthority` plus the proof issuance floor and login/proof TTL limits.
+`SessionContext` instead contains current `PortableAuthority`, the role,
+required operation scopes and a checked `SessionTtlLimit`; authorization needs no
+proof policy or default request TTL.
 
-The callback shares the
-engine's canonical decode and SHA-256 digest with complete Ed25519/certified
-verification, without cloning the claims. The opaque value is not authenticated;
-its verifier rejects proof/enrollment mechanism mismatches. Pass the same protected
-claims context to the engine and `PortableVerificationContext`. The sealed
-`VerifiedPortableClaims` result must match the original digest and current time
-before admission can commit. Budget charges survive later refusals.
+Construct `SessionTtlPolicy::new(default_secs, maximum_secs)` for admission.
+It enforces `1 <= default <= maximum <= 1800`. Its `maximum()` supplies the
+live authorization limit, or a host can construct `SessionTtlLimit::new(maximum_secs)`
+without configuring an admission default. Narrowing that current maximum can
+invalidate an existing lease; authority changes still require host-owned generation
+updates. `SessionPolicy` carries only generation and protected capability/subject
+eligibility. Constructor success does not authenticate any host input.
 
 `portable_credential::verify_credential` and the mechanism-specific byte verifiers
-remain independently validating entry points for standalone proof callers. Do not
-use them to decode the credential again inside the session callback.
+remain independently validating standalone proof APIs. Their success is not session
+admission. The engine reuses its own canonical decode instead of calling those
+byte APIs again, and budget charges survive later refusals.
 
 Both proof mechanisms enter `SessionError` through
 `SessionError::Credential(PortableCredentialError::Ed25519(error))` or
@@ -92,12 +96,15 @@ projects backend commit failures to unavailable storage at its public result
 boundary; a backend capacity error must not be confused with ledger capacity.
 The ledger still installs a proposed record only after successful host commit.
 
-The volatile store rejects missing changes, mismatched callers/domains and
-reservation-versus-revocation operation mismatches before modifying records.
-Durable adapters can reuse this staging through
-`MemorySessionStore::transaction_with_commit`. After all validation, a write-only
-callback receives `SessionCommit`: the proposed login record, the touched
-session/replay pair for admission (or no pair for logout), and exact post-commit
+The store separates immutable `read` snapshots from explicit `admit` and `logout`
+operations. Each write requires its login change; logout derives its caller from
+that change. The volatile store rejects mismatched domains, record associations
+and reservation-versus-revocation states before modifying records. Durable
+adapters reuse these checks through `MemorySessionStore::admit_with_commit` and
+`logout_with_commit`. Admission returns whether it replaced an existing session. After all validation, a write-only
+callback receives `SessionCommit`: an explicit `SessionWrite::Admission` containing
+the proposed login record and touched session/replay pair, or `SessionWrite::Logout`
+containing the proposed login revocation, and exact post-commit
 session/replay counts and encoded-byte total. Reads and rejected operations do not
 invoke persistence. A callback error leaves heap records, indexes and accounting
 unchanged. Success must mean the durable transaction has completed; the reference
@@ -105,6 +112,37 @@ store then publishes the already-validated heap changes. No whole-store clone or
 checkpoint is required for this callback. Durable atomicity, metadata generation,
 clock/budget persistence, pruning and authority changes remain host obligations;
 this hook does not itself supply a stable backend.
+
+### Session commit write migration
+
+Auth 0.19 is a hard cut at the Rust API; migrate each current caller together:
+
+- Replace the claims slice and verification callback with the complete credential
+  and `SessionAdmissionContext`. Select a verifier feature for fresh admission.
+- Move shared clock, identity, grants, authority deadlines and login reset floor
+  into `PortableAuthority`. Put proof-only inputs on `PortableClaimsContext`.
+  Authorization uses `SessionContext` with current authority and maximum TTL.
+- Replace raw default/maximum arguments with `SessionTtlPolicy`; use its
+  `maximum()` or checked `SessionTtlLimit` for live authorization.
+- Implement `SessionReader` and `SessionStore::{read, admit, logout}` instead of
+  mutable staging transactions. Reads cannot write. Every write validates current
+  generation/association and commits the required records atomically; reads never
+  invoke persistence. `admit` returns true only for replacement.
+- Match `LoginRevocationChange::state()` as `LoginRecordState::Reserved(binding)`
+  or `Revoked(Some(binding))` / `Revoked(None)`. `LoginBinding` has named
+  issuer, subject, start and deadline fields. The state replaces the correlated
+  revoked/pool flags and optional tuple getter; it is not a credential.
+- Match `SessionCommit::write` as `SessionWrite::Admission { login, session, replay }`
+  or `SessionWrite::Logout { login }`. The counts and encoded-byte total remain
+  post-commit values. Replace the combined commit hook with the explicit admission
+  or logout hook.
+
+There are no aliases or fallback entry points. Every host commit must finish
+atomically before reporting success, and returned failure must preserve storage.
+Signed claims, Wire frames, stored records and the browser journal keep their
+existing formats and require no reset. Consumer adoption follows publication;
+local fixture qualification does not establish a Canic deployment.
+
 Maintenance uses the same ordering: session-store `prune_with_commit` supplies
 at most 128 expired session/replay keys and exact resulting counts/bytes before
 deletion. Ledger `prune_with_commit` supplies expired callers and resulting
@@ -220,7 +258,7 @@ the new trusted clock and never extends a reservation or tombstone.
 These checks do not authenticate storage or detect a coherently rolled-back
 snapshot. The host must protect the generation, configuration and completeness;
 changing the qualified skew or recovering incomplete storage requires the reset
-contract. Canic's production per-operation persistent adapter remains unimplemented.
+contract. Canic's per-operation persistent adapter acceptance remains consumer-owned.
 A durable implementation must cover protected reset/authority metadata. Returned
 failures leave state unchanged while retaining charged work budgets. Normal upgrades must restore matching reservations
 as well as sessions; incomplete recovery must enforce fresh-login reset rather
@@ -234,15 +272,15 @@ retains their historical implementation evidence. The qualification host selects
 
 The portable engine is a protocol change, not just a renamed transaction method.
 Canic's reported integration stays in [Canic #491](https://github.com/dragginzgame/canic/issues/491).
-Hosts can reuse `MemorySessionStore::transaction_with_commit` to avoid copying its
-staging/index rules. A custom store with its own indexes must enforce the same
+Hosts can reuse `MemorySessionStore::admit_with_commit` and `logout_with_commit`
+to avoid copying their validation/index rules. A custom store with its own indexes must enforce the same
 contract before any persistent effects:
 
 | Proposed operation | Required login change and checks |
 | --- | --- |
-| Read only | `None`; reject staged writes/removals |
-| Admission/replacement | `Some(change)` with `!change.revoked()`; call `session.check_login_change(change)`; check session/replay caller, fingerprint and generation, replay uniqueness and physical capacities |
-| Session removal | `Some(change)` with `change.revoked()` and `change.caller() == removed_caller`; if a session exists, call its `check_login_change(change)`; retain all replay records |
+| Read only | `read` exposes only `&dyn SessionReader`; it cannot stage writes or removals |
+| Admission/replacement | `admit(session, replay, login)` requires `LoginRecordState::Reserved`; call `session.check_login_change(login)`; check pair caller, fingerprint and current generation, replay uniqueness, record sizes and physical capacities |
+| Session removal | `logout(login)` requires `LoginRecordState::Revoked` and removes only `login.caller()`; check any retained session association and retain replay history |
 | Missing session removal | Still commit the proposed tombstone; absence is not evidence that a delayed admission cannot arrive |
 
 `Session::check_login_change` exposes the existing association check without
@@ -257,11 +295,10 @@ updates; return success only after the whole commit succeeds.
 The rest of the host cut must be propagated together:
 
 - Replace old `DelegatedToken` session inputs with `PortableCredential` and a
-  protected `SessionContext`/`PortableVerificationContext`. Call the complete
-  `decoded.verify(budget, &credential.proof, &verification_context)` inside
-  `establish_session`'s two-argument callback using its supplied owned claims,
-  shared budget and the same protected authority. Do not wrap an old token as
-  new signed claims or use the standalone token verifier to authorize a session.
+  protected `SessionAdmissionContext` with its `PortableVerificationContext`.
+  Pass the complete credential and shared budget to `establish_session`; Auth
+  owns the single decode and complete verifier call. Do not wrap an old token as
+  new signed claims or use standalone proof success as session authorization.
 - Retain one login ledger and admission/unknown-logout budgets across requests.
   Pass the ledger to establishment, authorization and logout. Fresh allocation
   per call would lose denials and replenish abuse credit.
@@ -283,13 +320,13 @@ The rest of the host cut must be propagated together:
 Use the qualification receiver's
 [`establish_portable_session` and `portable_session_read`](../apps/qualification/canister/src/sessions.rs)
 as the endpoint wiring reference: runtime caller/time, retained ledger and budgets,
-protected enrollment, and complete verification inside the admission callback.
+protected enrollment, and engine-owned complete verification.
 Its controller-installed configuration is a test boundary; production Canic must
 supply its authenticated Root enrollment and its own atomic durable store.
 
 The certified-path
 [`certified_proof_uses_the_shared_session_lifecycle`](../crates/ic-auth/tests/portable_certified/mod.rs)
-regression uses the same public credential envelope and decoded-claims verifier. One signed proof is
+regression uses the same public credential envelope and protected admission API. One signed proof is
 admitted independently by two receivers; an exact retry after proof expiry retains
 the original lease. Logout blocks re-admission before cryptography on that receiver
 while the other receiver remains authorized. This is a native protocol regression,

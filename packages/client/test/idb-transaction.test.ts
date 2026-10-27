@@ -64,8 +64,11 @@ test('journal strict durability, timeout, incomplete requests and callback failu
   const relaxed = await transaction(); relaxed.relaxed();
   await assert.rejects(relaxed.store.transact(() => assert.fail('must not execute')), error('storage_unavailable'));
   const timed = await transaction();
-  const timeout = assert.rejects(timed.store.transact(() => undefined), error('timeout'));
+  let timedOperations = 0;
+  const timeout = assert.rejects(timed.store.transact(() => { timedOperations++; return undefined; }), error('timeout'));
   t.mock.timers.tick(5_000); await timeout;
+  await Promise.resolve(); await Promise.resolve();
+  assert.equal(timedOperations, 0, 'late request events must not execute an aborted mutation');
   const missing = await transaction();
   const noResult = missing.store.transact(() => undefined);
   missing.current().oncomplete?.();

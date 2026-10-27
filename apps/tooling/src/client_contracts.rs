@@ -12,8 +12,8 @@ fn credential() -> model::PortableCredential {
 // Infer request/response types through the canonical codecs and take all other
 // metadata from the same contract. No independent registry/schema declarations.
 macro_rules! binding {
-    ($contract:ty) => {
-        generate(
+    ($contract:ty) => {{
+        let source = generate(
             <$contract>::NAME,
             <$contract>::ID,
             <$contract>::REQUEST_LIMITS,
@@ -21,8 +21,14 @@ macro_rules! binding {
             <$contract>::encode_request,
             <$contract>::decode_response,
         )
-        .map_err(|error| format!("IC Wire generation refused: {error:?}"))?
-    };
+        .map_err(|error| format!("IC Wire generation refused: {error:?}"))?;
+        let policy = wire::typescript::method_limits(
+            <$contract>::REQUEST_LIMITS,
+            <$contract>::RESPONSE_LIMITS,
+        )
+        .map_err(|error| format!("IC Wire policy refused: {error:?}"))?;
+        (source, (<$contract>::ID.to_string(), policy))
+    }};
 }
 
 pub(crate) fn run(
@@ -47,7 +53,8 @@ pub(crate) fn run(
     };
     match mode {
         crate::ContractMode::Generate => {
-            for (name, source, policy) in [
+            let mut policies = serde_json::Map::new();
+            for (name, (source, (id, limits)), policy) in [
                 (
                     "credential.ts",
                     binding!(CredentialEnvelope),
@@ -69,20 +76,10 @@ pub(crate) fn run(
                 ),
             ] {
                 save(name, format!("{source}{policy}").as_bytes())?;
+                policies.insert(id, limits);
             }
             save("wire-runtime.ts", wire::typescript::RUNTIME.as_bytes())?;
-            // Structured policy evidence for observing the actual generated codec
-            // configuration. Expected settings come directly from the Rust owner.
-            let policy = |request, response| {
-                wire::typescript::method_limits(request, response)
-                    .map_err(|error| format!("IC Wire policy refused: {error:?}"))
-            };
-            let policies = serde_json::json!({
-                CredentialEnvelope::ID.to_string(): policy(CredentialEnvelope::REQUEST_LIMITS, CredentialEnvelope::RESPONSE_LIMITS)?,
-                EstablishSession::ID.to_string(): policy(EstablishSession::REQUEST_LIMITS, EstablishSession::RESPONSE_LIMITS)?,
-                ReadSession::ID.to_string(): policy(ReadSession::REQUEST_LIMITS, ReadSession::RESPONSE_LIMITS)?,
-                Logout::ID.to_string(): policy(Logout::REQUEST_LIMITS, Logout::RESPONSE_LIMITS)?,
-            });
+            // Policy evidence is carried alongside each generated binding.
             save("codec-policy.json", &serde_json::to_vec(&policies)?)?;
 
             for (name, bytes) in [

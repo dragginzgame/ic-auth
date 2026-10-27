@@ -4,13 +4,21 @@ import { Principal } from '@tokostudios/ic-platform/principal';
 import type { Identity } from '@tokostudios/ic-platform/agent';
 import type { LogoutResult } from './codec.js';
 import { ClientError } from './contracts.js';
-import { IndexedDbLogoutStore, MAX_ATTEMPTS, MAX_TARGETS, type LogoutJournal } from './logout-store.js';
+import { IndexedDbLogoutStore, MAX_ATTEMPTS, MAX_TARGETS, type LogoutJournal, type LogoutTarget } from './logout-store.js';
 
 const MS = 1_000_000n;
 const MAX_CLEANUP_NS = 300_000n * MS;
 
 function cleanupComplete(record: LogoutJournal & { phase: 'cleanup' | 'finished' }, now: bigint): boolean {
   return now >= record.deadlineNs || record.targets.every(target => target.confirmedUntilNs !== undefined);
+}
+
+// One eligibility rule for both dispatch and waiting. The final attempt cannot
+// run until admission has expired, even when its persisted backoff is earlier.
+function nextAttemptNs(target: LogoutTarget): bigint | undefined {
+  if (target.confirmedUntilNs !== undefined || target.attempts >= MAX_ATTEMPTS) return undefined;
+  return target.attempts === MAX_ATTEMPTS - 1 && target.nextNs <= target.admissionUntilNs
+    ? target.admissionUntilNs + 1n : target.nextNs;
 }
 
 // Synchronous journal transitions; callers commit them through update before I/O.
@@ -23,11 +31,11 @@ function claimCleanup(record: LogoutJournal, now: bigint) {
     return { record: { ...record, phase: 'finished' as const }, value: undefined };
   }
   if (record.busyUntilNs > now) return idle;
-  const target = record.targets.find(t => t.confirmedUntilNs === undefined && t.attempts < MAX_ATTEMPTS && t.nextNs <= now);
+  const target = record.targets.find(t => {
+    const next = nextAttemptNs(t);
+    return next !== undefined && next <= now;
+  });
   if (!target) return idle;
-  if (target.attempts === MAX_ATTEMPTS - 1 && now <= target.admissionUntilNs) {
-    target.nextNs = target.admissionUntilNs + 1n; return idle;
-  }
   target.attempts++;
   target.nextNs = now + BigInt(CALL_MS) * MS;
   record.busyUntilNs = target.nextNs;
@@ -35,8 +43,10 @@ function claimCleanup(record: LogoutJournal, now: bigint) {
 }
 
 function cleanupWaitMs(status: LogoutJournal, now: bigint): number {
-  let next = status.targets.filter(t => t.confirmedUntilNs === undefined && t.attempts < MAX_ATTEMPTS)
-    .reduce((time, t) => t.nextNs < time ? t.nextNs : time, status.deadlineNs);
+  let next = status.targets.reduce((time, target) => {
+    const next = nextAttemptNs(target);
+    return next !== undefined && next < time ? next : time;
+  }, status.deadlineNs);
   if (status.busyUntilNs > next) next = status.busyUntilNs < status.deadlineNs ? status.busyUntilNs : status.deadlineNs;
   return Math.max(1, Math.min(1_000, Number((next - now) / MS)));
 }

@@ -4,7 +4,6 @@
 //! No value returned by this module is sufficient for session admission.
 
 #[cfg(any(
-    feature = "sessions",
     feature = "portable-signature-verification",
     feature = "certified-proof-verification"
 ))]
@@ -13,13 +12,17 @@ mod revocation;
 mod rules;
 mod verified;
 #[cfg(any(
-    feature = "sessions",
     feature = "portable-signature-verification",
     feature = "certified-proof-verification"
 ))]
-pub use decoded::DecodedPortableClaims;
-pub use revocation::{LoginRevocationChange, LoginRevocationError, MemoryLoginRevocations};
-pub use rules::{PortableClaimsContext, PortableClaimsError, validate_claims_context};
+pub(crate) use decoded::DecodedPortableClaims;
+pub use revocation::{
+    LoginBinding, LoginRecordState, LoginRevocationChange, LoginRevocationError,
+    MemoryLoginRevocations,
+};
+pub use rules::{
+    PortableAuthority, PortableClaimsContext, PortableClaimsError, validate_claims_context,
+};
 pub use verified::VerifiedPortableClaims;
 
 use crate::canonical::{CanonicalAuthError, encode_principal, encode_role_grants};

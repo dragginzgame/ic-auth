@@ -10,10 +10,11 @@ use ic_auth::{
     portable::{MemoryLoginRevocations, PortableClaimsContext},
     portable_credential::PortableVerificationContext,
     session::{
-        MemorySessionStore, Session, SessionContext, SessionEstablished, SessionLimits,
-        SessionPolicy, SessionStore, authorize_session, establish_session, logout_session,
+        MemorySessionStore, Session, SessionAdmissionContext, SessionContext, SessionEstablished,
+        SessionLimits, SessionPolicy, SessionStore, authorize_session, establish_session,
+        logout_session,
     },
-    session_request::SessionRequest,
+    session_request::{SessionRequest, SessionTtlPolicy},
 };
 use ic_auth_protocol_types::{LogoutResult, LogoutUnavailable, PortableCredential};
 use ic_auth_qualification_contracts as controls;
@@ -38,9 +39,22 @@ fn limits() -> SessionLimits {
         max_encoded_bytes: MAX_ENCODED_BYTES,
     }
 }
+#[derive(Clone, Copy, Eq, PartialEq)]
+enum ReceiverLifecycle {
+    Active,
+    CheckpointEnabled,
+    AwaitingAuthority,
+}
+impl ReceiverLifecycle {
+    fn ready(self) -> bool {
+        self != Self::AwaitingAuthority
+    }
+    fn checkpoint(self) -> bool {
+        self != Self::Active
+    }
+}
 struct Receiver {
-    checkpoint: bool,
-    ready: bool,
+    lifecycle: ReceiverLifecycle,
     inputs: ReceiverInputs,
     enabled: bool,
     store: MemorySessionStore,
@@ -55,25 +69,37 @@ struct ReceiverInputs {
     login_floor: u64,
     proof_floor: u64,
 }
+fn ttl() -> SessionTtlPolicy {
+    SessionTtlPolicy::new(30, 60).expect("fixture TTL bounds")
+}
 impl ReceiverInputs {
+    fn authority(&self, caller: Principal, now: u64) -> ic_auth::portable::PortableAuthority<'_> {
+        ic_auth::portable::PortableAuthority {
+            audience: &self.config.audience,
+            issuer: self.config.issuer,
+            mechanism: self.config.authority.mechanism(),
+            key_binding_id: self.binding,
+            grants: &self.config.grants,
+            caller,
+            now_ns: now,
+            authority_not_before_ns: self.config.valid_from_ns,
+            authority_expires_at_ns: self.config.valid_until_ns,
+            enrollment_expires_at_ns: self.config.enrollment_until_ns,
+            min_login_started_at_ns: self.login_floor,
+        }
+    }
+    fn claims_context(&self, caller: Principal, now: u64) -> PortableClaimsContext<'_> {
+        PortableClaimsContext {
+            authority: self.authority(caller, now),
+            min_proof_issued_at_ns: self.proof_floor,
+            max_login_ttl_ns: 86_400 * SECOND,
+            max_proof_ttl_ns: 60 * SECOND,
+        }
+    }
     fn context(&self, caller: Principal, now: u64) -> SessionContext<'_> {
         SessionContext {
-            authority: PortableClaimsContext {
-                audience: &self.config.audience,
-                issuer: self.config.issuer,
-                mechanism: self.config.authority.mechanism(),
-                key_binding_id: self.binding,
-                grants: &self.config.grants,
-                caller,
-                now_ns: now,
-                authority_not_before_ns: self.config.valid_from_ns,
-                authority_expires_at_ns: self.config.valid_until_ns,
-                enrollment_expires_at_ns: self.config.enrollment_until_ns,
-                min_login_started_at_ns: self.login_floor,
-                min_proof_issued_at_ns: self.proof_floor,
-                max_login_ttl_ns: 86_400 * SECOND,
-                max_proof_ttl_ns: 60 * SECOND,
-            },
+            authority: self.authority(caller, now),
+            max_ttl: ttl().maximum(),
             role: &self.config.role,
             required_scopes: &[],
         }
@@ -101,8 +127,6 @@ fn policy(host: &Receiver) -> SessionPolicy {
         generation: host.store.generation(),
         enabled: host.enabled,
         subject_admissible: true,
-        default_ttl_secs: 30,
-        max_ttl_secs: 60,
     }
 }
 fn view(session: Session) -> SessionView {
@@ -120,7 +144,7 @@ fn with_receiver<T>(
         let mut state = state.borrow_mut();
         let host = state
             .as_mut()
-            .filter(|host| host.ready)
+            .filter(|host| host.lifecycle.ready())
             .ok_or("receiver not ready")?;
         operation(host)
     })
@@ -159,20 +183,17 @@ fn install_session_receiver(config: controls::model::ReceiverConfig) -> Result<(
         login_floor: 0,
         proof_floor: 0,
     };
-    let mut ctx = inputs.context(Principal::anonymous(), now);
-    ctx.authority
-        .advance_reset_floors(0)
-        .map_err(|e| e.to_string())?;
+    let mut ctx = inputs.claims_context(Principal::anonymous(), now);
+    ctx.advance_reset_floors(0).map_err(|e| e.to_string())?;
     let floors = (
         ctx.authority.min_login_started_at_ns,
-        ctx.authority.min_proof_issued_at_ns,
+        ctx.min_proof_issued_at_ns,
     );
     inputs.login_floor = floors.0;
     inputs.proof_floor = floors.1;
     let (admission, unknown) = budgets(&inputs.config, now)?;
     let host = Receiver {
-        checkpoint: false,
-        ready: true,
+        lifecycle: ReceiverLifecycle::Active,
         store: MemorySessionStore::new(0, limits()).map_err(|e| e.to_string())?,
         ledger: MemoryLoginRevocations::new(
             inputs.config.audience,
@@ -210,51 +231,47 @@ fn establish_portable_session(input: SessionInput) -> Result<SessionView, Admiss
         .map_err(|_| AdmissionRefusal::InvalidCredential)?;
     with_receiver(|host| {
         let policy = policy(host);
-        let ctx = host.inputs.context(
+        let ctx = host.inputs.claims_context(
             ic_platform::cdk::api::msg_caller(),
             ic_platform::cdk::api::time(),
         );
+        let certified;
+        let verification = match &host.inputs.config.authority {
+            ReceiverAuthority::Ed25519(key) => PortableVerificationContext::Ed25519 {
+                claims: &ctx,
+                public_key: key,
+            },
+            ReceiverAuthority::Certified {
+                root, network_key, ..
+            } => {
+                certified = ic_auth::portable_certified::PortableCertifiedContext {
+                    claims: ctx,
+                    root_key: root,
+                    ic_root_public_key_raw: network_key,
+                    limits: ic_auth::portable_certified::CertifiedProofLimits {
+                        max_cert_ttl_ns: 120 * SECOND,
+                        max_token_ttl_ns: 60 * SECOND,
+                        max_certificate_age_ns: 10 * SECOND,
+                        max_variable_bytes: 131_072,
+                        max_issuer_signature_bytes: 131_072,
+                        max_witness_steps: 6,
+                    },
+                };
+                PortableVerificationContext::Certified(&certified)
+            }
+        };
         let result = establish_session(
             &mut host.store,
             &mut host.ledger,
             &mut host.admission,
-            &credential.claims,
+            &credential,
             &request,
-            &ctx,
-            policy,
-            |budget, decoded| match &host.inputs.config.authority {
-                ReceiverAuthority::Ed25519(key) => Ok(decoded.verify(
-                    budget,
-                    &credential.proof,
-                    &PortableVerificationContext::Ed25519 {
-                        claims: &ctx.authority,
-                        public_key: key,
-                    },
-                )?),
-                ReceiverAuthority::Certified {
-                    root, network_key, ..
-                } => {
-                    let root = root.as_ref();
-                    let verification = ic_auth::portable_certified::PortableCertifiedContext {
-                        claims: ctx.authority,
-                        root_key: root,
-                        ic_root_public_key_raw: network_key,
-                        limits: ic_auth::portable_certified::CertifiedProofLimits {
-                            max_cert_ttl_ns: 120 * SECOND,
-                            max_token_ttl_ns: 60 * SECOND,
-                            max_certificate_age_ns: 10 * SECOND,
-                            max_variable_bytes: 131_072,
-                            max_issuer_signature_bytes: 131_072,
-                            max_witness_steps: 6,
-                        },
-                    };
-                    Ok(decoded.verify(
-                        budget,
-                        &credential.proof,
-                        &PortableVerificationContext::Certified(&verification),
-                    )?)
-                }
+            &SessionAdmissionContext {
+                verification,
+                role: &host.inputs.config.role,
+                ttl: ttl(),
             },
+            policy,
         );
         Ok(result
             .map(|result| {
@@ -331,7 +348,7 @@ fn session_set_asset(version: u64) -> Result<(), String> {
 fn logout_portable_session() -> LogoutResult {
     RECEIVER.with(|state| {
         let mut state = state.borrow_mut();
-        let Some(host) = state.as_mut().filter(|host| host.ready) else {
+        let Some(host) = state.as_mut().filter(|host| host.lifecycle.ready()) else {
             return LogoutResult::Unavailable(LogoutUnavailable::ResetPending);
         };
         logout_session(
@@ -366,7 +383,7 @@ fn profile_portable_session() -> Result<SessionProfile, String> {
         let caller = ic_platform::cdk::api::msg_caller();
         let session = host
             .store
-            .transaction(None, |tx| tx.session(caller))
+            .read(|tx| tx.session(caller))
             .map_err(|e| e.to_string())?
             .ok_or("no session")?;
         let encoded = session.encode().map_err(|e| e.to_string())?;

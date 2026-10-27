@@ -1,13 +1,22 @@
 use super::{SessionContext, SessionError, SessionOccupancy};
+use crate::portable::{LoginBinding, LoginRecordState};
 #[cfg(feature = "session-restore")]
 use crate::session_request::check_scopes;
-use crate::{portable::VerifiedPortableClaims, session_request::SessionRequest};
+#[cfg(any(
+    feature = "portable-signature-verification",
+    feature = "certified-proof-verification"
+))]
+use crate::{
+    portable::VerifiedPortableClaims,
+    session_request::{SessionRequest, SessionTtlPolicy},
+};
 use ic_auth_protocol_types::{AudienceId, AuthRole, PortableMechanism, Principal};
 #[cfg(feature = "session-restore")]
 use serde::Deserialize;
 use serde::Serialize;
 
-/// Protected admission policy. Hosts must advance generation atomically with
+/// Current host eligibility and generation for admission and authorization.
+/// Hosts must advance generation atomically with
 /// authority changes, including disable/re-enable and issuer revocation.
 #[derive(Clone, Copy, Debug)]
 pub struct SessionPolicy {
@@ -17,15 +26,6 @@ pub struct SessionPolicy {
     pub enabled: bool,
     /// Protected local subject eligibility, independent of resource ownership.
     pub subject_admissible: bool,
-    /// Default request TTL and upper bound, in seconds; maximum 1800 seconds.
-    pub default_ttl_secs: u64,
-    pub max_ttl_secs: u64,
-}
-impl SessionPolicy {
-    pub(super) fn validate(self) -> Result<(), SessionError> {
-        crate::session_request::validate_ttl_policy(self.default_ttl_secs, self.max_ttl_secs)?;
-        Ok(())
-    }
 }
 
 /// Host storage bounds, never selected by submitted tokens. Physical records
@@ -117,8 +117,8 @@ impl Session {
     ///
     /// A revoked change is valid only for session removal: its login binding may
     /// differ or be absent, allowing logout to clear an older retained session.
-    /// The store MUST separately reject admission with a revoked change, removal
-    /// with a non-revoked change, writes without a change and mismatched removals.
+    /// Stores MUST require `Reserved` for admission and `Revoked` for logout.
+    /// The operation's login change selects the removal caller.
     /// This checks record association, not proof validity, current authority,
     /// replay, capacity, storage provenance or transaction atomicity.
     pub fn check_login_change(
@@ -127,16 +127,13 @@ impl Session {
     ) -> Result<(), SessionError> {
         if change.caller() != self.0.caller
             || change.audience() != self.0.audience
-            || (!change.revoked()
-                && (!change.admitted_pool()
-                    || change.until_ns() < self.0.login_deadline_ns
-                    || change.binding()
-                        != Some((
-                            self.0.issuer,
-                            self.0.subject,
-                            self.0.login_started_at_ns,
-                            self.0.login_deadline_ns,
-                        ))))
+            || matches!(change.state(), LoginRecordState::Reserved(binding)
+            if change.until_ns() < self.0.login_deadline_ns || binding != LoginBinding {
+                issuer: self.0.issuer,
+                subject: self.0.subject,
+                started_at_ns: self.0.login_started_at_ns,
+                deadline_ns: self.0.login_deadline_ns,
+            })
         {
             return Err(SessionError::InvalidPolicyOrRecord);
         }
@@ -226,11 +223,16 @@ impl Session {
         }
         Ok(Self(data))
     }
+    #[cfg(any(
+        feature = "portable-signature-verification",
+        feature = "certified-proof-verification"
+    ))]
     pub(super) fn admit(
         verified: &VerifiedPortableClaims,
         request: &SessionRequest,
         ctx: &SessionContext<'_>,
         policy: SessionPolicy,
+        ttl: SessionTtlPolicy,
     ) -> Result<Self, SessionError> {
         let claims = verified.claims();
         let session = Self(SessionData {
@@ -246,12 +248,7 @@ impl Session {
             login_started_at_ns: claims.login_started_at_ns,
             login_deadline_ns: claims.login_deadline_ns,
             established_at_ns: ctx.authority.now_ns,
-            expires_at_ns: verified.session_expires_at_ns(
-                request,
-                ctx.role,
-                policy.default_ttl_secs,
-                policy.max_ttl_secs,
-            )?,
+            expires_at_ns: verified.session_expires_at_ns(request, ctx.role, ttl)?,
             fingerprint: verified.fingerprint(),
             request_hash: request.hash(),
         });
@@ -299,7 +296,7 @@ impl Session {
             || self.0.expires_at_ns > authority.authority_expires_at_ns
             || self.0.expires_at_ns > authority.enrollment_expires_at_ns
             || self.0.expires_at_ns - self.0.established_at_ns
-                > policy.max_ttl_secs * crate::limits::NS_PER_SECOND
+                > ctx.max_ttl.seconds() * crate::limits::NS_PER_SECOND
         {
             return Err(SessionError::StaleAuthority);
         }
@@ -369,6 +366,10 @@ impl Replay {
         Ok(record)
     }
 
+    #[cfg(any(
+        feature = "portable-signature-verification",
+        feature = "certified-proof-verification"
+    ))]
     pub(super) fn new(session: &Session, remove_at_ns: u64) -> Self {
         Self(ReplayData {
             fingerprint: session.fingerprint(),

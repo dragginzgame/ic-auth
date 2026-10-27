@@ -142,6 +142,64 @@ pub fn verify_delegation_proof<'a>(
 ) -> Result<VerifiedDelegationProof<'a>, DelegationProofError> {
     let mut remaining = context.limits.max_variable_bytes;
     rules::check_proof_size(proof, context.limits.max_witness_steps, &mut remaining)?;
+    check_certificate(proof, context)?;
+    PreparedDelegationProof::new(proof)?.verify_root(context)
+}
+
+/// Canonical material for one immutable, already size-admitted proof. This is
+/// not authentication evidence: protected policy and root verification still run.
+pub(crate) struct PreparedDelegationProof<'a> {
+    proof: &'a DelegationProof,
+    certificate_hash: [u8; 32],
+}
+
+impl<'a> PreparedDelegationProof<'a> {
+    // Callers bound variable material before canonical encoding/allocation.
+    pub(crate) fn new(proof: &'a DelegationProof) -> Result<Self, CanonicalAuthError> {
+        Ok(Self {
+            proof,
+            certificate_hash: cert_hash(&proof.cert)?,
+        })
+    }
+
+    #[cfg(feature = "certified-proof-verification")]
+    pub(crate) fn certificate_hash(&self) -> [u8; 32] {
+        self.certificate_hash
+    }
+
+    #[cfg(feature = "certified-proof-verification")]
+    pub(crate) fn verify(
+        self,
+        context: &DelegationProofVerificationContext<'_>,
+    ) -> Result<VerifiedDelegationProof<'a>, DelegationProofError> {
+        check_certificate(self.proof, context)?;
+        self.verify_root(context)
+    }
+
+    fn verify_root(
+        self,
+        context: &DelegationProofVerificationContext<'_>,
+    ) -> Result<VerifiedDelegationProof<'a>, DelegationProofError> {
+        let cert = &self.proof.cert;
+        root::verify(
+            cert,
+            &self.proof.root_proof,
+            context.root_key,
+            context.now_ns,
+            context.limits.max_future_skew_ns,
+        )?;
+        Ok(VerifiedDelegationProof {
+            certificate: cert,
+            certificate_hash: self.certificate_hash,
+            expires_at_ns: cert.expires_at_ns.min(context.root_key.accept_until_ns),
+        })
+    }
+}
+
+fn check_certificate(
+    proof: &DelegationProof,
+    context: &DelegationProofVerificationContext<'_>,
+) -> Result<(), DelegationProofError> {
     let cert = &proof.cert;
     for (field, principal) in [("issuer", cert.issuer_pid), ("root", cert.root_pid)] {
         if principal == Principal::anonymous() {
@@ -157,20 +215,7 @@ pub fn verify_delegation_proof<'a>(
         "issuer_canister_id",
     )?;
     rules::verify_certificate_window(cert, context.now_ns, context.limits)?;
-    rules::verify_certificate_binding(cert)?;
-    let certificate_hash = cert_hash(cert)?;
-    root::verify(
-        cert,
-        &proof.root_proof,
-        context.root_key,
-        context.now_ns,
-        context.limits.max_future_skew_ns,
-    )?;
-    Ok(VerifiedDelegationProof {
-        certificate: cert,
-        certificate_hash,
-        expires_at_ns: cert.expires_at_ns.min(context.root_key.accept_until_ns),
-    })
+    rules::verify_certificate_binding(cert)
 }
 
 pub(super) fn binding(condition: bool, field: &'static str) -> Result<(), DelegationProofError> {

@@ -3,7 +3,7 @@
     feature = "certified-proof-verification"
 ))]
 use super::PortableClaimsContext;
-use crate::session_request::{SessionRequest, SessionRequestError};
+use crate::session_request::{SessionRequest, SessionRequestError, SessionTtlPolicy};
 use ic_auth_protocol_types::{AuthRole, PortableClaims};
 
 /// Claims authenticated by one complete portable proof verifier at a host clock.
@@ -39,9 +39,9 @@ impl VerifiedPortableClaims {
         Self {
             claims,
             fingerprint,
-            verified_at_ns: context.now_ns,
-            authority_expires_at_ns: context.authority_expires_at_ns,
-            enrollment_expires_at_ns: context.enrollment_expires_at_ns,
+            verified_at_ns: context.authority.now_ns,
+            authority_expires_at_ns: context.authority.authority_expires_at_ns,
+            enrollment_expires_at_ns: context.authority.enrollment_expires_at_ns,
         }
     }
 
@@ -57,18 +57,9 @@ impl VerifiedPortableClaims {
         &self,
         request: &SessionRequest,
         role: &AuthRole,
-        default_ttl_secs: u64,
-        max_ttl_secs: u64,
+        policy: SessionTtlPolicy,
     ) -> Result<u64, SessionRequestError> {
-        let grant = self
-            .claims
-            .grants
-            .iter()
-            .find(|grant| &grant.target == role)
-            .ok_or(SessionRequestError::ScopeRejected)?;
-        request.check_granted_scopes(&grant.scopes)?;
-        let requested =
-            request.expires_at_ns(self.verified_at_ns, default_ttl_secs, max_ttl_secs)?;
+        let requested = request.evaluate(&self.claims.grants, role, self.verified_at_ns, policy)?;
         Ok(requested
             .min(self.claims.login_deadline_ns)
             .min(self.authority_expires_at_ns)

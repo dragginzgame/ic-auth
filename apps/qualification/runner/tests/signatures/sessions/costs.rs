@@ -44,7 +44,7 @@ pub(super) fn qualify(
     for certified in [false, true] {
         let mechanism = if certified { "certified" } else { "ed25519" };
         let config = ReceiverConfig {
-            audience: *old.claims.audience,
+            audience: *old.claims.authority.audience,
             issuer: cert.issuer_pid,
             authority: if certified {
                 let root = old.root_key.clone();

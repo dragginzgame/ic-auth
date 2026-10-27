@@ -33,13 +33,14 @@ pub enum LoginRevocationError {
 #[cfg_attr(feature = "sessions", serde(into = "RecordFields"))]
 struct Record {
     until_ns: u64,
-    state: LoginState,
+    state: LoginRecordState,
 }
 
 // A reservation always owns admitted capacity; a tombstone retains that pool
 // exactly when it retains an authenticated login binding.
-#[derive(Clone, Copy)]
-enum LoginState {
+/// Ledger state projected without inferring state from independent flags.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum LoginRecordState {
     Reserved(LoginBinding),
     Revoked(Option<LoginBinding>),
 }
@@ -47,13 +48,13 @@ enum LoginState {
 impl Record {
     fn login(self) -> Option<LoginBinding> {
         match self.state {
-            LoginState::Reserved(login) => Some(login),
-            LoginState::Revoked(login) => login,
+            LoginRecordState::Reserved(login) => Some(login),
+            LoginRecordState::Revoked(login) => login,
         }
     }
 
     fn revoked(self) -> bool {
-        matches!(self.state, LoginState::Revoked(_))
+        matches!(self.state, LoginRecordState::Revoked(_))
     }
 
     fn admitted_pool(self) -> bool {
@@ -86,15 +87,17 @@ impl From<Record> for RecordFields {
     }
 }
 
-#[derive(Clone, Copy, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "sessions", derive(serde::Serialize))]
 #[cfg_attr(feature = "session-restore", derive(serde::Deserialize))]
 #[cfg_attr(feature = "sessions", serde(deny_unknown_fields))]
-struct LoginBinding {
-    issuer: Principal,
-    subject: Principal,
-    started_at_ns: u64,
-    deadline_ns: u64,
+/// Authenticated login association retained by a reservation or known tombstone.
+/// This value alone is not authentication or admission evidence.
+pub struct LoginBinding {
+    pub issuer: Principal,
+    pub subject: Principal,
+    pub started_at_ns: u64,
+    pub deadline_ns: u64,
 }
 
 /// Proposed ledger record from a serialized commit callback or trusted storage.
@@ -144,12 +147,12 @@ impl LoginRevocationChange {
                     && login.deadline_ns - login.started_at_ns <= crate::limits::MAX_LOGIN_NS =>
             {
                 if fields.revoked {
-                    LoginState::Revoked(Some(login))
+                    LoginRecordState::Revoked(Some(login))
                 } else {
-                    LoginState::Reserved(login)
+                    LoginRecordState::Reserved(login)
                 }
             }
-            None if !fields.admitted_pool && fields.revoked => LoginState::Revoked(None),
+            None if !fields.admitted_pool && fields.revoked => LoginRecordState::Revoked(None),
             _ => return Err(LoginRevocationError::InvalidPolicy),
         };
         let change = Self {
@@ -175,25 +178,10 @@ impl LoginRevocationChange {
     pub fn until_ns(&self) -> u64 {
         self.record.until_ns
     }
-    /// Whether this change denies further use of the login.
-    pub fn revoked(&self) -> bool {
-        self.record.revoked()
-    }
-    /// Whether this record occupies reserved admitted-login capacity.
-    pub fn admitted_pool(&self) -> bool {
-        self.record.admitted_pool()
-    }
-    /// Original issuer, account subject, login start and absolute deadline.
-    /// Unknown-login revocation has no authenticated account binding.
-    pub fn binding(&self) -> Option<(Principal, Principal, u64, u64)> {
-        self.record.login().map(|login| {
-            (
-                login.issuer,
-                login.subject,
-                login.started_at_ns,
-                login.deadline_ns,
-            )
-        })
+    /// Typed state from this checked ledger record. Storage codecs retain their
+    /// existing frozen representation independently of this Rust projection.
+    pub fn state(&self) -> LoginRecordState {
+        self.record.state
     }
 }
 
@@ -459,7 +447,7 @@ impl MemoryLoginRevocations {
             }
             Record {
                 until_ns,
-                state: LoginState::Revoked(old.and_then(Record::login)),
+                state: LoginRecordState::Revoked(old.and_then(Record::login)),
             }
         };
         self.capacity(caller, record)?;
@@ -569,7 +557,7 @@ impl MemoryLoginRevocations {
         }
         let record = Record {
             until_ns,
-            state: LoginState::Reserved(login),
+            state: LoginRecordState::Reserved(login),
         };
         self.capacity(caller, record)?;
         Ok(record)

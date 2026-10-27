@@ -4,21 +4,12 @@ use ic_auth_protocol_types::PortableClaims;
 use sha2::{Digest, Sha256};
 
 /// Canonical claims prepared by the session engine, not authenticated claims.
-/// Fields and construction are private: only complete proof verification can turn
-/// this value into VerifiedPortableClaims. Consume it in the admission callback
-/// using `verify`; do not decode the original credential again.
-///
-/// ```compile_fail
-/// use ic_auth::{portable::DecodedPortableClaims, portable::decode_claims};
-/// fn forge(bytes: &[u8]) -> DecodedPortableClaims {
-///     decode_claims(bytes).unwrap().into()
-/// }
-/// ```
+/// Only complete proof verification can turn this into VerifiedPortableClaims.
 #[derive(Debug)]
-pub struct DecodedPortableClaims {
+pub(crate) struct DecodedPortableClaims {
     pub(crate) claims: PortableClaims,
     pub(crate) fingerprint: [u8; 32],
-    #[cfg(feature = "certified-proof-verification")]
+    #[cfg(all(feature = "sessions", feature = "certified-proof-verification"))]
     pub(crate) encoded_len: usize,
 }
 impl DecodedPortableClaims {
@@ -27,7 +18,7 @@ impl DecodedPortableClaims {
         Ok(Self {
             claims,
             fingerprint: Sha256::digest(bytes).into(),
-            #[cfg(feature = "certified-proof-verification")]
+            #[cfg(all(feature = "sessions", feature = "certified-proof-verification"))]
             encoded_len: bytes.len(),
         })
     }

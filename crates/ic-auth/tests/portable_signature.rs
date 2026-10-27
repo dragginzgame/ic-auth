@@ -58,17 +58,19 @@ fn claims() -> PortableClaims {
 
 fn context(trusted: &PortableClaims) -> PortableClaimsContext<'_> {
     PortableClaimsContext {
-        audience: &trusted.audience,
-        issuer: trusted.issuer,
-        mechanism: PortableMechanism::Ed25519,
-        key_binding_id: trusted.key_binding_id,
-        grants: &trusted.grants,
-        caller: browser_principal(&trusted.browser_public_key),
-        now_ns: 25,
-        authority_not_before_ns: 0,
-        authority_expires_at_ns: 200,
-        enrollment_expires_at_ns: 150,
-        min_login_started_at_ns: 0,
+        authority: ic_auth::portable::PortableAuthority {
+            audience: &trusted.audience,
+            issuer: trusted.issuer,
+            mechanism: PortableMechanism::Ed25519,
+            key_binding_id: trusted.key_binding_id,
+            grants: &trusted.grants,
+            caller: browser_principal(&trusted.browser_public_key),
+            now_ns: 25,
+            authority_not_before_ns: 0,
+            authority_expires_at_ns: 200,
+            enrollment_expires_at_ns: 150,
+            min_login_started_at_ns: 0,
+        },
         min_proof_issued_at_ns: 0,
         max_login_ttl_ns: 100,
         max_proof_ttl_ns: 60,
@@ -266,53 +268,62 @@ fn portable_lease_uses_login_and_captured_authority_not_proof_expiry() {
     let signature = key.sign(&claims_hash(&value).unwrap()).to_bytes();
     let mut host = context(&value);
     host.max_login_ttl_ns = 10_000_000_000;
-    host.authority_expires_at_ns = 9_000_000_000;
-    host.enrollment_expires_at_ns = 8_000_000_000;
+    host.authority.authority_expires_at_ns = 9_000_000_000;
+    host.authority.enrollment_expires_at_ns = 8_000_000_000;
     let encoded = encode_claims(&value).unwrap();
     let checked =
         verify_ed25519_claims(&mut budget(), &encoded, &signature, &host, &public_key()).unwrap();
     assert_eq!(
-        checked.session_expires_at_ns(&request, &"user".parse().unwrap(), 1, 1800),
+        ic_auth::session_request::SessionTtlPolicy::new(1, 1800)
+            .and_then(|ttl| checked.session_expires_at_ns(&request, &"user".parse().unwrap(), ttl)),
         Ok(1_000_000_025)
     );
     // The proof expires at 30ns, but its admitted lease may live longer.
     assert!(
-        checked
-            .session_expires_at_ns(&request, &"user".parse().unwrap(), 1, 1800)
+        ic_auth::session_request::SessionTtlPolicy::new(1, 1800)
+            .and_then(|ttl| checked.session_expires_at_ns(&request, &"user".parse().unwrap(), ttl))
             .unwrap()
             > value.admission_expires_at_ns
     );
     let longer = SessionRequest::new(vec!["read".into()], None).unwrap();
     assert_eq!(
-        checked.session_expires_at_ns(&longer, &"user".parse().unwrap(), 30, 1800),
+        ic_auth::session_request::SessionTtlPolicy::new(30, 1800)
+            .and_then(|ttl| checked.session_expires_at_ns(&longer, &"user".parse().unwrap(), ttl)),
         Ok(8_000_000_000)
     );
-    host.enrollment_expires_at_ns = 9_500_000_000;
+    host.authority.enrollment_expires_at_ns = 9_500_000_000;
     let refreshed =
         verify_ed25519_claims(&mut budget(), &encoded, &signature, &host, &public_key()).unwrap();
     assert_eq!(
-        refreshed.session_expires_at_ns(&longer, &"user".parse().unwrap(), 30, 1800),
+        ic_auth::session_request::SessionTtlPolicy::new(30, 1800).and_then(
+            |ttl| refreshed.session_expires_at_ns(&longer, &"user".parse().unwrap(), ttl)
+        ),
         Ok(9_000_000_000)
     );
     // A refreshed snapshot does not modify previously checked admission terms.
     assert_eq!(
-        checked.session_expires_at_ns(&longer, &"user".parse().unwrap(), 30, 1800),
+        ic_auth::session_request::SessionTtlPolicy::new(30, 1800)
+            .and_then(|ttl| checked.session_expires_at_ns(&longer, &"user".parse().unwrap(), ttl)),
         Ok(8_000_000_000)
     );
-    host.authority_expires_at_ns = 20_000_000_000;
-    host.enrollment_expires_at_ns = 20_000_000_000;
+    host.authority.authority_expires_at_ns = 20_000_000_000;
+    host.authority.enrollment_expires_at_ns = 20_000_000_000;
     let login_limited =
         verify_ed25519_claims(&mut budget(), &encoded, &signature, &host, &public_key()).unwrap();
     assert_eq!(
-        login_limited.session_expires_at_ns(&longer, &"user".parse().unwrap(), 30, 1800),
+        ic_auth::session_request::SessionTtlPolicy::new(30, 1800).and_then(
+            |ttl| login_limited.session_expires_at_ns(&longer, &"user".parse().unwrap(), ttl)
+        ),
         Ok(value.login_deadline_ns)
     );
     assert_eq!(
-        checked.session_expires_at_ns(&request, &"user".parse().unwrap(), 0, 1800),
+        ic_auth::session_request::SessionTtlPolicy::new(0, 1800)
+            .and_then(|ttl| checked.session_expires_at_ns(&request, &"user".parse().unwrap(), ttl)),
         Err(SessionRequestError::InvalidLifetime)
     );
     assert_eq!(
-        checked.session_expires_at_ns(&longer, &"user".parse().unwrap(), 1801, 1801),
+        ic_auth::session_request::SessionTtlPolicy::new(1801, 1801)
+            .and_then(|ttl| checked.session_expires_at_ns(&longer, &"user".parse().unwrap(), ttl)),
         Err(SessionRequestError::InvalidLifetime)
     );
 }
@@ -330,7 +341,7 @@ fn failed_signatures_consume_shared_credit_and_cheap_refusals_do_not() {
     let mut host = context(&c);
     let mut budget = SessionAdmissionBudget::new(1, 5, 20).unwrap();
     // A caller mismatch is rejected without spending the available attempt.
-    host.caller = Principal::anonymous();
+    host.authority.caller = Principal::anonymous();
     assert_eq!(
         verify_ed25519_claims(&mut budget, &bytes, &signature(), &host, &public_key()),
         Err(Error::Claims(ClaimsError::CallerMismatch))
@@ -356,7 +367,7 @@ fn failed_signatures_consume_shared_credit_and_cheap_refusals_do_not() {
         ),
         Err(Error::Budget(AdmissionBudgetError::Exhausted))
     );
-    host.now_ns = 24;
+    host.authority.now_ns = 24;
     assert_eq!(
         verify_ed25519_claims(&mut budget, &bytes, &signature(), &host, &public_key()),
         Err(Error::Budget(AdmissionBudgetError::ClockRollback))
@@ -376,9 +387,9 @@ fn successful_verification_and_failed_storage_do_not_refund_credit() {
     let mut ledger = MemoryLoginRevocations::new(c.audience, 1, 1, 1, 0).unwrap();
     assert_eq!(
         ledger.with_reservation::<(), ic_auth::portable::LoginRevocationError>(
-            host.caller,
+            host.authority.caller,
             &checked,
-            host.now_ns,
+            host.authority.now_ns,
             |_| Err(LoginRevocationError::Storage)
         ),
         Err(LoginRevocationError::Storage)
@@ -389,7 +400,7 @@ fn successful_verification_and_failed_storage_do_not_refund_credit() {
         Err(Error::Budget(AdmissionBudgetError::Exhausted))
     );
     // Reconstructing at current time never grants a fresh initial burst.
-    let mut reset = SessionAdmissionBudget::new(100, 5, host.now_ns).unwrap();
+    let mut reset = SessionAdmissionBudget::new(100, 5, host.authority.now_ns).unwrap();
     assert_eq!(
         verify_ed25519_claims(&mut reset, &bytes, &signature(), &host, &public_key()),
         Err(Error::Budget(AdmissionBudgetError::Exhausted))
@@ -427,11 +438,13 @@ fn session_request_narrows_one_protected_role_without_combining_grants() {
     let write = SessionRequest::new(vec!["write".into()], Some(1)).unwrap();
     let union = SessionRequest::new(vec!["read".into(), "write".into()], Some(1)).unwrap();
     assert_eq!(
-        checked.session_expires_at_ns(&read, &user, 1, 1800),
+        ic_auth::session_request::SessionTtlPolicy::new(1, 1800)
+            .and_then(|ttl| checked.session_expires_at_ns(&read, &user, ttl)),
         Ok(100)
     );
     assert_eq!(
-        checked.session_expires_at_ns(&write, &admin, 1, 1800),
+        ic_auth::session_request::SessionTtlPolicy::new(1, 1800)
+            .and_then(|ttl| checked.session_expires_at_ns(&write, &admin, ttl)),
         Ok(100)
     );
     for (request, role) in [
@@ -441,17 +454,20 @@ fn session_request_narrows_one_protected_role_without_combining_grants() {
         (&union, &admin),
     ] {
         assert_eq!(
-            checked.session_expires_at_ns(request, role, 1, 1800),
+            ic_auth::session_request::SessionTtlPolicy::new(1, 1800)
+                .and_then(|ttl| checked.session_expires_at_ns(request, role, ttl)),
             Err(SessionRequestError::ScopeRejected)
         );
     }
     assert_eq!(
-        checked.session_expires_at_ns(&read, &"unknown".parse().unwrap(), 1, 1800),
+        ic_auth::session_request::SessionTtlPolicy::new(1, 1800)
+            .and_then(|ttl| checked.session_expires_at_ns(&read, &"unknown".parse().unwrap(), ttl)),
         Err(SessionRequestError::ScopeRejected)
     );
     let reordered = SessionRequest::new(vec!["view".into(), "read".into()], Some(1)).unwrap();
     assert_eq!(
-        checked.session_expires_at_ns(&reordered, &user, 1, 1800),
+        ic_auth::session_request::SessionTtlPolicy::new(1, 1800)
+            .and_then(|ttl| checked.session_expires_at_ns(&reordered, &user, ttl)),
         Ok(100)
     );
     // Narrowing never rewrites signed grants, fingerprints or request identity.

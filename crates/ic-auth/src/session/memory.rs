@@ -1,6 +1,5 @@
 use super::{
-    Replay, Session, SessionError, SessionLimits, SessionOccupancy, SessionStore,
-    SessionTransaction,
+    Replay, Session, SessionError, SessionLimits, SessionOccupancy, SessionReader, SessionStore,
 };
 use ic_auth_protocol_types::Principal;
 use std::collections::{BTreeMap, BTreeSet};
@@ -36,16 +35,30 @@ pub struct SessionPruned {
 }
 
 /// Validated write supplied only at the serialized host commit boundary.
-/// `admission` contains the touched session/replay pair; `None` means logout of
-/// `login.caller()`, retaining replay history. Totals describe state after commit.
+/// The explicit write contains all touched records. Logout retains replay
+/// history. Totals describe state after commit.
 /// This is not a credential or a complete checkpoint. The host persists this
 /// delta and protected metadata atomically before reporting success.
 pub struct SessionCommit<'a> {
-    pub login: &'a crate::portable::LoginRevocationChange,
-    pub admission: Option<(&'a Session, &'a Replay)>,
+    pub write: SessionWrite<'a>,
     pub session_count: usize,
     pub replay_count: usize,
     pub encoded_bytes: usize,
+}
+
+/// Validated admission or logout at a host's atomic persistence boundary.
+/// Every variant includes the matching login change; admission additionally
+/// includes the exact session/replay pair to persist in the same transaction.
+#[derive(Clone, Copy)]
+pub enum SessionWrite<'a> {
+    Admission {
+        login: &'a crate::portable::LoginRevocationChange,
+        session: &'a Session,
+        replay: &'a Replay,
+    },
+    Logout {
+        login: &'a crate::portable::LoginRevocationChange,
+    },
 }
 
 /// Bounded expired-record deletion and resulting physical store totals.
@@ -317,164 +330,140 @@ impl MemorySessionStore {
     }
 }
 
-struct Transaction<'a> {
-    store: &'a MemorySessionStore,
-    change: TransactionChange,
-}
-
-// One synchronous transaction owns at most one pair, as before the enum.
-// Keep staging inline rather than allocating a box for each admission.
-#[expect(
-    clippy::large_enum_variant,
-    reason = "bounded inline transaction staging"
-)]
-enum TransactionChange {
-    Unchanged,
-    Admission(Stored<Session>, Stored<Replay>, usize),
-    Removal(Principal),
-}
-impl SessionTransaction for Transaction<'_> {
+impl SessionReader for MemorySessionStore {
     fn generation(&self) -> u64 {
-        self.store.generation
+        self.generation
     }
     fn limits(&self) -> SessionLimits {
-        self.store.limits
+        self.limits
     }
     fn session(&self, caller: Principal) -> Result<Option<Session>, SessionError> {
-        Ok(self.store.sessions.get(&caller).map(|s| s.value.clone()))
+        Ok(self.sessions.get(&caller).map(|s| s.value.clone()))
     }
     fn replay_exists(&self, fingerprint: [u8; 32]) -> Result<bool, SessionError> {
-        Ok(self.store.replays.contains_key(&fingerprint))
+        Ok(self.replays.contains_key(&fingerprint))
     }
     fn occupancy(&self, caller: Principal) -> Result<SessionOccupancy, SessionError> {
         Ok(SessionOccupancy {
-            sessions: self.store.sessions.len(),
-            replays: self.store.replays.len(),
-            replays_for_caller: self.store.replay_counts.get(&caller).copied().unwrap_or(0),
+            sessions: self.sessions.len(),
+            replays: self.replays.len(),
+            replays_for_caller: self.replay_counts.get(&caller).copied().unwrap_or(0),
         })
     }
-    fn remove(&mut self, caller: Principal) -> Result<(), SessionError> {
-        if !matches!(self.change, TransactionChange::Unchanged) {
-            return Err(SessionError::InvalidPolicyOrRecord);
-        }
-        self.change = TransactionChange::Removal(caller);
-        Ok(())
+}
+impl SessionStore for MemorySessionStore {
+    fn read<T>(
+        &mut self,
+        operation: impl FnOnce(&dyn SessionReader) -> Result<T, SessionError>,
+    ) -> Result<T, SessionError> {
+        operation(self)
     }
-    fn stage(&mut self, session: Session, replay: Replay) -> Result<(), SessionError> {
-        if !matches!(self.change, TransactionChange::Unchanged)
-            || session.caller() != replay.caller()
+    fn admit(
+        &mut self,
+        session: &Session,
+        replay: &Replay,
+        login: &crate::portable::LoginRevocationChange,
+    ) -> Result<bool, SessionError> {
+        self.admit_with_commit(session, replay, login, |_| Ok(()))
+    }
+    fn logout(
+        &mut self,
+        login: &crate::portable::LoginRevocationChange,
+    ) -> Result<(), SessionError> {
+        self.logout_with_commit(login, |_| Ok(()))
+    }
+}
+impl MemorySessionStore {
+    /// Validate and prepare exactly one session/replay pair, then call the host
+    /// once to persist it atomically with the login reservation and totals.
+    /// Returns true for replacement. Refusals never call persistence; a commit
+    /// error preserves all heap records and accounting. Success must mean durable
+    /// completion, with no await/reentrancy or error after durable success.
+    pub fn admit_with_commit(
+        &mut self,
+        session: &Session,
+        replay: &Replay,
+        login: &crate::portable::LoginRevocationChange,
+        commit: impl FnOnce(SessionCommit<'_>) -> Result<(), SessionError>,
+    ) -> Result<bool, SessionError> {
+        if !matches!(
+            login.state(),
+            crate::portable::LoginRecordState::Reserved(_)
+        ) || session.caller() != replay.caller()
             || session.fingerprint() != replay.fingerprint()
             || session.generation() != replay.generation()
             || replay.remove_at_ns() == 0
         {
             return Err(SessionError::InvalidPolicyOrRecord);
         }
-        if session.generation() != self.generation() {
+        session.check_login_change(login)?;
+        if session.generation() != self.generation {
             return Err(SessionError::StaleAuthority);
         }
         if self.replay_exists(replay.fingerprint())? {
             return Err(SessionError::ReplayConflict);
         }
-        let old = self.store.sessions.get(&session.caller());
-        let limits = self.limits();
-        let count = self.occupancy(session.caller())?;
-        limits.check_capacity(count, old.is_some())?;
+        let old = self.sessions.get(&session.caller());
+        let replacing = old.is_some();
+        self.limits
+            .check_capacity(self.occupancy(session.caller())?, replacing)?;
         let session_bytes = session.encoded_len()?;
         let replay_bytes = replay.encoded_len()?;
-        let total = self.store.encoded_bytes - old.map_or(0, |s| s.bytes);
-        let total = total
+        let total = (self.encoded_bytes - old.map_or(0, |s| s.bytes))
             .checked_add(session_bytes)
             .and_then(|b| b.checked_add(replay_bytes))
-            .filter(|b| *b <= limits.max_encoded_bytes)
+            .filter(|b| *b <= self.limits.max_encoded_bytes)
             .ok_or(SessionError::ByteCapacity)?;
-        self.change = TransactionChange::Admission(
-            Stored {
-                value: session,
-                bytes: session_bytes,
+        // Prepare the touched owned records before persistence, never clone the
+        // whole store or allocate their payloads after durable success.
+        let session = Stored {
+            value: session.clone(),
+            bytes: session_bytes,
+        };
+        let replay = Stored {
+            value: replay.clone(),
+            bytes: replay_bytes,
+        };
+        commit(SessionCommit {
+            write: SessionWrite::Admission {
+                login,
+                session: &session.value,
+                replay: &replay.value,
             },
-            Stored {
-                value: replay,
-                bytes: replay_bytes,
-            },
-            total,
-        );
-        Ok(())
+            session_count: self.sessions.len() + usize::from(!replacing),
+            replay_count: self.replays.len() + 1,
+            encoded_bytes: total,
+        })?;
+        self.install_session(session);
+        self.install_replay(replay);
+        self.encoded_bytes = total;
+        Ok(replacing)
     }
-}
-impl SessionStore for MemorySessionStore {
-    fn transaction<T>(
-        &mut self,
-        login_change: Option<&crate::portable::LoginRevocationChange>,
-        operation: impl FnOnce(&mut dyn SessionTransaction) -> Result<T, SessionError>,
-    ) -> Result<T, SessionError> {
-        self.transaction_with_commit(login_change, operation, |_| Ok(()))
-    }
-}
 
-impl MemorySessionStore {
-    /// Reuse validated staging and indexes with a host-owned durable commit.
-    /// Calls `commit` exactly once for a valid write, never for reads or refusals.
-    /// A returned error preserves all in-memory records and accounting. The host
-    /// MUST commit the supplied delta atomically or return an error without effects;
-    /// no await/reentrancy or error after durable success. Success means the durable
-    /// commit finished, never merely prepared.
-    /// After callback success only the already-validated in-memory write remains.
-    /// Maintenance, generation changes and clock/budget persistence remain host-owned.
-    pub fn transaction_with_commit<T>(
+    /// Atomically persist a login tombstone and remove its caller's session.
+    /// Replay evidence is retained. Invalid reservations and mismatched existing
+    /// records refuse before persistence. A commit error preserves heap state.
+    /// The host commit has the same durable-completion contract as admission.
+    pub fn logout_with_commit(
         &mut self,
-        login_change: Option<&crate::portable::LoginRevocationChange>,
-        operation: impl FnOnce(&mut dyn SessionTransaction) -> Result<T, SessionError>,
+        login: &crate::portable::LoginRevocationChange,
         commit: impl FnOnce(SessionCommit<'_>) -> Result<(), SessionError>,
-    ) -> Result<T, SessionError> {
-        let mut tx = Transaction {
-            store: self,
-            change: TransactionChange::Unchanged,
-        };
-        let result = operation(&mut tx)?;
-        let delta = match (&tx.change, login_change) {
-            (TransactionChange::Unchanged, None) => return Ok(result),
-            (TransactionChange::Admission(session, replay, total), Some(login))
-                if !login.revoked() =>
-            {
-                session.value.check_login_change(login)?;
-                SessionCommit {
-                    login,
-                    admission: Some((&session.value, &replay.value)),
-                    session_count: self.sessions.len()
-                        + usize::from(!self.sessions.contains_key(&login.caller())),
-                    replay_count: self.replays.len() + 1,
-                    encoded_bytes: *total,
-                }
-            }
-            (TransactionChange::Removal(caller), Some(login))
-                if login.revoked() && login.caller() == *caller =>
-            {
-                let old = self.sessions.get(caller);
-                if let Some(session) = old {
-                    session.value.check_login_change(login)?;
-                }
-                SessionCommit {
-                    login,
-                    admission: None,
-                    session_count: self.sessions.len() - usize::from(old.is_some()),
-                    replay_count: self.replays.len(),
-                    encoded_bytes: self.encoded_bytes - old.map_or(0, |s| s.bytes),
-                }
-            }
-            _ => return Err(SessionError::InvalidPolicyOrRecord),
-        };
-        commit(delta)?;
-        match tx.change {
-            TransactionChange::Unchanged => unreachable!("read-only transactions returned above"),
-            TransactionChange::Removal(caller) => {
-                self.clear(caller);
-            }
-            TransactionChange::Admission(session, replay, total) => {
-                self.install_session(session);
-                self.install_replay(replay);
-                self.encoded_bytes = total;
-            }
+    ) -> Result<(), SessionError> {
+        if !matches!(login.state(), crate::portable::LoginRecordState::Revoked(_)) {
+            return Err(SessionError::InvalidPolicyOrRecord);
         }
-        Ok(result)
+        let caller = login.caller();
+        let old = self.sessions.get(&caller);
+        if let Some(session) = old {
+            session.value.check_login_change(login)?;
+        }
+        commit(SessionCommit {
+            write: SessionWrite::Logout { login },
+            session_count: self.sessions.len() - usize::from(old.is_some()),
+            replay_count: self.replays.len(),
+            encoded_bytes: self.encoded_bytes - old.map_or(0, |s| s.bytes),
+        })?;
+        self.clear(caller);
+        Ok(())
     }
 }

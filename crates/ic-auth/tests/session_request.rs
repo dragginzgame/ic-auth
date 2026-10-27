@@ -150,30 +150,43 @@ fn request_identity_is_detached_and_each_scope_ttl_and_framing_matters() {
 #[test]
 fn lease_policy_and_overflow_have_one_checked_boundary() {
     let request = SessionRequest::new(vec!["read".into()], None).unwrap();
-    assert_eq!(request.expires_at_ns(7, 30, 1800), Ok(30_000_000_007));
+    assert_eq!(
+        ic_auth::session_request::SessionTtlPolicy::new(30, 1800)
+            .and_then(|ttl| request.expires_at_ns(7, ttl)),
+        Ok(30_000_000_007)
+    );
     for (default, maximum) in [(0, 30), (1, 0), (31, 30), (1, 1801), (u64::MAX, u64::MAX)] {
         assert_eq!(
-            request.expires_at_ns(7, default, maximum),
+            ic_auth::session_request::SessionTtlPolicy::new(default, maximum)
+                .and_then(|ttl| request.expires_at_ns(7, ttl)),
             Err(SessionRequestError::InvalidLifetime)
         );
     }
     let explicit = SessionRequest::new(vec!["read".into()], Some(60)).unwrap();
-    assert_eq!(explicit.expires_at_ns(7, 30, 60), Ok(60_000_000_007));
     assert_eq!(
-        explicit.expires_at_ns(7, 30, 59),
+        ic_auth::session_request::SessionTtlPolicy::new(30, 60)
+            .and_then(|ttl| explicit.expires_at_ns(7, ttl)),
+        Ok(60_000_000_007)
+    );
+    assert_eq!(
+        ic_auth::session_request::SessionTtlPolicy::new(30, 59)
+            .and_then(|ttl| explicit.expires_at_ns(7, ttl)),
         Err(SessionRequestError::InvalidLifetime)
     );
     assert_eq!(
-        request.expires_at_ns(u64::MAX - 1_000_000_000, 1, 1),
+        ic_auth::session_request::SessionTtlPolicy::new(1, 1)
+            .and_then(|ttl| request.expires_at_ns(u64::MAX - 1_000_000_000, ttl)),
         Ok(u64::MAX)
     );
     assert_eq!(
-        request.expires_at_ns(u64::MAX - 999_999_999, 1, 1),
+        ic_auth::session_request::SessionTtlPolicy::new(1, 1)
+            .and_then(|ttl| request.expires_at_ns(u64::MAX - 999_999_999, ttl)),
         Err(SessionRequestError::InvalidLifetime)
     );
     let huge = SessionRequest::new(vec!["read".into()], Some(u64::MAX)).unwrap();
     assert_eq!(
-        huge.expires_at_ns(0, 1, 1800),
+        ic_auth::session_request::SessionTtlPolicy::new(1, 1800)
+            .and_then(|ttl| huge.expires_at_ns(0, ttl)),
         Err(SessionRequestError::InvalidLifetime)
     );
 }

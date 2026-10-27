@@ -69,7 +69,7 @@ test-formatting-hooks:
 		perl -0777 -pe 's/^(serde_bytes = [^\n]*\n)(serde_cbor = [^\n]*\n)/$$2$$1/m or die "missing selected dependency pair"' Cargo.toml > "$$fixture"; \
 		TMPDIR="$(CURDIR)/target/portable-fixtures" bash scripts/ci/check-formatting-hooks.sh \
 		"$(CURDIR)" crates/ic-auth/src/lib.rs Cargo.toml "$$fixture" --rust-sources \
-		make/consumer.mk make/release.mk make/rust-format.mk ci/tool-versions.env
+		make/consumer.mk make/release.mk make/rust-format.mk scripts/ci/run-rust-formatting.pl ci/tool-versions.env
 
 install-msrv: install-host-tools
 	bash scripts/dev/msrv-tools.sh install
@@ -184,19 +184,18 @@ ci:
 	  check-snapshot tools-check clippy check-dependency-pins check-doc-links test-make-jobserver fmt-check test-formatting-hooks metadata check-boundaries check-msrv test-tools-evidence test-testkit-tools test-client-tools test-client test-types test-protocol test-portable-signatures test-chain-key-signatures test-signatures test-signature-store test-certified-proofs test-sessions test-host-tooling test-qualification check-wasm publish-dry-run test-release-tools
 
 check-package-licenses:
-	@cmp LICENSE crates/ic-auth-protocol-types/LICENSE
-	@cmp LICENSE crates/ic-auth/LICENSE
-	@cmp LICENSE crates/ic-auth-wire/LICENSE
+	@bash -eu -c 'source scripts/release/packages.sh; \
+	  for package in "$${packages[@]}"; do cmp LICENSE "crates/$$package/LICENSE"; done'
 
 # A reused temporary-registry path can retain extracted same-version source
 # across edits. Give each dry run a new registry identity and retain its evidence.
 publish-dry-run: check-package-licenses
-	+@set -eu; \
+	+@bash -eu -c 'source scripts/release/packages.sh; \
 	  mkdir -p "$(CURDIR)/target/publication-dry-runs"; \
 	  staging="$$(mktemp -d "$(CURDIR)/target/publication-dry-runs/run.XXXXXX")"; \
-	  printf 'Publication dry-run evidence retained: %s\n' "$$staging"; \
+	  printf "Publication dry-run evidence retained: %s\n" "$$staging"; \
 	  cargo publish --dry-run --locked --registry crates-io --allow-dirty \
-	    --target-dir "$$staging" -p ic-auth-protocol-types -p ic-auth -p ic-auth-wire
+	    --target-dir "$$staging" "$${package_args[@]}"'
 
 publish:
 	+bash scripts/release/publish.sh

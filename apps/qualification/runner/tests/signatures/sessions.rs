@@ -649,7 +649,7 @@ pub(super) fn qualify_certified(
     let cert = &proof.cert;
     let claims = PortableClaims {
         mechanism: PortableMechanism::Certified,
-        audience: (*old.claims.audience),
+        audience: (*old.claims.authority.audience),
         issuer: cert.issuer_pid,
         key_binding_id: ic_auth::canonical::cert_hash(cert).unwrap(),
         browser_public_key: SigningKey::from_bytes(&[8; 32]).verifying_key().to_bytes(),
@@ -667,30 +667,33 @@ pub(super) fn qualify_certified(
     let signature = f.retrieve(CERTIFIED_SIGNATURE_DOMAIN, &digest).unwrap();
     let now = f.now();
     let authority = PortableClaimsContext {
-        audience: old.claims.audience,
-        issuer: cert.issuer_pid,
-        mechanism: PortableMechanism::Certified,
-        key_binding_id: claims.key_binding_id,
-        grants: &cert.grants,
-        caller: browser_principal(&claims.browser_public_key),
-        now_ns: now,
-        authority_not_before_ns: cert.not_before_ns,
-        authority_expires_at_ns: cert.expires_at_ns.min(old.root_key.accept_until_ns),
-        enrollment_expires_at_ns: cert.expires_at_ns,
-        min_login_started_at_ns: 0,
+        authority: ic_auth::portable::PortableAuthority {
+            audience: old.claims.authority.audience,
+            issuer: cert.issuer_pid,
+            mechanism: PortableMechanism::Certified,
+            key_binding_id: claims.key_binding_id,
+            grants: &cert.grants,
+            caller: browser_principal(&claims.browser_public_key),
+            now_ns: now,
+            authority_not_before_ns: cert.not_before_ns,
+            authority_expires_at_ns: cert.expires_at_ns.min(old.root_key.accept_until_ns),
+            enrollment_expires_at_ns: cert.expires_at_ns,
+            min_login_started_at_ns: 0,
+        },
         min_proof_issued_at_ns: 0,
         max_login_ttl_ns: 86_400 * SECOND,
         max_proof_ttl_ns: 60 * SECOND,
     };
     let limits = old.limits;
-    let proof_context = PortableCertifiedContext {
+    let mut proof_context = PortableCertifiedContext {
         claims: authority,
         root_key: old.root_key,
         ic_root_public_key_raw: old.ic_root_public_key_raw,
         limits,
     };
     let mut ctx = SessionContext {
-        authority,
+        authority: authority.authority,
+        max_ttl: ic_auth::session_request::SessionTtlLimit::new(30).unwrap(),
         role,
         required_scopes: &[],
     };
@@ -698,8 +701,6 @@ pub(super) fn qualify_certified(
         generation: 0,
         enabled: true,
         subject_admissible: true,
-        default_ttl_secs: 10,
-        max_ttl_secs: 30,
     };
     let mut store = MemorySessionStore::new(
         0,
@@ -711,7 +712,8 @@ pub(super) fn qualify_certified(
         },
     )
     .unwrap();
-    let mut ledger = MemoryLoginRevocations::new(*old.claims.audience, 1, 1, 0, 0).unwrap();
+    let mut ledger =
+        MemoryLoginRevocations::new(*old.claims.authority.audience, 1, 1, 0, 0).unwrap();
     let mut budget = SessionAdmissionBudget::new(8, 1, 0).unwrap();
     let bytes = encode_claims(&claims).unwrap();
     let credential = PortableCredential {
@@ -744,33 +746,36 @@ pub(super) fn qualify_certified(
         &mut store,
         &mut ledger,
         &mut budget,
-        &bytes,
+        &credential,
         &request,
-        &ctx,
-        p,
-        |budget, decoded| {
-            Ok(decoded.verify(
-                budget,
-                &credential.proof,
-                &ic_auth::portable_credential::PortableVerificationContext::Certified(
-                    &proof_context,
-                ),
-            )?)
+        &ic_auth::session::SessionAdmissionContext {
+            verification: ic_auth::portable_credential::PortableVerificationContext::Certified(
+                &proof_context,
+            ),
+            role,
+            ttl: ic_auth::session_request::SessionTtlPolicy::new(10, 30).unwrap(),
         },
+        p,
     )
     .unwrap();
     f.pic.advance_time(Duration::from_secs(3));
     ctx.authority.now_ns = f.now();
+    proof_context.claims.authority.now_ns = ctx.authority.now_ns;
     assert!(matches!(
         establish_session(
             &mut store,
             &mut ledger,
             &mut budget,
-            &bytes,
+            &credential,
             &request,
-            &ctx,
-            p,
-            |_, _| panic!("retry must not verify")
+            &ic_auth::session::SessionAdmissionContext {
+                verification: ic_auth::portable_credential::PortableVerificationContext::Certified(
+                    &proof_context
+                ),
+                role,
+                ttl: ic_auth::session_request::SessionTtlPolicy::new(10, 30).unwrap()
+            },
+            p
         ),
         Ok(SessionEstablished::ExactRetry(_))
     ));
@@ -780,7 +785,7 @@ pub(super) fn qualify_certified(
             &mut store,
             &mut ledger,
             &mut budget,
-            authority.caller,
+            authority.authority.caller,
             ctx.authority.now_ns,
         ),
         LogoutResult::Revoked { .. }

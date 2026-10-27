@@ -19,6 +19,18 @@ pub enum PortableVerificationContext<'a> {
     #[cfg(feature = "certified-proof-verification")]
     Certified(&'a crate::portable_certified::PortableCertifiedContext<'a>),
 }
+impl PortableVerificationContext<'_> {
+    /// The exact protected claims context used by the selected complete verifier.
+    #[cfg(feature = "sessions")]
+    pub(crate) fn claims(&self) -> &crate::portable::PortableClaimsContext<'_> {
+        match self {
+            #[cfg(feature = "portable-signature-verification")]
+            Self::Ed25519 { claims, .. } => claims,
+            #[cfg(feature = "certified-proof-verification")]
+            Self::Certified(context) => &context.claims,
+        }
+    }
+}
 
 /// A transport or complete proof refusal, never session authorization.
 #[derive(Debug, Error, Eq, PartialEq)]
@@ -37,9 +49,8 @@ pub enum PortableCredentialError {
 /// budget. Mismatched variants fail before cryptography or budget consumption.
 /// Claims, proof bounds, time and key checks remain owned by the complete verifier.
 /// Outer transport decoding needs a host allocation/instruction limit separately.
-/// For session admission, use the callback's DecodedPortableClaims::verify instead
-/// with its supplied budget and the same protected authority snapshot. This entry
-/// point independently decodes a standalone credential.
+/// Session admission owns verification and reuses its canonical decode. This
+/// entry point independently decodes a standalone credential.
 pub fn verify_credential(
     budget: &mut SessionAdmissionBudget,
     credential: &PortableCredential,
@@ -58,7 +69,8 @@ impl crate::portable::DecodedPortableClaims {
     /// Verify the engine's exact canonical claims with the protected enrolled
     /// mechanism and its supplied shared budget. This consumes the decode without
     /// parsing, hashing or cloning claims again. Success is not session admission.
-    pub fn verify(
+    #[cfg(feature = "sessions")]
+    pub(crate) fn verify(
         self,
         budget: &mut SessionAdmissionBudget,
         proof: &PortableProof,

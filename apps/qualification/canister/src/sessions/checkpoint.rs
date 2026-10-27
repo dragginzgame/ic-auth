@@ -27,7 +27,7 @@ pub(crate) struct Snapshot {
 pub(crate) fn capture() -> Option<Snapshot> {
     RECEIVER.with(|state| {
         let state = state.borrow();
-        let host = state.as_ref().filter(|host| host.checkpoint)?;
+        let host = state.as_ref().filter(|host| host.lifecycle.checkpoint())?;
         Some(Snapshot {
             config: host
                 .inputs
@@ -122,8 +122,7 @@ pub(crate) fn restore(snapshot: Option<Snapshot>) {
         .expect("restore complete login ledger");
     let (admission, unknown) = budgets(&config, now).expect("restored budgets");
     let host = Receiver {
-        checkpoint: true,
-        ready: false,
+        lifecycle: ReceiverLifecycle::AwaitingAuthority,
         inputs: ReceiverInputs {
             binding: config.authority.binding(),
             config,
@@ -148,7 +147,7 @@ pub(crate) fn restore(snapshot: Option<Snapshot>) {
 fn enable_session_checkpoint() -> Result<(), String> {
     super::super::controller()?;
     with_receiver(|host| {
-        host.checkpoint = true;
+        host.lifecycle = ReceiverLifecycle::CheckpointEnabled;
         Ok(())
     })
 }
@@ -171,7 +170,7 @@ fn confirm_restored_session_authority(
         let mut state = state.borrow_mut();
         let host = state
             .as_mut()
-            .filter(|host| host.checkpoint && !host.ready)
+            .filter(|host| host.lifecycle == ReceiverLifecycle::AwaitingAuthority)
             .ok_or("receiver is not awaiting authority")?;
         if config != host.inputs.config {
             return Err("checkpoint authority mismatch".into());
@@ -183,7 +182,7 @@ fn confirm_restored_session_authority(
         {
             return Err("checkpoint authority expired".into());
         }
-        host.ready = true;
+        host.lifecycle = ReceiverLifecycle::CheckpointEnabled;
         Ok(())
     })
 }

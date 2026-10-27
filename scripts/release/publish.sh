@@ -37,9 +37,7 @@ mkdir -p "${CARGO_TARGET_DIR:-$PWD/target}"
 logs="$(mktemp -d "${CARGO_TARGET_DIR:-$PWD/target}/publication-$version.XXXXXX")"
 echo "Publication evidence retained: $logs"
 step() { "$@" 2>&1 | tee -a "$logs/output.log"; }
-packages=(ic-auth-protocol-types ic-auth ic-auth-wire)
-package_args=()
-for package in "${packages[@]}"; do package_args+=(-p "$package"); done
+source scripts/release/packages.sh
 step make --no-print-directory check-package-licenses
 step cargo package --locked --registry crates-io "${package_args[@]}"
 assert_source

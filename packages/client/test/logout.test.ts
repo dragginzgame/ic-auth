@@ -75,6 +75,29 @@ test('proof expiry does not imply logout: reserve final attempt after admission 
   } finally { f.store.close(); }
 });
 
+test('a reserved final attempt does not delay an eligible destination', async () => {
+  const calls: [string, bigint][] = [];
+  const f = await fixture(async target => { calls.push([target.toText(), f.state.now]); return revoked; });
+  try {
+    const start = f.state.now;
+    const expiry = start + 20_000n * MS;
+    await f.client.destination('login-a', issuer, expiry);
+    await f.client.destination('login-a', receiver, expiry);
+    await f.client.begin('login-a', start + 30_000n * MS);
+    await f.store.transact(record => {
+      assert.ok(record);
+      record.targets[0]!.attempts = 7;
+      return { record, value: undefined };
+    });
+    const result = await f.client.cleanup('login-a', identity);
+    assert.equal(result.phase, 'finished');
+    assert.deepEqual(calls[0], [receiver.toText(), start]);
+    assert.equal(calls[1]![0], issuer.toText());
+    assert.ok(calls[1]![1] > expiry);
+    assert.equal(result.targets[0]!.attempts, 8);
+  } finally { f.store.close(); }
+});
+
 test('crash/reopen preserves cleanup generation, deadline and prior attempt consumption', async () => {
   const f = await fixture(async () => revoked);
   await f.client.begin('login-a', f.state.now + 10_000n * MS);

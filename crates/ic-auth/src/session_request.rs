@@ -4,6 +4,7 @@
 //! grant scopes. Session admission and replay remain separate engine obligations.
 
 use crate::canonical::{CanonicalAuthError, validate_scope_label};
+use ic_auth_protocol_types::{AuthRole, DelegatedRoleGrant};
 use sha2::{Digest, Sha256};
 use thiserror::Error;
 
@@ -18,6 +19,53 @@ pub enum SessionRequestError {
     ScopeRejected,
     #[error(transparent)]
     Canonical(#[from] CanonicalAuthError),
+}
+
+/// Checked current maximum session lifetime, in seconds (1..=1800).
+/// Authorization needs this bound, without an admission default.
+/// Construction cannot bypass range admission:
+/// ```compile_fail
+/// use ic_auth::session_request::SessionTtlLimit;
+/// let invalid = SessionTtlLimit(0);
+/// ```
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct SessionTtlLimit(u64);
+impl SessionTtlLimit {
+    pub fn new(seconds: u64) -> Result<Self, SessionRequestError> {
+        if seconds == 0 || seconds > crate::limits::MAX_SESSION_SECS {
+            return Err(SessionRequestError::InvalidLifetime);
+        }
+        Ok(Self(seconds))
+    }
+    pub const fn seconds(self) -> u64 {
+        self.0
+    }
+}
+
+/// Checked default and maximum TTL for fresh admission. Neither value is taken
+/// from a submitted request. Live authorization uses only `maximum()`.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct SessionTtlPolicy {
+    default_secs: u64,
+    maximum: SessionTtlLimit,
+}
+impl SessionTtlPolicy {
+    pub fn new(default_secs: u64, maximum_secs: u64) -> Result<Self, SessionRequestError> {
+        let maximum = SessionTtlLimit::new(maximum_secs)?;
+        if default_secs == 0 || default_secs > maximum_secs {
+            return Err(SessionRequestError::InvalidLifetime);
+        }
+        Ok(Self {
+            default_secs,
+            maximum,
+        })
+    }
+    pub const fn default_secs(self) -> u64 {
+        self.default_secs
+    }
+    pub const fn maximum(self) -> SessionTtlLimit {
+        self.maximum
+    }
 }
 
 /// Canonical narrowing request: 1..=16 unique scopes, at most 1024 scope bytes.
@@ -52,26 +100,38 @@ impl SessionRequest {
     pub fn expires_at_ns(
         &self,
         now_ns: u64,
-        default_ttl_secs: u64,
-        max_ttl_secs: u64,
+        policy: SessionTtlPolicy,
     ) -> Result<u64, SessionRequestError> {
-        validate_ttl_policy(default_ttl_secs, max_ttl_secs)?;
-        let ttl = self.ttl_secs.unwrap_or(default_ttl_secs);
-        if ttl == 0 || ttl > max_ttl_secs {
+        let ttl = self.ttl_secs.unwrap_or(policy.default_secs());
+        if ttl > policy.maximum().seconds() {
             return Err(SessionRequestError::InvalidLifetime);
         }
         now_ns
             .checked_add(ttl * crate::limits::NS_PER_SECOND)
             .ok_or(SessionRequestError::InvalidLifetime)
     }
-    pub(crate) fn check_granted_scopes(
-        &self,
-        granted: &[String],
-    ) -> Result<(), SessionRequestError> {
+    fn check_granted_scopes(&self, granted: &[String]) -> Result<(), SessionRequestError> {
         if self.scopes.iter().any(|scope| !granted.contains(scope)) {
             return Err(SessionRequestError::ScopeRejected);
         }
         Ok(())
+    }
+    /// Evaluate narrowing and requested TTL at this caller's protected snapshot.
+    /// Admission and verified claims both use this policy; each retains its own
+    /// authority checks and the verified lease additionally caps signed deadlines.
+    pub(crate) fn evaluate(
+        &self,
+        grants: &[DelegatedRoleGrant],
+        role: &AuthRole,
+        now_ns: u64,
+        policy: SessionTtlPolicy,
+    ) -> Result<u64, SessionRequestError> {
+        let grant = grants
+            .iter()
+            .find(|grant| &grant.target == role)
+            .ok_or(SessionRequestError::ScopeRejected)?;
+        self.check_granted_scopes(&grant.scopes)?;
+        self.expires_at_ns(now_ns, policy)
     }
     /// Exact Canic V1 request hash; None and an explicit default TTL differ.
     pub fn hash(&self) -> [u8; 32] {
@@ -91,13 +151,6 @@ impl SessionRequest {
         }
         hash.finalize().into()
     }
-}
-
-pub(crate) fn validate_ttl_policy(default: u64, maximum: u64) -> Result<(), SessionRequestError> {
-    if default == 0 || default > maximum || maximum > crate::limits::MAX_SESSION_SECS {
-        return Err(SessionRequestError::InvalidLifetime);
-    }
-    Ok(())
 }
 
 pub(crate) fn check_scopes(scopes: &[String]) -> Result<(), SessionRequestError> {

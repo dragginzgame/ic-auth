@@ -30,17 +30,19 @@ fn claims() -> PortableClaims {
 
 fn context(value: &PortableClaims) -> PortableClaimsContext<'_> {
     PortableClaimsContext {
-        audience: &value.audience,
-        issuer: value.issuer,
-        mechanism: value.mechanism,
-        key_binding_id: value.key_binding_id,
-        grants: &value.grants,
-        caller: browser_principal(&value.browser_public_key),
-        now_ns: 30,
-        authority_not_before_ns: 0,
-        authority_expires_at_ns: 200,
-        enrollment_expires_at_ns: 150,
-        min_login_started_at_ns: 10,
+        authority: ic_auth::portable::PortableAuthority {
+            audience: &value.audience,
+            issuer: value.issuer,
+            mechanism: value.mechanism,
+            key_binding_id: value.key_binding_id,
+            grants: &value.grants,
+            caller: browser_principal(&value.browser_public_key),
+            now_ns: 30,
+            authority_not_before_ns: 0,
+            authority_expires_at_ns: 200,
+            enrollment_expires_at_ns: 150,
+            min_login_started_at_ns: 10,
+        },
         min_proof_issued_at_ns: 20,
         max_login_ttl_ns: 100,
         max_proof_ttl_ns: 60,
@@ -60,7 +62,7 @@ fn both_mechanisms_use_identical_strict_time_rules() {
             (80, Err(Error::Expired)),
             (110, Err(Error::Expired)),
         ] {
-            host.now_ns = now;
+            host.authority.now_ns = now;
             assert_eq!(validate_claims_context(&value, &host), expected);
         }
     }
@@ -71,7 +73,7 @@ fn reset_floor_rejects_fresh_renewal_of_an_old_login() {
     let original = claims();
     let mut host = context(&original);
     assert_eq!(validate_claims_context(&original, &host), Ok(()));
-    host.min_login_started_at_ns = 11;
+    host.authority.min_login_started_at_ns = 11;
     let mut renewal = original.clone();
     renewal.issued_at_ns = 30;
     renewal.admission_expires_at_ns = 90;
@@ -79,7 +81,7 @@ fn reset_floor_rejects_fresh_renewal_of_an_old_login() {
         validate_claims_context(&renewal, &host),
         Err(Error::BeforeReset)
     );
-    host.min_login_started_at_ns = 10;
+    host.authority.min_login_started_at_ns = 10;
     host.min_proof_issued_at_ns = 21;
     assert_eq!(
         validate_claims_context(&original, &host),
@@ -93,20 +95,20 @@ fn live_authority_and_grant_ceiling_are_independent_of_claims() {
     let value = claims();
     for expiry in [29, 30] {
         let mut host = context(&value);
-        host.authority_expires_at_ns = expiry;
+        host.authority.authority_expires_at_ns = expiry;
         assert_eq!(
             validate_claims_context(&value, &host),
             Err(Error::StaleAuthority)
         );
         host = context(&value);
-        host.enrollment_expires_at_ns = expiry;
+        host.authority.enrollment_expires_at_ns = expiry;
         assert_eq!(
             validate_claims_context(&value, &host),
             Err(Error::StaleAuthority)
         );
     }
     let mut host = context(&value);
-    host.authority_not_before_ns = 21;
+    host.authority.authority_not_before_ns = 21;
     assert_eq!(
         validate_claims_context(&value, &host),
         Err(Error::StaleAuthority)
@@ -124,7 +126,7 @@ fn live_authority_and_grant_ceiling_are_independent_of_claims() {
     );
     let malformed = vec![value.grants[0].clone(), value.grants[0].clone()];
     host = context(&value);
-    host.grants = &malformed;
+    host.authority.grants = &malformed;
     assert_eq!(
         validate_claims_context(&value, &host),
         Err(Error::InvalidContext)
@@ -140,7 +142,7 @@ fn caller_is_the_browser_principal_and_account_is_issuer_scoped() {
         browser_principal(&[9; 32]),
     ] {
         let mut host = context(&value);
-        host.caller = caller;
+        host.authority.caller = caller;
         assert_eq!(
             validate_claims_context(&value, &host),
             Err(Error::CallerMismatch)
@@ -208,9 +210,9 @@ fn impossible_or_overlong_windows_and_policy_are_refused_without_wrapping() {
     boundary.issued_at_ns = u64::MAX - 60;
     boundary.admission_expires_at_ns = u64::MAX;
     let mut host = context(&boundary);
-    host.now_ns = u64::MAX - 1;
-    host.authority_expires_at_ns = u64::MAX;
-    host.enrollment_expires_at_ns = u64::MAX;
+    host.authority.now_ns = u64::MAX - 1;
+    host.authority.authority_expires_at_ns = u64::MAX;
+    host.authority.enrollment_expires_at_ns = u64::MAX;
     assert_eq!(validate_claims_context(&boundary, &host), Ok(()));
 }
 
@@ -225,10 +227,13 @@ fn reset_cutoffs_cover_issuer_ahead_clocks_and_reject_renewed_old_logins() {
         let mut host = context(&original);
         host.advance_reset_floors(5).unwrap();
         assert_eq!(
-            (host.min_login_started_at_ns, host.min_proof_issued_at_ns),
+            (
+                host.authority.min_login_started_at_ns,
+                host.min_proof_issued_at_ns
+            ),
             (36, 31)
         );
-        host.now_ns = 40;
+        host.authority.now_ns = 40;
         assert_eq!(
             validate_claims_context(&original, &host),
             Err(Error::BeforeReset)
@@ -244,14 +249,14 @@ fn reset_cutoffs_cover_issuer_ahead_clocks_and_reject_renewed_old_logins() {
         let mut fresh = renewed;
         fresh.browser_public_key = [9; 32];
         fresh.login_started_at_ns = 36;
-        host.caller = browser_principal(&fresh.browser_public_key);
+        host.authority.caller = browser_principal(&fresh.browser_public_key);
         assert_eq!(validate_claims_context(&fresh, &host), Ok(()));
-        host.now_ns = 39;
+        host.authority.now_ns = 39;
         assert_eq!(
             validate_claims_context(&fresh, &host),
             Err(Error::NotYetValid)
         );
-        host.now_ns = 100;
+        host.authority.now_ns = 100;
         assert_eq!(validate_claims_context(&fresh, &host), Err(Error::Expired));
     }
 }
@@ -263,37 +268,49 @@ fn reset_cutoffs_never_decrease_or_partially_change_on_overflow() {
     host.advance_reset_floors(5).unwrap();
     host.advance_reset_floors(0).unwrap();
     assert_eq!(
-        (host.min_login_started_at_ns, host.min_proof_issued_at_ns),
+        (
+            host.authority.min_login_started_at_ns,
+            host.min_proof_issued_at_ns
+        ),
         (36, 31)
     );
-    host.now_ns = 50;
+    host.authority.now_ns = 50;
     host.advance_reset_floors(0).unwrap();
     assert_eq!(
-        (host.min_login_started_at_ns, host.min_proof_issued_at_ns),
+        (
+            host.authority.min_login_started_at_ns,
+            host.min_proof_issued_at_ns
+        ),
         (51, 51)
     );
     for (now, skew) in [(u64::MAX, 0), (u64::MAX - 1, 1), (50, u64::MAX)] {
-        host.now_ns = now;
+        host.authority.now_ns = now;
         assert_eq!(host.advance_reset_floors(skew), Err(Error::InvalidContext));
         assert_eq!(
-            (host.min_login_started_at_ns, host.min_proof_issued_at_ns),
+            (
+                host.authority.min_login_started_at_ns,
+                host.min_proof_issued_at_ns
+            ),
             (51, 51)
         );
     }
-    host.now_ns = u64::MAX - 1;
+    host.authority.now_ns = u64::MAX - 1;
     host.advance_reset_floors(0).unwrap();
     assert_eq!(
-        (host.min_login_started_at_ns, host.min_proof_issued_at_ns),
+        (
+            host.authority.min_login_started_at_ns,
+            host.min_proof_issued_at_ns
+        ),
         (u64::MAX, u64::MAX)
     );
     let mut origin = context(&c);
-    origin.now_ns = 0;
-    origin.min_login_started_at_ns = 0;
+    origin.authority.now_ns = 0;
+    origin.authority.min_login_started_at_ns = 0;
     origin.min_proof_issued_at_ns = 0;
     origin.advance_reset_floors(0).unwrap();
     assert_eq!(
         (
-            origin.min_login_started_at_ns,
+            origin.authority.min_login_started_at_ns,
             origin.min_proof_issued_at_ns
         ),
         (1, 1)

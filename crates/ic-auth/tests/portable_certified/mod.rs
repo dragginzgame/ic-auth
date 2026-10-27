@@ -28,17 +28,19 @@ fn context<'a>(f: &'a Fixture, trusted: &'a PortableClaims) -> PortableCertified
     let limits = limits();
     PortableCertifiedContext {
         claims: PortableClaimsContext {
-            audience: &trusted.audience,
-            issuer: cert.issuer_pid,
-            mechanism: PortableMechanism::Certified,
-            key_binding_id: trusted.key_binding_id,
-            grants: &cert.grants,
-            caller: browser_principal(&[6; 32]),
-            now_ns: NOW,
-            authority_not_before_ns: cert.not_before_ns,
-            authority_expires_at_ns: cert.expires_at_ns,
-            enrollment_expires_at_ns: 400,
-            min_login_started_at_ns: 0,
+            authority: ic_auth::portable::PortableAuthority {
+                audience: &trusted.audience,
+                issuer: cert.issuer_pid,
+                mechanism: PortableMechanism::Certified,
+                key_binding_id: trusted.key_binding_id,
+                grants: &cert.grants,
+                caller: browser_principal(&[6; 32]),
+                now_ns: NOW,
+                authority_not_before_ns: cert.not_before_ns,
+                authority_expires_at_ns: cert.expires_at_ns,
+                enrollment_expires_at_ns: 400,
+                min_login_started_at_ns: 0,
+            },
             min_proof_issued_at_ns: 0,
             max_login_ttl_ns: 1000,
             max_proof_ttl_ns: 60,
@@ -174,14 +176,14 @@ fn shared_checks_and_current_authority_cannot_be_bypassed_by_valid_signatures() 
         (160, PortableClaimsError::Expired),
     ] {
         let mut ctx = context(&f, &c);
-        ctx.claims.now_ns = now;
+        ctx.claims.authority.now_ns = now;
         assert_eq!(
             verify_certified_claims(&mut budget(), &bytes, &f.proof, &signature, &ctx),
             Err(PortableCertifiedError::Claims(error))
         );
     }
     let mut ctx = context(&f, &c);
-    ctx.claims.caller = c.account_subject;
+    ctx.claims.authority.caller = c.account_subject;
     assert_eq!(
         verify_certified_claims(&mut budget(), &bytes, &f.proof, &signature, &ctx),
         Err(PortableCertifiedError::Claims(
@@ -189,7 +191,7 @@ fn shared_checks_and_current_authority_cannot_be_bypassed_by_valid_signatures() 
         ))
     );
     ctx = context(&f, &c);
-    ctx.claims.enrollment_expires_at_ns = NOW;
+    ctx.claims.authority.enrollment_expires_at_ns = NOW;
     assert_eq!(
         verify_certified_claims(&mut budget(), &bytes, &f.proof, &signature, &ctx),
         Err(PortableCertifiedError::Claims(
@@ -197,7 +199,7 @@ fn shared_checks_and_current_authority_cannot_be_bypassed_by_valid_signatures() 
         ))
     );
     ctx = context(&f, &c);
-    ctx.claims.min_login_started_at_ns = 101;
+    ctx.claims.authority.min_login_started_at_ns = 101;
     assert_eq!(
         verify_certified_claims(&mut budget(), &bytes, &f.proof, &signature, &ctx),
         Err(PortableCertifiedError::Claims(
@@ -213,7 +215,7 @@ fn delegation_ceiling_binding_and_certificate_time_are_enforced() {
     let mut elevated = c.clone();
     elevated.grants[0].scopes.push("zz".into());
     let mut ctx = context(&f, &c);
-    ctx.claims.grants = &elevated.grants;
+    ctx.claims.authority.grants = &elevated.grants;
     let sig = proof(&elevated, CERTIFIED_SIGNATURE_DOMAIN, SEED, NOW);
     assert_eq!(
         verify_certified_claims(
@@ -228,7 +230,7 @@ fn delegation_ceiling_binding_and_certificate_time_are_enforced() {
     let bytes = encode_claims(&c).unwrap();
     let sig = proof(&c, CERTIFIED_SIGNATURE_DOMAIN, SEED, NOW);
     let mut ctx = context(&f, &c);
-    ctx.claims.authority_expires_at_ns += 1;
+    ctx.claims.authority.authority_expires_at_ns += 1;
     assert_eq!(
         verify_certified_claims(&mut budget(), &bytes, &f.proof, &sig, &ctx),
         Err(PortableCertifiedError::BindingMismatch)
@@ -303,6 +305,44 @@ fn current_root_policy_network_key_and_mechanism_are_not_proof_selected() {
 }
 
 #[test]
+fn bounds_and_claim_binding_refuse_before_charging_but_root_refusal_consumes_credit() {
+    use ic_auth::admission_budget::{AdmissionBudgetError, SessionAdmissionBudget};
+    let f = Fixture::new();
+    let c = claims(&f);
+    let bytes = encode_claims(&c).unwrap();
+    let sig = proof(&c, CERTIFIED_SIGNATURE_DOMAIN, SEED, NOW);
+    let mut credit = SessionAdmissionBudget::new(1, 1, NOW - 1).unwrap();
+    let mut ctx = context(&f, &c);
+    ctx.limits.max_variable_bytes = 0;
+    assert_eq!(
+        verify_certified_claims(&mut credit, &bytes, &f.proof, &sig, &ctx),
+        Err(PortableCertifiedError::Delegation(Error::InputTooLarge))
+    );
+    ctx = context(&f, &c);
+    let mut changed = f.proof.clone();
+    changed.cert.issued_at_ns += 1;
+    assert_eq!(
+        verify_certified_claims(&mut credit, &bytes, &changed, &sig, &ctx),
+        Err(PortableCertifiedError::BindingMismatch)
+    );
+    let mut revoked = f.policy.clone();
+    revoked.min_accepted_proof_epoch = u64::MAX;
+    ctx.root_key = &revoked;
+    assert_eq!(
+        verify_certified_claims(&mut credit, &bytes, &f.proof, &sig, &ctx),
+        Err(PortableCertifiedError::Delegation(Error::StaleAuthority {
+            field: "proof_epoch"
+        }))
+    );
+    assert_eq!(
+        verify_certified_claims(&mut credit, &bytes, &f.proof, &sig, &context(&f, &c)),
+        Err(PortableCertifiedError::Budget(
+            AdmissionBudgetError::Exhausted
+        ))
+    );
+}
+
+#[test]
 fn certified_result_uses_the_same_reservation_and_logout_gate() {
     use ic_auth::portable::{LoginRevocationError, MemoryLoginRevocations};
     let f = Fixture::new();
@@ -356,27 +396,33 @@ fn certified_lease_uses_the_same_deadline_caps() {
     let mut host = context(&f, &c);
     let checked = verify_certified_claims(&mut budget(), &encoded, &f.proof, &sig, &host).unwrap();
     assert_eq!(
-        checked.session_expires_at_ns(&request, &role(), 1, 1800),
+        ic_auth::session_request::SessionTtlPolicy::new(1, 1800)
+            .and_then(|ttl| checked.session_expires_at_ns(&request, &role(), ttl)),
         Ok(400)
     );
     assert!(400 > c.admission_expires_at_ns);
     let write = SessionRequest::new(vec!["write".into()], Some(1)).unwrap();
     assert_eq!(
-        checked.session_expires_at_ns(&write, &role(), 1, 1800),
+        ic_auth::session_request::SessionTtlPolicy::new(1, 1800)
+            .and_then(|ttl| checked.session_expires_at_ns(&write, &role(), ttl)),
         Err(ic_auth::session_request::SessionRequestError::ScopeRejected)
     );
     assert_eq!(
-        checked.session_expires_at_ns(&request, &"other".parse().unwrap(), 1, 1800),
+        ic_auth::session_request::SessionTtlPolicy::new(1, 1800).and_then(
+            |ttl| checked.session_expires_at_ns(&request, &"other".parse().unwrap(), ttl)
+        ),
         Err(ic_auth::session_request::SessionRequestError::ScopeRejected)
     );
-    host.claims.authority_expires_at_ns = 250;
+    host.claims.authority.authority_expires_at_ns = 250;
     let shorter = verify_certified_claims(&mut budget(), &encoded, &f.proof, &sig, &host).unwrap();
     assert_eq!(
-        shorter.session_expires_at_ns(&request, &role(), 1, 1800),
+        ic_auth::session_request::SessionTtlPolicy::new(1, 1800)
+            .and_then(|ttl| shorter.session_expires_at_ns(&request, &role(), ttl)),
         Ok(250)
     );
     assert_eq!(
-        checked.session_expires_at_ns(&request, &role(), 1, 1800),
+        ic_auth::session_request::SessionTtlPolicy::new(1, 1800)
+            .and_then(|ttl| checked.session_expires_at_ns(&request, &role(), ttl)),
         Ok(400)
     );
 }
@@ -395,7 +441,7 @@ fn certified_signature_failure_spends_credit_after_cheap_checks() {
     let mut host = context(&f, &c);
     let wrong = proof(&c, b"wrong-domain", SEED, NOW);
     let mut budget = SessionAdmissionBudget::new(1, 1, NOW - 1).unwrap();
-    host.claims.caller = Principal::anonymous();
+    host.claims.authority.caller = Principal::anonymous();
     assert!(matches!(
         verify_certified_claims(&mut budget, &bytes, &f.proof, &wrong, &host),
         Err(PortableCertifiedError::Claims(
@@ -414,7 +460,7 @@ fn certified_signature_failure_spends_credit_after_cheap_checks() {
             AdmissionBudgetError::Exhausted
         ))
     );
-    host.claims.now_ns += 1;
+    host.claims.authority.now_ns += 1;
     assert!(verify_certified_claims(&mut budget, &bytes, &f.proof, &valid, &host).is_ok());
 }
 
@@ -436,8 +482,11 @@ fn switching_proof_mechanisms_cannot_obtain_another_allowance() {
     ed.mechanism = PortableMechanism::Ed25519;
     ed.key_binding_id = Sha256::digest(public).into();
     let ed_host = PortableClaimsContext {
-        mechanism: ed.mechanism,
-        key_binding_id: ed.key_binding_id,
+        authority: ic_auth::portable::PortableAuthority {
+            mechanism: ed.mechanism,
+            key_binding_id: ed.key_binding_id,
+            ..certified_host.claims.authority
+        },
         ..certified_host.claims
     };
     let ed_bytes = encode_claims(&ed).unwrap();
@@ -495,9 +544,10 @@ fn certified_proof_uses_the_shared_session_lifecycle() {
             issuer_signature: signature,
         },
     };
-    let host = context(&f, &c);
+    let mut host = context(&f, &c);
     let mut ctx = SessionContext {
-        authority: host.claims,
+        authority: host.claims.authority,
+        max_ttl: ic_auth::session_request::SessionTtlLimit::new(30).unwrap(),
         role: &role(),
         required_scopes: &[],
     };
@@ -505,8 +555,6 @@ fn certified_proof_uses_the_shared_session_lifecycle() {
         generation: 0,
         enabled: true,
         subject_admissible: true,
-        default_ttl_secs: 1,
-        max_ttl_secs: 30,
     };
     let mut store = MemorySessionStore::new(
         0,
@@ -525,17 +573,16 @@ fn certified_proof_uses_the_shared_session_lifecycle() {
         &mut store,
         &mut ledger,
         &mut budget,
-        &encoded,
+        &credential,
         &request,
-        &ctx,
-        policy,
-        |budget, decoded| {
-            Ok(decoded.verify(
-                budget,
-                &credential.proof,
-                &ic_auth::portable_credential::PortableVerificationContext::Certified(&host),
-            )?)
+        &SessionAdmissionContext {
+            verification: ic_auth::portable_credential::PortableVerificationContext::Certified(
+                &host,
+            ),
+            role: ctx.role,
+            ttl: ic_auth::session_request::SessionTtlPolicy::new(1, 30).unwrap(),
         },
+        policy,
     )
     .unwrap() else {
         panic!("created")
@@ -560,31 +607,36 @@ fn certified_proof_uses_the_shared_session_lifecycle() {
         &mut second,
         &mut second_ledger,
         &mut second_budget,
-        &credential.claims,
+        &credential,
         &request,
-        &ctx,
-        policy,
-        |budget, decoded| {
-            Ok(decoded.verify(
-                budget,
-                &credential.proof,
-                &ic_auth::portable_credential::PortableVerificationContext::Certified(&host),
-            )?)
+        &SessionAdmissionContext {
+            verification: ic_auth::portable_credential::PortableVerificationContext::Certified(
+                &host,
+            ),
+            role: ctx.role,
+            ttl: ic_auth::session_request::SessionTtlPolicy::new(1, 30).unwrap(),
         },
+        policy,
     )
     .unwrap();
     assert_eq!(second_session, SessionEstablished::Created(session.clone()));
     ctx.authority.now_ns = 170;
+    host.claims.authority.now_ns = 170;
     assert_eq!(
         establish_session(
             &mut store,
             &mut ledger,
             &mut budget,
-            &encoded,
+            &credential,
             &request,
-            &ctx,
-            policy,
-            |_, _| panic!("expired proof exact retry")
+            &SessionAdmissionContext {
+                verification: ic_auth::portable_credential::PortableVerificationContext::Certified(
+                    &host
+                ),
+                role: ctx.role,
+                ttl: ic_auth::session_request::SessionTtlPolicy::new(1, 30).unwrap()
+            },
+            policy
         ),
         Ok(SessionEstablished::ExactRetry(session.clone()))
     );
@@ -612,11 +664,16 @@ fn certified_proof_uses_the_shared_session_lifecycle() {
             &mut store,
             &mut ledger,
             &mut budget,
-            &credential.claims,
+            &credential,
             &request,
-            &ctx,
+            &SessionAdmissionContext {
+                verification: ic_auth::portable_credential::PortableVerificationContext::Certified(
+                    &host
+                ),
+                role: ctx.role,
+                ttl: ic_auth::session_request::SessionTtlPolicy::new(1, 30).unwrap()
+            },
             policy,
-            |_, _| panic!("revoked login must fail before cryptography"),
         ),
         Err(SessionError::Revocation(
             ic_auth::portable::LoginRevocationError::Revoked
@@ -709,8 +766,8 @@ fn credential_variant_cannot_select_authority_or_spend_mismatched_budget() {
         ed_claims.mechanism = PortableMechanism::Ed25519;
         ed_claims.key_binding_id = Sha256::digest(key).into();
         let mut ed_authority = authority.claims;
-        ed_authority.mechanism = PortableMechanism::Ed25519;
-        ed_authority.key_binding_id = ed_claims.key_binding_id;
+        ed_authority.authority.mechanism = PortableMechanism::Ed25519;
+        ed_authority.authority.key_binding_id = ed_claims.key_binding_id;
         let ed_context = PortableVerificationContext::Ed25519 {
             claims: &ed_authority,
             public_key: &key,

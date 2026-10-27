@@ -187,17 +187,19 @@ fn portable_proof_rechecks_live_authority_and_real_certification_after_upgrade()
     let network = extract_raw_root_pk_from_der(&fixture.pic.root_key().unwrap()).unwrap();
     let mut context = PortableCertifiedContext {
         claims: PortableClaimsContext {
-            audience: &audience,
-            issuer: fixture.signer,
-            mechanism: PortableMechanism::Certified,
-            key_binding_id: claims.key_binding_id,
-            grants: &proof.cert.grants,
-            caller: browser_principal(&browser_key),
-            now_ns: fixture.now(),
-            authority_not_before_ns: started,
-            authority_expires_at_ns: proof.cert.expires_at_ns,
-            enrollment_expires_at_ns: proof.cert.expires_at_ns,
-            min_login_started_at_ns: 0,
+            authority: ic_auth::portable::PortableAuthority {
+                audience: &audience,
+                issuer: fixture.signer,
+                mechanism: PortableMechanism::Certified,
+                key_binding_id: claims.key_binding_id,
+                grants: &proof.cert.grants,
+                caller: browser_principal(&browser_key),
+                now_ns: fixture.now(),
+                authority_not_before_ns: started,
+                authority_expires_at_ns: proof.cert.expires_at_ns,
+                enrollment_expires_at_ns: proof.cert.expires_at_ns,
+                min_login_started_at_ns: 0,
+            },
             min_proof_issued_at_ns: 0,
             max_login_ttl_ns: 120 * SECOND,
             max_proof_ttl_ns: 60 * SECOND,
@@ -226,39 +228,39 @@ fn portable_proof_rechecks_live_authority_and_real_certification_after_upgrade()
     let verified = verify(&signature, &context).unwrap();
     assert_eq!(verified.fingerprint(), payload);
     assert_eq!(verified.claims(), &claims);
-    assert_ne!(context.claims.caller, claims.account_subject);
-    context.claims.caller = fixture.controller;
+    assert_ne!(context.claims.authority.caller, claims.account_subject);
+    context.claims.authority.caller = fixture.controller;
     assert_eq!(
         verify(&signature, &context).unwrap_err(),
         Error::Claims(PortableClaimsError::CallerMismatch)
     );
-    context.claims.caller = browser_principal(&browser_key);
+    context.claims.authority.caller = browser_principal(&browser_key);
     let other_audience = AudienceId {
         fleet_id: CanonicalId::from_bytes([3; 32]),
         ..audience
     };
-    context.claims.audience = &other_audience;
+    context.claims.authority.audience = &other_audience;
     assert_eq!(
         verify(&signature, &context).unwrap_err(),
         Error::Claims(PortableClaimsError::AudienceMismatch)
     );
-    context.claims.audience = &audience;
+    context.claims.authority.audience = &audience;
     let narrowed = vec![DelegatedRoleGrant {
         target: role.clone(),
         scopes: vec!["write".into()],
     }];
-    context.claims.grants = &narrowed;
+    context.claims.authority.grants = &narrowed;
     assert_eq!(
         verify(&signature, &context).unwrap_err(),
         Error::Claims(PortableClaimsError::GrantsExceeded)
     );
-    context.claims.grants = &proof.cert.grants;
-    context.claims.enrollment_expires_at_ns = context.claims.now_ns;
+    context.claims.authority.grants = &proof.cert.grants;
+    context.claims.authority.enrollment_expires_at_ns = context.claims.authority.now_ns;
     assert_eq!(
         verify(&signature, &context).unwrap_err(),
         Error::Claims(PortableClaimsError::StaleAuthority)
     );
-    context.claims.enrollment_expires_at_ns = proof.cert.expires_at_ns;
+    context.claims.authority.enrollment_expires_at_ns = proof.cert.expires_at_ns;
     for field in ["key_version", "proof_epoch", "registry_epoch"] {
         let mut stale = policy.clone();
         match field {
@@ -292,7 +294,7 @@ fn portable_proof_rechecks_live_authority_and_real_certification_after_upgrade()
     context.ic_root_public_key_raw = &network;
     assert_eq!(signature, unchanged);
     fixture.pic.advance_time(Duration::from_secs(30));
-    context.claims.now_ns = fixture.now();
+    context.claims.authority.now_ns = fixture.now();
     assert_eq!(
         verify(&signature, &context).unwrap_err(),
         Error::Signature(CanisterSignatureError::CertificateTooOld)
@@ -311,7 +313,7 @@ fn portable_proof_rechecks_live_authority_and_real_certification_after_upgrade()
     signature = fixture
         .retrieve(CERTIFIED_SIGNATURE_DOMAIN, &payload)
         .unwrap();
-    context.claims.now_ns = fixture.now();
+    context.claims.authority.now_ns = fixture.now();
     assert_eq!(verify(&signature, &context).unwrap().fingerprint(), payload);
     assert_eq!(encode_claims(&claims).unwrap(), encoded);
     super::sessions::qualify_certified(&fixture, &proof, &context, &role);

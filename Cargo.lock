@@ -1431,9 +1431,9 @@ dependencies = [
 
 [[package]]
 name = "ic-memory"
-version = "0.51.9"
+version = "0.51.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3f2685991be486b2d424d757ab63b8f5f906c527f681f1de03e09ff23660b470"
+checksum = "df69a902952a37e427872ad381a3745539b1dfd4cfe9c21ff2fd4796f71bcc37"
 dependencies = [
  "ic-platform",
  "serde",

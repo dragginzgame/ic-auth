@@ -12,7 +12,7 @@ use thiserror::Error;
 /// Generation, login revocation, replay and atomic session writes remain host/
 /// session-engine obligations; this context cannot attest its own provenance.
 #[derive(Clone, Copy, Debug)]
-pub struct PortableClaimsContext<'a> {
+pub struct PortableAuthority<'a> {
     pub audience: &'a AudienceId,
     pub issuer: Principal,
     pub mechanism: PortableMechanism,
@@ -26,13 +26,20 @@ pub struct PortableClaimsContext<'a> {
     pub enrollment_expires_at_ns: u64,
     /// Immutable login start floor, including the host's qualified reset margin.
     pub min_login_started_at_ns: u64,
+}
+
+/// Current authority plus fresh-proof admission constraints. Ordinary session
+/// authorization uses `PortableAuthority` without proof TTL or issuance inputs.
+#[derive(Clone, Copy, Debug)]
+pub struct PortableClaimsContext<'a> {
+    pub authority: PortableAuthority<'a>,
     pub min_proof_issued_at_ns: u64,
     /// Positive host limits, capped at 86,400 and 60 seconds respectively.
     pub max_login_ttl_ns: u64,
     pub max_proof_ttl_ns: u64,
 }
 
-impl PortableClaimsContext<'_> {
+impl PortableAuthority<'_> {
     // Shared structural authority policy, independent of clock, proof lifetime,
     // caller and session liveness. Each path preserves its own refusal type.
     pub(crate) fn authority_shape_valid(&self) -> bool {
@@ -45,7 +52,9 @@ impl PortableClaimsContext<'_> {
             )
             .is_ok()
     }
+}
 
+impl PortableClaimsContext<'_> {
     /// Advance both admission cutoffs after losing session/replay/revocation state.
     /// Uses this context's trusted boot time and deployment-qualified skew bound;
     /// the host must reject unavailable/rolled-back clocks before calling this.
@@ -55,13 +64,15 @@ impl PortableClaimsContext<'_> {
     /// Do not call per request or discard the resulting floors after startup.
     pub fn advance_reset_floors(&mut self, clock_skew_ns: u64) -> Result<(), PortableClaimsError> {
         let proof_floor = self
+            .authority
             .now_ns
             .checked_add(1)
             .ok_or(PortableClaimsError::InvalidContext)?;
         let login_floor = proof_floor
             .checked_add(clock_skew_ns)
             .ok_or(PortableClaimsError::InvalidContext)?;
-        self.min_login_started_at_ns = self.min_login_started_at_ns.max(login_floor);
+        self.authority.min_login_started_at_ns =
+            self.authority.min_login_started_at_ns.max(login_floor);
         self.min_proof_issued_at_ns = self.min_proof_issued_at_ns.max(proof_floor);
         Ok(())
     }
@@ -109,32 +120,33 @@ pub fn validate_claims_context(
     context: &PortableClaimsContext<'_>,
 ) -> Result<(), PortableClaimsError> {
     use PortableClaimsError as Error;
+    let authority = &context.authority;
     if context.max_login_ttl_ns == 0
         || context.max_login_ttl_ns > crate::limits::MAX_LOGIN_NS
         || context.max_proof_ttl_ns == 0
         || context.max_proof_ttl_ns > crate::limits::MAX_PROOF_NS
-        || !context.authority_shape_valid()
-        || context.enrollment_expires_at_ns == 0
+        || !authority.authority_shape_valid()
+        || authority.enrollment_expires_at_ns == 0
     {
         return Err(Error::InvalidContext);
     }
     validate_shape(claims)?;
-    if claims.audience != *context.audience {
+    if claims.audience != *authority.audience {
         return Err(Error::AudienceMismatch);
     }
-    if claims.issuer != context.issuer {
+    if claims.issuer != authority.issuer {
         return Err(Error::IssuerMismatch);
     }
-    if claims.mechanism != context.mechanism {
+    if claims.mechanism != authority.mechanism {
         return Err(Error::MechanismMismatch);
     }
-    if claims.key_binding_id != context.key_binding_id {
+    if claims.key_binding_id != authority.key_binding_id {
         return Err(Error::KeyMismatch);
     }
-    if browser_principal(&claims.browser_public_key) != context.caller {
+    if browser_principal(&claims.browser_public_key) != authority.caller {
         return Err(Error::CallerMismatch);
     }
-    if !grants_are_subset(&claims.grants, context.grants) {
+    if !grants_are_subset(&claims.grants, authority.grants) {
         return Err(Error::GrantsExceeded);
     }
     if positive_duration(claims.login_started_at_ns, claims.login_deadline_ns)
@@ -146,22 +158,22 @@ pub fn validate_claims_context(
     {
         return Err(Error::InvalidWindow);
     }
-    if claims.login_started_at_ns < context.min_login_started_at_ns
+    if claims.login_started_at_ns < authority.min_login_started_at_ns
         || claims.issued_at_ns < context.min_proof_issued_at_ns
     {
         return Err(Error::BeforeReset);
     }
-    if context.now_ns < context.authority_not_before_ns
-        || context.now_ns >= context.authority_expires_at_ns
-        || context.now_ns >= context.enrollment_expires_at_ns
-        || claims.issued_at_ns < context.authority_not_before_ns
+    if authority.now_ns < authority.authority_not_before_ns
+        || authority.now_ns >= authority.authority_expires_at_ns
+        || authority.now_ns >= authority.enrollment_expires_at_ns
+        || claims.issued_at_ns < authority.authority_not_before_ns
     {
         return Err(Error::StaleAuthority);
     }
-    if context.now_ns < claims.issued_at_ns {
+    if authority.now_ns < claims.issued_at_ns {
         return Err(Error::NotYetValid);
     }
-    if context.now_ns >= claims.admission_expires_at_ns {
+    if authority.now_ns >= claims.admission_expires_at_ns {
         return Err(Error::Expired);
     }
     Ok(())

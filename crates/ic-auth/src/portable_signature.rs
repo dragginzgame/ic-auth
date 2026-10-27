@@ -76,12 +76,12 @@ pub(crate) fn verify_decoded(
         fingerprint,
         ..
     } = decoded;
-    if context.mechanism != PortableMechanism::Ed25519 {
+    if context.authority.mechanism != PortableMechanism::Ed25519 {
         return Err(PortableClaimsError::MechanismMismatch.into());
     }
     validate_claims_context(&claims, context)?;
     let key_id: [u8; 32] = Sha256::digest(public_key).into();
-    if context.key_binding_id != key_id {
+    if context.authority.key_binding_id != key_id {
         return Err(PortableClaimsError::KeyMismatch.into());
     }
     let key = VerifyingKey::from_bytes(public_key)
@@ -94,7 +94,7 @@ pub(crate) fn verify_decoded(
     if bool::from(Scalar::from_canonical_bytes(*signature.s_bytes()).is_none()) {
         return Err(PortableSignatureError::InvalidSignature);
     }
-    budget.consume(context.now_ns)?;
+    budget.consume(context.authority.now_ns)?;
     key.verify_strict(&fingerprint, &signature)
         .map_err(|_| PortableSignatureError::InvalidSignature)?;
     Ok(VerifiedPortableClaims::new(claims, fingerprint, context))

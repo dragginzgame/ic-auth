@@ -21,10 +21,11 @@ cp Cargo.lock "$fixture/original-workspace.lock"
 
 # Cargo owns package normalization. Check its real payloads outside the workspace
 # so private test dependencies cannot supply features to a public consumer.
+source scripts/release/packages.sh
 CARGO_TARGET_DIR="$root/target/msrv-package" cargo +"$development" package \
-    --locked --offline --allow-dirty --no-verify -p ic-auth-protocol-types -p ic-auth -p ic-auth-wire
+    --locked --offline --allow-dirty --no-verify "${package_args[@]}"
 CARGO_TARGET_DIR="$root/target" cargo +"$development" build --locked --offline -p ic-auth-tooling
-for package in ic-auth-protocol-types ic-auth ic-auth-wire; do
+for package in "${packages[@]}"; do
     archive="$root/target/msrv-package/package/tmp-crate/$package-$version.crate"
     digest="$(bash scripts/dev/run-host-file.sh hash-file "$archive" 8388608)"
     printf '%s  %s\n' "$digest" "$archive" >> "$fixture/package-identities.sha256"

@@ -6,9 +6,23 @@ is the implementation/acceptance tracker. This document is the current interface
 boundary, not evidence that Canic or Toko have deployed it. Earlier extraction
 checkpoints are retained separately in [adoption history](canic-adoption-history.md).
 
+## Pending session commit migration
+
+Auth 0.19's draft changes the Rust admission, context, lifetime and storage APIs.
+Pass a complete credential and `SessionAdmissionContext` to admission; migrate
+custom backends from mutable `SessionTransaction` staging to
+`SessionReader` and `SessionStore::{read, admit, logout}`. Match typed ledger
+state and the explicit `SessionCommit::write` payload, and use checked TTL policy
+values. See the [migration](sessions.md#session-commit-write-migration).
+Stored records, signed bytes and Wire methods are unchanged. Auth's qualification
+callers use the new contract; Canic remains on its published dependency until a
+supplying Auth release is available. This implementation does not establish Canic
+adapter adoption or deployment, retained in
+[Canic #491 — Extract reusable authentication, token and session machinery](https://github.com/dragginzgame/canic/issues/491).
+
 ## Released API and dependency direction
 
-Released Auth 0.15 contains `ic-auth-protocol-types`, `ic-auth` and
+Released Auth 0.18 contains `ic-auth-protocol-types`, `ic-auth` and
 `ic-auth-wire`. Select matching package releases in the consumer's root catalog;
 no sibling source/path override or copied codec is needed. Auth has no Canic or
 Toko dependency. Rust 1.91 is the common minimum.
@@ -26,7 +40,7 @@ Toko dependency. Rust 1.91 is the common minimum.
   SDK identity, issuer/admission transport and durable logout storage. It does
   not implement wallet login or a production issuer/reconciliation service.
 
-Pending Auth 0.18 selects Platform 0.7 and enables only `principal` for passive types.
+Released Auth 0.18 selects Platform 0.7 and enables only `principal` for passive types.
 Consumers sharing that owned Rust type must align to Platform 0.7; external
 Agent/Testkit/crypto APIs keep explicit `principal::ExternalPrincipal`
 conversions. Do not select the older upstream Principal identity or downgrade
@@ -331,8 +345,8 @@ errors unchanged. Ledger-only callers with untyped `Ok(())` callbacks select
 commit ordering and unknown-logout work charges keep the same contract.
 Complete-verifier failures now use only `SessionError::Credential`, wrapping
 `PortableCredentialError::Ed25519` / `Certified`; the direct session variants and
-their `From` conversions are removed. Use `DecodedPortableClaims::verify` inside
-admission and retain `admission_refusal()` projection. Consumer adoption belongs
+their `From` conversions are removed. Auth 0.19 admission owns the complete
+verifier call; retain `admission_refusal()` projection. Consumer adoption belongs
 to [Canic #491 — Extract authentication machinery into independent IC Auth](https://github.com/dragginzgame/canic/issues/491).
 
 ## Browser and production acceptance

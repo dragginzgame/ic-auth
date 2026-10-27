@@ -161,8 +161,13 @@ capabilities refuse Candid and ic0. Only the runtime host selects ic0/executor.
 Native Host, Build and Testkit selections remain
 tests/tooling entries.
 
-`make fmt`, `make fmt-check` and the pre-commit hook use Shared's grouped Cargo
-sorting default; Auth no longer repeats paired formatter overrides. Release preparation writes that same ordering; current, prepared and
+`make fmt`, `make fmt-check` and the pre-commit hook use Shared's Rust formatting
+driver: grouped Cargo sorting followed by Rustfmt, with progress and timing per
+pass. Auth has no paired formatter override or extra workspace roster. The driver
+can reuse unchanged inputs when its source discovery supports them; Auth's
+explicit module paths disable that shortcut, and staged hooks always run the
+formatters. `FORMAT_RUST_ARGS=--no-cache` explicitly runs every pass.
+Release preparation writes that same ordering; current, prepared and
 selected committed-source checks refuse unsorted groups without rewriting them.
 `make test-formatting-hooks` derives an unsorted manifest from current inputs and
 qualifies sorting, lock preservation and staged-file isolation.
@@ -539,6 +544,11 @@ multi-package, multi-feature and multi-target entries are aggregate suites.
 `make ci` is the complete configured CI/release gate. Ordinary development and
 handoff select the relevant checks above; local full-gate execution follows
 [Shared Tooling validation policy](../DRAGGINZGAME.md#validation-and-evidence).
+
+Auth's ordered public package inventory is `scripts/release/packages.sh`.
+Publication/retry evidence, MSRV package creation/extraction, license checks and
+publication dry runs consume that list. Capability-specific consumer harnesses
+retain their explicit package roles and feature selections.
 The generic runner/archive matrices stay at Shared Tooling and remain explicitly
 callable here. Auth retains `test-release-tools` for its actual metadata,
 release/recovery and publication rejection/retry; `test-tools-evidence` and

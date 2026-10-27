@@ -43,43 +43,88 @@ impl ReceiverAuthority {
     }
 }
 
+impl TryFrom<ReceiverAuthority> for ic_auth_qualification_contracts::model::ReceiverAuthority {
+    type Error = ic_auth_wire::wire::Error;
+    fn try_from(value: ReceiverAuthority) -> Result<Self, Self::Error> {
+        use ic_auth_qualification_contracts::model as w;
+        use ic_auth_wire::wire::{Bytes, Text};
+        Ok(match value {
+            ReceiverAuthority::Ed25519(key) => w::ReceiverAuthority::Ed25519(key),
+            ReceiverAuthority::Certified {
+                binding,
+                root,
+                network_key,
+            } => w::ReceiverAuthority::Certified(w::CertifiedAuthority {
+                binding,
+                root: w::RootEnrollment {
+                    root_canister_id: Bytes::new(root.root_canister_id.as_slice().to_vec())?,
+                    algorithm: root.algorithm.into(),
+                    key_name: Text::new(root.key_id.name)?,
+                    derivation_path_hash: root.derivation_path_hash,
+                    public_key: Bytes::new(root.public_key)?,
+                    key_version: root.key_version,
+                    min_accepted_key_version: root.min_accepted_key_version,
+                    min_accepted_proof_epoch: root.min_accepted_proof_epoch,
+                    min_accepted_registry_epoch: root.min_accepted_registry_epoch,
+                    valid_from_ns: root.valid_from_ns,
+                    accept_until_ns: root.accept_until_ns,
+                    max_revocation_latency_ns: root.max_revocation_latency_ns,
+                },
+                network_key: Bytes::new(network_key)?,
+            }),
+        })
+    }
+}
+impl TryFrom<ic_auth_qualification_contracts::model::ReceiverAuthority> for ReceiverAuthority {
+    type Error = ic_auth_wire::wire::Error;
+    fn try_from(
+        value: ic_auth_qualification_contracts::model::ReceiverAuthority,
+    ) -> Result<Self, Self::Error> {
+        use ic_auth_qualification_contracts::model as w;
+        use ic_auth_wire::wire::Error;
+        Ok(match value {
+            w::ReceiverAuthority::Ed25519(key) => ReceiverAuthority::Ed25519(key),
+            w::ReceiverAuthority::Certified(w::CertifiedAuthority {
+                binding,
+                root,
+                network_key,
+            }) => ReceiverAuthority::Certified {
+                binding,
+                root: Box::new(RootKeyPolicy {
+                    root_canister_id: Principal::try_from_slice(root.root_canister_id.as_slice())
+                        .map_err(|_| Error::Malformed)?,
+                    algorithm: match root.algorithm {
+                        ic_auth_wire::model::ChainKeyAlgorithm::EcdsaSecp256k1 => {
+                            ic_auth_protocol_types::ChainKeyAlgorithm::EcdsaSecp256k1
+                        }
+                    },
+                    key_id: ic_auth_protocol_types::ChainKeyKeyId {
+                        name: root.key_name.into_string(),
+                    },
+                    derivation_path_hash: root.derivation_path_hash,
+                    public_key: root.public_key.into_vec(),
+                    key_version: root.key_version,
+                    min_accepted_key_version: root.min_accepted_key_version,
+                    min_accepted_proof_epoch: root.min_accepted_proof_epoch,
+                    min_accepted_registry_epoch: root.min_accepted_registry_epoch,
+                    valid_from_ns: root.valid_from_ns,
+                    accept_until_ns: root.accept_until_ns,
+                    max_revocation_latency_ns: root.max_revocation_latency_ns,
+                }),
+                network_key: network_key.into_vec(),
+            },
+        })
+    }
+}
+
 impl TryFrom<ReceiverConfig> for ic_auth_qualification_contracts::model::ReceiverConfig {
     type Error = ic_auth_wire::wire::Error;
     fn try_from(value: ReceiverConfig) -> Result<Self, Self::Error> {
-        use ic_auth_qualification_contracts::model as w;
         use ic_auth_wire::wire::{Bytes, List, Text};
         Ok(Self {
             audience: value.audience.try_into()?,
             issuer: Bytes::new(value.issuer.as_slice().to_vec())?,
-            authority: match value.authority {
-                ReceiverAuthority::Ed25519(key) => w::ReceiverAuthority::Ed25519(key),
-                ReceiverAuthority::Certified {
-                    binding,
-                    root,
-                    network_key,
-                } => w::ReceiverAuthority::Certified(w::CertifiedAuthority {
-                    binding,
-                    root: w::RootEnrollment {
-                        root_canister_id: Bytes::new(root.root_canister_id.as_slice().to_vec())?,
-                        algorithm: match root.algorithm {
-                            ic_auth_protocol_types::ChainKeyAlgorithm::EcdsaSecp256k1 => {
-                                ic_auth_wire::model::ChainKeyAlgorithm::EcdsaSecp256k1
-                            }
-                        },
-                        key_name: Text::new(root.key_id.name)?,
-                        derivation_path_hash: root.derivation_path_hash,
-                        public_key: Bytes::new(root.public_key)?,
-                        key_version: root.key_version,
-                        min_accepted_key_version: root.min_accepted_key_version,
-                        min_accepted_proof_epoch: root.min_accepted_proof_epoch,
-                        min_accepted_registry_epoch: root.min_accepted_registry_epoch,
-                        valid_from_ns: root.valid_from_ns,
-                        accept_until_ns: root.accept_until_ns,
-                        max_revocation_latency_ns: root.max_revocation_latency_ns,
-                    },
-                    network_key: Bytes::new(network_key)?,
-                }),
-            },
+            authority: value.authority.try_into()?,
             role: Text::new(value.role.as_str().into())?,
             grants: List::new(
                 value
@@ -101,46 +146,12 @@ impl TryFrom<ic_auth_qualification_contracts::model::ReceiverConfig> for Receive
     fn try_from(
         value: ic_auth_qualification_contracts::model::ReceiverConfig,
     ) -> Result<Self, Self::Error> {
-        use ic_auth_qualification_contracts::model as w;
         use ic_auth_wire::wire::Error;
         Ok(Self {
             audience: value.audience.try_into()?,
             issuer: Principal::try_from_slice(value.issuer.as_slice())
                 .map_err(|_| Error::Malformed)?,
-            authority: match value.authority {
-                w::ReceiverAuthority::Ed25519(key) => ReceiverAuthority::Ed25519(key),
-                w::ReceiverAuthority::Certified(w::CertifiedAuthority {
-                    binding,
-                    root,
-                    network_key,
-                }) => ReceiverAuthority::Certified {
-                    binding,
-                    root: Box::new(RootKeyPolicy {
-                        root_canister_id: Principal::try_from_slice(
-                            root.root_canister_id.as_slice(),
-                        )
-                        .map_err(|_| Error::Malformed)?,
-                        algorithm: match root.algorithm {
-                            ic_auth_wire::model::ChainKeyAlgorithm::EcdsaSecp256k1 => {
-                                ic_auth_protocol_types::ChainKeyAlgorithm::EcdsaSecp256k1
-                            }
-                        },
-                        key_id: ic_auth_protocol_types::ChainKeyKeyId {
-                            name: root.key_name.into_string(),
-                        },
-                        derivation_path_hash: root.derivation_path_hash,
-                        public_key: root.public_key.into_vec(),
-                        key_version: root.key_version,
-                        min_accepted_key_version: root.min_accepted_key_version,
-                        min_accepted_proof_epoch: root.min_accepted_proof_epoch,
-                        min_accepted_registry_epoch: root.min_accepted_registry_epoch,
-                        valid_from_ns: root.valid_from_ns,
-                        accept_until_ns: root.accept_until_ns,
-                        max_revocation_latency_ns: root.max_revocation_latency_ns,
-                    }),
-                    network_key: network_key.into_vec(),
-                },
-            },
+            authority: value.authority.try_into()?,
             role: value.role.as_str().parse().map_err(|_| Error::Malformed)?,
             grants: value
                 .grants
@@ -207,11 +218,33 @@ mod tests {
                 network_key: vec![21; 96],
             },
         ] {
+            if let ReceiverAuthority::Certified {
+                binding,
+                mut root,
+                network_key,
+            } = authority.clone()
+            {
+                root.public_key = vec![0; 66];
+                let oversized = ReceiverAuthority::Certified {
+                    binding,
+                    root,
+                    network_key,
+                };
+                assert_eq!(
+                    wire::ReceiverAuthority::try_from(oversized),
+                    Err(ic_wire::Error::Limit)
+                );
+            }
             let expected = ReceiverConfig {
                 authority,
                 ..config.clone()
             };
             let transport: wire::ReceiverConfig = expected.clone().try_into().unwrap();
+            let authority: wire::ReceiverAuthority = expected.authority.clone().try_into().unwrap();
+            assert_eq!(
+                ReceiverAuthority::try_from(authority).unwrap(),
+                expected.authority
+            );
             let bytes = InstallReceiver::encode_request(&transport).unwrap();
             let decoded = InstallReceiver::decode_request(bytes.as_slice()).unwrap();
             assert_eq!(ReceiverConfig::try_from(decoded).unwrap(), expected);

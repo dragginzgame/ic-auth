@@ -1,5 +1,42 @@
 # Changelog
 
+## [0.19.0] - Unreleased
+
+### ⚠️ Breaking
+
+- Session admission now takes the complete credential and protected
+  `SessionAdmissionContext`; Auth owns verification and no longer exposes the
+  callback or decoded-admission value. Fresh admission requires a complete
+  verifier feature. Shared `PortableAuthority` separates current authority from
+  proof-only constraints, and checked TTL policies separate admission defaults
+  from the live authorization ceiling.
+- Host stores now implement immutable reads and explicit `admit` / `logout`
+  commits, replacing mutable staging transactions. Match typed login state and
+  named binding fields instead of correlated flags and a tuple. Custom backends
+  must migrate to the new interface; see the
+  [migration](docs/sessions.md#session-commit-write-migration).
+- Durable session callbacks now match `SessionCommit::write` as
+  `SessionWrite::Admission { login, session, replay }` or
+  `SessionWrite::Logout { login }`, replacing the separate login field and
+  optional admission pair. Persist the selected records atomically with the
+  existing post-commit totals. Signed and stored formats are unchanged; no reset
+  is required. See the [migration](docs/sessions.md#session-commit-write-migration).
+
+### 🧹 Cleanup
+
+- Share session request policy and prepared delegation material while preserving
+  early refusals, verification budgets and live-authority checks. Make browser
+  cleanup scheduling, strict transaction outcomes and fixture lifecycle states
+  explicit, and simplify checked fixture authority projection.
+- Use one public package inventory for release, minimum-compiler packaging and
+  license/dry-run checks. Generate browser codec policy alongside each binding.
+  [#90 — Consolidate admission policy and simplify client and qualification state](https://github.com/dragginzgame/ic-auth/issues/90).
+- Adopt Shared Tooling 0.26.23's Rust formatting driver with visible per-pass
+  progress and timing, retaining Auth's grouped ordering and staged-file checks.
+  Adopt the canonical Tooling gzip guidance; no local application encoder or
+  compressed-byte contract changes.
+  [#91 — Adopt Shared Tooling 0.26.23 formatting orchestration](https://github.com/dragginzgame/ic-auth/issues/91).
+
 ## [0.18.0] - 2026-10-27
 
 ### ⚠️ Breaking

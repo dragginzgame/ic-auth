@@ -55,17 +55,19 @@ fn verify_with_budget(
     let key = SigningKey::from_bytes(&[42; 32]);
     let signature = key.sign(&claims_hash(c).unwrap()).to_bytes();
     let context = PortableClaimsContext {
-        audience: &c.audience,
-        issuer: c.issuer,
-        mechanism: c.mechanism,
-        key_binding_id: c.key_binding_id,
-        grants: &c.grants,
-        caller: browser_principal(&c.browser_public_key),
-        now_ns: now,
-        authority_not_before_ns: 0,
-        authority_expires_at_ns: u64::MAX,
-        enrollment_expires_at_ns: u64::MAX,
-        min_login_started_at_ns: 0,
+        authority: ic_auth::portable::PortableAuthority {
+            audience: &c.audience,
+            issuer: c.issuer,
+            mechanism: c.mechanism,
+            key_binding_id: c.key_binding_id,
+            grants: &c.grants,
+            caller: browser_principal(&c.browser_public_key),
+            now_ns: now,
+            authority_not_before_ns: 0,
+            authority_expires_at_ns: u64::MAX,
+            enrollment_expires_at_ns: u64::MAX,
+            min_login_started_at_ns: 0,
+        },
         min_proof_issued_at_ns: 0,
         max_login_ttl_ns: DAY,
         max_proof_ttl_ns: 60,
@@ -733,16 +735,20 @@ fn commit_receives_complete_login_change_before_any_ledger_installation() {
     let mut store = ledger(2, 2);
     let checked = verified(1, 100, 1);
     let c = checked.claims();
+    let binding = ic_auth::portable::LoginBinding {
+        issuer: c.issuer,
+        subject: c.account_subject,
+        started_at_ns: 0,
+        deadline_ns: 100,
+    };
     let result: Result<(), Error> =
         store.with_reservation::<_, Error>(caller(1), &checked, 1, |change| {
             assert_eq!(change.audience(), audience());
             assert_eq!(change.caller(), caller(1));
             assert_eq!(change.until_ns(), 110);
-            assert!(!change.revoked());
-            assert!(change.admitted_pool());
             assert_eq!(
-                change.binding(),
-                Some((c.issuer, c.account_subject, 0, 100))
+                change.state(),
+                ic_auth::portable::LoginRecordState::Reserved(binding)
             );
             Err(Error::Storage)
         });
@@ -753,11 +759,9 @@ fn commit_receives_complete_login_change_before_any_ledger_installation() {
         .unwrap();
     let until = store
         .with_revocation::<Error>(&mut budget(), caller(1), 2, |change| {
-            assert!(change.revoked());
-            assert!(change.admitted_pool());
             assert_eq!(
-                change.binding(),
-                Some((c.issuer, c.account_subject, 0, 100))
+                change.state(),
+                ic_auth::portable::LoginRecordState::Revoked(Some(binding))
             );
             assert_eq!(change.until_ns(), 2 + DAY + 20);
             Ok(())
@@ -772,9 +776,10 @@ fn commit_receives_complete_login_change_before_any_ledger_installation() {
     store
         .with_revocation::<Error>(&mut budget(), caller(2), 3, |change| {
             assert_eq!(change.caller(), caller(2));
-            assert!(change.revoked());
-            assert!(!change.admitted_pool());
-            assert_eq!(change.binding(), None);
+            assert_eq!(
+                change.state(),
+                ic_auth::portable::LoginRecordState::Revoked(None)
+            );
             Ok(())
         })
         .unwrap();
@@ -892,9 +897,17 @@ fn stored_login_flags_admit_only_the_three_current_states() {
                 let decoded = LoginRevocationChange::decode(&encoded);
                 if (bound && admitted) || (!bound && revoked && !admitted) {
                     let decoded = decoded.unwrap();
-                    assert_eq!(decoded.binding().is_some(), bound);
-                    assert_eq!(decoded.revoked(), revoked);
-                    assert_eq!(decoded.admitted_pool(), admitted);
+                    match decoded.state() {
+                        ic_auth::portable::LoginRecordState::Reserved(_) => {
+                            assert_eq!((bound, revoked, admitted), (true, false, true))
+                        }
+                        ic_auth::portable::LoginRecordState::Revoked(Some(_)) => {
+                            assert_eq!((bound, revoked, admitted), (true, true, true))
+                        }
+                        ic_auth::portable::LoginRecordState::Revoked(None) => {
+                            assert_eq!((bound, revoked, admitted), (false, true, false))
+                        }
+                    }
                     assert_eq!(
                         serde_cbor::from_slice::<Value>(&decoded.encode().unwrap()[prefix.len()..])
                             .unwrap(),

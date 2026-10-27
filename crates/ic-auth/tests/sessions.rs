@@ -5,7 +5,7 @@ use ic_auth::{
         LoginRevocationError, MemoryLoginRevocations, PortableClaimsContext, PortableClaimsError,
         browser_principal, claims_hash, encode_claims,
     },
-    portable_credential::{PortableCredentialError, PortableVerificationContext},
+    portable_credential::PortableVerificationContext,
     portable_signature::verify_ed25519_claims,
     session::*,
     session_request::SessionRequest,
@@ -154,55 +154,63 @@ impl Fixture {
     fn caller(&self) -> Principal {
         browser_principal(&self.claims.browser_public_key)
     }
+    fn authority(&self, now: u64) -> ic_auth::portable::PortableAuthority<'_> {
+        ic_auth::portable::PortableAuthority {
+            audience: &self.claims.audience,
+            issuer: self.claims.issuer,
+            mechanism: self.claims.mechanism,
+            key_binding_id: self.claims.key_binding_id,
+            grants: &self.claims.grants,
+            caller: self.caller(),
+            now_ns: now,
+            authority_not_before_ns: 0,
+            authority_expires_at_ns: NOW + 120 * SECOND,
+            enrollment_expires_at_ns: NOW + 90 * SECOND,
+            min_login_started_at_ns: 0,
+        }
+    }
+    fn claims_context(&self, now: u64) -> PortableClaimsContext<'_> {
+        claims_context(self.authority(now))
+    }
     fn context(&self, now: u64) -> SessionContext<'_> {
         SessionContext {
-            authority: PortableClaimsContext {
-                audience: &self.claims.audience,
-                issuer: self.claims.issuer,
-                mechanism: self.claims.mechanism,
-                key_binding_id: self.claims.key_binding_id,
-                grants: &self.claims.grants,
-                caller: self.caller(),
-                now_ns: now,
-                authority_not_before_ns: 0,
-                authority_expires_at_ns: NOW + 120 * SECOND,
-                enrollment_expires_at_ns: NOW + 90 * SECOND,
-                min_login_started_at_ns: 0,
-                min_proof_issued_at_ns: 0,
-                max_login_ttl_ns: 86_400 * SECOND,
-                max_proof_ttl_ns: 60 * SECOND,
-            },
+            authority: self.authority(now),
+            max_ttl: ttl().maximum(),
             role: &self.role,
             required_scopes: &[],
         }
     }
+    fn credential(&self) -> PortableCredential {
+        PortableCredential {
+            claims: encode_claims(&self.claims).unwrap(),
+            proof: PortableProof::Ed25519 {
+                signature: self
+                    .key
+                    .sign(&claims_hash(&self.claims).unwrap())
+                    .to_bytes()
+                    .to_vec(),
+            },
+        }
+    }
+
     fn admit(&self, receiver: &mut Receiver, now: u64) -> Result<SessionEstablished, SessionError> {
-        let context = self.context(now);
-        let bytes = encode_claims(&self.claims).unwrap();
-        let sig = self
-            .key
-            .sign(&claims_hash(&self.claims).unwrap())
-            .to_bytes();
+        let claims = self.claims_context(now);
+        let key = self.key.verifying_key().to_bytes();
         establish_session(
             &mut receiver.store,
             &mut receiver.ledger,
             &mut receiver.budget,
-            &bytes,
+            &self.credential(),
             &request(),
-            &context,
-            policy(),
-            |budget, decoded| {
-                Ok(decoded.verify(
-                    budget,
-                    &PortableProof::Ed25519 {
-                        signature: sig.to_vec(),
-                    },
-                    &PortableVerificationContext::Ed25519 {
-                        claims: &context.authority,
-                        public_key: &self.key.verifying_key().to_bytes(),
-                    },
-                )?)
+            &SessionAdmissionContext {
+                verification: PortableVerificationContext::Ed25519 {
+                    claims: &claims,
+                    public_key: &key,
+                },
+                role: &self.role,
+                ttl: ttl(),
             },
+            policy(),
         )
     }
 }
@@ -237,13 +245,24 @@ impl Receiver {
         }
     }
 }
+fn claims_context(
+    authority: ic_auth::portable::PortableAuthority<'_>,
+) -> PortableClaimsContext<'_> {
+    PortableClaimsContext {
+        authority,
+        min_proof_issued_at_ns: 0,
+        max_login_ttl_ns: 86_400 * SECOND,
+        max_proof_ttl_ns: 60 * SECOND,
+    }
+}
+fn ttl() -> ic_auth::session_request::SessionTtlPolicy {
+    ic_auth::session_request::SessionTtlPolicy::new(5, 30).unwrap()
+}
 fn policy() -> SessionPolicy {
     SessionPolicy {
         generation: 0,
         enabled: true,
         subject_admissible: true,
-        default_ttl_secs: 5,
-        max_ttl_secs: 30,
     }
 }
 fn limits() -> SessionLimits {
@@ -279,28 +298,26 @@ fn future_start_retry_keeps_original_credential_and_verifies_only_once() {
     };
     let mut r = Receiver::new(&f);
     r.budget = SessionAdmissionBudget::new(1, SECOND, NOW).unwrap();
-    let mut verifications = 0;
-    let mut admit = |r: &mut Receiver, now| {
+    let admit = |r: &mut Receiver, now| {
         let context = f.context(now);
         establish_session(
             &mut r.store,
             &mut r.ledger,
             &mut r.budget,
-            &bytes,
-            &request(),
-            &context,
-            policy(),
-            |budget, decoded| {
-                verifications += 1;
-                Ok(decoded.verify(
-                    budget,
-                    &proof,
-                    &PortableVerificationContext::Ed25519 {
-                        claims: &context.authority,
-                        public_key: &f.key.verifying_key().to_bytes(),
-                    },
-                )?)
+            &PortableCredential {
+                claims: bytes.clone(),
+                proof: proof.clone(),
             },
+            &request(),
+            &SessionAdmissionContext {
+                verification: PortableVerificationContext::Ed25519 {
+                    claims: &claims_context(context.authority),
+                    public_key: &f.key.verifying_key().to_bytes(),
+                },
+                role: context.role,
+                ttl: ttl(),
+            },
+            policy(),
         )
     };
     assert_eq!(
@@ -315,7 +332,21 @@ fn future_start_retry_keeps_original_credential_and_verifies_only_once() {
         admit(&mut r, start + 1),
         Ok(SessionEstablished::ExactRetry(session.clone()))
     );
-    assert_eq!(verifications, 1);
+    assert!(matches!(
+        verify_ed25519_claims(
+            &mut r.budget,
+            &bytes,
+            match &proof {
+                PortableProof::Ed25519 { signature } => signature,
+                _ => unreachable!(),
+            },
+            &f.claims_context(start + 1),
+            &f.key.verifying_key().to_bytes()
+        ),
+        Err(ic_auth::portable_signature::PortableSignatureError::Budget(
+            _
+        ))
+    ));
     assert_eq!(r.store.encoded_bytes(), stored_bytes);
     assert_eq!(r.ledger.occupancy(), (1, 0));
     assert_eq!(r.auth(&f, start + 1), Ok(session));
@@ -383,11 +414,20 @@ fn two_receivers_two_devices_retry_after_proof_expiry_and_local_logout() {
             &mut a.store,
             &mut a.ledger,
             &mut a.budget,
-            &bytes,
+            &PortableCredential {
+                claims: bytes.clone(),
+                proof: PortableProof::Ed25519 { signature: vec![] }
+            },
             &request(),
-            &ctx,
-            policy(),
-            |_, _| panic!("exact retry must not verify again")
+            &SessionAdmissionContext {
+                verification: PortableVerificationContext::Ed25519 {
+                    claims: &claims_context(ctx.authority),
+                    public_key: &f.key.verifying_key().to_bytes()
+                },
+                role: ctx.role,
+                ttl: ttl()
+            },
+            policy()
         ),
         Ok(SessionEstablished::ExactRetry(session.clone()))
     );
@@ -407,7 +447,7 @@ fn two_receivers_two_devices_retry_after_proof_expiry_and_local_logout() {
     b.logout(f.caller(), NOW + 4 * SECOND).unwrap();
     assert!(b.auth(&f, NOW + 4 * SECOND).is_err());
     a.store
-        .transaction(None, |tx| {
+        .read(|tx| {
             assert!(tx.replay_exists(claims_hash(&f.claims).unwrap())?);
             Ok(())
         })
@@ -448,15 +488,29 @@ fn renewal_replaces_only_within_original_login_and_logout_blocks_fresh_proofs() 
 
 struct FailingStore<'a>(&'a mut MemorySessionStore, fn() -> SessionError);
 impl SessionStore for FailingStore<'_> {
-    fn transaction<T>(
+    fn read<T>(
         &mut self,
-        change: Option<&ic_auth::portable::LoginRevocationChange>,
-        operation: impl FnOnce(&mut dyn SessionTransaction) -> Result<T, SessionError>,
+        operation: impl FnOnce(&dyn SessionReader) -> Result<T, SessionError>,
     ) -> Result<T, SessionError> {
+        self.0.read(operation)
+    }
+    fn admit(
+        &mut self,
+        session: &Session,
+        replay: &Replay,
+        login: &ic_auth::portable::LoginRevocationChange,
+    ) -> Result<bool, SessionError> {
         self.0
-            .transaction_with_commit(change, operation, |_| Err((self.1)()))
+            .admit_with_commit(session, replay, login, |_| Err((self.1)()))
+    }
+    fn logout(
+        &mut self,
+        login: &ic_auth::portable::LoginRevocationChange,
+    ) -> Result<(), SessionError> {
+        self.0.logout_with_commit(login, |_| Err((self.1)()))
     }
 }
+
 #[test]
 fn failed_commit_is_atomic_for_session_replay_reservation_and_logout() {
     let f = Fixture::new(1);
@@ -470,27 +524,29 @@ fn failed_commit_is_atomic_for_session_replay_reservation_and_logout() {
             &mut FailingStore(&mut r.store, || SessionError::ByteCapacity),
             &mut r.ledger,
             &mut budget,
-            &bytes,
-            &request(),
-            &ctx,
-            policy(),
-            |budget, decoded| Ok(decoded.verify(
-                budget,
-                &PortableProof::Ed25519 {
+            &PortableCredential {
+                claims: bytes.clone(),
+                proof: PortableProof::Ed25519 {
                     signature: signature.to_vec()
-                },
-                &PortableVerificationContext::Ed25519 {
-                    claims: &ctx.authority,
-                    public_key: &f.key.verifying_key().to_bytes()
                 }
-            )?)
+            },
+            &request(),
+            &SessionAdmissionContext {
+                verification: PortableVerificationContext::Ed25519 {
+                    claims: &claims_context(ctx.authority),
+                    public_key: &f.key.verifying_key().to_bytes()
+                },
+                role: ctx.role,
+                ttl: ttl()
+            },
+            policy()
         ),
         Err(SessionError::ByteCapacity)
     );
     assert_eq!(r.ledger.occupancy(), (0, 0));
     assert_eq!(r.store.encoded_bytes(), 0);
     r.store
-        .transaction(None, |tx| {
+        .read(|tx| {
             assert!(!tx.replay_exists(claims_hash(&f.claims).unwrap())?);
             Ok(())
         })
@@ -500,7 +556,7 @@ fn failed_commit_is_atomic_for_session_replay_reservation_and_logout() {
             &mut budget,
             &bytes,
             &signature,
-            &ctx.authority,
+            &claims_context(ctx.authority),
             &f.key.verifying_key().to_bytes()
         )
         .is_err()
@@ -592,11 +648,20 @@ fn replay_capacity_narrowing_and_reset_refuse_before_verification() {
             &mut r.store,
             &mut r.ledger,
             &mut r.budget,
-            &bytes,
+            &PortableCredential {
+                claims: bytes.clone(),
+                proof: PortableProof::Ed25519 { signature: vec![] }
+            },
             &excessive,
-            &f.context(NOW),
-            policy(),
-            |_, _| panic!("scope preflight")
+            &SessionAdmissionContext {
+                verification: PortableVerificationContext::Ed25519 {
+                    claims: &claims_context(f.context(NOW).authority),
+                    public_key: &f.key.verifying_key().to_bytes()
+                },
+                role: f.context(NOW).role,
+                ttl: ttl()
+            },
+            policy()
         ),
         Err(SessionError::ScopeRejected)
     );
@@ -607,11 +672,20 @@ fn replay_capacity_narrowing_and_reset_refuse_before_verification() {
             &mut r.store,
             &mut r.ledger,
             &mut r.budget,
-            &bytes,
+            &PortableCredential {
+                claims: bytes.clone(),
+                proof: PortableProof::Ed25519 { signature: vec![] }
+            },
             &changed,
-            &f.context(NOW),
-            policy(),
-            |_, _| panic!("exact retry mismatch")
+            &SessionAdmissionContext {
+                verification: PortableVerificationContext::Ed25519 {
+                    claims: &claims_context(f.context(NOW).authority),
+                    public_key: &f.key.verifying_key().to_bytes()
+                },
+                role: f.context(NOW).role,
+                ttl: ttl()
+            },
+            policy()
         ),
         Err(SessionError::ReplayConflict)
     );
@@ -631,27 +705,45 @@ fn replay_capacity_narrowing_and_reset_refuse_before_verification() {
             &mut r.store,
             &mut r.ledger,
             &mut r.budget,
-            &bytes,
+            &PortableCredential {
+                claims: bytes.clone(),
+                proof: PortableProof::Ed25519 { signature: vec![] }
+            },
             &request(),
-            &f.context(NOW),
-            policy(),
-            |_, _| panic!("full store")
+            &SessionAdmissionContext {
+                verification: PortableVerificationContext::Ed25519 {
+                    claims: &claims_context(f.context(NOW).authority),
+                    public_key: &f.key.verifying_key().to_bytes()
+                },
+                role: f.context(NOW).role,
+                ttl: ttl()
+            },
+            policy()
         ),
         Err(SessionError::Capacity)
     );
     let mut reset = Receiver::new(&f);
     let mut ctx = f.context(NOW);
-    ctx.authority.advance_reset_floors(SECOND).unwrap();
+    ctx.authority.min_login_started_at_ns = NOW + SECOND + 1;
     assert!(matches!(
         establish_session(
             &mut reset.store,
             &mut reset.ledger,
             &mut reset.budget,
-            &bytes,
+            &PortableCredential {
+                claims: bytes.clone(),
+                proof: PortableProof::Ed25519 { signature: vec![] }
+            },
             &request(),
-            &ctx,
-            policy(),
-            |_, _| panic!("pre-reset login")
+            &SessionAdmissionContext {
+                verification: PortableVerificationContext::Ed25519 {
+                    claims: &claims_context(ctx.authority),
+                    public_key: &f.key.verifying_key().to_bytes()
+                },
+                role: ctx.role,
+                ttl: ttl()
+            },
+            policy()
         ),
         Err(SessionError::Claims(PortableClaimsError::BeforeReset))
     ));
@@ -723,59 +815,31 @@ fn portable_record_roundtrip_and_old_or_corrupt_records_are_rejected() {
 }
 
 #[test]
-fn callback_result_must_match_original_claims_and_current_clock() {
-    for changed_claims in [true, false] {
-        let f = Fixture::new(1);
-        let mut receiver = Receiver::new(&f);
-        receiver.budget = SessionAdmissionBudget::new(1, SECOND, NOW - SECOND).unwrap();
-        let bytes = encode_claims(&f.claims).unwrap();
-        let context = f.context(NOW);
-        let mut other = f.claims.clone();
-        if changed_claims {
-            other.nonce = [9; 16];
-        }
-        let other_bytes = encode_claims(&other).unwrap();
-        let signature = f.key.sign(&claims_hash(&other).unwrap()).to_bytes();
-        let mut verification = f.context(NOW);
-        if !changed_claims {
-            verification.authority.now_ns += 1;
-        }
-        assert_eq!(
-            establish_session(
-                &mut receiver.store,
-                &mut receiver.ledger,
-                &mut receiver.budget,
-                &bytes,
-                &request(),
-                &context,
-                policy(),
-                |budget, _decoded| Ok(verify_ed25519_claims(
-                    budget,
-                    &other_bytes,
-                    &signature,
-                    &verification.authority,
-                    &f.key.verifying_key().to_bytes(),
-                )
-                .map_err(PortableCredentialError::from)?),
-            ),
-            Err(SessionError::InvalidPolicyOrRecord),
-        );
-        assert_eq!(receiver.store.encoded_bytes(), 0);
-        assert_eq!(receiver.ledger.occupancy(), (0, 0));
-        // Refused callback results must not undo work already charged by verification.
-        assert!(matches!(
-            verify_ed25519_claims(
-                &mut receiver.budget,
-                &bytes,
-                &f.key.sign(&claims_hash(&f.claims).unwrap()).to_bytes(),
-                &verification.authority,
-                &f.key.verifying_key().to_bytes(),
-            ),
-            Err(ic_auth::portable_signature::PortableSignatureError::Budget(
-                _
-            ))
-        ));
-    }
+fn admission_uses_only_its_enrolled_verifier_context() {
+    let f = Fixture::new(1);
+    let mut r = Receiver::new(&f);
+    let claims = f.claims_context(NOW);
+    let wrong = SigningKey::from_bytes(&[43; 32]).verifying_key().to_bytes();
+    let result = establish_session(
+        &mut r.store,
+        &mut r.ledger,
+        &mut r.budget,
+        &f.credential(),
+        &request(),
+        &SessionAdmissionContext {
+            verification: PortableVerificationContext::Ed25519 {
+                claims: &claims,
+                public_key: &wrong,
+            },
+            role: &f.role,
+            ttl: ttl(),
+        },
+        policy(),
+    );
+    assert!(matches!(result, Err(SessionError::Credential(_))));
+    assert_eq!(r.store.encoded_bytes(), 0);
+    assert_eq!(r.ledger.occupancy(), (0, 0));
+    assert!(f.admit(&mut r, NOW).is_ok());
 }
 
 #[test]
@@ -789,22 +853,22 @@ fn invalid_signature_cannot_reserve_state_and_spends_verification_credit() {
         &mut r.store,
         &mut r.ledger,
         &mut budget,
-        &bytes,
-        &request(),
-        &ctx,
-        policy(),
-        |budget, decoded| {
-            Ok(decoded.verify(
-                budget,
-                &PortableProof::Ed25519 {
-                    signature: [0; 64].to_vec(),
-                },
-                &PortableVerificationContext::Ed25519 {
-                    claims: &ctx.authority,
-                    public_key: &f.key.verifying_key().to_bytes(),
-                },
-            )?)
+        &PortableCredential {
+            claims: bytes.clone(),
+            proof: PortableProof::Ed25519 {
+                signature: [0; 64].to_vec(),
+            },
         },
+        &request(),
+        &SessionAdmissionContext {
+            verification: PortableVerificationContext::Ed25519 {
+                claims: &claims_context(ctx.authority),
+                public_key: &f.key.verifying_key().to_bytes(),
+            },
+            role: ctx.role,
+            ttl: ttl(),
+        },
+        policy(),
     );
     assert!(matches!(result, Err(SessionError::Credential(_))));
     assert_eq!(r.store.encoded_bytes(), 0);
@@ -814,7 +878,7 @@ fn invalid_signature_cannot_reserve_state_and_spends_verification_credit() {
             &mut budget,
             &bytes,
             &[0; 64],
-            &ctx.authority,
+            &claims_context(ctx.authority),
             &f.key.verifying_key().to_bytes()
         ),
         Err(ic_auth::portable_signature::PortableSignatureError::Budget(
@@ -872,7 +936,7 @@ fn bounded_pruning_releases_exact_bytes_and_caller_replay_capacity() {
     );
     assert_eq!(r.store.encoded_bytes(), 0);
     r.store
-        .transaction(None, |tx| {
+        .read(|tx| {
             assert_eq!(tx.occupancy(f.caller())?, SessionOccupancy::default());
             Ok(())
         })
@@ -921,7 +985,7 @@ fn byte_capacity_failure_preserves_previous_session_and_login_reservation() {
     );
     f.claims.nonce = [2; 16];
     r.store
-        .transaction(None, |tx| {
+        .read(|tx| {
             assert_eq!(
                 tx.occupancy(f.caller())?,
                 SessionOccupancy {
@@ -963,38 +1027,27 @@ fn logout_reports_typed_refusals_without_acknowledging_revocation() {
 }
 
 #[test]
-fn transaction_refuses_missing_or_mismatched_logout_change_without_partial_effects() {
+fn logout_uses_change_caller_and_refuses_foreign_domain_without_partial_effects() {
     let f = Fixture::new(1);
     let mut r = Receiver::new(&f);
     let session = created(f.admit(&mut r, NOW).unwrap());
-    assert_eq!(
-        r.store.transaction(None, |tx| tx.remove(f.caller())),
-        Err(SessionError::InvalidPolicyOrRecord)
-    );
     let other = Fixture::new(2);
-    assert_eq!(
-        r.ledger.with_revocation::<LoginRevocationError>(
-            &mut r.logout,
-            other.caller(),
-            NOW,
-            |change| {
-                r.store
-                    .transaction(Some(change), |tx| tx.remove(f.caller()))
-                    .map_err(|_| LoginRevocationError::Storage)
-            }
-        ),
-        Err(LoginRevocationError::Storage)
-    );
-    assert!(!r.ledger.is_revoked(other.caller(), NOW).unwrap());
-    let mut foreign_audience = f.claims.audience;
-    foreign_audience.fleet_id = CanonicalId::from_bytes([77; 32]);
-    let mut foreign = MemoryLoginRevocations::new(foreign_audience, 4, 4, SECOND, 0).unwrap();
-    assert_eq!(
-        foreign.with_revocation::<LoginRevocationError>(&mut r.logout, f.caller(), NOW, |change| {
+    r.ledger
+        .with_revocation::<LoginRevocationError>(&mut r.logout, other.caller(), NOW, |login| {
             r.store
-                .transaction(Some(change), |tx| tx.remove(f.caller()))
+                .logout(login)
                 .map_err(|_| LoginRevocationError::Storage)
-        }),
+        })
+        .unwrap();
+    assert_eq!(r.auth(&f, NOW), Ok(session.clone()));
+    let mut domain = f.claims.audience;
+    domain.fleet_id = CanonicalId::from_bytes([77; 32]);
+    let mut foreign = MemoryLoginRevocations::new(domain, 4, 4, SECOND, 0).unwrap();
+    assert_eq!(
+        foreign.with_revocation::<LoginRevocationError>(&mut r.logout, f.caller(), NOW, |login| r
+            .store
+            .logout(login)
+            .map_err(|_| LoginRevocationError::Storage)),
         Err(LoginRevocationError::Storage)
     );
     assert!(!foreign.is_revoked(f.caller(), NOW).unwrap());
@@ -1016,7 +1069,7 @@ fn restored_login_records_gate_retained_sessions_and_reject_revoked_retries() {
         &mut r.budget,
         &bytes,
         &signature,
-        &f.context(NOW).authority,
+        &f.claims_context(NOW),
         &f.key.verifying_key().to_bytes(),
     )
     .unwrap();
@@ -1252,38 +1305,6 @@ fn replay_storage_decoder_rejects_wrong_domain_truncation_and_invalid_fields() {
 
 #[cfg(feature = "session-restore")]
 #[test]
-fn transaction_refuses_second_write_without_publishing() {
-    let f = Fixture::new(1);
-    let mut source = Receiver::new(&f);
-    let session = created(f.admit(&mut source, NOW).unwrap());
-    let replay = source.store.replay_records().next().unwrap().clone();
-    for first_admission in [false, true] {
-        for second_admission in [false, true] {
-            let mut store = MemorySessionStore::new(0, limits()).unwrap();
-            let result = store.transaction_with_commit(
-                None,
-                |tx| {
-                    for admission in [first_admission, second_admission] {
-                        if admission {
-                            tx.stage(session.clone(), replay.clone())?;
-                        } else {
-                            tx.remove(f.caller())?;
-                        }
-                    }
-                    panic!("a second write must be refused during staging");
-                },
-                |_| panic!("refused staging must not call the host commit"),
-            );
-            assert_eq!(result, Err::<(), _>(SessionError::InvalidPolicyOrRecord));
-            assert_eq!(store.encoded_bytes(), 0);
-            assert_eq!(store.session_records().len(), 0);
-            assert_eq!(store.replay_records().len(), 0);
-        }
-    }
-}
-
-#[cfg(feature = "session-restore")]
-#[test]
 fn commit_hook_receives_only_validated_delta_and_exact_post_commit_totals() {
     let mut f = Fixture::new(1);
     let mut source = Receiver::new(&f);
@@ -1306,7 +1327,7 @@ fn commit_hook_receives_only_validated_delta_and_exact_post_commit_totals() {
             &mut source.budget,
             &encode_claims(&f.claims).unwrap(),
             &f.key.sign(&claims_hash(&f.claims).unwrap()).to_bytes(),
-            &f.context(NOW).authority,
+            &f.claims_context(NOW),
             &f.key.verifying_key().to_bytes(),
         )
         .unwrap();
@@ -1314,27 +1335,39 @@ fn commit_hook_receives_only_validated_delta_and_exact_post_commit_totals() {
         source
             .ledger
             .with_reservation::<_, LoginRevocationError>(f.caller(), &verified, NOW, |login| {
+                assert_eq!(
+                    store.logout_with_commit(login, |_| panic!(
+                        "reservation must not persist logout"
+                    )),
+                    Err(SessionError::InvalidPolicyOrRecord)
+                );
                 store
-                    .transaction_with_commit(
-                        Some(login),
-                        |tx| tx.stage(session.clone(), replay.clone()),
-                        |delta| {
-                            assert!(!delta.login.revoked());
-                            assert_eq!(delta.login.caller(), f.caller());
-                            assert_eq!(delta.session_count, 1);
-                            assert_eq!(delta.replay_count, nonce as usize);
-                            let (s, r) = delta.admission.unwrap();
-                            assert_eq!(s, &session);
-                            assert_eq!(r, &replay);
-                            // A durable owner has all changed records before heap publication.
-                            assert!(!delta.login.encode().unwrap().is_empty());
-                            assert!(!s.encode().unwrap().is_empty());
-                            assert!(!r.encode().unwrap().is_empty());
-                            expected_bytes = delta.encoded_bytes;
-                            commits += 1;
-                            Ok(())
-                        },
-                    )
+                    .admit_with_commit(&session, &replay, login, |delta| {
+                        let SessionWrite::Admission {
+                            login,
+                            session: s,
+                            replay: r,
+                        } = delta.write
+                        else {
+                            panic!("admission must supply an admission write");
+                        };
+                        assert!(matches!(
+                            login.state(),
+                            ic_auth::portable::LoginRecordState::Reserved(_)
+                        ));
+                        assert_eq!(login.caller(), f.caller());
+                        assert_eq!(delta.session_count, 1);
+                        assert_eq!(delta.replay_count, nonce as usize);
+                        assert_eq!(s, &session);
+                        assert_eq!(r, &replay);
+                        // A durable owner has all changed records before heap publication.
+                        assert!(!login.encode().unwrap().is_empty());
+                        assert!(!s.encode().unwrap().is_empty());
+                        assert!(!r.encode().unwrap().is_empty());
+                        expected_bytes = delta.encoded_bytes;
+                        commits += 1;
+                        Ok(())
+                    })
                     .map_err(|_| LoginRevocationError::Storage)
             })
             .unwrap();
@@ -1342,32 +1375,30 @@ fn commit_hook_receives_only_validated_delta_and_exact_post_commit_totals() {
         assert_eq!(store.session_records().len(), 1);
         assert_eq!(store.replay_records().len(), nonce as usize);
     }
-    // Reads and invalid writes must never invoke external persistence.
-    store
-        .transaction_with_commit(None, |tx| tx.session(f.caller()), |_| panic!("read commit"))
-        .unwrap();
-    assert_eq!(
-        store.transaction_with_commit(
-            None,
-            |tx| tx.remove(f.caller()),
-            |_| panic!("invalid commit")
-        ),
-        Err(SessionError::InvalidPolicyOrRecord)
-    );
+    let before_reads = commits;
+    assert!(store.read(|tx| tx.session(f.caller())).unwrap().is_some());
+    assert_eq!(commits, before_reads);
     let before = store.encoded_bytes();
     let session = store.session_records().next().unwrap().clone();
+    let replay = store
+        .replay_records()
+        .find(|r| r.fingerprint() == session.fingerprint())
+        .unwrap()
+        .clone();
     assert_eq!(
         source.ledger.with_revocation::<LoginRevocationError>(
             &mut source.logout,
             f.caller(),
             NOW,
             |login| {
+                assert_eq!(
+                    store.admit_with_commit(&session, &replay, login, |_| panic!(
+                        "tombstone must not persist admission"
+                    )),
+                    Err(SessionError::InvalidPolicyOrRecord)
+                );
                 store
-                    .transaction_with_commit(
-                        Some(login),
-                        |tx| tx.remove(f.caller()),
-                        |_| Err(SessionError::StorageFailure),
-                    )
+                    .logout_with_commit(login, |_| Err(SessionError::StorageFailure))
                     .map_err(|_| LoginRevocationError::Storage)
             }
         ),
@@ -1381,22 +1412,23 @@ fn commit_hook_receives_only_validated_delta_and_exact_post_commit_totals() {
             .ledger
             .with_revocation::<LoginRevocationError>(&mut source.logout, caller, NOW, |login| {
                 store
-                    .transaction_with_commit(
-                        Some(login),
-                        |tx| tx.remove(caller),
-                        |delta| {
-                            assert!(delta.login.revoked());
-                            assert_eq!(delta.login.caller(), caller);
-                            assert!(delta.admission.is_none());
-                            assert_eq!((delta.session_count, delta.replay_count), (0, 2));
-                            assert_eq!(
-                                delta.encoded_bytes,
-                                before - session.encode().unwrap().len()
-                            );
-                            commits += 1;
-                            Ok(())
-                        },
-                    )
+                    .logout_with_commit(login, |delta| {
+                        let SessionWrite::Logout { login } = delta.write else {
+                            panic!("logout must supply a logout write");
+                        };
+                        assert!(matches!(
+                            login.state(),
+                            ic_auth::portable::LoginRecordState::Revoked(_)
+                        ));
+                        assert_eq!(login.caller(), caller);
+                        assert_eq!((delta.session_count, delta.replay_count), (0, 2));
+                        assert_eq!(
+                            delta.encoded_bytes,
+                            before - session.encode().unwrap().len()
+                        );
+                        commits += 1;
+                        Ok(())
+                    })
                     .map_err(|_| LoginRevocationError::Storage)
             })
             .unwrap();
@@ -1552,14 +1584,20 @@ fn custom_store_checks_login_binding_through_public_api() {
 
     receiver.logout(fixture.caller(), NOW).unwrap();
     let tombstone = receiver.ledger.records().next().unwrap();
-    assert!(tombstone.revoked());
+    assert!(matches!(
+        tombstone.state(),
+        ic_auth::portable::LoginRecordState::Revoked(_)
+    ));
     assert!(session.check_login_change(&tombstone).is_ok());
 
     // Proofless logout can remove an old retained session without a reservation.
     let mut unknown = Receiver::new(&fixture);
     unknown.logout(fixture.caller(), NOW).unwrap();
     let tombstone = unknown.ledger.records().next().unwrap();
-    assert_eq!(tombstone.binding(), None);
+    assert_eq!(
+        tombstone.state(),
+        ic_auth::portable::LoginRecordState::Revoked(None)
+    );
     assert!(session.check_login_change(&tombstone).is_ok());
 
     for field in 0..2 {
@@ -1583,14 +1621,27 @@ fn session_liveness_keeps_proof_policy_separate_from_shared_authority_shape() {
     let f = Fixture::new(1);
     let mut r = Receiver::new(&f);
     f.admit(&mut r, NOW).unwrap();
-    let mut context = f.context(NOW);
+    let context = f.context(NOW);
     // Proof admission policy is irrelevant to an already established session.
-    context.authority.max_proof_ttl_ns = 0;
     assert_eq!(
-        ic_auth::portable::validate_claims_context(&f.claims, &context.authority),
+        ic_auth::portable::validate_claims_context(
+            &f.claims,
+            &PortableClaimsContext {
+                authority: context.authority,
+                min_proof_issued_at_ns: 0,
+                max_login_ttl_ns: 86_400 * SECOND,
+                max_proof_ttl_ns: 0
+            }
+        ),
         Err(ic_auth::portable::PortableClaimsError::InvalidContext)
     );
     authorize_session(&mut r.store, &mut r.ledger, &context, policy()).unwrap();
+    let mut narrower = f.context(NOW);
+    narrower.max_ttl = ic_auth::session_request::SessionTtlLimit::new(1).unwrap();
+    assert_eq!(
+        authorize_session(&mut r.store, &mut r.ledger, &narrower, policy()),
+        Err(SessionError::StaleAuthority)
+    );
     for defect in 0..3 {
         let mut context = f.context(NOW);
         match defect {
@@ -1602,7 +1653,10 @@ fn session_liveness_keeps_proof_policy_separate_from_shared_authority_shape() {
             _ => context.authority.grants = &[],
         }
         assert_eq!(
-            ic_auth::portable::validate_claims_context(&f.claims, &context.authority),
+            ic_auth::portable::validate_claims_context(
+                &f.claims,
+                &claims_context(context.authority)
+            ),
             Err(ic_auth::portable::PortableClaimsError::InvalidContext)
         );
         assert!(matches!(
@@ -1639,7 +1693,7 @@ fn restored_store_replacement_removes_old_expiry_and_rebuilds_replay_counts() {
         Ok(SessionEstablished::Replaced(_))
     ));
     r.store
-        .transaction(None, |tx| {
+        .read(|tx| {
             assert_eq!(tx.occupancy(f.caller())?.replays_for_caller, 1);
             Ok(())
         })

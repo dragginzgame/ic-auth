@@ -110,25 +110,22 @@ export class IndexedDbLogoutStore {
       let tx: IDBTransaction;
       try { tx = this.db.transaction('journal', 'readwrite', { durability: 'strict' }); }
       catch (cause) { reject(new ClientError('storage_unavailable', { cause })); return; }
-      let completed = false;
-      let failed = false;
-      let value: T | undefined;
-      let failure: unknown;
+      let outcome: { phase: 'pending' } | { phase: 'staged'; value: T | undefined }
+        | { phase: 'failed'; cause: unknown } = { phase: 'pending' };
       const fail = (cause: unknown) => {
-        failed = true;
-        failure = cause;
+        outcome = { phase: 'failed', cause };
         try { tx.abort(); } catch { clearTimeout(timer); reject(cause); }
       };
       const timer = setTimeout(() => fail(new ClientError('timeout')), 5_000);
       tx.onabort = () => {
         clearTimeout(timer);
-        reject(failed ? failure : new ClientError('storage_unavailable', { cause: tx.error }));
+        reject(outcome.phase === 'failed' ? outcome.cause : new ClientError('storage_unavailable', { cause: tx.error }));
       };
       tx.oncomplete = () => {
         clearTimeout(timer);
-        if (failed) reject(failure);
-        else if (!completed) reject(new ClientError('storage_corrupt'));
-        else resolve(value);
+        if (outcome.phase === 'failed') reject(outcome.cause);
+        else if (outcome.phase === 'pending') reject(new ClientError('storage_corrupt'));
+        else resolve(outcome.value);
       };
       if (tx.durability !== 'strict') { fail(new ClientError('storage_unavailable')); return; }
       try {
@@ -136,15 +133,17 @@ export class IndexedDbLogoutStore {
         if (bucket.keyPath !== null || bucket.autoIncrement || bucket.indexNames.length) throw new ClientError('storage_corrupt');
         const profile = bucket.get('format');
         profile.onsuccess = () => {
+          if (outcome.phase === 'failed') return;
           if (profile.result !== FORMAT) { fail(new ClientError('storage_corrupt')); return; }
           const request = bucket.get('login');
           request.onsuccess = () => {
+            if (outcome.phase === 'failed') return;
             try {
               if (request.result !== undefined) validate(request.result);
               const change = operation(request.result);
               if (change) { validate(change.record); bucket.put(change.record, 'login'); }
-              value = change?.value;
-              completed = true; // Request success stages only; strict commit publishes.
+              // Request success stages only; strict commit publishes.
+              outcome = { phase: 'staged', value: change?.value };
             } catch (cause) { fail(cause); }
           };
         };
