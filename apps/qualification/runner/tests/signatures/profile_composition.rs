@@ -75,6 +75,7 @@ fn root_and_issuer_profiles_share_one_composed_store_without_crossing_authority(
 
     fixture
         .pic
+        .instance()
         .set_time(Time::from_nanos_since_unix_epoch(root_deadline));
     assert!(
         fixture
@@ -82,7 +83,7 @@ fn root_and_issuer_profiles_share_one_composed_store_without_crossing_authority(
             .is_err()
     );
     let removed: Result<u32, String> = update_control::<u32, u32>(
-        &fixture.pic,
+        fixture.pic.instance(),
         fixture.signer,
         fixture.controller,
         spec!(controls::Prune),

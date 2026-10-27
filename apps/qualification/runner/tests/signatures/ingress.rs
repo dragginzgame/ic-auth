@@ -155,8 +155,8 @@ fn ingress_deadline_and_abort_release_pending_transport() {
 fn replica_checks_real_ingress_delegations_and_fresh_browser_keys_keep_identity_after_upgrade() {
     let ingress_runtime = tokio::runtime::Runtime::new().unwrap();
     let mut fixture = Fixture::new();
-    let url = fixture.pic.make_live(None).to_string();
-    let network = fixture.pic.root_key().unwrap();
+    let url = fixture.pic.instance_mut().make_live(None).to_string();
+    let network = fixture.pic.instance().root_key().unwrap();
     let mut wrong_root = network.clone();
     *wrong_root.last_mut().unwrap() ^= 1;
     assert!(matches!(

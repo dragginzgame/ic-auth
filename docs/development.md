@@ -130,7 +130,7 @@ Platform's explicit `pocket-ic` capability owns native simulator clients and DTO
 Testkit owns bounded server startup, lifecycle extensions and typed Wire calls;
 only the native runner selects these capabilities.
 
-Native file and process callers select Host FS/Process 0.69.0 with defaults
+Native file and process callers select Host FS/Process 0.69.2 with defaults
 disabled. Library use does not enable Host's optional CLI, certificate decoder
 or Wasm text/encoding backends. Host stays outside the production library graph.
 Build and Testkit 0.69 select the same Host 0.69 identities as Auth's direct
@@ -485,6 +485,23 @@ live Testkit gateway. Missing or mismatched tools refuse; checks never install.
 The Node journal uses fake IndexedDB, so this does not replace native browser
 storage qualification. See the [transport evidence](ic-testkit-qualification.md#sdk-logout-transport-against-live-receivers).
 
+For real Chromium qualification, prepare a Chromium executable separately and
+refresh the locked client and Testkit tools with `make install-client-dependencies`
+and `make install-testkit-tools`. Then run:
+
+```sh
+IC_AUTH_BROWSER_EXECUTABLE=/absolute/path/to/chromium make test-client-browser
+```
+
+This focused, opt-in command uses locked Playwright Core and esbuild, builds the
+reference Wasm, and runs one explicitly ignored native test. It downloads no
+browser and uses an isolated profile, never a personal profile. The local HTTP
+origin proxies only the two fixture receivers; the SDK pins the fixture IC root.
+Logs record the actual browser version, executable/bundle hashes and retained
+state path. Ordinary CI compiles this harness but does not launch a browser.
+See [browser qualification](ic-testkit-qualification.md#real-browser-qualification)
+for the injected issuer and clock boundaries.
+
 ## Validation
 
 The complete CI/release gate admits the snapshot and prepared tools, then runs
@@ -508,6 +525,7 @@ multi-package, multi-feature and multi-target entries are aggregate suites.
 | --- | --- |
 | `make test-client-tools` | Actual CI pipeline and Make callers: selected Node/npm path, later-step admission and first-failure controls with substituted npm effects |
 | `make test-client` | Portable admission/logout, strict journal transactions and Rust/TypeScript Wire roundtrips |
+| `make test-client-browser` | Opt-in: actual Chromium storage, cross-tab/crash recovery and signed SDK receiver calls; requires an explicitly prepared executable |
 | `make check-client-contracts` | Compare fresh locked bindings with the Rust-owned checked-in contracts offline |
 | `make check-client-boundary` | Reject direct/aliased SDK dependencies and literal imports in the browser package; also runs in `make test-client` through npm |
 | `make generate-client-contracts` | Explicitly regenerate Auth DTO bindings and the locked Wire TypeScript runtime |

@@ -259,10 +259,20 @@ certified portable proofs, certification and upgrades; their existing cost-sampl
 topology is unchanged. This is a reference host with prepared proofs and fake
 IndexedDB in Node, not production issuer, clock-skew, latency or Canic acceptance.
 
-The native [logout fixture](../packages/client/test/browser/logout.html) remains
-available for application-owned browser checks. No new native Chromium run is
-claimed by Node/Testkit evidence. Stable versus volatile receiver storage remains
-a separate host choice: the transport owns neither stable memory nor reset policy.
+`make test-client-browser` separately runs the current client in actual Chromium
+with native IndexedDB, two tabs and real SDK signing. It covers strict commit,
+queued-write abort, relaxed-durability refusal, a renderer crash with an outstanding
+cleanup lease, reopening and delayed-signature invalidation. Unknown issuance,
+attempt counts and original deadlines survive recovery and unavailable cleanup.
+The SDK case recovers an original injected issuance, admits two devices to two
+receivers, authenticates logout replies and refuses retained keys after logout.
+See [setup](development.md#browser-client-setup) and
+[qualification boundaries](ic-testkit-qualification.md#real-browser-qualification).
+
+The older standalone [logout fixture](../packages/client/test/browser/logout.html)
+remains a smoke test with substituted signing/transport. Stable versus volatile
+receiver storage remains a separate host choice: the transport owns neither
+stable memory nor reset policy.
 Canic owns protected enrollment, its atomic backend, endpoint integration and final
 scoped guards. Toko owns account policy and application resources. Account subject
 is issuer-scoped; browser principal/generation is the login identity.

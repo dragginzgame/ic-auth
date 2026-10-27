@@ -11,7 +11,7 @@ fn profile(
 ) -> Result<SessionView, AdmissionRefusal> {
     let report: AdmissionProfile = measured(f, target, label, || {
         update_wire::<ic_auth_wire::SessionInput, controls::model::AdmissionProfile>(
-            &f.pic,
+            f.pic.instance(),
             target.into(),
             caller.into(),
             spec!(controls::ProfileAdmission),
@@ -114,7 +114,7 @@ pub(super) fn qualify(
             assert_ne!(network_key, old.ic_root_public_key_raw);
         }
         install(f, f.resource, &rejecting);
-        f.pic.advance_time(Duration::from_secs(1));
+        f.pic.instance().advance_time(Duration::from_secs(1));
         let rejected_claims = make_claims(19);
         let rejected_caller = browser_principal(&rejected_claims.browser_public_key);
         let mut rejected = make_input(&rejected_claims);
@@ -150,7 +150,7 @@ pub(super) fn qualify(
         // This is an explicit test reset, never production enrollment refresh.
         install(f, f.resource, &config);
         install(f, f.signer, &config);
-        f.pic.advance_time(Duration::from_secs(1));
+        f.pic.instance().advance_time(Duration::from_secs(1));
         let mut first = None;
         for device in 20..23 {
             let claims = make_claims(device);
@@ -195,7 +195,7 @@ pub(super) fn qualify(
             }
         }
         let (caller, input, mut admitted, original_claims) = first.unwrap();
-        f.pic.advance_time(Duration::from_secs(3));
+        f.pic.instance().advance_time(Duration::from_secs(3));
         assert_eq!(
             profile(
                 f,
@@ -236,7 +236,7 @@ pub(super) fn qualify(
         );
         let hot: Result<SessionProfile, String> =
             query_control::<(), controls::model::SessionProfile>(
-                &f.pic,
+                f.pic.instance(),
                 f.resource,
                 caller,
                 spec!(controls::ProfileSession),
@@ -272,7 +272,7 @@ fn components(f: &Fixture, caller: Principal, input: &SessionInput) {
             ic_auth_wire::SessionInput,
             Result<controls::model::CertifiedProfile, controls::Refusal>,
         >(
-            &f.pic,
+            f.pic.instance(),
             f.resource.into(),
             caller,
             spec!(controls::ProfileCertified),
@@ -324,7 +324,7 @@ fn qualify_wide_grants(f: &Fixture, base: &ReceiverConfig, key: &SigningKey) {
         .collect();
     config.role = config.grants.last().unwrap().target.clone();
     install(f, f.resource, &config);
-    f.pic.advance_time(Duration::from_secs(1));
+    f.pic.instance().advance_time(Duration::from_secs(1));
     for device in 30..33 {
         let claims = PortableClaims {
             mechanism: config.authority.mechanism(),
@@ -362,7 +362,7 @@ fn qualify_wide_grants(f: &Fixture, base: &ReceiverConfig, key: &SigningKey) {
         .unwrap();
         assert_eq!(read(f, f.resource, caller).unwrap(), admitted);
         let hot = query_control::<(), controls::model::SessionProfile>(
-            &f.pic,
+            f.pic.instance(),
             f.resource,
             caller,
             spec!(controls::ProfileSession),

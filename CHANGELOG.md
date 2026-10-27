@@ -1,5 +1,35 @@
 # Changelog
 
+## [0.19.2] - Unreleased
+
+### 🧪 Testing
+
+- Add opt-in `make test-client-browser` qualification with real Chromium storage,
+  concurrent tabs, renderer-crash recovery and SDK-signed admission/logout against
+  two local receivers. Select an explicitly prepared Chromium executable and
+  refresh client dependencies; no browser is downloaded by checks. The issuer
+  remains an injected fixture.
+  [#3 — Qualify portable admission and logout client in real browsers](https://github.com/dragginzgame/ic-auth/issues/3).
+- Adopt Testkit 0.69.2 so qualification retains its owning instance/server wrapper
+  while starting live gateways, completing the deferred fixture simplification.
+  Explicitly refresh prepared Testkit tools for the new lock selection.
+  [#90 — Consolidate admission policy and simplify client and qualification state](https://github.com/dragginzgame/ic-auth/issues/90).
+
+### 🔧 Changed
+
+- Adopt IC Tooling 0.69.2 and Memory 0.51.12 for native tooling and the private
+  qualification host. Keep existing checkpoint formats and checked memory
+  allocation; no reset or public library migration is required. Refresh prepared
+  release and Testkit tools for the new lock selections.
+  [#95 — Adopt IC Tooling 0.69.2 and Memory 0.51.12](https://github.com/dragginzgame/ic-auth/issues/95).
+
+### 🩹 Fixed
+
+- Request the existing longer fixture session for live logout qualification so
+  slower hosts retain a valid session through signed ingress and SDK checks.
+  Keep the final pre-expiry assertions and production TTL policy unchanged.
+  [#96 — Keep live logout qualification sessions valid on slower native hosts](https://github.com/dragginzgame/ic-auth/issues/96).
+
 ## [0.19.1] - 2026-10-27
 
 ### 🔧 Changed

@@ -26,7 +26,7 @@ fn scoped_application_updates_use_only_the_live_caller_session() {
     };
     install(&f, f.signer, &config);
     install(&f, f.resource, &config);
-    f.pic.advance_time(Duration::from_secs(1));
+    f.pic.instance().advance_time(Duration::from_secs(1));
     let now = f.now();
     let reader_claims = PortableClaims {
         mechanism: PortableMechanism::Ed25519,
@@ -51,7 +51,7 @@ fn scoped_application_updates_use_only_the_live_caller_session() {
     let writer = browser_principal(&writer_claims.browser_public_key);
     let version = |f: &Fixture, target: Principal| {
         ic_testkit::pic::query_wire::<(), u64>(
-            &f.pic,
+            f.pic.instance(),
             target.into(),
             Principal::anonymous().into(),
             spec!(controls::AssetVersion),
@@ -61,7 +61,7 @@ fn scoped_application_updates_use_only_the_live_caller_session() {
     };
     let write = |f: &Fixture, target: Principal, caller: Principal, value: u64| {
         update_control::<u64, ()>(
-            &f.pic,
+            f.pic.instance(),
             target,
             caller,
             spec!(controls::SetSessionAsset),
@@ -84,10 +84,10 @@ fn scoped_application_updates_use_only_the_live_caller_session() {
     assert_eq!(version(&f, f.signer), 1);
     admission(&f, f.signer, writer, &writer_input).unwrap();
 
-    f.pic.advance_time(Duration::from_secs(11));
+    f.pic.instance().advance_time(Duration::from_secs(11));
     assert!(f.now() > writer_claims.admission_expires_at_ns);
-    let url = f.pic.make_live(None).to_string();
-    let network = f.pic.root_key().unwrap();
+    let url = f.pic.instance_mut().make_live(None).to_string();
+    let network = f.pic.instance().root_key().unwrap();
     let receiver = f.resource;
     let runtime = tokio::runtime::Runtime::new().unwrap();
     let signed_write = |device: u8, value: u64| {
@@ -129,7 +129,7 @@ fn scoped_application_updates_use_only_the_live_caller_session() {
     write(&f, f.signer, writer, 3).unwrap();
     assert_eq!(version(&f, f.signer), 3);
     update_control::<bool, ()>(
-        &f.pic,
+        f.pic.instance(),
         f.signer,
         f.controller,
         spec!(controls::InvalidateAuthority),

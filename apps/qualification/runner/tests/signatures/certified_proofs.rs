@@ -99,6 +99,7 @@ fn portable_proof_rechecks_live_authority_and_real_certification_after_upgrade()
     // Freeze signed timestamps as well as topology/keys for matched Wasm costs.
     fixture
         .pic
+        .instance()
         .set_time((std::time::UNIX_EPOCH + Duration::from_secs(1_800_000_000)).into());
     let started = fixture.now();
     let key = SigningKey::from_slice(&[7; 32]).unwrap();
@@ -188,7 +189,8 @@ fn portable_proof_rechecks_live_authority_and_real_certification_after_upgrade()
         .retrieve(CERTIFIED_SIGNATURE_DOMAIN, &payload)
         .unwrap();
     let unchanged = signature.clone();
-    let network = extract_raw_root_pk_from_der(&fixture.pic.root_key().unwrap()).unwrap();
+    let network =
+        extract_raw_root_pk_from_der(&fixture.pic.instance().root_key().unwrap()).unwrap();
     let mut context = PortableCertifiedContext {
         claims: PortableClaimsContext {
             authority: ic_auth::portable::PortableAuthority {
@@ -297,7 +299,7 @@ fn portable_proof_rechecks_live_authority_and_real_certification_after_upgrade()
     ));
     context.ic_root_public_key_raw = &network;
     assert_eq!(signature, unchanged);
-    fixture.pic.advance_time(Duration::from_secs(30));
+    fixture.pic.instance().advance_time(Duration::from_secs(30));
     context.claims.authority.now_ns = fixture.now();
     assert_eq!(
         verify(&signature, &context).unwrap_err(),

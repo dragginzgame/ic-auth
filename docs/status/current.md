@@ -1,120 +1,103 @@
 # Current handoff — 2026-10-27
 
-## Checkout and selections
+## Delivered source and pending batch
 
-The maintainer completed source release **0.19.0** at
-`98687a0071680e5db9fbbdd204e0eae61a47da12`; package versions remain 0.19.0.
-The pending **0.19.1** batch adopts Shared tooling, optimizes Rust scope/retry work
-and adds private certified-proof probes. Package versions, external selections,
-public APIs and signed/stored/public Wire formats are unchanged; only fixture
-dependencies/private Wire controls were extended for probes. No Auth staging,
-commit, release, publication or deployment ran.
+The maintainer pushed source release **0.19.1** at
+`238cc56c3232b958b3bb7b8f55b50428e8b397fc`. Its
+[required CI](https://github.com/dragginzgame/ic-auth/actions/runs/40546636649)
+passed Linux and Apple Silicon macOS but failed Intel macOS in live qualification:
+the logout-only device's 30-second session expired before the final revocation
+assertion. [Auth #96 — Keep live logout qualification sessions valid on slower native hosts](https://github.com/dragginzgame/ic-auth/issues/96)
+records the local repair: request the existing 60-second maximum for that device
+and mint its new login deadline at the reset boundary. Default/runtime TTL policy
+and final pre-expiry assertions remain. Required native Intel acceptance is pending;
+do not close routine delivered-adoption issues against the failed gate.
 
-Auth selects Platform/macros **0.7.0**, Host/Build/Testkit **0.69.0**, Memory
-**0.51.10** and Wire/derive **0.7.18**. Public Principal consumers align to
-Platform 0.7; passive callers select only `principal` with defaults disabled.
-Runtime adapters retain explicit upstream Principal conversions and checked Wire
-codecs. Native qualification remains outside the public library graphs.
-Rust **1.91** is the package minimum; development formatting/Clippy use **1.99.1**.
+The pending **0.19.2** draft is compatible tooling/qualification work: published
+Tooling/Memory adoption, Testkit wrapper retention and opt-in real-browser evidence.
+Public libraries/client runtime,
+APIs, signed/stored/public Wire formats and package versions remain unchanged.
+No Auth staging, commit, push, release, publication or deployment ran in this batch.
 
-## Latest Shared Tooling adoption
+Selections are Platform/macros **0.7.0**, Host/Build/Testkit **0.69.2**, Memory
+**0.51.12** and Wire/derive **0.7.18**. Only five Tooling packages and Memory change
+in Cargo.lock. Published Tooling source is `1e245a9e8791b04daa0bf971124ae8908d956821`;
+Memory source is `41a04886ec29546e04fcec759821d5f818fd64ab`.
+[Auth #95 — Adopt IC Tooling 0.69.2 and Memory 0.51.12](https://github.com/dragginzgame/ic-auth/issues/95)
+records registry/archive identities and focused evidence under
+`target/tooling-memory-20261027/`. Both selected CLIs were explicitly prepared.
+Native/Wasm Clippy, Rust 1.91 checks, six fixture unit tests and four native tooling
+tests pass. All 12 live cases and actual Chromium qualification pass with the new
+selections; the timing repair's separate focused live run passes. Actual release
+metadata/recovery callers also pass with local/mocked effects (`release-tools.log`).
+Memory's additive cell-loading API needs no change to the bounded checkpoint adapter.
+PocketIC remains **16.1.0**. Rust **1.91** is the package minimum;
+development formatting/Clippy use **1.99.1**.
 
-The exact latest reviewed upstream revision is
-`6b6bbd9c9e5798f0ecf6105637392a7a55cd450e` (**0.26.25**), exported from a clean
-isolated checkout through canonical impact/refresh. The snapshot contains **126
-files**. The initial reviewed source `16efc62` had an old `VERSION` label;
-[Shared #316 — Reconcile VERSION with the 0.26.25 commit and changelog](https://github.com/dragginzgame/shared-tooling/issues/316)
-records the producer correction adopted here. No consumer override was added.
-[Auth #92 — Adopt latest Shared Tooling revision](https://github.com/dragginzgame/ic-auth/issues/92)
-owns this adoption; evidence is in `target/shared-tooling-02625-20261027/`.
-
-The hook now preserves opaque gitlinks, and the formatter supports declared
-standalone sources. Auth has no tracked submodule, standalone formatter selection
-or override; its grouped-sort/Rustfmt coverage is unchanged. Explicit module paths
-continue to disable result reuse, and staged hooks always run formatters. Auth
-already exports the Node prerequisite guide. The runtime panic scanner is not
-selected or compiled here; its Clap/macOS fixes add no Auth compiler package or gate.
-Snapshot integrity, actual formatting, staged/partial-stage preservation, local/
-mocked release/recovery adapters and documentation links pass. Behavior evidence
-uses `16efc62`; final revision `6b6bbd9` changes only producer `VERSION`, with no
-payload changes. Final snapshot verification binds the corrected revision.
-Generic producer and product/runtime suites, full CI and native macOS were not
-run for this contributor-tooling update.
-
-## Measured Rust optimization
-
-[Auth #93 — Reduce repeated Rust admission work with measured Wasm qualification](https://github.com/dragginzgame/ic-auth/issues/93)
-records shared scope lookup and removal of the extra exact-retry session clone.
-Ordered lookup follows existing canonical validation; independent input, live
-authority, cryptographic and storage checks remain. Fixed-clock before/after
-PocketIC profiles retain identical keys, topology and signed timestamps. At 16
-roles/32 scopes and 16 requested scopes, admission uses about **20%** fewer
-instructions and authorization **12.8%** fewer. Exact retries improve **0.8–1.2%**;
-small-scope authorization adds **22 instructions**. Reference Wasm is **1,058
-bytes smaller** (2,304,928 to 2,303,870; code section down 319 bytes).
-`target/rust-perf-20261027/` retains artifacts, comparison JSON and failed/candidate
-evidence. The larger validation-split candidate was discarded. Focused 113 runtime
-cases, session-only tests/doctests, native/Wasm Clippy and Rust 1.91 checks pass;
-the matched live certified-upgrade/profile case passes. Testkit was explicitly
-prepared for current compiler inputs. Full CI, macOS and production load were not run.
-
-The measurement-only follow-up is [Auth #94 — Certified-proof admission measurements](https://github.com/dragginzgame/ic-auth/issues/94).
-`target/certified-profile-20261027/` retains three component samples, artifact/input
-identities and operational scenarios; [the report](../design/0.6-portable-authentication.md#certified-proof-operational-profile--2026-10-27)
-explains overlap and scope. Two BLS checks consume about **98.8%** of the 440.25M
-complete-verifier instructions. Fresh receiver admissions/renewal cost 440–454M;
-valid retries avoid full verification. No production traffic target is set, so
-practical impact is undetermined. The maintainer accepted retaining the existing
-verifier and admission cost on 2026-10-27; keep the private probes, with no verifier
-optimization, result caching or trust-model change. Public library digests are
-unchanged within this task. Live profiling/refusal, fixture/Wire tests, Clippy, Wasm graph
-boundaries and Rust 1.91 fixture checks pass. Measurement review is complete;
-further performance work requires a concrete production workload requirement.
-
-## Released Auth contract and prior evidence
+## Qualification work ready for delivery
 
 [Auth #90 — Consolidate admission policy and simplify client and qualification state](https://github.com/dragginzgame/ic-auth/issues/90)
-records the 0.19 Rust API cut: complete-credential admission owns verification;
-`PortableAuthority` separates shared current authority from proof constraints;
-immutable `SessionReader` and explicit admission/logout writes replace staging;
-ledger state/bindings and TTL policies are typed. See the
-[migration](../sessions.md#session-commit-write-migration) and
-[Canic adoption contract](../canic-adoption.md). Signed claims, Wire frames,
-stored records and browser journal layouts are unchanged and need no reset.
+has its final deferred wrapper adoption implemented locally. `PocketIcInstance`
+now owns client/server teardown throughout the fixture; mutable access starts live
+gateways without splitting ownership. Twelve existing live cases pass, including
+certification, upgrades, ingress and SDK recovery. Runner Clippy and Rust 1.91
+checks pass; the Testkit tool-admission fixture passes. Leave source-delivery
+reconciliation with the maintainer; normal sibling checkouts are untouched.
 
-Earlier hard-cut evidence remains in `target/hard-cut-20261027/`: 105 runtime
-cases, three invariant doctests, six fixture unit cases and six native lifecycle
-cases, selected Clippy and Rust 1.91 native/Wasm checks. Earlier frontend and
-release-adapter evidence remains in `target/complexity-20261027/`; Shared 0.26.23
-adoption evidence is in `target/shared-tooling-02623-20261027/`. Each retains its
-own inputs, failed attempts and qualification limits. The
-[preceding handoff](https://github.com/dragginzgame/ic-auth/blob/98687a0071680e5db9fbbdd204e0eae61a47da12/docs/status/current.md)
-retains the earlier Platform/Tooling selections and exact evidence paths.
+[Auth #3 — Qualify portable admission and logout client in real browsers](https://github.com/dragginzgame/ic-auth/issues/3)
+now has an opt-in `make test-client-browser` harness. Explicit setup selects a
+prepared absolute Chromium executable; checks download no browser. Locked private
+dev tools are Playwright Core **1.62.1** and esbuild **0.28.2**. The checked browser
+is Linux Chromium **156.0.8078.4**, using native IndexedDB and real SDK signing.
+Cross-tab invalidation, strict commit/refusal, renderer crash, retained cleanup
+leases/deadlines/uncertainty and reopen pass. Live SDK calls cover two devices and
+receivers, original issuance recovery, lost logout replies and retained-key refusal.
+See [browser evidence and limits](../ic-testkit-qualification.md#real-browser-qualification)
+and [explicit setup](../development.md#browser-client-setup). The issuer is injected;
+the lifecycle clock is controlled. No production issuer, TEE/hardware key erasure,
+other engine or macOS browser claim follows. Ordinary CI compiles the harness;
+actual browser execution remains opt-in. Existing 65 Node cases and Rust/TypeScript
+vectors pass. Local logs and browser hashes are in
+`target/issue-maintenance-20261027/`, including failed attempts kept with final runs.
 
-## Ownership and remaining acceptance
+## Prior delivered changes and accepted measurements
 
-Canic owns fleet approval/enrollment, endpoint guards, deployment and its durable
-host adapter. [Canic #491 — Extract reusable authentication, token and session machinery](https://github.com/dragginzgame/canic/issues/491)
-retains production receiver/store/reset/load and released-API adoption; the latest
-[prospective adapter handoff](https://github.com/dragginzgame/canic/issues/491#issuecomment-6442148823)
-does not claim deployment. [Canic #507 — Non-issuing reconciliation qualification](https://github.com/dragginzgame/canic/issues/507)
-retains issuer/reconciliation policy and workload acceptance. No standalone wallet
-service is implemented. Host session/replay/ledger writes and authority generations
-must remain atomic; clock, certification publication and memory allocation stay host-owned.
+The exact Shared Tooling selection is **0.26.25**,
+`6b6bbd9c9e5798f0ecf6105637392a7a55cd450e`, **126 files**. The producer's initial
+VERSION mismatch was corrected upstream; no consumer override exists.
+[Auth #92 — Adopt latest Shared Tooling revision](https://github.com/dragginzgame/ic-auth/issues/92)
+records snapshot/hook/release-caller evidence in
+`target/shared-tooling-02625-20261027/`. The runtime panic scanner remains unselected.
 
-The private browser client selects `@tokostudios/ic-platform` **0.1.1** over SDK
-Core **6.1.1**. [Auth #3 — Real-browser portable admission/logout qualification](https://github.com/dragginzgame/ic-auth/issues/3)
-retains actual-browser storage and signing-custody acceptance. Node/Testkit transport
-fixtures establish neither production issuer adoption nor browser/TEE qualification.
+[Auth #93 — Reduce repeated Rust admission work with measured Wasm qualification](https://github.com/dragginzgame/ic-auth/issues/93)
+ships shared scope lookup and the removed extra retry clone in 0.19.1. Matched
+wide admission uses about **20%** fewer instructions, authorization **12.8%** fewer;
+reference Wasm is **1,058 bytes smaller**. Small authorization adds **22 instructions**.
+`target/rust-perf-20261027/` retains matched artifacts, rejected candidates and
+focused behavior/lint/MSRV evidence. These are reference-fixture observations.
 
-The fixture still uses Testkit 0.69.0 client-before-server teardown fields.
-[Tooling #257 — Expose mutable client access while retaining PocketIcInstance server custody](https://github.com/dragginzgame/ic-tooling/issues/257)
-and [Tooling PR #258 — Allow mutable Testkit client access without splitting server ownership](https://github.com/dragginzgame/ic-tooling/pull/258)
-identify the supplying accessor; wrapper adoption requires a separate published
-selection containing it. Normal sibling checkouts remain untouched.
+[Auth #94 — Certified-proof admission measurements](https://github.com/dragginzgame/ic-auth/issues/94)
+ships the private probes and [operational report](../design/0.6-portable-authentication.md#certified-proof-operational-profile--2026-10-27).
+Two BLS checks account for **98.8%** of the **440.25M** complete-verifier instructions.
+The maintainer accepted keeping the existing verifier and cost. No optimization,
+cache, crypto/signed-byte/certificate/delegation change or TEE/non-TEE trust-model
+change is authorized. Further performance work requires actual production targets.
+Evidence remains in `target/certified-profile-20261027/`.
+
+## Consumer and security boundaries
+
+The private client selects Platform npm **0.1.1** over SDK Core **6.1.1**.
+Canic owns production receiver/store/reset/load integration and authority policy in
+[Canic #491 — Extract reusable authentication, token and session machinery](https://github.com/dragginzgame/canic/issues/491),
+and issuer/reconciliation acceptance in
+[Canic #507 — Non-issuing reconciliation qualification](https://github.com/dragginzgame/canic/issues/507).
+No standalone wallet service is implemented. Host session/replay/ledger commits
+and authority generations remain atomic; clock, certification and memory stay host-owned.
 
 [Auth #85 — Qualify the crypto-bigint advisory](https://github.com/dragginzgame/ic-auth/issues/85)
-and [Platform #50 — Crypto capability qualification](https://github.com/dragginzgame/ic-platform/issues/50)
-retain the crypto advisory obligation. Preserve release recovery plans, original
-artifacts, backups and earlier failed evidence. Normal releases start fresh;
-exact-attempt `release-resume` uses its saved source without discarding state.
+was retired by consolidation, not fixed. The active obligation is
+[Platform #50 — Crypto capability qualification](https://github.com/dragginzgame/ic-platform/issues/50);
+affected paths remain selected, with no blanket exemption.
+Preserve release recovery plans, original artifacts, backups and failed evidence.
+The [preceding handoff](https://github.com/dragginzgame/ic-auth/blob/238cc56c3232b958b3bb7b8f55b50428e8b397fc/docs/status/current.md)
+retains the released API migration, earlier qualification paths and adoption details.

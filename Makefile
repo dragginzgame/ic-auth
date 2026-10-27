@@ -34,6 +34,7 @@ help:
 	@echo 'Aggregate qualification: clippy, check-wasm, check-msrv; live fixture: test-qualification'
 	@echo 'Named Cargo package/test selections: see docs/development.md#validation'
 	@echo 'Browser client: install-client-dependencies, client-tools-check, generate-client-contracts, check-client-contracts, check-client-boundary, test-client'
+	@echo 'Opt-in Chromium qualification: test-client-browser (IC_AUTH_BROWSER_EXECUTABLE required)'
 	@echo 'Formatting: fmt, fmt-check, test-formatting-hooks'
 	@echo 'Governance: check-snapshot, check-dependency-pins, check-doc-links, check-boundaries, check-msrv; maintenance catalog: tasks'
 	@echo 'Complete CI gate (explicit only): ci'
@@ -159,6 +160,10 @@ check-client-boundary: client-tools-check
 
 test-client:
 	+bash scripts/dev/test-client.sh
+
+.PHONY: test-client-browser
+test-client-browser:
+	+bash scripts/dev/test-client-browser.sh
 
 test-client-tools:
 	+bash scripts/ci/test-client-tools.sh

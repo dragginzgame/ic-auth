@@ -9,7 +9,7 @@ Earlier pairings and benchmarks are preserved in
 
 ## Setup and ownership
 
-The root catalog/lock select published Testkit 0.69.0 from
+The root catalog/lock select published Testkit 0.69.2 from
 [IC Tooling](https://github.com/dragginzgame/ic-tooling) and Auth's Platform 0.7.
 Testkit and Auth share Wire 0.7 types directly. `WireCallSpec` takes the canonical
 contract limits without conversion; responses require only `DeserializeOwned`.
@@ -28,10 +28,10 @@ with its native PEM feature; caller/root-key and request policy remain with the
 fixture. There is no direct Agent declaration or local facade. Testkit supplies
 typed Wire query/update calls and bounded startup. The native runner imports
 `PocketIc`, `PocketIcBuilder` and `Time` directly from Platform's `pocket-ic`
-capability; Testkit no longer re-exports those types. Setup borrows the managed
-owner's client through `instance()`, then uses `into_parts()` to retain the client
-and optional server in the fixture's client-before-server field order. The owner
-also preserves that order if setup panics before the transfer. Only the native runner
+capability; Testkit no longer re-exports those types. The fixture retains the
+managed `PocketIcInstance` owner throughout setup and live calls. It borrows the
+client through `instance()` or `instance_mut()`; Testkit preserves client-before-server
+teardown, including when setup panics. Only the native runner
 enables Testkit's `wire` feature; IC Wire owns the
 native Serde codec; Auth owns method identities and explicit traversal limits.
 Deliberately malformed inputs and byte-level
@@ -176,6 +176,40 @@ Native browser storage, wallet login, issuer signing/renewal, separate-subnet
 latency and Canic/Toko deployment are not qualified by this Node/Testkit fixture.
 The consumer owns its envelope/export adapter, protected enrollment, atomic
 production store and issuer/reconciliation contract. See [Canic adoption](canic-adoption.md).
+
+## Real-browser qualification
+
+The opt-in `make test-client-browser` command runs
+[the native browser case](../apps/qualification/runner/tests/signatures/sessions/browser.rs)
+with [the Chromium runner](../packages/client/test/browser/run.mjs) and
+[browser scenarios](../packages/client/test/browser/qualification.ts).
+Testkit 0.69.2 keeps the client and managed server together in `PocketIcInstance`;
+mutable access starts the live gateway without splitting ownership.
+
+The checked run uses Linux Chromium **156.0.8078.4**, Playwright Core **1.62.1**,
+Platform npm **0.1.1** and its canonical SDK Core **6.1.1**. It uses an isolated
+localhost HTTP origin/profile and actual IndexedDB strict transactions. Two tabs
+race issuance; durable logout invalidates a delayed real signature; a real renderer
+crash leaves its cleanup lease for another tab to recover. Callback/queued-write
+aborts, relaxed durability, closed storage and reopening preserve the journal.
+An unavailable transport reaches the original deadline without fabricating an
+acknowledgement or discarding unknown issuance. This lifecycle clock is controlled.
+
+The separate SDK scenario signs actual IC requests and verifies replies against
+the pinned local IC root. Two application subnets receive two browser devices for
+one account. A lost issuance reply is recovered through an injected lookup after
+reopening storage; exact retries retain the admission deadline. A lost accepted
+logout response is explicitly retried; retained raw keys then refuse at both
+receivers, independently confirmed by the native runner.
+
+Native credential signing and issue/lookup are bounded injected fixtures, not a
+production issuer. Test keys are deliberately retained to prove revocation;
+disposal callbacks do not establish hardware key erasure or TEE custody. Browser
+origin authorization, production account/issuer policy, other browser engines and
+native macOS browser execution remain separate acceptance. The harness downloads
+nothing; [setup](development.md#browser-client-setup) selects a prepared executable.
+Per-run output records executable/bundle hashes and retained state. Current local
+evidence lives in `target/issue-maintenance-20261027/`.
 
 ## Measurement boundary
 

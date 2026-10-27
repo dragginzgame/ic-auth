@@ -14,8 +14,7 @@ use ic_platform::{
     pocket_ic::{PocketIc, PocketIcBuilder, Time},
 };
 use ic_testkit::pic::{
-    PocketIcManagedServer, PocketIcStartupConfig, WireCallError, WireCallSpec, query_wire,
-    update_wire,
+    PocketIcInstance, PocketIcStartupConfig, WireCallError, WireCallSpec, query_wire, update_wire,
 };
 use ic_wire::Bytes;
 use std::{
@@ -54,9 +53,7 @@ mod profile_composition;
 mod sessions;
 
 struct Fixture {
-    pic: PocketIc,
-    // Drop the instance before terminating its exact owned server.
-    _server: Option<PocketIcManagedServer>,
+    pic: PocketIcInstance<PocketIc>,
     signer: Principal,
     resource: Principal,
     controller: Principal,
@@ -130,11 +127,8 @@ impl Fixture {
                 Some(controller.into()),
             );
         }
-        // Fixture fields retain client-before-server teardown after this transfer.
-        let (pic, server) = owned.into_parts();
         Self {
-            pic,
-            _server: server,
+            pic: owned,
             signer: signer.into(),
             resource: resource.into(),
             controller,
@@ -144,7 +138,7 @@ impl Fixture {
     }
 
     fn now(&self) -> u64 {
-        self.pic.get_time().as_nanos_since_unix_epoch()
+        self.pic.instance().get_time().as_nanos_since_unix_epoch()
     }
 
     fn prepare(&self, domain: &[u8], message: &[u8], ttl: u64) -> Result<u64, String> {
@@ -159,7 +153,7 @@ impl Fixture {
         ttl: u64,
     ) -> Result<u64, String> {
         update_control::<controls::PrepareInput, u64>(
-            &self.pic,
+            self.pic.instance(),
             self.signer,
             self.controller,
             spec!(controls::Prepare),
@@ -189,12 +183,12 @@ impl Fixture {
         message: &[u8],
     ) -> Result<IcCanisterSignatureProofV1, String> {
         // Certificates become available after the update's state is certified.
-        self.pic.tick();
+        self.pic.instance().tick();
         let proof: Result<ic_auth_wire::model::IcCanisterSignatureProofV1, String> = query_control::<
             controls::SignatureInput,
             ic_auth_wire::model::IcCanisterSignatureProofV1,
         >(
-            &self.pic,
+            self.pic.instance(),
             self.signer,
             Principal::anonymous(),
             spec!(controls::Retrieve),
@@ -222,7 +216,8 @@ impl Fixture {
         payload: [u8; 32],
         proof: &IcCanisterSignatureProofV1,
     ) -> Result<(), CanisterSignatureError> {
-        let network = extract_raw_root_pk_from_der(&self.pic.root_key().unwrap()).unwrap();
+        let network =
+            extract_raw_root_pk_from_der(&self.pic.instance().root_key().unwrap()).unwrap();
         let policy = CanisterSignaturePolicy {
             signing_canister: self.signer,
             seed_hash: hash_bytes(seed),
@@ -238,7 +233,7 @@ impl Fixture {
 
     fn set_asset(&self, version: u64) {
         let result: Result<(), String> = update_control::<u64, ()>(
-            &self.pic,
+            self.pic.instance(),
             self.signer,
             self.controller,
             spec!(controls::SetAsset),
@@ -249,7 +244,7 @@ impl Fixture {
 
     fn asset_version(&self) -> u64 {
         query_wire::<(), u64>(
-            &self.pic,
+            self.pic.instance(),
             self.signer.into(),
             Principal::anonymous().into(),
             spec!(controls::AssetVersion),
@@ -261,6 +256,7 @@ impl Fixture {
     fn upgrade(&self) {
         for canister in [self.signer, self.resource] {
             self.pic
+                .instance()
                 .upgrade_canister(
                     canister.into(),
                     self.wasm.clone(),
@@ -321,6 +317,7 @@ fn real_certificates_composition_cleanup_and_upgrade_obey_the_host_contract() {
         assert!(
             fixture
                 .pic
+                .instance()
                 .update_call(
                     fixture.signer.into(),
                     fixture.controller.into(),
@@ -334,7 +331,7 @@ fn real_certificates_composition_cleanup_and_upgrade_obey_the_host_contract() {
     // A query cannot dispatch the controller mutation. Keep transport refusal
     // distinct from an encoded application refusal returned by a valid update.
     let refused = query_wire::<u64, Result<(), controls::Refusal>>(
-        &fixture.pic,
+        fixture.pic.instance(),
         fixture.signer.into(),
         fixture.controller.into(),
         spec!(controls::SetAsset),
@@ -346,7 +343,7 @@ fn real_certificates_composition_cleanup_and_upgrade_obey_the_host_contract() {
             && context.method == controls::SetAsset::NAME));
     assert_eq!(fixture.asset_version(), 1);
     let unauthorized = update_wire::<controls::PrepareInput, Result<u64, controls::Refusal>>(
-        &fixture.pic,
+        fixture.pic.instance(),
         fixture.signer.into(),
         fixture.owner.into(),
         spec!(controls::Prepare),
@@ -377,6 +374,7 @@ fn real_certificates_composition_cleanup_and_upgrade_obey_the_host_contract() {
     assert!(
         fixture
             .pic
+            .instance()
             .upgrade_canister(
                 fixture.signer.into(),
                 fixture.wasm.clone(),
@@ -393,10 +391,11 @@ fn real_certificates_composition_cleanup_and_upgrade_obey_the_host_contract() {
     fixture.prepare(DOMAIN, &payload, 10).unwrap();
     fixture
         .pic
+        .instance()
         .set_time(Time::from_nanos_since_unix_epoch(fixture.now() + 10));
     assert!(fixture.retrieve(DOMAIN, &payload).is_err());
     let removed: Result<u32, String> = update_control::<u32, u32>(
-        &fixture.pic,
+        fixture.pic.instance(),
         fixture.signer,
         fixture.controller,
         spec!(controls::Prune),
