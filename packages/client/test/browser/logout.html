@@ -3,12 +3,12 @@
 <title>Portable logout native-browser qualification</title>
 <pre id="result" data-result="running">Running…</pre>
 <script type="importmap">
-{"imports":{"@icp-sdk/core/principal":"/node_modules/@icp-sdk/core/lib/esm/principal/index.js","@noble/hashes/":"/node_modules/@noble/hashes/"}}
+{"imports":{"@tokostudios/ic-platform/principal":"/node_modules/@tokostudios/ic-platform/dist/principal.js","@icp-sdk/core/principal":"/node_modules/@icp-sdk/core/lib/esm/principal/index.js","@noble/hashes/":"/node_modules/@noble/hashes/"}}
 </script>
 <script type="module">
 import { IndexedDbLogoutStore } from '/dist/src/logout-store.js';
 import { PortableLogoutClient } from '/dist/src/logout.js';
-import { Principal } from '@icp-sdk/core/principal';
+import { Principal } from '@tokostudios/ic-platform/principal';
 const output = document.querySelector('#result');
 const lines = [];
 const assert = (condition, message) => { if (!condition) throw new Error(message); };

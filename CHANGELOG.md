@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.18.0]
+
+### ⚠️ Breaking
+
+- Adopt Platform/macros 0.7.0 for Auth's public Principal, parse-error and
+  canister-signature key identities. Consumers exchanging these Rust types must
+  align their direct Platform dependency to 0.7. Signed claims, Wire frames,
+  stored records and browser journal formats remain unchanged; no data reset is
+  required. See the [migration](docs/canic-adoption.md#platform-07-migration).
+
+### 🔧 Changed
+
+- Adopt Host/Build/Testkit 0.69.0, aligning the native tooling with Auth's
+  Platform 0.7 selection. Preserve incoming qualification Memory 0.51.9, which
+  also selects Platform 0.7; the old Platform 0.6 dependency leaves the lock.
+  External Principal conversions and stored formats are unchanged.
+- Adopt Wire/derive 0.7.18 from the incoming lock; generated browser files remain
+  unchanged.
+- Route the private browser client through published `@tokostudios/ic-platform`
+  0.1.1 over SDK Core 6.1.1, including signing-request and expiry APIs. Preserve
+  authority checks, trust roots, retries and durable recovery. The normal client
+  test gate now rejects direct/aliased SDK declarations and literal imports.
+  [#87 — Adopt Platform's npm SDK Core boundary in the portable browser client](https://github.com/dragginzgame/ic-auth/issues/87).
+- Adopt Shared Tooling 0.26.22's explicit owned-type Candid prohibition and native
+  error/input inspection guidance. Rule adoption alone adds no runtime guard.
+
 ## [0.17.1] - 2026-10-26
 
 ### 🧹 Cleanup

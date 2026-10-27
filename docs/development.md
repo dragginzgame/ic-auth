@@ -119,7 +119,7 @@ unchanged.
 
 ## Crypto dependency boundary
 
-Auth selects Platform 0.6.0's independent `ecdsa` capability for chain-key
+Auth selects Platform's independent `ecdsa` capability for chain-key
 verification and `ed25519` for portable signatures. Original K256/Dalek types and
 cryptography stay upstream. Auth owns prehash construction, high-S refusal,
 explicit producer normalization, canonical-scalar checks and verification policy.
@@ -130,10 +130,10 @@ Platform's explicit `pocket-ic` capability owns native simulator clients and DTO
 Testkit owns bounded server startup, lifecycle extensions and typed Wire calls;
 only the native runner selects these capabilities.
 
-Native file and process callers select Host FS/Process 0.68.4 with defaults
+Native file and process callers select Host FS/Process 0.69.0 with defaults
 disabled. Library use does not enable Host's optional CLI, certificate decoder
 or Wasm text/encoding backends. Host stays outside the production library graph.
-Build and Testkit 0.68 select the same Host 0.68 identities as Auth's direct
+Build and Testkit 0.69 select the same Host 0.69 identities as Auth's direct
 callers; no dependency override or old Host family is needed. The independently
 pinned file CLI is unchanged by library upgrades.
 Build and Testkit libraries keep `cli` disabled; only the prepared executable
@@ -149,8 +149,8 @@ for the existing byte/path limits and release-recovery boundary.
 
 ## Dependency roles and deployment admission
 
-Shared Tooling 0.26.21 source is adopted at
-`66c91c4412856baa147482e648fc80428db8b179` (reviewed committed source, not a
+Shared Tooling 0.26.22 source is adopted at
+`5fc904a935d82ad31f0fba14434b71ccb8c10345` (reviewed committed source, not a
 claim of registry publication or a matching release tag).
 The root catalog uses `Production dependencies` and `Tests and tooling only`;
 member annotations distinguish the three production libraries from internal
@@ -185,13 +185,13 @@ validate role comments mechanically, or qualify unlisted feature combinations.
 
 ## IC Platform boundary
 
-The protocol package selects published `ic-platform` 0.6.0 with only `principal`
+The protocol package selects published `ic-platform` 0.7.0 with only `principal`
 for its owned Principal and parse-error types, with no Candid or runtime edge. Convert
 explicitly at Agent/Testkit/crypto boundaries using Platform's
 `principal::ExternalPrincipal`; the upstream type and cryptography remain there.
 Significant bytes, ordering and binary serialization remain compatible; text
 longer than 63 bytes is now refused before normalization. See the
-[consumer migration](canic-adoption.md#platform-06-migration). No storage migration
+[consumer migration](canic-adoption.md#platform-07-migration). No storage migration
 or replacement cryptography is introduced.
 
 Private controls and diagnostics now use bounded Wire contracts under
@@ -229,7 +229,7 @@ its Principal field remains external. DER/CBOR bytes, cryptographic bodies, erro
 resource admission and protected authority stay intact. These capabilities now
 select no Candid, raw IC calls or executor; no local replacement is introduced.
 
-Platform 0.6.0's `cdk` feature supplies maintained runtime adapters and explicit
+Platform's `cdk` feature supplies maintained runtime adapters and explicit
 codec entrypoints without depending on the full CDK or selecting Candid. The
 host's runtime calls and lifecycle/query/update macros use `ic_platform::cdk`;
 no local runtime wrapper is introduced. Explicit Wire hooks, including unit RPCs,
@@ -239,9 +239,9 @@ The retired no-op `hidden = true` option is removed from all fixture entrypoints
 explicit Wire decoding/encoding and endpoint exports remain unchanged.
 
 Auth keeps runtime-specific call/error types internal and uses none of the
-retired storage or `change_timeout` APIs. Its public Principal has a Platform 0.6
-crate identity, so consumers sharing that type must align to Platform 0.6 and explicitly select `principal` when
-using Platform types alone; see [the migration](canic-adoption.md#platform-06-migration).
+retired storage or `change_timeout` APIs. Its public Principal has a Platform 0.7
+crate identity, so consumers sharing that type must align to Platform 0.7 and explicitly select `principal` when
+using Platform types alone; see [the migration](canic-adoption.md#platform-07-migration).
 Native Agent/Testkit retain their independently selected Platform/Candid graph.
 Counter-zero measurements continue using the exact raw API, equivalent to CDK's
 conversion of the same constant.
@@ -504,6 +504,7 @@ multi-package, multi-feature and multi-target entries are aggregate suites.
 | `make test-client-tools` | Actual CI pipeline and Make callers: selected Node/npm path, later-step admission and first-failure controls with substituted npm effects |
 | `make test-client` | Portable admission/logout, strict journal transactions and Rust/TypeScript Wire roundtrips |
 | `make check-client-contracts` | Compare fresh locked bindings with the Rust-owned checked-in contracts offline |
+| `make check-client-boundary` | Reject direct/aliased SDK dependencies and literal imports in the browser package; also runs in `make test-client` through npm |
 | `make generate-client-contracts` | Explicitly regenerate Auth DTO bindings and the locked Wire TypeScript runtime |
 | `make test-types` | Public types, bounded Wire codecs and private fixture projections |
 | `make test-protocol` | Canonical encoding, signed vectors, ordering and size rejection |

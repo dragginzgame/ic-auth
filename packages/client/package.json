@@ -16,10 +16,11 @@
   "types": "./dist/src/index.d.ts",
   "scripts": {
     "build": "tsc -b tsconfig.json",
-    "test": "npm run build && node --test --test-isolation=none --test-reporter=tap dist/test/*.test.js"
+    "check:sdk": "node ../../scripts/ci/check-ic-sdk-boundary.mjs .",
+    "test": "npm run check:sdk && npm run build && node --test --test-isolation=none --test-reporter=tap dist/test/*.test.js"
   },
   "dependencies": {
-    "@icp-sdk/core": "^6.1.0"
+    "@tokostudios/ic-platform": "^0.1.1"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

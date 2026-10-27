@@ -1,4 +1,4 @@
-import { Principal } from '@icp-sdk/core/principal';
+import { Principal } from '@tokostudios/ic-platform/principal';
 import * as establish from './generated/establish.js';
 import { AdmissionError, ClientError } from './contracts.js';
 import { httpUpdateTransport, type HttpUpdateOptions } from './update-http.js';

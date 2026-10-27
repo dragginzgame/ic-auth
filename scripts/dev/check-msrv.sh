@@ -52,6 +52,7 @@ package_inputs > "$fixture/archive-inputs"
 # Keep normalized manifests and their locks byte-for-byte intact. Only this
 # independent consumer selects the exact unpacked archives via registry patches.
 all_features="$(yq -p toml -o json '.' "$auth/Cargo.toml" | jq -c '[.features | keys[] | "ic-auth/" + .] + ["ic-auth-wire/typescript"]')"
+platform_version="$(yq -p toml -o json '.' "$types/Cargo.toml" | jq -er '.dependencies."ic-platform".version')"
 cat > "$fixture/Cargo.toml" <<TOML
 [workspace]
 exclude = ["ic-auth-$version", "ic-auth-protocol-types-$version", "ic-auth-wire-$version"]
@@ -67,6 +68,7 @@ publish = false
 ic-auth-protocol-types = "=$version"
 ic-auth-wire = "=$version"
 ic-auth = { version = "=$version", optional = true, default-features = false }
+ic-platform = { version = "$platform_version", default-features = false, features = ["principal"] }
 
 [features]
 all = $all_features
@@ -80,6 +82,11 @@ mkdir "$fixture/src"
 cat > "$fixture/src/lib.rs" <<'RUST'
 pub use ic_auth_protocol_types;
 pub use ic_auth_wire;
+pub fn platform_principal_identity(
+    principal: ic_platform::Principal,
+) -> ic_auth_protocol_types::Principal {
+    principal
+}
 #[cfg(feature = "ic-auth")]
 pub use ic_auth;
 #[cfg(feature = "ic-auth")]

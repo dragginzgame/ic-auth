@@ -1,7 +1,7 @@
 import { boundedCall, MAX_NETWORK_CALL_MS as CALL_MS } from './bounded-call.js';
 import { checkedIdentity, checkDestination } from './checked-identity.js';
-import { Principal } from '@icp-sdk/core/principal';
-import type { Identity } from '@icp-sdk/core/agent';
+import { Principal } from '@tokostudios/ic-platform/principal';
+import type { Identity } from '@tokostudios/ic-platform/agent';
 import type { LogoutResult } from './codec.js';
 import { ClientError } from './contracts.js';
 import { IndexedDbLogoutStore, MAX_ATTEMPTS, MAX_TARGETS, type LogoutJournal } from './logout-store.js';

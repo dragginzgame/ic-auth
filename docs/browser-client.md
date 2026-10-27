@@ -5,9 +5,21 @@ and durable logout worker for [Auth #3](https://github.com/dragginzgame/ic-auth/
 It is not published on npm. A production issuer adapter, wallet login and final
 Canic/Toko integration remain consumer/service work.
 
+## SDK boundary
+
+The client imports Principal, identity, Agent/CBOR and signing-request/expiry APIs
+from published `@tokostudios/ic-platform` 0.1.1. Platform owns the exact transitive
+SDK Core 6.1.1 selection; there is no direct Core dependency or local SDK facade.
+Existing SDK identities, explicit trust roots, zero retries, before/after signing
+authority checks, Wire bytes and uncertain-effect recovery remain unchanged.
+`make check-client-boundary` checks the package manifest and literal JavaScript/
+TypeScript imports through the adopted Shared guard; npm tests run the same gate.
+The browser fixture's import map resolves Platform's transitive SDK import, while
+its application code imports Platform. This guard is not runtime/browser proof.
+
 ## Application transport hard cut
 
-Pending Auth 0.16 uses `crates/ic-auth-wire/` with published IC Wire 0.7 native
+Auth uses `crates/ic-auth-wire/` with published IC Wire 0.7 native
 Serde. Released Auth 0.14 uses Wire 0.5; update receivers and generated clients
 together. Admission changes its ID to `0x415554480012` to isolate zero-based
 refusal tags; the retired ID is refused. Credential/read/logout identities and

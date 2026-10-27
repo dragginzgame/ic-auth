@@ -1,9 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { IDBFactory } from 'fake-indexeddb';
-import { Principal } from '@icp-sdk/core/principal';
-import { Endpoint, SubmitRequestType, Expiry, type Identity } from '@icp-sdk/core/agent';
-import { Ed25519KeyIdentity } from '@icp-sdk/core/identity';
+import { Principal } from '@tokostudios/ic-platform/principal';
+import { Endpoint, SubmitRequestType, Expiry, type Identity } from '@tokostudios/ic-platform/agent';
+import { Ed25519KeyIdentity } from '@tokostudios/ic-platform/identity';
 import { PortableAdmissionClient, PortableLogoutClient, IndexedDbLogoutStore, ClientError,
   type AdmissionCredential, type PortableAdmissionTransport } from '../src/index.js';
 

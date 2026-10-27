@@ -1,5 +1,5 @@
-import type { Identity } from '@icp-sdk/core/agent';
-import { Principal } from '@icp-sdk/core/principal';
+import type { Identity } from '@tokostudios/ic-platform/agent';
+import { Principal } from '@tokostudios/ic-platform/principal';
 import { ClientError } from './contracts.js';
 
 type SigningRequest = Parameters<Identity['transformRequest']>[0];

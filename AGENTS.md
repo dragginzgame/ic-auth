@@ -1,7 +1,7 @@
 # IC Auth Agent Instructions
 
-Apply [DRAGGINZGAME.md](DRAGGINZGAME.md), adopted from Shared Tooling 0.26.21
-source `66c91c4412856baa147482e648fc80428db8b179`, recorded in
+Apply [DRAGGINZGAME.md](DRAGGINZGAME.md), adopted from Shared Tooling 0.26.22
+source `5fc904a935d82ad31f0fba14434b71ccb8c10345`, recorded in
 [.shared-tooling.snapshot](.shared-tooling.snapshot). Read
 [the current handoff](docs/status/current.md) before implementation.
 Read task-specific references when their subject applies; the local constraints
@@ -62,7 +62,7 @@ generated browser contracts and private qualification controls use IC Wire.
 The fixture exposes only Wire methods, with no Candid projection or direct
 declaration. Its old
 Candid checkpoint is explicitly retired; production storage is unaffected.
-Platform 0.6 owns Principal and its parse errors. Convert explicitly through
+Platform 0.7 owns Auth's Principal and its parse errors. Convert explicitly through
 `principal::ExternalPrincipal` at upstream Agent/Testkit/crypto boundaries; keep
 application/runtime identities owned and preserve original bytes. It supplies
 Platform-owned canister-signature key/hash code and upstream certificate-tree,

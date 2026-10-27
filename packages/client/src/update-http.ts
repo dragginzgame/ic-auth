@@ -1,5 +1,5 @@
-import { HttpAgent, type Identity } from '@icp-sdk/core/agent';
-import { Principal } from '@icp-sdk/core/principal';
+import { HttpAgent, type Identity } from '@tokostudios/ic-platform/agent';
+import { Principal } from '@tokostudios/ic-platform/principal';
 import { ClientError } from './contracts.js';
 
 export interface HttpUpdateOptions {

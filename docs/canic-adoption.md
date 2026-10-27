@@ -26,13 +26,14 @@ Toko dependency. Rust 1.91 is the common minimum.
   SDK identity, issuer/admission transport and durable logout storage. It does
   not implement wallet login or a production issuer/reconciliation service.
 
-Auth 0.15 selects Platform 0.6 and enables only `principal` for passive types.
-Consumers sharing that owned Rust type must align to Platform 0.6; external
+Pending Auth 0.18 selects Platform 0.7 and enables only `principal` for passive types.
+Consumers sharing that owned Rust type must align to Platform 0.7; external
 Agent/Testkit/crypto APIs keep explicit `principal::ExternalPrincipal`
 conversions. Do not select the older upstream Principal identity or downgrade
 Auth to follow a historical example. No Candid or runtime capability is selected
 by the passive edge. [The published-type acceptance](https://github.com/dragginzgame/ic-auth/issues/82#issuecomment-6312237287)
-qualifies direct exchange with Platform 0.6.1 on Rust 1.91, native and Wasm.
+records the earlier Platform 0.6 acceptance; the current isolated package checks
+qualify direct Platform 0.7 exchange on Rust 1.91, native and Wasm.
 
 Forward only required capabilities. `portable-signature-verification` selects
 Ed25519, `chain-key-verification` supplies standalone Root verification, and
@@ -201,7 +202,7 @@ removes decode-time reserialization and `Error::Noncanonical`. Invalid primitive
 encodings return `Malformed`; custom Serde normalization is consumer-owned.
 Auth's DTOs retain ordered lists and opaque signed bytes. Keep original frames
 for exact retries and do not substitute decoding for Auth's semantic validation.
-Align consumers of the re-exported Rust Wire types to 0.7. Testkit 0.68 uses
+Align consumers of the re-exported Rust Wire types to 0.7. Testkit 0.69 uses
 the same Wire 0.7 types directly, resolving
 [Tooling #248](https://github.com/dragginzgame/ic-tooling/issues/248).
 The public library, native qualification and reference canister select only Wire 0.7.
@@ -218,7 +219,7 @@ Credential/read/logout frames retain their frozen bytes and IDs. Signed claims,
 session/replay/login records and the browser journal profile are unchanged.
 No storage reset or replay of unknown issuance is authorized.
 
-Native Testkit 0.68 takes a `WireCallSpec` with the contract's `NAME`, `ID`,
+Native Testkit 0.69 takes a `WireCallSpec` with the contract's `NAME`, `ID`,
 `REQUEST_LIMITS` and `RESPONSE_LIMITS`, plus explicit request/response Serde
 types. Canister adapters use the same native codecs and pre-copy byte limits;
 normal errors must retain admission charges, while reply-encoding failure after
@@ -233,11 +234,32 @@ disposable installations; this changes no production memory allocation or layout
 
 Earlier identity cuts are historical evidence in the
 [Platform 0.4/0.5 migration record](canic-adoption-history.md#platform-04-migration).
-Use the current Platform 0.6 boundary below for new consumers.
+Use the current Platform 0.7 boundary below for new consumers.
+
+## Platform 0.7 migration
+
+Pending Auth 0.18 selects published Platform/macros 0.7.0. Align direct Platform
+dependencies to `version = "0.7"` when exchanging Auth's owned Principal,
+parse errors or canister-signature key types. Type-only consumers select only
+`principal` with defaults disabled. Principal bytes, signed claims, Wire frames,
+stored records and browser journal formats remain unchanged; no data reset is
+required. Platform's removed Candid frontend compiler exports were not selected
+by Auth.
+
+Published Testkit 0.69.0 and qualification Memory 0.51.9 select Platform 0.7
+alongside Auth; no Platform 0.6 package remains in the workspace lock. Existing
+explicit conversions through `principal::ExternalPrincipal` preserve the native
+Agent/Testkit/crypto boundary; the stable-structures backend identity is unchanged.
+No dependency patch or second Auth Principal facade is needed.
+
+The private browser client separately selects `@tokostudios/ic-platform` 0.1.1
+over SDK Core 6.1.1. Use its explicit `/principal`, `/identity` and `/agent`
+exports; the SDK request/expiry identities, trust roots, authorization, signed
+bytes and retry/recovery policy remain with their existing owners.
 
 ## Platform 0.6 migration
 
-Released Auth 0.13 adopts published Platform/macros 0.6.0. Consumers sharing Auth's
+Earlier Auth 0.13 adopts published Platform/macros 0.6.0. Consumers of that release sharing Auth's
 owned Principal, parse errors or imported canister-signature key type must align
 their direct Platform dependency to 0.6. Type-only consumers must select
 `features = ["principal"]` with defaults disabled. Auth's protocol-types package
@@ -249,7 +271,7 @@ qualification imports simulator clients and DTOs directly from Platform;
 Testkit retains startup, lifecycle extensions and Wire calls.
 Auth keeps explicit external Principal conversions; no override or compatibility
 facade is needed. The qualification host and all
-public Auth capabilities select Platform 0.6. Signature creation drops unused
+public Auth capabilities at that release select Platform 0.6. Signature creation drops unused
 upstream CBOR/delegation helpers; verification retains its required parser.
 Signed claims, Wire frames, stored records, crypto policy and lifecycle semantics
 remain unchanged; no storage or browser-journal migration is introduced.

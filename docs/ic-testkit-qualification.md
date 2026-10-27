@@ -9,15 +9,15 @@ Earlier pairings and benchmarks are preserved in
 
 ## Setup and ownership
 
-The root catalog/lock select published Testkit 0.68.4 from
-[IC Tooling](https://github.com/dragginzgame/ic-tooling) and Auth's Platform 0.6.
+The root catalog/lock select published Testkit 0.69.0 from
+[IC Tooling](https://github.com/dragginzgame/ic-tooling) and Auth's Platform 0.7.
 Testkit and Auth share Wire 0.7 types directly. `WireCallSpec` takes the canonical
 contract limits without conversion; responses require only `DeserializeOwned`.
 The temporary Wire 0.6 alias and limit bridge are removed following
 [Tooling #248](https://github.com/dragginzgame/ic-tooling/issues/248).
 Application identities use owned Principal; direct Testkit/Agent calls convert
-explicitly to their retained external type. Testkit also selects Platform 0.6
-itself; no dependency override is needed. The remaining native Candid dependencies stay
+explicitly to their retained external type. Testkit also selects Platform 0.7
+internally; no dependency override is needed. The remaining native Candid dependencies stay
 outside public Auth library and deployed-Wasm graphs. Testkit no longer supplies
 Candid helpers or selects Platform's `candid` feature; native Agent/PocketIC
 still require their own Candid dependencies.

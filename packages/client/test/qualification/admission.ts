@@ -1,11 +1,11 @@
 // Private adapter for apps/qualification/sessions.rs, not a production endpoint.
 import assert from 'node:assert/strict';
 import { IDBFactory } from 'fake-indexeddb';
-import type { Identity } from '@icp-sdk/core/agent';
+import type { Identity } from '@tokostudios/ic-platform/agent';
 import { httpUpdateTransport } from '../../src/update-http.js';
 import * as sessionRead from '../../src/generated/read.js';
-import { Ed25519KeyIdentity } from '@icp-sdk/core/identity';
-import { Principal } from '@icp-sdk/core/principal';
+import { Ed25519KeyIdentity } from '@tokostudios/ic-platform/identity';
+import { Principal } from '@tokostudios/ic-platform/principal';
 type SessionResult = sessionRead.Response;
 type SessionView = Extract<SessionResult, { ok: unknown }>['ok'];
 import { IndexedDbLogoutStore, PortableAdmissionClient, PortableLogoutClient, httpAdmissionTransport, httpLogoutTransport,

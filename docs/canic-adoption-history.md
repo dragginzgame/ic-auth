@@ -8,7 +8,7 @@ are not current guidance; use [the adoption contract](canic-adoption.md).
 
 The following Auth 0.11/0.12 migration notes were moved from the current guide
 on 2026-10-24. Their dependency versions describe those releases, not the current
-selection. Current consumers use the [Platform 0.6 contract](canic-adoption.md#platform-06-migration).
+selection. Current consumers use the [Platform 0.7 contract](canic-adoption.md#platform-07-migration).
 
 <a id="platform-03-migration"></a>
 

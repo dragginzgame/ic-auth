@@ -18,7 +18,7 @@ export RELEASE_REMOTE RELEASE_BRANCH
         install-testkit-tools testkit-tools-check test-testkit-tools install-release-tools release-tools-check \
         test-types test-protocol test-portable-signatures test-chain-key-signatures test-signatures test-signature-store test-certified-proofs test-sessions check-wasm clippy check-boundaries \
         check-snapshot check-dependency-pins check-doc-links check-msrv install-msrv msrv-tools-check tasks ci \
-        client-tools-check install-client-dependencies generate-client-contracts check-client-contracts test-client test-client-tools \
+        client-tools-check install-client-dependencies generate-client-contracts check-client-contracts check-client-boundary test-client test-client-tools \
         publish publish-dry-run check-package-licenses test-release-tools \
         test-host-tooling test-qualification build-qualification-canister test-release-runner test-evidence-archive test-tools-evidence test-make-jobserver \
         release-version release-preflight release-verify release-prepare-version \
@@ -33,7 +33,7 @@ help:
 	@echo 'Select by changed contract: test-types, test-protocol, test-portable-signatures, test-chain-key-signatures, test-signatures, test-signature-store, test-certified-proofs, test-sessions, test-host-tooling, metadata'
 	@echo 'Aggregate qualification: clippy, check-wasm, check-msrv; live fixture: test-qualification'
 	@echo 'Named Cargo package/test selections: see docs/development.md#validation'
-	@echo 'Browser client: install-client-dependencies, client-tools-check, generate-client-contracts, check-client-contracts, test-client'
+	@echo 'Browser client: install-client-dependencies, client-tools-check, generate-client-contracts, check-client-contracts, check-client-boundary, test-client'
 	@echo 'Formatting: fmt, fmt-check, test-formatting-hooks'
 	@echo 'Governance: check-snapshot, check-dependency-pins, check-doc-links, check-boundaries, check-msrv; maintenance catalog: tasks'
 	@echo 'Complete CI gate (explicit only): ci'
@@ -153,6 +153,9 @@ generate-client-contracts:
 
 check-client-contracts:
 	+bash scripts/dev/client-contracts.sh check
+
+check-client-boundary: client-tools-check
+	npm --prefix packages/client run check:sdk
 
 test-client:
 	+bash scripts/dev/test-client.sh

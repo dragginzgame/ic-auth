@@ -1,7 +1,7 @@
 import { boundedCall, MAX_NETWORK_CALL_MS } from './bounded-call.js';
 import { checkedIdentity, checkDestination } from './checked-identity.js';
-import type { Identity } from '@icp-sdk/core/agent';
-import { Principal } from '@icp-sdk/core/principal';
+import type { Identity } from '@tokostudios/ic-platform/agent';
+import { Principal } from '@tokostudios/ic-platform/principal';
 import { ClientError } from './contracts.js';
 import { credentialBytes, credentialFromBytes } from './codec.js';
 import { defaultMaximumBytes, maximumConfiguredBytes } from './generated/credential.js';

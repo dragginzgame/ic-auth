@@ -3,9 +3,9 @@
 // Rust independently checks both devices' revocation after this child exits.
 import assert from 'node:assert/strict';
 import { IDBFactory } from 'fake-indexeddb';
-import { Ed25519KeyIdentity } from '@icp-sdk/core/identity';
-import { Principal } from '@icp-sdk/core/principal';
-import { Endpoint, SubmitRequestType, Expiry } from '@icp-sdk/core/agent';
+import { Ed25519KeyIdentity } from '@tokostudios/ic-platform/identity';
+import { Principal } from '@tokostudios/ic-platform/principal';
+import { Endpoint, SubmitRequestType, Expiry } from '@tokostudios/ic-platform/agent';
 import { IndexedDbLogoutStore, PortableLogoutClient, httpLogoutTransport, ClientError, credentialFromBytes } from '../../src/index.js';
 import { qualifyAdmission } from './admission.js';
 
