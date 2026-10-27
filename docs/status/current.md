@@ -15,6 +15,17 @@ do not close routine delivered-adoption issues against the failed gate.
 
 The pending **0.19.2** draft is compatible tooling/qualification work: published
 Tooling/Memory adoption, Testkit wrapper retention and opt-in real-browser evidence.
+The maintainer committed that batch as `8ba6c55d58aba694d2c75f5310ee3fa5571d107b`.
+Release validation then failed because the jobserver fixture reached the actual
+optional browser wrapper. [Auth #97 — Substitute opt-in browser effects in the Make jobserver fixture](https://github.com/dragginzgame/ic-auth/issues/97)
+owns the local fixture repair. Preserve the original failure under
+`target/portable-fixtures/make-jobserver.vdX060/` and release logs under
+`.git/release-state/validation-logs/validation.FUJonu`; no active release lock or
+saved 0.19.2 plan was found. The repair does not restart or alter release state.
+The focused jobserver fixture passes with `IC_AUTH_BROWSER_EXECUTABLE` unset,
+including inherited descriptor checks and unsafe-mode refusal for the browser
+target. Shell syntax, snapshot, documentation and diff checks pass; evidence is
+in `target/jobserver-browser-20261027/`. No complete release gate was rerun.
 Public libraries/client runtime,
 APIs, signed/stored/public Wire formats and package versions remain unchanged.
 No Auth staging, commit, push, release, publication or deployment ran in this batch.

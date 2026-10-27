@@ -25,6 +25,10 @@
 
 ### 🩹 Fixed
 
+- Keep the Make jobserver fixture independent of optional browser preparation by
+  substituting the browser wrapper alongside other application effects. Retain
+  browser-target descriptor and unsafe-mode refusal coverage.
+  [#97 — Substitute opt-in browser effects in the Make jobserver fixture](https://github.com/dragginzgame/ic-auth/issues/97).
 - Request the existing longer fixture session for live logout qualification so
   slower hosts retain a valid session through signed ingress and SDK checks.
   Keep the final pre-expiry assertions and production TTL policy unchanged.
