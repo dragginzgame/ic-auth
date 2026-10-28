@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.19.6]
+
+### ➕ Added
+
+- Prepare local browser-client archives with compiled ESM, public declarations,
+  generated Wire codecs, license and source/integrity receipts. Qualify an offline
+  consumer through strict type checking, browser bundling and injected admission/
+  logout; `make test-client` now includes this package proof. The package remains
+  private and unpublished; Canic endpoints and issuer policy remain consumer work.
+  [#104 — Prepare browser-client delivery](https://github.com/dragginzgame/ic-auth/issues/104).
+
 ## [0.19.5] - 2026-10-28
 
 ### 🔧 Changed

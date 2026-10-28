@@ -18,7 +18,7 @@ export RELEASE_REMOTE RELEASE_BRANCH
         install-testkit-tools testkit-tools-check test-testkit-tools install-release-tools release-tools-check \
         test-types test-protocol test-portable-signatures test-chain-key-signatures test-signatures test-signature-store test-certified-proofs test-sessions check-wasm clippy check-boundaries \
         check-snapshot check-dependency-pins check-doc-links check-msrv install-msrv msrv-tools-check tasks ci \
-        client-tools-check install-client-dependencies generate-client-contracts check-client-contracts check-client-boundary test-client test-client-tools \
+        client-tools-check install-client-dependencies generate-client-contracts check-client-contracts check-client-boundary test-client test-client-tools pack-client test-client-package \
         publish publish-dry-run check-package-licenses test-release-tools \
         test-host-tooling test-qualification build-qualification-canister test-release-runner test-evidence-archive test-tools-evidence test-make-jobserver \
         release-version release-preflight release-verify release-prepare-version \
@@ -34,6 +34,7 @@ help:
 	@echo 'Aggregate qualification: clippy, check-wasm, check-msrv; live fixture: test-qualification'
 	@echo 'Named Cargo package/test selections: see docs/development.md#validation'
 	@echo 'Browser client: install-client-dependencies, client-tools-check, generate-client-contracts, check-client-contracts, check-client-boundary, test-client'
+	@echo 'Local browser archives: pack-client, test-client-package (offline; no publication)'
 	@echo 'Opt-in Chromium qualification: test-client-browser (IC_AUTH_BROWSER_EXECUTABLE required)'
 	@echo 'Formatting: fmt, fmt-check, test-formatting-hooks'
 	@echo 'Governance: check-snapshot, check-dependency-pins, check-doc-links, check-boundaries, check-msrv; maintenance catalog: tasks'
@@ -160,6 +161,12 @@ check-client-boundary: client-tools-check
 
 test-client:
 	+bash scripts/dev/test-client.sh
+
+pack-client:
+	+bash scripts/dev/package-client.sh pack
+
+test-client-package:
+	+bash scripts/dev/package-client.sh check
 
 .PHONY: test-client-browser
 test-client-browser:

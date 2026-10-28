@@ -559,7 +559,9 @@ multi-package, multi-feature and multi-target entries are aggregate suites.
 | Command or aggregate suite | Purpose |
 | --- | --- |
 | `make test-client-tools` | Actual CI pipeline and Make callers: selected Node/npm path, later-step admission and first-failure controls with substituted npm effects |
-| `make test-client` | Portable admission/logout, strict journal transactions and Rust/TypeScript Wire roundtrips |
+| `make test-client` | Packed-consumer proof, portable admission/logout, strict journal transactions and Rust/TypeScript Wire roundtrips |
+| `make pack-client` | Build a local private npm archive with source-input and integrity receipts; no upload |
+| `make test-client-package` | Offline archive installation, strict public declarations, browser bundling and injected admission/logout |
 | `make test-client-browser` | Opt-in: actual Chromium storage, cross-tab/crash recovery and signed SDK receiver calls; requires an explicitly prepared executable |
 | `make check-client-contracts` | Compare fresh locked bindings with the Rust-owned checked-in contracts offline |
 | `make check-client-boundary` | Reject direct/aliased SDK dependencies and literal imports in the browser package; also runs in `make test-client` through npm |

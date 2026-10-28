@@ -53,6 +53,9 @@ Toko dependency. Rust 1.91 is the common minimum.
 - `packages/client` is a private, unpublished browser coordinator with injected
   SDK identity, issuer/admission transport and durable logout storage. It does
   not implement wallet login or a production issuer/reconciliation service.
+  Local [archive delivery](browser-client.md#local-archive-delivery) now supplies
+  a source/integrity-bound candidate and isolated consumer proof. Canic retains
+  final archive distribution and actual endpoint/browser acceptance.
 
 Auth selects Platform 0.7 and enables only `principal` for passive types.
 Consumers sharing that owned Rust type must align to Platform 0.7; external

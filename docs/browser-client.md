@@ -5,6 +5,35 @@ and durable logout worker for [Auth #3](https://github.com/dragginzgame/ic-auth/
 It is not published on npm. A production issuer adapter, wallet login and final
 Canic/Toko integration remain consumer/service work.
 
+## Local archive delivery
+
+`make pack-client` builds a fresh local npm archive; `make test-client-package`
+also installs and qualifies an isolated consumer offline. The latter is part of
+`make test-client`. Both require the explicitly prepared client dependencies and
+file tool, admit generated contracts and preserve their exact source inputs
+across preparation. Cargo runs under the shell's inherited Make jobserver.
+
+Archives contain compiled ESM/declarations, the canonical generated codecs,
+README and license. They expose only the public package root, with explicit
+TypeScript and ESM export conditions. Tests, source tooling, dependency trees and
+incremental compiler state are excluded; compilation uses a fresh staging tree.
+The [package README](../packages/client/README.md) describes consumption.
+
+Each retained `target/browser-client-packages/package.*` directory has a
+`delivery.json`, npm integrity/file report and a bounded input hash manifest.
+The receipt records the source revision, dirty-candidate observation and compiler
+versions. Only successful checks produce a qualification receipt. Dirty candidates
+must be rebuilt from the intended delivered commit before adoption. Keep the
+archive and integrity at a durable consumer-owned location; a producer's ignored
+build directory is not production distribution. No registry publication occurs.
+
+The consumer proof uses the archive's bare import with locked external npm
+selections, strict declarations and browser bundling. Its fake IndexedDB and
+injected issuer/receiver operations check package composition and identity/logout
+lifecycle; they do not establish real browser or installed Canic acceptance.
+Canic still owns its issuer transport, final source distribution and deployment
+under [#507](https://github.com/dragginzgame/canic/issues/507).
+
 ## SDK boundary
 
 The client imports Principal, identity, Agent/CBOR and signing-request/expiry APIs

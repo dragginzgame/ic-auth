@@ -5,17 +5,27 @@
   "type": "module",
   "description": "Portable IC Auth session admission and durable logout over IC Wire",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dragginzgame/ic-auth.git",
+    "directory": "packages/client"
+  },
+  "files": ["dist/src", "README.md", "LICENSE"],
   "packageManager": "npm@12.2.0",
   "engines": {
     "node": ">=24.21.0 <25",
     "npm": "12.2.0"
   },
   "exports": {
-    ".": "./dist/src/index.js"
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "import": "./dist/src/index.js"
+    }
   },
   "types": "./dist/src/index.d.ts",
   "scripts": {
     "build": "tsc -b tsconfig.json",
+    "build:package": "tsc -p tsconfig.package.json",
     "check:sdk": "node ../../scripts/ci/check-ic-sdk-boundary.mjs .",
     "test": "npm run check:sdk && npm run build && node --test --test-isolation=none --test-reporter=tap dist/test/*.test.js"
   },

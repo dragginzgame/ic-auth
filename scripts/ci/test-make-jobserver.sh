@@ -48,7 +48,7 @@ export PATH="$fixture/bin:$PATH"
 # Substitute application/installation/publication effects, keeping actual root
 # recipes, includes, execution admission and Bash-to-Cargo descriptor handoff.
 for script in dev/testkit-tools.sh dev/msrv-tools.sh dev/host-file-tools.sh dev/check-msrv.sh dev/check-wasm.sh \
-    dev/test-qualification.sh dev/client-contracts.sh dev/test-client.sh dev/test-client-browser.sh dev/release-tools.sh \
+    dev/test-qualification.sh dev/client-contracts.sh dev/test-client.sh dev/test-client-browser.sh dev/package-client.sh dev/release-tools.sh \
     ci/check-cargo-dependency-boundaries.sh ci/test-auth-boundaries.sh \
     ci/check-auth-boundaries.sh ci/test-client-tools.sh ci/check-dependency-pins.sh ci/read-cargo-workspace-version.sh \
     release/publish.sh release/metadata.sh release/test-tools.sh; do
@@ -92,6 +92,7 @@ awk '
 # Guard the parser against accidentally dropping known multiline/normal recipes.
 rg -Fx test-portable-signatures "$fixture/targets" > /dev/null
 rg -Fx test-client-browser "$fixture/targets" > /dev/null
+rg -Fx test-client-package "$fixture/targets" > /dev/null
 rg -Fx release-prepare-version "$fixture/targets" > /dev/null
 while IFS= read -r target; do
     : > "$AUTH_JOBSERVER_LOG"
