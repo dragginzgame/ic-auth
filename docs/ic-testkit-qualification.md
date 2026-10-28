@@ -9,7 +9,7 @@ Earlier pairings and benchmarks are preserved in
 
 ## Setup and ownership
 
-The root catalog/lock select published Testkit 0.69.2 from
+The root catalog/lock select published Testkit 0.69.3 from
 [IC Tooling](https://github.com/dragginzgame/ic-tooling) and Auth's Platform 0.7.
 Testkit and Auth share Wire 0.7 types directly. `WireCallSpec` takes the canonical
 contract limits without conversion; responses require only `DeserializeOwned`.
@@ -183,7 +183,7 @@ The opt-in `make test-client-browser` command runs
 [the native browser case](../apps/qualification/runner/tests/signatures/sessions/browser.rs)
 with [the Chromium runner](../packages/client/test/browser/run.mjs) and
 [browser scenarios](../packages/client/test/browser/qualification.ts).
-Testkit 0.69.2 keeps the client and managed server together in `PocketIcInstance`;
+Testkit 0.69.3 keeps the client and managed server together in `PocketIcInstance`;
 mutable access starts the live gateway without splitting ownership.
 
 The checked run uses Linux Chromium **156.0.8078.4**, Playwright Core **1.62.1**,

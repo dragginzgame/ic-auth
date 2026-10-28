@@ -35,8 +35,8 @@ strict pipeline preserves the first setup failure in retained logs. This is
 explicit CI setup; ordinary checks do not install. The retained Intel macOS
 failure under [#38](https://github.com/dragginzgame/ic-auth/issues/38) has no actual
 version/path observations. The repaired route passes Intel macOS at 0.5.5.
-Complete native acceptance remains source-bound and still requires the unfinished
-ARM case.
+Current complete native acceptance is recorded in the
+[handoff](status/current.md); that historical incomplete run is not the current gate.
 
 CI waits for its exact uploaded Rust-tool artifact through the shared read-only
 helper before the pinned download action. Successful listings retry an absent
@@ -130,7 +130,7 @@ Platform's explicit `pocket-ic` capability owns native simulator clients and DTO
 Testkit owns bounded server startup, lifecycle extensions and typed Wire calls;
 only the native runner selects these capabilities.
 
-Native file and process callers select Host FS/Process 0.69.2 with defaults
+Native file and process callers select Host FS/Process 0.69.3 with defaults
 disabled. Library use does not enable Host's optional CLI, certificate decoder
 or Wasm text/encoding backends. Host stays outside the production library graph.
 Build and Testkit 0.69 select the same Host 0.69 identities as Auth's direct
@@ -149,8 +149,8 @@ for the existing byte/path limits and release-recovery boundary.
 
 ## Dependency roles and deployment admission
 
-Shared Tooling 0.26.22 source is adopted at
-`5fc904a935d82ad31f0fba14434b71ccb8c10345` (reviewed committed source, not a
+Shared Tooling 0.27.2 source is adopted at
+`7efce1e36275ff9e4bbbdd9ccab9a8d94520fd98` (reviewed committed source, not a
 claim of registry publication or a matching release tag).
 The root catalog uses `Production dependencies` and `Tests and tooling only`;
 member annotations distinguish the three production libraries from internal
@@ -302,6 +302,8 @@ normal/build graph, rejecting Candid and its Platform feature where prohibited.
 
 ## Setup
 
+Complete the [native/system bootstrap](local-setup.md#native-bootstrap-before-cargo-tools)
+first, including the platform compiler/linker/SDK and required system utilities.
 Install rustup through your normal host setup, then from this checkout:
 
 ```sh
@@ -327,11 +329,31 @@ not installed, checked or placed on PATH by the aggregate or CI. Its explicit
 `install-ic-tools` / `ic-tools-check` commands remain available, with earlier
 installations retained.
 
+The complete gate's preparation inventory is below. Native/compiler setup must
+finish before any Cargo executable is prepared, including the release editor.
+If that environment changes later, explicitly re-prepare affected tools; checks
+must retain fingerprint refusal rather than installing or repairing implicitly.
+
+| Prerequisite | Explicit preparation and offline admission |
+| --- | --- |
+| Native shell/system utilities and selected Rust compiler, Rustfmt, Clippy, Wasm target | Platform setup above and `rustup show active-toolchain`; shared supported-host requirements apply |
+| Common host/Cargo tools and Rust 1.91 | `make install-tools` / `make tools-check` (includes minimum-compiler, Testkit and file-tool extensions) |
+| Lock-selected Testkit executable and PocketIC server | Included above; separately `make install-testkit-tools` / `make testkit-tools-check` |
+| Selected file-operation executable | `make install-host-file` / `make host-file-check` |
+| Lock-selected release editor | `make install-release-tools` / `make release-tools-check` |
+| Locked Node/npm and private client dependencies | [Browser client setup](#browser-client-setup), `make install-client-dependencies` / `make client-tools-check` |
+
+Client preparation disables npm lifecycle scripts and does not change compiler,
+SDK or system-package inputs, so CI may prepare it before Cargo tools. Real
+Chromium is an additional explicit prerequisite only for `test-client-browser`;
+the ordinary CI/release gate compiles that harness and runs Node SDK fixtures.
+No native package installer or browser download runs inside an ordinary check.
+
 The Makefile includes reviewed [`make/consumer.mk`](make-interface.md), which owns
 common setup, formatting, hooks, snapshot verification and release routing.
 `check-snapshot` retains its public name and depends on `shared-tooling-check`.
-The recorded snapshot pins Shared Tooling 0.26.14 at
-`e14050bcc0c627f9c8a9064051699cac44fd7ab3`. Adopt its committed source and
+The recorded snapshot pins Shared Tooling 0.27.2 at
+`7efce1e36275ff9e4bbbdd9ccab9a8d94520fd98`. Adopt its committed source and
 recorded entrypoint closure through the canonical exporter; see
 [snapshot adoption](consuming-snapshots.md#entrypoint-selection-in-070).
 The canonical verifier also supports `--read-manifest FILE`: it validates the

@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.19.3] - Unreleased
+
+### 🔧 Changed
+
+- Adopt Platform/macros 0.7.1, Memory 0.51.13 and IC Tooling 0.69.3 while
+  preserving Auth APIs, verification policy and signed/stored/Wire formats.
+  Explicitly refresh prepared Testkit and release tools for the selected lock.
+- Adopt Shared Tooling 0.27.2 at exact revision `7efce1e`, including the merged
+  hook-fixture companion fix. Derive formatter fixture helpers from the shared
+  entrypoint, retain existing formatting coverage, and document native bootstrap
+  before Cargo-tool preparation.
+  [#98 — Adopt current Shared Tooling, Platform, Memory and IC Tooling](https://github.com/dragginzgame/ic-auth/issues/98).
+
 ## [0.19.2] - 2026-10-27
 
 ### 🧪 Testing

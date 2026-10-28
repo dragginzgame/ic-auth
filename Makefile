@@ -70,7 +70,7 @@ test-formatting-hooks:
 		perl -0777 -pe 's/^(serde_bytes = [^\n]*\n)(serde_cbor = [^\n]*\n)/$$2$$1/m or die "missing selected dependency pair"' Cargo.toml > "$$fixture"; \
 		TMPDIR="$(CURDIR)/target/portable-fixtures" bash scripts/ci/check-formatting-hooks.sh \
 		"$(CURDIR)" crates/ic-auth/src/lib.rs Cargo.toml "$$fixture" --rust-sources \
-		make/consumer.mk make/release.mk make/rust-format.mk scripts/ci/run-rust-formatting.pl ci/tool-versions.env
+		make/consumer.mk
 
 install-msrv: install-host-tools
 	bash scripts/dev/msrv-tools.sh install
