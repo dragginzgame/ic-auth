@@ -159,6 +159,45 @@ commit cannot leave an admitted reservation or acknowledge a failed logout.
 Verification and unknown-logout budget charges survive returned storage errors;
 hosts must not trap and roll back those charges.
 
+### Availability under contention
+
+`SessionAdmissionBudget` bounds attempted cryptographic work across callers and
+proof mechanisms. Anonymous callers, malformed claims/signatures, caller mismatch,
+expired proofs, replay conflicts and full-state refusals are checked before
+expensive verification credit is charged. Failed cryptographic verification does
+consume credit; refunding it would admit unbounded expensive invalid requests.
+A sustained source of well-formed forged proofs can therefore deny fresh
+verification until credit refills. Existing valid sessions and exact retries do
+not need fresh verification credit. The bucket provides no multi-client fairness
+or Sybil protection. Hosts and issuers must qualify their own ingress, enrollment,
+credential-issuance and workload admission policy; per-principal quotas alone do
+not establish that policy.
+
+Only completely verified admission can reserve an admitted-login slot. One
+runtime caller retains one login binding; cheap refusals and failed commits
+cannot install a reservation. A reservation lasts through its issuer-authenticated
+original login deadline plus the protected skew, even after its shorter session
+expires. Hosts can constrain accepted login duration through protected claims
+policy. Multiple valid issued credentials can fill a finite pool; admission must
+then refuse rather than evict retained safety evidence.
+
+Unknown-login logout uses its own pool and budget. Repeated logout by one caller
+keeps one record and its original deadline; rotating self-authenticating keys can
+fill that unknown pool without an issuer credential. This cannot take admitted
+slots or prevent an admitted login from converting its reserved slot to a denial.
+Unknown tombstones cover the protocol's maximum login window plus clock margin;
+shortening them to a session/proof lease could permit delayed admission after
+logout. Unknown saturation can still refuse other unknown logouts, never falsely
+acknowledge them. Configure physical storage for both declared pools.
+
+Expired physical rows continue occupying capacity until explicit bounded
+maintenance commits. Persist deletions/counts atomically, retain failure and clock
+observations, and schedule maintenance rather than resetting the ledger. The
+contention regressions qualify cheap floods without credit loss, shared-budget
+exhaustion/refill, independent unknown capacity, and successful legitimate
+admission after bounded pruning. They do not establish availability under an
+unlimited adversarial load or a production host's admission policy.
+
 `logout_session` returns the shared `LogoutResult`: `Revoked { deny_until_ns }`
 only after commit, `InvalidCaller`, or typed `Unavailable` (capacity, storage or
 clock). Hosts return `Unavailable(ResetPending)` before touching unavailable

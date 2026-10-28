@@ -194,13 +194,23 @@ impl Fixture {
     }
 
     fn admit(&self, receiver: &mut Receiver, now: u64) -> Result<SessionEstablished, SessionError> {
-        let claims = self.claims_context(now);
+        self.admit_as(receiver, now, self.caller(), &self.credential())
+    }
+    fn admit_as(
+        &self,
+        receiver: &mut Receiver,
+        now: u64,
+        caller: Principal,
+        credential: &PortableCredential,
+    ) -> Result<SessionEstablished, SessionError> {
+        let mut claims = self.claims_context(now);
+        claims.authority.caller = caller;
         let key = self.key.verifying_key().to_bytes();
         establish_session(
             &mut receiver.store,
             &mut receiver.ledger,
             &mut receiver.budget,
-            &self.credential(),
+            credential,
             &request(),
             &SessionAdmissionContext {
                 verification: PortableVerificationContext::Ed25519 {
@@ -1765,4 +1775,137 @@ fn restored_store_replacement_removes_old_expiry_and_rebuilds_replay_counts() {
         }
     );
     assert_eq!(r.store.encoded_bytes(), 0);
+}
+
+#[test]
+fn anonymous_and_cheap_refusal_floods_leave_another_clients_verification_credit() {
+    let attacker = Fixture::new(1);
+    let victim = Fixture::new(2);
+    let mut r = Receiver::new(&victim);
+    r.budget = SessionAdmissionBudget::new(1, SECOND, NOW - SECOND).unwrap();
+    let valid = attacker.credential();
+    let mut malformed = valid.clone();
+    malformed.claims = vec![0];
+    let mut unsigned = valid.clone();
+    unsigned.proof = PortableProof::Ed25519 { signature: vec![] };
+    let mut expired = Fixture::new(1);
+    expired.claims.issued_at_ns = NOW - SECOND;
+    expired.claims.admission_expires_at_ns = NOW;
+    let expired = expired.credential();
+    for _ in 0..256 {
+        for (caller, credential) in [
+            (Principal::anonymous(), &valid),
+            (victim.caller(), &valid),
+            (attacker.caller(), &malformed),
+            (attacker.caller(), &unsigned),
+            (attacker.caller(), &expired),
+        ] {
+            assert!(attacker.admit_as(&mut r, NOW, caller, credential).is_err());
+        }
+    }
+    assert_eq!(r.store.encoded_bytes(), 0);
+    assert_eq!(r.ledger.occupancy(), (0, 0));
+    let session = created(victim.admit(&mut r, NOW).unwrap());
+    assert_eq!(
+        attacker.admit(&mut r, NOW).unwrap_err().admission_refusal(),
+        AdmissionRefusal::Throttled
+    );
+    assert_eq!(
+        victim.admit(&mut r, NOW).unwrap(),
+        SessionEstablished::ExactRetry(session.clone())
+    );
+    assert!(attacker.admit(&mut r, NOW + SECOND).is_ok());
+    assert_eq!(r.auth(&victim, NOW + SECOND).unwrap(), session);
+}
+
+#[test]
+fn forged_proofs_can_spend_shared_crypto_credit_but_cannot_pin_login_capacity() {
+    let attacker = Fixture::new(1);
+    let victim = Fixture::new(2);
+    let mut r = Receiver::new(&victim);
+    r.budget = SessionAdmissionBudget::new(2, SECOND, NOW - 2 * SECOND).unwrap();
+    let mut forged = attacker.credential();
+    forged.proof = PortableProof::Ed25519 {
+        signature: vec![0; 64],
+    };
+    for _ in 0..2 {
+        assert_eq!(
+            attacker
+                .admit_as(&mut r, NOW, attacker.caller(), &forged)
+                .unwrap_err()
+                .admission_refusal(),
+            AdmissionRefusal::InvalidCredential
+        );
+    }
+    assert_eq!(r.store.encoded_bytes(), 0);
+    assert_eq!(r.ledger.occupancy(), (0, 0));
+    assert_eq!(
+        victim.admit(&mut r, NOW).unwrap_err().admission_refusal(),
+        AdmissionRefusal::Throttled
+    );
+    let session = created(victim.admit(&mut r, NOW + SECOND).unwrap());
+    assert_eq!(
+        victim.admit(&mut r, NOW + SECOND).unwrap(),
+        SessionEstablished::ExactRetry(session)
+    );
+    assert_eq!(r.ledger.occupancy(), (1, 0));
+}
+
+#[test]
+fn unknown_logout_saturation_and_expired_reservations_preserve_legitimate_recovery() {
+    let first = Fixture::new(1);
+    let mut next = Fixture::new(2);
+    let mut r = Receiver::new(&first);
+    r.ledger = MemoryLoginRevocations::new(first.claims.audience, 1, 2, SECOND, 0).unwrap();
+    let stranger = Fixture::new(10).caller();
+    let until = r.logout(stranger, NOW).unwrap();
+    for _ in 0..256 {
+        assert_eq!(r.logout(stranger, NOW), Ok(until));
+    }
+    r.logout(Fixture::new(11).caller(), NOW).unwrap();
+    for seed in 12..32 {
+        assert_eq!(
+            r.logout(Fixture::new(seed).caller(), NOW),
+            Err(LogoutResult::Unavailable(LogoutUnavailable::Capacity))
+        );
+    }
+    assert_eq!(r.ledger.occupancy(), (0, 2));
+    let session = created(first.admit(&mut r, NOW).unwrap());
+    assert_eq!(r.ledger.occupancy(), (1, 2));
+    assert_eq!(
+        next.admit(&mut r, NOW).unwrap_err().admission_refusal(),
+        AdmissionRefusal::Capacity
+    );
+    assert_eq!(r.auth(&first, NOW).unwrap(), session);
+    let reclaim = first.claims.login_deadline_ns + SECOND;
+    next.claims.login_started_at_ns = reclaim;
+    next.claims.login_deadline_ns = reclaim + 10 * SECOND;
+    next.claims.issued_at_ns = reclaim;
+    next.claims.admission_expires_at_ns = reclaim + SECOND;
+    r.store.prune(reclaim, 128);
+    assert_eq!(
+        r.ledger
+            .prune_with_commit(reclaim, 1, |_, _| Err(LoginRevocationError::Storage)),
+        Err(LoginRevocationError::Storage)
+    );
+    assert_eq!(r.ledger.occupancy(), (1, 2));
+    assert_eq!(
+        next.admit(&mut r, reclaim).unwrap_err().admission_refusal(),
+        AdmissionRefusal::Capacity
+    );
+    assert_eq!(
+        r.ledger.prune_with_commit(reclaim, 1, |callers, counts| {
+            assert_eq!(callers, &[first.caller()]);
+            assert_eq!(counts, (0, 2));
+            Ok(())
+        }),
+        Ok(1)
+    );
+    assert!(next.admit(&mut r, reclaim).is_ok());
+    assert_eq!(r.ledger.occupancy(), (1, 2));
+    assert!(
+        until > reclaim,
+        "unknown denials must not be evicted with expired reservations"
+    );
+    assert!(r.ledger.is_revoked(stranger, reclaim).unwrap());
 }

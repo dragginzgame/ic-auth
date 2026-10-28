@@ -130,7 +130,7 @@ Platform's explicit `pocket-ic` capability owns native simulator clients and DTO
 Testkit owns bounded server startup, lifecycle extensions and typed Wire calls;
 only the native runner selects these capabilities.
 
-Native file and process callers select Host FS/Process 0.69.3 with defaults
+Native file and process callers select Host FS/Process 0.69.4 with defaults
 disabled. Library use does not enable Host's optional CLI, certificate decoder
 or Wasm text/encoding backends. Host stays outside the production library graph.
 Build and Testkit 0.69 select the same Host 0.69 identities as Auth's direct
@@ -149,8 +149,8 @@ for the existing byte/path limits and release-recovery boundary.
 
 ## Dependency roles and deployment admission
 
-Shared Tooling 0.27.2 source is adopted at
-`7efce1e36275ff9e4bbbdd9ccab9a8d94520fd98` (reviewed committed source, not a
+Shared Tooling 0.27.3 source is adopted at
+`cc81a58a5b2dd287c577cbffd2c576c178b6785c` (reviewed committed source, not a
 claim of registry publication or a matching release tag).
 The root catalog uses `Production dependencies` and `Tests and tooling only`;
 member annotations distinguish the three production libraries from internal
@@ -352,10 +352,14 @@ No native package installer or browser download runs inside an ordinary check.
 The Makefile includes reviewed [`make/consumer.mk`](make-interface.md), which owns
 common setup, formatting, hooks, snapshot verification and release routing.
 `check-snapshot` retains its public name and depends on `shared-tooling-check`.
-The recorded snapshot pins Shared Tooling 0.27.2 at
-`7efce1e36275ff9e4bbbdd9ccab9a8d94520fd98`. Adopt its committed source and
+The recorded snapshot pins Shared Tooling 0.27.3 at
+`cc81a58a5b2dd287c577cbffd2c576c178b6785c`. Adopt its committed source and
 recorded entrypoint closure through the canonical exporter; see
 [snapshot adoption](consuming-snapshots.md#entrypoint-selection-in-070).
+Adoption also compares every exported payload with an independently reviewed
+commit using the trusted verifier's paired `--source` / `--revision` options;
+ordinary builds retain offline local integrity checks. See
+[snapshot verification](consuming-snapshots.md#drift-verification).
 The canonical verifier also supports `--read-manifest FILE`: it validates the
 complete captured syntax before emitting records, rejects NUL/extra fields, and
 performs no payload/ownership admission in this mode. Normal snapshot checks

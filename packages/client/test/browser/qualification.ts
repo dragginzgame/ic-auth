@@ -4,7 +4,8 @@ import { Ed25519KeyIdentity } from '@tokostudios/ic-platform/identity';
 import { Principal } from '@tokostudios/ic-platform/principal';
 import { Endpoint, SubmitRequestType, Expiry, type Identity } from '@tokostudios/ic-platform/agent';
 import { IndexedDbLogoutStore, PortableLogoutClient, PortableAdmissionClient,
-  httpAdmissionTransport, httpLogoutTransport, credentialFromBytes } from '../../src/index.js';
+  httpAdmissionTransport, httpLogoutTransport, credentialFromBytes, ClientError } from '../../src/index.js';
+import { MAX_TARGETS } from '../../src/logout-store.js';
 import { httpUpdateTransport } from '../../src/update-http.js';
 import * as read from '../../src/generated/read.js';
 
@@ -93,6 +94,52 @@ export function delayedSign(): void {
 }
 export const signatureWaiting = (): boolean => releaseSignature !== undefined;
 export async function finishSignature(): Promise<boolean | undefined> { releaseSignature?.(); return lateResult; }
+
+/** Controlled contention uses native IDB and real SDK signing with injected I/O. */
+export async function admissionContention(name: string, phase: 'issuance' | 'admission'): Promise<void> {
+  const storage = await IndexedDbLogoutStore.open(indexedDB, name);
+  let release!: () => void, entered!: () => void;
+  const held = new Promise<void>(resolve => { release = resolve; });
+  const started = new Promise<void>(resolve => { entered = resolve; });
+  let calls = 0;
+  const journal = new PortableLogoutClient(storage, clock, {
+    revoke: async (target, signer) => {
+      calls++;
+      await signer.transformRequest(request(signer, target));
+      return { tag: 'Unavailable', value: { tag: 'Capacity', value: null } };
+    }, dispose: async () => {},
+  }, () => 0);
+  const account = key(81);
+  await journal.start('contention', identity, issuer);
+  const material = { credential: { claims: new Uint8Array([1, 2, 3]),
+    proof: { tag: 'Ed25519' as const, value: new Uint8Array(64) } }, admissionUntilNs: now + 2_000_000_000n };
+  const admission = new PortableAdmissionClient(journal, 'contention', { browser: identity, account }, issuer, {
+    issue: async signer => {
+      await signer.transformRequest(request(signer, issuer));
+      if (phase === 'issuance') { entered(); await held; }
+      return material;
+    }, reconcile: async () => { throw new Error('unexpected second issuance'); },
+    admit: async (target, signer) => {
+      await signer.transformRequest(request(signer, target)); entered(); await held;
+    },
+  });
+  const pending = Promise.allSettled(Array.from({ length: MAX_TARGETS }, () => admission.establish(destination)));
+  try {
+    await started;
+    await admission.establish(destination).then(() => { throw new Error('overflow was admitted'); },
+      error => check(error instanceof ClientError && error.code === 'storage_capacity', 'overflow queued journal work'));
+    const deadline = now + 11_000_000_000n;
+    await journal.begin('contention', deadline);
+    await journal.begin('contention', deadline + 1n);
+    const result = await journal.cleanup('contention', identity);
+    check(result.phase === 'finished' && result.deadlineNs === deadline && result.issuanceUnknown, 'cleanup lost its original state');
+    check(result.targets.every(target => target.confirmedUntilNs === undefined), 'unavailable cleanup fabricated confirmation');
+    check(calls > 0, 'cleanup waited for admission to finish');
+    release();
+    check((await pending).every(result => result.status === 'rejected'), 'late admission restored local capabilities');
+    await rejected(admission.establish(destination));
+  } finally { release(); await pending; storage.close(); }
+}
 
 export interface LiveInput {
   issuer: string; receiver: string; root: string; now: string;

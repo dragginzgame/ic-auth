@@ -6,6 +6,7 @@ import { Endpoint, SubmitRequestType, Expiry, type Identity } from '@tokostudios
 import { Ed25519KeyIdentity } from '@tokostudios/ic-platform/identity';
 import { PortableAdmissionClient, PortableLogoutClient, IndexedDbLogoutStore, ClientError,
   type AdmissionCredential, type PortableAdmissionTransport } from '../src/index.js';
+import { MAX_TARGETS } from '../src/logout-store.js';
 
 const MS = 1_000_000n;
 const identity = Ed25519KeyIdentity.generate(new Uint8Array(32).fill(1));
@@ -48,6 +49,72 @@ async function fixture() {
   const client = () => new PortableAdmissionClient(journal, 'login', { browser: identity, account }, issuer, transport);
   return { factory, store, state, journal, material, transport, client };
 }
+
+for (const phase of ['issuance', 'admission'] as const) {
+  test(`outstanding admission work is bounded before storage and cannot postpone logout during ${phase}`, async t => {
+    const f = await fixture();
+    const entered = deferred<void>();
+    const release = deferred<void>();
+    const client = f.client();
+    let pending: Promise<PromiseSettledResult<Identity>[]> | undefined;
+    try {
+      if (phase === 'issuance') {
+        f.transport.issue = async () => {
+          f.state.issues++; entered.resolve(); await release.promise; return f.material;
+        };
+      } else {
+        f.transport.admit = async () => { entered.resolve(); await release.promise; };
+      }
+      pending = Promise.allSettled(Array.from({ length: MAX_TARGETS }, () => client.establish(a)));
+      await entered.promise;
+      const transact = t.mock.method(f.store, 'transact');
+      const overflow = client.establish(b);
+      assert.equal(transact.mock.callCount(), 0, 'overflow opened a journal transaction');
+      t.mock.restoreAll();
+      await assert.rejects(overflow, (error: unknown) =>
+        error instanceof ClientError && error.code === 'storage_capacity');
+      const deadline = f.state.now + (phase === 'issuance' ? 10_000n : 70_000n) * MS;
+      await f.journal.begin('login', deadline);
+      await f.journal.begin('login', deadline + MS);
+      const state = await f.journal.cleanup('login', identity);
+      assert.equal(state.phase, 'finished');
+      assert.equal(state.deadlineNs, deadline);
+      assert.equal(state.issuanceUnknown, true);
+      assert.ok(state.targets.every(target => target.confirmedUntilNs !== undefined));
+      for (let i = 0; i < 16; i++) await assert.rejects(client.establish(b), ClientError);
+      release.resolve();
+      assert.ok((await pending).every(result => result.status === 'rejected'
+        && result.reason instanceof ClientError && result.reason.code === 'stale_generation'));
+      await assert.rejects(client.establish(b), (error: ClientError) => error.code === 'stale_generation');
+      assert.equal(f.state.issues, 1);
+    } finally { release.resolve(); await pending; f.store.close(); }
+  });
+}
+
+test('timed-out admission saturation releases capacity without clearing issuance uncertainty', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const f = await fixture();
+  const entered = deferred<void>();
+  const client = f.client();
+  let signal: AbortSignal | undefined;
+  try {
+    f.transport.issue = async (_identity, current) => {
+      f.state.issues++; signal = current; entered.resolve(); return new Promise(() => {});
+    };
+    const pending = Promise.allSettled(Array.from({ length: MAX_TARGETS }, () => client.establish(a)));
+    await entered.promise;
+    await f.journal.status('login'); // Drain earlier IDB work before advancing only the network timer.
+    t.mock.timers.tick(5_000);
+    assert.ok((await pending).every(result => result.status === 'rejected'
+      && result.reason instanceof ClientError && result.reason.code === 'timeout'));
+    assert.equal(signal?.aborted, true);
+    assert.equal((await f.journal.status('login')).issuanceUnknown, true);
+    await client.establish(b);
+    assert.equal(f.state.issues, 1);
+    assert.equal(f.state.reconciles, 1);
+    assert.deepEqual(f.state.admissions, [b.toText()]);
+  } finally { f.store.close(); }
+});
 
 test('one issuance serves multiple receivers; each destination is durable before dispatch', async () => {
   const f = await fixture();

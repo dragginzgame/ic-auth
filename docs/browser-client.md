@@ -195,9 +195,8 @@ For Canic's own command envelope, its adapter remains Canic-owned; do not wrap
 Candid in Wire or copy an Auth codec. Freeze the production issuer's exact saved
 request identity, request bytes/grants, original credential and original admission
 deadline before supplying `issue`/`reconcile`. Missing/pruned evidence stays
-unresolved and must not allocate, sign, renew or extend a deadline. Acceptance
-remains in [Auth #3](https://github.com/dragginzgame/ic-auth/issues/3),
-[Canic #491](https://github.com/dragginzgame/canic/issues/491) and
+unresolved and must not allocate, sign, renew or extend a deadline. Production
+issuer acceptance remains in [Canic #491](https://github.com/dragginzgame/canic/issues/491) and
 [Canic #507](https://github.com/dragginzgame/canic/issues/507); the reference SDK
 receiver test does not establish production issuer or browser acceptance.
 
@@ -208,7 +207,16 @@ retrieval. Concurrent calls for one receiver share a bounded in-flight admission
 other receivers proceed independently. Completed calls are not session authority.
 There is no automatic renewal or application-operation retry.
 
-Calls last at most five seconds and receive a cancellation signal and temporary
+One coordinator permits at most 64 outstanding `establish` calls, including
+duplicates waiting for issuance or journal work. Further calls return
+`storage_capacity` before opening another transaction. Each completion, refusal
+or timeout returns its capacity; this does not clear the journal or permit
+reissuance. Reuse a coordinator per login within each tab rather than recreating
+it per call.
+This bounds cooperating application work per coordinator, not arbitrary same-origin
+scripts, other tabs or browser event-loop/storage scheduling.
+
+Network attempts last at most five seconds and receive a cancellation signal and temporary
 identity. Durable generation/lease checks surround signing and completion. Logout
 rejects late results; already signed/accepted requests cannot be recalled.
 Receiver proof expiry, authority, replay, scope and atomicity checks remain mandatory.
@@ -230,6 +238,13 @@ Capacity and uncertain replies do not acknowledge revocation; a final attempt is
 reserved until after the admission window. Crash/reload and suspended tabs share
 the journal. Only authenticated `Revoked` replies acknowledge that destination;
 issuer confirmation does not erase historical unknown issuance.
+
+Call `begin` directly when logout is requested; do not await admission flights
+before invalidating the generation. Repeated `begin` calls keep the original
+deadline, and new admissions cannot extend it after commit. Storage refusal must
+be reported as failure; no client can promise durable logout while its browser
+cannot commit the journal. Cleanup may finish at its deadline with unconfirmed
+destinations and retained unknown issuance; that is not remote revocation success.
 
 `httpLogoutTransport` sends one raw Wire update per attempt using the current
 identity, explicit endpoint and protected gateway/root configuration. SDK
@@ -266,6 +281,9 @@ cleanup lease, reopening and delayed-signature invalidation. Unknown issuance,
 attempt counts and original deadlines survive recovery and unavailable cleanup.
 The SDK case recovers an original injected issuance, admits two devices to two
 receivers, authenticates logout replies and refuses retained keys after logout.
+Controlled contention also holds issuance/admission in flight with 64 callers,
+refuses overflow before journal work, and completes deadline-bounded cleanup
+without awaiting those calls or fabricating remote acknowledgements.
 See [setup](development.md#browser-client-setup) and
 [qualification boundaries](ic-testkit-qualification.md#real-browser-qualification).
 

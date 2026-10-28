@@ -113,6 +113,14 @@ try {
   await unavailable.close();
   console.log('PASS actual Chromium outage: controlled deadline expiry retains unknown issuance and unconfirmed destinations; signing stays invalid');
 
+  for (const phase of ['issuance', 'admission']) {
+    const contended = await page();
+    await contended.evaluate(({ name, phase }) => authFixture.admissionContention(name, phase),
+      { name: `${name}-${phase}`, phase });
+    await contended.close();
+  }
+  console.log('PASS actual Chromium admission contention: bounded queued work; logout during blocked issuance/admission; fixed deadline; no false remote acknowledgement');
+
   const live = await page();
   const result = await live.evaluate(input => authFixture.sdk(input), { issuer, receiver, root, now, credential, peerCredential, subject, until });
   console.log('PASS actual browser SDK: pinned IC root; distinct account/browser signers; original issuance recovery; two receivers/devices; retry lease unchanged; lost logout reply; authenticated acknowledgements; retained-key refusal', JSON.stringify(result));

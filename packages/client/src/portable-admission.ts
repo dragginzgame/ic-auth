@@ -7,6 +7,7 @@ import { credentialBytes, credentialFromBytes } from './codec.js';
 import { defaultMaximumBytes, maximumConfiguredBytes } from './generated/credential.js';
 import type { PortableCredential } from './codec.js';
 import type { PortableLogoutClient } from './logout.js';
+import { MAX_TARGETS } from './logout-store.js';
 
 export interface AdmissionCredential {
   credential: PortableCredential;
@@ -43,6 +44,7 @@ export class PortableAdmissionClient {
   private cached: { bytes: Uint8Array; until: bigint } | undefined;
   private credentialFlight: Promise<{ bytes: Uint8Array; until: bigint }> | undefined;
   private readonly admissions = new Map<string, Promise<Identity>>();
+  private pending = 0;
   private readonly guarded: Identity;
   private readonly caller: string;
   private readonly accountCaller: string;
@@ -122,6 +124,15 @@ export class PortableAdmissionClient {
    * durable logout state at signing; ordinary application calls use receiver guards.
    */
   async establish(target: Principal): Promise<Identity> {
+    // Bound callers before even opening a journal transaction. Destination
+    // deduplication happens later and cannot bound queued issuance/status work.
+    if (this.pending >= MAX_TARGETS) throw new ClientError('storage_capacity');
+    this.pending++;
+    try { return await this.establishTarget(target); }
+    finally { this.pending--; }
+  }
+
+  private async establishTarget(target: Principal): Promise<Identity> {
     if (target.isAnonymous()) throw new ClientError('configuration');
     // SDK Principals expose mutable backing bytes. Own the destination before
     // any await and keep transport objects separate from signing authority.

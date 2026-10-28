@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.19.4] - Unreleased
+
+### 🔧 Changed
+
+- Adopt Shared Tooling 0.27.3 with independently source-bound snapshot checking,
+  report-only unattended maintenance policy and optional compiler-cache catalog
+  support. Auth keeps its existing formatter and cache selection.
+- Adopt IC Tooling 0.69.4 for native tooling and qualification. Refresh prepared
+  release and Testkit executables for the new lock selection; Auth APIs and stored
+  formats are unchanged.
+  [#101 — Adopt Shared Tooling 0.27.3 and IC Tooling 0.69.4](https://github.com/dragginzgame/ic-auth/issues/101).
+
+### 🩹 Fixed
+
+- Bound outstanding private-client admission calls before they queue journal work.
+  Overflow returns `storage_capacity`; completion, refusal and timeout release the
+  capacity. Logout can proceed while issuance or admission remains in flight,
+  retaining uncertain effects and rejecting late results.
+  [#100 — Ensure browser logout makes progress under concurrent admission activity](https://github.com/dragginzgame/ic-auth/issues/100).
+
+### 🧪 Testing
+
+- Qualify anonymous/cheap-refusal floods, shared verification-budget contention
+  and reservation expiry/pruning recovery. Document the remaining shared-capacity
+  and host admission-policy limits; no cryptography, retention rule or server
+  authentication behavior changes.
+  [#99 — Bound admission and reservations without starving other clients](https://github.com/dragginzgame/ic-auth/issues/99).
+
 ## [0.19.3] - 2026-10-28
 
 ### 🔧 Changed
