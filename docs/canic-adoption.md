@@ -6,23 +6,37 @@ is the implementation/acceptance tracker. This document is the current interface
 boundary, not evidence that Canic or Toko have deployed it. Earlier extraction
 checkpoints are retained separately in [adoption history](canic-adoption-history.md).
 
-## Pending session commit migration
+## Session commit contract
 
-Auth 0.19's draft changes the Rust admission, context, lifetime and storage APIs.
+Auth 0.19 changes the Rust admission, context, lifetime and storage APIs.
 Pass a complete credential and `SessionAdmissionContext` to admission; migrate
 custom backends from mutable `SessionTransaction` staging to
 `SessionReader` and `SessionStore::{read, admit, logout}`. Match typed ledger
 state and the explicit `SessionCommit::write` payload, and use checked TTL policy
 values. See the [migration](sessions.md#session-commit-write-migration).
-Stored records, signed bytes and Wire methods are unchanged. Auth's qualification
-callers use the new contract; Canic remains on its published dependency until a
-supplying Auth release is available. This implementation does not establish Canic
-adapter adoption or deployment, retained in
-[Canic #491 — Extract reusable authentication, token and session machinery](https://github.com/dragginzgame/canic/issues/491).
+Stored records, signed bytes and Wire methods are unchanged. Auth 0.19.4 is
+published. Canic 0.112.0 already uses the commit API in its test-only backend;
+[Canic PR #701 — Retain persistent Auth receiver state](https://github.com/dragginzgame/canic/pull/701)
+proposes the retained persistent host component and makes that backend available
+under the existing receiver feature. Its 40 native storage tests, normal
+native/Wasm graphs and package/test Clippy pass. This is proposed storage
+integration, not installed upgrade or production endpoint acceptance; #491
+retains those requirements.
+
+[Canic PR #703 — Bounded Root enrollment and receiver gate](https://github.com/dragginzgame/canic/pull/703)
+is stacked on #701. Its internal producer and receiver installer bind snapshots
+to protected Root/Fleet/receiver identities and a fresh boot challenge, retain
+revision/generation high-water marks and terminal retirements, and atomically
+advance session authority generation. The opaque prepare/fetch/finish pipeline
+holds no mutable receiver borrow during the Root call. Its method identity is
+reserved, not mounted in the Root bundle. Native storage/Wire and compile proofs
+do not establish actual IC authentication, installed upgrade/outage acceptance or
+production activation. Registration/custody approval, refresh scheduling and
+user-facing endpoint wiring remain Canic-owned requirements in #491/#507.
 
 ## Released API and dependency direction
 
-Released Auth 0.18 contains `ic-auth-protocol-types`, `ic-auth` and
+The released Auth 0.19 family contains `ic-auth-protocol-types`, `ic-auth` and
 `ic-auth-wire`. Select matching package releases in the consumer's root catalog;
 no sibling source/path override or copied codec is needed. Auth has no Canic or
 Toko dependency. Rust 1.91 is the common minimum.
@@ -40,7 +54,7 @@ Toko dependency. Rust 1.91 is the common minimum.
   SDK identity, issuer/admission transport and durable logout storage. It does
   not implement wallet login or a production issuer/reconciliation service.
 
-Released Auth 0.18 selects Platform 0.7 and enables only `principal` for passive types.
+Auth selects Platform 0.7 and enables only `principal` for passive types.
 Consumers sharing that owned Rust type must align to Platform 0.7; external
 Agent/Testkit/crypto APIs keep explicit `principal::ExternalPrincipal`
 conversions. Do not select the older upstream Principal identity or downgrade
@@ -85,9 +99,9 @@ verifier, enrollment or endpoint automatically.
 
 ### Canic configuration and endpoint wiring
 
-Source inspection on 2026-10-24 used Canic's working tree based on
-`cf2d3d1fba84a00a76cdbc541ae7e68fe36e9bb5`, including pending 0.112 Wire work.
-These are source findings, not published Canic or installed-receiver acceptance.
+Source inspection on 2026-10-28 used released Canic 0.112.0 at
+`5c236ab130c0d63892ef281b45bdc3fa353e012f` in an isolated checkout.
+These are source findings, not installed-receiver acceptance.
 The existing schema and its parse test accept this stanza for an existing
 `default` component spec:
 
@@ -101,9 +115,11 @@ maximum_session_ttl_secs = 1800
 Canic canonicalizes the scopes and rejects invalid/duplicate scopes and invalid
 TTL bounds; its present maximum is 1,800 seconds. This config declares local
 policy, but does not activate portable login: `access/auth::authorize_local_application`
-still returns a denial, and the Auth-backed `application_sessions/shared` store
-is compiled only for tests. Existing delegated issuer/verifier switches and
-proof install/status APIs do not supply portable issuance or reconciliation.
+still returns a denial. On that base the Auth-backed
+`application_sessions/shared` store is compiled only for tests; PR #701 promotes
+the internal component without opening the facade. Existing delegated
+issuer/verifier switches and proof install/status APIs do not supply portable
+issuance or reconciliation.
 
 Keep local scope/TTL policy separate from Root-authenticated enrollment. The
 latter supplies issuer/key/mechanism, validity and authority revision; a request
@@ -121,7 +137,7 @@ the minimal receiver feature profile from the table above for each actual build;
 runtime configuration alone cannot remove those compiled capabilities. Ed25519
 verification does not imply TEE custody, and neither determines session persistence.
 
-Canic's draft `canic_raw_update(..., wire(id = ..., request = ..., response = ...))`
+Canic's `canic_raw_update(..., wire(id = ..., request = ..., response = ...))`
 path, already used by its Blob adapter, can mount Auth's owner codecs. Select
 matching `ic-auth-wire` alongside the two existing Auth dependencies, and use
 each marker's `NAME`, `ID`, `REQUEST_LIMITS`, `RESPONSE_LIMITS` and concrete codecs.

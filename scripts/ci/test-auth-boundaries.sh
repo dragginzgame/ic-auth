@@ -68,6 +68,12 @@ fi
 if [[ "$BOUNDARY_MODE" == control-candid && "$package" == ic-auth-qualification-contracts ]]; then
     printf 'candid v0.10.38\n'
 fi
+if [[ "$BOUNDARY_MODE" == control-storage && "$package" == ic-auth-qualification-contracts ]]; then
+    printf 'ic-storage v0.53.0\n'
+fi
+if [[ "$BOUNDARY_MODE" == principal-storage && "$package" == ic-auth-protocol-types ]]; then
+    printf 'ic-storage v0.53.0\n'
+fi
 if [[ "$BOUNDARY_MODE" == control-platform-feature && "$package" == ic-auth-qualification-contracts ]]; then
     printf 'ic-platform feature "candid"\n'
 fi
@@ -95,7 +101,7 @@ STUB
 chmod +x "$fixture/bin/"*
 export PATH="$fixture/bin:$root/.tools/host/bin:$PATH"
 export BOUNDARY_EVENTS="$fixture/events"
-for mode in accepted principal-candid principal-executor principal-bls control-candid control-platform-feature wasm-default wasm-combined wasm-capability wasm-portable-bls wasm-certified-candid wasm-certified-ic0 wasm-certified-creation wasm-certified-verifier host-candid host-candid-derive parser executor executor-source host-cdk host-cdk-macros host-platform-feature; do
+for mode in accepted principal-candid principal-executor principal-bls principal-storage control-candid control-storage control-platform-feature wasm-default wasm-combined wasm-capability wasm-portable-bls wasm-certified-candid wasm-certified-ic0 wasm-certified-creation wasm-certified-verifier host-candid host-candid-derive parser executor executor-source host-cdk host-cdk-macros host-platform-feature; do
     export BOUNDARY_MODE="$mode"
     : > "$BOUNDARY_EVENTS"
     status=0

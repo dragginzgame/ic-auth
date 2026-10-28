@@ -1,106 +1,116 @@
 # Current handoff — 2026-10-28
 
-## Delivered base
+## Delivered Auth base
 
-Auth **0.19.3**, `d0eb2cfe10f08cb1d77f5fa7c099c2434107434f`, is pushed with
-[successful complete CI](https://github.com/dragginzgame/ic-auth/actions/runs/40658884476)
-on Linux, Apple Silicon macOS and Intel macOS. The prior eleven trackers and
-Shared/dependency adoption #98 are closed against delivered source and evidence.
-The working tree was clean when the availability work began.
+Auth **0.19.4**, `27c83de897bcfa29b308994bd565eaf9626b16ad`, is pushed;
+the published package was observed in the registry during Canic adoption.
+The preceding availability/tooling evidence is preserved in the
+[release's handoff](https://github.com/dragginzgame/ic-auth/blob/27c83de897bcfa29b308994bd565eaf9626b16ad/docs/status/current.md).
+Auth's integration documentation and dependency-adoption edits remain uncommitted
+for the user; Auth package versions are unchanged.
 
-Selections are Platform/macros **0.7.1**, Host/Build/Testkit **0.69.4**, Memory
-**0.51.13**, Wire/derive **0.7.18**, browser Platform npm **0.1.1** over Core
+Delivered 0.19.4 selections were Platform/macros **0.7.1**, Host/Build/Testkit
+**0.69.4**, Memory **0.51.13**, Wire/derive **0.7.18**, browser Platform npm **0.1.1** over Core
 **6.1.1**, and PocketIC **16.1.0**. Shared source is exact
 `cc81a58a5b2dd287c577cbffd2c576c178b6785c`, VERSION **0.27.3**, **127 files**.
 Rust **1.91** remains the package minimum; development uses **1.99.1**.
 
-## Current Shared and native adoption
+## Pending dependency adoption
 
-[Auth #101 — Adopt Shared Tooling 0.27.3 and IC Tooling 0.69.4](https://github.com/dragginzgame/ic-auth/issues/101)
-records the canonical clean-checkout impact/refresh. The trusted verifier compares
-every payload against the independently selected full source revision above;
-ordinary builds retain offline integrity checks. Optional sccache remains unselected;
-the reviewed unattended report-only policy activates no schedule or host job.
+Current selection: Memory/Storage **0.53.0**, Host/Build/Testkit **0.69.6**,
+Wire/derive **0.7.19**, Platform/macros **0.7.3**. The Memory/Storage root
+requirements are `0.53`; the other compatible ranges remain. Exact Testkit and
+release-editor executables are explicitly prepared; PocketIC stays **16.1.0**.
+[#103](https://github.com/dragginzgame/ic-auth/issues/103) owns the latest batch.
 
-The maintainer's staged lock already selected the five Tooling 0.69.4 packages.
-Those bytes and the entire existing staged patch are preserved exactly. Published
-archive source is `fa3786c86a00e5e9f98a0c729d86bf45a1bd1a82`; package Rust sources
-match 0.69.3, with changed declared dependency floors. Selected Testkit and release
-editor were explicitly prepared. Evidence in `target/adoption-20261028b/` covers
-trusted-source comparison, actual formatting/staged hooks and jobserver, four
-native tooling tests, selected native Clippy and Rust 1.91. All twelve live cases
-and actual Chromium contention/SDK qualification pass with the new selection.
-Local/mocked source/metadata/release/recovery callers also pass. New adoption edits are
-unstaged; the user-owned index and staged availability work remain untouched.
+The unpublished host uses Storage's governed `StableCell` over its one admitted
+Memory allocation. Auth retains its pre-load 128 KiB ceiling, occupied-fresh-state
+refusal and exact checkpoint bytes. Memory 0.53 trusts exclusive backing custody
+between construction/lease-open/growth checks; live cell/detached handles retain
+the backing claim. No raw alias is used during collection access. Public graphs
+and passive Wire controls explicitly refuse Storage. Auth verification, public
+APIs, signed bytes and TEE trust remain unchanged.
 
-## Current availability batch
+Latest Linux evidence: **six** checkpoint cases, **four** native tooling cases,
+external-lock/package refusal fixtures, fixture Clippy with warnings denied,
+release Wasm build, Rust **1.91** host/Wasm check, dependency boundaries/pins and
+fresh browser-contract comparison pass. **Four** installed PocketIC cases also
+pass: certificates/composed roots, certified proof authority after upgrade,
+retained session/denial checkpoints and real signed ingress after upgrade.
+Logs and the prior Wasm remain in `target/persistence-adoption-20261028/`.
 
-Pending **0.19.4** combines compatible tooling adoption, a private-client
-availability fix and targeted server qualification. Auth versions are unchanged.
-No Rust library/runtime, crypto, certificate/delegation checks, protected authority,
-retention policy, signed bytes, Wire/storage format or TEE/non-TEE trust model changes.
+[#102](https://github.com/dragginzgame/ic-auth/issues/102) retains the preceding
+Memory 0.52.1/Tooling 0.69.5 evidence: **11** transport/control, **13** signature,
+**68** browser cases and Rust/TypeScript roundtrips, plus four installed upgrade/
+ingress cases. Its five generated browser files were reviewed; only the Wire
+runtime changed. Earlier logs, including the corrected evidence-directory refusal,
+remain in `target/dependency-adoption-20261028/`. Neither batch establishes Canic
+production adoption or native macOS qualification; no full local CI ran.
 
-[Auth #100 — Ensure browser logout makes progress under concurrent admission activity](https://github.com/dragginzgame/ic-auth/issues/100)
-identified unbounded outstanding client admission entry work before per-destination
-coalescing. `PortableAdmissionClient.establish` now admits at most **64** outstanding
-invocations per coordinator, before journal I/O; overflow returns the existing
-`storage_capacity` error. All completion/error/timeout paths return capacity.
-The bound includes duplicate callers waiting on issuance/status work. Applications
-reuse a coordinator within each tab/login; it is not an origin-wide scheduler or a promise
-against browser main-thread/storage failure. Logout remains independently invoked
-and committed before fan-out; late admissions cannot revive the login.
+## Persistent Canic receiver integration
 
-[Auth #99 — Bound admission and reservations without starving other clients](https://github.com/dragginzgame/ic-auth/issues/99)
-was investigated without the audit's missing detailed report/reproduction. On
-current source, anonymous/cheap refusals cannot consume verification credit or
-reserve admitted-login slots. Invalid cryptographic proofs consume shared credit
-but install no reservations. The new tests demonstrate exhaustion/refill, existing
-session/exact-retry progress, bounded unknown capacity and committed expiry pruning
-that permits another legitimate client. The anonymous/unverified 24-hour admitted
-reservation claim did not reproduce. Unknown logout tombstones have a separate
-pool and protocol-required maximum-login retention; do not shorten them or refund
-failed crypto work. Sustained forged traffic and finite valid-credential capacity
-remain host/issuer admission-policy obligations, without a Sybil-fairness claim.
-See [contention contracts](../sessions.md#availability-under-contention) and
-[client scheduling](../browser-client.md#durable-logout-and-guarded-identities).
+The maintainer selected **persistent receiver integration first**, independently
+of issuer custody. [Canic #491](https://github.com/dragginzgame/canic/issues/491)
+remains the owning integration/acceptance tracker; issuer issuance and lookup-only
+reconciliation remain in [#507](https://github.com/dragginzgame/canic/issues/507).
 
-## Evidence and scope
+[Canic PR #701](https://github.com/dragginzgame/canic/pull/701), source
+`3c559fd6e37f246e0dc8e432139416077e234ddc`, is open from released Canic
+`5c236ab130c0d63892ef281b45bdc3fa353e012f`. Its internal persistent receiver
+component restores the full logout ledger against checkpoint clock/counts,
+retains independent proof/unknown-logout budgets and fences stale owners.
+Bounded owner-mediated maintenance preserves the ledger; returned errors retain
+clock advancement and work charges. Its lock selects published Auth/protocol types
+**0.19.4**. No stored format, signed bytes, verifier or TEE/non-TEE policy changes.
 
-`target/availability-20261028/` retains the pre-fix failing queue-bound tests,
-selected inputs, final runs and earlier setup evidence. Focused checks pass:
+Evidence in `target/canic-integration-20261028/`: **40** focused native
+application-session storage tests, normal native and Wasm receiver graphs without
+dev dependencies, warning-denied package/test Clippy, formatting and local links
+pass. Six new cases use Auth's real Ed25519 verifier. These are native restoration
+and compile proofs, not installed upgrade or certified-proof receiver acceptance.
+The first hosted run exposed missing metadata-editor preparation, a macOS FIFO
+fixture API and a stale embedded peer. The PR repairs all three without bypassing
+admission: the Linux FIFO case, all **17** release-flow cases, CLI Clippy,
+workflow lint and the normal regenerated-peer verifier/corruption case pass.
+Fresh hosted checks remain asynchronous, including both macOS architectures.
 
-- 52 session/revocation cases, including 1,280 anonymous/cheap refusals, two-client
-  budget contention, unknown saturation, failed pruning and legitimate recovery.
-- Selected Rust session-test Clippy; actual Rust/TypeScript vectors and all 68
-  client tests. Reinforced entry tests verify overflow creates zero transactions.
-- Actual Linux Chromium **156.0.8078.4**, native strict IndexedDB and real SDK
-  signing: hold issuance/admission with 64 callers; refuse overflow; commit repeated
-  logout with a fixed deadline; finish injected unavailable cleanup without false
-  acknowledgement; reject late results. Existing crash/reopen/outage and live
-  SDK two-receiver/device revocation cases also pass.
-- Snapshot, formatting, local documentation and diff checks. The client build
-  compiles both the production client and browser harness.
+[Canic PR #703](https://github.com/dragginzgame/canic/pull/703), source
+`0ab0d17398d1896dfed63a79fc83b4d2f695929f`, is stacked on #701. It adds bounded
+Root enrollment snapshots, a persistent monotonic receiver checkpoint and an
+opaque direct-Root prepare/fetch/finish pipeline. Installation binds authority,
+receiver, Fleet and boot challenge; rejects rollback/equivocation and forgotten
+retirements; and atomically advances local session generation with authority
+changes. Restore closes readiness. Snapshot reads write no stable state, and the
+asynchronous pull holds no mutable receiver borrow.
 
-The real-browser contention issuer/transport and lifecycle clock are injected;
-its separate live SDK scenario pins the local IC root and uses prepared native
-credentials. Tests retain known keys deliberately. No production issuer, hardware
-key erasure/TEE or native macOS browser qualification is claimed. The prior Node
-and live fixture evidence retains its own source/dependency identities.
+Passing local evidence: **15** selected enrollment cases (nine new), **two**
+Wire/schema cases, **40** storage cases, **11** state-descriptor cases and **27**
+role-catalog cases; normal base/receiver/Root-only native/Wasm graphs and
+warning-denied Core/Contracts Clippy. Its own embedded peer was regenerated and
+normally verified. These native ownership tests do not poll the IC-call future
+and do not establish IC caller authentication or installed lifecycle acceptance.
+The Root method identity is reserved, not mounted. Both PRs remain open; #491
+records the evidence and remaining acceptance.
 
-The patch is uncommitted. No staging, commit, push, package-version change, full
-local CI, release/publication, deployment or sibling checkout mutation ran. Local
-investigation/fix preparation does not wait for hosted CI or crates.io. Owning
-issues retain precise implementation, remaining limitations and delivery status.
+The isolated clone is `target/canic-integration-20261028/canic` on
+`integration/receiver-enrollment-20261028`. The normal Canic checkout and its
+unrelated work were preserved. Standing cross-repository authority covered its
+scoped commit, topic push, PR and owning-issue evidence; no integration-branch
+push, merge, package-version change, release, publication or deployment ran.
 
-## Preserved decisions and recovery
+## Remaining boundary
 
-Keep the accepted certified verifier and admission cost; no verification cache or
-crypto/trust optimization follows. Earlier profiles remain in
-`target/rust-perf-20261027/` and `target/certified-profile-20261027/` with the
-[operational report](../design/0.6-portable-authentication.md#certified-proof-operational-profile--2026-10-27).
-Canic #491/#507 retain actual host/issuer/store/enrollment and production load
-acceptance. Host writes remain atomic; clock, certification and memory stay owned.
-Platform #50 retains the separate advisory; earlier consolidation is not a fix.
-Preserve all build, failed and `.git/release-state` recovery evidence. The
-[preceding handoff](https://github.com/dragginzgame/ic-auth/blob/d0eb2cfe10f08cb1d77f5fa7c099c2434107434f/docs/status/current.md)
-retains the exact prior adoption and qualification paths.
+The production facade still denies. Root RPC mounting, approved issuer
+registration/key custody, runtime refresh scheduling, lifecycle/Wire endpoint
+wiring and actual persistent upgrade/rollback/outage qualification remain.
+The host must obtain caller/time, supply fresh boot randomness and qualified
+clock-skew/budget policy, and validate fresh enrollment for admission/authorization. Logout
+must remain independent of enrollment expiry. No production policy values or new
+configuration stanza were invented. The private browser client remains unpublished.
+See the [adoption contract](../canic-adoption.md).
+
+Keep the accepted certified verifier and its admission cost. No verification
+cache or crypto/trust optimization follows; the
+[operational profile](../design/0.6-portable-authentication.md#certified-proof-operational-profile--2026-10-27)
+retains that decision. Preserve build and release/recovery evidence. Integration
+status stays in the owning GitHub issues, not a second task queue here.

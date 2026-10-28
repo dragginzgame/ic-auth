@@ -36,7 +36,7 @@ for target in "$native_target" wasm32-unknown-unknown; do
     # Private fixture schemas must stay Wire-only even though the actual host's
     # runtime selects an executor, but neither path requires Candid.
     "${checker[@]}" --package ic-auth-qualification-contracts --target "$target" \
-        --forbid-pattern '^(candid|candid_derive|candid_parser|ic-cdk|ic0|ic-memory|ic-agent|ic-host|ic-build|ic-testkit|pocket-ic|tokio)([- ]|$)' \
+        --forbid-pattern '^(candid|candid_derive|candid_parser|ic-cdk|ic0|ic-memory|ic-storage|ic-agent|ic-host|ic-build|ic-testkit|pocket-ic|tokio)([- ]|$)' \
         --forbid-feature ic-platform/candid
 done
 # Optional crypto packages may be absent; every observed package has at most one

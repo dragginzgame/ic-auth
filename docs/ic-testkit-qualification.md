@@ -108,12 +108,14 @@ protect different integration/trust boundaries; neither replaces the other.
 
 ## Portable session restoration across independent receivers
 
-The checkpoint host uses `ic_memory::testing::FixtureCell` in one explicit
-host-owned runtime/allocation. Auth owns its `AUTHWIR2` Wire payload identity, 128 KiB
-ceiling and checked metadata/session contents. IC Memory owns Cell framing,
-capacity admission and pages. Init creates bounded fresh state; post-upgrade opens
-retained state. Missing, corrupt or unexpectedly occupied state refuses. The raw
-`AUTHQCP1` layout and the later `AUTHCELL` Candid fixture checkpoint are retired
+The checkpoint host uses `ic_storage::adapter::StableCell` with one explicit
+host-owned Memory runtime/allocation. Auth owns its `AUTHNAT1` native-Wire payload
+identity, 128 KiB ceiling and checked metadata/session contents. Memory admits the
+checked allocation and bounded retained-cell envelope; Storage owns collection
+loading/access with the existing substrate bytes. Init requires an empty
+allocation before creating a cell; post-upgrade loads retained state only after
+checking its size. Missing, corrupt or unexpectedly occupied state refuses. The
+raw `AUTHQCP1`, `AUTHCELL` Candid and finite-Wire `AUTHWIR2` layouts are retired
 with maintainer approval, without automatic reset or a second reader.
 Qualification starts fresh and tests repeated current-format upgrades; it does
 not prove historical ledger/image compatibility.

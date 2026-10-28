@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.19.5]
+
+### 🔧 Changed
+
+- Adopt Wire/derive 0.7.19 and Platform/macros 0.7.3. Preserve Auth's public APIs
+  and signed/Wire contracts; refresh the generated browser Wire runtime.
+  [#102 — Adopt Memory, Wire and Platform](https://github.com/dragginzgame/ic-auth/issues/102).
+- Adopt Memory/Storage 0.53.0 and IC Tooling 0.69.6. Use Storage's governed cell
+  adapter in the qualification host, retaining checkpoint bytes, the bounded
+  restore contract and exclusive backing custody. Storage stays outside public
+  libraries; refresh the selected Testkit and release-editor executables.
+  [#103 — Adopt Memory, Storage and Tooling](https://github.com/dragginzgame/ic-auth/issues/103).
+
+### 📚 Documentation
+
+- Update the released session commit contract and Canic integration handoff. Link
+  the proposed persistent receiver and bounded enrollment components; distinguish
+  native storage/Wire/compile evidence from Root RPC mounting, registration,
+  endpoints and installed lifecycle acceptance.
+  [Canic #701 — Retain persistent Auth receiver state](https://github.com/dragginzgame/canic/pull/701),
+  [Canic #703 — Bounded Root enrollment and receiver gate](https://github.com/dragginzgame/canic/pull/703).
+
 ## [0.19.4] - 2026-10-28
 
 ### 🔧 Changed
