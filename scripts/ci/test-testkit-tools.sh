@@ -223,14 +223,24 @@ for scenario in rust frontend delivery boundaries external-boundaries file-pin f
         failed-stage) snapshot_status=37 ;;
     esac
     status=0
-    (cd "$mutant"; TESTKIT_FIXTURE_INPUT_EDIT="$input" TESTKIT_FIXTURE_INPUT_ACTION="$action" \
+    failure_logs="$mutant/target/validation-failures"
+    (cd "$mutant"; VALIDATION_LOG_DIR="$fixture/drift-$scenario-logs" \
+        VALIDATION_FAILURE_LOG_DIR="$failure_logs" \
+        TESTKIT_FIXTURE_INPUT_EDIT="$input" TESTKIT_FIXTURE_INPUT_ACTION="$action" \
         TESTKIT_FIXTURE_SNAPSHOT_STATUS="$snapshot_status" make --no-print-directory -j4 ci) \
         > "$fixture/drift-$scenario.log" 2>&1 || status=$?
     [[ "$status" == 2 && "$(cat "$TESTKIT_FIXTURE_LOG")" == 'snapshot check' && \
        ! -e "$mutant/cargo-dispatch.log" ]] || exit 1
-    rg -F "validation input $input" "$fixture/drift-$scenario.log" > /dev/null || \
-        rg -F "validation input changed: $input" "$fixture/drift-$scenario.log" > /dev/null || exit 1
-    rg -F 'Restart preparation and the full gate against the current inputs' "$fixture/drift-$scenario.log" > /dev/null || exit 1
+    # Nested runners leave raw post-stage diagnostics in retained logs; only
+    # the outermost runner prints final excerpts. Check the evidence itself.
+    drift_log="$failure_logs/latest.log"
+    if ! { rg -F "validation input $input" "$drift_log" > /dev/null || \
+        rg -F "validation input changed: $input" "$drift_log" > /dev/null; } || \
+        ! rg -F 'Restart preparation and the full gate against the current inputs' "$drift_log" > /dev/null; then
+        printf 'Expected input-drift refusal missing for %s; caller log: %s; raw log: %s\n' \
+            "$scenario" "$fixture/drift-$scenario.log" "$drift_log" >&2
+        exit 1
+    fi
     [[ "$scenario" != failed-stage ]] || rg -F 'Error 37' "$fixture/drift-$scenario.log" > /dev/null || exit 1
 done
 

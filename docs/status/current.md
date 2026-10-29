@@ -2,6 +2,14 @@
 
 ## Delivered base and working selections
 
+The maintainer committed the pending batch as `11b23c749255e81a34a12c4e38c49a336f46eae8`.
+Its full gate stopped in `test-testkit-tools`: nested console output omits raw
+input-drift excerpts. [#108](https://github.com/dragginzgame/ic-auth/issues/108)
+fixes the caller to inspect isolated retained logs. The focused nested reproduction
+fails before the patch and the actual validation-runner target passes afterward
+(9 seconds); evidence is in `target/testkit-nested-fix-20261029/`. This fix is
+uncommitted and the full gate has not been rerun. Release recovery is untouched.
+
 Auth **0.20.0**, `6b27ef1bdd4eebd405a2dd161204a840472ce929`, is committed.
 The [release-source handoff](https://github.com/dragginzgame/ic-auth/blob/6b27ef1bdd4eebd405a2dd161204a840472ce929/docs/status/current.md)
 retains prior qualification and Canic contribution evidence. Rust **1.91** remains

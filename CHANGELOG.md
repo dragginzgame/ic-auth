@@ -25,6 +25,12 @@
   (~91%). The reference Wasm is 1,439 bytes smaller. These fixture measurements
   retain live checks and do not establish production workload savings.
 
+### 🩹 Fixed
+
+- Check retained input-drift diagnostics in the Testkit caller fixture so its
+  assertions also work inside the nested CI runner, preserving fail-fast checks.
+  [#108 — Nested Testkit caller checks](https://github.com/dragginzgame/ic-auth/issues/108).
+
 ### ⬆️ Dependencies
 
 - Adopt Shared Tooling 0.27.6 at reviewed commit
