@@ -641,7 +641,7 @@ fn certified_proof_uses_the_shared_session_lifecycle() {
         Ok(SessionEstablished::ExactRetry(session.clone()))
     );
     assert_eq!(
-        authorize_session(&mut store, &mut ledger, &ctx, policy),
+        authorize_session(&mut store, &mut ledger, &ctx, policy, Session::clone),
         Ok(session.clone())
     );
     assert!(matches!(
@@ -654,9 +654,15 @@ fn certified_proof_uses_the_shared_session_lifecycle() {
         ),
         ic_auth_protocol_types::LogoutResult::Revoked { .. }
     ));
-    assert!(authorize_session(&mut store, &mut ledger, &ctx, policy).is_err());
+    assert!(authorize_session(&mut store, &mut ledger, &ctx, policy, Session::clone).is_err());
     assert_eq!(
-        authorize_session(&mut second, &mut second_ledger, &ctx, policy),
+        authorize_session(
+            &mut second,
+            &mut second_ledger,
+            &ctx,
+            policy,
+            Session::clone
+        ),
         Ok(session)
     );
     assert_eq!(

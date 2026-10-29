@@ -270,7 +270,7 @@ fn components(f: &Fixture, caller: Principal, input: &SessionInput) {
     let call = |caller, input: &SessionInput| {
         update_wire::<
             ic_auth_wire::SessionInput,
-            Result<controls::model::CertifiedProfile, controls::Refusal>,
+            Result<controls::model::CertifiedProfile, controls::model::CertifiedProfileFailure>,
         >(
             f.pic.instance(),
             f.resource.into(),
@@ -295,7 +295,10 @@ fn components(f: &Fixture, caller: Principal, input: &SessionInput) {
         eprintln!("certified components sample {sample}: {report:?}");
     }
     assert!(
-        call(Principal::anonymous().into(), input).is_err(),
+        matches!(
+            call(Principal::anonymous().into(), input),
+            Err(controls::model::CertifiedProfileFailure::Verification(_))
+        ),
         "caller binding precedes component results"
     );
     let mut invalid = input.clone();
@@ -304,7 +307,10 @@ fn components(f: &Fixture, caller: Principal, input: &SessionInput) {
     };
     proof.issuer_signature.signature_cbor = Bytes::new(vec![0]).unwrap();
     assert!(
-        call(caller.into(), &invalid).is_err(),
+        matches!(
+            call(caller.into(), &invalid),
+            Err(controls::model::CertifiedProfileFailure::Verification(_))
+        ),
         "complete verification precedes component results"
     );
 }

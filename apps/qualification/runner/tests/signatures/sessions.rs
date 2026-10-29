@@ -789,7 +789,7 @@ pub(super) fn qualify_certified(
         ),
         Ok(SessionEstablished::ExactRetry(_))
     ));
-    assert!(authorize_session(&mut store, &mut ledger, &ctx, p).is_ok());
+    assert!(authorize_session(&mut store, &mut ledger, &ctx, p, |_| ()).is_ok());
     assert!(matches!(
         logout_session(
             &mut store,
@@ -800,7 +800,7 @@ pub(super) fn qualify_certified(
         ),
         LogoutResult::Revoked { .. }
     ));
-    assert!(authorize_session(&mut store, &mut ledger, &ctx, p).is_err());
+    assert!(authorize_session(&mut store, &mut ledger, &ctx, p, |_| ()).is_err());
 }
 
 #[test]

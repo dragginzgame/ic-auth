@@ -139,7 +139,7 @@ fn policy(host: &Receiver) -> SessionPolicy {
         subject_admissible: true,
     }
 }
-fn view(session: Session) -> SessionView {
+fn view(session: &Session) -> SessionView {
     SessionView {
         caller: Bytes::new(session.caller().as_slice().to_vec()).expect("principal bound"),
         issuer: Bytes::new(session.issuer().as_slice().to_vec()).expect("principal bound"),
@@ -278,7 +278,7 @@ fn establish_portable_session(input: SessionInput) -> Result<SessionView, Admiss
         );
         Ok(result
             .map(|result| {
-                view(match result {
+                view(&match result {
                     SessionEstablished::Created(s)
                     | SessionEstablished::Replaced(s)
                     | SessionEstablished::ExactRetry(s) => s,
@@ -309,12 +309,12 @@ fn profile_portable_admission(input: SessionInput) -> AdmissionProfile {
     encode_with = "encode_read"
 )]
 fn portable_session_read() -> Result<SessionView, String> {
-    authorize(&["read".into()]).map(view)
+    authorize(&["read".into()])
 }
 
 // Runtime caller, clock, authority and required scopes are host inputs. Ordinary
 // operations reuse the retained session; they decode no credential or proof.
-fn authorize(required_scopes: &[String]) -> Result<Session, String> {
+fn authorize(required_scopes: &[String]) -> Result<SessionView, String> {
     with_receiver(|host| {
         let policy = policy(host);
         let mut ctx = host.inputs.context(
@@ -322,7 +322,7 @@ fn authorize(required_scopes: &[String]) -> Result<Session, String> {
             ic_platform::cdk::api::time(),
         );
         ctx.required_scopes = required_scopes;
-        authorize_session(&mut host.store, &mut host.ledger, &ctx, policy)
+        authorize_session(&mut host.store, &mut host.ledger, &ctx, policy, view)
             .map_err(|e| e.to_string())
     })
 }
@@ -386,7 +386,10 @@ fn profile_portable_session() -> Result<SessionProfile, String> {
         let caller = ic_platform::cdk::api::msg_caller();
         let session = host
             .store
-            .read(|tx| tx.session(caller))
+            .read(|tx| {
+                tx.session(caller)
+                    .map(|session| session.map(std::borrow::Cow::into_owned))
+            })
             .map_err(|e| e.to_string())?
             .ok_or("no session")?;
         let encoded = session.encode().map_err(|e| e.to_string())?;
@@ -399,7 +402,7 @@ fn profile_portable_session() -> Result<SessionProfile, String> {
         let ctx = host.inputs.context(caller, ic_platform::cdk::api::time());
         let policy = policy(host);
         let start_authorization = ic_platform::ic0::performance_counter(0);
-        authorize_session(&mut host.store, &mut host.ledger, &ctx, policy)
+        authorize_session(&mut host.store, &mut host.ledger, &ctx, policy, view)
             .map_err(|e| e.to_string())?;
         Ok(SessionProfile {
             record_bytes: encoded.len() as u64,

@@ -105,9 +105,7 @@ pub fn verify_canister_signature(
     }
     let key = CanisterSigPublicKey::try_from(proof.public_key_der.as_slice())
         .map_err(|_| CanisterSignatureError::InvalidPublicKey)?;
-    if key.to_der() != proof.public_key_der {
-        return Err(CanisterSignatureError::InvalidPublicKey);
-    }
+    // Platform admits canonical short-form DER before parsing.
     if Principal::from(key.canister_id) != policy.signing_canister {
         return Err(CanisterSignatureError::CanisterMismatch);
     }

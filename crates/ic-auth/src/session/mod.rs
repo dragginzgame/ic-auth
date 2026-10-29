@@ -9,11 +9,6 @@ mod refusal;
 pub use memory::{MemorySessionStore, SessionCommit, SessionPrune, SessionPruned, SessionWrite};
 pub use model::{Replay, Session, SessionLimits, SessionPolicy};
 
-#[cfg(any(
-    feature = "portable-signature-verification",
-    feature = "certified-proof-verification"
-))]
-use crate::portable::validate_claims_context;
 use crate::{
     admission_budget::{AdmissionBudgetError, SessionAdmissionBudget},
     canonical::CanonicalAuthError,
@@ -24,6 +19,12 @@ use crate::{
     session_request::{SessionRequestError, SessionTtlLimit},
 };
 use ic_auth_protocol_types::{AuthRole, LogoutResult, LogoutUnavailable, Principal};
+use std::borrow::Cow;
+#[cfg(any(
+    feature = "portable-signature-verification",
+    feature = "certified-proof-verification"
+))]
+use std::ops::ControlFlow;
 use thiserror::Error;
 
 /// Protected current authority, operation scopes and live session lifetime bound.
@@ -78,7 +79,9 @@ pub struct SessionOccupancy {
 pub trait SessionReader {
     fn generation(&self) -> u64;
     fn limits(&self) -> SessionLimits;
-    fn session(&self, caller: Principal) -> Result<Option<Session>, SessionError>;
+    /// Borrow in-memory records; storage adapters may return an owned decode.
+    /// The value cannot escape the host's read snapshot without copying it.
+    fn session(&self, caller: Principal) -> Result<Option<Cow<'_, Session>>, SessionError>;
     fn replay_exists(&self, fingerprint: [u8; 32]) -> Result<bool, SessionError>;
     fn occupancy(&self, caller: Principal) -> Result<SessionOccupancy, SessionError>;
 }
@@ -221,10 +224,9 @@ pub fn establish_session(
     let decoded = crate::portable::DecodedPortableClaims::decode(&credential.claims)?;
     let claims = &decoded.claims;
     let fingerprint = decoded.fingerprint;
-    if ledger.is_revoked(authority.caller, authority.now_ns)? {
-        return Err(LoginRevocationError::Revoked.into());
-    }
-    let retry = store.read(|tx| {
+    let login = ledger.observe_login(authority.caller, authority.now_ns)?;
+    let admission_expires_at_ns = claims.admission_expires_at_ns;
+    let checked = store.read(|tx| {
         if tx.generation() != policy.generation {
             return Err(SessionError::StaleAuthority);
         }
@@ -237,15 +239,15 @@ pub fn establish_session(
                 return Err(SessionError::ReplayConflict);
             }
             session.check_live(&context, policy)?;
-            session.check_revocation(ledger, authority.now_ns)?;
-            return Ok(Some(session));
+            session.check_revocation(login)?;
+            return Ok(ControlFlow::Break(session.into_owned()));
         }
         if tx.replay_exists(fingerprint)? {
             return Err(SessionError::ReplayConflict);
         }
-        validate_claims_context(claims, claims_context)?;
-        request.evaluate(
-            &claims.grants,
+        let prepared = admission.verification.prepare(decoded)?;
+        let requested_expiry = request.evaluate(
+            &prepared.decoded().claims.grants,
             admission.role,
             authority.now_ns,
             admission.ttl,
@@ -253,15 +255,15 @@ pub fn establish_session(
         let limits = tx.limits();
         limits.validate()?;
         limits.check_capacity(tx.occupancy(authority.caller)?, replacing)?;
-        ledger.check_reservation(authority.caller, claims, authority.now_ns)?;
-        Ok(None)
+        ledger.check_decoded_reservation(authority.caller, prepared.decoded(), authority.now_ns)?;
+        Ok(ControlFlow::Continue((prepared, requested_expiry)))
     })?;
-    if let Some(session) = retry {
-        return Ok(SessionEstablished::ExactRetry(session));
-    }
-    let admission_expires_at_ns = claims.admission_expires_at_ns;
-    let verified = decoded.verify(budget, &credential.proof, &admission.verification)?;
-    let session = Session::admit(&verified, request, &context, policy, admission.ttl)?;
+    let (prepared, requested_expiry) = match checked {
+        ControlFlow::Break(session) => return Ok(SessionEstablished::ExactRetry(session)),
+        ControlFlow::Continue(fresh) => fresh,
+    };
+    let verified = prepared.verify(budget, &credential.proof)?;
+    let session = Session::admit(&verified, request, &context, policy, requested_expiry)?;
     let replay = Replay::new(&session, admission_expires_at_ns);
     ledger.with_reservation(authority.caller, &verified, authority.now_ns, |login| {
         let replacing = store.admit(&session, &replay, login)?;
@@ -275,17 +277,18 @@ pub fn establish_session(
 
 /// Check the caller's local session against current enrollment, generation,
 /// revocation and required scopes. No signature verification or lease extension.
+/// Project the required result inside the host read snapshot without cloning a
+/// full session. The callback runs only after every authorization check passes.
 /// Applications separately enforce resource ownership and effects after awaits.
-pub fn authorize_session(
+pub fn authorize_session<T>(
     store: &mut impl SessionStore,
     ledger: &mut MemoryLoginRevocations,
     context: &SessionContext<'_>,
     policy: SessionPolicy,
-) -> Result<Session, SessionError> {
+    operation: impl FnOnce(&Session) -> T,
+) -> Result<T, SessionError> {
     context.validate(policy, ledger)?;
-    if ledger.is_revoked(context.authority.caller, context.authority.now_ns)? {
-        return Err(LoginRevocationError::Revoked.into());
-    }
+    let login = ledger.observe_login(context.authority.caller, context.authority.now_ns)?;
     store.read(|tx| {
         if tx.generation() != policy.generation {
             return Err(SessionError::StaleAuthority);
@@ -294,14 +297,14 @@ pub fn authorize_session(
             .session(context.authority.caller)?
             .ok_or(SessionError::MissingOrExpired)?;
         session.check_live(context, policy)?;
-        session.check_revocation(ledger, context.authority.now_ns)?;
+        session.check_revocation(login)?;
         if !crate::certificate_issuance::scopes_are_subset(
             context.required_scopes,
             session.scopes(),
         ) {
             return Err(SessionError::ScopeRejected);
         }
-        Ok(session)
+        Ok(operation(&session))
     })
 }
 

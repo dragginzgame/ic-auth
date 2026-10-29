@@ -135,13 +135,14 @@ impl ProfileCertified {
         ic_wire::native::decode_request(Self::ID, bytes, Self::REQUEST_LIMITS)
     }
     pub fn encode_response(
-        value: &Result<model::CertifiedProfile, Refusal>,
+        value: &Result<model::CertifiedProfile, model::CertifiedProfileFailure>,
     ) -> Result<Vec<u8>, ic_wire::Error> {
         ic_wire::native::encode_response(Self::ID, value, Self::RESPONSE_LIMITS)
     }
     pub fn decode_response(
         bytes: &[u8],
-    ) -> Result<Result<model::CertifiedProfile, Refusal>, ic_wire::Error> {
+    ) -> Result<Result<model::CertifiedProfile, model::CertifiedProfileFailure>, ic_wire::Error>
+    {
         ic_wire::native::decode_response(Self::ID, bytes, Self::RESPONSE_LIMITS)
     }
 }

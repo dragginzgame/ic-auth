@@ -322,38 +322,21 @@ impl MemoryLoginRevocations {
         self.audience
     }
 
-    /// A restored session requires its matching live reservation, not just absence
-    /// of a tombstone. Losing the ledger must never revive a retained session.
+    // One observation for a serialized session operation. Missing reservation is
+    // checked after the session's ordinary liveness/authority refusals; denial
+    // still precedes those refusals. This is never retained between operations.
     #[cfg(feature = "sessions")]
-    pub(crate) fn check_session(
+    pub(crate) fn observe_login(
         &mut self,
         caller: Principal,
-        issuer: Principal,
-        subject: Principal,
-        started_at_ns: u64,
-        deadline_ns: u64,
         now_ns: u64,
-    ) -> Result<(), LoginRevocationError> {
+    ) -> Result<Option<LoginBinding>, LoginRevocationError> {
         self.observe(caller, now_ns)?;
-        let record = self
-            .records
-            .get(&caller)
-            .filter(|record| record.until_ns > now_ns)
-            .ok_or(LoginRevocationError::InvalidPolicy)?;
-        if record.revoked() {
+        let record = self.records.get(&caller).filter(|r| r.until_ns > now_ns);
+        if record.is_some_and(|r| r.revoked()) {
             return Err(LoginRevocationError::Revoked);
         }
-        if record.login()
-            != Some(LoginBinding {
-                issuer,
-                subject,
-                started_at_ns,
-                deadline_ns,
-            })
-        {
-            return Err(LoginRevocationError::InvalidPolicy);
-        }
-        Ok(())
+        Ok(record.and_then(|r| r.login()))
     }
 
     /// Physical pool occupancy, including expired entries until bounded pruning.
@@ -382,6 +365,24 @@ impl MemoryLoginRevocations {
         self.reservation(caller, claims, now_ns).map(|_| ())
     }
 
+    #[cfg(all(
+        feature = "sessions",
+        any(
+            feature = "portable-signature-verification",
+            feature = "certified-proof-verification"
+        )
+    ))]
+    pub(crate) fn check_decoded_reservation(
+        &mut self,
+        caller: Principal,
+        decoded: &super::DecodedPortableClaims,
+        now_ns: u64,
+    ) -> Result<(), LoginRevocationError> {
+        self.observe(caller, now_ns)?;
+        self.reservation_checked(caller, &decoded.claims, now_ns)
+            .map(|_| ())
+    }
+
     /// Reserve before committing a fully verified admission's session/replay pair.
     /// The issuer/account and original login window stay unchanged on renewal.
     /// Verified claims must match this ledger domain, caller and current clock.
@@ -398,7 +399,8 @@ impl MemoryLoginRevocations {
         now_ns: u64,
         commit: impl FnOnce(&LoginRevocationChange) -> Result<T, E>,
     ) -> Result<T, E> {
-        let record = self.reservation(caller, verified.claims(), now_ns)?;
+        self.observe(caller, now_ns)?;
+        let record = self.reservation_checked(caller, verified.claims(), now_ns)?;
         if verified.verified_at_ns() != now_ns {
             return Err(LoginRevocationError::InvalidPolicy.into());
         }
@@ -532,6 +534,17 @@ impl MemoryLoginRevocations {
     ) -> Result<Record, LoginRevocationError> {
         self.observe(caller, now_ns)?;
         validate_shape(claims).map_err(|_| LoginRevocationError::InvalidPolicy)?;
+        self.reservation_checked(caller, claims, now_ns)
+    }
+
+    // Only canonical decoded or verified claims can skip static shape checks.
+    // Caller/clock and all mutable ledger state are checked on every operation.
+    fn reservation_checked(
+        &self,
+        caller: Principal,
+        claims: &PortableClaims,
+        now_ns: u64,
+    ) -> Result<Record, LoginRevocationError> {
         let login_deadline_ns = claims.login_deadline_ns;
         if claims.audience != self.audience
             || browser_principal(&claims.browser_public_key) != caller

@@ -96,12 +96,13 @@ impl AuthRole {
     pub fn as_str(&self) -> &str {
         &self.0
     }
-}
 
-impl FromStr for AuthRole {
-    type Err = IdentifierError;
+    /// Recover the validated label without copying its allocation.
+    pub fn into_string(self) -> String {
+        self.0
+    }
 
-    fn from_str(value: &str) -> Result<Self, Self::Err> {
+    fn validate(value: &str) -> Result<(), IdentifierError> {
         if value.is_empty()
             || !value.bytes().all(|b| {
                 b.is_ascii_lowercase() || b.is_ascii_digit() || matches!(b, b'_' | b':' | b'-')
@@ -109,14 +110,57 @@ impl FromStr for AuthRole {
         {
             return Err(IdentifierError::InvalidRole);
         }
+        Ok(())
+    }
+}
+
+impl FromStr for AuthRole {
+    type Err = IdentifierError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        Self::validate(value)?;
         Ok(Self(value.to_owned()))
+    }
+}
+
+impl TryFrom<String> for AuthRole {
+    type Error = IdentifierError;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        Self::validate(&value)?;
+        Ok(Self(value))
     }
 }
 
 impl<'de> Deserialize<'de> for AuthRole {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        String::deserialize(deserializer)?
-            .parse()
-            .map_err(de::Error::custom)
+        Self::try_from(String::deserialize(deserializer)?).map_err(de::Error::custom)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn owned_and_borrowed_roles_keep_the_same_grammar_and_allocation() {
+        for label in ["user", "project_instance", "role:42-a", ""] {
+            let owned = label.to_owned();
+            let allocation = owned.as_ptr();
+            let parsed = AuthRole::try_from(owned);
+            assert_eq!(parsed, label.parse());
+            if let Ok(role) = parsed {
+                let recovered = role.into_string();
+                assert_eq!(recovered, label);
+                assert_eq!(recovered.as_ptr(), allocation);
+            }
+        }
+        for label in ["USER", "a b", "é", "a/b", "a\0b"] {
+            assert_eq!(
+                AuthRole::try_from(label.to_owned()),
+                Err(IdentifierError::InvalidRole)
+            );
+            assert_eq!(label.parse::<AuthRole>(), Err(IdentifierError::InvalidRole));
+        }
     }
 }

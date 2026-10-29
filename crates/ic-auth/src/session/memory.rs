@@ -337,8 +337,14 @@ impl SessionReader for MemorySessionStore {
     fn limits(&self) -> SessionLimits {
         self.limits
     }
-    fn session(&self, caller: Principal) -> Result<Option<Session>, SessionError> {
-        Ok(self.sessions.get(&caller).map(|s| s.value.clone()))
+    fn session(
+        &self,
+        caller: Principal,
+    ) -> Result<Option<std::borrow::Cow<'_, Session>>, SessionError> {
+        Ok(self
+            .sessions
+            .get(&caller)
+            .map(|s| std::borrow::Cow::Borrowed(&s.value)))
     }
     fn replay_exists(&self, fingerprint: [u8; 32]) -> Result<bool, SessionError> {
         Ok(self.replays.contains_key(&fingerprint))

@@ -1,25 +1,80 @@
-# Current handoff — 2026-10-28
+# Current handoff — 2026-10-29
 
 ## Delivered base and working selections
 
-Auth HEAD is **0.19.5**, `100d9b2fe336446d090db4db33a000f35cf55dce`.
-The [release-source handoff](https://github.com/dragginzgame/ic-auth/blob/100d9b2fe336446d090db4db33a000f35cf55dce/docs/status/current.md)
+Auth HEAD is **0.19.6**, `6562624f198262fa5772f9b6a1ddf48d2c42ccd6`.
+The [release-source handoff](https://github.com/dragginzgame/ic-auth/blob/6562624f198262fa5772f9b6a1ddf48d2c42ccd6/docs/status/current.md)
 retains the preceding adoption and Canic contribution evidence. Current source
 still has Rust **1.91** as its package minimum and development Rust **1.99.1**.
 Shared Tooling remains **0.27.3** at exact
 `cc81a58a5b2dd287c577cbffd2c576c178b6785c`, **127 files**.
 
-Memory/Storage **0.53.0**, Platform/macros **0.7.3**, browser Platform **0.1.1**
-over Core **6.1.1**, and PocketIC **16.1.0** remain selected. Incoming lock-only
-Tooling **0.69.7** and Wire/derive **0.7.20** edits are preserved. The browser
-generator was explicitly rerun/reviewed for Wire; all five outputs are unchanged.
-This batch qualifies browser packaging and its generator caller, not all native
-Tooling 0.69.7 callers or an installed fixture on that new graph.
+Current selection: Memory/Storage **0.53.1**, Platform/macros **0.7.4**,
+Host/Build/Testkit **0.69.8**, Wire/derive **0.7.21**, browser Platform **0.1.1**
+over Core **6.1.1**, and PocketIC **16.1.0**. The incoming lock already supplied
+the requested selections; targeted resolution and fetching leave it byte-identical.
+Incoming native TLS AWS LC **1.19.0** / sys **0.47.0** updates are also preserved.
+Incoming Wire 0.7.21 is retained and qualified below; no unpublished override is used.
+
+## Complexity reduction batch
+
+Pending notes select **0.20.0** because the public session read API changes:
+`SessionReader::session` returns `Option<Cow<'_, Session>>`, and
+`authorize_session` takes a projection callback inside the checked read snapshot.
+Memory hosts borrow; durable readers can return owned decoded records. Canic
+must migrate those Rust calls on adoption; no sibling source was edited.
+See [session API](../sessions.md) and [consumer contract](../canic-adoption.md).
+
+Role conversions reuse owned labels. Admission carries canonical/context checks
+and requested expiration through verification; authorization observes login
+binding/denial once. Final mutable reservation checks, atomicity, rejection order,
+crypto checks and signed/public Wire/stored bytes remain. Platform's declared
+minimum is 0.7.4, supplying canonical DER admission in place of Auth's re-encoding.
+The private certified profiler returns typed stage/refusal codes. Valid lifecycle
+test builders and recursive generator-input lists now have shared owners.
+
+Linux release fixture: **2,517,111 → 2,499,590 bytes** (17,521 fewer, ~0.70%).
+Matched ordinary authorization: **8,745 → 6,324 instructions** (~28% fewer).
+The shared CBOR sink alone saves **14,852 bytes**, with **3,309 more instructions**
+(~0.13%) for fresh Ed25519 admission and unchanged authorization. Counting remains
+allocation-free. These are fixture samples, not universal production savings.
+Baseline/current Wasm, focused command logs, failed sandbox startup/subprocess
+attempts and native PocketIC state are retained in `target/complexity-20261029/`.
+A second-test refusal from reusing a PocketIC state root is retained; its isolated
+fresh-state rerun passes. Certified admission/components and real session/browser
+admission/logout/ingress/upgrade and retained checkpoint cases pass. Focused Rust rejection, atomicity,
+record/vector, adversarial feature, contract/doc tests and strict library/fixture/
+runner Clippy pass. The 68 client tests, interoperability and packed consumer pass;
+Wire 0.7.21 regenerates all five browser contracts unchanged. No full CI or release
+was run; source/notes are unstaged, package versions and incoming lock are unchanged.
+
+## Current shared-library adoption
+
+[#105](https://github.com/dragginzgame/ic-auth/issues/105) owns this batch.
+Memory 0.53.1 releases identity claims before destroying their backing allocation,
+including refusal/unwinding, while detached handles retain custody. The 0.53
+validation-boundary contract and stored bytes remain. Platform 0.7.4's new opt-in
+external Candid endpoints/codecs stay disabled on owned public/fixture graphs.
+
+Passing Linux evidence: six checkpoint and four native tooling cases,
+strict host/tooling Clippy, release Wasm, Rust 1.91 host/Wasm check, dependency
+boundaries/pins, package/external-lock refusals, all 68 client tests, Rust/TypeScript
+roundtrips and the packed offline consumer. Its five generated contracts compare
+unchanged. Exact Testkit/release helpers were explicitly prepared and admitted.
+Four installed PocketIC cases pass: certificates/composed roots, certified proof
+authority after upgrade, retained session/denial checkpoints and actual signed
+ingress after upgrade. Evidence is retained in `target/shared-adoption-20261028c/`.
+This is internal fixture qualification, not Canic production or native macOS
+acceptance; the incoming TLS update is not remote TLS endpoint qualification.
+
+The adoption notes/docs remain unstaged and uncommitted; package versions and
+incoming lock bytes are unchanged. No full local CI, source push, publication,
+deployment or sibling source edit was performed.
 
 ## Browser client delivery preparation
 
-The maintainer requested a head start on browser delivery for Canic.
-[#104](https://github.com/dragginzgame/ic-auth/issues/104) owns the Auth changes.
+Auth 0.19.6 delivers the browser preparation from
+[#104](https://github.com/dragginzgame/ic-auth/issues/104).
 `make pack-client` produces a local npm archive; `make test-client-package`
 also installs and qualifies a disposable offline consumer. The package check is
 part of `make test-client`. Explicit client/file-tool preparation is required;
@@ -46,27 +101,18 @@ sandbox subprocess refusal is retained;
 native execution passes. These are package/client proofs, not real browser,
 production issuer, installed Canic or native macOS acceptance.
 
-The edits are unstaged/uncommitted; Auth/npm versions are unchanged. No upload,
-publication, deployment, merge, sibling edit or full local CI was performed.
+Current shared-library qualification produces a new dirty-source candidate under
+`target/browser-client-packages/package.P15W7k/`; no npm upload occurred.
 See [client delivery](../browser-client.md#local-archive-delivery).
 
 ## Prior dependency qualification
 
 [#103](https://github.com/dragginzgame/ic-auth/issues/103) retains Memory/Storage
-0.53.0 and Tooling 0.69.6 evidence: six checkpoint cases, four native tooling
-cases, package/lock refusals, strict fixture Clippy, release/MSRV Wasm, graph
-checks and four installed certificate/upgrade/ingress cases. The host uses one
-Memory-admitted allocation and Storage's governed cell, retaining the 128 KiB
-pre-load ceiling and exact bytes. Memory 0.53 trusts exclusive backing custody
-between construction/lease-open/growth checks. Restore remains closed until
-fresh protected authority; no raw aliases are used during collection access.
-Evidence and the previous Wasm remain in `target/persistence-adoption-20261028/`.
-
-[#102](https://github.com/dragginzgame/ic-auth/issues/102) retains earlier
-Wire/Platform and Memory 0.52.1/Tooling 0.69.5 evidence, including the original
-68 browser tests, transport/signature checks and four installed cases. Its
-retained corrected evidence-directory failure is not a runtime defect.
-Historical logs remain in `target/dependency-adoption-20261028/`.
+0.53.0 and Tooling 0.69.6 checkpoint/lock/graph/MSRV/installed evidence in
+`target/persistence-adoption-20261028/`. [#102](https://github.com/dragginzgame/ic-auth/issues/102)
+retains the earlier Wire/Platform and Memory 0.52.1/Tooling 0.69.5 evidence in
+`target/dependency-adoption-20261028/`. Prior logs/Wasm and corrected-attempt
+failures remain; the release-source handoff above records their boundaries.
 
 ## Canic integration boundary
 

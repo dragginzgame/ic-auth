@@ -6,10 +6,7 @@ use crate::session_request::check_scopes;
     feature = "portable-signature-verification",
     feature = "certified-proof-verification"
 ))]
-use crate::{
-    portable::VerifiedPortableClaims,
-    session_request::{SessionRequest, SessionTtlPolicy},
-};
+use crate::{portable::VerifiedPortableClaims, session_request::SessionRequest};
 use ic_auth_protocol_types::{AudienceId, AuthRole, PortableMechanism, Principal};
 #[cfg(feature = "session-restore")]
 use serde::Deserialize;
@@ -232,7 +229,7 @@ impl Session {
         request: &SessionRequest,
         ctx: &SessionContext<'_>,
         policy: SessionPolicy,
-        ttl: SessionTtlPolicy,
+        requested_expiry: u64,
     ) -> Result<Self, SessionError> {
         let claims = verified.claims();
         let session = Self(SessionData {
@@ -248,26 +245,24 @@ impl Session {
             login_started_at_ns: claims.login_started_at_ns,
             login_deadline_ns: claims.login_deadline_ns,
             established_at_ns: ctx.authority.now_ns,
-            expires_at_ns: verified.session_expires_at_ns(request, ctx.role, ttl)?,
+            expires_at_ns: verified.clamp_session_expiry(requested_expiry),
             fingerprint: verified.fingerprint(),
             request_hash: request.hash(),
         });
         session.check_live(ctx, policy)?;
         Ok(session)
     }
-    pub(super) fn check_revocation(
-        &self,
-        ledger: &mut crate::portable::MemoryLoginRevocations,
-        now_ns: u64,
-    ) -> Result<(), SessionError> {
-        ledger.check_session(
-            self.0.caller,
-            self.0.issuer,
-            self.0.subject,
-            self.0.login_started_at_ns,
-            self.0.login_deadline_ns,
-            now_ns,
-        )?;
+    pub(super) fn check_revocation(&self, login: Option<LoginBinding>) -> Result<(), SessionError> {
+        if login
+            != Some(LoginBinding {
+                issuer: self.0.issuer,
+                subject: self.0.subject,
+                started_at_ns: self.0.login_started_at_ns,
+                deadline_ns: self.0.login_deadline_ns,
+            })
+        {
+            return Err(crate::portable::LoginRevocationError::InvalidPolicy.into());
+        }
         Ok(())
     }
     pub(super) fn check_live(

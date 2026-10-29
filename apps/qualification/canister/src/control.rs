@@ -62,4 +62,4 @@ bind!(ProfileAdmission, ic_auth_wire::SessionInput, value controls::model::Admis
 bind!(EnableCheckpoint, (), result());
 bind!(ConfirmAuthority, controls::model::ReceiverConfig, result());
 bind!(SetSessionAsset, u64, result());
-bind!(ProfileCertified, ic_auth_wire::SessionInput, result controls::model::CertifiedProfile);
+bind!(ProfileCertified, ic_auth_wire::SessionInput, value Result<controls::model::CertifiedProfile, controls::model::CertifiedProfileFailure>);

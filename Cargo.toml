@@ -28,7 +28,7 @@ ic-auth-protocol-types = { version = "0.19.6", path = "crates/ic-auth-protocol-t
 ic-auth-wire = { version = "0.19.6", path = "crates/ic-auth-wire" }
 # Platform owns Principal and imported signature code; other crypto identities stay upstream.
 # Principal is explicit; protocol, portable and session consumers need no IC runtime.
-ic-platform = { version = "0.7.0", default-features = false }
+ic-platform = { version = "0.7.4", default-features = false }
 # Host generation uses the explicit diagnostic callback introduced in 0.7.11.
 ic-wire = "0.7.11"
 leb128 = "0.2"

@@ -11,7 +11,11 @@ checkpoints are retained separately in [adoption history](canic-adoption-history
 Auth 0.19 changes the Rust admission, context, lifetime and storage APIs.
 Pass a complete credential and `SessionAdmissionContext` to admission; migrate
 custom backends from mutable `SessionTransaction` staging to
-`SessionReader` and `SessionStore::{read, admit, logout}`. Match typed ledger
+`SessionReader` and `SessionStore::{read, admit, logout}`. The pending Auth 0.20
+API returns `Option<Cow<'_, Session>>` from the reader and requires a projection
+callback on `authorize_session`; borrow a retained memory record or return
+`Cow::Owned` for a bounded persistent decode. Project the account/view inside the
+snapshot, before any await. Public Wire and checkpoint bytes are unchanged. Match typed ledger
 state and the explicit `SessionCommit::write` payload, and use checked TTL policy
 values. See the [migration](sessions.md#session-commit-write-migration).
 Stored records, signed bytes and Wire methods are unchanged. Auth 0.19.4 is

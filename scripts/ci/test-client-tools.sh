@@ -163,6 +163,9 @@ echo 'Actual client CI pipeline: selected-prefix activation, later-step admissio
 consumer="$fixture/rust-contracts"
 mkdir -p "$consumer/scripts/dev" "$consumer/packages/client/src/generated" "$consumer/bin"
 cp "$root/scripts/dev/client-contracts.sh" "$consumer/scripts/dev/"
+mkdir -p "$consumer/ci" "$consumer/apps/tooling/src/nested" "$consumer/crates/ic-auth-protocol-types/src" "$consumer/crates/ic-auth-wire/src"
+cp "$root/ci/client-generator-inputs.txt" "$consumer/ci/"
+printf 'nested source\n' > "$consumer/apps/tooling/src/nested/ignored.rs"
 cat > "$consumer/scripts/dev/client-tools.sh" <<'SCRIPT'
 #!/usr/bin/env bash
 exit 89
@@ -178,7 +181,7 @@ set -eu
 [[ "$1" == hash-files0 ]]
 while IFS= read -r -d '' path; do
     printf '%s\0' "$path"
-    case "$path" in Cargo.toml|.cargo/config.toml) cksum "$path" ;; esac
+    case "$path" in Cargo.toml|.cargo/config.toml|apps/tooling/src/nested/ignored.rs) cksum "$path" ;; esac
 done
 SCRIPT
 cat > "$consumer/bin/cargo" <<'SCRIPT'
@@ -216,7 +219,7 @@ rg -F 'differs from the locked generator' "$fixture/contracts-stale.log" > /dev/
 echo 'Rust-only contract generation, comparison and effect-free stale refusal passed (substituted Rust effects)'
 # A change during compilation or generation must refuse before publishing either
 # tracked contracts or interoperability vectors. This catches sealing too late.
-for input in Cargo.toml .cargo/config.toml; do
+for input in Cargo.toml .cargo/config.toml apps/tooling/src/nested/ignored.rs; do
     for stage in build generate; do
         for mode in generate check; do
             printf 'original source\n' > "$consumer/Cargo.toml"

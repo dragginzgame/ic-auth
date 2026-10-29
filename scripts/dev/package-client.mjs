@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, mkdtempSync, lstatSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { basename, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { qualifyClientPackage } from '../ci/check-client-package.mjs';
@@ -29,11 +29,9 @@ function command(file, args, cwd = root, input) {
 }
 // Seal tracked/new inputs plus the actual compiler source trees, including
 // ignored source files. Build outputs and moving sibling inputs are excluded.
-const paths = ['Cargo.toml', 'Cargo.lock', 'Makefile', '.cargo/config.toml', 'rust-toolchain.toml', 'LICENSE',
-  'packages/client', 'crates/ic-auth-protocol-types', 'crates/ic-auth-wire', 'apps/tooling',
-  'scripts/dev/client-contracts.sh', 'scripts/dev/client-tools.sh', 'scripts/dev/client-toolchain.sh',
+const generatorPaths = readFileSync(resolve(root, 'ci/client-generator-inputs.txt'), 'utf8').trimEnd().split('\n');
+const paths = [...generatorPaths, 'Makefile', 'LICENSE', 'packages/client', 'scripts/dev/client-tools.sh', 'scripts/dev/client-toolchain.sh',
   'scripts/dev/package-client.sh', 'scripts/dev/package-client.mjs', 'scripts/dev/test-client.sh',
-  'scripts/dev/run-host-file.sh', 'scripts/dev/host-file-tools.sh', 'ci/host-file.env',
   'scripts/ci/check-client-package.mjs', 'scripts/ci/check-ic-sdk-boundary.mjs'];
 function inputPaths() {
   const observed = command('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard', '--', ...paths])
@@ -45,8 +43,10 @@ function inputPaths() {
       else observed.push(child); // Host admission refuses symbolic links.
     }
   }
-  for (const path of ['packages/client/src', 'packages/client/fixtures', 'apps/tooling/src',
-    'crates/ic-auth-protocol-types/src', 'crates/ic-auth-wire/src']) sources(path);
+  for (const path of [...generatorPaths, 'packages/client/src', 'packages/client/fixtures']) {
+    if (lstatSync(resolve(root, path)).isDirectory()) sources(path);
+    else observed.push(path);
+  }
   for (const name of ['package.json', 'package-lock.json', 'README.md', 'LICENSE', 'tsconfig.json', 'tsconfig.package.json', '.nvmrc']) {
     observed.push(`packages/client/${name}`);
   }

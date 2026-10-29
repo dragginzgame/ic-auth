@@ -66,10 +66,10 @@ impl Field<domain::CanonicalId> for [u8; 32] {
 }
 impl Field<domain::AuthRole> for Text<MAX_LABEL_BYTES> {
     fn from_domain(value: domain::AuthRole) -> Result<Self, Error> {
-        Self::new(value.as_str().to_owned())
+        Self::new(value.into_string())
     }
     fn into_domain(self) -> Result<domain::AuthRole, Error> {
-        self.as_str().parse().map_err(|_| Error::Malformed)
+        domain::AuthRole::try_from(self.into_string()).map_err(|_| Error::Malformed)
     }
 }
 // One declaration owns each Serde transport field and both typed

@@ -520,3 +520,32 @@ fn verifies_upstream_subnet_range_formats_and_rejects_unapproved_or_nested_deleg
         Err(Error::InvalidSignature(_))
     ));
 }
+
+#[test]
+fn platform_der_admission_preserves_the_removed_roundtrip_guard() {
+    // Check the supplier boundary independently of full certificate verification:
+    // every admitted one-byte mutation must still be an exact canonical encoding.
+    for principal_len in [0, 1, 29] {
+        for seed_len in [0, 1, 32, 109 - principal_len] {
+            let original = CanisterSigPublicKey::new(
+                Principal::from_slice(&vec![1; principal_len]).into(),
+                vec![7; seed_len],
+            )
+            .to_der();
+            assert!((20..=129).contains(&original.len()));
+            for offset in 0..original.len() {
+                let mut bytes = original.clone();
+                for byte in 0..=u8::MAX {
+                    bytes[offset] = byte;
+                    if let Ok(parsed) = CanisterSigPublicKey::try_from(bytes.as_slice()) {
+                        assert_eq!(
+                            parsed.to_der(),
+                            bytes,
+                            "noncanonical DER admitted at {offset}"
+                        );
+                    }
+                }
+            }
+        }
+    }
+}

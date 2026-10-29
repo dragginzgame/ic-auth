@@ -60,10 +60,16 @@ impl VerifiedPortableClaims {
         policy: SessionTtlPolicy,
     ) -> Result<u64, SessionRequestError> {
         let requested = request.evaluate(&self.claims.grants, role, self.verified_at_ns, policy)?;
-        Ok(requested
+        Ok(self.clamp_session_expiry(requested))
+    }
+
+    // Only the engine supplies a request already evaluated for this same
+    // immutable claim set and protected snapshot, before expensive verification.
+    pub(crate) fn clamp_session_expiry(&self, requested: u64) -> u64 {
+        requested
             .min(self.claims.login_deadline_ns)
             .min(self.authority_expires_at_ns)
-            .min(self.enrollment_expires_at_ns))
+            .min(self.enrollment_expires_at_ns)
     }
 
     pub fn claims(&self) -> &PortableClaims {

@@ -23,3 +23,39 @@ impl DecodedPortableClaims {
         })
     }
 }
+
+/// Static/context checks for this exact owned decode and protected snapshot.
+/// Still unauthenticated; only the complete proof verifier can authenticate it.
+pub(crate) struct ContextualClaims<'a, 'ctx> {
+    decoded: DecodedPortableClaims,
+    context: &'a super::PortableClaimsContext<'ctx>,
+}
+
+impl DecodedPortableClaims {
+    pub(crate) fn validate_context<'a, 'ctx>(
+        self,
+        context: &'a super::PortableClaimsContext<'ctx>,
+    ) -> Result<ContextualClaims<'a, 'ctx>, super::PortableClaimsError> {
+        super::rules::validate_decoded_context(&self.claims, context)?;
+        Ok(ContextualClaims {
+            decoded: self,
+            context,
+        })
+    }
+}
+
+impl<'a, 'ctx> ContextualClaims<'a, 'ctx> {
+    #[cfg(feature = "sessions")]
+    pub(crate) fn decoded(&self) -> &DecodedPortableClaims {
+        &self.decoded
+    }
+
+    pub(crate) fn into_parts(
+        self,
+    ) -> (
+        DecodedPortableClaims,
+        &'a super::PortableClaimsContext<'ctx>,
+    ) {
+        (self.decoded, self.context)
+    }
+}

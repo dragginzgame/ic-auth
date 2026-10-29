@@ -66,6 +66,14 @@ fresh browser principals and independent sessions. Quotas count browser callers,
 not account subjects. Ingress delegation preserving one principal is not a new
 login identity.
 
+`authorize_session(..., |session| (session.issuer(), session.subject()))`
+projects a result only after all checks pass, inside the host read snapshot.
+Use `|session| session.clone()` only when a complete owned record is required.
+`SessionReader::session` returns `Option<Cow<'_, Session>>`: memory stores borrow
+records, while persistent adapters may return `Cow::Owned` after bounded decoding.
+A reference cannot escape `SessionStore::read`; authorization decisions must still
+be repeated after an await before protected effects.
+
 `authorize_session` uses the runtime caller and protected current authority,
 generation, eligibility and required scopes. It checks the retained login
 reservation, revocation and lease without cryptography or network calls.
@@ -78,12 +86,11 @@ an await.
 ## Atomicity and logout
 
 The host MUST serialize the entire engine call with authority updates and ledger
-operations, without await or reentrancy. `SessionStore::transaction` must commit
-all staged session/replay/index and proposed login-record changes or leave them
-unchanged. Its new `login_change` argument is `None` for reads and
-`Some(&LoginRevocationChange)` for admission/logout. Ledger commit callbacks now
-receive that read-only proposed record, including caller, domain, retention,
-pool and immutable account/login binding. Durable hosts must persist it in the
+operations, without await or reentrancy. `SessionStore::admit` and `logout` must
+commit all session/replay/index and proposed login-record changes or leave them
+unchanged. `read` exposes a read-only snapshot and performs no persistence.
+Ledger commit callbacks receive the proposed record, including caller, domain,
+retention, pool and immutable account/login binding. Durable hosts must persist it in the
 same transaction; it is not a reusable credential or authority snapshot.
 
 The ledger's `with_reservation<T, E>` and `with_revocation<E>` return the commit

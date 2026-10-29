@@ -15,8 +15,8 @@ use crate::{
         rules::check_proof_size,
     },
     portable::{
-        DecodedPortableClaims, PortableClaimsContext, PortableClaimsError, PortableEncodingError,
-        VerifiedPortableClaims, validate_claims_context,
+        ContextualClaims, DecodedPortableClaims, PortableClaimsContext, PortableClaimsError,
+        PortableEncodingError, VerifiedPortableClaims,
     },
 };
 use ic_auth_protocol_types::{
@@ -151,33 +151,51 @@ pub(crate) fn verify_decoded(
     issuer_signature: &IcCanisterSignatureProofV1,
     context: &PortableCertifiedContext<'_>,
 ) -> Result<VerifiedPortableClaims, PortableCertifiedError> {
+    verify_prepared(
+        budget,
+        decoded.validate_context(&context.claims)?,
+        delegation,
+        issuer_signature,
+        context,
+    )
+}
+
+pub(crate) fn verify_prepared(
+    budget: &mut SessionAdmissionBudget,
+    checked: ContextualClaims<'_, '_>,
+    delegation: &DelegationProof,
+    issuer_signature: &IcCanisterSignatureProofV1,
+    context: &PortableCertifiedContext<'_>,
+) -> Result<VerifiedPortableClaims, PortableCertifiedError> {
     let limits = context.limits;
-    let DecodedPortableClaims {
-        claims,
-        fingerprint,
-        ..
-    } = decoded;
-    validate_claims_context(&claims, &context.claims)?;
+    let (
+        DecodedPortableClaims {
+            claims,
+            fingerprint,
+            ..
+        },
+        claims_context,
+    ) = checked.into_parts();
     let prepared = PreparedDelegationProof::new(delegation)?;
     let cert = &delegation.cert;
     if prepared.certificate_hash() != claims.key_binding_id
-        || cert.issuer_pid != context.claims.authority.issuer
-        || cert.aud != DelegationAudience::Fleet(*context.claims.authority.audience)
+        || cert.issuer_pid != claims_context.authority.issuer
+        || cert.aud != DelegationAudience::Fleet(*claims_context.authority.audience)
         || !grants_are_subset(&claims.grants, &cert.grants)
         || claims.issued_at_ns < cert.not_before_ns
         || claims.admission_expires_at_ns > cert.expires_at_ns
         || claims.admission_expires_at_ns - claims.issued_at_ns > cert.max_token_ttl_ns
-        || context.claims.authority.authority_not_before_ns < cert.not_before_ns
-        || context.claims.authority.authority_expires_at_ns
+        || claims_context.authority.authority_not_before_ns < cert.not_before_ns
+        || claims_context.authority.authority_expires_at_ns
             > cert.expires_at_ns.min(context.root_key.accept_until_ns)
     {
         return Err(PortableCertifiedError::BindingMismatch);
     }
-    budget.consume(context.claims.authority.now_ns)?;
+    budget.consume(claims_context.authority.now_ns)?;
     prepared.verify(&DelegationProofVerificationContext {
-        expected_issuer: context.claims.authority.issuer,
+        expected_issuer: claims_context.authority.issuer,
         root_key: context.root_key,
-        now_ns: context.claims.authority.now_ns,
+        now_ns: claims_context.authority.now_ns,
         limits: limits.into(),
     })?;
     let IssuerProofBinding::IcCanisterSignatureV1 { seed_hash } = cert.issuer_proof_binding;
@@ -186,10 +204,10 @@ pub(crate) fn verify_decoded(
         &message,
         issuer_signature,
         &CanisterSignaturePolicy {
-            signing_canister: context.claims.authority.issuer,
+            signing_canister: claims_context.authority.issuer,
             seed_hash,
             ic_root_public_key_raw: context.ic_root_public_key_raw,
-            now_ns: context.claims.authority.now_ns,
+            now_ns: claims_context.authority.now_ns,
             max_certificate_age_ns: limits.max_certificate_age_ns,
             max_future_skew_ns: 0,
             max_signature_bytes: limits.max_issuer_signature_bytes,
@@ -199,6 +217,6 @@ pub(crate) fn verify_decoded(
     Ok(VerifiedPortableClaims::new(
         claims,
         fingerprint,
-        &context.claims,
+        claims_context,
     ))
 }

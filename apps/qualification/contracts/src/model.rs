@@ -68,3 +68,22 @@ pub struct CertifiedProfile {
     pub certificate_bytes: u64,
     pub subnet_certificate_bytes: u64,
 }
+
+/// Stage of a refused component probe. Complete verification remains mandatory;
+/// these codes are diagnostics, never partial authentication results.
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub enum CertifiedProfileFailure {
+    Credential,
+    ReceiverUnavailable,
+    CertifiedReceiverRequired,
+    CertifiedCredentialRequired,
+    Verification(ic_auth_wire::model::AdmissionRefusal),
+    RootDelegation,
+    MessageFraming,
+    IssuerSignature,
+    CertificateDecode,
+    SubnetBls,
+    SubnetKeyMissing,
+    SubnetKeyDecode,
+    SigningBls,
+}

@@ -1,13 +1,13 @@
 #![cfg(feature = "portable-signature-verification")]
 
+mod support;
+
 use ic_auth::portable::{
     LoginRevocationError as Error, MemoryLoginRevocations, PortableClaimsContext,
     VerifiedPortableClaims, browser_principal, claims_hash, encode_claims,
 };
 use ic_auth::portable_signature::verify_ed25519_claims;
-use ic_auth_protocol_types::{
-    AudienceId, CanonicalId, DelegatedRoleGrant, PortableClaims, PortableMechanism, Principal,
-};
+use ic_auth_protocol_types::{AudienceId, CanonicalId, PortableClaims, Principal};
 use ic_platform::ed25519::{Signer, SigningKey};
 use sha2::{Digest, Sha256};
 
@@ -23,27 +23,14 @@ fn browser_key(n: u64) -> [u8; 32] {
         .to_bytes()
 }
 fn claims(n: u64, deadline: u64, now: u64) -> PortableClaims {
-    PortableClaims {
-        audience: audience(),
-        mechanism: PortableMechanism::Ed25519,
-        issuer: Principal::from_slice(&[1]),
-        account_subject: Principal::from_slice(&[2]),
-        key_binding_id: Sha256::digest(
-            SigningKey::from_bytes(&[42; 32]).verifying_key().to_bytes(),
-        )
-        .into(),
-        browser_public_key: browser_key(n),
-        login_started_at_ns: deadline.saturating_sub(1000),
-        login_deadline_ns: deadline,
-        issued_at_ns: now,
-        admission_expires_at_ns: (now + 1).min(deadline),
-        nonce: [0; 16],
-        grants: vec![DelegatedRoleGrant {
-            target: "user".parse().unwrap(),
-            scopes: vec!["read".into()],
-        }],
-    }
+    let mut claims = support::claims(browser_key(n));
+    claims.login_started_at_ns = deadline.saturating_sub(1000);
+    claims.login_deadline_ns = deadline;
+    claims.issued_at_ns = now;
+    claims.admission_expires_at_ns = (now + 1).min(deadline);
+    claims
 }
+
 fn verify(c: &PortableClaims, now: u64) -> VerifiedPortableClaims {
     verify_with_budget(c, now, &mut budget()).unwrap()
 }
@@ -52,7 +39,7 @@ fn verify_with_budget(
     now: u64,
     budget: &mut ic_auth::admission_budget::SessionAdmissionBudget,
 ) -> Result<VerifiedPortableClaims, ic_auth::portable_signature::PortableSignatureError> {
-    let key = SigningKey::from_bytes(&[42; 32]);
+    let key = support::issuer_key();
     let signature = key.sign(&claims_hash(c).unwrap()).to_bytes();
     let context = PortableClaimsContext {
         authority: ic_auth::portable::PortableAuthority {

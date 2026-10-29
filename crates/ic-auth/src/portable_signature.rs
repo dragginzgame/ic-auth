@@ -7,8 +7,8 @@
 
 use crate::admission_budget::{AdmissionBudgetError, SessionAdmissionBudget};
 use crate::portable::{
-    DecodedPortableClaims, PortableClaimsContext, PortableClaimsError, PortableEncodingError,
-    VerifiedPortableClaims, validate_claims_context,
+    ContextualClaims, DecodedPortableClaims, PortableClaimsContext, PortableClaimsError,
+    PortableEncodingError, VerifiedPortableClaims,
 };
 use ic_auth_protocol_types::PortableMechanism;
 use ic_platform::ed25519::{Scalar, Signature, VerifyingKey};
@@ -71,15 +71,34 @@ pub(crate) fn verify_decoded(
     context: &PortableClaimsContext<'_>,
     public_key: &[u8; 32],
 ) -> Result<VerifiedPortableClaims, PortableSignatureError> {
-    let DecodedPortableClaims {
-        claims,
-        fingerprint,
-        ..
-    } = decoded;
     if context.authority.mechanism != PortableMechanism::Ed25519 {
         return Err(PortableClaimsError::MechanismMismatch.into());
     }
-    validate_claims_context(&claims, context)?;
+    verify_prepared(
+        budget,
+        decoded.validate_context(context)?,
+        signature,
+        public_key,
+    )
+}
+
+pub(crate) fn verify_prepared(
+    budget: &mut SessionAdmissionBudget,
+    prepared: ContextualClaims<'_, '_>,
+    signature: &[u8],
+    public_key: &[u8; 32],
+) -> Result<VerifiedPortableClaims, PortableSignatureError> {
+    let (
+        DecodedPortableClaims {
+            claims,
+            fingerprint,
+            ..
+        },
+        context,
+    ) = prepared.into_parts();
+    if context.authority.mechanism != PortableMechanism::Ed25519 {
+        return Err(PortableClaimsError::MechanismMismatch.into());
+    }
     let key_id: [u8; 32] = Sha256::digest(public_key).into();
     if context.authority.key_binding_id != key_id {
         return Err(PortableClaimsError::KeyMismatch.into());

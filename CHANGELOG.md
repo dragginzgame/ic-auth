@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.20.0]
+
+### 🔧 Changed
+
+- Hard-cut session reads to `Cow<Session>` and authorization to a checked
+  snapshot callback. In-memory hosts project account identity/views without
+  cloning role/scope buffers; persistent readers can still return owned records.
+  Consumers must update `SessionReader::session` and pass the projection to
+  `authorize_session`. Signed claims, public Wire and retained storage bytes stay
+  unchanged.
+- Reuse owned role labels, static/context claim admission and request evaluation;
+  consult login denial/binding once per authorization. Keep final reservation
+  state, independent public checks, refusal ordering and verification charging.
+- Require Platform 0.7.4 and use its canonical DER admission instead of allocating
+  a second encoding. Keep Auth's framing budgets, signer/seed and certificate rules.
+- Use one CBOR writer type for allocation-free size counting and stored-byte
+  emission. The fixture shrinks by 14,852 bytes versus separate writers; fresh
+  Ed25519 admission adds 3,309 instructions (~0.13%), with authorization unchanged.
+- Share valid lifecycle test setup and the recursive generator-input roster.
+  Certified component profiling now returns typed private stage/refusal codes.
+- Adopt Memory/Storage 0.53.1 and Platform/macros 0.7.4 with the current IC
+  Tooling 0.69.8 selection. Retain incoming Wire/derive 0.7.21 and regenerate
+  all five browser contracts unchanged. Retain exclusive checkpoint-memory
+  custody and the backing-claim teardown repair; keep optional external-Candid
+  APIs disabled for Auth's owned protocols and library graphs. This dependency
+  adoption preserves signed/stored bytes and the PocketIC pairing.
+  [#105 — Adopt current shared libraries](https://github.com/dragginzgame/ic-auth/issues/105).
+
 ## [0.19.6] - 2026-10-28
 
 ### ➕ Added

@@ -1,0 +1,15 @@
+Cargo.toml
+Cargo.lock
+.cargo/config.toml
+rust-toolchain.toml
+apps/tooling/Cargo.toml
+apps/tooling/src
+crates/ic-auth-protocol-types/Cargo.toml
+crates/ic-auth-protocol-types/src
+crates/ic-auth-wire/Cargo.toml
+crates/ic-auth-wire/src
+ci/host-file.env
+ci/client-generator-inputs.txt
+scripts/dev/host-file-tools.sh
+scripts/dev/run-host-file.sh
+scripts/dev/client-contracts.sh

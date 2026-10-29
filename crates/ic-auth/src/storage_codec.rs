@@ -1,13 +1,22 @@
 //! Private framing for trusted-storage records; callers own semantic validation.
 
-struct ByteCount(usize);
+// One concrete serializer sink keeps counting and emission on the same generic
+// CBOR writer instantiation. Counting never allocates or retains encoded bytes.
+struct RecordWriter<'a> {
+    length: usize,
+    output: Option<&'a mut Vec<u8>>,
+}
 
-impl std::io::Write for ByteCount {
+impl std::io::Write for RecordWriter<'_> {
     fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
-        self.0 = self
-            .0
+        let length = self
+            .length
             .checked_add(bytes.len())
             .ok_or_else(|| std::io::Error::other("record size overflow"))?;
+        if let Some(output) = &mut self.output {
+            output.extend_from_slice(bytes);
+        }
+        self.length = length;
         Ok(bytes.len())
     }
     fn flush(&mut self) -> std::io::Result<()> {
@@ -22,12 +31,15 @@ pub(crate) fn encoded_len<T: serde::Serialize, E>(
     invalid: E,
     capacity: E,
 ) -> Result<usize, E> {
-    let mut count = ByteCount(domain.len());
+    let mut count = RecordWriter {
+        length: domain.len(),
+        output: None,
+    };
     serde_cbor::to_writer(&mut count, value).map_err(|_| invalid)?;
-    if count.0 > maximum {
+    if count.length > maximum {
         return Err(capacity);
     }
-    Ok(count.0)
+    Ok(count.length)
 }
 
 pub(crate) fn encode<T: serde::Serialize, E>(
@@ -38,8 +50,12 @@ pub(crate) fn encode<T: serde::Serialize, E>(
     capacity: E,
 ) -> Result<Vec<u8>, E> {
     let mut bytes = domain.to_vec();
-    serde_cbor::to_writer(&mut bytes, value).map_err(|_| invalid)?;
-    if bytes.len() > maximum {
+    let mut writer = RecordWriter {
+        length: domain.len(),
+        output: Some(&mut bytes),
+    };
+    serde_cbor::to_writer(&mut writer, value).map_err(|_| invalid)?;
+    if writer.length > maximum {
         return Err(capacity);
     }
     Ok(bytes)
@@ -103,8 +119,11 @@ mod tests {
             encode(&Refused, b"domain", 0, "invalid", "capacity"),
             Err("invalid")
         );
-        let mut count = ByteCount(usize::MAX);
+        let mut count = RecordWriter {
+            length: usize::MAX,
+            output: None,
+        };
         assert!(count.write(&[1]).is_err());
-        assert_eq!(count.0, usize::MAX);
+        assert_eq!(count.length, usize::MAX);
     }
 }

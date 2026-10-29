@@ -15,7 +15,7 @@ mod verified;
     feature = "portable-signature-verification",
     feature = "certified-proof-verification"
 ))]
-pub(crate) use decoded::DecodedPortableClaims;
+pub(crate) use decoded::{ContextualClaims, DecodedPortableClaims};
 pub use revocation::{
     LoginBinding, LoginRecordState, LoginRevocationChange, LoginRevocationError,
     MemoryLoginRevocations,

@@ -40,7 +40,6 @@ fn controls_refuse_old_transport_wrong_identity_and_unbounded_requests() {
     refusal_contract!(EnableCheckpoint);
     refusal_contract!(ConfirmAuthority);
     refusal_contract!(SetSessionAsset);
-    refusal_contract!(ProfileCertified);
 }
 #[test]
 fn fixture_diagnostics_keep_admission_reply_opaque_and_bounded() {
@@ -77,4 +76,29 @@ fn fixture_diagnostics_keep_admission_reply_opaque_and_bounded() {
         ProfileCertified::decode_request(&vec![0; ProfileCertified::REQUEST_LIMITS.bytes + 1])
             .is_err()
     );
+}
+
+#[test]
+fn certified_probe_failures_keep_stage_and_typed_verification_refusal() {
+    use model::CertifiedProfileFailure::*;
+    for failure in [
+        Credential,
+        ReceiverUnavailable,
+        CertifiedReceiverRequired,
+        CertifiedCredentialRequired,
+        Verification(ic_auth_wire::model::AdmissionRefusal::Revoked),
+        RootDelegation,
+        MessageFraming,
+        IssuerSignature,
+        CertificateDecode,
+        SubnetBls,
+        SubnetKeyMissing,
+        SubnetKeyDecode,
+        SigningBls,
+    ] {
+        let response = Err(failure);
+        let bytes = ProfileCertified::encode_response(&response).unwrap();
+        assert_eq!(ProfileCertified::decode_response(&bytes).unwrap(), response);
+        assert!(ProfileAdmission::decode_response(&bytes).is_err());
+    }
 }

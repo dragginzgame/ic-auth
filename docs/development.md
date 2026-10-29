@@ -130,7 +130,7 @@ Platform's explicit `pocket-ic` capability owns native simulator clients and DTO
 Testkit owns bounded server startup, lifecycle extensions and typed Wire calls;
 only the native runner selects these capabilities.
 
-Native file and process callers select Host FS/Process 0.69.6 with defaults
+Native file and process callers select Host FS/Process 0.69.8 with defaults
 disabled. Library use does not enable Host's optional CLI, certificate decoder
 or Wasm text/encoding backends. Host stays outside the production library graph.
 Build and Testkit 0.69 select the same Host 0.69 identities as Auth's direct
@@ -214,7 +214,7 @@ The current bounded native-Wire checkpoint has `AUTHNAT1` framing; the old
 `AUTHCELL`/Candid and finite-Wire `AUTHWIR2` payloads are refused, not migrated or
 reset. IC Memory allocation and public/production storage contracts are unchanged.
 Checkpoint restores remain closed until matching controller authority is confirmed.
-The qualification host selects Memory/Storage 0.53 with the standard canister
+The qualification host selects Memory/Storage 0.53.1 with the standard canister
 backing. Memory admits one runtime/allocation; Storage's `StableCell` consumes
 that checked lease. Auth checks the retained payload ceiling before loading and
 refuses occupied fresh state before creating a cell. Memory 0.53 trusts exclusive
@@ -223,6 +223,10 @@ raw backing aliases remain prohibited. Native reopen tests release the cell and
 any detached handle first; attempted aliases refuse while either lease remains
 live. Cell, manager and Auth payload formats are unchanged. Storage is confined
 to the unpublished qualification host.
+The 0.53.1 repair releases backing claims before their identity allocations are
+destroyed, including construction refusal and unwinding; detached handles still
+retain custody. Platform 0.7.4's external Candid endpoint/protocol additions remain
+unselected by the owned Wire/public library capabilities.
 
 CDK runtime/controller behavior is retained ([Platform #1](https://github.com/dragginzgame/ic-platform/issues/1)).
 No controller wrapper, executor, callback or crypto implementation is recreated.

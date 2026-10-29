@@ -119,6 +119,26 @@ pub fn validate_claims_context(
     claims: &PortableClaims,
     context: &PortableClaimsContext<'_>,
 ) -> Result<(), PortableClaimsError> {
+    validate_context(context)?;
+    validate_shape(claims)?;
+    validate_bindings(claims, context)
+}
+
+// DecodedPortableClaims alone may skip shape admission: its owned claims have
+// passed the canonical decoder and cannot be edited by callers.
+#[cfg(any(
+    feature = "portable-signature-verification",
+    feature = "certified-proof-verification"
+))]
+pub(super) fn validate_decoded_context(
+    claims: &PortableClaims,
+    context: &PortableClaimsContext<'_>,
+) -> Result<(), PortableClaimsError> {
+    validate_context(context)?;
+    validate_bindings(claims, context)
+}
+
+fn validate_context(context: &PortableClaimsContext<'_>) -> Result<(), PortableClaimsError> {
     use PortableClaimsError as Error;
     let authority = &context.authority;
     if context.max_login_ttl_ns == 0
@@ -130,7 +150,15 @@ pub fn validate_claims_context(
     {
         return Err(Error::InvalidContext);
     }
-    validate_shape(claims)?;
+    Ok(())
+}
+
+fn validate_bindings(
+    claims: &PortableClaims,
+    context: &PortableClaimsContext<'_>,
+) -> Result<(), PortableClaimsError> {
+    use PortableClaimsError as Error;
+    let authority = &context.authority;
     if claims.audience != *authority.audience {
         return Err(Error::AudienceMismatch);
     }

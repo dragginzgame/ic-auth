@@ -1,4 +1,6 @@
 #![cfg(all(feature = "sessions", feature = "portable-signature-verification"))]
+mod support;
+
 use ic_auth::{
     admission_budget::SessionAdmissionBudget,
     portable::{
@@ -125,30 +127,19 @@ struct Fixture {
 }
 impl Fixture {
     fn new(device: u8) -> Self {
-        let key = SigningKey::from_bytes(&[42; 32]);
+        let key = support::issuer_key();
         let role: AuthRole = "user".parse().unwrap();
-        let claims = PortableClaims {
-            mechanism: PortableMechanism::Ed25519,
-            audience: AudienceId {
-                canonical_network_id: CanonicalId::from_bytes([1; 32]),
-                fleet_id: CanonicalId::from_bytes([2; 32]),
-            },
-            issuer: Principal::from_slice(&[1]),
-            account_subject: Principal::from_slice(&[2]),
-            key_binding_id: Sha256::digest(key.verifying_key().to_bytes()).into(),
-            browser_public_key: SigningKey::from_bytes(&[device; 32])
+        let mut claims = support::claims(
+            SigningKey::from_bytes(&[device; 32])
                 .verifying_key()
                 .to_bytes(),
-            login_started_at_ns: NOW - SECOND,
-            login_deadline_ns: NOW + 60 * SECOND,
-            issued_at_ns: NOW,
-            admission_expires_at_ns: NOW + 2 * SECOND,
-            nonce: [1; 16],
-            grants: vec![DelegatedRoleGrant {
-                target: role.clone(),
-                scopes: vec!["read".into(), "write".into()],
-            }],
-        };
+        );
+        claims.login_started_at_ns = NOW - SECOND;
+        claims.login_deadline_ns = NOW + 60 * SECOND;
+        claims.issued_at_ns = NOW;
+        claims.admission_expires_at_ns = NOW + 2 * SECOND;
+        claims.nonce = [1; 16];
+        claims.grants[0].scopes.push("write".into());
         Self { key, claims, role }
     }
     fn caller(&self) -> Principal {
@@ -240,7 +231,13 @@ impl Receiver {
         }
     }
     fn auth(&mut self, f: &Fixture, now: u64) -> Result<Session, SessionError> {
-        authorize_session(&mut self.store, &mut self.ledger, &f.context(now), policy())
+        authorize_session(
+            &mut self.store,
+            &mut self.ledger,
+            &f.context(now),
+            policy(),
+            Session::clone,
+        )
     }
     fn logout(&mut self, caller: Principal, now: u64) -> Result<u64, LogoutResult> {
         match logout_session(
@@ -323,7 +320,7 @@ fn required_scopes_accept_any_order_but_never_borrow_another_roles_grant() {
     let mut live = f.context(NOW);
     live.required_scopes = &required;
     assert_eq!(
-        authorize_session(&mut r.store, &mut r.ledger, &live, policy()),
+        authorize_session(&mut r.store, &mut r.ledger, &live, policy(), Session::clone),
         Ok(admitted)
     );
 
@@ -338,7 +335,7 @@ fn required_scopes_accept_any_order_but_never_borrow_another_roles_grant() {
     grants[1].scopes = vec!["read".into()];
     live.authority.grants = &grants;
     assert_eq!(
-        authorize_session(&mut r.store, &mut r.ledger, &live, policy()),
+        authorize_session(&mut r.store, &mut r.ledger, &live, policy(), Session::clone),
         Err(SessionError::ScopeRejected)
     );
     // An unsorted protected ceiling is rejected before ordered membership.
@@ -346,7 +343,7 @@ fn required_scopes_accept_any_order_but_never_borrow_another_roles_grant() {
     unsorted.reverse();
     live.authority.grants = &unsorted;
     assert_eq!(
-        authorize_session(&mut r.store, &mut r.ledger, &live, policy()),
+        authorize_session(&mut r.store, &mut r.ledger, &live, policy(), Session::clone),
         Err(SessionError::InvalidPolicyOrRecord)
     );
 }
@@ -442,7 +439,13 @@ fn equal_subjects_from_different_issuers_keep_distinct_sessions_and_logouts() {
     wrong.authority.issuer = second.claims.issuer;
     wrong.authority.key_binding_id = second.claims.key_binding_id;
     assert_eq!(
-        authorize_session(&mut r.store, &mut r.ledger, &wrong, policy()),
+        authorize_session(
+            &mut r.store,
+            &mut r.ledger,
+            &wrong,
+            policy(),
+            Session::clone
+        ),
         Err(SessionError::StaleAuthority)
     );
     // Nor can a new issuer replace the account attached to the same browser login.
@@ -657,39 +660,50 @@ fn live_authority_scope_generation_expiry_and_lost_ledger_are_enforced() {
     let mut changed = policy();
     changed.enabled = false;
     assert_eq!(
-        authorize_session(&mut r.store, &mut r.ledger, &ctx, changed),
+        authorize_session(&mut r.store, &mut r.ledger, &ctx, changed, Session::clone),
         Err(SessionError::Disabled)
     );
     let required = ["write".into()];
     ctx.required_scopes = &required;
     assert_eq!(
-        authorize_session(&mut r.store, &mut r.ledger, &ctx, policy()),
+        authorize_session(&mut r.store, &mut r.ledger, &ctx, policy(), Session::clone),
         Err(SessionError::ScopeRejected)
     );
     ctx = f.context(NOW);
     ctx.authority.key_binding_id = [99; 32];
     assert_eq!(
-        authorize_session(&mut r.store, &mut r.ledger, &ctx, policy()),
+        authorize_session(&mut r.store, &mut r.ledger, &ctx, policy(), Session::clone),
         Err(SessionError::StaleAuthority)
     );
     ctx = f.context(NOW);
     ctx.authority.enrollment_expires_at_ns = NOW;
     assert_eq!(
-        authorize_session(&mut r.store, &mut r.ledger, &ctx, policy()),
+        authorize_session(&mut r.store, &mut r.ledger, &ctx, policy(), Session::clone),
         Err(SessionError::StaleAuthority)
     );
     ctx = f.context(NOW);
     ctx.authority.authority_expires_at_ns = NOW;
     assert_eq!(
-        authorize_session(&mut r.store, &mut r.ledger, &ctx, policy()),
+        authorize_session(&mut r.store, &mut r.ledger, &ctx, policy(), Session::clone),
         Err(SessionError::StaleAuthority)
     );
     let empty: [DelegatedRoleGrant; 0] = [];
     ctx = f.context(NOW);
     ctx.authority.grants = &empty;
-    assert!(authorize_session(&mut r.store, &mut r.ledger, &ctx, policy()).is_err());
+    assert!(
+        authorize_session(&mut r.store, &mut r.ledger, &ctx, policy(), Session::clone).is_err()
+    );
     let mut lost = MemoryLoginRevocations::new(f.claims.audience, 4, 4, SECOND, 0).unwrap();
-    assert!(authorize_session(&mut r.store, &mut lost, &f.context(NOW), policy()).is_err());
+    assert!(
+        authorize_session(
+            &mut r.store,
+            &mut lost,
+            &f.context(NOW),
+            policy(),
+            Session::clone
+        )
+        .is_err()
+    );
     assert_eq!(
         r.auth(&f, session.expires_at_ns()),
         Err(SessionError::MissingOrExpired)
@@ -700,7 +714,13 @@ fn live_authority_scope_generation_expiry_and_lost_ledger_are_enforced() {
     let mut p = policy();
     p.generation = r.store.advance_generation().unwrap();
     assert_eq!(
-        authorize_session(&mut r.store, &mut r.ledger, &f.context(NOW), p),
+        authorize_session(
+            &mut r.store,
+            &mut r.ledger,
+            &f.context(NOW),
+            p,
+            Session::clone
+        ),
         Err(SessionError::StaleAuthority)
     );
 }
@@ -850,7 +870,13 @@ fn restored_session_selects_exact_enrollment_among_same_issuer_keys() {
         context.authority.mechanism = mechanism;
         context.authority.key_binding_id = key_binding_id;
         assert_eq!(
-            authorize_session(&mut r.store, &mut r.ledger, &context, policy()),
+            authorize_session(
+                &mut r.store,
+                &mut r.ledger,
+                &context,
+                policy(),
+                Session::clone
+            ),
             Err(SessionError::StaleAuthority)
         );
     }
@@ -858,7 +884,13 @@ fn restored_session_selects_exact_enrollment_among_same_issuer_keys() {
     let mut context = f.context(NOW);
     context.authority.enrollment_expires_at_ns = NOW;
     assert_eq!(
-        authorize_session(&mut r.store, &mut r.ledger, &context, policy()),
+        authorize_session(
+            &mut r.store,
+            &mut r.ledger,
+            &context,
+            policy(),
+            Session::clone
+        ),
         Err(SessionError::StaleAuthority)
     );
     assert!(
@@ -1444,7 +1476,14 @@ fn commit_hook_receives_only_validated_delta_and_exact_post_commit_totals() {
         assert_eq!(store.replay_records().len(), nonce as usize);
     }
     let before_reads = commits;
-    assert!(store.read(|tx| tx.session(f.caller())).unwrap().is_some());
+    assert!(
+        store
+            .read(|tx| tx
+                .session(f.caller())
+                .map(|session| session.map(std::borrow::Cow::into_owned)))
+            .unwrap()
+            .is_some()
+    );
     assert_eq!(commits, before_reads);
     let before = store.encoded_bytes();
     let session = store.session_records().next().unwrap().clone();
@@ -1703,11 +1742,24 @@ fn session_liveness_keeps_proof_policy_separate_from_shared_authority_shape() {
         ),
         Err(ic_auth::portable::PortableClaimsError::InvalidContext)
     );
-    authorize_session(&mut r.store, &mut r.ledger, &context, policy()).unwrap();
+    authorize_session(
+        &mut r.store,
+        &mut r.ledger,
+        &context,
+        policy(),
+        Session::clone,
+    )
+    .unwrap();
     let mut narrower = f.context(NOW);
     narrower.max_ttl = ic_auth::session_request::SessionTtlLimit::new(1).unwrap();
     assert_eq!(
-        authorize_session(&mut r.store, &mut r.ledger, &narrower, policy()),
+        authorize_session(
+            &mut r.store,
+            &mut r.ledger,
+            &narrower,
+            policy(),
+            Session::clone
+        ),
         Err(SessionError::StaleAuthority)
     );
     for defect in 0..3 {
@@ -1728,7 +1780,13 @@ fn session_liveness_keeps_proof_policy_separate_from_shared_authority_shape() {
             Err(ic_auth::portable::PortableClaimsError::InvalidContext)
         );
         assert!(matches!(
-            authorize_session(&mut r.store, &mut r.ledger, &context, policy()),
+            authorize_session(
+                &mut r.store,
+                &mut r.ledger,
+                &context,
+                policy(),
+                Session::clone
+            ),
             Err(SessionError::InvalidPolicyOrRecord)
         ));
     }
@@ -1908,4 +1966,44 @@ fn unknown_logout_saturation_and_expired_reservations_preserve_legitimate_recove
         "unknown denials must not be evicted with expired reservations"
     );
     assert!(r.ledger.is_revoked(stranger, reclaim).unwrap());
+}
+
+#[test]
+fn authorization_projects_inside_snapshot_and_never_calls_on_refusal() {
+    let f = Fixture::new(1);
+    let mut r = Receiver::new(&f);
+    f.admit(&mut r, NOW).unwrap();
+    let mut calls = 0;
+    let identity = authorize_session(
+        &mut r.store,
+        &mut r.ledger,
+        &f.context(NOW),
+        policy(),
+        |s| {
+            calls += 1;
+            (s.issuer(), s.subject(), s.caller())
+        },
+    )
+    .unwrap();
+    assert_eq!(
+        identity,
+        (f.claims.issuer, f.claims.account_subject, f.caller())
+    );
+    assert_eq!(calls, 1);
+    r.logout(f.caller(), NOW).unwrap();
+    let refused = authorize_session(
+        &mut r.store,
+        &mut r.ledger,
+        &f.context(NOW + 1),
+        policy(),
+        |_| {
+            calls += 1;
+        },
+    );
+    assert_eq!(
+        refused,
+        Err(SessionError::Revocation(LoginRevocationError::Revoked))
+    );
+    assert_eq!(calls, 1);
+    assert_eq!(r.ledger.observed_at_ns(), NOW + 1);
 }
