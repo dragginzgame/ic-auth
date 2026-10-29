@@ -2,133 +2,126 @@
 
 ## Delivered base and working selections
 
-Auth HEAD is **0.19.6**, `6562624f198262fa5772f9b6a1ddf48d2c42ccd6`.
-The [release-source handoff](https://github.com/dragginzgame/ic-auth/blob/6562624f198262fa5772f9b6a1ddf48d2c42ccd6/docs/status/current.md)
-retains the preceding adoption and Canic contribution evidence. Current source
-still has Rust **1.91** as its package minimum and development Rust **1.99.1**.
-Shared Tooling remains **0.27.3** at exact
-`cc81a58a5b2dd287c577cbffd2c576c178b6785c`, **127 files**.
+Auth **0.20.0**, `6b27ef1bdd4eebd405a2dd161204a840472ce929`, is committed.
+The [release-source handoff](https://github.com/dragginzgame/ic-auth/blob/6b27ef1bdd4eebd405a2dd161204a840472ce929/docs/status/current.md)
+retains prior qualification and Canic contribution evidence. Rust **1.91** remains
+the package minimum; development uses **1.99.1**. Shared Tooling is **0.27.6**,
+exact `5a72359b5be19d5221334cf2c9b3204621d3f3f6`, **127 files**.
 
-Current selection: Memory/Storage **0.53.1**, Platform/macros **0.7.4**,
-Host/Build/Testkit **0.69.8**, Wire/derive **0.7.21**, browser Platform **0.1.1**
-over Core **6.1.1**, and PocketIC **16.1.0**. The incoming lock already supplied
-the requested selections; targeted resolution and fetching leave it byte-identical.
-Incoming native TLS AWS LC **1.19.0** / sys **0.47.0** updates are also preserved.
-Incoming Wire 0.7.21 is retained and qualified below; no unpublished override is used.
+Current selections: Memory/Storage **0.54.0**, Host/Build/Testkit and the independently
+pinned file CLI **0.69.11**, Platform/macros **0.7.5**, Wire/derive **0.7.21**,
+browser Platform **0.1.1** over Core **6.1.1**, PocketIC **16.1.0**, native AWS LC
+**1.19.0** / sys **0.47.0**. All three selected CLI helpers were explicitly prepared
+and admitted offline. Auth uses the governed cell adapter, so Persistence's Metrics
+0.17 adapter transition needs no Auth storage migration. Metrics **0.17.0** is
+selected separately by the unpublished host/runner diagnostic example only.
 
-## Complexity reduction batch
+## Current grant-validation and cleanup batch
 
-Pending notes select **0.20.0** because the public session read API changes:
-`SessionReader::session` returns `Option<Cow<'_, Session>>`, and
-`authorize_session` takes a projection callback inside the checked read snapshot.
-Memory hosts borrow; durable readers can return owned decoded records. Canic
-must migrate those Rust calls on adoption; no sibling source was edited.
-See [session API](../sessions.md) and [consumer contract](../canic-adoption.md).
+Pending **0.21.0** changes `PortableAuthority::grants` to `&ValidatedGrants`.
+This owned, immutable set validates the existing canonical 16-role/32-scope
+limits at protected configuration installation/restoration. The qualification
+host stores it directly in enrollment; it retains no second raw grant owner.
+Public callers must retain the checked value, borrow it for authority inputs and
+use `as_slice()` for raw projections. There is no mutable access or unchecked
+Serde path. See [session migration](../sessions.md) and [Canic handoff](../canic-adoption.md).
 
-Role conversions reuse owned labels. Admission carries canonical/context checks
-and requested expiration through verification; authorization observes login
-binding/denial once. Final mutable reservation checks, atomicity, rejection order,
-crypto checks and signed/public Wire/stored bytes remain. Platform's declared
-minimum is 0.7.4, supplying canonical DER admission in place of Auth's re-encoding.
-The private certified profiler returns typed stage/refusal codes. Valid lifecycle
-test builders and recursive generator-input lists now have shared owners.
+Constructor success proves shape only. Hosts still select current protected
+inputs and advance generation atomically with authority changes. Live clocks,
+issuer/key bindings, generation, eligibility, revocation and scope checks remain;
+untrusted claims are independently decoded/verified. Signed/public Wire/stored
+bytes and package versions remain unchanged. Canic's adoption remains its work;
+no sibling source was edited. Earlier caller-predicate/codec cleanup is retained.
 
-Linux release fixture: **2,517,111 → 2,499,590 bytes** (17,521 fewer, ~0.70%).
-Matched ordinary authorization: **8,745 → 6,324 instructions** (~28% fewer).
-The shared CBOR sink alone saves **14,852 bytes**, with **3,309 more instructions**
-(~0.13%) for fresh Ed25519 admission and unchanged authorization. Counting remains
-allocation-free. These are fixture samples, not universal production savings.
-Baseline/current Wasm, focused command logs, failed sandbox startup/subprocess
-attempts and native PocketIC state are retained in `target/complexity-20261029/`.
-A second-test refusal from reusing a PocketIC state root is retained; its isolated
-fresh-state rerun passes. Certified admission/components and real session/browser
-admission/logout/ingress/upgrade and retained checkpoint cases pass. Focused Rust rejection, atomicity,
-record/vector, adversarial feature, contract/doc tests and strict library/fixture/
-runner Clippy pass. The 68 client tests, interoperability and packed consumer pass;
-Wire 0.7.21 regenerates all five browser contracts unchanged. No full CI or release
-was run; source/notes are unstaged, package versions and incoming lock are unchanged.
+Focused constructor/bounds/order, claims/session/revocation, signed-vector,
+strict-signature feature-unification and immutable-access doc tests pass. The
+configuration projection refuses malformed grants. Independent before/after
+builds match the original Wasm byte-for-byte; separate target directories exclude
+the retained initial stale-cache attempt. The default cache was rebuilt.
 
-## Current shared-library adoption
+Reversed-order installed reruns reproduce **7,520 → 6,848 instructions** (~9%)
+for the small grant set and **313,510 → 29,601** (~91%) at 16 roles × 32 scopes.
+The saving applies to ordinary authorization's repeated grammar/order scan, not
+BLS/admission or end-to-end login. Installation/restoration still validates grants.
+The 0.69.10/0.7.4 dependency build reproduces the post-change counters. Grant-only raw Wasm
+is **2,499,267 → 2,497,828 bytes**; after dependency adoption, before the diagnostic
+example below, it is **2,497,808**. These are fixture samples, not production workloads.
 
-[#105](https://github.com/dragginzgame/ic-auth/issues/105) owns this batch.
-Memory 0.53.1 releases identity claims before destroying their backing allocation,
-including refusal/unwinding, while detached handles retain custody. The 0.53
-validation-boundary contract and stored bytes remain. Platform 0.7.4's new opt-in
-external Candid endpoints/codecs stay disabled on owned public/fixture graphs.
+Prior adoption evidence includes 8 checkpoint/config cases, 32 session cases,
+constructor bounds, 68 client/interoperability/packed-consumer cases, strict Clippy,
+MSRV, release Wasm and graph/pin admission. Installed certification/composed roots,
+authority/checkpoints after upgrade and Node SDK/signed ingress pass. Formatting
+preservation, caller/lock refusal, package identity and local/mocked release fixtures
+pass. The updated runner preserves live diagnostics and one outer final excerpt.
 
-Passing Linux evidence: six checkpoint and four native tooling cases,
-strict host/tooling Clippy, release Wasm, Rust 1.91 host/Wasm check, dependency
-boundaries/pins, package/external-lock refusals, all 68 client tests, Rust/TypeScript
-roundtrips and the packed offline consumer. Its five generated contracts compare
-unchanged. Exact Testkit/release helpers were explicitly prepared and admitted.
-Four installed PocketIC cases pass: certificates/composed roots, certified proof
-authority after upgrade, retained session/denial checkpoints and actual signed
-ingress after upgrade. Evidence is retained in `target/shared-adoption-20261028c/`.
-This is internal fixture qualification, not Canic production or native macOS
-acceptance; the incoming TLS update is not remote TLS endpoint qualification.
+Shared export is verified against the independently selected source commit.
+Prior probe/grant evidence remains in `target/cleanup-20261029/` and
+`target/grants-20261029/`; this batch retains inputs, independent builds, native
+states and logs in `target/adoption-sanity-20261029/`. Canonical encoder/BLS rules
+remain unchanged. No full CI, macOS acceptance, release, staging or commit was run.
 
-The adoption notes/docs remain unstaged and uncommitted; package versions and
-incoming lock bytes are unchanged. No full local CI, source push, publication,
-deployment or sibling source edit was performed.
+## Incoming library adoption
 
-## Browser client delivery preparation
+[#107](https://github.com/dragginzgame/ic-auth/issues/107) records the maintainer's
+selection of incoming Tooling/file CLI **0.69.11** and Platform/macros **0.7.5**.
+All three helpers are explicitly prepared/admitted. Platform's source changes
+only optional external Candid/ledger adapters; crypto/macro sources are unchanged.
+Metrics/checkpoint tests, strict host/native Clippy, Rust 1.91 Wasm and graph/pin
+checks pass. All 68 client tests, unchanged generated contracts, packed consumer
+and actual package/external-lock caller cases pass. Four installed certification,
+composed-root, checkpoint/authority and SDK/signed-ingress cases pass. Ordinary
+authorization reproduces **6,848 / 29,601** instructions on this final selection.
+Actual release/recovery/publication callers pass with local/mocked effects.
+Inputs/builds/logs are retained in `target/incoming-adoption-20261029/`; its
+reference Wasm is **2,500,763 bytes** including host diagnostics. Delivery/CI remains.
 
-Auth 0.19.6 delivers the browser preparation from
-[#104](https://github.com/dragginzgame/ic-auth/issues/104).
-`make pack-client` produces a local npm archive; `make test-client-package`
-also installs and qualifies a disposable offline consumer. The package check is
-part of `make test-client`. Explicit client/file-tool preparation is required;
-checks never fetch or install producer tools. Cargo retains the shell's inherited
-Make jobserver; Node handles npm packaging/consumer commands only.
+## Host admission diagnostics
 
-The private package remains **0.0.0** and unpublished. Archives expose compiled
-ESM and public declarations, canonical generated codecs, README and license.
-Fresh staging excludes stale outputs, tests, source tooling and dependency trees.
-Source inputs are sealed across contract admission, compilation and packing;
-the receipt records their hashes, Git identity/dirty observation, actual tools and
-npm archive integrity. Dirty candidates must be rebuilt from the intended
-delivered commit. Consumer-owned durable archive storage/distribution is still
-required; ignored producer output is not that service.
+[#106](https://github.com/dragginzgame/ic-auth/issues/106) now has a local tested
+[host recorder](../../apps/qualification/session_metrics.rs), wired after the
+engine's final result. Fixed counters retain committed create/replace, retries,
+proof-stage/budget/other refusals and numeric quality; volatile reset is independent
+of authentication state. No public Metrics dependency, endpoint or checkpoint
+format change. See [event/rollback policy](../sessions.md#host-owned-admission-diagnostics).
+The maintainer confirmed production reporting belongs in Canic's shared metrics
+store/endpoint, observing Auth's existing typed results. This reference needs no
+new public Auth metrics API or per-producer endpoint; Canic owns that connection.
+Five native cases, strict host/test Clippy, eight checkpoint cases, Rust 1.91 Wasm,
+graph/pin admission and an installed checkpoint/authority upgrade case pass.
+Initial evidence at Tooling 0.69.10 / Platform 0.7.4 is in
+`target/session-metrics-20261029/`; that reference Wasm is **2,498,619 bytes**
+(+811 for host diagnostics). Delivery/required CI remains.
+[#105](https://github.com/dragginzgame/ic-auth/issues/105) closed using delivered
+0.20.0 and its [successful three-host CI](https://github.com/dragginzgame/ic-auth/actions/runs/40838536688).
 
-Local Linux package evidence is under `target/client-delivery-20261028/` and
-`target/browser-client-packages/`. It covers offline installation preserving
-reviewed external selections, strict public declarations without Node globals,
-blocked private imports, browser bundling and injected admission/logout with
-separate account/browser identities and fake IndexedDB. All **68** existing
-client tests and Rust/TypeScript roundtrips pass. The parallel-Make path,
-archive-only command and Make/client-setup caller fixtures pass. An earlier
-sandbox subprocess refusal is retained;
-native execution passes. These are package/client proofs, not real browser,
-production issuer, installed Canic or native macOS acceptance.
+## Delivered consumer contracts
 
-Current shared-library qualification produces a new dirty-source candidate under
-`target/browser-client-packages/package.P15W7k/`; no npm upload occurred.
-See [client delivery](../browser-client.md#local-archive-delivery).
-
-## Prior dependency qualification
-
-[#103](https://github.com/dragginzgame/ic-auth/issues/103) retains Memory/Storage
-0.53.0 and Tooling 0.69.6 checkpoint/lock/graph/MSRV/installed evidence in
-`target/persistence-adoption-20261028/`. [#102](https://github.com/dragginzgame/ic-auth/issues/102)
-retains the earlier Wire/Platform and Memory 0.52.1/Tooling 0.69.5 evidence in
-`target/dependency-adoption-20261028/`. Prior logs/Wasm and corrected-attempt
-failures remain; the release-source handoff above records their boundaries.
+Auth 0.20.0 changed session reads to `Cow` and authorization to a checked snapshot
+projection. Consumers must adopt those APIs plus pending 0.21's validated grants;
+see [sessions](../sessions.md) and [Canic adoption](../canic-adoption.md).
+The private browser package remains **0.0.0**, unpublished. Local archives retain
+source seals/receipts, strict declarations and explicit offline preparation.
+Consumer archive custody, production issuer and actual browser acceptance remain
+separate; see [client delivery](../browser-client.md#local-archive-delivery).
 
 ## Canic integration boundary
 
-The read-only Canic review found Auth 0.19.5 selected in its working tree, a
-reserved unpublished `canic-auth` scaffold, a test-gated shared store adapter and
-an application authorization facade that still denies. No missing shared Rust
-engine API was established. Canic still needs the `ic-auth-wire` dependency and
-actual admission/read/logout bindings; Auth owns the canonical contracts.
+Read-only review on 2026-10-29 used Canic `b9ed7f298bdaf8c9cceac142edf7e56b15d33208`
+plus its uncommitted work: Auth/protocol 0.20.0, a durable `SessionStore` adapter
+and the unpublished `canic-auth` scaffold that still refuses mounting. Canic's
+IcyDB adapter consumes upstream reports; Blob contributes to the one application
+sampler. No new shared Auth engine API was established. Canic still needs the
+`ic-auth-wire` dependency and actual admission/read/logout bindings; Auth owns
+the canonical contracts. This inspection did not qualify Canic's dirty source.
 
 [PR #701](https://github.com/dragginzgame/canic/pull/701), source `3c559fd6e`,
 supplies retained persistent receiver ownership, ledger/budgets and CI fixture
 repairs. Stacked [PR #703](https://github.com/dragginzgame/canic/pull/703), source
 `0ab0d1739`, supplies bounded enrollment producer/installer components; its Root
-method is reserved, not mounted. Both were open at the last review. Their exact
-native/codec/graph evidence is in the PRs and `target/canic-integration-20261028/`.
-The isolated clone is there; normal sibling working checkouts remain untouched.
+method is reserved, not mounted. Both were open at that review; their current
+GitHub status was not rechecked. Their native/codec/graph evidence and earlier
+isolated clone were recorded in the PRs and `target/canic-integration-20261028/`.
+Normal sibling working checkouts remain untouched.
 
 [Canic #491](https://github.com/dragginzgame/canic/issues/491) owns integration
 and installed persistent receiver acceptance. Root RPC mounting, approved issuer

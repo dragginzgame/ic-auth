@@ -14,10 +14,11 @@ fn scoped_application_updates_use_only_the_live_caller_session() {
         issuer: f.signer,
         authority: ReceiverAuthority::Ed25519(key.verifying_key().to_bytes()),
         role: "user".parse().unwrap(),
-        grants: vec![DelegatedRoleGrant {
+        grants: ic_auth::portable::ValidatedGrants::new(vec![DelegatedRoleGrant {
             target: "user".parse().unwrap(),
             scopes: vec!["read".into(), "write".into()],
-        }],
+        }])
+        .unwrap(),
         valid_from_ns: now,
         valid_until_ns: now + 120 * SECOND,
         enrollment_until_ns: now + 120 * SECOND,
@@ -40,7 +41,7 @@ fn scoped_application_updates_use_only_the_live_caller_session() {
         issued_at_ns: now,
         admission_expires_at_ns: now + 10 * SECOND,
         nonce: [72; 16],
-        grants: config.grants.clone(),
+        grants: config.grants.as_slice().to_vec(),
     };
     let writer_claims = PortableClaims {
         browser_public_key: SigningKey::from_bytes(&[73; 32]).verifying_key().to_bytes(),

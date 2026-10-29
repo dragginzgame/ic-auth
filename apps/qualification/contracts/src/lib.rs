@@ -40,11 +40,22 @@ const SIGNATURE_LIMITS: Limits = Limits {
 };
 macro_rules! method {
     ($name:ident, $id:literal, $entry:literal, $request:ty, $response:ty, $limits:expr) => {
+        method!(
+            $name,
+            $id,
+            $entry,
+            $request,
+            $response,
+            CONTROL_LIMITS,
+            $limits
+        );
+    };
+    ($name:ident, $id:literal, $entry:literal, $request:ty, $response:ty, $request_limits:expr, $limits:expr) => {
         pub struct $name;
         impl $name {
             pub const ID: u64 = $id;
             pub const NAME: &'static str = $entry;
-            pub const REQUEST_LIMITS: Limits = CONTROL_LIMITS;
+            pub const REQUEST_LIMITS: Limits = $request_limits;
             pub const RESPONSE_LIMITS: Limits = $limits;
             pub fn encode_request(value: &$request) -> Result<Vec<u8>, ic_wire::Error> {
                 ic_wire::native::encode_request(Self::ID, value, Self::REQUEST_LIMITS)
@@ -100,52 +111,19 @@ method!(
 method!(InstallReceiver, 0x41555449f009, "install_session_receiver", ReceiverConfig, Result<(), Refusal>, REPLY_LIMITS);
 method!(InvalidateAuthority, 0x41555449f00a, "invalidate_session_authority", bool, Result<(), Refusal>, REPLY_LIMITS);
 method!(ProfileSession, 0x41555449f00b, "profile_portable_session", (), Result<SessionProfile, Refusal>, REPLY_LIMITS);
-pub struct ProfileAdmission;
-impl ProfileAdmission {
-    pub const ID: u64 = 0x41555449f00c;
-    pub const NAME: &'static str = "profile_portable_admission";
-    pub const REQUEST_LIMITS: Limits = ic_auth_wire::EstablishSession::REQUEST_LIMITS;
-    pub const RESPONSE_LIMITS: Limits = PROFILE_LIMITS;
-    pub fn encode_request(value: &ic_auth_wire::SessionInput) -> Result<Vec<u8>, ic_wire::Error> {
-        ic_wire::native::encode_request(Self::ID, value, Self::REQUEST_LIMITS)
-    }
-    pub fn decode_request(bytes: &[u8]) -> Result<ic_auth_wire::SessionInput, ic_wire::Error> {
-        ic_wire::native::decode_request(Self::ID, bytes, Self::REQUEST_LIMITS)
-    }
-    pub fn encode_response(value: &AdmissionProfile) -> Result<Vec<u8>, ic_wire::Error> {
-        ic_wire::native::encode_response(Self::ID, value, Self::RESPONSE_LIMITS)
-    }
-    pub fn decode_response(bytes: &[u8]) -> Result<AdmissionProfile, ic_wire::Error> {
-        ic_wire::native::decode_response(Self::ID, bytes, Self::RESPONSE_LIMITS)
-    }
-}
+method!(
+    ProfileAdmission,
+    0x41555449f00c,
+    "profile_portable_admission",
+    ic_auth_wire::SessionInput,
+    AdmissionProfile,
+    ic_auth_wire::EstablishSession::REQUEST_LIMITS,
+    PROFILE_LIMITS
+);
 method!(EnableCheckpoint, 0x41555449f00d, "enable_session_checkpoint", (), Result<(), Refusal>, REPLY_LIMITS);
 method!(ConfirmAuthority, 0x41555449f00e, "confirm_restored_session_authority", ReceiverConfig, Result<(), Refusal>, REPLY_LIMITS);
 method!(SetSessionAsset, 0x41555449f00f, "session_set_asset", u64, Result<(), Refusal>, REPLY_LIMITS);
-pub struct ProfileCertified;
-impl ProfileCertified {
-    pub const ID: u64 = 0x41555449f010;
-    pub const NAME: &'static str = "profile_certified_proof";
-    pub const REQUEST_LIMITS: Limits = ic_auth_wire::EstablishSession::REQUEST_LIMITS;
-    pub const RESPONSE_LIMITS: Limits = PROFILE_LIMITS;
-    pub fn encode_request(value: &ic_auth_wire::SessionInput) -> Result<Vec<u8>, ic_wire::Error> {
-        ic_wire::native::encode_request(Self::ID, value, Self::REQUEST_LIMITS)
-    }
-    pub fn decode_request(bytes: &[u8]) -> Result<ic_auth_wire::SessionInput, ic_wire::Error> {
-        ic_wire::native::decode_request(Self::ID, bytes, Self::REQUEST_LIMITS)
-    }
-    pub fn encode_response(
-        value: &Result<model::CertifiedProfile, model::CertifiedProfileFailure>,
-    ) -> Result<Vec<u8>, ic_wire::Error> {
-        ic_wire::native::encode_response(Self::ID, value, Self::RESPONSE_LIMITS)
-    }
-    pub fn decode_response(
-        bytes: &[u8],
-    ) -> Result<Result<model::CertifiedProfile, model::CertifiedProfileFailure>, ic_wire::Error>
-    {
-        ic_wire::native::decode_response(Self::ID, bytes, Self::RESPONSE_LIMITS)
-    }
-}
+method!(ProfileCertified, 0x41555449f010, "profile_certified_proof", ic_auth_wire::SessionInput, Result<model::CertifiedProfile, model::CertifiedProfileFailure>, ic_auth_wire::EstablishSession::REQUEST_LIMITS, PROFILE_LIMITS);
 
 /// Bounded UTF-8 diagnostics cannot trap and roll back admission charges.
 pub fn refusal(mut error: String) -> Refusal {

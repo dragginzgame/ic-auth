@@ -1,5 +1,5 @@
 use super::{SessionContext, SessionError, SessionOccupancy};
-use crate::portable::{LoginBinding, LoginRecordState};
+use crate::portable::{LoginBinding, LoginRecordState, is_login_caller};
 #[cfg(feature = "session-restore")]
 use crate::session_request::check_scopes;
 #[cfg(any(
@@ -204,8 +204,7 @@ impl Session {
             SessionError::ByteCapacity,
         )?;
         check_scopes(&data.scopes)?;
-        if data.caller.as_slice().len() != 29
-            || data.caller.as_slice().last() != Some(&2)
+        if !is_login_caller(data.caller)
             || data.subject == Principal::anonymous()
             || data.issuer == Principal::anonymous()
             || data.login_started_at_ns > data.established_at_ns
@@ -297,6 +296,7 @@ impl Session {
         }
         let grant = authority
             .grants
+            .as_slice()
             .iter()
             .find(|grant| &grant.target == ctx.role)
             .ok_or(SessionError::ScopeRejected)?;
@@ -335,8 +335,7 @@ impl Replay {
     }
 
     fn validate(&self) -> Result<(), SessionError> {
-        let caller = self.0.caller.as_slice();
-        if caller.len() != 29 || caller.last() != Some(&2) || self.0.remove_at_ns == 0 {
+        if !is_login_caller(self.0.caller) || self.0.remove_at_ns == 0 {
             return Err(SessionError::InvalidPolicyOrRecord);
         }
         Ok(())

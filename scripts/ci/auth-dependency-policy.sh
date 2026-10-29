@@ -3,7 +3,7 @@
 auth_dependency_pattern() {
     # Principal-only Platform is production; its optional capabilities are
     # constrained by the observed Candid/runtime/host dependencies below.
-    local product='candid_parser|canic|toko|solana|ic-siws|ic-host|ic-build|ic-testkit|ic-agent|tokio|pocket-ic|ic-auth-qualification|ic-auth-feature-unification|ic-auth-tooling'
+    local product='candid_parser|canic|toko|solana|ic-siws|ic-host|ic-build|ic-testkit|ic-metrics|ic-agent|tokio|pocket-ic|ic-auth-qualification|ic-auth-feature-unification|ic-auth-tooling'
     local storage='ic-cdk|ic-stable-structures|ic-memory|ic-storage|ic-timers'
     local certificates='ic-certification|ic-signature-verification|ic-canister-sig-creation'
     local pattern

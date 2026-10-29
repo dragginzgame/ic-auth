@@ -57,7 +57,7 @@ pub(super) fn qualify(
                 ReceiverAuthority::Ed25519(key.verifying_key().to_bytes())
             },
             role: role.clone(),
-            grants: cert.grants.clone(),
+            grants: ic_auth::portable::ValidatedGrants::new(cert.grants.clone()).unwrap(),
             valid_from_ns: cert.not_before_ns,
             valid_until_ns: cert.expires_at_ns.min(old.root_key.accept_until_ns),
             enrollment_until_ns: cert.expires_at_ns.min(old.root_key.accept_until_ns),
@@ -322,13 +322,16 @@ fn qualify_wide_grants(f: &Fixture, base: &ReceiverConfig, key: &SigningKey) {
     let scopes: Vec<String> = std::iter::once("read".into())
         .chain((0..31).map(|n| format!("scope{n:02}")))
         .collect();
-    config.grants = (0..16)
-        .map(|n| DelegatedRoleGrant {
-            target: format!("role{n:02}").parse().unwrap(),
-            scopes: scopes.clone(),
-        })
-        .collect();
-    config.role = config.grants.last().unwrap().target.clone();
+    config.grants = ic_auth::portable::ValidatedGrants::new(
+        (0..16)
+            .map(|n| DelegatedRoleGrant {
+                target: format!("role{n:02}").parse().unwrap(),
+                scopes: scopes.clone(),
+            })
+            .collect(),
+    )
+    .unwrap();
+    config.role = config.grants.as_slice().last().unwrap().target.clone();
     install(f, f.resource, &config);
     f.pic.instance().advance_time(Duration::from_secs(1));
     for device in 30..33 {
@@ -346,7 +349,7 @@ fn qualify_wide_grants(f: &Fixture, base: &ReceiverConfig, key: &SigningKey) {
             issued_at_ns: f.now(),
             admission_expires_at_ns: f.now() + 2 * SECOND,
             nonce: [device; 16],
-            grants: config.grants.clone(),
+            grants: config.grants.as_slice().to_vec(),
         };
         let caller = browser_principal(&claims.browser_public_key);
         let mut input = input(&claims, key);

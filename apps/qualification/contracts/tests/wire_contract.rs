@@ -102,3 +102,37 @@ fn certified_probe_failures_keep_stage_and_typed_verification_refusal() {
         assert!(ProfileAdmission::decode_response(&bytes).is_err());
     }
 }
+
+#[test]
+fn profiling_requests_retain_admission_limits_and_distinct_method_identities() {
+    use ic_wire::{List, Text};
+    let input = ic_auth_wire::SessionInput {
+        credential: ic_auth_wire::model::PortableCredential {
+            claims: Bytes::new(vec![0; 65536]).unwrap(),
+            proof: ic_auth_wire::model::PortableProof::Ed25519(Bytes::new(vec![0; 64]).unwrap()),
+        },
+        scopes: List::new(vec![Text::new("read".into()).unwrap()]).unwrap(),
+        ttl_secs: None,
+    };
+    assert_eq!(ProfileAdmission::ID, 0x41555449f00c);
+    assert_eq!(ProfileCertified::ID, 0x41555449f010);
+    assert_eq!(ProfileAdmission::NAME, "profile_portable_admission");
+    assert_eq!(ProfileCertified::NAME, "profile_certified_proof");
+    let admission = ProfileAdmission::encode_request(&input).unwrap();
+    let certified = ProfileCertified::encode_request(&input).unwrap();
+    assert!(admission.len() > CONTROL_LIMITS.bytes);
+    assert!(certified.len() > CONTROL_LIMITS.bytes);
+    assert_eq!(ProfileAdmission::decode_request(&admission).unwrap(), input);
+    assert_eq!(ProfileCertified::decode_request(&certified).unwrap(), input);
+    assert!(matches!(
+        ProfileAdmission::decode_request(&certified),
+        Err(Error::Identity)
+    ));
+    assert!(matches!(
+        ProfileCertified::decode_request(&admission),
+        Err(Error::Identity)
+    ));
+    let over_budget = vec![0; ic_auth_wire::EstablishSession::REQUEST_LIMITS.bytes + 1];
+    assert!(ProfileAdmission::decode_request(&over_budget).is_err());
+    assert!(ProfileCertified::decode_request(&over_budget).is_err());
+}

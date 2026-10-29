@@ -135,6 +135,8 @@ pub(crate) fn restore(snapshot: Option<Snapshot>) {
         // Conservatively discard remaining credit; never refill on upgrade.
         admission,
         unknown,
+        // Diagnostics start a new volatile window, independently of authority.
+        metrics: Default::default(),
     };
     RECEIVER.with(|state| *state.borrow_mut() = Some(host));
 }

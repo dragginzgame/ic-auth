@@ -1,6 +1,6 @@
 use super::*;
 use ic_auth::portable::{
-    PortableClaimsContext, PortableClaimsError, browser_principal, encode_claims,
+    PortableClaimsContext, PortableClaimsError, ValidatedGrants, browser_principal, encode_claims,
 };
 use ic_auth::portable_certified::{
     CERTIFIED_SIGNATURE_DOMAIN, PortableCertifiedContext, PortableCertifiedError,
@@ -23,7 +23,11 @@ fn claims(f: &Fixture) -> PortableClaims {
         grants: vec![grant(&["read"])],
     }
 }
-fn context<'a>(f: &'a Fixture, trusted: &'a PortableClaims) -> PortableCertifiedContext<'a> {
+fn context<'a>(
+    f: &'a Fixture,
+    trusted: &'a PortableClaims,
+    grants: &'a ValidatedGrants,
+) -> PortableCertifiedContext<'a> {
     let cert = &f.proof.cert;
     let limits = limits();
     PortableCertifiedContext {
@@ -33,7 +37,7 @@ fn context<'a>(f: &'a Fixture, trusted: &'a PortableClaims) -> PortableCertified
                 issuer: cert.issuer_pid,
                 mechanism: PortableMechanism::Certified,
                 key_binding_id: trusted.key_binding_id,
-                grants: &cert.grants,
+                grants,
                 caller: browser_principal(&[6; 32]),
                 now_ns: NOW,
                 authority_not_before_ns: cert.not_before_ns,
@@ -66,7 +70,11 @@ fn complete_portable_chain_authenticates_distinct_account_and_browser() {
         &encode_claims(&c).unwrap(),
         &f.proof,
         &signature,
-        &context(&f, &c),
+        &context(
+            &f,
+            &c,
+            &ValidatedGrants::new(f.proof.cert.grants.clone()).unwrap(),
+        ),
     )
     .unwrap();
     assert_eq!(result.claims(), &c);
@@ -92,7 +100,11 @@ fn certified_profile_refuses_future_root_authority_without_a_skew_option() {
             &encode_claims(&c).unwrap(),
             &f.proof,
             &signature,
-            &context(&f, &c)
+            &context(
+                &f,
+                &c,
+                &ValidatedGrants::new(f.proof.cert.grants.clone()).unwrap()
+            )
         ),
         Err(PortableCertifiedError::Delegation(Error::NotYetValid {
             target: "root_key_policy"
@@ -115,7 +127,11 @@ fn domain_seed_signature_and_claim_tampering_fail() {
                 &encoded,
                 &f.proof,
                 &signature,
-                &context(&f, &c)
+                &context(
+                    &f,
+                    &c,
+                    &ValidatedGrants::new(f.proof.cert.grants.clone()).unwrap()
+                )
             ),
             Err(PortableCertifiedError::Signature(_))
         ));
@@ -129,7 +145,11 @@ fn domain_seed_signature_and_claim_tampering_fail() {
             &encode_claims(&changed).unwrap(),
             &f.proof,
             &signature,
-            &context(&f, &c)
+            &context(
+                &f,
+                &c,
+                &ValidatedGrants::new(f.proof.cert.grants.clone()).unwrap()
+            )
         ),
         Err(PortableCertifiedError::Signature(_))
     ));
@@ -140,7 +160,11 @@ fn domain_seed_signature_and_claim_tampering_fail() {
             &encoded,
             &f.proof,
             &signature,
-            &context(&f, &c)
+            &context(
+                &f,
+                &c,
+                &ValidatedGrants::new(f.proof.cert.grants.clone()).unwrap()
+            )
         )
         .is_err()
     );
@@ -159,7 +183,11 @@ fn root_proof_is_required_even_with_a_valid_issuer_signature() {
             &encode_claims(&c).unwrap(),
             &f.proof,
             &signature,
-            &context(&f, &c)
+            &context(
+                &f,
+                &c,
+                &ValidatedGrants::new(f.proof.cert.grants.clone()).unwrap()
+            )
         ),
         Err(PortableCertifiedError::Delegation(_))
     ));
@@ -175,14 +203,16 @@ fn shared_checks_and_current_authority_cannot_be_bypassed_by_valid_signatures() 
         (139, PortableClaimsError::NotYetValid),
         (160, PortableClaimsError::Expired),
     ] {
-        let mut ctx = context(&f, &c);
+        let checked_grants = ValidatedGrants::new(f.proof.cert.grants.clone()).unwrap();
+        let mut ctx = context(&f, &c, &checked_grants);
         ctx.claims.authority.now_ns = now;
         assert_eq!(
             verify_certified_claims(&mut budget(), &bytes, &f.proof, &signature, &ctx),
             Err(PortableCertifiedError::Claims(error))
         );
     }
-    let mut ctx = context(&f, &c);
+    let checked_grants = ValidatedGrants::new(f.proof.cert.grants.clone()).unwrap();
+    let mut ctx = context(&f, &c, &checked_grants);
     ctx.claims.authority.caller = c.account_subject;
     assert_eq!(
         verify_certified_claims(&mut budget(), &bytes, &f.proof, &signature, &ctx),
@@ -190,7 +220,8 @@ fn shared_checks_and_current_authority_cannot_be_bypassed_by_valid_signatures() 
             PortableClaimsError::CallerMismatch
         ))
     );
-    ctx = context(&f, &c);
+    let checked_grants = ValidatedGrants::new(f.proof.cert.grants.clone()).unwrap();
+    ctx = context(&f, &c, &checked_grants);
     ctx.claims.authority.enrollment_expires_at_ns = NOW;
     assert_eq!(
         verify_certified_claims(&mut budget(), &bytes, &f.proof, &signature, &ctx),
@@ -198,7 +229,8 @@ fn shared_checks_and_current_authority_cannot_be_bypassed_by_valid_signatures() 
             PortableClaimsError::StaleAuthority
         ))
     );
-    ctx = context(&f, &c);
+    let checked_grants = ValidatedGrants::new(f.proof.cert.grants.clone()).unwrap();
+    ctx = context(&f, &c, &checked_grants);
     ctx.claims.authority.min_login_started_at_ns = 101;
     assert_eq!(
         verify_certified_claims(&mut budget(), &bytes, &f.proof, &signature, &ctx),
@@ -214,8 +246,10 @@ fn delegation_ceiling_binding_and_certificate_time_are_enforced() {
     let c = claims(&f);
     let mut elevated = c.clone();
     elevated.grants[0].scopes.push("zz".into());
-    let mut ctx = context(&f, &c);
-    ctx.claims.authority.grants = &elevated.grants;
+    let checked_grants = ValidatedGrants::new(f.proof.cert.grants.clone()).unwrap();
+    let mut ctx = context(&f, &c, &checked_grants);
+    let elevated_grants = ValidatedGrants::new(elevated.grants.clone()).unwrap();
+    ctx.claims.authority.grants = &elevated_grants;
     let sig = proof(&elevated, CERTIFIED_SIGNATURE_DOMAIN, SEED, NOW);
     assert_eq!(
         verify_certified_claims(
@@ -229,7 +263,8 @@ fn delegation_ceiling_binding_and_certificate_time_are_enforced() {
     );
     let bytes = encode_claims(&c).unwrap();
     let sig = proof(&c, CERTIFIED_SIGNATURE_DOMAIN, SEED, NOW);
-    let mut ctx = context(&f, &c);
+    let checked_grants = ValidatedGrants::new(f.proof.cert.grants.clone()).unwrap();
+    let mut ctx = context(&f, &c, &checked_grants);
     ctx.claims.authority.authority_expires_at_ns += 1;
     assert_eq!(
         verify_certified_claims(&mut budget(), &bytes, &f.proof, &sig, &ctx),
@@ -238,7 +273,17 @@ fn delegation_ceiling_binding_and_certificate_time_are_enforced() {
     for time in [NOW + 1, NOW - 101] {
         let sig = proof(&c, CERTIFIED_SIGNATURE_DOMAIN, SEED, time);
         assert!(matches!(
-            verify_certified_claims(&mut budget(), &bytes, &f.proof, &sig, &context(&f, &c)),
+            verify_certified_claims(
+                &mut budget(),
+                &bytes,
+                &f.proof,
+                &sig,
+                &context(
+                    &f,
+                    &c,
+                    &ValidatedGrants::new(f.proof.cert.grants.clone()).unwrap()
+                )
+            ),
             Err(PortableCertifiedError::Signature(_))
         ));
     }
@@ -250,19 +295,22 @@ fn aggregate_and_individual_bounds_precede_proof_work() {
     let c = claims(&f);
     let bytes = encode_claims(&c).unwrap();
     let sig = proof(&c, CERTIFIED_SIGNATURE_DOMAIN, SEED, NOW);
-    let mut ctx = context(&f, &c);
+    let checked_grants = ValidatedGrants::new(f.proof.cert.grants.clone()).unwrap();
+    let mut ctx = context(&f, &c, &checked_grants);
     ctx.limits.max_variable_bytes = bytes.len();
     assert_eq!(
         verify_certified_claims(&mut budget(), &bytes, &f.proof, &sig, &ctx),
         Err(PortableCertifiedError::Delegation(Error::InputTooLarge))
     );
-    ctx = context(&f, &c);
+    let checked_grants = ValidatedGrants::new(f.proof.cert.grants.clone()).unwrap();
+    ctx = context(&f, &c, &checked_grants);
     ctx.limits.max_issuer_signature_bytes = sig.signature_cbor.len() - 1;
     assert_eq!(
         verify_certified_claims(&mut budget(), &bytes, &f.proof, &sig, &ctx),
         Err(PortableCertifiedError::Delegation(Error::InputTooLarge))
     );
-    ctx = context(&f, &c);
+    let checked_grants = ValidatedGrants::new(f.proof.cert.grants.clone()).unwrap();
+    ctx = context(&f, &c, &checked_grants);
     ctx.limits.max_variable_bytes = usize::MAX;
     let oversized = vec![0; 131_073];
     assert_eq!(
@@ -279,13 +327,33 @@ fn current_root_policy_network_key_and_mechanism_are_not_proof_selected() {
     let sig = proof(&c, CERTIFIED_SIGNATURE_DOMAIN, SEED, NOW);
     f.policy.min_accepted_proof_epoch = 3;
     assert!(matches!(
-        verify_certified_claims(&mut budget(), &bytes, &f.proof, &sig, &context(&f, &c)),
+        verify_certified_claims(
+            &mut budget(),
+            &bytes,
+            &f.proof,
+            &sig,
+            &context(
+                &f,
+                &c,
+                &ValidatedGrants::new(f.proof.cert.grants.clone()).unwrap()
+            )
+        ),
         Err(PortableCertifiedError::Delegation(_))
     ));
     f.policy.min_accepted_proof_epoch = 2;
     f.ic_root = bls_key(2).public_key().serialize();
     assert!(matches!(
-        verify_certified_claims(&mut budget(), &bytes, &f.proof, &sig, &context(&f, &c)),
+        verify_certified_claims(
+            &mut budget(),
+            &bytes,
+            &f.proof,
+            &sig,
+            &context(
+                &f,
+                &c,
+                &ValidatedGrants::new(f.proof.cert.grants.clone()).unwrap()
+            )
+        ),
         Err(PortableCertifiedError::Signature(_))
     ));
     let mut other = c.clone();
@@ -296,7 +364,11 @@ fn current_root_policy_network_key_and_mechanism_are_not_proof_selected() {
             &encode_claims(&other).unwrap(),
             &f.proof,
             &sig,
-            &context(&f, &c)
+            &context(
+                &f,
+                &c,
+                &ValidatedGrants::new(f.proof.cert.grants.clone()).unwrap()
+            )
         ),
         Err(PortableCertifiedError::Claims(
             PortableClaimsError::MechanismMismatch
@@ -312,13 +384,15 @@ fn bounds_and_claim_binding_refuse_before_charging_but_root_refusal_consumes_cre
     let bytes = encode_claims(&c).unwrap();
     let sig = proof(&c, CERTIFIED_SIGNATURE_DOMAIN, SEED, NOW);
     let mut credit = SessionAdmissionBudget::new(1, 1, NOW - 1).unwrap();
-    let mut ctx = context(&f, &c);
+    let checked_grants = ValidatedGrants::new(f.proof.cert.grants.clone()).unwrap();
+    let mut ctx = context(&f, &c, &checked_grants);
     ctx.limits.max_variable_bytes = 0;
     assert_eq!(
         verify_certified_claims(&mut credit, &bytes, &f.proof, &sig, &ctx),
         Err(PortableCertifiedError::Delegation(Error::InputTooLarge))
     );
-    ctx = context(&f, &c);
+    let checked_grants = ValidatedGrants::new(f.proof.cert.grants.clone()).unwrap();
+    ctx = context(&f, &c, &checked_grants);
     let mut changed = f.proof.clone();
     changed.cert.issued_at_ns += 1;
     assert_eq!(
@@ -335,7 +409,17 @@ fn bounds_and_claim_binding_refuse_before_charging_but_root_refusal_consumes_cre
         }))
     );
     assert_eq!(
-        verify_certified_claims(&mut credit, &bytes, &f.proof, &sig, &context(&f, &c)),
+        verify_certified_claims(
+            &mut credit,
+            &bytes,
+            &f.proof,
+            &sig,
+            &context(
+                &f,
+                &c,
+                &ValidatedGrants::new(f.proof.cert.grants.clone()).unwrap()
+            )
+        ),
         Err(PortableCertifiedError::Budget(
             AdmissionBudgetError::Exhausted
         ))
@@ -353,7 +437,11 @@ fn certified_result_uses_the_same_reservation_and_logout_gate() {
         &encode_claims(&c).unwrap(),
         &f.proof,
         &sig,
-        &context(&f, &c),
+        &context(
+            &f,
+            &c,
+            &ValidatedGrants::new(f.proof.cert.grants.clone()).unwrap(),
+        ),
     )
     .unwrap();
     let caller = browser_principal(&c.browser_public_key);
@@ -393,7 +481,8 @@ fn certified_lease_uses_the_same_deadline_caps() {
     let sig = proof(&c, CERTIFIED_SIGNATURE_DOMAIN, SEED, NOW);
     let encoded = encode_claims(&c).unwrap();
     let request = SessionRequest::new(vec!["read".into()], Some(1)).unwrap();
-    let mut host = context(&f, &c);
+    let checked_grants = ValidatedGrants::new(f.proof.cert.grants.clone()).unwrap();
+    let mut host = context(&f, &c, &checked_grants);
     let checked = verify_certified_claims(&mut budget(), &encoded, &f.proof, &sig, &host).unwrap();
     assert_eq!(
         ic_auth::session_request::SessionTtlPolicy::new(1, 1800)
@@ -438,7 +527,8 @@ fn certified_signature_failure_spends_credit_after_cheap_checks() {
     let f = Fixture::new();
     let c = claims(&f);
     let bytes = encode_claims(&c).unwrap();
-    let mut host = context(&f, &c);
+    let checked_grants = ValidatedGrants::new(f.proof.cert.grants.clone()).unwrap();
+    let mut host = context(&f, &c, &checked_grants);
     let wrong = proof(&c, b"wrong-domain", SEED, NOW);
     let mut budget = SessionAdmissionBudget::new(1, 1, NOW - 1).unwrap();
     host.claims.authority.caller = Principal::anonymous();
@@ -448,7 +538,8 @@ fn certified_signature_failure_spends_credit_after_cheap_checks() {
             PortableClaimsError::CallerMismatch
         ))
     ));
-    host = context(&f, &c);
+    let checked_grants = ValidatedGrants::new(f.proof.cert.grants.clone()).unwrap();
+    host = context(&f, &c, &checked_grants);
     assert!(matches!(
         verify_certified_claims(&mut budget, &bytes, &f.proof, &wrong, &host),
         Err(PortableCertifiedError::Signature(_))
@@ -473,7 +564,8 @@ fn switching_proof_mechanisms_cannot_obtain_another_allowance() {
     use sha2::{Digest, Sha256};
     let f = Fixture::new();
     let c = claims(&f);
-    let certified_host = context(&f, &c);
+    let checked_grants = ValidatedGrants::new(f.proof.cert.grants.clone()).unwrap();
+    let certified_host = context(&f, &c, &checked_grants);
     let certified_bytes = encode_claims(&c).unwrap();
     let certified_signature = proof(&c, CERTIFIED_SIGNATURE_DOMAIN, SEED, NOW);
     let key = SigningKey::from_bytes(&[42; 32]);
@@ -544,7 +636,8 @@ fn certified_proof_uses_the_shared_session_lifecycle() {
             issuer_signature: signature,
         },
     };
-    let mut host = context(&f, &c);
+    let checked_grants = ValidatedGrants::new(f.proof.cert.grants.clone()).unwrap();
+    let mut host = context(&f, &c, &checked_grants);
     let mut ctx = SessionContext {
         authority: host.claims.authority,
         max_ttl: ic_auth::session_request::SessionTtlLimit::new(30).unwrap(),
@@ -695,7 +788,8 @@ fn credential_variant_cannot_select_authority_or_spend_mismatched_budget() {
     };
     let f = Fixture::new();
     let c = claims(&f);
-    let authority = context(&f, &c);
+    let checked_grants = ValidatedGrants::new(f.proof.cert.grants.clone()).unwrap();
+    let authority = context(&f, &c, &checked_grants);
     let selected = PortableVerificationContext::Certified(&authority);
     let mut credential = PortableCredential {
         claims: encode_claims(&c).unwrap(),
@@ -718,7 +812,8 @@ fn credential_variant_cannot_select_authority_or_spend_mismatched_budget() {
         delegation: Box::new(f.proof.clone()),
         issuer_signature: proof(&c, CERTIFIED_SIGNATURE_DOMAIN, SEED, NOW),
     };
-    let mut bounded = context(&f, &c);
+    let checked_grants = ValidatedGrants::new(f.proof.cert.grants.clone()).unwrap();
+    let mut bounded = context(&f, &c, &checked_grants);
     bounded.limits.max_variable_bytes = 0;
     assert_eq!(
         verify_credential(

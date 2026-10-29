@@ -191,6 +191,8 @@ fn portable_proof_rechecks_live_authority_and_real_certification_after_upgrade()
     let unchanged = signature.clone();
     let network =
         extract_raw_root_pk_from_der(&fixture.pic.instance().root_key().unwrap()).unwrap();
+    let checked_grants =
+        ic_auth::portable::ValidatedGrants::new(proof.cert.grants.clone()).unwrap();
     let mut context = PortableCertifiedContext {
         claims: PortableClaimsContext {
             authority: ic_auth::portable::PortableAuthority {
@@ -198,7 +200,7 @@ fn portable_proof_rechecks_live_authority_and_real_certification_after_upgrade()
                 issuer: fixture.signer,
                 mechanism: PortableMechanism::Certified,
                 key_binding_id: claims.key_binding_id,
-                grants: &proof.cert.grants,
+                grants: &checked_grants,
                 caller: browser_principal(&browser_key),
                 now_ns: fixture.now(),
                 authority_not_before_ns: started,
@@ -255,12 +257,13 @@ fn portable_proof_rechecks_live_authority_and_real_certification_after_upgrade()
         target: role.clone(),
         scopes: vec!["write".into()],
     }];
+    let narrowed = ic_auth::portable::ValidatedGrants::new(narrowed).unwrap();
     context.claims.authority.grants = &narrowed;
     assert_eq!(
         verify(&signature, &context).unwrap_err(),
         Error::Claims(PortableClaimsError::GrantsExceeded)
     );
-    context.claims.authority.grants = &proof.cert.grants;
+    context.claims.authority.grants = &checked_grants;
     context.claims.authority.enrollment_expires_at_ns = context.claims.authority.now_ns;
     assert_eq!(
         verify(&signature, &context).unwrap_err(),

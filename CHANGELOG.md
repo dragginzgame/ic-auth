@@ -1,5 +1,49 @@
 # Changelog
 
+## [0.21.0]
+
+### ➕ Added
+
+- Add a host-owned admission metrics reference with fixed outcome counters,
+  committed-change accounting and independent diagnostic windows. Metrics stays
+  outside public library graphs; no report endpoint or production adoption is
+  introduced. [#106 — Host admission metrics](https://github.com/dragginzgame/ic-auth/issues/106).
+
+### ⚠️ Breaking
+
+- `PortableAuthority::grants` now borrows owned `ValidatedGrants`. Validate protected
+  configuration once with `ValidatedGrants::new`, retain it with enrollment, and
+  reconstruct it after decoding/restoring configuration. Use `as_slice` for raw
+  grant projections. Hosts still select current protected inputs and atomically
+  advance generation on authority changes; every authorization keeps live clock,
+  revocation and scope checks. Signed/public Wire/checkpoint bytes are unchanged.
+
+### 🔧 Changed
+
+- In matched qualification, reduce ordinary authorization from 7,520 to 6,848
+  instructions (~9%) and maximum-width authorization from 313,510 to 29,601
+  (~91%). The reference Wasm is 1,439 bytes smaller. These fixture measurements
+  retain live checks and do not establish production workload savings.
+
+### ⬆️ Dependencies
+
+- Adopt Shared Tooling 0.27.6 at reviewed commit
+  `5a72359b5be19d5221334cf2c9b3204621d3f3f6`, IC Tooling 0.69.11 including the
+  prepared Build/Testkit/file CLIs, Platform/macros 0.7.5 and Memory/Storage
+  0.54.0. Auth uses the governed cell adapter; the upstream Metrics 0.17 type transition requires no
+  Auth storage migration. Retain checkpoint formats and the PocketIC 16.1.0 pair;
+  Platform's external Candid/ledger additions remain outside public Auth graphs.
+  [#107 — Adopt shared libraries](https://github.com/dragginzgame/ic-auth/issues/107).
+
+### 🧹 Cleanup
+
+- Share the Rust login-caller shape check across session, replay and login-record
+  admission while retaining every boundary and refusal category.
+- Reuse the private Wire method macro for both profiling endpoints, preserving
+  method identities, payloads and admission-sized request budgets.
+- Refresh the handoff to reflect the delivered 0.20.0 release and distinguish
+  the incoming tooling lock update from qualified dependency adoption.
+
 ## [0.20.0] - 2026-10-29
 
 ### 🔧 Changed

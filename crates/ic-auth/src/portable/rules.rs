@@ -1,10 +1,8 @@
 //! Common portable claims checks; neither proof verification nor session admission.
 
-use super::{PortableEncodingError, browser_principal, validate_shape};
-use crate::certificate_issuance::{grants_are_subset, positive_duration, validate_grants};
-use ic_auth_protocol_types::{
-    AudienceId, DelegatedRoleGrant, PortableClaims, PortableMechanism, Principal,
-};
+use super::{PortableEncodingError, ValidatedGrants, browser_principal, validate_shape};
+use crate::certificate_issuance::{grants_are_subset, positive_duration};
+use ic_auth_protocol_types::{AudienceId, PortableClaims, PortableMechanism, Principal};
 use thiserror::Error;
 
 /// Protected runtime and active enrollment inputs, never inferred from claims.
@@ -17,7 +15,8 @@ pub struct PortableAuthority<'a> {
     pub issuer: Principal,
     pub mechanism: PortableMechanism,
     pub key_binding_id: [u8; 32],
-    pub grants: &'a [DelegatedRoleGrant],
+    /// Immutable checked grant shape from the current protected enrollment.
+    pub grants: &'a ValidatedGrants,
     /// Actual authenticated ingress sender, not an account subject or request field.
     pub caller: Principal,
     pub now_ns: u64,
@@ -45,12 +44,6 @@ impl PortableAuthority<'_> {
     pub(crate) fn authority_shape_valid(&self) -> bool {
         self.issuer != Principal::anonymous()
             && self.authority_not_before_ns < self.authority_expires_at_ns
-            && validate_grants(
-                self.grants,
-                crate::limits::MAX_GRANTS,
-                crate::limits::MAX_SCOPES_PER_GRANT,
-            )
-            .is_ok()
     }
 }
 
@@ -174,7 +167,7 @@ fn validate_bindings(
     if browser_principal(&claims.browser_public_key) != authority.caller {
         return Err(Error::CallerMismatch);
     }
-    if !grants_are_subset(&claims.grants, authority.grants) {
+    if !grants_are_subset(&claims.grants, authority.grants.as_slice()) {
         return Err(Error::GrantsExceeded);
     }
     if positive_duration(claims.login_started_at_ns, claims.login_deadline_ns)

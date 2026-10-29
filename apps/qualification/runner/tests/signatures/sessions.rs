@@ -128,10 +128,11 @@ fn sdk_preserves_typed_refusals_and_retries_the_original_future_credential() {
         issuer: f.signer,
         authority: ReceiverAuthority::Ed25519(key.verifying_key().to_bytes()),
         role: "user".parse().unwrap(),
-        grants: vec![DelegatedRoleGrant {
+        grants: ic_auth::portable::ValidatedGrants::new(vec![DelegatedRoleGrant {
             target: "user".parse().unwrap(),
             scopes: vec!["read".into()],
-        }],
+        }])
+        .unwrap(),
         valid_from_ns: now,
         valid_until_ns: now + 120 * SECOND,
         enrollment_until_ns: now + 120 * SECOND,
@@ -161,7 +162,7 @@ fn sdk_preserves_typed_refusals_and_retries_the_original_future_credential() {
         issued_at_ns: now,
         admission_expires_at_ns: now + 30 * SECOND,
         nonce: [71; 16],
-        grants: config.grants.clone(),
+        grants: config.grants.as_slice().to_vec(),
     };
     let future = input(
         &PortableClaims {
@@ -224,10 +225,11 @@ fn issuer_scoped_accounts_survive_wire_projection_and_independent_logout() {
         issuer: f.signer,
         authority: ReceiverAuthority::Ed25519(first_key.verifying_key().to_bytes()),
         role: "user".parse().unwrap(),
-        grants: vec![DelegatedRoleGrant {
+        grants: ic_auth::portable::ValidatedGrants::new(vec![DelegatedRoleGrant {
             target: "user".parse().unwrap(),
             scopes: vec!["read".into()],
-        }],
+        }])
+        .unwrap(),
         valid_from_ns: now,
         valid_until_ns: now + 120 * SECOND,
         enrollment_until_ns: now + 120 * SECOND,
@@ -254,7 +256,7 @@ fn issuer_scoped_accounts_survive_wire_projection_and_independent_logout() {
         issued_at_ns: f.now(),
         admission_expires_at_ns: f.now() + 5 * SECOND,
         nonce: [1; 16],
-        grants: first.grants.clone(),
+        grants: first.grants.as_slice().to_vec(),
     };
     let second_claims = PortableClaims {
         issuer: second.issuer,
@@ -321,10 +323,11 @@ fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ingress()
         issuer: f.signer,
         authority: ReceiverAuthority::Ed25519(key.verifying_key().to_bytes()),
         role: "user".parse().unwrap(),
-        grants: vec![DelegatedRoleGrant {
+        grants: ic_auth::portable::ValidatedGrants::new(vec![DelegatedRoleGrant {
             target: "user".parse().unwrap(),
             scopes: vec!["read".into()],
-        }],
+        }])
+        .unwrap(),
         valid_from_ns: now,
         valid_until_ns: now + 120 * SECOND,
         enrollment_until_ns: now + 120 * SECOND,
@@ -364,7 +367,7 @@ fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ingress()
         issued_at_ns: f.now(),
         admission_expires_at_ns: f.now() + 2 * SECOND,
         nonce: [1; 16],
-        grants: config.grants.clone(),
+        grants: config.grants.as_slice().to_vec(),
     };
     let caller = browser_principal(&claims.browser_public_key);
     let first = input(&claims, &key);
@@ -676,13 +679,14 @@ pub(super) fn qualify_certified(
         .unwrap();
     let signature = f.retrieve(CERTIFIED_SIGNATURE_DOMAIN, &digest).unwrap();
     let now = f.now();
+    let checked_grants = ic_auth::portable::ValidatedGrants::new(cert.grants.clone()).unwrap();
     let authority = PortableClaimsContext {
         authority: ic_auth::portable::PortableAuthority {
             audience: old.claims.authority.audience,
             issuer: cert.issuer_pid,
             mechanism: PortableMechanism::Certified,
             key_binding_id: claims.key_binding_id,
-            grants: &cert.grants,
+            grants: &checked_grants,
             caller: browser_principal(&claims.browser_public_key),
             now_ns: now,
             authority_not_before_ns: cert.not_before_ns,
@@ -816,10 +820,11 @@ fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_authority() 
         issuer: f.signer,
         authority: ReceiverAuthority::Ed25519(key.verifying_key().to_bytes()),
         role: "user".parse().unwrap(),
-        grants: vec![DelegatedRoleGrant {
+        grants: ic_auth::portable::ValidatedGrants::new(vec![DelegatedRoleGrant {
             target: "user".parse().unwrap(),
             scopes: vec!["read".into()],
-        }],
+        }])
+        .unwrap(),
         valid_from_ns: now,
         valid_until_ns: now + 120 * SECOND,
         enrollment_until_ns: now + 120 * SECOND,
@@ -849,7 +854,7 @@ fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_authority() 
         issued_at_ns: f.now(),
         admission_expires_at_ns: f.now() + 2 * SECOND,
         nonce: [1; 16],
-        grants: config.grants.clone(),
+        grants: config.grants.as_slice().to_vec(),
     };
     let live = browser_principal(&claims.browser_public_key);
     let original = input(&claims, &key);

@@ -1,8 +1,8 @@
 #![cfg(feature = "portable-signature-verification")]
 
 use ic_auth::portable::{
-    MAX_CLAIMS_BYTES, PortableClaimsContext, PortableClaimsError as ClaimsError, browser_principal,
-    claims_hash, encode_claims,
+    MAX_CLAIMS_BYTES, PortableClaimsContext, PortableClaimsError as ClaimsError, ValidatedGrants,
+    browser_principal, claims_hash, encode_claims,
 };
 use ic_auth::portable_signature::{PortableSignatureError as Error, verify_ed25519_claims};
 use ic_auth_protocol_types::{
@@ -56,14 +56,17 @@ fn claims() -> PortableClaims {
     }
 }
 
-fn context(trusted: &PortableClaims) -> PortableClaimsContext<'_> {
+fn context<'a>(
+    trusted: &'a PortableClaims,
+    grants: &'a ValidatedGrants,
+) -> PortableClaimsContext<'a> {
     PortableClaimsContext {
         authority: ic_auth::portable::PortableAuthority {
             audience: &trusted.audience,
             issuer: trusted.issuer,
             mechanism: PortableMechanism::Ed25519,
             key_binding_id: trusted.key_binding_id,
-            grants: &trusted.grants,
+            grants,
             caller: browser_principal(&trusted.browser_public_key),
             now_ns: 25,
             authority_not_before_ns: 0,
@@ -83,7 +86,10 @@ fn verify(value: &PortableClaims, proof: &[u8]) -> Result<PortableClaims, Error>
         &mut budget(),
         &encode_claims(value).unwrap(),
         proof,
-        &context(&trusted),
+        &context(
+            &trusted,
+            &ValidatedGrants::new(trusted.grants.clone()).unwrap(),
+        ),
         &public_key(),
     )
     .map(|verified| verified.claims().clone())
@@ -149,7 +155,10 @@ fn protected_bindings_cannot_be_selected_by_the_proof() {
             &mut budget(),
             &encode_claims(&trusted).unwrap(),
             &signature(),
-            &context(&trusted),
+            &context(
+                &trusted,
+                &ValidatedGrants::new(trusted.grants.clone()).unwrap()
+            ),
             &[42; 32]
         ),
         Err(Error::Claims(ClaimsError::KeyMismatch))
@@ -232,7 +241,7 @@ fn strict_signature_lengths_scalars_and_small_order_points() {
                 &mut budget(),
                 &encode_claims(&value).unwrap(),
                 &signature(),
-                &context(&value),
+                &context(&value, &ValidatedGrants::new(value.grants.clone()).unwrap()),
                 &weak_key
             ),
             Err(Error::InvalidPublicKey)
@@ -252,7 +261,13 @@ fn malformed_claims_never_reach_signature_verification() {
         &vec![0; MAX_CLAIMS_BYTES + 1],
     ] {
         assert!(matches!(
-            verify_ed25519_claims(&mut budget(), bytes, &[], &context(&value), &public_key()),
+            verify_ed25519_claims(
+                &mut budget(),
+                bytes,
+                &[],
+                &context(&value, &ValidatedGrants::new(value.grants.clone()).unwrap()),
+                &public_key()
+            ),
             Err(Error::Encoding(_))
         ));
     }
@@ -266,7 +281,8 @@ fn portable_lease_uses_login_and_captured_authority_not_proof_expiry() {
     let mut value = claims();
     value.login_deadline_ns = 10_000_000_000;
     let signature = key.sign(&claims_hash(&value).unwrap()).to_bytes();
-    let mut host = context(&value);
+    let checked_grants = ValidatedGrants::new(value.grants.clone()).unwrap();
+    let mut host = context(&value, &checked_grants);
     host.max_login_ttl_ns = 10_000_000_000;
     host.authority.authority_expires_at_ns = 9_000_000_000;
     host.authority.enrollment_expires_at_ns = 8_000_000_000;
@@ -338,7 +354,8 @@ fn failed_signatures_consume_shared_credit_and_cheap_refusals_do_not() {
     use ic_auth::admission_budget::{AdmissionBudgetError, SessionAdmissionBudget};
     let c = claims();
     let bytes = encode_claims(&c).unwrap();
-    let mut host = context(&c);
+    let checked_grants = ValidatedGrants::new(c.grants.clone()).unwrap();
+    let mut host = context(&c, &checked_grants);
     let mut budget = SessionAdmissionBudget::new(1, 5, 20).unwrap();
     // A caller mismatch is rejected without spending the available attempt.
     host.authority.caller = Principal::anonymous();
@@ -346,7 +363,8 @@ fn failed_signatures_consume_shared_credit_and_cheap_refusals_do_not() {
         verify_ed25519_claims(&mut budget, &bytes, &signature(), &host, &public_key()),
         Err(Error::Claims(ClaimsError::CallerMismatch))
     );
-    host = context(&c);
+    let checked_grants = ValidatedGrants::new(c.grants.clone()).unwrap();
+    host = context(&c, &checked_grants);
     // Validly encoded signature for a different digest reaches cryptography.
     let bad = SigningKey::from_bytes(&[7; 32]).sign(&[9; 32]).to_bytes();
     assert_eq!(
@@ -356,7 +374,8 @@ fn failed_signatures_consume_shared_credit_and_cheap_refusals_do_not() {
     // Switching callers does not reset the receiver-wide allowance.
     let mut other = c.clone();
     other.browser_public_key = [8; 32];
-    let other_host = context(&other);
+    let checked_grants = ValidatedGrants::new(other.grants.clone()).unwrap();
+    let other_host = context(&other, &checked_grants);
     assert_eq!(
         verify_ed25519_claims(
             &mut budget,
@@ -380,7 +399,8 @@ fn successful_verification_and_failed_storage_do_not_refund_credit() {
     use ic_auth::portable::{LoginRevocationError, MemoryLoginRevocations};
     let c = claims();
     let bytes = encode_claims(&c).unwrap();
-    let host = context(&c);
+    let checked_grants = ValidatedGrants::new(c.grants.clone()).unwrap();
+    let host = context(&c, &checked_grants);
     let mut budget = SessionAdmissionBudget::new(1, 5, 20).unwrap();
     let checked =
         verify_ed25519_claims(&mut budget, &bytes, &signature(), &host, &public_key()).unwrap();
@@ -428,7 +448,7 @@ fn session_request_narrows_one_protected_role_without_combining_grants() {
         &mut budget(),
         &encoded,
         &signature,
-        &context(&c),
+        &context(&c, &ValidatedGrants::new(c.grants.clone()).unwrap()),
         &public_key(),
     )
     .unwrap();
@@ -483,7 +503,8 @@ fn credential_dispatch_preserves_signed_bytes_and_protected_key_checks() {
     };
     use ic_auth_protocol_types::{PortableCredential, PortableProof};
     let trusted = claims();
-    let authority = context(&trusted);
+    let checked_grants = ValidatedGrants::new(trusted.grants.clone()).unwrap();
+    let authority = context(&trusted, &checked_grants);
     let key = public_key();
     let selected = PortableVerificationContext::Ed25519 {
         claims: &authority,

@@ -14,10 +14,11 @@ fn actual_browser_storage_signing_and_receiver_transport() {
         issuer: f.signer,
         authority: ReceiverAuthority::Ed25519(key.verifying_key().to_bytes()),
         role: "user".parse().unwrap(),
-        grants: vec![DelegatedRoleGrant {
+        grants: ic_auth::portable::ValidatedGrants::new(vec![DelegatedRoleGrant {
             target: "user".parse().unwrap(),
             scopes: vec!["read".into()],
-        }],
+        }])
+        .unwrap(),
         valid_from_ns: f.now(),
         valid_until_ns: f.now() + 120 * SECOND,
         enrollment_until_ns: f.now() + 120 * SECOND,
@@ -47,7 +48,7 @@ fn actual_browser_storage_signing_and_receiver_transport() {
                 issued_at_ns: now,
                 admission_expires_at_ns: now + 60 * SECOND,
                 nonce: [device; 16],
-                grants: config.grants.clone(),
+                grants: config.grants.as_slice().to_vec(),
             };
             ic_auth_wire::CredentialEnvelope::encode_request(&input(&claims, &key).credential)
                 .unwrap()

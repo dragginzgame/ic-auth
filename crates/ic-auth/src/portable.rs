@@ -8,6 +8,7 @@
     feature = "certified-proof-verification"
 ))]
 mod decoded;
+mod grants;
 mod revocation;
 mod rules;
 mod verified;
@@ -16,6 +17,7 @@ mod verified;
     feature = "certified-proof-verification"
 ))]
 pub(crate) use decoded::{ContextualClaims, DecodedPortableClaims};
+pub use grants::ValidatedGrants;
 pub use revocation::{
     LoginBinding, LoginRecordState, LoginRevocationChange, LoginRevocationError,
     MemoryLoginRevocations,
@@ -179,6 +181,13 @@ pub fn browser_principal(public_key: &[u8; 32]) -> Principal {
     Principal::self_authenticating(der)
 }
 
+// A login caller must have the complete self-authenticating principal shape.
+// This checks neither ingress provenance nor possession of the browser key.
+pub(crate) fn is_login_caller(caller: Principal) -> bool {
+    let bytes = caller.as_slice();
+    bytes.len() == 29 && bytes.last() == Some(&2)
+}
+
 fn validate_shape(claims: &PortableClaims) -> Result<(), PortableEncodingError> {
     if claims.account_subject == Principal::anonymous() {
         return Err(PortableEncodingError::AnonymousSubject);
@@ -237,5 +246,27 @@ impl<'a> Reader<'a> {
     fn label(&mut self) -> Result<&'a str, PortableEncodingError> {
         let len = self.count(MAX_LABEL_BYTES)?;
         std::str::from_utf8(self.take(len)?).map_err(|_| PortableEncodingError::InvalidShape)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn login_caller_requires_complete_self_authenticating_shape() {
+        assert!(is_login_caller(browser_principal(&[42; 32])));
+        for length in 0..=29 {
+            for class in [0, 1, 2, 3, 4, 255] {
+                let mut bytes = vec![7; length];
+                if let Some(last) = bytes.last_mut() {
+                    *last = class;
+                }
+                assert_eq!(
+                    is_login_caller(Principal::from_slice(&bytes)),
+                    length == 29 && class == 2
+                );
+            }
+        }
     }
 }

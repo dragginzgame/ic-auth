@@ -3,7 +3,7 @@
 mod support;
 
 use ic_auth::portable::{
-    LoginRevocationError as Error, MemoryLoginRevocations, PortableClaimsContext,
+    LoginRevocationError as Error, MemoryLoginRevocations, PortableClaimsContext, ValidatedGrants,
     VerifiedPortableClaims, browser_principal, claims_hash, encode_claims,
 };
 use ic_auth::portable_signature::verify_ed25519_claims;
@@ -41,13 +41,14 @@ fn verify_with_budget(
 ) -> Result<VerifiedPortableClaims, ic_auth::portable_signature::PortableSignatureError> {
     let key = support::issuer_key();
     let signature = key.sign(&claims_hash(c).unwrap()).to_bytes();
+    let grants = ValidatedGrants::new(c.grants.clone()).unwrap();
     let context = PortableClaimsContext {
         authority: ic_auth::portable::PortableAuthority {
             audience: &c.audience,
             issuer: c.issuer,
             mechanism: c.mechanism,
             key_binding_id: c.key_binding_id,
-            grants: &c.grants,
+            grants: &grants,
             caller: browser_principal(&c.browser_public_key),
             now_ns: now,
             authority_not_before_ns: 0,

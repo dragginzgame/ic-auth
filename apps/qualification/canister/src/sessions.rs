@@ -1,5 +1,7 @@
 //! Actual volatile receiver lifecycle for qualification, not a production issuer.
 mod checkpoint;
+#[path = "../../session_metrics.rs"]
+mod metrics;
 mod profiling;
 pub(crate) use checkpoint::{Snapshot, capture, restore};
 #[path = "../../sessions.rs"]
@@ -7,7 +9,6 @@ pub(crate) mod contract;
 use contract::*;
 use ic_auth::{
     admission_budget::SessionAdmissionBudget,
-    certificate_issuance::validate_grants,
     portable::{MemoryLoginRevocations, PortableClaimsContext},
     portable_credential::PortableVerificationContext,
     session::{
@@ -71,6 +72,7 @@ struct Receiver {
     ledger: MemoryLoginRevocations,
     admission: SessionAdmissionBudget,
     unknown: SessionAdmissionBudget,
+    metrics: metrics::AdmissionMetrics,
 }
 thread_local! { static RECEIVER: RefCell<Option<Receiver>> = const { RefCell::new(None) }; }
 struct ReceiverInputs {
@@ -169,7 +171,6 @@ fn install_session_receiver(config: controls::model::ReceiverConfig) -> Result<(
     let config: ReceiverConfig = config
         .try_into()
         .map_err(|e: ic_wire::Error| e.to_string())?;
-    validate_grants(&config.grants, 16, 32).map_err(|e| e.to_string())?;
     let now = ic_platform::cdk::api::time();
     if config.issuer == Principal::anonymous()
         || config.valid_from_ns > now
@@ -217,6 +218,7 @@ fn install_session_receiver(config: controls::model::ReceiverConfig) -> Result<(
         unknown,
         inputs,
         enabled: true,
+        metrics: Default::default(),
     };
     RECEIVER.with(|state| *state.borrow_mut() = Some(host));
     Ok(())
@@ -276,6 +278,7 @@ fn establish_portable_session(input: SessionInput) -> Result<SessionView, Admiss
             },
             policy,
         );
+        host.metrics.observe(&result);
         Ok(result
             .map(|result| {
                 view(&match result {

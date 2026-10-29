@@ -5,7 +5,7 @@ use ic_auth::{
     admission_budget::SessionAdmissionBudget,
     portable::{
         LoginRevocationError, MemoryLoginRevocations, PortableClaimsContext, PortableClaimsError,
-        browser_principal, claims_hash, encode_claims,
+        ValidatedGrants, browser_principal, claims_hash, encode_claims,
     },
     portable_credential::PortableVerificationContext,
     portable_signature::verify_ed25519_claims,
@@ -124,6 +124,7 @@ struct Fixture {
     key: SigningKey,
     claims: PortableClaims,
     role: AuthRole,
+    grants: ValidatedGrants,
 }
 impl Fixture {
     fn new(device: u8) -> Self {
@@ -140,7 +141,13 @@ impl Fixture {
         claims.admission_expires_at_ns = NOW + 2 * SECOND;
         claims.nonce = [1; 16];
         claims.grants[0].scopes.push("write".into());
-        Self { key, claims, role }
+        let grants = ValidatedGrants::new(claims.grants.clone()).unwrap();
+        Self {
+            key,
+            claims,
+            role,
+            grants,
+        }
     }
     fn caller(&self) -> Principal {
         browser_principal(&self.claims.browser_public_key)
@@ -151,7 +158,7 @@ impl Fixture {
             issuer: self.claims.issuer,
             mechanism: self.claims.mechanism,
             key_binding_id: self.claims.key_binding_id,
-            grants: &self.claims.grants,
+            grants: &self.grants,
             caller: self.caller(),
             now_ns: now,
             authority_not_before_ns: 0,
@@ -333,19 +340,16 @@ fn required_scopes_accept_any_order_but_never_borrow_another_roles_grant() {
         },
     );
     grants[1].scopes = vec!["read".into()];
+    let grants = ValidatedGrants::new(grants).unwrap();
     live.authority.grants = &grants;
     assert_eq!(
         authorize_session(&mut r.store, &mut r.ledger, &live, policy(), Session::clone),
         Err(SessionError::ScopeRejected)
     );
     // An unsorted protected ceiling is rejected before ordered membership.
-    let mut unsorted = grants.clone();
+    let mut unsorted = grants.as_slice().to_vec();
     unsorted.reverse();
-    live.authority.grants = &unsorted;
-    assert_eq!(
-        authorize_session(&mut r.store, &mut r.ledger, &live, policy(), Session::clone),
-        Err(SessionError::InvalidPolicyOrRecord)
-    );
+    assert!(ValidatedGrants::new(unsorted).is_err());
 }
 
 #[test]
@@ -687,12 +691,7 @@ fn live_authority_scope_generation_expiry_and_lost_ledger_are_enforced() {
         authorize_session(&mut r.store, &mut r.ledger, &ctx, policy(), Session::clone),
         Err(SessionError::StaleAuthority)
     );
-    let empty: [DelegatedRoleGrant; 0] = [];
-    ctx = f.context(NOW);
-    ctx.authority.grants = &empty;
-    assert!(
-        authorize_session(&mut r.store, &mut r.ledger, &ctx, policy(), Session::clone).is_err()
-    );
+    assert!(ValidatedGrants::new(Vec::new()).is_err());
     let mut lost = MemoryLoginRevocations::new(f.claims.audience, 4, 4, SECOND, 0).unwrap();
     assert!(
         authorize_session(
@@ -1762,15 +1761,14 @@ fn session_liveness_keeps_proof_policy_separate_from_shared_authority_shape() {
         ),
         Err(SessionError::StaleAuthority)
     );
-    for defect in 0..3 {
+    for defect in 0..2 {
         let mut context = f.context(NOW);
         match defect {
             0 => context.authority.issuer = Principal::anonymous(),
-            1 => {
+            _ => {
                 context.authority.authority_expires_at_ns =
                     context.authority.authority_not_before_ns
             }
-            _ => context.authority.grants = &[],
         }
         assert_eq!(
             ic_auth::portable::validate_claims_context(

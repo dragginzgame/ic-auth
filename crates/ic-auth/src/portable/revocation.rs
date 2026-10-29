@@ -1,6 +1,6 @@
 //! Bounded volatile revocation bookkeeping, not an authentication endpoint.
 
-use super::{VerifiedPortableClaims, browser_principal, validate_shape};
+use super::{VerifiedPortableClaims, browser_principal, is_login_caller, validate_shape};
 use crate::admission_budget::{AdmissionBudgetError, SessionAdmissionBudget};
 use ic_auth_protocol_types::{AudienceId, PortableClaims, Principal};
 use std::collections::{BTreeMap, BTreeSet};
@@ -134,8 +134,7 @@ impl LoginRevocationChange {
                 || LoginRevocationError::InvalidPolicy,
                 LoginRevocationError::InvalidPolicy,
             )?;
-        let caller_bytes = caller.as_slice();
-        if caller_bytes.len() != 29 || caller_bytes.last() != Some(&2) {
+        if !is_login_caller(caller) {
             return Err(LoginRevocationError::InvalidCaller);
         }
         let state = match fields.login {
@@ -585,8 +584,7 @@ impl MemoryLoginRevocations {
     }
 
     fn observe(&mut self, caller: Principal, now_ns: u64) -> Result<(), LoginRevocationError> {
-        let bytes = caller.as_slice();
-        if bytes.len() != 29 || bytes.last() != Some(&2) {
+        if !is_login_caller(caller) {
             return Err(LoginRevocationError::InvalidCaller);
         }
         self.clock(now_ns)

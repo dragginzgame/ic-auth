@@ -8,10 +8,19 @@ checkpoints are retained separately in [adoption history](canic-adoption-history
 
 ## Session commit contract
 
+The pending Auth **0.21** API requires `PortableAuthority::grants` to borrow a
+retained `ValidatedGrants`. Construct it from protected enrollment configuration
+once and reconstruct it on storage decoding/restoration. Replace it atomically
+with authority and generation updates; keep all live authorization checks.
+`as_slice()` supplies raw grant projections. This is structural evidence, not
+proof verification or trust enrollment, and public Wire/checkpoint bytes remain.
+No sibling adoption is claimed by the Auth implementation.
+
+
 Auth 0.19 changes the Rust admission, context, lifetime and storage APIs.
 Pass a complete credential and `SessionAdmissionContext` to admission; migrate
 custom backends from mutable `SessionTransaction` staging to
-`SessionReader` and `SessionStore::{read, admit, logout}`. The pending Auth 0.20
+`SessionReader` and `SessionStore::{read, admit, logout}`. The Auth 0.20
 API returns `Option<Cow<'_, Session>>` from the reader and requires a projection
 callback on `authorize_session`; borrow a retained memory record or return
 `Cow::Owned` for a bounded persistent decode. Project the account/view inside the

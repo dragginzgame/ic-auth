@@ -23,6 +23,22 @@ shared `PortableAuthority` plus the proof issuance floor and login/proof TTL lim
 required operation scopes and a checked `SessionTtlLimit`; authorization needs no
 proof policy or default request TTL.
 
+`PortableAuthority::grants` borrows `ValidatedGrants`, which owns the host-selected
+vector and validates nonempty canonical roles/scopes against the portable limits
+once at construction. Call `ValidatedGrants::new(configured_grants)` at enrollment
+installation and after decoding retained configuration; keep the value with that
+protected enrollment and borrow it for each operation. It offers `as_slice()` for
+read-only projections and `into_vec()` for consuming edits/transport conversion.
+There is no unchecked deserializer or mutable grant access.
+
+This type proves structure only. A client-supplied grant list cannot establish
+trusted authority by passing its constructor. Hosts must select the current
+protected value and replace it atomically with the authority generation when
+policy changes. Session authorization still checks the live generation, issuer,
+key binding, deadlines, login revocation and scope narrowing on every call. Raw
+submitted claims retain independent shape and signature checks. Neither proof
+verification results nor authorization decisions are cached.
+
 Construct `SessionTtlPolicy::new(default_secs, maximum_secs)` for admission.
 It enforces `1 <= default <= maximum <= 1800`. Its `maximum()` supplies the
 live authorization limit, or a host can construct `SessionTtlLimit::new(maximum_secs)`
@@ -129,6 +145,10 @@ Auth 0.19 is a hard cut at the Rust API; migrate each current caller together:
 - Move shared clock, identity, grants, authority deadlines and login reset floor
   into `PortableAuthority`. Put proof-only inputs on `PortableClaimsContext`.
   Authorization uses `SessionContext` with current authority and maximum TTL.
+- Replace raw `PortableAuthority::grants` slices with a retained `ValidatedGrants`
+  constructed from protected configuration. Reconstruct after trusted decoding;
+  replace it with authority/generation changes. Constructor success proves shape,
+  and existing live checks remain required.
 - Replace raw default/maximum arguments with `SessionTtlPolicy`; use its
   `maximum()` or checked `SessionTtlLimit` for live authorization.
 - Implement `SessionReader` and `SessionStore::{read, admit, logout}` instead of
@@ -378,6 +398,47 @@ the original lease. Logout blocks re-admission before cryptography on that recei
 while the other receiver remains authorized. This is a native protocol regression,
 not deployed cross-subnet or Canic endpoint qualification. Run `make test-sessions`.
 
+### Host-owned admission diagnostics
+
+The tested [admission recorder](../apps/qualification/session_metrics.rs) uses
+IC Metrics 0.17 `MeasurementCounter` fields in the unpublished qualification
+host. Public Auth libraries have no Metrics dependency. The receiver calls
+`host.metrics.observe(&result)` once, immediately after `establish_session` and
+before mapping its reply. It does not parse a proof, reverify a retry or make an
+authentication decision. Fixed categories count created, replaced, exact retry,
+fresh proof-stage refusal, exhausted verification budget and other engine refusal.
+
+Only requests reaching the engine enter this window; transport and guard errors
+are excluded. Proof-stage refusal means a typed `SessionError::Credential` other
+than budget failure, including pre-cryptographic mechanism/shape refusals. It is
+not a count of cryptographic attempts or rejected identities. Budget clock/config
+failures count as other refusals. Store failures never count as created/replaced.
+
+Ordinary errors retain both observations and failed-attempt charges. On the IC,
+a message trap rolls back that message's state and diagnostics together; hosts
+must return ordinary refusals rather than trap away charges. Record successful
+changes only after the host's atomic store commit succeeds. If an integration
+defers commit beyond the engine call, it must defer success observation too.
+
+The reference window is volatile and starts empty at installation/restoration.
+Starting a new diagnostic window changes no budget, replay, denial, generation or
+authority state. Reports retain `u128` totals and Metrics' actual-overflow flags;
+an exact maximum is distinct from actual overflow. Numeric deserialization uses
+Metrics admission. No caller, principal, token, proof or credential-derived label
+is recorded. The host owns window identity, persistence, report authorization,
+replication and resets. A report failure must not change an admission result.
+There is no report/reset RPC, production adapter or instruction measurement here.
+
+Run the focused example tests with
+`cargo test --locked --offline -p ic-auth-qualification --test session_metrics`.
+They also run through `make test-qualification` in the complete gate.
+[#106](https://github.com/dragginzgame/ic-auth/issues/106) owns this reference;
+Canic retains its own production adoption and host policy. The accepted production
+boundary is Auth's existing typed outcomes into Canic's shared metrics store and
+existing metrics endpoint. Canic owns that recording/projection connection and
+its reporting authorization/configuration. Each metrics producer needs no separate
+endpoint; this reference requires no new public Auth metrics subsystem.
+
 ## Evidence and remaining adoption
 
 `make test-sessions` covers both proof mechanisms, independent devices/receivers,
@@ -391,7 +452,7 @@ new controller confirmation of the unchanged live authority, preserves lease and
 denial deadlines, and retains disabled authority across repeated upgrades. Work
 budgets restart empty, conservatively discarding unused credit.
 
-That checkpoint uses published `ic-memory` 0.40.0 with one host-bootstrapped
+That checkpoint uses published `ic-memory` 0.54.0 with one host-bootstrapped
 namespace and a bounded 128 KiB checkpoint allocation. The host owns the complete
 declaration set, opens only admitted memory and rejects missing/malformed headers
 before decoding. Synchronous upgrade writes use IC message rollback on traps.

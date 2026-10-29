@@ -1,5 +1,6 @@
 use ic_auth::portable::{
-    PortableClaimsContext, PortableClaimsError as Error, browser_principal, validate_claims_context,
+    PortableClaimsContext, PortableClaimsError as Error, ValidatedGrants, browser_principal,
+    validate_claims_context,
 };
 use ic_auth_protocol_types::{
     AudienceId, CanonicalId, DelegatedRoleGrant, PortableClaims, PortableMechanism, Principal,
@@ -28,14 +29,17 @@ fn claims() -> PortableClaims {
     }
 }
 
-fn context(value: &PortableClaims) -> PortableClaimsContext<'_> {
+fn context<'a>(
+    value: &'a PortableClaims,
+    grants: &'a ValidatedGrants,
+) -> PortableClaimsContext<'a> {
     PortableClaimsContext {
         authority: ic_auth::portable::PortableAuthority {
             audience: &value.audience,
             issuer: value.issuer,
             mechanism: value.mechanism,
             key_binding_id: value.key_binding_id,
-            grants: &value.grants,
+            grants,
             caller: browser_principal(&value.browser_public_key),
             now_ns: 30,
             authority_not_before_ns: 0,
@@ -54,7 +58,8 @@ fn both_mechanisms_use_identical_strict_time_rules() {
     for mechanism in [PortableMechanism::Certified, PortableMechanism::Ed25519] {
         let mut value = claims();
         value.mechanism = mechanism;
-        let mut host = context(&value);
+        let checked_grants = ValidatedGrants::new(value.grants.clone()).unwrap();
+        let mut host = context(&value, &checked_grants);
         for (now, expected) in [
             (19, Err(Error::NotYetValid)),
             (20, Ok(())),
@@ -71,7 +76,8 @@ fn both_mechanisms_use_identical_strict_time_rules() {
 #[test]
 fn reset_floor_rejects_fresh_renewal_of_an_old_login() {
     let original = claims();
-    let mut host = context(&original);
+    let checked_grants = ValidatedGrants::new(original.grants.clone()).unwrap();
+    let mut host = context(&original, &checked_grants);
     assert_eq!(validate_claims_context(&original, &host), Ok(()));
     host.authority.min_login_started_at_ns = 11;
     let mut renewal = original.clone();
@@ -94,20 +100,23 @@ fn reset_floor_rejects_fresh_renewal_of_an_old_login() {
 fn live_authority_and_grant_ceiling_are_independent_of_claims() {
     let value = claims();
     for expiry in [29, 30] {
-        let mut host = context(&value);
+        let checked_grants = ValidatedGrants::new(value.grants.clone()).unwrap();
+        let mut host = context(&value, &checked_grants);
         host.authority.authority_expires_at_ns = expiry;
         assert_eq!(
             validate_claims_context(&value, &host),
             Err(Error::StaleAuthority)
         );
-        host = context(&value);
+        let checked_grants = ValidatedGrants::new(value.grants.clone()).unwrap();
+        host = context(&value, &checked_grants);
         host.authority.enrollment_expires_at_ns = expiry;
         assert_eq!(
             validate_claims_context(&value, &host),
             Err(Error::StaleAuthority)
         );
     }
-    let mut host = context(&value);
+    let checked_grants = ValidatedGrants::new(value.grants.clone()).unwrap();
+    let mut host = context(&value, &checked_grants);
     host.authority.authority_not_before_ns = 21;
     assert_eq!(
         validate_claims_context(&value, &host),
@@ -116,21 +125,22 @@ fn live_authority_and_grant_ceiling_are_independent_of_claims() {
     let mut escalated = value.clone();
     escalated.grants[0].scopes.push("write".into());
     assert_eq!(
-        validate_claims_context(&escalated, &context(&value)),
+        validate_claims_context(
+            &escalated,
+            &context(&value, &ValidatedGrants::new(value.grants.clone()).unwrap())
+        ),
         Err(Error::GrantsExceeded)
     );
     escalated.grants[0].target = "admin".parse().unwrap();
     assert_eq!(
-        validate_claims_context(&escalated, &context(&value)),
+        validate_claims_context(
+            &escalated,
+            &context(&value, &ValidatedGrants::new(value.grants.clone()).unwrap())
+        ),
         Err(Error::GrantsExceeded)
     );
     let malformed = vec![value.grants[0].clone(), value.grants[0].clone()];
-    host = context(&value);
-    host.authority.grants = &malformed;
-    assert_eq!(
-        validate_claims_context(&value, &host),
-        Err(Error::InvalidContext)
-    );
+    assert!(ValidatedGrants::new(malformed).is_err());
 }
 
 #[test]
@@ -141,7 +151,8 @@ fn caller_is_the_browser_principal_and_account_is_issuer_scoped() {
         value.account_subject,
         browser_principal(&[9; 32]),
     ] {
-        let mut host = context(&value);
+        let checked_grants = ValidatedGrants::new(value.grants.clone()).unwrap();
+        let mut host = context(&value, &checked_grants);
         host.authority.caller = caller;
         assert_eq!(
             validate_claims_context(&value, &host),
@@ -152,18 +163,30 @@ fn caller_is_the_browser_principal_and_account_is_issuer_scoped() {
     let mut second_device = value.clone();
     second_device.browser_public_key = [9; 32];
     assert_eq!(
-        validate_claims_context(&second_device, &context(&second_device)),
+        validate_claims_context(
+            &second_device,
+            &context(
+                &second_device,
+                &ValidatedGrants::new(second_device.grants.clone()).unwrap()
+            )
+        ),
         Ok(())
     );
     assert_eq!(
-        validate_claims_context(&second_device, &context(&value)),
+        validate_claims_context(
+            &second_device,
+            &context(&value, &ValidatedGrants::new(value.grants.clone()).unwrap())
+        ),
         Err(Error::CallerMismatch)
     );
     // An equal account subject does not allow another issuer to use this authority.
     let mut second_issuer = value.clone();
     second_issuer.issuer = Principal::from_slice(&[3]);
     assert_eq!(
-        validate_claims_context(&second_issuer, &context(&value)),
+        validate_claims_context(
+            &second_issuer,
+            &context(&value, &ValidatedGrants::new(value.grants.clone()).unwrap())
+        ),
         Err(Error::IssuerMismatch)
     );
 }
@@ -184,12 +207,19 @@ fn impossible_or_overlong_windows_and_policy_are_refused_without_wrapping() {
         let mut value = trusted.clone();
         change(&mut value);
         assert_eq!(
-            validate_claims_context(&value, &context(&trusted)),
+            validate_claims_context(
+                &value,
+                &context(
+                    &trusted,
+                    &ValidatedGrants::new(trusted.grants.clone()).unwrap()
+                )
+            ),
             Err(Error::InvalidWindow)
         );
     }
     for max in [0, 86_400_000_000_001, u64::MAX] {
-        let mut host = context(&trusted);
+        let checked_grants = ValidatedGrants::new(trusted.grants.clone()).unwrap();
+        let mut host = context(&trusted, &checked_grants);
         host.max_login_ttl_ns = max;
         assert_eq!(
             validate_claims_context(&trusted, &host),
@@ -197,7 +227,8 @@ fn impossible_or_overlong_windows_and_policy_are_refused_without_wrapping() {
         );
     }
     for max in [0, 60_000_000_001, u64::MAX] {
-        let mut host = context(&trusted);
+        let checked_grants = ValidatedGrants::new(trusted.grants.clone()).unwrap();
+        let mut host = context(&trusted, &checked_grants);
         host.max_proof_ttl_ns = max;
         assert_eq!(
             validate_claims_context(&trusted, &host),
@@ -209,7 +240,8 @@ fn impossible_or_overlong_windows_and_policy_are_refused_without_wrapping() {
     boundary.login_deadline_ns = u64::MAX;
     boundary.issued_at_ns = u64::MAX - 60;
     boundary.admission_expires_at_ns = u64::MAX;
-    let mut host = context(&boundary);
+    let checked_grants = ValidatedGrants::new(boundary.grants.clone()).unwrap();
+    let mut host = context(&boundary, &checked_grants);
     host.authority.now_ns = u64::MAX - 1;
     host.authority.authority_expires_at_ns = u64::MAX;
     host.authority.enrollment_expires_at_ns = u64::MAX;
@@ -224,7 +256,8 @@ fn reset_cutoffs_cover_issuer_ahead_clocks_and_reject_renewed_old_logins() {
         // At receiver boot time 30 the issuer could already have issued at 35.
         original.login_started_at_ns = 35;
         original.issued_at_ns = 35;
-        let mut host = context(&original);
+        let checked_grants = ValidatedGrants::new(original.grants.clone()).unwrap();
+        let mut host = context(&original, &checked_grants);
         host.advance_reset_floors(5).unwrap();
         assert_eq!(
             (
@@ -264,7 +297,8 @@ fn reset_cutoffs_cover_issuer_ahead_clocks_and_reject_renewed_old_logins() {
 #[test]
 fn reset_cutoffs_never_decrease_or_partially_change_on_overflow() {
     let c = claims();
-    let mut host = context(&c);
+    let checked_grants = ValidatedGrants::new(c.grants.clone()).unwrap();
+    let mut host = context(&c, &checked_grants);
     host.advance_reset_floors(5).unwrap();
     host.advance_reset_floors(0).unwrap();
     assert_eq!(
@@ -303,7 +337,8 @@ fn reset_cutoffs_never_decrease_or_partially_change_on_overflow() {
         ),
         (u64::MAX, u64::MAX)
     );
-    let mut origin = context(&c);
+    let checked_grants = ValidatedGrants::new(c.grants.clone()).unwrap();
+    let mut origin = context(&c, &checked_grants);
     origin.authority.now_ns = 0;
     origin.authority.min_login_started_at_ns = 0;
     origin.min_proof_issued_at_ns = 0;

@@ -1,6 +1,6 @@
 //! Private controller-installed portable-session qualification contracts.
-use ic_auth::delegation::RootKeyPolicy;
-use ic_auth_protocol_types::{AudienceId, AuthRole, DelegatedRoleGrant};
+use ic_auth::{delegation::RootKeyPolicy, portable::ValidatedGrants};
+use ic_auth_protocol_types::{AudienceId, AuthRole};
 pub use ic_auth_qualification_contracts::model::{AdmissionProfile, SessionProfile};
 use ic_platform::Principal;
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -9,7 +9,7 @@ pub struct ReceiverConfig {
     pub issuer: Principal,
     pub authority: ReceiverAuthority,
     pub role: AuthRole,
-    pub grants: Vec<DelegatedRoleGrant>,
+    pub grants: ValidatedGrants,
     pub valid_from_ns: u64,
     pub valid_until_ns: u64,
     pub enrollment_until_ns: u64,
@@ -129,6 +129,7 @@ impl TryFrom<ReceiverConfig> for ic_auth_qualification_contracts::model::Receive
             grants: List::new(
                 value
                     .grants
+                    .into_vec()
                     .into_iter()
                     .map(TryInto::try_into)
                     .collect::<Result<_, _>>()?,
@@ -153,12 +154,15 @@ impl TryFrom<ic_auth_qualification_contracts::model::ReceiverConfig> for Receive
                 .map_err(|_| Error::Malformed)?,
             authority: value.authority.try_into()?,
             role: value.role.as_str().parse().map_err(|_| Error::Malformed)?,
-            grants: value
-                .grants
-                .into_vec()
-                .into_iter()
-                .map(TryInto::try_into)
-                .collect::<Result<_, _>>()?,
+            grants: ValidatedGrants::new(
+                value
+                    .grants
+                    .into_vec()
+                    .into_iter()
+                    .map(TryInto::try_into)
+                    .collect::<Result<_, _>>()?,
+            )
+            .map_err(|_| Error::Malformed)?,
             valid_from_ns: value.valid_from_ns,
             valid_until_ns: value.valid_until_ns,
             enrollment_until_ns: value.enrollment_until_ns,
@@ -171,7 +175,9 @@ impl TryFrom<ic_auth_qualification_contracts::model::ReceiverConfig> for Receive
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ic_auth_protocol_types::{CanonicalId, ChainKeyAlgorithm, ChainKeyKeyId};
+    use ic_auth_protocol_types::{
+        CanonicalId, ChainKeyAlgorithm, ChainKeyKeyId, DelegatedRoleGrant,
+    };
     use ic_auth_qualification_contracts::{InstallReceiver, model as wire};
 
     #[test]
@@ -184,10 +190,11 @@ mod tests {
             issuer: Principal::from_slice(&[3]),
             authority: ReceiverAuthority::Ed25519([4; 32]),
             role: "user".parse().unwrap(),
-            grants: vec![DelegatedRoleGrant {
+            grants: ValidatedGrants::new(vec![DelegatedRoleGrant {
                 target: "user".parse().unwrap(),
                 scopes: vec!["read".into()],
-            }],
+            }])
+            .unwrap(),
             valid_from_ns: 5,
             valid_until_ns: 6,
             enrollment_until_ns: 7,
@@ -248,6 +255,25 @@ mod tests {
             let bytes = InstallReceiver::encode_request(&transport).unwrap();
             let decoded = InstallReceiver::decode_request(bytes.as_slice()).unwrap();
             assert_eq!(ReceiverConfig::try_from(decoded).unwrap(), expected);
+            let mut malformed = transport.clone();
+            let grant = malformed.grants.as_slice()[0].clone();
+            malformed.grants = ic_wire::List::new(vec![grant.clone(), grant]).unwrap();
+            assert_eq!(
+                ReceiverConfig::try_from(malformed),
+                Err(ic_wire::Error::Malformed)
+            );
+            let mut malformed = transport.clone();
+            let mut grant = malformed.grants.as_slice()[0].clone();
+            grant.scopes = ic_wire::List::new(vec![
+                ic_wire::Text::new("write".into()).unwrap(),
+                ic_wire::Text::new("read".into()).unwrap(),
+            ])
+            .unwrap();
+            malformed.grants = ic_wire::List::new(vec![grant]).unwrap();
+            assert_eq!(
+                ReceiverConfig::try_from(malformed),
+                Err(ic_wire::Error::Malformed)
+            );
             let mut invalid = transport;
             invalid.role = ic_wire::Text::new("Invalid Role".into()).unwrap();
             assert!(ReceiverConfig::try_from(invalid).is_err());

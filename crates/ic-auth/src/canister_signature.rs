@@ -81,8 +81,8 @@ pub fn domain_separated_message(
 /// authority and BLS signature, then enforce signing-certificate freshness.
 ///
 /// Supports the upstream parser's short-form DER key encoding (20–129 bytes).
-/// Re-encoding rejects inconsistent DER lengths, tags and padding. The size
-/// check also protects the upstream parser from its unchecked short-input slice.
+/// Platform admits canonical DER framing before its imported key parser. Auth
+/// retains the supported size boundary before parsing.
 /// The envelope is bounded by the host; CBOR retains its default recursion limit.
 /// A subnet delegation is authenticated by the upstream verifier, but its older
 /// root certificate is not subjected to the signing-certificate freshness window.
