@@ -40,6 +40,12 @@
   record hard cut is described above.
   [#110 — Adopt Memory/Storage](https://github.com/dragginzgame/ic-auth/issues/110).
 
+### 🩹 Fixed
+
+- Restore all-features Clippy for the adversarial feature-unification harness
+  with its shared Wire record fixtures. Run its normal test selection with all
+  features so stored-record rejection cases remain covered.
+
 ## [0.21.0] - 2026-10-29
 
 ### ➕ Added

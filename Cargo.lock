@@ -1240,7 +1240,8 @@ dependencies = [
  "ic-auth",
  "ic-auth-protocol-types",
  "ic-platform",
- "serde_cbor",
+ "ic-wire",
+ "serde",
  "sha2 0.10.9",
 ]
 

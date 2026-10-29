@@ -20,6 +20,16 @@ commit, push, full CI, release or publication ran. Owning issues:
 [#112 Platform](https://github.com/dragginzgame/ic-auth/issues/112).
 Delivery and required acceptance remain separate.
 
+The maintainer subsequently committed the batch as `2d41d8a` (`0.22.0`); the
+reported release verification failed all-features Clippy in the unpublished
+feature-unification harness. Shared revocation fixtures had moved to Wire/Serde,
+but its dev dependencies still supplied CBOR. The local repair declares Wire and
+Serde, removes unused CBOR and makes the normal harness test selection use all
+features. Focused all-target/all-features Clippy and all 31 signature/revocation
+tests pass; logs are under `target/feature-unification-codec-20261029/`.
+External lock selections and public library code are unchanged. Full CI was not
+rerun, and the retained failed validation/release evidence is untouched.
+
 ## Current shared dependency adoption
 
 Official sparse-index checks select Tooling **0.70.0**, Wire/derive **0.7.22** and

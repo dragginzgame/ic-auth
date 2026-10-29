@@ -100,7 +100,7 @@ test-protocol:
 
 test-portable-signatures:
 	+cargo test --locked --offline -p ic-auth --features portable-signature-verification --test portable_signature --test portable_revocation
-	+cargo test --locked --offline -p ic-auth-feature-unification --test portable_signature --test portable_revocation
+	+cargo test --locked --offline -p ic-auth-feature-unification --all-features --test portable_signature --test portable_revocation
 	+cargo test --locked --offline -p ic-auth --features portable-signature-verification,certified-proof-verification --test certified portable_certified::
 
 test-chain-key-signatures:

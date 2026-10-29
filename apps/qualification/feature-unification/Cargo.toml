@@ -21,7 +21,8 @@ ed25519-dalek = { workspace = true, features = ["legacy_compatibility"] }
 ic-auth.workspace = true
 ic-auth-protocol-types.workspace = true
 ic-platform = { workspace = true, features = ["ed25519"] }
-serde_cbor.workspace = true
+ic-wire.workspace = true
+serde.workspace = true
 sha2.workspace = true
 
 [[test]]
