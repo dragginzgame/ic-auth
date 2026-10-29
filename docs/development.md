@@ -218,22 +218,31 @@ derive or service export. The host selects Platform
 The host parser stays disabled.
 
 The maintainer authorized retiring the unpublished fixture's Candid checkpoint.
-Pending 0.22 uses bounded native-Wire checkpoint `AUTHNAT2` and identity
+Auth 0.22 uses bounded native-Wire checkpoint `AUTHNAT2` and identity
 `0x41555449f101`, containing the new Wire session/replay/login records. Previous
 `AUTHNAT1` (CBOR records), `AUTHCELL`/Candid and finite-Wire `AUTHWIR2` payloads
 are refused without migration or reset. The maintainer confirmed no retained Auth
 records require preservation. IC Memory allocation and StableCell framing remain
 unchanged. Start with a coherent new fixture checkpoint for this hard cut.
 Checkpoint restores remain closed until matching controller authority is confirmed.
-The qualification host selects Memory/Storage 0.55.2 with the standard canister
+The qualification host selects Memory/Storage 0.56.0 with the standard canister
 backing. Memory admits one runtime/allocation; Storage's `StableCell` consumes
 that checked lease. Auth checks the retained payload ceiling before loading and
 refuses occupied fresh state before creating a cell. Memory 0.53 trusts exclusive
 backing custody between manager checks at construction, lease opening and growth;
 raw backing aliases remain prohibited. Native reopen tests release the cell and
 any detached handle first; attempted aliases refuse while either lease remains
-live. Cell and manager formats are unchanged; Auth owns its payload format. Storage is confined
+live. Substrate Cell and manager layouts are unchanged; Auth owns its payload format. Storage is confined
 to the unpublished qualification host.
+Memory 0.56 changes the allocation-ledger/Cell-value records from CBOR to bounded
+Wire (`ICML` / `ICMWIRE1`). Earlier Memory backings cannot be upgraded directly;
+they are refused without fallback or automatic clearing. Qualify this unpublished
+host on fresh isolated backing and retain older binaries/states. Any retained
+installation needs its own reviewed transition before upgrade; never clear only
+the ledger while leaving application data. No reinstall, data retirement or
+reset of retained installations is authorized by this dependency adoption.
+The `AUTHNAT2` application payload and native session/replay/login records remain
+unchanged; they are separate from Memory's ledger format.
 The 0.53.1 repair releases backing claims before their identity allocations are
 destroyed, including construction refusal and unwinding; detached handles still
 retain custody. Platform 0.7.4/0.7.5's external Candid endpoint/protocol additions remain
@@ -279,7 +288,7 @@ Auth keeps runtime-specific call/error types internal and uses none of the
 retired storage or `change_timeout` APIs. Its public Principal has a Platform 0.8
 crate identity, so consumers sharing that type must align to Platform 0.8 and explicitly select `principal` when
 using Platform types alone; see [the migration](canic-adoption.md#platform-08-migration).
-Published Memory/Storage 0.55.2 and native Testkit 0.70.0 also use Platform 0.8.1;
+Memory/Storage and native Testkit share the root-selected Platform 0.8 identity;
 the former private Platform 0.7 dependency is removed. Storage retains the same
 upstream stable-structures types, and native Agent/Testkit boundaries retain the
 upstream external Principal. No dependency override or new conversion is needed.

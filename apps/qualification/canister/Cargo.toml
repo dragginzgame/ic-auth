@@ -30,5 +30,9 @@ serde_cbor.workspace = true
 # The shared ../sessions.rs fixture hashes admitted Ed25519 key bindings.
 sha2.workspace = true
 
+[dev-dependencies]
+# Isolated retained-format refusal setup; runtime stores still use checked leases.
+ic-platform = { workspace = true, features = ["stable-structures"] }
+
 [lints]
 workspace = true

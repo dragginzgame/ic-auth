@@ -543,3 +543,20 @@ test('guarded identity returns detached Principals while preserving signing auth
     assert.deepEqual(await guarded.transformRequest(signingRequest(issuer)), await identity.transformRequest(signingRequest(issuer)));
   } finally { f.store.close(); }
 });
+
+test('admission status projects immutable fields while retaining journal clock and generation checks', async () => {
+  const f = await fixture(async () => revoked);
+  try {
+    await f.client.destination('login-a', receiver, f.state.now + MS);
+    f.state.now += MS;
+    const projected = await f.client.admissionStatus('login-a');
+    assert.deepEqual(Object.keys(projected).sort(), ['caller', 'issuer', 'observedNs', 'phase']);
+    assert.equal(projected.phase, 'active');
+    assert.equal(projected.observedNs, f.state.now);
+    projected.caller = 'changed projection';
+    assert.equal((await f.client.status('login-a')).caller, identity.getPrincipal().toText());
+    await assert.rejects(f.client.admissionStatus('other-generation'), { code: 'stale_generation' });
+    f.state.now -= MS;
+    await assert.rejects(f.client.admissionStatus('login-a'), { code: 'configuration' });
+  } finally { f.store.close(); }
+});

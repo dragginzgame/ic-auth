@@ -141,9 +141,9 @@ fn caller_only_requests_and_all_logout_outcomes_have_bounded_distinct_frames() {
         assert!(Logout::decode_request(bytes.as_slice()).is_err());
     }
     let view = ic_auth_wire::SessionView {
-        caller: Bytes::new(vec![1; 29]).unwrap(),
-        issuer: Bytes::new(vec![2]).unwrap(),
-        subject: Bytes::new(vec![3]).unwrap(),
+        caller: ic_auth_protocol_types::Principal::from_slice(&[1; 29]),
+        issuer: ic_auth_protocol_types::Principal::from_slice(&[2]),
+        subject: ic_auth_protocol_types::Principal::from_slice(&[3]),
         expires_at_ns: u64::MAX,
     };
     for response in [Ok(view), Err(model::AdmissionRefusal::Capacity)] {
@@ -286,4 +286,54 @@ fn native_traversal_budgets_refuse_without_relaxing_field_bounds() {
         );
     }
     assert_eq!(CredentialEnvelope::decode_request(&frame).unwrap(), value);
+}
+
+#[test]
+fn inline_principals_preserve_v022_wire_bytes_and_reject_oversized_identities() {
+    // Independent released reply layout, rather than the encoder under test.
+    #[derive(serde::Serialize, serde::Deserialize)]
+    struct V022View {
+        caller: Bytes<29>,
+        issuer: Bytes<29>,
+        subject: Bytes<29>,
+        expires_at_ns: u64,
+    }
+    for length in 0..=29 {
+        let principal = domain::Principal::from_slice(&vec![0xa5; length]);
+        let previous = V022View {
+            caller: Bytes::new(principal.as_slice().to_vec()).unwrap(),
+            issuer: Bytes::new(vec![4]).unwrap(),
+            subject: Bytes::new(vec![2]).unwrap(),
+            expires_at_ns: u64::MAX,
+        };
+        let bytes = wire::native::encode_response(
+            ReadSession::ID,
+            &Ok::<_, Text<256>>(previous),
+            ReadSession::RESPONSE_LIMITS,
+        )
+        .unwrap();
+        let view = ReadSession::decode_response(&bytes).unwrap().unwrap();
+        assert_eq!(view.caller, principal);
+        assert_eq!(ReadSession::encode_response(&Ok(view)).unwrap(), bytes);
+    }
+    #[derive(serde::Serialize)]
+    struct OversizedView {
+        caller: Bytes<30>,
+        issuer: Bytes<29>,
+        subject: Bytes<29>,
+        expires_at_ns: u64,
+    }
+    let oversized = OversizedView {
+        caller: Bytes::new(vec![1; 30]).unwrap(),
+        issuer: Bytes::new(vec![4]).unwrap(),
+        subject: Bytes::new(vec![2]).unwrap(),
+        expires_at_ns: 1,
+    };
+    let bytes = wire::native::encode_response(
+        ReadSession::ID,
+        &Ok::<_, Text<256>>(oversized),
+        ReadSession::RESPONSE_LIMITS,
+    )
+    .unwrap();
+    assert!(ReadSession::decode_response(&bytes).is_err());
 }

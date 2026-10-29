@@ -197,7 +197,7 @@ impl Fixture {
             authority: self.authority(now),
             max_ttl: ttl().maximum(),
             role: &self.role,
-            required_scopes: &[],
+            required_scopes: RequiredScopes::NONE,
         }
     }
     fn credential(&self) -> PortableCredential {
@@ -253,7 +253,7 @@ struct Receiver {
 impl Receiver {
     fn new(f: &Fixture) -> Self {
         Self {
-            store: MemorySessionStore::new(0, limits()).unwrap(),
+            store: MemorySessionStore::new(0, limits()),
             ledger: MemoryLoginRevocations::new(f.claims.audience, 4, 4, SECOND, 0).unwrap(),
             budget: SessionAdmissionBudget::new(32, 1, 0).unwrap(),
             logout: SessionAdmissionBudget::new(32, 1, 0).unwrap(),
@@ -302,19 +302,24 @@ fn policy() -> SessionPolicy {
     }
 }
 fn limits() -> SessionLimits {
-    SessionLimits {
-        max_sessions: 4,
-        max_replays: 8,
-        max_replays_per_caller: 4,
-        max_encoded_bytes: 65_536,
-    }
+    SessionLimits::new(4, 8, 4, 65_536).expect("fixture limits")
 }
 fn request() -> SessionRequest {
     SessionRequest::new(vec!["read".into()], None).unwrap()
 }
-fn created(value: SessionEstablished) -> Session {
+fn stored(store: &mut MemorySessionStore, receipt: SessionReceipt) -> Session {
+    store
+        .read(|reader| {
+            Ok(reader
+                .session(receipt.caller())?
+                .expect("admitted session")
+                .into_owned())
+        })
+        .unwrap()
+}
+fn created(value: SessionEstablished, store: &mut MemorySessionStore) -> Session {
     match value {
-        SessionEstablished::Created(s) => s,
+        SessionEstablished::Created(receipt) => stored(store, receipt),
         other => panic!("{other:?}"),
     }
 }
@@ -344,8 +349,10 @@ fn required_scopes_accept_any_order_but_never_borrow_another_roles_grant() {
             policy(),
         )
         .unwrap(),
+        &mut r.store,
     );
-    let required = ["write".into(), "read".into(), "write".into()];
+    let required =
+        RequiredScopes::new(vec!["write".into(), "read".into(), "write".into()]).unwrap();
     let mut live = f.context(NOW);
     live.required_scopes = &required;
     assert_eq!(
@@ -417,11 +424,11 @@ fn future_start_retry_keeps_original_credential_and_verifies_only_once() {
     );
     assert_eq!(r.store.encoded_bytes(), 0);
     assert_eq!(r.ledger.occupancy(), (0, 0));
-    let session = created(admit(&mut r, start).unwrap());
+    let session = created(admit(&mut r, start).unwrap(), &mut r.store);
     let stored_bytes = r.store.encoded_bytes();
     assert_eq!(
         admit(&mut r, start + 1),
-        Ok(SessionEstablished::ExactRetry(session.clone()))
+        Ok(SessionEstablished::ExactRetry((&session).into()))
     );
     assert!(matches!(
         verify_ed25519_claims(
@@ -452,8 +459,8 @@ fn equal_subjects_from_different_issuers_keep_distinct_sessions_and_logouts() {
     second.key = SigningKey::from_bytes(&[43; 32]);
     second.claims.key_binding_id = Sha256::digest(second.key.verifying_key().to_bytes()).into();
     let mut r = Receiver::new(&first);
-    let a = created(first.admit(&mut r, NOW).unwrap());
-    let b = created(second.admit(&mut r, NOW).unwrap());
+    let a = created(first.admit(&mut r, NOW).unwrap(), &mut r.store);
+    let b = created(second.admit(&mut r, NOW).unwrap(), &mut r.store);
     assert_eq!(a.subject(), b.subject());
     assert_ne!(a.issuer(), b.issuer());
     assert_ne!(a.caller(), b.caller());
@@ -496,9 +503,9 @@ fn two_receivers_two_devices_retry_after_proof_expiry_and_local_logout() {
     let other = Fixture::new(2);
     let mut a = Receiver::new(&f);
     let mut b = Receiver::new(&f);
-    let session = created(f.admit(&mut a, NOW).unwrap());
-    created(f.admit(&mut b, NOW).unwrap());
-    created(other.admit(&mut a, NOW).unwrap());
+    let session = created(f.admit(&mut a, NOW).unwrap(), &mut a.store);
+    created(f.admit(&mut b, NOW).unwrap(), &mut b.store);
+    created(other.admit(&mut a, NOW).unwrap(), &mut a.store);
     assert_ne!(session.caller(), session.subject());
     assert_eq!(
         (session.issuer(), session.subject()),
@@ -526,7 +533,7 @@ fn two_receivers_two_devices_retry_after_proof_expiry_and_local_logout() {
             },
             policy()
         ),
-        Ok(SessionEstablished::ExactRetry(session.clone()))
+        Ok(SessionEstablished::ExactRetry((&session).into()))
     );
     assert_eq!(a.auth(&f, NOW + 3 * SECOND), Ok(session));
     let until = a.logout(f.caller(), NOW + 3 * SECOND).unwrap();
@@ -555,7 +562,7 @@ fn two_receivers_two_devices_retry_after_proof_expiry_and_local_logout() {
 fn renewal_replaces_only_within_original_login_and_logout_blocks_fresh_proofs() {
     let mut f = Fixture::new(1);
     let mut r = Receiver::new(&f);
-    let first = created(f.admit(&mut r, NOW).unwrap());
+    let first = created(f.admit(&mut r, NOW).unwrap(), &mut r.store);
     f.claims.issued_at_ns = NOW + 4 * SECOND;
     f.claims.admission_expires_at_ns = NOW + 6 * SECOND;
     f.claims.nonce = [2; 16];
@@ -593,8 +600,8 @@ impl SessionStore for FailingStore<'_> {
     }
     fn admit(
         &mut self,
-        session: &Session,
-        replay: &Replay,
+        session: Session,
+        replay: Replay,
         login: &ic_auth::portable::LoginRevocationChange,
     ) -> Result<bool, SessionError> {
         self.0
@@ -658,7 +665,7 @@ fn failed_commit_is_atomic_for_session_replay_reservation_and_logout() {
         )
         .is_err()
     );
-    let session = created(f.admit(&mut r, NOW).unwrap());
+    let session = created(f.admit(&mut r, NOW).unwrap(), &mut r.store);
     let size = r.store.encoded_bytes();
     assert_eq!(
         logout_session(
@@ -681,7 +688,7 @@ fn failed_commit_is_atomic_for_session_replay_reservation_and_logout() {
 fn live_authority_scope_generation_expiry_and_lost_ledger_are_enforced() {
     let f = Fixture::new(1);
     let mut r = Receiver::new(&f);
-    let session = created(f.admit(&mut r, NOW).unwrap());
+    let session = created(f.admit(&mut r, NOW).unwrap(), &mut r.store);
     let mut ctx = f.context(NOW);
     let mut changed = policy();
     changed.enabled = false;
@@ -689,7 +696,7 @@ fn live_authority_scope_generation_expiry_and_lost_ledger_are_enforced() {
         authorize_session(&mut r.store, &mut r.ledger, &ctx, changed, Session::clone),
         Err(SessionError::Disabled)
     );
-    let required = ["write".into()];
+    let required = RequiredScopes::new(vec!["write".into()]).unwrap();
     ctx.required_scopes = &required;
     assert_eq!(
         authorize_session(&mut r.store, &mut r.ledger, &ctx, policy(), Session::clone),
@@ -774,7 +781,7 @@ fn replay_capacity_narrowing_and_reset_refuse_before_verification() {
         ),
         Err(SessionError::ScopeRejected)
     );
-    created(f.admit(&mut r, NOW).unwrap());
+    created(f.admit(&mut r, NOW).unwrap(), &mut r.store);
     let changed = SessionRequest::new(vec!["write".into()], None).unwrap();
     assert_eq!(
         establish_session(
@@ -798,14 +805,7 @@ fn replay_capacity_narrowing_and_reset_refuse_before_verification() {
         ),
         Err(SessionError::ReplayConflict)
     );
-    r.store = MemorySessionStore::new(
-        0,
-        SessionLimits {
-            max_replays: 1,
-            ..limits()
-        },
-    )
-    .unwrap();
+    r.store = MemorySessionStore::new(0, SessionLimits::new(4, 1, 4, 65_536).unwrap());
     f.admit(&mut r, NOW).unwrap();
     f.claims.nonce = [3; 16];
     let bytes = encode_claims(&f.claims).unwrap();
@@ -863,7 +863,7 @@ fn replay_capacity_narrowing_and_reset_refuse_before_verification() {
 fn restored_session_selects_exact_enrollment_among_same_issuer_keys() {
     let f = Fixture::new(1);
     let mut r = Receiver::new(&f);
-    let admitted = created(f.admit(&mut r, NOW).unwrap());
+    let admitted = created(f.admit(&mut r, NOW).unwrap(), &mut r.store);
     let restored = Session::decode(&admitted.encode().unwrap()).unwrap();
     let identity = (
         restored.issuer(),
@@ -925,7 +925,7 @@ fn restored_session_selects_exact_enrollment_among_same_issuer_keys() {
 fn portable_record_roundtrip_and_old_or_corrupt_records_are_rejected() {
     let f = Fixture::new(1);
     let mut r = Receiver::new(&f);
-    let session = created(f.admit(&mut r, NOW).unwrap());
+    let session = created(f.admit(&mut r, NOW).unwrap(), &mut r.store);
     let bytes = session.encode().unwrap();
     assert_eq!(Session::decode(&bytes), Ok(session));
     let mut wrong_magic = bytes.clone();
@@ -942,7 +942,9 @@ fn portable_record_roundtrip_and_old_or_corrupt_records_are_rejected() {
 fn framed_session_records_still_require_valid_identity_scopes_and_windows() {
     let f = Fixture::new(1);
     let mut r = Receiver::new(&f);
-    let bytes = created(f.admit(&mut r, NOW).unwrap()).encode().unwrap();
+    let bytes = created(f.admit(&mut r, NOW).unwrap(), &mut r.store)
+        .encode()
+        .unwrap();
     let identity = 0x415554485301;
     let limits = ic_wire::Limits {
         bytes: 2048,
@@ -1099,15 +1101,8 @@ fn invalid_signature_cannot_reserve_state_and_spends_verification_credit() {
 fn bounded_pruning_releases_exact_bytes_and_caller_replay_capacity() {
     let mut f = Fixture::new(1);
     let mut r = Receiver::new(&f);
-    r.store = MemorySessionStore::new(
-        0,
-        SessionLimits {
-            max_replays_per_caller: 1,
-            ..limits()
-        },
-    )
-    .unwrap();
-    let session = created(f.admit(&mut r, NOW).unwrap());
+    r.store = MemorySessionStore::new(0, SessionLimits::new(4, 8, 1, 65_536).unwrap());
+    let session = created(f.admit(&mut r, NOW).unwrap(), &mut r.store);
     let original_bytes = r.store.encoded_bytes();
     f.claims.nonce = [2; 16];
     assert_eq!(f.admit(&mut r, NOW), Err(SessionError::Capacity));
@@ -1162,13 +1157,9 @@ fn byte_capacity_failure_preserves_previous_session_and_login_reservation() {
     r.budget = SessionAdmissionBudget::new(2, SECOND, 0).unwrap();
     r.store = MemorySessionStore::new(
         0,
-        SessionLimits {
-            max_encoded_bytes: sizing.store.encoded_bytes(),
-            ..limits()
-        },
-    )
-    .unwrap();
-    let session = created(f.admit(&mut r, NOW).unwrap());
+        SessionLimits::new(4, 8, 4, sizing.store.encoded_bytes()).unwrap(),
+    );
+    let session = created(f.admit(&mut r, NOW).unwrap(), &mut r.store);
     let before = r.store.encoded_bytes();
     f.claims.nonce = [2; 16];
     assert_eq!(f.admit(&mut r, NOW), Err(SessionError::ByteCapacity));
@@ -1189,7 +1180,7 @@ fn byte_capacity_failure_preserves_previous_session_and_login_reservation() {
     f.claims.nonce = [1; 16];
     assert_eq!(
         f.admit(&mut r, NOW),
-        Ok(SessionEstablished::ExactRetry(session))
+        Ok(SessionEstablished::ExactRetry((&session).into()))
     );
     f.claims.nonce = [2; 16];
     r.store
@@ -1238,7 +1229,7 @@ fn logout_reports_typed_refusals_without_acknowledging_revocation() {
 fn logout_uses_change_caller_and_refuses_foreign_domain_without_partial_effects() {
     let f = Fixture::new(1);
     let mut r = Receiver::new(&f);
-    let session = created(f.admit(&mut r, NOW).unwrap());
+    let session = created(f.admit(&mut r, NOW).unwrap(), &mut r.store);
     let other = Fixture::new(2);
     r.ledger
         .with_revocation::<LoginRevocationError>(&mut r.logout, other.caller(), NOW, |login| {
@@ -1270,7 +1261,7 @@ fn restored_login_records_gate_retained_sessions_and_reject_revoked_retries() {
     use ic_auth::portable::LoginRevocationChange;
     let f = Fixture::new(1);
     let mut r = Receiver::new(&f);
-    let session = created(f.admit(&mut r, NOW).unwrap());
+    let session = created(f.admit(&mut r, NOW).unwrap(), &mut r.store);
     let bytes = encode_claims(&f.claims).unwrap();
     let signature = f.key.sign(&claims_hash(&f.claims).unwrap()).to_bytes();
     let verified = verify_ed25519_claims(
@@ -1315,7 +1306,6 @@ fn restored_login_records_gate_retained_sessions_and_reject_revoked_retries() {
 #[cfg(feature = "session-restore")]
 fn restored_store(store: &MemorySessionStore) -> MemorySessionStore {
     MemorySessionStore::new(store.generation(), limits())
-        .unwrap()
         .restore_records(
             (store.session_records().len(), store.replay_records().len()),
             store.encoded_bytes(),
@@ -1334,12 +1324,12 @@ fn restored_store(store: &MemorySessionStore) -> MemorySessionStore {
 fn restored_store_preserves_sessions_replay_history_and_pruning_indexes() {
     let f = Fixture::new(1);
     let mut r = Receiver::new(&f);
-    let session = created(f.admit(&mut r, NOW).unwrap());
+    let session = created(f.admit(&mut r, NOW).unwrap(), &mut r.store);
     r.store = restored_store(&r.store);
     assert_eq!(r.auth(&f, NOW), Ok(session.clone()));
     assert_eq!(
         f.admit(&mut r, NOW),
-        Ok(SessionEstablished::ExactRetry(session))
+        Ok(SessionEstablished::ExactRetry((&session).into()))
     );
     // Expired replay can be pruned before the still-live session; restore must
     // support that valid state without inventing a replacement replay record.
@@ -1369,13 +1359,11 @@ fn restored_store_preserves_sessions_replay_history_and_pruning_indexes() {
 fn store_restore_rejects_incomplete_duplicate_future_and_over_capacity_records() {
     let f = Fixture::new(1);
     let mut r = Receiver::new(&f);
-    let session = created(f.admit(&mut r, NOW).unwrap());
+    let session = created(f.admit(&mut r, NOW).unwrap(), &mut r.store);
     let replay = r.store.replay_records().next().unwrap().clone();
     let bytes = r.store.encoded_bytes();
     let restore = |counts, bytes, sessions: Vec<Session>, replays: Vec<Replay>| {
-        MemorySessionStore::new(0, limits())
-            .unwrap()
-            .restore_records(counts, bytes, sessions, replays)
+        MemorySessionStore::new(0, limits()).restore_records(counts, bytes, sessions, replays)
     };
     assert!(restore((1, 1), bytes, vec![], vec![replay.clone()]).is_err());
     assert!(restore((1, 1), bytes, vec![session.clone()], vec![]).is_err());
@@ -1416,11 +1404,9 @@ fn store_restore_rejects_incomplete_duplicate_future_and_over_capacity_records()
         .is_err()
     );
     assert!(restore((0, 1), bytes, vec![session.clone()], vec![replay.clone()]).is_err());
-    let mut tight = limits();
-    tight.max_encoded_bytes = bytes - 1;
+    let tight = SessionLimits::new(4, 8, 4, bytes - 1).unwrap();
     assert!(
         MemorySessionStore::new(0, tight)
-            .unwrap()
             .restore_records((1, 1), bytes, [session.clone()], [replay.clone()])
             .is_err()
     );
@@ -1441,7 +1427,6 @@ fn store_restore_rejects_incomplete_duplicate_future_and_over_capacity_records()
     // cannot disagree with the session's caller/generation.
     assert!(
         MemorySessionStore::new(1, limits())
-            .unwrap()
             .restore_records((1, 1), bytes, [session], [future])
             .is_err()
     );
@@ -1451,11 +1436,9 @@ fn store_restore_rejects_incomplete_duplicate_future_and_over_capacity_records()
     f.admit(&mut r, NOW).unwrap();
     f.claims.nonce = [2; 16];
     f.admit(&mut r, NOW).unwrap();
-    let mut tight = limits();
-    tight.max_replays_per_caller = 1;
+    let tight = SessionLimits::new(4, 8, 1, 65_536).unwrap();
     assert!(
         MemorySessionStore::new(0, tight)
-            .unwrap()
             .restore_records(
                 (1, 2),
                 r.store.encoded_bytes(),
@@ -1471,7 +1454,7 @@ fn store_restore_rejects_incomplete_duplicate_future_and_over_capacity_records()
 fn replay_storage_decoder_rejects_wrong_domain_truncation_and_invalid_fields() {
     let f = Fixture::new(1);
     let mut r = Receiver::new(&f);
-    let session = created(f.admit(&mut r, NOW).unwrap());
+    let session = created(f.admit(&mut r, NOW).unwrap(), &mut r.store);
     let record = r.store.replay_records().next().unwrap();
     let bytes = record.encode().unwrap();
     assert_eq!(Replay::decode(&bytes).unwrap(), *record);
@@ -1505,13 +1488,15 @@ fn replay_storage_decoder_rejects_wrong_domain_truncation_and_invalid_fields() {
 fn commit_hook_receives_only_validated_delta_and_exact_post_commit_totals() {
     let mut f = Fixture::new(1);
     let mut source = Receiver::new(&f);
-    let mut store = MemorySessionStore::new(0, limits()).unwrap();
+    let mut store = MemorySessionStore::new(0, limits());
     let mut commits = 0;
     // Exercise insertion and replacement; only the touched pair is supplied.
     for nonce in [1, 2] {
         f.claims.nonce = [nonce; 16];
         let session = match f.admit(&mut source, NOW).unwrap() {
-            SessionEstablished::Created(s) | SessionEstablished::Replaced(s) => s,
+            SessionEstablished::Created(receipt) | SessionEstablished::Replaced(receipt) => {
+                stored(&mut source.store, receipt)
+            }
             _ => panic!("new proof"),
         };
         let replay = source
@@ -1539,7 +1524,7 @@ fn commit_hook_receives_only_validated_delta_and_exact_post_commit_totals() {
                     Err(SessionError::InvalidPolicyOrRecord)
                 );
                 store
-                    .admit_with_commit(&session, &replay, login, |delta| {
+                    .admit_with_commit(session.clone(), replay.clone(), login, |delta| {
                         let SessionWrite::Admission {
                             login,
                             session: s,
@@ -1596,7 +1581,7 @@ fn commit_hook_receives_only_validated_delta_and_exact_post_commit_totals() {
             NOW,
             |login| {
                 assert_eq!(
-                    store.admit_with_commit(&session, &replay, login, |_| panic!(
+                    store.admit_with_commit(session.clone(), replay.clone(), login, |_| panic!(
                         "tombstone must not persist admission"
                     )),
                     Err(SessionError::InvalidPolicyOrRecord)
@@ -1727,7 +1712,7 @@ fn durable_pruning_preserves_records_on_failure_and_commits_exact_deletions() {
 fn authority_generation_changes_only_after_host_commit() {
     let f = Fixture::new(1);
     let mut r = Receiver::new(&f);
-    let session = created(f.admit(&mut r, NOW).unwrap());
+    let session = created(f.admit(&mut r, NOW).unwrap(), &mut r.store);
     assert_eq!(
         r.store.advance_generation_with_commit(|next| {
             assert_eq!(next, 1);
@@ -1747,7 +1732,7 @@ fn authority_generation_changes_only_after_host_commit() {
         1
     );
     assert!(r.auth(&f, NOW).is_err());
-    let mut exhausted = MemorySessionStore::new(u64::MAX, limits()).unwrap();
+    let mut exhausted = MemorySessionStore::new(u64::MAX, limits());
     assert_eq!(
         exhausted.advance_generation_with_commit(|_| panic!("overflow commit")),
         Err(SessionError::GenerationExhausted)
@@ -1759,7 +1744,10 @@ fn authority_generation_changes_only_after_host_commit() {
 fn custom_store_checks_login_binding_through_public_api() {
     let fixture = Fixture::new(1);
     let mut receiver = Receiver::new(&fixture);
-    let session = created(fixture.admit(&mut receiver, NOW).unwrap());
+    let session = created(
+        fixture.admit(&mut receiver, NOW).unwrap(),
+        &mut receiver.store,
+    );
     let change = receiver.ledger.records().next().unwrap();
     assert!(session.check_login_change(&change).is_ok());
 
@@ -1893,7 +1881,7 @@ fn session_liveness_keeps_proof_policy_separate_from_shared_authority_shape() {
 fn restored_store_replacement_removes_old_expiry_and_rebuilds_replay_counts() {
     let mut f = Fixture::new(1);
     let mut r = Receiver::new(&f);
-    let first = created(f.admit(&mut r, NOW).unwrap());
+    let first = created(f.admit(&mut r, NOW).unwrap(), &mut r.store);
     r.store = restored_store(&r.store);
     f.claims.nonce = [2; 16];
     f.claims.issued_at_ns = NOW + SECOND;
@@ -1906,7 +1894,11 @@ fn restored_store_replacement_removes_old_expiry_and_rebuilds_replay_counts() {
     let pruned = r.store.prune(first.expires_at_ns(), 128);
     assert_eq!(pruned.sessions, 0, "old expiry cannot remove replacement");
     assert_eq!(pruned.replays, 2);
-    assert_eq!(r.auth(&f, first.expires_at_ns()), Ok(second));
+    assert_eq!(
+        r.auth(&f, first.expires_at_ns())
+            .map(|session| SessionReceipt::from(&session)),
+        Ok(second)
+    );
     f.claims.nonce = [3; 16];
     f.claims.issued_at_ns = first.expires_at_ns();
     f.claims.admission_expires_at_ns = first.expires_at_ns() + 2 * SECOND;
@@ -1959,14 +1951,14 @@ fn anonymous_and_cheap_refusal_floods_leave_another_clients_verification_credit(
     }
     assert_eq!(r.store.encoded_bytes(), 0);
     assert_eq!(r.ledger.occupancy(), (0, 0));
-    let session = created(victim.admit(&mut r, NOW).unwrap());
+    let session = created(victim.admit(&mut r, NOW).unwrap(), &mut r.store);
     assert_eq!(
         attacker.admit(&mut r, NOW).unwrap_err().admission_refusal(),
         AdmissionRefusal::Throttled
     );
     assert_eq!(
         victim.admit(&mut r, NOW).unwrap(),
-        SessionEstablished::ExactRetry(session.clone())
+        SessionEstablished::ExactRetry((&session).into())
     );
     assert!(attacker.admit(&mut r, NOW + SECOND).is_ok());
     assert_eq!(r.auth(&victim, NOW + SECOND).unwrap(), session);
@@ -1997,10 +1989,10 @@ fn forged_proofs_can_spend_shared_crypto_credit_but_cannot_pin_login_capacity() 
         victim.admit(&mut r, NOW).unwrap_err().admission_refusal(),
         AdmissionRefusal::Throttled
     );
-    let session = created(victim.admit(&mut r, NOW + SECOND).unwrap());
+    let session = created(victim.admit(&mut r, NOW + SECOND).unwrap(), &mut r.store);
     assert_eq!(
         victim.admit(&mut r, NOW + SECOND).unwrap(),
-        SessionEstablished::ExactRetry(session)
+        SessionEstablished::ExactRetry((&session).into())
     );
     assert_eq!(r.ledger.occupancy(), (1, 0));
 }
@@ -2024,7 +2016,7 @@ fn unknown_logout_saturation_and_expired_reservations_preserve_legitimate_recove
         );
     }
     assert_eq!(r.ledger.occupancy(), (0, 2));
-    let session = created(first.admit(&mut r, NOW).unwrap());
+    let session = created(first.admit(&mut r, NOW).unwrap(), &mut r.store);
     assert_eq!(r.ledger.occupancy(), (1, 2));
     assert_eq!(
         next.admit(&mut r, NOW).unwrap_err().admission_refusal(),

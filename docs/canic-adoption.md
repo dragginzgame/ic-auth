@@ -8,7 +8,7 @@ checkpoints are retained separately in [adoption history](canic-adoption-history
 
 ## Session commit contract
 
-Pending Auth **0.22** hard-cuts private session/replay/login storage to bounded
+Auth **0.22** hard-cuts private session/replay/login storage to bounded
 native Wire records. The maintainer confirmed no deployed or retained Auth records
 need preservation. Old records are refused, with no fallback or implicit reset.
 Adopt one coherent new checkpoint before admission or reads; preserve atomic
@@ -16,6 +16,26 @@ commit, replay/denial retention and generation rules. The unpublished reference
 checkpoint now uses `AUTHNAT2`; Canic owns its own durable framing and lifecycle.
 Signed claims, public Wire transport and the TEE/non-TEE trust model are unchanged.
 See [record bounds and restoration](sessions.md#storage-and-reset).
+
+Pending Auth **0.23** changes all `SessionEstablished` payloads to
+`SessionReceipt` (caller, issuer, subject, expiry), and consumes owned
+`Session`/`Replay` in `SessionStore::admit` and `MemorySessionStore::admit_with_commit`.
+Update backend signatures and move the validated pair into storage. Read full
+records through the store; authorize later operations against current protected
+state. Receipts are never grants. Atomic commit obligations and stored formats
+are unchanged; no new reset is authorized or needed. Wire DTO Principal fields
+also become Platform-owned values; native Wire bytes and generated browser
+contracts remain unchanged. See [Wire migration](../crates/ic-auth-wire/README.md).
+
+The same 0.23 cut requires `SessionContext::required_scopes: &RequiredScopes`.
+Validate and retain operation requirements once with `RequiredScopes::new`, or
+use `RequiredScopes::NONE` for empty requirements; live authorization remains
+mandatory. Build immutable limits with `SessionLimits::new` at protected backend
+configuration admission, reconstruct after decoding and return the retained value
+from `SessionReader::limits`. Their getters replace public fields.
+`MemorySessionStore::new` now returns a store directly; remove construction-only
+error handling while retaining fallible record restoration. See
+[session configuration](sessions.md#admission-and-ordinary-calls).
 
 Auth **0.21+** requires `PortableAuthority::grants` to borrow a
 retained `ValidatedGrants`. Construct it from protected enrollment configuration

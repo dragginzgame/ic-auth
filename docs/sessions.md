@@ -20,7 +20,7 @@ single `PortableClaimsContext` used by both preflight and proof verification.
 The request cannot select a key or enrollment. `PortableClaimsContext` contains
 shared `PortableAuthority` plus the proof issuance floor and login/proof TTL limits.
 `SessionContext` instead contains current `PortableAuthority`, the role,
-required operation scopes and a checked `SessionTtlLimit`; authorization needs no
+checked `RequiredScopes` and `SessionTtlLimit`; authorization needs no
 proof policy or default request TTL.
 
 `PortableAuthority::grants` borrows `ValidatedGrants`, which owns the host-selected
@@ -38,6 +38,16 @@ policy changes. Session authorization still checks the live generation, issuer,
 key binding, deadlines, login revocation and scope narrowing on every call. Raw
 submitted claims retain independent shape and signature checks. Neither proof
 verification results nor authorization decisions are cached.
+
+Pending Auth 0.23 requires `SessionContext::required_scopes` to borrow
+`RequiredScopes`. Construct it once with `RequiredScopes::new(Vec<String>)` from
+the protected operation definition; retain it instead of allocating labels and
+validating their grammar per call. Empty requirements use `RequiredScopes::NONE`.
+Arbitrary order and duplicates remain valid; the 16-label/64-byte grammar bounds
+are unchanged. The immutable view has no unchecked deserializer: reconstruct
+after decoding configuration. This is structural evidence only. Select current
+operation requirements on every call, and keep live membership, authority and
+revocation checks. It is not an authorization cache.
 
 Construct `SessionTtlPolicy::new(default_secs, maximum_secs)` for admission.
 It enforces `1 <= default <= maximum <= 1800`. Its `maximum()` supplies the
@@ -64,10 +74,17 @@ wrapper; standalone verifier callers explicitly map their error through
 Cheap binding, revocation, request, replay and capacity refusals precede signature
 verification. Fresh admission spends receiver-wide verification credit, including
 invalid signatures and later storage failures. Never recreate the budget per
-request. Exact retries return the unchanged live session without verification,
+request. Exact retries return a receipt of the unchanged live session without verification,
 even after the admission proof expires. Changing the requested scope or lifetime
 on a retry is a replay conflict. Renewal uses a fresh credential within the same
 immutable issuer/account and login-start/deadline binding.
+
+In pending Auth 0.23, every `SessionEstablished` variant holds a compact
+`SessionReceipt`: browser caller, account issuer/subject and lease expiry. It does
+not copy scopes, fingerprints or other stored payloads. A receipt is a response,
+not authorization evidence. Use `SessionStore::read` to inspect a full record or
+`authorize_session` to project a result after current live checks. The engine
+prepares the receipt before committing; it performs no fallible post-commit read.
 
 Admission validates the session record's encoded size without allocating bytes
 that would be discarded. The store independently enforces its transactional
@@ -136,6 +153,24 @@ checkpoint is required for this callback. Durable atomicity, metadata generation
 clock/budget persistence, pruning and authority changes remain host obligations;
 this hook does not itself supply a stable backend.
 
+Pending Auth 0.23 also makes `SessionLimits` immutable and valid by construction.
+Use `SessionLimits::new(max_sessions, max_replays, max_replays_per_caller,
+max_encoded_bytes)` at protected backend setup, retain the checked value and
+return it from `SessionReader::limits`. Access the four bounds through their
+same-named getters. Construct a new checked value when configuration changes or
+is decoded. Range refusal occurs at construction; every admission/restore still
+checks actual occupancy, associations, generation and encoded bytes.
+`MemorySessionStore::new(generation, limits)` now returns the store directly;
+remove its former `unwrap`, `expect` or `?`. Record restoration remains fallible.
+
+Pending Auth 0.23 changes `SessionStore::admit` and
+`MemorySessionStore::admit_with_commit` to consume owned `Session` and `Replay`
+values. Update backend signatures and move them into storage rather than cloning
+the pair. The commit callback still borrows the staged records; validate and
+prepare everything before durable success, then publish without a returned
+failure. Rejected writes preserve the prior store and ledger. This Rust API
+change does not alter persisted records or require a reset.
+
 ### Session commit write migration
 
 Auth 0.19 is a hard cut at the Rust API; migrate each current caller together:
@@ -167,7 +202,7 @@ Auth 0.19 is a hard cut at the Rust API; migrate each current caller together:
 There are no aliases or fallback entry points. Every host commit must finish
 atomically before reporting success, and returned failure must preserve storage.
 Signed claims, public Wire frames and the browser journal keep their existing
-formats. Pending 0.22 retires private CBOR storage as described below. Consumer adoption follows publication;
+formats. Auth 0.22 retired private CBOR storage as described below. Consumer adoption follows publication;
 local fixture qualification does not establish a Canic deployment.
 
 Maintenance uses the same ordering: session-store `prune_with_commit` supplies

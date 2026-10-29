@@ -12,15 +12,15 @@ use ic_auth::{
     portable::{MemoryLoginRevocations, PortableClaimsContext},
     portable_credential::PortableVerificationContext,
     session::{
-        MemorySessionStore, Session, SessionAdmissionContext, SessionContext, SessionEstablished,
-        SessionLimits, SessionPolicy, SessionStore, authorize_session, establish_session,
-        logout_session,
+        MemorySessionStore, RequiredScopes, Session, SessionAdmissionContext, SessionContext,
+        SessionEstablished, SessionLimits, SessionPolicy, SessionStore, authorize_session,
+        establish_session, logout_session,
     },
     session_request::{SessionRequest, SessionTtlPolicy},
 };
 use ic_auth_protocol_types::{LogoutResult, LogoutUnavailable, PortableCredential};
 use ic_auth_qualification_contracts as controls;
-use ic_auth_wire::{SessionInput, SessionView, model::AdmissionRefusal, wire::Bytes};
+use ic_auth_wire::{SessionInput, SessionView, model::AdmissionRefusal};
 use ic_platform::Principal;
 
 use std::cell::RefCell;
@@ -43,12 +43,13 @@ const CERTIFIED_LIMITS: ic_auth::portable_certified::CertifiedProofLimits =
         max_witness_steps: 6,
     };
 fn limits() -> SessionLimits {
-    SessionLimits {
-        max_sessions: MAX_SESSIONS,
-        max_replays: MAX_REPLAYS,
-        max_replays_per_caller: MAX_REPLAYS_PER_CALLER,
-        max_encoded_bytes: MAX_ENCODED_BYTES,
-    }
+    SessionLimits::new(
+        MAX_SESSIONS,
+        MAX_REPLAYS,
+        MAX_REPLAYS_PER_CALLER,
+        MAX_ENCODED_BYTES,
+    )
+    .expect("fixture limits")
 }
 #[derive(Clone, Copy, Eq, PartialEq)]
 enum ReceiverLifecycle {
@@ -73,6 +74,8 @@ struct Receiver {
     admission: SessionAdmissionBudget,
     unknown: SessionAdmissionBudget,
     metrics: metrics::AdmissionMetrics,
+    read_scopes: RequiredScopes,
+    write_scopes: RequiredScopes,
 }
 thread_local! { static RECEIVER: RefCell<Option<Receiver>> = const { RefCell::new(None) }; }
 struct ReceiverInputs {
@@ -113,7 +116,7 @@ impl ReceiverInputs {
             authority: self.authority(caller, now),
             max_ttl: ttl().maximum(),
             role: &self.config.role,
-            required_scopes: &[],
+            required_scopes: RequiredScopes::NONE,
         }
     }
 }
@@ -143,9 +146,9 @@ fn policy(host: &Receiver) -> SessionPolicy {
 }
 fn view(session: &Session) -> SessionView {
     SessionView {
-        caller: Bytes::new(session.caller().as_slice().to_vec()).expect("principal bound"),
-        issuer: Bytes::new(session.issuer().as_slice().to_vec()).expect("principal bound"),
-        subject: Bytes::new(session.subject().as_slice().to_vec()).expect("principal bound"),
+        caller: session.caller(),
+        issuer: session.issuer(),
+        subject: session.subject(),
         expires_at_ns: session.expires_at_ns(),
     }
 }
@@ -205,7 +208,9 @@ fn install_session_receiver(config: controls::model::ReceiverConfig) -> Result<(
     let (admission, unknown) = budgets(&inputs.config, now)?;
     let host = Receiver {
         lifecycle: ReceiverLifecycle::Active,
-        store: MemorySessionStore::new(0, limits()).map_err(|e| e.to_string())?,
+        read_scopes: RequiredScopes::new(vec!["read".into()]).expect("read operation"),
+        write_scopes: RequiredScopes::new(vec!["write".into()]).expect("write operation"),
+        store: MemorySessionStore::new(0, limits()),
         ledger: MemoryLoginRevocations::new(
             inputs.config.audience,
             MAX_ADMITTED_LOGINS,
@@ -281,11 +286,17 @@ fn establish_portable_session(input: SessionInput) -> Result<SessionView, Admiss
         host.metrics.observe(&result);
         Ok(result
             .map(|result| {
-                view(&match result {
+                let receipt = match result {
                     SessionEstablished::Created(s)
                     | SessionEstablished::Replaced(s)
                     | SessionEstablished::ExactRetry(s) => s,
-                })
+                };
+                SessionView {
+                    caller: receipt.caller(),
+                    issuer: receipt.issuer(),
+                    subject: receipt.subject(),
+                    expires_at_ns: receipt.expires_at_ns(),
+                }
             })
             .map_err(|error| error.admission_refusal().into()))
     })
@@ -312,19 +323,27 @@ fn profile_portable_admission(input: SessionInput) -> AdmissionProfile {
     encode_with = "encode_read"
 )]
 fn portable_session_read() -> Result<SessionView, String> {
-    authorize(&["read".into()])
+    authorize(SessionOperation::Read)
+}
+
+enum SessionOperation {
+    Read,
+    Write,
 }
 
 // Runtime caller, clock, authority and required scopes are host inputs. Ordinary
 // operations reuse the retained session; they decode no credential or proof.
-fn authorize(required_scopes: &[String]) -> Result<SessionView, String> {
+fn authorize(operation: SessionOperation) -> Result<SessionView, String> {
     with_receiver(|host| {
         let policy = policy(host);
         let mut ctx = host.inputs.context(
             ic_platform::cdk::api::msg_caller(),
             ic_platform::cdk::api::time(),
         );
-        ctx.required_scopes = required_scopes;
+        ctx.required_scopes = match operation {
+            SessionOperation::Read => &host.read_scopes,
+            SessionOperation::Write => &host.write_scopes,
+        };
         authorize_session(&mut host.store, &mut host.ledger, &ctx, policy, view)
             .map_err(|e| e.to_string())
     })
@@ -338,7 +357,7 @@ fn authorize(required_scopes: &[String]) -> Result<SessionView, String> {
     encode_with = "crate::control::SetSessionAsset::encode"
 )]
 fn session_set_asset(version: u64) -> Result<(), String> {
-    authorize(&["write".into()])?;
+    authorize(SessionOperation::Write)?;
     // No await separates the session decision from the application effect.
     super::with_state(|state| {
         state.metadata.asset_version = version;

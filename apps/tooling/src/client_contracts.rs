@@ -13,7 +13,7 @@ fn credential() -> model::PortableCredential {
 // metadata from the same contract. No independent registry/schema declarations.
 macro_rules! binding {
     ($contract:ty) => {{
-        let source = generate(
+        let (source, policy) = generate(
             <$contract>::NAME,
             <$contract>::ID,
             <$contract>::REQUEST_LIMITS,
@@ -22,11 +22,6 @@ macro_rules! binding {
             <$contract>::decode_response,
         )
         .map_err(|error| format!("IC Wire generation refused: {error:?}"))?;
-        let policy = wire::typescript::method_limits(
-            <$contract>::REQUEST_LIMITS,
-            <$contract>::RESPONSE_LIMITS,
-        )
-        .map_err(|error| format!("IC Wire policy refused: {error:?}"))?;
         (source, (<$contract>::ID.to_string(), policy))
     }};
 }
@@ -139,7 +134,7 @@ fn generate<Request: wire::typescript::Wire, Response: wire::typescript::Wire>(
     response: wire::Limits,
     _encode_request: fn(&Request) -> Result<Vec<u8>, wire::Error>,
     _decode_response: fn(&[u8]) -> Result<Response, wire::Error>,
-) -> Result<String, wire::typescript::GenerationError> {
+) -> Result<(String, serde_json::Value), wire::typescript::GenerationError> {
     use serde_json::json;
     let types = std::collections::BTreeMap::from([
         (
@@ -151,7 +146,8 @@ fn generate<Request: wire::typescript::Wire, Response: wire::typescript::Wire>(
             wire::typescript::native_schema::<Response>()?,
         ),
     ]);
-    let mut method = wire::typescript::method_limits(request, response)?;
+    let policy = wire::typescript::method_limits(request, response)?;
+    let mut method = policy.clone();
     method
         .as_object_mut()
         .expect("Wire method limit object")
@@ -174,5 +170,5 @@ fn generate<Request: wire::typescript::Wire, Response: wire::typescript::Wire>(
         },
     )?;
     source.push_str(&format!("\nexport const methodName = {};\nexport const {{ encodeRequest, decodeRequest, encodeResponse, decodeResponse }} = contract;\n", json!(name)));
-    Ok(source)
+    Ok((source, policy))
 }

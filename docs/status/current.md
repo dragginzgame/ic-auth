@@ -1,113 +1,108 @@
 # Current handoff — 2026-10-29
 
-## Delivered base and local scope
+## Base, scope and delivery
 
-Auth **0.21.0**, `353ed96bd77e9eeace3146d5b75df0523932ecb4`, is delivered on main.
-Its [complete CI matrix](https://github.com/dragginzgame/ic-auth/actions/runs/40858572448)
-passes Linux, macOS Intel and Apple Silicon. Issues #106/#107/#108 are closed.
-The [delivered handoff](https://github.com/dragginzgame/ic-auth/blob/353ed96bd77e9eeace3146d5b75df0523932ecb4/docs/status/current.md)
-retains earlier contracts and qualification history. Release/recovery state is untouched.
-Rust **1.91** remains the minimum; development uses **1.99.1**. Shared Tooling
-remains **0.27.6**, exact `5a72359b5be19d5221334cf2c9b3204621d3f3f6`, 127 files.
+The local base is Auth **0.22.0**, `34ca71b67e816d804a77f76d09bb210256862663`
+(`Release 0.22.0`). See its [handoff](https://github.com/dragginzgame/ic-auth/blob/34ca71b67e816d804a77f76d09bb210256862663/docs/status/current.md)
+and #109/#110/#111/#112 for earlier storage/dependency/harness evidence.
 
-The maintainer authorized cleanup, confirmed no session/replay/login records need
-preservation, then requested new Platform and latest Tooling/Wire/Memory/Storage.
-Pending changelog is **0.22.0**; package versions remain 0.21.0. No staging,
-commit, push, full CI, release or publication ran. Owning issues:
-[#109 storage](https://github.com/dragginzgame/ic-auth/issues/109),
-[#110 dependencies](https://github.com/dragginzgame/ic-auth/issues/110),
-[#111 cleanup](https://github.com/dragginzgame/ic-auth/issues/111) and
-[#112 Platform](https://github.com/dragginzgame/ic-auth/issues/112).
-Delivery and required acceptance remain separate.
+[#113 — Reduce transport allocations and admission duplication](https://github.com/dragginzgame/ic-auth/issues/113)
+owns eight implemented cleanup candidates, two retained candidates and the two
+subsequent configuration cuts. [#114 — Adopt Memory/Storage 0.56](https://github.com/dragginzgame/ic-auth/issues/114)
+owns the latest dependency adoption. Pending changelog is **0.23.0**; own versions
+remain **0.22.0**. Nothing was staged, committed or pushed. No full CI, release,
+publication or sibling edits ran. Release/recovery evidence remains intact.
 
-The maintainer subsequently committed the batch as `2d41d8a` (`0.22.0`); the
-reported release verification failed all-features Clippy in the unpublished
-feature-unification harness. Shared revocation fixtures had moved to Wire/Serde,
-but its dev dependencies still supplied CBOR. The local repair declares Wire and
-Serde, removes unused CBOR and makes the normal harness test selection use all
-features. Focused all-target/all-features Clippy and all 31 signature/revocation
-tests pass; logs are under `target/feature-unification-codec-20261029/`.
-External lock selections and public library code are unchanged. Full CI was not
-rerun, and the retained failed validation/release evidence is untouched.
+Shared Tooling remains **0.27.6**, revision
+`5a72359b5be19d5221334cf2c9b3204621d3f3f6`, 127 files. Platform/macros **0.8.2**,
+Tooling **0.70.2**, Wire/derive **0.7.23** and Metrics **0.17.4** remain selected.
+Only Memory/Storage advanced in this adoption: **0.55.2 → 0.56.0**.
+Root floors now declare 0.56.0; all unrelated external lock identities are
+preserved. Rust **1.91** remains the minimum; development uses **1.99.1**.
 
-## Current shared dependency adoption
+## Pending Rust API migration
 
-Official sparse-index checks select Tooling **0.70.0**, Wire/derive **0.7.22** and
-Memory/Storage **0.55.2**. Wire 0.7.23 was an unpublished draft at selection.
-The incoming lock already selected Wire 0.7.22 and Memory/Storage 0.55.2;
-requirements now declare those floors. Build/Host/Testkit advance from 0.69.14
-to 0.70.0, and the independently pinned file CLI advances from 0.69.11 to 0.70.0.
-All selected workspace Platform dependencies now use **0.8.1**; the old private
-Platform 0.7 branch is removed. Metrics **0.17.3**, browser Platform **0.1.1** /
-Core **6.1.1**, PocketIC **16.1.0**, and unrelated exact dependencies are preserved.
+Wire DTO Principal fields hold Platform-owned values directly. Native Wire bytes,
+bounds and generated browser sources remain unchanged; human-readable Serde uses
+Principal text. Host-only `typescript` selects Platform `wire-schema`.
 
-Published Wire/derive 0.7.22 and Memory/Storage 0.55.2 source trees are identical
-to 0.7.21/0.55.1. Tooling 0.70's breaking ledger/Registry type identities are not
-used by Auth; Testkit explicitly selects external Principal conversions, preserving
-its existing API. Stable substrate, persisted formats and external identity bytes
-remain unchanged. No Rust source repair or additional data retirement was needed.
-The file, Build and Testkit CLIs were explicitly prepared/admitted; PocketIC
-server selection stays Testkit-owned. Saved older tool selections remain intact.
+All `SessionEstablished` variants hold compact `SessionReceipt` values.
+`SessionStore::admit` and `MemorySessionStore::admit_with_commit` consume owned
+Session/Replay records. Update backend signatures and move validated records
+into storage. Callbacks borrow staged records and complete atomically. The
+receipt is prepared before commit without a fallible reread; it grants nothing.
 
-Evidence is retained under `target/shared-070-20261029/`: official index snapshots,
-before patch/manifests/lock, selected lock, source comparisons, generated-file
-review, artifact, setup/check logs and focused qualification. All five browser
-files were regenerated through the normal command and reviewed unchanged. Current
-record/session/revocation tests (62), checkpoint tests (9), metrics tests (5),
-native tooling cases (4), transport cases (13), 68 client/interoperability/packed
-consumer cases, graph checks and native tooling/metrics Clippy pass. Rust 1.91
-checks pass Wire Wasm, qualification host Wasm and native tooling. Testkit caller,
-package/external-lock and evidence caller fixtures pass. Four installed final-Wasm
-certification/composed-root/checkpoint-upgrade/SDK-ingress/logout cases pass.
-Local/mocked release/recovery/publication caller fixtures also pass. No current
-full CI, macOS, new Chromium or production consumer acceptance is claimed.
+`SessionContext::required_scopes` borrows immutable `RequiredScopes`, admitted
+once from protected operation definitions and rebuilt after decoding.
+`RequiredScopes::NONE` supplies empty requirements; duplicates/order semantics
+and bounds remain. Every operation keeps live scope/authority/time/revocation checks.
+`SessionLimits::new` admits immutable backend bounds once; getters replace raw
+fields. Reconstruct after configuration decoding/changes and return the retained
+value from `SessionReader::limits`. Occupancy, byte capacity, associations and
+generation remain independently checked. `MemorySessionStore::new` is infallible;
+restoration remains fallible. See [sessions](../sessions.md) and
+[consumer migration](../canic-adoption.md).
 
-Current raw reference Wasm is **2,199,756 bytes**. Installed profiles remain small
-Ed25519 admission **2,619,205**, retry **57,894**, ordinary authorization **6,835**,
-wide authorization **29,588**, representative session **364 bytes** and decoding
-**28,369 instructions**; certified admission remains about **440 million**.
-These are fixture observations, not a production workload estimate.
+Fresh admission reuses derived identity after the retry path. Merkle buffers,
+ledger publication, journal status projection and generator policy are simplified.
+Raw/prepared verification wrappers retain distinct refusal/retry ordering;
+cryptography already converges. The streaming-hash trial was rejected for larger
+Wasm and tiny savings. No proof algorithm, signed-byte, trust or cache change occurs.
 
-## Platform boundary and retained cleanup
+## Memory/Storage 0.56 qualification boundary
 
-Protocol/Wire keep only Platform `principal`, without `ic_principal`, SHA-2,
-Candid or runtime. The engine explicitly selects `principal-self-authenticating`
-for `browser_principal`; verification/runtime capabilities stay separate.
-Consumers sharing Principal, parse errors or imported key types align to Platform
-0.8; explicit upstream conversions require `principal-external`. See
-[migration](../canic-adoption.md#platform-08-migration). Earlier 0.8.1 qualification
-is retained under `target/platform-081-20261029/` and #112. Auth selects neither
-changed ICRC DTOs nor native profiler product code. Signed preimages, verification
-rules, TEE trust, authority/atomicity and cache policy remain unchanged.
+Published source revision is `956b2b92728f82f75dd51d4d10ed52f325529e91`, checked
+against live official Cargo index records and archive identities. Memory changes
+its allocation-ledger/Cell-value CBOR to bounded Wire, with `ICML` framing and
+`ICMWIRE1` marker. Storage reuses upstream retained-length bounds admission.
+Underlying manager/substrate Cell layouts and Auth payload codecs are unchanged.
 
-Private session/replay/login records use native Wire identities with framed
-2048/512/1024-byte ceilings, 1024 nodes, depth 16 and a 65,536-byte native allocation
-allowance. Typed login state replaces flags. The approved hard cut refuses old
-CBOR without migration/reset; the fixture uses `AUTHNAT2` / `0x41555449f101`.
-Hosts adopt one coherent checkpoint, preserving replay/denials. Transport
-`PortableProof::Certified` holds `Box<CertifiedProof>`; direct Rust constructors
-box it, while encoded/generated contracts retain their bytes.
+Only the unpublished qualification host selects Memory/Storage. Its production
+adapter needs no source repair. A test-only Platform substrate capability builds
+isolated old-ledger backing from a published 0.55.2 fixture; the new runtime gives
+a typed ledger-record refusal, and Auth bootstrap leaves every backing byte and
+application Cell intact. No legacy decoder or fallback is introduced.
 
-The seven completed cleanup changes and three retained candidates are documented
-in #111. Original matched savings were **299,159 bytes (12.0%)** smaller Wasm,
-representative records **691–696 → 364 bytes**, decoding about 28% cheaper.
-Those savings predate these dependency updates. Keep owned/pre-commit Session
-copies, the canonical byte encoder and intentionally different native fixtures.
-Earlier cleanup evidence directories were removed outside these tasks; their
-original findings remain in #109/#110/#111.
+Older Memory backing is incompatible even if its application payload is
+`AUTHNAT2`. Installed qualification uses fresh backing and current-format
+upgrades. Retain older binaries/states. Any retained installation needs its own
+reviewed transition before upgrade; this task authorizes no reinstall, reset or
+discarding records. Never clear only the ledger while leaving application data.
+Auth's prior CBOR-record retirement does not authorize another data retirement.
 
-## Consumer ownership
+## Evidence
 
-Retain `ValidatedGrants` from protected configuration; reconstruct after decoding
-and replace atomically with authority/generation. The host owns clock, stable
-allocation, complete atomic commits and certification publication. Canic records
-Auth outcomes in its shared metrics store and existing endpoint; no separate
-Auth metrics subsystem or per-producer endpoint is needed. The browser package
-remains private/unpublished. No production issuer adapter or wallet service exists.
-[Canic #491](https://github.com/dragginzgame/canic/issues/491) owns receiver acceptance,
-issuer approval, refresh, budgets, lifecycle and endpoint wiring;
-[#507](https://github.com/dragginzgame/canic/issues/507) owns issuance/reconciliation
-and browser integration. Earlier PR #701/#703 reviews were read-only; current
-status was not rechecked. Sibling checkouts remain untouched. Authentication,
-ingress delegation, application authorization and resource ownership stay distinct;
-software proof does not establish TEE custody.
+Latest evidence: `target/memory-storage-20261029/`, including index/source
+identities, before manifests/lock/patch, lock-delta admission, artifacts, source
+seals, logs and fresh PocketIC state paths. Current reference Wasm is
+**2,038,000 bytes**, down **159,335 bytes (7.25%)** from the same-code 0.55.2
+artifact (**2,197,335 bytes**), with unrelated locked dependencies preserved.
+No new runtime optimization or production workload estimate is claimed.
+
+Ten native host tests pass, including current-cell bounds/reopen/custody and
+old-ledger refusal without clearing. Native all-target and Wasm host Clippy pass;
+Rust 1.91 native/all-target and Wasm checks pass. Host Wasm dependency boundaries
+and all five generated browser contract comparisons pass. The four installed
+final-Wasm cases pass certification/live authority, composed roots, checkpoint
+upgrade and SDK signed ingress/logout. PocketIC remains the admitted **16.1.0**
+pair selected by the prepared Testkit 0.70.2 CLI. No current full CI, macOS,
+Chromium, complete packed-client rerun or production adoption is claimed.
+
+Prior cleanup evidence remains in `target/cleanup-023-20261029/` and
+`target/checked-config-023-20261029/`, with #113 recording historical matched
+figures and failed trials. Scope probes reduced one/wide requirement authorization
+from **5,830/51,736 → 5,554/45,655**, with construction outside the timed call.
+Their 366-byte Wasm increase and slightly higher fresh-admission cost were accepted;
+these historical measurements used Memory/Storage 0.55.2.
+
+## Consumer ownership and next delivery
+
+Native Auth session/replay/login records, `AUTHNAT2` application payload and
+browser journals remain unchanged by Memory adoption. Hosts retain protected
+grants/clock/generation, memory allocation, atomic commits and certification.
+Canic owns issuer/endpoint/lifecycle acceptance in
+[Canic #491](https://github.com/dragginzgame/canic/issues/491), and browser issuance
+in [#507](https://github.com/dragginzgame/canic/issues/507). Its existing shared
+metrics adapter records Auth outcomes. No production wallet service, issuer
+adapter or browser publication is established. User delivery/version selection
+and complete CI remain separate.

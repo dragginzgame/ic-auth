@@ -114,7 +114,11 @@ pub fn validate_claims_context(
 ) -> Result<(), PortableClaimsError> {
     validate_context(context)?;
     validate_shape(claims)?;
-    validate_bindings(claims, context)
+    validate_bindings(
+        claims,
+        browser_principal(&claims.browser_public_key),
+        context,
+    )
 }
 
 // DecodedPortableClaims alone may skip shape admission: its owned claims have
@@ -125,10 +129,11 @@ pub fn validate_claims_context(
 ))]
 pub(super) fn validate_decoded_context(
     claims: &PortableClaims,
+    browser_caller: Principal,
     context: &PortableClaimsContext<'_>,
 ) -> Result<(), PortableClaimsError> {
     validate_context(context)?;
-    validate_bindings(claims, context)
+    validate_bindings(claims, browser_caller, context)
 }
 
 fn validate_context(context: &PortableClaimsContext<'_>) -> Result<(), PortableClaimsError> {
@@ -148,6 +153,7 @@ fn validate_context(context: &PortableClaimsContext<'_>) -> Result<(), PortableC
 
 fn validate_bindings(
     claims: &PortableClaims,
+    browser_caller: Principal,
     context: &PortableClaimsContext<'_>,
 ) -> Result<(), PortableClaimsError> {
     use PortableClaimsError as Error;
@@ -164,7 +170,7 @@ fn validate_bindings(
     if claims.key_binding_id != authority.key_binding_id {
         return Err(Error::KeyMismatch);
     }
-    if browser_principal(&claims.browser_public_key) != authority.caller {
+    if browser_caller != authority.caller {
         return Err(Error::CallerMismatch);
     }
     if !grants_are_subset(&claims.grants, authority.grants.as_slice()) {

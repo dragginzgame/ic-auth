@@ -33,8 +33,8 @@ impl SessionStore for Store {
     }
     fn admit(
         &mut self,
-        session: &Session,
-        replay: &Replay,
+        session: Session,
+        replay: Replay,
         login: &ic_auth::portable::LoginRevocationChange,
     ) -> Result<bool, SessionError> {
         self.inner.admit_with_commit(session, replay, login, |_| {
@@ -76,14 +76,8 @@ impl Host {
             store: Store {
                 inner: MemorySessionStore::new(
                     0,
-                    SessionLimits {
-                        max_sessions: 4,
-                        max_replays: 8,
-                        max_replays_per_caller: 4,
-                        max_encoded_bytes: 16_384,
-                    },
-                )
-                .unwrap(),
+                    SessionLimits::new(4, 8, 4, 16_384).expect("fixture limits"),
+                ),
                 fail_commit: false,
             },
             ledger: MemoryLoginRevocations::new(claims.audience, 4, 4, 0, 0).unwrap(),

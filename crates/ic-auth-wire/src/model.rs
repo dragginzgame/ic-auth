@@ -15,7 +15,7 @@ macro_rules! scalar {
         fn into_domain(self) -> Result<$ty, Error> { Ok(self) }
     })*};
 }
-scalar!(u16, u64, [u8; 16], [u8; 32]);
+scalar!(u16, u64, [u8; 16], [u8; 32], domain::Principal);
 impl<const N: usize> Field<Vec<u8>> for Bytes<N> {
     fn from_domain(value: Vec<u8>) -> Result<Self, Error> {
         Self::new(value)
@@ -46,14 +46,6 @@ impl<D, W: Field<D>, const N: usize> Field<Vec<D>> for List<W, N> {
     }
     fn into_domain(self) -> Result<Vec<D>, Error> {
         self.into_vec().into_iter().map(W::into_domain).collect()
-    }
-}
-impl Field<domain::Principal> for Bytes<29> {
-    fn from_domain(value: domain::Principal) -> Result<Self, Error> {
-        Self::new(value.as_slice().to_vec())
-    }
-    fn into_domain(self) -> Result<domain::Principal, Error> {
-        domain::Principal::try_from_slice(self.as_slice()).map_err(|_| Error::Malformed)
     }
 }
 impl Field<domain::CanonicalId> for [u8; 32] {
@@ -162,14 +154,22 @@ impl Field<domain::IssuerProofBinding> for IssuerProofBinding {
 }
 record!(IcCanisterSignatureProofV1 { signature_cbor: Bytes<131072>, public_key_der: Bytes<256> });
 record!(ChainKeyBatchHeaderV1 {
-    schema_version: u16, root_canister_id: Bytes<29>, batch_id: [u8; 32],
-    proof_epoch: u64, registry_epoch: u64, registry_hash: [u8; 32],
-    tree_root: [u8; 32], not_before_ns: u64, expires_at_ns: u64,
-    algorithm: ChainKeyAlgorithm, key_id: ChainKeyKeyId,
-    derivation_path_hash: [u8; 32], key_version: u64,
+    schema_version: u16,
+    root_canister_id: domain::Principal,
+    batch_id: [u8; 32],
+    proof_epoch: u64,
+    registry_epoch: u64,
+    registry_hash: [u8; 32],
+    tree_root: [u8; 32],
+    not_before_ns: u64,
+    expires_at_ns: u64,
+    algorithm: ChainKeyAlgorithm,
+    key_id: ChainKeyKeyId,
+    derivation_path_hash: [u8; 32],
+    key_version: u64,
 });
 record!(ChainKeyDelegationCertV1 {
-    root_canister_id: Bytes<29>, issuer_canister_id: Bytes<29>, proof_epoch: u64,
+    root_canister_id: domain::Principal, issuer_canister_id: domain::Principal, proof_epoch: u64,
     issuer_proof_algorithm: IssuerProofAlgorithm, issuer_proof_binding_hash: [u8; 32],
     issuer_proof_binding: IssuerProofBinding, max_token_ttl_ns: u64,
     audience: DelegationAudience, grants: List<DelegatedRoleGrant, MAX_GRANTS>,
@@ -194,7 +194,7 @@ tuple_enum!(RootProof {
     IcChainKeyBatchSignatureV1(IcChainKeyBatchSignatureProofV1)
 });
 record!(DelegationCert {
-    root_pid: Bytes<29>, issuer_pid: Bytes<29>, issuer_proof_alg: IssuerProofAlgorithm,
+    root_pid: domain::Principal, issuer_pid: domain::Principal, issuer_proof_alg: IssuerProofAlgorithm,
     issuer_proof_binding_hash: [u8; 32], issuer_proof_binding: IssuerProofBinding,
     issued_at_ns: u64, not_before_ns: u64, expires_at_ns: u64,
     max_token_ttl_ns: u64, aud: DelegationAudience, grants: List<DelegatedRoleGrant, MAX_GRANTS>,

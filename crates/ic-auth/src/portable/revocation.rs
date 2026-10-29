@@ -333,15 +333,20 @@ impl MemoryLoginRevocations {
             feature = "certified-proof-verification"
         )
     ))]
-    pub(crate) fn check_decoded_reservation(
+    pub(crate) fn check_prepared_reservation(
         &mut self,
         caller: Principal,
-        decoded: &super::DecodedPortableClaims,
+        prepared: &super::ContextualClaims<'_, '_>,
         now_ns: u64,
     ) -> Result<(), LoginRevocationError> {
         self.observe(caller, now_ns)?;
-        self.reservation_checked(caller, &decoded.claims, now_ns)
-            .map(|_| ())
+        self.reservation_checked(
+            caller,
+            &prepared.decoded().claims,
+            prepared.browser_caller(),
+            now_ns,
+        )
+        .map(|_| ())
     }
 
     /// Reserve before committing a fully verified admission's session/replay pair.
@@ -361,17 +366,12 @@ impl MemoryLoginRevocations {
         commit: impl FnOnce(&LoginRevocationChange) -> Result<T, E>,
     ) -> Result<T, E> {
         self.observe(caller, now_ns)?;
-        let record = self.reservation_checked(caller, verified.claims(), now_ns)?;
+        let record =
+            self.reservation_checked(caller, verified.claims(), verified.browser_caller(), now_ns)?;
         if verified.verified_at_ns() != now_ns {
             return Err(LoginRevocationError::InvalidPolicy.into());
         }
-        let value = commit(&LoginRevocationChange {
-            audience: self.audience,
-            caller,
-            record,
-        })?;
-        self.install(caller, record);
-        Ok(value)
+        self.commit_record(caller, record, commit)
     }
 
     /// Stage local denial, then atomically remove this caller's host sessions in
@@ -423,13 +423,25 @@ impl MemoryLoginRevocations {
                     AdmissionBudgetError::InvalidPolicy => LoginRevocationError::InvalidPolicy,
                 })?;
         }
-        commit(&LoginRevocationChange {
+        self.commit_record(caller, record, commit)?;
+        Ok(record.until_ns)
+    }
+
+    // One publication point: prepare all records before the host callback, and
+    // change heap state only after its atomic commit succeeds.
+    fn commit_record<T, E>(
+        &mut self,
+        caller: Principal,
+        record: Record,
+        commit: impl FnOnce(&LoginRevocationChange) -> Result<T, E>,
+    ) -> Result<T, E> {
+        let value = commit(&LoginRevocationChange {
             audience: self.audience,
             caller,
             record,
         })?;
         self.install(caller, record);
-        Ok(record.until_ns)
+        Ok(value)
     }
 
     /// Consult local denial before any session use, including exact retries.
@@ -495,7 +507,12 @@ impl MemoryLoginRevocations {
     ) -> Result<Record, LoginRevocationError> {
         self.observe(caller, now_ns)?;
         validate_shape(claims).map_err(|_| LoginRevocationError::InvalidPolicy)?;
-        self.reservation_checked(caller, claims, now_ns)
+        self.reservation_checked(
+            caller,
+            claims,
+            browser_principal(&claims.browser_public_key),
+            now_ns,
+        )
     }
 
     // Only canonical decoded or verified claims can skip static shape checks.
@@ -504,12 +521,11 @@ impl MemoryLoginRevocations {
         &self,
         caller: Principal,
         claims: &PortableClaims,
+        browser_caller: Principal,
         now_ns: u64,
     ) -> Result<Record, LoginRevocationError> {
         let login_deadline_ns = claims.login_deadline_ns;
-        if claims.audience != self.audience
-            || browser_principal(&claims.browser_public_key) != caller
-        {
+        if claims.audience != self.audience || browser_caller != caller {
             return Err(LoginRevocationError::InvalidPolicy);
         }
         let until_ns = login_deadline_ns

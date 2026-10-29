@@ -1,6 +1,6 @@
 //! One owned decode and digest, shared by admission and complete proof verification.
 use super::{PortableEncodingError, decode_claims};
-use ic_auth_protocol_types::PortableClaims;
+use ic_auth_protocol_types::{PortableClaims, Principal};
 use sha2::{Digest, Sha256};
 
 /// Canonical claims prepared by the session engine, not authenticated claims.
@@ -29,6 +29,7 @@ impl DecodedPortableClaims {
 pub(crate) struct ContextualClaims<'a, 'ctx> {
     decoded: DecodedPortableClaims,
     context: &'a super::PortableClaimsContext<'ctx>,
+    browser_caller: Principal,
 }
 
 impl DecodedPortableClaims {
@@ -36,10 +37,12 @@ impl DecodedPortableClaims {
         self,
         context: &'a super::PortableClaimsContext<'ctx>,
     ) -> Result<ContextualClaims<'a, 'ctx>, super::PortableClaimsError> {
-        super::rules::validate_decoded_context(&self.claims, context)?;
+        let browser_caller = super::browser_principal(&self.claims.browser_public_key);
+        super::rules::validate_decoded_context(&self.claims, browser_caller, context)?;
         Ok(ContextualClaims {
             decoded: self,
             context,
+            browser_caller,
         })
     }
 }
@@ -50,12 +53,17 @@ impl<'a, 'ctx> ContextualClaims<'a, 'ctx> {
         &self.decoded
     }
 
+    pub(crate) fn browser_caller(&self) -> Principal {
+        self.browser_caller
+    }
+
     pub(crate) fn into_parts(
         self,
     ) -> (
         DecodedPortableClaims,
         &'a super::PortableClaimsContext<'ctx>,
+        Principal,
     ) {
-        (self.decoded, self.context)
+        (self.decoded, self.context, self.browser_caller)
     }
 }

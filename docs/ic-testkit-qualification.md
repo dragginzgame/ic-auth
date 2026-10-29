@@ -49,7 +49,7 @@ remain under a unique `target/portable-fixtures/qualification.*` directory after
 success or failure. The canister uses Platform runtime and generated entrypoint
 macros with explicit Wire codec hooks; the direct CDK exception is removed
 ([Platform #21](https://github.com/dragginzgame/ic-platform/issues/21)).
-IC Memory 0.51.1 from [IC Persistence](https://github.com/dragginzgame/ic-persistence)
+Root-selected IC Memory from [IC Persistence](https://github.com/dragginzgame/ic-persistence)
 supplies checkpoint-cell mechanics, and Platform supplies raw length
 admission before CDK copying, counter-zero measurements, certified-tree types
 and canister-signature key/hash operations. Its `cdk` capability now supplies
@@ -109,16 +109,25 @@ protect different integration/trust boundaries; neither replaces the other.
 ## Portable session restoration across independent receivers
 
 The checkpoint host uses `ic_storage::adapter::StableCell` with one explicit
-host-owned Memory runtime/allocation. Auth owns its `AUTHNAT1` native-Wire payload
+host-owned Memory runtime/allocation. Auth owns its `AUTHNAT2` native-Wire payload
 identity, 128 KiB ceiling and checked metadata/session contents. Memory admits the
 checked allocation and bounded retained-cell envelope; Storage owns collection
 loading/access with the existing substrate bytes. Init requires an empty
 allocation before creating a cell; post-upgrade loads retained state only after
 checking its size. Missing, corrupt or unexpectedly occupied state refuses. The
-raw `AUTHQCP1`, `AUTHCELL` Candid and finite-Wire `AUTHWIR2` layouts are retired
+raw `AUTHQCP1`, `AUTHCELL` Candid, finite-Wire `AUTHWIR2` and older CBOR-record
+`AUTHNAT1` layouts are retired
 with maintainer approval, without automatic reset or a second reader.
 Qualification starts fresh and tests repeated current-format upgrades; it does
 not prove historical ledger/image compatibility.
+
+Memory/Storage 0.56 additionally changes Memory's allocation-ledger Cell value to
+bounded Wire. Older Memory backings are incompatible even when they contain an
+`AUTHNAT2` application payload. A native refusal fixture retains all old-ledger
+and application bytes; there is no fallback or automatic reset. Installed tests
+use fresh backing and same-format upgrades. A real retained installation needs
+an explicitly reviewed transition before adoption; this qualification authorizes
+no reinstall or data loss.
 
 After upgrade, fresh matching controller confirmation is required before
 admission, authorization or logout acknowledgement. Existing leases are not

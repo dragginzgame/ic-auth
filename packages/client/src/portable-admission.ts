@@ -66,7 +66,7 @@ export class PortableAdmissionClient {
   }
 
   private async active(): Promise<bigint> {
-    const state = await this.journal.status(this.generation);
+    const state = await this.journal.admissionStatus(this.generation);
     if (state.phase !== 'active' || state.caller !== this.caller || state.issuer !== this.issuer) {
       this.cached = undefined;
       throw new ClientError('stale_generation');

@@ -103,9 +103,9 @@ impl MemorySessionStore {
     ) -> Result<Self, SessionError> {
         if !self.sessions.is_empty()
             || !self.replays.is_empty()
-            || expected_counts.0 > self.limits.max_sessions
-            || expected_counts.1 > self.limits.max_replays
-            || expected_encoded_bytes > self.limits.max_encoded_bytes
+            || expected_counts.0 > self.limits.max_sessions()
+            || expected_counts.1 > self.limits.max_replays()
+            || expected_encoded_bytes > self.limits.max_encoded_bytes()
         {
             return Err(SessionError::InvalidPolicyOrRecord);
         }
@@ -138,7 +138,7 @@ impl MemorySessionStore {
                 .get(&replay.caller())
                 .copied()
                 .unwrap_or(0);
-            if count >= self.limits.max_replays_per_caller {
+            if count >= self.limits.max_replays_per_caller() {
                 return Err(SessionError::Capacity);
             }
             if replay.generation() > self.generation
@@ -194,9 +194,9 @@ impl MemorySessionStore {
         *self.replay_counts.entry(caller).or_default() += 1;
     }
 
-    pub fn new(generation: u64, limits: SessionLimits) -> Result<Self, SessionError> {
-        limits.validate()?;
-        Ok(Self {
+    /// Construct an empty store from already-admitted limits.
+    pub fn new(generation: u64, limits: SessionLimits) -> Self {
+        Self {
             generation,
             limits,
             sessions: BTreeMap::new(),
@@ -205,7 +205,7 @@ impl MemorySessionStore {
             session_expiry: BTreeSet::new(),
             replay_expiry: BTreeSet::new(),
             encoded_bytes: 0,
-        })
+        }
     }
     pub fn generation(&self) -> u64 {
         self.generation
@@ -370,8 +370,8 @@ impl SessionStore for MemorySessionStore {
     }
     fn admit(
         &mut self,
-        session: &Session,
-        replay: &Replay,
+        session: Session,
+        replay: Replay,
         login: &crate::portable::LoginRevocationChange,
     ) -> Result<bool, SessionError> {
         self.admit_with_commit(session, replay, login, |_| Ok(()))
@@ -391,8 +391,8 @@ impl MemorySessionStore {
     /// completion, with no await/reentrancy or error after durable success.
     pub fn admit_with_commit(
         &mut self,
-        session: &Session,
-        replay: &Replay,
+        session: Session,
+        replay: Replay,
         login: &crate::portable::LoginRevocationChange,
         commit: impl FnOnce(SessionCommit<'_>) -> Result<(), SessionError>,
     ) -> Result<bool, SessionError> {
@@ -422,16 +422,16 @@ impl MemorySessionStore {
         let total = (self.encoded_bytes - old.map_or(0, |s| s.bytes))
             .checked_add(session_bytes)
             .and_then(|b| b.checked_add(replay_bytes))
-            .filter(|b| *b <= self.limits.max_encoded_bytes)
+            .filter(|b| *b <= self.limits.max_encoded_bytes())
             .ok_or(SessionError::ByteCapacity)?;
         // Prepare the touched owned records before persistence, never clone the
         // whole store or allocate their payloads after durable success.
         let session = Stored {
-            value: session.clone(),
+            value: session,
             bytes: session_bytes,
         };
         let replay = Stored {
-            value: replay.clone(),
+            value: replay,
             bytes: replay_bytes,
         };
         commit(SessionCommit {

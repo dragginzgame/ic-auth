@@ -95,6 +95,7 @@ pub(crate) fn verify_prepared(
             ..
         },
         context,
+        browser_caller,
     ) = prepared.into_parts();
     if context.authority.mechanism != PortableMechanism::Ed25519 {
         return Err(PortableClaimsError::MechanismMismatch.into());
@@ -116,5 +117,10 @@ pub(crate) fn verify_prepared(
     budget.consume(context.authority.now_ns)?;
     key.verify_strict(&fingerprint, &signature)
         .map_err(|_| PortableSignatureError::InvalidSignature)?;
-    Ok(VerifiedPortableClaims::new(claims, fingerprint, context))
+    Ok(VerifiedPortableClaims::new(
+        claims,
+        fingerprint,
+        browser_caller,
+        context,
+    ))
 }

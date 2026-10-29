@@ -139,6 +139,15 @@ export class PortableLogoutClient {
     return this.update(generation, record => ({ record, value: structuredClone(record) }));
   }
 
+  /** Small detached projection; admission still checks phase and identity.
+   * Keep the strict transaction and clock observation without copying targets.
+   */
+  async admissionStatus(generation: string): Promise<Pick<LogoutJournal, 'phase' | 'caller' | 'issuer' | 'observedNs'>> {
+    return this.update(generation, record => ({ record, value: {
+      phase: record.phase, caller: record.caller, issuer: record.issuer, observedNs: record.observedNs,
+    } }));
+  }
+
   /** Give ordinary SDK agents this wrapper, never the retained cleanup identity.
    * Already returned signatures/accepted requests cannot be recalled by this gate.
    */

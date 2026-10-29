@@ -175,6 +175,7 @@ pub(crate) fn verify_prepared(
             ..
         },
         claims_context,
+        browser_caller,
     ) = checked.into_parts();
     let prepared = PreparedDelegationProof::new(delegation)?;
     let cert = &delegation.cert;
@@ -217,6 +218,7 @@ pub(crate) fn verify_prepared(
     Ok(VerifiedPortableClaims::new(
         claims,
         fingerprint,
+        browser_caller,
         claims_context,
     ))
 }

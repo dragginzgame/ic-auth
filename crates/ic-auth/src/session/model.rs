@@ -27,27 +27,59 @@ pub struct SessionPolicy {
 
 /// Host storage bounds, never selected by submitted tokens. Physical records
 /// and their encoded bytes count until pruning; bytes exclude allocator/index overhead.
+/// Configuration cannot bypass range admission:
+/// ```compile_fail
+/// use ic_auth::session::SessionLimits;
+/// fn disable(limits: &mut SessionLimits) {
+///     limits.max_sessions = 0;
+/// }
+/// ```
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct SessionLimits {
-    pub max_sessions: usize,
-    pub max_replays: usize,
-    pub max_replays_per_caller: usize,
-    pub max_encoded_bytes: usize,
+    max_sessions: usize,
+    max_replays: usize,
+    max_replays_per_caller: usize,
+    max_encoded_bytes: usize,
 }
 impl SessionLimits {
-    pub(super) fn validate(self) -> Result<(), SessionError> {
-        if self.max_sessions == 0
-            || self.max_sessions > 2048
-            || self.max_replays == 0
-            || self.max_replays > 4096
-            || self.max_replays_per_caller == 0
-            || self.max_replays_per_caller > 256
-            || self.max_encoded_bytes == 0
-            || self.max_encoded_bytes > 8 * 1024 * 1024
+    /// Admit protected storage configuration once. Reconstruct after decoding;
+    /// current occupancy and encoded-byte capacity are still checked per write.
+    pub const fn new(
+        max_sessions: usize,
+        max_replays: usize,
+        max_replays_per_caller: usize,
+        max_encoded_bytes: usize,
+    ) -> Result<Self, SessionError> {
+        if max_sessions == 0
+            || max_sessions > 2048
+            || max_replays == 0
+            || max_replays > 4096
+            || max_replays_per_caller == 0
+            || max_replays_per_caller > 256
+            || max_encoded_bytes == 0
+            || max_encoded_bytes > 8 * 1024 * 1024
         {
             return Err(SessionError::InvalidPolicyOrRecord);
         }
-        Ok(())
+        Ok(Self {
+            max_sessions,
+            max_replays,
+            max_replays_per_caller,
+            max_encoded_bytes,
+        })
+    }
+
+    pub const fn max_sessions(self) -> usize {
+        self.max_sessions
+    }
+    pub const fn max_replays(self) -> usize {
+        self.max_replays
+    }
+    pub const fn max_replays_per_caller(self) -> usize {
+        self.max_replays_per_caller
+    }
+    pub const fn max_encoded_bytes(self) -> usize {
+        self.max_encoded_bytes
     }
 
     pub(super) fn check_capacity(

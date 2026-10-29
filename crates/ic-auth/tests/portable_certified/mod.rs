@@ -642,7 +642,7 @@ fn certified_proof_uses_the_shared_session_lifecycle() {
         authority: host.claims.authority,
         max_ttl: ic_auth::session_request::SessionTtlLimit::new(30).unwrap(),
         role: &role(),
-        required_scopes: &[],
+        required_scopes: RequiredScopes::NONE,
     };
     let policy = SessionPolicy {
         generation: 0,
@@ -651,14 +651,8 @@ fn certified_proof_uses_the_shared_session_lifecycle() {
     };
     let mut store = MemorySessionStore::new(
         0,
-        SessionLimits {
-            max_sessions: 2,
-            max_replays: 4,
-            max_replays_per_caller: 2,
-            max_encoded_bytes: 8192,
-        },
-    )
-    .unwrap();
+        SessionLimits::new(2, 4, 2, 8192).expect("fixture limits"),
+    );
     let mut ledger = MemoryLoginRevocations::new(c.audience, 2, 2, 0, 0).unwrap();
     let mut budget = budget();
     let request = SessionRequest::new(vec!["read".into()], None).unwrap();
@@ -685,14 +679,8 @@ fn certified_proof_uses_the_shared_session_lifecycle() {
     // The same signed envelope is admitted without issuing another credential.
     let mut second = MemorySessionStore::new(
         0,
-        SessionLimits {
-            max_sessions: 2,
-            max_replays: 4,
-            max_replays_per_caller: 2,
-            max_encoded_bytes: 8192,
-        },
-    )
-    .unwrap();
+        SessionLimits::new(2, 4, 2, 8192).expect("fixture limits"),
+    );
     let mut second_ledger = MemoryLoginRevocations::new(c.audience, 2, 2, 0, 0).unwrap();
     let mut second_budget =
         ic_auth::admission_budget::SessionAdmissionBudget::new(1, 1, NOW - 1).unwrap();
@@ -712,7 +700,7 @@ fn certified_proof_uses_the_shared_session_lifecycle() {
         policy,
     )
     .unwrap();
-    assert_eq!(second_session, SessionEstablished::Created(session.clone()));
+    assert_eq!(second_session, SessionEstablished::Created(session));
     ctx.authority.now_ns = 170;
     host.claims.authority.now_ns = 170;
     assert_eq!(
@@ -731,11 +719,13 @@ fn certified_proof_uses_the_shared_session_lifecycle() {
             },
             policy
         ),
-        Ok(SessionEstablished::ExactRetry(session.clone()))
+        Ok(SessionEstablished::ExactRetry(session))
     );
     assert_eq!(
-        authorize_session(&mut store, &mut ledger, &ctx, policy, Session::clone),
-        Ok(session.clone())
+        authorize_session(&mut store, &mut ledger, &ctx, policy, |session| {
+            SessionReceipt::from(session)
+        }),
+        Ok(session)
     );
     assert!(matches!(
         logout_session(
@@ -749,13 +739,9 @@ fn certified_proof_uses_the_shared_session_lifecycle() {
     ));
     assert!(authorize_session(&mut store, &mut ledger, &ctx, policy, Session::clone).is_err());
     assert_eq!(
-        authorize_session(
-            &mut second,
-            &mut second_ledger,
-            &ctx,
-            policy,
-            Session::clone
-        ),
+        authorize_session(&mut second, &mut second_ledger, &ctx, policy, |session| {
+            SessionReceipt::from(session)
+        }),
         Ok(session)
     );
     assert_eq!(

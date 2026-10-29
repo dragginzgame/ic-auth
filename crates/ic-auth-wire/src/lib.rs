@@ -29,9 +29,9 @@ pub struct SessionInput {
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 #[cfg_attr(feature = "typescript", derive(ic_wire::Wire))]
 pub struct SessionView {
-    pub caller: ic_wire::Bytes<29>,
-    pub issuer: ic_wire::Bytes<29>,
-    pub subject: ic_wire::Bytes<29>,
+    pub caller: ic_auth_protocol_types::Principal,
+    pub issuer: ic_auth_protocol_types::Principal,
+    pub subject: ic_auth_protocol_types::Principal,
     pub expires_at_ns: u64,
 }
 const CREDENTIAL_LIMITS: Limits = Limits {

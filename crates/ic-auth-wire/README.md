@@ -10,9 +10,16 @@ retains the signed claim bytes and validates checked identifier syntax. It does
 not authenticate any proof. Admission still requires the complete Auth session
 engine against protected host authority, caller, clock and atomic storage.
 
-Pending Auth 0.22 boxes `model::PortableProof::Certified` to keep the transport
+Auth 0.22 boxes `model::PortableProof::Certified` to keep the transport
 enum compact. Direct Rust constructors use `Box::new`; domain conversions,
 generated browser types, encoded bytes and transport limits are unchanged.
+
+Pending Auth 0.23 replaces `Bytes<29>` Principal fields with Platform-owned
+`Principal`. Rust DTO callers pass those values directly; convert explicitly
+from external SDK identities. Native IC Wire still encodes bounded principal
+bytes, with the same method IDs, field order and generated browser contracts.
+Human-readable Serde now uses Principal text instead of byte arrays; it is not
+the application transport. No stored record or browser journal format changes.
 
 The method IDs, Serde field/variant declaration order, bounded field types and
 explicit native traversal allowances are the transport contract. Consumers own actual endpoint names, ingress authentication, raw
@@ -20,7 +27,8 @@ argument/reply allocation, dispatch, cancellation and retries. No endpoint is
 installed by linking this library. Response encoding failure after mutation must
 trap so local effects roll back. Never retry an unknown issuance as new work.
 
-`typescript` enables the upstream host generator only. Canister dependencies
+`typescript` enables the upstream host generator and Platform's Principal Wire
+metadata only. Canister dependencies
 should leave it disabled. Generated TypeScript and Rust use the same layouts and
 IC Wire's bounded codec with strict primitive parsing. Wire 0.7 does not
 reserialize decoded values: maps, sets and custom Serde visitors may normalize

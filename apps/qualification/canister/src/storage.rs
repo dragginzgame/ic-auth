@@ -86,6 +86,60 @@ mod tests {
     use std::panic::AssertUnwindSafe;
 
     #[test]
+    fn previous_memory_ledger_refuses_without_clearing_application_backing() {
+        use ic_platform::stable_structures::{
+            Cell,
+            memory_manager::{MemoryId, MemoryManager},
+        };
+
+        let backing = DefaultMemoryImpl::default();
+        let old_ledger: Vec<u8> =
+            include_str!("../fixtures/memory-055/ledger_commit_store_single.cbor.hex")
+                .trim()
+                .as_bytes()
+                .as_chunks::<2>()
+                .0
+                .iter()
+                .map(|pair| u8::from_str_radix(std::str::from_utf8(pair).unwrap(), 16).unwrap())
+                .collect();
+        // Isolated refusal fixture only: no live governed runtime or aliases.
+        // Slot 100 is the application allocation recorded by the frozen ledger.
+        {
+            let manager = MemoryManager::init(backing.clone());
+            Cell::new(manager.get(MemoryId::new(0)), old_ledger);
+            Cell::new(
+                manager.get(MemoryId::new(100)),
+                b"retained application data".to_vec(),
+            );
+        }
+        let bytes = || {
+            let mut bytes = vec![0; backing.size() as usize * 65_536];
+            backing.read(0, &mut bytes);
+            bytes
+        };
+        let before = bytes();
+        assert!(matches!(
+            fixture_runtime(
+                backing.clone(),
+                "ic_auth_qualification",
+                "ic_auth_qualification.",
+                &[KEY],
+                MemoryManagerConfig::default(),
+            ),
+            Err(FixtureRuntimeError::Bootstrap(error))
+                if matches!(*error, ic_memory::RuntimeBootstrapError::StableCellLedger(
+                    ic_memory::StableCellLedgerError::Record(_)
+                ))
+        ));
+        assert!(
+            std::panic::catch_unwind(AssertUnwindSafe(|| bootstrap(backing.clone(), true)))
+                .is_err()
+        );
+        assert_eq!(bytes(), before, "refusal must not reset any retained bytes");
+        CELL.with(|state| assert!(state.borrow().is_none()));
+    }
+
+    #[test]
     fn checkpoint_bounds_and_replacement() {
         let backing = DefaultMemoryImpl::default();
         assert!(std::panic::catch_unwind(load).is_err());

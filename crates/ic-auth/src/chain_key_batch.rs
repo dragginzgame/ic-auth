@@ -55,8 +55,9 @@ pub fn merkle_root_and_witnesses(
             leaves: index..index + 1,
         })
         .collect();
+    let mut next = Vec::with_capacity(level.len().div_ceil(2));
     while level.len() > 1 {
-        let mut next = Vec::with_capacity(level.len().div_ceil(2));
+        next.clear();
         for pair in level.chunks(2) {
             let left = &pair[0];
             if pair.len() == 1 {
@@ -79,7 +80,7 @@ pub fn merkle_root_and_witnesses(
                 leaves: left.leaves.start..right.leaves.end,
             });
         }
-        level = next;
+        std::mem::swap(&mut level, &mut next);
     }
     Ok((level[0].hash, witnesses))
 }

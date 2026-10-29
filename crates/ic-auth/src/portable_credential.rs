@@ -48,6 +48,8 @@ pub enum PortableCredentialError {
 /// Outer transport decoding needs a host allocation/instruction limit separately.
 /// Session admission owns verification and reuses its canonical decode. This
 /// entry point independently decodes a standalone credential.
+/// Keep this raw dispatch separate: the complete verifier checks certified
+/// envelope bounds before decoding, while admission must first resolve retries.
 pub fn verify_credential(
     budget: &mut SessionAdmissionBudget,
     credential: &PortableCredential,
@@ -89,8 +91,6 @@ pub fn verify_credential(
 pub(crate) struct PreparedCredential<'a, 'ctx> {
     claims: crate::portable::ContextualClaims<'a, 'ctx>,
     verification: &'a PortableVerificationContext<'ctx>,
-    #[cfg(feature = "certified-proof-verification")]
-    encoded_len: usize,
 }
 
 #[cfg(feature = "sessions")]
@@ -99,13 +99,9 @@ impl<'ctx> PortableVerificationContext<'ctx> {
         &'a self,
         decoded: crate::portable::DecodedPortableClaims,
     ) -> Result<PreparedCredential<'a, 'ctx>, crate::portable::PortableClaimsError> {
-        #[cfg(feature = "certified-proof-verification")]
-        let encoded_len = decoded.encoded_len;
         Ok(PreparedCredential {
             claims: decoded.validate_context(self.claims())?,
             verification: self,
-            #[cfg(feature = "certified-proof-verification")]
-            encoded_len,
         })
     }
 }
@@ -114,6 +110,10 @@ impl<'ctx> PortableVerificationContext<'ctx> {
 impl PreparedCredential<'_, '_> {
     pub(crate) fn decoded(&self) -> &crate::portable::DecodedPortableClaims {
         self.claims.decoded()
+    }
+
+    pub(crate) fn contextual(&self) -> &crate::portable::ContextualClaims<'_, '_> {
+        &self.claims
     }
 
     pub(crate) fn verify(
@@ -141,7 +141,7 @@ impl PreparedCredential<'_, '_> {
                 },
             ) => {
                 crate::portable_certified::check_bounds(
-                    self.encoded_len,
+                    self.claims.decoded().encoded_len,
                     delegation,
                     issuer_signature,
                     context,

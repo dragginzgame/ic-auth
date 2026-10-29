@@ -5,9 +5,11 @@
 mod memory;
 mod model;
 mod refusal;
+mod scopes;
 
 pub use memory::{MemorySessionStore, SessionCommit, SessionPrune, SessionPruned, SessionWrite};
 pub use model::{Replay, Session, SessionLimits, SessionPolicy};
+pub use scopes::RequiredScopes;
 
 use crate::{
     admission_budget::{AdmissionBudgetError, SessionAdmissionBudget},
@@ -35,7 +37,7 @@ pub struct SessionContext<'a> {
     pub authority: PortableAuthority<'a>,
     pub max_ttl: SessionTtlLimit,
     pub role: &'a AuthRole,
-    pub required_scopes: &'a [String],
+    pub required_scopes: &'a RequiredScopes,
 }
 impl SessionContext<'_> {
     fn validate(
@@ -46,14 +48,9 @@ impl SessionContext<'_> {
         if !policy.enabled || !policy.subject_admissible {
             return Err(SessionError::Disabled);
         }
-        if ledger.audience() != *self.authority.audience
-            || !self.authority.authority_shape_valid()
-            || self.required_scopes.len() > crate::limits::MAX_SESSION_SCOPES
+        if ledger.audience() != *self.authority.audience || !self.authority.authority_shape_valid()
         {
             return Err(SessionError::InvalidPolicyOrRecord);
-        }
-        for scope in self.required_scopes {
-            crate::canonical::validate_scope_label(scope)?;
         }
         Ok(())
     }
@@ -97,22 +94,58 @@ pub trait SessionStore {
         &mut self,
         operation: impl FnOnce(&dyn SessionReader) -> Result<T, SessionError>,
     ) -> Result<T, SessionError>;
+    /// Consumes the validated pair so the backend can install it without copying.
     /// Returns true when replacing an existing session; false when creating one.
     fn admit(
         &mut self,
-        session: &Session,
-        replay: &Replay,
+        session: Session,
+        replay: Replay,
         login: &LoginRevocationChange,
     ) -> Result<bool, SessionError>;
     fn logout(&mut self, login: &LoginRevocationChange) -> Result<(), SessionError>;
 }
 
-/// Session creation, replacement, or the unchanged result of an exact retry.
+/// Compact result of admission or an exact retry, never authorization evidence.
+/// Full records remain in the host store. Authorize every later operation using
+/// current protected authority, clock and generation; this receipt grants nothing.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct SessionReceipt {
+    caller: Principal,
+    issuer: Principal,
+    subject: Principal,
+    expires_at_ns: u64,
+}
+impl From<&Session> for SessionReceipt {
+    fn from(session: &Session) -> Self {
+        Self {
+            caller: session.caller(),
+            issuer: session.issuer(),
+            subject: session.subject(),
+            expires_at_ns: session.expires_at_ns(),
+        }
+    }
+}
+impl SessionReceipt {
+    pub fn caller(&self) -> Principal {
+        self.caller
+    }
+    pub fn issuer(&self) -> Principal {
+        self.issuer
+    }
+    pub fn subject(&self) -> Principal {
+        self.subject
+    }
+    pub fn expires_at_ns(&self) -> u64 {
+        self.expires_at_ns
+    }
+}
+
+/// Session creation, replacement, or the unchanged receipt of an exact retry.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum SessionEstablished {
-    Created(Session),
-    Replaced(Session),
-    ExactRetry(Session),
+    Created(SessionReceipt),
+    Replaced(SessionReceipt),
+    ExactRetry(SessionReceipt),
 }
 
 /// Session/replay admission and local authorization failures.
@@ -217,7 +250,7 @@ pub fn establish_session(
         authority: claims_context.authority,
         max_ttl: admission.ttl.maximum(),
         role: admission.role,
-        required_scopes: &[],
+        required_scopes: RequiredScopes::NONE,
     };
     context.validate(policy, ledger)?;
     let authority = &context.authority;
@@ -240,7 +273,7 @@ pub fn establish_session(
             }
             session.check_live(&context, policy)?;
             session.check_revocation(login)?;
-            return Ok(ControlFlow::Break(session.into_owned()));
+            return Ok(ControlFlow::Break(SessionReceipt::from(session.as_ref())));
         }
         if tx.replay_exists(fingerprint)? {
             return Err(SessionError::ReplayConflict);
@@ -253,9 +286,12 @@ pub fn establish_session(
             admission.ttl,
         )?;
         let limits = tx.limits();
-        limits.validate()?;
         limits.check_capacity(tx.occupancy(authority.caller)?, replacing)?;
-        ledger.check_decoded_reservation(authority.caller, prepared.decoded(), authority.now_ns)?;
+        ledger.check_prepared_reservation(
+            authority.caller,
+            prepared.contextual(),
+            authority.now_ns,
+        )?;
         Ok(ControlFlow::Continue((prepared, requested_expiry)))
     })?;
     let (prepared, requested_expiry) = match checked {
@@ -265,12 +301,13 @@ pub fn establish_session(
     let verified = prepared.verify(budget, &credential.proof)?;
     let session = Session::admit(&verified, request, &context, policy, requested_expiry)?;
     let replay = Replay::new(&session, admission_expires_at_ns);
+    let receipt = SessionReceipt::from(&session);
     ledger.with_reservation(authority.caller, &verified, authority.now_ns, |login| {
-        let replacing = store.admit(&session, &replay, login)?;
+        let replacing = store.admit(session, replay, login)?;
         Ok(if replacing {
-            SessionEstablished::Replaced(session)
+            SessionEstablished::Replaced(receipt)
         } else {
-            SessionEstablished::Created(session)
+            SessionEstablished::Created(receipt)
         })
     })
 }
@@ -299,7 +336,7 @@ pub fn authorize_session<T>(
         session.check_live(context, policy)?;
         session.check_revocation(login)?;
         if !crate::certificate_issuance::scopes_are_subset(
-            context.required_scopes,
+            context.required_scopes.as_slice(),
             session.scopes(),
         ) {
             return Err(SessionError::ScopeRejected);

@@ -87,7 +87,6 @@ pub(crate) fn restore(snapshot: Option<Snapshot>) {
         "checkpoint bounds"
     );
     let store = MemorySessionStore::new(saved.generation, limits())
-        .expect("store limits")
         .restore_records(
             (saved.session_count as usize, saved.replay_count as usize),
             saved.encoded_bytes as usize,
@@ -122,6 +121,8 @@ pub(crate) fn restore(snapshot: Option<Snapshot>) {
         .expect("restore complete login ledger");
     let (admission, unknown) = budgets(&config, now).expect("restored budgets");
     let host = Receiver {
+        read_scopes: RequiredScopes::new(vec!["read".into()]).expect("read operation"),
+        write_scopes: RequiredScopes::new(vec!["write".into()]).expect("write operation"),
         lifecycle: ReceiverLifecycle::AwaitingAuthority,
         inputs: ReceiverInputs {
             binding: config.authority.binding(),

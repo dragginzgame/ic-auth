@@ -4,7 +4,7 @@
 ))]
 use super::PortableClaimsContext;
 use crate::session_request::{SessionRequest, SessionRequestError, SessionTtlPolicy};
-use ic_auth_protocol_types::{AuthRole, PortableClaims};
+use ic_auth_protocol_types::{AuthRole, PortableClaims, Principal};
 
 /// Claims authenticated by one complete portable proof verifier at a host clock.
 /// Read-only and not deserializable; decoding or editing claims cannot forge this
@@ -21,6 +21,7 @@ use ic_auth_protocol_types::{AuthRole, PortableClaims};
 pub struct VerifiedPortableClaims {
     claims: PortableClaims,
     fingerprint: [u8; 32],
+    browser_caller: Principal,
     verified_at_ns: u64,
     authority_expires_at_ns: u64,
     enrollment_expires_at_ns: u64,
@@ -34,11 +35,13 @@ impl VerifiedPortableClaims {
     pub(crate) fn new(
         claims: PortableClaims,
         fingerprint: [u8; 32],
+        browser_caller: Principal,
         context: &PortableClaimsContext<'_>,
     ) -> Self {
         Self {
             claims,
             fingerprint,
+            browser_caller,
             verified_at_ns: context.authority.now_ns,
             authority_expires_at_ns: context.authority.authority_expires_at_ns,
             enrollment_expires_at_ns: context.authority.enrollment_expires_at_ns,
@@ -79,6 +82,10 @@ impl VerifiedPortableClaims {
     /// Canonical claims digest, independent of alternate proof/signature bytes.
     pub fn fingerprint(&self) -> [u8; 32] {
         self.fingerprint
+    }
+
+    pub(crate) fn browser_caller(&self) -> Principal {
+        self.browser_caller
     }
 
     pub fn verified_at_ns(&self) -> u64 {

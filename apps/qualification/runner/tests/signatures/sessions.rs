@@ -709,7 +709,7 @@ pub(super) fn qualify_certified(
         authority: authority.authority,
         max_ttl: ic_auth::session_request::SessionTtlLimit::new(30).unwrap(),
         role,
-        required_scopes: &[],
+        required_scopes: RequiredScopes::NONE,
     };
     let p = SessionPolicy {
         generation: 0,
@@ -718,14 +718,8 @@ pub(super) fn qualify_certified(
     };
     let mut store = MemorySessionStore::new(
         0,
-        SessionLimits {
-            max_sessions: 1,
-            max_replays: 2,
-            max_replays_per_caller: 2,
-            max_encoded_bytes: 8192,
-        },
-    )
-    .unwrap();
+        SessionLimits::new(1, 2, 2, 8192).expect("fixture limits"),
+    );
     let mut ledger =
         MemoryLoginRevocations::new(*old.claims.authority.audience, 1, 1, 0, 0).unwrap();
     let mut budget = SessionAdmissionBudget::new(8, 1, 0).unwrap();

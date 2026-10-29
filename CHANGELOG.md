@@ -1,5 +1,43 @@
 # Changelog
 
+## [0.23.0] - Unreleased
+
+### ⚠️ Breaking
+
+- Return compact `SessionReceipt` values from every `SessionEstablished` variant.
+  Backend admission now consumes owned session/replay records, avoiding payload
+  copies. Update custom store signatures and use the store reader when full
+  records are needed. Receipts do not authorize later operations; atomic commit
+  obligations and persisted formats are unchanged.
+
+- Use Platform-owned `Principal` directly in public Wire DTO fields. Rust
+  constructors no longer wrap principals in `Bytes<29>`; human-readable Serde
+  uses Principal text. Native Wire bytes, bounds and generated browser contracts
+  remain unchanged. No data reset is required.
+
+- Require checked `RequiredScopes` in `SessionContext` and construct storage
+  limits through `SessionLimits::new`; their raw mutable fields are retired.
+  Retain these values from protected operation/configuration setup and rebuild
+  them after decoding. `MemorySessionStore::new` is now infallible. Every call
+  still checks current authority, revocation, scope membership and capacity.
+
+### 🧹 Cleanup
+
+- Reuse browser identity derivation during fresh admission and Merkle level
+  buffers during batching; share login commit publication and remove redundant
+  prepared state. Browser admission projects only needed journal fields, and
+  generation computes method policy once. Preserve proof checks, retry charging,
+  signed bytes and the TEE/non-TEE trust model.
+  [#113 — Reduce transport allocations and admission duplication](https://github.com/dragginzgame/ic-auth/issues/113).
+
+### ⬆️ Dependencies
+
+- Adopt Memory/Storage 0.56.0 in the unpublished qualification host. Memory's
+  allocation ledger now uses Wire; older backings are refused without clearing
+  and need an explicit transition before upgrade. Public Auth records and signed
+  bytes are unchanged.
+  [#114 — Adopt Memory/Storage 0.56](https://github.com/dragginzgame/ic-auth/issues/114).
+
 ## [0.22.0] - 2026-10-29
 
 ### ⚠️ Breaking
