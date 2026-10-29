@@ -8,7 +8,16 @@ checkpoints are retained separately in [adoption history](canic-adoption-history
 
 ## Session commit contract
 
-The pending Auth **0.21** API requires `PortableAuthority::grants` to borrow a
+Pending Auth **0.22** hard-cuts private session/replay/login storage to bounded
+native Wire records. The maintainer confirmed no deployed or retained Auth records
+need preservation. Old records are refused, with no fallback or implicit reset.
+Adopt one coherent new checkpoint before admission or reads; preserve atomic
+commit, replay/denial retention and generation rules. The unpublished reference
+checkpoint now uses `AUTHNAT2`; Canic owns its own durable framing and lifecycle.
+Signed claims, public Wire transport and the TEE/non-TEE trust model are unchanged.
+See [record bounds and restoration](sessions.md#storage-and-reset).
+
+Auth **0.21+** requires `PortableAuthority::grants` to borrow a
 retained `ValidatedGrants`. Construct it from protected enrollment configuration
 once and reconstruct it on storage decoding/restoration. Replace it atomically
 with authority and generation updates; keep all live authorization checks.
@@ -70,14 +79,16 @@ Toko dependency. Rust 1.91 is the common minimum.
   a source/integrity-bound candidate and isolated consumer proof. Canic retains
   final archive distribution and actual endpoint/browser acceptance.
 
-Auth selects Platform 0.7 and enables only `principal` for passive types.
-Consumers sharing that owned Rust type must align to Platform 0.7; external
+Auth selects Platform 0.8 and enables only `principal` for passive types.
+Consumers sharing that owned Rust type must align to Platform 0.8; external
 Agent/Testkit/crypto APIs keep explicit `principal::ExternalPrincipal`
-conversions. Do not select the older upstream Principal identity or downgrade
+conversions with `principal-external` selected. The engine explicitly selects
+`principal-self-authenticating` for browser-key hashing; passive types do not
+pull external Principal or SHA-2. Do not select the older upstream Principal identity or downgrade
 Auth to follow a historical example. No Candid or runtime capability is selected
 by the passive edge. [The published-type acceptance](https://github.com/dragginzgame/ic-auth/issues/82#issuecomment-6312237287)
-records the earlier Platform 0.6 acceptance; the current isolated package checks
-qualify direct Platform 0.7 exchange on Rust 1.91, native and Wasm.
+records the earlier Platform 0.6 acceptance. Current Platform 0.8 qualification
+and its limits are recorded in [the handoff](status/current.md).
 
 Forward only required capabilities. `portable-signature-verification` selects
 Ed25519, `chain-key-verification` supplies standalone Root verification, and
@@ -248,7 +259,7 @@ removes decode-time reserialization and `Error::Noncanonical`. Invalid primitive
 encodings return `Malformed`; custom Serde normalization is consumer-owned.
 Auth's DTOs retain ordered lists and opaque signed bytes. Keep original frames
 for exact retries and do not substitute decoding for Auth's semantic validation.
-Align consumers of the re-exported Rust Wire types to 0.7. Testkit 0.69 uses
+Align consumers of the re-exported Rust Wire types to 0.7. Testkit 0.70 uses
 the same Wire 0.7 types directly, resolving
 [Tooling #248](https://github.com/dragginzgame/ic-tooling/issues/248).
 The public library, native qualification and reference canister select only Wire 0.7.
@@ -265,7 +276,7 @@ Credential/read/logout frames retain their frozen bytes and IDs. Signed claims,
 session/replay/login records and the browser journal profile are unchanged.
 No storage reset or replay of unknown issuance is authorized.
 
-Native Testkit 0.69 takes a `WireCallSpec` with the contract's `NAME`, `ID`,
+Native Testkit 0.70 takes a `WireCallSpec` with the contract's `NAME`, `ID`,
 `REQUEST_LIMITS` and `RESPONSE_LIMITS`, plus explicit request/response Serde
 types. Canister adapters use the same native codecs and pre-copy byte limits;
 normal errors must retain admission charges, while reply-encoding failure after
@@ -280,11 +291,33 @@ disposable installations; this changes no production memory allocation or layout
 
 Earlier identity cuts are historical evidence in the
 [Platform 0.4/0.5 migration record](canic-adoption-history.md#platform-04-migration).
-Use the current Platform 0.7 boundary below for new consumers.
+Use the current Platform 0.8 boundary below for new consumers.
+
+## Platform 0.8 migration
+
+Pending Auth 0.22 selects published Platform/macros 0.8.1. Align direct Platform
+dependencies to `version = "0.8.1"` when exchanging Auth's owned Principal,
+parse errors or imported key types. Type-only consumers select `principal` with
+defaults disabled. Explicit upstream conversions additionally need
+`principal-external`; direct `Principal::self_authenticating` calls need
+`principal-self-authenticating`. Required client/signature features select the
+conversion capability, and the Auth engine always selects public-key hashing.
+Keep application identities owned and preserve original bytes at every boundary.
+
+This dependency adoption preserves signed claims, current Wire storage records,
+public transport, browser journals, verification checks and TEE trust. It supplies
+no additional reset or retirement authority; the separately approved Auth 0.22
+CBOR-record hard cut is described above. Auth selects none of Platform's changed
+ICRC ledger DTOs or native profiler product code.
+
+Published Memory/Storage 0.55.2 and native Testkit 0.70.0 also use Platform 0.8.1,
+removing the earlier private Platform 0.7 branch. Storage/client edges retain
+upstream stable-structures and external Principal identities; no dependency patch
+or new bridge is introduced. All selected Auth workspace graphs use Platform 0.8.1.
 
 ## Platform 0.7 migration
 
-Pending Auth 0.18 selects published Platform/macros 0.7.0. Align direct Platform
+Historical Auth 0.18 selects published Platform/macros 0.7.0. Align direct Platform
 dependencies to `version = "0.7"` when exchanging Auth's owned Principal,
 parse errors or canister-signature key types. Type-only consumers select only
 `principal` with defaults disabled. Principal bytes, signed claims, Wire frames,

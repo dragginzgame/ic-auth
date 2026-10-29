@@ -122,7 +122,7 @@ fn encode_cert(out: &mut Vec<u8>, cert: &DelegationCert) -> Result<(), Canonical
     encode_u64(out, cert.expires_at_ns);
     encode_u64(out, cert.max_token_ttl_ns);
     encode_audience(out, &cert.aud);
-    encode_role_grants(out, &cert.grants)?;
+    encode_role_grants::<false>(out, &cert.grants)?;
 
     Ok(())
 }
@@ -168,7 +168,9 @@ fn encode_fleet_key(out: &mut Vec<u8>, fleet: AudienceId) {
     encode_fixed_32(out, *fleet.fleet_id.as_bytes());
 }
 
-pub(crate) fn encode_role_grants(
+// ADMITTED is private same-call shape evidence: portable encoding validates the
+// immutable grants first. Standalone canonical encoders retain their own checks.
+pub(crate) fn encode_role_grants<const ADMITTED: bool>(
     out: &mut Vec<u8>,
     grants: &[DelegatedRoleGrant],
 ) -> Result<(), CanonicalAuthError> {
@@ -176,12 +178,18 @@ pub(crate) fn encode_role_grants(
     let mut previous = None;
     for grant in grants {
         let current = grant.target.as_str().as_bytes();
-        if previous.is_some_and(|previous| previous >= current) {
+        if !ADMITTED && previous.is_some_and(|previous| previous >= current) {
             return Err(CanonicalAuthError::NonCanonicalRoles);
         }
         previous = Some(current);
         encode_role(out, &grant.target)?;
-        encode_scopes(out, &grant.scopes)?;
+        if !ADMITTED {
+            validate_scopes(&grant.scopes)?;
+        }
+        encode_len(out, grant.scopes.len())?;
+        for scope in &grant.scopes {
+            encode_bytes(out, scope.as_bytes())?;
+        }
     }
     Ok(())
 }
@@ -237,7 +245,7 @@ fn encode_chain_key_delegation_cert(
     encode_issuer_proof_binding(out, cert.issuer_proof_binding);
     encode_u64(out, cert.max_token_ttl_ns);
     encode_audience(out, &cert.audience);
-    encode_role_grants(out, &cert.grants)?;
+    encode_role_grants::<false>(out, &cert.grants)?;
     encode_u64(out, cert.not_before_ns);
     encode_u64(out, cert.expires_at_ns);
     encode_u64(out, cert.registry_epoch);
@@ -335,15 +343,6 @@ fn encode_issuer_proof_binding(out: &mut Vec<u8>, binding: IssuerProofBinding) {
 
 fn encode_role(out: &mut Vec<u8>, role: &AuthRole) -> Result<(), CanonicalAuthError> {
     encode_bytes(out, role.as_str().as_bytes())?;
-    Ok(())
-}
-
-fn encode_scopes(out: &mut Vec<u8>, scopes: &[String]) -> Result<(), CanonicalAuthError> {
-    validate_scopes(scopes)?;
-    encode_len(out, scopes.len())?;
-    for scope in scopes {
-        encode_bytes(out, scope.as_bytes())?;
-    }
     Ok(())
 }
 

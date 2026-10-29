@@ -1,80 +1,60 @@
-//! Private framing for trusted-storage records; callers own semantic validation.
+//! Bounded native IC Wire records; callers own semantic restoration and custody.
+//!
+//! These identities are storage discriminators, never mounted RPC methods.
+//! The old domain-prefixed CBOR records are retired, with no fallback reader.
+use ic_wire::{Error, Limits, native};
 
-// One concrete serializer sink keeps counting and emission on the same generic
-// CBOR writer instantiation. Counting never allocates or retains encoded bytes.
-struct RecordWriter<'a> {
-    length: usize,
-    output: Option<&'a mut Vec<u8>>,
+pub(crate) const SESSION: u64 = 0x415554485301;
+pub(crate) const REPLAY: u64 = 0x415554485302;
+pub(crate) const LOGIN: u64 = 0x415554485303;
+
+fn limits(maximum: usize) -> Limits {
+    Limits {
+        bytes: maximum,
+        allocation: 65_536,
+        nodes: 1024,
+        depth: 16,
+    }
 }
 
-impl std::io::Write for RecordWriter<'_> {
-    fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
-        let length = self
-            .length
-            .checked_add(bytes.len())
-            .ok_or_else(|| std::io::Error::other("record size overflow"))?;
-        if let Some(output) = &mut self.output {
-            output.extend_from_slice(bytes);
-        }
-        self.length = length;
-        Ok(bytes.len())
-    }
-    fn flush(&mut self) -> std::io::Result<()> {
-        Ok(())
+fn failure<E>(error: Error, invalid: E, capacity: E) -> E {
+    match error {
+        Error::Limit | Error::Allocation => capacity,
+        _ => invalid,
     }
 }
 
 pub(crate) fn encoded_len<T: serde::Serialize, E>(
     value: &T,
-    domain: &[u8],
     maximum: usize,
     invalid: E,
     capacity: E,
 ) -> Result<usize, E> {
-    let mut count = RecordWriter {
-        length: domain.len(),
-        output: None,
-    };
-    serde_cbor::to_writer(&mut count, value).map_err(|_| invalid)?;
-    if count.length > maximum {
-        return Err(capacity);
-    }
-    Ok(count.length)
+    native::encoded_frame_len(value, limits(maximum))
+        .map_err(|error| failure(error, invalid, capacity))
 }
 
 pub(crate) fn encode<T: serde::Serialize, E>(
     value: &T,
-    domain: &[u8],
+    identity: u64,
     maximum: usize,
     invalid: E,
     capacity: E,
 ) -> Result<Vec<u8>, E> {
-    let mut bytes = domain.to_vec();
-    let mut writer = RecordWriter {
-        length: domain.len(),
-        output: Some(&mut bytes),
-    };
-    serde_cbor::to_writer(&mut writer, value).map_err(|_| invalid)?;
-    if writer.length > maximum {
-        return Err(capacity);
-    }
-    Ok(bytes)
+    native::encode_request(identity, value, limits(maximum))
+        .map_err(|error| failure(error, invalid, capacity))
 }
 
 #[cfg(feature = "session-restore")]
 pub(crate) fn decode<T: serde::de::DeserializeOwned, E>(
     bytes: &[u8],
-    domain: &[u8],
+    identity: u64,
     maximum: usize,
-    invalid: impl Fn() -> E,
+    invalid: E,
     capacity: E,
 ) -> Result<T, E> {
-    // Reject oversized input before inspecting framing or allocating CBOR values.
-    if bytes.len() > maximum {
-        return Err(capacity);
-    }
-    let payload = bytes.strip_prefix(domain).ok_or_else(&invalid)?;
-    serde_cbor::from_slice(payload).map_err(|_| invalid())
+    native::decode_request(identity, bytes, limits(maximum))
+        .map_err(|error| failure(error, invalid, capacity))
 }
 
 #[cfg(test)]
@@ -82,18 +62,15 @@ mod tests {
     use super::*;
 
     #[test]
-    fn counted_framing_matches_cbor_at_length_and_capacity_boundaries() {
+    fn framed_counting_matches_emission_and_enforces_exact_capacity() {
         for length in [0, 1, 23, 24, 255, 256, 512, 2048] {
             let value = (vec!["x".repeat(length)], u64::MAX, Some(42_u64));
-            for domain in [b"".as_slice(), b"record\0"] {
-                let encoded = encode(&value, domain, usize::MAX, "invalid", "capacity").unwrap();
-                let mut expected = domain.to_vec();
-                expected.extend(serde_cbor::to_vec(&value).unwrap());
-                assert_eq!(encoded, expected, "retain the stored byte contract");
+            for identity in [SESSION, REPLAY, LOGIN] {
+                let encoded = encode(&value, identity, 8192, "invalid", "capacity").unwrap();
                 for maximum in [encoded.len() - 1, encoded.len(), encoded.len() + 1] {
                     assert_eq!(
-                        encoded_len(&value, domain, maximum, "invalid", "capacity"),
-                        encode(&value, domain, maximum, "invalid", "capacity")
+                        encoded_len(&value, maximum, "invalid", "capacity"),
+                        encode(&value, identity, maximum, "invalid", "capacity")
                             .map(|bytes| bytes.len())
                     );
                 }
@@ -101,29 +78,43 @@ mod tests {
         }
     }
 
-    struct Refused;
-    impl serde::Serialize for Refused {
-        fn serialize<S: serde::Serializer>(&self, _: S) -> Result<S::Ok, S::Error> {
-            Err(serde::ser::Error::custom("refused"))
-        }
-    }
-
+    #[cfg(feature = "session-restore")]
     #[test]
-    fn serialization_failure_keeps_precedence_and_count_overflow_refuses() {
-        use std::io::Write;
+    fn framing_and_traversal_refusals_never_publish_a_record() {
+        let encoded = encode(&[42_u8; 32], SESSION, 2048, "invalid", "capacity").unwrap();
         assert_eq!(
-            encoded_len(&Refused, b"domain", 0, "invalid", "capacity"),
+            decode::<[u8; 32], _>(&encoded, REPLAY, 2048, "invalid", "capacity"),
             Err("invalid")
         );
         assert_eq!(
-            encode(&Refused, b"domain", 0, "invalid", "capacity"),
+            decode::<[u8; 32], _>(&encoded, SESSION, encoded.len() - 1, "invalid", "capacity"),
+            Err("capacity")
+        );
+        for cut in 0..encoded.len() {
+            assert!(
+                decode::<[u8; 32], _>(&encoded[..cut], SESSION, 2048, "invalid", "capacity")
+                    .is_err()
+            );
+        }
+        let mut trailing = encoded;
+        trailing.push(0);
+        assert_eq!(
+            decode::<[u8; 32], _>(&trailing, SESSION, 2048, "invalid", "capacity"),
             Err("invalid")
         );
-        let mut count = RecordWriter {
-            length: usize::MAX,
-            output: None,
-        };
-        assert!(count.write(&[1]).is_err());
-        assert_eq!(count.length, usize::MAX);
+        assert!(
+            encode(&vec![0_u8; 1024], SESSION, 2048, "invalid", "capacity").is_err(),
+            "traversal allowance is independent of bytes"
+        );
+        assert!(
+            decode::<[u8; 32], _>(
+                b"IC-AUTH-PORTABLE-SESSION\0\xa0",
+                SESSION,
+                2048,
+                "invalid",
+                "capacity"
+            )
+            .is_err()
+        );
     }
 }

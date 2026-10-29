@@ -10,6 +10,10 @@ retains the signed claim bytes and validates checked identifier syntax. It does
 not authenticate any proof. Admission still requires the complete Auth session
 engine against protected host authority, caller, clock and atomic storage.
 
+Pending Auth 0.22 boxes `model::PortableProof::Certified` to keep the transport
+enum compact. Direct Rust constructors use `Box::new`; domain conversions,
+generated browser types, encoded bytes and transport limits are unchanged.
+
 The method IDs, Serde field/variant declaration order, bounded field types and
 explicit native traversal allowances are the transport contract. Consumers own actual endpoint names, ingress authentication, raw
 argument/reply allocation, dispatch, cancellation and retries. No endpoint is
@@ -22,8 +26,8 @@ IC Wire's bounded codec with strict primitive parsing. Wire 0.7 does not
 reserialize decoded values: maps, sets and custom Serde visitors may normalize
 input. Auth transport uses order-preserving lists and opaque signed bytes;
 semantic scope/grant validation remains in Auth. Retain original bytes for exact
-retries, signatures and hashes. Signed claims and session records retain their
-existing independent formats.
+retries, signatures and hashes. Signed claims and host-owned session records have
+independent contracts; public transport does not choose their formats.
 
 The earlier Auth 0.9 application-transport cut retired the old token-store reader
 after the maintainer confirmed no deployed records or unresolved issuance effects

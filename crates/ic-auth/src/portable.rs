@@ -91,7 +91,7 @@ pub fn encode_claims(claims: &PortableClaims) -> Result<Vec<u8>, PortableEncodin
         out.extend_from_slice(&time.to_be_bytes());
     }
     out.extend_from_slice(&claims.nonce);
-    encode_role_grants(&mut out, &claims.grants)?;
+    encode_role_grants::<true>(&mut out, &claims.grants)?;
     if out.len() > MAX_CLAIMS_BYTES {
         return Err(PortableEncodingError::TooLarge);
     }

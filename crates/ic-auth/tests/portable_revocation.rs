@@ -850,69 +850,72 @@ fn restore_retains_reservations_tombstones_and_clock_without_partial_results() {
     );
 }
 
+// Independent stored contract, deliberately constructible for corruption tests.
+#[cfg(feature = "session-restore")]
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+struct LoginRecord {
+    until_ns: u64,
+    state: ic_auth::portable::LoginRecordState,
+}
+#[cfg(feature = "session-restore")]
+const LOGIN_ID: u64 = 0x415554485303;
+#[cfg(feature = "session-restore")]
+const LOGIN_LIMITS: ic_wire::Limits = ic_wire::Limits {
+    bytes: 1024,
+    allocation: 65536,
+    nodes: 1024,
+    depth: 16,
+};
+
 #[cfg(feature = "session-restore")]
 #[test]
-fn stored_login_flags_admit_only_the_three_current_states() {
-    use ic_auth::portable::LoginRevocationChange;
-    use serde_cbor::Value;
-    let mut ledger = ledger(1, 1);
-    let mut bytes = Vec::new();
-    ledger
-        .with_reservation::<_, Error>(caller(1), &verified(1, 100, 1), 1, |change| {
-            bytes = change.encode().unwrap();
-            Ok(())
-        })
-        .unwrap();
-    let prefix = b"IC-AUTH-LOGIN-RECORD\0";
-    let original: Value = serde_cbor::from_slice(&bytes[prefix.len()..]).unwrap();
-    for bound in [false, true] {
-        for revoked in [false, true] {
-            for admitted in [false, true] {
-                let mut value = original.clone();
-                let Value::Array(fields) = &mut value else {
-                    panic!()
-                };
-                let Value::Map(record) = &mut fields[2] else {
-                    panic!()
-                };
-                if !bound {
-                    record.insert(Value::Text("login".into()), Value::Null);
-                }
-                record.insert(Value::Text("revoked".into()), Value::Bool(revoked));
-                record.insert(Value::Text("admitted_pool".into()), Value::Bool(admitted));
-                let mut encoded = prefix.to_vec();
-                encoded.extend(serde_cbor::to_vec(&value).unwrap());
-                let decoded = LoginRevocationChange::decode(&encoded);
-                if (bound && admitted) || (!bound && revoked && !admitted) {
-                    let decoded = decoded.unwrap();
-                    match decoded.state() {
-                        ic_auth::portable::LoginRecordState::Reserved(_) => {
-                            assert_eq!((bound, revoked, admitted), (true, false, true))
-                        }
-                        ic_auth::portable::LoginRecordState::Revoked(Some(_)) => {
-                            assert_eq!((bound, revoked, admitted), (true, true, true))
-                        }
-                        ic_auth::portable::LoginRecordState::Revoked(None) => {
-                            assert_eq!((bound, revoked, admitted), (false, true, false))
-                        }
-                    }
-                    assert_eq!(
-                        serde_cbor::from_slice::<Value>(&decoded.encode().unwrap()[prefix.len()..])
-                            .unwrap(),
-                        value
-                    );
-                } else {
-                    assert!(matches!(decoded, Err(Error::InvalidPolicy)));
-                }
-            }
-        }
+fn stored_login_state_has_exactly_three_valid_projections() {
+    use ic_auth::portable::{LoginBinding, LoginRecordState, LoginRevocationChange};
+    let login = LoginBinding {
+        issuer: Principal::from_slice(&[1]),
+        subject: Principal::from_slice(&[2]),
+        started_at_ns: 1,
+        deadline_ns: 100,
+    };
+    for state in [
+        LoginRecordState::Reserved(login),
+        LoginRecordState::Revoked(Some(login)),
+        LoginRecordState::Revoked(None),
+    ] {
+        let value = (
+            audience(),
+            caller(1),
+            LoginRecord {
+                until_ns: 110,
+                state,
+            },
+        );
+        let bytes = ic_wire::native::encode_request(LOGIN_ID, &value, LOGIN_LIMITS).unwrap();
+        let decoded = LoginRevocationChange::decode(&bytes).unwrap();
+        assert_eq!(decoded.state(), state);
+        assert_eq!(decoded.encode().unwrap(), bytes);
     }
+    // Unknown enum discriminants are corruption, not a future fallback state.
+    #[derive(serde::Serialize)]
+    #[allow(dead_code)]
+    enum UnknownState {
+        Reserved(LoginBinding),
+        Revoked(Option<LoginBinding>),
+        Unknown,
+    }
+    let bytes = ic_wire::native::encode_request(
+        LOGIN_ID,
+        &(audience(), caller(1), (110_u64, UnknownState::Unknown)),
+        LOGIN_LIMITS,
+    )
+    .unwrap();
+    assert!(LoginRevocationChange::decode(&bytes).is_err());
 }
 
 #[cfg(feature = "session-restore")]
 #[test]
 fn login_record_decoder_and_restoration_reject_corruption_and_retention_changes() {
-    use ic_auth::portable::LoginRevocationChange;
+    use ic_auth::portable::{LoginBinding, LoginRecordState, LoginRevocationChange};
     let mut ledger = MemoryLoginRevocations::new(audience(), 1, 1, 10, 0).unwrap();
     let proof = verified(1, 100, 1);
     let caller = browser_principal(&proof.claims().browser_public_key);
@@ -930,23 +933,16 @@ fn login_record_decoder_and_restoration_reject_corruption_and_retention_changes(
     trailing.push(0);
     assert!(LoginRevocationChange::decode(&trailing).is_err());
     assert!(LoginRevocationChange::decode(&[0; 1025]).is_err());
-    let prefix = b"IC-AUTH-LOGIN-RECORD\0";
-    let value: serde_cbor::Value = serde_cbor::from_slice(&bytes[prefix.len()..]).unwrap();
-    let corrupt = |field: &str, replacement: serde_cbor::Value| {
-        let mut value = value.clone();
-        let serde_cbor::Value::Array(fields) = &mut value else {
-            panic!()
-        };
-        let serde_cbor::Value::Map(record) = &mut fields[2] else {
-            panic!()
-        };
-        record.insert(serde_cbor::Value::Text(field.into()), replacement);
-        let mut result = prefix.to_vec();
-        result.extend(serde_cbor::to_vec(&value).unwrap());
-        result
+    let (domain, caller, original): (AudienceId, Principal, LoginRecord) =
+        ic_wire::native::decode_request(LOGIN_ID, &bytes, LOGIN_LIMITS).unwrap();
+    let encode = |record: LoginRecord| {
+        ic_wire::native::encode_request(LOGIN_ID, &(domain, caller, record), LOGIN_LIMITS).unwrap()
     };
-    for until in [0, 109, 111, DAY + 30] {
-        let changed = corrupt("until_ns", serde_cbor::Value::Integer(until.into()));
+    for until_ns in [0, 109, 111, DAY + 30] {
+        let changed = encode(LoginRecord {
+            until_ns,
+            ..original.clone()
+        });
         let record = LoginRevocationChange::decode(&changed).unwrap();
         assert!(
             MemoryLoginRevocations::new(audience(), 1, 1, 10, 3)
@@ -955,14 +951,44 @@ fn login_record_decoder_and_restoration_reject_corruption_and_retention_changes(
                 .is_err()
         );
     }
-    assert!(
-        LoginRevocationChange::decode(&corrupt("admitted_pool", serde_cbor::Value::Bool(false)))
-            .is_err()
-    );
-    assert!(LoginRevocationChange::decode(&corrupt("login", serde_cbor::Value::Null)).is_err());
-    assert!(
-        LoginRevocationChange::decode(&corrupt("unexpected", serde_cbor::Value::Null)).is_err()
-    );
+    let LoginRecordState::Reserved(login) = original.state else {
+        panic!("reservation");
+    };
+    for invalid in [
+        LoginBinding {
+            issuer: Principal::anonymous(),
+            ..login
+        },
+        LoginBinding {
+            subject: Principal::anonymous(),
+            ..login
+        },
+        LoginBinding {
+            started_at_ns: login.deadline_ns,
+            ..login
+        },
+        LoginBinding {
+            deadline_ns: u64::MAX,
+            ..login
+        },
+    ] {
+        for state in [
+            LoginRecordState::Reserved(invalid),
+            LoginRecordState::Revoked(Some(invalid)),
+        ] {
+            assert!(
+                LoginRevocationChange::decode(&encode(LoginRecord {
+                    state,
+                    ..original.clone()
+                }))
+                .is_err()
+            );
+        }
+    }
+    let response =
+        ic_wire::native::encode_response(LOGIN_ID, &(domain, caller, original), LOGIN_LIMITS)
+            .unwrap();
+    assert!(LoginRevocationChange::decode(&response).is_err());
     // Existing live state cannot be overwritten by a restore operation.
     assert!(
         ledger

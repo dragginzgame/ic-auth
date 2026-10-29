@@ -11,7 +11,7 @@ for target in "$native_target" wasm32-unknown-unknown; do
     for package in ic-auth-protocol-types ic-auth ic-auth-wire; do
         rules=(--forbid-pattern "$(auth_dependency_pattern deployment)"
                --forbid-pattern "$(auth_dependency_pattern default)")
-        if [[ "$package" == ic-auth-protocol-types ]]; then
+        if [[ "$package" == ic-auth-protocol-types || "$package" == ic-auth-wire ]]; then
             rules+=(--forbid-pattern "$(auth_dependency_pattern passive)")
         fi
         if [[ "$package" == ic-auth ]]; then
@@ -36,6 +36,7 @@ for target in "$native_target" wasm32-unknown-unknown; do
     # Private fixture schemas must stay Wire-only even though the actual host's
     # runtime selects an executor, but neither path requires Candid.
     "${checker[@]}" --package ic-auth-qualification-contracts --target "$target" \
+        --forbid-pattern "$(auth_dependency_pattern passive)" \
         --forbid-pattern '^(candid|candid_derive|candid_parser|ic-cdk|ic0|ic-memory|ic-storage|ic-agent|ic-host|ic-build|ic-testkit|pocket-ic|tokio)([- ]|$)' \
         --forbid-feature ic-platform/candid
 done

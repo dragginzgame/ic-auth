@@ -62,7 +62,7 @@ fn storage_record_domains_and_capacity_errors_remain_distinct() {
             Err(LoginRevocationError::InvalidPolicy)
         ));
     }
-    // Outer limits precede wrong-domain and malformed-CBOR errors. At the exact
+    // Outer limits precede wrong-identity and malformed-frame errors. At the exact
     // limit, malformed input must still be a framing error, not a capacity error.
     assert_eq!(
         Session::decode(&[0; 2048]).unwrap_err(),
@@ -88,37 +88,59 @@ fn storage_record_domains_and_capacity_errors_remain_distinct() {
 
 #[cfg(feature = "session-restore")]
 #[test]
-fn platform_02_claims_and_records_survive_the_owned_principal_cut() {
+fn platform_02_signed_claims_survive_and_retired_storage_is_refused() {
     use ic_auth::portable::LoginRevocationChange;
-    // Captured from released Auth 0.10.7 / Platform 0.2.1, not produced by the
-    // decoder under test. The subject starts with 0x02, which is identity data.
+    // Frozen Auth 0.10.7 / Platform 0.2.1 vector: 0x02 is subject identity data.
     let f = Fixture::new(1);
-    let mut r = Receiver::new(&f);
-    f.admit(&mut r, NOW).unwrap();
-    let claims = include_bytes!("fixtures/platform-02/claims.bin").as_slice();
-    let session = include_bytes!("fixtures/platform-02/session.bin").as_slice();
-    let replay = include_bytes!("fixtures/platform-02/replay.bin").as_slice();
-    let login = include_bytes!("fixtures/platform-02/login.bin").as_slice();
-    assert_eq!(encode_claims(&f.claims).unwrap(), claims);
     assert_eq!(
-        r.store.session_records().next().unwrap().encode().unwrap(),
-        session
+        encode_claims(&f.claims).unwrap(),
+        include_bytes!("fixtures/platform-02/claims.bin")
     );
-    assert_eq!(
-        r.store.replay_records().next().unwrap().encode().unwrap(),
-        replay
-    );
-    assert_eq!(r.ledger.records().next().unwrap().encode().unwrap(), login);
-    assert_eq!(Session::decode(session).unwrap().encode().unwrap(), session);
-    assert_eq!(Replay::decode(replay).unwrap().encode().unwrap(), replay);
-    assert_eq!(
-        LoginRevocationChange::decode(login)
-            .unwrap()
-            .encode()
-            .unwrap(),
-        login
+    assert!(Session::decode(include_bytes!("fixtures/platform-02/session.bin")).is_err());
+    assert!(Replay::decode(include_bytes!("fixtures/platform-02/replay.bin")).is_err());
+    assert!(
+        LoginRevocationChange::decode(include_bytes!("fixtures/platform-02/login.bin")).is_err()
     );
 }
+
+// Independent stored-record fixture for corruption and future-generation tests.
+#[cfg(feature = "session-restore")]
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+struct ReplayRecord {
+    fingerprint: [u8; 32],
+    caller: Principal,
+    generation: u64,
+    remove_at_ns: u64,
+}
+
+#[cfg(feature = "session-restore")]
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+struct SessionRecord {
+    caller: Principal,
+    subject: Principal,
+    issuer: Principal,
+    audience: AudienceId,
+    mechanism: PortableMechanism,
+    key_binding_id: [u8; 32],
+    role: AuthRole,
+    scopes: Vec<String>,
+    generation: u64,
+    login_started_at_ns: u64,
+    login_deadline_ns: u64,
+    established_at_ns: u64,
+    expires_at_ns: u64,
+    fingerprint: [u8; 32],
+    request_hash: [u8; 32],
+}
+#[cfg(feature = "session-restore")]
+const REPLAY_ID: u64 = 0x415554485302;
+#[cfg(feature = "session-restore")]
+const REPLAY_LIMITS: ic_wire::Limits = ic_wire::Limits {
+    bytes: 512,
+    allocation: 65536,
+    nodes: 1024,
+    depth: 16,
+};
 
 struct Fixture {
     key: SigningKey,
@@ -284,7 +306,7 @@ fn limits() -> SessionLimits {
         max_sessions: 4,
         max_replays: 8,
         max_replays_per_caller: 4,
-        max_encoded_bytes: 16_384,
+        max_encoded_bytes: 65_536,
     }
 }
 fn request() -> SessionRequest {
@@ -906,11 +928,98 @@ fn portable_record_roundtrip_and_old_or_corrupt_records_are_rejected() {
     let session = created(f.admit(&mut r, NOW).unwrap());
     let bytes = session.encode().unwrap();
     assert_eq!(Session::decode(&bytes), Ok(session));
-    assert!(Session::decode(&bytes[b"IC-AUTH-PORTABLE-SESSION\0".len()..]).is_err());
+    let mut wrong_magic = bytes.clone();
+    wrong_magic[0] ^= 1;
+    assert!(Session::decode(&wrong_magic).is_err());
     assert!(Session::decode(&[0; 2049]).is_err());
     let mut truncated = bytes;
     truncated.pop();
     assert!(Session::decode(&truncated).is_err());
+}
+
+#[cfg(feature = "session-restore")]
+#[test]
+fn framed_session_records_still_require_valid_identity_scopes_and_windows() {
+    let f = Fixture::new(1);
+    let mut r = Receiver::new(&f);
+    let bytes = created(f.admit(&mut r, NOW).unwrap()).encode().unwrap();
+    let identity = 0x415554485301;
+    let limits = ic_wire::Limits {
+        bytes: 2048,
+        ..REPLAY_LIMITS
+    };
+    let original: SessionRecord =
+        ic_wire::native::decode_request(identity, &bytes, limits).unwrap();
+    let encode =
+        |record: &SessionRecord| ic_wire::native::encode_request(identity, record, limits).unwrap();
+    assert_eq!(encode(&original), bytes);
+    for invalid in [
+        SessionRecord {
+            caller: Principal::anonymous(),
+            ..original.clone()
+        },
+        SessionRecord {
+            issuer: Principal::anonymous(),
+            ..original.clone()
+        },
+        SessionRecord {
+            subject: Principal::anonymous(),
+            ..original.clone()
+        },
+        SessionRecord {
+            scopes: vec!["a::b".into()],
+            ..original.clone()
+        },
+        SessionRecord {
+            scopes: Vec::new(),
+            ..original.clone()
+        },
+        SessionRecord {
+            scopes: vec!["read".into(); limits::MAX_SESSION_SCOPES + 1],
+            ..original.clone()
+        },
+        SessionRecord {
+            scopes: vec!["a".into(), "a".into()],
+            ..original.clone()
+        },
+        SessionRecord {
+            scopes: vec!["z".into(), "a".into()],
+            ..original.clone()
+        },
+        SessionRecord {
+            login_started_at_ns: NOW + 1,
+            ..original.clone()
+        },
+        SessionRecord {
+            login_deadline_ns: original.login_started_at_ns,
+            ..original.clone()
+        },
+        SessionRecord {
+            login_deadline_ns: u64::MAX,
+            ..original.clone()
+        },
+        SessionRecord {
+            expires_at_ns: NOW,
+            ..original.clone()
+        },
+        SessionRecord {
+            expires_at_ns: original.login_deadline_ns + 1,
+            ..original.clone()
+        },
+    ] {
+        assert!(Session::decode(&encode(&invalid)).is_err());
+    }
+    // The traversal allowance admits the supported wide shape under the byte cap.
+    let wide = SessionRecord {
+        scopes: (0..limits::MAX_SESSION_SCOPES)
+            .map(|index| format!("scope{index:02}{}", "a".repeat(57)))
+            .collect(),
+        ..original
+    };
+    assert_eq!(
+        Session::decode(&encode(&wide)).unwrap().scopes(),
+        wide.scopes
+    );
 }
 
 #[test]
@@ -1321,18 +1430,11 @@ fn store_restore_rejects_incomplete_duplicate_future_and_over_capacity_records()
             .is_err()
     );
 
-    let prefix = b"IC-AUTH-PORTABLE-REPLAY\0";
-    let encoded = replay.encode().unwrap();
-    let mut value: serde_cbor::Value = serde_cbor::from_slice(&encoded[prefix.len()..]).unwrap();
-    let serde_cbor::Value::Map(fields) = &mut value else {
-        panic!()
-    };
-    fields.insert(
-        serde_cbor::Value::Text("generation".into()),
-        serde_cbor::Value::Integer(1),
-    );
-    let mut encoded = prefix.to_vec();
-    encoded.extend(serde_cbor::to_vec(&value).unwrap());
+    let mut record: ReplayRecord =
+        ic_wire::native::decode_request(REPLAY_ID, &replay.encode().unwrap(), REPLAY_LIMITS)
+            .unwrap();
+    record.generation = 1;
+    let encoded = ic_wire::native::encode_request(REPLAY_ID, &record, REPLAY_LIMITS).unwrap();
     let future = Replay::decode(&encoded).unwrap();
     assert!(restore((1, 1), bytes, vec![session.clone()], vec![future.clone()]).is_err());
     // Even when both generations are historical, a retained matching fingerprint
@@ -1381,24 +1483,20 @@ fn replay_storage_decoder_rejects_wrong_domain_truncation_and_invalid_fields() {
     let mut trailing = bytes.clone();
     trailing.push(0);
     assert!(Replay::decode(&trailing).is_err());
-    let prefix = b"IC-AUTH-PORTABLE-REPLAY\0";
-    let value: serde_cbor::Value = serde_cbor::from_slice(&bytes[prefix.len()..]).unwrap();
-    for (field, replacement) in [
-        ("remove_at_ns", serde_cbor::Value::Integer(0)),
-        (
-            "caller",
-            serde_cbor::value::to_value(Principal::anonymous()).unwrap(),
-        ),
-        ("unexpected", serde_cbor::Value::Null),
+    let original: ReplayRecord =
+        ic_wire::native::decode_request(REPLAY_ID, &bytes, REPLAY_LIMITS).unwrap();
+    for invalid in [
+        ReplayRecord {
+            remove_at_ns: 0,
+            ..original.clone()
+        },
+        ReplayRecord {
+            caller: Principal::anonymous(),
+            ..original
+        },
     ] {
-        let mut value = value.clone();
-        let serde_cbor::Value::Map(fields) = &mut value else {
-            panic!()
-        };
-        fields.insert(serde_cbor::Value::Text(field.into()), replacement);
-        let mut invalid = prefix.to_vec();
-        invalid.extend(serde_cbor::to_vec(&value).unwrap());
-        assert!(Replay::decode(&invalid).is_err());
+        let bytes = ic_wire::native::encode_request(REPLAY_ID, &invalid, REPLAY_LIMITS).unwrap();
+        assert!(Replay::decode(&bytes).is_err());
     }
 }
 

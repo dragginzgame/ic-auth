@@ -211,12 +211,8 @@ pub struct CertifiedProof {
 }
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 #[cfg_attr(feature = "typescript", derive(ic_wire::Wire))]
-#[allow(
-    clippy::large_enum_variant,
-    reason = "Keep the bounded transport projection and explicit domain conversion"
-)]
 pub enum PortableProof {
-    Certified(CertifiedProof),
+    Certified(Box<CertifiedProof>),
     Ed25519(Bytes<64>),
 }
 impl Field<domain::PortableProof> for PortableProof {
@@ -225,10 +221,10 @@ impl Field<domain::PortableProof> for PortableProof {
             domain::PortableProof::Certified {
                 delegation,
                 issuer_signature,
-            } => Self::Certified(CertifiedProof {
+            } => Self::Certified(Box::new(CertifiedProof {
                 delegation: (*delegation).try_into()?,
                 issuer_signature: issuer_signature.try_into()?,
-            }),
+            })),
             domain::PortableProof::Ed25519 { signature } => Self::Ed25519(Bytes::new(signature)?),
         })
     }

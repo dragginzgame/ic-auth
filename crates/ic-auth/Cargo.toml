@@ -14,21 +14,19 @@ publish = ["crates-io"]
 # Every library capability is Candid/runtime-free, including certified signatures.
 # Platform owns the imported creation/verifier code; Auth owns admission policy.
 default = []
-portable-signature-verification = ["dep:ic-platform", "ic-platform/ed25519"]
-chain-key-verification = ["dep:ic-platform", "ic-platform/ecdsa"]
+portable-signature-verification = ["ic-platform/ed25519"]
+chain-key-verification = ["ic-platform/ecdsa"]
 canister-signature-preparation = [
-    "dep:ic-platform",
     "ic-platform/canister-sig-creation",
     "ic-platform/certification",
     "dep:serde",
     "dep:serde_bytes",
     "dep:serde_cbor",
 ]
-sessions = ["dep:serde", "dep:serde_cbor"]
+sessions = ["dep:serde", "dep:ic-wire"]
 session-restore = ["sessions"]
 certified-proof-verification = ["canister-signature-verification", "chain-key-verification"]
 canister-signature-verification = [
-    "dep:ic-platform",
     "ic-platform/canister-sig-creation",
     "ic-platform/certification",
     "ic-platform/signature-verification",
@@ -36,7 +34,8 @@ canister-signature-verification = [
 
 [dependencies]
 ic-auth-protocol-types.workspace = true
-ic-platform = { workspace = true, optional = true }
+ic-platform = { workspace = true, features = ["principal-self-authenticating"] }
+ic-wire = { workspace = true, optional = true }
 serde = { workspace = true, optional = true }
 serde_bytes = { workspace = true, optional = true }
 serde_cbor = { workspace = true, optional = true }

@@ -126,9 +126,7 @@ impl SessionRequest {
         now_ns: u64,
         policy: SessionTtlPolicy,
     ) -> Result<u64, SessionRequestError> {
-        let grant = grants
-            .iter()
-            .find(|grant| &grant.target == role)
+        let grant = crate::certificate_issuance::grant_for_role(grants, role)
             .ok_or(SessionRequestError::ScopeRejected)?;
         self.check_granted_scopes(&grant.scopes)?;
         self.expires_at_ns(now_ns, policy)

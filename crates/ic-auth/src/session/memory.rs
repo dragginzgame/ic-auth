@@ -179,10 +179,7 @@ impl MemorySessionStore {
     // admission invokes them only after commit; restore admits each record first.
     fn install_session(&mut self, session: Stored<Session>) {
         let caller = session.value.caller();
-        if let Some(old) = self.sessions.remove(&caller) {
-            self.session_expiry
-                .remove(&(old.value.expires_at_ns(), caller));
-        }
+        self.take_session(caller);
         self.session_expiry
             .insert((session.value.expires_at_ns(), caller));
         self.sessions.insert(caller, session);
@@ -235,11 +232,18 @@ impl MemorySessionStore {
     pub fn encoded_bytes(&self) -> usize {
         self.encoded_bytes
     }
+    // Replacement and deletion share the expiry-index invariant; callers own
+    // their staged byte totals and update those only after durable success.
+    fn take_session(&mut self, caller: Principal) -> Option<Stored<Session>> {
+        let old = self.sessions.remove(&caller)?;
+        self.session_expiry
+            .remove(&(old.value.expires_at_ns(), caller));
+        Some(old)
+    }
+
     /// Logout removes only this caller's session, preserving consumed proofs.
     fn clear(&mut self, caller: Principal) -> bool {
-        if let Some(old) = self.sessions.remove(&caller) {
-            self.session_expiry
-                .remove(&(old.value.expires_at_ns(), caller));
+        if let Some(old) = self.take_session(caller) {
             self.encoded_bytes -= old.bytes;
             true
         } else {

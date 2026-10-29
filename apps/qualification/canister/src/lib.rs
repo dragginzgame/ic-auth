@@ -252,7 +252,7 @@ fn owner_checked_operation() -> Result<Bytes<29>, String> {
     })
 }
 
-// The maintainer explicitly retired the old unpublished Candid checkpoint.
+// The maintainer explicitly retired previous unpublished checkpoints and CBOR records.
 // Production storage profiles and IC Memory allocation are unaffected.
 #[derive(serde::Serialize, serde::Deserialize)]
 struct CheckpointData {
@@ -260,7 +260,7 @@ struct CheckpointData {
     asset_version: u64,
     receiver: Option<sessions::Snapshot>,
 }
-const CHECKPOINT_ID: u64 = 0x41555449f100;
+const CHECKPOINT_ID: u64 = 0x41555449f101;
 const CHECKPOINT_LIMITS: Limits = Limits {
     bytes: 2097152,
     allocation: 8388608,

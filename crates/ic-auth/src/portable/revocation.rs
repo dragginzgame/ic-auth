@@ -7,8 +7,6 @@ use std::collections::{BTreeMap, BTreeSet};
 use thiserror::Error;
 
 #[cfg(feature = "sessions")]
-const RECORD_DOMAIN: &[u8] = b"IC-AUTH-LOGIN-RECORD\0";
-#[cfg(feature = "sessions")]
 const MAX_RECORD_BYTES: usize = 1024;
 
 /// A refusal leaves records unchanged; trusted clock observations are retained.
@@ -30,7 +28,7 @@ pub enum LoginRevocationError {
 
 #[derive(Clone, Copy)]
 #[cfg_attr(feature = "sessions", derive(serde::Serialize))]
-#[cfg_attr(feature = "sessions", serde(into = "RecordFields"))]
+#[cfg_attr(feature = "session-restore", derive(serde::Deserialize))]
 struct Record {
     until_ns: u64,
     state: LoginRecordState,
@@ -40,6 +38,8 @@ struct Record {
 // exactly when it retains an authenticated login binding.
 /// Ledger state projected without inferring state from independent flags.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "sessions", derive(serde::Serialize))]
+#[cfg_attr(feature = "session-restore", derive(serde::Deserialize))]
 pub enum LoginRecordState {
     Reserved(LoginBinding),
     Revoked(Option<LoginBinding>),
@@ -59,31 +59,6 @@ impl Record {
 
     fn admitted_pool(self) -> bool {
         self.login().is_some()
-    }
-}
-
-// The current storage fields and ordering are frozen independently of the
-// internal state representation. This is the sole record format, not a fallback.
-#[cfg(feature = "sessions")]
-#[derive(serde::Serialize)]
-#[cfg_attr(feature = "session-restore", derive(serde::Deserialize))]
-#[serde(deny_unknown_fields)]
-struct RecordFields {
-    until_ns: u64,
-    login: Option<LoginBinding>,
-    revoked: bool,
-    admitted_pool: bool,
-}
-
-#[cfg(feature = "sessions")]
-impl From<Record> for RecordFields {
-    fn from(record: Record) -> Self {
-        Self {
-            until_ns: record.until_ns,
-            login: record.login(),
-            revoked: record.revoked(),
-            admitted_pool: record.admitted_pool(),
-        }
     }
 }
 
@@ -115,7 +90,7 @@ impl LoginRevocationChange {
     pub fn encode(&self) -> Result<Vec<u8>, LoginRevocationError> {
         crate::storage_codec::encode(
             &(self.audience, self.caller, self.record),
-            RECORD_DOMAIN,
+            crate::storage_codec::LOGIN,
             MAX_RECORD_BYTES,
             LoginRevocationError::Storage,
             LoginRevocationError::InvalidPolicy,
@@ -126,41 +101,28 @@ impl LoginRevocationChange {
     /// This checks shape, not provenance, completeness, rollback or live authority.
     #[cfg(feature = "session-restore")]
     pub fn decode(bytes: &[u8]) -> Result<Self, LoginRevocationError> {
-        let (audience, caller, fields): (_, Principal, RecordFields) =
-            crate::storage_codec::decode(
-                bytes,
-                RECORD_DOMAIN,
-                MAX_RECORD_BYTES,
-                || LoginRevocationError::InvalidPolicy,
-                LoginRevocationError::InvalidPolicy,
-            )?;
+        let (audience, caller, record): (_, Principal, Record) = crate::storage_codec::decode(
+            bytes,
+            crate::storage_codec::LOGIN,
+            MAX_RECORD_BYTES,
+            LoginRevocationError::InvalidPolicy,
+            LoginRevocationError::InvalidPolicy,
+        )?;
         if !is_login_caller(caller) {
             return Err(LoginRevocationError::InvalidCaller);
         }
-        let state = match fields.login {
-            Some(login)
-                if fields.admitted_pool
-                    && login.issuer != Principal::anonymous()
-                    && login.subject != Principal::anonymous()
-                    && login.started_at_ns < login.deadline_ns
-                    && login.deadline_ns - login.started_at_ns <= crate::limits::MAX_LOGIN_NS =>
-            {
-                if fields.revoked {
-                    LoginRecordState::Revoked(Some(login))
-                } else {
-                    LoginRecordState::Reserved(login)
-                }
-            }
-            None if !fields.admitted_pool && fields.revoked => LoginRecordState::Revoked(None),
-            _ => return Err(LoginRevocationError::InvalidPolicy),
-        };
+        if let Some(login) = record.login()
+            && (login.issuer == Principal::anonymous()
+                || login.subject == Principal::anonymous()
+                || login.started_at_ns >= login.deadline_ns
+                || login.deadline_ns - login.started_at_ns > crate::limits::MAX_LOGIN_NS)
+        {
+            return Err(LoginRevocationError::InvalidPolicy);
+        }
         let change = Self {
             audience,
             caller,
-            record: Record {
-                until_ns: fields.until_ns,
-                state,
-            },
+            record,
         };
         Ok(change)
     }
@@ -557,7 +519,7 @@ impl MemoryLoginRevocations {
             issuer: claims.issuer,
             subject: claims.account_subject,
             started_at_ns: claims.login_started_at_ns,
-            deadline_ns: login_deadline_ns,
+            deadline_ns: claims.login_deadline_ns,
         };
         if let Some(old) = self.records.get(&caller).filter(|r| r.until_ns > now_ns) {
             if old.revoked() {

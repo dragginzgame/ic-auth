@@ -65,10 +65,8 @@ impl SessionLimits {
     }
 }
 
-const RECORD_DOMAIN: &[u8] = b"IC-AUTH-PORTABLE-SESSION\0";
 const MAX_SESSION_RECORD_BYTES: usize = 2048;
 const MAX_REPLAY_RECORD_BYTES: usize = 512;
-const REPLAY_DOMAIN: &[u8] = b"IC-AUTH-PORTABLE-REPLAY\0";
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[cfg_attr(feature = "session-restore", derive(Deserialize))]
@@ -125,12 +123,7 @@ impl Session {
         if change.caller() != self.0.caller
             || change.audience() != self.0.audience
             || matches!(change.state(), LoginRecordState::Reserved(binding)
-            if change.until_ns() < self.0.login_deadline_ns || binding != LoginBinding {
-                issuer: self.0.issuer,
-                subject: self.0.subject,
-                started_at_ns: self.0.login_started_at_ns,
-                deadline_ns: self.0.login_deadline_ns,
-            })
+            if change.until_ns() < self.0.login_deadline_ns || binding != self.login_binding())
         {
             return Err(SessionError::InvalidPolicyOrRecord);
         }
@@ -178,7 +171,7 @@ impl Session {
     pub fn encode(&self) -> Result<Vec<u8>, SessionError> {
         crate::storage_codec::encode(
             &self.0,
-            RECORD_DOMAIN,
+            crate::storage_codec::SESSION,
             MAX_SESSION_RECORD_BYTES,
             SessionError::InvalidPolicyOrRecord,
             SessionError::ByteCapacity,
@@ -187,7 +180,6 @@ impl Session {
     pub(super) fn encoded_len(&self) -> Result<usize, SessionError> {
         crate::storage_codec::encoded_len(
             &self.0,
-            RECORD_DOMAIN,
             MAX_SESSION_RECORD_BYTES,
             SessionError::InvalidPolicyOrRecord,
             SessionError::ByteCapacity,
@@ -198,9 +190,9 @@ impl Session {
     pub fn decode(bytes: &[u8]) -> Result<Self, SessionError> {
         let data: SessionData = crate::storage_codec::decode(
             bytes,
-            RECORD_DOMAIN,
+            crate::storage_codec::SESSION,
             MAX_SESSION_RECORD_BYTES,
-            || SessionError::InvalidPolicyOrRecord,
+            SessionError::InvalidPolicyOrRecord,
             SessionError::ByteCapacity,
         )?;
         check_scopes(&data.scopes)?;
@@ -252,17 +244,19 @@ impl Session {
         Ok(session)
     }
     pub(super) fn check_revocation(&self, login: Option<LoginBinding>) -> Result<(), SessionError> {
-        if login
-            != Some(LoginBinding {
-                issuer: self.0.issuer,
-                subject: self.0.subject,
-                started_at_ns: self.0.login_started_at_ns,
-                deadline_ns: self.0.login_deadline_ns,
-            })
-        {
+        if login != Some(self.login_binding()) {
             return Err(crate::portable::LoginRevocationError::InvalidPolicy.into());
         }
         Ok(())
+    }
+
+    fn login_binding(&self) -> LoginBinding {
+        LoginBinding {
+            issuer: self.0.issuer,
+            subject: self.0.subject,
+            started_at_ns: self.0.login_started_at_ns,
+            deadline_ns: self.0.login_deadline_ns,
+        }
     }
     pub(super) fn check_live(
         &self,
@@ -294,12 +288,9 @@ impl Session {
         {
             return Err(SessionError::StaleAuthority);
         }
-        let grant = authority
-            .grants
-            .as_slice()
-            .iter()
-            .find(|grant| &grant.target == ctx.role)
-            .ok_or(SessionError::ScopeRejected)?;
+        let grant =
+            crate::certificate_issuance::grant_for_role(authority.grants.as_slice(), ctx.role)
+                .ok_or(SessionError::ScopeRejected)?;
         if !crate::certificate_issuance::scopes_are_subset(&self.0.scopes, &grant.scopes) {
             return Err(SessionError::ScopeRejected);
         }
@@ -327,7 +318,7 @@ impl Replay {
         self.validate()?;
         crate::storage_codec::encode(
             &self.0,
-            REPLAY_DOMAIN,
+            crate::storage_codec::REPLAY,
             MAX_REPLAY_RECORD_BYTES,
             SessionError::InvalidPolicyOrRecord,
             SessionError::ByteCapacity,
@@ -346,12 +337,12 @@ impl Replay {
     pub fn decode(bytes: &[u8]) -> Result<Self, SessionError> {
         let record = Self(crate::storage_codec::decode(
             bytes,
-            REPLAY_DOMAIN,
+            crate::storage_codec::REPLAY,
             MAX_REPLAY_RECORD_BYTES,
-            || SessionError::InvalidPolicyOrRecord,
+            SessionError::InvalidPolicyOrRecord,
             SessionError::ByteCapacity,
         )?);
-        record.encoded_len()?;
+        record.validate()?;
         Ok(record)
     }
 
@@ -383,7 +374,6 @@ impl Replay {
         self.validate()?;
         crate::storage_codec::encoded_len(
             &self.0,
-            REPLAY_DOMAIN,
             MAX_REPLAY_RECORD_BYTES,
             SessionError::InvalidPolicyOrRecord,
             SessionError::ByteCapacity,

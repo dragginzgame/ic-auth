@@ -9,15 +9,15 @@ Earlier pairings and benchmarks are preserved in
 
 ## Setup and ownership
 
-The root catalog/lock select published Testkit 0.69.4 from
-[IC Tooling](https://github.com/dragginzgame/ic-tooling) and Auth's Platform 0.7.
+The root catalog/lock select published Testkit 0.70.0 from
+[IC Tooling](https://github.com/dragginzgame/ic-tooling) and Auth's Platform 0.8.1.
 Testkit and Auth share Wire 0.7 types directly. `WireCallSpec` takes the canonical
 contract limits without conversion; responses require only `DeserializeOwned`.
 The temporary Wire 0.6 alias and limit bridge are removed following
 [Tooling #248](https://github.com/dragginzgame/ic-tooling/issues/248).
 Application identities use owned Principal; direct Testkit/Agent calls convert
-explicitly to their retained external type. Testkit also selects Platform 0.7
-internally; no dependency override is needed. The remaining native Candid dependencies stay
+explicitly to their retained external type. Testkit also selects Platform 0.8.1
+with `principal-external`; no dependency override is needed. Native Candid dependencies stay
 outside public Auth library and deployed-Wasm graphs. Testkit no longer supplies
 Candid helpers or selects Platform's `candid` feature; native Agent/PocketIC
 still require their own Candid dependencies.
@@ -185,10 +185,11 @@ The opt-in `make test-client-browser` command runs
 [the native browser case](../apps/qualification/runner/tests/signatures/sessions/browser.rs)
 with [the Chromium runner](../packages/client/test/browser/run.mjs) and
 [browser scenarios](../packages/client/test/browser/qualification.ts).
-Testkit 0.69.4 keeps the client and managed server together in `PocketIcInstance`;
+Testkit keeps the client and managed server together in `PocketIcInstance`;
 mutable access starts the live gateway without splitting ownership.
 
-The checked run uses Linux Chromium **156.0.8078.4**, Playwright Core **1.62.1**,
+The recorded browser run used Testkit **0.69.4**, Linux Chromium **156.0.8078.4**,
+Playwright Core **1.62.1**,
 Platform npm **0.1.1** and its canonical SDK Core **6.1.1**. It uses an isolated
 localhost HTTP origin/profile and actual IndexedDB strict transactions. Two tabs
 race issuance; durable logout invalidates a delayed real signature; a real renderer

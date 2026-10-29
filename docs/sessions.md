@@ -72,8 +72,8 @@ immutable issuer/account and login-start/deadline binding.
 Admission validates the session record's encoded size without allocating bytes
 that would be discarded. The store independently enforces its transactional
 capacity checks; persistence explicitly encodes only when bytes are needed.
-Record encoding writes CBOR directly after the existing domain prefix, preserving
-the same bytes, size bounds and error precedence.
+Record counting, encoding and decoding use bounded native IC Wire frames.
+The host still owns persistence, transaction boundaries and corruption handling.
 
 A session records the browser `caller`, account `(issuer, subject)`, audience,
 mechanism/key binding, role/scopes, authority generation, login window, lease and
@@ -166,8 +166,8 @@ Auth 0.19 is a hard cut at the Rust API; migrate each current caller together:
 
 There are no aliases or fallback entry points. Every host commit must finish
 atomically before reporting success, and returned failure must preserve storage.
-Signed claims, Wire frames, stored records and the browser journal keep their
-existing formats and require no reset. Consumer adoption follows publication;
+Signed claims, public Wire frames and the browser journal keep their existing
+formats. Pending 0.22 retires private CBOR storage as described below. Consumer adoption follows publication;
 local fixture qualification does not establish a Canic deployment.
 
 Maintenance uses the same ordering: session-store `prune_with_commit` supplies
@@ -269,15 +269,25 @@ ledger/store `restore_records`; volatile consumers do not need these decoders. C
 feature unification still applies, so inspect each deployed canister's selected
 graph rather than treating workspace builds as size measurements.
 
-The portable record begins with `IC-AUTH-PORTABLE-SESSION\0` before its CBOR body.
-Old token-specific records are rejected, with no compatibility reader. Consumers
-must explicitly retire incompatible sessions and coordinate retained
-replay/revocation state before serving. Decoding alone does not authorize a record:
-current authority and its matching retained login reservation are required.
+Pending Auth **0.22** retires all previous private CBOR records. The maintainer
+confirmed no deployed or retained Auth records need preservation. There is no
+legacy reader, migration or implicit clearing. A host adopting this cut must
+initialize a coherent new session/replay/login checkpoint before serving; never
+retain only part of a previous replay or revocation history.
 
-Replay storage uses its own `IC-AUTH-PORTABLE-REPLAY\0` domain and 512-byte bound;
-its encoded bytes count toward store capacity. Raw replay serialization is not
-supported; no old-format reader is supplied.
+Current records are native IC Wire request frames, using storage-only identities
+`0x415554485301` (session), `0x415554485302` (replay) and `0x415554485303`
+(login ledger); these are never mounted RPC methods. Byte bounds include the
+11-byte header: 2048, 512 and 1024 respectively. Traversal is bounded at 1024
+nodes, depth 16 and a 65,536-byte native allocation allowance, independent of the
+byte ceiling. The login schema stores one enum with reserved, known-revoked and
+unknown-revoked projections, without redundant boolean flags.
+
+Decoding checks identity, direction, complete consumption and shape; it does not
+authorize a record. Current authority and its matching retained login reservation
+are required. Signed claims, public application Wire contracts and external IC
+certificate/signature CBOR remain unchanged. Replay encoded bytes count toward
+store capacity; raw replay serialization is unsupported.
 `MemorySessionStore::session_records` and `replay_records` stream records under a
 host-serialized checkpoint boundary. Preserve both physical counts, encoded byte
 total and generation in the same atomic checkpoint as all records. Restoring into
@@ -452,7 +462,7 @@ new controller confirmation of the unchanged live authority, preserves lease and
 denial deadlines, and retains disabled authority across repeated upgrades. Work
 budgets restart empty, conservatively discarding unused credit.
 
-That checkpoint uses published `ic-memory` 0.54.0 with one host-bootstrapped
+That checkpoint uses published `ic-memory` 0.55.0 with one host-bootstrapped
 namespace and a bounded 128 KiB checkpoint allocation. The host owns the complete
 declaration set, opens only admitted memory and rejects missing/malformed headers
 before decoding. Synchronous upgrade writes use IC message rollback on traps.

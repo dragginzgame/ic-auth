@@ -1,5 +1,45 @@
 # Changelog
 
+## [0.22.0]
+
+### ⚠️ Breaking
+
+- Replace private session, replay and login-ledger CBOR records with bounded native
+  IC Wire records. The maintainer confirmed no deployed or retained records need
+  preservation; old records are refused without migration or implicit reset.
+  Hosts must initialize a new coherent checkpoint before serving. Signed claims
+  and external IC certificate/signature bytes retain their existing formats.
+  [#109 — Stored records](https://github.com/dragginzgame/ic-auth/issues/109).
+
+- `ic_auth_wire::model::PortableProof::Certified` now holds `Box<CertifiedProof>`.
+  Direct Rust constructors must box that value; domain conversions and generated
+  browser contracts retain the same encoded proof bytes and bounds.
+
+- Align shared Principal and imported key types with Platform 0.8.1. Consumers
+  exchanging those Rust types must also use Platform 0.8. Select `principal-external`
+  for explicit upstream conversions and `principal-self-authenticating` for direct
+  public-key hashing; passive protocol/Wire packages keep only `principal`.
+  [#112 — Platform adoption](https://github.com/dragginzgame/ic-auth/issues/112).
+
+### 🔧 Changed
+
+- Reduce the reference Wasm by 12% and representative stored session records by
+  about 47%, with faster record decoding. Reuse bounded serialization and admitted
+  grant data, simplifying session bookkeeping while preserving independent
+  canonical checks, live authority checks and atomic commits. These are fixture
+  measurements, not production workload estimates.
+  [#111 — Complexity cleanup](https://github.com/dragginzgame/ic-auth/issues/111).
+
+### ⬆️ Dependencies
+
+- Adopt Tooling and the independently pinned file CLI 0.70.0, Wire/derive 0.7.22
+  and Memory/Storage 0.55.2. Retain Metrics 0.17.3 and Platform/macros 0.8.1 with
+  explicit Principal capabilities; the old private Platform 0.7 branch is removed.
+  Auth uses the governed cell adapter, so Metrics Stable's retired format requires
+  no Auth reset or migration from that dependency change. Auth's separate stored-
+  record hard cut is described above.
+  [#110 — Adopt Memory/Storage](https://github.com/dragginzgame/ic-auth/issues/110).
+
 ## [0.21.0] - 2026-10-29
 
 ### ➕ Added

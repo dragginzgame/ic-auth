@@ -130,12 +130,12 @@ Platform's explicit `pocket-ic` capability owns native simulator clients and DTO
 Testkit owns bounded server startup, lifecycle extensions and typed Wire calls;
 only the native runner selects these capabilities.
 
-Native file and process callers select Host FS/Process 0.69.11 with defaults
+Native file and process callers select Host FS/Process 0.70.0 with defaults
 disabled. Library use does not enable Host's optional CLI, certificate decoder
 or Wasm text/encoding backends. Host stays outside the production library graph.
-Build and Testkit 0.69 select the same Host 0.69 identities as Auth's direct
+Build and Testkit 0.70 select the same Host 0.70 identities as Auth's direct
 callers; no dependency override or old Host family is needed. The independently
-pinned file CLI is also explicitly selected at 0.69.11 for this adoption.
+pinned file CLI is independently selected at 0.70.0 for this adoption.
 Build and Testkit libraries keep `cli` disabled; only the prepared executable
 selections request it. Testkit owns its benchmark-average errors and no longer
 selects IC Metrics. Auth uses neither the removed Candid helpers nor Metrics
@@ -195,13 +195,16 @@ validate role comments mechanically, or qualify unlisted feature combinations.
 
 ## IC Platform boundary
 
-The protocol package selects published `ic-platform` 0.7.0 with only `principal`
-for its owned Principal and parse-error types, with no Candid or runtime edge. Convert
+The protocol package selects published `ic-platform` 0.8.1 with only `principal`
+for its owned Principal and parse-error types, without an external Principal,
+SHA-2, Candid or runtime edge. The Auth engine explicitly selects
+`principal-self-authenticating` for browser-key hashing. Convert
 explicitly at Agent/Testkit/crypto boundaries using Platform's
-`principal::ExternalPrincipal`; the upstream type and cryptography remain there.
+`principal::ExternalPrincipal` with `principal-external` selected (the client and
+signature capabilities already include it); the upstream type and cryptography remain there.
 Significant bytes, ordering and binary serialization remain compatible; text
 longer than 63 bytes is now refused before normalization. See the
-[consumer migration](canic-adoption.md#platform-07-migration). No storage migration
+[consumer migration](canic-adoption.md#platform-08-migration). No storage migration
 or replacement cryptography is introduced.
 
 Private controls and diagnostics now use bounded Wire contracts under
@@ -215,18 +218,21 @@ derive or service export. The host selects Platform
 The host parser stays disabled.
 
 The maintainer authorized retiring the unpublished fixture's Candid checkpoint.
-The current bounded native-Wire checkpoint has `AUTHNAT1` framing; the old
-`AUTHCELL`/Candid and finite-Wire `AUTHWIR2` payloads are refused, not migrated or
-reset. IC Memory allocation and public/production storage contracts are unchanged.
+Pending 0.22 uses bounded native-Wire checkpoint `AUTHNAT2` and identity
+`0x41555449f101`, containing the new Wire session/replay/login records. Previous
+`AUTHNAT1` (CBOR records), `AUTHCELL`/Candid and finite-Wire `AUTHWIR2` payloads
+are refused without migration or reset. The maintainer confirmed no retained Auth
+records require preservation. IC Memory allocation and StableCell framing remain
+unchanged. Start with a coherent new fixture checkpoint for this hard cut.
 Checkpoint restores remain closed until matching controller authority is confirmed.
-The qualification host selects Memory/Storage 0.54.0 with the standard canister
+The qualification host selects Memory/Storage 0.55.2 with the standard canister
 backing. Memory admits one runtime/allocation; Storage's `StableCell` consumes
 that checked lease. Auth checks the retained payload ceiling before loading and
 refuses occupied fresh state before creating a cell. Memory 0.53 trusts exclusive
 backing custody between manager checks at construction, lease opening and growth;
 raw backing aliases remain prohibited. Native reopen tests release the cell and
 any detached handle first; attempted aliases refuse while either lease remains
-live. Cell, manager and Auth payload formats are unchanged. Storage is confined
+live. Cell and manager formats are unchanged; Auth owns its payload format. Storage is confined
 to the unpublished qualification host.
 The 0.53.1 repair releases backing claims before their identity allocations are
 destroyed, including construction refusal and unwinding; detached handles still
@@ -235,6 +241,11 @@ unselected by the owned Wire/public library capabilities.
 Memory/Storage 0.54 adopts IC Metrics 0.17 at its Metrics adapter boundary. Auth
 uses the governed cell adapter and does not select that Metrics adapter or pass
 its arithmetic types, so no Auth metrics API or stored-data migration is needed.
+Persistence 0.55 retires old Metrics Stable records in favor of Wire checkpoints.
+Auth does not select `ic-metrics-stable`; no Auth allocation, cell, session,
+revocation or fixture checkpoint is cleared or re-encoded by this adoption.
+The separate Auth 0.22 stored-record hard cut is explicitly approved; see
+[session restoration](sessions.md#storage-and-reset).
 
 CDK runtime/controller behavior is retained ([Platform #1](https://github.com/dragginzgame/ic-platform/issues/1)).
 No controller wrapper, executor, callback or crypto implementation is recreated.
@@ -265,10 +276,13 @@ The retired no-op `hidden = true` option is removed from all fixture entrypoints
 explicit Wire decoding/encoding and endpoint exports remain unchanged.
 
 Auth keeps runtime-specific call/error types internal and uses none of the
-retired storage or `change_timeout` APIs. Its public Principal has a Platform 0.7
-crate identity, so consumers sharing that type must align to Platform 0.7 and explicitly select `principal` when
-using Platform types alone; see [the migration](canic-adoption.md#platform-07-migration).
-Native Agent/Testkit retain their independently selected Platform/Candid graph.
+retired storage or `change_timeout` APIs. Its public Principal has a Platform 0.8
+crate identity, so consumers sharing that type must align to Platform 0.8 and explicitly select `principal` when
+using Platform types alone; see [the migration](canic-adoption.md#platform-08-migration).
+Published Memory/Storage 0.55.2 and native Testkit 0.70.0 also use Platform 0.8.1;
+the former private Platform 0.7 dependency is removed. Storage retains the same
+upstream stable-structures types, and native Agent/Testkit boundaries retain the
+upstream external Principal. No dependency override or new conversion is needed.
 Counter-zero measurements continue using the exact raw API, equivalent to CDK's
 conversion of the same constant.
 
@@ -832,7 +846,7 @@ archives remain in `target/`; no cleanup, GitHub Release object or deployment is
 implicit. See [Cargo publication](https://doc.rust-lang.org/cargo/commands/cargo-publish.html)
 for credentials, dry-run and index-propagation semantics.
 
-File mechanics use the published `ic-host-file` executable. Auth pins 0.69.11 in
+File mechanics use the published `ic-host-file` executable. Auth pins 0.70.0 in
 `ci/host-file.env`, independently of the library versions selected by Cargo.lock.
 `make install-host-file` prepares it through Shared Tooling with
 `--features cli`; `make host-file-check` admits that exact selection offline. The

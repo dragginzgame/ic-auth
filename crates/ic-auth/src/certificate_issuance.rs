@@ -235,11 +235,16 @@ pub(crate) fn grants_are_subset(
     ceiling: &[DelegatedRoleGrant],
 ) -> bool {
     grants.iter().all(|child| {
-        ceiling
-            .iter()
-            .find(|parent| parent.target == child.target)
+        grant_for_role(ceiling, &child.target)
             .is_some_and(|parent| scopes_are_subset(&child.scopes, &parent.scopes))
     })
+}
+
+pub(crate) fn grant_for_role<'a>(
+    grants: &'a [DelegatedRoleGrant],
+    role: &AuthRole,
+) -> Option<&'a DelegatedRoleGrant> {
+    grants.iter().find(|grant| &grant.target == role)
 }
 
 // The ceiling must already be canonical. Requested scopes need not be ordered

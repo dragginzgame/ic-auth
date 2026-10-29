@@ -55,7 +55,17 @@ if [[ "$package" == ic-auth-qualification-canister ]]; then
     exit 0
 fi
 printf '%s v0.9.1\n' "$package"
-printf 'ic-platform v0.1.12\nic_principal v0.1.5\n'
+printf 'ic-platform v0.8.1\n'
+if [[ "$package" == ic-auth ]]; then printf 'ic_principal v0.1.5\n'; fi
+if [[ "$BOUNDARY_MODE" == principal-external && "$package" == ic-auth-protocol-types ]]; then
+    printf 'ic_principal v0.1.5\n'
+fi
+if [[ "$BOUNDARY_MODE" == wire-hashing && "$package" == ic-auth-wire ]]; then
+    printf 'sha2 v0.10.9\n'
+fi
+if [[ "$BOUNDARY_MODE" == control-external && "$package" == ic-auth-qualification-contracts ]]; then
+    printf 'ic_principal v0.1.5\n'
+fi
 if [[ "$BOUNDARY_MODE" == principal-candid && "$package" == ic-auth-protocol-types ]]; then
     printf 'candid v0.10.38\n'
 fi
@@ -101,7 +111,7 @@ STUB
 chmod +x "$fixture/bin/"*
 export PATH="$fixture/bin:$root/.tools/host/bin:$PATH"
 export BOUNDARY_EVENTS="$fixture/events"
-for mode in accepted principal-candid principal-executor principal-bls principal-storage control-candid control-storage control-platform-feature wasm-default wasm-combined wasm-capability wasm-portable-bls wasm-certified-candid wasm-certified-ic0 wasm-certified-creation wasm-certified-verifier host-candid host-candid-derive parser executor executor-source host-cdk host-cdk-macros host-platform-feature; do
+for mode in accepted principal-external wire-hashing control-external principal-candid principal-executor principal-bls principal-storage control-candid control-storage control-platform-feature wasm-default wasm-combined wasm-capability wasm-portable-bls wasm-certified-candid wasm-certified-ic0 wasm-certified-creation wasm-certified-verifier host-candid host-candid-derive parser executor executor-source host-cdk host-cdk-macros host-platform-feature; do
     export BOUNDARY_MODE="$mode"
     : > "$BOUNDARY_EVENTS"
     status=0
@@ -117,7 +127,7 @@ for mode in accepted principal-candid principal-executor principal-bls principal
     else
         [[ "$status" != 0 ]] || { echo "missing exclusion: $mode" >&2; exit 1; }
         rg '^Cargo graph policy failed:' "$fixture/$mode.log" > /dev/null
-        rg 'ic-agent|tokio|ic-testkit-candid|candid|ic-cdk|ic0|ic-canister-sig-creation|ic-signature-verification|ic-verify-bls-signature' "$fixture/$mode.log" > /dev/null
+        rg 'ic_principal|sha2|ic-agent|tokio|ic-testkit-candid|candid|ic-cdk|ic0|ic-canister-sig-creation|ic-signature-verification|ic-verify-bls-signature' "$fixture/$mode.log" > /dev/null
     fi
 done
 echo 'Native/Wasm graph selections and transitive tooling refusals passed'

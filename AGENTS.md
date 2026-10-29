@@ -62,9 +62,14 @@ generated browser contracts and private qualification controls use IC Wire.
 The fixture exposes only Wire methods, with no Candid projection or direct
 declaration. Its old
 Candid checkpoint is explicitly retired; production storage is unaffected.
-Platform 0.7 owns Auth's Principal and its parse errors. Convert explicitly through
-`principal::ExternalPrincipal` at upstream Agent/Testkit/crypto boundaries; keep
-application/runtime identities owned and preserve original bytes. It supplies
+Platform 0.8 owns Auth's Principal and its parse errors. The engine explicitly
+selects `principal-self-authenticating` for browser-key hashing; passive protocol
+and Wire packages keep only `principal`, without external Principal or SHA-2.
+Convert explicitly through `principal::ExternalPrincipal` at upstream
+Agent/Testkit/crypto boundaries; keep
+`principal-external` selected at those boundaries (client/signature features
+already select it). Keep application/runtime identities owned and preserve
+original bytes. It supplies
 Platform-owned canister-signature key/hash code and upstream certificate-tree,
 verifier/BLS, ECDSA and Ed25519 capabilities. All K256 and Ed25519 API imports use
 Platform; Auth retains prehash/high-S policy, explicit normalization,
