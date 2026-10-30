@@ -44,6 +44,7 @@ thiserror.workspace = true
 
 [dev-dependencies]
 ic-platform = { workspace = true, features = ["bls", "ecdsa", "ed25519"] }
+ic-wire.workspace = true
 leb128.workspace = true
 serde.workspace = true
 serde_bytes.workspace = true

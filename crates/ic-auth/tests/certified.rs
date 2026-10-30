@@ -14,8 +14,8 @@ use ic_platform::bls::PrivateKey;
 use ic_platform::canister_sig_creation::CanisterSigPublicKey;
 use ic_platform::certification::{Certificate, HashTree, fork, labeled, leaf};
 use ic_platform::ecdsa::{PrehashSigner, Signature, SigningKey};
+use ic_wire::ByteBuf;
 use serde::Serialize;
-use serde_bytes::ByteBuf;
 use sha2::{Digest, Sha256};
 
 const SEED: &[u8] = b"canic-issuer-delegated-token";

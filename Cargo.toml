@@ -15,7 +15,7 @@ members = [
 resolver = "3"
 
 [workspace.package]
-version = "0.25.0"
+version = "0.25.1"
 edition = "2024"
 rust-version = "1.91.0"
 license = "MIT"
@@ -25,8 +25,8 @@ repository = "https://github.com/dragginzgame/ic-auth"
 [workspace.dependencies]
 # Production dependencies
 ic-auth = { path = "crates/ic-auth" }
-ic-auth-protocol-types = { version = "0.25.0", path = "crates/ic-auth-protocol-types" }
-ic-auth-wire = { version = "0.25.0", path = "crates/ic-auth-wire" }
+ic-auth-protocol-types = { version = "0.25.1", path = "crates/ic-auth-protocol-types" }
+ic-auth-wire = { version = "0.25.1", path = "crates/ic-auth-wire" }
 # Platform owns Principal and imported signature code; other crypto identities stay upstream.
 # Principal is explicit; protocol, portable and session consumers need no IC runtime.
 ic-platform = { version = "0.8.1", default-features = false }
@@ -49,7 +49,7 @@ ic-build = { version = "0.70", default-features = false }
 ic-host-fs = { version = "0.70", default-features = false }
 ic-host-process = { version = "0.70", default-features = false }
 ic-memory = "0.56.0"
-ic-metrics = { version = "0.17", default-features = false }
+ic-metrics = { version = "0.18.0", default-features = false }
 ic-storage = "0.56.0"
 ic-testkit = { version = "0.70", default-features = false }
 serde_json = "1"
