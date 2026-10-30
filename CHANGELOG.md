@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.25.1] - Unreleased
+
+### ⬆️ Dependencies
+
+- Adopt IC Metrics 0.18.0 for host-owned admission diagnostics. Public Auth
+  library graphs and persistent records are unchanged; no new reporting endpoint
+  or metrics store is introduced.
+  [#119](https://github.com/dragginzgame/ic-auth/issues/119).
+
+### 🧹 Cleanup
+
+- Reuse IC Wire's byte-buffer re-export in qualification certificate envelopes
+  and signature fixtures. Certificate bytes and verification behavior are unchanged.
+  [#116](https://github.com/dragginzgame/ic-auth/issues/116).
+
 ## [0.25.0] - 2026-10-30
 
 ### ⚠️ Breaking

@@ -35,7 +35,7 @@ fn measure<T>(operation: impl FnOnce() -> T) -> (T, u64) {
 
 #[derive(Deserialize)]
 struct Envelope {
-    certificate: serde_bytes::ByteBuf,
+    certificate: ic_wire::ByteBuf,
     tree: HashTree,
 }
 

@@ -8,8 +8,8 @@ use ic_auth_protocol_types::{IcCanisterSignatureProofV1, Principal};
 use ic_platform::bls::PrivateKey;
 use ic_platform::canister_sig_creation::{CanisterSigPublicKey, IC_ROOT_PK_DER_PREFIX};
 use ic_platform::certification::{Certificate, Delegation, HashTree, fork, labeled, leaf, pruned};
+use ic_wire::ByteBuf;
 use serde::{Deserialize, Serialize};
-use serde_bytes::ByteBuf;
 use sha2::{Digest, Sha256};
 
 const SEED: &[u8] = b"canic-issuer-delegated-token";
