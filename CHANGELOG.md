@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.25.1]
+
+### 🧹 Cleanup
+
+- Share private qualification session models and diagnostics through an
+  unpublished support crate; use ordinary test modules instead of path
+  attributes.
+
 ## [0.25.0] - 2026-10-30
 
 ### ⚠️ Breaking

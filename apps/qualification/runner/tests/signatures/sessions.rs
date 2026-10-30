@@ -1,13 +1,8 @@
 //! Portable receiver lifecycle against real canisters and signed ingress.
-#[path = "sessions/application.rs"]
 mod application;
-#[path = "sessions/browser.rs"]
 mod browser;
-#[path = "sessions/costs.rs"]
 mod costs;
 use super::{Agent, BasicIdentity, Fixture, Principal};
-#[path = "../../../sessions.rs"]
-mod contract;
 use super::{controls, query_control, update_control};
 use contract::*;
 use ic_auth::{
@@ -15,6 +10,7 @@ use ic_auth::{
     session::*,
 };
 use ic_auth_protocol_types::*;
+use ic_auth_qualification_support::sessions as contract;
 use ic_auth_wire::{
     SessionInput, SessionView,
     model::AdmissionRefusal,

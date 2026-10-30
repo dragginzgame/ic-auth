@@ -1,8 +1,6 @@
 //! Native outcome semantics, not instruction/cycle measurements.
-#[path = "../../session_metrics.rs"]
-mod metrics;
-#[path = "../../../../crates/ic-auth/tests/support/mod.rs"]
-mod support;
+use ic_auth_qualification_support::session_metrics as metrics;
+use sha2::{Digest, Sha256};
 
 use ic_auth::{
     admission_budget::{AdmissionBudgetError, SessionAdmissionBudget},
@@ -64,15 +62,30 @@ struct Host {
 }
 impl Host {
     fn new() -> Self {
-        let mut claims =
-            support::claims(SigningKey::from_bytes(&[1; 32]).verifying_key().to_bytes());
-        claims.login_started_at_ns = NOW - SECOND;
-        claims.login_deadline_ns = NOW + 60 * SECOND;
-        claims.issued_at_ns = NOW;
-        claims.admission_expires_at_ns = NOW + SECOND;
+        let key = SigningKey::from_bytes(&[42; 32]);
+        let claims = PortableClaims {
+            audience: AudienceId {
+                canonical_network_id: CanonicalId::from_bytes([1; 32]),
+                fleet_id: CanonicalId::from_bytes([2; 32]),
+            },
+            mechanism: PortableMechanism::Ed25519,
+            issuer: Principal::from_slice(&[1]),
+            account_subject: Principal::from_slice(&[2]),
+            key_binding_id: Sha256::digest(key.verifying_key().to_bytes()).into(),
+            browser_public_key: SigningKey::from_bytes(&[1; 32]).verifying_key().to_bytes(),
+            login_started_at_ns: NOW - SECOND,
+            login_deadline_ns: NOW + 60 * SECOND,
+            issued_at_ns: NOW,
+            admission_expires_at_ns: NOW + SECOND,
+            nonce: [0; 16],
+            grants: vec![DelegatedRoleGrant {
+                target: "user".parse().unwrap(),
+                scopes: vec!["read".into()],
+            }],
+        };
         Self {
             grants: ValidatedGrants::new(claims.grants.clone()).unwrap(),
-            key: support::issuer_key(),
+            key,
             store: Store {
                 inner: MemorySessionStore::new(
                     0,

@@ -10,6 +10,7 @@ publish = false
 description = "Internal IC Testkit and ingress-delegation qualification"
 
 [dev-dependencies]
+ic-auth-qualification-support.workspace = true
 ic-auth = { workspace = true, features = ["sessions", "certified-proof-verification", "portable-signature-verification"] }
 ic-auth-protocol-types.workspace = true
 # Unpublished Wire controls for the qualification host.

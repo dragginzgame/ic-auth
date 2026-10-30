@@ -13,6 +13,7 @@ description = "Internal canister host for IC Auth qualification"
 crate-type = ["cdylib"]
 
 [dependencies]
+ic-auth-qualification-support.workspace = true
 ic-auth = { workspace = true, features = ["canister-signature-preparation", "session-restore", "portable-signature-verification", "certified-proof-verification"] }
 ic-auth-protocol-types.workspace = true
 # Private Wire controls are never part of the public Auth contract.
@@ -27,7 +28,7 @@ serde.workspace = true
 # Private component probes decode the same IC certificate envelopes as Platform.
 serde_bytes.workspace = true
 serde_cbor.workspace = true
-# The shared ../sessions.rs fixture hashes admitted Ed25519 key bindings.
+# Qualification code hashes admitted Ed25519 key bindings.
 sha2.workspace = true
 
 [dev-dependencies]

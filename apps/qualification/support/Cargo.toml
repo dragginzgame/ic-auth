@@ -1,0 +1,20 @@
+[package]
+name = "ic-auth-qualification-support"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+ic-auth = { workspace = true, features = ["sessions", "certified-proof-verification", "portable-signature-verification"] }
+ic-auth-protocol-types.workspace = true
+ic-auth-qualification-contracts.workspace = true
+ic-auth-wire.workspace = true
+ic-metrics.workspace = true
+ic-platform = { workspace = true, features = ["ed25519"] }
+serde.workspace = true
+sha2.workspace = true
+
+[lints]
+workspace = true

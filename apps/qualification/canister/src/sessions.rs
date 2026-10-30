@@ -1,11 +1,8 @@
 //! Actual volatile receiver lifecycle for qualification, not a production issuer.
 mod checkpoint;
-#[path = "../../session_metrics.rs"]
-mod metrics;
+use ic_auth_qualification_support::session_metrics as metrics;
 mod profiling;
 pub(crate) use checkpoint::{Snapshot, capture, restore};
-#[path = "../../sessions.rs"]
-pub(crate) mod contract;
 use contract::*;
 use ic_auth::{
     admission_budget::SessionAdmissionBudget,
@@ -22,6 +19,7 @@ use ic_auth_protocol_types::{
     LogoutResult, LogoutUnavailable, PortableCredential, SessionReadRefusal,
 };
 use ic_auth_qualification_contracts as controls;
+pub(crate) use ic_auth_qualification_support::sessions as contract;
 use ic_auth_wire::{SessionInput, SessionView, model::AdmissionRefusal};
 use ic_platform::Principal;
 

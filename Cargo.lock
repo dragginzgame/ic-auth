@@ -1262,6 +1262,7 @@ dependencies = [
  "ic-auth",
  "ic-auth-protocol-types",
  "ic-auth-qualification-contracts",
+ "ic-auth-qualification-support",
  "ic-auth-wire",
  "ic-host-fs",
  "ic-host-process",
@@ -1281,6 +1282,7 @@ dependencies = [
  "ic-auth",
  "ic-auth-protocol-types",
  "ic-auth-qualification-contracts",
+ "ic-auth-qualification-support",
  "ic-auth-wire",
  "ic-memory",
  "ic-metrics",
@@ -1301,6 +1303,20 @@ dependencies = [
  "ic-auth-wire",
  "ic-wire",
  "serde",
+]
+
+[[package]]
+name = "ic-auth-qualification-support"
+version = "0.25.0"
+dependencies = [
+ "ic-auth",
+ "ic-auth-protocol-types",
+ "ic-auth-qualification-contracts",
+ "ic-auth-wire",
+ "ic-metrics",
+ "ic-platform",
+ "serde",
+ "sha2 0.10.9",
 ]
 
 [[package]]

@@ -5,6 +5,7 @@ members = [
     "apps/qualification/contracts",
     "apps/qualification/feature-unification",
     "apps/qualification/runner",
+    "apps/qualification/support",
     "apps/tooling",
     # Production packages
     "crates/ic-auth",
@@ -43,6 +44,7 @@ clap = { version = "4", default-features = false, features = ["derive", "error-c
 # Adversarial feature trigger only; production and test crypto APIs use Platform.
 ed25519-dalek = { version = "2.2", default-features = false }
 ic-auth-qualification-contracts = { path = "apps/qualification/contracts" }
+ic-auth-qualification-support = { path = "apps/qualification/support" }
 ic-build = { version = "0.70", default-features = false }
 ic-host-fs = { version = "0.70", default-features = false }
 ic-host-process = { version = "0.70", default-features = false }

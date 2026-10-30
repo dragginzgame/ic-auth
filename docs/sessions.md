@@ -490,7 +490,7 @@ not deployed cross-subnet or Canic endpoint qualification. Run `make test-sessio
 
 ### Host-owned admission diagnostics
 
-The tested [admission recorder](../apps/qualification/session_metrics.rs) uses
+The tested [admission recorder](../apps/qualification/support/src/session_metrics.rs) uses
 IC Metrics 0.17 `MeasurementCounter` fields in the unpublished qualification
 host. Public Auth libraries have no Metrics dependency. The receiver calls
 `host.metrics.observe(&result)` once, immediately after `establish_session` and
