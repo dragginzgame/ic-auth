@@ -2,12 +2,13 @@
 
 ## Base, scope and delivery
 
-The local base is Auth **0.23.0**, `95dbb9011a90b7119fa14e423f3112f1956f3c41`
-(`Release 0.23.0`). [#115 — Reduce admission ownership and remaining protocol/client complexity](https://github.com/dragginzgame/ic-auth/issues/115)
+The cleanup is committed in `9879db386c3cda06cbff66f488b1bae1c08d1576`, atop Auth
+**0.23.0**, `95dbb9011a90b7119fa14e423f3112f1956f3c41` (`Release 0.23.0`).
+[#115 — Reduce admission ownership and remaining protocol/client complexity](https://github.com/dragginzgame/ic-auth/issues/115)
 owns this ten-candidate cleanup and measurements. Pending changelog is **0.24.0**;
-own versions remain **0.23.0**. Changes are local, unstaged and uncommitted.
-No push, full CI, release, publication or sibling edits ran. Retain release/recovery
-state. [#113](https://github.com/dragginzgame/ic-auth/issues/113) and
+own versions remain **0.23.0**. The client-tool fixture repair is local, unstaged
+and uncommitted. No Git delivery, release or publication ran for this repair.
+Retain release/recovery state. [#113](https://github.com/dragginzgame/ic-auth/issues/113) and
 [#114](https://github.com/dragginzgame/ic-auth/issues/114) own prior cleanup and
 Memory/Storage adoption; their release checkpoint is in [Git history](https://github.com/dragginzgame/ic-auth/blob/95dbb9011a90b7119fa14e423f3112f1956f3c41/docs/status/current.md).
 
@@ -78,6 +79,12 @@ The first final lifecycle run exposed an invalid dummy enrollment key in a test;
 the corrected valid-but-mismatched key still proves controller mismatch refusal.
 Retain that failure and its passing retry. No full CI, macOS, real Chromium or
 production adoption is claimed.
+
+The user's complete gate stopped at `test-client-tools`: its fake generator
+omitted the new `read-vector.hex`. The fixture now emits/checks all four vectors,
+including preservation on input drift. Focused `make test-client-tools` passes;
+evidence is in `client-tools-fix.log` and fixture `client-tools.G4GAVw` under
+`target/portable-fixtures/`. Complete CI has not been rerun for this repair.
 
 ## Memory custody and consumer ownership
 

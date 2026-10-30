@@ -197,7 +197,7 @@ cat > "$consumer/generator" <<'SCRIPT'
 set -eu
 [[ "$1 $2" == 'client-contracts generate' ]]
 if [[ "${CLIENT_CONTRACT_MUTATION:-}" == generate ]]; then echo changed >> "${CLIENT_CONTRACT_MUTATION_FILE:-Cargo.toml}"; fi
-for name in credential.ts establish.ts read.ts logout.ts wire-runtime.ts credential-vector.hex logout-vector.hex admission-vector.hex codec-policy.json; do
+for name in credential.ts establish.ts read.ts logout.ts wire-runtime.ts credential-vector.hex logout-vector.hex admission-vector.hex read-vector.hex codec-policy.json; do
     printf 'rust-owned %s\n' "$name" > "$3/$name"
 done
 SCRIPT
@@ -208,6 +208,9 @@ printf 'original source\n' > "$consumer/Cargo.toml"
 for mode in generate check; do
     (cd "$consumer"; PATH="$consumer/bin:$PATH" bash scripts/dev/client-contracts.sh "$mode") \
         > "$fixture/contracts-$mode.log" 2>&1
+    for name in credential logout admission read; do
+        [[ "$(cat "$consumer/target/browser-client/$name-vector.hex")" == "rust-owned $name-vector.hex" ]]
+    done
 done
 printf 'stale\n' > "$consumer/packages/client/src/generated/credential.ts"
 if (cd "$consumer"; PATH="$consumer/bin:$PATH" bash scripts/dev/client-contracts.sh check) \
@@ -224,14 +227,18 @@ for input in Cargo.toml .cargo/config.toml apps/tooling/src/nested/ignored.rs; d
         for mode in generate check; do
             printf 'original source\n' > "$consumer/Cargo.toml"
             printf 'original config\n' > "$consumer/.cargo/config.toml"
-            printf 'retained vector\n' > "$consumer/target/browser-client/credential-vector.hex"
+            for name in credential logout admission read; do
+                printf 'retained vector\n' > "$consumer/target/browser-client/$name-vector.hex"
+            done
             log="$fixture/contracts-drift-${input##*/}-$stage-$mode.log"
             if (cd "$consumer"; CLIENT_CONTRACT_MUTATION="$stage" CLIENT_CONTRACT_MUTATION_FILE="$input" PATH="$consumer/bin:$PATH" \
                 bash scripts/dev/client-contracts.sh "$mode") > "$log" 2>&1; then
                 echo 'changed generator inputs unexpectedly accepted' >&2; exit 1
             fi
             [[ "$(cat "$consumer/packages/client/src/generated/credential.ts")" == stale ]]
-            [[ "$(cat "$consumer/target/browser-client/credential-vector.hex")" == 'retained vector' ]]
+            for name in credential logout admission read; do
+                [[ "$(cat "$consumer/target/browser-client/$name-vector.hex")" == 'retained vector' ]]
+            done
             rg -F 'inputs.tsv0' "$log" > /dev/null
         done
     done

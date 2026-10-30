@@ -29,6 +29,12 @@
 - Delegate native tooling help and usage failures to Clap. Usage errors now exit
   with status 2; operational failures remain status 1 and help/version exit 0.
 
+### 🐛 Fixed
+
+- Include the session-read interoperability vector in the client-tool generator
+  fixture. Check all four vectors after generation/comparison and preserve them
+  on generator-input drift.
+
 ## [0.23.0] - 2026-10-29
 
 ### ⚠️ Breaking
