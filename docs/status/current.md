@@ -7,8 +7,10 @@ Base: released Auth **0.24.0**, `8f407d75c2027dc4a315c143ec3cc349f6e8d3f2`.
 ten-candidate cleanup (eight accepted, two rejected).
 [#118](https://github.com/dragginzgame/ic-auth/issues/118) owns four further hard
 cuts, now implemented and qualified locally. Pending notes target **0.25.0**;
-own versions remain **0.24.0**. Work is unstaged/uncommitted. No push, full CI,
-release, publication, deployment or sibling edits ran. Preserve release/recovery state.
+own versions remain **0.24.0**. The cleanup is now in maintainer commit
+`1345e91` (message `0.25.0`); this follow-up updates the isolated MSRV consumer
+for checked scope labels and remains uncommitted. No release, publication,
+deployment or sibling edits ran here. Preserve release/recovery state.
 Prior adoption checkpoints remain in [base history](https://github.com/dragginzgame/ic-auth/blob/8f407d75c2027dc4a315c143ec3cc349f6e8d3f2/docs/status/current.md).
 
 Shared Tooling remains **0.27.6**, revision
@@ -79,6 +81,9 @@ feature-unification tests pass, including strict signatures, replay, atomicity,
 old-format refusal and request hashes. Eleven native host tests and compile-fail
 docs pass. Selected all-target/all-feature, default, sessions-only and Wasm host
 Clippy pass; dependency boundaries and focused native/Wasm Rust 1.91 checks pass.
+The full `make check-msrv` now also passes after updating its isolated consumer
+to return checked scope labels. Evidence: `target/msrv-scope-fix-20261030/check-msrv.log`;
+package archives, extracted sources and locks passed their final integrity seals.
 Packed client checks and all **69** lifecycle/codec tests pass, with four
 cross-language vectors. Generated source comparison, formatting and local links pass.
 

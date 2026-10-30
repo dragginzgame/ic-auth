@@ -93,7 +93,10 @@ pub use ic_auth;
 #[cfg(feature = "ic-auth")]
 pub fn canonical_session_request(
     scopes: Vec<String>, ttl_secs: Option<u64>,
-) -> Result<(Vec<String>, [u8; 32]), ic_auth::session_request::SessionRequestError> {
+) -> Result<
+    (Vec<ic_auth_protocol_types::ScopeLabel>, [u8; 32]),
+    ic_auth::session_request::SessionRequestError,
+> {
     let request = ic_auth::session_request::SessionRequest::new(scopes, ttl_secs)?;
     Ok((request.scopes().to_vec(), request.hash()))
 }

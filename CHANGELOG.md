@@ -24,6 +24,11 @@
   `AUTHNAT3`. See [record adoption](docs/sessions.md) and
   [#118](https://github.com/dragginzgame/ic-auth/issues/118).
 
+### 🐛 Fixed
+
+- Update the isolated minimum-compiler consumer for checked scope labels, so
+  `make check-msrv` qualifies the current request API from packaged libraries.
+
 ### 🧹 Cleanup
 
 - Derive receiver key bindings from the admitted authority, share receiver
