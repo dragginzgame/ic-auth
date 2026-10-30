@@ -17,44 +17,23 @@ fn limits(maximum: usize) -> Limits {
     }
 }
 
-fn failure<E>(error: Error, invalid: E, capacity: E) -> E {
-    match error {
-        Error::Limit | Error::Allocation => capacity,
-        _ => invalid,
-    }
-}
-
-pub(crate) fn encoded_len<T: serde::Serialize, E>(
-    value: &T,
-    maximum: usize,
-    invalid: E,
-    capacity: E,
-) -> Result<usize, E> {
+pub(crate) fn encoded_len<T: serde::Serialize>(value: &T, maximum: usize) -> Result<usize, Error> {
     native::encoded_frame_len(value, limits(maximum))
-        .map_err(|error| failure(error, invalid, capacity))
 }
-
-pub(crate) fn encode<T: serde::Serialize, E>(
+pub(crate) fn encode<T: serde::Serialize>(
     value: &T,
     identity: u64,
     maximum: usize,
-    invalid: E,
-    capacity: E,
-) -> Result<Vec<u8>, E> {
+) -> Result<Vec<u8>, Error> {
     native::encode_request(identity, value, limits(maximum))
-        .map_err(|error| failure(error, invalid, capacity))
 }
-
 #[cfg(feature = "session-restore")]
-pub(crate) fn decode<T: serde::de::DeserializeOwned, E>(
+pub(crate) fn decode<T: serde::de::DeserializeOwned>(
     bytes: &[u8],
     identity: u64,
     maximum: usize,
-    invalid: E,
-    capacity: E,
-) -> Result<T, E> {
+) -> Result<T, Error> {
     native::decode_request(identity, bytes, limits(maximum))
-        .map_err(|error| failure(error, invalid, capacity))
 }
 
 #[cfg(test)]
@@ -66,12 +45,11 @@ mod tests {
         for length in [0, 1, 23, 24, 255, 256, 512, 2048] {
             let value = (vec!["x".repeat(length)], u64::MAX, Some(42_u64));
             for identity in [SESSION, REPLAY, LOGIN] {
-                let encoded = encode(&value, identity, 8192, "invalid", "capacity").unwrap();
+                let encoded = encode(&value, identity, 8192).unwrap();
                 for maximum in [encoded.len() - 1, encoded.len(), encoded.len() + 1] {
                     assert_eq!(
-                        encoded_len(&value, maximum, "invalid", "capacity"),
-                        encode(&value, identity, maximum, "invalid", "capacity")
-                            .map(|bytes| bytes.len())
+                        encoded_len(&value, maximum),
+                        encode(&value, identity, maximum).map(|bytes| bytes.len())
                     );
                 }
             }
@@ -81,40 +59,28 @@ mod tests {
     #[cfg(feature = "session-restore")]
     #[test]
     fn framing_and_traversal_refusals_never_publish_a_record() {
-        let encoded = encode(&[42_u8; 32], SESSION, 2048, "invalid", "capacity").unwrap();
+        let encoded = encode(&[42_u8; 32], SESSION, 2048).unwrap();
         assert_eq!(
-            decode::<[u8; 32], _>(&encoded, REPLAY, 2048, "invalid", "capacity"),
-            Err("invalid")
+            decode::<[u8; 32]>(&encoded, REPLAY, 2048),
+            Err(Error::Identity)
         );
         assert_eq!(
-            decode::<[u8; 32], _>(&encoded, SESSION, encoded.len() - 1, "invalid", "capacity"),
-            Err("capacity")
+            decode::<[u8; 32]>(&encoded, SESSION, encoded.len() - 1),
+            Err(Error::Limit)
         );
         for cut in 0..encoded.len() {
-            assert!(
-                decode::<[u8; 32], _>(&encoded[..cut], SESSION, 2048, "invalid", "capacity")
-                    .is_err()
-            );
+            assert!(decode::<[u8; 32]>(&encoded[..cut], SESSION, 2048).is_err());
         }
         let mut trailing = encoded;
         trailing.push(0);
         assert_eq!(
-            decode::<[u8; 32], _>(&trailing, SESSION, 2048, "invalid", "capacity"),
-            Err("invalid")
+            decode::<[u8; 32]>(&trailing, SESSION, 2048),
+            Err(Error::Trailing)
         );
         assert!(
-            encode(&vec![0_u8; 1024], SESSION, 2048, "invalid", "capacity").is_err(),
+            encode(&vec![0_u8; 1024], SESSION, 2048).is_err(),
             "traversal allowance is independent of bytes"
         );
-        assert!(
-            decode::<[u8; 32], _>(
-                b"IC-AUTH-PORTABLE-SESSION\0\xa0",
-                SESSION,
-                2048,
-                "invalid",
-                "capacity"
-            )
-            .is_err()
-        );
+        assert!(decode::<[u8; 32]>(b"IC-AUTH-PORTABLE-SESSION\0\xa0", SESSION, 2048).is_err());
     }
 }

@@ -1,108 +1,98 @@
-# Current handoff — 2026-10-29
+# Current handoff — 2026-10-30
 
 ## Base, scope and delivery
 
-The local base is Auth **0.22.0**, `34ca71b67e816d804a77f76d09bb210256862663`
-(`Release 0.22.0`). See its [handoff](https://github.com/dragginzgame/ic-auth/blob/34ca71b67e816d804a77f76d09bb210256862663/docs/status/current.md)
-and #109/#110/#111/#112 for earlier storage/dependency/harness evidence.
-
-[#113 — Reduce transport allocations and admission duplication](https://github.com/dragginzgame/ic-auth/issues/113)
-owns eight implemented cleanup candidates, two retained candidates and the two
-subsequent configuration cuts. [#114 — Adopt Memory/Storage 0.56](https://github.com/dragginzgame/ic-auth/issues/114)
-owns the latest dependency adoption. Pending changelog is **0.23.0**; own versions
-remain **0.22.0**. Nothing was staged, committed or pushed. No full CI, release,
-publication or sibling edits ran. Release/recovery evidence remains intact.
+The local base is Auth **0.23.0**, `95dbb9011a90b7119fa14e423f3112f1956f3c41`
+(`Release 0.23.0`). [#115 — Reduce admission ownership and remaining protocol/client complexity](https://github.com/dragginzgame/ic-auth/issues/115)
+owns this ten-candidate cleanup and measurements. Pending changelog is **0.24.0**;
+own versions remain **0.23.0**. Changes are local, unstaged and uncommitted.
+No push, full CI, release, publication or sibling edits ran. Retain release/recovery
+state. [#113](https://github.com/dragginzgame/ic-auth/issues/113) and
+[#114](https://github.com/dragginzgame/ic-auth/issues/114) own prior cleanup and
+Memory/Storage adoption; their release checkpoint is in [Git history](https://github.com/dragginzgame/ic-auth/blob/95dbb9011a90b7119fa14e423f3112f1956f3c41/docs/status/current.md).
 
 Shared Tooling remains **0.27.6**, revision
-`5a72359b5be19d5221334cf2c9b3204621d3f3f6`, 127 files. Platform/macros **0.8.2**,
-Tooling **0.70.2**, Wire/derive **0.7.23** and Metrics **0.17.4** remain selected.
-Only Memory/Storage advanced in this adoption: **0.55.2 → 0.56.0**.
-Root floors now declare 0.56.0; all unrelated external lock identities are
-preserved. Rust **1.91** remains the minimum; development uses **1.99.1**.
+`5a72359b5be19d5221334cf2c9b3204621d3f3f6`. Platform/macros **0.8.2**,
+Tooling/Testkit **0.70.2**, Wire/derive **0.7.23**, Memory/Storage **0.56.0** and
+Metrics **0.17.4** are unchanged. The lock adds only the private qualification
+contracts' dependency on Auth protocol types. Rust **1.91** remains the minimum;
+development uses **1.99.1**.
 
-## Pending Rust API migration
+## Pending consumer migration and cleanup
 
-Wire DTO Principal fields hold Platform-owned values directly. Native Wire bytes,
-bounds and generated browser sources remain unchanged; human-readable Serde uses
-Principal text. Host-only `typescript` selects Platform `wire-schema`.
+Admission consumes `SessionRequest` and moves its scopes into the session. Retain
+raw inputs or explicitly clone when the host needs a checked request afterward.
+`PortableVerificationContext::Ed25519` borrows immutable `PreparedIssuerKey`.
+Admit protected issuer bytes once with Platform's existing parser/weak-key checks;
+retain original bytes and rebuild after configuration decoding. Live mechanism,
+binding, grants, clock, revocation, budget, strict signature and canonical-scalar
+checks remain. This caches key shape only, never proof validity or TEE assurance.
+Standalone raw-key verification retains its API and rejection order.
 
-All `SessionEstablished` variants hold compact `SessionReceipt` values.
-`SessionStore::admit` and `MemorySessionStore::admit_with_commit` consume owned
-Session/Replay records. Update backend signatures and move validated records
-into storage. Callbacks borrow staged records and complete atomically. The
-receipt is prepared before commit without a fallible reread; it grants nothing.
+Read endpoints project `SessionError::read_refusal()` into finite
+`SessionReadRefusal` categories. Wire `ReadSession` moves to **0x415554480013**;
+old **0x415554480003** frames are refused. Update readers/receivers together;
+keep detailed errors host-side. All five browser contracts were regenerated and
+reviewed; only `read.ts` changes. Rust/TypeScript/Rust vectors include read refusals.
 
-`SessionContext::required_scopes` borrows immutable `RequiredScopes`, admitted
-once from protected operation definitions and rebuilt after decoding.
-`RequiredScopes::NONE` supplies empty requirements; duplicates/order semantics
-and bounds remain. Every operation keeps live scope/authority/time/revocation checks.
-`SessionLimits::new` admits immutable backend bounds once; getters replace raw
-fields. Reconstruct after configuration decoding/changes and return the retained
-value from `SessionReader::limits`. Occupancy, byte capacity, associations and
-generation remain independently checked. `MemorySessionStore::new` is infallible;
-restoration remains fallible. See [sessions](../sessions.md) and
-[consumer migration](../canic-adoption.md).
+The remaining cleanup uses a zero-size certified-leaf value, owner-local codec
+error mapping, singleton/pre-sized Merkle witnesses and inline Principal fields
+in private controls. Logout cleanup projects loop state instead of cloning whole
+journals; returned snapshots remain detached. Tooling delegates help/usage to Clap:
+usage errors exit 2, operational errors 1, help/version 0. Current adoption notes
+are reconciled. Root ECDSA preparation was measured and deliberately not adopted.
+See [sessions](../sessions.md), [Wire migration](../../crates/ic-auth-wire/README.md)
+and [consumer migration](../canic-adoption.md).
 
-Fresh admission reuses derived identity after the retry path. Merkle buffers,
-ledger publication, journal status projection and generator policy are simplified.
-Raw/prepared verification wrappers retain distinct refusal/retry ordering;
-cryptography already converges. The streaming-hash trial was rejected for larger
-Wasm and tiny savings. No proof algorithm, signed-byte, trust or cache change occurs.
+Released 0.23 APIs still require owned Session/Replay commits, compact receipts,
+checked `RequiredScopes` and immutable `SessionLimits`. Callbacks commit atomically;
+receipts authorize nothing. Preserve current authority/generation and store checks.
+No signed bytes, session/replay/login record, `AUTHNAT2` checkpoint or browser
+journal format changed in this batch. The TEE/non-TEE trust model is unchanged;
+there is no verification-result cache or replacement cryptography.
 
-## Memory/Storage 0.56 qualification boundary
+## Matched evidence and limits
 
-Published source revision is `956b2b92728f82f75dd51d4d10ed52f325529e91`, checked
-against live official Cargo index records and archive identities. Memory changes
-its allocation-ledger/Cell-value CBOR to bounded Wire, with `ICML` framing and
-`ICMWIRE1` marker. Storage reuses upstream retained-length bounds admission.
-Underlying manager/substrate Cell layouts and Auth payload codecs are unchanged.
+Evidence is retained in `target/cleanup-024-20261030/`: archived base source,
+separate build outputs, before/final/trial artifacts, lock identities, patches,
+logs and PocketIC state paths. Fresh same-lock reference Wasm is **2,038,026 →
+2,039,331 bytes**, **+1,305 bytes (0.064%)**. This is a small overall size increase.
+The three fresh small Ed25519 admission samples have median **2,573,594 →
+2,395,538 instructions (6.9% lower)**. Ordinary authorization remains **5,381**;
+small/wide records remain **364/479 bytes**. Small Ed25519 record decoding is
+**28,362 → 27,801**. These are fixture measurements, not production estimates.
 
-Only the unpublished qualification host selects Memory/Storage. Its production
-adapter needs no source repair. A test-only Platform substrate capability builds
-isolated old-ledger backing from a published 0.55.2 fixture; the new runtime gives
-a typed ledger-record refusal, and Auth bootstrap leaves every backing byte and
-application Cell intact. No legacy decoder or fallback is introduced.
+The isolated Root-key prototype added **1,325 bytes** for roughly **158,000**
+instructions saved within a **440-million**-instruction certified admission
+(about **0.036%**). Keep the existing Root API/verifier. BLS dominates that path;
+no BLS algorithm, validation rule or certificate trust change was attempted.
 
-Older Memory backing is incompatible even if its application payload is
-`AUTHNAT2`. Installed qualification uses fresh backing and current-format
-upgrades. Retain older binaries/states. Any retained installation needs its own
-reviewed transition before upgrade; this task authorizes no reinstall, reset or
-discarding records. Never clear only the ledger while leaving application data.
-Auth's prior CBOR-record retirement does not authorize another data retirement.
+Focused engine, strict/adversarial signature, revocation, refusal, Wire, private
+host, metrics and tooling tests pass. Native/all-feature and Wasm host Clippy,
+Rust 1.91 native/Wasm checks, dependency boundaries and compile-fail docs pass.
+Client qualification passes the packed consumer, all **69** lifecycle/codec tests
+and four cross-language vectors. Installed final-Wasm cases pass live authority
+and certification, composed roots, protected checkpoint upgrade and SDK signed
+ingress/admission/logout. PocketIC remains admitted **16.1.0** with Testkit 0.70.2.
+The first final lifecycle run exposed an invalid dummy enrollment key in a test;
+the corrected valid-but-mismatched key still proves controller mismatch refusal.
+Retain that failure and its passing retry. No full CI, macOS, real Chromium or
+production adoption is claimed.
 
-## Evidence
+## Memory custody and consumer ownership
 
-Latest evidence: `target/memory-storage-20261029/`, including index/source
-identities, before manifests/lock/patch, lock-delta admission, artifacts, source
-seals, logs and fresh PocketIC state paths. Current reference Wasm is
-**2,038,000 bytes**, down **159,335 bytes (7.25%)** from the same-code 0.55.2
-artifact (**2,197,335 bytes**), with unrelated locked dependencies preserved.
-No new runtime optimization or production workload estimate is claimed.
+Only the unpublished host selects Memory/Storage. Released 0.56 changes Memory's
+allocation-ledger/Cell-value encoding to bounded Wire (`ICML`/`ICMWIRE1`). Older
+Memory backing remains incompatible even with `AUTHNAT2` application payloads.
+The host refuses it without clearing; retain older binaries/states. Any retained
+installation needs a reviewed transition before upgrade. Never clear only the
+ledger, reinstall or discard application records to get past admission. Auth's
+earlier CBOR retirement authorizes no additional data retirement.
 
-Ten native host tests pass, including current-cell bounds/reopen/custody and
-old-ledger refusal without clearing. Native all-target and Wasm host Clippy pass;
-Rust 1.91 native/all-target and Wasm checks pass. Host Wasm dependency boundaries
-and all five generated browser contract comparisons pass. The four installed
-final-Wasm cases pass certification/live authority, composed roots, checkpoint
-upgrade and SDK signed ingress/logout. PocketIC remains the admitted **16.1.0**
-pair selected by the prepared Testkit 0.70.2 CLI. No current full CI, macOS,
-Chromium, complete packed-client rerun or production adoption is claimed.
-
-Prior cleanup evidence remains in `target/cleanup-023-20261029/` and
-`target/checked-config-023-20261029/`, with #113 recording historical matched
-figures and failed trials. Scope probes reduced one/wide requirement authorization
-from **5,830/51,736 → 5,554/45,655**, with construction outside the timed call.
-Their 366-byte Wasm increase and slightly higher fresh-admission cost were accepted;
-these historical measurements used Memory/Storage 0.55.2.
-
-## Consumer ownership and next delivery
-
-Native Auth session/replay/login records, `AUTHNAT2` application payload and
-browser journals remain unchanged by Memory adoption. Hosts retain protected
-grants/clock/generation, memory allocation, atomic commits and certification.
-Canic owns issuer/endpoint/lifecycle acceptance in
-[Canic #491](https://github.com/dragginzgame/canic/issues/491), and browser issuance
-in [#507](https://github.com/dragginzgame/canic/issues/507). Its existing shared
-metrics adapter records Auth outcomes. No production wallet service, issuer
-adapter or browser publication is established. User delivery/version selection
-and complete CI remain separate.
+Hosts own protected grants/clock/generation, allocation, atomic commits and
+certification. Canic owns endpoint/issuer/lifecycle acceptance in
+[Canic #491](https://github.com/dragginzgame/canic/issues/491) and browser issuance
+in [#507](https://github.com/dragginzgame/canic/issues/507); its shared metrics
+adapter consumes Auth outcomes. No production wallet service, issuer adapter,
+Canic acceptance or browser publication is established here. User delivery and
+separately authorized complete CI remain separate from this local cleanup.

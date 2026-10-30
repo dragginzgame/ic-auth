@@ -231,11 +231,11 @@ impl Fixture {
             &mut receiver.ledger,
             &mut receiver.budget,
             credential,
-            &request(),
+            request(),
             &SessionAdmissionContext {
                 verification: PortableVerificationContext::Ed25519 {
                     claims: &claims,
-                    public_key: &key,
+                    public_key: &ic_auth::portable_signature::PreparedIssuerKey::new(key).unwrap(),
                 },
                 role: &self.role,
                 ttl: ttl(),
@@ -337,11 +337,11 @@ fn required_scopes_accept_any_order_but_never_borrow_another_roles_grant() {
             &mut r.ledger,
             &mut r.budget,
             &credential,
-            &SessionRequest::new(vec!["write".into(), "read".into()], None).unwrap(),
+            SessionRequest::new(vec!["write".into(), "read".into()], None).unwrap(),
             &SessionAdmissionContext {
                 verification: PortableVerificationContext::Ed25519 {
                     claims: &context,
-                    public_key: &key,
+                    public_key: &ic_auth::portable_signature::PreparedIssuerKey::new(key).unwrap(),
                 },
                 role: &f.role,
                 ttl: ttl(),
@@ -406,11 +406,14 @@ fn future_start_retry_keeps_original_credential_and_verifies_only_once() {
                 claims: bytes.clone(),
                 proof: proof.clone(),
             },
-            &request(),
+            request(),
             &SessionAdmissionContext {
                 verification: PortableVerificationContext::Ed25519 {
                     claims: &claims_context(context.authority),
-                    public_key: &f.key.verifying_key().to_bytes(),
+                    public_key: &ic_auth::portable_signature::PreparedIssuerKey::new(
+                        f.key.verifying_key().to_bytes(),
+                    )
+                    .unwrap(),
                 },
                 role: context.role,
                 ttl: ttl(),
@@ -522,11 +525,14 @@ fn two_receivers_two_devices_retry_after_proof_expiry_and_local_logout() {
                 claims: bytes.clone(),
                 proof: PortableProof::Ed25519 { signature: vec![] }
             },
-            &request(),
+            request(),
             &SessionAdmissionContext {
                 verification: PortableVerificationContext::Ed25519 {
                     claims: &claims_context(ctx.authority),
-                    public_key: &f.key.verifying_key().to_bytes()
+                    public_key: &ic_auth::portable_signature::PreparedIssuerKey::new(
+                        f.key.verifying_key().to_bytes()
+                    )
+                    .unwrap()
                 },
                 role: ctx.role,
                 ttl: ttl()
@@ -634,11 +640,14 @@ fn failed_commit_is_atomic_for_session_replay_reservation_and_logout() {
                     signature: signature.to_vec()
                 }
             },
-            &request(),
+            request(),
             &SessionAdmissionContext {
                 verification: PortableVerificationContext::Ed25519 {
                     claims: &claims_context(ctx.authority),
-                    public_key: &f.key.verifying_key().to_bytes()
+                    public_key: &ic_auth::portable_signature::PreparedIssuerKey::new(
+                        f.key.verifying_key().to_bytes()
+                    )
+                    .unwrap()
                 },
                 role: ctx.role,
                 ttl: ttl()
@@ -768,11 +777,14 @@ fn replay_capacity_narrowing_and_reset_refuse_before_verification() {
                 claims: bytes.clone(),
                 proof: PortableProof::Ed25519 { signature: vec![] }
             },
-            &excessive,
+            excessive.clone(),
             &SessionAdmissionContext {
                 verification: PortableVerificationContext::Ed25519 {
                     claims: &claims_context(f.context(NOW).authority),
-                    public_key: &f.key.verifying_key().to_bytes()
+                    public_key: &ic_auth::portable_signature::PreparedIssuerKey::new(
+                        f.key.verifying_key().to_bytes()
+                    )
+                    .unwrap()
                 },
                 role: f.context(NOW).role,
                 ttl: ttl()
@@ -792,11 +804,14 @@ fn replay_capacity_narrowing_and_reset_refuse_before_verification() {
                 claims: bytes.clone(),
                 proof: PortableProof::Ed25519 { signature: vec![] }
             },
-            &changed,
+            changed.clone(),
             &SessionAdmissionContext {
                 verification: PortableVerificationContext::Ed25519 {
                     claims: &claims_context(f.context(NOW).authority),
-                    public_key: &f.key.verifying_key().to_bytes()
+                    public_key: &ic_auth::portable_signature::PreparedIssuerKey::new(
+                        f.key.verifying_key().to_bytes()
+                    )
+                    .unwrap()
                 },
                 role: f.context(NOW).role,
                 ttl: ttl()
@@ -818,11 +833,14 @@ fn replay_capacity_narrowing_and_reset_refuse_before_verification() {
                 claims: bytes.clone(),
                 proof: PortableProof::Ed25519 { signature: vec![] }
             },
-            &request(),
+            request(),
             &SessionAdmissionContext {
                 verification: PortableVerificationContext::Ed25519 {
                     claims: &claims_context(f.context(NOW).authority),
-                    public_key: &f.key.verifying_key().to_bytes()
+                    public_key: &ic_auth::portable_signature::PreparedIssuerKey::new(
+                        f.key.verifying_key().to_bytes()
+                    )
+                    .unwrap()
                 },
                 role: f.context(NOW).role,
                 ttl: ttl()
@@ -843,11 +861,14 @@ fn replay_capacity_narrowing_and_reset_refuse_before_verification() {
                 claims: bytes.clone(),
                 proof: PortableProof::Ed25519 { signature: vec![] }
             },
-            &request(),
+            request(),
             &SessionAdmissionContext {
                 verification: PortableVerificationContext::Ed25519 {
                     claims: &claims_context(ctx.authority),
-                    public_key: &f.key.verifying_key().to_bytes()
+                    public_key: &ic_auth::portable_signature::PreparedIssuerKey::new(
+                        f.key.verifying_key().to_bytes()
+                    )
+                    .unwrap()
                 },
                 role: ctx.role,
                 ttl: ttl()
@@ -1035,11 +1056,11 @@ fn admission_uses_only_its_enrolled_verifier_context() {
         &mut r.ledger,
         &mut r.budget,
         &f.credential(),
-        &request(),
+        request(),
         &SessionAdmissionContext {
             verification: PortableVerificationContext::Ed25519 {
                 claims: &claims,
-                public_key: &wrong,
+                public_key: &ic_auth::portable_signature::PreparedIssuerKey::new(wrong).unwrap(),
             },
             role: &f.role,
             ttl: ttl(),
@@ -1069,11 +1090,14 @@ fn invalid_signature_cannot_reserve_state_and_spends_verification_credit() {
                 signature: [0; 64].to_vec(),
             },
         },
-        &request(),
+        request(),
         &SessionAdmissionContext {
             verification: PortableVerificationContext::Ed25519 {
                 claims: &claims_context(ctx.authority),
-                public_key: &f.key.verifying_key().to_bytes(),
+                public_key: &ic_auth::portable_signature::PreparedIssuerKey::new(
+                    f.key.verifying_key().to_bytes(),
+                )
+                .unwrap(),
             },
             role: ctx.role,
             ttl: ttl(),

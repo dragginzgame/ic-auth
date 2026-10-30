@@ -8,6 +8,19 @@ checkpoints are retained separately in [adoption history](canic-adoption-history
 
 ## Session commit contract
 
+Pending Auth **0.24** consumes `SessionRequest` so its scopes move into a fresh
+session. Clone explicitly when a host also needs the checked request afterward.
+`PortableVerificationContext::Ed25519` borrows `PreparedIssuerKey`, constructed
+from protected issuer bytes and retained with enrollment. Rebuild after decoding;
+keep current authority, revocation, budget and strict verification checks. This
+key shape is neither enrollment proof nor TEE assurance. Root verification and
+standalone raw-key APIs retain their current contracts.
+
+Read endpoints project `SessionError::read_refusal()` and return typed
+`SessionReadRefusal` categories. Update the reader/receiver pair to Wire identity
+`0x415554480013`; former `0x415554480003` frames are refused. Signed claims,
+current session/replay/login storage and browser journals are unchanged.
+
 Auth **0.22** hard-cuts private session/replay/login storage to bounded
 native Wire records. The maintainer confirmed no deployed or retained Auth records
 need preservation. Old records are refused, with no fallback or implicit reset.
@@ -17,7 +30,7 @@ checkpoint now uses `AUTHNAT2`; Canic owns its own durable framing and lifecycle
 Signed claims, public Wire transport and the TEE/non-TEE trust model are unchanged.
 See [record bounds and restoration](sessions.md#storage-and-reset).
 
-Pending Auth **0.23** changes all `SessionEstablished` payloads to
+Auth **0.23** changes all `SessionEstablished` payloads to
 `SessionReceipt` (caller, issuer, subject, expiry), and consumes owned
 `Session`/`Replay` in `SessionStore::admit` and `MemorySessionStore::admit_with_commit`.
 Update backend signatures and move the validated pair into storage. Read full
@@ -56,8 +69,8 @@ callback on `authorize_session`; borrow a retained memory record or return
 snapshot, before any await. Public Wire and checkpoint bytes are unchanged. Match typed ledger
 state and the explicit `SessionCommit::write` payload, and use checked TTL policy
 values. See the [migration](sessions.md#session-commit-write-migration).
-Stored records, signed bytes and Wire methods are unchanged. Auth 0.19.4 is
-published. Canic 0.112.0 already uses the commit API in its test-only backend;
+Historical consumer checkpoint: Auth 0.19.4 was published and Canic 0.112.0
+used the commit API in its test-only backend;
 [Canic PR #701 — Retain persistent Auth receiver state](https://github.com/dragginzgame/canic/pull/701)
 proposes the retained persistent host component and makes that backend available
 under the existing receiver feature. Its 40 native storage tests, normal
@@ -78,7 +91,7 @@ user-facing endpoint wiring remain Canic-owned requirements in #491/#507.
 
 ## Released API and dependency direction
 
-The released Auth 0.19 family contains `ic-auth-protocol-types`, `ic-auth` and
+The workspace contains `ic-auth-protocol-types`, `ic-auth` and
 `ic-auth-wire`. Select matching package releases in the consumer's root catalog;
 no sibling source/path override or copied codec is needed. Auth has no Canic or
 Toko dependency. Rust 1.91 is the common minimum.

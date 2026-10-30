@@ -18,3 +18,12 @@ pub enum AdmissionRefusal {
     Throttled,
     Unavailable,
 }
+/// Proof-free session-read refusal; detailed host diagnostics are not transported.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub enum SessionReadRefusal {
+    MissingOrExpired,
+    AuthorityUnavailable,
+    ScopeRejected,
+    Revoked,
+    Unavailable,
+}

@@ -5,7 +5,7 @@ use ic_wire::{Bytes, List, Text};
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ReceiverConfig {
     pub audience: AudienceId,
-    pub issuer: Bytes<29>,
+    pub issuer: ic_auth_protocol_types::Principal,
     pub authority: ReceiverAuthority,
     pub role: Text<64>,
     pub grants: List<DelegatedRoleGrant, 16>,
@@ -28,7 +28,7 @@ pub struct CertifiedAuthority {
 }
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct RootEnrollment {
-    pub root_canister_id: Bytes<29>,
+    pub root_canister_id: ic_auth_protocol_types::Principal,
     pub algorithm: ic_auth_wire::model::ChainKeyAlgorithm,
     pub key_name: Text<128>,
     pub derivation_path_hash: [u8; 32],

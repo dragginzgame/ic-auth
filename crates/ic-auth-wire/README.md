@@ -14,12 +14,21 @@ Auth 0.22 boxes `model::PortableProof::Certified` to keep the transport
 enum compact. Direct Rust constructors use `Box::new`; domain conversions,
 generated browser types, encoded bytes and transport limits are unchanged.
 
-Pending Auth 0.23 replaces `Bytes<29>` Principal fields with Platform-owned
+Auth 0.23 replaces `Bytes<29>` Principal fields with Platform-owned
 `Principal`. Rust DTO callers pass those values directly; convert explicitly
 from external SDK identities. Native IC Wire still encodes bounded principal
 bytes, with the same method IDs, field order and generated browser contracts.
 Human-readable Serde now uses Principal text instead of byte arrays; it is not
 the application transport. No stored record or browser journal format changes.
+
+Pending Auth 0.24 changes `ReadSession` to typed `model::SessionReadRefusal`
+responses. Its identity becomes `0x415554480013`; the former
+`0x415554480003` request/reply frames are refused. Update clients and receivers
+together and regenerate bindings. Categories cover missing/expired sessions,
+unavailable authority, rejected scopes, revocation and internal unavailability.
+Keep detailed errors host-side; success still requires complete live checks.
+Credential/admission/logout identities, signed bytes and stored records are
+unchanged.
 
 The method IDs, Serde field/variant declaration order, bounded field types and
 explicit native traversal allowances are the transport contract. Consumers own actual endpoint names, ingress authentication, raw

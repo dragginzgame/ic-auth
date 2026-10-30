@@ -661,7 +661,7 @@ fn certified_proof_uses_the_shared_session_lifecycle() {
         &mut ledger,
         &mut budget,
         &credential,
-        &request,
+        request.clone(),
         &SessionAdmissionContext {
             verification: ic_auth::portable_credential::PortableVerificationContext::Certified(
                 &host,
@@ -689,7 +689,7 @@ fn certified_proof_uses_the_shared_session_lifecycle() {
         &mut second_ledger,
         &mut second_budget,
         &credential,
-        &request,
+        request.clone(),
         &SessionAdmissionContext {
             verification: ic_auth::portable_credential::PortableVerificationContext::Certified(
                 &host,
@@ -709,7 +709,7 @@ fn certified_proof_uses_the_shared_session_lifecycle() {
             &mut ledger,
             &mut budget,
             &credential,
-            &request,
+            request.clone(),
             &SessionAdmissionContext {
                 verification: ic_auth::portable_credential::PortableVerificationContext::Certified(
                     &host
@@ -750,7 +750,7 @@ fn certified_proof_uses_the_shared_session_lifecycle() {
             &mut ledger,
             &mut budget,
             &credential,
-            &request,
+            request.clone(),
             &SessionAdmissionContext {
                 verification: ic_auth::portable_credential::PortableVerificationContext::Certified(
                     &host
@@ -835,10 +835,12 @@ fn credential_variant_cannot_select_authority_or_spend_mismatched_budget() {
     ));
     #[cfg(feature = "portable-signature-verification")]
     {
-        let key = [0; 32];
+        let key = ic_platform::ed25519::SigningKey::from_bytes(&[8; 32])
+            .verifying_key()
+            .to_bytes();
         let wrong = PortableVerificationContext::Ed25519 {
             claims: &authority.claims,
-            public_key: &key,
+            public_key: &ic_auth::portable_signature::PreparedIssuerKey::new(key).unwrap(),
         };
         assert_eq!(
             verify_credential(&mut budget(), &credential, &wrong),
@@ -857,7 +859,7 @@ fn credential_variant_cannot_select_authority_or_spend_mismatched_budget() {
         ed_authority.authority.key_binding_id = ed_claims.key_binding_id;
         let ed_context = PortableVerificationContext::Ed25519 {
             claims: &ed_authority,
-            public_key: &key,
+            public_key: &ic_auth::portable_signature::PreparedIssuerKey::new(key).unwrap(),
         };
         let ed_credential = PortableCredential {
             claims: encode_claims(&ed_claims).unwrap(),

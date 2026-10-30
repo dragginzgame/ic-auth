@@ -94,6 +94,16 @@ impl SessionRequest {
     pub fn scopes(&self) -> &[String] {
         &self.scopes
     }
+    #[cfg(all(
+        feature = "sessions",
+        any(
+            feature = "portable-signature-verification",
+            feature = "certified-proof-verification"
+        )
+    ))]
+    pub(crate) fn into_scopes(self) -> Vec<String> {
+        self.scopes
+    }
     /// Calculate a requested lease against protected TTL policy (maximum 1800s).
     /// This authenticates nothing and does not cap login or authority deadlines.
     /// The host supplies its clock and default/maximum policy, never the request.

@@ -46,7 +46,18 @@ pub fn merkle_root_and_witnesses(
         });
     }
 
-    let mut witnesses = vec![ChainKeyBatchWitnessV1 { steps: Vec::new() }; leaf_hashes.len()];
+    if leaf_hashes.len() == 1 {
+        return Ok((
+            leaf_hashes[0],
+            vec![ChainKeyBatchWitnessV1 { steps: Vec::new() }],
+        ));
+    }
+    let depth = leaf_hashes.len().next_power_of_two().ilog2() as usize;
+    let mut witnesses: Vec<_> = (0..leaf_hashes.len())
+        .map(|_| ChainKeyBatchWitnessV1 {
+            steps: Vec::with_capacity(depth),
+        })
+        .collect();
     let mut level: Vec<_> = leaf_hashes
         .iter()
         .enumerate()

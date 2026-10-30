@@ -93,11 +93,11 @@ impl EstablishSession {
 /// Proof-free local read contract; the runtime caller selects the session.
 pub struct ReadSession;
 impl ReadSession {
-    pub const ID: u64 = 0x415554480003;
+    pub const ID: u64 = 0x415554480013;
     pub const NAME: &'static str = "portable_session_read";
     pub const REQUEST_LIMITS: Limits = EMPTY_LIMITS;
     pub const RESPONSE_LIMITS: Limits = REPLY_LIMITS;
-    codecs!((), Result<SessionView, Text<256>>);
+    codecs!((), Result<SessionView, model::SessionReadRefusal>);
 }
 /// Caller-authenticated logout; no submitted proof or caller identity is trusted.
 pub struct Logout;

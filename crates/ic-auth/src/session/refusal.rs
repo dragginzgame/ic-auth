@@ -9,6 +9,18 @@ use crate::portable::PortableClaimsError;
 use ic_auth_protocol_types::AdmissionRefusal;
 
 impl SessionError {
+    /// Public read categories. Current authority and session checks are unchanged;
+    /// retain this original error locally when detailed diagnostics are needed.
+    pub fn read_refusal(&self) -> ic_auth_protocol_types::SessionReadRefusal {
+        use ic_auth_protocol_types::SessionReadRefusal as R;
+        match self {
+            Self::MissingOrExpired => R::MissingOrExpired,
+            Self::Disabled | Self::StaleAuthority => R::AuthorityUnavailable,
+            Self::ScopeRejected => R::ScopeRejected,
+            Self::Revocation(crate::portable::LoginRevocationError::Revoked) => R::Revoked,
+            _ => R::Unavailable,
+        }
+    }
     /// Project an admission failure without parsing its diagnostic text. A
     /// `NotYetValid` result is only a bounded retry hint, not proof validity.
     /// Hosts retain the original error for diagnostics and must not trap away

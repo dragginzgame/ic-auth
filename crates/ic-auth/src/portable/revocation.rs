@@ -92,22 +92,22 @@ impl LoginRevocationChange {
             &(self.audience, self.caller, self.record),
             crate::storage_codec::LOGIN,
             MAX_RECORD_BYTES,
-            LoginRevocationError::Storage,
-            LoginRevocationError::InvalidPolicy,
         )
+        .map_err(|error| match error {
+            ic_wire::Error::Limit | ic_wire::Error::Allocation => {
+                LoginRevocationError::InvalidPolicy
+            }
+            _ => LoginRevocationError::Storage,
+        })
     }
 
     /// Decode trusted storage only; never accept these bytes from a client.
     /// This checks shape, not provenance, completeness, rollback or live authority.
     #[cfg(feature = "session-restore")]
     pub fn decode(bytes: &[u8]) -> Result<Self, LoginRevocationError> {
-        let (audience, caller, record): (_, Principal, Record) = crate::storage_codec::decode(
-            bytes,
-            crate::storage_codec::LOGIN,
-            MAX_RECORD_BYTES,
-            LoginRevocationError::InvalidPolicy,
-            LoginRevocationError::InvalidPolicy,
-        )?;
+        let (audience, caller, record): (_, Principal, Record) =
+            crate::storage_codec::decode(bytes, crate::storage_codec::LOGIN, MAX_RECORD_BYTES)
+                .map_err(|_| LoginRevocationError::InvalidPolicy)?;
         if !is_login_caller(caller) {
             return Err(LoginRevocationError::InvalidCaller);
         }

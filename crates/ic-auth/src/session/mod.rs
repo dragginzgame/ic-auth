@@ -241,7 +241,7 @@ pub fn establish_session(
     ledger: &mut MemoryLoginRevocations,
     budget: &mut SessionAdmissionBudget,
     credential: &ic_auth_protocol_types::PortableCredential,
-    request: &crate::session_request::SessionRequest,
+    request: crate::session_request::SessionRequest,
     admission: &SessionAdmissionContext<'_>,
     policy: SessionPolicy,
 ) -> Result<SessionEstablished, SessionError> {

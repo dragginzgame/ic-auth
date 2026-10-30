@@ -59,18 +59,7 @@ fn run(command: Command) -> Result<(), Box<dyn Error>> {
 }
 
 fn main() -> std::process::ExitCode {
-    let arguments = match Arguments::try_parse() {
-        Ok(arguments) => arguments,
-        Err(error) => {
-            let failure = error.use_stderr();
-            let _ = error.print();
-            return if failure {
-                std::process::ExitCode::FAILURE
-            } else {
-                std::process::ExitCode::SUCCESS
-            };
-        }
-    };
+    let arguments = Arguments::parse();
     match run(arguments.command) {
         Ok(()) => std::process::ExitCode::SUCCESS,
         Err(error) => {

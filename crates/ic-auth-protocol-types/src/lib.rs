@@ -14,7 +14,7 @@ mod logout;
 mod portable;
 mod proof;
 
-pub use admission::AdmissionRefusal;
+pub use admission::{AdmissionRefusal, SessionReadRefusal};
 pub use common::*;
 pub use ic_platform::Principal;
 pub use identifiers::{AudienceId, AuthRole, CanonicalId, IdentifierError};

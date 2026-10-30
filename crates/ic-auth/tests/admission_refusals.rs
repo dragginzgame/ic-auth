@@ -78,3 +78,30 @@ fn certified_wrappers_preserve_categories_without_matching_messages() {
         );
     }
 }
+
+#[test]
+fn read_refusals_keep_session_categories_and_redact_backend_details() {
+    use ic_auth_protocol_types::SessionReadRefusal as Read;
+    for (error, expected) in [
+        (SessionError::MissingOrExpired, Read::MissingOrExpired),
+        (SessionError::Disabled, Read::AuthorityUnavailable),
+        (SessionError::StaleAuthority, Read::AuthorityUnavailable),
+        (SessionError::ScopeRejected, Read::ScopeRejected),
+        (
+            SessionError::Revocation(LoginRevocationError::Revoked),
+            Read::Revoked,
+        ),
+        (SessionError::StorageFailure, Read::Unavailable),
+        (SessionError::InvalidPolicyOrRecord, Read::Unavailable),
+        (
+            SessionError::Revocation(LoginRevocationError::Clock),
+            Read::Unavailable,
+        ),
+        (
+            SessionError::Claims(PortableClaimsError::InvalidContext),
+            Read::Unavailable,
+        ),
+    ] {
+        assert_eq!(error.read_refusal(), expected);
+    }
+}

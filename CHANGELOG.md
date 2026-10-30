@@ -1,5 +1,34 @@
 # Changelog
 
+## [0.24.0] - Unreleased
+
+### ⚠️ Breaking
+
+- Admission consumes `SessionRequest`, moving scopes into the stored session.
+  Reconstruct or explicitly clone a request when the host also needs to retain it.
+  `PortableVerificationContext::Ed25519` now borrows `PreparedIssuerKey`; admit
+  and retain it from protected enrollment, rebuilding after configuration decoding.
+  Standalone raw-key verification remains available with the same strict checks.
+
+- Session reads return finite `SessionReadRefusal` categories instead of diagnostic
+  text. The Wire identity changes to `0x415554480013`; update readers and receivers
+  together. The previous identity is refused. Keep detailed errors host-side;
+  signed bytes, stored records and browser journals are unchanged.
+
+### 🧹 Cleanup
+
+- Use empty certified-leaf values, simplify record-codec error ownership, reduce
+  Merkle witness allocations and finish inline Principal fields in private
+  qualification contracts. Browser cleanup projects loop status and reserves full
+  journal copies for returned snapshots. Preserve all verification, live authority,
+  replay and transaction checks.
+  [#115 — Reduce admission ownership and protocol/client complexity](https://github.com/dragginzgame/ic-auth/issues/115).
+
+### 🔧 Changed
+
+- Delegate native tooling help and usage failures to Clap. Usage errors now exit
+  with status 2; operational failures remain status 1 and help/version exit 0.
+
 ## [0.23.0] - 2026-10-29
 
 ### ⚠️ Breaking

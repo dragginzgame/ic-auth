@@ -508,7 +508,7 @@ fn credential_dispatch_preserves_signed_bytes_and_protected_key_checks() {
     let key = public_key();
     let selected = PortableVerificationContext::Ed25519 {
         claims: &authority,
-        public_key: &key,
+        public_key: &ic_auth::portable_signature::PreparedIssuerKey::new(key).unwrap(),
     };
     let mut credential = PortableCredential {
         claims: encode_claims(&trusted).unwrap(),
@@ -541,7 +541,25 @@ fn credential_dispatch_preserves_signed_bytes_and_protected_key_checks() {
     let wrong_key = [3; 32];
     let wrong = PortableVerificationContext::Ed25519 {
         claims: &authority,
-        public_key: &wrong_key,
+        public_key: &ic_auth::portable_signature::PreparedIssuerKey::new(wrong_key).unwrap(),
     };
     assert!(verify_credential(&mut budget(), &credential, &wrong).is_err());
+}
+
+#[test]
+fn prepared_issuer_key_retains_original_identity_and_refuses_weak_material() {
+    use ic_auth::portable_signature::PreparedIssuerKey;
+    let original = public_key();
+    let mut supplied = original;
+    let admitted = PreparedIssuerKey::new(supplied).unwrap();
+    supplied.fill(0);
+    assert_eq!(admitted.bytes(), &original);
+    assert_eq!(
+        admitted.binding(),
+        <[u8; 32]>::from(Sha256::digest(original))
+    );
+    assert_eq!(
+        PreparedIssuerKey::new(supplied),
+        Err(Error::InvalidPublicKey)
+    );
 }

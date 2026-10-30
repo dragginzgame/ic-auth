@@ -44,7 +44,7 @@ case "${1:-}" in
         done ;;
     generate) for name in "${outputs[@]}"; do cp "$candidate/$name" packages/client/src/generated/; done ;;
 esac
-for name in credential logout admission; do
+for name in credential logout admission read; do
     cp "$candidate/$name-vector.hex" "target/browser-client/$name-vector.hex"
 done
 

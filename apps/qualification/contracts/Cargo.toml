@@ -11,6 +11,7 @@ description = "Internal bounded Wire contracts for Auth qualification"
 
 # These controls are unpublished; application methods remain in ic-auth-wire.
 [dependencies]
+ic-auth-protocol-types.workspace = true
 ic-auth-wire.workspace = true
 ic-wire.workspace = true
 

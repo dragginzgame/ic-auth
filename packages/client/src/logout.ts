@@ -177,23 +177,34 @@ export class PortableLogoutClient {
   /** Resume only an already committed logout. Missing keys never count as confirmation. */
   async cleanup(generation: string, identity: Identity | undefined): Promise<LogoutJournal> {
     for (;;) {
-      const current = await this.update(generation, (record, now) => {
+      const current = await this.update<
+        { kind: 'active' } | { kind: 'return'; journal: LogoutJournal }
+        | { kind: 'continue'; caller: string; signer: Identity }
+      >(generation, (record, now) => {
         const next = record.phase === 'cleanup' && cleanupComplete(record, now)
           ? { ...record, phase: 'finished' as const } : record;
-        return { record: next, value: structuredClone(next) };
+        if (next.phase === 'active') return { record: next, value: { kind: 'active' } };
+        if (next.phase === 'finished' || !identity) {
+          return { record: next, value: { kind: 'return', journal: structuredClone(next) } };
+        }
+        return { record: next, value: { kind: 'continue', caller: next.caller, signer: identity } };
       });
-      if (current.phase === 'active') throw new ClientError('configuration');
-      if (current.phase === 'finished') { await this.transport.dispose(generation); return current; }
-      if (identity && identity.getPrincipal().toText() !== current.caller) throw new ClientError('configuration');
-      // A tab without a local handle must not cancel another tab's worker or
-      // delete its shared key. Completion depends on remote evidence or deadline.
-      if (!identity) return current;
+      if (current.kind === 'active') throw new ClientError('configuration');
+      if (current.kind === 'return') {
+        if (current.journal.phase === 'finished') await this.transport.dispose(generation);
+        return current.journal;
+      }
+      const signer = current.signer;
+      if (signer.getPrincipal().toText() !== current.caller) throw new ClientError('configuration');
+      // A tab without a local signer returns its detached journal above. It
+      // must not cancel another worker or dispose shared signing material.
       // Persist the attempt and cross-tab dispatch lease before network I/O.
       const claim = await this.update(generation, claimCleanup);
       if (!claim) {
-        const status = await this.status(generation);
-        if (status.phase !== 'cleanup') continue;
-        await this.clock.wait(cleanupWaitMs(status, this.clock.nowNs()));
+        const waitMs = await this.update(generation, (record, now) => ({ record,
+          value: record.phase === 'cleanup' ? cleanupWaitMs(record, now) : undefined }));
+        if (waitMs === undefined) continue;
+        await this.clock.wait(waitMs);
         continue;
       }
       let response: LogoutResult | undefined;
@@ -206,12 +217,12 @@ export class PortableLogoutClient {
             await this.update(generation, (record, now) => {
               if (record.phase !== 'cleanup' || record.busyUntilNs !== claim.lease
                 || now >= claim.lease || now >= record.deadlineNs
-                || record.caller !== identity.getPrincipal().toText()) throw new ClientError('stale_generation');
+                || record.caller !== signer.getPrincipal().toText()) throw new ClientError('stale_generation');
               return { record, value: undefined };
             });
             if (signal.aborted) throw new ClientError('stale_generation');
           };
-          const cleanupIdentity = checkedIdentity(identity, () => identity.getPrincipal(), async request => {
+          const cleanupIdentity = checkedIdentity(signer, () => signer.getPrincipal(), async request => {
             await checkLease();
             checkDestination(request, target => target === claim.canister);
           }, checkLease);

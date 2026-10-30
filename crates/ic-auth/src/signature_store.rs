@@ -8,7 +8,7 @@
 use ic_auth_protocol_types::{IcCanisterSignatureProofV1, Principal};
 use ic_platform::canister_sig_creation::{CanisterSigPublicKey, hash_bytes, hash_with_domain};
 use ic_platform::certification::{
-    AsHashTree, Certificate, Hash, LookupResult, RbTree, fork, labeled, labeled_hash, pruned,
+    AsHashTree, Certificate, Hash, LookupResult, RbTree, fork, labeled, labeled_hash, leaf, pruned,
 };
 use serde::Serialize;
 use std::collections::{BTreeMap, BTreeSet};
@@ -137,10 +137,21 @@ pub enum SignatureStoreError {
 pub struct SignatureStore {
     signing_canister: Principal,
     limits: SignatureLimits,
-    tree: RbTree<Hash, RbTree<Hash, Vec<u8>>>,
+    tree: RbTree<Hash, RbTree<Hash, EmptyLeaf>>,
     entries: BTreeMap<SignatureKey, u64>,
     expirations: BTreeSet<Expiration>,
     last_mutation_ns: u64,
+}
+
+// Standard empty certified leaf, represented without per-node Vec metadata.
+struct EmptyLeaf;
+impl AsHashTree for EmptyLeaf {
+    fn root_hash(&self) -> Hash {
+        self.as_hash_tree().digest()
+    }
+    fn as_hash_tree(&self) -> ic_platform::certification::HashTree {
+        leaf(Vec::<u8>::new())
+    }
 }
 
 impl SignatureStore {
@@ -215,11 +226,11 @@ impl SignatureStore {
             }
             if self.tree.get(&key.0).is_none() {
                 let mut messages = RbTree::new();
-                messages.insert(key.1, Vec::new());
+                messages.insert(key.1, EmptyLeaf);
                 self.tree.insert(key.0, messages);
             } else {
                 self.tree.modify(&key.0, |messages| {
-                    messages.insert(key.1, Vec::new());
+                    messages.insert(key.1, EmptyLeaf);
                 });
             }
         }

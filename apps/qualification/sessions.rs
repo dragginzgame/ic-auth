@@ -19,7 +19,7 @@ pub struct ReceiverConfig {
 /// Controller-installed test authority; never selected from submitted proofs.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ReceiverAuthority {
-    Ed25519([u8; 32]),
+    Ed25519(Box<ic_auth::portable_signature::PreparedIssuerKey>),
     Certified {
         binding: [u8; 32],
         root: Box<RootKeyPolicy>,
@@ -35,9 +35,8 @@ impl ReceiverAuthority {
         }
     }
     pub fn binding(&self) -> [u8; 32] {
-        use sha2::{Digest, Sha256};
         match self {
-            Self::Ed25519(key) => Sha256::digest(key).into(),
+            Self::Ed25519(key) => key.binding(),
             Self::Certified { binding, .. } => *binding,
         }
     }
@@ -49,7 +48,7 @@ impl TryFrom<ReceiverAuthority> for ic_auth_qualification_contracts::model::Rece
         use ic_auth_qualification_contracts::model as w;
         use ic_auth_wire::wire::{Bytes, Text};
         Ok(match value {
-            ReceiverAuthority::Ed25519(key) => w::ReceiverAuthority::Ed25519(key),
+            ReceiverAuthority::Ed25519(key) => w::ReceiverAuthority::Ed25519(*key.bytes()),
             ReceiverAuthority::Certified {
                 binding,
                 root,
@@ -57,7 +56,7 @@ impl TryFrom<ReceiverAuthority> for ic_auth_qualification_contracts::model::Rece
             } => w::ReceiverAuthority::Certified(w::CertifiedAuthority {
                 binding,
                 root: w::RootEnrollment {
-                    root_canister_id: Bytes::new(root.root_canister_id.as_slice().to_vec())?,
+                    root_canister_id: root.root_canister_id,
                     algorithm: root.algorithm.into(),
                     key_name: Text::new(root.key_id.name)?,
                     derivation_path_hash: root.derivation_path_hash,
@@ -81,9 +80,11 @@ impl TryFrom<ic_auth_qualification_contracts::model::ReceiverAuthority> for Rece
         value: ic_auth_qualification_contracts::model::ReceiverAuthority,
     ) -> Result<Self, Self::Error> {
         use ic_auth_qualification_contracts::model as w;
-        use ic_auth_wire::wire::Error;
         Ok(match value {
-            w::ReceiverAuthority::Ed25519(key) => ReceiverAuthority::Ed25519(key),
+            w::ReceiverAuthority::Ed25519(key) => ReceiverAuthority::Ed25519(Box::new(
+                ic_auth::portable_signature::PreparedIssuerKey::new(key)
+                    .map_err(|_| ic_auth_wire::wire::Error::Malformed)?,
+            )),
             w::ReceiverAuthority::Certified(w::CertifiedAuthority {
                 binding,
                 root,
@@ -91,8 +92,7 @@ impl TryFrom<ic_auth_qualification_contracts::model::ReceiverAuthority> for Rece
             }) => ReceiverAuthority::Certified {
                 binding,
                 root: Box::new(RootKeyPolicy {
-                    root_canister_id: Principal::try_from_slice(root.root_canister_id.as_slice())
-                        .map_err(|_| Error::Malformed)?,
+                    root_canister_id: root.root_canister_id,
                     algorithm: match root.algorithm {
                         ic_auth_wire::model::ChainKeyAlgorithm::EcdsaSecp256k1 => {
                             ic_auth_protocol_types::ChainKeyAlgorithm::EcdsaSecp256k1
@@ -120,10 +120,10 @@ impl TryFrom<ic_auth_qualification_contracts::model::ReceiverAuthority> for Rece
 impl TryFrom<ReceiverConfig> for ic_auth_qualification_contracts::model::ReceiverConfig {
     type Error = ic_auth_wire::wire::Error;
     fn try_from(value: ReceiverConfig) -> Result<Self, Self::Error> {
-        use ic_auth_wire::wire::{Bytes, List, Text};
+        use ic_auth_wire::wire::{List, Text};
         Ok(Self {
             audience: value.audience.try_into()?,
-            issuer: Bytes::new(value.issuer.as_slice().to_vec())?,
+            issuer: value.issuer,
             authority: value.authority.try_into()?,
             role: Text::new(value.role.as_str().into())?,
             grants: List::new(
@@ -150,8 +150,7 @@ impl TryFrom<ic_auth_qualification_contracts::model::ReceiverConfig> for Receive
         use ic_auth_wire::wire::Error;
         Ok(Self {
             audience: value.audience.try_into()?,
-            issuer: Principal::try_from_slice(value.issuer.as_slice())
-                .map_err(|_| Error::Malformed)?,
+            issuer: value.issuer,
             authority: value.authority.try_into()?,
             role: value.role.as_str().parse().map_err(|_| Error::Malformed)?,
             grants: ValidatedGrants::new(
@@ -188,7 +187,14 @@ mod tests {
                 fleet_id: CanonicalId::from_bytes([2; 32]),
             },
             issuer: Principal::from_slice(&[3]),
-            authority: ReceiverAuthority::Ed25519([4; 32]),
+            authority: ReceiverAuthority::Ed25519(Box::new(
+                ic_auth::portable_signature::PreparedIssuerKey::new(
+                    ic_platform::ed25519::SigningKey::from_bytes(&[4; 32])
+                        .verifying_key()
+                        .to_bytes(),
+                )
+                .unwrap(),
+            )),
             role: "user".parse().unwrap(),
             grants: ValidatedGrants::new(vec![DelegatedRoleGrant {
                 target: "user".parse().unwrap(),
@@ -201,6 +207,12 @@ mod tests {
             verification_burst: 8,
             verification_refill_ns: 9,
         };
+        let mut invalid: wire::ReceiverConfig = config.clone().try_into().unwrap();
+        invalid.authority = wire::ReceiverAuthority::Ed25519([0; 32]);
+        assert_eq!(
+            ReceiverConfig::try_from(invalid),
+            Err(ic_auth_wire::wire::Error::Malformed)
+        );
         let root = RootKeyPolicy {
             root_canister_id: Principal::from_slice(&[10]),
             algorithm: ChainKeyAlgorithm::EcdsaSecp256k1,

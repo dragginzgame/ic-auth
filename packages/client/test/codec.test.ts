@@ -6,6 +6,7 @@ import { AdmissionError, ClientError, credentialBytes, credentialFromBytes, type
 import { logoutResultFromBytes } from '../src/codec.js';
 import * as logout from '../src/generated/logout.js';
 import * as admission from '../src/generated/establish.js';
+import * as sessionRead from '../src/generated/read.js';
 const evidence = new URL('../../../../target/browser-client/', import.meta.url);
 const value: PortableCredential = { claims: new Uint8Array([0, 255]), proof: { tag: 'Ed25519', value: new Uint8Array(64).fill(7) } };
 
@@ -28,6 +29,10 @@ test('Rust to TypeScript to Rust preserves opaque signed bytes and u64 replies',
   assert.equal(error.refusal, 'NotYetValid');
   assert.ok(error instanceof ClientError);
   writeFileSync(fileURLToPath(new URL('admission-from-ts.bin', evidence)), admission.encodeResponse(refusal));
+  const readBytes = new Uint8Array(Buffer.from(readFileSync(new URL('read-vector.hex', evidence), 'utf8').trim(), 'hex'));
+  const readRefusal = sessionRead.decodeResponse(readBytes);
+  assert.deepEqual(readRefusal, { err: { tag: 'Revoked', value: null } });
+  writeFileSync(fileURLToPath(new URL('read-from-ts.bin', evidence)), sessionRead.encodeResponse(readRefusal));
 });
 test('wire rejects truncation, trailing bytes, wrong method/direction and unsafe limits', () => {
   const bytes = credentialBytes(value, 131_072);

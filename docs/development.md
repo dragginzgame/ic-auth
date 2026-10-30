@@ -898,6 +898,11 @@ the Rust utility. Shared Bash tooling remains canonical for process dispatch and
 Git release orchestration; no current Candid-extraction or process-capture call
 justifies adding `ic-host-tools` or `ic-host-process` to this application.
 
+The native `ic-auth-tooling` CLI uses Clap's standard help/usage handling. Help
+and version requests exit 0, invalid command syntax exits 2, and operational
+failures after argument admission exit 1. Scripts must distinguish usage from
+operation failures without parsing diagnostic text.
+
 The attempted `0.1.1` publication stopped before dispatch because the existing
 `ic_auth_types 0.1.1` archive has a different checksum. That crate belongs to a
 different project. Retain the old intent and logs; the rename requires a fresh

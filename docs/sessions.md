@@ -14,6 +14,21 @@ the complete `PortableCredential`, a checked `SessionRequest`,
 claims decode, digest and complete verification. There is no verification callback
 or public decoded-admission value that a host can substitute.
 
+Pending Auth 0.24 consumes the checked `SessionRequest`. The fresh session takes
+ownership of its scope strings; exact retries still use the same frozen request
+hash, including absent versus explicit TTL. Retain raw request inputs or explicitly
+clone a checked request if it is needed afterward. Stored and signed formats are
+unchanged.
+
+The Ed25519 verification context now borrows `PreparedIssuerKey` from
+`ic_auth::portable_signature`. Admit protected issuer bytes once, retain the key
+with enrollment and rebuild after decoding configuration. Its binding hash uses
+the original bytes; its immutable Platform key uses the same parser and weak-key
+checks as raw verification. This proves shape, not proof validity, enrollment or
+TEE assurance. Every operation keeps live authority/budget checks, strict
+signature verification and canonical-scalar admission. No verification result is
+cached. The standalone byte-key verifier retains its API and rejection order.
+
 `SessionAdmissionContext` contains the protected `PortableVerificationContext`,
 receiver role and checked `SessionTtlPolicy`. That verifier selection supplies the
 single `PortableClaimsContext` used by both preflight and proof verification.
@@ -39,7 +54,7 @@ key binding, deadlines, login revocation and scope narrowing on every call. Raw
 submitted claims retain independent shape and signature checks. Neither proof
 verification results nor authorization decisions are cached.
 
-Pending Auth 0.23 requires `SessionContext::required_scopes` to borrow
+Auth 0.23 requires `SessionContext::required_scopes` to borrow
 `RequiredScopes`. Construct it once with `RequiredScopes::new(Vec<String>)` from
 the protected operation definition; retain it instead of allocating labels and
 validating their grammar per call. Empty requirements use `RequiredScopes::NONE`.
@@ -79,7 +94,7 @@ even after the admission proof expires. Changing the requested scope or lifetime
 on a retry is a replay conflict. Renewal uses a fresh credential within the same
 immutable issuer/account and login-start/deadline binding.
 
-In pending Auth 0.23, every `SessionEstablished` variant holds a compact
+In Auth 0.23, every `SessionEstablished` variant holds a compact
 `SessionReceipt`: browser caller, account issuer/subject and lease expiry. It does
 not copy scopes, fingerprints or other stored payloads. A receipt is a response,
 not authorization evidence. Use `SessionStore::read` to inspect a full record or
@@ -115,6 +130,12 @@ expiry is capped by the requested TTL, login deadline and key/enrollment expiry.
 Refreshing authority never extends an existing lease. Applications separately
 check resource ownership and decide which effects require reauthorization after
 an await.
+
+Pending Auth 0.24 exposes `SessionError::read_refusal()` for proof-free readers:
+missing/expired session, unavailable authority, rejected scope, revocation or
+internal unavailability. Keep the original error locally for diagnostics. The
+matching `ReadSession` contract uses identity `0x415554480013`; earlier
+`0x415554480003` frames are refused without fallback or altered live checks.
 
 ## Atomicity and logout
 
@@ -153,7 +174,7 @@ checkpoint is required for this callback. Durable atomicity, metadata generation
 clock/budget persistence, pruning and authority changes remain host obligations;
 this hook does not itself supply a stable backend.
 
-Pending Auth 0.23 also makes `SessionLimits` immutable and valid by construction.
+Auth 0.23 also makes `SessionLimits` immutable and valid by construction.
 Use `SessionLimits::new(max_sessions, max_replays, max_replays_per_caller,
 max_encoded_bytes)` at protected backend setup, retain the checked value and
 return it from `SessionReader::limits`. Access the four bounds through their
@@ -163,7 +184,7 @@ checks actual occupancy, associations, generation and encoded bytes.
 `MemorySessionStore::new(generation, limits)` now returns the store directly;
 remove its former `unwrap`, `expect` or `?`. Record restoration remains fallible.
 
-Pending Auth 0.23 changes `SessionStore::admit` and
+Auth 0.23 changes `SessionStore::admit` and
 `MemorySessionStore::admit_with_commit` to consume owned `Session` and `Replay`
 values. Update backend signatures and move them into storage rather than cloning
 the pair. The commit callback still borrows the staged records; validate and
@@ -304,7 +325,7 @@ ledger/store `restore_records`; volatile consumers do not need these decoders. C
 feature unification still applies, so inspect each deployed canister's selected
 graph rather than treating workspace builds as size measurements.
 
-Pending Auth **0.22** retires all previous private CBOR records. The maintainer
+Auth **0.22** retires all previous private CBOR records. The maintainer
 confirmed no deployed or retained Auth records need preservation. There is no
 legacy reader, migration or implicit clearing. A host adopting this cut must
 initialize a coherent new session/replay/login checkpoint before serving; never

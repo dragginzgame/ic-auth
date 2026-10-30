@@ -90,6 +90,10 @@ pub(crate) fn run(
                     "admission-vector.hex",
                     EstablishSession::encode_response(&Err(model::AdmissionRefusal::NotYetValid))?,
                 ),
+                (
+                    "read-vector.hex",
+                    ReadSession::encode_response(&Err(model::SessionReadRefusal::Revoked))?,
+                ),
             ] {
                 let hex: String = bytes.iter().map(|byte| format!("{byte:02x}")).collect();
                 save(name, format!("{hex}\n").as_bytes())?;
@@ -120,6 +124,13 @@ pub(crate) fn run(
                 != Err(model::AdmissionRefusal::NotYetValid)
             {
                 return Err("admission vector mismatch".into());
+            }
+            let bytes = read_file_no_follow(
+                &directory.join("read-from-ts.bin"),
+                ReadSession::RESPONSE_LIMITS.bytes,
+            )?;
+            if ReadSession::decode_response(&bytes)? != Err(model::SessionReadRefusal::Revoked) {
+                return Err("session read vector mismatch".into());
             }
         }
     }

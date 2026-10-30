@@ -18,7 +18,9 @@ use ic_auth::{
     },
     session_request::{SessionRequest, SessionTtlPolicy},
 };
-use ic_auth_protocol_types::{LogoutResult, LogoutUnavailable, PortableCredential};
+use ic_auth_protocol_types::{
+    LogoutResult, LogoutUnavailable, PortableCredential, SessionReadRefusal,
+};
 use ic_auth_qualification_contracts as controls;
 use ic_auth_wire::{SessionInput, SessionView, model::AdmissionRefusal};
 use ic_platform::Principal;
@@ -275,7 +277,7 @@ fn establish_portable_session(input: SessionInput) -> Result<SessionView, Admiss
             &mut host.ledger,
             &mut host.admission,
             &credential,
-            &request,
+            request,
             &SessionAdmissionContext {
                 verification,
                 role: &host.inputs.config.role,
@@ -322,7 +324,7 @@ fn profile_portable_admission(input: SessionInput) -> AdmissionProfile {
     decode_with = "decode_read",
     encode_with = "encode_read"
 )]
-fn portable_session_read() -> Result<SessionView, String> {
+fn portable_session_read() -> Result<SessionView, SessionReadRefusal> {
     authorize(SessionOperation::Read)
 }
 
@@ -333,7 +335,7 @@ enum SessionOperation {
 
 // Runtime caller, clock, authority and required scopes are host inputs. Ordinary
 // operations reuse the retained session; they decode no credential or proof.
-fn authorize(operation: SessionOperation) -> Result<SessionView, String> {
+fn authorize(operation: SessionOperation) -> Result<SessionView, SessionReadRefusal> {
     with_receiver(|host| {
         let policy = policy(host);
         let mut ctx = host.inputs.context(
@@ -344,9 +346,12 @@ fn authorize(operation: SessionOperation) -> Result<SessionView, String> {
             SessionOperation::Read => &host.read_scopes,
             SessionOperation::Write => &host.write_scopes,
         };
-        authorize_session(&mut host.store, &mut host.ledger, &ctx, policy, view)
-            .map_err(|e| e.to_string())
+        Ok(
+            authorize_session(&mut host.store, &mut host.ledger, &ctx, policy, view)
+                .map_err(|e| e.read_refusal()),
+        )
     })
+    .map_err(|_| SessionReadRefusal::Unavailable)?
 }
 
 // One fixture application asset is writable by the protected "write" scope.
@@ -357,7 +362,7 @@ fn authorize(operation: SessionOperation) -> Result<SessionView, String> {
     encode_with = "crate::control::SetSessionAsset::encode"
 )]
 fn session_set_asset(version: u64) -> Result<(), String> {
-    authorize(SessionOperation::Write)?;
+    authorize(SessionOperation::Write).map_err(|e| format!("{e:?}"))?;
     // No await separates the session decision from the application effect.
     super::with_state(|state| {
         state.metadata.asset_version = version;
@@ -464,31 +469,13 @@ fn decode_read(bytes: Vec<u8>) {
 fn decode_logout(bytes: Vec<u8>) {
     ic_auth_wire::Logout::decode_request(&bytes).expect("bounded logout request");
 }
-fn wire_result(
-    result: Result<SessionView, String>,
-) -> Result<ic_auth_wire::SessionView, ic_auth_wire::wire::Text<256>> {
-    result.map_err(controls::refusal)
-}
 fn encode_admission(result: Result<SessionView, AdmissionRefusal>) -> Vec<u8> {
     ic_auth_wire::EstablishSession::encode_response(&result).expect("bounded admission reply")
 }
-fn encode_read(result: Result<SessionView, String>) -> Vec<u8> {
-    ic_auth_wire::ReadSession::encode_response(&wire_result(result)).expect("bounded read reply")
+fn encode_read(result: Result<SessionView, SessionReadRefusal>) -> Vec<u8> {
+    ic_auth_wire::ReadSession::encode_response(&result.map_err(Into::into))
+        .expect("bounded read reply")
 }
 fn encode_logout(result: LogoutResult) -> Vec<u8> {
     ic_auth_wire::Logout::encode_response(&result.into()).expect("bounded logout reply")
-}
-
-#[cfg(test)]
-mod wire_tests {
-    #[test]
-    fn long_refusals_remain_errors_without_trapping_reply_encoding() {
-        for error in ["capacity".to_owned(), "🚫".repeat(100)] {
-            let result = super::wire_result(Err(error.clone()));
-            assert!(result.as_ref().unwrap_err().as_str().len() <= 256);
-            let bytes = ic_auth_wire::ReadSession::encode_response(&result).unwrap();
-            let decoded = ic_auth_wire::ReadSession::decode_response(bytes.as_slice()).unwrap();
-            assert!(error.starts_with(decoded.unwrap_err().as_str()));
-        }
-    }
 }

@@ -99,12 +99,17 @@ macro_rules! unit_enum {
                 Ok(value.into())
             }
             fn into_domain(self) -> Result<domain::$name, Error> {
-                Ok(match self { $(Self::$variant => domain::$name::$variant),* })
+                Ok(self.into())
             }
         }
         impl From<domain::$name> for $name {
             fn from(value: domain::$name) -> Self {
                 match value { $(domain::$name::$variant => Self::$variant),* }
+            }
+        }
+        impl From<$name> for domain::$name {
+            fn from(value: $name) -> Self {
+                match value { $($name::$variant => Self::$variant),* }
             }
         }
     };
@@ -277,3 +282,10 @@ impl From<domain::LogoutResult> for LogoutResult {
         }
     }
 }
+unit_enum!(SessionReadRefusal {
+    MissingOrExpired,
+    AuthorityUnavailable,
+    ScopeRejected,
+    Revoked,
+    Unavailable
+});

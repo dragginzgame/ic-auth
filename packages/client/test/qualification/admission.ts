@@ -88,7 +88,7 @@ export async function qualifyAdmission(host: string, issuer: Principal, receiver
         assert.ok((await journal.status('sdk-admission')).targets.some(t => t.canister === target.toText()));
         await admit(target, caller, proof, signal);
         const result = await update(target, 'portable_session_read', sessionRead.encodeRequest(null), caller, signal);
-        assert.ok('ok' in result, 'err' in result ? result.err : undefined);
+        assert.ok('ok' in result, 'err' in result ? result.err.tag : undefined);
         assert.equal(Principal.fromUint8Array(result.ok.caller).toText(), identity.getPrincipal().toText());
         assert.equal(Principal.fromUint8Array(result.ok.issuer).toText(), issuer.toText());
         assert.equal(Principal.fromUint8Array(result.ok.subject).toText(), subject.toText());
@@ -123,7 +123,7 @@ export async function qualifyAdmission(host: string, issuer: Principal, receiver
     assert.ok((await journal.status('sdk-admission')).targets.every(target => target.admissionUntilNs === admissionUntilNs));
     for (const target of [issuer, receiver]) {
       const read = await update(target, 'portable_session_read', sessionRead.encodeRequest(null), guarded, signal);
-      assert.ok('ok' in read, 'err' in read ? read.err : undefined);
+      assert.ok('ok' in read, 'err' in read ? read.err.tag : undefined);
       assert.deepEqual(read.ok, admitted.get(target.toText())); // No proof in application arguments.
     }
     await probeAccount(account, signal); // Even after browser admission, the account signer has no session.

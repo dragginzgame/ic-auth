@@ -12,7 +12,10 @@ fn actual_browser_storage_signing_and_receiver_transport() {
             fleet_id: CanonicalId::from_bytes([2; 32]),
         },
         issuer: f.signer,
-        authority: ReceiverAuthority::Ed25519(key.verifying_key().to_bytes()),
+        authority: ReceiverAuthority::Ed25519(Box::new(
+            ic_auth::portable_signature::PreparedIssuerKey::new(key.verifying_key().to_bytes())
+                .unwrap(),
+        )),
         role: "user".parse().unwrap(),
         grants: ic_auth::portable::ValidatedGrants::new(vec![DelegatedRoleGrant {
             target: "user".parse().unwrap(),

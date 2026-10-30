@@ -11,7 +11,7 @@ pub enum PortableVerificationContext<'a> {
     #[cfg(feature = "portable-signature-verification")]
     Ed25519 {
         claims: &'a crate::portable::PortableClaimsContext<'a>,
-        public_key: &'a [u8; 32],
+        public_key: &'a crate::portable_signature::PreparedIssuerKey,
     },
     #[cfg(feature = "certified-proof-verification")]
     Certified(&'a crate::portable_certified::PortableCertifiedContext<'a>),
@@ -60,7 +60,7 @@ pub fn verify_credential(
         (
             PortableVerificationContext::Ed25519 { claims, public_key },
             PortableProof::Ed25519 { signature },
-        ) => Ok(crate::portable_signature::verify_ed25519_claims(
+        ) => Ok(crate::portable_signature::verify_with_key(
             budget,
             &credential.claims,
             signature,

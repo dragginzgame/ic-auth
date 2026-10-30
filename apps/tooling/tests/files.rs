@@ -48,7 +48,7 @@ fn argument_refusals_are_effect_free_and_help_and_version_succeed() {
         vec!["verify-external-lock", "input", "output", "8", "excess"],
     ] {
         let result = invoke(&root, &arguments);
-        assert_eq!(result.status.code(), Some(1), "{arguments:?}: {result:?}");
+        assert_eq!(result.status.code(), Some(2), "{arguments:?}: {result:?}");
         assert!(result.stdout.is_empty());
         assert!(!result.stderr.is_empty());
         assert_eq!(fs::read(root.join("input")).unwrap(), b"protected");
@@ -158,12 +158,13 @@ fn host_file_adapter_preserves_working_directory_arguments_and_refusal() {
 
 #[test]
 fn client_contract_bundle_checks_all_vectors_and_refuses_bad_input() {
-    use ic_auth_wire::{CredentialEnvelope, EstablishSession, Logout};
+    use ic_auth_wire::{CredentialEnvelope, EstablishSession, Logout, ReadSession};
 
     let vectors = [
         ("credential", CredentialEnvelope::REQUEST_LIMITS.bytes),
         ("logout", Logout::RESPONSE_LIMITS.bytes),
         ("admission", EstablishSession::RESPONSE_LIMITS.bytes),
+        ("read", ReadSession::RESPONSE_LIMITS.bytes),
     ];
     let root = fixture();
     let generated = invoke(&root, &["client-contracts", "generate", "."]);

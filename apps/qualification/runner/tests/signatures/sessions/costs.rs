@@ -54,7 +54,12 @@ pub(super) fn qualify(
                     network_key: old.ic_root_public_key_raw.to_vec(),
                 }
             } else {
-                ReceiverAuthority::Ed25519(key.verifying_key().to_bytes())
+                ReceiverAuthority::Ed25519(Box::new(
+                    ic_auth::portable_signature::PreparedIssuerKey::new(
+                        key.verifying_key().to_bytes(),
+                    )
+                    .unwrap(),
+                ))
             },
             role: role.clone(),
             grants: ic_auth::portable::ValidatedGrants::new(cert.grants.clone()).unwrap(),

@@ -67,8 +67,12 @@ fn admission(
     )
     .expect("qualified Wire admission")
 }
-fn read(f: &Fixture, target: Principal, caller: Principal) -> Result<SessionView, String> {
-    update_wire::<(), Result<ic_auth_wire::SessionView, ic_wire::Text<256>>>(
+fn read(
+    f: &Fixture,
+    target: Principal,
+    caller: Principal,
+) -> Result<SessionView, SessionReadRefusal> {
+    update_wire::<(), Result<ic_auth_wire::SessionView, ic_auth_wire::model::SessionReadRefusal>>(
         f.pic.instance(),
         target.into(),
         caller.into(),
@@ -76,7 +80,7 @@ fn read(f: &Fixture, target: Principal, caller: Principal) -> Result<SessionView
         &(),
     )
     .expect("qualified Wire session read")
-    .map_err(|e| e.into_string())
+    .map_err(Into::into)
 }
 fn logout(f: &Fixture, target: Principal, caller: Principal) -> Result<u64, LogoutResult> {
     use ic_auth_wire::model as m;
@@ -126,7 +130,10 @@ fn sdk_preserves_typed_refusals_and_retries_the_original_future_credential() {
             fleet_id: CanonicalId::from_bytes([2; 32]),
         },
         issuer: f.signer,
-        authority: ReceiverAuthority::Ed25519(key.verifying_key().to_bytes()),
+        authority: ReceiverAuthority::Ed25519(Box::new(
+            ic_auth::portable_signature::PreparedIssuerKey::new(key.verifying_key().to_bytes())
+                .unwrap(),
+        )),
         role: "user".parse().unwrap(),
         grants: ic_auth::portable::ValidatedGrants::new(vec![DelegatedRoleGrant {
             target: "user".parse().unwrap(),
@@ -223,7 +230,12 @@ fn issuer_scoped_accounts_survive_wire_projection_and_independent_logout() {
             fleet_id: CanonicalId::from_bytes([2; 32]),
         },
         issuer: f.signer,
-        authority: ReceiverAuthority::Ed25519(first_key.verifying_key().to_bytes()),
+        authority: ReceiverAuthority::Ed25519(Box::new(
+            ic_auth::portable_signature::PreparedIssuerKey::new(
+                first_key.verifying_key().to_bytes(),
+            )
+            .unwrap(),
+        )),
         role: "user".parse().unwrap(),
         grants: ic_auth::portable::ValidatedGrants::new(vec![DelegatedRoleGrant {
             target: "user".parse().unwrap(),
@@ -238,7 +250,12 @@ fn issuer_scoped_accounts_survive_wire_projection_and_independent_logout() {
     };
     let second = ReceiverConfig {
         issuer: f.resource,
-        authority: ReceiverAuthority::Ed25519(second_key.verifying_key().to_bytes()),
+        authority: ReceiverAuthority::Ed25519(Box::new(
+            ic_auth::portable_signature::PreparedIssuerKey::new(
+                second_key.verifying_key().to_bytes(),
+            )
+            .unwrap(),
+        )),
         ..first.clone()
     };
     install(&f, f.signer, &first);
@@ -321,7 +338,10 @@ fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ingress()
             fleet_id: CanonicalId::from_bytes([2; 32]),
         },
         issuer: f.signer,
-        authority: ReceiverAuthority::Ed25519(key.verifying_key().to_bytes()),
+        authority: ReceiverAuthority::Ed25519(Box::new(
+            ic_auth::portable_signature::PreparedIssuerKey::new(key.verifying_key().to_bytes())
+                .unwrap(),
+        )),
         role: "user".parse().unwrap(),
         grants: ic_auth::portable::ValidatedGrants::new(vec![DelegatedRoleGrant {
             target: "user".parse().unwrap(),
@@ -475,7 +495,7 @@ fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ingress()
         .unwrap();
     assert_eq!(
         read(&f, f.resource, caller).unwrap_err(),
-        "receiver not ready"
+        SessionReadRefusal::Unavailable
     );
     assert_eq!(
         logout(&f, f.resource, caller),
@@ -755,7 +775,7 @@ pub(super) fn qualify_certified(
         &mut ledger,
         &mut budget,
         &credential,
-        &request,
+        request.clone(),
         &ic_auth::session::SessionAdmissionContext {
             verification: ic_auth::portable_credential::PortableVerificationContext::Certified(
                 &proof_context,
@@ -775,7 +795,7 @@ pub(super) fn qualify_certified(
             &mut ledger,
             &mut budget,
             &credential,
-            &request,
+            request.clone(),
             &ic_auth::session::SessionAdmissionContext {
                 verification: ic_auth::portable_credential::PortableVerificationContext::Certified(
                     &proof_context
@@ -812,7 +832,10 @@ fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_authority() 
             fleet_id: CanonicalId::from_bytes([2; 32]),
         },
         issuer: f.signer,
-        authority: ReceiverAuthority::Ed25519(key.verifying_key().to_bytes()),
+        authority: ReceiverAuthority::Ed25519(Box::new(
+            ic_auth::portable_signature::PreparedIssuerKey::new(key.verifying_key().to_bytes())
+                .unwrap(),
+        )),
         role: "user".parse().unwrap(),
         grants: ic_auth::portable::ValidatedGrants::new(vec![DelegatedRoleGrant {
             target: "user".parse().unwrap(),
@@ -876,7 +899,7 @@ fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_authority() 
         .unwrap();
     assert_eq!(
         read(&f, f.resource, live).unwrap_err(),
-        "receiver not ready"
+        SessionReadRefusal::Unavailable
     );
     assert_eq!(read(&f, f.signer, live).unwrap(), peer_session);
     assert!(read(&f, f.signer, revoked).is_ok());
@@ -894,7 +917,12 @@ fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_authority() 
     );
     assert!(unauthorized.is_err());
     let mut mismatch = config.clone();
-    mismatch.authority = ReceiverAuthority::Ed25519([7; 32]);
+    mismatch.authority = ReceiverAuthority::Ed25519(Box::new(
+        ic_auth::portable_signature::PreparedIssuerKey::new(
+            SigningKey::from_bytes(&[99; 32]).verifying_key().to_bytes(),
+        )
+        .unwrap(),
+    ));
     let wrong: Result<(), String> = update_control::<controls::model::ReceiverConfig, ()>(
         f.pic.instance(),
         f.resource,

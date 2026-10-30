@@ -205,17 +205,11 @@ impl Session {
             &self.0,
             crate::storage_codec::SESSION,
             MAX_SESSION_RECORD_BYTES,
-            SessionError::InvalidPolicyOrRecord,
-            SessionError::ByteCapacity,
         )
+        .map_err(record_error)
     }
     pub(super) fn encoded_len(&self) -> Result<usize, SessionError> {
-        crate::storage_codec::encoded_len(
-            &self.0,
-            MAX_SESSION_RECORD_BYTES,
-            SessionError::InvalidPolicyOrRecord,
-            SessionError::ByteCapacity,
-        )
+        crate::storage_codec::encoded_len(&self.0, MAX_SESSION_RECORD_BYTES).map_err(record_error)
     }
     /// Trusted-storage restoration only. Old token-session bytes are rejected.
     #[cfg(feature = "session-restore")]
@@ -224,9 +218,8 @@ impl Session {
             bytes,
             crate::storage_codec::SESSION,
             MAX_SESSION_RECORD_BYTES,
-            SessionError::InvalidPolicyOrRecord,
-            SessionError::ByteCapacity,
-        )?;
+        )
+        .map_err(record_error)?;
         check_scopes(&data.scopes)?;
         if !is_login_caller(data.caller)
             || data.subject == Principal::anonymous()
@@ -249,12 +242,13 @@ impl Session {
     ))]
     pub(super) fn admit(
         verified: &VerifiedPortableClaims,
-        request: &SessionRequest,
+        request: SessionRequest,
         ctx: &SessionContext<'_>,
         policy: SessionPolicy,
         requested_expiry: u64,
     ) -> Result<Self, SessionError> {
         let claims = verified.claims();
+        let request_hash = request.hash();
         let session = Self(SessionData {
             caller: ctx.authority.caller,
             subject: claims.account_subject,
@@ -263,14 +257,14 @@ impl Session {
             mechanism: claims.mechanism,
             key_binding_id: claims.key_binding_id,
             role: ctx.role.clone(),
-            scopes: request.scopes().to_vec(),
+            scopes: request.into_scopes(),
             generation: policy.generation,
             login_started_at_ns: claims.login_started_at_ns,
             login_deadline_ns: claims.login_deadline_ns,
             established_at_ns: ctx.authority.now_ns,
             expires_at_ns: verified.clamp_session_expiry(requested_expiry),
             fingerprint: verified.fingerprint(),
-            request_hash: request.hash(),
+            request_hash,
         });
         session.check_live(ctx, policy)?;
         Ok(session)
@@ -352,9 +346,8 @@ impl Replay {
             &self.0,
             crate::storage_codec::REPLAY,
             MAX_REPLAY_RECORD_BYTES,
-            SessionError::InvalidPolicyOrRecord,
-            SessionError::ByteCapacity,
         )
+        .map_err(record_error)
     }
 
     fn validate(&self) -> Result<(), SessionError> {
@@ -367,13 +360,14 @@ impl Replay {
     /// Trusted-storage restoration only; provenance and rollback are host-owned.
     #[cfg(feature = "session-restore")]
     pub fn decode(bytes: &[u8]) -> Result<Self, SessionError> {
-        let record = Self(crate::storage_codec::decode(
-            bytes,
-            crate::storage_codec::REPLAY,
-            MAX_REPLAY_RECORD_BYTES,
-            SessionError::InvalidPolicyOrRecord,
-            SessionError::ByteCapacity,
-        )?);
+        let record = Self(
+            crate::storage_codec::decode(
+                bytes,
+                crate::storage_codec::REPLAY,
+                MAX_REPLAY_RECORD_BYTES,
+            )
+            .map_err(record_error)?,
+        );
         record.validate()?;
         Ok(record)
     }
@@ -404,11 +398,13 @@ impl Replay {
     }
     pub(super) fn encoded_len(&self) -> Result<usize, SessionError> {
         self.validate()?;
-        crate::storage_codec::encoded_len(
-            &self.0,
-            MAX_REPLAY_RECORD_BYTES,
-            SessionError::InvalidPolicyOrRecord,
-            SessionError::ByteCapacity,
-        )
+        crate::storage_codec::encoded_len(&self.0, MAX_REPLAY_RECORD_BYTES).map_err(record_error)
+    }
+}
+
+fn record_error(error: ic_wire::Error) -> SessionError {
+    match error {
+        ic_wire::Error::Limit | ic_wire::Error::Allocation => SessionError::ByteCapacity,
+        _ => SessionError::InvalidPolicyOrRecord,
     }
 }

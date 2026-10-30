@@ -125,11 +125,14 @@ impl Host {
             &mut self.ledger,
             &mut self.budget,
             credential,
-            &SessionRequest::new(vec!["read".into()], None).unwrap(),
+            SessionRequest::new(vec!["read".into()], None).unwrap(),
             &SessionAdmissionContext {
                 verification: PortableVerificationContext::Ed25519 {
                     claims: &context,
-                    public_key: &self.key.verifying_key().to_bytes(),
+                    public_key: &ic_auth::portable_signature::PreparedIssuerKey::new(
+                        self.key.verifying_key().to_bytes(),
+                    )
+                    .unwrap(),
                 },
                 role: &"user".parse().unwrap(),
                 ttl: SessionTtlPolicy::new(5, 30).unwrap(),
