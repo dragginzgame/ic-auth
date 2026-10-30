@@ -8,7 +8,29 @@ checkpoints are retained separately in [adoption history](canic-adoption-history
 
 ## Session commit contract
 
-Pending Auth **0.24** consumes `SessionRequest` so its scopes move into a fresh
+Pending Auth **0.25** replaces `CanonicalAuthError::{EmptyScope, InvalidScope}`
+with `Scope(ScopeLabelError)`. Update Rust error matches to the typed cause;
+invalid labels are no longer retained in errors. Scope grammar, bounds, first
+refusal order, public refusal categories and signed/public Wire bytes remain.
+Import `ScopeLabelError` and checked `ScopeLabel` from the protocol package;
+request/operation getters expose checked labels with `as_str()` for text.
+`ScopeLabel::validate` replaces the engine's detailed grammar helper. Keep raw
+proof-grant validation at its existing stage, including exact-retry behavior.
+Match `delegation::DelegationField`/`DelegationTarget` variants instead of string
+fields/targets. Logout uses the existing Wire unit request; the empty Rust
+`LogoutRequest` is removed.
+
+Private session/login record identities change to `0x415554485311` and
+`0x415554485313`, with fixed 32-byte audience IDs; replay remains
+`0x415554485302`. The maintainer confirmed no retained current Auth records.
+Adopt one coherent checkpoint, including byte totals, before serving; old formats
+are refused without fallback or clearing. This is separate from the earlier
+CBOR retirement and grants no permission to erase Memory backing or its ledger.
+See [record format and custody](sessions.md).
+`SessionEstablished::receipt()` projects the common receipt while callers retain
+the outcome distinctions where needed. Receipts still authorize nothing.
+
+Auth **0.24** consumes `SessionRequest` so its scopes move into a fresh
 session. Clone explicitly when a host also needs the checked request afterward.
 `PortableVerificationContext::Ed25519` borrows `PreparedIssuerKey`, constructed
 from protected issuer bytes and retained with enrollment. Rebuild after decoding;
@@ -26,7 +48,8 @@ native Wire records. The maintainer confirmed no deployed or retained Auth recor
 need preservation. Old records are refused, with no fallback or implicit reset.
 Adopt one coherent new checkpoint before admission or reads; preserve atomic
 commit, replay/denial retention and generation rules. The unpublished reference
-checkpoint now uses `AUTHNAT2`; Canic owns its own durable framing and lifecycle.
+checkpoint used `AUTHNAT2`, replaced by `AUTHNAT3` in pending 0.25; Canic owns its
+own durable framing and lifecycle.
 Signed claims, public Wire transport and the TEE/non-TEE trust model are unchanged.
 See [record bounds and restoration](sessions.md#storage-and-reset).
 

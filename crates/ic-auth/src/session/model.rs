@@ -107,6 +107,7 @@ struct SessionData {
     caller: Principal,
     subject: Principal,
     issuer: Principal,
+    #[serde(with = "crate::storage_codec::audience")]
     audience: AudienceId,
     mechanism: PortableMechanism,
     key_binding_id: [u8; 32],

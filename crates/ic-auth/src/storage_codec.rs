@@ -4,9 +4,9 @@
 //! The old domain-prefixed CBOR records are retired, with no fallback reader.
 use ic_wire::{Error, Limits, native};
 
-pub(crate) const SESSION: u64 = 0x415554485301;
+pub(crate) const SESSION: u64 = 0x415554485311;
 pub(crate) const REPLAY: u64 = 0x415554485302;
-pub(crate) const LOGIN: u64 = 0x415554485303;
+pub(crate) const LOGIN: u64 = 0x415554485313;
 
 fn limits(maximum: usize) -> Limits {
     Limits {
@@ -82,5 +82,71 @@ mod tests {
             "traversal allowance is independent of bytes"
         );
         assert!(decode::<[u8; 32]>(b"IC-AUTH-PORTABLE-SESSION\0\xa0", SESSION, 2048).is_err());
+    }
+
+    #[cfg(feature = "session-restore")]
+    #[test]
+    fn binary_audiences_are_fixed_length_and_retired_text_records_are_refused() {
+        use ic_auth_protocol_types::{AudienceId, CanonicalId};
+        #[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+        struct Record(#[serde(with = "super::audience")] AudienceId);
+        let audience = AudienceId {
+            canonical_network_id: CanonicalId::from_bytes([0; 32]),
+            fleet_id: CanonicalId::from_bytes([255; 32]),
+        };
+        let bytes = encode(&Record(audience), SESSION, 2048).unwrap();
+        assert_eq!(
+            decode::<Record>(&bytes, SESSION, 2048).unwrap(),
+            Record(audience)
+        );
+        assert_eq!(bytes.len(), 11 + 2 * 33);
+        for (old, current) in [(0x415554485301, SESSION), (0x415554485303, LOGIN)] {
+            let retired = encode(&audience, old, 2048).unwrap();
+            assert_eq!(
+                decode::<Record>(&retired, current, 2048),
+                Err(Error::Identity)
+            );
+            let relabeled = encode(&audience, current, 2048).unwrap();
+            assert!(decode::<Record>(&relabeled, current, 2048).is_err());
+        }
+        for length in [0, 31, 33, 64] {
+            let invalid = (
+                serde_bytes::ByteBuf::from(vec![0; length]),
+                serde_bytes::ByteArray::new([0; 32]),
+            );
+            let bytes = encode(&invalid, SESSION, 2048).unwrap();
+            assert!(decode::<Record>(&bytes, SESSION, 2048).is_err());
+        }
+        // Public identifier text serialization is an independent unchanged contract.
+        assert_eq!(
+            encode(&audience.fleet_id, SESSION, 2048).unwrap(),
+            encode(&"ff".repeat(32), SESSION, 2048).unwrap()
+        );
+    }
+}
+
+// Private record representation; public identity text and signing encoders stay unchanged.
+pub(crate) mod audience {
+    use ic_auth_protocol_types::AudienceId;
+    use serde::{Serialize, Serializer};
+    pub fn serialize<S: Serializer>(value: &AudienceId, serializer: S) -> Result<S::Ok, S::Error> {
+        (
+            serde_bytes::Bytes::new(value.canonical_network_id.as_bytes()),
+            serde_bytes::Bytes::new(value.fleet_id.as_bytes()),
+        )
+            .serialize(serializer)
+    }
+    #[cfg(feature = "session-restore")]
+    pub fn deserialize<'de, D: serde::Deserializer<'de>>(
+        deserializer: D,
+    ) -> Result<AudienceId, D::Error> {
+        use ic_auth_protocol_types::CanonicalId;
+        use serde::Deserialize;
+        let (network, fleet): (serde_bytes::ByteArray<32>, serde_bytes::ByteArray<32>) =
+            Deserialize::deserialize(deserializer)?;
+        Ok(AudienceId {
+            canonical_network_id: CanonicalId::from_bytes(network.into_array()),
+            fleet_id: CanonicalId::from_bytes(fleet.into_array()),
+        })
     }
 }

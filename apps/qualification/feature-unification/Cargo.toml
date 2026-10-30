@@ -23,6 +23,7 @@ ic-auth-protocol-types.workspace = true
 ic-platform = { workspace = true, features = ["ed25519"] }
 ic-wire.workspace = true
 serde.workspace = true
+serde_bytes.workspace = true
 sha2.workspace = true
 
 [[test]]

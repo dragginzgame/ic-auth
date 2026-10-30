@@ -75,7 +75,10 @@ storage and reset floors remain host policy, independent of the proof mechanism.
 `DelegationProofError::RootSignatureBindingMismatch` identifies disagreement
 between submitted signature metadata and its batch header.
 `RootKeyPolicyBindingMismatch` identifies disagreement with independently enrolled
-policy. Both carry a static field name. Header/signature mismatches precede the
+policy. Both carry a `delegation::DelegationField` enum; window targets use
+`delegation::DelegationTarget`. Match variants such as `DelegationField::KeyId`
+instead of string literals. `Display` retains the existing diagnostic labels.
+Header/signature mismatches precede the
 corresponding enrollment check. Other typed causes include witness, window,
 canonicality, stale authority, malformed signature and high-S rejection.
 Consumers project these causes; they must not reverify submitted fields to

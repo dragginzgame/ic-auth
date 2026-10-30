@@ -2,6 +2,7 @@
 //! test key; issuer certification and upgrade use the actual Testkit canister.
 
 use super::{Fixture, SEED};
+use ic_auth::delegation::DelegationField;
 use ic_auth::{
     admission_budget::SessionAdmissionBudget,
     canister_signature::CanisterSignatureError,
@@ -270,11 +271,15 @@ fn portable_proof_rechecks_live_authority_and_real_certification_after_upgrade()
         Error::Claims(PortableClaimsError::StaleAuthority)
     );
     context.claims.authority.enrollment_expires_at_ns = proof.cert.expires_at_ns;
-    for field in ["key_version", "proof_epoch", "registry_epoch"] {
+    for field in [
+        DelegationField::KeyVersion,
+        DelegationField::ProofEpoch,
+        DelegationField::RegistryEpoch,
+    ] {
         let mut stale = policy.clone();
         match field {
-            "key_version" => stale.min_accepted_key_version += 1,
-            "proof_epoch" => stale.min_accepted_proof_epoch += 1,
+            DelegationField::KeyVersion => stale.min_accepted_key_version += 1,
+            DelegationField::ProofEpoch => stale.min_accepted_proof_epoch += 1,
             _ => stale.min_accepted_registry_epoch += 1,
         }
         let context = PortableCertifiedContext {

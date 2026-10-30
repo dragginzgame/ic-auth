@@ -197,9 +197,22 @@ cat > "$consumer/generator" <<'SCRIPT'
 set -eu
 [[ "$1 $2" == 'client-contracts generate' ]]
 if [[ "${CLIENT_CONTRACT_MUTATION:-}" == generate ]]; then echo changed >> "${CLIENT_CONTRACT_MUTATION_FILE:-Cargo.toml}"; fi
-for name in credential.ts establish.ts read.ts logout.ts wire-runtime.ts credential-vector.hex logout-vector.hex admission-vector.hex read-vector.hex codec-policy.json; do
+: > "$3/artifacts.tsv"
+# Future outputs deliberately exceed the current product roster: the driver
+# must follow its producer, while independent vector assertions stay explicit.
+for name in credential.ts establish.ts read.ts logout.ts wire-runtime.ts credential-vector.hex logout-vector.hex admission-vector.hex read-vector.hex codec-policy.json future.ts future-vector.hex; do
     printf 'rust-owned %s\n' "$name" > "$3/$name"
+    case "$name" in *.ts) kind=source ;; *) kind=evidence ;; esac
+    printf '%s\t%s\n' "$kind" "$name" >> "$3/artifacts.tsv"
 done
+case "${CLIENT_CONTRACT_INVENTORY:-}" in
+    empty) : > "$3/artifacts.tsv" ;;
+    unsafe) printf 'source\t../escaped.ts\n' >> "$3/artifacts.tsv" ;;
+    missing) printf 'evidence\tabsent-vector.hex\n' >> "$3/artifacts.tsv" ;;
+    duplicate) printf 'source\tcredential.ts\n' >> "$3/artifacts.tsv" ;;
+    omitted) tail -n +2 "$3/artifacts.tsv" > "$3/omitted.tsv"; mv "$3/omitted.tsv" "$3/artifacts.tsv" ;;
+    unknown) printf 'unexpected\tunknown.hex\n' >> "$3/artifacts.tsv"; printf 'unpublished\n' > "$3/unknown.hex" ;;
+esac
 SCRIPT
 chmod +x "$consumer/bin/cargo" "$consumer/generator"
 mkdir -p "$consumer/.cargo"
@@ -211,6 +224,16 @@ for mode in generate check; do
     for name in credential logout admission read; do
         [[ "$(cat "$consumer/target/browser-client/$name-vector.hex")" == "rust-owned $name-vector.hex" ]]
     done
+    [[ "$(cat "$consumer/packages/client/src/generated/future.ts")" == 'rust-owned future.ts' ]]
+    [[ "$(cat "$consumer/target/browser-client/future-vector.hex")" == 'rust-owned future-vector.hex' ]]
+done
+for invalid in empty unsafe missing duplicate unknown omitted; do
+    if (cd "$consumer"; CLIENT_CONTRACT_INVENTORY="$invalid" PATH="$consumer/bin:$PATH" \
+        bash scripts/dev/client-contracts.sh generate) > "$fixture/contracts-inventory-$invalid.log" 2>&1; then
+        echo 'invalid artifact inventory unexpectedly published' >&2; exit 1
+    fi
+    [[ "$(cat "$consumer/packages/client/src/generated/credential.ts")" == 'rust-owned credential.ts' ]]
+    [[ "$(cat "$consumer/target/browser-client/read-vector.hex")" == 'rust-owned read-vector.hex' ]]
 done
 printf 'stale\n' > "$consumer/packages/client/src/generated/credential.ts"
 if (cd "$consumer"; PATH="$consumer/bin:$PATH" bash scripts/dev/client-contracts.sh check) \

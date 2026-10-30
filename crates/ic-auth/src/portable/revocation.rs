@@ -84,12 +84,27 @@ pub struct LoginRevocationChange {
     record: Record,
 }
 
+#[cfg(feature = "sessions")]
+#[derive(serde::Serialize)]
+#[cfg_attr(feature = "session-restore", derive(serde::Deserialize))]
+#[serde(deny_unknown_fields)]
+struct StoredLogin {
+    #[serde(with = "crate::storage_codec::audience")]
+    audience: AudienceId,
+    caller: Principal,
+    record: Record,
+}
+
 impl LoginRevocationChange {
     /// Encode the proposed record for the host's atomic durable commit.
     #[cfg(feature = "sessions")]
     pub fn encode(&self) -> Result<Vec<u8>, LoginRevocationError> {
         crate::storage_codec::encode(
-            &(self.audience, self.caller, self.record),
+            &StoredLogin {
+                audience: self.audience,
+                caller: self.caller,
+                record: self.record,
+            },
             crate::storage_codec::LOGIN,
             MAX_RECORD_BYTES,
         )
@@ -105,9 +120,12 @@ impl LoginRevocationChange {
     /// This checks shape, not provenance, completeness, rollback or live authority.
     #[cfg(feature = "session-restore")]
     pub fn decode(bytes: &[u8]) -> Result<Self, LoginRevocationError> {
-        let (audience, caller, record): (_, Principal, Record) =
-            crate::storage_codec::decode(bytes, crate::storage_codec::LOGIN, MAX_RECORD_BYTES)
-                .map_err(|_| LoginRevocationError::InvalidPolicy)?;
+        let StoredLogin {
+            audience,
+            caller,
+            record,
+        } = crate::storage_codec::decode(bytes, crate::storage_codec::LOGIN, MAX_RECORD_BYTES)
+            .map_err(|_| LoginRevocationError::InvalidPolicy)?;
         if !is_login_caller(caller) {
             return Err(LoginRevocationError::InvalidCaller);
         }
@@ -474,23 +492,23 @@ impl MemoryLoginRevocations {
         commit: impl FnOnce(&[Principal], (usize, usize)) -> Result<(), LoginRevocationError>,
     ) -> Result<usize, LoginRevocationError> {
         self.clock(now_ns)?;
-        let callers: Vec<_> = self
+        let mut callers = Vec::new();
+        let mut counts = self.occupancy();
+        for (_, caller) in self
             .expiry
             .iter()
             .take_while(|(until, _)| *until <= now_ns)
             .take(budget.min(128))
-            .map(|(_, caller)| *caller)
-            .collect();
-        if callers.is_empty() {
-            return Ok(0);
-        }
-        let mut counts = self.occupancy();
-        for caller in &callers {
+        {
             if self.records[caller].admitted_pool() {
                 counts.0 -= 1;
             } else {
                 counts.1 -= 1;
             }
+            callers.push(*caller);
+        }
+        if callers.is_empty() {
+            return Ok(0);
         }
         commit(&callers, counts)?;
         for caller in &callers {

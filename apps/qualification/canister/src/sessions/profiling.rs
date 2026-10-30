@@ -21,6 +21,12 @@ use ic_platform::{
 };
 use serde::Deserialize;
 
+impl From<ReceiverUnavailable> for Failure {
+    fn from(_: ReceiverUnavailable) -> Self {
+        Self::ReceiverUnavailable
+    }
+}
+
 fn measure<T>(operation: impl FnOnce() -> T) -> (T, u64) {
     let start = ic_platform::ic0::performance_counter(0);
     let value = operation();
@@ -50,8 +56,7 @@ fn profile_certified_proof(
         .credential
         .try_into()
         .map_err(|_| Failure::Credential)?;
-    with_receiver(|host| Ok(profile(host, &credential)))
-        .map_err(|_| Failure::ReceiverUnavailable)?
+    with_receiver(|host| profile(host, &credential))
 }
 
 fn profile(

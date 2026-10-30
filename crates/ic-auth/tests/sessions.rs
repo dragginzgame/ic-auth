@@ -14,7 +14,6 @@ use ic_auth::{
 };
 use ic_auth_protocol_types::*;
 use ic_platform::ed25519::{Signer, SigningKey};
-use sha2::{Digest, Sha256};
 const SECOND: u64 = 1_000_000_000;
 const NOW: u64 = 10 * SECOND;
 
@@ -119,7 +118,7 @@ struct SessionRecord {
     caller: Principal,
     subject: Principal,
     issuer: Principal,
-    audience: AudienceId,
+    audience: (serde_bytes::ByteArray<32>, serde_bytes::ByteArray<32>),
     mechanism: PortableMechanism,
     key_binding_id: [u8; 32],
     role: AuthRole,
@@ -144,13 +143,19 @@ const REPLAY_LIMITS: ic_wire::Limits = ic_wire::Limits {
 
 struct Fixture {
     key: SigningKey,
+    issuer_key: ic_auth::portable_signature::PreparedIssuerKey,
     claims: PortableClaims,
     role: AuthRole,
     grants: ValidatedGrants,
 }
 impl Fixture {
     fn new(device: u8) -> Self {
-        let key = support::issuer_key();
+        Self::with_issuer_key(device, support::issuer_key())
+    }
+    fn with_issuer_key(device: u8, key: SigningKey) -> Self {
+        let issuer_key =
+            ic_auth::portable_signature::PreparedIssuerKey::new(key.verifying_key().to_bytes())
+                .unwrap();
         let role: AuthRole = "user".parse().unwrap();
         let mut claims = support::claims(
             SigningKey::from_bytes(&[device; 32])
@@ -162,9 +167,11 @@ impl Fixture {
         claims.issued_at_ns = NOW;
         claims.admission_expires_at_ns = NOW + 2 * SECOND;
         claims.nonce = [1; 16];
+        claims.key_binding_id = issuer_key.binding();
         claims.grants[0].scopes.push("write".into());
         let grants = ValidatedGrants::new(claims.grants.clone()).unwrap();
         Self {
+            issuer_key,
             key,
             claims,
             role,
@@ -225,7 +232,6 @@ impl Fixture {
     ) -> Result<SessionEstablished, SessionError> {
         let mut claims = self.claims_context(now);
         claims.authority.caller = caller;
-        let key = self.key.verifying_key().to_bytes();
         establish_session(
             &mut receiver.store,
             &mut receiver.ledger,
@@ -235,7 +241,7 @@ impl Fixture {
             &SessionAdmissionContext {
                 verification: PortableVerificationContext::Ed25519 {
                     claims: &claims,
-                    public_key: &ic_auth::portable_signature::PreparedIssuerKey::new(key).unwrap(),
+                    public_key: &self.issuer_key,
                 },
                 role: &self.role,
                 ttl: ttl(),
@@ -329,7 +335,6 @@ fn required_scopes_accept_any_order_but_never_borrow_another_roles_grant() {
     let f = Fixture::new(1);
     let mut r = Receiver::new(&f);
     let context = f.claims_context(NOW);
-    let key = f.key.verifying_key().to_bytes();
     let credential = f.credential();
     let admitted = created(
         establish_session(
@@ -341,7 +346,7 @@ fn required_scopes_accept_any_order_but_never_borrow_another_roles_grant() {
             &SessionAdmissionContext {
                 verification: PortableVerificationContext::Ed25519 {
                     claims: &context,
-                    public_key: &ic_auth::portable_signature::PreparedIssuerKey::new(key).unwrap(),
+                    public_key: &f.issuer_key,
                 },
                 role: &f.role,
                 ttl: ttl(),
@@ -410,10 +415,7 @@ fn future_start_retry_keeps_original_credential_and_verifies_only_once() {
             &SessionAdmissionContext {
                 verification: PortableVerificationContext::Ed25519 {
                     claims: &claims_context(context.authority),
-                    public_key: &ic_auth::portable_signature::PreparedIssuerKey::new(
-                        f.key.verifying_key().to_bytes(),
-                    )
-                    .unwrap(),
+                    public_key: &f.issuer_key,
                 },
                 role: context.role,
                 ttl: ttl(),
@@ -457,10 +459,8 @@ fn future_start_retry_keeps_original_credential_and_verifies_only_once() {
 #[test]
 fn equal_subjects_from_different_issuers_keep_distinct_sessions_and_logouts() {
     let first = Fixture::new(1);
-    let mut second = Fixture::new(2);
+    let mut second = Fixture::with_issuer_key(2, SigningKey::from_bytes(&[43; 32]));
     second.claims.issuer = Principal::from_slice(&[3]);
-    second.key = SigningKey::from_bytes(&[43; 32]);
-    second.claims.key_binding_id = Sha256::digest(second.key.verifying_key().to_bytes()).into();
     let mut r = Receiver::new(&first);
     let a = created(first.admit(&mut r, NOW).unwrap(), &mut r.store);
     let b = created(second.admit(&mut r, NOW).unwrap(), &mut r.store);
@@ -529,10 +529,7 @@ fn two_receivers_two_devices_retry_after_proof_expiry_and_local_logout() {
             &SessionAdmissionContext {
                 verification: PortableVerificationContext::Ed25519 {
                     claims: &claims_context(ctx.authority),
-                    public_key: &ic_auth::portable_signature::PreparedIssuerKey::new(
-                        f.key.verifying_key().to_bytes()
-                    )
-                    .unwrap()
+                    public_key: &f.issuer_key
                 },
                 role: ctx.role,
                 ttl: ttl()
@@ -644,10 +641,7 @@ fn failed_commit_is_atomic_for_session_replay_reservation_and_logout() {
             &SessionAdmissionContext {
                 verification: PortableVerificationContext::Ed25519 {
                     claims: &claims_context(ctx.authority),
-                    public_key: &ic_auth::portable_signature::PreparedIssuerKey::new(
-                        f.key.verifying_key().to_bytes()
-                    )
-                    .unwrap()
+                    public_key: &f.issuer_key
                 },
                 role: ctx.role,
                 ttl: ttl()
@@ -781,10 +775,7 @@ fn replay_capacity_narrowing_and_reset_refuse_before_verification() {
             &SessionAdmissionContext {
                 verification: PortableVerificationContext::Ed25519 {
                     claims: &claims_context(f.context(NOW).authority),
-                    public_key: &ic_auth::portable_signature::PreparedIssuerKey::new(
-                        f.key.verifying_key().to_bytes()
-                    )
-                    .unwrap()
+                    public_key: &f.issuer_key
                 },
                 role: f.context(NOW).role,
                 ttl: ttl()
@@ -808,10 +799,7 @@ fn replay_capacity_narrowing_and_reset_refuse_before_verification() {
             &SessionAdmissionContext {
                 verification: PortableVerificationContext::Ed25519 {
                     claims: &claims_context(f.context(NOW).authority),
-                    public_key: &ic_auth::portable_signature::PreparedIssuerKey::new(
-                        f.key.verifying_key().to_bytes()
-                    )
-                    .unwrap()
+                    public_key: &f.issuer_key
                 },
                 role: f.context(NOW).role,
                 ttl: ttl()
@@ -837,10 +825,7 @@ fn replay_capacity_narrowing_and_reset_refuse_before_verification() {
             &SessionAdmissionContext {
                 verification: PortableVerificationContext::Ed25519 {
                     claims: &claims_context(f.context(NOW).authority),
-                    public_key: &ic_auth::portable_signature::PreparedIssuerKey::new(
-                        f.key.verifying_key().to_bytes()
-                    )
-                    .unwrap()
+                    public_key: &f.issuer_key
                 },
                 role: f.context(NOW).role,
                 ttl: ttl()
@@ -865,10 +850,7 @@ fn replay_capacity_narrowing_and_reset_refuse_before_verification() {
             &SessionAdmissionContext {
                 verification: PortableVerificationContext::Ed25519 {
                     claims: &claims_context(ctx.authority),
-                    public_key: &ic_auth::portable_signature::PreparedIssuerKey::new(
-                        f.key.verifying_key().to_bytes()
-                    )
-                    .unwrap()
+                    public_key: &f.issuer_key
                 },
                 role: ctx.role,
                 ttl: ttl()
@@ -966,7 +948,7 @@ fn framed_session_records_still_require_valid_identity_scopes_and_windows() {
     let bytes = created(f.admit(&mut r, NOW).unwrap(), &mut r.store)
         .encode()
         .unwrap();
-    let identity = 0x415554485301;
+    let identity = 0x415554485311;
     let limits = ic_wire::Limits {
         bytes: 2048,
         ..REPLAY_LIMITS
@@ -1094,10 +1076,7 @@ fn invalid_signature_cannot_reserve_state_and_spends_verification_credit() {
         &SessionAdmissionContext {
             verification: PortableVerificationContext::Ed25519 {
                 claims: &claims_context(ctx.authority),
-                public_key: &ic_auth::portable_signature::PreparedIssuerKey::new(
-                    f.key.verifying_key().to_bytes(),
-                )
-                .unwrap(),
+                public_key: &f.issuer_key,
             },
             role: ctx.role,
             ttl: ttl(),

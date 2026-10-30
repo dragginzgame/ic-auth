@@ -13,11 +13,13 @@ pub mod limits;
 mod logout;
 mod portable;
 mod proof;
+mod scope;
 
 pub use admission::{AdmissionRefusal, SessionReadRefusal};
 pub use common::*;
 pub use ic_platform::Principal;
 pub use identifiers::{AudienceId, AuthRole, CanonicalId, IdentifierError};
-pub use logout::{LogoutRequest, LogoutResult, LogoutUnavailable};
+pub use logout::{LogoutResult, LogoutUnavailable};
 pub use portable::{PortableClaims, PortableCredential, PortableMechanism, PortableProof};
 pub use proof::*;
+pub use scope::{ScopeLabel, ScopeLabelError};

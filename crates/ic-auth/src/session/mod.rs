@@ -148,6 +148,14 @@ pub enum SessionEstablished {
     ExactRetry(SessionReceipt),
 }
 
+impl SessionEstablished {
+    pub fn receipt(self) -> SessionReceipt {
+        match self {
+            Self::Created(receipt) | Self::Replaced(receipt) | Self::ExactRetry(receipt) => receipt,
+        }
+    }
+}
+
 /// Session/replay admission and local authorization failures.
 #[derive(Debug, Error, Eq, PartialEq)]
 pub enum SessionError {

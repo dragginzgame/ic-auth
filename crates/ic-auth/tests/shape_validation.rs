@@ -1,13 +1,10 @@
-use ic_auth::canonical::{
-    CanonicalAuthError, ScopeLabelError, validate_scope_label, validate_scope_label_detailed,
-    validate_scopes,
-};
+use ic_auth::canonical::{CanonicalAuthError, validate_scope_label, validate_scopes};
 use ic_auth::certificate_issuance::{GrantValidationError, validate_grants};
-use ic_auth_protocol_types::DelegatedRoleGrant;
+use ic_auth_protocol_types::{DelegatedRoleGrant, ScopeLabel, ScopeLabelError};
 
 // Compile-time consumers use the same detailed validator as runtime callers.
-const STATIC_SCOPE: Result<(), ScopeLabelError> = validate_scope_label_detailed("fleet:read_all-1");
-const STATIC_INVALID: Result<(), ScopeLabelError> = validate_scope_label_detailed("fleet:_read");
+const STATIC_SCOPE: Result<(), ScopeLabelError> = ScopeLabel::validate("fleet:read_all-1");
+const STATIC_INVALID: Result<(), ScopeLabelError> = ScopeLabel::validate("fleet:_read");
 
 fn grant(role: &str, scopes: &[&str]) -> DelegatedRoleGrant {
     DelegatedRoleGrant {
@@ -42,31 +39,30 @@ fn const_and_runtime_scope_checks_preserve_detailed_byte_causes_and_canonical_pr
         ),
     ];
     for (scope, expected) in cases {
-        assert_eq!(validate_scope_label_detailed(scope), Err(expected));
+        assert_eq!(ScopeLabel::validate(scope), Err(expected));
         assert_eq!(
             validate_scope_label(scope),
-            Err(if scope.is_empty() {
-                CanonicalAuthError::EmptyScope
-            } else {
-                CanonicalAuthError::InvalidScope {
-                    scope: scope.into(),
-                }
-            })
+            Err(CanonicalAuthError::Scope(expected))
         );
     }
     for scope in ["a", "0", "a_b-c", "0:1:a-b_c", "fleet:read_all-1"] {
-        assert_eq!(validate_scope_label_detailed(scope), Ok(()));
+        assert_eq!(ScopeLabel::validate(scope), Ok(()));
         assert_eq!(validate_scope_label(scope), Ok(()));
     }
-    assert_eq!(validate_scope_label_detailed(&"a".repeat(64)), Ok(()));
+    assert_eq!(ScopeLabel::validate(&"a".repeat(64)), Ok(()));
     let oversized = format!("_{}", "a".repeat(64));
     assert_eq!(
-        validate_scope_label_detailed(&oversized),
+        ScopeLabel::validate(&oversized),
         Err(ScopeLabelError::TooLong { bytes: 65, max: 64 })
     );
     assert_eq!(
         validate_scope_label(&oversized),
-        Err(CanonicalAuthError::InvalidScope { scope: oversized })
+        Err(CanonicalAuthError::Scope(
+            ic_auth_protocol_types::ScopeLabelError::TooLong {
+                bytes: oversized.len(),
+                max: 64
+            }
+        ))
     );
 }
 
@@ -85,9 +81,9 @@ fn ordered_scopes_allow_empty_and_report_grammar_before_order_at_each_label() {
     }
     assert_eq!(
         validate_scopes(&["b".into(), "Bad".into()]),
-        Err(CanonicalAuthError::InvalidScope {
-            scope: "Bad".into()
-        })
+        Err(CanonicalAuthError::Scope(
+            ic_auth_protocol_types::ScopeLabelError::InvalidSegmentStart { offset: 0 }
+        ))
     );
 }
 
@@ -135,9 +131,9 @@ fn standalone_grant_refusals_preserve_input_order_for_mixed_invalid_values() {
     // Earlier scope failure wins over later role-order and empty-scope failures.
     assert_eq!(
         validate_grants(&grants, 2, 1),
-        Err(E::Canonical(CanonicalAuthError::InvalidScope {
-            scope: "Bad".into()
-        }))
+        Err(E::Canonical(CanonicalAuthError::Scope(
+            ic_auth_protocol_types::ScopeLabelError::InvalidSegmentStart { offset: 0 }
+        )))
     );
     for role in ["a", "b"] {
         assert_eq!(

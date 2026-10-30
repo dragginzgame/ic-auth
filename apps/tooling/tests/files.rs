@@ -169,6 +169,23 @@ fn client_contract_bundle_checks_all_vectors_and_refuses_bad_input() {
     let root = fixture();
     let generated = invoke(&root, &["client-contracts", "generate", "."]);
     assert!(generated.status.success(), "{:?}", generated);
+    let inventory = fs::read_to_string(root.join("artifacts.tsv")).unwrap();
+    let mut registered = std::collections::BTreeSet::new();
+    for line in inventory.lines() {
+        let (kind, name) = line.split_once('\t').unwrap();
+        assert!(matches!(kind, "source" | "evidence"));
+        assert!(registered.insert(name));
+        assert!(root.join(name).is_file());
+    }
+    for file in fs::read_dir(&root).unwrap() {
+        let name = file.unwrap().file_name().into_string().unwrap();
+        if name != "artifacts.tsv" {
+            assert!(
+                registered.contains(name.as_str()),
+                "unregistered output: {name}"
+            );
+        }
+    }
     for (name, _) in vectors {
         let hex = fs::read_to_string(root.join(format!("{name}-vector.hex"))).unwrap();
         let bytes: Vec<u8> = hex

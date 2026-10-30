@@ -1,3 +1,4 @@
+use super::{DelegationField, DelegationTarget};
 use super::{DelegationProofError, RootKeyPolicy, binding, window};
 use crate::canonical::{
     chain_key_batch_header_hash, chain_key_delegation_cert_hash, chain_key_derivation_path_hash,
@@ -17,28 +18,28 @@ pub(super) fn verify(
     let header = &proof.header;
     let leaf = &proof.delegation_cert;
     let signature = &proof.signature;
-    binding(header.schema_version == 1, "schema_version")?;
+    binding(header.schema_version == 1, DelegationField::SchemaVersion)?;
     binding(
         header.root_canister_id == policy.root_canister_id
             && leaf.root_canister_id == header.root_canister_id,
-        "root_canister_id",
+        DelegationField::RootCanisterId,
     )?;
     window(
-        "root_key_policy",
+        DelegationTarget::RootKeyPolicy,
         policy.valid_from_ns,
         policy.accept_until_ns,
         now_ns,
         max_future_skew_ns,
     )?;
     window(
-        "batch",
+        DelegationTarget::Batch,
         header.not_before_ns,
         header.expires_at_ns,
         now_ns,
         max_future_skew_ns,
     )?;
     window(
-        "issuer_leaf",
+        DelegationTarget::IssuerLeaf,
         leaf.not_before_ns,
         leaf.expires_at_ns,
         now_ns,
@@ -46,77 +47,97 @@ pub(super) fn verify(
     )?;
     binding(
         leaf.not_before_ns >= header.not_before_ns && leaf.expires_at_ns <= header.expires_at_ns,
-        "leaf_batch_window",
+        DelegationField::LeafBatchWindow,
     )?;
-    binding(leaf.proof_epoch == header.proof_epoch, "proof_epoch")?;
+    binding(
+        leaf.proof_epoch == header.proof_epoch,
+        DelegationField::ProofEpoch,
+    )?;
     binding(
         leaf.registry_epoch == header.registry_epoch,
-        "registry_epoch",
+        DelegationField::RegistryEpoch,
     )?;
-    binding(leaf.registry_hash == header.registry_hash, "registry_hash")?;
+    binding(
+        leaf.registry_hash == header.registry_hash,
+        DelegationField::RegistryHash,
+    )?;
     binding(
         leaf.issuer_canister_id == cert.issuer_pid,
-        "issuer_canister_id",
+        DelegationField::IssuerCanisterId,
     )?;
     binding(
         leaf.issuer_proof_algorithm == cert.issuer_proof_alg,
-        "issuer_proof_algorithm",
+        DelegationField::IssuerProofAlgorithm,
     )?;
     binding(
         leaf.issuer_proof_binding_hash == cert.issuer_proof_binding_hash
             && leaf.issuer_proof_binding == cert.issuer_proof_binding,
-        "issuer_proof_binding",
+        DelegationField::IssuerProofBinding,
     )?;
     binding(
         leaf.max_token_ttl_ns == cert.max_token_ttl_ns,
-        "max_token_ttl",
+        DelegationField::MaxTokenTtl,
     )?;
-    binding(leaf.audience == cert.aud, "leaf_audience")?;
-    binding(leaf.grants == cert.grants, "leaf_grants")?;
+    binding(leaf.audience == cert.aud, DelegationField::LeafAudience)?;
+    binding(leaf.grants == cert.grants, DelegationField::LeafGrants)?;
     binding(
         leaf.not_before_ns == cert.not_before_ns && leaf.expires_at_ns == cert.expires_at_ns,
-        "leaf_cert_window",
+        DelegationField::LeafCertWindow,
     )?;
     // For each field, inconsistent submitted material takes precedence over
     // an enrollment mismatch. Consumers project this cause without rechecking
     // submitted metadata; neither rejection establishes verified authority.
     if signature.algorithm != header.algorithm {
-        return Err(DelegationProofError::RootSignatureBindingMismatch { field: "algorithm" });
+        return Err(DelegationProofError::RootSignatureBindingMismatch {
+            field: DelegationField::Algorithm,
+        });
     }
     if header.algorithm != policy.algorithm {
-        return Err(DelegationProofError::RootKeyPolicyBindingMismatch { field: "algorithm" });
+        return Err(DelegationProofError::RootKeyPolicyBindingMismatch {
+            field: DelegationField::Algorithm,
+        });
     }
     if signature.key_id != header.key_id {
-        return Err(DelegationProofError::RootSignatureBindingMismatch { field: "key_id" });
+        return Err(DelegationProofError::RootSignatureBindingMismatch {
+            field: DelegationField::KeyId,
+        });
     }
     if header.key_id != policy.key_id {
-        return Err(DelegationProofError::RootKeyPolicyBindingMismatch { field: "key_id" });
+        return Err(DelegationProofError::RootKeyPolicyBindingMismatch {
+            field: DelegationField::KeyId,
+        });
     }
-    binding(signature.public_key == policy.public_key, "root_public_key")?;
+    binding(
+        signature.public_key == policy.public_key,
+        DelegationField::RootPublicKey,
+    )?;
     if chain_key_derivation_path_hash(&signature.derivation_path)? != header.derivation_path_hash {
         return Err(DelegationProofError::RootSignatureBindingMismatch {
-            field: "derivation_path_hash",
+            field: DelegationField::DerivationPathHash,
         });
     }
     if header.derivation_path_hash != policy.derivation_path_hash {
         return Err(DelegationProofError::RootKeyPolicyBindingMismatch {
-            field: "derivation_path_hash",
+            field: DelegationField::DerivationPathHash,
         });
     }
-    binding(header.key_version == policy.key_version, "key_version")?;
+    binding(
+        header.key_version == policy.key_version,
+        DelegationField::KeyVersion,
+    )?;
     for (field, found, minimum) in [
         (
-            "key_version",
+            DelegationField::KeyVersion,
             header.key_version,
             policy.min_accepted_key_version,
         ),
         (
-            "proof_epoch",
+            DelegationField::ProofEpoch,
             header.proof_epoch,
             policy.min_accepted_proof_epoch,
         ),
         (
-            "registry_epoch",
+            DelegationField::RegistryEpoch,
             header.registry_epoch,
             policy.min_accepted_registry_epoch,
         ),
@@ -128,7 +149,7 @@ pub(super) fn verify(
     let ttl_ns = header.expires_at_ns - header.not_before_ns;
     if ttl_ns > policy.max_revocation_latency_ns {
         return Err(DelegationProofError::TtlExceeded {
-            target: "batch",
+            target: DelegationTarget::Batch,
             ttl_ns,
             max_ttl_ns: policy.max_revocation_latency_ns,
         });

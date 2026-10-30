@@ -14,7 +14,7 @@ the complete `PortableCredential`, a checked `SessionRequest`,
 claims decode, digest and complete verification. There is no verification callback
 or public decoded-admission value that a host can substitute.
 
-Pending Auth 0.24 consumes the checked `SessionRequest`. The fresh session takes
+Auth 0.24 consumes the checked `SessionRequest`. The fresh session takes
 ownership of its scope strings; exact retries still use the same frozen request
 hash, including absent versus explicit TTL. Retain raw request inputs or explicitly
 clone a checked request if it is needed afterward. Stored and signed formats are
@@ -28,6 +28,20 @@ checks as raw verification. This proves shape, not proof validity, enrollment or
 TEE assurance. Every operation keeps live authority/budget checks, strict
 signature verification and canonical-scalar admission. No verification result is
 cached. The standalone byte-key verifier retains its API and rejection order.
+
+Pending Auth 0.25 reports scope grammar errors as
+`CanonicalAuthError::Scope(ScopeLabelError)`, including `Empty`, `TooLong`,
+`EmptySegment`, `InvalidSegmentStart` and `InvalidByte`. Match that cause instead
+of the former `EmptyScope`/`InvalidScope` variants. Errors retain byte counts or
+offsets, without copying the submitted label. Validation order, grammar and
+public refusal categories are unchanged.
+
+`ScopeLabel` and `ScopeLabelError` now belong to `ic_auth_protocol_types`.
+`SessionRequest::scopes()` and `RequiredScopes::as_slice()` return checked labels;
+use `as_str()` for borrowed text. Constructors still accept owned strings and
+retain count-before-grammar refusal ordering. Labels preserve exact bytes and
+cannot be mutated without admission. Raw proof grants remain strings so exact
+retries retain their existing deferred proof validation.
 
 `SessionAdmissionContext` contains the protected `PortableVerificationContext`,
 receiver role and checked `SessionTtlPolicy`. That verifier selection supplies the
@@ -131,7 +145,7 @@ Refreshing authority never extends an existing lease. Applications separately
 check resource ownership and decide which effects require reauthorization after
 an await.
 
-Pending Auth 0.24 exposes `SessionError::read_refusal()` for proof-free readers:
+Auth 0.24 exposes `SessionError::read_refusal()` for proof-free readers:
 missing/expired session, unavailable authority, rejected scope, revocation or
 internal unavailability. Keep the original error locally for diagnostics. The
 matching `ReadSession` contract uses identity `0x415554480013`; earlier
@@ -284,7 +298,7 @@ unlimited adversarial load or a production host's admission policy.
 `logout_session` returns the shared `LogoutResult`: `Revoked { deny_until_ns }`
 only after commit, `InvalidCaller`, or typed `Unavailable` (capacity, storage or
 clock). Hosts return `Unavailable(ResetPending)` before touching unavailable
-startup state. The empty `LogoutRequest` accepts no client-selected identity or
+startup state. The Wire unit request `()` accepts no client-selected identity or
 proof; hosts pass the authenticated runtime caller. Transport failures remain
 unknown, never successful revocation. The qualification endpoint and generated
 browser bindings use this same contract.
@@ -331,8 +345,18 @@ legacy reader, migration or implicit clearing. A host adopting this cut must
 initialize a coherent new session/replay/login checkpoint before serving; never
 retain only part of a previous replay or revocation history.
 
+Pending **0.25** separately retires the current text-ID session/login records.
+The maintainer confirmed **no retained current records; a hard cut is OK**.
+New session/login records encode their two audience IDs as fixed 32-byte strings;
+decoders refuse wrong lengths and former record identities. Public `CanonicalId`
+serialization remains hexadecimal text. No fallback reader or implicit clearing
+is provided. Adopt the complete session/replay/login checkpoint together, including
+its encoded-byte totals. The private qualification checkpoint is `AUTHNAT3`;
+`AUTHNAT2` is refused without clearing. This consent does not authorize erasing a
+Memory allocation ledger or resetting backing storage.
+
 Current records are native IC Wire request frames, using storage-only identities
-`0x415554485301` (session), `0x415554485302` (replay) and `0x415554485303`
+`0x415554485311` (session), `0x415554485302` (unchanged replay) and `0x415554485313`
 (login ledger); these are never mounted RPC methods. Byte bounds include the
 11-byte header: 2048, 512 and 1024 respectively. Traversal is bounded at 1024
 nodes, depth 16 and a 65,536-byte native allocation allowance, independent of the

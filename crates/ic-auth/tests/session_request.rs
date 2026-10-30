@@ -63,7 +63,14 @@ fn exact_scope_limits_accept_without_widening_or_changing_labels() {
     let sorted = scopes.clone();
     scopes.reverse();
     let request = SessionRequest::new(scopes, None).unwrap();
-    assert_eq!(request.scopes(), sorted);
+    assert_eq!(
+        request
+            .scopes()
+            .iter()
+            .map(|scope| scope.as_str())
+            .collect::<Vec<_>>(),
+        sorted.iter().map(String::as_str).collect::<Vec<_>>()
+    );
     assert_eq!(request.clone(), request);
     let mut too_many = sorted.clone();
     too_many.push("read".into());
@@ -76,17 +83,21 @@ fn exact_scope_limits_accept_without_widening_or_changing_labels() {
     over_total[0] = too_long.clone();
     assert_eq!(
         SessionRequest::new(over_total, None),
-        Err(SessionRequestError::Canonical(
-            CanonicalAuthError::InvalidScope {
-                scope: too_long.clone()
+        Err(SessionRequestError::Canonical(CanonicalAuthError::Scope(
+            ic_auth_protocol_types::ScopeLabelError::TooLong {
+                bytes: too_long.len(),
+                max: 64
             }
-        ))
+        )))
     );
     assert_eq!(
         SessionRequest::new(vec![too_long.clone()], None),
-        Err(SessionRequestError::Canonical(
-            CanonicalAuthError::InvalidScope { scope: too_long }
-        ))
+        Err(SessionRequestError::Canonical(CanonicalAuthError::Scope(
+            ic_auth_protocol_types::ScopeLabelError::TooLong {
+                bytes: too_long.len(),
+                max: 64
+            }
+        )))
     );
 }
 
@@ -97,16 +108,21 @@ fn request_shape_and_canonical_failures_preserve_refusal_precedence() {
         assert_eq!(SessionRequest::new(scopes, Some(0)), Err(E::InvalidRequest));
     }
     for (scopes, expected) in [
-        (vec!["".into()], CanonicalAuthError::EmptyScope),
+        (
+            vec!["".into()],
+            CanonicalAuthError::Scope(ic_auth_protocol_types::ScopeLabelError::Empty),
+        ),
         (
             vec!["read".into(), "Bad".into(), "read".into()],
-            CanonicalAuthError::InvalidScope {
-                scope: "Bad".into(),
-            },
+            CanonicalAuthError::Scope(
+                ic_auth_protocol_types::ScopeLabelError::InvalidSegmentStart { offset: 0 },
+            ),
         ),
         (
             vec!["read".into(), "é".into()],
-            CanonicalAuthError::InvalidScope { scope: "é".into() },
+            CanonicalAuthError::Scope(
+                ic_auth_protocol_types::ScopeLabelError::InvalidSegmentStart { offset: 0 },
+            ),
         ),
     ] {
         assert_eq!(

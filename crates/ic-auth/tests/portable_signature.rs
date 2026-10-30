@@ -493,7 +493,13 @@ fn session_request_narrows_one_protected_role_without_combining_grants() {
     // Narrowing never rewrites signed grants, fingerprints or request identity.
     assert_eq!(checked.claims(), &c);
     assert_eq!(checked.fingerprint(), claims_hash(&c).unwrap());
-    assert_eq!(read.scopes(), &["read"]);
+    assert_eq!(
+        read.scopes()
+            .iter()
+            .map(|scope| scope.as_str())
+            .collect::<Vec<_>>(),
+        ["read"]
+    );
 }
 
 #[test]

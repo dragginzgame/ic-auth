@@ -21,7 +21,7 @@ bytes, with the same method IDs, field order and generated browser contracts.
 Human-readable Serde now uses Principal text instead of byte arrays; it is not
 the application transport. No stored record or browser journal format changes.
 
-Pending Auth 0.24 changes `ReadSession` to typed `model::SessionReadRefusal`
+Auth 0.24 changes `ReadSession` to typed `model::SessionReadRefusal`
 responses. Its identity becomes `0x415554480013`; the former
 `0x415554480003` request/reply frames are refused. Update clients and receivers
 together and regenerate bindings. Categories cover missing/expired sessions,

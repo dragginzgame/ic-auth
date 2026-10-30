@@ -48,6 +48,16 @@ pub(crate) fn run(
     };
     match mode {
         crate::ContractMode::Generate => {
+            // Record actual publications, so the driver needs no parallel
+            // source/vector roster. The manifest itself is candidate metadata.
+            let mut artifacts = String::new();
+            let mut publish =
+                |kind: &str, name: &str, bytes: &[u8]| -> Result<(), Box<dyn std::error::Error>> {
+                    save(name, bytes)?;
+                    use std::fmt::Write;
+                    writeln!(artifacts, "{kind}\t{name}")?;
+                    Ok(())
+                };
             let mut policies = serde_json::Map::new();
             for (name, (source, (id, limits)), policy) in [
                 (
@@ -70,12 +80,20 @@ pub(crate) fn run(
                     ),
                 ),
             ] {
-                save(name, format!("{source}{policy}").as_bytes())?;
+                publish("source", name, format!("{source}{policy}").as_bytes())?;
                 policies.insert(id, limits);
             }
-            save("wire-runtime.ts", wire::typescript::RUNTIME.as_bytes())?;
+            publish(
+                "source",
+                "wire-runtime.ts",
+                wire::typescript::RUNTIME.as_bytes(),
+            )?;
             // Policy evidence is carried alongside each generated binding.
-            save("codec-policy.json", &serde_json::to_vec(&policies)?)?;
+            publish(
+                "evidence",
+                "codec-policy.json",
+                &serde_json::to_vec(&policies)?,
+            )?;
 
             for (name, bytes) in [
                 (
@@ -96,8 +114,9 @@ pub(crate) fn run(
                 ),
             ] {
                 let hex: String = bytes.iter().map(|byte| format!("{byte:02x}")).collect();
-                save(name, format!("{hex}\n").as_bytes())?;
+                publish("evidence", name, format!("{hex}\n").as_bytes())?;
             }
+            save("artifacts.tsv", artifacts.as_bytes())?;
         }
         crate::ContractMode::Check => {
             let bytes = read_file_no_follow(

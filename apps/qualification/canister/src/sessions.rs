@@ -13,7 +13,7 @@ use ic_auth::{
     portable_credential::PortableVerificationContext,
     session::{
         MemorySessionStore, RequiredScopes, Session, SessionAdmissionContext, SessionContext,
-        SessionEstablished, SessionLimits, SessionPolicy, SessionStore, authorize_session,
+        SessionLimits, SessionPolicy, SessionReceipt, SessionStore, authorize_session,
         establish_session, logout_session,
     },
     session_request::{SessionRequest, SessionTtlPolicy},
@@ -82,7 +82,6 @@ struct Receiver {
 thread_local! { static RECEIVER: RefCell<Option<Receiver>> = const { RefCell::new(None) }; }
 struct ReceiverInputs {
     config: ReceiverConfig,
-    binding: [u8; 32],
     login_floor: u64,
     proof_floor: u64,
 }
@@ -95,7 +94,7 @@ impl ReceiverInputs {
             audience: &self.config.audience,
             issuer: self.config.issuer,
             mechanism: self.config.authority.mechanism(),
-            key_binding_id: self.binding,
+            key_binding_id: self.config.authority.binding(),
             grants: &self.config.grants,
             caller,
             now_ns: now,
@@ -139,6 +138,33 @@ fn budgets(
     ))
 }
 
+impl Receiver {
+    // Callers admit installation or restoration independently. This assembly
+    // supplies common operations and fresh, empty budgets, never authority.
+    fn new(
+        inputs: ReceiverInputs,
+        lifecycle: ReceiverLifecycle,
+        enabled: bool,
+        store: MemorySessionStore,
+        ledger: MemoryLoginRevocations,
+        now: u64,
+    ) -> Result<Self, String> {
+        let (admission, unknown) = budgets(&inputs.config, now)?;
+        Ok(Self {
+            inputs,
+            lifecycle,
+            enabled,
+            store,
+            ledger,
+            admission,
+            unknown,
+            metrics: Default::default(),
+            read_scopes: RequiredScopes::new(vec!["read".into()]).expect("read operation"),
+            write_scopes: RequiredScopes::new(vec!["write".into()]).expect("write operation"),
+        })
+    }
+}
+
 fn policy(host: &Receiver) -> SessionPolicy {
     SessionPolicy {
         generation: host.store.generation(),
@@ -146,23 +172,39 @@ fn policy(host: &Receiver) -> SessionPolicy {
         subject_admissible: true,
     }
 }
-fn view(session: &Session) -> SessionView {
+fn view(receipt: SessionReceipt) -> SessionView {
     SessionView {
-        caller: session.caller(),
-        issuer: session.issuer(),
-        subject: session.subject(),
-        expires_at_ns: session.expires_at_ns(),
+        caller: receipt.caller(),
+        issuer: receipt.issuer(),
+        subject: receipt.subject(),
+        expires_at_ns: receipt.expires_at_ns(),
     }
 }
-fn with_receiver<T>(
-    operation: impl FnOnce(&mut Receiver) -> Result<T, String>,
-) -> Result<T, String> {
+struct ReceiverUnavailable;
+impl From<ReceiverUnavailable> for String {
+    fn from(_: ReceiverUnavailable) -> Self {
+        "receiver not ready".into()
+    }
+}
+impl From<ReceiverUnavailable> for AdmissionRefusal {
+    fn from(_: ReceiverUnavailable) -> Self {
+        Self::Unavailable
+    }
+}
+impl From<ReceiverUnavailable> for SessionReadRefusal {
+    fn from(_: ReceiverUnavailable) -> Self {
+        Self::Unavailable
+    }
+}
+fn with_receiver<T, E: From<ReceiverUnavailable>>(
+    operation: impl FnOnce(&mut Receiver) -> Result<T, E>,
+) -> Result<T, E> {
     RECEIVER.with(|state| {
         let mut state = state.borrow_mut();
         let host = state
             .as_mut()
             .filter(|host| host.lifecycle.ready())
-            .ok_or("receiver not ready")?;
+            .ok_or(ReceiverUnavailable)?;
         operation(host)
     })
 }
@@ -194,7 +236,6 @@ fn install_session_receiver(config: controls::model::ReceiverConfig) -> Result<(
         return Err("invalid certified receiver authority".into());
     }
     let mut inputs = ReceiverInputs {
-        binding: config.authority.binding(),
         config,
         login_floor: 0,
         proof_floor: 0,
@@ -207,26 +248,22 @@ fn install_session_receiver(config: controls::model::ReceiverConfig) -> Result<(
     );
     inputs.login_floor = floors.0;
     inputs.proof_floor = floors.1;
-    let (admission, unknown) = budgets(&inputs.config, now)?;
-    let host = Receiver {
-        lifecycle: ReceiverLifecycle::Active,
-        read_scopes: RequiredScopes::new(vec!["read".into()]).expect("read operation"),
-        write_scopes: RequiredScopes::new(vec!["write".into()]).expect("write operation"),
-        store: MemorySessionStore::new(0, limits()),
-        ledger: MemoryLoginRevocations::new(
-            inputs.config.audience,
-            MAX_ADMITTED_LOGINS,
-            MAX_UNKNOWN_LOGINS,
-            0,
-            now,
-        )
-        .map_err(|e| e.to_string())?,
-        admission,
-        unknown,
+    let ledger = MemoryLoginRevocations::new(
+        inputs.config.audience,
+        MAX_ADMITTED_LOGINS,
+        MAX_UNKNOWN_LOGINS,
+        0,
+        now,
+    )
+    .map_err(|e| e.to_string())?;
+    let host = Receiver::new(
         inputs,
-        enabled: true,
-        metrics: Default::default(),
-    };
+        ReceiverLifecycle::Active,
+        true,
+        MemorySessionStore::new(0, limits()),
+        ledger,
+        now,
+    )?;
     RECEIVER.with(|state| *state.borrow_mut() = Some(host));
     Ok(())
 }
@@ -286,23 +323,10 @@ fn establish_portable_session(input: SessionInput) -> Result<SessionView, Admiss
             policy,
         );
         host.metrics.observe(&result);
-        Ok(result
-            .map(|result| {
-                let receipt = match result {
-                    SessionEstablished::Created(s)
-                    | SessionEstablished::Replaced(s)
-                    | SessionEstablished::ExactRetry(s) => s,
-                };
-                SessionView {
-                    caller: receipt.caller(),
-                    issuer: receipt.issuer(),
-                    subject: receipt.subject(),
-                    expires_at_ns: receipt.expires_at_ns(),
-                }
-            })
-            .map_err(|error| error.admission_refusal().into()))
+        result
+            .map(|result| view(result.receipt()))
+            .map_err(|error| error.admission_refusal().into())
     })
-    .map_err(|_| AdmissionRefusal::Unavailable)?
 }
 #[ic_platform::cdk::update(
     guard = "admission_guard",
@@ -346,12 +370,11 @@ fn authorize(operation: SessionOperation) -> Result<SessionView, SessionReadRefu
             SessionOperation::Read => &host.read_scopes,
             SessionOperation::Write => &host.write_scopes,
         };
-        Ok(
-            authorize_session(&mut host.store, &mut host.ledger, &ctx, policy, view)
-                .map_err(|e| e.read_refusal()),
-        )
+        authorize_session(&mut host.store, &mut host.ledger, &ctx, policy, |session| {
+            view(session.into())
+        })
+        .map_err(|e| e.read_refusal())
     })
-    .map_err(|_| SessionReadRefusal::Unavailable)?
 }
 
 // One fixture application asset is writable by the protected "write" scope.
@@ -429,8 +452,10 @@ fn profile_portable_session() -> Result<SessionProfile, String> {
         let ctx = host.inputs.context(caller, ic_platform::cdk::api::time());
         let policy = policy(host);
         let start_authorization = ic_platform::ic0::performance_counter(0);
-        authorize_session(&mut host.store, &mut host.ledger, &ctx, policy, view)
-            .map_err(|e| e.to_string())?;
+        authorize_session(&mut host.store, &mut host.ledger, &ctx, policy, |session| {
+            view(session.into())
+        })
+        .map_err(|e| e.to_string())?;
         Ok(SessionProfile {
             record_bytes: encoded.len() as u64,
             decode_instructions: after_decode - start,
@@ -478,4 +503,20 @@ fn encode_read(result: Result<SessionView, SessionReadRefusal>) -> Vec<u8> {
 }
 fn encode_logout(result: LogoutResult) -> Vec<u8> {
     ic_auth_wire::Logout::encode_response(&result.into()).expect("bounded logout reply")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn unavailable_receiver_refuses_before_any_operation_with_owned_categories() {
+        RECEIVER.with(|state| *state.borrow_mut() = None);
+        let refusal: Result<(), AdmissionRefusal> = with_receiver(|_| panic!("admission ran"));
+        assert_eq!(refusal, Err(AdmissionRefusal::Unavailable));
+        let refusal: Result<(), SessionReadRefusal> = with_receiver(|_| panic!("read ran"));
+        assert_eq!(refusal, Err(SessionReadRefusal::Unavailable));
+        let refusal: Result<(), String> = with_receiver(|_| panic!("control ran"));
+        assert_eq!(refusal, Err("receiver not ready".into()));
+    }
 }

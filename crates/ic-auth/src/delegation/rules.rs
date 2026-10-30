@@ -1,3 +1,4 @@
+use super::{DelegationField, DelegationTarget};
 use super::{DelegationProofError, DelegationProofVerificationLimits, binding, window};
 use crate::certificate_issuance::{
     CertificateLifetimeError, issuer_binding_matches, validate_certificate_lifetime,
@@ -81,21 +82,21 @@ pub(super) fn verify_certificate_window(
             use CertificateLifetimeError as E;
             match error {
                 E::IssuedAfterStart => DelegationProofError::BindingMismatch {
-                    field: "cert_issued_at",
+                    field: DelegationField::CertIssuedAt,
                 },
                 E::InvalidWindow => DelegationProofError::InvalidWindow {
-                    target: "certificate",
+                    target: DelegationTarget::Certificate,
                 },
                 E::CertTtlExceeded { ttl_ns, max_ttl_ns } => DelegationProofError::TtlExceeded {
-                    target: "certificate",
+                    target: DelegationTarget::Certificate,
                     ttl_ns,
                     max_ttl_ns,
                 },
                 E::TokenTtlZero => DelegationProofError::InvalidWindow {
-                    target: "max_token_ttl",
+                    target: DelegationTarget::MaxTokenTtl,
                 },
                 E::TokenTtlExceeded { ttl_ns, .. } => DelegationProofError::TtlExceeded {
-                    target: "max_token_ttl",
+                    target: DelegationTarget::MaxTokenTtl,
                     ttl_ns,
                     max_ttl_ns: limits
                         .max_token_ttl_ns
@@ -105,7 +106,7 @@ pub(super) fn verify_certificate_window(
                     token_ttl_ns,
                     cert_ttl_ns,
                 } => DelegationProofError::TtlExceeded {
-                    target: "max_token_ttl",
+                    target: DelegationTarget::MaxTokenTtl,
                     ttl_ns: token_ttl_ns,
                     max_ttl_ns: cert_ttl_ns,
                 },
@@ -113,7 +114,7 @@ pub(super) fn verify_certificate_window(
         },
     )?;
     window(
-        "certificate",
+        DelegationTarget::Certificate,
         cert.not_before_ns,
         cert.expires_at_ns,
         now_ns,
@@ -126,6 +127,9 @@ pub(super) fn verify_certificate_window(
 pub(super) fn verify_certificate_binding(
     cert: &DelegationCert,
 ) -> Result<(), DelegationProofError> {
-    binding(issuer_binding_matches(cert)?, "issuer_proof_binding_hash")?;
+    binding(
+        issuer_binding_matches(cert)?,
+        DelegationField::IssuerProofBindingHash,
+    )?;
     Ok(())
 }

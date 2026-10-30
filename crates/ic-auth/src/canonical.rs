@@ -32,10 +32,8 @@ enum CanonicalDomain {
 pub enum CanonicalAuthError {
     #[error("canonical vector length exceeds u32")]
     LengthOverflow,
-    #[error("delegated auth scope is empty")]
-    EmptyScope,
-    #[error("delegated auth scope contains invalid characters: {scope}")]
-    InvalidScope { scope: String },
+    #[error(transparent)]
+    Scope(#[from] ScopeLabelError),
     #[error("delegated auth scopes must be strictly sorted and unique")]
     NonCanonicalScopes,
     #[error("delegated auth role grants must be strictly sorted and unique")]
@@ -364,74 +362,9 @@ pub fn validate_scopes(scopes: &[String]) -> Result<(), CanonicalAuthError> {
     Ok(())
 }
 
-/// A scope label's grammar failure. Offsets and lengths count UTF-8 bytes.
-#[derive(Clone, Copy, Debug, Eq, Error, PartialEq)]
-pub enum ScopeLabelError {
-    #[error("scope is empty")]
-    Empty,
-    #[error("scope has {bytes} bytes; maximum is {max}")]
-    TooLong { bytes: usize, max: usize },
-    #[error("scope contains an empty segment")]
-    EmptySegment,
-    #[error("invalid scope segment start at byte {offset}")]
-    InvalidSegmentStart { offset: usize },
-    #[error("invalid scope byte at offset {offset}")]
-    InvalidByte { offset: usize },
-}
-
-/// Check the 64-byte, lowercase ASCII/digit, colon-separated scope grammar.
-///
-/// Every segment starts with a lowercase letter or digit; subsequent bytes may
-/// also be `_` or `-`. Length is checked first, then bytes from left to right.
-/// This allocation-free check supports static construction and grants no authority.
-pub const fn validate_scope_label_detailed(scope: &str) -> Result<(), ScopeLabelError> {
-    let bytes = scope.as_bytes();
-    if bytes.is_empty() {
-        return Err(ScopeLabelError::Empty);
-    }
-    if bytes.len() > crate::limits::MAX_LABEL_BYTES {
-        return Err(ScopeLabelError::TooLong {
-            bytes: bytes.len(),
-            max: crate::limits::MAX_LABEL_BYTES,
-        });
-    }
-    let mut segment_start = true;
-    let mut offset = 0;
-    while offset < bytes.len() {
-        let byte = bytes[offset];
-        if byte == b':' {
-            if segment_start {
-                return Err(ScopeLabelError::EmptySegment);
-            }
-            segment_start = true;
-        } else if segment_start {
-            if !byte.is_ascii_lowercase() && !byte.is_ascii_digit() {
-                return Err(ScopeLabelError::InvalidSegmentStart { offset });
-            }
-            segment_start = false;
-        } else if !byte.is_ascii_lowercase()
-            && !byte.is_ascii_digit()
-            && byte != b'_'
-            && byte != b'-'
-        {
-            return Err(ScopeLabelError::InvalidByte { offset });
-        }
-        offset += 1;
-    }
-    if segment_start {
-        return Err(ScopeLabelError::EmptySegment);
-    }
-    Ok(())
-}
-
 /// Check the existing lowercase, colon-separated application-scope grammar.
 pub fn validate_scope_label(scope: &str) -> Result<(), CanonicalAuthError> {
-    validate_scope_label_detailed(scope).map_err(|error| match error {
-        ScopeLabelError::Empty => CanonicalAuthError::EmptyScope,
-        _ => CanonicalAuthError::InvalidScope {
-            scope: scope.to_string(),
-        },
-    })
+    ScopeLabel::validate(scope).map_err(Into::into)
 }
 
 fn encode_string(out: &mut Vec<u8>, value: &str) -> Result<(), CanonicalAuthError> {

@@ -1,4 +1,5 @@
 use super::*;
+use ic_auth::delegation::{DelegationField, DelegationTarget};
 use ic_auth::delegation::{
     DelegationProofVerificationContext, VerifiedDelegationProof, verify_delegation_proof,
 };
@@ -35,13 +36,13 @@ fn expected_issuer_and_independent_root_policy_are_required() {
         assert_eq!(
             verify_delegation_proof(&f.proof, &ctx).unwrap_err(),
             Error::BindingMismatch {
-                field: "issuer_canister_id"
+                field: DelegationField::IssuerCanisterId
             }
         );
     }
-    for field in ["root", "issuer"] {
+    for field in [DelegationField::Root, DelegationField::Issuer] {
         let mut f = Fixture::new();
-        if field == "root" {
+        if field == DelegationField::Root {
             f.proof.cert.root_pid = Principal::anonymous();
         } else {
             f.proof.cert.issuer_pid = Principal::anonymous();
@@ -53,7 +54,7 @@ fn expected_issuer_and_independent_root_policy_are_required() {
     assert_eq!(
         verify(&f).unwrap_err(),
         Error::BindingMismatch {
-            field: "root_canister_id"
+            field: DelegationField::RootCanisterId
         }
     );
 }
@@ -74,9 +75,9 @@ fn certificate_shape_and_canonical_grants_are_checked_before_root_crypto() {
         ),
         (
             vec![grant(&["Read"])],
-            Error::Canonical(CanonicalAuthError::InvalidScope {
-                scope: "Read".into(),
-            }),
+            Error::Canonical(CanonicalAuthError::Scope(
+                ic_auth_protocol_types::ScopeLabelError::InvalidSegmentStart { offset: 0 },
+            )),
         ),
     ] {
         let mut f = Fixture::new();
@@ -88,7 +89,7 @@ fn certificate_shape_and_canonical_grants_are_checked_before_root_crypto() {
     assert_eq!(
         verify(&f).unwrap_err(),
         Error::BindingMismatch {
-            field: "cert_issued_at"
+            field: DelegationField::CertIssuedAt
         }
     );
     f.proof.cert.issued_at_ns = 100;
@@ -96,7 +97,7 @@ fn certificate_shape_and_canonical_grants_are_checked_before_root_crypto() {
     assert_eq!(
         verify(&f).unwrap_err(),
         Error::BindingMismatch {
-            field: "issuer_proof_binding_hash"
+            field: DelegationField::IssuerProofBindingHash
         }
     );
 }
@@ -112,7 +113,7 @@ fn standalone_certificate_ttl_and_time_use_explicit_exact_limits() {
     assert_eq!(
         verify_delegation_proof(&f.proof, &ctx).unwrap_err(),
         Error::TtlExceeded {
-            target: "certificate",
+            target: DelegationTarget::Certificate,
             ttl_ns: 400,
             max_ttl_ns: 399
         }
@@ -122,7 +123,7 @@ fn standalone_certificate_ttl_and_time_use_explicit_exact_limits() {
     assert_eq!(
         verify_delegation_proof(&f.proof, &ctx).unwrap_err(),
         Error::TtlExceeded {
-            target: "max_token_ttl",
+            target: DelegationTarget::MaxTokenTtl,
             ttl_ns: 100,
             max_ttl_ns: 99
         }
@@ -134,7 +135,7 @@ fn standalone_certificate_ttl_and_time_use_explicit_exact_limits() {
     assert_eq!(
         verify_delegation_proof(&f.proof, &ctx).unwrap_err(),
         Error::NotYetValid {
-            target: "certificate"
+            target: DelegationTarget::Certificate
         }
     );
     ctx.now_ns = 499;
@@ -143,14 +144,14 @@ fn standalone_certificate_ttl_and_time_use_explicit_exact_limits() {
     assert_eq!(
         verify_delegation_proof(&f.proof, &ctx).unwrap_err(),
         Error::Expired {
-            target: "certificate"
+            target: DelegationTarget::Certificate
         }
     );
     ctx.now_ns = u64::MAX;
     assert_eq!(
         verify_delegation_proof(&f.proof, &ctx).unwrap_err(),
         Error::Expired {
-            target: "certificate"
+            target: DelegationTarget::Certificate
         }
     );
     for end in [99, 100] {
@@ -159,7 +160,7 @@ fn standalone_certificate_ttl_and_time_use_explicit_exact_limits() {
         assert_eq!(
             verify(&f).unwrap_err(),
             Error::InvalidWindow {
-                target: "certificate"
+                target: DelegationTarget::Certificate
             }
         );
     }
@@ -168,7 +169,7 @@ fn standalone_certificate_ttl_and_time_use_explicit_exact_limits() {
     assert_eq!(
         verify(&f).unwrap_err(),
         Error::InvalidWindow {
-            target: "max_token_ttl"
+            target: DelegationTarget::MaxTokenTtl
         }
     );
     f.proof.cert.expires_at_ns = 190;
@@ -176,7 +177,7 @@ fn standalone_certificate_ttl_and_time_use_explicit_exact_limits() {
     assert_eq!(
         verify(&f).unwrap_err(),
         Error::TtlExceeded {
-            target: "max_token_ttl",
+            target: DelegationTarget::MaxTokenTtl,
             ttl_ns: 100,
             max_ttl_ns: 90
         }
@@ -260,7 +261,7 @@ fn previously_valid_root_proof_is_rejected_after_live_policy_changes() {
     assert_eq!(
         verify(&f).unwrap_err(),
         Error::Expired {
-            target: "root_key_policy"
+            target: DelegationTarget::RootKeyPolicy
         }
     );
     f.policy.accept_until_ns = 1000;
@@ -268,15 +269,19 @@ fn previously_valid_root_proof_is_rejected_after_live_policy_changes() {
     assert_eq!(
         verify(&f).unwrap_err(),
         Error::NotYetValid {
-            target: "root_key_policy"
+            target: DelegationTarget::RootKeyPolicy
         }
     );
-    for field in ["key_version", "proof_epoch", "registry_epoch"] {
+    for field in [
+        DelegationField::KeyVersion,
+        DelegationField::ProofEpoch,
+        DelegationField::RegistryEpoch,
+    ] {
         let mut f = Fixture::new();
         assert!(verify(&f).is_ok());
         match field {
-            "key_version" => f.policy.min_accepted_key_version += 1,
-            "proof_epoch" => f.policy.min_accepted_proof_epoch += 1,
+            DelegationField::KeyVersion => f.policy.min_accepted_key_version += 1,
+            DelegationField::ProofEpoch => f.policy.min_accepted_proof_epoch += 1,
             _ => f.policy.min_accepted_registry_epoch += 1,
         }
         assert_eq!(verify(&f).unwrap_err(), Error::StaleAuthority { field });
@@ -286,7 +291,7 @@ fn previously_valid_root_proof_is_rejected_after_live_policy_changes() {
     assert_eq!(
         verify(&f).unwrap_err(),
         Error::TtlExceeded {
-            target: "batch",
+            target: DelegationTarget::Batch,
             ttl_ns: 400,
             max_ttl_ns: 399
         }
@@ -299,77 +304,79 @@ fn root_rejection_contracts_cover_bound_metadata_and_crypto() {
         (
             "schema",
             Error::BindingMismatch {
-                field: "schema_version",
+                field: DelegationField::SchemaVersion,
             },
         ),
         (
             "root",
             Error::BindingMismatch {
-                field: "root_canister_id",
+                field: DelegationField::RootCanisterId,
             },
         ),
         (
             "issuer",
             Error::BindingMismatch {
-                field: "issuer_canister_id",
+                field: DelegationField::IssuerCanisterId,
             },
         ),
         (
             "seed",
             Error::BindingMismatch {
-                field: "issuer_proof_binding",
+                field: DelegationField::IssuerProofBinding,
             },
         ),
         (
             "epoch",
             Error::BindingMismatch {
-                field: "proof_epoch",
+                field: DelegationField::ProofEpoch,
             },
         ),
         (
             "registry",
             Error::BindingMismatch {
-                field: "registry_hash",
+                field: DelegationField::RegistryHash,
             },
         ),
         (
             "audience",
             Error::BindingMismatch {
-                field: "leaf_audience",
+                field: DelegationField::LeafAudience,
             },
         ),
         (
             "grant",
             Error::BindingMismatch {
-                field: "leaf_grants",
+                field: DelegationField::LeafGrants,
             },
         ),
         (
             "ttl",
             Error::BindingMismatch {
-                field: "max_token_ttl",
+                field: DelegationField::MaxTokenTtl,
             },
         ),
         (
             "key_name",
-            Error::RootSignatureBindingMismatch { field: "key_id" },
+            Error::RootSignatureBindingMismatch {
+                field: DelegationField::KeyId,
+            },
         ),
         (
             "key_version",
             Error::BindingMismatch {
-                field: "key_version",
+                field: DelegationField::KeyVersion,
             },
         ),
         (
             "key",
             Error::BindingMismatch {
-                field: "root_public_key",
+                field: DelegationField::RootPublicKey,
             },
         ),
         (
             "path",
             Error::RootSignatureBindingMismatch {
-                field: "derivation_path_hash",
+                field: DelegationField::DerivationPathHash,
             },
         ),
         ("witness", Error::InvalidMerkleWitness),
@@ -448,7 +455,7 @@ fn root_authorized_other_issuer_still_cannot_install_on_this_host() {
     assert_eq!(
         verify(&f).unwrap_err(),
         Error::BindingMismatch {
-            field: "issuer_canister_id"
+            field: DelegationField::IssuerCanisterId
         }
     );
     let mut ctx = context(&f);
@@ -459,37 +466,52 @@ fn root_authorized_other_issuer_still_cannot_install_on_this_host() {
 #[test]
 fn root_and_leaf_windows_cannot_override_the_certificate_or_enrollment() {
     for (field, error) in [
-        ("batch_start", Error::NotYetValid { target: "batch" }),
-        ("batch_end", Error::Expired { target: "batch" }),
-        ("batch_invalid", Error::InvalidWindow { target: "batch" }),
+        (
+            "batch_start",
+            Error::NotYetValid {
+                target: DelegationTarget::Batch,
+            },
+        ),
+        (
+            "batch_end",
+            Error::Expired {
+                target: DelegationTarget::Batch,
+            },
+        ),
+        (
+            "batch_invalid",
+            Error::InvalidWindow {
+                target: DelegationTarget::Batch,
+            },
+        ),
         (
             "leaf_start",
             Error::NotYetValid {
-                target: "issuer_leaf",
+                target: DelegationTarget::IssuerLeaf,
             },
         ),
         (
             "leaf_end",
             Error::Expired {
-                target: "issuer_leaf",
+                target: DelegationTarget::IssuerLeaf,
             },
         ),
         (
             "leaf_batch",
             Error::BindingMismatch {
-                field: "leaf_batch_window",
+                field: DelegationField::LeafBatchWindow,
             },
         ),
         (
             "leaf_cert",
             Error::BindingMismatch {
-                field: "leaf_cert_window",
+                field: DelegationField::LeafCertWindow,
             },
         ),
         (
             "policy_invalid",
             Error::InvalidWindow {
-                target: "root_key_policy",
+                target: DelegationTarget::RootKeyPolicy,
             },
         ),
     ] {

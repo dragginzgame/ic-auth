@@ -9,11 +9,16 @@ fn required_scope_admission_preserves_operation_semantics_and_enforces_bounds() 
     assert!(RequiredScopes::NONE.as_slice().is_empty());
     assert_eq!(
         RequiredScopes::new(vec![]).unwrap().as_slice(),
-        &[] as &[String]
+        &[] as &[ic_auth_protocol_types::ScopeLabel]
     );
     let scopes = vec!["write".into(), "read".into(), "write".into()];
     assert_eq!(
-        RequiredScopes::new(scopes.clone()).unwrap().as_slice(),
+        RequiredScopes::new(scopes.clone())
+            .unwrap()
+            .as_slice()
+            .iter()
+            .map(|scope| scope.as_str())
+            .collect::<Vec<_>>(),
         scopes
     );
     assert!(RequiredScopes::new(vec!["a".repeat(64); 16]).is_ok());
@@ -23,14 +28,14 @@ fn required_scope_admission_preserves_operation_semantics_and_enforces_bounds() 
     );
     assert_eq!(
         RequiredScopes::new(vec![String::new()]),
-        Err(SessionError::Canonical(CanonicalAuthError::EmptyScope))
+        Err(SessionError::Canonical(CanonicalAuthError::Scope(
+            ic_auth_protocol_types::ScopeLabelError::Empty
+        )))
     );
     for scope in ["a::b".into(), "a".repeat(65), "read🚫".into()] {
         assert!(matches!(
             RequiredScopes::new(vec![scope]),
-            Err(SessionError::Canonical(
-                CanonicalAuthError::InvalidScope { .. }
-            ))
+            Err(SessionError::Canonical(CanonicalAuthError::Scope(_)))
         ));
     }
 }

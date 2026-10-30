@@ -1,5 +1,44 @@
 # Changelog
 
+## [0.25.0] - Unreleased
+
+### ⚠️ Breaking
+
+- Replace `CanonicalAuthError::{EmptyScope, InvalidScope}` with
+  `CanonicalAuthError::Scope(ScopeLabelError)`. Scope rejection carries its typed
+  cause and byte offset/length without copying the submitted label. Update Rust
+  error matches; grammar, bounds, refusal order and signed/public Wire bytes remain
+  unchanged. The protocol package now owns `ScopeLabelError` and checked
+  `ScopeLabel`; request and operation-scope getters return checked labels. Use
+  `as_str()` for borrowed text. Raw submitted proof grants retain deferred checks.
+
+- Replace delegation diagnostic field/target strings with `DelegationField` and
+  `DelegationTarget`. Update Rust pattern matches; their display labels and all
+  verification checks remain. Remove the redundant Rust `LogoutRequest`; logout
+  uses the existing Wire unit request.
+
+- Store session/login audience IDs as fixed 32-byte strings under new private
+  record identities. Replay records and public identifier/signing encodings are
+  unchanged. The maintainer confirmed no retained current records; older records
+  are refused without fallback or clearing. The qualification checkpoint is now
+  `AUTHNAT3`. See [record adoption](docs/sessions.md) and
+  [#118](https://github.com/dragginzgame/ic-auth/issues/118).
+
+### 🧹 Cleanup
+
+- Derive receiver key bindings from the admitted authority, share receiver
+  assembly and reply projection, and keep readiness refusals typed. Installation
+  and restoration retain their independent authority checks and startup states;
+  budgets still start empty. Expose `SessionEstablished::receipt()` for common
+  result projection, stage login-prune keys/counts together, and retain prepared
+  issuer keys with their signing material in test fixtures.
+  [#117 — Simplify diagnostics, receiver assembly and artifact ownership](https://github.com/dragginzgame/ic-auth/issues/117).
+
+- Let the Rust client generator publish its artifact inventory. The driver admits
+  that inventory before copying outputs; fixtures cover future outputs, malformed
+  inventories, stale source and generator-input drift. Codec expectations remain
+  independently checked.
+
 ## [0.24.0] - 2026-10-30
 
 ### ⚠️ Breaking

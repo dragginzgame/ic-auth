@@ -107,7 +107,7 @@ fn certified_profile_refuses_future_root_authority_without_a_skew_option() {
             )
         ),
         Err(PortableCertifiedError::Delegation(Error::NotYetValid {
-            target: "root_key_policy"
+            target: ic_auth::delegation::DelegationTarget::RootKeyPolicy
         }))
     );
 }
@@ -405,7 +405,7 @@ fn bounds_and_claim_binding_refuse_before_charging_but_root_refusal_consumes_cre
     assert_eq!(
         verify_certified_claims(&mut credit, &bytes, &f.proof, &sig, &ctx),
         Err(PortableCertifiedError::Delegation(Error::StaleAuthority {
-            field: "proof_epoch"
+            field: ic_auth::delegation::DelegationField::ProofEpoch
         }))
     );
     assert_eq!(

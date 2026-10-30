@@ -119,26 +119,20 @@ pub(crate) fn restore(snapshot: Option<Snapshot>) {
             }),
         )
         .expect("restore complete login ledger");
-    let (admission, unknown) = budgets(&config, now).expect("restored budgets");
-    let host = Receiver {
-        read_scopes: RequiredScopes::new(vec!["read".into()]).expect("read operation"),
-        write_scopes: RequiredScopes::new(vec!["write".into()]).expect("write operation"),
-        lifecycle: ReceiverLifecycle::AwaitingAuthority,
-        inputs: ReceiverInputs {
-            binding: config.authority.binding(),
+    let host = Receiver::new(
+        ReceiverInputs {
             config,
             login_floor: saved.login_floor,
             proof_floor: saved.proof_floor,
         },
-        enabled: saved.enabled,
+        ReceiverLifecycle::AwaitingAuthority,
+        saved.enabled,
         store,
         ledger,
         // Conservatively discard remaining credit; never refill on upgrade.
-        admission,
-        unknown,
-        // Diagnostics start a new volatile window, independently of authority.
-        metrics: Default::default(),
-    };
+        now,
+    )
+    .expect("restored budgets");
     RECEIVER.with(|state| *state.borrow_mut() = Some(host));
 }
 

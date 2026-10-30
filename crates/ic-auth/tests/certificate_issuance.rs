@@ -194,13 +194,15 @@ fn canonical_grants_and_scope_errors_precede_binding_hash_refusal() {
         ),
         (
             vec![grant("app_service", &[""])],
-            E::Canonical(CanonicalAuthError::EmptyScope),
+            E::Canonical(CanonicalAuthError::Scope(
+                ic_auth_protocol_types::ScopeLabelError::Empty,
+            )),
         ),
         (
             vec![grant("app_service", &["Read"])],
-            E::Canonical(CanonicalAuthError::InvalidScope {
-                scope: "Read".into(),
-            }),
+            E::Canonical(CanonicalAuthError::Scope(
+                ic_auth_protocol_types::ScopeLabelError::InvalidSegmentStart { offset: 0 },
+            )),
         ),
         (
             vec![grant("app_service", &["read", "read"])],
@@ -224,9 +226,9 @@ fn canonical_grants_and_scope_errors_precede_binding_hash_refusal() {
         // Earlier grant scope failure precedes a later role-order error.
         (
             vec![grant("other_service", &["Bad"]), grant("app_service", &[])],
-            E::Canonical(CanonicalAuthError::InvalidScope {
-                scope: "Bad".into(),
-            }),
+            E::Canonical(CanonicalAuthError::Scope(
+                ic_auth_protocol_types::ScopeLabelError::InvalidSegmentStart { offset: 0 },
+            )),
         ),
     ];
     for (grants, expected) in cases {

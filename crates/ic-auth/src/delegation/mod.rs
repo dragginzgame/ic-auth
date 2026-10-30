@@ -1,8 +1,10 @@
 //! Root-authorized delegation verification, independent of application credentials.
 //! Hosts supply enrolled authority and clock; success installs no policy or session.
+mod diagnostic;
 mod root;
 pub(crate) mod rules;
 use crate::canonical::{CanonicalAuthError, cert_hash};
+pub use diagnostic::{DelegationField, DelegationTarget};
 use ic_auth_protocol_types::{
     ChainKeyAlgorithm, ChainKeyKeyId, DelegationCert, DelegationProof, Principal,
 };
@@ -42,24 +44,24 @@ pub enum DelegationProofError {
     #[error("delegation proof material exceeds host limits")]
     InputTooLarge,
     #[error("anonymous {field} is not permitted")]
-    AnonymousPrincipal { field: &'static str },
+    AnonymousPrincipal { field: DelegationField },
     #[error("proof binding mismatch: {field}")]
-    BindingMismatch { field: &'static str },
+    BindingMismatch { field: DelegationField },
     /// Submitted signature metadata does not match its submitted batch header.
     #[error("root signature binding mismatch: {field}")]
-    RootSignatureBindingMismatch { field: &'static str },
+    RootSignatureBindingMismatch { field: DelegationField },
     /// The batch header does not match independently enrolled root-key policy.
     #[error("root key policy binding mismatch: {field}")]
-    RootKeyPolicyBindingMismatch { field: &'static str },
+    RootKeyPolicyBindingMismatch { field: DelegationField },
     #[error("invalid {target} validity window")]
-    InvalidWindow { target: &'static str },
+    InvalidWindow { target: DelegationTarget },
     #[error("{target} is not yet valid")]
-    NotYetValid { target: &'static str },
+    NotYetValid { target: DelegationTarget },
     #[error("{target} has expired")]
-    Expired { target: &'static str },
+    Expired { target: DelegationTarget },
     #[error("{target} TTL {ttl_ns} exceeds {max_ttl_ns}")]
     TtlExceeded {
-        target: &'static str,
+        target: DelegationTarget,
         ttl_ns: u64,
         max_ttl_ns: u64,
     },
@@ -72,7 +74,7 @@ pub enum DelegationProofError {
     #[error("root proof Merkle witness is invalid")]
     InvalidMerkleWitness,
     #[error("root proof {field} is below the protected epoch/version floor")]
-    StaleAuthority { field: &'static str },
+    StaleAuthority { field: DelegationField },
     #[error(transparent)]
     Canonical(#[from] CanonicalAuthError),
 }
@@ -201,24 +203,27 @@ fn check_certificate(
     context: &DelegationProofVerificationContext<'_>,
 ) -> Result<(), DelegationProofError> {
     let cert = &proof.cert;
-    for (field, principal) in [("issuer", cert.issuer_pid), ("root", cert.root_pid)] {
+    for (field, principal) in [
+        (DelegationField::Issuer, cert.issuer_pid),
+        (DelegationField::Root, cert.root_pid),
+    ] {
         if principal == Principal::anonymous() {
             return Err(DelegationProofError::AnonymousPrincipal { field });
         }
     }
     binding(
         cert.root_pid == context.root_key.root_canister_id,
-        "root_canister_id",
+        DelegationField::RootCanisterId,
     )?;
     binding(
         cert.issuer_pid == context.expected_issuer,
-        "issuer_canister_id",
+        DelegationField::IssuerCanisterId,
     )?;
     rules::verify_certificate_window(cert, context.now_ns, context.limits)?;
     rules::verify_certificate_binding(cert)
 }
 
-pub(super) fn binding(condition: bool, field: &'static str) -> Result<(), DelegationProofError> {
+pub(super) fn binding(condition: bool, field: DelegationField) -> Result<(), DelegationProofError> {
     if condition {
         Ok(())
     } else {
@@ -227,7 +232,7 @@ pub(super) fn binding(condition: bool, field: &'static str) -> Result<(), Delega
 }
 
 pub(super) fn window(
-    target: &'static str,
+    target: DelegationTarget,
     start: u64,
     end: u64,
     now: u64,

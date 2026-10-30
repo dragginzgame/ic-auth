@@ -249,14 +249,17 @@ pub(crate) fn grant_for_role<'a>(
 
 // The ceiling must already be canonical. Requested scopes need not be ordered
 // (ordinary authorization accepts host-required scopes in any order).
-pub(crate) fn scopes_are_subset(requested: &[String], ceiling: &[String]) -> bool {
+pub(crate) fn scopes_are_subset(requested: &[impl AsRef<str>], ceiling: &[String]) -> bool {
     requested.iter().all(|scope| {
+        let scope = scope.as_ref();
         // The measured one/two-scope profile is cheaper with a direct scan;
         // wider canonical ceilings avoid repeated full scans through search.
         if ceiling.len() <= 2 {
-            ceiling.contains(scope)
+            ceiling.iter().any(|allowed| allowed == scope)
         } else {
-            ceiling.binary_search(scope).is_ok()
+            ceiling
+                .binary_search_by(|allowed| allowed.as_str().cmp(scope))
+                .is_ok()
         }
     })
 }

@@ -1,6 +1,7 @@
 //! Root verification preserves canonical binding and policy rejection order.
 
 use super::*;
+use ic_auth::delegation::{DelegationField, DelegationTarget};
 use ic_auth::delegation::{DelegationProofVerificationContext, verify_delegation_proof};
 use ic_platform::ecdsa::PrehashVerifier;
 
@@ -43,7 +44,7 @@ fn root_policy_and_witness_rejections_precede_isolated_crypto_errors() {
         let expected = if rejection == "policy" {
             f.policy.min_accepted_proof_epoch = root.header.proof_epoch + 1;
             Error::StaleAuthority {
-                field: "proof_epoch",
+                field: DelegationField::ProofEpoch,
             }
         } else {
             Error::InvalidMerkleWitness
@@ -72,9 +73,13 @@ fn key_id_distinguishes_submitted_binding_from_enrollment_and_defines_precedence
             _ => f.policy.key_id.name = "other".into(),
         }
         let expected = if matches!(mutation, "signature" | "header") {
-            Error::RootSignatureBindingMismatch { field: "key_id" }
+            Error::RootSignatureBindingMismatch {
+                field: DelegationField::KeyId,
+            }
         } else {
-            Error::RootKeyPolicyBindingMismatch { field: "key_id" }
+            Error::RootKeyPolicyBindingMismatch {
+                field: DelegationField::KeyId,
+            }
         };
         assert_rejected(&f, expected);
         if mutation == "both" {
@@ -108,11 +113,11 @@ fn derivation_path_distinguishes_submitted_binding_from_enrollment() {
         }
         let expected = if matches!(mutation, "both" | "policy") {
             Error::RootKeyPolicyBindingMismatch {
-                field: "derivation_path_hash",
+                field: DelegationField::DerivationPathHash,
             }
         } else {
             Error::RootSignatureBindingMismatch {
-                field: "derivation_path_hash",
+                field: DelegationField::DerivationPathHash,
             }
         };
         assert_rejected(&f, expected);
@@ -133,7 +138,7 @@ fn root_binding_errors_preserve_guard_order_and_bounded_path_admission() {
     assert_rejected(
         &f,
         Error::Expired {
-            target: "root_key_policy",
+            target: DelegationTarget::RootKeyPolicy,
         },
     );
 
@@ -141,7 +146,12 @@ fn root_binding_errors_preserve_guard_order_and_bounded_path_admission() {
     f.policy.key_id.name.push('x');
     let RootProof::IcChainKeyBatchSignatureV1(root) = &mut f.proof.root_proof;
     root.signature.derivation_path.clear();
-    assert_rejected(&f, Error::RootKeyPolicyBindingMismatch { field: "key_id" });
+    assert_rejected(
+        &f,
+        Error::RootKeyPolicyBindingMismatch {
+            field: DelegationField::KeyId,
+        },
+    );
 
     let mut f = Fixture::new();
     let too_large = f.context().limits.max_variable_bytes + 1;

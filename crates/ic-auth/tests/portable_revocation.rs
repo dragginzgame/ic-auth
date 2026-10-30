@@ -850,6 +850,16 @@ fn restore_retains_reservations_tombstones_and_clock_without_partial_results() {
     );
 }
 
+#[cfg(feature = "session-restore")]
+type StoredAudience = (serde_bytes::ByteArray<32>, serde_bytes::ByteArray<32>);
+#[cfg(feature = "session-restore")]
+fn stored_audience(value: AudienceId) -> StoredAudience {
+    (
+        serde_bytes::ByteArray::new(*value.canonical_network_id.as_bytes()),
+        serde_bytes::ByteArray::new(*value.fleet_id.as_bytes()),
+    )
+}
+
 // Independent stored contract, deliberately constructible for corruption tests.
 #[cfg(feature = "session-restore")]
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
@@ -858,7 +868,7 @@ struct LoginRecord {
     state: ic_auth::portable::LoginRecordState,
 }
 #[cfg(feature = "session-restore")]
-const LOGIN_ID: u64 = 0x415554485303;
+const LOGIN_ID: u64 = 0x415554485313;
 #[cfg(feature = "session-restore")]
 const LOGIN_LIMITS: ic_wire::Limits = ic_wire::Limits {
     bytes: 1024,
@@ -883,7 +893,7 @@ fn stored_login_state_has_exactly_three_valid_projections() {
         LoginRecordState::Revoked(None),
     ] {
         let value = (
-            audience(),
+            stored_audience(audience()),
             caller(1),
             LoginRecord {
                 until_ns: 110,
@@ -905,7 +915,11 @@ fn stored_login_state_has_exactly_three_valid_projections() {
     }
     let bytes = ic_wire::native::encode_request(
         LOGIN_ID,
-        &(audience(), caller(1), (110_u64, UnknownState::Unknown)),
+        &(
+            stored_audience(audience()),
+            caller(1),
+            (110_u64, UnknownState::Unknown),
+        ),
         LOGIN_LIMITS,
     )
     .unwrap();
@@ -933,7 +947,7 @@ fn login_record_decoder_and_restoration_reject_corruption_and_retention_changes(
     trailing.push(0);
     assert!(LoginRevocationChange::decode(&trailing).is_err());
     assert!(LoginRevocationChange::decode(&[0; 1025]).is_err());
-    let (domain, caller, original): (AudienceId, Principal, LoginRecord) =
+    let (domain, caller, original): (StoredAudience, Principal, LoginRecord) =
         ic_wire::native::decode_request(LOGIN_ID, &bytes, LOGIN_LIMITS).unwrap();
     let encode = |record: LoginRecord| {
         ic_wire::native::encode_request(LOGIN_ID, &(domain, caller, record), LOGIN_LIMITS).unwrap()

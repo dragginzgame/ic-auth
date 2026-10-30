@@ -23,7 +23,7 @@ canister-signature-preparation = [
     "dep:serde_bytes",
     "dep:serde_cbor",
 ]
-sessions = ["dep:serde", "dep:ic-wire"]
+sessions = ["dep:serde", "dep:serde_bytes", "dep:ic-wire"]
 session-restore = ["sessions"]
 certified-proof-verification = ["canister-signature-verification", "chain-key-verification"]
 canister-signature-verification = [

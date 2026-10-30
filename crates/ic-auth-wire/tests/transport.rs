@@ -1,5 +1,33 @@
 use ic_auth_protocol_types as domain;
 use ic_auth_wire::{CredentialEnvelope, EstablishSession, Logout, ReadSession, model, wire};
+
+#[test]
+fn checked_scopes_preserve_text_frames_and_refuse_invalid_deserialization() {
+    use ic_auth_protocol_types::ScopeLabel;
+    let limits = CredentialEnvelope::REQUEST_LIMITS;
+    let id = 0x53434f5045;
+    for text in ["read", "fleet:read_all-1", "0:1"] {
+        let label: ScopeLabel = text.parse().unwrap();
+        let bytes = wire::native::encode_request(id, &label, limits).unwrap();
+        assert_eq!(
+            bytes,
+            wire::native::encode_request(id, &text, limits).unwrap()
+        );
+        assert_eq!(
+            wire::native::decode_request::<ScopeLabel>(id, &bytes, limits).unwrap(),
+            label
+        );
+    }
+    for text in [
+        "".to_owned(),
+        "read::write".into(),
+        "Read".into(),
+        "a".repeat(65),
+    ] {
+        let bytes = wire::native::encode_request(id, &text, limits).unwrap();
+        assert!(wire::native::decode_request::<ScopeLabel>(id, &bytes, limits).is_err());
+    }
+}
 use wire::{Bytes, Text};
 
 fn credential() -> domain::PortableCredential {

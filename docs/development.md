@@ -218,14 +218,15 @@ derive or service export. The host selects Platform
 The host parser stays disabled.
 
 The maintainer authorized retiring the unpublished fixture's Candid checkpoint.
-Auth 0.22 uses bounded native-Wire checkpoint `AUTHNAT2` and identity
+Auth 0.22 introduced the bounded native-Wire checkpoint. Pending 0.25 uses
+`AUTHNAT3` and identity
 `0x41555449f101`, containing the new Wire session/replay/login records. Previous
-`AUTHNAT1` (CBOR records), `AUTHCELL`/Candid and finite-Wire `AUTHWIR2` payloads
+`AUTHNAT2` (text-ID records), `AUTHNAT1` (CBOR records), `AUTHCELL`/Candid and finite-Wire `AUTHWIR2` payloads
 are refused without migration or reset. The maintainer confirmed no retained Auth
 records require preservation. IC Memory allocation and StableCell framing remain
 unchanged. Start with a coherent new fixture checkpoint for this hard cut.
 Checkpoint restores remain closed until matching controller authority is confirmed.
-The qualification host selects Memory/Storage 0.56.0 with the standard canister
+The qualification host selects Memory/Storage 0.56.1 with the standard canister
 backing. Memory admits one runtime/allocation; Storage's `StableCell` consumes
 that checked lease. Auth checks the retained payload ceiling before loading and
 refuses occupied fresh state before creating a cell. Memory 0.53 trusts exclusive
@@ -241,8 +242,9 @@ host on fresh isolated backing and retain older binaries/states. Any retained
 installation needs its own reviewed transition before upgrade; never clear only
 the ledger while leaving application data. No reinstall, data retirement or
 reset of retained installations is authorized by this dependency adoption.
-The `AUTHNAT2` application payload and native session/replay/login records remain
-unchanged; they are separate from Memory's ledger format.
+That Memory cut is separate from the pending 0.25 binary-ID record change and
+`AUTHNAT3` checkpoint. The maintainer separately confirmed no retained current
+session/login records; neither consent permits erasing Memory backing or its ledger.
 The 0.53.1 repair releases backing claims before their identity allocations are
 destroyed, including construction refusal and unwinding; detached handles still
 retain custody. Platform 0.7.4/0.7.5's external Candid endpoint/protocol additions remain
@@ -902,6 +904,13 @@ The native `ic-auth-tooling` CLI uses Clap's standard help/usage handling. Help
 and version requests exit 0, invalid command syntax exits 2, and operational
 failures after argument admission exit 1. Scripts must distinguish usage from
 operation failures without parsing diagnostic text.
+
+Client-contract generation records every published source/vector/policy file in
+the candidate's `artifacts.tsv`. The shell driver validates this producer-owned
+inventory before comparing or publishing files; it carries no separate filename
+roster. `make test-client-tools` qualifies future outputs and refuses malformed
+inventories or changed generator inputs before publication. Native tooling and
+cross-language tests retain independent codec expectations.
 
 The attempted `0.1.1` publication stopped before dispatch because the existing
 `ic_auth_types 0.1.1` archive has a different checksum. That crate belongs to a

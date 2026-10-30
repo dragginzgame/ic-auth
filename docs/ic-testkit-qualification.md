@@ -109,15 +109,18 @@ protect different integration/trust boundaries; neither replaces the other.
 ## Portable session restoration across independent receivers
 
 The checkpoint host uses `ic_storage::adapter::StableCell` with one explicit
-host-owned Memory runtime/allocation. Auth owns its `AUTHNAT2` native-Wire payload
+host-owned Memory runtime/allocation. Auth owns its `AUTHNAT3` native-Wire payload
 identity, 128 KiB ceiling and checked metadata/session contents. Memory admits the
 checked allocation and bounded retained-cell envelope; Storage owns collection
 loading/access with the existing substrate bytes. Init requires an empty
 allocation before creating a cell; post-upgrade loads retained state only after
 checking its size. Missing, corrupt or unexpectedly occupied state refuses. The
 raw `AUTHQCP1`, `AUTHCELL` Candid, finite-Wire `AUTHWIR2` and older CBOR-record
-`AUTHNAT1` layouts are retired
+`AUTHNAT1` layouts, plus the text-ID `AUTHNAT2` checkpoint, are retired
 with maintainer approval, without automatic reset or a second reader.
+For the pending 0.25 binary-ID change, the maintainer separately confirmed no
+retained current Auth session/login records. Old checkpoint bytes remain intact
+on refusal; this grants no permission to erase Memory backing or its ledger.
 Qualification starts fresh and tests repeated current-format upgrades; it does
 not prove historical ledger/image compatibility.
 

@@ -12,7 +12,7 @@ thread_local! {
 }
 
 const KEY: &str = "ic_auth_qualification.checkpoint.v1";
-const MAGIC: &[u8; 8] = b"AUTHNAT2";
+const MAGIC: &[u8; 8] = b"AUTHNAT3";
 const MAX_BYTES: usize = 131_072;
 
 fn checkpoint_allocation(backing: DefaultMemoryImpl) -> RuntimeMemory<DefaultMemoryImpl> {
@@ -203,6 +203,15 @@ mod tests {
     fn retired_cbor_records_checkpoint_is_refused_without_clearing() {
         bootstrap(Default::default(), false);
         let old = b"AUTHNAT1IWold-cbor-records".to_vec();
+        CELL.with(|state| state.borrow_mut().as_mut().unwrap().set(old.clone()));
+        assert!(std::panic::catch_unwind(load).is_err());
+        CELL.with(|state| assert_eq!(*state.borrow().as_ref().unwrap().get(), old));
+    }
+
+    #[test]
+    fn retired_text_id_checkpoint_is_refused_without_clearing() {
+        bootstrap(Default::default(), false);
+        let old = b"AUTHNAT2IWold-text-id-records".to_vec();
         CELL.with(|state| state.borrow_mut().as_mut().unwrap().set(old.clone()));
         assert!(std::panic::catch_unwind(load).is_err());
         CELL.with(|state| assert_eq!(*state.borrow().as_ref().unwrap().get(), old));

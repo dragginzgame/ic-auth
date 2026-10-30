@@ -888,6 +888,7 @@ fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_authority() 
     let unknown_until = logout(&f, f.resource, unknown).unwrap();
     f.pic.instance().advance_time(Duration::from_secs(3));
     assert!(f.now() >= claims.admission_expires_at_ns);
+    let before_upgrade = f.pic.instance().cycle_balance(f.resource.into());
     f.pic
         .instance()
         .upgrade_canister(
@@ -897,6 +898,10 @@ fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_authority() 
             Some(f.controller.into()),
         )
         .unwrap();
+    eprintln!(
+        "checkpoint upgrade cycles: {}",
+        before_upgrade - f.pic.instance().cycle_balance(f.resource.into())
+    );
     assert_eq!(
         read(&f, f.resource, live).unwrap_err(),
         SessionReadRefusal::Unavailable

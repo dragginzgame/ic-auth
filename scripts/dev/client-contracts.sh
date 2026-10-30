@@ -5,7 +5,6 @@ script_path="${BASH_SOURCE[0]}"
 [[ "$script_path" == /* ]] || script_path="$PWD/$script_path"
 cd -P "${script_path%/*}/../.."
 root="$PWD"
-outputs=(credential.ts establish.ts read.ts logout.ts wire-runtime.ts)
 case "${1:-}" in check|generate) ;; *) echo 'usage: client-contracts.sh check|generate' >&2; exit 2 ;; esac
 export CARGO_TARGET_DIR="$root/target" RUSTUP_AUTO_INSTALL=0
 mkdir -p target/browser-client
@@ -31,6 +30,39 @@ input_paths > "$candidate/input-paths-after0"
 cmp "$candidate/input-paths0" "$candidate/input-paths-after0"
 bash scripts/dev/run-host-file.sh hash-files0 4194304 4194304 4096 < "$candidate/input-paths0" > "$candidate/inputs-after.tsv0"
 cmp "$candidate/inputs.tsv0" "$candidate/inputs-after.tsv0"
+# The Rust producer owns the complete artifact roster. Admit every candidate
+# before publishing anything; names are basenames within the two owned outputs.
+outputs=() evidence=() names=()
+while IFS=$'\t' read -r kind name extra; do
+    [[ -z "$extra" && "$name" =~ ^[a-z][a-z0-9-]*\.(ts|json|hex)$ ]] || {
+        echo 'Client contract artifact inventory refused' >&2; exit 1;
+    }
+    for previous in ${names[@]+"${names[@]}"}; do
+        [[ "$previous" != "$name" ]] || { echo 'Duplicate client contract artifact' >&2; exit 1; }
+    done
+    [[ -f "$candidate/$name" && ! -L "$candidate/$name" ]] || {
+        echo "Missing client contract artifact: $name" >&2; exit 1;
+    }
+    case "$kind:$name" in
+        source:*.ts) outputs+=("$name") ;;
+        evidence:*.json|evidence:*.hex) evidence+=("$name") ;;
+        *) echo 'Client contract artifact kind refused' >&2; exit 1 ;;
+    esac
+    names+=("$name")
+done < "$candidate/artifacts.tsv"
+[[ "${#outputs[@]}" -gt 0 && "${#evidence[@]}" -gt 0 ]] || {
+    echo 'Empty client contract artifact inventory refused' >&2; exit 1;
+}
+for path in packages/client/src/generated/*.ts; do
+    [[ -e "$path" ]] || continue
+    registered=false
+    for name in "${outputs[@]}"; do
+        if [[ "$name" == "${path##*/}" ]]; then registered=true; break; fi
+    done
+    [[ "$registered" == true ]] || {
+        echo "Unlisted generated source refused: $path; remove retired source explicitly" >&2; exit 1;
+    }
+done
 case "${1:-}" in
     check)
         for name in "${outputs[@]}"; do
@@ -44,8 +76,6 @@ case "${1:-}" in
         done ;;
     generate) for name in "${outputs[@]}"; do cp "$candidate/$name" packages/client/src/generated/; done ;;
 esac
-for name in credential logout admission read; do
-    cp "$candidate/$name-vector.hex" "target/browser-client/$name-vector.hex"
+for name in "${evidence[@]}"; do
+    cp "$candidate/$name" "target/browser-client/$name"
 done
-
-cp "$candidate/codec-policy.json" target/browser-client/codec-policy.json

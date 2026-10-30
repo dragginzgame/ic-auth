@@ -73,14 +73,17 @@ equality is accepted. The grant-count check precedes per-grant role ordering,
 scope count, label grammar and strict scope ordering. Existing issuance and token
 preparation keep their error projections and use this same owner.
 
-`canonical::validate_scope_label_detailed` is an allocation-free `const fn`
-returning `ScopeLabelError`: `Empty`, `TooLong { bytes, max }`, `EmptySegment`,
+`ic_auth_protocol_types::ScopeLabel::validate` is an allocation-free `const fn`
+returning protocol-owned `ScopeLabelError`: `Empty`, `TooLong { bytes, max }`, `EmptySegment`,
 `InvalidSegmentStart { offset }` or `InvalidByte { offset }`. It enforces the
 existing 64-byte grammar: colon-separated nonempty segments starting with an
 ASCII lowercase letter or digit, followed by those bytes, `_` or `-`. Length
 wins before left-to-right byte errors; offsets are UTF-8 byte offsets. Static
 constructors can match the returned `Result` in const evaluation. The existing
-`validate_scope_label` retains `EmptyScope`/`InvalidScope` error projection.
+`canonical::validate_scope_label` projects `CanonicalAuthError::Scope(cause)`.
+Owned `ScopeLabel` construction and deserialization use this same grammar without
+normalizing bytes. Request and operation-scope getters expose checked labels;
+raw submitted proof grants remain strings and are checked at their existing stage.
 `canonical::validate_scopes` borrows a string slice and checks grammar and strict
 unique byte ordering; it permits an empty list and does not impose a count bound.
 

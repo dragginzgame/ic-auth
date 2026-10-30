@@ -3,8 +3,8 @@
 //! Hashing a request does not authenticate a token, select host TTL policy or
 //! grant scopes. Session admission and replay remain separate engine obligations.
 
-use crate::canonical::{CanonicalAuthError, validate_scope_label};
-use ic_auth_protocol_types::{AuthRole, DelegatedRoleGrant};
+use crate::canonical::CanonicalAuthError;
+use ic_auth_protocol_types::{AuthRole, DelegatedRoleGrant, ScopeLabel};
 use sha2::{Digest, Sha256};
 use thiserror::Error;
 
@@ -72,15 +72,13 @@ impl SessionTtlPolicy {
 /// Input order is normalized before hashing; duplicates are rejected.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SessionRequest {
-    scopes: Vec<String>,
+    scopes: Vec<ScopeLabel>,
     ttl_secs: Option<u64>,
 }
 impl SessionRequest {
-    pub fn new(
-        mut scopes: Vec<String>,
-        ttl_secs: Option<u64>,
-    ) -> Result<Self, SessionRequestError> {
-        check_scopes(&scopes)?;
+    pub fn new(scopes: Vec<String>, ttl_secs: Option<u64>) -> Result<Self, SessionRequestError> {
+        check_scope_count(scopes.len())?;
+        let mut scopes = ScopeLabel::from_strings(scopes).map_err(CanonicalAuthError::from)?;
         scopes.sort_unstable();
         if scopes.windows(2).any(|pair| pair[0] == pair[1]) || ttl_secs == Some(0) {
             return Err(SessionRequestError::InvalidRequest);
@@ -91,7 +89,7 @@ impl SessionRequest {
     pub const fn ttl_secs(&self) -> Option<u64> {
         self.ttl_secs
     }
-    pub fn scopes(&self) -> &[String] {
+    pub fn scopes(&self) -> &[ScopeLabel] {
         &self.scopes
     }
     #[cfg(all(
@@ -103,6 +101,9 @@ impl SessionRequest {
     ))]
     pub(crate) fn into_scopes(self) -> Vec<String> {
         self.scopes
+            .into_iter()
+            .map(ScopeLabel::into_string)
+            .collect()
     }
     /// Calculate a requested lease against protected TTL policy (maximum 1800s).
     /// This authenticates nothing and does not cap login or authority deadlines.
@@ -147,8 +148,8 @@ impl SessionRequest {
         hash.update(b"canic-application-session-request-v1");
         hash.update((self.scopes.len() as u64).to_be_bytes());
         for scope in &self.scopes {
-            hash.update((scope.len() as u64).to_be_bytes());
-            hash.update(scope.as_bytes());
+            hash.update((scope.as_str().len() as u64).to_be_bytes());
+            hash.update(scope.as_str().as_bytes());
         }
         match self.ttl_secs {
             None => hash.update([0]),
@@ -161,13 +162,19 @@ impl SessionRequest {
     }
 }
 
+#[cfg(feature = "session-restore")]
 pub(crate) fn check_scopes(scopes: &[String]) -> Result<(), SessionRequestError> {
-    if scopes.is_empty() || scopes.len() > crate::limits::MAX_SESSION_SCOPES {
-        return Err(SessionRequestError::InvalidRequest);
-    }
+    check_scope_count(scopes.len())?;
     // The count bound and canonical 64-byte label bound imply <=1024 bytes.
     for scope in scopes {
-        validate_scope_label(scope)?;
+        crate::canonical::validate_scope_label(scope)?;
+    }
+    Ok(())
+}
+
+fn check_scope_count(count: usize) -> Result<(), SessionRequestError> {
+    if count == 0 || count > crate::limits::MAX_SESSION_SCOPES {
+        return Err(SessionRequestError::InvalidRequest);
     }
     Ok(())
 }

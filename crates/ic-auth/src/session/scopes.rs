@@ -1,4 +1,5 @@
 use super::SessionError;
+use ic_auth_protocol_types::ScopeLabel;
 
 /// Immutable scope requirements selected by a protected application operation.
 /// Validate once at configuration/operation setup and reconstruct after decoding.
@@ -13,7 +14,7 @@ use super::SessionError;
 /// }
 /// ```
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct RequiredScopes(Vec<String>);
+pub struct RequiredScopes(Vec<ScopeLabel>);
 
 impl RequiredScopes {
     /// No operation-specific scopes; all other authorization checks still apply.
@@ -23,13 +24,12 @@ impl RequiredScopes {
         if scopes.len() > crate::limits::MAX_SESSION_SCOPES {
             return Err(SessionError::InvalidPolicyOrRecord);
         }
-        for scope in &scopes {
-            crate::canonical::validate_scope_label(scope)?;
-        }
+        let scopes =
+            ScopeLabel::from_strings(scopes).map_err(crate::canonical::CanonicalAuthError::from)?;
         Ok(Self(scopes))
     }
 
-    pub fn as_slice(&self) -> &[String] {
+    pub fn as_slice(&self) -> &[ScopeLabel] {
         &self.0
     }
 }
