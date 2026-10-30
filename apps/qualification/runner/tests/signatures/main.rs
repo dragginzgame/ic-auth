@@ -40,16 +40,12 @@ const DOMAIN: &[u8] = b"canic-issuer-delegated-token";
 const INGRESS_DOMAIN: &[u8] = b"ic-request-auth-delegation";
 static NEXT_INSTANCE: AtomicUsize = AtomicUsize::new(0);
 
-#[path = "signatures/certified_proofs.rs"]
 mod certified_proofs;
 
-#[path = "signatures/ingress.rs"]
 mod ingress;
 
-#[path = "signatures/profile_composition.rs"]
 mod profile_composition;
 
-#[path = "signatures/sessions.rs"]
 mod sessions;
 
 struct Fixture {

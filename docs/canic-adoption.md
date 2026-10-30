@@ -135,15 +135,15 @@ Toko dependency. Rust 1.91 is the common minimum.
   a source/integrity-bound candidate and isolated consumer proof. Canic retains
   final archive distribution and actual endpoint/browser acceptance.
 
-Auth selects Platform 0.8 and enables only `principal` for passive types.
-Consumers sharing that owned Rust type must align to Platform 0.8; external
+Auth selects Platform 0.11 and enables only `principal` for passive types.
+Consumers sharing that owned Rust type must align to Platform 0.11; external
 Agent/Testkit/crypto APIs keep explicit `principal::ExternalPrincipal`
 conversions with `principal-external` selected. The engine explicitly selects
 `principal-self-authenticating` for browser-key hashing; passive types do not
 pull external Principal or SHA-2. Do not select the older upstream Principal identity or downgrade
 Auth to follow a historical example. No Candid or runtime capability is selected
 by the passive edge. [The published-type acceptance](https://github.com/dragginzgame/ic-auth/issues/82#issuecomment-6312237287)
-records the earlier Platform 0.6 acceptance. Current Platform 0.8 qualification
+records the earlier Platform 0.6 acceptance. Current Platform 0.11 qualification
 and its limits are recorded in [the handoff](status/current.md).
 
 Forward only required capabilities. `portable-signature-verification` selects
@@ -294,7 +294,7 @@ codecs and limits. Canic binds them to actual exports, admits raw argument size 
 copying, decodes the exact method and authenticates ingress/replies. Reply-encoding
 failure after mutation must trap so that local state rolls back.
 
-Pending Auth 0.16 transport exposes IC Wire 0.7; Auth 0.15 used 0.6. Earlier Auth 0.14 uses
+Pending Auth 0.26 transport exposes IC Wire 0.10; Auth 0.16 used 0.7 and Auth 0.15 used 0.6. Earlier Auth 0.14 uses
 Wire 0.5; update the Rust transport and generated clients together. Consumers sharing its Rust
 Wire types must align that dependency and select matching Auth package releases.
 Auth 0.10 and 0.9 used Wire 0.4 and 0.3 respectively; those are historical
@@ -315,10 +315,12 @@ removes decode-time reserialization and `Error::Noncanonical`. Invalid primitive
 encodings return `Malformed`; custom Serde normalization is consumer-owned.
 Auth's DTOs retain ordered lists and opaque signed bytes. Keep original frames
 for exact retries and do not substitute decoding for Auth's semantic validation.
-Align consumers of the re-exported Rust Wire types to 0.7. Testkit 0.70 uses
-the same Wire 0.7 types directly, resolving
+Align consumers of the re-exported Rust Wire types to 0.10. Testkit 0.72 uses
+the same Wire 0.10 types directly, retaining the typed-call contract from
 [Tooling #248](https://github.com/dragginzgame/ic-tooling/issues/248).
-The public library, native qualification and reference canister select only Wire 0.7.
+The public transport, native qualification and reference canister use Wire 0.10.
+Metrics and Memory/Storage 0.58 share Wire 0.10 with Auth. No conversion or
+compatibility reader is needed; current record bytes stay unchanged.
 
 The finite `Method` trait, static shape admission and typed retained frames are
 retired. DTOs use ordinary Serde; the contract marker's `encode_request`,
@@ -332,7 +334,7 @@ Credential/read/logout frames retain their frozen bytes and IDs. Signed claims,
 session/replay/login records and the browser journal profile are unchanged.
 No storage reset or replay of unknown issuance is authorized.
 
-Native Testkit 0.70 takes a `WireCallSpec` with the contract's `NAME`, `ID`,
+Native Testkit 0.72 takes a `WireCallSpec` with the contract's `NAME`, `ID`,
 `REQUEST_LIMITS` and `RESPONSE_LIMITS`, plus explicit request/response Serde
 types. Canister adapters use the same native codecs and pre-copy byte limits;
 normal errors must retain admission charges, while reply-encoding failure after
@@ -347,12 +349,43 @@ disposable installations; this changes no production memory allocation or layout
 
 Earlier identity cuts are historical evidence in the
 [Platform 0.4/0.5 migration record](canic-adoption-history.md#platform-04-migration).
-Use the current Platform 0.8 boundary below for new consumers.
+Use the current Platform 0.11 boundary below for new consumers.
+
+## Platform 0.11 migration
+
+Pending Auth 0.26 selects Platform/macros 0.11.1 and Wire 0.10.0. Align direct
+Platform dependencies to `version = "0.11.1"` when exchanging Auth's owned
+Principal or parse errors. Passive consumers retain only `principal`; hashing
+and explicit upstream conversions retain their separate capabilities and
+original bytes. Imported cryptographic primitives and strict verification rules
+are unchanged. No signed/public Wire/Auth record migration or new reset is needed.
+
+The qualification host now uses Platform's maintained executor and IC0 bindings;
+no separate registry executor is selected. Native Testkit/Agent calls retain
+their upstream external Principal boundary. Published Memory/Storage 0.58.0 and
+Testkit 0.72.0 share Platform 0.11 with Auth. Neither needs a dependency override
+or identity bridge.
+Keep hosted endpoint, authority, storage and issuer acceptance with Canic.
+
+Platform 0.11 selects its Cargo singleton guard only with the executor. Passive
+Auth/protocol/Wire graphs exclude the guard, so using pure Auth functionality
+does not reserve a runtime supplier. The qualification host selects the exact
+coordinated guard; it contains no executor API. Metrics 0.21.0 keeps the same
+counter/serialization code and uses Wire 0.10. Testkit's public limits align with
+Auth's Wire 0.10; no schema or limit bridge is needed. The existing schema, frames,
+signed bytes and retained record layouts are unchanged.
+
+For native Principal/Account schema generation, replace Platform's retired
+`wire-schema` feature with Wire's `platform-types` feature. Auth Wire's public
+`typescript` feature forwards that selection and no longer declares Platform
+directly. Wire owns the schema implementations for Platform's owned types,
+removing the reverse dependency and its repeated release-alignment cycle.
+This metadata capability selects neither runtime calls nor the endpoint feature.
 
 ## Platform 0.8 migration
 
-Pending Auth 0.22 selects published Platform/macros 0.8.1. Align direct Platform
-dependencies to `version = "0.8.1"` when exchanging Auth's owned Principal,
+Historical Auth 0.22 selected published Platform/macros 0.8.1. Its direct Platform
+dependencies used `version = "0.8.1"` when exchanging Auth's owned Principal,
 parse errors or imported key types. Type-only consumers select `principal` with
 defaults disabled. Explicit upstream conversions additionally need
 `principal-external`; direct `Principal::self_authenticating` calls need
@@ -369,7 +402,7 @@ ICRC ledger DTOs or native profiler product code.
 Published Memory/Storage 0.55.2 and native Testkit 0.70.0 also use Platform 0.8.1,
 removing the earlier private Platform 0.7 branch. Storage/client edges retain
 upstream stable-structures and external Principal identities; no dependency patch
-or new bridge is introduced. All selected Auth workspace graphs use Platform 0.8.1.
+or new bridge was introduced. That qualification used Platform 0.8.1 throughout.
 
 ## Platform 0.7 migration
 

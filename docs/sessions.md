@@ -29,7 +29,7 @@ TEE assurance. Every operation keeps live authority/budget checks, strict
 signature verification and canonical-scalar admission. No verification result is
 cached. The standalone byte-key verifier retains its API and rejection order.
 
-Pending Auth 0.25 reports scope grammar errors as
+Auth 0.25 reports scope grammar errors as
 `CanonicalAuthError::Scope(ScopeLabelError)`, including `Empty`, `TooLong`,
 `EmptySegment`, `InvalidSegmentStart` and `InvalidByte`. Match that cause instead
 of the former `EmptyScope`/`InvalidScope` variants. Errors retain byte counts or
@@ -345,7 +345,7 @@ legacy reader, migration or implicit clearing. A host adopting this cut must
 initialize a coherent new session/replay/login checkpoint before serving; never
 retain only part of a previous replay or revocation history.
 
-Pending **0.25** separately retires the current text-ID session/login records.
+Auth **0.25** separately retires the previous text-ID session/login records.
 The maintainer confirmed **no retained current records; a hard cut is OK**.
 New session/login records encode their two audience IDs as fixed 32-byte strings;
 decoders refuse wrong lengths and former record identities. Public `CanonicalId`
@@ -490,7 +490,7 @@ not deployed cross-subnet or Canic endpoint qualification. Run `make test-sessio
 
 ### Host-owned admission diagnostics
 
-The tested [admission recorder](../apps/qualification/session_metrics.rs) uses
+The tested [admission recorder](../apps/qualification/fixtures/src/metrics.rs) uses
 IC Metrics 0.17 `MeasurementCounter` fields in the unpublished qualification
 host. Public Auth libraries have no Metrics dependency. The receiver calls
 `host.metrics.observe(&result)` once, immediately after `establish_session` and

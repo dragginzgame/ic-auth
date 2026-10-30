@@ -9,18 +9,18 @@ Earlier pairings and benchmarks are preserved in
 
 ## Setup and ownership
 
-The root catalog/lock select published Testkit 0.70.0 from
-[IC Tooling](https://github.com/dragginzgame/ic-tooling) and Auth's Platform 0.8.1.
-Testkit and Auth share Wire 0.7 types directly. `WireCallSpec` takes the canonical
+The root catalog/lock select published Testkit 0.72.0 from
+[IC Tooling](https://github.com/dragginzgame/ic-tooling) and Auth's Platform 0.11.1.
+Testkit and Auth share Wire 0.10 types directly. `WireCallSpec` takes the canonical
 contract limits without conversion; responses require only `DeserializeOwned`.
 The temporary Wire 0.6 alias and limit bridge are removed following
 [Tooling #248](https://github.com/dragginzgame/ic-tooling/issues/248).
 Application identities use owned Principal; direct Testkit/Agent calls convert
-explicitly to their retained external type. Testkit also selects Platform 0.8.1
-with `principal-external`; no dependency override is needed. Native Candid dependencies stay
+explicitly to their retained external type. Testkit shares Platform 0.11 with Auth
+and selects `principal-external`; no dependency override is needed. Native Candid dependencies stay
 outside public Auth library and deployed-Wasm graphs. Testkit no longer supplies
-Candid helpers or selects Platform's `candid` feature; native Agent/PocketIC
-still require their own Candid dependencies.
+Candid call helpers; its native management fixtures select Platform's `candid`
+feature, and native Agent/PocketIC retain their Candid dependencies.
 See [the native Candid paths](development.md#why-candid-appears-in-cargolock) for
 the Agent, Testkit and PocketIC dependencies retained in the workspace lockfile.
 Platform owns native Agent/delegated identity imports. Agent remains transitive
@@ -118,7 +118,7 @@ checking its size. Missing, corrupt or unexpectedly occupied state refuses. The
 raw `AUTHQCP1`, `AUTHCELL` Candid, finite-Wire `AUTHWIR2` and older CBOR-record
 `AUTHNAT1` layouts, plus the text-ID `AUTHNAT2` checkpoint, are retired
 with maintainer approval, without automatic reset or a second reader.
-For the pending 0.25 binary-ID change, the maintainer separately confirmed no
+For the Auth 0.25 binary-ID change, the maintainer separately confirmed no
 retained current Auth session/login records. Old checkpoint bytes remain intact
 on refusal; this grants no permission to erase Memory backing or its ledger.
 Qualification starts fresh and tests repeated current-format upgrades; it does

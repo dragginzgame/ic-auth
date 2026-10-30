@@ -1,7 +1,7 @@
 # IC Auth Agent Instructions
 
-Apply [DRAGGINZGAME.md](DRAGGINZGAME.md), adopted from Shared Tooling 0.27.6
-source `5a72359b5be19d5221334cf2c9b3204621d3f3f6`, recorded in
+Apply [DRAGGINZGAME.md](DRAGGINZGAME.md), adopted from Shared Tooling 0.27.11
+source `62edfbd43087a718bf0283e9040676a49211976d`, recorded in
 [.shared-tooling.snapshot](.shared-tooling.snapshot). Read
 [the current handoff](docs/status/current.md) before implementation.
 Read task-specific references when their subject applies; the local constraints
@@ -62,7 +62,7 @@ generated browser contracts and private qualification controls use IC Wire.
 The fixture exposes only Wire methods, with no Candid projection or direct
 declaration. Its old
 Candid checkpoint is explicitly retired; production storage is unaffected.
-Platform 0.8 owns Auth's Principal and its parse errors. The engine explicitly
+Platform 0.11 owns Auth's Principal and its parse errors. The engine explicitly
 selects `principal-self-authenticating` for browser-key hashing; passive protocol
 and Wire packages keep only `principal`, without external Principal or SHA-2.
 Convert explicitly through `principal::ExternalPrincipal` at upstream
@@ -82,7 +82,10 @@ certificate acquisition/publication and entrypoint generation (Platform #21).
 Keep explicit Wire codecs and the upstream controller/runtime semantics; the
 retired no-op `hidden` macro option is not accepted.
 Platform owns the maintained non-cryptographic runtime adapters and generator;
-the registry executor identity stays shared. Its `cdk` feature is Candid-free.
+its maintained executor is the sole runtime executor. Reject the separate
+registry executor and retain one Platform generator identity. Its `cdk` feature is Candid-free.
+Platform's runtime singleton guard is selected only with the executor. Require
+one coordinated guard in the host and exclude it from public library graphs.
 All public library capability graphs and the reference Wasm refuse Candid.
 Native Agent/Testkit still bring it transitively. Platform's raw APIs support
 existing admission/profiling; only the actual host selects IC0/executor.

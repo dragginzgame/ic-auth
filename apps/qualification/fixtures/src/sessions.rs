@@ -1,8 +1,7 @@
 //! Private controller-installed portable-session qualification contracts.
 use ic_auth::{delegation::RootKeyPolicy, portable::ValidatedGrants};
-use ic_auth_protocol_types::{AudienceId, AuthRole};
+use ic_auth_protocol_types::{AudienceId, AuthRole, Principal};
 pub use ic_auth_qualification_contracts::model::{AdmissionProfile, SessionProfile};
-use ic_platform::Principal;
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ReceiverConfig {
     pub audience: AudienceId,

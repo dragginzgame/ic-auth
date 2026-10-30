@@ -142,7 +142,7 @@ for target in native wasm32-unknown-unknown; do
 done
 # Internal applications use the same floor with separate native/Wasm checks.
 # Runtime qualification remains test-qualification.
-cargo +"$floor" check --locked --offline -p ic-auth-tooling -p ic-auth-qualification -p ic-auth-qualification-contracts -p ic-auth-feature-unification --all-targets --all-features
+cargo +"$floor" check --locked --offline -p ic-auth-tooling -p ic-auth-qualification -p ic-auth-qualification-contracts -p ic-auth-qualification-fixtures -p ic-auth-feature-unification --all-targets --all-features
 cargo +"$floor" check --locked --offline -p ic-auth-qualification-canister --target wasm32-unknown-unknown
 package_inputs "$fixture/Cargo.toml" "$fixture/Cargo.lock" "$fixture/src/lib.rs" > "$fixture/inputs-after"
 cmp "$fixture/inputs-before" "$fixture/inputs-after"

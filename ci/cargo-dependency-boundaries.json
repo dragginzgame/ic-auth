@@ -4,6 +4,6 @@
   {"dependency": "ed25519-dalek", "allowed_packages": ["ic-auth-feature-unification"]},
   {"dependency": "ic-platform-macros", "allowed_packages": []},
   {"dependency": "ic-testkit-candid", "allowed_packages": []},
-  {"dependency": "ic-metrics", "allowed_packages": ["ic-auth-qualification-canister", "ic-auth-qualification"]},
-  {"dependency": "ic-platform", "allowed_packages": ["ic-auth-protocol-types", "ic-auth-wire", "ic-auth", "ic-auth-qualification-canister", "ic-auth-qualification", "ic-auth-feature-unification"]}
+  {"dependency": "ic-metrics", "allowed_packages": ["ic-auth-qualification-canister", "ic-auth-qualification", "ic-auth-qualification-fixtures"]},
+  {"dependency": "ic-platform", "allowed_packages": ["ic-auth-protocol-types", "ic-auth", "ic-auth-qualification-canister", "ic-auth-qualification", "ic-auth-feature-unification", "ic-auth-qualification-fixtures"]}
 ]

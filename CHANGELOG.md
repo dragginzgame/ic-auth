@@ -1,5 +1,39 @@
 # Changelog
 
+## [0.26.0] - Unreleased
+
+### ⚠️ Breaking
+
+- Adopt Platform 0.11.1 for Auth's public Principal and parse-error identities.
+  Consumers exchanging those Rust types must align to Platform 0.11; explicit
+  upstream conversions preserve bytes. Signed, public Wire and retained Auth
+  record encodings are unchanged.
+  [#122](https://github.com/dragginzgame/ic-auth/issues/122).
+- Adopt Wire 0.10 for the public transport types and generated browser contracts.
+  Consumers exchanging Wire limits or errors must align to 0.10; frame bytes,
+  method identities and admission limits stay unchanged.
+  Wire's `platform-types` now owns Principal metadata; remove Platform's retired
+  `wire-schema` feature when migrating generators.
+
+### ⬆️ Dependencies
+
+- Adopt Build/Tooling/Testkit 0.72.0, Metrics 0.21.0 and Shared Tooling 0.27.11. Platform's
+  singleton guard is selected only with its executor; passive Auth libraries
+  retain no runtime guard. The host requires one guard and generator, and
+  rejects a second executor. Public graphs reject runtime features and packages.
+
+- Adopt Memory/Storage 0.58.0 for the governed qualification checkpoint, sharing
+  Auth's Platform/Wire identities and removing the older private copies. Current
+  allocation, cell and Auth record formats are unchanged; older incompatible
+  backing is still refused without clearing or reset.
+  [#120](https://github.com/dragginzgame/ic-auth/issues/120).
+
+### 🧹 Cleanup
+
+- Give shared qualification configuration and admission diagnostics one private
+  fixture-library owner. Use ordinary Rust module layouts and scoped lint
+  expectations while retaining independent host/store/authority checks.
+
 ## [0.25.1] - 2026-10-30
 
 ### ⬆️ Dependencies

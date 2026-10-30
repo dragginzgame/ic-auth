@@ -13,7 +13,7 @@ pub(crate) fn guard() -> Result<(), String> {
 // CDK requires concrete codec hooks; constants and codecs stay with contracts.
 macro_rules! bind {
     ($name:ident, $request:ty) => {
-        #[allow(non_snake_case)]
+        #[expect(non_snake_case, reason = "Mirror the declared Wire control names.")]
         pub(crate) mod $name {
             use super::*;
             pub(crate) fn decode(bytes: Vec<u8>) -> $request {
@@ -22,7 +22,7 @@ macro_rules! bind {
         }
     };
     ($name:ident, $request:ty, result $value:ty) => {
-        #[allow(non_snake_case)]
+        #[expect(non_snake_case, reason = "Mirror the declared Wire control names.")]
         pub(crate) mod $name {
             use super::*;
             pub(crate) fn decode(bytes: Vec<u8>) -> $request {
@@ -35,7 +35,7 @@ macro_rules! bind {
         }
     };
     ($name:ident, $request:ty, value $value:ty) => {
-        #[allow(non_snake_case)]
+        #[expect(non_snake_case, reason = "Mirror the declared Wire control names.")]
         pub(crate) mod $name {
             use super::*;
             pub(crate) fn decode(bytes: Vec<u8>) -> $request {

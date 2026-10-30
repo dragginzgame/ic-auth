@@ -4,6 +4,7 @@ members = [
     "apps/qualification/canister",
     "apps/qualification/contracts",
     "apps/qualification/feature-unification",
+    "apps/qualification/fixtures",
     "apps/qualification/runner",
     "apps/tooling",
     # Production packages
@@ -28,9 +29,9 @@ ic-auth-protocol-types = { version = "0.25.1", path = "crates/ic-auth-protocol-t
 ic-auth-wire = { version = "0.25.1", path = "crates/ic-auth-wire" }
 # Platform owns Principal and imported signature code; other crypto identities stay upstream.
 # Principal is explicit; protocol, portable and session consumers need no IC runtime.
-ic-platform = { version = "0.8.1", default-features = false }
+ic-platform = { version = "0.11.1", default-features = false }
 # Host generation uses the lock-selected runtime and diagnostic callback.
-ic-wire = "0.7.22"
+ic-wire = "0.10.0"
 leb128 = "0.2"
 serde = { version = "1", features = ["derive"] }
 serde_bytes = "0.11"
@@ -43,13 +44,14 @@ clap = { version = "4", default-features = false, features = ["derive", "error-c
 # Adversarial feature trigger only; production and test crypto APIs use Platform.
 ed25519-dalek = { version = "2.2", default-features = false }
 ic-auth-qualification-contracts = { path = "apps/qualification/contracts" }
-ic-build = { version = "0.70", default-features = false }
-ic-host-fs = { version = "0.70", default-features = false }
-ic-host-process = { version = "0.70", default-features = false }
-ic-memory = "0.56.0"
-ic-metrics = { version = "0.18.0", default-features = false }
-ic-storage = "0.56.0"
-ic-testkit = { version = "0.70", default-features = false }
+ic-auth-qualification-fixtures = { path = "apps/qualification/fixtures" }
+ic-build = { version = "0.72", default-features = false }
+ic-host-fs = { version = "0.72", default-features = false }
+ic-host-process = { version = "0.72", default-features = false }
+ic-memory = "0.58.0"
+ic-metrics = { version = "0.21.0", default-features = false }
+ic-storage = "0.58.0"
+ic-testkit = { version = "0.72", default-features = false }
 serde_json = "1"
 tokio = { version = "1", features = ["rt-multi-thread", "sync", "time"] }
 

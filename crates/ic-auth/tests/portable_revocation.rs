@@ -907,7 +907,10 @@ fn stored_login_state_has_exactly_three_valid_projections() {
     }
     // Unknown enum discriminants are corruption, not a future fallback state.
     #[derive(serde::Serialize)]
-    #[allow(dead_code)]
+    #[expect(
+        dead_code,
+        reason = "Retain real variant indices for the corruption fixture."
+    )]
     enum UnknownState {
         Reserved(LoginBinding),
         Revoked(Option<LoginBinding>),

@@ -17,6 +17,7 @@ ic-auth = { workspace = true, features = ["canister-signature-preparation", "ses
 ic-auth-protocol-types.workspace = true
 # Private Wire controls are never part of the public Auth contract.
 ic-auth-qualification-contracts.workspace = true
+ic-auth-qualification-fixtures.workspace = true
 ic-auth-wire.workspace = true
 ic-memory = { workspace = true, features = ["test-support"] }
 ic-metrics.workspace = true
@@ -27,8 +28,6 @@ serde.workspace = true
 # Private component probes decode the same IC certificate envelopes as Platform.
 serde_bytes.workspace = true
 serde_cbor.workspace = true
-# The shared ../sessions.rs fixture hashes admitted Ed25519 key bindings.
-sha2.workspace = true
 
 [dev-dependencies]
 # Isolated retained-format refusal setup; runtime stores still use checked leases.

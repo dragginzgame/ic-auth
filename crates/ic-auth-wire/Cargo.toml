@@ -11,11 +11,10 @@ description = "Bounded IC Wire transport contracts for portable IC Auth sessions
 publish = ["crates-io"]
 
 [features]
-typescript = ["ic-wire/typescript", "dep:ic-platform", "ic-platform/wire-schema"]
+typescript = ["ic-wire/platform-types"]
 
 [dependencies]
 ic-auth-protocol-types.workspace = true
-ic-platform = { workspace = true, optional = true }
 ic-wire.workspace = true
 serde.workspace = true
 

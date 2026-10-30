@@ -1,0 +1,25 @@
+# Tests and tooling packages
+[package]
+name = "ic-auth-qualification-fixtures"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+description = "Internal receiver configuration and host-owned admission diagnostics"
+
+[dependencies]
+ic-auth = { workspace = true, features = ["sessions", "portable-signature-verification", "certified-proof-verification"] }
+ic-auth-protocol-types.workspace = true
+ic-auth-qualification-contracts.workspace = true
+ic-auth-wire.workspace = true
+ic-metrics.workspace = true
+serde.workspace = true
+
+[dev-dependencies]
+ic-platform = { workspace = true, features = ["ed25519"] }
+ic-wire.workspace = true
+
+[lints]
+workspace = true

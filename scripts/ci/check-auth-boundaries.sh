@@ -10,7 +10,9 @@ checker=(perl scripts/ci/check-cargo-graph.pl --consumer "$PWD")
 for target in "$native_target" wasm32-unknown-unknown; do
     for package in ic-auth-protocol-types ic-auth ic-auth-wire; do
         rules=(--forbid-pattern "$(auth_dependency_pattern deployment)"
-               --forbid-pattern "$(auth_dependency_pattern default)")
+               --forbid-pattern "$(auth_dependency_pattern default)"
+               --forbid-feature ic-platform/ic0 --forbid-feature ic-platform/executor
+               --forbid-feature ic-platform/runtime --forbid-feature ic-platform/cdk)
         if [[ "$package" == ic-auth-protocol-types || "$package" == ic-auth-wire ]]; then
             rules+=(--forbid-pattern "$(auth_dependency_pattern passive)")
         fi
@@ -24,7 +26,9 @@ for target in "$native_target" wasm32-unknown-unknown; do
         [[ "$feature" != default ]] || continue
         selected=(--no-default-features --features "$feature")
         [[ "$feature" != all ]] || selected=(--all-features)
-        rules=(--forbid-pattern "$(auth_dependency_pattern capability)")
+        rules=(--forbid-pattern "$(auth_dependency_pattern capability)"
+               --forbid-feature ic-platform/ic0 --forbid-feature ic-platform/executor
+               --forbid-feature ic-platform/runtime --forbid-feature ic-platform/cdk)
         if [[ "$feature" == chain-key-verification || "$feature" == portable-signature-verification ]]; then
             rules+=(--forbid-pattern "$(auth_dependency_pattern certificate-free)")
         fi
@@ -38,7 +42,9 @@ for target in "$native_target" wasm32-unknown-unknown; do
     "${checker[@]}" --package ic-auth-qualification-contracts --target "$target" \
         --forbid-pattern "$(auth_dependency_pattern passive)" \
         --forbid-pattern '^(candid|candid_derive|candid_parser|ic-cdk|ic0|ic-memory|ic-storage|ic-agent|ic-host|ic-build|ic-testkit|pocket-ic|tokio)([- ]|$)' \
-        --forbid-feature ic-platform/candid
+        --forbid-feature ic-platform/candid \
+        --forbid-feature ic-platform/ic0 --forbid-feature ic-platform/executor \
+        --forbid-feature ic-platform/runtime --forbid-feature ic-platform/cdk
 done
 # Optional crypto packages may be absent; every observed package has at most one
 # rendered version/source identity. The set and this policy remain Auth-owned.
@@ -53,7 +59,7 @@ for package in "${crypto_singletons[@]}"; do rules+=(--max-count "$package=1"); 
 "${checker[@]}" --package ic-auth --target wasm32-unknown-unknown --all-features "${rules[@]}"
 "${checker[@]}" --package ic-auth-qualification-canister --target wasm32-unknown-unknown \
     --forbid-pattern '^(candid|candid_derive|candid_parser|ic-canister-sig-creation|ic-signature-verification|ic-host|ic-build|ic-agent|ic-testkit|pocket-ic|tokio)([- ]|$)' \
-    --forbid ic-cdk --forbid ic-cdk-macros \
+    --forbid ic-cdk --forbid ic-cdk-macros --forbid ic-cdk-executor --forbid ic0 \
     --forbid-feature ic-platform/candid \
-    --require ic-cdk-executor=1
+    --require ic-platform-macros=1 --require ic-platform-runtime-guard=1
 echo 'Auth dependency boundaries verified'

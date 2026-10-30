@@ -126,13 +126,14 @@ check-wasm:
 	+bash scripts/dev/check-wasm.sh
 
 clippy:
-	+cargo clippy --locked --offline -p ic-auth-protocol-types -p ic-auth -p ic-auth-wire -p ic-auth-tooling -p ic-auth-qualification -p ic-auth-qualification-contracts -p ic-auth-feature-unification --all-targets --all-features -- -D warnings
+	+cargo clippy --locked --offline -p ic-auth-protocol-types -p ic-auth -p ic-auth-wire -p ic-auth-tooling -p ic-auth-qualification -p ic-auth-qualification-contracts -p ic-auth-qualification-fixtures -p ic-auth-feature-unification --all-targets --all-features -- -D warnings
 	+cargo clippy --locked --offline -p ic-auth-qualification-canister --target wasm32-unknown-unknown -- -D warnings
 
 build-qualification-canister:
 	+cargo build --locked --offline -p ic-auth-qualification-canister --target wasm32-unknown-unknown --release
 
 test-qualification: testkit-tools-check client-tools-check
+	+cargo test --locked --offline -p ic-auth-qualification-fixtures --lib
 	+cargo test --locked --offline -p ic-auth-qualification-canister --lib
 	+cargo test --locked --offline -p ic-auth-qualification --test session_metrics
 	+$(MAKE) --no-print-directory build-qualification-canister

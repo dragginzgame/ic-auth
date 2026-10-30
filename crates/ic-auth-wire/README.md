@@ -36,8 +36,8 @@ argument/reply allocation, dispatch, cancellation and retries. No endpoint is
 installed by linking this library. Response encoding failure after mutation must
 trap so local effects roll back. Never retry an unknown issuance as new work.
 
-`typescript` enables the upstream host generator and Platform's Principal Wire
-metadata only. Canister dependencies
+`typescript` enables Wire's host generator and its `platform-types` metadata for
+Platform's owned Principal. Canister dependencies
 should leave it disabled. Generated TypeScript and Rust use the same layouts and
 IC Wire's bounded codec with strict primitive parsing. Wire 0.7 does not
 reserialize decoded values: maps, sets and custom Serde visitors may normalize
@@ -52,8 +52,9 @@ used that old format. There is no Candid fallback. Current portable logout
 journals retain unknown issuance and durable invalidation; this migration does
 not authorize discarding them.
 
-Auth 0.16 exposes IC Wire 0.7 through `wire`; Auth 0.15 used Wire 0.6. Align Rust
-consumers sharing these types. Wire 0.7 removes `Error::Noncanonical`; invalid
+Pending Auth 0.26 exposes IC Wire 0.10 through `wire`; Auth 0.16 used Wire 0.7
+and Auth 0.15 used Wire 0.6. Align Rust consumers sharing these types.
+Wire 0.7 removed `Error::Noncanonical`; invalid
 primitive encodings return `Malformed`. Encoder bytes and method IDs are
 unchanged by this adoption. Earlier
 Auth 0.14 uses Wire 0.5. The finite `Method` trait, serializer derive and typed

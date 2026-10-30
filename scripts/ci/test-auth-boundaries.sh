@@ -40,10 +40,16 @@ while [[ $# -gt 0 ]]; do
 done
 [[ -n "$package" ]]
 if [[ "$package" == ic-auth-qualification-canister ]]; then
-    printf 'ic-auth-qualification-canister v0.9.1\nic-cdk-executor v2.0.0\nic-cdk-executor v2.0.0 (*)\n'
+    printf 'ic-auth-qualification-canister v0.9.1\n'
+    if [[ "$BOUNDARY_MODE" != generator ]]; then
+        printf 'ic-platform-macros v0.9.1\nic-platform-macros v0.9.1 (*)\n'
+    fi
+    if [[ "$BOUNDARY_MODE" != runtime-guard-missing ]]; then printf 'ic-platform-runtime-guard v0.9.1\n'; fi
+    if [[ "$BOUNDARY_MODE" == runtime-guard-source ]]; then printf 'ic-platform-runtime-guard v0.9.1 (git+https://example.invalid/guard#12345678)\n'; fi
     if [[ "$BOUNDARY_MODE" == parser ]]; then printf 'candid_parser v0.3.0\n'; fi
     if [[ "$BOUNDARY_MODE" == executor ]]; then printf 'ic-cdk-executor v3.0.0\n'; fi
     if [[ "$BOUNDARY_MODE" == executor-source ]]; then printf 'ic-cdk-executor v2.0.0 (git+https://example.invalid/executor#12345678)\n'; fi
+    if [[ "$BOUNDARY_MODE" == generator-source ]]; then printf 'ic-platform-macros v0.9.1 (git+https://example.invalid/macros#12345678)\n'; fi
     # Neither certified verification nor the Wire runtime may import Candid.
     if [[ "$BOUNDARY_MODE" == host-candid ]]; then printf 'candid v0.10.38\n'; fi
     if [[ "$BOUNDARY_MODE" == host-candid-derive ]]; then printf 'candid_derive v0.10.38\n'; fi
@@ -71,6 +77,12 @@ if [[ "$BOUNDARY_MODE" == principal-candid && "$package" == ic-auth-protocol-typ
 fi
 if [[ "$BOUNDARY_MODE" == principal-executor && "$package" == ic-auth-protocol-types ]]; then
     printf 'ic-cdk-executor v2.0.0\n'
+fi
+if [[ "$BOUNDARY_MODE" == principal-owned-executor && "$package" == ic-auth-protocol-types ]]; then
+    printf 'ic-platform feature "executor"\n'
+fi
+if [[ "$BOUNDARY_MODE" == principal-runtime-guard && "$package" == ic-auth-protocol-types ]]; then
+    printf 'ic-platform-runtime-guard v0.9.1\n'
 fi
 if [[ "$BOUNDARY_MODE" == principal-bls && "$package" == ic-auth-protocol-types ]]; then
     printf 'ic-verify-bls-signature v0.6.0\n'
@@ -102,6 +114,9 @@ if [[ "$target" == wasm32-unknown-unknown ]]; then
         case "$BOUNDARY_MODE" in
             wasm-certified-candid) printf 'candid v0.10.38\n' ;;
             wasm-certified-ic0) printf 'ic0 v1.2.0\n' ;;
+            wasm-certified-owned-ic0) printf 'ic-platform feature "ic0"\n' ;;
+            wasm-certified-runtime) printf 'ic-platform feature "runtime"\n' ;;
+            wasm-certified-cdk) printf 'ic-platform feature "cdk"\n' ;;
             wasm-certified-creation) printf 'ic-canister-sig-creation v1.3.1\n' ;;
             wasm-certified-verifier) printf 'ic-signature-verification v0.3.0\n' ;;
         esac
@@ -111,7 +126,7 @@ STUB
 chmod +x "$fixture/bin/"*
 export PATH="$fixture/bin:$root/.tools/host/bin:$PATH"
 export BOUNDARY_EVENTS="$fixture/events"
-for mode in accepted principal-external wire-hashing control-external principal-candid principal-executor principal-bls principal-storage control-candid control-storage control-platform-feature wasm-default wasm-combined wasm-capability wasm-portable-bls wasm-certified-candid wasm-certified-ic0 wasm-certified-creation wasm-certified-verifier host-candid host-candid-derive parser executor executor-source host-cdk host-cdk-macros host-platform-feature; do
+for mode in accepted principal-external wire-hashing control-external principal-candid principal-executor principal-owned-executor principal-runtime-guard principal-bls principal-storage control-candid control-storage control-platform-feature wasm-default wasm-combined wasm-capability wasm-portable-bls wasm-certified-candid wasm-certified-ic0 wasm-certified-owned-ic0 wasm-certified-runtime wasm-certified-cdk wasm-certified-creation wasm-certified-verifier host-candid host-candid-derive parser executor executor-source generator generator-source runtime-guard-missing runtime-guard-source host-cdk host-cdk-macros host-platform-feature; do
     export BOUNDARY_MODE="$mode"
     : > "$BOUNDARY_EVENTS"
     status=0
@@ -127,7 +142,7 @@ for mode in accepted principal-external wire-hashing control-external principal-
     else
         [[ "$status" != 0 ]] || { echo "missing exclusion: $mode" >&2; exit 1; }
         rg '^Cargo graph policy failed:' "$fixture/$mode.log" > /dev/null
-        rg 'ic_principal|sha2|ic-agent|tokio|ic-testkit-candid|candid|ic-cdk|ic0|ic-canister-sig-creation|ic-signature-verification|ic-verify-bls-signature' "$fixture/$mode.log" > /dev/null
+        rg 'ic-platform|ic_principal|sha2|ic-agent|tokio|ic-testkit-candid|candid|ic-cdk|ic0|ic-canister-sig-creation|ic-signature-verification|ic-verify-bls-signature' "$fixture/$mode.log" > /dev/null
     fi
 done
 echo 'Native/Wasm graph selections and transitive tooling refusals passed'

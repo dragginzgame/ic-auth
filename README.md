@@ -92,19 +92,19 @@ package belongs to another IC-Auth project and does not implement our applicatio
 token/proof contracts. Crates.io treats hyphens and underscores as colliding
 names, so changing only the punctuation cannot resolve that conflict.
 
-The public domain types use IC Platform 0.8's owned `Principal` through its
+The public domain types use IC Platform 0.11's owned `Principal` through its
 explicit `principal` feature. Auth's engine selects `principal-self-authenticating`
 for browser-key hashing, with byte-preserving conversions at external
 Agent/Testkit/crypto boundaries. Public library capabilities and the reference
 Wasm exclude Candid; native Agent/Testkit retain their required Candid dependencies.
 Platform supplies signature creation/verification and the Candid-free runtime;
 Auth retains admission limits, protected authority and session policy. See the
-[Platform migration](docs/canic-adoption.md#platform-08-migration) and
+[Platform migration](docs/canic-adoption.md#platform-011-migration) and
 [dependency boundary](docs/development.md#ic-platform-boundary).
 
 Application endpoints, generated TypeScript, private fixture controls and upgrade
-checkpoints use bounded native Serde IC Wire 0.7 contracts.
-Wire 0.7 preserves encoder bytes and IDs; its Rust types differ from 0.6.
+checkpoints use bounded native Serde IC Wire 0.10 contracts.
+Wire 0.10 preserves encoder bytes and IDs; consumers sharing Rust types align to 0.10.
 The Auth 0.15 admission cut uses a new method identity; update its receiver and client
 together. Credential/read/logout frames, signed material and retained production
 records keep their formats. The unpublished finite-Wire checkpoint is retired;

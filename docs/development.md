@@ -5,7 +5,7 @@ unpublished native tooling in `apps/tooling/` and the reference host/runner in
 `apps/qualification/`. The root catalog selects published Platform, the
 Host FS/Process, Build and Testkit packages from
 [IC Tooling](https://github.com/dragginzgame/ic-tooling), Memory from
-[IC Persistence](https://github.com/dragginzgame/ic-persistence) and the Wire 0.7
+[IC Persistence](https://github.com/dragginzgame/ic-persistence) and the Wire 0.10
 codec/TypeScript generator. The lock and [handoff](status/current.md) record exact selections and evidence;
 [session contracts](sessions.md) distinguish supported behavior from pending hosts.
 Rust `1.99.1` remains the development compiler selected by `rust-toolchain.toml`.
@@ -130,18 +130,18 @@ Platform's explicit `pocket-ic` capability owns native simulator clients and DTO
 Testkit owns bounded server startup, lifecycle extensions and typed Wire calls;
 only the native runner selects these capabilities.
 
-Native file and process callers select Host FS/Process 0.70.0 with defaults
+Native file and process callers select Host FS/Process 0.72 with defaults
 disabled. Library use does not enable Host's optional CLI, certificate decoder
 or Wasm text/encoding backends. Host stays outside the production library graph.
-Build and Testkit 0.70 select the same Host 0.70 identities as Auth's direct
+Build and Testkit 0.72 select the same Host 0.72 identities as Auth's direct
 callers; no dependency override or old Host family is needed. The independently
-pinned file CLI is independently selected at 0.70.0 for this adoption.
+pinned file CLI is independently selected at 0.72.0 for this adoption.
 Build and Testkit libraries keep `cli` disabled; only the prepared executable
 selections request it. Testkit owns its benchmark-average errors and no longer
 selects IC Metrics. Auth uses neither the removed Candid helpers nor Metrics
 error identities, so no call adapter or compatibility layer is needed.
 
-The unpublished qualification host separately selects IC Metrics 0.17 for fixed
+The unpublished qualification host separately selects IC Metrics 0.21.0 for fixed
 admission outcome counters. Public Auth graphs forbid that dependency. See the
 [host-owned diagnostics reference](sessions.md#host-owned-admission-diagnostics)
 for event admission, commit/rollback and diagnostic reset policy; this adds no RPC.
@@ -154,8 +154,8 @@ for the existing byte/path limits and release-recovery boundary.
 
 ## Dependency roles and deployment admission
 
-Shared Tooling 0.27.6 source is adopted at
-`5a72359b5be19d5221334cf2c9b3204621d3f3f6` (reviewed committed source, not a
+Shared Tooling 0.27.11 source is adopted at
+`62edfbd43087a718bf0283e9040676a49211976d` (reviewed committed source, not a
 claim of registry publication or a matching release tag).
 The root catalog uses `Production dependencies` and `Tests and tooling only`;
 member annotations distinguish the three production libraries from internal
@@ -204,12 +204,17 @@ explicitly at Agent/Testkit/crypto boundaries using Platform's
 signature capabilities already include it); the upstream type and cryptography remain there.
 Significant bytes, ordering and binary serialization remain compatible; text
 longer than 63 bytes is now refused before normalization. See the
-[consumer migration](canic-adoption.md#platform-08-migration). No storage migration
+[consumer migration](canic-adoption.md#platform-011-migration). No storage migration
 or replacement cryptography is introduced.
 
 Private controls and diagnostics now use bounded Wire contracts under
-`apps/qualification/contracts/`; public application contracts remain in
-`ic-auth-wire`. The runner uses Testkit's opt-in typed Wire calls for ordinary
+`apps/qualification/contracts/`. Shared checked configuration and the admission
+recorder have one unpublished library owner in `apps/qualification/fixtures/`;
+both host and native runner import it through Cargo. The shared fixture's unit
+test runs under `test-qualification`, Clippy and MSRV alongside those consumers.
+Application methods remain in `ic-auth-wire`.
+
+The runner uses Testkit's opt-in typed Wire calls for ordinary
 requests/replies, with raw calls retained for malformed inputs and explicit byte
 evidence. Init and post-upgrade arguments also use explicit Wire method identities.
 Platform entrypoints with explicit codec hooks require no direct Candid declaration,
@@ -218,7 +223,7 @@ derive or service export. The host selects Platform
 The host parser stays disabled.
 
 The maintainer authorized retiring the unpublished fixture's Candid checkpoint.
-Auth 0.22 introduced the bounded native-Wire checkpoint. Pending 0.25 uses
+Auth 0.22 introduced the bounded native-Wire checkpoint. Auth 0.25 uses
 `AUTHNAT3` and identity
 `0x41555449f101`, containing the new Wire session/replay/login records. Previous
 `AUTHNAT2` (text-ID records), `AUTHNAT1` (CBOR records), `AUTHCELL`/Candid and finite-Wire `AUTHWIR2` payloads
@@ -226,7 +231,7 @@ are refused without migration or reset. The maintainer confirmed no retained Aut
 records require preservation. IC Memory allocation and StableCell framing remain
 unchanged. Start with a coherent new fixture checkpoint for this hard cut.
 Checkpoint restores remain closed until matching controller authority is confirmed.
-The qualification host selects Memory/Storage 0.56.1 with the standard canister
+The qualification host selects Memory/Storage 0.58.0 with the standard canister
 backing. Memory admits one runtime/allocation; Storage's `StableCell` consumes
 that checked lease. Auth checks the retained payload ceiling before loading and
 refuses occupied fresh state before creating a cell. Memory 0.53 trusts exclusive
@@ -242,7 +247,7 @@ host on fresh isolated backing and retain older binaries/states. Any retained
 installation needs its own reviewed transition before upgrade; never clear only
 the ledger while leaving application data. No reinstall, data retirement or
 reset of retained installations is authorized by this dependency adoption.
-That Memory cut is separate from the pending 0.25 binary-ID record change and
+That Memory cut is separate from the Auth 0.25 binary-ID record change and
 `AUTHNAT3` checkpoint. The maintainer separately confirmed no retained current
 session/login records; neither consent permits erasing Memory backing or its ledger.
 The 0.53.1 repair releases backing claims before their identity allocations are
@@ -282,16 +287,17 @@ codec entrypoints without depending on the full CDK or selecting Candid. The
 host's runtime calls and lifecycle/query/update macros use `ic_platform::cdk`;
 no local runtime wrapper is introduced. Explicit Wire hooks, including unit RPCs,
 retain byte admission, payloads, errors and traps. Controller Boolean/panic
-behavior and the registry executor 2.0.0/ic0 1.2.0 identities are retained.
+behavior remains. Platform 0.11 owns its maintained executor and IC0 bindings,
+with their upstream provenance; no separate registry executor is selected.
 The retired no-op `hidden = true` option is removed from all fixture entrypoints;
 explicit Wire decoding/encoding and endpoint exports remain unchanged.
 
 Auth keeps runtime-specific call/error types internal and uses none of the
-retired storage or `change_timeout` APIs. Its public Principal has a Platform 0.8
-crate identity, so consumers sharing that type must align to Platform 0.8 and explicitly select `principal` when
-using Platform types alone; see [the migration](canic-adoption.md#platform-08-migration).
-Memory/Storage and native Testkit share the root-selected Platform 0.8 identity;
-the former private Platform 0.7 dependency is removed. Storage retains the same
+retired storage or `change_timeout` APIs. Its public Principal has a Platform 0.11
+crate identity, so consumers sharing that type must align to Platform 0.11 and explicitly select `principal` when
+using Platform types alone; see [the migration](canic-adoption.md#platform-011-migration).
+Published Memory/Storage and native Testkit share Platform 0.11 with Auth;
+they do not define Auth's public Principal. Storage retains the same
 upstream stable-structures types, and native Agent/Testkit boundaries retain the
 upstream external Principal. No dependency override or new conversion is needed.
 Counter-zero measurements continue using the exact raw API, equivalent to CDK's
@@ -304,7 +310,8 @@ of enabled features. Transitive library checks permit principal-only Platform
 while excluding Candid, raw IC calls and registry signature packages from every
 public capability, including certified verification and isolated package consumers. Refusal fixtures cover Candid and executor leakage
 into the passive protocol graph. The reference-Wasm graph
-also rejects host parsers/native tooling and requires one executor identity.
+also rejects host parsers/native tooling, the separate registry executor and
+runtime capabilities in public libraries. It retains one Platform generator identity.
 Private Wire schemas reject Candid/CDK/tooling on native and Wasm. The reference
 host now rejects the full `ic-cdk` and `ic-cdk-macros` packages and Platform's
 `candid` feature, plus all Candid packages and retired signature-registry edges.
@@ -398,8 +405,8 @@ No native package installer or browser download runs inside an ordinary check.
 The Makefile includes reviewed [`make/consumer.mk`](make-interface.md), which owns
 common setup, formatting, hooks, snapshot verification and release routing.
 `check-snapshot` retains its public name and depends on `shared-tooling-check`.
-The recorded snapshot pins Shared Tooling 0.27.6 at
-`5a72359b5be19d5221334cf2c9b3204621d3f3f6`. Adopt its committed source and
+The recorded snapshot pins Shared Tooling 0.27.11 at
+`62edfbd43087a718bf0283e9040676a49211976d`. Adopt its committed source and
 recorded entrypoint closure through the canonical exporter; see
 [snapshot adoption](consuming-snapshots.md#entrypoint-selection-in-070).
 Adoption also compares every exported payload with an independently reviewed
@@ -857,7 +864,7 @@ archives remain in `target/`; no cleanup, GitHub Release object or deployment is
 implicit. See [Cargo publication](https://doc.rust-lang.org/cargo/commands/cargo-publish.html)
 for credentials, dry-run and index-propagation semantics.
 
-File mechanics use the published `ic-host-file` executable. Auth pins 0.70.0 in
+File mechanics use the published `ic-host-file` executable. Auth pins 0.72.0 in
 `ci/host-file.env`, independently of the library versions selected by Cargo.lock.
 `make install-host-file` prepares it through Shared Tooling with
 `--features cli`; `make host-file-check` admits that exact selection offline. The

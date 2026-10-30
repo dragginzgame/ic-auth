@@ -1,4 +1,4 @@
-// Private adapter for apps/qualification/sessions.rs, not a production endpoint.
+// Private adapter for qualification-fixtures receiver configuration, not a production endpoint.
 import assert from 'node:assert/strict';
 import { IDBFactory } from 'fake-indexeddb';
 import type { Identity } from '@tokostudios/ic-platform/agent';
