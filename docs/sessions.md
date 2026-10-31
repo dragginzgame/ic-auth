@@ -435,7 +435,7 @@ contract before any persistent effects:
 | Proposed operation | Required login change and checks |
 | --- | --- |
 | Read only | `read` exposes only `&dyn SessionReader`; it cannot stage writes or removals |
-| Admission/replacement | `admit(session, replay, login)` requires `LoginRecordState::Reserved`; call `session.check_login_change(login)`; check pair caller, fingerprint and current generation, replay uniqueness, record sizes and physical capacities |
+| Admission/replacement | `admit(session, replay, login)` calls `session.check_admission_pair(&replay, login, current_generation)` for reservation, pair association and generation; check replay uniqueness, record sizes and capacities |
 | Session removal | `logout(login)` requires `LoginRecordState::Revoked` and removes only `login.caller()`; check any retained session association and retain replay history |
 | Missing session removal | Still commit the proposed tombstone; absence is not evidence that a delayed admission cannot arrive |
 
@@ -447,6 +447,16 @@ older session. Passing this check never permits admission with a tombstone or
 replaces current authority, replay, capacity or atomicity checks. No submitted
 record is a credential. Persist the login change with the session/replay/index
 updates; return success only after the whole commit succeeds.
+
+`SessionLimits::check_capacity(occupancy, replacing)` shares the reference store's
+physical session/replay/per-caller count check. Include expired records until
+pruning, compute replacement from the same snapshot and independently enforce
+encoded-byte and backing/index budgets. `LoginRevocationChange::check_replacement`
+checks a proposed record against a retained record for the same caller/domain at
+trusted time: a live binding/pool, denial and retention deadline cannot be lost.
+At exclusive expiry a new binding/pool may replace it. The helper authenticates
+neither record provenance nor current authority and does not charge budget,
+update clock/pool totals or commit. Preserve those obligations atomically.
 
 The rest of the host cut must be propagated together:
 
@@ -470,6 +480,25 @@ The rest of the host cut must be propagated together:
   session-only logout with replay retention, unknown-login logout and upgrade
   restoration/reset in the actual host. Auth's fixture is reference evidence,
   not production Canic adoption or a completed per-operation durable backend.
+
+### Backend conformance scenarios
+
+The unpublished qualification fixtures expose native-only
+[`conformance::Backend` and `assert_backend_contract`](../apps/qualification/fixtures/src/conformance.rs)
+under `backend-conformance`. Adapt the small test-driver hooks to isolated test
+backing and run the scenarios against the actual `SessionStore`. This is source
+cohort test infrastructure, not a published crate or production storage interface;
+keep it outside deployed graphs and align its Auth dependency identity.
+
+`cargo test --locked --offline -p ic-auth-qualification --test backend_conformance`
+runs the same scenarios against reference commit callbacks and an independent
+encoded-record backend. It also proves a write-then-error adapter is rejected.
+Scenarios cover failed admission/logout, spent verification credit, exact retry
+after proof expiry without lease extension, replacement, replay/denial retention,
+active/revoked reopen, generation invalidation and count/byte capacity refusal.
+Core tests separately exercise malformed/mismatched pairs and live record
+replacement. These checks do not establish crash atomicity, rollback protection,
+durable clocks/authority, cleanup bounds or deployed consumer acceptance.
 
 ## Executable host integration references
 

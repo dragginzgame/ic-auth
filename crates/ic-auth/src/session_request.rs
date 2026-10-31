@@ -99,11 +99,8 @@ impl SessionRequest {
             feature = "certified-proof-verification"
         )
     ))]
-    pub(crate) fn into_scopes(self) -> Vec<String> {
+    pub(crate) fn into_scopes(self) -> Vec<ScopeLabel> {
         self.scopes
-            .into_iter()
-            .map(ScopeLabel::into_string)
-            .collect()
     }
     /// Calculate a requested lease against protected TTL policy (maximum 1800s).
     /// This authenticates nothing and does not cap login or authority deadlines.
@@ -162,17 +159,7 @@ impl SessionRequest {
     }
 }
 
-#[cfg(feature = "session-restore")]
-pub(crate) fn check_scopes(scopes: &[String]) -> Result<(), SessionRequestError> {
-    check_scope_count(scopes.len())?;
-    // The count bound and canonical 64-byte label bound imply <=1024 bytes.
-    for scope in scopes {
-        crate::canonical::validate_scope_label(scope)?;
-    }
-    Ok(())
-}
-
-fn check_scope_count(count: usize) -> Result<(), SessionRequestError> {
+pub(crate) fn check_scope_count(count: usize) -> Result<(), SessionRequestError> {
     if count == 0 || count > crate::limits::MAX_SESSION_SCOPES {
         return Err(SessionRequestError::InvalidRequest);
     }

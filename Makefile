@@ -136,6 +136,7 @@ test-qualification: testkit-tools-check client-tools-check
 	+cargo test --locked --offline -p ic-auth-qualification-fixtures --lib
 	+cargo test --locked --offline -p ic-auth-qualification-canister --lib
 	+cargo test --locked --offline -p ic-auth-qualification --test session_metrics
+	+cargo test --locked --offline -p ic-auth-qualification --test backend_conformance
 	+$(MAKE) --no-print-directory build-qualification-canister
 	+bash scripts/dev/test-qualification.sh
 

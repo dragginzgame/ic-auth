@@ -48,7 +48,7 @@ its application code imports Platform. This guard is not runtime/browser proof.
 
 ## Application transport hard cut
 
-Auth uses `crates/ic-auth-wire/` with published IC Wire 0.7 native
+Auth uses `crates/ic-auth-wire/` with published IC Wire 0.13.1 native
 Serde. Released Auth 0.14 uses Wire 0.5; update receivers and generated clients
 together. Admission changes its ID to `0x415554480012` to isolate zero-based
 refusal tags; the retired ID is refused. Credential/read/logout identities and

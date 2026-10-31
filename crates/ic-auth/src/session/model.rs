@@ -1,13 +1,13 @@
 use super::{SessionContext, SessionError, SessionOccupancy};
 use crate::portable::{LoginBinding, LoginRecordState, is_login_caller};
 #[cfg(feature = "session-restore")]
-use crate::session_request::check_scopes;
+use crate::session_request::check_scope_count;
 #[cfg(any(
     feature = "portable-signature-verification",
     feature = "certified-proof-verification"
 ))]
 use crate::{portable::VerifiedPortableClaims, session_request::SessionRequest};
-use ic_auth_protocol_types::{AudienceId, AuthRole, PortableMechanism, Principal};
+use ic_auth_protocol_types::{AudienceId, AuthRole, PortableMechanism, Principal, ScopeLabel};
 #[cfg(feature = "session-restore")]
 use serde::Deserialize;
 use serde::Serialize;
@@ -82,7 +82,10 @@ impl SessionLimits {
         self.max_encoded_bytes
     }
 
-    pub(super) fn check_capacity(
+    /// Check physical record counts before admission, including expired rows
+    /// not yet pruned. Counts and replacement status come from the host's current
+    /// isolated snapshot; this checks neither byte/index budgets nor atomicity.
+    pub fn check_capacity(
         self,
         occupancy: SessionOccupancy,
         replacing: bool,
@@ -112,7 +115,10 @@ struct SessionData {
     mechanism: PortableMechanism,
     key_binding_id: [u8; 32],
     role: AuthRole,
-    scopes: Vec<String>,
+    // ScopeLabel has the same Serde string representation. Keep checked labels
+    // after admission; malformed stored labels now fail record decoding rather
+    // than a later Canonical diagnostic. Accepted records and bytes are unchanged.
+    scopes: Vec<ScopeLabel>,
     generation: u64,
     login_started_at_ns: u64,
     login_deadline_ns: u64,
@@ -137,6 +143,31 @@ let _ = Session::decode(&[]);
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Session(SessionData);
 impl Session {
+    /// Backend preflight for one proposed admission at its protected generation.
+    /// This shares the reference store's pair/login checks with custom stores;
+    /// success proves neither cryptographic validity nor live authority. The host
+    /// still checks replay, capacity, provenance and atomic session/replay/login
+    /// persistence under the same synchronous transaction boundary.
+    pub fn check_admission_pair(
+        &self,
+        replay: &Replay,
+        login: &crate::portable::LoginRevocationChange,
+        current_generation: u64,
+    ) -> Result<(), SessionError> {
+        if !matches!(login.state(), LoginRecordState::Reserved(_))
+            || self.caller() != replay.caller()
+            || self.fingerprint() != replay.fingerprint()
+            || self.generation() != replay.generation()
+            || replay.remove_at_ns() == 0
+        {
+            return Err(SessionError::InvalidPolicyOrRecord);
+        }
+        self.check_login_change(login)?;
+        if self.generation() != current_generation {
+            return Err(SessionError::StaleAuthority);
+        }
+        Ok(())
+    }
     /// Check a proposed host transaction's login record against this session.
     /// Custom stores call this before persistence instead of decoding private
     /// record fields. Both operations require the same caller and audience.
@@ -181,7 +212,7 @@ impl Session {
     pub fn key_binding_id(&self) -> [u8; 32] {
         self.0.key_binding_id
     }
-    pub fn scopes(&self) -> &[String] {
+    pub fn scopes(&self) -> &[ScopeLabel] {
         &self.0.scopes
     }
     pub fn generation(&self) -> u64 {
@@ -221,7 +252,7 @@ impl Session {
             MAX_SESSION_RECORD_BYTES,
         )
         .map_err(record_error)?;
-        check_scopes(&data.scopes)?;
+        check_scope_count(data.scopes.len())?;
         if !is_login_caller(data.caller)
             || data.subject == Principal::anonymous()
             || data.issuer == Principal::anonymous()

@@ -83,14 +83,22 @@ for index in "${!packages[@]}"; do
     if [[ "$status" == 0 ]]; then echo "Verified $package $version; skipping an identical upload"; continue; fi
     [[ "$status" == 1 ]] || fail "cannot establish registry state for $package; nothing dispatched"
     dispatched="$state/$version-$package.dispatched"
-    [[ ! -e "$dispatched" ]] || fail "previous $package upload is unresolved; retain intent and wait for registry confirmation before retrying"
+    [[ ! -e "$dispatched" && ! -L "$dispatched" ]] || fail "previous $package upload is unresolved; retain intent and wait for registry confirmation before retrying"
+    # The shared lock has one stable parent across all versions/invocations.
+    # Matching registry observations above may reconcile Auth's intent, but do
+    # not clear an incomplete shared attempt or authorize another dispatch.
+    attempt="$state/${logs##*/}-$package"
+    [[ ! -e "$state/.cargo-publication.lock" && ! -L "$state/.cargo-publication.lock" ]] ||
+        fail "shared publication attempt lock is retained; inspect its owner/evidence before another dispatch: $state/.cargo-publication.lock"
+    [[ ! -e "$attempt" && ! -L "$attempt" ]] || fail "publication attempt already exists; retain and reconcile: $attempt"
     assert_source
     marker="$logs/$package.dispatched"
     printf '%s\n' "$source" "$checksum" > "$marker"
     bash scripts/dev/run-host-file.sh create-private "$marker" "$dispatched" 1024
     assert_source
     status=0
-    step cargo publish --locked --registry crates-io -p "$package" || status=$?
+    step bash scripts/ci/run-cargo-publication.sh publish "$attempt" "$source" crates-io \
+        --package "$package@$version" || status=$?
     # A lost reply or Cargo index-propagation timeout does not prove failure.
     # Reconcile the exact bytes even when the upload command reports failure.
     observed=0
@@ -99,3 +107,6 @@ for index in "${!packages[@]}"; do
     assert_source
 done
 echo "Verified all IC Auth packages at $version on crates.io"
+if [[ -e "$state/.cargo-publication.lock" || -L "$state/.cargo-publication.lock" ]]; then
+    echo "Registry reconciliation does not release the retained shared-attempt lock: $state/.cargo-publication.lock"
+fi

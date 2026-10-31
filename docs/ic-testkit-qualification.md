@@ -1,7 +1,7 @@
 # IC Testkit proof, session and ingress qualification
 
 `make test-qualification` admits the prepared Testkit server and browser tools,
-runs the native fixture tests, builds `apps/qualification/canister/` and executes
+runs the native fixture tests and [backend conformance scenarios](sessions.md#backend-conformance-scenarios), builds `apps/qualification/canister/` and executes
 `apps/qualification/runner/` against that server. These unpublished applications
 qualify Auth's reference host, not a production wallet/issuer or durable backend.
 Earlier pairings and benchmarks are preserved in
@@ -9,8 +9,8 @@ Earlier pairings and benchmarks are preserved in
 
 ## Setup and ownership
 
-The root catalog/lock select published Testkit 0.75.0 from
-[IC Tooling](https://github.com/dragginzgame/ic-tooling) and Auth's Platform 0.15.2.
+The root catalog/lock select published Testkit 0.75.1 from
+[IC Tooling](https://github.com/dragginzgame/ic-tooling) and Auth's Platform 0.15 family.
 Testkit and Auth share Wire 0.13 types directly. `WireCallSpec` takes the canonical
 contract limits without conversion; responses require only `DeserializeOwned`.
 The temporary Wire 0.6 alias and limit bridge are removed following

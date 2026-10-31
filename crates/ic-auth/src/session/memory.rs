@@ -396,20 +396,7 @@ impl MemorySessionStore {
         login: &crate::portable::LoginRevocationChange,
         commit: impl FnOnce(SessionCommit<'_>) -> Result<(), SessionError>,
     ) -> Result<bool, SessionError> {
-        if !matches!(
-            login.state(),
-            crate::portable::LoginRecordState::Reserved(_)
-        ) || session.caller() != replay.caller()
-            || session.fingerprint() != replay.fingerprint()
-            || session.generation() != replay.generation()
-            || replay.remove_at_ns() == 0
-        {
-            return Err(SessionError::InvalidPolicyOrRecord);
-        }
-        session.check_login_change(login)?;
-        if session.generation() != self.generation {
-            return Err(SessionError::StaleAuthority);
-        }
+        session.check_admission_pair(&replay, login, self.generation)?;
         if self.replay_exists(replay.fingerprint())? {
             return Err(SessionError::ReplayConflict);
         }

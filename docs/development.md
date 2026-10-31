@@ -130,18 +130,18 @@ Platform's explicit `pocket-ic` capability owns native simulator clients and DTO
 Testkit owns bounded server startup, lifecycle extensions and typed Wire calls;
 only the native runner selects these capabilities.
 
-Native file and process callers select Host FS/Process 0.73.1 with defaults
+Native file and process callers select Host FS/Process 0.73.2 with defaults
 disabled. Library use does not enable Host's optional CLI, certificate decoder
 or Wasm text/encoding backends. Host stays outside the production library graph.
-Build 0.73.1 and Testkit 0.75 select the same Host 0.73 identities as Auth's direct
+Build 0.73.2 and Testkit 0.75 select the same Host 0.73 identities as Auth's direct
 callers; no dependency override or old Host family is needed. The independently
-pinned file CLI is independently selected at 0.73.1 for this adoption.
+pinned file CLI is independently selected at 0.73.2 for this adoption.
 Build and Testkit libraries keep `cli` disabled; only the prepared executable
 selections request it. Testkit owns its benchmark-average errors and selects
 arithmetic-only Metrics 0.23.2 privately. Auth exchanges no Metrics values with
 Testkit, so this older transitive selection needs no bridge or forced override.
 
-The unpublished qualification host separately selects IC Metrics 0.24.0 for fixed
+The unpublished qualification host separately selects IC Metrics 0.24.1 for fixed
 admission outcome counters, with defaults disabled: arithmetic and validated Serde
 do not select its optional native Wire metadata. Public Auth graphs forbid that
 dependency. See the
@@ -156,10 +156,11 @@ for the existing byte/path limits and release-recovery boundary.
 
 ## Dependency roles and deployment admission
 
-Shared Tooling revision `143a9abb9ae81feae9400ff3844b03b1ddfdd75a` is adopted
-(its committed VERSION records 0.27.21, including the 0.27.22 catalog guidance;
-reviewed committed source, not a
-claim of registry publication or a matching release tag).
+Shared Tooling revision `619d194875369e0f72b45477b66adb430acbf6b7` is adopted
+(its committed VERSION records 0.27.23; this is reviewed source, not a claim of
+registry publication or a matching release tag). Auth retains Cargo-owned versions
+and the default release mode; Shared's pending canonical `VERSION` workflow does
+not add a version file, prepare-work command or package-version edit here.
 The root catalog uses `Production dependencies` and `Tests and tooling only`;
 member annotations distinguish the three production libraries from internal
 qualification and native tooling packages. These roles describe graph use, not
@@ -234,7 +235,7 @@ are refused without migration or reset. The maintainer confirmed no retained Aut
 records require preservation. IC Memory allocation and StableCell framing remain
 unchanged. Start with a coherent new fixture checkpoint for this hard cut.
 Checkpoint restores remain closed until matching controller authority is confirmed.
-The qualification host selects Memory/Storage 0.60.0 with the standard canister
+The qualification host selects Memory/Storage 0.60.3 with the standard canister
 backing. Memory admits one runtime/allocation; Storage's `StableCell` consumes
 that checked lease. Auth checks the retained payload ceiling before loading and
 refuses occupied fresh state before creating a cell. Memory 0.53 trusts exclusive
@@ -408,9 +409,8 @@ No native package installer or browser download runs inside an ordinary check.
 The Makefile includes reviewed [`make/consumer.mk`](make-interface.md), which owns
 common setup, formatting, hooks, snapshot verification and release routing.
 `check-snapshot` retains its public name and depends on `shared-tooling-check`.
-The recorded snapshot pins Shared Tooling 0.27.21 at
-`143a9abb9ae81feae9400ff3844b03b1ddfdd75a`, including the committed 0.27.22
-catalog guidance. Adopt its committed source and
+The recorded snapshot pins Shared Tooling 0.27.23 at
+`619d194875369e0f72b45477b66adb430acbf6b7`. Adopt its committed source and
 recorded entrypoint closure through the canonical exporter; see
 [snapshot adoption](consuming-snapshots.md#entrypoint-selection-in-070).
 Adoption also compares every exported payload with an independently reviewed
@@ -622,6 +622,7 @@ multi-package, multi-feature and multi-target entries are aggregate suites.
 | `make test-signature-store` | Bounded preparation/retrieval, unchanged retry deadlines, pruning and real BLS verification with host-composed branches |
 | `make test-certified-proofs` | Portable certified secp256k1/BLS proofs, protected delegation bindings, budgets and rejection |
 | `make test-sessions` | Atomic admission/replay failure, exact retry, live authority invalidation, logout and quotas using certified and Ed25519 portable proofs |
+| `cargo test --locked --offline -p ic-auth-qualification --test backend_conformance` | Shared native backend scenarios against reference callbacks and an independent encoded store; deliberate partial-commit rejection; no server required |
 | `make test-host-tooling` | Native file-operation CLI: bounded input, exact digest output, no-follow reads and preserved create-only evidence |
 | `make check-msrv` | Aggregate: isolated public package payloads and internal applications using the declared minimum compiler, with native/Wasm and feature coverage |
 | `make tasks` | Read the adopted maintenance task catalog; no task, agent or schedule starts |
@@ -863,12 +864,31 @@ archive checksum decision; matching yanked bytes reconcile prior publication
 without another upload. An attempted upload without confirmation remains unresolved:
 rerunning observes the exact version/checksum and does not redispatch an absent
 version after an uncertain response. If it never appears, establish the failed
-effect independently before reconciling the retained intent. Publication logs and
-archives remain in `target/`; no cleanup, GitHub Release object or deployment is
+effect independently before reconciling the retained intent.
+
+Actual upload dispatch uses the adopted Shared Tooling
+`scripts/ci/run-cargo-publication.sh` with one exact `NAME@VERSION` selector after
+Auth writes its private dispatched marker and rechecks source/tag admission.
+Shared owns Cargo arguments, output, exit statuses and interruption evidence;
+Auth still owns archive checksums and registry acceptance. Each invocation has a
+fresh attempt beneath `.git/publication-state/`, named from the retained aggregate
+log directory and package. Its stable parent retains `.cargo-publication.lock`
+after an incomplete attempt, independently of Auth's outer `lock`.
+
+A matching registry observation can reconcile Auth's intent while that shared
+lock remains retained. It cannot release the lock or authorize the next package
+upload. Inspect the stopped owner's attempt and exact registry state and obtain an
+explicit operator disposition before any new dispatch; never steal a stale lock,
+erase its evidence or replay an attempt. A successful read-only reconciliation
+reports any remaining shared lock. An absent unresolved upload still refuses
+before dispatch, even when the helper lock has been separately resolved.
+
+Aggregate logs and archives remain in `target/`, and private attempt records remain
+in publication state; no cleanup, GitHub Release object or deployment is
 implicit. See [Cargo publication](https://doc.rust-lang.org/cargo/commands/cargo-publish.html)
 for credentials, dry-run and index-propagation semantics.
 
-File mechanics use the published `ic-host-file` executable. Auth pins 0.73.1 in
+File mechanics use the published `ic-host-file` executable. Auth pins 0.73.2 in
 `ci/host-file.env`, independently of the library versions selected by Cargo.lock.
 `make install-host-file` prepares it through Shared Tooling with
 `--features cli`; `make host-file-check` admits that exact selection offline. The

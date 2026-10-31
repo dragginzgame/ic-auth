@@ -6,6 +6,29 @@ is the implementation/acceptance tracker. This document is the current interface
 boundary, not evidence that Canic or Toko have deployed it. Earlier extraction
 checkpoints are retained separately in [adoption history](canic-adoption-history.md).
 
+## Current integration cohort
+
+The [current handoff](status/current.md#published-consumer-contract) identifies
+the released Auth family and selected Platform/Types/Wire suppliers. Root
+[`Cargo.toml`](../Cargo.toml) owns this checkout's selections; adopt the three
+published Auth packages together and align any shared public dependency types.
+The pending 0.28 changes below are working-tree implementation, not a new release.
+
+| Boundary | Auth supplies | Host supplies |
+| --- | --- | --- |
+| Admission/read/logout | Complete verification and session engine; bounded [Wire contracts](../crates/ic-auth-wire/README.md) and generated browser codecs | Authenticated caller/time, protected enrollment/authority and endpoint wiring |
+| Persistence | Checked record codecs, shared preflight checks and reference commit callbacks | Storage provenance, protected generation/clock, complete replay/login state and atomic persistence |
+| Backend qualification | [Reusable native scenarios](sessions.md#backend-conformance-scenarios) with two checked adapters | The actual persistent adapter, crash/reopen and deployed endpoint qualification |
+| Browser delivery | [Private archive packer and consumer qualification](browser-client.md#local-archive-delivery) | Durable distribution, production issuer transport and application acceptance |
+
+Pending 0.28 changes `Session::scopes()` to `&[ScopeLabel]`. Use `.as_str()` for
+text; requests move the already checked labels into sessions. Protocol grants
+remain raw signed DTOs, checked once by retained `ValidatedGrants`; do not rewrite
+signed bytes or normalize proof input. Valid stored records keep their existing
+bytes and discriminators. Malformed stored scope grammar now fails decoding as
+`SessionError::InvalidPolicyOrRecord`; the public read category is unchanged.
+No reset, migration, issuer-custody choice or TEE/non-TEE trust change is required.
+
 ## Session commit contract
 
 Auth **0.25** replaced `CanonicalAuthError::{EmptyScope, InvalidScope}`
@@ -295,7 +318,7 @@ codecs and limits. Canic binds them to actual exports, admits raw argument size 
 copying, decodes the exact method and authenticates ingress/replies. Reply-encoding
 failure after mutation must trap so that local state rolls back.
 
-Pending Auth 0.27 transport exposes IC Wire 0.13; Auth 0.26 used 0.10,
+Auth 0.27 transport exposes IC Wire 0.13; Auth 0.26 used 0.10,
 Auth 0.16 used 0.7 and Auth 0.15 used 0.6. Earlier Auth 0.14 uses
 Wire 0.5; update the Rust transport and generated clients together. Consumers sharing its Rust
 Wire types must align that dependency and select matching Auth package releases.
@@ -357,7 +380,7 @@ Use the current Platform 0.15 boundary below for new consumers.
 
 ## Platform 0.15 migration
 
-Pending Auth 0.27 selects Platform/macros/runtime guard 0.15.2, canonical
+Auth 0.27 selects Platform/macros/runtime guard 0.15.2, canonical
 Types 0.15.1 and Wire/derive 0.13.0. Align direct suppliers when exchanging
 Principal, parse errors, Wire limits or codec errors. Platform reexports the
 canonical Types definitions; Wire owns their native schema implementations.
@@ -365,9 +388,9 @@ Runtime-only Platform releases can retain compatible Types identities. Auth's
 passive consumers still select only `principal`; external conversions and
 browser-key self-authentication remain explicit and preserve their original bytes.
 
-Testkit 0.75.0 supplies matching typed Wire calls; Build/Host 0.73.1 supplies
-native tools; Memory/Storage 0.60.0 supplies the governed checkpoint. Auth's
-host-owned Metrics 0.24.0 disables native metadata. Published Testkit separately
+Testkit 0.75.1 supplies matching typed Wire calls; Build/Host 0.73.2 supplies
+native tools; the current qualification host selects Memory/Storage 0.60.3 for
+the governed checkpoint. Its Metrics 0.24.1 disables native metadata. Published Testkit separately
 retains arithmetic-only Metrics 0.23.2, with no values crossing that boundary.
 No local patch, copied schema, type alias or replacement transport is required.
 

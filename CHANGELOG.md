@@ -1,5 +1,46 @@
 # Changelog
 
+## [0.28.0] - Unreleased
+
+### ⚠️ Breaking
+
+- `Session::scopes()` now returns `&[ScopeLabel]`, retaining the checked labels
+  moved from `SessionRequest`. Use `ScopeLabel::as_str` for borrowed text and
+  explicitly convert when an owned string is needed. Accepted session bytes and
+  signed claims are unchanged. Malformed stored scope grammar now reports
+  `InvalidPolicyOrRecord` at decoding; its public read refusal remains unavailable.
+
+### ♻️ Refactoring
+
+- Route Auth publication dispatch through the adopted Shared Tooling runner with
+  exact `NAME@VERSION` selectors and fresh retained attempts
+  ([#123](https://github.com/dragginzgame/ic-auth/issues/123)). Keep Auth's
+  receipt/tag/checksum admission, uncertain-upload markers and registry readback;
+  an interrupted shared lock requires separate explicit disposition before a new
+  dispatch. Existing publication intent remains usable without migration.
+- Share admission pair/generation, physical-count capacity and live login-record
+  replacement checks with custom backends. Hosts still own authority, replay,
+  byte/index budgets and atomic persistence. Add reusable native conformance
+  scenarios in the unpublished qualification fixtures, exercised against reference
+  commit callbacks and an independent encoded-record adapter.
+- Consolidate the current integration handoff and document source-bound private
+  browser archive qualification. No Canic changes or consumer deployment are included.
+
+### ⬆️ Dependencies
+
+- Adopt IC Wire/derive 0.13.1 and regenerate/review the private browser contracts
+  with its selected runtime. Codec/generator sources, signed bytes, transport
+  identities and current stored formats are unchanged.
+- Adopt Build and Host FS/Process/Artifacts 0.73.2 for native tooling, including
+  the separately prepared file CLI and lock-selected release editor. Public
+  library graphs, stored formats and publication/recovery policy are unchanged.
+- Adopt Memory/Storage 0.60.3, Testkit 0.75.1 and Metrics 0.24.1 for private
+  persistence, qualification and admission diagnostics. Runtime sources, encoded
+  records and feature selections are unchanged; no migration or reset is required.
+- Adopt reviewed Shared Tooling 0.27.23 at `619d194`, retaining Cargo-owned
+  package versions and Auth's existing release mode. Its pending canonical
+  `VERSION` workflow is inapplicable here; no version file or release is added.
+
 ## [0.27.0] - 2026-10-31
 
 ### ⚠️ Breaking

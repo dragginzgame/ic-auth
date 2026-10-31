@@ -351,6 +351,7 @@ cat > "$fixture/bin/cargo" <<'SH'
 set -euo pipefail
 case "$1" in
     package)
+        [[ "$FIXTURE_MODE" != package-failure ]] || exit 101
         mkdir -p "$CARGO_TARGET_DIR/package"
         printf types > "$CARGO_TARGET_DIR/package/ic-auth-protocol-types-0.1.1.crate"
         printf auth > "$CARGO_TARGET_DIR/package/ic-auth-0.1.1.crate"
@@ -358,9 +359,14 @@ case "$1" in
         if [[ "$FIXTURE_MODE" == source-change ]]; then git commit --allow-empty -qm 'Concurrent fixture source'; fi
         ;;
     publish)
-        package="${*: -1}"
+        [[ $# == 6 && "$2" == --locked && "$3" == --registry && "$4" == crates-io && "$5" == --package ]]
+        selector="$6"
+        package="${selector%@*}"
+        [[ "$selector" == "$package@0.1.1" ]]
+        case "$package" in ic-auth-protocol-types|ic-auth|ic-auth-wire) ;; *) exit 2 ;; esac
         printf '%s\n' "$package" >> "$FIXTURE_LOG/uploads"
         if [[ "$FIXTURE_MODE" == lost-reply ]]; then exit 101; fi
+        if [[ "$FIXTURE_MODE" == interrupted ]]; then kill -TERM "$PPID"; exit 143; fi
         touch "$FIXTURE_LOG/observed-$package"
         ;;
     *) exec "$FIXTURE_CARGO" "$@" ;;
@@ -415,6 +421,10 @@ esac
 SH
 chmod +x "$fixture/bin/cargo" "$fixture/bin/curl" "$fixture/bin/wc"
 export PATH="$fixture/bin:$PATH" CARGO_TARGET_DIR="$PWD/target"
+export FIXTURE_MODE=package-failure
+if bash scripts/release/publish.sh > "$fixture/package-failure.log" 2>&1; then exit 1; fi
+[[ ! -f "$fixture/uploads" && ! -e .git/publication-state/0.1.1.json ]] || exit 1
+export FIXTURE_MODE=unknown
 if bash scripts/release/publish.sh > "$fixture/unknown.log" 2>&1; then exit 1; fi
 [[ ! -f "$fixture/uploads" ]] || exit 1
 export FIXTURE_MODE=conflict
@@ -437,6 +447,15 @@ rm .git/publication-state/0.1.1-ic-auth-protocol-types.dispatched
 export FIXTURE_MODE=lost-reply
 if bash scripts/release/publish.sh > "$fixture/lost-reply.log" 2>&1; then exit 1; fi
 [[ "$(wc -l < "$fixture/uploads")" -eq 1 ]] || exit 1
+attempt="$(sed -n 's/^Publication evidence: //p' "$fixture/lost-reply.log")"
+[[ -d "$attempt" && ! -e .git/publication-state/.cargo-publication.lock ]] || exit 1
+printf 'publish\n%s\ncrates-io\nic-auth-protocol-types@0.1.1\n' "$commit" > "$fixture/expected-attempt-intent"
+cmp "$attempt/intent" "$fixture/expected-attempt-intent"
+printf '%s\0' cargo publish --locked --registry crates-io --package ic-auth-protocol-types@0.1.1 > "$fixture/expected-attempt-arguments"
+cmp "$attempt/arguments" "$fixture/expected-attempt-arguments"
+[[ "$(cat "$attempt/cargo-status")" == 101 && "$(cat "$attempt/log-status")" == 0 && "$(cat "$attempt/status")" == 101 ]] || exit 1
+cp "$attempt/intent" "$fixture/lost-reply-attempt-intent"
+cp "$attempt/cargo.log" "$fixture/lost-reply-cargo.log"
 # Every observation has separate retained facts, including the pre/post-dispatch
 # 404s. Later reconciliation must not overwrite evidence from the lost reply.
 grep -F 'Registry observation evidence retained:' "$fixture/lost-reply.log" | \
@@ -457,11 +476,58 @@ bash scripts/release/publish.sh > "$fixture/publish-retry.log" 2>&1
 export FIXTURE_MODE=yanked
 bash scripts/release/publish.sh > "$fixture/yanked-reconcile.log" 2>&1
 [[ "$(wc -l < "$fixture/uploads")" -eq 3 ]] || exit 1
+[[ "$(find .git/publication-state -name intent -type f | wc -l)" -eq 3 ]] || exit 1
+cmp "$attempt/intent" "$fixture/lost-reply-attempt-intent"
+cmp "$attempt/cargo.log" "$fixture/lost-reply-cargo.log"
+# Registry reconciliation and shared interruption custody are separate. Even an
+# all-published read-only reconciliation must leave an existing helper lock alone.
+mkdir .git/publication-state/.cargo-publication.lock
+printf 'fixture owner\n' > .git/publication-state/.cargo-publication.lock/owner
+bash scripts/release/publish.sh > "$fixture/published-with-retained-lock.log" 2>&1
+[[ -d .git/publication-state/.cargo-publication.lock && "$(wc -l < "$fixture/uploads")" -eq 3 ]] || exit 1
+mv .git/publication-state/.cargo-publication.lock "$fixture/reconciled-helper-lock"
 while IFS= read -r observation; do
     bash scripts/ci/verify-file-checksum.sh --print sha256 "$observation/http-status" >> "$fixture/lost-reply-status-after.hashes"
 done < "$fixture/lost-reply-evidence.paths"
 cmp "$fixture/lost-reply-status.hashes" "$fixture/lost-reply-status-after.hashes"
-export FIXTURE_MODE=source-change
+
+# An actual interrupted shared attempt in a separate disposable checkout. The
+# mock Cargo signals only its runner parent; it never uploads or touches the
+# real checkout. Registry absence cannot release either recovery obligation.
+git clone -q --no-hardlinks "$PWD" "$fixture/interrupted-repo"
+(
+    cd "$fixture/interrupted-repo"
+    export CARGO_TARGET_DIR="$PWD/target" FIXTURE_LOG="$fixture/interrupted-evidence" FIXTURE_MODE=interrupted
+    mkdir -p "$FIXTURE_LOG" "$CARGO_TARGET_DIR"
+    # The clone has no ignored setup markers. Explicitly prepare the fixture's
+    # substituted file/editor/common selections before offline admission.
+    touch target/host-file-ready target/release-editor-ready target/common-tools-ready
+    if bash scripts/release/publish.sh > "$FIXTURE_LOG/interrupted.log" 2>&1; then exit 1; fi
+    [[ "$(wc -l < "$FIXTURE_LOG/uploads")" -eq 1 && ! -e .git/publication-state/lock && -d .git/publication-state/.cargo-publication.lock ]] || exit 1
+    attempt="$(sed -n 's/^Publication evidence: //p' "$FIXTURE_LOG/interrupted.log")"
+    [[ -f "$attempt/dispatch" && ! -e "$attempt/status" && ! -e "$attempt/cargo-status" ]] || exit 1
+    cmp "$attempt/intent" "$fixture/expected-attempt-intent"
+    cp .git/publication-state/0.1.1-ic-auth-protocol-types.dispatched "$FIXTURE_LOG/saved-dispatch"
+    if bash scripts/release/publish.sh > "$FIXTURE_LOG/absent-retry.log" 2>&1; then exit 1; fi
+    [[ "$(wc -l < "$FIXTURE_LOG/uploads")" -eq 1 ]] || exit 1
+    grep -F 'previous ic-auth-protocol-types upload is unresolved' "$FIXTURE_LOG/absent-retry.log" > /dev/null
+    touch "$FIXTURE_LOG/observed-ic-auth-protocol-types"
+    export FIXTURE_MODE=success
+    if bash scripts/release/publish.sh > "$FIXTURE_LOG/confirmed-but-locked.log" 2>&1; then exit 1; fi
+    grep -F 'shared publication attempt lock is retained' "$FIXTURE_LOG/confirmed-but-locked.log" > /dev/null
+    [[ "$(wc -l < "$FIXTURE_LOG/uploads")" -eq 1 && ! -e .git/publication-state/0.1.1-ic-auth.dispatched ]] || exit 1
+    # Explicit fixture operator disposition, after reviewing the stopped attempt
+    # and confirming its exact registry bytes. Preserve custody; no lock stealing,
+    # upload replay or automatic recovery is implemented by the actual caller.
+    mv .git/publication-state/.cargo-publication.lock "$FIXTURE_LOG/reconciled-helper-lock"
+    bash scripts/release/publish.sh > "$FIXTURE_LOG/recovered.log" 2>&1
+    [[ "$(cat "$FIXTURE_LOG/uploads")" == $'ic-auth-protocol-types\nic-auth\nic-auth-wire' ]] || exit 1
+    [[ ! -e "$attempt/status" && -f "$attempt/dispatch" ]] || exit 1
+    cmp "$attempt/intent" "$fixture/expected-attempt-intent"
+    cmp .git/publication-state/0.1.1-ic-auth-protocol-types.dispatched "$FIXTURE_LOG/saved-dispatch"
+)
+# Already exported in the parent; replace the value after the isolated scenario.
+FIXTURE_MODE=source-change
 if bash scripts/release/publish.sh > "$fixture/source-change.log" 2>&1; then exit 1; fi
 [[ "$(wc -l < "$fixture/uploads")" -eq 3 ]] || exit 1
 git reset --hard "$commit" > /dev/null

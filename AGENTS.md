@@ -1,7 +1,7 @@
 # IC Auth Agent Instructions
 
-Apply [DRAGGINZGAME.md](DRAGGINZGAME.md), adopted from Shared Tooling 0.27.21
-source `143a9abb9ae81feae9400ff3844b03b1ddfdd75a`, recorded in
+Apply [DRAGGINZGAME.md](DRAGGINZGAME.md), adopted from Shared Tooling 0.27.23
+source `619d194875369e0f72b45477b66adb430acbf6b7`, recorded in
 [.shared-tooling.snapshot](.shared-tooling.snapshot). Read
 [the current handoff](docs/status/current.md) before implementation.
 Read task-specific references when their subject applies; the local constraints

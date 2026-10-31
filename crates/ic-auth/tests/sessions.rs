@@ -87,6 +87,60 @@ fn storage_record_domains_and_capacity_errors_remain_distinct() {
 
 #[cfg(feature = "session-restore")]
 #[test]
+fn shared_backend_preflight_rejects_mismatched_pairs_and_wrong_generation() {
+    let f = Fixture::new(1);
+    let other = Fixture::new(2);
+    let mut r = Receiver::new(&f);
+    let session = created(f.admit(&mut r, NOW).unwrap(), &mut r.store);
+    other.admit(&mut r, NOW).unwrap();
+    let replay = r
+        .store
+        .replay_records()
+        .find(|replay| replay.caller() == f.caller())
+        .unwrap();
+    let login = r
+        .ledger
+        .records()
+        .find(|login| login.caller() == f.caller())
+        .unwrap();
+    assert_eq!(session.check_admission_pair(replay, &login, 0), Ok(()));
+    assert_eq!(
+        session.check_admission_pair(replay, &login, 1),
+        Err(SessionError::StaleAuthority)
+    );
+    let wrong = r
+        .store
+        .replay_records()
+        .find(|replay| replay.caller() == other.caller())
+        .unwrap();
+    assert_eq!(
+        session.check_admission_pair(wrong, &login, 0),
+        Err(SessionError::InvalidPolicyOrRecord)
+    );
+    let wrong = r
+        .ledger
+        .records()
+        .find(|login| login.caller() == other.caller())
+        .unwrap();
+    assert_eq!(
+        session.check_admission_pair(replay, &wrong, 0),
+        Err(SessionError::InvalidPolicyOrRecord)
+    );
+    let replay = Replay::decode(&replay.encode().unwrap()).unwrap();
+    r.logout(f.caller(), NOW).unwrap();
+    let tombstone = r
+        .ledger
+        .records()
+        .find(|login| login.caller() == f.caller())
+        .unwrap();
+    assert_eq!(
+        session.check_admission_pair(&replay, &tombstone, 0),
+        Err(SessionError::InvalidPolicyOrRecord)
+    );
+}
+
+#[cfg(feature = "session-restore")]
+#[test]
 fn platform_02_signed_claims_survive_and_retired_storage_is_refused() {
     use ic_auth::portable::LoginRevocationChange;
     // Frozen Auth 0.10.7 / Platform 0.2.1 vector: 0x02 is subject identity data.
@@ -1022,8 +1076,25 @@ fn framed_session_records_still_require_valid_identity_scopes_and_windows() {
         ..original
     };
     assert_eq!(
-        Session::decode(&encode(&wide)).unwrap().scopes(),
+        Session::decode(&encode(&wide))
+            .unwrap()
+            .scopes()
+            .iter()
+            .map(ScopeLabel::as_str)
+            .collect::<Vec<_>>(),
         wide.scopes
+    );
+    assert_eq!(
+        Session::decode(&encode(&wide)).unwrap().encode().unwrap(),
+        encode(&wide)
+    );
+    let malformed = SessionRecord {
+        scopes: vec!["a::b".into()],
+        ..wide
+    };
+    assert_eq!(
+        Session::decode(&encode(&malformed)).unwrap_err(),
+        SessionError::InvalidPolicyOrRecord
     );
 }
 
