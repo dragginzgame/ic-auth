@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.27.0] - Unreleased
+
+### ⚠️ Breaking
+
+- Adopt Platform 0.15.2 with canonical Types 0.15.1 for public Principal and
+  parse-error identities, and Wire 0.13 for public limits, errors and generated
+  contracts. Rust consumers exchanging these types must align their suppliers.
+  Signed bytes, method IDs, schema shapes and retained Auth record formats stay
+  unchanged. See the [migration](docs/canic-adoption.md#platform-015-migration).
+
+### ⬆️ Dependencies
+
+- Adopt Metrics 0.24.0 for the private host admission counters with defaults
+  disabled. Arithmetic and validated Serde remain available without native Wire
+  metadata; public Auth graphs, metrics layouts and admission policy are unchanged.
+- Adopt Memory/Storage 0.60.0, Build/Host 0.73.1 and Testkit 0.75.0, including
+  the explicitly prepared file/editor/server tools. Native typed calls share
+  Wire 0.13; durable bytes and admission rules are unchanged, with no reset.
+- Adopt reviewed Shared Tooling revision `143a9ab` (recorded version 0.27.21),
+  including its catalog and release-group guidance. Auth retains one coordinated
+  release identity, lockfile and publication adapter.
+
 ## [0.26.0] - 2026-10-30
 
 ### ⚠️ Breaking

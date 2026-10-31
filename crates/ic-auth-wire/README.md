@@ -52,7 +52,10 @@ used that old format. There is no Candid fallback. Current portable logout
 journals retain unknown issuance and durable invalidation; this migration does
 not authorize discarding them.
 
-Pending Auth 0.26 exposes IC Wire 0.10 through `wire`; Auth 0.16 used Wire 0.7
+Pending Auth 0.27 exposes IC Wire 0.13 through `wire`, with canonical Platform
+Types 0.15 Principal schemas. Align direct Wire and Platform suppliers when
+exchanging those Rust identities; bytes, limits and method IDs are unchanged.
+Auth 0.26 used Wire 0.10; Auth 0.16 used Wire 0.7
 and Auth 0.15 used Wire 0.6. Align Rust consumers sharing these types.
 Wire 0.7 removed `Error::Noncanonical`; invalid
 primitive encodings return `Malformed`. Encoder bytes and method IDs are
