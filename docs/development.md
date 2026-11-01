@@ -806,8 +806,8 @@ setup, validation or publication. There is no implicit all-groups release.
 Engine releases preserve Protocol identities and notes. Protocol releases update
 their root path requirements without publishing or changing Engine's version.
 Publish a changed Protocol supplier before an Engine release that requires it.
-For the pending public identity cut, release Protocol 0.30.0 first, then
-Engine 0.30.0 against that supplier. Future Engine-only minor releases need no
+The 0.30.0 public identity cut shipped Protocol first, then Engine against that
+published supplier. Future Engine-only minor releases need no
 Protocol bump.
 
 `make test-release-tools` exercises current working sources in a disposable

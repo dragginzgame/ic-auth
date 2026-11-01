@@ -33,10 +33,9 @@ reports a missing download, run `cargo fetch --locked --manifest-path
 <printed-evidence>/consumer/Cargo.toml`, then rerun the check into a fresh retained
 directory. The check itself never downloads or uploads.
 
-Current source targets the pending Auth Protocol/Engine 0.30.0 cohort with
-Platform 0.17 and Types 0.16. Publish those Auth suppliers before qualifying this
-source bundle against the registry. Own metadata still says 0.29.2 until release;
-that is not evidence that the registry's 0.29.2 has the current dependency graph.
+Current source targets the published Auth Protocol/Engine 0.30.0 cohort with
+Platform 0.17 and Types 0.16. The 0.30.0 release archive passed registry-consumer
+and packaged-scenario qualification; see the [current evidence](../../../docs/status/current.md).
 The published 0.29.2 baseline uses Platform 0.16/Types 0.15. Keep the single-Platform/
 Types admission intact; it refuses mixing that baseline with this newer bundle.
 
@@ -45,18 +44,17 @@ it as a **development dependency**. Use the archive's normalized `Cargo.toml`;
 depending on the producer's working workspace can introduce a second Git/path
 identity for Auth alongside the consumer's registry dependency.
 
-Historical example for the released 0.29.2 bundle (the pending 0.30 bundle requires
-its own selected archive/version after publication):
+Example for the qualified 0.30.0 bundle:
 
 ```toml
 # Append this path to the consumer's existing workspace exclusions. The foreign
 # source bundle must not become a consumer-owned release-group member.
 [workspace]
-exclude = ["test-support/ic-auth-backend-conformance-0.29.2"]
+exclude = ["test-support/ic-auth-backend-conformance-0.30.0"]
 
 [dev-dependencies]
-ic-auth-backend-conformance = { path = "test-support/ic-auth-backend-conformance-0.29.2" }
-ic-auth = { version = "=0.29.2", default-features = false, features = ["session-restore", "portable-signature-verification"] }
+ic-auth-backend-conformance = { path = "test-support/ic-auth-backend-conformance-0.30.0" }
+ic-auth = { version = "=0.30.0", default-features = false, features = ["session-restore", "portable-signature-verification"] }
 ```
 
 Implement `ic_auth_backend_conformance::Backend` on a test driver for the actual

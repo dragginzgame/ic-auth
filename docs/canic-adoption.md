@@ -103,9 +103,9 @@ locally. `NotYetValid` is a bounded retry hint, not proof validity; retain stric
 start/deadline admission and the original credential. Do not retry invalid
 signatures, expiry, reset-floor or stale-authority refusals automatically.
 
-## Pending Platform 0.17 / Wire 0.14 adoption
+## Auth 0.30 / Platform 0.17 / Wire 0.14 adoption
 
-The pending Protocol and Engine 0.30.0 releases select canonical Types 0.16.0,
+The published Protocol and Engine 0.30.0 releases select canonical Types 0.16.0,
 Platform 0.17.0, Wire/derive 0.14.2 and native Testkit 0.78.0. Existing Principal,
 parse-error, codec and limits values have a new Rust package identity; align the
 consumer's declarations with this cohort. This is a public Rust cut, with unchanged
@@ -116,8 +116,9 @@ Principal self-authentication no longer implies registry conversions: select
 0.17.1, independently of the crypto facade. Keep one executor/generator/guard.
 Native PocketIC clients and client DTOs come from `ic_platform::pocket_ic` 0.17;
 use Testkit 0.78 to share Wire 0.14 limits. The server remains PocketIC 16.1.0.
-Own package metadata remains 0.29.2 until an authorized release; do not infer
-publication or installed Canic acceptance from this checkout's qualification.
+All three Auth crates are published at 0.30.0. The backend source archive is
+qualified against their registry identities; see the [current evidence](status/current.md).
+This does not establish installed Canic acceptance.
 
 ## Platform 0.16 adoption
 
