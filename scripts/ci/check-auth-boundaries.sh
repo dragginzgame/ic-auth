@@ -5,6 +5,9 @@ cd "$(dirname "${BASH_SOURCE[0]}")/../.."
 source scripts/ci/auth-dependency-policy.sh
 native_target="$(rustc -vV | sed -n 's/^host: //p')"
 [[ -n "$native_target" ]] || { echo 'missing compiler host target' >&2; exit 1; }
+perl scripts/ci/check-cargo-graph.pl --consumer "$PWD" \
+    --package ic-auth-backend-conformance --target "$native_target" \
+    --forbid-pattern '^(ic-auth-qualification|ic-metrics|ic-testkit|pocket-ic|ic-memory|ic-storage|ic-host|ic-build|tokio|candid|k256|ic-verify-bls-signature)([- ]|$)'
 selections="$(bash scripts/ci/auth-feature-selections.sh)"
 checker=(perl scripts/ci/check-cargo-graph.pl --consumer "$PWD")
 for target in "$native_target" wasm32-unknown-unknown; do

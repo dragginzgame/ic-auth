@@ -62,6 +62,13 @@ if [[ "$package" == ic-auth-qualification-canister ]]; then
 fi
 printf '%s v0.9.1\n' "$package"
 printf 'ic-platform v0.8.1\n'
+if [[ "$package" == ic-auth-backend-conformance ]]; then
+    case "$BOUNDARY_MODE" in
+        conformance-metrics) printf 'ic-metrics v0.24.1\n' ;;
+        conformance-private) printf 'ic-auth-qualification-contracts v0.28.0\n' ;;
+        conformance-certified) printf 'ic-verify-bls-signature v0.6.0\n' ;;
+    esac
+fi
 if [[ "$package" == ic-auth ]]; then printf 'ic_principal v0.1.5\n'; fi
 if [[ "$BOUNDARY_MODE" == principal-external && "$package" == ic-auth-protocol-types ]]; then
     printf 'ic_principal v0.1.5\n'
@@ -126,7 +133,7 @@ STUB
 chmod +x "$fixture/bin/"*
 export PATH="$fixture/bin:$root/.tools/host/bin:$PATH"
 export BOUNDARY_EVENTS="$fixture/events"
-for mode in accepted principal-external wire-hashing control-external principal-candid principal-executor principal-owned-executor principal-runtime-guard principal-bls principal-storage control-candid control-storage control-platform-feature wasm-default wasm-combined wasm-capability wasm-portable-bls wasm-certified-candid wasm-certified-ic0 wasm-certified-owned-ic0 wasm-certified-runtime wasm-certified-cdk wasm-certified-creation wasm-certified-verifier host-candid host-candid-derive parser executor executor-source generator generator-source runtime-guard-missing runtime-guard-source host-cdk host-cdk-macros host-platform-feature; do
+for mode in accepted conformance-metrics conformance-private conformance-certified principal-external wire-hashing control-external principal-candid principal-executor principal-owned-executor principal-runtime-guard principal-bls principal-storage control-candid control-storage control-platform-feature wasm-default wasm-combined wasm-capability wasm-portable-bls wasm-certified-candid wasm-certified-ic0 wasm-certified-runtime wasm-certified-cdk wasm-certified-creation wasm-certified-verifier host-candid host-candid-derive parser executor executor-source generator generator-source runtime-guard-missing runtime-guard-source host-cdk host-cdk-macros host-platform-feature; do
     export BOUNDARY_MODE="$mode"
     : > "$BOUNDARY_EVENTS"
     status=0
@@ -134,8 +141,10 @@ for mode in accepted principal-external wire-hashing control-external principal-
     if [[ "$mode" == accepted ]]; then
         [[ "$status" == 0 ]] || { cat "$fixture/$mode.log"; exit 1; }
         # Replace Auth's default selection with all three public defaults, then
-        # add the private Wire schema on each target and two final host checks.
-        [[ "$(wc -l < "$BOUNDARY_EVENTS")" == "$((2 * (selection_count + 3) + 2))" ]]
+        # add private Wire schemas per target, two final host checks and the
+        # isolated native conformance dependency check.
+        [[ "$(wc -l < "$BOUNDARY_EVENTS")" == "$((2 * (selection_count + 3) + 3))" ]]
+        [[ "$(rg -c -- '--package ic-auth-backend-conformance' "$BOUNDARY_EVENTS")" == 1 ]]
         [[ "$(rg -c -- '--features future-capability' "$BOUNDARY_EVENTS")" == 2 ]]
         rg -- '--target x86_64-unknown-linux-gnu' "$BOUNDARY_EVENTS" > /dev/null
         rg -- '--target wasm32-unknown-unknown' "$BOUNDARY_EVENTS" > /dev/null

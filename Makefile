@@ -19,7 +19,7 @@ export RELEASE_REMOTE RELEASE_BRANCH
         test-types test-protocol test-portable-signatures test-chain-key-signatures test-signatures test-signature-store test-certified-proofs test-sessions check-wasm clippy check-boundaries \
         check-snapshot check-dependency-pins check-doc-links check-msrv install-msrv msrv-tools-check tasks ci \
         client-tools-check install-client-dependencies generate-client-contracts check-client-contracts check-client-boundary test-client test-client-tools pack-client test-client-package \
-        publish publish-dry-run check-package-licenses test-release-tools \
+        publish publish-dry-run check-package-licenses test-release-tools pack-backend-conformance test-backend-conformance \
         test-host-tooling test-qualification build-qualification-canister test-release-runner test-evidence-archive test-tools-evidence test-make-jobserver \
         release-version release-preflight release-verify release-prepare-version \
         release-prepared-check release-files release-commit-check \
@@ -35,6 +35,7 @@ help:
 	@echo 'Named Cargo package/test selections: see docs/development.md#validation'
 	@echo 'Browser client: install-client-dependencies, client-tools-check, generate-client-contracts, check-client-contracts, check-client-boundary, test-client'
 	@echo 'Local browser archives: pack-client, test-client-package (offline; no publication)'
+	@echo 'Native backend scenarios: test-backend-conformance; source archive after cohort publication: pack-backend-conformance'
 	@echo 'Opt-in Chromium qualification: test-client-browser (IC_AUTH_BROWSER_EXECUTABLE required)'
 	@echo 'Formatting: fmt, fmt-check, test-formatting-hooks'
 	@echo 'Governance: check-snapshot, check-dependency-pins, check-doc-links, check-boundaries, check-msrv; maintenance catalog: tasks'
@@ -126,7 +127,7 @@ check-wasm:
 	+bash scripts/dev/check-wasm.sh
 
 clippy:
-	+cargo clippy --locked --offline -p ic-auth-protocol-types -p ic-auth -p ic-auth-wire -p ic-auth-tooling -p ic-auth-qualification -p ic-auth-qualification-contracts -p ic-auth-qualification-fixtures -p ic-auth-feature-unification --all-targets --all-features -- -D warnings
+	+cargo clippy --locked --offline -p ic-auth-protocol-types -p ic-auth -p ic-auth-wire -p ic-auth-tooling -p ic-auth-qualification -p ic-auth-qualification-contracts -p ic-auth-qualification-fixtures -p ic-auth-backend-conformance -p ic-auth-feature-unification --all-targets --all-features -- -D warnings
 	+cargo clippy --locked --offline -p ic-auth-qualification-canister --target wasm32-unknown-unknown -- -D warnings
 
 build-qualification-canister:
@@ -136,7 +137,7 @@ test-qualification: testkit-tools-check client-tools-check
 	+cargo test --locked --offline -p ic-auth-qualification-fixtures --lib
 	+cargo test --locked --offline -p ic-auth-qualification-canister --lib
 	+cargo test --locked --offline -p ic-auth-qualification --test session_metrics
-	+cargo test --locked --offline -p ic-auth-qualification --test backend_conformance
+	+$(MAKE) --no-print-directory test-backend-conformance
 	+$(MAKE) --no-print-directory build-qualification-canister
 	+bash scripts/dev/test-qualification.sh
 
@@ -220,6 +221,14 @@ test-release-tools:
 
 test-host-tooling: host-file-check
 	+cargo test --locked --offline -p ic-auth-tooling
+
+test-backend-conformance:
+	+cargo test --locked --offline -p ic-auth-backend-conformance
+
+# Source distribution only, with Cargo-owned manifest normalization. Publish
+# the matching Auth libraries before packing; this never uploads the harness.
+pack-backend-conformance:
+	+cargo package --locked --offline --allow-dirty --no-verify -p ic-auth-backend-conformance
 
 # Generic producer matrices remain opt-in; CI keeps Auth adapter/caller proofs.
 test-release-runner:

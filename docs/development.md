@@ -130,16 +130,16 @@ Platform's explicit `pocket-ic` capability owns native simulator clients and DTO
 Testkit owns bounded server startup, lifecycle extensions and typed Wire calls;
 only the native runner selects these capabilities.
 
-Native file and process callers select Host FS/Process 0.73.2 with defaults
+Native file and process callers select Host FS/Process 0.73.3 with defaults
 disabled. Library use does not enable Host's optional CLI, certificate decoder
 or Wasm text/encoding backends. Host stays outside the production library graph.
-Build 0.73.2 and Testkit 0.75 select the same Host 0.73 identities as Auth's direct
+Build 0.73.3 and Testkit 0.75.2 select the same Host 0.73 identities as Auth's direct
 callers; no dependency override or old Host family is needed. The independently
-pinned file CLI is independently selected at 0.73.2 for this adoption.
+pinned file CLI is independently selected at 0.73.3 for this adoption.
 Build and Testkit libraries keep `cli` disabled; only the prepared executable
 selections request it. Testkit owns its benchmark-average errors and selects
-arithmetic-only Metrics 0.23.2 privately. Auth exchanges no Metrics values with
-Testkit, so this older transitive selection needs no bridge or forced override.
+arithmetic-only Metrics 0.24.1 alongside Auth. Auth exchanges no Metrics values with
+Testkit, and neither caller enables its optional native metadata.
 
 The unpublished qualification host separately selects IC Metrics 0.24.1 for fixed
 admission outcome counters, with defaults disabled: arithmetic and validated Serde
@@ -622,7 +622,8 @@ multi-package, multi-feature and multi-target entries are aggregate suites.
 | `make test-signature-store` | Bounded preparation/retrieval, unchanged retry deadlines, pruning and real BLS verification with host-composed branches |
 | `make test-certified-proofs` | Portable certified secp256k1/BLS proofs, protected delegation bindings, budgets and rejection |
 | `make test-sessions` | Atomic admission/replay failure, exact retry, live authority invalidation, logout and quotas using certified and Ed25519 portable proofs |
-| `cargo test --locked --offline -p ic-auth-qualification --test backend_conformance` | Shared native backend scenarios against reference callbacks and an independent encoded store; deliberate partial-commit rejection; no server required |
+| `make test-backend-conformance` | Shared native backend scenarios against reference callbacks and an independent encoded store; deliberate partial-commit rejection; no simulator/private fixture dependency |
+| `make pack-backend-conformance` | Cargo-normalized unpublished source archive for a consumer's dev dependency; matching Auth cohort must already be published; no upload |
 | `make test-host-tooling` | Native file-operation CLI: bounded input, exact digest output, no-follow reads and preserved create-only evidence |
 | `make check-msrv` | Aggregate: isolated public package payloads and internal applications using the declared minimum compiler, with native/Wasm and feature coverage |
 | `make tasks` | Read the adopted maintenance task catalog; no task, agent or schedule starts |
@@ -888,7 +889,7 @@ in publication state; no cleanup, GitHub Release object or deployment is
 implicit. See [Cargo publication](https://doc.rust-lang.org/cargo/commands/cargo-publish.html)
 for credentials, dry-run and index-propagation semantics.
 
-File mechanics use the published `ic-host-file` executable. Auth pins 0.73.2 in
+File mechanics use the published `ic-host-file` executable. Auth pins 0.73.3 in
 `ci/host-file.env`, independently of the library versions selected by Cargo.lock.
 `make install-host-file` prepares it through Shared Tooling with
 `--features cli`; `make host-file-check` admits that exact selection offline. The

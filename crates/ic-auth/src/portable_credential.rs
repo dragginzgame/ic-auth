@@ -42,6 +42,25 @@ pub enum PortableCredentialError {
     Certified(#[from] crate::portable_certified::PortableCertifiedError),
 }
 
+impl PortableCredentialError {
+    /// Inspect a fresh-proof verification budget refusal without parsing text or
+    /// rediscovering mechanism wrappers. This is diagnostic information, not a
+    /// retry decision or evidence that cryptography ran or credit was consumed.
+    pub fn budget_error(&self) -> Option<crate::admission_budget::AdmissionBudgetError> {
+        match self {
+            #[cfg(feature = "portable-signature-verification")]
+            Self::Ed25519(crate::portable_signature::PortableSignatureError::Budget(error)) => {
+                Some(*error)
+            }
+            #[cfg(feature = "certified-proof-verification")]
+            Self::Certified(crate::portable_certified::PortableCertifiedError::Budget(error)) => {
+                Some(*error)
+            }
+            _ => None,
+        }
+    }
+}
+
 /// Verify the envelope using the host-selected mechanism and the retained shared
 /// budget. Mismatched variants fail before cryptography or budget consumption.
 /// Claims, proof bounds, time and key checks remain owned by the complete verifier.

@@ -28,11 +28,9 @@ impl SessionError {
     pub fn admission_refusal(&self) -> AdmissionRefusal {
         use AdmissionRefusal as R;
         match self {
-            Self::AdmissionThrottled => R::Throttled,
-            Self::AdmissionClockRollback
-            | Self::GenerationExhausted
-            | Self::StorageFailure
-            | Self::InvalidPolicyOrRecord => R::Unavailable,
+            Self::GenerationExhausted | Self::StorageFailure | Self::InvalidPolicyOrRecord => {
+                R::Unavailable
+            }
             Self::Disabled | Self::StaleAuthority => R::AuthorityUnavailable,
             Self::MissingOrExpired => R::Expired,
             Self::ReplayConflict => R::ReplayConflict,

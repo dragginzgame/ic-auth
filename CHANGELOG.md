@@ -1,5 +1,37 @@
 # Changelog
 
+## [0.29.0] - Unreleased
+
+### ⚠️ Breaking
+
+- Remove unused `SessionError::AdmissionThrottled`, `AdmissionClockRollback` and
+  its direct `From<AdmissionBudgetError>` conversion. Actual fresh-proof budget
+  failures keep their existing credential/mechanism wrappers. Use
+  `PortableCredentialError::budget_error()` for typed diagnostic inspection;
+  public refusal categories, verification order and charging remain unchanged.
+
+### ♻️ Refactoring
+
+- Move native backend conformance into a small unpublished qualification package
+  with public Auth/protocol and Ed25519 dependencies only. Cargo source archives
+  normalize its dependencies to registry identities, so consumers can reuse the
+  scenarios without private fixture DTOs, Metrics or the certified verifier.
+- Make the active Canic adoption guide one current contract; preserve earlier
+  migration text in adoption history and repair current handoff references.
+
+### 📦 Delivery
+
+- Qualify the private browser archive from the clean released Auth 0.28.0 commit
+  with its source/integrity receipt. This is local delivery evidence; consumer
+  distribution, production issuer transport and npm publication are not implied.
+
+### 🔧 Changed
+
+- Adopt Build/Host 0.73.3 and Testkit 0.75.2 for native tooling and qualification,
+  including the pinned file CLI and lock-selected release editor/server CLI.
+  Run explicit tool setup for the new selections before offline checks;
+  public Auth capabilities and protocol/storage formats are unchanged.
+
 ## [0.28.0] - 2026-10-31
 
 ### ⚠️ Breaking

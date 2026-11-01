@@ -483,16 +483,21 @@ The rest of the host cut must be propagated together:
 
 ### Backend conformance scenarios
 
-The unpublished qualification fixtures expose native-only
-[`conformance::Backend` and `assert_backend_contract`](../apps/qualification/fixtures/src/conformance.rs)
-under `backend-conformance`. Adapt the small test-driver hooks to isolated test
-backing and run the scenarios against the actual `SessionStore`. This is source
-cohort test infrastructure, not a published crate or production storage interface;
-keep it outside deployed graphs and align its Auth dependency identity.
+The dedicated unpublished
+[`ic-auth-backend-conformance`](../apps/qualification/backend-conformance/README.md)
+package exposes `Backend` and `assert_backend_contract`. It depends only on public
+Auth/protocol APIs and Platform Ed25519, without private fixture DTOs, Metrics,
+certified verification or simulator/runtime dependencies. Adapt its test-driver
+hooks to isolated backing and run the scenarios against the actual `SessionStore`.
+Keep this test support outside deployed graphs.
 
-`cargo test --locked --offline -p ic-auth-qualification --test backend_conformance`
+`make test-backend-conformance`
 runs the same scenarios against reference commit callbacks and an independent
 encoded-record backend. It also proves a write-then-error adapter is rejected.
+After publishing the matching Auth cohort, `make pack-backend-conformance` creates
+a Cargo-normalized source archive for consumers. Use that normalized manifest,
+with registry Auth dependencies, rather than importing the producer workspace's
+Git/path identities. See the package README for extraction and driver requirements.
 Scenarios cover failed admission/logout, spent verification credit, exact retry
 after proof expiry without lease extension, replacement, replay/denial retention,
 active/revoked reopen, generation invalidation and count/byte capacity refusal.

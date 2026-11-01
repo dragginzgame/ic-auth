@@ -9,12 +9,6 @@ repository.workspace = true
 publish = false
 description = "Internal receiver configuration and host-owned admission diagnostics"
 
-[features]
-backend-conformance = ["ic-auth/session-restore", "dep:ic-platform"]
-
-[target.'cfg(not(target_family = "wasm"))'.dependencies]
-ic-platform = { workspace = true, optional = true, features = ["ed25519"] }
-
 [dependencies]
 ic-auth = { workspace = true, features = ["sessions", "portable-signature-verification", "certified-proof-verification"] }
 ic-auth-protocol-types.workspace = true

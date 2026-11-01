@@ -306,14 +306,32 @@ fn both_budget_paths_and_cheap_refusals_are_bounded_categories() {
         AdmissionBudgetError::ClockRollback,
         AdmissionBudgetError::InvalidPolicy,
     ] {
-        metrics.observe(&Err(SessionError::Credential(
-            PortableCredentialError::Ed25519(PortableSignatureError::Budget(reason)),
-        )));
-        metrics.observe(&Err(SessionError::Credential(
-            PortableCredentialError::Certified(
-                ic_auth::portable_certified::PortableCertifiedError::Budget(reason),
-            ),
-        )));
+        let ed25519 = PortableCredentialError::Ed25519(PortableSignatureError::Budget(reason));
+        let certified = PortableCredentialError::Certified(
+            ic_auth::portable_certified::PortableCertifiedError::Budget(reason),
+        );
+        for error in [ed25519, certified] {
+            assert_eq!(error.budget_error(), Some(reason));
+            let error = SessionError::Credential(error);
+            assert_eq!(
+                error.admission_refusal(),
+                if reason == AdmissionBudgetError::Exhausted {
+                    ic_auth_protocol_types::AdmissionRefusal::Throttled
+                } else {
+                    ic_auth_protocol_types::AdmissionRefusal::Unavailable
+                }
+            );
+            metrics.observe(&Err(error));
+        }
+    }
+    for error in [
+        PortableCredentialError::MechanismMismatch,
+        PortableCredentialError::Ed25519(PortableSignatureError::InvalidSignature),
+        PortableCredentialError::Certified(
+            ic_auth::portable_certified::PortableCertifiedError::BindingMismatch,
+        ),
+    ] {
+        assert_eq!(error.budget_error(), None);
     }
     metrics.observe(&Err(SessionError::Encoding(
         ic_auth::portable::PortableEncodingError::InvalidShape,

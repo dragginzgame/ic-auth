@@ -12,7 +12,7 @@ pub use model::{Replay, Session, SessionLimits, SessionPolicy};
 pub use scopes::RequiredScopes;
 
 use crate::{
-    admission_budget::{AdmissionBudgetError, SessionAdmissionBudget},
+    admission_budget::SessionAdmissionBudget,
     canonical::CanonicalAuthError,
     portable::{
         LoginRevocationChange, LoginRevocationError, MemoryLoginRevocations, PortableAuthority,
@@ -159,10 +159,6 @@ impl SessionEstablished {
 /// Session/replay admission and local authorization failures.
 #[derive(Debug, Error, Eq, PartialEq)]
 pub enum SessionError {
-    #[error("fresh session verification budget is exhausted")]
-    AdmissionThrottled,
-    #[error("session admission clock moved backwards")]
-    AdmissionClockRollback,
     #[error("session capability is disabled or subject is inadmissible")]
     Disabled,
     #[error("session policy or stored record is invalid")]
@@ -197,16 +193,6 @@ pub enum SessionError {
     Encoding(#[from] PortableEncodingError),
     #[error(transparent)]
     Revocation(#[from] LoginRevocationError),
-}
-
-impl From<AdmissionBudgetError> for SessionError {
-    fn from(error: AdmissionBudgetError) -> Self {
-        match error {
-            AdmissionBudgetError::InvalidPolicy => Self::InvalidPolicyOrRecord,
-            AdmissionBudgetError::Exhausted => Self::AdmissionThrottled,
-            AdmissionBudgetError::ClockRollback => Self::AdmissionClockRollback,
-        }
-    }
 }
 
 // Stored record checks retain the engine's existing rejection surface.

@@ -3,9 +3,6 @@
 //! No clock, identity labels, instruction samples or authentication decisions.
 use ic_auth::{
     admission_budget::AdmissionBudgetError,
-    portable_certified::PortableCertifiedError,
-    portable_credential::PortableCredentialError,
-    portable_signature::PortableSignatureError,
     session::{SessionError, SessionEstablished},
 };
 use ic_metrics::MeasurementCounter;
@@ -33,24 +30,16 @@ impl AdmissionMetrics {
     /// Ordinary errors retain diagnostics and charges; an IC message trap rolls
     /// back the whole message, including both. Do not trap to report a refusal.
     pub fn observe(&mut self, result: &Result<SessionEstablished, SessionError>) {
-        use PortableCredentialError as C;
         use SessionError as E;
         let counter = match result {
             Ok(SessionEstablished::Created(_)) => &mut self.created,
             Ok(SessionEstablished::Replaced(_)) => &mut self.replaced,
             Ok(SessionEstablished::ExactRetry(_)) => &mut self.exact_retry,
-            Err(E::AdmissionThrottled)
-            | Err(E::Credential(C::Ed25519(PortableSignatureError::Budget(
-                AdmissionBudgetError::Exhausted,
-            ))))
-            | Err(E::Credential(C::Certified(PortableCertifiedError::Budget(
-                AdmissionBudgetError::Exhausted,
-            )))) => &mut self.budget_refused,
-            Err(E::Credential(C::Ed25519(PortableSignatureError::Budget(_))))
-            | Err(E::Credential(C::Certified(PortableCertifiedError::Budget(_)))) => {
-                &mut self.other_refused
-            }
-            Err(E::Credential(_)) => &mut self.proof_refused,
+            Err(E::Credential(error)) => match error.budget_error() {
+                Some(AdmissionBudgetError::Exhausted) => &mut self.budget_refused,
+                Some(_) => &mut self.other_refused,
+                None => &mut self.proof_refused,
+            },
             Err(_) => &mut self.other_refused,
         };
         counter.add(1);

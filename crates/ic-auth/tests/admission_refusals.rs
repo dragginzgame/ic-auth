@@ -21,8 +21,6 @@ fn future_start_is_the_only_claims_retry_hint() {
     }
     for (error, expected) in [
         (SessionError::StorageFailure, R::Unavailable),
-        (SessionError::AdmissionClockRollback, R::Unavailable),
-        (SessionError::AdmissionThrottled, R::Throttled),
         (SessionError::StaleAuthority, R::AuthorityUnavailable),
         (SessionError::ScopeRejected, R::ScopeRejected),
         (SessionError::Capacity, R::Capacity),

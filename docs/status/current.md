@@ -1,97 +1,106 @@
-# Current handoff — 2026-10-31
+# Current handoff — 2026-11-01
 
-## Source and pending work
+## Released source and pending work
 
-Released source is Auth **0.27.0**, tag `v0.27.0`, commit
-`81ff5379f39128b2d7f11ea4217b4f2e7e674d1f`. Package versions remain unchanged;
-working changes are unstaged and uncommitted. No release or publication was run.
+Auth **0.28.0** is released and published. This checkout's HEAD is
+`70527e6f25a0eb520edb3c6611fac12a57909e99`, tag `v0.28.0`.
+The current Auth-only cleanup is uncommitted; package versions remain 0.28.0.
+Pending notes target **0.29.0** because two public session budget variants and
+`From<AdmissionBudgetError> for SessionError` are removed. Actual engine failures
+already use credential/mechanism wrappers. `PortableCredentialError::budget_error()`
+now supplies typed diagnostics; public refusals and charging remain unchanged.
 
-Pending **0.28.0** includes checked session scopes, shared backend preflight checks,
-reusable native conformance scenarios and publication-runner adoption. The minor
-is required because `Session::scopes()` returns `&[ScopeLabel]`; use `as_str()` for
-text. Valid stored bytes remain unchanged. Malformed stored scope grammar now
-reports `InvalidPolicyOrRecord` during decoding, with the same public read refusal.
+Native conformance moved from private fixtures to the unpublished
+`apps/qualification/backend-conformance` package. Its dependencies are public
+Auth/protocol APIs and Platform Ed25519 only. It has no private DTOs, Metrics,
+certified verifier, simulator or runtime edge. The old fixture feature and runner
+copy are removed; `test-qualification`, Clippy, MSRV and graph admission include
+its dedicated commands/checks.
 
-[#123](https://github.com/dragginzgame/ic-auth/issues/123) is implemented locally
-and remains open pending delivery/acceptance. Auth keeps release receipt/tag and
-checksum admission, private publication intent, uncertain-upload markers and exact
-registry readback. Shared owns exact `NAME@VERSION` dispatch, fresh attempts and
-interruption evidence. Its stable lock in publication state requires separate
-explicit disposition before a new dispatch; registry confirmation does not clear
-that lock. Existing intent schema and recovery authority are preserved.
+`make test-backend-conformance` runs the existing scenarios. After matching Auth
+libraries are published, `make pack-backend-conformance` produces a Cargo-normalized
+source archive with registry dependencies. The current candidate archive is
+`target/package/ic-auth-backend-conformance-0.28.0.crate` (dirty VCS metadata,
+not a published package). It was tested independently against registry Auth 0.28.
+The consumer dev-dependency proof has one Auth identity and excludes the foreign
+bundle from the consumer workspace/release group. No Canic checkout was changed.
+
+## Browser delivery and current guidance
+
+A browser archive was qualified from the clean released 0.28 commit above:
+`target/auth-consumer-cleanup.YXgRxC/released-browser/target/browser-client-packages/package.fONxAx/`.
+`delivery.json` records `dirty: false`, source, tools and archive integrity, with
+`packed-consumer` qualification. This is the delivered Rust source's client,
+not a package built from the pending 0.29 API changes. Durable consumer distribution,
+production issuer transport and npm publication remain separate host work.
+
+The [active adoption guide](../canic-adoption.md) is one current contract, reduced
+from 638 to 145 lines. Earlier migration text remains in
+[adoption history](../canic-adoption-history.md). Current handoff links and the
+Platform migration anchor used by released notes are retained/repaired.
+[Canic #491](https://github.com/dragginzgame/canic/issues/491) remains its production
+integration tracker. Earlier inspection found Auth 0.26 and a closed/test-gated
+receiver path; this implementation batch neither refreshed nor modified Canic.
 
 ## Selected suppliers and governance
 
-The incoming lock already selected Memory/Storage **0.60.3** and Testkit
-**0.75.1**. Root requirements now match; the lock is preserved byte-for-byte.
-All 65 Memory, 12 Storage and 28 Testkit source files match the previous qualified
-0.60.1/0.75.0 packages exactly. No record migration, reset or feature change.
-
-Other selections: Platform/macros/runtime guard **0.15.3**, canonical Types
-**0.15.1**, Wire/derive **0.13.1**, Build/Host/file CLI/editor **0.73.2**, Metrics
-**0.24.1**, PocketIC **16.1.0**. The new Testkit CLI is explicitly prepared and
-admits that server. Testkit's private arithmetic-only Metrics **0.23.2** exchanges
-no values with Auth's selected Metrics.
+The incoming Wire/derive **0.13.2** lock selection was preserved and qualified:
+all five generated client files remain unchanged and client checks pass. Root's
+compatible minimum remains 0.13.1. Other selections remain Platform/macros/guard
+**0.15.3**, canonical Types **0.15.1**, Memory/Storage **0.60.3**, Metrics **0.24.1**,
+Testkit **0.75.2**, PocketIC **16.1.0**, Build/Host/file CLI/editor **0.73.3**.
+Testkit and Auth share arithmetic-only Metrics 0.24.1 without native metadata.
+The latest adoption raises the root requirements and independent file CLI pin;
+the already incoming lock selections were preserved. No public Auth dependency
+or protocol/storage format changes result from this tooling-only update.
 
 Shared snapshot **0.27.23**, revision
-`619d194875369e0f72b45477b66adb430acbf6b7`, was exported from an isolated clean
-checkout and all 135 payloads verified against that independently selected commit.
-The sibling's dirty work was preserved. This is committed-source adoption, not a
-claim of a release tag. Auth keeps one Cargo-owned workspace/catalog/lock and
-coordinated release; Shared's pending canonical `VERSION` automation is inapplicable.
-No root VERSION file, prepare-work target or pending-file release mode was added.
+`619d194875369e0f72b45477b66adb430acbf6b7`, remains unchanged. Auth keeps one
+Cargo-owned workspace/catalog/lock and coordinated release. No VERSION file or
+pending-file release mode is added. The new local lock entry is the unpublished
+conformance member; the current lock also includes the adopted supplier patches.
+Public library graphs remain runtime/Candid/persistence/Metrics/tooling-free.
+Native conformance likewise stays outside deployed graphs.
 
-## Public and consumer contracts
+## Evidence and delivery limits
 
-Wire 0.13 owns Principal/Account schema metadata through `platform-types`;
-Platform reexports canonical Types 0.15.1. Consumers sharing those public types
-align their suppliers. Passive packages select only Principal; hashing and external
-conversions remain explicit. Public graphs exclude runtime, Candid, persistence,
-Metrics and native tools. The reference Wasm retains one runtime guard/generator.
-See [migration](../canic-adoption.md#platform-015-migration).
+`target/auth-consumer-cleanup.YXgRxC/` retains the initial diff/lock, normalized
+harness archives, independent registry consumers, graph observations, generated
+contract checks and the clean browser release checkout. Local scenarios pass
+against both workspace Auth and registry Auth 0.28, including broken-adapter
+detection. Session/refusal, metrics and plain-session tests pass. Core/harness/
+fixture/runner Clippy and native/certified-Wasm Rust 1.91 checks pass. All 69 client
+tests pass with the incoming Wire selection. Boundary rejection fixtures and the
+minimal real harness graph pass. The first standalone consumer attempt found an
+unrelated ancestor backup manifest; its isolated retry and consumer dev-dependency
+proof pass, with failed evidence retained.
 
-The private browser client supports qualified local archives. A clean **0.27.0**
-archive and receipt remain at
-`target/auth-integration-cleanup.4KahDd/released-browser/target/browser-client-packages/package.HgmuE3/`.
-It is local evidence, not durable distribution or a pending-0.28 release. Current
-Wire regeneration left all five files byte-identical and client checks passed.
-Production issuer transport and final consumer distribution remain host work.
-[Recorded Chromium acceptance](https://github.com/dragginzgame/ic-auth/issues/3#issuecomment-6464039789)
-has its original Linux/browser/origin/fixture limits; no new Chromium run is claimed.
+Release/catalog qualification passed, including source preparation and mocked
+publication/recovery scenarios; evidence is in `release-tools.log`. Source packing
+never uploads this unpublished harness. No root staging, commit, version bump,
+tag, push, release or live upload was performed. Full CI and Chromium were not rerun.
+The conformance archive is a reviewable candidate; the browser receipt identifies
+a clean already released source. Neither establishes installed Canic acceptance.
 
-[Canic #491](https://github.com/dragginzgame/canic/issues/491) owns production
-integration. Earlier inspection found Auth 0.26 adoption, denied access and a
-test-gated adapter; this batch did not refresh or mutate Canic. Its persistent
-receiver/enrollment PRs need consumer-owned integration and qualification.
+The [released handoff](https://github.com/dragginzgame/ic-auth/blob/70527e6f25a0eb520edb3c6611fac12a57909e99/docs/status/current.md)
+retains earlier implementation/adoption evidence and publication-runner details.
+Historical target paths are not proof that earlier artifacts remain available.
 
-## Latest evidence and limits
+Build/Host/Testkit adoption evidence is retained in
+`target/build-host-testkit-adoption.OKL2H2/`. Focused native Clippy, Rust 1.91,
+canister Wasm build, dependency ownership/pins and Testkit caller fixtures pass.
+All three executable selections are prepared. All four Host caller tests and
+11 live certification/upgrade/ingress/SDK tests pass; optional Chromium is skipped.
+Release-tool preparation/recovery and publication reconciliation also pass with
+local/mocked delivery effects. Input hashes stayed stable; full CI was not rerun.
 
-`target/persistence-testkit-shared.5p1kVf/` retains registry metadata, the reviewed
-snapshot impact/export/provenance, source comparisons and tool preparation.
-Ten storage tests pass, including old-ledger/format refusal without clearing.
-Wasm host Clippy/build and Rust 1.91 pass; five live upgrade cases cover real
-certificates, protected checkpoints, portable proof authority, signed ingress and
-SDK admission/logout. Native runner Clippy, dependency pins and public/host graphs
-pass. Auth's local/mocked release/publication caller qualification also passes,
-including interrupted attempts and recovery (`release-tools.log`).
-No full CI, native macOS or new real-browser qualification is claimed.
-
-Earlier focused evidence remains in `target/publication-wire-adoption.bAvc09/`
-(Wire, 69 client tests, stored bytes, #123 interruption/recovery),
-`target/host-build-adoption.SvfUvK/` (Host/Build callers), and
-`target/auth-integration-cleanup.4KahDd/` (66 core/three backend cases and live host
-qualification). Initial failures and corrected reruns remain retained. Native
-conformance stays outside public libraries and the Wasm host. The
-[released handoff](https://github.com/dragginzgame/ic-auth/blob/81ff5379f39128b2d7f11ea4217b4f2e7e674d1f/docs/status/current.md)
-retains older adoption facts; historical paths do not prove artifact availability.
-
-## Retained-state boundaries
+## Retained-state and trust boundaries
 
 Current `AUTHNAT3`, session/login `0x415554485311`/`0x415554485313` and replay
 `0x415554485302` formats remain. Earlier retirement consent grants no new reset
-permission. Older Memory allocation-ledger backings require a reviewed transition;
-never erase only a ledger, reinstall or discard backing to obtain admission.
-Preserve retained failures, binaries, backings and release/recovery artifacts.
+permission. Never erase Memory backing or only its allocation ledger to obtain
+admission. Preserve retained failures, binaries, backing states and recovery data.
 Hosts own clock, allocation, authority refresh, atomicity and certification.
-Cryptographic checks, TEE/non-TEE trust and replay/charging rules are unchanged.
-Reference qualification establishes no production wallet service or deployment.
+Cryptographic checks, signed bytes, TEE/non-TEE trust and replay/charging are
+unchanged. Reference qualification establishes no production wallet service,
+issuer adapter, distribution or deployment.

@@ -3,8 +3,8 @@ use ic_auth::{
     portable::{LoginRecordState, LoginRevocationChange},
     session::*,
 };
+use ic_auth_backend_conformance::{Backend, assert_backend_contract};
 use ic_auth_protocol_types::Principal;
-use ic_auth_qualification_fixtures::conformance::{Backend, assert_backend_contract};
 use std::{borrow::Cow, collections::BTreeMap};
 
 struct Reference {
