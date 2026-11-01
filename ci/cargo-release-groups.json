@@ -1,0 +1,40 @@
+{
+  "schema": 1,
+  "shared_metadata_files": ["release-validation.json"],
+  "groups": [
+    {
+      "name": "protocol",
+      "primary": "ic-auth-protocol-types",
+      "version": "package",
+      "members": ["ic-auth-protocol-types", "ic-auth-wire"],
+      "changelog": "releases/protocol/CHANGELOG.md",
+      "dependencies": ["ic-auth-protocol-types", "ic-auth-wire"]
+    },
+    {
+      "name": "engine",
+      "primary": "ic-auth",
+      "version": "package",
+      "members": [
+        "ic-auth",
+        "ic-auth-backend-conformance",
+        "ic-auth-feature-unification",
+        "ic-auth-qualification",
+        "ic-auth-qualification-canister",
+        "ic-auth-qualification-contracts",
+        "ic-auth-qualification-fixtures",
+        "ic-auth-tooling"
+      ],
+      "changelog": "releases/engine/CHANGELOG.md",
+      "dependencies": [
+        "ic-auth",
+        "ic-auth-backend-conformance",
+        "ic-auth-feature-unification",
+        "ic-auth-qualification",
+        "ic-auth-qualification-canister",
+        "ic-auth-qualification-contracts",
+        "ic-auth-qualification-fixtures",
+        "ic-auth-tooling"
+      ]
+    }
+  ]
+}

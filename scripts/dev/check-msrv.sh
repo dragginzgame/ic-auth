@@ -10,7 +10,8 @@ printf 'MSRV wrapper Bash %s\n' "$BASH_VERSION"
 export PATH="$root/.tools/host/bin:$PATH" RUSTUP_AUTO_INSTALL=0 CARGO_NET_OFFLINE=true
 floor="$(bash scripts/dev/msrv-tools.sh floor)"
 development="$(yq -p toml -o json '.' rust-toolchain.toml | jq -er '.toolchain.channel')"
-version="$(bash scripts/ci/read-cargo-workspace-version.sh --stable Cargo.toml)"
+version="$(yq -p toml -o json '.' crates/ic-auth/Cargo.toml | jq -er '.package.version')"
+protocol_version="$(yq -p toml -o json '.' crates/ic-auth-protocol-types/Cargo.toml | jq -er '.package.version')"
 bash scripts/dev/msrv-tools.sh check
 bash scripts/ci/test-package-consumer.sh
 mkdir -p "$root/target/portable-fixtures"
@@ -21,12 +22,14 @@ cp Cargo.lock "$fixture/original-workspace.lock"
 
 # Cargo owns package normalization. Check its real payloads outside the workspace
 # so private test dependencies cannot supply features to a public consumer.
-source scripts/release/packages.sh
+source scripts/release/packages.sh all
 CARGO_TARGET_DIR="$root/target/msrv-package" cargo +"$development" package \
     --locked --offline --allow-dirty --no-verify "${package_args[@]}"
 CARGO_TARGET_DIR="$root/target" cargo +"$development" build --locked --offline -p ic-auth-tooling
 for package in "${packages[@]}"; do
-    archive="$root/target/msrv-package/package/tmp-crate/$package-$version.crate"
+    package_version="$protocol_version"
+    [[ "$package" != ic-auth ]] || package_version="$version"
+    archive="$root/target/msrv-package/package/tmp-crate/$package-$package_version.crate"
     digest="$(bash scripts/dev/run-host-file.sh hash-file "$archive" 8388608)"
     printf '%s  %s\n' "$digest" "$archive" >> "$fixture/package-identities.sha256"
     # Cargo archives normalize mtimes. Fresh extraction times prevent reuse of
@@ -34,8 +37,8 @@ for package in "${packages[@]}"; do
     tar -xmzf "$archive" -C "$fixture"
 done
 auth="$fixture/ic-auth-$version"
-types="$fixture/ic-auth-protocol-types-$version"
-wire="$fixture/ic-auth-wire-$version"
+types="$fixture/ic-auth-protocol-types-$protocol_version"
+wire="$fixture/ic-auth-wire-$protocol_version"
 package_inputs() {
     find "$auth" "$types" "$wire" ! -type d -print0 > "$fixture/input-paths"
     perl -0e 'print sort <STDIN>' < "$fixture/input-paths" > "$fixture/sorted-input-paths"
@@ -44,8 +47,8 @@ package_inputs() {
         "$root/scripts/dev/host-file-tools.sh" "$root/scripts/dev/run-host-file.sh" \
         "$root/crates/ic-auth/Cargo.toml" "$root/crates/ic-auth-protocol-types/Cargo.toml" "$root/crates/ic-auth-wire/Cargo.toml" \
         "$root/target/msrv-package/package/tmp-crate/ic-auth-$version.crate" \
-        "$root/target/msrv-package/package/tmp-crate/ic-auth-protocol-types-$version.crate" \
-        "$root/target/msrv-package/package/tmp-crate/ic-auth-wire-$version.crate" "$@" \
+        "$root/target/msrv-package/package/tmp-crate/ic-auth-protocol-types-$protocol_version.crate" \
+        "$root/target/msrv-package/package/tmp-crate/ic-auth-wire-$protocol_version.crate" "$@" \
         >> "$fixture/sorted-input-paths"
     bash scripts/dev/run-host-file.sh hash-files0 8388608 4194304 4096 < "$fixture/sorted-input-paths"
 }
@@ -53,10 +56,10 @@ package_inputs > "$fixture/archive-inputs"
 # Keep normalized manifests and their locks byte-for-byte intact. Only this
 # independent consumer selects the exact unpacked archives via registry patches.
 all_features="$(yq -p toml -o json '.' "$auth/Cargo.toml" | jq -c '[.features | keys[] | "ic-auth/" + .] + ["ic-auth-wire/typescript"]')"
-platform_version="$(yq -p toml -o json '.' "$types/Cargo.toml" | jq -er '.dependencies."ic-platform".version')"
+types_version="$(yq -p toml -o json '.' "$types/Cargo.toml" | jq -er '.dependencies."ic-platform-types".version')"
 cat > "$fixture/Cargo.toml" <<TOML
 [workspace]
-exclude = ["ic-auth-$version", "ic-auth-protocol-types-$version", "ic-auth-wire-$version"]
+exclude = ["ic-auth-$version", "ic-auth-protocol-types-$protocol_version", "ic-auth-wire-$protocol_version"]
 
 [package]
 name = "ic-auth-msrv-consumer"
@@ -66,25 +69,25 @@ rust-version = "$floor"
 publish = false
 
 [dependencies]
-ic-auth-protocol-types = "=$version"
-ic-auth-wire = "=$version"
+ic-auth-protocol-types = "=$protocol_version"
+ic-auth-wire = "=$protocol_version"
 ic-auth = { version = "=$version", optional = true, default-features = false }
-ic-platform = { version = "$platform_version", default-features = false, features = ["principal"] }
+ic-platform-types = { version = "$types_version", default-features = false }
 
 [features]
 all = $all_features
 
 [patch.crates-io]
 ic-auth = { path = "ic-auth-$version" }
-ic-auth-protocol-types = { path = "ic-auth-protocol-types-$version" }
-ic-auth-wire = { path = "ic-auth-wire-$version" }
+ic-auth-protocol-types = { path = "ic-auth-protocol-types-$protocol_version" }
+ic-auth-wire = { path = "ic-auth-wire-$protocol_version" }
 TOML
 mkdir "$fixture/src"
 cat > "$fixture/src/lib.rs" <<'RUST'
 pub use ic_auth_protocol_types;
 pub use ic_auth_wire;
-pub fn platform_principal_identity(
-    principal: ic_platform::Principal,
+pub fn canonical_principal_identity(
+    principal: ic_platform_types::Principal,
 ) -> ic_auth_protocol_types::Principal {
     principal
 }
@@ -104,7 +107,7 @@ RUST
 cp "$fixture/original-workspace.lock" "$fixture/Cargo.lock"
 cargo +"$development" metadata --offline --format-version 1 --all-features \
     --manifest-path "$fixture/Cargo.toml" > "$fixture/metadata.json"
-bash scripts/ci/check-package-consumer.sh "$fixture/original-workspace.lock" "$fixture" "$version"
+bash scripts/ci/check-package-consumer.sh "$fixture/original-workspace.lock" "$fixture" "$version" "$protocol_version"
 package_inputs > "$fixture/resolved-archive-inputs"
 cmp "$fixture/archive-inputs" "$fixture/resolved-archive-inputs"
 package_inputs "$fixture/Cargo.toml" "$fixture/Cargo.lock" "$fixture/src/lib.rs" > "$fixture/inputs-before"

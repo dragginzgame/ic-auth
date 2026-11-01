@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
-[[ $# == 3 ]] || { echo 'usage: check-backend-package-graph.sh METADATA BUNDLE_MANIFEST VERSION' >&2; exit 2; }
+[[ $# == 4 ]] || { echo 'usage: check-backend-package-graph.sh METADATA BUNDLE_MANIFEST ENGINE_VERSION PROTOCOL_VERSION' >&2; exit 2; }
 source "${BASH_SOURCE[0]%/*}/auth-dependency-policy.sh"
-jq -e --arg bundle "$2" --arg version "$3" \
+jq -e --arg bundle "$2" --arg version "$3" --arg protocol "$4" \
     --arg forbidden "$(auth_dependency_pattern backend-conformance)" '
     .packages as $packages
     | .resolve.root as $root
@@ -12,9 +12,10 @@ jq -e --arg bundle "$2" --arg version "$3" \
         | .name == "auth-backend-package-consumer" and .source == null)
     and all(["ic-auth", "ic-auth-protocol-types"][];
         . as $name
+        | (if $name == "ic-auth" then $version else $protocol end) as $expected
         | [ $packages[] | select(.name == $name) ] as $selected
         | ($selected | length == 1)
-        and ($selected[0].version == $version
+        and ($selected[0].version == $expected
             and $selected[0].source == "registry+https://github.com/rust-lang/crates.io-index"))
     and ([ $packages[] | select(.name == "ic-auth-backend-conformance") ] as $selected
         | ($selected | length == 1)
@@ -28,6 +29,6 @@ jq -e --arg bundle "$2" --arg version "$3" \
         .id == $root or .name == "ic-auth-backend-conformance")
     and all($packages[]; (.name | test($forbidden)) | not)
 ' "$1" > /dev/null || {
-    echo 'backend package must select one registry Auth cohort and the exact excluded source bundle' >&2
+    echo 'backend package must select the exact registry Engine/Protocol versions and excluded source bundle' >&2
     exit 1
 }

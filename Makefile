@@ -12,14 +12,14 @@ include make/consumer.mk
 export CARGO_TARGET_DIR := $(CURDIR)/target
 export RUSTUP_AUTO_INSTALL := 0
 export RELEASE_DELIVERY := direct
-export RELEASE_REMOTE RELEASE_BRANCH
+export RELEASE_REMOTE RELEASE_BRANCH RELEASE_GROUP
 
 .PHONY: help install-hooks fetch metadata test-formatting-hooks \
         install-testkit-tools testkit-tools-check test-testkit-tools install-release-tools release-tools-check \
         test-types test-protocol test-portable-signatures test-chain-key-signatures test-signatures test-signature-store test-certified-proofs test-sessions check-wasm clippy check-boundaries \
         check-snapshot check-dependency-pins check-doc-links check-msrv install-msrv msrv-tools-check tasks ci \
         client-tools-check install-client-dependencies generate-client-contracts check-client-contracts check-client-boundary test-client test-client-tools pack-client test-client-package \
-        publish publish-dry-run check-package-licenses test-release-tools pack-backend-conformance test-backend-conformance test-backend-package profile-canonical-allocations \
+        publish publish-dry-run check-package-builds check-package-licenses test-release-tools pack-backend-conformance test-backend-conformance test-backend-package profile-canonical-allocations \
         test-host-tooling test-qualification build-qualification-canister test-release-runner test-evidence-archive test-tools-evidence test-make-jobserver \
         release-version release-preflight release-verify release-prepare-version \
         release-prepared-check release-files release-commit-check \
@@ -41,8 +41,8 @@ help:
 	@echo 'Formatting: fmt, fmt-check, test-formatting-hooks'
 	@echo 'Governance: check-snapshot, check-dependency-pins, check-doc-links, check-boundaries, check-msrv; maintenance catalog: tasks'
 	@echo 'Complete CI gate (explicit only): ci'
-	@echo 'Releases: release-patch, release-minor, release-major; recovery: release-resume VERSION=X.Y.Z'
-	@echo 'Crates.io: publish; local checks without upload: publish-dry-run, test-release-tools'
+	@echo 'Releases: release-patch/minor/major RELEASE_GROUP=protocol|engine; recovery also selects VERSION=X.Y.Z'
+	@echo 'Crates.io: publish RELEASE_GROUP=protocol|engine; local checks: publish-dry-run RELEASE_GROUP=..., check-package-builds, test-release-tools'
 
 install-testkit-tools: install-host-tools
 	+bash scripts/dev/testkit-tools.sh install
@@ -195,23 +195,38 @@ ci:
 	  --input Cargo.toml --input Cargo.lock --input rust-toolchain.toml \
 	  --input ci/tool-versions.env --input ci/ic-tools.tsv --input ci/release-delivery.txt \
 	  --input ci/cargo-dependency-boundaries.json --input ci/external-ic-dependencies.txt \
+	  --input ci/cargo-release-groups.json \
+	  --input crates/ic-auth/Cargo.toml --input crates/ic-auth-protocol-types/Cargo.toml --input crates/ic-auth-wire/Cargo.toml \
+	  --input apps/qualification/backend-conformance/Cargo.toml --input apps/qualification/canister/Cargo.toml \
+	  --input apps/qualification/contracts/Cargo.toml --input apps/qualification/feature-unification/Cargo.toml \
+	  --input apps/qualification/fixtures/Cargo.toml --input apps/qualification/runner/Cargo.toml --input apps/tooling/Cargo.toml \
 	  --input ci/host-file.env --input scripts/dev/host-file-tools.sh --input scripts/dev/run-host-file.sh \
 	  --input packages/client/package.json --input packages/client/package-lock.json \
 	  --input packages/client/.nvmrc \
-	  check-snapshot tools-check clippy check-dependency-pins check-doc-links test-make-jobserver fmt-check test-formatting-hooks metadata check-boundaries check-msrv test-tools-evidence test-testkit-tools test-client-tools test-client test-types test-protocol test-portable-signatures test-chain-key-signatures test-signatures test-signature-store test-certified-proofs test-sessions test-host-tooling test-qualification check-wasm publish-dry-run test-release-tools
+	  check-snapshot tools-check clippy check-dependency-pins check-doc-links test-make-jobserver fmt-check test-formatting-hooks metadata check-boundaries check-msrv test-tools-evidence test-testkit-tools test-client-tools test-client test-types test-protocol test-portable-signatures test-chain-key-signatures test-signatures test-signature-store test-certified-proofs test-sessions test-host-tooling test-qualification check-wasm check-package-builds test-release-tools
 
 check-package-licenses:
-	@bash -eu -c 'source scripts/release/packages.sh; \
+	@bash -eu -c 'source scripts/release/packages.sh all; \
 	  for package in "$${packages[@]}"; do cmp LICENSE "crates/$$package/LICENSE"; done'
 
 # A reused temporary-registry path can retain extracted same-version source
 # across edits. Give each dry run a new registry identity and retain its evidence.
 publish-dry-run: check-package-licenses
-	+@bash -eu -c 'source scripts/release/packages.sh; \
+	+@bash -eu -c 'source scripts/release/packages.sh selected; \
 	  mkdir -p "$(CURDIR)/target/publication-dry-runs"; \
 	  staging="$$(mktemp -d "$(CURDIR)/target/publication-dry-runs/run.XXXXXX")"; \
 	  printf "Publication dry-run evidence retained: %s\n" "$$staging"; \
 	  cargo publish --dry-run --locked --registry crates-io --allow-dirty \
+	    --target-dir "$$staging" "$${package_args[@]}"'
+
+# Verify all current source archives together before either supplier is published.
+# Individual publication still admits only the explicitly selected release group.
+check-package-builds: check-package-licenses
+	+@bash -eu -c 'source scripts/release/packages.sh all; \
+	  mkdir -p "$(CURDIR)/target/package-qualification"; \
+	  staging="$$(mktemp -d "$(CURDIR)/target/package-qualification/run.XXXXXX")"; \
+	  printf "Package qualification evidence retained: %s\n" "$$staging"; \
+	  cargo package --locked --registry crates-io --allow-dirty \
 	    --target-dir "$$staging" "$${package_args[@]}"'
 
 publish:
@@ -255,7 +270,7 @@ test-evidence-archive:
 	TMPDIR="$(CURDIR)/target/portable-fixtures" bash scripts/ci/test-evidence-archive.sh
 
 release-version:
-	+@bash scripts/ci/read-cargo-workspace-version.sh --stable Cargo.toml
+	@bash -eu -c 'source scripts/release/group.sh; auth_release_version'
 
 release-preflight release-prepare-version release-prepared-check release-files \
 release-commit-check release-committed-check release-tagged-check release-push-check:

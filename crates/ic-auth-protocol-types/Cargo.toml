@@ -1,7 +1,7 @@
 # Production packages
 [package]
 name = "ic-auth-protocol-types"
-version.workspace = true
+version = "0.29.2"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
@@ -11,8 +11,7 @@ description = "Passive application authentication protocol contracts"
 publish = ["crates-io"]
 
 [dependencies]
-# Platform owns the unconditional application Principal, without Candid/runtime.
-ic-platform = { workspace = true, features = ["principal"] }
+ic-platform-types.workspace = true
 serde.workspace = true
 thiserror.workspace = true
 

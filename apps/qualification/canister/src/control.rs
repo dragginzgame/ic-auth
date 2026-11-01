@@ -3,7 +3,7 @@ use ic_auth_qualification_contracts::{self as controls, CONTROL_LIMITS, refusal}
 use ic_wire::Bytes;
 
 pub(crate) fn guard() -> Result<(), String> {
-    if ic_platform::ic0::msg_arg_data_size() > CONTROL_LIMITS.bytes {
+    if ic_platform_runtime::ic0::msg_arg_data_size() > CONTROL_LIMITS.bytes {
         Err("wire control argument too large".into())
     } else {
         Ok(())

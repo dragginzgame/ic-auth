@@ -29,7 +29,8 @@ workspace, so private test infrastructure cannot supply dependency features.
 Only its manifest patches crates.io to select the three exact unpacked packages;
 packaged manifests and locks remain untouched. Offline metadata projects the
 fixture lock from the selected workspace graph and adds this consumer root.
-Before compilation, admission requires all three exact package names, versions and
+Before compilation, admission requires all three exact package names, independently
+selected Engine/Protocol versions and
 manifest paths, enforces the library's forbidden-dependency boundary, and requires every
 external version, source and checksum to remain a subset of the original lock.
 The native utility delegates external-lock comparison to published IC Build,
@@ -41,7 +42,9 @@ fallback or `--ignore-rust-version`.
 
 The independent consumer constructs and hashes the public canonical session
 request on native and Wasm without optional features. Each default selection's
-normal/build graph is recorded and rejects Candid, K256, certificate verification, CDK
+Principal identity is witnessed directly against `ic-platform-types`, using the
+normalized protocol manifest's requirement. Its normal/build graph is recorded
+and rejects the Platform facade, Candid, K256, certificate verification, CDK
 and stable storage. The optional session engine remains a separate feature check.
 
 Admission refusal cases run as part of `check-msrv`. Hashes seal the archives and
@@ -52,7 +55,8 @@ uses one bounded `hash-files0` batch per round, preserving sorted NUL-delimited
 package paths and explicit manifest/archive inputs. Batching does not cache
 identities across rounds or replace the before/after comparisons. This
 qualifies local archive interoperability, not crates.io publication readiness;
-`publish-dry-run` retains ordinary Cargo registry admission.
+`publish-dry-run RELEASE_GROUP=protocol|engine` retains ordinary Cargo registry admission.
+The refusal fixture deliberately uses differing Engine and Protocol versions.
 See [Auth #21](https://github.com/dragginzgame/ic-auth/issues/21) and the adopted
 [coordinated-archive guidance](../rules/cargo-dependencies.md#qualifying-coordinated-package-archives-before-a-version-bump).
 

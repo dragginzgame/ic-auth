@@ -206,7 +206,7 @@ fn with_receiver<T, E: From<ReceiverUnavailable>>(
         operation(host)
     })
 }
-#[ic_platform::cdk::update(
+#[ic_platform_runtime::cdk::update(
     guard = "crate::control::guard",
     decode_with = "crate::control::InstallReceiver::decode",
     encode_with = "crate::control::InstallReceiver::encode"
@@ -216,7 +216,7 @@ fn install_session_receiver(config: controls::model::ReceiverConfig) -> Result<(
     let config: ReceiverConfig = config
         .try_into()
         .map_err(|e: ic_wire::Error| e.to_string())?;
-    let now = ic_platform::cdk::api::time();
+    let now = ic_platform_runtime::cdk::api::time();
     if config.issuer == Principal::anonymous()
         || config.valid_from_ns > now
         || config.valid_until_ns <= now
@@ -265,7 +265,7 @@ fn install_session_receiver(config: controls::model::ReceiverConfig) -> Result<(
     RECEIVER.with(|state| *state.borrow_mut() = Some(host));
     Ok(())
 }
-#[ic_platform::cdk::update(
+#[ic_platform_runtime::cdk::update(
     guard = "admission_guard",
     decode_with = "decode_admission",
     encode_with = "encode_admission"
@@ -286,8 +286,8 @@ fn establish_portable_session(input: SessionInput) -> Result<SessionView, Admiss
     with_receiver(|host| {
         let policy = policy(host);
         let ctx = host.inputs.claims_context(
-            ic_platform::cdk::api::msg_caller(),
-            ic_platform::cdk::api::time(),
+            ic_platform_runtime::cdk::api::msg_caller(),
+            ic_platform_runtime::cdk::api::time(),
         );
         let certified;
         let verification = match &host.inputs.config.authority {
@@ -326,22 +326,22 @@ fn establish_portable_session(input: SessionInput) -> Result<SessionView, Admiss
             .map_err(|error| error.admission_refusal().into())
     })
 }
-#[ic_platform::cdk::update(
+#[ic_platform_runtime::cdk::update(
     guard = "admission_guard",
     decode_with = "crate::control::ProfileAdmission::decode",
     encode_with = "crate::control::ProfileAdmission::encode"
 )]
 fn profile_portable_admission(input: SessionInput) -> AdmissionProfile {
-    let start = ic_platform::ic0::performance_counter(0);
+    let start = ic_platform_runtime::ic0::performance_counter(0);
     let result = establish_portable_session(input);
-    let instructions = ic_platform::ic0::performance_counter(0) - start;
+    let instructions = ic_platform_runtime::ic0::performance_counter(0) - start;
     AdmissionProfile {
         reply: ic_wire::Bytes::new(encode_admission(result)).expect("bounded admission diagnostic"),
         instructions,
     }
 }
 
-#[ic_platform::cdk::update(
+#[ic_platform_runtime::cdk::update(
     guard = "read_guard",
     decode_with = "decode_read",
     encode_with = "encode_read"
@@ -361,8 +361,8 @@ fn authorize(operation: SessionOperation) -> Result<SessionView, SessionReadRefu
     with_receiver(|host| {
         let policy = policy(host);
         let mut ctx = host.inputs.context(
-            ic_platform::cdk::api::msg_caller(),
-            ic_platform::cdk::api::time(),
+            ic_platform_runtime::cdk::api::msg_caller(),
+            ic_platform_runtime::cdk::api::time(),
         );
         ctx.required_scopes = match operation {
             SessionOperation::Read => &host.read_scopes,
@@ -377,7 +377,7 @@ fn authorize(operation: SessionOperation) -> Result<SessionView, SessionReadRefu
 
 // One fixture application asset is writable by the protected "write" scope.
 // Real application resource/account policy remains the consuming host's job.
-#[ic_platform::cdk::update(
+#[ic_platform_runtime::cdk::update(
     guard = "crate::control::guard",
     decode_with = "crate::control::SetSessionAsset::decode",
     encode_with = "crate::control::SetSessionAsset::encode"
@@ -391,7 +391,7 @@ fn session_set_asset(version: u64) -> Result<(), String> {
     });
     Ok(())
 }
-#[ic_platform::cdk::update(
+#[ic_platform_runtime::cdk::update(
     guard = "logout_guard",
     decode_with = "decode_logout",
     encode_with = "encode_logout"
@@ -406,12 +406,12 @@ fn logout_portable_session() -> LogoutResult {
             &mut host.store,
             &mut host.ledger,
             &mut host.unknown,
-            ic_platform::cdk::api::msg_caller(),
-            ic_platform::cdk::api::time(),
+            ic_platform_runtime::cdk::api::msg_caller(),
+            ic_platform_runtime::cdk::api::time(),
         )
     })
 }
-#[ic_platform::cdk::update(
+#[ic_platform_runtime::cdk::update(
     guard = "crate::control::guard",
     decode_with = "crate::control::InvalidateAuthority::decode",
     encode_with = "crate::control::InvalidateAuthority::encode"
@@ -424,14 +424,14 @@ fn invalidate_session_authority(enabled: bool) -> Result<(), String> {
         Ok(())
     })
 }
-#[ic_platform::cdk::query(
+#[ic_platform_runtime::cdk::query(
     guard = "crate::control::guard",
     decode_with = "crate::control::ProfileSession::decode",
     encode_with = "crate::control::ProfileSession::encode"
 )]
 fn profile_portable_session() -> Result<SessionProfile, String> {
     with_receiver(|host| {
-        let caller = ic_platform::cdk::api::msg_caller();
+        let caller = ic_platform_runtime::cdk::api::msg_caller();
         let session = host
             .store
             .read(|tx| {
@@ -441,15 +441,17 @@ fn profile_portable_session() -> Result<SessionProfile, String> {
             .map_err(|e| e.to_string())?
             .ok_or("no session")?;
         let encoded = session.encode().map_err(|e| e.to_string())?;
-        let start = ic_platform::ic0::performance_counter(0);
+        let start = ic_platform_runtime::ic0::performance_counter(0);
         let decoded = Session::decode(&encoded).map_err(|e| e.to_string())?;
-        let after_decode = ic_platform::ic0::performance_counter(0);
+        let after_decode = ic_platform_runtime::ic0::performance_counter(0);
         if decoded != session {
             return Err("restoration differs".into());
         }
-        let ctx = host.inputs.context(caller, ic_platform::cdk::api::time());
+        let ctx = host
+            .inputs
+            .context(caller, ic_platform_runtime::cdk::api::time());
         let policy = policy(host);
-        let start_authorization = ic_platform::ic0::performance_counter(0);
+        let start_authorization = ic_platform_runtime::ic0::performance_counter(0);
         authorize_session(&mut host.store, &mut host.ledger, &ctx, policy, |session| {
             view(session.into())
         })
@@ -457,7 +459,7 @@ fn profile_portable_session() -> Result<SessionProfile, String> {
         Ok(SessionProfile {
             record_bytes: encoded.len() as u64,
             decode_instructions: after_decode - start,
-            authorization_instructions: ic_platform::ic0::performance_counter(0)
+            authorization_instructions: ic_platform_runtime::ic0::performance_counter(0)
                 - start_authorization,
         })
     })
@@ -467,7 +469,7 @@ fn profile_portable_session() -> Result<SessionProfile, String> {
 // CDK copying; malformed input traps before the stateful handler. Failed reply
 // encoding traps as well, rolling back local session/revocation mutations.
 fn argument_guard(maximum: usize) -> Result<(), String> {
-    if ic_platform::ic0::msg_arg_data_size() > maximum {
+    if ic_platform_runtime::ic0::msg_arg_data_size() > maximum {
         Err("wire argument too large".into())
     } else {
         Ok(())

@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
 # Auth-owned graph rules; Shared supplies the boundary-script observation/matching.
 auth_dependency_pattern() {
-    # Principal-only Platform is production; its optional capabilities are
-    # constrained by the observed Candid/runtime/host dependencies below.
+    # Types owns passive identities; Platform is selected only for crypto.
     local profiling='dhat'
     local product="candid_parser|canic|toko|solana|ic-siws|ic-host|ic-build|ic-testkit|ic-metrics|ic-agent|tokio|pocket-ic|ic-auth-qualification|ic-auth-feature-unification|ic-auth-tooling|$profiling"
-    local storage='ic-platform-runtime-guard|ic-cdk|ic-stable-structures|ic-memory|ic-storage|ic-timers'
+    local storage='ic-platform-runtime|ic-platform-macros|ic-cdk|ic-stable-structures|ic-memory|ic-storage|ic-timers'
     local certificates='ic-certification|ic-signature-verification|ic-canister-sig-creation'
     local pattern
     case "$1" in
@@ -19,5 +18,7 @@ auth_dependency_pattern() {
         session) pattern="serde_cbor|candid|candid_derive|k256|$certificates|ic-verify-bls-signature" ;;
         *) echo 'unknown Auth dependency policy' >&2; return 1 ;;
     esac
+    # The facade itself is forbidden here; its Types owner remains permitted.
+    case "$1" in passive|pure) printf '^ic-platform( |$)|' ;; esac
     printf '^(%s)([-_ ]|$)\n' "$pattern"
 }

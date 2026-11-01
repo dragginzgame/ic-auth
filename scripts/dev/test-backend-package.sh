@@ -10,7 +10,8 @@ mkdir -p target/portable-fixtures
 evidence="$(mktemp -d "$root/target/portable-fixtures/backend-package.XXXXXX")"
 printf 'Backend package evidence retained: %s\n' "$evidence"
 tool="$(bash scripts/dev/host-file-tools.sh check)"
-version="$(bash scripts/ci/read-cargo-workspace-version.sh --stable Cargo.toml)"
+version="$(yq -p toml -o json '.' crates/ic-auth/Cargo.toml | jq -er '.package.version')"
+protocol_version="$(yq -p toml -o json '.' crates/ic-auth-protocol-types/Cargo.toml | jq -er '.package.version')"
 name="ic-auth-backend-conformance-$version"
 consumer="$evidence/consumer"
 bundle="$consumer/test-support/$name"
@@ -18,7 +19,7 @@ export CARGO_TARGET_DIR="$evidence/target"
 mkdir -p "$consumer/src" "$consumer/test-support"
 {
     rg --files apps/qualification/backend-conformance -0
-    printf '%s\0' Cargo.toml Cargo.lock rust-toolchain.toml ci/host-file.env \
+    printf '%s\0' Cargo.toml Cargo.lock crates/ic-auth/Cargo.toml crates/ic-auth-protocol-types/Cargo.toml rust-toolchain.toml ci/host-file.env \
         scripts/dev/test-backend-package.sh scripts/ci/check-backend-package-graph.sh \
         scripts/ci/test-backend-package-graph.sh scripts/ci/auth-dependency-policy.sh
 } > "$evidence/inputs.nul"
@@ -51,6 +52,7 @@ edition = "2024"
 publish = false
 [dependencies]
 ic-auth = { version = "=$version", default-features = false, features = ["session-restore", "portable-signature-verification"] }
+ic-auth-protocol-types = "=$protocol_version"
 [dev-dependencies]
 ic-auth-backend-conformance = { path = "test-support/$name" }
 TOML
@@ -69,9 +71,9 @@ RUST
 cp Cargo.lock "$consumer/Cargo.lock"
 run metadata cargo metadata --offline --format-version 1 --manifest-path "$consumer/Cargo.toml"
 cp "$evidence/metadata.stdout.log" "$evidence/metadata.json"
-bash scripts/ci/check-backend-package-graph.sh "$evidence/metadata.json" "$bundle/Cargo.toml" "$version"
+bash scripts/ci/check-backend-package-graph.sh "$evidence/metadata.json" "$bundle/Cargo.toml" "$version" "$protocol_version"
 run graph-refusals bash scripts/ci/test-backend-package-graph.sh "$evidence/metadata.json" \
-    "$bundle/Cargo.toml" "$version" "$evidence/graph-refusals"
+    "$bundle/Cargo.toml" "$version" "$protocol_version" "$evidence/graph-refusals"
 {
     find "$bundle" ! -type d -print0
     printf '%s\0' "$consumer/Cargo.toml" "$consumer/Cargo.lock" "$consumer/src/lib.rs" "$evidence/metadata.json"
@@ -84,8 +86,8 @@ cmp "$evidence/consumer-before.hashes" "$evidence/consumer-after.hashes"
 inputs > "$evidence/after.hashes"
 cmp "$evidence/before.hashes" "$evidence/after.hashes"
 [[ "$("$tool" hash-file "$archive" 8388608)" == "$digest" ]]
-jq -n --arg source "$source_revision" --arg version "$version" --arg archive "$archive" \
+jq -n --arg source "$source_revision" --arg version "$version" --arg protocol "$protocol_version" --arg archive "$archive" \
     --arg sha256 "$digest" --argjson dirty "$(test ! -s "$evidence/source-status.txt" && echo false || echo true)" \
-    '{source_revision: $source, dirty: $dirty, version: $version, archive: $archive,
+    '{source_revision: $source, dirty: $dirty, engine_version: $version, protocol_version: $protocol, archive: $archive,
       sha256: $sha256, qualification: "registry-consumer-and-packaged-scenarios"}' > "$evidence/delivery.json"
 printf 'Backend archive, registry identities, consumer and packaged scenarios qualified: %s\n' "$evidence/delivery.json"

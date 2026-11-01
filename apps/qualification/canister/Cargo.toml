@@ -1,7 +1,7 @@
 # Tests and tooling packages
 [package]
 name = "ic-auth-qualification-canister"
-version.workspace = true
+version = "0.29.2"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
@@ -21,7 +21,8 @@ ic-auth-qualification-fixtures.workspace = true
 ic-auth-wire.workspace = true
 ic-memory = { workspace = true, features = ["test-support"] }
 ic-metrics.workspace = true
-ic-platform = { workspace = true, features = ["bls", "cdk", "certification"] }
+ic-platform = { workspace = true, features = ["bls", "certification"] }
+ic-platform-runtime = { workspace = true, features = ["cdk"] }
 ic-storage.workspace = true
 ic-wire.workspace = true
 serde.workspace = true

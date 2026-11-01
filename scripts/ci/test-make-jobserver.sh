@@ -30,16 +30,32 @@ if [[ "${1:-}" == --consumer ]]; then
     [[ $# == 3 && "$2" == "$PWD" && "$3" == --external-ic ]]
 fi
 if [[ "${1:-}" == publish ]]; then
-    [[ $# == 14 && "$2" == --dry-run && "$3" == --locked &&
+    [[ "$2" == --dry-run && "$3" == --locked &&
        "$4" == --registry && "$5" == crates-io && "$6" == --allow-dirty &&
-       "$7" == --target-dir && "$9" == -p && "${10}" == ic-auth-protocol-types &&
-       "${11}" == -p && "${12}" == ic-auth && "${13}" == -p && "${14}" == ic-auth-wire ]]
+       "$7" == --target-dir && "$9" == -p ]]
+    case "$RELEASE_GROUP" in
+        protocol) [[ $# == 12 && "${10}" == ic-auth-protocol-types && "${11}" == -p && "${12}" == ic-auth-wire ]] ;;
+        engine) [[ $# == 10 && "${10}" == ic-auth ]] ;;
+        *) exit 2 ;;
+    esac
     staging="$8"
     [[ "$staging" == "$PWD/target/publication-dry-runs/"* &&
        -d "$staging" && ! -e "$staging/dispatched" ]]
     touch "$staging/dispatched"
     printf '%s\n' "$staging" >> "$AUTH_JOBSERVER_LOG.paths"
     exit "${AUTH_JOBSERVER_PUBLISH_STATUS:-0}"
+fi
+if [[ "${1:-}" == package && "${3:-}" == --registry ]]; then
+    [[ $# == 13 && "$2" == --locked && "$3" == --registry && "$4" == crates-io &&
+       "$5" == --allow-dirty && "$6" == --target-dir && "$8" == -p &&
+       "$9" == ic-auth-protocol-types && "${10}" == -p && "${11}" == ic-auth-wire &&
+       "${12}" == -p && "${13}" == ic-auth ]]
+    staging="$7"
+    [[ "$staging" == "$PWD/target/package-qualification/"* &&
+       -d "$staging" && ! -e "$staging/dispatched" ]]
+    touch "$staging/dispatched"
+    printf '%s\n' "$staging" >> "$AUTH_JOBSERVER_LOG.paths"
+    exit "${AUTH_JOBSERVER_PACKAGE_STATUS:-0}"
 fi
 SCRIPT
 chmod +x "$fixture/bin/cargo"
@@ -51,7 +67,7 @@ for script in dev/testkit-tools.sh dev/msrv-tools.sh dev/host-file-tools.sh dev/
     dev/test-qualification.sh dev/client-contracts.sh dev/test-client.sh dev/test-client-browser.sh dev/package-client.sh dev/release-tools.sh \
     dev/profile-canonical-allocations.sh dev/test-backend-package.sh \
     ci/check-cargo-dependency-boundaries.sh ci/test-auth-boundaries.sh \
-    ci/check-auth-boundaries.sh ci/test-client-tools.sh ci/check-dependency-pins.sh ci/read-cargo-workspace-version.sh \
+    ci/check-auth-boundaries.sh ci/test-client-tools.sh ci/check-dependency-pins.sh \
     release/publish.sh release/metadata.sh release/test-tools.sh; do
     cat > "$consumer/scripts/$script" <<'SCRIPT'
 #!/usr/bin/env bash
@@ -96,11 +112,12 @@ rg -Fx test-client-browser "$fixture/targets" > /dev/null
 rg -Fx test-client-package "$fixture/targets" > /dev/null
 rg -Fx profile-canonical-allocations "$fixture/targets" > /dev/null
 rg -Fx test-backend-package "$fixture/targets" > /dev/null
+rg -Fx check-package-builds "$fixture/targets" > /dev/null
 rg -Fx release-prepare-version "$fixture/targets" > /dev/null
 while IFS= read -r target; do
     : > "$AUTH_JOBSERVER_LOG"
     status=0
-    (cd "$consumer"; make "${options[@]}" "$target") > "$fixture/$target.log" 2>&1 || status=$?
+    (cd "$consumer"; make "${options[@]}" "$target" RELEASE_GROUP=protocol) > "$fixture/$target.log" 2>&1 || status=$?
     if [[ "$status" != 0 ]]; then
         printf 'Make jobserver target failed: %s (status %s); log: %s\n' \
             "$target" "$status" "$fixture/$target.log" >&2
@@ -127,21 +144,26 @@ rg -F 'release delivery refused' "$fixture/refused-delivery.log" > /dev/null
 # bump. Keep earlier evidence and propagate Cargo refusal through the recipe.
 mkdir -p "$consumer/target/package"
 printf 'retained staging cache\n' > "$consumer/target/package/keep"
-(cd "$consumer"; make "${options[@]}" publish-dry-run) > "$fixture/publish-repeat.log" 2>&1
+(cd "$consumer"; make "${options[@]}" publish-dry-run RELEASE_GROUP=protocol) > "$fixture/publish-repeat.log" 2>&1
 status=0
-(cd "$consumer"; AUTH_JOBSERVER_PUBLISH_STATUS=37 make "${options[@]}" publish-dry-run) \
+(cd "$consumer"; AUTH_JOBSERVER_PUBLISH_STATUS=37 make "${options[@]}" publish-dry-run RELEASE_GROUP=engine) \
     > "$fixture/publish-refusal.log" 2>&1 || status=$?
 [[ "$status" == 2 ]]
 rg -F 'Error 37' "$fixture/publish-refusal.log" > /dev/null
-[[ "$(wc -l < "$AUTH_JOBSERVER_LOG.paths" | tr -d '[:space:]')" == 3 ]]
-[[ "$(sort -u "$AUTH_JOBSERVER_LOG.paths" | wc -l | tr -d '[:space:]')" == 3 ]]
+status=0
+(cd "$consumer"; AUTH_JOBSERVER_PACKAGE_STATUS=37 make "${options[@]}" check-package-builds) \
+    > "$fixture/package-refusal.log" 2>&1 || status=$?
+[[ "$status" == 2 ]]
+rg -F 'Error 37' "$fixture/package-refusal.log" > /dev/null
+[[ "$(wc -l < "$AUTH_JOBSERVER_LOG.paths" | tr -d '[:space:]')" == 5 ]]
+[[ "$(sort -u "$AUTH_JOBSERVER_LOG.paths" | wc -l | tr -d '[:space:]')" == 5 ]]
 while IFS= read -r staging; do [[ -f "$staging/dispatched" ]]; done < "$AUTH_JOBSERVER_LOG.paths"
 [[ "$(cat "$consumer/target/package/keep")" == 'retained staging cache' ]]
 
 # Recursive marking must never make unsafe modes execute these effects, even
 # when callers erase MAKEFLAGS. The shared independent guard stays authoritative.
 for mode in -n -t -q -i; do
-    for target in fetch metadata check-dependency-pins install-testkit-tools install-host-file generate-client-contracts test-client-browser profile-canonical-allocations test-backend-package publish-dry-run publish test-release-tools release-prepare-version; do
+    for target in fetch metadata check-dependency-pins install-testkit-tools install-host-file generate-client-contracts test-client-browser profile-canonical-allocations test-backend-package check-package-builds publish-dry-run publish test-release-tools release-prepare-version; do
         : > "$AUTH_JOBSERVER_LOG"
         status=0
         (cd "$consumer"; make "$mode" --no-print-directory "$target" MAKEFLAGS=) \

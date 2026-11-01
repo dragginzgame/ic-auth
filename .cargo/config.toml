@@ -1,7 +1,7 @@
 [build]
 target-dir = "target"
 
-# Platform 0.16 qualifies RustCrypto's unchanged 32-bit backend for Wasm.
+# Platform's maintained crypto stack qualifies this 32-bit backend for Wasm.
 # Dependency repositories' Cargo configuration is not inherited by consumers.
 [target.wasm32-unknown-unknown]
 rustflags = ['--cfg=cpubits="32"']

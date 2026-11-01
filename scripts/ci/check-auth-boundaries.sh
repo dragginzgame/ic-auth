@@ -38,6 +38,9 @@ for target in "$native_target" wasm32-unknown-unknown; do
         if [[ "$feature" == sessions* || "$feature" == session-restore ]]; then
             rules+=(--forbid-pattern "$(auth_dependency_pattern session)")
         fi
+        if [[ "$feature" == sessions || "$feature" == session-restore ]]; then
+            rules+=(--forbid-pattern "$(auth_dependency_pattern pure)")
+        fi
         "${checker[@]}" --package ic-auth --target "$target" "${selected[@]}" "${rules[@]}"
     done <<< "$selections"
     # Private fixture schemas must stay Wire-only even though the actual host's
@@ -49,7 +52,7 @@ for target in "$native_target" wasm32-unknown-unknown; do
         --forbid-feature ic-platform/ic0 --forbid-feature ic-platform/executor \
         --forbid-feature ic-platform/runtime --forbid-feature ic-platform/cdk
 done
-# Curve/signature providers retain one identity. Platform 0.16's RustCrypto
+# Curve/signature providers retain one identity. Platform 0.17's RustCrypto
 # generation and maintained BLS/Principal hashing require two support generations.
 crypto_singletons=(
     base16ct const-oid crypto-bigint curve25519-dalek
@@ -68,5 +71,8 @@ done
     --forbid-pattern '^(candid|candid_derive|candid_parser|ic-canister-sig-creation|ic-signature-verification|ic-host|ic-build|ic-agent|ic-testkit|pocket-ic|tokio)([- ]|$)' \
     --forbid ic-cdk --forbid ic-cdk-macros --forbid ic-cdk-executor --forbid ic0 \
     --forbid-feature ic-platform/candid \
-    --require ic-platform-macros=1 --require ic-platform-runtime-guard=1
+    --forbid-feature ic-platform/ic0 --forbid-feature ic-platform/executor \
+    --forbid-feature ic-platform/runtime --forbid-feature ic-platform/cdk \
+    --require ic-platform-runtime=1 --require ic-platform-macros=1 --require ic-platform-runtime-guard=1 \
+    --require ic-wire=1
 echo 'Auth dependency boundaries verified'

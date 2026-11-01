@@ -96,10 +96,11 @@ TMPDIR="$fixture" bash scripts/ci/check-release-commands.sh "$fixture/repo" \
     make/execution.mk scripts/ci/check-make-execution.sh \
     scripts/ci/check-release-delivery.sh ci/release-delivery.txt
 cd "$fixture/repo"
+export RELEASE_GROUP=protocol
 # Keep an inherited search path throughout release and publication flows.
 # Machine-readable metadata and digest output must not acquire a cd banner.
 export CDPATH=".:$fixture"
-printf '%s\0' Cargo.toml Cargo.lock CHANGELOG.md release-validation.json > "$fixture/expected-files.nul"
+printf '%s\0' Cargo.toml Cargo.lock releases/protocol/CHANGELOG.md crates/ic-auth-protocol-types/Cargo.toml crates/ic-auth-wire/Cargo.toml release-validation.json > "$fixture/expected-files.nul"
 bash scripts/release/metadata.sh files > "$fixture/observed-files.nul"
 cmp "$fixture/expected-files.nul" "$fixture/observed-files.nul"
 if RELEASE_DELIVERY="pr" bash scripts/release/metadata.sh files \
@@ -111,24 +112,28 @@ fi
 rg -F 'release delivery refused' "$fixture/refused-delivery.stderr" > /dev/null
 # Fixture releases always start at a synthetic 0.1.0, even after the real
 # workspace advances. Do not make future CI depend on today's version.
-initial="$(bash scripts/ci/read-cargo-workspace-version.sh --stable Cargo.toml)"
-if [[ "$initial" != 0.1.0 ]]; then
-    yq -p toml -o json '.' Cargo.toml > "$fixture/manifest.json"
-    cargo metadata --locked --offline --no-deps --format-version 1 > "$fixture/metadata.json"
-    jq -n --slurpfile manifest "$fixture/manifest.json" --slurpfile metadata "$fixture/metadata.json" '
-        {manifest: $manifest[0], members: ($metadata[0] | . as $m |
-            [.packages[] | select(.id as $id | $m.workspace_members | index($id)) |
-                {name, manifest_path}])}' > "$fixture/context.json"
-    "$editor" --max-input-bytes 8388608 manifest Cargo.toml "$initial" 0.1.0 \
-        "$fixture/context.json" > "$fixture/manifest"
-    yq -p toml -o json '.' Cargo.lock | jq -r '.package[] | select(.source == null) | .name' > "$fixture/local-packages"
+for selected_group in engine protocol; do
+    if [[ "$selected_group" == engine ]]; then selected_version=0.9.0; else selected_version=0.1.0; fi
+    RELEASE_VERSION="$selected_version" bash "$PWD/scripts/ci/cargo-release-group.sh" plan "$selected_group" > "$fixture/synthetic-plan.json"
+    initial="$(jq -r .previous "$fixture/synthetic-plan.json")"
+    while IFS= read -r manifest; do
+        jq --arg path "$manifest" '.manifests[] | select(.path == $path) | {version,dependencies}' \
+            "$fixture/synthetic-plan.json" > "$fixture/edit.json"
+        "$editor" --max-input-bytes 8388608 group-manifest "$manifest" "$initial" "$selected_version" \
+            "$fixture/edit.json" > "$fixture/manifest"
+        cp "$fixture/manifest" "$manifest"
+    done < <(jq -r '.manifests[].path' "$fixture/synthetic-plan.json")
     local_packages=()
-    while IFS= read -r package; do local_packages+=("$package"); done < "$fixture/local-packages"
-    "$editor" --max-input-bytes 8388608 lock Cargo.lock "$initial" 0.1.0 "${local_packages[@]}" > "$fixture/lock"
-    cp "$fixture/manifest" Cargo.toml
+    while IFS= read -r package; do local_packages+=("$package"); done < <(jq -r '.members[]' "$fixture/synthetic-plan.json")
+    "$editor" --max-input-bytes 8388608 lock Cargo.lock "$initial" "$selected_version" "${local_packages[@]}" > "$fixture/lock"
     cp "$fixture/lock" Cargo.lock
-fi
-printf '# Changelog\n\n## [0.1.1]\n\n- Fixture release.\n' > CHANGELOG.md
+done
+printf '# Changelog\n\n## [0.1.1]\n\n- Fixture release.\n' > releases/protocol/CHANGELOG.md
+RELEASE_VERSION=0.9.1 bash "$PWD/scripts/ci/cargo-release-group.sh" plan engine > "$fixture/engine-before.json"
+while IFS= read -r path; do
+    mkdir -p "$fixture/unselected-engine/${path%/*}"
+    cp "$path" "$fixture/unselected-engine/$path"
+done < <(jq -r '.manifests[].path | select(. != "Cargo.toml"), empty' "$fixture/engine-before.json"; printf '%s\n' releases/engine/CHANGELOG.md)
 # Substitute external effects at script boundaries; retain the actual Make
 # recipes, ordered common/product admission and release routing without overrides.
 cat > scripts/ci/run-validation-targets.sh <<'SCRIPT'
@@ -213,7 +218,12 @@ cat > scripts/release/metadata.sh <<'SCRIPT'
 set -euo pipefail
 bash scripts/release/fixture-metadata.sh "$@" || exit "$?"
 if [[ "$1" == prepare-version ]]; then
-    if [[ -f target/interrupt-prepare ]]; then git show HEAD:Cargo.toml > Cargo.toml; exit 19; fi
+    if [[ -f target/interrupt-prepare ]]; then
+        primary="$(jq -r --arg group "$RELEASE_GROUP" '.groups[] | select(.name == $group) | .primary' ci/cargo-release-groups.json)"
+        git show HEAD:Cargo.toml > Cargo.toml
+        git show "HEAD:crates/$primary/Cargo.toml" > "crates/$primary/Cargo.toml"
+        exit 19
+    fi
     if [[ -f target/interrupt-prepared ]]; then exit 19; fi
 fi
 SCRIPT
@@ -232,29 +242,42 @@ git push -q origin main
 mkdir target
 printf 'retained artifact\n' > target/keep
 before="$(git rev-parse HEAD)"
+# Missing/empty/unknown selections refuse through the actual public entrypoints,
+# before setup, the gate, package creation or any Git release effect.
+for selected_group in '' unknown; do
+    for target in release-version release-patch release-minor release-major release-resume publish publish-dry-run; do
+        if make --no-print-directory "$target" RELEASE_GROUP="$selected_group" VERSION=0.1.1 \
+            > "$fixture/group-${selected_group:-empty}-$target.log" 2>&1; then
+            echo "unselected group unexpectedly admitted: $target/$selected_group" >&2; exit 1
+        fi
+        [[ ! -e target/preparation-dispatch.log && ! -e .git/publication-state ]]
+        [[ "$(git rev-parse HEAD)" == "$before" && -z "$(git tag -l)" ]]
+    done
+done
+if (unset RELEASE_GROUP; make --no-print-directory release-patch) > "$fixture/group-missing.log" 2>&1; then exit 1; fi
 if make --no-print-directory release-minor > "$fixture/wrong-candidate.log" 2>&1; then exit 1; fi
 [[ "$(git rev-parse HEAD)" == "$before" && -z "$(git tag -l)" ]] || exit 1
 # Invalid pending syntax must name the actual heading and its correction before
 # setup/fetch/validation, while preserving notes, index and release identity.
-cp CHANGELOG.md "$fixture/pending-notes"
+cp releases/protocol/CHANGELOG.md "$fixture/pending-notes"
 cp .git/index "$fixture/pending-index"
 for suffix in ' - Draft' ' - 2026-10-16'; do
-    sed "s/^## \[0.1.1\]$/## [0.1.1]$suffix/" "$fixture/pending-notes" > CHANGELOG.md
-    git add CHANGELOG.md
+    sed "s/^## \[0.1.1\]$/## [0.1.1]$suffix/" "$fixture/pending-notes" > releases/protocol/CHANGELOG.md
+    git add releases/protocol/CHANGELOG.md
     git commit -qm 'Commit invalid fixture heading for preflight admission'
     before="$(git rev-parse HEAD)"
     cp .git/index "$fixture/pending-index"
-    cp CHANGELOG.md "$fixture/invalid-notes"
+    cp releases/protocol/CHANGELOG.md "$fixture/invalid-notes"
     if make --no-print-directory release-patch > "$fixture/pending-heading.log" 2>&1; then exit 1; fi
     rg -F "expected pending heading '## [0.1.1]'" "$fixture/pending-heading.log" > /dev/null
     rg -F "found '## [0.1.1]$suffix'" "$fixture/pending-heading.log" > /dev/null
     [[ ! -e target/preparation-dispatch.log ]] || exit 1
-    cmp CHANGELOG.md "$fixture/invalid-notes"
+    cmp releases/protocol/CHANGELOG.md "$fixture/invalid-notes"
     cmp .git/index "$fixture/pending-index"
     [[ "$(git rev-parse HEAD)" == "$before" && -z "$(git tag -l)" ]] || exit 1
 done
-cp "$fixture/pending-notes" CHANGELOG.md
-git add CHANGELOG.md
+cp "$fixture/pending-notes" releases/protocol/CHANGELOG.md
+git add releases/protocol/CHANGELOG.md
 git commit -qm 'Restore valid fixture heading'
 before="$(git rev-parse HEAD)"
 # Common and CLI setup/admission must precede the gate and preserve release
@@ -314,16 +337,16 @@ git restore --staged crates/ic-auth/src/lib.rs
 # Standard preparation accepts the numbered marker and replaces it with its
 # saved UTC date before committing/tagging. Earlier refusal cases cover the bare
 # numbered spelling; do not require a manual heading edit for this path.
-awk '{ if ($0 == "## [0.1.1]") print "##\t[0.1.1]  -\tUnreleased \t"; else print }' "$fixture/pending-notes" > CHANGELOG.md
-git add CHANGELOG.md
+awk '{ if ($0 == "## [0.1.1]") print "##\t[0.1.1]  -\tUnreleased \t"; else print }' "$fixture/pending-notes" > releases/protocol/CHANGELOG.md
+git add releases/protocol/CHANGELOG.md
 git commit -qm 'Prepare numbered fixture heading'
 make --no-print-directory release-patch > "$fixture/patch.log" 2>&1
 [[ "$(make -s release-version)" == 0.1.1 ]] || exit 1
-[[ "$(awk '/^## / { print; exit }' CHANGELOG.md)" == "## [0.1.1] - $(jq -r .date release-validation.json)" ]] || exit 1
+[[ "$(awk '/^## / { print; exit }' releases/protocol/CHANGELOG.md)" == "## [0.1.1] - $(jq -r .date release-validation.json)" ]] || exit 1
 commit="$(git rev-parse HEAD)"
-bash scripts/ci/check-release-tag.sh "$commit" 0.1.1
+bash scripts/ci/check-release-tag.sh "$commit" 0.1.1 "$RELEASE_GROUP"
 [[ "$(git --git-dir="$fixture/remote.git" rev-parse main)" == "$commit" ]] || exit 1
-[[ "$(git --git-dir="$fixture/remote.git" rev-parse v0.1.1)" == "$(git rev-parse v0.1.1)" ]] || exit 1
+[[ "$(git --git-dir="$fixture/remote.git" rev-parse protocol-v0.1.1)" == "$(git rev-parse protocol-v0.1.1)" ]] || exit 1
 [[ -f target/keep ]] || exit 1
 git show "$before:Cargo.lock" | yq -p toml -o json '.' | jq -S '[.package[] | select(.source != null)]' > "$fixture/external-before.json"
 yq -p toml -o json '.' Cargo.lock | jq -S '[.package[] | select(.source != null)]' > "$fixture/external-after.json"
@@ -353,17 +376,20 @@ case "$1" in
     package)
         [[ "$FIXTURE_MODE" != package-failure ]] || exit 101
         mkdir -p "$CARGO_TARGET_DIR/package"
-        printf types > "$CARGO_TARGET_DIR/package/ic-auth-protocol-types-0.1.1.crate"
-        printf auth > "$CARGO_TARGET_DIR/package/ic-auth-0.1.1.crate"
-        printf wire > "$CARGO_TARGET_DIR/package/ic-auth-wire-0.1.1.crate"
+        source scripts/release/packages.sh selected
+        for package in "${packages[@]}"; do
+            version="$(yq -p toml -o json '.' "crates/$package/Cargo.toml" | jq -r .package.version)"
+            printf '%s' "$package" > "$CARGO_TARGET_DIR/package/$package-$version.crate"
+        done
         if [[ "$FIXTURE_MODE" == source-change ]]; then git commit --allow-empty -qm 'Concurrent fixture source'; fi
         ;;
     publish)
         [[ $# == 6 && "$2" == --locked && "$3" == --registry && "$4" == crates-io && "$5" == --package ]]
         selector="$6"
         package="${selector%@*}"
-        [[ "$selector" == "$package@0.1.1" ]]
-        case "$package" in ic-auth-protocol-types|ic-auth|ic-auth-wire) ;; *) exit 2 ;; esac
+        version="$(yq -p toml -o json '.' "crates/$package/Cargo.toml" | jq -r .package.version)"
+        [[ "$selector" == "$package@$version" ]]
+        case "$RELEASE_GROUP/$package" in protocol/ic-auth-protocol-types|protocol/ic-auth-wire|engine/ic-auth) ;; *) exit 2 ;; esac
         printf '%s\n' "$package" >> "$FIXTURE_LOG/uploads"
         if [[ "$FIXTURE_MODE" == lost-reply ]]; then exit 101; fi
         if [[ "$FIXTURE_MODE" == interrupted ]]; then kill -TERM "$PPID"; exit 143; fi
@@ -390,15 +416,16 @@ while [[ $# -gt 0 ]]; do
 done
 [[ -z "$diagnostics" ]] || : > "$diagnostics"
 package="$(basename "$(dirname "$url")")"
-checksum="$(bash scripts/dev/run-host-file.sh hash-file "$CARGO_TARGET_DIR/package/$package-0.1.1.crate" 67108864)"
+version="${url##*/}"
+checksum="$(bash scripts/dev/run-host-file.sh hash-file "$CARGO_TARGET_DIR/package/$package-$version.crate" 67108864)"
 case "$FIXTURE_MODE" in
     unknown) printf 503 ;;
     conflict)
-        jq -n --arg crate "$package" '{version:{crate:$crate,num:"0.1.1",checksum:("0" * 64),yanked:false}}' > "$output"
+        jq -n --arg crate "$package" --arg version "$version" '{version:{crate:$crate,num:$version,checksum:("0" * 64),yanked:false}}' > "$output"
         printf 200 ;;
     wrong-crate|wrong-version|invalid-checksum|invalid-yanked|multiple-json)
-        jq -n --arg crate "$package" --arg checksum "$checksum" --arg mode "$FIXTURE_MODE" '
-            {version:{crate:$crate,num:"0.1.1",checksum:$checksum,yanked:false}} |
+        jq -n --arg crate "$package" --arg version "$version" --arg checksum "$checksum" --arg mode "$FIXTURE_MODE" '
+            {version:{crate:$crate,num:$version,checksum:$checksum,yanked:false}} |
             if $mode == "wrong-crate" then .version.crate = "other-crate"
             elif $mode == "wrong-version" then .version.num = "0.1.2"
             elif $mode == "invalid-checksum" then .version.checksum = "wrong"
@@ -412,8 +439,8 @@ case "$FIXTURE_MODE" in
     transport) printf '{' > "$output"; printf 000; exit 28 ;;
     *)
         if [[ -f "$FIXTURE_LOG/observed-$package" ]]; then
-            jq -n --arg crate "$package" --arg checksum "$checksum" --arg mode "$FIXTURE_MODE" \
-                '{version:{crate:$crate,num:"0.1.1",checksum:$checksum,yanked:($mode == "yanked")}}' > "$output"
+            jq -n --arg crate "$package" --arg version "$version" --arg checksum "$checksum" --arg mode "$FIXTURE_MODE" \
+                '{version:{crate:$crate,num:$version,checksum:$checksum,yanked:($mode == "yanked")}}' > "$output"
             printf 200
         else printf 404; fi
         ;;
@@ -422,8 +449,21 @@ SH
 chmod +x "$fixture/bin/cargo" "$fixture/bin/curl" "$fixture/bin/wc"
 export PATH="$fixture/bin:$PATH" CARGO_TARGET_DIR="$PWD/target"
 export FIXTURE_MODE=package-failure
+# Group-qualified intents cannot evade an uncertain coordinated upload of the
+# same crate version. Refuse before even the substituted package operation.
+mkdir -p .git/publication-state
+printf 'legacy fixture intent\n' > .git/publication-state/0.1.1.json
+if bash scripts/release/publish.sh > "$fixture/legacy-intent.log" 2>&1; then exit 1; fi
+rg -F 'legacy publication intent exists' "$fixture/legacy-intent.log" > /dev/null
+[[ "$(cat .git/publication-state/0.1.1.json)" == 'legacy fixture intent' && ! -e .git/publication-state/lock ]]
+mv .git/publication-state/0.1.1.json "$fixture/legacy-intent.retained"
+printf 'legacy fixture dispatch\n' > .git/publication-state/0.1.1-ic-auth-protocol-types.dispatched
+if bash scripts/release/publish.sh > "$fixture/legacy-dispatch.log" 2>&1; then exit 1; fi
+rg -F 'legacy ic-auth-protocol-types upload custody exists' "$fixture/legacy-dispatch.log" > /dev/null
+[[ "$(cat .git/publication-state/0.1.1-ic-auth-protocol-types.dispatched)" == 'legacy fixture dispatch' && ! -e .git/publication-state/lock ]]
+mv .git/publication-state/0.1.1-ic-auth-protocol-types.dispatched "$fixture/legacy-dispatch.retained"
 if bash scripts/release/publish.sh > "$fixture/package-failure.log" 2>&1; then exit 1; fi
-[[ ! -f "$fixture/uploads" && ! -e .git/publication-state/0.1.1.json ]] || exit 1
+[[ ! -f "$fixture/uploads" && ! -e .git/publication-state/protocol-0.1.1.json ]] || exit 1
 export FIXTURE_MODE=unknown
 if bash scripts/release/publish.sh > "$fixture/unknown.log" 2>&1; then exit 1; fi
 [[ ! -f "$fixture/uploads" ]] || exit 1
@@ -434,7 +474,7 @@ grep -F 'registry checksum conflict' "$fixture/conflict.log" > /dev/null
 for mode in wrong-crate wrong-version invalid-checksum invalid-yanked multiple-json malformed oversized transport old-curl; do
     export FIXTURE_MODE="$mode"
     if bash scripts/release/publish.sh > "$fixture/$mode.log" 2>&1; then exit 1; fi
-    [[ ! -f "$fixture/uploads" && ! -e .git/publication-state/0.1.1-ic-auth-protocol-types.dispatched ]] || exit 1
+    [[ ! -f "$fixture/uploads" && ! -e .git/publication-state/protocol-0.1.1-ic-auth-protocol-types.dispatched ]] || exit 1
     grep -F 'cannot establish registry state' "$fixture/$mode.log" > /dev/null
 done
 export FIXTURE_MODE=marker-source-change
@@ -443,7 +483,7 @@ if bash scripts/release/publish.sh > "$fixture/marker-source-change.log" 2>&1; t
 git reset --hard "$commit" > /dev/null
 # This isolated fixture observed no dispatch at all. Restore its known-failed
 # marker before testing uncertainty separately; never touch real repo intent.
-rm .git/publication-state/0.1.1-ic-auth-protocol-types.dispatched
+rm .git/publication-state/protocol-0.1.1-ic-auth-protocol-types.dispatched
 export FIXTURE_MODE=lost-reply
 if bash scripts/release/publish.sh > "$fixture/lost-reply.log" 2>&1; then exit 1; fi
 [[ "$(wc -l < "$fixture/uploads")" -eq 1 ]] || exit 1
@@ -470,13 +510,13 @@ if bash scripts/release/publish.sh > "$fixture/unresolved.log" 2>&1; then exit 1
 touch "$fixture/observed-ic-auth-protocol-types"
 export FIXTURE_MODE=success
 bash scripts/release/publish.sh > "$fixture/publish.log" 2>&1
-[[ "$(cat "$fixture/uploads")" == $'ic-auth-protocol-types\nic-auth\nic-auth-wire' ]] || exit 1
+[[ "$(cat "$fixture/uploads")" == $'ic-auth-protocol-types\nic-auth-wire' ]] || exit 1
 bash scripts/release/publish.sh > "$fixture/publish-retry.log" 2>&1
-[[ "$(wc -l < "$fixture/uploads")" -eq 3 ]] || exit 1
+[[ "$(wc -l < "$fixture/uploads")" -eq 2 ]] || exit 1
 export FIXTURE_MODE=yanked
 bash scripts/release/publish.sh > "$fixture/yanked-reconcile.log" 2>&1
-[[ "$(wc -l < "$fixture/uploads")" -eq 3 ]] || exit 1
-[[ "$(find .git/publication-state -name intent -type f | wc -l)" -eq 3 ]] || exit 1
+[[ "$(wc -l < "$fixture/uploads")" -eq 2 ]] || exit 1
+[[ "$(find .git/publication-state -name intent -type f | wc -l)" -eq 2 ]] || exit 1
 cmp "$attempt/intent" "$fixture/lost-reply-attempt-intent"
 cmp "$attempt/cargo.log" "$fixture/lost-reply-cargo.log"
 # Registry reconciliation and shared interruption custody are separate. Even an
@@ -484,7 +524,7 @@ cmp "$attempt/cargo.log" "$fixture/lost-reply-cargo.log"
 mkdir .git/publication-state/.cargo-publication.lock
 printf 'fixture owner\n' > .git/publication-state/.cargo-publication.lock/owner
 bash scripts/release/publish.sh > "$fixture/published-with-retained-lock.log" 2>&1
-[[ -d .git/publication-state/.cargo-publication.lock && "$(wc -l < "$fixture/uploads")" -eq 3 ]] || exit 1
+[[ -d .git/publication-state/.cargo-publication.lock && "$(wc -l < "$fixture/uploads")" -eq 2 ]] || exit 1
 mv .git/publication-state/.cargo-publication.lock "$fixture/reconciled-helper-lock"
 while IFS= read -r observation; do
     bash scripts/ci/verify-file-checksum.sh --print sha256 "$observation/http-status" >> "$fixture/lost-reply-status-after.hashes"
@@ -507,7 +547,7 @@ git clone -q --no-hardlinks "$PWD" "$fixture/interrupted-repo"
     attempt="$(sed -n 's/^Publication evidence: //p' "$FIXTURE_LOG/interrupted.log")"
     [[ -f "$attempt/dispatch" && ! -e "$attempt/status" && ! -e "$attempt/cargo-status" ]] || exit 1
     cmp "$attempt/intent" "$fixture/expected-attempt-intent"
-    cp .git/publication-state/0.1.1-ic-auth-protocol-types.dispatched "$FIXTURE_LOG/saved-dispatch"
+    cp .git/publication-state/protocol-0.1.1-ic-auth-protocol-types.dispatched "$FIXTURE_LOG/saved-dispatch"
     if bash scripts/release/publish.sh > "$FIXTURE_LOG/absent-retry.log" 2>&1; then exit 1; fi
     [[ "$(wc -l < "$FIXTURE_LOG/uploads")" -eq 1 ]] || exit 1
     grep -F 'previous ic-auth-protocol-types upload is unresolved' "$FIXTURE_LOG/absent-retry.log" > /dev/null
@@ -515,21 +555,21 @@ git clone -q --no-hardlinks "$PWD" "$fixture/interrupted-repo"
     export FIXTURE_MODE=success
     if bash scripts/release/publish.sh > "$FIXTURE_LOG/confirmed-but-locked.log" 2>&1; then exit 1; fi
     grep -F 'shared publication attempt lock is retained' "$FIXTURE_LOG/confirmed-but-locked.log" > /dev/null
-    [[ "$(wc -l < "$FIXTURE_LOG/uploads")" -eq 1 && ! -e .git/publication-state/0.1.1-ic-auth.dispatched ]] || exit 1
+    [[ "$(wc -l < "$FIXTURE_LOG/uploads")" -eq 1 && ! -e .git/publication-state/protocol-0.1.1-ic-auth-wire.dispatched ]] || exit 1
     # Explicit fixture operator disposition, after reviewing the stopped attempt
     # and confirming its exact registry bytes. Preserve custody; no lock stealing,
     # upload replay or automatic recovery is implemented by the actual caller.
     mv .git/publication-state/.cargo-publication.lock "$FIXTURE_LOG/reconciled-helper-lock"
     bash scripts/release/publish.sh > "$FIXTURE_LOG/recovered.log" 2>&1
-    [[ "$(cat "$FIXTURE_LOG/uploads")" == $'ic-auth-protocol-types\nic-auth\nic-auth-wire' ]] || exit 1
+    [[ "$(cat "$FIXTURE_LOG/uploads")" == $'ic-auth-protocol-types\nic-auth-wire' ]] || exit 1
     [[ ! -e "$attempt/status" && -f "$attempt/dispatch" ]] || exit 1
     cmp "$attempt/intent" "$fixture/expected-attempt-intent"
-    cmp .git/publication-state/0.1.1-ic-auth-protocol-types.dispatched "$FIXTURE_LOG/saved-dispatch"
+    cmp .git/publication-state/protocol-0.1.1-ic-auth-protocol-types.dispatched "$FIXTURE_LOG/saved-dispatch"
 )
 # Already exported in the parent; replace the value after the isolated scenario.
 FIXTURE_MODE=source-change
 if bash scripts/release/publish.sh > "$fixture/source-change.log" 2>&1; then exit 1; fi
-[[ "$(wc -l < "$fixture/uploads")" -eq 3 ]] || exit 1
+[[ "$(wc -l < "$fixture/uploads")" -eq 2 ]] || exit 1
 git reset --hard "$commit" > /dev/null
 export FIXTURE_MODE=success
 
@@ -537,9 +577,9 @@ export FIXTURE_MODE=success
 printf '\n' >> README.md
 if bash scripts/release/publish.sh > "$fixture/dirty.log" 2>&1; then exit 1; fi
 git restore README.md
-git tag -d v0.1.1 > /dev/null
+git tag -d protocol-v0.1.1 > /dev/null
 if bash scripts/release/publish.sh > "$fixture/untagged.log" 2>&1; then exit 1; fi
-git tag -a v0.1.1 "$commit" -m 'Release 0.1.1'
+git tag -a protocol-v0.1.1 "$commit" -m 'Release 0.1.1'
 
 export PATH="${PATH#"$fixture/bin:"}"
 # Late metadata checks must select the old release commit even after later
@@ -585,14 +625,14 @@ cp "$fixture/before-broken-current.lock" Cargo.lock
 cp "$fixture/before-unsorted-current.toml" Cargo.toml
 for kind in minor major; do
     if [[ "$kind" == minor ]]; then candidate=0.2.0; else candidate=1.0.0; fi
-    { printf '# Changelog\n\n## [%s]\n\n- Fixture release.\n\n' "$candidate"; tail -n +3 CHANGELOG.md; } > target/notes
-    cp target/notes CHANGELOG.md
-    git add CHANGELOG.md
+    { printf '# Changelog\n\n## [%s]\n\n- Fixture release.\n\n' "$candidate"; tail -n +3 releases/protocol/CHANGELOG.md; } > target/notes
+    cp target/notes releases/protocol/CHANGELOG.md
+    git add releases/protocol/CHANGELOG.md
     git commit -qm "Prepare fixture $kind notes"
     if [[ "$kind" == minor ]]; then
         touch target/interrupt-prepare
         if make --no-print-directory release-minor > "$fixture/interrupted-prepare.log" 2>&1; then exit 1; fi
-        [[ "$(make -s release-version)" == 0.1.1 && -z "$(git tag -l v0.2.0)" ]] || exit 1
+        [[ "$(make -s release-version)" == 0.1.1 && -z "$(git tag -l protocol-v0.2.0)" ]] || exit 1
         rm target/interrupt-prepare
         cp target/preparation-dispatch.log "$fixture/interrupted-dispatch.log"
         editor_installs="$(awk '/^install$/ { n++ } END { print n+0 }' target/editor-events.log)"
@@ -607,7 +647,7 @@ for kind in minor major; do
         [[ "$(awk '/^install$/ { n++ } END { print n+0 }' target/editor-events.log)" == "$editor_installs" ]] || exit 1
     fi
     [[ "$(make -s release-version)" == "$candidate" ]] || exit 1
-    bash scripts/ci/check-release-tag.sh "$(git rev-parse HEAD)" "$candidate"
+    bash scripts/ci/check-release-tag.sh "$(git rev-parse HEAD)" "$candidate" "$RELEASE_GROUP"
 done
 [[ -f target/keep ]] || exit 1
 # Qualify the consumer's actual local metadata/receipt owner when a maintainer
@@ -616,8 +656,8 @@ done
 for disposition in restored prepared; do
     base="$(make -s release-version)"
     saved_candidate="$(bash scripts/ci/next-release-version.sh "$base" patch)"
-    printf '# Changelog\n\n## [%s]\n\n- Interrupted preparation fixture.\n' "$saved_candidate" > CHANGELOG.md
-    git add CHANGELOG.md
+    printf '# Changelog\n\n## [%s]\n\n- Interrupted preparation fixture.\n' "$saved_candidate" > releases/protocol/CHANGELOG.md
+    git add releases/protocol/CHANGELOG.md
     git commit -qm 'Prepare interrupted fixture notes'
     saved_source="$(git rev-parse HEAD)"
     state="$(git rev-parse --absolute-git-dir)/release-state"
@@ -625,9 +665,9 @@ for disposition in restored prepared; do
     touch "target/$marker"
     if make --no-print-directory release-patch > "$fixture/$disposition-interrupted.log" 2>&1; then exit 1; fi
     rm "target/$marker"
-    old_plan="$state/$saved_candidate.plan"
-    old_receipt="$state/validation-$saved_source-$saved_candidate.json"
-    [[ "$(tail -n 1 "$old_plan")" == prepare && ! -e "$old_plan.files" ]] || exit 1
+    old_plan="$state/protocol-$saved_candidate.plan"
+    old_receipt="$state/validation-protocol-$saved_source-$saved_candidate.json"
+    [[ "$(tail -n 2 "$old_plan")" == $'prepare\nprotocol' && ! -e "$old_plan.files" ]] || exit 1
     cp "$old_plan" "$fixture/$disposition-saved.plan"
     cp "$old_receipt" "$fixture/$disposition-saved-receipt.json"
     printf 'malformed historical journal\n' > "$state/0.0.0.plan"
@@ -635,7 +675,7 @@ for disposition in restored prepared; do
     if [[ "$disposition" == restored ]]; then
         # Restore the whole partially written roster, then request a different
         # increment. The superseded patch must not control today's selection.
-        for path in Cargo.toml Cargo.lock CHANGELOG.md release-validation.json; do
+        for path in Cargo.toml Cargo.lock releases/protocol/CHANGELOG.md crates/ic-auth-protocol-types/Cargo.toml crates/ic-auth-wire/Cargo.toml release-validation.json; do
             git show "$saved_source:$path" > "$path"
         done
         kind=minor
@@ -646,8 +686,8 @@ for disposition in restored prepared; do
     fi
     base="$(make -s release-version)"
     candidate="$(bash scripts/ci/next-release-version.sh "$base" "$kind")"
-    printf '# Changelog\n\n## [%s]\n\n- Committed preparation disposition fixture.\n\n## [%s] - 2026-10-05\n\n- Earlier fixture metadata.\n' "$candidate" "$base" > CHANGELOG.md
-    git add -- Cargo.toml Cargo.lock CHANGELOG.md release-validation.json
+    printf '# Changelog\n\n## [%s]\n\n- Committed preparation disposition fixture.\n\n## [%s] - 2026-10-05\n\n- Earlier fixture metadata.\n' "$candidate" "$base" > releases/protocol/CHANGELOG.md
+    git add -- Cargo.toml Cargo.lock releases/protocol/CHANGELOG.md crates/ic-auth-protocol-types/Cargo.toml crates/ic-auth-wire/Cargo.toml release-validation.json
     git commit -qm 'Commit fixture metadata disposition'
     current_source="$(git rev-parse HEAD)"
     git merge-base --is-ancestor "$saved_source" "$current_source"
@@ -669,9 +709,9 @@ for disposition in restored prepared; do
     rm target/fail-gate
     cmp "$old_plan" "$fixture/$disposition-saved.plan"
     cmp "$state/0.0.0.plan" "$fixture/malformed-historical.plan"
-    [[ ! -e "$state/$candidate.plan" && "$(make -s release-version)" == "$base" ]] || exit 1
-    [[ "$(git rev-parse HEAD)" == "$current_source" && -z "$(git tag -l "v$candidate")" ]] || exit 1
-    git diff --quiet HEAD -- Cargo.toml Cargo.lock CHANGELOG.md release-validation.json
+    [[ ! -e "$state/protocol-$candidate.plan" && "$(make -s release-version)" == "$base" ]] || exit 1
+    [[ "$(git rev-parse HEAD)" == "$current_source" && -z "$(git tag -l "protocol-v$candidate")" ]] || exit 1
+    git diff --quiet HEAD -- Cargo.toml Cargo.lock releases/protocol/CHANGELOG.md release-validation.json
     git diff --cached --quiet HEAD --
     { cat "$fixture/$disposition-before-restart.log"; printf 'common setup\ncommon setup\ncommon setup\ncli setup\ncommon setup\nfile setup\ncommon check\ncli check\nfile check\ngate\n'; } > "$fixture/$disposition-expected-failed-dispatch.log"
     cmp target/preparation-dispatch.log "$fixture/$disposition-expected-failed-dispatch.log"
@@ -679,16 +719,51 @@ for disposition in restored prepared; do
     [[ "$(make -s release-version)" == "$candidate" && -f target/keep ]] || exit 1
     [[ "$(jq -r .source release-validation.json)" == "$current_source" && "$(jq -r .previous release-validation.json)" == "$base" ]] || exit 1
     [[ "$(jq -r .candidate release-validation.json)" == "$candidate" && "$(jq -r .kind release-validation.json)" == "$kind" ]] || exit 1
-    bash scripts/ci/check-release-tag.sh "$(git rev-parse HEAD)" "$candidate"
+    bash scripts/ci/check-release-tag.sh "$(git rev-parse HEAD)" "$candidate" "$RELEASE_GROUP"
     [[ "$(git --git-dir="$fixture/remote.git" rev-parse main)" == "$(git rev-parse HEAD)" ]] || exit 1
     cmp "$old_plan" "$fixture/$disposition-saved.plan"
     cmp "$state/0.0.0.plan" "$fixture/malformed-historical.plan"
     cmp "$old_receipt" "$fixture/$disposition-saved-receipt.json"
     if [[ "$disposition" == prepared ]]; then
-        [[ -z "$(git tag -l "v$saved_candidate")" ]]
-        [[ -z "$(git --git-dir="$fixture/remote.git" tag -l "v$saved_candidate")" ]]
+        [[ -z "$(git tag -l "protocol-v$saved_candidate")" ]]
+        [[ -z "$(git --git-dir="$fixture/remote.git" tag -l "protocol-v$saved_candidate")" ]]
     fi
     yq -p toml -o json '.' Cargo.lock | jq -S '[.package[] | select(.source != null)]' > "$fixture/$disposition-external.json"
     cmp "$fixture/external-before.json" "$fixture/$disposition-external.json"
 done
-echo 'Release metadata, failure admission, exact tags/push, resume and publication reconciliation passed (local/mocked effects)'
+# All Protocol releases above left Engine package versions and notes unchanged.
+while IFS= read -r path; do
+    cmp "$path" "$fixture/unselected-engine/$path"
+done < <(jq -r '.manifests[].path | select(. != "Cargo.toml"), empty' "$fixture/engine-before.json"; printf '%s\n' releases/engine/CHANGELOG.md)
+[[ "$(make -s release-version RELEASE_GROUP=engine)" == 0.9.0 ]]
+
+# The user's motivating case: a breaking Engine release must preserve both
+# Protocol manifests, their local lock identities and their complete ledger.
+for path in crates/ic-auth-protocol-types/Cargo.toml crates/ic-auth-wire/Cargo.toml releases/protocol/CHANGELOG.md; do
+    mkdir -p "$fixture/unselected-protocol/${path%/*}"
+    cp "$path" "$fixture/unselected-protocol/$path"
+done
+yq -p toml -o json '.' Cargo.lock | jq -S '[.package[] | select(.name == "ic-auth-protocol-types" or .name == "ic-auth-wire")]' > "$fixture/protocol-lock-before.json"
+printf '# Engine changelog\n\n## [0.10.0] - Unreleased\n\n- Breaking Engine-only fixture change.\n' > releases/engine/CHANGELOG.md
+git add releases/engine/CHANGELOG.md
+git commit -qm 'Prepare Engine fixture notes'
+export RELEASE_GROUP=engine
+make --no-print-directory release-minor > "$fixture/engine-minor.log" 2>&1
+[[ "$(make -s release-version)" == 0.10.0 ]]
+bash scripts/ci/check-release-tag.sh "$(git rev-parse HEAD)" 0.10.0 engine
+for path in crates/ic-auth-protocol-types/Cargo.toml crates/ic-auth-wire/Cargo.toml releases/protocol/CHANGELOG.md; do
+    cmp "$path" "$fixture/unselected-protocol/$path"
+done
+yq -p toml -o json '.' Cargo.lock | jq -S '[.package[] | select(.name == "ic-auth-protocol-types" or .name == "ic-auth-wire")]' > "$fixture/protocol-lock-after.json"
+cmp "$fixture/protocol-lock-before.json" "$fixture/protocol-lock-after.json"
+make --no-print-directory release-resume VERSION=0.10.0 > "$fixture/engine-resume.log" 2>&1
+jq -e '.group == "engine" and .schema == 2' release-validation.json > /dev/null
+export PATH="$fixture/bin:$PATH" FIXTURE_MODE=success
+bash scripts/release/publish.sh > "$fixture/engine-publish.log" 2>&1
+[[ "$(cat "$fixture/uploads")" == $'ic-auth-protocol-types\nic-auth-wire\nic-auth' ]]
+bash scripts/release/publish.sh > "$fixture/engine-publish-retry.log" 2>&1
+[[ "$(wc -l < "$fixture/uploads")" -eq 3 ]]
+jq -e '.group == "engine" and [.packages[].name] == ["ic-auth"]' .git/publication-state/engine-0.10.0.json > /dev/null
+if RELEASE_GROUP=protocol bash scripts/release/publish.sh > "$fixture/wrong-group-publication.log" 2>&1; then exit 1; fi
+[[ "$(wc -l < "$fixture/uploads")" -eq 3 ]]
+echo 'Both release groups, unselected identities/notes, failure admission, exact tags/push, resume and publication reconciliation passed (local/mocked effects)'

@@ -2,10 +2,10 @@
 
 The virtual root owns the protocol/types, Auth engine and Wire transport libraries,
 unpublished native tooling in `apps/tooling/` and the reference host/runner in
-`apps/qualification/`. The root catalog selects published Platform, the
+`apps/qualification/`. The root catalog selects published Types and Platform, the
 Host FS/Process, Build and Testkit packages from
 [IC Tooling](https://github.com/dragginzgame/ic-tooling), Memory from
-[IC Persistence](https://github.com/dragginzgame/ic-persistence) and the Wire 0.13
+[IC Persistence](https://github.com/dragginzgame/ic-persistence) and the Wire 0.14
 codec/TypeScript generator. The lock and [handoff](status/current.md) record exact selections and evidence;
 [session contracts](sessions.md) distinguish supported behavior from pending hosts.
 Rust `1.99.1` remains the development compiler selected by `rust-toolchain.toml`.
@@ -126,7 +126,7 @@ explicit producer normalization, canonical-scalar checks and verification policy
 There are no direct K256 imports or declarations; a test-only Dalek feature
 trigger remains in the unpublished adversarial harness. SHA-256, CBOR and LEB128
 remain direct general-purpose dependencies with current Auth-owned consumers.
-Platform 0.16 selects K256 0.14 and Dalek 3/signature 3. Auth retains strict
+Platform 0.17 retains K256 0.14 and Dalek 3/signature 3. Auth retains strict
 verification, canonical-scalar admission and explicit high-S refusal, and the
 adversarial harness enables permissive parsing on that same Dalek generation.
 The Wasm graph admits two support generations for BLS/Principal hashing and the
@@ -143,15 +143,15 @@ only the native runner selects these capabilities.
 Native file and process callers select Host FS/Process 0.73.6 with defaults
 disabled. Library use does not enable Host's optional CLI, certificate decoder
 or Wasm text/encoding backends. Host stays outside the production library graph.
-Build 0.73.6 and Testkit 0.76.2 select the same Host 0.73 identities as Auth's direct
+Build 0.73.6 and Testkit 0.78.0 select the same Host 0.73 identities as Auth's direct
 callers; no dependency override or old Host family is needed. The independently
 pinned file CLI is independently selected at 0.73.6 for this adoption.
 Build and Testkit libraries keep `cli` disabled; only the prepared executable
 selections request it. Testkit owns its benchmark-average errors and selects
-arithmetic-only Metrics 0.24.5 alongside Auth. Auth exchanges no Metrics values with
+arithmetic-only Metrics 0.25.0 alongside Auth. Auth exchanges no Metrics values with
 Testkit, and neither caller enables its optional native metadata.
 
-The unpublished qualification host separately selects IC Metrics 0.24.5 for fixed
+The unpublished qualification host separately selects IC Metrics 0.25.0 for fixed
 admission outcome counters, with defaults disabled: arithmetic and validated Serde
 do not select its optional native Wire metadata. Public Auth graphs forbid that
 dependency. See the
@@ -174,8 +174,9 @@ not add a version file, prepare-work command or package-version edit here.
 The root catalog uses `Production dependencies` and `Tests and tooling only`;
 member annotations distinguish the three production libraries from internal
 qualification and native tooling packages. These roles describe graph use, not
-registry publication. Platform is a production entry; its optional capabilities
-are admitted per graph. Certified libraries select BLS, while all library
+registry publication. Types is the passive identity owner; Platform is an optional
+production entry selected by crypto capabilities and admitted per graph.
+Certified libraries select BLS, while all library
 capabilities refuse Candid and ic0. Only the runtime host selects ic0/executor.
 Native Host, Build and Testkit selections remain
 tests/tooling entries.
@@ -209,12 +210,16 @@ validate role comments mechanically, or qualify unlisted feature combinations.
 
 ## IC Platform boundary
 
-The protocol package selects published `ic-platform` 0.16.0 with only `principal`
-for canonical Types 0.15.1 Principal and parse-error identities, without an external Principal,
-SHA-2, Candid or runtime edge. The Auth engine explicitly selects
-`principal-self-authenticating` for browser-key hashing. Convert
+The protocol package selects published `ic-platform-types` 0.16.0 directly for
+canonical Principal and parse-error identities, without a facade, external
+Principal, SHA-2, Candid or runtime edge. The Auth engine selects Types'
+`principal-self-authenticating` for browser-key hashing. Its Platform dependency
+is optional: only crypto capabilities select it, while default and session-only
+graphs exclude the facade. This changes the public Rust identity from Types 0.15;
+consumers must align on Types 0.16 and Wire 0.14. Serialized bytes are unchanged.
+Direct dependency and resolved graph policies enforce the owner boundaries. Convert
 explicitly at native Agent/Testkit boundaries using Platform's
-`principal::ExternalPrincipal` with `principal-external` selected. Platform 0.16
+`principal::ExternalPrincipal` with `principal-external` selected. Platform 0.17
 canister-signature keys instead use the canonical owned Principal directly.
 Significant bytes, ordering and binary serialization remain compatible; text
 longer than 63 bytes is now refused before normalization. See the
@@ -245,12 +250,15 @@ are refused without migration or reset. The maintainer confirmed no retained Aut
 records require preservation. IC Memory allocation and StableCell framing remain
 unchanged. Start with a coherent new fixture checkpoint for this hard cut.
 Checkpoint restores remain closed until matching controller authority is confirmed.
-The qualification host selects Memory/Storage 0.61.0 with the standard canister
+The qualification host selects Memory/Storage 0.62.1 (minimum 0.62.0) with the standard canister
 backing. Memory admits one runtime/allocation; Storage's `StableCell` consumes
 that checked lease. Auth checks the retained payload ceiling before loading and
 refuses occupied fresh state before creating a cell. Setup parses a `StableKey`
 for `open_memory`; fresh state uses `StableCell::create`, while retained state
 uses `StableCell::load`. No combined initialization or reset path is selected.
+Memory/Storage 0.62 aligns its codec-error identity with Wire 0.14; durable bytes,
+allocation custody, admission limits and recovery behavior stay unchanged. The
+host graph requires one Wire provider for both RPCs and persistence.
 Memory 0.53 trusts exclusive
 backing custody between manager checks at construction, lease opening and growth;
 raw backing aliases remain prohibited. Native reopen tests release the cell and
@@ -293,29 +301,29 @@ features. All direct registry creation/verifier declarations and local crypto
 implementations remain absent ([#16](https://github.com/dragginzgame/ic-platform/issues/16),
 [#17](https://github.com/dragginzgame/ic-platform/issues/17),
 [#18](https://github.com/dragginzgame/ic-platform/issues/18)).
-Platform 0.16 maintains the imported certification/BLS code and retained licenses,
+Platform 0.17 maintains the imported certification/BLS code and retained licenses,
 without the unexposed store or Candid import. Certificate, tree and key identities
-belong to Platform; the key's Principal is canonical Types 0.15.1. DER/CBOR bytes,
+belong to Platform; the key's Principal is canonical Types 0.16.0. DER/CBOR bytes,
 resource admission and protected authority remain. Its BLS identity-key correction
 rejects forged certificates, covered through Auth's verifier; native Agent's
 separate external verifier does not inherit that correction. These capabilities
 select no Candid, raw IC calls or executor; no local replacement is introduced.
 
-Platform's `cdk` feature supplies maintained runtime adapters and explicit
+The independent `ic-platform-runtime` owner's `cdk` feature supplies runtime adapters and explicit
 codec entrypoints without depending on the full CDK or selecting Candid. The
-host's runtime calls and lifecycle/query/update macros use `ic_platform::cdk`;
+host's runtime calls and lifecycle/query/update macros use `ic_platform_runtime::cdk`;
 no local runtime wrapper is introduced. Explicit Wire hooks, including unit RPCs,
 retain byte admission, payloads, errors and traps. Controller Boolean/panic
-behavior remains. Platform 0.16 owns its maintained executor and IC0 bindings,
+behavior remains. Runtime 0.17.1 owns its maintained executor and IC0 bindings,
 with their upstream provenance; no separate registry executor is selected.
 The retired no-op `hidden = true` option is removed from all fixture entrypoints;
 explicit Wire decoding/encoding and endpoint exports remain unchanged.
 
 Auth keeps runtime-specific call/error types internal and uses none of the
 retired storage or `change_timeout` APIs. Its public Principal has canonical
-Types 0.15 identity, reexported by Platform. Select `principal` when using the
-facade alone; see [the migration](canic-adoption.md#platform-015-migration).
-Published Memory/Storage and native Testkit share Platform 0.16 and its Types with Auth;
+Types 0.16 identity, reexported by Platform. Select `principal` when using the
+facade alone; self-authentication and external conversions are separate capabilities.
+Published Memory/Storage and native Testkit share Platform 0.17 and its Types with Auth;
 they do not define Auth's public Principal. Storage retains the same
 upstream stable-structures types, and native Agent/Testkit boundaries retain the
 upstream external Principal. No dependency override or new conversion is needed.
@@ -638,7 +646,7 @@ multi-package, multi-feature and multi-target entries are aggregate suites.
 | `make test-certified-proofs` | Portable certified secp256k1/BLS proofs, protected delegation bindings, budgets and rejection |
 | `make test-sessions` | Atomic admission/replay failure, exact retry, live authority invalidation, logout and quotas using certified and Ed25519 portable proofs |
 | `make test-backend-conformance` | Shared native backend scenarios against reference callbacks and an independent encoded store; deliberate partial-commit rejection; no simulator/private fixture dependency |
-| `make pack-backend-conformance` | Cargo-normalized unpublished source archive for a consumer's dev dependency; matching Auth cohort must already be published; no upload |
+| `make pack-backend-conformance` | Cargo-normalized unpublished source archive for a consumer's dev dependency; selected Engine/Protocol dependencies must already be published; no upload |
 | `make test-backend-package` | Opt-in: archive, excluded dev-dependency consumer, exact registry Auth identities, packaged scenarios and graph refusals; receipt and inputs retained; registry cohort must be explicitly cached |
 | `make profile-canonical-allocations` | Opt-in: release-mode native DHAT observations of unchanged canonical hash functions on synthetic small/wide inputs; outside CI; see [measurement limits and results](canonical-allocation-observations.md) |
 | `make test-host-tooling` | Native file-operation CLI: bounded input, exact digest output, no-follow reads and preserved create-only evidence |
@@ -654,7 +662,8 @@ multi-package, multi-feature and multi-target entries are aggregate suites.
 | `make check-snapshot` | Verify the adopted shared files and modes |
 | `make check-dependency-pins` | Check declarations, lockfile tracking and root inheritance |
 | `make check-doc-links` | Check local Markdown targets |
-| `make publish-dry-run` | Build all three distributable libraries without uploading; requires registry metadata access |
+| `make publish-dry-run RELEASE_GROUP=protocol\|engine` | Build the selected group's distributable libraries without uploading; requires registry metadata access |
+| `make check-package-builds` | Package and verify all three local library archives together, included in the complete gate |
 | `make install-release-tools` / `make release-tools-check` | Explicitly prepare the lock-selected IC Build editor, or admit and print its absolute path offline |
 | `make test-release-tools` | Exercise release/recovery and publication rejection/retry using local and mocked effects |
 | `make test-release-runner` | Opt-in producer runner matrix for changed-contract adoption or a named missing consumer proof |
@@ -668,8 +677,9 @@ handoff select the relevant checks above; local full-gate execution follows
 [Shared Tooling validation policy](../DRAGGINZGAME.md#validation-and-evidence).
 
 Auth's ordered public package inventory is `scripts/release/packages.sh`.
-Publication/retry evidence, MSRV package creation/extraction, license checks and
-publication dry runs consume that list. Capability-specific consumer harnesses
+Publication/retry evidence and publication dry runs select its explicit group
+subset. MSRV package creation/extraction and license checks inspect the whole
+inventory; archive admission reads each group's own versions. Capability-specific consumer harnesses
 retain their explicit package roles and feature selections.
 The generic runner/archive matrices stay at Shared Tooling and remain explicitly
 callable here. Auth retains `test-release-tools` for its actual metadata,
@@ -679,7 +689,7 @@ and retained evidence. Snapshot integrity still qualifies adopted bytes. No
 product, native-host or release-adapter coverage is removed by this roster change.
 
 It uses the Shared Tooling 0.6.6 logger and retains failures. CI declares the
-root Cargo manifest/lock, Rust compiler selection, common host/Rust and IC pins,
+root Cargo manifest/lock, all member manifests, group policy, Rust compiler selection, common host/Rust and IC pins,
 and browser package manifest/lock/Node selection as prepared inputs. Their byte
 identities are checked before and after each stage. A change, deletion or read
 failure stops later dispatch, preserves an original stage failure and reports
@@ -692,21 +702,27 @@ The workflow prepares tools and caches first, then calls that same gate. The pub
 the current release. Local and hosted evidence for the current batch is recorded
 in the [handoff](status/current.md). Dependency pinning requires each lockfile and
 the npm root manifest to be tracked.
-Cargo tests, metadata and Wasm checks run offline after `fetch`. The publication
-dry run deliberately accesses registry metadata: the selected Cargo's offline
-multi-package check fails when a staged dependency has no resolved checksum.
-It never uploads packages. It is part of the complete CI/release gate; release
-logs remain under `.git/release-state/validation-logs/`.
-Each invocation retains a fresh staging/build directory under
-`target/publication-dry-runs/`. This gives Cargo's temporary registry a distinct
-identity, preventing earlier same-version source from being reused after edits.
-Existing package staging and Cargo caches are preserved.
+Cargo tests, metadata and Wasm checks run offline after `fetch`. The complete
+gate's package check deliberately accesses registry metadata: the selected Cargo's
+offline multi-package check fails when a staged dependency has no resolved checksum.
+`make check-package-builds` packages and verifies all three current source archives
+together, so a pending public Protocol identity change does not select the older
+published Protocol when verifying Engine. It never uploads. Each invocation retains
+a fresh staging/build directory under `target/package-qualification/`; Cargo's
+temporary registry has a distinct identity so earlier same-version source is not
+reused. Normalized package locks and build logs identify the selected suppliers.
+Existing staging and caches are preserved.
+`publish-dry-run RELEASE_GROUP=…` separately checks the selected group's normal
+registry admission under `target/publication-dry-runs/`. That readiness check can
+refuse until a changed Protocol supplier is published; the local archive check
+does not relax final publication admission. Release logs remain under
+`.git/release-state/validation-logs/`.
 
 Once this workflow is delivered to `main`, an explicitly authorized qualification
 of another branch or a tag-only release can dispatch the same workflow at that ref:
 
 ```sh
-gh workflow run ci.yml --repo dragginzgame/ic-auth --ref vX.Y.Z
+gh workflow run ci.yml --repo dragginzgame/ic-auth --ref engine-vX.Y.Z
 ```
 
 Dispatch requires the workflow on the default branch and its `workflow_dispatch`
@@ -767,16 +783,32 @@ Fresh release preflight includes [release editor setup](#release-editor-setup).
 Exact recovery uses the already prepared saved-source selection offline.
 
 ```sh
-make release-patch                 # compatible patch increment
-make release-minor                 # breaking pre-1.0 contract
-make release-major                 # explicit major decision
-make release-resume VERSION=X.Y.Z   # reconcile the exact saved attempt
-make publish-dry-run               # validate packages without upload
-make publish                       # upload a clean, delivered tagged release
+make release-patch RELEASE_GROUP=protocol                # compatible Protocol change
+make release-minor RELEASE_GROUP=engine                  # breaking Engine change
+make release-major RELEASE_GROUP=engine                  # explicit major decision
+make release-resume RELEASE_GROUP=engine VERSION=X.Y.Z   # exact saved group attempt
+make publish-dry-run RELEASE_GROUP=protocol              # selected builds, no upload
+make check-package-builds                                # both groups, no upload
+make publish RELEASE_GROUP=engine                        # selected delivered release
 ```
 
-Release execution requires an explicit request for the selected command.
+Release execution requires release authority; a scoped ship/deploy request
+delegates group selection and the established release/publication workflow.
 Release-by-release adoption history belongs in the [changelog](../CHANGELOG.md).
+
+`ci/cargo-release-groups.json` owns two groups. Protocol contains
+`ic-auth-protocol-types` and `ic-auth-wire`; Engine contains `ic-auth` and every
+unpublished qualification/tooling member. All member versions are explicit.
+Each group owns `releases/<group>/CHANGELOG.md`; the root changelog indexes these
+ledgers and the retained coordinated history through 0.29.2. The split changes
+no package version. Missing, empty and unknown group selections refuse before
+setup, validation or publication. There is no implicit all-groups release.
+Engine releases preserve Protocol identities and notes. Protocol releases update
+their root path requirements without publishing or changing Engine's version.
+Publish a changed Protocol supplier before an Engine release that requires it.
+For the pending public identity cut, release Protocol 0.30.0 first, then
+Engine 0.30.0 against that supplier. Future Engine-only minor releases need no
+Protocol bump.
 
 `make test-release-tools` exercises current working sources in a disposable
 export, including nonignored additions and deletions. Git-ignored build output
@@ -799,7 +831,7 @@ identity. Missing older tags or malformed historical plans do not block a new
 release. Current source/index, lock, candidate ref/payload, destination and branch
 protection conflicts still refuse.
 
-Use `make release-resume VERSION=X.Y.Z` to continue one specific interrupted
+Use `make release-resume RELEASE_GROUP=engine VERSION=X.Y.Z` to continue one specific interrupted
 attempt against its saved source, version, payload and destination. Auth's
 preparation adapter owns manifest/lock, changelog and validation receipt writes;
 Git staging and delivery remain runner-owned. Neither path installs a saved
@@ -827,7 +859,7 @@ build, with explicit sequencing that also applies to parallel Make.
 `make test-testkit-tools` checks caller selection, failures and
 offline qualification with substituted effects. Canic's actual adapter and
 durable host qualification remain consumer-owned. Commit the implementation
-before executing a release; only pending notes may be dirty at ordinary preflight.
+and its pending notes before executing a release; ordinary preflight requires clean source.
 
 All three release targets use the adopted runner, the same `make ci` gate and
 direct delivery to `origin/main` by default. `RELEASE_REMOTE` and `RELEASE_BRANCH`
@@ -838,7 +870,7 @@ with its other preparation inputs and refuses policy drift before later stages.
 Preflight reports all refused staged, unstaged and untracked paths, quotes
 unusual names, and distinguishes Git observation errors from dirty source.
 Initial refusal identifies that this attempt has not started validation or
-version preparation. Interrupted preparation retains its exact four-file
+version preparation. Interrupted preparation retains its exact group file
 metadata allowance and receipt checks. Admission preserves files and index bytes.
 Normal preflight fetches the selected lockfile, then runs `make install-tools`
 and `make tools-check`. The canonical ordered aggregate prepares host and common
@@ -848,22 +880,30 @@ payloads alone do not activate a checkout's missing local references.
 Explicit Cargo offline settings still apply; a failed preparation stops before
 validation or version changes. Saved-receipt recovery admits interrupted metadata
 without provisioning a potentially partial graph. Ordinary checks never install
-tools. Preparation changes the root
-version, the inherited internal
-dependency requirement, all local workspace lock entries and the candidate notes.
-It adds `release-validation.json`, binding the complete gate to the validated
-source, lockfile, original notes and selected release identity. External dependency
-selections remain byte-for-byte unchanged. The canonical root version is replaced
-last so interrupted preparation can be repeated from the retained intent.
+tools. Shared group preparation changes only selected member versions, their root
+dependency requirements, selected local lock identities and the selected ledger.
+Auth renders from an exported validated source using the shared helper, then
+installs the exact file plan and receipt through the shared metadata transaction.
+`release-validation.json` binds the complete gate to the group, policy checksum,
+validated source/lock, original notes and release identity. Saved receipts include
+the group in their names. External selections and unselected versions/notes are
+preserved. The primary member's version is installed last; source-only version
+observation lets recovery reach saved-source reconciliation with a partial payload.
+Interrupted base/prepared files are reconciled against that same source.
 
 The runner stages only the owned release files, commits and creates an annotated
-`vX.Y.Z` tag, then atomically pushes that branch and tag. It retains plans, logs
+`<group>-vX.Y.Z` tag, then atomically pushes that branch and tag. Group journals
+are `<group>-X.Y.Z.plan`. It retains plans, logs
 and build artifacts on failure and success. Rerun the same normal target for
 recovery; explicit resume selects one saved version. Late checks read the selected
 release commit even if HEAD contains later work. Releases do not publish crates.
+Historical `vX.Y.Z` tags and pre-group journals/receipts retain their original
+meaning. Resume or publish those releases using their original adapter/source in
+the dedicated release checkout; the new adapter refuses to reinterpret them.
 
-`make publish` selects `ic-auth-protocol-types`, `ic-auth` and `ic-auth-wire`,
-in that dependency order, and always targets crates.io. It requires a clean worktree, the exact annotated
+`make publish RELEASE_GROUP=protocol` selects `ic-auth-protocol-types` then
+`ic-auth-wire`; `RELEASE_GROUP=engine` selects only `ic-auth`. Publication always
+targets crates.io. It requires a clean worktree, the exact annotated group
 tag at HEAD, a validated release receipt and the same tag object on the selected
 remote. Cargo builds the distributable archives before dispatch. Each package
 includes its MIT notice; the package-local copies must match the root license.
@@ -871,7 +911,11 @@ Authenticate using Cargo's normal credential provider/login before an authorized
 publication; the script never prints or reads credential files itself.
 
 Publication intent under `.git/publication-state/` fixes source, tag, registry,
-version and archive checksums before upload. Successful matching registry
+group/version and archive checksums before upload, in group-qualified intent and
+dispatch paths. The publication and shared-attempt locks remain repository-wide.
+An overlapping coordinated publication intent or dispatch marker refuses group
+publication; changing namespaces cannot authorize retry of an uncertain old upload.
+Successful matching registry
 observations skip an identical upload. Registry errors and checksum conflicts
 stop the run. Exact-version transport and metadata admission use the selected
 Shared Tooling helper, requiring curl 8.4.0+ and the prepared jq. It bounds each

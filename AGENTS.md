@@ -56,19 +56,19 @@ below supplement the shared core.
 
 ## Platform boundary
 
-Use published `ic-platform` with only `principal` for the protocol's canonical
-Principal and its `agent` capability for native ingress identities. Application protocols,
+Use published `ic-platform-types` directly for the protocol's canonical
+Principal. Select Platform's `agent` capability for native ingress identities. Application protocols,
 generated browser contracts and private qualification controls use IC Wire.
 The fixture exposes only Wire methods, with no Candid projection or direct
 declaration. Its old
 Candid checkpoint is explicitly retired; production storage is unaffected.
-Platform reexports Auth's canonical Principal and parse errors from
-`ic-platform-types` 0.15. The engine explicitly
-selects `principal-self-authenticating` for browser-key hashing; passive protocol
-and Wire packages keep only `principal`, without external Principal or SHA-2.
+Auth selects canonical Principal and parse errors from `ic-platform-types` 0.16.
+The engine explicitly selects Types' `principal-self-authenticating` for
+browser-key hashing; passive protocol and Wire packages select neither external
+Principal nor SHA-2. Platform is optional and selected only by crypto capabilities.
 Convert explicitly through `principal::ExternalPrincipal` at native
 Agent/Testkit boundaries; keep `principal-external` selected there.
-Platform 0.16 canister-signature keys and certificate types use owned identities.
+Platform 0.17 canister-signature keys and certificate types use owned identities.
 Keep application/runtime identities owned and preserve original bytes. It supplies
 maintained canister-signature, certificate-tree and BLS code plus upstream
 ECDSA and Ed25519 capabilities. All K256 and Ed25519 API imports use
@@ -77,7 +77,9 @@ canonical-scalar admission and strict verification. The unpublished
 feature-unification harness alone has a direct Dalek dev dependency
 to enable permissive parsing adversarially, never in a deployed graph. Forward only the features required by each Auth
 capability; BLS fixture signing is a dev dependency. Preserve imported crypto provenance; do not implement replacement cryptography.
-The qualification host selects Platform's `cdk` capability for runtime calls,
+Runtime-only consumers select the published independent Runtime owner directly;
+public Auth libraries and passive contracts exclude it. The mixed crypto/runtime
+host selects Runtime's `cdk` capability directly for runtime calls,
 certificate acquisition/publication and entrypoint generation (Platform #21).
 Keep explicit Wire codecs and the upstream controller/runtime semantics; the
 retired no-op `hidden` macro option is not accepted.
@@ -153,8 +155,15 @@ and `ci/cargo-dependency-boundaries.json` for direct-dependency ownership.
   `make install-release-tools`. Recovery and ordinary checks only admit the saved
   selection offline; they never install or rebuild from partially prepared
   metadata. Auth retains an 8 MiB input limit and recovery custody.
-- `make publish-dry-run` checks all three package builds using live registry metadata
-  without uploading. `make test-release-tools` uses local bare remotes and mocked
+- Protocol (`ic-auth-protocol-types`, `ic-auth-wire`) and Engine (`ic-auth` plus
+  private qualification/tooling) release independently. All member versions are
+  explicit; `ci/cargo-release-groups.json` owns group membership and ledgers.
+  Select `RELEASE_GROUP=protocol|engine` explicitly for release, resume and publication.
+  `make publish-dry-run RELEASE_GROUP=…` checks the selected group's builds using
+  live registry metadata without uploading; `make check-package-builds` verifies all
+  three current local archives together and remains in the complete gate. It permits
+  prepublication Protocol identity changes without selecting an older registry peer.
+  `make test-release-tools` uses local bare remotes and mocked
   upload/registry transport. The three release targets share the complete gate
   and direct-delivery runner; `make publish` requires a clean, exactly tagged and
   pushed release. Running those effectful commands still requires explicit

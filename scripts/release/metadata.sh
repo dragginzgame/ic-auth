@@ -1,53 +1,83 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Consumer metadata/evidence adapter. Git effects belong to the shared runner.
+# Auth owns complete-gate receipts and saved-source recovery. Shared Tooling owns
+# group admission, file plans and transactional Cargo/changelog rendering.
 script_path="${BASH_SOURCE[0]}"
 [[ "$script_path" == /* ]] || script_path="$PWD/$script_path"
 cd -P "${script_path%/*}/../.."
+auth_release_root="$PWD"
 operation="${1:?operation required}"
 fail() { echo "release metadata refused: $*" >&2; exit 1; }
-bash scripts/ci/check-release-delivery.sh ci/release-delivery.txt "${RELEASE_DELIVERY:-direct}" ||
-    fail 'this repository qualifies direct delivery only'
-files=(Cargo.toml Cargo.lock CHANGELOG.md release-validation.json)
-if [[ "$operation" == files ]]; then printf '%s\0' "${files[@]}"; exit 0; fi
+bash scripts/ci/check-release-delivery.sh ci/release-delivery.txt "${RELEASE_DELIVERY:-direct}" || fail 'this repository qualifies direct delivery only'
+source scripts/release/group.sh
+if [[ "$operation" == files ]]; then
+    auth_release_group
+    exec bash "$PWD/scripts/ci/cargo-release-group.sh" files "$RELEASE_GROUP"
+fi
+[[ -n "${RELEASE_GROUP:-}" ]] || fail 'explicit RELEASE_GROUP required'
 for value in "${RELEASE_PREVIOUS:?}" "${RELEASE_VERSION:?}"; do
     [[ "$value" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] || fail 'invalid selected version'
 done
-[[ "${RELEASE_SOURCE:?}" =~ ^[0-9a-f]{40,64}$ && "${RELEASE_DATE:?}" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] || fail 'invalid source/date'
+[[ "${RELEASE_SOURCE:?}" =~ ^([0-9a-f]{40}|[0-9a-f]{64})$ && "${RELEASE_DATE:?}" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] || fail 'invalid source/date'
+auth_release_group - < <(git show "$RELEASE_SOURCE:ci/cargo-release-groups.json") ||
+    fail 'saved source has no matching release group; use its original release checkout for legacy recovery'
 limit=8388608
 state="$(git rev-parse --absolute-git-dir)/release-state"
 [[ ! -L "$state" ]] || fail 'symlinked release state'
 mkdir -p "$state"
-receipt="$state/validation-$RELEASE_SOURCE-$RELEASE_VERSION.json"
-scratch="$(mktemp -d "$state/metadata.XXXXXX")"
-trap 'rm -rf "$scratch"' EXIT
-
-admit_changes() {
-    bash scripts/ci/check-release-source.sh \
-        --allow Cargo.toml --allow Cargo.lock --allow CHANGELOG.md --allow release-validation.json
+auth_scratch="$(mktemp -d "$state/metadata.XXXXXX")"
+complete=false
+finish() {
+    local status=$?
+    if [[ "$complete" == true && "$status" == 0 ]]; then rm -rf "$auth_scratch"
+    else printf 'Release metadata evidence retained: %s\n' "$auth_scratch" >&2; fi
+    exit "$status"
 }
+trap finish EXIT
+mkdir "$auth_scratch/source"
+git archive --format=tar "$RELEASE_SOURCE" | tar -xf - -C "$auth_scratch/source"
+# Pre-group attempts must resume with their original source and adapter in their
+# dedicated release checkout. Do not reinterpret or discard historical custody.
+auth_release_group "$auth_scratch/source/ci/cargo-release-groups.json" || fail 'saved source has no matching release group; use its original release checkout for legacy recovery'
+policy_digest="$(bash scripts/ci/verify-file-checksum.sh --print sha256 "$auth_scratch/source/ci/cargo-release-groups.json")"
+receipt="$state/validation-$RELEASE_GROUP-$RELEASE_SOURCE-$RELEASE_VERSION.json"
+cp "$auth_scratch/source/Cargo.lock" "$auth_scratch/base.lock"
+cp "$auth_scratch/source/Cargo.toml" "$auth_scratch/base.toml"
+(
+    unset RELEASE_COMMIT
+    cd "$auth_scratch/source"
+    bash "$auth_release_root/scripts/ci/cargo-release-group.sh" plan "$RELEASE_GROUP"
+) > "$auth_scratch/plan.json"
+[[ "$(jq -r .previous "$auth_scratch/plan.json")" == "$RELEASE_PREVIOUS" ]] || fail 'source version mismatch'
+files=() allow_changes=() metadata_files=()
+while IFS= read -r path; do
+    files+=("$path")
+    allow_changes+=(--allow "$path")
+    [[ "$path" == "$changelog" ]] || metadata_files+=("$path")
+done < <(jq -r '.files[]' "$auth_scratch/plan.json")
+# Keep the bootstrap version old until the complete payload is installed. The
+# runner can then re-enter saved-source reconciliation after a partial write.
+primary_manifest="$(yq -p toml -o json '.' "$auth_scratch/base.toml" | jq -er --arg primary "$primary" '.workspace.dependencies[$primary].path + "/Cargo.toml"')"
+jq -e --arg path "$primary_manifest" '.manifests | any(.path == $path and .version == "package")' "$auth_scratch/plan.json" > /dev/null
+prepare_files=()
+for path in "${files[@]}"; do [[ "$path" == "$primary_manifest" ]] || prepare_files+=("$path"); done
+prepare_files+=("$primary_manifest")
+admit_changes() { bash scripts/ci/check-release-source.sh "${allow_changes[@]}"; }
 read_receipt() {
     [[ -f "$1" && ! -L "$1" ]] || fail 'missing validation receipt; run the release through the shared runner'
-    jq -e --arg source "$RELEASE_SOURCE" --arg previous "$RELEASE_PREVIOUS" \
-        --arg candidate "$RELEASE_VERSION" --arg kind "${RELEASE_KIND:?}" --arg date "$RELEASE_DATE" '
-        .schema == 1 and .gate == "ci" and .source == $source and .previous == $previous
-        and .candidate == $candidate and .kind == $kind and .date == $date
-        and (.changelog | type == "string") and (.lock_sha256 | test("^[a-f0-9]{64}$"))
-    ' "$1" > /dev/null || fail 'validation receipt does not match the selected source/release'
-    git show "$RELEASE_SOURCE:Cargo.lock" > "$scratch/base.lock"
-    # Recovery may have a partially prepared manifest/lock pair. Use the
-    # adopted portable reader here: rebuilding a workspace utility would depend
-    # on the very metadata this boundary is reconciling.
-    [[ "$(bash scripts/ci/verify-file-checksum.sh --print sha256 "$scratch/base.lock")" == "$(jq -r .lock_sha256 "$1")" ]] || fail 'validated lockfile mismatch'
+    jq -e --arg source "$RELEASE_SOURCE" --arg previous "$RELEASE_PREVIOUS" --arg candidate "$RELEASE_VERSION" \
+        --arg kind "${RELEASE_KIND:?}" --arg date "$RELEASE_DATE" --arg group "$RELEASE_GROUP" --arg policy "$policy_digest" '
+        .schema == 2 and .gate == "ci" and .group == $group and .policy_sha256 == $policy
+        and .source == $source and .previous == $previous and .candidate == $candidate
+        and .kind == $kind and .date == $date and (.changelog | type == "string")
+        and (.lock_sha256 | test("^[a-f0-9]{64}$"))
+    ' "$1" > /dev/null || fail 'validation receipt does not match the selected group/source/release'
+    [[ "$(bash scripts/ci/verify-file-checksum.sh --print sha256 "$auth_scratch/base.lock")" == "$(jq -r .lock_sha256 "$1")" ]] || fail 'validated lockfile mismatch'
 }
 render() {
-    # Select from the already validated source lock, never a shell export or a
-    # partially prepared live graph. Recovery/checks admit only; no setup here.
     local editor status
-    git show "$RELEASE_SOURCE:Cargo.toml" > "$scratch/base.toml"
-    if editor="$(bash scripts/dev/release-tools.sh check-wait "$scratch/base.lock" "$scratch/base.toml")"; then
-        :
+    if editor="$(bash scripts/dev/release-tools.sh check-wait "$auth_scratch/base.lock" "$auth_scratch/base.toml")"; then :
     else
         status=$?
         if [[ "$status" == 75 ]]; then
@@ -56,126 +86,92 @@ render() {
         fi
         fail 'saved-source release editor admission failed; inspect the diagnostic above before preparing tools'
     fi
-    yq -p toml -o json '.' "$scratch/base.toml" | jq -e --arg previous "$RELEASE_PREVIOUS" \
-        '.workspace.package.version == $previous and .workspace.dependencies."ic-auth-protocol-types".version == $previous' > /dev/null || fail 'source version mismatch'
-    yq -p toml -o json '.' "$scratch/base.toml" > "$scratch/base.json"
-    jq -e --arg previous "$RELEASE_PREVIOUS" '
-        .workspace.dependencies."ic-auth-wire" as $wire |
-        $wire == null or $wire.version == $previous
-    ' "$scratch/base.json" > /dev/null || fail 'source Wire version mismatch'
-    jq -er '.workspace.members[]' "$scratch/base.json" > "$scratch/member-directories"
-    member_directories=()
-    while IFS= read -r directory; do member_directories+=("$directory"); done < "$scratch/member-directories"
-    bash scripts/ci/read-cargo-source-context.sh "$PWD" "$RELEASE_SOURCE" \
-        "$scratch/base.json" "${member_directories[@]}" > "$scratch/context.json"
-    "$editor" --max-input-bytes "$limit" manifest "$scratch/base.toml" \
-        "$RELEASE_PREVIOUS" "$RELEASE_VERSION" "$scratch/context.json" > "$scratch/Cargo.toml"
-    # The saved source owns its local package set. Late checks must also admit
-    # releases that predate the addition of the native utility.
-    yq -p toml -o json '.' "$scratch/base.lock" | jq -r '.package[] | select(.source == null) | .name' > "$scratch/packages"
-    local_packages=()
-    while IFS= read -r package; do local_packages+=("$package"); done < "$scratch/packages"
-    [[ ${#local_packages[@]} -gt 0 ]] || fail 'validated source has no local packages'
-    "$editor" --max-input-bytes "$limit" lock "$scratch/base.lock" "$RELEASE_PREVIOUS" "$RELEASE_VERSION" \
-        "${local_packages[@]}" > "$scratch/Cargo.lock"
-    # -j adds no extra LF: the receipt preserves the original notes byte-for-byte.
-    jq -j .changelog "$scratch/receipt.json" > "$scratch/notes"
-    awk -v version="$RELEASE_VERSION" -v previous="$RELEASE_PREVIOUS" -v date="$RELEASE_DATE" \
-        -v allow_finalized=1 -f scripts/ci/finalize-release-changelog.awk "$scratch/notes" > "$scratch/CHANGELOG.md"
-    cp "$scratch/receipt.json" "$scratch/release-validation.json"
+    jq -j .changelog "$auth_scratch/receipt.json" > "$auth_scratch/notes"
+    cp "$auth_scratch/notes" "$auth_scratch/source/$changelog"
+    (
+        unset RELEASE_COMMIT
+        cd "$auth_scratch/source"
+        CARGO_RELEASE_METADATA_EDITOR="$editor" CARGO_RELEASE_METADATA_MAX_BYTES="$limit" \
+            bash "$auth_release_root/scripts/ci/cargo-release-group.sh" prepare "$RELEASE_GROUP"
+    )
+    cp "$auth_scratch/receipt.json" "$auth_scratch/source/release-validation.json"
 }
-compare_manifest() {
-    yq -p toml -o json '.' "$1" | jq -S . > "$scratch/observed.json"
-    yq -p toml -o json '.' "$2" | jq -S . > "$scratch/expected.json"
-    cmp -s "$scratch/observed.json" "$scratch/expected.json" || fail 'unexpected manifest changes'
-}
+source scripts/ci/release-metadata-transaction.sh
 check_payload() {
-    compare_manifest "$1/Cargo.toml" "$scratch/Cargo.toml"
-    cmp -s "$1/Cargo.lock" "$scratch/Cargo.lock" || fail 'prepared lockfile differs from the selected graph'
-    cmp -s "$1/CHANGELOG.md" "$scratch/CHANGELOG.md" || fail 'prepared changelog mismatch'
-    cmp -s "$1/release-validation.json" "$scratch/receipt.json" || fail 'prepared receipt mismatch'
+    local path
+    for path in "${files[@]}"; do
+        release_metadata_regular "$1" "$path" || fail "nonregular release metadata: $path"
+        cmp -s "$1/$path" "$auth_scratch/source/$path" || fail "prepared metadata mismatch: $path"
+    done
 }
-
+# shellcheck disable=SC2329 # Transaction callbacks.
+install_candidate() {
+    local path
+    for path in "${files[@]}"; do cp "$auth_scratch/source/$path" "$2/$path" || return; done
+}
+# shellcheck disable=SC2329 # Transaction callback.
+check_candidate() {
+    check_payload . || return
+    bash scripts/ci/cargo-release-metadata.sh check "$primary" --manifest-order-grouped
+}
 case "$operation" in
     preflight)
         [[ "$(git rev-parse HEAD)" == "$RELEASE_SOURCE" ]] || fail 'selected source changed'
         if [[ -f "$receipt" ]]; then
             admit_changes
-            # Recovery after an interrupted preparation: admit only exact base
-            # or prepared bytes for each file, then rebuild the saved payload.
             read_receipt "$receipt"
-            cp "$receipt" "$scratch/receipt.json"
+            cp "$receipt" "$auth_scratch/receipt.json"
             render
             for path in "${files[@]}"; do
-                if [[ -f "$path" ]] && cmp -s "$path" "$scratch/$path"; then continue; fi
-                if git cat-file -e "$RELEASE_SOURCE:$path" 2>/dev/null; then
-                    git show "$RELEASE_SOURCE:$path" > "$scratch/base-file"
-                    cmp -s "$path" "$scratch/base-file" && continue
-                elif [[ ! -e "$path" ]]; then continue; fi
-                [[ "$path" == CHANGELOG.md ]] && cmp -s "$path" "$scratch/notes" && continue
+                if release_metadata_regular . "$path" && cmp -s "$path" "$auth_scratch/source/$path"; then continue; fi
+                git show "$RELEASE_SOURCE:$path" > "$auth_scratch/base-file"
+                cmp -s "$path" "$auth_scratch/base-file" && continue
+                [[ "$path" == "$changelog" ]] && cmp -s "$path" "$auth_scratch/notes" && continue
                 fail "conflicting interrupted metadata: $path"
             done
-            exit 0
+        else
+            bash scripts/ci/check-release-source.sh --allow "$changelog"
+            heading="$(awk '{ sub(/[ \t]+$/, ""); gsub(/[ \t]+/, " "); if (/^## /) { print; exit } }' "$changelog")"
+            case "$heading" in
+                "## [$RELEASE_VERSION]"|"## [$RELEASE_VERSION] - Unreleased") ;;
+                *) fail "expected pending heading '## [$RELEASE_VERSION]' or '## [$RELEASE_VERSION] - Unreleased' for selected $RELEASE_KIND; found '$heading'. Release preparation adds the date." ;;
+            esac
+            awk -v version="$RELEASE_VERSION" -v previous="$RELEASE_PREVIOUS" -v date="$RELEASE_DATE" \
+                -f scripts/ci/finalize-release-changelog.awk "$changelog" > /dev/null
+            cargo sort --workspace --grouped --check
+            cargo fetch --locked
+            make --no-print-directory install-tools
+            make --no-print-directory tools-check
+            bash scripts/dev/release-tools.sh install "$auth_scratch/base.lock" "$auth_scratch/base.toml"
+            bash scripts/dev/release-tools.sh check "$auth_scratch/base.lock" "$auth_scratch/base.toml" > /dev/null
         fi
-        bash scripts/ci/check-release-source.sh --allow CHANGELOG.md
-        [[ "$(bash scripts/ci/read-cargo-workspace-version.sh --stable Cargo.toml)" == "$RELEASE_PREVIOUS" ]] || fail 'current version mismatch'
-        # Preserve Auth's selected-pending-section requirement while accepting
-        # the shared finalizer's heading whitespace normalization.
-        heading="$(awk '{ sub(/[ \t]+$/, ""); gsub(/[ \t]+/, " "); if (/^## /) { print; exit } }' CHANGELOG.md)"
-        case "$heading" in
-            "## [$RELEASE_VERSION]"|"## [$RELEASE_VERSION] - Unreleased") ;;
-            *) fail "expected pending heading '## [$RELEASE_VERSION]' or '## [$RELEASE_VERSION] - Unreleased' for selected $RELEASE_KIND; found '$heading'. Release preparation adds the date." ;;
-        esac
-        awk -v version="$RELEASE_VERSION" -v previous="$RELEASE_PREVIOUS" -v date="$RELEASE_DATE" \
-            -f scripts/ci/finalize-release-changelog.awk CHANGELOG.md > /dev/null
-        cargo sort --workspace --grouped --check
-        cargo fetch --locked
-        # Explicit release preparation includes the complete common sets and
-        # local extensions, including the lock-selected Testkit executable.
-        # Fetching package sources does not activate executable selections.
-        # Interrupted metadata recovery above must not install a partial graph.
-        make --no-print-directory install-tools
-        make --no-print-directory tools-check
-        # A fresh, explicitly requested release prepares every required product
-        # tool before validation. Recovery above only admits the saved selection.
-        git show "$RELEASE_SOURCE:Cargo.lock" > "$scratch/base.lock"
-        git show "$RELEASE_SOURCE:Cargo.toml" > "$scratch/base.toml"
-        bash scripts/dev/release-tools.sh install "$scratch/base.lock" "$scratch/base.toml"
-        bash scripts/dev/release-tools.sh check "$scratch/base.lock" "$scratch/base.toml" > /dev/null
         ;;
     verify)
         [[ "$(git rev-parse HEAD)" == "$RELEASE_SOURCE" ]] || fail 'validation source mismatch'
         admit_changes
-        cp CHANGELOG.md "$scratch/notes"
+        cp "$changelog" "$auth_scratch/notes"
         VALIDATION_LOG_DIR="$state/validation-logs" make --no-print-directory ci
         [[ "$(git rev-parse HEAD)" == "$RELEASE_SOURCE" ]] || fail 'validation source changed'
         admit_changes
-        cmp -s CHANGELOG.md "$scratch/notes" || fail 'notes changed during validation'
-        git diff --quiet HEAD -- Cargo.toml Cargo.lock release-validation.json || fail 'metadata changed during validation'
-        lock_digest="$(bash scripts/dev/run-host-file.sh hash-file Cargo.lock 8388608)"
+        cmp -s "$changelog" "$auth_scratch/notes" || fail 'notes changed during validation'
+        git diff --quiet HEAD -- "${metadata_files[@]}" || fail 'metadata changed during validation'
+        lock_digest="$(bash scripts/dev/run-host-file.sh hash-file Cargo.lock "$limit")"
         jq -n --arg source "$RELEASE_SOURCE" --arg previous "$RELEASE_PREVIOUS" --arg candidate "$RELEASE_VERSION" \
-            --arg kind "$RELEASE_KIND" --arg date "$RELEASE_DATE" --rawfile notes "$scratch/notes" \
-            --arg lock "$lock_digest" --arg verified "$(date -u +%FT%TZ)" \
-            '{schema:1, gate:"ci", source:$source, previous:$previous, candidate:$candidate,
-              kind:$kind, date:$date, verified_at:$verified, lock_sha256:$lock, changelog:$notes}' > "$scratch/receipt.json"
-        bash scripts/dev/run-host-file.sh replace-private "$scratch/receipt.json" "$receipt" 1048576
+            --arg kind "$RELEASE_KIND" --arg date "$RELEASE_DATE" --rawfile notes "$auth_scratch/notes" \
+            --arg group "$RELEASE_GROUP" --arg policy "$policy_digest" --arg lock "$lock_digest" --arg verified "$(date -u +%FT%TZ)" \
+            '{schema:2, gate:"ci", group:$group, policy_sha256:$policy, source:$source, previous:$previous,
+              candidate:$candidate, kind:$kind, date:$date, verified_at:$verified, lock_sha256:$lock, changelog:$notes}' > "$auth_scratch/receipt.json"
+        bash scripts/dev/run-host-file.sh replace-private "$auth_scratch/receipt.json" "$receipt" 1048576
         ;;
     prepare-version|prepared-check|commit-check)
         [[ "$(git rev-parse HEAD)" == "$RELEASE_SOURCE" ]] || fail 'preparation source changed'
         admit_changes
         read_receipt "$receipt"
-        cp "$receipt" "$scratch/receipt.json"
+        cp "$receipt" "$auth_scratch/receipt.json"
         render
         if [[ "$operation" == prepare-version ]]; then
-            for path in Cargo.lock CHANGELOG.md; do cp "$scratch/$path" "$path"; done
-            cp "$scratch/receipt.json" release-validation.json
-            # The canonical version is replaced last so an interrupted attempt
-            # can rerun preparation using the original selected version.
-            cp "$scratch/Cargo.toml" Cargo.toml
-            cargo sort --workspace --grouped
-        fi
-        check_payload .
-        bash scripts/ci/cargo-release-metadata.sh check ic-auth --manifest-order-grouped
+            release_metadata_prepare "$state/group-prepare.XXXXXX" install_candidate check_candidate "${prepare_files[@]}"
+        else check_candidate; fi
         make --no-print-directory fmt-check
         if [[ "$operation" == commit-check ]]; then
             git diff --quiet -- "${files[@]}" || fail 'release index differs from prepared worktree'
@@ -183,24 +179,26 @@ case "$operation" in
         fi
         ;;
     committed-check|tagged-check|push-check)
-        selected="${RELEASE_COMMIT:?exact release commit required}"
-        [[ "$(git log -1 --format=%P "$selected")" == "$RELEASE_SOURCE" ]] || fail 'release parent does not match validated source'
-        mkdir "$scratch/committed"
-        for path in "${files[@]}"; do git show "$selected:$path" > "$scratch/committed/$path"; done
-        read_receipt "$scratch/committed/release-validation.json"
-        cp "$scratch/committed/release-validation.json" "$scratch/receipt.json"
+        selected_commit="${RELEASE_COMMIT:?exact release commit required}"
+        [[ "$(git log -1 --format=%P "$selected_commit")" == "$RELEASE_SOURCE" ]] || fail 'release parent does not match validated source'
+        mkdir "$auth_scratch/committed"
+        for path in "${files[@]}"; do
+            [[ "$path" != */* ]] || mkdir -p "$auth_scratch/committed/${path%/*}"
+            git show "$selected_commit:$path" > "$auth_scratch/committed/$path"
+        done
+        read_receipt "$auth_scratch/committed/release-validation.json"
+        cp "$auth_scratch/committed/release-validation.json" "$auth_scratch/receipt.json"
         render
-        check_payload "$scratch/committed"
-        RELEASE_COMMIT="$selected" bash scripts/ci/cargo-release-metadata.sh check ic-auth --manifest-order-grouped
-        git diff --name-only -z "$RELEASE_SOURCE" "$selected" -- > "$scratch/changed"
+        check_payload "$auth_scratch/committed"
+        RELEASE_COMMIT="$selected_commit" bash scripts/ci/cargo-release-metadata.sh check "$primary" --manifest-order-grouped
+        git diff --name-only -z "$RELEASE_SOURCE" "$selected_commit" -- > "$auth_scratch/changed"
         while IFS= read -r -d '' path; do
-            case "$path" in Cargo.toml|Cargo.lock|CHANGELOG.md|release-validation.json) ;;
-                *) fail "release changed unvalidated source: $path" ;;
-            esac
-        done < "$scratch/changed"
-        if [[ "$operation" != committed-check ]]; then
-            bash scripts/ci/check-release-tag.sh "$selected" "$RELEASE_VERSION"
-        fi
+            found=false
+            for allowed in "${files[@]}"; do [[ "$path" != "$allowed" ]] || found=true; done
+            [[ "$found" == true ]] || fail "release changed unvalidated source: $path"
+        done < "$auth_scratch/changed"
+        if [[ "$operation" != committed-check ]]; then bash scripts/ci/check-release-tag.sh "$selected_commit" "$RELEASE_VERSION" "$RELEASE_GROUP"; fi
         ;;
     *) fail "unknown adapter operation: $operation" ;;
 esac
+complete=true

@@ -12,7 +12,7 @@ are qualification mechanics, not production stores.
 
 ## Consumer use
 
-After the matching Auth libraries are published, `make pack-backend-conformance`
+After the selected Engine and Protocol dependencies are published, `make pack-backend-conformance`
 creates `target/package/ic-auth-backend-conformance-VERSION.crate` without an
 upload. Cargo includes the source, tests, README, license, lock and VCS metadata,
 and normalizes workspace/path dependencies to registry dependencies. Retain the
@@ -20,38 +20,43 @@ archive and its integrity with the consumer's qualification inputs. A dirty VCS
 receipt describes a candidate, not a delivered revision.
 
 `make test-backend-package` qualifies a fresh archive in a separate consumer
-workspace, using one exact registry Auth/protocol cohort and the source bundle
+workspace, using the exact registry Engine and Protocol versions and the source bundle
 only as a dev dependency. It compiles a trait/error identity witness, runs all
 packaged scenarios, checks invalid source/dependency graph variants and seals source,
 archive and consumer inputs. The printed evidence directory retains logs,
-metadata and `delivery.json` with source/dirty state and archive SHA-256.
+metadata and `delivery.json` with source/dirty state, separate Engine/Protocol
+versions and archive SHA-256. The bundle follows Engine's version; Protocol can
+have a different version and remains one canonical identity in the graph.
 This is opt-in delivery qualification, outside ordinary CI. Prepare matching
 published registry packages explicitly first. If the offline metadata stage
 reports a missing download, run `cargo fetch --locked --manifest-path
 <printed-evidence>/consumer/Cargo.toml`, then rerun the check into a fresh retained
 directory. The check itself never downloads or uploads.
 
-Published Auth 0.29.1 aligns with Platform 0.16. Use that matching cohort for
-this source bundle; earlier Auth 0.29.0 still requires Platform 0.15 and was
-refused by the delivery graph check. Keep the single-Platform/Types admission
-intact, and recheck the graph when dependencies change.
+Current source targets the pending Auth Protocol/Engine 0.30.0 cohort with
+Platform 0.17 and Types 0.16. Publish those Auth suppliers before qualifying this
+source bundle against the registry. Own metadata still says 0.29.2 until release;
+that is not evidence that the registry's 0.29.2 has the current dependency graph.
+The published 0.29.2 baseline uses Platform 0.16/Types 0.15. Keep the single-Platform/
+Types admission intact; it refuses mixing that baseline with this newer bundle.
 
 Extract this source archive into the consumer's test-support directory and add
 it as a **development dependency**. Use the archive's normalized `Cargo.toml`;
 depending on the producer's working workspace can introduce a second Git/path
 identity for Auth alongside the consumer's registry dependency.
 
-For the 0.29 cohort:
+Historical example for the released 0.29.2 bundle (the pending 0.30 bundle requires
+its own selected archive/version after publication):
 
 ```toml
 # Append this path to the consumer's existing workspace exclusions. The foreign
 # source bundle must not become a consumer-owned release-group member.
 [workspace]
-exclude = ["test-support/ic-auth-backend-conformance-0.29.0"]
+exclude = ["test-support/ic-auth-backend-conformance-0.29.2"]
 
 [dev-dependencies]
-ic-auth-backend-conformance = { path = "test-support/ic-auth-backend-conformance-0.29.0" }
-ic-auth = { version = "=0.29.0", default-features = false, features = ["session-restore", "portable-signature-verification"] }
+ic-auth-backend-conformance = { path = "test-support/ic-auth-backend-conformance-0.29.2" }
+ic-auth = { version = "=0.29.2", default-features = false, features = ["session-restore", "portable-signature-verification"] }
 ```
 
 Implement `ic_auth_backend_conformance::Backend` on a test driver for the actual

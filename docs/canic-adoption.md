@@ -8,12 +8,15 @@ Older migrations and observations are preserved in [adoption history](canic-adop
 
 ## Current integration cohort
 
-The current released Auth family is **0.29.1**, source
-[`54d1d2a`](https://github.com/dragginzgame/ic-auth/tree/54d1d2aadfc67830f630612d5654f28815a64119).
-Select matching `ic-auth`, `ic-auth-protocol-types` and `ic-auth-wire` packages.
+The last coordinated Auth release is **0.29.2**, source
+[`529a521`](https://github.com/dragginzgame/ic-auth/tree/529a5212c1730d2cc5df7820d9ecf1a15a086e6b).
+Protocol (`ic-auth-protocol-types`, `ic-auth-wire`) now has an independent release
+group from Engine (`ic-auth`). Keep the two Protocol packages aligned; use the
+Engine package's declared Protocol requirement rather than forcing equal versions
+across groups. An Engine-only update leaves Protocol's Rust type identity intact.
 [`Cargo.toml`](../Cargo.toml) and the [current handoff](status/current.md#selected-suppliers-and-governance)
-own this checkout's exact upstream selections. Root package versions remain at
-0.29.1 until an authorized release; pending changes are described in `CHANGELOG.md`.
+own this checkout's exact upstream selections. All member versions remain 0.29.2
+until an authorized release; [group ledgers](../CHANGELOG.md) own pending changes.
 
 `Session::scopes()` returns checked `ScopeLabel` values; use `as_str()` for text.
 Requests move their checked labels into sessions. Signed protocol grants remain
@@ -100,6 +103,22 @@ locally. `NotYetValid` is a bounded retry hint, not proof validity; retain stric
 start/deadline admission and the original credential. Do not retry invalid
 signatures, expiry, reset-floor or stale-authority refusals automatically.
 
+## Pending Platform 0.17 / Wire 0.14 adoption
+
+The pending Protocol and Engine 0.30.0 releases select canonical Types 0.16.0,
+Platform 0.17.0, Wire/derive 0.14.2 and native Testkit 0.78.0. Existing Principal,
+parse-error, codec and limits values have a new Rust package identity; align the
+consumer's declarations with this cohort. This is a public Rust cut, with unchanged
+signed bytes, transport/stored formats, verification checks and TEE/non-TEE policy.
+Principal self-authentication no longer implies registry conversions: select
+`principal-external` at native boundaries. Runtime-only consumers select
+`ic-platform-runtime` directly; the qualification host uses Runtime/macros/guard
+0.17.1, independently of the crypto facade. Keep one executor/generator/guard.
+Native PocketIC clients and client DTOs come from `ic_platform::pocket_ic` 0.17;
+use Testkit 0.78 to share Wire 0.14 limits. The server remains PocketIC 16.1.0.
+Own package metadata remains 0.29.2 until an authorized release; do not infer
+publication or installed Canic acceptance from this checkout's qualification.
+
 ## Platform 0.16 adoption
 
 Released Auth 0.29.1 adopts Platform 0.16; Auth 0.29.0 selected the earlier
@@ -117,7 +136,7 @@ Current Wire and stored formats require no migration or reset.
 
 Platform reexports Principal/parse errors from canonical Types 0.15; Wire 0.13
 owns their schema implementations through `platform-types`. Align these public
-identities when exchanging values. Passive packages select Principal only;
+identities when exchanging values. Passive packages select Types directly;
 self-authentication and external conversions are explicit. Use
 `principal::ExternalPrincipal` at upstream Agent/Testkit/crypto boundaries and
 preserve original bytes. The reference host selects one Platform runtime,

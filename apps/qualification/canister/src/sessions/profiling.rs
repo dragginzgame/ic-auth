@@ -28,9 +28,12 @@ impl From<ReceiverUnavailable> for Failure {
 }
 
 fn measure<T>(operation: impl FnOnce() -> T) -> (T, u64) {
-    let start = ic_platform::ic0::performance_counter(0);
+    let start = ic_platform_runtime::ic0::performance_counter(0);
     let value = operation();
-    (value, ic_platform::ic0::performance_counter(0) - start)
+    (
+        value,
+        ic_platform_runtime::ic0::performance_counter(0) - start,
+    )
 }
 
 #[derive(Deserialize)]
@@ -44,7 +47,7 @@ fn bls_message(hash: [u8; 32]) -> Vec<u8> {
     [b"\x0Dic-state-root".as_slice(), &hash].concat()
 }
 
-#[ic_platform::cdk::update(
+#[ic_platform_runtime::cdk::update(
     guard = "super::admission_guard",
     decode_with = "crate::control::ProfileCertified::decode",
     encode_with = "crate::control::ProfileCertified::encode"
@@ -71,8 +74,8 @@ fn profile(
     };
     let context = PortableCertifiedContext {
         claims: host.inputs.claims_context(
-            ic_platform::cdk::api::msg_caller(),
-            ic_platform::cdk::api::time(),
+            ic_platform_runtime::cdk::api::msg_caller(),
+            ic_platform_runtime::cdk::api::time(),
         ),
         root_key: root,
         ic_root_public_key_raw: network_key,

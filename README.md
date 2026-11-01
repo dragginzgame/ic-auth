@@ -16,6 +16,10 @@ portable certified and enrolled Ed25519 verification, one local session engine,
 replay/revocation bookkeeping and explicit protected authority/work budgets. See the [session contract](docs/sessions.md)
 and [current handoff](docs/status/current.md) for implementation and validation.
 
+Protocol types and Wire release together as **Protocol**; `ic-auth` releases
+independently as **Engine**. Engine-only changes preserve Protocol's Rust package
+identity. See [release selection](docs/development.md#releases-and-publication).
+
 The existing [signature](docs/signatures.md), [delegation](docs/delegation.md),
 [signature preparation](docs/signature-preparation.md),
 [certificate issuance](docs/certificate-issuance.md) and
@@ -92,8 +96,8 @@ package belongs to another IC-Auth project and does not implement our applicatio
 token/proof contracts. Crates.io treats hyphens and underscores as colliding
 names, so changing only the punctuation cannot resolve that conflict.
 
-The public domain types use canonical `ic-platform-types` 0.15 identities through
-IC Platform 0.15's explicit `principal` feature. Auth's engine selects `principal-self-authenticating`
+The public domain types depend directly on canonical `ic-platform-types` 0.15
+identities. Auth's engine selects Types' `principal-self-authenticating`
 for browser-key hashing, with byte-preserving conversions at external
 Agent/Testkit/crypto boundaries. Public library capabilities and the reference
 Wasm exclude Candid; native Agent/Testkit retain their required Candid dependencies.

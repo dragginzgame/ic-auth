@@ -41,6 +41,16 @@ done
 [[ -n "$package" ]]
 if [[ "$package" == ic-auth-qualification-canister ]]; then
     printf 'ic-auth-qualification-canister v0.9.1\n'
+    printf 'ic-wire v0.14.1\n'
+    if [[ "$BOUNDARY_MODE" == host-wire-duplicate ]]; then printf 'ic-wire v0.13.5\n'; fi
+    if [[ "$BOUNDARY_MODE" != host-runtime-missing ]]; then printf 'ic-platform-runtime v0.17.1\n'; fi
+    if [[ "$BOUNDARY_MODE" == host-runtime-duplicate ]]; then printf 'ic-platform-runtime v0.18.0\n'; fi
+    case "$BOUNDARY_MODE" in
+        host-facade-ic0) printf 'ic-platform feature "ic0"\n' ;;
+        host-facade-executor) printf 'ic-platform feature "executor"\n' ;;
+        host-facade-runtime) printf 'ic-platform feature "runtime"\n' ;;
+        host-facade-cdk) printf 'ic-platform feature "cdk"\n' ;;
+    esac
     if [[ "$BOUNDARY_MODE" != generator ]]; then
         printf 'ic-platform-macros v0.9.1\nic-platform-macros v0.9.1 (*)\n'
     fi
@@ -62,7 +72,16 @@ if [[ "$package" == ic-auth-qualification-canister ]]; then
     exit 0
 fi
 printf '%s v0.9.1\n' "$package"
-printf 'ic-platform v0.8.1\n'
+if [[ "$package" == ic-auth-backend-conformance ||
+      ( "$package" == ic-auth && ( "$all_features" == yes || "$features" == *signature* || "$features" == certified-proof-verification ) ) ]]; then
+    printf 'ic-platform v0.16.0\n'
+fi
+case "$BOUNDARY_MODE:$package:$features" in
+    principal-facade:ic-auth-protocol-types:*|wire-facade:ic-auth-wire:*|control-facade:ic-auth-qualification-contracts:*|engine-facade:ic-auth:|session-facade:ic-auth:sessions)
+        printf 'ic-platform v0.16.0\n' ;;
+    session-runtime:ic-auth:sessions|principal-runtime-owner:ic-auth-protocol-types:*)
+        printf 'ic-platform-runtime v0.17.1\n' ;;
+esac
 if [[ "$package" == ic-auth-backend-conformance ]]; then
     case "$BOUNDARY_MODE" in
         conformance-metrics) printf 'ic-metrics v0.24.1\n' ;;
@@ -149,7 +168,7 @@ STUB
 chmod +x "$fixture/bin/"*
 export PATH="$fixture/bin:$root/.tools/host/bin:$PATH"
 export BOUNDARY_EVENTS="$fixture/events"
-for mode in accepted crypto-generations crypto-generations-third crypto-algorithm-duplicate conformance-metrics conformance-private conformance-certified conformance-profiler library-profiler host-profiler principal-external wire-hashing control-external principal-candid principal-executor principal-owned-executor principal-runtime-guard principal-bls principal-storage control-candid control-storage control-platform-feature wasm-default wasm-combined wasm-capability wasm-portable-bls wasm-certified-candid wasm-certified-ic0 wasm-certified-runtime wasm-certified-cdk wasm-certified-creation wasm-certified-verifier host-candid host-candid-derive parser executor executor-source generator generator-source runtime-guard-missing runtime-guard-source host-cdk host-cdk-macros host-platform-feature; do
+for mode in accepted crypto-generations crypto-generations-third crypto-algorithm-duplicate principal-facade wire-facade control-facade engine-facade session-facade session-runtime principal-runtime-owner conformance-metrics conformance-private conformance-certified conformance-profiler library-profiler host-profiler principal-external wire-hashing control-external principal-candid principal-executor principal-owned-executor principal-runtime-guard principal-bls principal-storage control-candid control-storage control-platform-feature wasm-default wasm-combined wasm-capability wasm-portable-bls wasm-certified-candid wasm-certified-ic0 wasm-certified-runtime wasm-certified-cdk wasm-certified-creation wasm-certified-verifier host-candid host-candid-derive parser executor executor-source generator generator-source runtime-guard-missing runtime-guard-source host-cdk host-cdk-macros host-platform-feature host-runtime-missing host-runtime-duplicate host-facade-ic0 host-facade-executor host-facade-runtime host-facade-cdk host-wire-duplicate; do
     export BOUNDARY_MODE="$mode"
     : > "$BOUNDARY_EVENTS"
     status=0
@@ -167,7 +186,7 @@ for mode in accepted crypto-generations crypto-generations-third crypto-algorith
     else
         [[ "$status" != 0 ]] || { echo "missing exclusion: $mode" >&2; exit 1; }
         rg '^Cargo graph policy failed:' "$fixture/$mode.log" > /dev/null
-        rg 'ic-platform|ic_principal|sha2|digest|k256|ic-agent|tokio|ic-testkit-candid|candid|ic-cdk|ic0|ic-canister-sig-creation|ic-signature-verification|ic-verify-bls-signature|dhat' "$fixture/$mode.log" > /dev/null
+        rg 'ic-platform|ic-wire|ic_principal|sha2|digest|k256|ic-agent|tokio|ic-testkit-candid|candid|ic-cdk|ic0|ic-canister-sig-creation|ic-signature-verification|ic-verify-bls-signature|dhat' "$fixture/$mode.log" > /dev/null
     fi
 done
 echo 'Native/Wasm graph selections and transitive tooling refusals passed'
