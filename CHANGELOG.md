@@ -18,6 +18,8 @@
 
 ### 🧪 Testing
 
+- Substitute profiling and packaged-backend effects in the Make jobserver fixture,
+  retaining descriptor-handoff and unsafe-mode refusal coverage for both targets.
 - Add opt-in qualification of the unpublished source archive through an excluded consumer
   dev dependency using one registry Auth cohort. Retain source/archive integrity,
   graph refusal evidence and a delivery receipt. Expose four named conformance

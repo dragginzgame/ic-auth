@@ -11,7 +11,7 @@ The earlier budget-error cut and independent conformance extraction are now
 released history. The active adoption guide describes 0.29, rather than pending
 0.28/0.29 work.
 
-Current uncommitted work splits the unpublished backend conformance into four
+Development commit `d1ffc0a` splits the unpublished backend conformance into four
 named scenarios: admission/retry, logout/reopen, replacement/generation and
 capacity. `assert_backend_contract` always invokes all four. Individually named
 calls aid diagnosis; a subset is not full conformance. Reference callbacks and
@@ -101,6 +101,12 @@ The new source archive correctly refuses the old registry Auth 0.29.0 graph,
 which still requires Platform 0.15. Its delivery proof awaits an aligned Auth
 publication; do not weaken the single-Platform gate. Evidence is retained in
 `target/portable-fixtures/backend-package.0mdt6w/`.
+
+The jobserver follow-up substitutes both new opt-in profiling/package wrappers
+and covers their inherited descriptors and unsafe-mode refusals. The focused
+`make test-make-jobserver` and ShellCheck pass; evidence is retained in
+`target/portable-fixtures/make-jobserver.4wuLVw/`. The reported full-gate failure
+is preserved; the complete gate has not been rerun.
 
 No staging, commit, release version bump, push, publication or deployment is
 performed by this batch. Full CI, Chromium, macOS and installed

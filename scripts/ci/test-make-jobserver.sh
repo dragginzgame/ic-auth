@@ -49,6 +49,7 @@ export PATH="$fixture/bin:$PATH"
 # recipes, includes, execution admission and Bash-to-Cargo descriptor handoff.
 for script in dev/testkit-tools.sh dev/msrv-tools.sh dev/host-file-tools.sh dev/check-msrv.sh dev/check-wasm.sh \
     dev/test-qualification.sh dev/client-contracts.sh dev/test-client.sh dev/test-client-browser.sh dev/package-client.sh dev/release-tools.sh \
+    dev/profile-canonical-allocations.sh dev/test-backend-package.sh \
     ci/check-cargo-dependency-boundaries.sh ci/test-auth-boundaries.sh \
     ci/check-auth-boundaries.sh ci/test-client-tools.sh ci/check-dependency-pins.sh ci/read-cargo-workspace-version.sh \
     release/publish.sh release/metadata.sh release/test-tools.sh; do
@@ -93,6 +94,8 @@ awk '
 rg -Fx test-portable-signatures "$fixture/targets" > /dev/null
 rg -Fx test-client-browser "$fixture/targets" > /dev/null
 rg -Fx test-client-package "$fixture/targets" > /dev/null
+rg -Fx profile-canonical-allocations "$fixture/targets" > /dev/null
+rg -Fx test-backend-package "$fixture/targets" > /dev/null
 rg -Fx release-prepare-version "$fixture/targets" > /dev/null
 while IFS= read -r target; do
     : > "$AUTH_JOBSERVER_LOG"
@@ -138,7 +141,7 @@ while IFS= read -r staging; do [[ -f "$staging/dispatched" ]]; done < "$AUTH_JOB
 # Recursive marking must never make unsafe modes execute these effects, even
 # when callers erase MAKEFLAGS. The shared independent guard stays authoritative.
 for mode in -n -t -q -i; do
-    for target in fetch metadata check-dependency-pins install-testkit-tools install-host-file generate-client-contracts test-client-browser publish-dry-run publish test-release-tools release-prepare-version; do
+    for target in fetch metadata check-dependency-pins install-testkit-tools install-host-file generate-client-contracts test-client-browser profile-canonical-allocations test-backend-package publish-dry-run publish test-release-tools release-prepare-version; do
         : > "$AUTH_JOBSERVER_LOG"
         status=0
         (cd "$consumer"; make "$mode" --no-print-directory "$target" MAKEFLAGS=) \
