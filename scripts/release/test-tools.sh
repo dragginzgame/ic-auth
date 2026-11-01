@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# The fixture owns its nested Make selections, including missing-group probes.
+# An enclosing release must not force its command-line group into these calls.
+unset MAKEFLAGS MFLAGS MAKEOVERRIDES GNUMAKEFLAGS MAKEFILES
+
 # Local Git/bare-remote fixtures, real metadata transforms and mocked upload
 # transport. No source commit, remote ref or registry effect in the real repo.
 script_path="${BASH_SOURCE[0]}"

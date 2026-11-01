@@ -27,6 +27,8 @@ native tooling packages. The independent series starts after the
 
 ### 🧪 Testing
 
+- Isolate release fixture Make controls from an enclosing release's group, so
+  missing-group admission and independent Engine selection remain exercised.
 - Verify the three local library archives together in the read-only package gate,
   so pending Protocol identity changes do not accidentally compile Engine against
   the older registry Protocol. Selected-group publication keeps normal registry

@@ -52,6 +52,15 @@ proof reuse stay opt-in; Wasm retains the qualified 32-bit backend configuration
 
 ## Current qualification
 
+The first isolated Protocol release gate passed all product, browser (69), live
+PocketIC (11), compiler, graph, Wasm and archive stages, then caught inherited
+Make command-line group contamination in the release fixture's missing-group
+probe. No release preparation intent, version mutation, tag, push or upload began.
+The fixture now clears its owned Make controls, following the other local caller
+fixtures. Retry requires a fresh complete gate against the fixed source; retain
+`/tmp/ic-auth-release.EqLgnm/.git/release-state/validation-logs/validation.YInWyN`
+and the release log under `target/persistence-wire-delivery/`.
+
 The 0.62.1/0.14.2 registry patch selections are fetched and locked. Browser contract
 regeneration passes with all five generated files unchanged. The earlier evidence
 below predates those patches; the isolated delivery must run the complete gate
@@ -82,7 +91,7 @@ live PocketIC tests pass: certification/composed roots, protected metadata upgra
 certified-token admission, signed ingress and SDK admission/logout journeys.
 One expensive profiling test is intentionally ignored. This is internal fixture
 qualification, not a production issuer, wallet service or installed Canic result.
-No full CI, macOS or live IC qualification is claimed.
+No successful full CI, macOS or live IC qualification is claimed yet.
 
 A selected Engine registry dry run correctly exposed old Protocol's Types 0.15
 before the new Protocol package is published (`engine-package-diagnostic.log`).
