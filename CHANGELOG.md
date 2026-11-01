@@ -1,5 +1,34 @@
 # Changelog
 
+## [0.29.1] - Unreleased
+
+### ⬆️ Dependencies
+
+- Adopt Platform 0.16.0, Wire/derive 0.13.3, Build/Host 0.73.4,
+  Memory/Storage 0.60.6, Metrics 0.24.4 and Testkit 0.76.0. Keep canonical
+  Types 0.15.1 and the PocketIC 16.1.0 pairing. Adapt owned certificate/key
+  identities and the upstream ECDSA API while preserving explicit high-S refusal,
+  normalization and frozen signed bytes. Match the adversarial Dalek feature
+  trigger to generation 3 and select RustCrypto's supported 32-bit Wasm backend.
+- Inherit Platform's BLS identity-public-key rejection; cover a forged identity-root
+  certificate through Auth's verifier. Native Agent's separate external verifier
+  is unchanged. Current stored records and TEE/non-TEE authority policy remain.
+- Adopt reviewed Shared Tooling 0.27.24 at `1211262`, including separate total
+  module/code-section size reporting. Auth retains Cargo-owned package versions.
+
+### 🧪 Testing
+
+- Add opt-in qualification of the unpublished source archive through an excluded consumer
+  dev dependency using one registry Auth cohort. Retain source/archive integrity,
+  graph refusal evidence and a delivery receipt. Expose four named conformance
+  scenarios while keeping the complete entrypoint mandatory for full acceptance.
+- Cover global/per-caller replay saturation and detect partial logout commits.
+  Share the native and packaged conformance dependency policy; reject the native
+  profiler from public library and deployed fixture graphs.
+- Add an opt-in native allocation observation for unchanged canonical hashing.
+  The profiler stays in unpublished tooling dev dependencies; this introduces
+  no production allocator, cryptographic change or claimed Wasm improvement.
+
 ## [0.29.0] - 2026-11-01
 
 ### ⚠️ Breaking

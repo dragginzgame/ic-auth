@@ -3,7 +3,10 @@ use ic_auth::{
     portable::{LoginRecordState, LoginRevocationChange},
     session::*,
 };
-use ic_auth_backend_conformance::{Backend, assert_backend_contract};
+use ic_auth_backend_conformance::{
+    Backend, assert_admission_retry, assert_backend_contract, assert_capacity,
+    assert_logout_reopen, assert_replacement_generation,
+};
 use ic_auth_protocol_types::Principal;
 use std::{borrow::Cow, collections::BTreeMap};
 
@@ -237,13 +240,39 @@ fn reference_commit_callbacks_conform() {
     assert_backend_contract::<Reference>();
 }
 #[test]
-fn independent_encoded_records_conform() {
-    assert_backend_contract::<Encoded>();
+fn independent_admission_retry_conforms() {
+    assert_admission_retry::<Encoded>();
+}
+#[test]
+fn independent_logout_reopen_conforms() {
+    assert_logout_reopen::<Encoded>();
+}
+#[test]
+fn independent_replacement_generation_conforms() {
+    assert_replacement_generation::<Encoded>();
+}
+#[test]
+fn independent_capacity_conforms() {
+    assert_capacity::<Encoded>();
 }
 
-// Prove that the shared assertions detect a write-then-error atomicity bug.
-struct Broken(Encoded);
-impl SessionStore for Broken {
+// Select which write violates atomicity without copying the adapter mechanics.
+struct Broken<const LOGOUT: bool>(Encoded);
+impl<const LOGOUT: bool> Broken<LOGOUT> {
+    fn write_then_error<T>(
+        &mut self,
+        write: impl FnOnce(&mut Encoded) -> Result<T, SessionError>,
+    ) -> Result<T, SessionError> {
+        let fail = std::mem::take(&mut self.0.fail);
+        let result = write(&mut self.0)?;
+        if fail {
+            Err(SessionError::StorageFailure)
+        } else {
+            Ok(result)
+        }
+    }
+}
+impl<const LOGOUT: bool> SessionStore for Broken<LOGOUT> {
     fn read<T>(
         &mut self,
         operation: impl FnOnce(&dyn SessionReader) -> Result<T, SessionError>,
@@ -256,19 +285,21 @@ impl SessionStore for Broken {
         replay: Replay,
         login: &LoginRevocationChange,
     ) -> Result<bool, SessionError> {
-        let fail = std::mem::take(&mut self.0.fail);
-        let result = self.0.admit(session, replay, login)?;
-        if fail {
-            Err(SessionError::StorageFailure)
+        if LOGOUT {
+            self.0.admit(session, replay, login)
         } else {
-            Ok(result)
+            self.write_then_error(|store| store.admit(session, replay, login))
         }
     }
     fn logout(&mut self, login: &LoginRevocationChange) -> Result<(), SessionError> {
-        self.0.logout(login)
+        if LOGOUT {
+            self.write_then_error(|store| store.logout(login))
+        } else {
+            self.0.logout(login)
+        }
     }
 }
-impl Backend for Broken {
+impl<const LOGOUT: bool> Backend for Broken<LOGOUT> {
     fn fresh(generation: u64, limits: SessionLimits) -> Self {
         Self(Encoded::fresh(generation, limits))
     }
@@ -286,6 +317,12 @@ impl Backend for Broken {
     }
 }
 #[test]
-fn write_then_error_is_detected() {
-    assert!(std::panic::catch_unwind(assert_backend_contract::<Broken>).is_err());
+#[should_panic(expected = "failed admission must preserve every record")]
+fn admission_write_then_error_is_detected() {
+    assert_admission_retry::<Broken<false>>();
+}
+#[test]
+#[should_panic(expected = "failed logout must preserve session, replay and reservation")]
+fn logout_write_then_error_is_detected() {
+    assert_logout_reopen::<Broken<true>>();
 }

@@ -126,22 +126,32 @@ explicit producer normalization, canonical-scalar checks and verification policy
 There are no direct K256 imports or declarations; a test-only Dalek feature
 trigger remains in the unpublished adversarial harness. SHA-256, CBOR and LEB128
 remain direct general-purpose dependencies with current Auth-owned consumers.
+Platform 0.16 selects K256 0.14 and Dalek 3/signature 3. Auth retains strict
+verification, canonical-scalar admission and explicit high-S refusal, and the
+adversarial harness enables permissive parsing on that same Dalek generation.
+The Wasm graph admits two support generations for BLS/Principal hashing and the
+new RustCrypto stack; Wasm curve/signature providers still have one identity. The
+boundary fixtures refuse a third support generation or duplicate K256.
+The repository's Wasm target flags select upstream RustCrypto's qualified
+`cpubits="32"` backend. Other canister build owners must select it themselves;
+dependency Cargo configuration is not inherited, and explicit `RUSTFLAGS` or
+`CARGO_ENCODED_RUSTFLAGS` overrides must preserve this selection.
 Platform's explicit `pocket-ic` capability owns native simulator clients and DTOs.
 Testkit owns bounded server startup, lifecycle extensions and typed Wire calls;
 only the native runner selects these capabilities.
 
-Native file and process callers select Host FS/Process 0.73.3 with defaults
+Native file and process callers select Host FS/Process 0.73.4 with defaults
 disabled. Library use does not enable Host's optional CLI, certificate decoder
 or Wasm text/encoding backends. Host stays outside the production library graph.
-Build 0.73.3 and Testkit 0.75.2 select the same Host 0.73 identities as Auth's direct
+Build 0.73.4 and Testkit 0.76.0 select the same Host 0.73 identities as Auth's direct
 callers; no dependency override or old Host family is needed. The independently
-pinned file CLI is independently selected at 0.73.3 for this adoption.
+pinned file CLI is independently selected at 0.73.4 for this adoption.
 Build and Testkit libraries keep `cli` disabled; only the prepared executable
 selections request it. Testkit owns its benchmark-average errors and selects
-arithmetic-only Metrics 0.24.1 alongside Auth. Auth exchanges no Metrics values with
+arithmetic-only Metrics 0.24.4 alongside Auth. Auth exchanges no Metrics values with
 Testkit, and neither caller enables its optional native metadata.
 
-The unpublished qualification host separately selects IC Metrics 0.24.1 for fixed
+The unpublished qualification host separately selects IC Metrics 0.24.4 for fixed
 admission outcome counters, with defaults disabled: arithmetic and validated Serde
 do not select its optional native Wire metadata. Public Auth graphs forbid that
 dependency. See the
@@ -156,8 +166,8 @@ for the existing byte/path limits and release-recovery boundary.
 
 ## Dependency roles and deployment admission
 
-Shared Tooling revision `619d194875369e0f72b45477b66adb430acbf6b7` is adopted
-(its committed VERSION records 0.27.23; this is reviewed source, not a claim of
+Shared Tooling revision `1211262f32ea193cc4edcd60d2750baf1f1d6425` is adopted
+(its committed VERSION records 0.27.24; this is reviewed source, not a claim of
 registry publication or a matching release tag). Auth retains Cargo-owned versions
 and the default release mode; Shared's pending canonical `VERSION` workflow does
 not add a version file, prepare-work command or package-version edit here.
@@ -199,13 +209,13 @@ validate role comments mechanically, or qualify unlisted feature combinations.
 
 ## IC Platform boundary
 
-The protocol package selects published `ic-platform` 0.15.2 with only `principal`
+The protocol package selects published `ic-platform` 0.16.0 with only `principal`
 for canonical Types 0.15.1 Principal and parse-error identities, without an external Principal,
 SHA-2, Candid or runtime edge. The Auth engine explicitly selects
 `principal-self-authenticating` for browser-key hashing. Convert
-explicitly at Agent/Testkit/crypto boundaries using Platform's
-`principal::ExternalPrincipal` with `principal-external` selected (the client and
-signature capabilities already include it); the upstream type and cryptography remain there.
+explicitly at native Agent/Testkit boundaries using Platform's
+`principal::ExternalPrincipal` with `principal-external` selected. Platform 0.16
+canister-signature keys instead use the canonical owned Principal directly.
 Significant bytes, ordering and binary serialization remain compatible; text
 longer than 63 bytes is now refused before normalization. See the
 [consumer migration](canic-adoption.md#platform-015-migration). No storage migration
@@ -235,7 +245,7 @@ are refused without migration or reset. The maintainer confirmed no retained Aut
 records require preservation. IC Memory allocation and StableCell framing remain
 unchanged. Start with a coherent new fixture checkpoint for this hard cut.
 Checkpoint restores remain closed until matching controller authority is confirmed.
-The qualification host selects Memory/Storage 0.60.3 with the standard canister
+The qualification host selects Memory/Storage 0.60.6 with the standard canister
 backing. Memory admits one runtime/allocation; Storage's `StableCell` consumes
 that checked lease. Auth checks the retained payload ceiling before loading and
 refuses occupied fresh state before creating a cell. Memory 0.53 trusts exclusive
@@ -280,10 +290,12 @@ features. All direct registry creation/verifier declarations and local crypto
 implementations remain absent ([#16](https://github.com/dragginzgame/ic-platform/issues/16),
 [#17](https://github.com/dragginzgame/ic-platform/issues/17),
 [#18](https://github.com/dragginzgame/ic-platform/issues/18)).
-Platform 0.4 packages the original creation/verifier code and retained licenses,
-without the unexposed store or Candid import. The key type has a Platform identity;
-its Principal field remains external. DER/CBOR bytes, cryptographic bodies, errors,
-resource admission and protected authority stay intact. These capabilities now
+Platform 0.16 maintains the imported certification/BLS code and retained licenses,
+without the unexposed store or Candid import. Certificate, tree and key identities
+belong to Platform; the key's Principal is canonical Types 0.15.1. DER/CBOR bytes,
+resource admission and protected authority remain. Its BLS identity-key correction
+rejects forged certificates, covered through Auth's verifier; native Agent's
+separate external verifier does not inherit that correction. These capabilities
 select no Candid, raw IC calls or executor; no local replacement is introduced.
 
 Platform's `cdk` feature supplies maintained runtime adapters and explicit
@@ -291,7 +303,7 @@ codec entrypoints without depending on the full CDK or selecting Candid. The
 host's runtime calls and lifecycle/query/update macros use `ic_platform::cdk`;
 no local runtime wrapper is introduced. Explicit Wire hooks, including unit RPCs,
 retain byte admission, payloads, errors and traps. Controller Boolean/panic
-behavior remains. Platform 0.15 owns its maintained executor and IC0 bindings,
+behavior remains. Platform 0.16 owns its maintained executor and IC0 bindings,
 with their upstream provenance; no separate registry executor is selected.
 The retired no-op `hidden = true` option is removed from all fixture entrypoints;
 explicit Wire decoding/encoding and endpoint exports remain unchanged.
@@ -300,7 +312,7 @@ Auth keeps runtime-specific call/error types internal and uses none of the
 retired storage or `change_timeout` APIs. Its public Principal has canonical
 Types 0.15 identity, reexported by Platform. Select `principal` when using the
 facade alone; see [the migration](canic-adoption.md#platform-015-migration).
-Published Memory/Storage and native Testkit share Platform 0.15 and its Types with Auth;
+Published Memory/Storage and native Testkit share Platform 0.16 and its Types with Auth;
 they do not define Auth's public Principal. Storage retains the same
 upstream stable-structures types, and native Agent/Testkit boundaries retain the
 upstream external Principal. No dependency override or new conversion is needed.
@@ -409,8 +421,8 @@ No native package installer or browser download runs inside an ordinary check.
 The Makefile includes reviewed [`make/consumer.mk`](make-interface.md), which owns
 common setup, formatting, hooks, snapshot verification and release routing.
 `check-snapshot` retains its public name and depends on `shared-tooling-check`.
-The recorded snapshot pins Shared Tooling 0.27.23 at
-`619d194875369e0f72b45477b66adb430acbf6b7`. Adopt its committed source and
+The recorded snapshot pins Shared Tooling 0.27.24 at
+`1211262f32ea193cc4edcd60d2750baf1f1d6425`. Adopt its committed source and
 recorded entrypoint closure through the canonical exporter; see
 [snapshot adoption](consuming-snapshots.md#entrypoint-selection-in-070).
 Adoption also compares every exported payload with an independently reviewed
@@ -624,6 +636,8 @@ multi-package, multi-feature and multi-target entries are aggregate suites.
 | `make test-sessions` | Atomic admission/replay failure, exact retry, live authority invalidation, logout and quotas using certified and Ed25519 portable proofs |
 | `make test-backend-conformance` | Shared native backend scenarios against reference callbacks and an independent encoded store; deliberate partial-commit rejection; no simulator/private fixture dependency |
 | `make pack-backend-conformance` | Cargo-normalized unpublished source archive for a consumer's dev dependency; matching Auth cohort must already be published; no upload |
+| `make test-backend-package` | Opt-in: archive, excluded dev-dependency consumer, exact registry Auth identities, packaged scenarios and graph refusals; receipt and inputs retained; registry cohort must be explicitly cached |
+| `make profile-canonical-allocations` | Opt-in: release-mode native DHAT observations of unchanged canonical hash functions on synthetic small/wide inputs; outside CI; see [measurement limits and results](canonical-allocation-observations.md) |
 | `make test-host-tooling` | Native file-operation CLI: bounded input, exact digest output, no-follow reads and preserved create-only evidence |
 | `make check-msrv` | Aggregate: isolated public package payloads and internal applications using the declared minimum compiler, with native/Wasm and feature coverage |
 | `make tasks` | Read the adopted maintenance task catalog; no task, agent or schedule starts |
@@ -889,7 +903,7 @@ in publication state; no cleanup, GitHub Release object or deployment is
 implicit. See [Cargo publication](https://doc.rust-lang.org/cargo/commands/cargo-publish.html)
 for credentials, dry-run and index-propagation semantics.
 
-File mechanics use the published `ic-host-file` executable. Auth pins 0.73.3 in
+File mechanics use the published `ic-host-file` executable. Auth pins 0.73.4 in
 `ci/host-file.env`, independently of the library versions selected by Cargo.lock.
 `make install-host-file` prepares it through Shared Tooling with
 `--features cli`; `make host-file-check` admits that exact selection offline. The

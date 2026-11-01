@@ -55,6 +55,7 @@ if [[ "$package" == ic-auth-qualification-canister ]]; then
     if [[ "$BOUNDARY_MODE" == host-candid-derive ]]; then printf 'candid_derive v0.10.38\n'; fi
     if [[ "$BOUNDARY_MODE" == host-cdk ]]; then printf 'ic-cdk v0.20.3\n'; fi
     if [[ "$BOUNDARY_MODE" == host-cdk-macros ]]; then printf 'ic-cdk-macros v0.20.3\n'; fi
+    if [[ "$BOUNDARY_MODE" == host-profiler ]]; then printf 'dhat v0.3.3\n'; fi
     if [[ "$BOUNDARY_MODE" == host-platform-feature ]]; then
         printf 'ic-platform feature "candid"\n'
     fi
@@ -67,9 +68,24 @@ if [[ "$package" == ic-auth-backend-conformance ]]; then
         conformance-metrics) printf 'ic-metrics v0.24.1\n' ;;
         conformance-private) printf 'ic-auth-qualification-contracts v0.28.0\n' ;;
         conformance-certified) printf 'ic-verify-bls-signature v0.6.0\n' ;;
+        conformance-profiler) printf 'dhat v0.3.3\n' ;;
     esac
 fi
 if [[ "$package" == ic-auth ]]; then printf 'ic_principal v0.1.5\n'; fi
+if [[ "$package" == ic-auth && "$target" == wasm32-unknown-unknown && "$all_features" == yes ]]; then
+    case "$BOUNDARY_MODE" in
+        crypto-generations|crypto-generations-third)
+            for dependency in block-buffer crypto-common digest ff group rand_core sha2; do
+                printf '%s v0.1.0\n%s v0.2.0\n' "$dependency" "$dependency"
+            done
+            if [[ "$BOUNDARY_MODE" == crypto-generations-third ]]; then printf 'digest v0.3.0\n'; fi
+            ;;
+        crypto-algorithm-duplicate) printf 'k256 v0.13.4\nk256 v0.14.0\n' ;;
+    esac
+fi
+if [[ "$BOUNDARY_MODE" == library-profiler && "$package" == ic-auth && "$target" == wasm32-unknown-unknown && "$features" == sessions ]]; then
+    printf 'dhat v0.3.3\n'
+fi
 if [[ "$BOUNDARY_MODE" == principal-external && "$package" == ic-auth-protocol-types ]]; then
     printf 'ic_principal v0.1.5\n'
 fi
@@ -133,12 +149,12 @@ STUB
 chmod +x "$fixture/bin/"*
 export PATH="$fixture/bin:$root/.tools/host/bin:$PATH"
 export BOUNDARY_EVENTS="$fixture/events"
-for mode in accepted conformance-metrics conformance-private conformance-certified principal-external wire-hashing control-external principal-candid principal-executor principal-owned-executor principal-runtime-guard principal-bls principal-storage control-candid control-storage control-platform-feature wasm-default wasm-combined wasm-capability wasm-portable-bls wasm-certified-candid wasm-certified-ic0 wasm-certified-runtime wasm-certified-cdk wasm-certified-creation wasm-certified-verifier host-candid host-candid-derive parser executor executor-source generator generator-source runtime-guard-missing runtime-guard-source host-cdk host-cdk-macros host-platform-feature; do
+for mode in accepted crypto-generations crypto-generations-third crypto-algorithm-duplicate conformance-metrics conformance-private conformance-certified conformance-profiler library-profiler host-profiler principal-external wire-hashing control-external principal-candid principal-executor principal-owned-executor principal-runtime-guard principal-bls principal-storage control-candid control-storage control-platform-feature wasm-default wasm-combined wasm-capability wasm-portable-bls wasm-certified-candid wasm-certified-ic0 wasm-certified-runtime wasm-certified-cdk wasm-certified-creation wasm-certified-verifier host-candid host-candid-derive parser executor executor-source generator generator-source runtime-guard-missing runtime-guard-source host-cdk host-cdk-macros host-platform-feature; do
     export BOUNDARY_MODE="$mode"
     : > "$BOUNDARY_EVENTS"
     status=0
     bash "$fixture/repo/scripts/ci/check-auth-boundaries.sh" > "$fixture/$mode.log" 2>&1 || status=$?
-    if [[ "$mode" == accepted ]]; then
+    if [[ "$mode" == accepted || "$mode" == crypto-generations ]]; then
         [[ "$status" == 0 ]] || { cat "$fixture/$mode.log"; exit 1; }
         # Replace Auth's default selection with all three public defaults, then
         # add private Wire schemas per target, two final host checks and the
@@ -151,7 +167,7 @@ for mode in accepted conformance-metrics conformance-private conformance-certifi
     else
         [[ "$status" != 0 ]] || { echo "missing exclusion: $mode" >&2; exit 1; }
         rg '^Cargo graph policy failed:' "$fixture/$mode.log" > /dev/null
-        rg 'ic-platform|ic_principal|sha2|ic-agent|tokio|ic-testkit-candid|candid|ic-cdk|ic0|ic-canister-sig-creation|ic-signature-verification|ic-verify-bls-signature' "$fixture/$mode.log" > /dev/null
+        rg 'ic-platform|ic_principal|sha2|digest|k256|ic-agent|tokio|ic-testkit-candid|candid|ic-cdk|ic0|ic-canister-sig-creation|ic-signature-verification|ic-verify-bls-signature|dhat' "$fixture/$mode.log" > /dev/null
     fi
 done
 echo 'Native/Wasm graph selections and transitive tooling refusals passed'

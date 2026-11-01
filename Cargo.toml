@@ -40,9 +40,9 @@ ic-auth-wire = { version = "0.29.0", path = "crates/ic-auth-wire" }
 # Production dependencies
 # Platform owns Principal and imported signature code; other crypto identities stay upstream.
 # Principal is explicit; protocol, portable and session consumers need no IC runtime.
-ic-platform = { version = "0.15.2", default-features = false }
+ic-platform = { version = "0.16.0", default-features = false }
 # Host generation uses the lock-selected runtime and diagnostic callback.
-ic-wire = "0.13.1"
+ic-wire = "0.13.3"
 leb128 = "0.2"
 serde = { version = "1", features = ["derive"] }
 serde_bytes = "0.11"
@@ -52,15 +52,16 @@ thiserror = "2"
 
 # Tests and tooling only
 clap = { version = "4", default-features = false, features = ["derive", "error-context", "help", "std", "usage"] }
+dhat = "0.3.3"
 # Adversarial feature trigger only; production and test crypto APIs use Platform.
-ed25519-dalek = { version = "2.2", default-features = false }
-ic-build = { version = "0.73.3", default-features = false }
-ic-host-fs = { version = "0.73.3", default-features = false }
-ic-host-process = { version = "0.73.3", default-features = false }
-ic-memory = "0.60.3"
-ic-metrics = { version = "0.24.1", default-features = false }
-ic-storage = "0.60.3"
-ic-testkit = { version = "0.75.2", default-features = false }
+ed25519-dalek = { version = "3.0", default-features = false }
+ic-build = { version = "0.73.4", default-features = false }
+ic-host-fs = { version = "0.73.4", default-features = false }
+ic-host-process = { version = "0.73.4", default-features = false }
+ic-memory = "0.60.6"
+ic-metrics = { version = "0.24.4", default-features = false }
+ic-storage = "0.60.6"
+ic-testkit = { version = "0.76.0", default-features = false }
 serde_json = "1"
 tokio = { version = "1", features = ["rt-multi-thread", "sync", "time"] }
 

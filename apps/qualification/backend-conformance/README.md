@@ -19,26 +19,49 @@ and normalizes workspace/path dependencies to registry dependencies. Retain the
 archive and its integrity with the consumer's qualification inputs. A dirty VCS
 receipt describes a candidate, not a delivered revision.
 
+`make test-backend-package` qualifies a fresh archive in a separate consumer
+workspace, using one exact registry Auth/protocol cohort and the source bundle
+only as a dev dependency. It compiles a trait/error identity witness, runs all
+packaged scenarios, checks invalid source/dependency graph variants and seals source,
+archive and consumer inputs. The printed evidence directory retains logs,
+metadata and `delivery.json` with source/dirty state and archive SHA-256.
+This is opt-in delivery qualification, outside ordinary CI. Prepare matching
+published registry packages explicitly first. If the offline metadata stage
+reports a missing download, run `cargo fetch --locked --manifest-path
+<printed-evidence>/consumer/Cargo.toml`, then rerun the check into a fresh retained
+directory. The check itself never downloads or uploads.
+
+The pending Platform 0.16 adoption is ahead of published Auth 0.29.0, which still
+requires Platform 0.15. A fresh archive from this checkout therefore refuses
+delivery qualification against that older registry graph. Wait for the aligned
+Auth cohort to be published; matching package version numbers alone do not prove
+matching dependencies. Keep the single-Platform/Types admission intact.
+
 Extract this source archive into the consumer's test-support directory and add
 it as a **development dependency**. Use the archive's normalized `Cargo.toml`;
 depending on the producer's working workspace can introduce a second Git/path
 identity for Auth alongside the consumer's registry dependency.
 
-For the 0.28 cohort:
+For the 0.29 cohort:
 
 ```toml
 # Append this path to the consumer's existing workspace exclusions. The foreign
 # source bundle must not become a consumer-owned release-group member.
 [workspace]
-exclude = ["test-support/ic-auth-backend-conformance-0.28.0"]
+exclude = ["test-support/ic-auth-backend-conformance-0.29.0"]
 
 [dev-dependencies]
-ic-auth-backend-conformance = { path = "test-support/ic-auth-backend-conformance-0.28.0" }
-ic-auth = { version = "=0.28.0", default-features = false, features = ["session-restore", "portable-signature-verification"] }
+ic-auth-backend-conformance = { path = "test-support/ic-auth-backend-conformance-0.29.0" }
+ic-auth = { version = "=0.29.0", default-features = false, features = ["session-restore", "portable-signature-verification"] }
 ```
 
 Implement `ic_auth_backend_conformance::Backend` on a test driver for the actual
 adapter and call `assert_backend_contract::<YourDriver>()` from a native test.
+The complete entrypoint always runs all four named scenarios:
+`assert_admission_retry`, `assert_logout_reopen`, `assert_replacement_generation`
+and `assert_capacity`. Each uses fresh disposable backing and can also be called
+from a separately named native test for clearer failure diagnosis. A subset is
+not complete backend conformance.
 `fresh` supplies isolated backing with the requested generation and bounds;
 `fail_next_commit` injects a normal error before mutations; `reopen` reconstructs
 the adapter from persisted representation; `advance_generation` persists the new
@@ -51,6 +74,10 @@ implementing the same Rust traits; matching version text alone is insufficient.
 
 Scenarios cover admission/replacement, failed commits, spent verification credit,
 exact retry after proof expiry, logout, replay/denial retention, reopening,
-generation invalidation and physical count/byte capacity. They do not establish
+generation invalidation and physical session/replay count/byte capacity. Replay
+capacity covers receiver-wide and per-caller exhaustion, preserves original exact
+retry at saturation, and checks that per-caller saturation leaves other callers
+admissible. Deliberately broken admission and logout writes prove that returned
+errors cannot publish mutations. These checks do not establish
 crash atomicity, rollback protection, durable clocks/authority, cleanup bounds or
 installed endpoint acceptance. The host owns those additional proofs.

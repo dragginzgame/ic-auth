@@ -494,6 +494,10 @@ Keep this test support outside deployed graphs.
 `make test-backend-conformance`
 runs the same scenarios against reference commit callbacks and an independent
 encoded-record backend. It also proves a write-then-error adapter is rejected.
+The complete entrypoint runs four separately callable scenarios for admission/retry,
+logout/reopen, replacement/generation and capacity; no scenario is optional for
+complete conformance. See the package README for their names and driver hooks.
+
 After publishing the matching Auth cohort, `make pack-backend-conformance` creates
 a Cargo-normalized source archive for consumers. Use that normalized manifest,
 with registry Auth dependencies, rather than importing the producer workspace's
@@ -501,9 +505,15 @@ Git/path identities. See the package README for extraction and driver requiremen
 Scenarios cover failed admission/logout, spent verification credit, exact retry
 after proof expiry without lease extension, replacement, replay/denial retention,
 active/revoked reopen, generation invalidation and count/byte capacity refusal.
+Replay-capacity scenarios cover both global and per-caller pools, original exact
+retry at saturation, and independent admission for a nonsaturated caller.
+Deliberate write-then-error adapters exercise both admission and logout detectors.
 Core tests separately exercise malformed/mismatched pairs and live record
 replacement. These checks do not establish crash atomicity, rollback protection,
 durable clocks/authority, cleanup bounds or deployed consumer acceptance.
+`make test-backend-package` independently qualifies the archive against registry
+Auth identities and emits a source/integrity receipt. It requires explicitly
+prepared registry dependencies and does not run as part of ordinary CI.
 
 ## Executable host integration references
 

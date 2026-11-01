@@ -106,7 +106,7 @@ pub fn verify_canister_signature(
     let key = CanisterSigPublicKey::try_from(proof.public_key_der.as_slice())
         .map_err(|_| CanisterSignatureError::InvalidPublicKey)?;
     // Platform admits canonical short-form DER before parsing.
-    if Principal::from(key.canister_id) != policy.signing_canister {
+    if key.canister_id != policy.signing_canister {
         return Err(CanisterSignatureError::CanisterMismatch);
     }
     if <[u8; 32]>::from(Sha256::digest(&key.seed)) != policy.seed_hash {

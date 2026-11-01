@@ -8,17 +8,17 @@ Older migrations and observations are preserved in [adoption history](canic-adop
 
 ## Current integration cohort
 
-The current released Auth family is **0.28.0**, source
-[`70527e6`](https://github.com/dragginzgame/ic-auth/tree/70527e6f25a0eb520edb3c6611fac12a57909e99).
+The current released Auth family is **0.29.0**, source
+[`6c0411b`](https://github.com/dragginzgame/ic-auth/tree/6c0411b5b9b16b695f7f7b90feed8ca12f6589cd).
 Select matching `ic-auth`, `ic-auth-protocol-types` and `ic-auth-wire` packages.
 [`Cargo.toml`](../Cargo.toml) and the [current handoff](status/current.md#selected-suppliers-and-governance)
 own this checkout's exact upstream selections. Root package versions remain at
-0.28.0 until an authorized release; pending changes are described in `CHANGELOG.md`.
+0.29.0 until an authorized release; pending changes are described in `CHANGELOG.md`.
 
 `Session::scopes()` returns checked `ScopeLabel` values; use `as_str()` for text.
 Requests move their checked labels into sessions. Signed protocol grants remain
 raw DTOs checked by `ValidatedGrants`; never normalize or rewrite signed bytes.
-The pending 0.29 API cut removes the unused top-level session budget variants and
+The 0.29 API cut removed the unused top-level session budget variants and
 conversion. Fresh proof budget failures retain their mechanism-specific credential
 error; use `PortableCredentialError::budget_error()` for diagnostic classification.
 Public refusal categories, verification ordering and charging are unchanged.
@@ -99,6 +99,19 @@ Project original `SessionError` values with `admission_refusal()` or
 locally. `NotYetValid` is a bounded retry hint, not proof validity; retain strict
 start/deadline admission and the original credential. Do not retry invalid
 signatures, expiry, reset-floor or stale-authority refusals automatically.
+
+## Platform 0.16 adoption
+
+The pending checkout adopts Platform 0.16; released Auth 0.29.0 still selects
+the earlier Platform 0.15 cohort. Platform now maintains certificate/tree/BLS
+identities and uses canonical owned Principal in canister-signature keys.
+Keep external conversions at native Agent/Testkit boundaries. K256 0.14 and
+Dalek 3 change concrete crypto identities; Auth preserves its byte-based API,
+strict verification and explicit high-S policy. The upstream BLS identity-key
+fix rejects forged certificates; native Agent's separate verifier is unchanged.
+Canister build owners should select the qualified 32-bit RustCrypto backend;
+this checkout declares it in [Cargo configuration](../.cargo/config.toml).
+Current Wire and stored formats require no migration or reset.
 
 ## Platform 0.15 migration
 

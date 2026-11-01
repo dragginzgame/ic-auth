@@ -36,6 +36,15 @@ pub trait Backend: SessionStore + Sized {
 /// against a host adapter. Panics identify a violated assertion. Use only with
 /// disposable qualification backing; this deliberately injects failed commits.
 pub fn assert_backend_contract<B: Backend>() {
+    assert_admission_retry::<B>();
+    assert_logout_reopen::<B>();
+    assert_replacement_generation::<B>();
+    assert_capacity::<B>();
+}
+
+/// Failed admission is atomic, consumes proof credit, and exact retry preserves
+/// the original lease after proof expiry. Uses fresh disposable backing.
+pub fn assert_admission_retry<B: Backend>() {
     let f = Fixture::new(1);
     let other = Fixture::new(2);
     let mut store = B::fresh(0, limits(4, 65_536));
@@ -77,7 +86,18 @@ pub fn assert_backend_contract<B: Backend>() {
         after,
         "retry must preserve the original lease and records after proof expiry"
     );
+}
 
+/// Reopening retains authorization; failed logout preserves it; committed logout
+/// survives another reopen while retaining consumed-proof evidence.
+pub fn assert_logout_reopen<B: Backend>() {
+    let f = Fixture::new(1);
+    let other = Fixture::new(2);
+    let mut store = B::fresh(0, limits(4, 65_536));
+    let mut ledger = f.ledger();
+    let mut budget = SessionAdmissionBudget::new(1, NOW, 0).unwrap();
+    f.admit(&mut store, &mut ledger, &mut budget, NOW).unwrap();
+    let after = snapshot(&mut store, &f, &other);
     let mut store = store.reopen();
     let observed = ledger.observed_at_ns();
     ledger = f
@@ -142,7 +162,12 @@ pub fn assert_backend_contract<B: Backend>() {
         ))
     );
     assert_eq!(snapshot(&mut store, &f, &other), revoked);
+}
 
+/// Replacement retains replay history; generation invalidation survives reopen.
+pub fn assert_replacement_generation<B: Backend>() {
+    let f = Fixture::new(1);
+    let other = Fixture::new(2);
     // A fresh proof for the same login replaces the lease, retaining both replays.
     let mut store = B::fresh(0, limits(4, 65_536));
     let mut ledger = f.ledger();
@@ -170,7 +195,13 @@ pub fn assert_backend_contract<B: Backend>() {
     assert_eq!(changed.generation, 1);
     assert_eq!(changed.logins, before.logins);
     assert_eq!(changed.occupancy[0].replays, 2);
+}
 
+/// Session, global/per-caller replay and encoded-byte exhaustion refuse without
+/// changing records or ledger. Replacement must still respect replay capacity.
+pub fn assert_capacity<B: Backend>() {
+    let f = Fixture::new(1);
+    let other = Fixture::new(2);
     for (bounds, expected) in [
         (limits(1, 65_536), SessionError::Capacity),
         (limits(4, 1), SessionError::ByteCapacity),
@@ -189,6 +220,48 @@ pub fn assert_backend_contract<B: Backend>() {
         );
         assert_eq!(snapshot(&mut store, &f, &other), before);
         assert_eq!(ledger.occupancy(), counts);
+    }
+    for (scope, bounds, device) in [
+        (
+            "global replay",
+            SessionLimits::new(4, 1, 4, 65_536).unwrap(),
+            2,
+        ),
+        (
+            "caller replay",
+            SessionLimits::new(4, 8, 1, 65_536).unwrap(),
+            1,
+        ),
+    ] {
+        let mut store = B::fresh(0, bounds);
+        let mut ledger = f.ledger();
+        let mut budget = SessionAdmissionBudget::new(8, SECOND, 0).unwrap();
+        let created = f.admit(&mut store, &mut ledger, &mut budget, NOW).unwrap();
+        let mut candidate = Fixture::new(device);
+        candidate.claims.nonce = [2; 16];
+        let before = snapshot(&mut store, &f, &candidate);
+        let counts = ledger.occupancy();
+        assert_eq!(
+            candidate.admit(&mut store, &mut ledger, &mut budget, NOW),
+            Err(SessionError::Capacity),
+            "{scope} exhaustion must refuse before writing"
+        );
+        assert_eq!(snapshot(&mut store, &f, &candidate), before);
+        assert_eq!(ledger.occupancy(), counts);
+        let mut store = store.reopen();
+        assert_eq!(snapshot(&mut store, &f, &candidate), before);
+        assert_eq!(
+            f.admit(&mut store, &mut ledger, &mut budget, NOW),
+            Ok(SessionEstablished::ExactRetry(created.receipt())),
+            "a full replay pool must still allow the original exact retry"
+        );
+        if device == 1 {
+            // Per-caller saturation does not exhaust the receiver-wide pool.
+            assert!(matches!(
+                other.admit(&mut store, &mut ledger, &mut budget, NOW),
+                Ok(SessionEstablished::Created(_))
+            ));
+        }
     }
 }
 

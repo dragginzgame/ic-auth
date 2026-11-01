@@ -115,11 +115,7 @@ fn portable_proof_rechecks_live_authority_and_real_certification_after_upgrade()
             b"delegation".to_vec(),
         ])
         .unwrap(),
-        public_key: key
-            .verifying_key()
-            .to_encoded_point(true)
-            .as_bytes()
-            .to_vec(),
+        public_key: key.verifying_key().to_sec1_point(true).as_bytes().to_vec(),
         key_version: 4,
         min_accepted_key_version: 4,
         min_accepted_proof_epoch: 2,

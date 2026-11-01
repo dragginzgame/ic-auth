@@ -19,7 +19,7 @@ export RELEASE_REMOTE RELEASE_BRANCH
         test-types test-protocol test-portable-signatures test-chain-key-signatures test-signatures test-signature-store test-certified-proofs test-sessions check-wasm clippy check-boundaries \
         check-snapshot check-dependency-pins check-doc-links check-msrv install-msrv msrv-tools-check tasks ci \
         client-tools-check install-client-dependencies generate-client-contracts check-client-contracts check-client-boundary test-client test-client-tools pack-client test-client-package \
-        publish publish-dry-run check-package-licenses test-release-tools pack-backend-conformance test-backend-conformance \
+        publish publish-dry-run check-package-licenses test-release-tools pack-backend-conformance test-backend-conformance test-backend-package profile-canonical-allocations \
         test-host-tooling test-qualification build-qualification-canister test-release-runner test-evidence-archive test-tools-evidence test-make-jobserver \
         release-version release-preflight release-verify release-prepare-version \
         release-prepared-check release-files release-commit-check \
@@ -36,6 +36,7 @@ help:
 	@echo 'Browser client: install-client-dependencies, client-tools-check, generate-client-contracts, check-client-contracts, check-client-boundary, test-client'
 	@echo 'Local browser archives: pack-client, test-client-package (offline; no publication)'
 	@echo 'Native backend scenarios: test-backend-conformance; source archive after cohort publication: pack-backend-conformance'
+	@echo 'Delivery qualification after cohort publication: test-backend-package; native allocation observation: profile-canonical-allocations'
 	@echo 'Opt-in Chromium qualification: test-client-browser (IC_AUTH_BROWSER_EXECUTABLE required)'
 	@echo 'Formatting: fmt, fmt-check, test-formatting-hooks'
 	@echo 'Governance: check-snapshot, check-dependency-pins, check-doc-links, check-boundaries, check-msrv; maintenance catalog: tasks'
@@ -229,6 +230,15 @@ test-backend-conformance:
 # the matching Auth libraries before packing; this never uploads the harness.
 pack-backend-conformance:
 	+cargo package --locked --offline --allow-dirty --no-verify -p ic-auth-backend-conformance
+
+# Opt-in delivery check: requires cached registry packages for the current Auth
+# cohort. It runs the exact packaged scenarios against a separate consumer graph.
+test-backend-package:
+	+bash scripts/dev/test-backend-package.sh
+
+# Measurement only, outside ordinary CI and deployed graphs.
+profile-canonical-allocations:
+	+bash scripts/dev/profile-canonical-allocations.sh
 
 # Generic producer matrices remain opt-in; CI keeps Auth adapter/caller proofs.
 test-release-runner:

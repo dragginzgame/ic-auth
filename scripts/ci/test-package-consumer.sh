@@ -99,6 +99,7 @@ for engine in rg jq; do
         [[ "$found" == "$refused" ]] || { echo "dependency policy mismatch: $engine $policy $package" >&2; exit 1; }
     done <<'CASES'
 default canic-core yes
+default canic_core yes
 default canicular no
 default candid yes
 default candid_derive yes
@@ -147,6 +148,20 @@ packaged ic0 yes
 packaged ic-canister-sig-creation yes
 capability ic-signature-verification yes
 capability candid_derive yes
+default dhat yes
+capability dhat yes
+packaged dhat yes
+profiling dhat yes
+profiling dhat_helpers yes
+profiling dhatology no
+profiling sha2 no
+backend-conformance dhat yes
+backend-conformance canic_core yes
+backend-conformance ic-certification yes
+backend-conformance ic-platform-runtime-guard yes
+backend-conformance ic-auth-backend-conformance no
+backend-conformance ic-platform no
+backend-conformance ed25519-dalek no
 CASES
 done
 if auth_dependency_pattern unknown >/dev/null 2>&1; then exit 1; fi

@@ -109,7 +109,7 @@ impl Fixture {
         assert_eq!(pic.get_subnet(signer), Some(subnets[0]));
         assert_eq!(pic.get_subnet(resource), Some(subnets[count - 1]));
         let owner = Principal::self_authenticating(
-            CanisterSigPublicKey::new(signer, SEED.to_vec()).to_der(),
+            CanisterSigPublicKey::new(signer.into(), SEED.to_vec()).to_der(),
         );
         for canister in [signer, resource] {
             pic.add_cycles(canister, 2_000_000_000_000);

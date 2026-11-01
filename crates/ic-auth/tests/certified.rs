@@ -101,7 +101,7 @@ fn issuer_proof_message(
             certificate: ByteBuf::from(cbor(&certificate)),
             tree,
         }),
-        public_key_der: CanisterSigPublicKey::new(issuer.into(), seed.to_vec()).to_der(),
+        public_key_der: CanisterSigPublicKey::new(issuer, seed.to_vec()).to_der(),
     }
 }
 
@@ -186,7 +186,7 @@ impl Fixture {
             .unwrap(),
             public_key: root_signing_key()
                 .verifying_key()
-                .to_encoded_point(true)
+                .to_sec1_point(true)
                 .as_bytes()
                 .to_vec(),
             key_version: 4,

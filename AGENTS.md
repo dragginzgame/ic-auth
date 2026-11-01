@@ -1,7 +1,7 @@
 # IC Auth Agent Instructions
 
-Apply [DRAGGINZGAME.md](DRAGGINZGAME.md), adopted from Shared Tooling 0.27.23
-source `619d194875369e0f72b45477b66adb430acbf6b7`, recorded in
+Apply [DRAGGINZGAME.md](DRAGGINZGAME.md), adopted from Shared Tooling 0.27.24
+source `1211262f32ea193cc4edcd60d2750baf1f1d6425`, recorded in
 [.shared-tooling.snapshot](.shared-tooling.snapshot). Read
 [the current handoff](docs/status/current.md) before implementation.
 Read task-specific references when their subject applies; the local constraints
@@ -66,13 +66,12 @@ Platform reexports Auth's canonical Principal and parse errors from
 `ic-platform-types` 0.15. The engine explicitly
 selects `principal-self-authenticating` for browser-key hashing; passive protocol
 and Wire packages keep only `principal`, without external Principal or SHA-2.
-Convert explicitly through `principal::ExternalPrincipal` at upstream
-Agent/Testkit/crypto boundaries; keep
-`principal-external` selected at those boundaries (client/signature features
-already select it). Keep application/runtime identities owned and preserve
-original bytes. It supplies
-Platform-owned canister-signature key/hash code and upstream certificate-tree,
-verifier/BLS, ECDSA and Ed25519 capabilities. All K256 and Ed25519 API imports use
+Convert explicitly through `principal::ExternalPrincipal` at native
+Agent/Testkit boundaries; keep `principal-external` selected there.
+Platform 0.16 canister-signature keys and certificate types use owned identities.
+Keep application/runtime identities owned and preserve original bytes. It supplies
+maintained canister-signature, certificate-tree and BLS code plus upstream
+ECDSA and Ed25519 capabilities. All K256 and Ed25519 API imports use
 Platform; Auth retains prehash/high-S policy, explicit normalization,
 canonical-scalar admission and strict verification. The unpublished
 feature-unification harness alone has a direct Dalek dev dependency

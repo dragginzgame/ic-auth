@@ -16,5 +16,10 @@ ic-build.workspace = true
 ic-host-fs.workspace = true
 serde_json.workspace = true
 
+[dev-dependencies]
+dhat.workspace = true
+ic-auth.workspace = true
+ic-auth-protocol-types.workspace = true
+
 [lints]
 workspace = true
