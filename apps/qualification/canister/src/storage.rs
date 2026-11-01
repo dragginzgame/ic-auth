@@ -1,8 +1,8 @@
 //! Fixture-owned checkpoint allocation. No library bootstraps a competing manager.
 //! Writes run synchronously in pre_upgrade; IC message rollback owns trap atomicity.
 use ic_memory::{
-    DefaultMemoryImpl, Memory, MemoryManagerConfig, RuntimeMemory, stable_cell_payload_length,
-    testing::fixture_runtime,
+    DefaultMemoryImpl, Memory, MemoryManagerConfig, RuntimeMemory, StableKey,
+    stable_cell_payload_length, testing::fixture_runtime,
 };
 use ic_storage::adapter::StableCell;
 use std::cell::RefCell;
@@ -16,6 +16,7 @@ const MAGIC: &[u8; 8] = b"AUTHNAT3";
 const MAX_BYTES: usize = 131_072;
 
 fn checkpoint_allocation(backing: DefaultMemoryImpl) -> RuntimeMemory<DefaultMemoryImpl> {
+    let key = StableKey::parse(KEY).expect("checkpoint key admission");
     fixture_runtime(
         backing,
         "ic_auth_qualification",
@@ -24,7 +25,7 @@ fn checkpoint_allocation(backing: DefaultMemoryImpl) -> RuntimeMemory<DefaultMem
         MemoryManagerConfig::default(),
     )
     .expect("checkpoint runtime admission")
-    .open_memory(KEY)
+    .open_memory(&key)
     .expect("checkpoint allocation admission")
 }
 
@@ -43,7 +44,7 @@ pub(crate) fn bootstrap(backing: DefaultMemoryImpl, restore: bool) {
             StableCell::load(memory).expect("checkpoint cell admission")
         } else {
             assert_eq!(memory.size(), 0, "checkpoint allocation already occupied");
-            StableCell::new(memory, Vec::new())
+            StableCell::create(memory, Vec::new())
         };
         *state = Some(cell);
     });
@@ -163,6 +164,25 @@ mod tests {
         assert!(std::panic::catch_unwind(|| bootstrap(Default::default(), false)).is_err());
         assert_eq!(load(), b"short replacement");
         CELL.with(|state| state.borrow_mut().take());
+        let retained_bytes = || {
+            let mut bytes = vec![0; backing.size() as usize * 65_536];
+            backing.read(0, &mut bytes);
+            bytes
+        };
+        // Runtime bootstrap may commit its own ledger. Snapshot after obtaining
+        // the lease to isolate the collection's fresh-only creation boundary.
+        let allocation = checkpoint_allocation(backing.clone());
+        let before = retained_bytes();
+        assert!(
+            std::panic::catch_unwind(AssertUnwindSafe(|| {
+                StableCell::create(allocation, Vec::<u8>::new())
+            }))
+            .is_err()
+        );
+        assert!(
+            retained_bytes() == before,
+            "collection creation must preserve occupied backing"
+        );
         assert!(
             std::panic::catch_unwind(AssertUnwindSafe(|| bootstrap(backing.clone(), false)))
                 .is_err()

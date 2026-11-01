@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.29.2] - Unreleased
+
+### ⬆️ Dependencies
+
+- Adopt Memory/Storage 0.61.0 in the private qualification canister. Parse the
+  allocation key once at setup and use explicit fresh-only cell creation;
+  retain bounded retained-state loading, current bytes and no-reset refusals.
+- Refresh Build/Host and prepared file/editor CLIs to 0.73.6, Metrics to 0.24.5,
+  Testkit to 0.76.2 and Wire/derive to 0.13.5. Canonical Types 0.15.1,
+  Platform 0.16.0, PocketIC 16.1.0 and public Auth interfaces remain unchanged.
+- Adopt reviewed Shared Tooling 0.27.25 at `982a997`, including destination-graph
+  admission guidance. Validation-proof reuse and compiler-wrapper recipes remain
+  opt-in; this update does not change release gates or deployment profiles.
+
+### 🧪 Testing
+
+- Verify that fresh cell creation on an occupied allocation preserves all backing
+  bytes, separately from the runtime's legitimate bootstrap ledger commits.
+
 ## [0.29.1] - 2026-11-01
 
 ### ⬆️ Dependencies

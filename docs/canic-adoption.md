@@ -8,12 +8,12 @@ Older migrations and observations are preserved in [adoption history](canic-adop
 
 ## Current integration cohort
 
-The current released Auth family is **0.29.0**, source
-[`6c0411b`](https://github.com/dragginzgame/ic-auth/tree/6c0411b5b9b16b695f7f7b90feed8ca12f6589cd).
+The current released Auth family is **0.29.1**, source
+[`54d1d2a`](https://github.com/dragginzgame/ic-auth/tree/54d1d2aadfc67830f630612d5654f28815a64119).
 Select matching `ic-auth`, `ic-auth-protocol-types` and `ic-auth-wire` packages.
 [`Cargo.toml`](../Cargo.toml) and the [current handoff](status/current.md#selected-suppliers-and-governance)
 own this checkout's exact upstream selections. Root package versions remain at
-0.29.0 until an authorized release; pending changes are described in `CHANGELOG.md`.
+0.29.1 until an authorized release; pending changes are described in `CHANGELOG.md`.
 
 `Session::scopes()` returns checked `ScopeLabel` values; use `as_str()` for text.
 Requests move their checked labels into sessions. Signed protocol grants remain
@@ -102,8 +102,8 @@ signatures, expiry, reset-floor or stale-authority refusals automatically.
 
 ## Platform 0.16 adoption
 
-The pending checkout adopts Platform 0.16; released Auth 0.29.0 still selects
-the earlier Platform 0.15 cohort. Platform now maintains certificate/tree/BLS
+Released Auth 0.29.1 adopts Platform 0.16; Auth 0.29.0 selected the earlier
+Platform 0.15 cohort. Platform now maintains certificate/tree/BLS
 identities and uses canonical owned Principal in canister-signature keys.
 Keep external conversions at native Agent/Testkit boundaries. K256 0.14 and
 Dalek 3 change concrete crypto identities; Auth preserves its byte-based API,

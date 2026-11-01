@@ -140,18 +140,18 @@ Platform's explicit `pocket-ic` capability owns native simulator clients and DTO
 Testkit owns bounded server startup, lifecycle extensions and typed Wire calls;
 only the native runner selects these capabilities.
 
-Native file and process callers select Host FS/Process 0.73.4 with defaults
+Native file and process callers select Host FS/Process 0.73.6 with defaults
 disabled. Library use does not enable Host's optional CLI, certificate decoder
 or Wasm text/encoding backends. Host stays outside the production library graph.
-Build 0.73.4 and Testkit 0.76.0 select the same Host 0.73 identities as Auth's direct
+Build 0.73.6 and Testkit 0.76.2 select the same Host 0.73 identities as Auth's direct
 callers; no dependency override or old Host family is needed. The independently
-pinned file CLI is independently selected at 0.73.4 for this adoption.
+pinned file CLI is independently selected at 0.73.6 for this adoption.
 Build and Testkit libraries keep `cli` disabled; only the prepared executable
 selections request it. Testkit owns its benchmark-average errors and selects
-arithmetic-only Metrics 0.24.4 alongside Auth. Auth exchanges no Metrics values with
+arithmetic-only Metrics 0.24.5 alongside Auth. Auth exchanges no Metrics values with
 Testkit, and neither caller enables its optional native metadata.
 
-The unpublished qualification host separately selects IC Metrics 0.24.4 for fixed
+The unpublished qualification host separately selects IC Metrics 0.24.5 for fixed
 admission outcome counters, with defaults disabled: arithmetic and validated Serde
 do not select its optional native Wire metadata. Public Auth graphs forbid that
 dependency. See the
@@ -166,8 +166,8 @@ for the existing byte/path limits and release-recovery boundary.
 
 ## Dependency roles and deployment admission
 
-Shared Tooling revision `1211262f32ea193cc4edcd60d2750baf1f1d6425` is adopted
-(its committed VERSION records 0.27.24; this is reviewed source, not a claim of
+Shared Tooling revision `982a99706e038810ee8108d5356a8637a7d42f67` is adopted
+(its committed VERSION records 0.27.25; this is reviewed source, not a claim of
 registry publication or a matching release tag). Auth retains Cargo-owned versions
 and the default release mode; Shared's pending canonical `VERSION` workflow does
 not add a version file, prepare-work command or package-version edit here.
@@ -245,10 +245,13 @@ are refused without migration or reset. The maintainer confirmed no retained Aut
 records require preservation. IC Memory allocation and StableCell framing remain
 unchanged. Start with a coherent new fixture checkpoint for this hard cut.
 Checkpoint restores remain closed until matching controller authority is confirmed.
-The qualification host selects Memory/Storage 0.60.6 with the standard canister
+The qualification host selects Memory/Storage 0.61.0 with the standard canister
 backing. Memory admits one runtime/allocation; Storage's `StableCell` consumes
 that checked lease. Auth checks the retained payload ceiling before loading and
-refuses occupied fresh state before creating a cell. Memory 0.53 trusts exclusive
+refuses occupied fresh state before creating a cell. Setup parses a `StableKey`
+for `open_memory`; fresh state uses `StableCell::create`, while retained state
+uses `StableCell::load`. No combined initialization or reset path is selected.
+Memory 0.53 trusts exclusive
 backing custody between manager checks at construction, lease opening and growth;
 raw backing aliases remain prohibited. Native reopen tests release the cell and
 any detached handle first; attempted aliases refuse while either lease remains
@@ -421,8 +424,8 @@ No native package installer or browser download runs inside an ordinary check.
 The Makefile includes reviewed [`make/consumer.mk`](make-interface.md), which owns
 common setup, formatting, hooks, snapshot verification and release routing.
 `check-snapshot` retains its public name and depends on `shared-tooling-check`.
-The recorded snapshot pins Shared Tooling 0.27.24 at
-`1211262f32ea193cc4edcd60d2750baf1f1d6425`. Adopt its committed source and
+The recorded snapshot pins Shared Tooling 0.27.25 at
+`982a99706e038810ee8108d5356a8637a7d42f67`. Adopt its committed source and
 recorded entrypoint closure through the canonical exporter; see
 [snapshot adoption](consuming-snapshots.md#entrypoint-selection-in-070).
 Adoption also compares every exported payload with an independently reviewed
@@ -903,7 +906,7 @@ in publication state; no cleanup, GitHub Release object or deployment is
 implicit. See [Cargo publication](https://doc.rust-lang.org/cargo/commands/cargo-publish.html)
 for credentials, dry-run and index-propagation semantics.
 
-File mechanics use the published `ic-host-file` executable. Auth pins 0.73.4 in
+File mechanics use the published `ic-host-file` executable. Auth pins 0.73.6 in
 `ci/host-file.env`, independently of the library versions selected by Cargo.lock.
 `make install-host-file` prepares it through Shared Tooling with
 `--features cli`; `make host-file-check` admits that exact selection offline. The

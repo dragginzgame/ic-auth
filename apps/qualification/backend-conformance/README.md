@@ -31,11 +31,10 @@ reports a missing download, run `cargo fetch --locked --manifest-path
 <printed-evidence>/consumer/Cargo.toml`, then rerun the check into a fresh retained
 directory. The check itself never downloads or uploads.
 
-The pending Platform 0.16 adoption is ahead of published Auth 0.29.0, which still
-requires Platform 0.15. A fresh archive from this checkout therefore refuses
-delivery qualification against that older registry graph. Wait for the aligned
-Auth cohort to be published; matching package version numbers alone do not prove
-matching dependencies. Keep the single-Platform/Types admission intact.
+Published Auth 0.29.1 aligns with Platform 0.16. Use that matching cohort for
+this source bundle; earlier Auth 0.29.0 still requires Platform 0.15 and was
+refused by the delivery graph check. Keep the single-Platform/Types admission
+intact, and recheck the graph when dependencies change.
 
 Extract this source archive into the consumer's test-support directory and add
 it as a **development dependency**. Use the archive's normalized `Cargo.toml`;
