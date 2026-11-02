@@ -43,6 +43,9 @@ native tooling packages. The independent series starts after the
   CI/release stage roster. Drift fixtures inspect retained checkpoint evidence.
   Tool-admission fixtures distinguish read-only inventory from compiler/server
   dispatch while retaining their fail-fast ordering checks.
+- Drive the browser admission timeout test with a controlled clock after transport
+  entry. Preserve the timeout, cancellation and uncertain-issuance assertions
+  without racing a 5 ms wall-clock deadline against IndexedDB scheduling on macOS.
 
 ## [0.31.0] - 2026-11-02
 

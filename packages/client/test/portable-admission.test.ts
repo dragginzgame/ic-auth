@@ -454,14 +454,19 @@ test('logout during admission retains destination and rejects late success', asy
   } finally { f.store.close(); }
 });
 
-test('timeout preserves uncertainty and aborts the per-call identity capability', async () => {
+test('timeout preserves uncertainty and aborts the per-call identity capability', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
   const f = await fixture();
   try {
     let retained: Parameters<PortableAdmissionTransport['issue']>[0] | undefined;
+    const entered = deferred<void>();
     const late = deferred<AdmissionCredential>();
-    f.transport.issue = async caller => { retained = caller; return late.promise; };
+    f.transport.issue = async caller => { retained = caller; entered.resolve(); return late.promise; };
     const client = new PortableAdmissionClient(f.journal, 'login', { browser: identity, account }, issuer, f.transport, 5);
-    await assert.rejects(client.establish(a), (e: ClientError) => e.code === 'timeout');
+    const timedOut = assert.rejects(client.establish(a), (e: ClientError) => e.code === 'timeout');
+    await entered.promise; // Exercise cancellation after transport entry, independent of IDB scheduling.
+    t.mock.timers.tick(5);
+    await timedOut;
     assert.ok(retained);
     // Cancellation must refuse before inspecting or signing any request.
     await assert.rejects(retained.transformRequest({} as Parameters<typeof retained.transformRequest>[0]),
@@ -469,7 +474,7 @@ test('timeout preserves uncertainty and aborts the per-call identity capability'
     assert.equal((await f.journal.status('login')).issuanceUnknown, true);
     assert.equal(f.state.admissions.length, 0);
     late.resolve(f.material);
-    await new Promise(resolve => setTimeout(resolve, 0));
+    await new Promise(resolve => setImmediate(resolve));
     assert.equal(f.state.admissions.length, 0);
   } finally { f.store.close(); }
 });
