@@ -59,6 +59,12 @@ native tooling packages. The independent series starts after the
   native and Wasm Clippy, proc-macro and real runtime qualification instead of
   repeating those compilations under a second compiler.
 
+### 🧪 Testing
+
+- Qualify the consolidated Storage host in the boundary caller fixture, including
+  missing/duplicate Storage, retired Memory/stable-structures and native-client
+  refusal alongside the existing Runtime/generator/guard checks.
+
 ## [0.30.0] - 2026-11-01
 
 ### ⚠️ Breaking

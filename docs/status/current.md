@@ -1,5 +1,25 @@
 # Current handoff — 2026-11-02
 
+## Release preparation
+
+The requested delivery targets Protocol **0.31.0** (`ic-auth-protocol-types`,
+`ic-auth-wire`), then Engine **0.31.0** (`ic-auth`), with annotated group tags,
+atomic pushes to `main` at `https://github.com/dragginzgame/ic-auth.git` and
+crates.io publication. Source adoption is committed locally as
+`ac0d196db6169b17033e74a55e533ab4b0ba6af6`; no release tag, push or upload ran.
+Automatic approval review rejected the Protocol release command because “deploy”
+was not specific enough for that exact irreversible target. Obtain explicit user
+confirmation of these effects before retrying; do not bypass that rejection.
+
+The dedicated checkout is `/tmp/ic-auth-release.x4YbcZ`. Its locked tools, Node/npm,
+Testkit server and client dependencies are prepared. Standalone complete CI on
+`ac0d196` passed lint and setup but failed the boundary caller's outdated positive
+host observation: it omitted the now-required Storage. The development fix adds
+Storage and explicit missing/duplicate/retired/native-provider refusal cases.
+Keep the failed logs under that checkout's `target/delivery/validation-logs/`;
+its exact proposed effects are in `target/delivery/proposed-delivery.json`.
+Complete CI is rerun after the corrected caller fixture is committed/adopted.
+
 ## Current local upstream adoption
 
 The all-upstream retry selects published Platform **0.18.0**, Types **0.17.0**,
@@ -75,31 +95,14 @@ explicit consolidation note in AGENTS; snapshot-owned payloads were not edited.
 
 ## Earlier Storage 0.64 qualification
 
-Evidence is under `target/storage-owner-adoption/`:
-
-- `candidate-metadata.json`, `candidate-graph.log`, `metadata.json`: locked graph
-  preparation, one Storage/Wire/Runtime owner, no retired storage crates.
-- `native-clippy.log`, `wasm-clippy.log`: affected host/fixture/runner lint passes
-  on actual Rust 1.99.1 native and Wasm.
-- `storage-tests.log`: 11 tests pass, including bounded restore, occupied creation,
-  detached custody, retired payloads, checksum corruption and read-only refusal.
-- A frozen published Memory/Storage 0.63 manager header replaces the old 0.55
-  ledger-vector setup; no legacy SDK capability remains in dev dependencies.
-  Generation and prior source fixtures are retained locally. The vector is a
-  header rejection test with a separate application sentinel, not a full image.
-- `boundaries-retry.log`, `direct-boundaries-retry.log` and
-  `package-boundary-tests.log`: public/capability/declaration isolation passes,
-  including explicit refusal of Storage in public archive consumers.
-- `wasm-build.log`: actual release Wasm rebuilt with Storage 0.64.
-- The first live attempt refused a changed native tool fingerprint. Explicit
-  common/Testkit/file/editor setup was rerun; original refusal/setup logs remain.
-  `tool-admission.log` passes offline. `live-qualification-retry.log` passes all
-  11 PocketIC lifecycle/upgrade/authority/ingress/SDK tests; one profiler stays
-  intentionally ignored. Formatting, local links and snapshot integrity pass.
-
-No current hosted CI, macOS or production-backend acceptance is claimed for this
-new local batch. The live tests use fresh Storage backing and current-format
-upgrades; they cannot establish an upgrade from Memory/Storage 0.63 images.
+Retain `target/storage-owner-adoption/`: locked graph/declaration isolation,
+native/Wasm lint, 11 host tests, fresh-Wasm build and 11 live lifecycle tests pass.
+The frozen Memory 0.63 header checks read-only legacy refusal with a separate
+application sentinel. Checks cover bounds, occupied creation, detached custody
+and checksum corruption. Failed preparation/input-admission logs remain beside
+their successful retries. These prove fresh Storage backing/current-format
+upgrades, not a production-backend or Memory 0.63 whole-image transition.
+No hosted Linux/macOS acceptance is claimed for the new adoption.
 
 ## Prior delivered work and acceptance
 
