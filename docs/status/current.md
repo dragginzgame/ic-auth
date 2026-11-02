@@ -12,6 +12,8 @@ the release gates must qualify this frozen selection. Later development updates
 stay outside that checkout. No service, sibling or npm deployment is included.
 The initial attempt was interrupted to correct the scope-validator documentation;
 its `validation.DpoFIl` logs remain retained. Restart fresh after the doc commit.
+The next gate (`validation.tf4ZxL`) caught a nested-logging fixture assertion;
+the fixture now verifies retained input checkpoints instead of console text.
 
 ## Delivered 0.31.0
 
@@ -34,9 +36,7 @@ Keep `/tmp/ic-auth-release.x4YbcZ`, both completed group plans, validation recei
 publication intents/dispatch observations, archives and raw logs. No resume or
 uncertain upload remains. Its clean HEAD stays at the Engine release for recovery.
 `target/upstream-delivery/` in development records delivery and original lock input.
-Hosted [Protocol CI 41504448978](https://github.com/dragginzgame/ic-auth/actions/runs/41504448978)
-was superseded/cancelled by the Engine push; [Engine CI 41508566403](https://github.com/dragginzgame/ic-auth/actions/runs/41508566403)
-is running at the final observation; no new macOS acceptance is claimed yet.
+Hosted 0.31 observations remain in `target/upstream-delivery/proposed-delivery.json`.
 
 The previous handoff-only commit/push was refused as outside the exact 0.31
 authorization. The new delegated 0.32 delivery includes current source and docs;

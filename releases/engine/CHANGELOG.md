@@ -39,7 +39,8 @@ native tooling packages. The independent series starts after the
 
 - Derive the CI manifest seal from Cargo's admitted workspace inventory, including
   newly added members. Refuse incomplete discovery and changed preparation inputs;
-  qualify paths with spaces and preserve the complete CI/release stage roster.
+  qualify paths with spaces and nested release logging, and preserve the complete
+  CI/release stage roster. Drift fixtures inspect retained checkpoint evidence.
 
 ## [0.31.0] - 2026-11-02
 
