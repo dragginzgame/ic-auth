@@ -5,6 +5,8 @@ script_path="${BASH_SOURCE[0]}"
 [[ "$script_path" == /* ]] || script_path="$PWD/$script_path"
 cd -P "${script_path%/*}/../.."
 root="$PWD"
+TESTKIT_FIXTURE_CARGO="$(command -v cargo)"
+export TESTKIT_FIXTURE_CARGO
 mkdir -p target/portable-fixtures
 fixture="$(mktemp -d "$root/target/portable-fixtures/testkit-tools.XXXXXX")"
 printf 'Testkit caller evidence retained: %s\n' "$fixture"
@@ -102,6 +104,11 @@ SCRIPT
 cat > "$fixture/bin/cargo" <<'SCRIPT'
 #!/usr/bin/env bash
 set -euo pipefail
+# Read-only workspace discovery is not compiler or simulator dispatch. Keep its
+# real owner while substituting the qualification effects below.
+if [[ "$*" == 'metadata --locked --offline --no-deps --format-version 1' ]]; then
+    exec "$TESTKIT_FIXTURE_CARGO" "$@"
+fi
 printf 'cargo dispatch %s\n' "$*" >> "$TESTKIT_FIXTURE_CONSUMER/cargo-dispatch.log"
 [[ "$POCKET_IC_BIN" == "$TESTKIT_FIXTURE_SERVER" ]] || exit 1
 [[ "$IC_AUTH_QUALIFICATION_WASM" == "$TESTKIT_FIXTURE_CONSUMER/target/wasm32-unknown-unknown/release/ic_auth_qualification_canister.wasm" ]] || exit 1
@@ -276,6 +283,9 @@ mkdir "$fixture/lint-bin"
 cat > "$fixture/lint-bin/cargo" <<'SCRIPT'
 #!/usr/bin/env bash
 set -euo pipefail
+if [[ "$*" == 'metadata --locked --offline --no-deps --format-version 1' ]]; then
+    exec "$TESTKIT_FIXTURE_CARGO" "$@"
+fi
 [[ "${1:-}" == clippy ]] || exit 99
 case " $* " in
     *' --target wasm32-unknown-unknown '*) phase=wasm ;;

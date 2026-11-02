@@ -10,10 +10,11 @@ and publish the three 0.32.0 crates to crates.io. Use the dedicated checkout
 Storage 0.65.2, Build 0.74.1 and ctutils 0.4.8 landed after focused qualification;
 the release gates must qualify this frozen selection. Later development updates
 stay outside that checkout. No service, sibling or npm deployment is included.
-The initial attempt was interrupted to correct the scope-validator documentation;
-its `validation.DpoFIl` logs remain retained. Restart fresh after the doc commit.
-The next gate (`validation.tf4ZxL`) caught a nested-logging fixture assertion;
-the fixture now verifies retained input checkpoints instead of console text.
+Retain interrupted `validation.DpoFIl` (API documentation correction) and failed
+`validation.tf4ZxL` (nested console assertion) / `validation.CiPdKc` (Testkit's
+Cargo substitute missing read-only inventory). Repaired fixtures inspect retained
+checkpoints and retain real metadata discovery while substituting product effects;
+focused nested input-seal, Testkit and client caller regressions pass.
 
 ## Delivered 0.31.0
 
@@ -38,9 +39,8 @@ uncertain upload remains. Its clean HEAD stays at the Engine release for recover
 `target/upstream-delivery/` in development records delivery and original lock input.
 Hosted 0.31 observations remain in `target/upstream-delivery/proposed-delivery.json`.
 
-The previous handoff-only commit/push was refused as outside the exact 0.31
-authorization. The new delegated 0.32 delivery includes current source and docs;
-the completed 0.31 release state stays intact.
+The new delegated 0.32 delivery includes current source and docs; the completed
+0.31 release state and prior rejected handoff-only push remain intact.
 
 ## Local canister dependency cleanup
 

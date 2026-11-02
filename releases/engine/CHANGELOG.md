@@ -41,6 +41,8 @@ native tooling packages. The independent series starts after the
   newly added members. Refuse incomplete discovery and changed preparation inputs;
   qualify paths with spaces and nested release logging, and preserve the complete
   CI/release stage roster. Drift fixtures inspect retained checkpoint evidence.
+  Tool-admission fixtures distinguish read-only inventory from compiler/server
+  dispatch while retaining their fail-fast ordering checks.
 
 ## [0.31.0] - 2026-11-02
 
