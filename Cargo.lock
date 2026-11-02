@@ -1528,7 +1528,7 @@ dependencies = [
  "ic-auth-wire",
  "ic-host-fs",
  "ic-host-process",
- "ic-metrics",
+ "ic-metrics 0.26.0",
  "ic-platform",
  "ic-testkit",
  "ic-wire",
@@ -1547,7 +1547,7 @@ dependencies = [
  "ic-auth-qualification-fixtures",
  "ic-auth-wire",
  "ic-memory",
- "ic-metrics",
+ "ic-metrics 0.26.0",
  "ic-platform",
  "ic-platform-runtime",
  "ic-storage",
@@ -1575,7 +1575,7 @@ dependencies = [
  "ic-auth-protocol-types",
  "ic-auth-qualification-contracts",
  "ic-auth-wire",
- "ic-metrics",
+ "ic-metrics 0.26.0",
  "ic-platform",
  "ic-wire",
  "serde",
@@ -1710,9 +1710,9 @@ dependencies = [
 
 [[package]]
 name = "ic-memory"
-version = "0.62.1"
+version = "0.63.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "06212be9e97dc52fb17e516c7957f2ff2e14595a79bfc9b9714468ac68e59cbf"
+checksum = "cf61c6528cdbde5bfae7c7b17573ceb992d85e52c55597f5b41c0eafa17be602"
 dependencies = [
  "ic-platform",
  "ic-wire",
@@ -1722,9 +1722,18 @@ dependencies = [
 
 [[package]]
 name = "ic-metrics"
-version = "0.25.0"
+version = "0.25.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eea9c9b6ab6a0c0bc1cba1461127074208a0615f1ba8e37e14724855af44bacf"
+checksum = "081b1f0ada80283b9fe61c3f5355f98d8bff2a11f03a8fa3411c7dbd40100c57"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "ic-metrics"
+version = "0.26.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bcf4b14637c36d28c3ebe9cf2601b2a498e8be9fc67b173e36923c81dc2fdfed"
 dependencies = [
  "serde",
 ]
@@ -1851,9 +1860,9 @@ dependencies = [
 
 [[package]]
 name = "ic-storage"
-version = "0.62.1"
+version = "0.63.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "41608edc5b1fd9cf4a3d0be4f094b4397c1c24ab0fd32d6333b9a6e8a5cf28cd"
+checksum = "3fca9d8f5962146321a269ae2c7fd2aa137d350c2d4a2c37df1c75a9517224fe"
 dependencies = [
  "ic-memory",
  "ic-platform",
@@ -1869,7 +1878,7 @@ dependencies = [
  "ic-host-artifacts",
  "ic-host-fs",
  "ic-host-process",
- "ic-metrics",
+ "ic-metrics 0.25.1",
  "ic-platform",
  "ic-wire",
  "libc",

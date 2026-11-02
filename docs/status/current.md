@@ -1,102 +1,136 @@
-# Current handoff — 2026-11-01
+# Current handoff — 2026-11-02
 
-## Delivered source
+## Accepted batch and delivery boundary
 
-Protocol **0.30.0** (`ic-auth-protocol-types`, `ic-auth-wire`) is published at
-`ec0233f3c4d746bb9bf7009f7432683a57c0b616`, tag `protocol-v0.30.0`.
-Engine **0.30.0** (`ic-auth` plus private members) is published at
+The maintainer approved all ten local complexity reductions as a hard cut, then
+[Auth #124](https://github.com/dragginzgame/ic-auth/issues/124): Rust 1.99.1 as both
+minimum and pinned development/release compiler. The maintainer subsequently
+authorized committing/pushing the completed Auth changes, hosted CI qualification
+and closing #124 after acceptance. Package versions remain 0.30.0; pending notes
+live independently in both group ledgers at 0.31.0. No registry publication, tag
+or sibling delivery is part of this Git delivery. #124 owns current hosted CI and
+closure evidence; the local qualification below does not claim a hosted pass.
+
+The original locks/patches remain under `target/complexity-hard-cut/` and
+`target/shared-tooling-0.27.26/`. Git delivery excludes the pre-existing README
+edits and cc 1.11.0/crc32fast 1.5.4 lock refresh, preserving them as working changes.
+The selected delivery lock retains cc 1.10.0/crc32fast 1.5.3. Earlier local tests
+used the incoming lock; hosted CI must qualify the selected delivery lock.
+`target/issue124-delivery/` retains both locks and the exact restoration patch.
+Shared Tooling is refreshed through the canonical exporter to 0.27.26, commit
+`e84252f5740bacd708359580455ea2b6fd67df38` (142 payloads), independently verified
+against that frozen committed source. Its compiler policy now matches #124.
+Adoption evidence is under `target/shared-tooling-0.27.26/`. Common tools, locked
+Testkit/server, file CLI and release editor are prepared and admitted offline.
+Native build classification and managed tool retention are active; no legacy
+reclamation or product/release cleanup ran.
+
+## Completed source changes
+
+1. Issuance carries the shared `Lifetime`/`Grants` causes directly; retire flattened
+   variants and handwritten maps. Delegation keeps its existing refusal projection.
+2. Fresh sessions construct from the already verified immutable admission snapshot.
+   Exact retries, later reads, restoration and store commit checks stay independent.
+3. Browser logout chooses wait/dispatch/completion and commits its lease in one
+   strict transaction. Signing checks, failed-commit isolation and stored profile remain.
+4. Upgrade decoding borrows the checked stable payload instead of copying it whole.
+5. Private qualification controls use bounded typed refusals; native callers and
+   codecs change together. The textual refusal adapter is retired.
+6. Session/revocation tests share mechanical valid signing/context construction;
+   adversarial mutations and independent crypto vectors retain their own owners.
+7. Release fixtures retain both groups' actual delivery, partial preparation/resume,
+   committed-disposition restart, custody and publication refusals; generic major
+   arithmetic and repeated delivery permutations stay with Shared Tooling.
+8. Digest-only roots use maintained Platform operations; witnesses still build trees.
+9. Encoded conformance occupancy counts decoded replay records without a temporary Vec.
+10. Native logout diagnostics reuse the existing Wire conversion.
+
+All members now inherit Rust 1.99.1. Admission checks floor/pin agreement, actual
+Cargo/rustc versions, active selection and installed Wasm target; CI seals that
+selector between stages. One prepared compiler/cache replaces old duplicate setup
+and internal checks. The [coverage map](../msrv.md) retains isolated public archive
+features on native/Wasm, native and Wasm Clippy, proc macros and real runtime proof.
+No hosted job/required-check identity is removed. Old caches/evidence remain intact.
+
+## Qualification and measurement
+
+Passing focused Linux evidence in `target/complexity-hard-cut/`:
+
+- Core issuance/session/revocation/signature-store tests: `core-tests-retry.log`.
+- Certified proof/admission refusals: `certified-admission-tests.log` (35 tests).
+- Private contracts, checkpoint and encoded backend tests: `private-tests.log`.
+- Browser lifecycle, durable leases and failed cleanup commit: `client-final.log`
+  (70 tests); all five generated public browser files remain unchanged.
+- Actual PocketIC lifecycle, composed certificates, upgrade, protected refresh,
+  signed ingress and SDK transport: `live-qualification.log` (11 passed, one
+  intentionally ignored profiling test).
+- Rust 1.99.1 archive native/Wasm feature matrix and sealed inputs:
+  `compiler-archives.log`; native/Wasm lint: `compiler-*-clippy.log`.
+- Compiler refusals: `target/portable-fixtures/compiler-policy.OLNVLE`;
+  setup ordering/input seals: `compiler-callers-seal.log`; Make: `compiler-jobserver.log`.
+- Independent backend archive/registry identities and packaged scenarios:
+  `compiler-backend-consumer.log`, fixture `backend-package.7SER8B/delivery.json`.
+- Formatting, local documentation links and shared snapshot integrity pass.
+
+Release/recovery fixtures pass, including the consolidated compiler setup:
+`release-fixtures.log` and `release-compiler-fixtures.log`. Retain their isolated
+source/effect evidence in `release-tools.64kMrZ` and `release-tools.tz1oCv`.
+No complete new `make ci`, hosted macOS matrix or real registry upload ran here.
+
+Shared 0.27.26 adoption passes independent source/snapshot verification,
+`tools-evidence.log`, `testkit-callers.log`, `release-adapters.log`, the actual
+CI cache-key command, formatting and local links. `offline-admission.log` records
+Rust 1.99.1 and every selected executable. The failure-evidence fixture now copies
+the installer's new native classifier, retention helper and owned-tree module.
+These Shared checks preceded the dependency update below. Compiler and public
+library source/graphs remain unchanged; affected private runtime proof is refreshed.
+
+The requested published Memory/Storage **0.63.0** and Metrics **0.26.0** are now
+selected by private qualification. Their published `src/` trees match the prior
+versions byte-for-byte; the support floor is the already selected Rust 1.99.1.
+The host Wasm has one Memory, Storage, Metrics and Wire provider. Native Testkit
+0.78 independently retains Metrics 0.25.1; no Metrics values cross that boundary.
+Combined graph preparation and focused native/Wasm Clippy pass. Checkpoint/storage
+tests pass (10 host tests plus the fixture test), all five admission-metrics tests
+pass, and live PocketIC lifecycle/upgrade/authority/SDK qualification passes
+(11 tests; one intentionally ignored profiler). No storage migration or reset ran.
+Evidence and pre-adoption inputs: `target/memory-metrics-storage-adoption/`.
+
+Historical ten-change raw reference Wasm comparison, same Rust 1.99.1/lock/flags:
+2,065,826 → 2,042,064 total bytes; 1,543,468 → 1,530,443 code-section bytes.
+Savings: **23,762 total / 13,025 code bytes**. Published Host artifact inspection,
+hashes and build logs are retained beside `wasm-facts.tsv`. This is the private
+qualification canister before Binaryen, not production Canic size or latency.
+`final-wasm-build.log` confirms the final support-floor edit produces the identical
+measured Wasm bytes.
+That comparison used the prior Memory/Storage 0.62.1 and Metrics 0.25.1 lock;
+it is not a new size/performance measurement of the dependency adoption above.
+No new instruction/performance claim follows from this size comparison.
+
+## Retained safety, delivery and ownership
+
+Signed bytes, public Wire schemas, crypto checks, authority rules and TEE/non-TEE
+trust are unchanged. Preserve `AUTHNAT3`, session/login IDs
+`0x415554485311`/`0x415554485313` and replay `0x415554485302`. No retained storage
+format or old client profile is erased. Keep checked Memory handles, bounded
+loading, occupied-backing refusals and host-owned clock, generation, atomicity,
+allocation and certification-root publication.
+
+Protocol 0.30.0 is published at `ec0233f3c4d746bb9bf7009f7432683a57c0b616`,
+tag `protocol-v0.30.0`; Engine 0.30.0 at
 `80459e300cdb6fb67a94ff45d33f0774ebf0bd9f`, tag `engine-v0.30.0`.
-Both annotated tags and release commits are pushed to GitHub main. All three
-public crates are checksum-verified on crates.io. This library repository has
-no production service or deployment target; no fixture was deployed to production.
+All three crates were checksum-verified and both release gates passed in
+`/tmp/ic-auth-release.EqLgnm` (`validation.OQxMG0`, `validation.P7atRk`).
+Keep that checkout, original failed `validation.YInWyN`, journals, receipts,
+publication intents and archives. Both attempts completed; no resume is pending.
+Future fresh releases select a group explicitly; recover historical attempts only
+with their original adapter, saved source/group/version and custody locks.
+Prior evidence remains under `target/persistence-wire-delivery/`,
+`target/cohort-adoption/`, `target/memory-storage-adoption/`,
+`target/release-groups-work/` and `target/types-boundary.BvpfC1/`.
 
-The maintainer delegated adoption and delivery. Source preparation commits are
-`f8130a8` and `8fe0785`. Protocol shipped first, then Engine against the published
-supplier. Each group owns literal versions and `releases/<group>/CHANGELOG.md`;
-Engine-only releases preserve Protocol identities and notes. Root notes index
-these ledgers and the retained coordinated history through 0.29.2.
-
-Development main is synchronized to the releases. A separate incoming lock edit
-selecting Metrics **0.25.1** was preserved and restored, with a retained stash
-identified in `target/persistence-wire-delivery/incoming-metrics-stash`. It is
-uncommitted and outside the released lock and release qualification below.
-
-## Adopted suppliers and boundaries
-
-The released lock selects Memory/Storage **0.62.1**, Wire/derive **0.14.2**,
-Platform/PocketIC client **0.17.0**, Types **0.16.0**, Runtime/macros/guard
-**0.17.1**, Testkit **0.78.0**, PocketIC server **16.1.0**, Metrics **0.25.0**,
-and Build/Host/file CLI/editor **0.73.6**. Compatible patch minima remain in the
-catalog. One Wire provider serves persistence and RPCs. Shared Tooling remains
-**0.27.25**, `982a99706e038810ee8108d5356a8637a7d42f67` (136 payloads).
-
-Passive protocol and engine identity operations select Types directly. Crypto
-capabilities explicitly select Platform; default/session-only graphs exclude the
-facade. Align consumers on Types 0.16 and Wire 0.14; select external Principal
-conversions explicitly at native boundaries. The private host selects Runtime
-directly, with one executor/generator/guard. Public graphs exclude runtime,
-Memory, Storage, Metrics, Candid and native tooling. DHAT stays dev-only.
-
-Signed bytes, schemas, stored formats, cryptographic checks and TEE/non-TEE trust
-policy are unchanged. BLS identity-key rejection remains covered. No local schema,
-client or crypto shim is used. IcyDB and Canic checkouts were not changed.
-
-## Qualification and delivery evidence
-
-Both standard release commands ran the complete `make ci` gate in the isolated
-checkout `/tmp/ic-auth-release.EqLgnm`, before version preparation. Passing logs:
-
-- Protocol: `.git/release-state/validation-logs/validation.OQxMG0` in that checkout.
-- Engine: `.git/release-state/validation-logs/validation.P7atRk` in that checkout.
-- Adoption, release and publication summaries: development checkout
-  `target/persistence-wire-delivery/`.
-
-Each gate passed Clippy, graph/refusal policies, isolated Rust 1.91 native/Wasm
-package and private-app checks, 69 browser tests, native authentication/session
-suites, storage/checkpoint and metrics cases, 11 live PocketIC tests, Wasm and
-normal three-archive verification, and release/publication recovery fixtures.
-One expensive profiling test remains intentionally ignored. All five generated
-browser files remain unchanged after locked Wire regeneration. macOS, live IC,
-production issuer/backend and installed Canic acceptance are not established.
-
-The first Protocol gate passed product checks but caught inherited Make group
-controls in the missing-group release fixture. Commit `8fe0785` isolates the
-fixture's Make environment; both later complete gates pass. Retain the failed
-`validation.YInWyN` directory and `protocol-release-first-gate.log` as original
-failure evidence. No real version preparation or remote effect began in that run.
-
-The clean 0.30.0 backend archive at Engine release commit `80459e3` passed actual
-registry-consumer identity and packaged-scenario qualification (seven tests).
-Evidence is `target/portable-fixtures/backend-package.3Z8M7v/delivery.json` in the
-release checkout; its SHA-256 is
-`b812d874a8280d332bd324a1a7e6ee62e75f9996a6a3bd94c272ac5f2b60a69f`.
-The unpublished bundle requires all four scenarios for full backend conformance;
-reference and encoded-record drivers do not establish a production stable backend.
-
-## Recovery custody and ownership
-
-Keep the original release checkout, journals, receipts, publication intents,
-archives and validation evidence. Both group attempts completed; no resume is
-pending. Future fresh releases select a group explicitly. Recover any historical
-attempt with its original source/adapter and exact saved group/version; never
-reinterpret legacy journals or bypass retained publication/helper locks.
-
-Earlier cohort, group and Types evidence remains under `target/cohort-adoption/`,
-`target/memory-storage-adoption/`, `target/release-groups-work/` and
-`target/types-boundary.BvpfC1/`; observations retain their original scope.
 [Canic #491](https://github.com/dragginzgame/canic/issues/491) owns adoption,
-issuer/renewal, guards, durable backend and browser acceptance;
-[#720](https://github.com/dragginzgame/canic/issues/720) owns storage deduplication.
-No current Canic source inspection or installed adoption is claimed by this batch.
-The [allocation observations](../canonical-allocation-observations.md) and
-[Wasm attribution](../wasm-attribution.md) justify no further verifier/encoder
-optimization or verification-result cache. The private browser client has no npm
-publication or production issuer.
-
-Memory/Storage remains private qualification support. Keep checked `StableKey`,
-fresh-only `StableCell::create`, bounded loading and occupied-backing refusals.
-Preserve `AUTHNAT3`, session/login `0x415554485311`/`0x415554485313` and replay
-`0x415554485302`. The older Memory 0.56 ledger retirement is separate; never erase
-backing or its ledger for admission. Hosts own clock, allocation, authority refresh,
-atomicity and certification-root publication. Wasm keeps the qualified 32-bit
-backend; compiler wrappers and cross-group validation reuse remain opt-in.
+issuer/renewal, guards, durable backend and browser acceptance; #720 owns storage
+deduplication. This batch establishes no installed Canic adoption, production
+issuer/backend, npm publication or live-IC deployment. The allocation/Wasm
+observations justify no verifier rewrite or verification-result cache.

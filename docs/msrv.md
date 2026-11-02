@@ -1,90 +1,67 @@
 # Minimum Rust compiler qualification
 
-The public libraries, native tooling and Testkit runner inherit
-`rust-version = "1.91.0"` from the virtual root, as does the unpublished qualification
-canister. Rust 1.99.1 remains the development compiler for formatting, Clippy and
-functional tests; it is independent of the supported minimum.
+Rust **1.99.1** is both the supported minimum and the pinned development/release
+compiler, as approved in [Auth #124](https://github.com/dragginzgame/ic-auth/issues/124).
+Every workspace package inherits the root `rust-version`; the independent archive
+and backend consumers declare that same floor. `rust-toolchain.toml` selects the
+exact version, Rustfmt, Clippy and `wasm32-unknown-unknown`. Moving `stable` and a
+separate older-compiler promise are not supported. Historical 1.88/1.91 evidence
+and caches remain retained; they do not qualify the current graph.
 
-The workspace minimum is deliberately aligned at Rust 1.91.0. Earlier checks
-qualified Rust 1.88.0 for an earlier dependency selection; that historical result
-does not qualify the current graph. A future proposed lower floor needs a
-maintained dependency selection and actual compiler qualification.
+## Preparation and admission
 
-## Commands and coverage
+Explicitly prepare the toolchain with `rustup show active-toolchain` before
+`make install-tools`. Alternatively, `make install-msrv` prepares the compiler,
+Rustfmt, Clippy and Wasm target after host-tool setup. The common setup aggregate
+then prepares Cargo tools and the selected Testkit/file extensions; it no longer
+installs a second compiler. `make tools-check` includes `make msrv-tools-check`.
 
-`make install-tools` explicitly prepares the workspace minimum compiler and its Wasm target,
-alongside the separately selected developer tools. `make install-msrv` prepares
-that compiler and host-tool prerequisites. `make msrv-tools-check` prints
-the actual rustc/Cargo versions and requires the installed Wasm target. It never
-installs a missing compiler implicitly.
+Compiler admission reads the workspace floor and requires the toolchain pin to
+match it. It prints actual Cargo/rustc identities, verifies both versions, checks
+that active invocations report those same identities, and requires the installed
+Wasm target. Ordinary checks disable Rustup auto-installation and never provision
+missing tools. `make test-compiler-policy` tests pin/version/active-selection/Wasm
+refusals and explicit setup with substituted compiler effects.
 
-`make check-msrv` uses explicit `cargo +1.91.0` selection read from the root floor.
-It prints the compiler identities, works offline and refuses lock changes. Cargo
-on the separately selected development compiler normalizes all three public package
-archives without uploading. Their bounded digests and a unique unpacked fixture
-are retained under `target/portable-fixtures/msrv.*`.
+## Retained compilation coverage
 
-An independent consumer checks the normalized packages outside the production
-workspace, so private test infrastructure cannot supply dependency features.
-Only its manifest patches crates.io to select the three exact unpacked packages;
-packaged manifests and locks remain untouched. Offline metadata projects the
-fixture lock from the selected workspace graph and adds this consumer root.
-Before compilation, admission requires all three exact package names, independently
-selected Engine/Protocol versions and
-manifest paths, enforces the library's forbidden-dependency boundary, and requires every
-external version, source and checksum to remain a subset of the original lock.
-The native utility delegates external-lock comparison to published IC Build,
-using existing no-follow reads with an explicit 8 MiB per-document allowance.
-Malformed and duplicate lock rows are refused. Auth retains package identity,
-source/feature isolation and release policy; Build stays outside public libraries.
-Compiler checks are locked/offline, without a dependency downgrade, network
-fallback or `--ignore-rust-version`.
+`make check-msrv` selects `cargo +1.99.1` from the admitted floor. Cargo normalizes
+all three public packages without uploading, retains their bounded digests and
+unpacks them into a unique `target/portable-fixtures/msrv.*` fixture. An independent
+consumer compiles those exact normalized packages outside the workspace, so
+private test dependencies cannot provide missing library features.
 
-The independent consumer constructs and hashes the public canonical session
-request on native and Wasm without optional features. Each default selection's
-Principal identity is witnessed directly against `ic-platform-types`, using the
-normalized protocol manifest's requirement. Its normal/build graph is recorded
-and rejects the Platform facade, Candid, K256, certificate verification, CDK
-and stable storage. The optional session engine remains a separate feature check.
+Only the consumer patches crates.io; packaged manifests and locks remain intact.
+Offline metadata projects its lock from the workspace graph. Before compilation,
+admission checks package identities, independently selected Engine/Protocol
+versions, source paths and forbidden dependencies. Published IC Build admits each
+external version/source/checksum as a subset of the original lock, with bounded
+no-follow input reads. Malformed/duplicate rows and identity or graph drift fail.
+Checks use locked dependencies offline, without downgrades or `--ignore-rust-version`.
 
-Admission refusal cases run as part of `check-msrv`. Hashes seal the archives and
-every unpacked file before metadata resolution and again after all compilation;
-original and consumer manifests/locks must also remain unchanged. Failed hashes,
-comparisons or compiler commands fail the check and retain their evidence. Sealing
-uses one bounded `hash-files0` batch per round, preserving sorted NUL-delimited
-package paths and explicit manifest/archive inputs. Batching does not cache
-identities across rounds or replace the before/after comparisons. This
-qualifies local archive interoperability, not crates.io publication readiness;
-`publish-dry-run RELEASE_GROUP=protocol|engine` retains ordinary Cargo registry admission.
-The refusal fixture deliberately uses differing Engine and Protocol versions.
-See [Auth #21](https://github.com/dragginzgame/ic-auth/issues/21) and the adopted
-[coordinated-archive guidance](../rules/cargo-dependencies.md#qualifying-coordinated-package-archives-before-a-version-bump).
-
-| Package path | Minimum-compiler coverage |
+| Obligation | Retained owner in complete CI/release gate |
 | --- | --- |
-| Protocol types | Native and `wasm32-unknown-unknown`, independent normalized package |
-| Wire transport | Native/Wasm independent normalized package; TypeScript generation included in the all-feature profile |
-| Auth library | Each target with default features, isolated portable Ed25519 verification, isolated chain-key verification, signature verification, signature preparation, certified portable verification, sessions, session restoration, and all features together |
-| Native tooling, fixture transport and testkit runner | Separate workspace checks of all targets/features |
-| Qualification canister | Separate Rust 1.91.0 `wasm32-unknown-unknown` check |
+| Protocol types and Wire normalized packages | `check-msrv`: native/Wasm independent consumer; canonical Types identity witness |
+| Every public Auth capability | `check-msrv`: native/Wasm isolated feature selections plus session/portable combination and all features; Wire TypeScript generation included |
+| Pure request dependency isolation | `check-msrv`: constructed/hashed public request and recorded normal/build graph, refusing crypto, Platform facade, Candid, CDK and stable storage |
+| Native internal applications, test targets and feature-unification harness | Native all-target/all-feature `clippy`, including proc-macro expansion |
+| Internal runtime host and generator | Canister Wasm `clippy`, plus actual release Wasm build in `test-qualification` |
+| Runtime, upgrade, certificates and signed ingress | `test-qualification`, using admitted Testkit/server and browser dependencies |
+| Supported native hosts | Same gate on Linux x86_64 and macOS Intel/Apple Silicon |
 
-Build output stays under `target/msrv/`, with package inputs under
-`target/msrv-package/`; it does not clean existing output. Source/packages and
-minimum-compiler logs are retained for inspection after success or failure.
-The real server, lifecycle and signed-ingress tests remain owned by
-[`make test-qualification`](ic-testkit-qualification.md).
+The repeated internal `cargo check` stages and the gate's additional workspace
+`check-wasm` pass are removed because the same compiler now covers their graphs
+above. `make check-wasm` remains available as a focused development selection.
+No hosted jobs or required checks are renamed or removed.
 
-The configured CI/release gate includes `check-msrv` on Linux and both supported
-macOS architectures. Setup installs the declared compiler; the check selects it
-explicitly despite `rust-toolchain.toml` and records its actual Bash version.
-At 0.1.11, Linux's complete CI passed, but both macOS jobs stopped at an empty
-native-target array under Bash's strict unset-variable checks. The current fix
-preserves zero native arguments and the unchanged Wasm/feature matrix using
-Bash 3.2-safe expansion. That full matrix passes on Linux using actual Bash
-3.2.57; it does not establish native macOS qualification before matching CI runs.
+The library feature roster comes from `scripts/ci/auth-feature-selections.sh`.
+Archive admission refusal cases remain part of `check-msrv`. Hashes seal all
+archives/unpacked files before metadata and after compilation; manifests and locks
+must also remain unchanged. Failures retain evidence. Package normalization stays
+under `target/msrv-package/`; compilation reuses the ordinary `target/` cache.
+Existing `target/msrv/` evidence is neither deleted nor repurposed.
 
-The individual Auth feature selections come from the selected package manifest
-through `scripts/ci/auth-feature-selections.sh`, shared with dependency-boundary
-and development Wasm checks. The session/portable-signature combination and
-all-features selection are explicit additional profiles. Adding a feature no
-longer requires editing three separate lists.
+Archive interoperability does not establish registry publication readiness or
+installed consumer adoption. `make publish-dry-run RELEASE_GROUP=protocol|engine`
+retains registry admission. See [Auth #21](https://github.com/dragginzgame/ic-auth/issues/21)
+and the [archive guidance](../rules/cargo-dependencies.md#qualifying-coordinated-package-archives-before-a-version-bump).

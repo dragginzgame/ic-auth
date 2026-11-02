@@ -1,11 +1,11 @@
 # IC Auth Agent Instructions
 
-Apply [DRAGGINZGAME.md](DRAGGINZGAME.md), adopted from Shared Tooling 0.27.25
-source `982a99706e038810ee8108d5356a8637a7d42f67`, recorded in
-[.shared-tooling.snapshot](.shared-tooling.snapshot). Read
-[the current handoff](docs/status/current.md) before implementation.
-Read task-specific references when their subject applies; the local constraints
-below supplement the shared core.
+Apply the installed [baseline](DRAGGINZGAME.md), adopted from Shared Tooling
+0.27.26 at `e84252f5740bacd708359580455ea2b6fd67df38`, and its task-specific
+references. The [snapshot manifest](.shared-tooling.snapshot) records the exact
+policy/tooling selection. Read [the current handoff](docs/status/current.md)
+before implementation. Product-specific safeguards and scoped permissions below
+remain binding.
 
 ## Ownership
 
@@ -19,10 +19,9 @@ below supplement the shared core.
 - Canic owns fleet topology, member/role authority, issuer approval and renewal
   orchestration, endpoint guards and deployment configuration. Toko owns its user
   records, account-linking policy and NFT ledger semantics.
-- Preserve sibling working checkouts. Inspect them as needed; relevant repairs
-  use the [standing isolated PR workflow](rules/contributions.md#cross-repository-pull-requests)
-  and its exclusions. Record findings and adoption in owning issues. An extraction
-  coordinates consumer adoption and retains one canonical owner.
+- Keep one canonical owner during extraction; consumer adoption belongs to its
+  own repository and qualification. A dependency blocker grants no sibling PR
+  or deployment authority.
 - GitHub issues are the work tracker. IC Auth-specific work belongs in
   [IC Auth issues](https://github.com/dragginzgame/ic-auth/issues).
   [Canic #491](https://github.com/dragginzgame/canic/issues/491) remains the existing
@@ -62,13 +61,13 @@ generated browser contracts and private qualification controls use IC Wire.
 The fixture exposes only Wire methods, with no Candid projection or direct
 declaration. Its old
 Candid checkpoint is explicitly retired; production storage is unaffected.
-Auth selects canonical Principal and parse errors from `ic-platform-types` 0.16.
+Auth selects canonical Principal and parse errors from `ic-platform-types`.
 The engine explicitly selects Types' `principal-self-authenticating` for
 browser-key hashing; passive protocol and Wire packages select neither external
 Principal nor SHA-2. Platform is optional and selected only by crypto capabilities.
 Convert explicitly through `principal::ExternalPrincipal` at native
 Agent/Testkit boundaries; keep `principal-external` selected there.
-Platform 0.17 canister-signature keys and certificate types use owned identities.
+Platform canister-signature keys and certificate types use owned identities.
 Keep application/runtime identities owned and preserve original bytes. It supplies
 maintained canister-signature, certificate-tree and BLS code plus upstream
 ECDSA and Ed25519 capabilities. All K256 and Ed25519 API imports use
@@ -111,10 +110,10 @@ and `ci/cargo-dependency-boundaries.json` for direct-dependency ownership.
 ## Validation and delivery
 
 - See [developer setup](docs/development.md) for the implemented command surface.
-  Rust 1.91.0 is the common package minimum; development formatting
-  and Clippy stay on 1.99.1. `make check-msrv` checks isolated Cargo package
-  payloads for every supported library feature on native/Wasm, then the internal
-  applications separately, all inheriting the workspace minimum.
+  Rust 1.99.1 is both the common package minimum and pinned development/release
+  compiler. `make check-msrv` checks isolated Cargo package payloads for every
+  supported library feature on native/Wasm; native and canister Wasm Clippy cover
+  the internal applications using the same compiler.
   Setup explicitly prepares the declared compiler; checks never
   download one. See [minimum compiler qualification](docs/msrv.md).
   Choose the package, test and capability affected by the completed batch;
@@ -183,4 +182,4 @@ and `ci/cargo-dependency-boundaries.json` for direct-dependency ownership.
   before they exist and are checked. Do not create placeholder auth endpoints
   that accept requests without complete verification.
 - Commit, PR, publication and deployment authority follows the shared baseline.
-  This bootstrap does not authorize a GitHub repository, release or deployment.
+  Setup or inspection alone does not authorize publication or deployment.

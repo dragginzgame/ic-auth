@@ -4,6 +4,45 @@ Covers public `ic-auth` and the unpublished backend conformance, qualification a
 native tooling packages. The independent series starts after the
 [last coordinated release, 0.29.2](../history.md).
 
+## [0.31.0] - Unreleased
+
+### ⚠️ Breaking
+
+- Require Rust 1.99.1 for all packages, matching the pinned development/release
+  compiler ([#124](https://github.com/dragginzgame/ic-auth/issues/124)).
+- Carry shared certificate lifetime and grant errors directly in issuance errors;
+  callers match `Lifetime` and `Grants` rather than duplicate flattened variants.
+- Private qualification controls use typed refusal codes instead of text. All
+  native callers and codec hooks change together; public Auth Wire and retained
+  checkpoint/record formats are unchanged.
+
+### ⬆️ Dependencies
+
+- Adopt Memory/Storage 0.63.0 and Metrics 0.26.0 in private qualification, matching
+  the selected Rust 1.99.1 floor. Preserve checked allocation, checkpoint bytes,
+  bounded loading and admission counters. The Wasm host keeps one Metrics provider;
+  native Testkit independently retains 0.25.1 without exchanging Metrics values.
+- Adopt Shared Tooling 0.27.26 at `e84252f5740bacd708359580455ea2b6fd67df38`,
+  including the Rust 1.99.1 policy, native build-input classification and managed
+  tool retention. Refresh Auth's prepared selections and retain installer
+  companion loading in its failure-evidence fixture. Release custody is unchanged.
+
+### 🧹 Cleanup
+
+- Construct fresh sessions from the engine's checked, immutable admission snapshot;
+  retain complete validation for exact retries, later reads and storage commits.
+- Decode checkpoints from borrowed stable payloads, and use maintained digest
+  operations for digest-only certified roots. Keep witness construction separate.
+- Select logout dispatch/wait/completion in one strict journal transaction while
+  preserving durable leases, post-signing checks and the existing stored profile.
+- Share valid native signing/context setup, count decoded replay records without
+  a temporary vector, and reuse the owned Wire logout refusal conversion.
+- Keep Auth-specific group/recovery/publication fixtures while leaving generic
+  version arithmetic and repeated delivery permutations with Shared Tooling.
+- Use one compiler setup/cache and the isolated archive feature matrix; retain
+  native and Wasm Clippy, proc-macro and real runtime qualification instead of
+  repeating those compilations under a second compiler.
+
 ## [0.30.0] - 2026-11-01
 
 ### ⚠️ Breaking

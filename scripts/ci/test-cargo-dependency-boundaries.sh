@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Shared companions: scripts/ci/check-cargo-dependency-boundaries.sh scripts/ci/fixture-lifecycle.sh
+# Shared companions: scripts/ci/check-cargo-dependency-boundaries.sh scripts/ci/fixture-lifecycle.sh ci/examples/platform-owner-boundaries.json
 set -euo pipefail
 root="${BASH_SOURCE[0]}"
 [[ "$root" == /* ]] || root="$PWD/$root"
@@ -60,10 +60,10 @@ done
 
 # Stable canonical identity owns the registry Principal conversions. This narrow
 # exception cannot grant Candid or another external IC dependency to that owner.
-for package in consumer ic-platform ic-platform-types; do
+for package in consumer ic-platform ic-platform-types ic-platform-runtime; do
     for dependency in ic_principal candid; do
         perl -MJSON::PP -e 'print encode_json({version=>1,workspace_root=>$ARGV[0],workspace_members=>["member"],packages=>[{id=>"member",name=>$ARGV[1],dependencies=>[{name=>$ARGV[2],rename=>"hidden",kind=>"dev",target=>"cfg(windows)"}]}]})' "$FIXTURE" "$package" "$dependency" > "$FIXTURE/metadata.json"
-        printf '[{"dependency":"%s","allowed_packages":["consumer","ic-platform","ic-platform-types"]}]\n' "$dependency" > "$FIXTURE/ci/cargo-dependency-boundaries.json"
+        printf '[{"dependency":"%s","allowed_packages":["consumer","ic-platform","ic-platform-types","ic-platform-runtime"]}]\n' "$dependency" > "$FIXTURE/ci/cargo-dependency-boundaries.json"
         status=0
         bash "$root/scripts/ci/check-cargo-dependency-boundaries.sh" --consumer "$FIXTURE" --external-ic > "$FIXTURE/owner-$package-$dependency.log" 2>&1 || status=$?
         if [[ "$package" == ic-platform || ( "$package" == ic-platform-types && "$dependency" == ic_principal ) ]]; then
@@ -170,5 +170,51 @@ printf '%s\n' '[{"dependency":"substrate","allowed_packages":[]}]' > "$actual/ci
 if PATH="$original_path" bash "$root/scripts/ci/check-cargo-dependency-boundaries.sh" --consumer "$actual" > "$FIXTURE/actual-denied.log" 2>&1; then exit 1; fi
 grep -Fx 'owner -> substrate' "$FIXTURE/actual-denied.log" > /dev/null
 cmp "$FIXTURE/lock.before" "$actual/Cargo.lock"
+# Exercise the documented owner policy through real Cargo declarations. These
+# dependency-free stand-ins prove policy wiring, not production SDK behavior.
+owners="$FIXTURE/platform owners"
+mkdir -p "$owners/ci"
+cp "$root/ci/examples/platform-owner-boundaries.json" "$owners/ci/cargo-dependency-boundaries.json"
+printf '[workspace]\nmembers=["identity-model","ic0-adapter","crypto-adapter","ic-platform-types","ic-platform-runtime","ic-platform"]\nresolver="2"\n' > "$owners/Cargo.toml"
+for package in identity-model ic0-adapter crypto-adapter ic-platform-types ic-platform-runtime ic-platform; do
+    mkdir -p "$owners/$package/src"
+    printf '[package]\nname="%s"\nversion="0.0.0"\nedition="2021"\n' "$package" > "$owners/$package/Cargo.toml"
+    cp "$owners/$package/Cargo.toml" "$owners/$package/base.toml"
+    : > "$owners/$package/src/lib.rs"
+done
+(cd "$owners"; PATH="$original_path" CARGO_NET_OFFLINE=true RUSTUP_AUTO_INSTALL=0 "$real_cargo" generate-lockfile)
+for dependency in ic-platform-types ic-platform-runtime ic-platform; do
+    case "$dependency" in
+        ic-platform-types) allowed=identity-model; denied=ic0-adapter ;;
+        ic-platform-runtime) allowed=ic0-adapter; denied=identity-model ;;
+        ic-platform) allowed=crypto-adapter; denied=identity-model ;;
+    esac
+    for profile in normal alias optional build dev target target-optional; do
+        for package in "$allowed" "$denied"; do
+            cp "$owners/$package/base.toml" "$owners/$package/Cargo.toml"
+            table=dependencies; optional=''; key=selected
+            case "$profile" in
+                normal) key="$dependency" ;;
+                optional) optional=', optional=true' ;;
+                build) table=build-dependencies ;;
+                dev) table=dev-dependencies ;;
+                target) table="target.'cfg(windows)'.dependencies" ;;
+                target-optional) table="target.'cfg(windows)'.dependencies"; optional=', optional=true' ;;
+            esac
+            printf '\n[%s]\n%s={package="%s",path="../%s"%s}\n' \
+                "$table" "$key" "$dependency" "$dependency" "$optional" >> "$owners/$package/Cargo.toml"
+            status=0
+            PATH="$original_path" bash "$root/scripts/ci/check-cargo-dependency-boundaries.sh" \
+                --consumer "$owners" --external-ic > "$FIXTURE/owner-$dependency-$profile-$package.log" 2>&1 || status=$?
+            if [[ "$package" == "$allowed" ]]; then
+                [[ "$status" == 0 ]] || { cat "$FIXTURE/owner-$dependency-$profile-$package.log" >&2; exit 1; }
+            else
+                [[ "$status" != 0 ]] || exit 1
+                grep -Fx "$package -> $dependency" "$FIXTURE/owner-$dependency-$profile-$package.log" > /dev/null
+            fi
+            cp "$owners/$package/base.toml" "$owners/$package/Cargo.toml"
+        done
+    done
+done
 fixture_complete=true
 echo 'Dependency boundaries, failed/malformed observations and actual offline Cargo declarations passed'

@@ -8,10 +8,9 @@ Host FS/Process, Build and Testkit packages from
 [IC Persistence](https://github.com/dragginzgame/ic-persistence) and the Wire 0.14
 codec/TypeScript generator. The lock and [handoff](status/current.md) record exact selections and evidence;
 [session contracts](sessions.md) distinguish supported behavior from pending hosts.
-Rust `1.99.1` remains the development compiler selected by `rust-toolchain.toml`.
-The common package minimum is Rust `1.91.0`, inherited from the root catalog and
-qualified by explicit older-compiler checks. The internal qualification canister
-inherits the same minimum; explicit setup prepares it once. See [MSRV coverage](msrv.md).
+Rust `1.99.1` is both the pinned development/release compiler and the common
+package minimum, inherited from the root catalog by all members including the
+internal qualification canister. Explicit setup prepares it once. See [MSRV coverage](msrv.md).
 Linux x86_64 is the initially exercised host.
 
 The supported host matrix is Linux x86_64 and macOS 15 on Intel and Apple Silicon.
@@ -148,10 +147,11 @@ callers; no dependency override or old Host family is needed. The independently
 pinned file CLI is independently selected at 0.73.6 for this adoption.
 Build and Testkit libraries keep `cli` disabled; only the prepared executable
 selections request it. Testkit owns its benchmark-average errors and selects
-arithmetic-only Metrics 0.25.0 alongside Auth. Auth exchanges no Metrics values with
-Testkit, and neither caller enables its optional native metadata.
+arithmetic-only Metrics 0.25.1 internally. Auth's native diagnostics use Metrics
+0.26.0; no Metrics values cross the Testkit boundary, and neither selection enables
+optional native metadata. These native package identities remain separate.
 
-The unpublished qualification host separately selects IC Metrics 0.25.0 for fixed
+The unpublished qualification host selects IC Metrics 0.26.0 for fixed
 admission outcome counters, with defaults disabled: arithmetic and validated Serde
 do not select its optional native Wire metadata. Public Auth graphs forbid that
 dependency. See the
@@ -166,8 +166,8 @@ for the existing byte/path limits and release-recovery boundary.
 
 ## Dependency roles and deployment admission
 
-Shared Tooling revision `982a99706e038810ee8108d5356a8637a7d42f67` is adopted
-(its committed VERSION records 0.27.25; this is reviewed source, not a claim of
+Shared Tooling revision `e84252f5740bacd708359580455ea2b6fd67df38` is adopted
+(its committed VERSION records 0.27.26; this is reviewed source, not a claim of
 registry publication or a matching release tag). Auth retains Cargo-owned versions
 and the default release mode; Shared's pending canonical `VERSION` workflow does
 not add a version file, prepare-work command or package-version edit here.
@@ -250,7 +250,7 @@ are refused without migration or reset. The maintainer confirmed no retained Aut
 records require preservation. IC Memory allocation and StableCell framing remain
 unchanged. Start with a coherent new fixture checkpoint for this hard cut.
 Checkpoint restores remain closed until matching controller authority is confirmed.
-The qualification host selects Memory/Storage 0.62.1 (minimum 0.62.0) with the standard canister
+The qualification host selects Memory/Storage 0.63.0 with the standard canister
 backing. Memory admits one runtime/allocation; Storage's `StableCell` consumes
 that checked lease. Auth checks the retained payload ceiling before loading and
 refuses occupied fresh state before creating a cell. Setup parses a `StableKey`
@@ -259,6 +259,10 @@ uses `StableCell::load`. No combined initialization or reset path is selected.
 Memory/Storage 0.62 aligns its codec-error identity with Wire 0.14; durable bytes,
 allocation custody, admission limits and recovery behavior stay unchanged. The
 host graph requires one Wire provider for both RPCs and persistence.
+Memory/Storage 0.63 and Metrics 0.26 require the already selected Rust 1.99.1;
+their published runtime sources match the previous versions. This adoption
+changes no storage framing or diagnostic arithmetic. The Wasm host selects only
+Metrics 0.26; Testkit's older Metrics remains confined to the native runner.
 Memory 0.53 trusts exclusive
 backing custody between manager checks at construction, lease opening and growth;
 raw backing aliases remain prohibited. Native reopen tests release the cell and
@@ -403,8 +407,8 @@ formatting, CI cache identity and failure evidence use those same reviewed pins.
 There are no local catalog exceptions; host, IC and Rust override selections are
 independent. Compiler/MSRV and locked Testkit CLI/server selection stay local.
 After catalog adoption, explicitly run `make install-tools` and `make tools-check`.
-The ordered aggregate prepares common host/Rust tools, the minimum compiler and
-Testkit. Auth has no product caller for the separate IC executable bundle; it is
+The ordered aggregate prepares common host/Rust tools and Testkit using the already
+prepared compiler. Auth has no product caller for the separate IC executable bundle; it is
 not installed, checked or placed on PATH by the aggregate or CI. Its explicit
 `install-ic-tools` / `ic-tools-check` commands remain available, with earlier
 installations retained.
@@ -417,7 +421,7 @@ must retain fingerprint refusal rather than installing or repairing implicitly.
 | Prerequisite | Explicit preparation and offline admission |
 | --- | --- |
 | Native shell/system utilities and selected Rust compiler, Rustfmt, Clippy, Wasm target | Platform setup above and `rustup show active-toolchain`; shared supported-host requirements apply |
-| Common host/Cargo tools and Rust 1.91 | `make install-tools` / `make tools-check` (includes minimum-compiler, Testkit and file-tool extensions) |
+| Common host/Cargo tools | `make install-tools` / `make tools-check` (includes minimum-compiler, Testkit and file-tool extensions) |
 | Lock-selected Testkit executable and PocketIC server | Included above; separately `make install-testkit-tools` / `make testkit-tools-check` |
 | Selected file-operation executable | `make install-host-file` / `make host-file-check` |
 | Lock-selected release editor | `make install-release-tools` / `make release-tools-check` |
@@ -432,8 +436,8 @@ No native package installer or browser download runs inside an ordinary check.
 The Makefile includes reviewed [`make/consumer.mk`](make-interface.md), which owns
 common setup, formatting, hooks, snapshot verification and release routing.
 `check-snapshot` retains its public name and depends on `shared-tooling-check`.
-The recorded snapshot pins Shared Tooling 0.27.25 at
-`982a99706e038810ee8108d5356a8637a7d42f67`. Adopt its committed source and
+The recorded snapshot pins Shared Tooling 0.27.26 at
+`e84252f5740bacd708359580455ea2b6fd67df38`. Adopt its committed source and
 recorded entrypoint closure through the canonical exporter; see
 [snapshot adoption](consuming-snapshots.md#entrypoint-selection-in-070).
 Adoption also compares every exported payload with an independently reviewed
@@ -467,14 +471,16 @@ downloads, then prepares the common host and Rust toolsets in order. Its
 read-only preflight disables
 automatic Rustup installation; prepare an unavailable compiler explicitly.
 Host-tool failures identify the selected tool, version, path and repair command
-without executing unauthenticated payloads. IC Auth adds its minimum compiler/Wasm target, then locked
+without executing unauthenticated payloads. IC Auth admits the selected compiler/Wasm
+target and prepares the locked
 Testkit CLI/server through `LOCAL_TOOL_INSTALL_TARGETS` and
 `LOCAL_TOOL_CHECK_TARGETS`. These ordered extensions stop on failure even under
 parallel Make. Direct host-installer callers remove `--with-ripgrep`/`--with-cloc`;
 all four host tools are required. Explicit setup reuses matching installations
-and retains earlier bundles and build evidence. `make install-msrv` prepares the
-two declared minimum compilers (and host tool prerequisites);
-`make msrv-tools-check` inspects its prepared versions.
+and preserves selected artifacts and required receipts. `make install-msrv` explicitly
+prepares the one selected compiler, Rustfmt,
+Clippy and Wasm target (and host tool prerequisites); `make msrv-tools-check`
+checks the pin, actual compiler identities and Wasm target.
 Installation is explicit; checks run
 offline. `fetch` prepares the selected lockfile without changing it.
 Shared includes own standard release dispatch and single-workspace formatting;
@@ -513,8 +519,9 @@ including early fatal, LLVM and missing-file failures.
 Shared Tooling installs common Rust tools through its existing versioned
 Cargo slot/receipt engine. Run `make install-rust-tools` explicitly after adoption,
 then `make rust-tools-check`; common PATH activation requires all three pinned
-tools to pass. Earlier in-place installations, completed slots and failed attempts
-remain retained. This contributor setup change preserves IC Auth's published
+tools to pass. Earlier in-place installations and selected artifacts remain
+protected under the [tool retention policy](tool-store-maintenance.md).
+This contributor setup change preserves IC Auth's published
 contract and uses patch notes. Shared Tooling 0.5.0 now shares verified host and IC
 bundles across checkouts through its per-user store. Common host admission uses
 `make install-host-tools` and `make host-tools-check`; the separate IC commands
@@ -527,7 +534,7 @@ package and packaged-lock identities. Run `make install-rust-tools` and
 `make rust-tools-check`, then `make install-testkit-tools` and
 `make testkit-tools-check` after adoption. Common PATH stays
 `.tools/rust/common/bin`; selected CLI callers use the installer's checked return
-path. Earlier local slots, complete sets and failed attempts remain retained.
+path. Selected local slots and complete sets retain their admission evidence.
 Tool builds exclude application flags/wrappers/configuration and use two jobs;
 explicit offline settings still apply. The managed source cache is needed for
 offline checks. Failure collection keeps local Rust evidence and only its
@@ -549,9 +556,17 @@ ambient tooling roots, and uses the running GNU Make executable when recursive
 Make commands carry extra arguments.
 
 Make selects checkout-local tools automatically. The shell export is needed for
-interactive direct commands. Builds stay under this checkout's `target/`; Cargo
-tool installation retains failed build attempts under `.tools/rust/build/` and
-successful Testkit CLI builds in their versioned `.tools/rust/` selection slot.
+interactive direct commands. Workspace builds stay under this checkout's `target/`.
+Shared 0.27.26 fingerprints managed native build tools, headers and libraries,
+so unrelated Linux application updates do not invalidate Cargo tools. Explicitly
+rerun `make install-tools` and `make install-release-tools`, then their checks,
+after adopting this changed build identity. Setup registers each checkout's current
+requirements and discards successful tool compilation scratch after admission;
+selected binaries, source and receipts remain available. Failed scratch has bounded
+retention and recovery pins. Legacy generations remain protected until explicit
+migration; executable reclamation requires quiescence and is separate from setup.
+See [tool retention](tool-store-maintenance.md). This adoption performs no legacy
+reclamation or workspace/release-artifact cleanup.
 
 Copied-workspace experiments must use their own `CARGO_TARGET_DIR`, for example
 `target/<experiment>/cargo-target`, rather than this workspace's `target/`.
@@ -650,7 +665,8 @@ multi-package, multi-feature and multi-target entries are aggregate suites.
 | `make test-backend-package` | Opt-in: archive, excluded dev-dependency consumer, exact registry Auth identities, packaged scenarios and graph refusals; receipt and inputs retained; registry cohort must be explicitly cached |
 | `make profile-canonical-allocations` | Opt-in: release-mode native DHAT observations of unchanged canonical hash functions on synthetic small/wide inputs; outside CI; see [measurement limits and results](canonical-allocation-observations.md) |
 | `make test-host-tooling` | Native file-operation CLI: bounded input, exact digest output, no-follow reads and preserved create-only evidence |
-| `make check-msrv` | Aggregate: isolated public package payloads and internal applications using the declared minimum compiler, with native/Wasm and feature coverage |
+| `make check-msrv` | Aggregate: isolated public package payloads using the declared compiler, with native/Wasm and feature coverage; internal applications are covered by Clippy |
+| `make test-compiler-policy` | Compiler pin/version/active-selection and Wasm refusal cases; explicit preparation with substituted compiler effects |
 | `make tasks` | Read the adopted maintenance task catalog; no task, agent or schedule starts |
 | `make test-qualification` | Build the internal Wasm host; verify real certificates, portable proof/session admission, live authority rejection, root composition, upgrades, authenticated ingress and SDK logout through `ic-testkit` with the checked server and prepared client dependencies |
 | `make build-qualification-canister` | Build the internal host's release Wasm without starting a server |
@@ -874,7 +890,7 @@ version preparation. Interrupted preparation retains its exact group file
 metadata allowance and receipt checks. Admission preserves files and index bytes.
 Normal preflight fetches the selected lockfile, then runs `make install-tools`
 and `make tools-check`. The canonical ordered aggregate prepares host and common
-Rust tools before the minimum compiler and lock-selected Testkit CLI/server;
+Rust tools and lock-selected Testkit CLI/server using the already prepared compiler;
 the second aggregate admits that selection offline. Shared tool
 payloads alone do not activate a checkout's missing local references.
 Explicit Cargo offline settings still apply; a failed preparation stops before

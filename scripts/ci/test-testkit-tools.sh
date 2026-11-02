@@ -206,12 +206,13 @@ done
 # The actual CI roster seals both Rust and frontend preparation before stages.
 # Each independent export mutates one declared input in the first stage; no
 # common/product admission or Cargo dispatch may follow, even under parallel Make.
-for scenario in rust frontend delivery boundaries external-boundaries file-pin file-selector file-runner deleted failed-stage; do
+for scenario in rust compiler-selector frontend delivery boundaries external-boundaries file-pin file-selector file-runner deleted failed-stage; do
     mutant="$fixture/drift-$scenario"
     cp -R "$consumer" "$mutant"
     : > "$TESTKIT_FIXTURE_LOG"
     input=Cargo.lock; action=append; snapshot_status=0
     case "$scenario" in
+        compiler-selector) input=scripts/dev/msrv-tools.sh ;;
         frontend) input=packages/client/package-lock.json ;;
         delivery) input=ci/release-delivery.txt ;;
         boundaries) input=ci/cargo-dependency-boundaries.json ;;
@@ -257,7 +258,7 @@ cmp "$fixture/expected-preflight.log" "$TESTKIT_FIXTURE_LOG"
 : > "$TESTKIT_FIXTURE_LOG"
 (cd "$consumer"; make --no-print-directory -j4 install-tools) > "$fixture/setup.log" 2>&1
 printf '%s\n' 'rust preflight' install-host-tools install-rust-tools \
-    install-host-tools install-msrv install-host-tools 'cli install' 'server setup' 'cli check' \
+    install-host-tools 'cli install' 'server setup' 'cli check' \
     install-host-tools 'file tools install' > "$fixture/expected-setup.log"
 cmp "$fixture/expected-setup.log" "$TESTKIT_FIXTURE_LOG"
 : > "$TESTKIT_FIXTURE_LOG"

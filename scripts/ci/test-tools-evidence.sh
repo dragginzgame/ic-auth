@@ -20,6 +20,7 @@ for input in Makefile make/consumer.mk make/tools.mk make/release.mk make/rust-f
     scripts/ci/check-make-execution.sh scripts/ci/run-formatting.sh ci/tool-versions.env \
     scripts/dev/ci-tools.sh scripts/dev/install-rust-tools.sh \
     scripts/dev/cargo-tool-build.sh scripts/dev/tool-store.sh \
+    scripts/dev/native-package-inputs.pl scripts/dev/tool-store-maintenance.pl scripts/dev/OwnedTree.pm \
     scripts/ci/verify-file-checksum.sh scripts/ci/tool-catalog-records.pl \
     scripts/ci/StableVersion.pm scripts/ci/ic-tool-pins.awk; do
     cp -p "$input" "$consumer/$input"

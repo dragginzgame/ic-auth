@@ -137,7 +137,7 @@ impl Fixture {
         self.pic.instance().get_time().as_nanos_since_unix_epoch()
     }
 
-    fn prepare(&self, domain: &[u8], message: &[u8], ttl: u64) -> Result<u64, String> {
+    fn prepare(&self, domain: &[u8], message: &[u8], ttl: u64) -> Result<u64, controls::Refusal> {
         self.prepare_with_seed(SEED, domain, message, ttl)
     }
 
@@ -147,7 +147,7 @@ impl Fixture {
         domain: &[u8],
         message: &[u8],
         ttl: u64,
-    ) -> Result<u64, String> {
+    ) -> Result<u64, controls::Refusal> {
         update_control::<controls::PrepareInput, u64>(
             self.pic.instance(),
             self.signer,
@@ -168,7 +168,7 @@ impl Fixture {
         &self,
         domain: &[u8],
         message: &[u8],
-    ) -> Result<IcCanisterSignatureProofV1, String> {
+    ) -> Result<IcCanisterSignatureProofV1, controls::Refusal> {
         self.retrieve_with_seed(SEED, domain, message)
     }
 
@@ -177,23 +177,24 @@ impl Fixture {
         seed: &[u8],
         domain: &[u8],
         message: &[u8],
-    ) -> Result<IcCanisterSignatureProofV1, String> {
+    ) -> Result<IcCanisterSignatureProofV1, controls::Refusal> {
         // Certificates become available after the update's state is certified.
         self.pic.instance().tick();
-        let proof: Result<ic_auth_wire::model::IcCanisterSignatureProofV1, String> = query_control::<
-            controls::SignatureInput,
-            ic_auth_wire::model::IcCanisterSignatureProofV1,
-        >(
-            self.pic.instance(),
-            self.signer,
-            Principal::anonymous(),
-            spec!(controls::Retrieve),
-            controls::SignatureInput {
-                seed: Bytes::new(seed.to_vec()).unwrap(),
-                domain: Bytes::new(domain.to_vec()).unwrap(),
-                message: Bytes::new(message.to_vec()).unwrap(),
-            },
-        );
+        let proof: Result<ic_auth_wire::model::IcCanisterSignatureProofV1, controls::Refusal> =
+            query_control::<
+                controls::SignatureInput,
+                ic_auth_wire::model::IcCanisterSignatureProofV1,
+            >(
+                self.pic.instance(),
+                self.signer,
+                Principal::anonymous(),
+                spec!(controls::Retrieve),
+                controls::SignatureInput {
+                    seed: Bytes::new(seed.to_vec()).unwrap(),
+                    domain: Bytes::new(domain.to_vec()).unwrap(),
+                    message: Bytes::new(message.to_vec()).unwrap(),
+                },
+            );
         proof.map(|value| value.try_into().unwrap())
     }
 
@@ -228,7 +229,7 @@ impl Fixture {
     }
 
     fn set_asset(&self, version: u64) {
-        let result: Result<(), String> = update_control::<u64, ()>(
+        let result: Result<(), controls::Refusal> = update_control::<u64, ()>(
             self.pic.instance(),
             self.signer,
             self.controller,
@@ -390,7 +391,7 @@ fn real_certificates_composition_cleanup_and_upgrade_obey_the_host_contract() {
         .instance()
         .set_time(Time::from_nanos_since_unix_epoch(fixture.now() + 10));
     assert!(fixture.retrieve(DOMAIN, &payload).is_err());
-    let removed: Result<u32, String> = update_control::<u32, u32>(
+    let removed: Result<u32, controls::Refusal> = update_control::<u32, u32>(
         fixture.pic.instance(),
         fixture.signer,
         fixture.controller,
@@ -411,7 +412,7 @@ fn update_control<Request, T>(
     caller: Principal,
     spec: WireCallSpec,
     request: Request,
-) -> Result<T, String>
+) -> Result<T, controls::Refusal>
 where
     Request: serde::Serialize,
     T: serde::de::DeserializeOwned,
@@ -424,7 +425,6 @@ where
         &request,
     )
     .expect("qualified Wire update")
-    .map_err(|e| e.into_string())
 }
 fn query_control<Request, T>(
     pic: &PocketIc,
@@ -432,7 +432,7 @@ fn query_control<Request, T>(
     caller: Principal,
     spec: WireCallSpec,
     request: Request,
-) -> Result<T, String>
+) -> Result<T, controls::Refusal>
 where
     Request: serde::Serialize,
     T: serde::de::DeserializeOwned,
@@ -445,5 +445,4 @@ where
         &request,
     )
     .expect("qualified Wire query")
-    .map_err(|e| e.into_string())
 }

@@ -5,9 +5,9 @@
 use ic_auth::signature_store::{
     SignatureInputs, SignatureLimits, SignatureSibling, SignatureStore,
 };
-use ic_auth_qualification_contracts as controls;
+use ic_auth_qualification_contracts::{self as controls, Refusal};
 use ic_platform::Principal;
-use ic_platform::certification::{Hash, fork_hash, labeled, leaf};
+use ic_platform::certification::{AsHashTree, Hash, fork_hash, labeled_hash};
 use ic_wire::{Bytes, Limits};
 use std::cell::RefCell;
 
@@ -49,11 +49,19 @@ impl State {
     }
 
     fn asset_root(&self) -> Hash {
-        labeled(b"assets", leaf(self.metadata.asset_version.to_be_bytes())).digest()
+        labeled_hash(
+            b"assets",
+            &self
+                .metadata
+                .asset_version
+                .to_be_bytes()
+                .to_vec()
+                .root_hash(),
+        )
     }
 
     fn status_root(&self) -> Hash {
-        labeled(b"status", leaf(b"qualification".to_vec())).digest()
+        labeled_hash(b"status", &b"qualification".to_vec().root_hash())
     }
 
     fn publish(&self) {
@@ -68,10 +76,10 @@ fn with_state<T>(f: impl FnOnce(&mut State) -> T) -> T {
     STATE.with(|state| f(state.borrow_mut().as_mut().expect("initialized host")))
 }
 
-fn controller() -> Result<(), String> {
+fn controller() -> Result<(), Refusal> {
     let caller = ic_platform_runtime::cdk::api::msg_caller();
     if caller == Principal::anonymous() || !ic_platform_runtime::cdk::api::is_controller(&caller) {
-        return Err("controller required".into());
+        return Err(Refusal::ControllerRequired);
     }
     Ok(())
 }
@@ -114,8 +122,10 @@ fn post_upgrade() {
         owner,
         asset_version,
         receiver,
-    } = ic_wire::native::decode_request(CHECKPOINT_ID, &storage::load(), CHECKPOINT_LIMITS)
-        .expect("restore Wire fixture checkpoint");
+    } = storage::with_payload(|payload| {
+        ic_wire::native::decode_request(CHECKPOINT_ID, payload, CHECKPOINT_LIMITS)
+            .expect("restore Wire fixture checkpoint")
+    });
     let metadata = Metadata {
         owner: Principal::try_from_slice(owner.as_slice()).expect("checkpoint owner"),
         asset_version,
@@ -135,7 +145,7 @@ fn prepare(
         input,
         retention_ns,
     }: controls::PrepareInput,
-) -> Result<u64, String> {
+) -> Result<u64, Refusal> {
     let controls::SignatureInput {
         seed,
         domain,
@@ -154,7 +164,7 @@ fn prepare(
                 ic_platform_runtime::cdk::api::time(),
                 retention_ns,
             )
-            .map_err(|error| error.to_string())?;
+            .map_err(|_| Refusal::Signature)?;
         state.publish();
         Ok(prepared.retrieval_expires_at_ns)
     })
@@ -171,9 +181,9 @@ fn retrieve(
         domain,
         message,
     }: controls::SignatureInput,
-) -> Result<ic_auth_wire::model::IcCanisterSignatureProofV1, String> {
+) -> Result<ic_auth_wire::model::IcCanisterSignatureProofV1, Refusal> {
     let certificate =
-        ic_platform_runtime::cdk::api::data_certificate().ok_or("query certificate absent")?;
+        ic_platform_runtime::cdk::api::data_certificate().ok_or(Refusal::Signature)?;
     with_state(|state| {
         state
             .signatures
@@ -190,9 +200,9 @@ fn retrieve(
                     SignatureSibling::Right(state.status_root()),
                 ],
             )
-            .map_err(|error| error.to_string())?
+            .map_err(|_| Refusal::Signature)?
             .try_into()
-            .map_err(|error: ic_wire::Error| error.to_string())
+            .map_err(|_: ic_wire::Error| Refusal::Codec)
     })
 }
 
@@ -201,13 +211,13 @@ fn retrieve(
     decode_with = "control::Prune::decode",
     encode_with = "control::Prune::encode"
 )]
-fn prune(budget: u32) -> Result<u32, String> {
+fn prune(budget: u32) -> Result<u32, Refusal> {
     controller()?;
     with_state(|state| {
         let removed = state
             .signatures
             .prune(ic_platform_runtime::cdk::api::time(), budget as usize)
-            .map_err(|error| error.to_string())?;
+            .map_err(|_| Refusal::Signature)?;
         state.publish();
         Ok(removed as u32)
     })
@@ -218,7 +228,7 @@ fn prune(budget: u32) -> Result<u32, String> {
     decode_with = "control::SetAsset::decode",
     encode_with = "control::SetAsset::encode"
 )]
-fn set_asset(version: u64) -> Result<(), String> {
+fn set_asset(version: u64) -> Result<(), Refusal> {
     controller()?;
     with_state(|state| {
         state.metadata.asset_version = version;
@@ -241,13 +251,13 @@ fn asset_version() -> u64 {
     decode_with = "control::OwnerOperation::decode",
     encode_with = "control::OwnerOperation::encode"
 )]
-fn owner_checked_operation() -> Result<Bytes<29>, String> {
+fn owner_checked_operation() -> Result<Bytes<29>, Refusal> {
     let caller = ic_platform_runtime::cdk::api::msg_caller();
     with_state(|state| {
         if caller == state.metadata.owner {
             Ok(Bytes::new(caller.as_slice().to_vec()).expect("caller bound"))
         } else {
-            Err("resource owner required".into())
+            Err(Refusal::OwnerRequired)
         }
     })
 }

@@ -1,6 +1,6 @@
 # Pure certificate issuance validation
 
-Released 0.4.7 provides the default-feature API
+The default-feature API, introduced in 0.4.7, is
 `ic_auth::certificate_issuance::validate_certificate_issuance(cert, expected_root, limits)`
 for [Auth #30](https://github.com/dragginzgame/ic-auth/issues/30). It accepts the
 passive `DelegationCert` contract and returns `Result<(), CertificateIssuanceError>`.
@@ -17,15 +17,18 @@ constructing these passive values.
 The rejection order is fixed:
 
 1. Root mismatch (`RootPidMismatch`, including expected/found principals).
-2. Validity starts before issuance, reversed expiry or zero duration
-   (`InvalidCertWindow`). Duration is expiry minus validity start, not issue time.
-3. Certificate duration above its host bound (`CertTtlExceeded`).
-4. Zero delegated token TTL (`TokenTtlZero`), then above the host token bound
-   (`TokenTtlExceeded`), then above certificate duration (`TokenTtlOutlivesCert`).
-5. Empty or oversized grants (`GrantsEmpty`, `TooManyGrants`). For each grant,
+2. Validity starts before issuance (`Lifetime(IssuedAfterStart)`), then reversed
+   expiry or zero duration (`Lifetime(InvalidWindow)`). Duration is expiry minus
+   validity start, not issue time.
+3. Certificate duration above its host bound (`Lifetime(CertTtlExceeded)`).
+4. Zero delegated token TTL (`Lifetime(TokenTtlZero)`), then above the host token bound
+   (`Lifetime(TokenTtlExceeded)`), then above certificate duration (`Lifetime(TokenTtlOutlivesCert)`).
+5. Empty or oversized grants (`Grants(Empty)`, `Grants(TooMany)`). For each grant,
    noncanonical role order, empty or oversized scopes, then scope grammar and
    strictly sorted unique scopes. Cardinality causes carry actual/maximum counts
-   and affected roles. Canonical errors preserve the existing typed causes.
+   and affected roles. Grant grammar/order errors are `Grants(Canonical(cause))`;
+   the typed causes and rejection order are unchanged. Lifetime causes are carried
+   by `CertificateLifetimeError`, without duplicate issuance variants.
 6. Recomputed issuer-proof binding hash mismatch (`IssuerProofBindingHashMismatch`).
 
 `AuthRole` already enforces role grammar at construction and decoding. A Canic DTO
@@ -70,8 +73,9 @@ exposes the same rules without requiring a certificate, expiry arithmetic or
 issuer proof. `GrantValidationError` carries empty/count failures, affected roles
 and existing canonical causes. Zero bounds reject nonempty corresponding values;
 equality is accepted. The grant-count check precedes per-grant role ordering,
-scope count, label grammar and strict scope ordering. Existing issuance and token
-preparation keep their error projections and use this same owner.
+scope count, label grammar and strict scope ordering. Issuance carries these
+causes directly in `Grants`; delegation verification retains its separate error
+projection and uses this owner.
 
 `ic_auth_protocol_types::ScopeLabel::validate` is an allocation-free `const fn`
 returning protocol-owned `ScopeLabelError`: `Empty`, `TooLong { bytes, max }`, `EmptySegment`,

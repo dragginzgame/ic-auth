@@ -108,26 +108,33 @@ fn malformed_windows_and_zero_host_bounds_refuse() {
         cert.issued_at_ns = issued;
         cert.not_before_ns = start;
         cert.expires_at_ns = end;
-        assert_eq!(validate(&cert), Err(E::InvalidCertWindow));
+        assert_eq!(
+            validate(&cert),
+            Err(E::Lifetime(if issued > start {
+                CertificateLifetimeError::IssuedAfterStart
+            } else {
+                CertificateLifetimeError::InvalidWindow
+            }))
+        );
     }
     let cert = cert();
     let mut bounds = limits();
     bounds.max_cert_ttl_ns = 0;
     assert_eq!(
         validate_certificate_issuance(&cert, p(1), bounds),
-        Err(E::CertTtlExceeded {
+        Err(E::Lifetime(CertificateLifetimeError::CertTtlExceeded {
             ttl_ns: 400,
             max_ttl_ns: 0
-        })
+        }))
     );
     bounds = limits();
     bounds.max_token_ttl_ns = 0;
     assert_eq!(
         validate_certificate_issuance(&cert, p(1), bounds),
-        Err(E::TokenTtlExceeded {
+        Err(E::Lifetime(CertificateLifetimeError::TokenTtlExceeded {
             ttl_ns: 120,
             max_ttl_ns: 0
-        })
+        }))
     );
 }
 
@@ -149,35 +156,43 @@ fn combined_invalid_certificate_preserves_issuance_rejection_order() {
         })
     );
     cert.root_pid = p(1);
-    assert_eq!(validate(&cert), Err(E::InvalidCertWindow));
+    assert_eq!(
+        validate(&cert),
+        Err(E::Lifetime(CertificateLifetimeError::IssuedAfterStart))
+    );
     cert.issued_at_ns = 100;
     assert_eq!(
         validate(&cert),
-        Err(E::CertTtlExceeded {
+        Err(E::Lifetime(CertificateLifetimeError::CertTtlExceeded {
             ttl_ns: 800,
             max_ttl_ns: 600
-        })
+        }))
     );
     cert.expires_at_ns = 150;
-    assert_eq!(validate(&cert), Err(E::TokenTtlZero));
+    assert_eq!(
+        validate(&cert),
+        Err(E::Lifetime(CertificateLifetimeError::TokenTtlZero))
+    );
     cert.max_token_ttl_ns = 121;
     assert_eq!(
         validate(&cert),
-        Err(E::TokenTtlExceeded {
+        Err(E::Lifetime(CertificateLifetimeError::TokenTtlExceeded {
             ttl_ns: 121,
             max_ttl_ns: 120
-        })
+        }))
     );
     cert.max_token_ttl_ns = 120;
     assert_eq!(
         validate(&cert),
-        Err(E::TokenTtlOutlivesCert {
-            token_ttl_ns: 120,
-            cert_ttl_ns: 50
-        })
+        Err(E::Lifetime(
+            CertificateLifetimeError::TokenTtlOutlivesCert {
+                token_ttl_ns: 120,
+                cert_ttl_ns: 50
+            }
+        ))
     );
     cert.expires_at_ns = 500;
-    assert_eq!(validate(&cert), Err(E::GrantsEmpty));
+    assert_eq!(validate(&cert), Err(E::Grants(GrantValidationError::Empty)));
     cert.grants = vec![grant("app_service", &["read"])];
     assert_eq!(validate(&cert), Err(E::IssuerProofBindingHashMismatch));
 }
@@ -188,47 +203,55 @@ fn canonical_grants_and_scope_errors_precede_binding_hash_refusal() {
     let cases = [
         (
             vec![grant("app_service", &[])],
-            E::EmptyGrantScopes {
+            E::Grants(GrantValidationError::EmptyScopes {
                 role: "app_service".parse().unwrap(),
-            },
+            }),
         ),
         (
             vec![grant("app_service", &[""])],
-            E::Canonical(CanonicalAuthError::Scope(
+            E::Grants(GrantValidationError::Canonical(CanonicalAuthError::Scope(
                 ic_auth_protocol_types::ScopeLabelError::Empty,
-            )),
+            ))),
         ),
         (
             vec![grant("app_service", &["Read"])],
-            E::Canonical(CanonicalAuthError::Scope(
+            E::Grants(GrantValidationError::Canonical(CanonicalAuthError::Scope(
                 ic_auth_protocol_types::ScopeLabelError::InvalidSegmentStart { offset: 0 },
-            )),
+            ))),
         ),
         (
             vec![grant("app_service", &["read", "read"])],
-            E::Canonical(CanonicalAuthError::NonCanonicalScopes),
+            E::Grants(GrantValidationError::Canonical(
+                CanonicalAuthError::NonCanonicalScopes,
+            )),
         ),
         (
             vec![grant("app_service", &["write", "read"])],
-            E::Canonical(CanonicalAuthError::NonCanonicalScopes),
+            E::Grants(GrantValidationError::Canonical(
+                CanonicalAuthError::NonCanonicalScopes,
+            )),
         ),
         (
             vec![grant("app_service", &["read"]), grant("app_service", &[])],
-            E::Canonical(CanonicalAuthError::NonCanonicalRoles),
+            E::Grants(GrantValidationError::Canonical(
+                CanonicalAuthError::NonCanonicalRoles,
+            )),
         ),
         (
             vec![
                 grant("other_service", &["read"]),
                 grant("app_service", &["Bad"]),
             ],
-            E::Canonical(CanonicalAuthError::NonCanonicalRoles),
+            E::Grants(GrantValidationError::Canonical(
+                CanonicalAuthError::NonCanonicalRoles,
+            )),
         ),
         // Earlier grant scope failure precedes a later role-order error.
         (
             vec![grant("other_service", &["Bad"]), grant("app_service", &[])],
-            E::Canonical(CanonicalAuthError::Scope(
+            E::Grants(GrantValidationError::Canonical(CanonicalAuthError::Scope(
                 ic_auth_protocol_types::ScopeLabelError::InvalidSegmentStart { offset: 0 },
-            )),
+            ))),
         ),
     ];
     for (grants, expected) in cases {
@@ -253,33 +276,39 @@ fn host_grant_and_scope_limits_accept_equality_and_refuse_one_over() {
     cert.grants.push(grant("role_16", &[]));
     assert_eq!(
         validate(&cert),
-        Err(E::TooManyGrants { found: 17, max: 16 })
+        Err(E::Grants(GrantValidationError::TooMany {
+            found: 17,
+            max: 16
+        }))
     );
     cert.grants.pop();
     cert.grants[0].scopes.push("Bad".into());
     assert_eq!(
         validate(&cert),
-        Err(E::TooManyGrantScopes {
+        Err(E::Grants(GrantValidationError::TooManyScopes {
             role: "role_00".parse().unwrap(),
             found: 33,
             max: 32
-        })
+        }))
     );
     let mut bounds = limits();
     bounds.max_grants = 0;
     assert_eq!(
         validate_certificate_issuance(&cert, p(1), bounds),
-        Err(E::TooManyGrants { found: 16, max: 0 })
+        Err(E::Grants(GrantValidationError::TooMany {
+            found: 16,
+            max: 0
+        }))
     );
     bounds = limits();
     bounds.max_scopes_per_grant = 0;
     assert_eq!(
         validate_certificate_issuance(&cert, p(1), bounds),
-        Err(E::TooManyGrantScopes {
+        Err(E::Grants(GrantValidationError::TooManyScopes {
             role: "role_00".parse().unwrap(),
             found: 33,
             max: 0
-        })
+        }))
     );
 }
 

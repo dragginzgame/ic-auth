@@ -2,7 +2,7 @@
 //! This is not a production stable backend or a Root enrollment implementation.
 use super::*;
 use ic_auth::{portable::LoginRevocationChange, session::Replay};
-use ic_auth_qualification_contracts as controls;
+use ic_auth_qualification_contracts::{self as controls, Refusal};
 use ic_wire::{Bytes, List};
 
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -141,7 +141,7 @@ pub(crate) fn restore(snapshot: Option<Snapshot>) {
     decode_with = "crate::control::EnableCheckpoint::decode",
     encode_with = "crate::control::EnableCheckpoint::encode"
 )]
-fn enable_session_checkpoint() -> Result<(), String> {
+fn enable_session_checkpoint() -> Result<(), Refusal> {
     super::super::controller()?;
     with_receiver(|host| {
         host.lifecycle = ReceiverLifecycle::CheckpointEnabled;
@@ -158,26 +158,26 @@ fn enable_session_checkpoint() -> Result<(), String> {
 )]
 fn confirm_restored_session_authority(
     config: controls::model::ReceiverConfig,
-) -> Result<(), String> {
+) -> Result<(), Refusal> {
     super::super::controller()?;
     let config: ReceiverConfig = config
         .try_into()
-        .map_err(|e: ic_wire::Error| e.to_string())?;
+        .map_err(|_: ic_wire::Error| Refusal::Codec)?;
     RECEIVER.with(|state| {
         let mut state = state.borrow_mut();
         let host = state
             .as_mut()
             .filter(|host| host.lifecycle == ReceiverLifecycle::AwaitingAuthority)
-            .ok_or("receiver is not awaiting authority")?;
+            .ok_or(Refusal::AwaitingAuthority)?;
         if config != host.inputs.config {
-            return Err("checkpoint authority mismatch".into());
+            return Err(Refusal::AuthorityMismatch);
         }
         let now = ic_platform_runtime::cdk::api::time();
         if config.valid_from_ns > now
             || config.valid_until_ns <= now
             || config.enrollment_until_ns <= now
         {
-            return Err("checkpoint authority expired".into());
+            return Err(Refusal::AuthorityExpired);
         }
         host.lifecycle = ReceiverLifecycle::CheckpointEnabled;
         Ok(())

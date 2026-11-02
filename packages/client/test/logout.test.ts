@@ -560,3 +560,25 @@ test('admission status projects immutable fields while retaining journal clock a
     await assert.rejects(f.client.admissionStatus('login-a'), { code: 'configuration' });
   } finally { f.store.close(); }
 });
+
+test('an aborted cleanup decision cannot consume a lease or dispatch a receiver call', async () => {
+  let calls = 0;
+  const f = await fixture(async () => { calls++; return revoked; });
+  try {
+    await f.client.begin('login-a', f.state.now + 10_000n * MS);
+    const transact = f.store.transact.bind(f.store);
+    f.store.transact = ((operation: Parameters<IndexedDbLogoutStore['transact']>[0]) => transact(record => {
+      const change = operation(record);
+      if (change?.record.targets.some(target => target.attempts > 0)) throw new Error('decision commit failed');
+      return change;
+    })) as IndexedDbLogoutStore['transact'];
+    await assert.rejects(f.client.cleanup('login-a', identity), /decision commit failed/);
+    f.store.transact = transact;
+    const preserved = await f.client.status('login-a');
+    assert.equal(preserved.busyUntilNs, 0n);
+    assert.ok(preserved.targets.every(target => target.attempts === 0));
+    assert.equal(calls, 0);
+    assert.equal((await f.client.cleanup('login-a', identity)).phase, 'finished');
+    assert.equal(calls, 1);
+  } finally { f.store.close(); }
+});

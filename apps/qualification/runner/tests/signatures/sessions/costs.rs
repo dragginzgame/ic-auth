@@ -239,7 +239,7 @@ pub(super) fn qualify(
             .unwrap(),
             admitted
         );
-        let hot: Result<SessionProfile, String> =
+        let hot: Result<SessionProfile, controls::Refusal> =
             query_control::<(), controls::model::SessionProfile>(
                 f.pic.instance(),
                 f.resource,

@@ -24,7 +24,8 @@ interface JournalCommon {
  */
 export type LogoutJournal = JournalCommon & (
   | { phase: 'active'; deadlineNs: 0n; busyUntilNs: 0n }
-  | { phase: 'cleanup' | 'finished'; deadlineNs: bigint; busyUntilNs: bigint }
+  | { phase: 'cleanup'; deadlineNs: bigint; busyUntilNs: bigint }
+  | { phase: 'finished'; deadlineNs: bigint; busyUntilNs: bigint }
 );
 
 const FORMAT = 'ic-auth-logout-journal-v1';

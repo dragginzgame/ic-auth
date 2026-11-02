@@ -294,11 +294,11 @@ for phase in common-setup cli-setup file-setup common-check cli-check file-check
     [[ -z "$(git tag -l)" ]] || exit 1
     case "$phase" in
         common-setup) expected='common setup' ;;
-        cli-setup) expected=$'common setup\ncommon setup\ncommon setup\ncli setup' ;;
-        file-setup) expected=$'common setup\ncommon setup\ncommon setup\ncli setup\ncommon setup\nfile setup' ;;
-        common-check) expected=$'common setup\ncommon setup\ncommon setup\ncli setup\ncommon setup\nfile setup\ncommon check' ;;
-        cli-check) expected=$'common setup\ncommon setup\ncommon setup\ncli setup\ncommon setup\nfile setup\ncommon check\ncli check' ;;
-        file-check|editor-setup|editor-check) expected=$'common setup\ncommon setup\ncommon setup\ncli setup\ncommon setup\nfile setup\ncommon check\ncli check\nfile check' ;;
+        cli-setup) expected=$'common setup\ncommon setup\ncli setup' ;;
+        file-setup) expected=$'common setup\ncommon setup\ncli setup\ncommon setup\nfile setup' ;;
+        common-check) expected=$'common setup\ncommon setup\ncli setup\ncommon setup\nfile setup\ncommon check' ;;
+        cli-check) expected=$'common setup\ncommon setup\ncli setup\ncommon setup\nfile setup\ncommon check\ncli check' ;;
+        file-check|editor-setup|editor-check) expected=$'common setup\ncommon setup\ncli setup\ncommon setup\nfile setup\ncommon check\ncli check\nfile check' ;;
     esac
     [[ "$(cat target/preparation-dispatch.log)" == "$expected" ]] || exit 1
     rm "target/fail-$phase"
@@ -308,7 +308,7 @@ touch target/fail-gate
 if make --no-print-directory release-patch > "$fixture/gate-failure.log" 2>&1; then exit 1; fi
 [[ "$(git rev-parse HEAD)" == "$before" && "$(make -s release-version)" == 0.1.0 ]] || exit 1
 [[ -z "$(git tag -l)" && -f target/keep ]] || exit 1
-[[ "$(cat target/preparation-dispatch.log)" == $'common setup\ncommon setup\ncommon setup\ncli setup\ncommon setup\nfile setup\ncommon check\ncli check\nfile check\ngate' ]] || exit 1
+[[ "$(cat target/preparation-dispatch.log)" == $'common setup\ncommon setup\ncli setup\ncommon setup\nfile setup\ncommon check\ncli check\nfile check\ngate' ]] || exit 1
 rm target/fail-gate
 [[ "$(tail -n 2 target/editor-events.log)" == $'install\ncheck' ]] || exit 1
 
@@ -627,32 +627,25 @@ cmp "$fixture/broken-current.lock" Cargo.lock
 [[ "$(awk '/^install$/ { n++ } END { print n+0 }' target/editor-events.log)" == "$editor_installs" ]] || exit 1
 cp "$fixture/before-broken-current.lock" Cargo.lock
 cp "$fixture/before-unsorted-current.toml" Cargo.toml
-for kind in minor major; do
-    if [[ "$kind" == minor ]]; then candidate=0.2.0; else candidate=1.0.0; fi
-    { printf '# Changelog\n\n## [%s]\n\n- Fixture release.\n\n' "$candidate"; tail -n +3 releases/protocol/CHANGELOG.md; } > target/notes
-    cp target/notes releases/protocol/CHANGELOG.md
-    git add releases/protocol/CHANGELOG.md
-    git commit -qm "Prepare fixture $kind notes"
-    if [[ "$kind" == minor ]]; then
-        touch target/interrupt-prepare
-        if make --no-print-directory release-minor > "$fixture/interrupted-prepare.log" 2>&1; then exit 1; fi
-        [[ "$(make -s release-version)" == 0.1.1 && -z "$(git tag -l protocol-v0.2.0)" ]] || exit 1
-        rm target/interrupt-prepare
-        cp target/preparation-dispatch.log "$fixture/interrupted-dispatch.log"
-        editor_installs="$(awk '/^install$/ { n++ } END { print n+0 }' target/editor-events.log)"
-    fi
-    if [[ "$kind" == minor ]]; then
-        make --no-print-directory release-resume VERSION="$candidate" > "$fixture/$kind.log" 2>&1
-    else
-        make --no-print-directory "release-$kind" > "$fixture/$kind.log" 2>&1
-    fi
-    if [[ "$kind" == minor ]]; then
-        cmp target/preparation-dispatch.log "$fixture/interrupted-dispatch.log"
-        [[ "$(awk '/^install$/ { n++ } END { print n+0 }' target/editor-events.log)" == "$editor_installs" ]] || exit 1
-    fi
-    [[ "$(make -s release-version)" == "$candidate" ]] || exit 1
-    bash scripts/ci/check-release-tag.sh "$(git rev-parse HEAD)" "$candidate" "$RELEASE_GROUP"
-done
+# Shared owns version arithmetic and generic phase permutations. Auth retains
+# one real Protocol release, a partial group install with exact resume, both
+# committed-disposition preparations below, and an independent Engine release.
+candidate=0.2.0
+{ printf '# Changelog\n\n## [%s]\n\n- Fixture release.\n\n' "$candidate"; tail -n +3 releases/protocol/CHANGELOG.md; } > target/notes
+cp target/notes releases/protocol/CHANGELOG.md
+git add releases/protocol/CHANGELOG.md
+git commit -qm 'Prepare interrupted Protocol fixture notes'
+touch target/interrupt-prepare
+if make --no-print-directory release-minor > "$fixture/interrupted-prepare.log" 2>&1; then exit 1; fi
+[[ "$(make -s release-version)" == 0.1.1 && -z "$(git tag -l protocol-v0.2.0)" ]] || exit 1
+rm target/interrupt-prepare
+cp target/preparation-dispatch.log "$fixture/interrupted-dispatch.log"
+editor_installs="$(awk '/^install$/ { n++ } END { print n+0 }' target/editor-events.log)"
+make --no-print-directory release-resume VERSION="$candidate" > "$fixture/minor.log" 2>&1
+cmp target/preparation-dispatch.log "$fixture/interrupted-dispatch.log"
+[[ "$(awk '/^install$/ { n++ } END { print n+0 }' target/editor-events.log)" == "$editor_installs" ]] || exit 1
+[[ "$(make -s release-version)" == "$candidate" ]] || exit 1
+bash scripts/ci/check-release-tag.sh "$(git rev-parse HEAD)" "$candidate" "$RELEASE_GROUP"
 [[ -f target/keep ]] || exit 1
 # Qualify the consumer's actual local metadata/receipt owner when a maintainer
 # commits the disposition of interrupted preparation. Shared 0.26.18 starts
@@ -717,14 +710,23 @@ for disposition in restored prepared; do
     [[ "$(git rev-parse HEAD)" == "$current_source" && -z "$(git tag -l "protocol-v$candidate")" ]] || exit 1
     git diff --quiet HEAD -- Cargo.toml Cargo.lock releases/protocol/CHANGELOG.md release-validation.json
     git diff --cached --quiet HEAD --
-    { cat "$fixture/$disposition-before-restart.log"; printf 'common setup\ncommon setup\ncommon setup\ncli setup\ncommon setup\nfile setup\ncommon check\ncli check\nfile check\ngate\n'; } > "$fixture/$disposition-expected-failed-dispatch.log"
+    { cat "$fixture/$disposition-before-restart.log"; printf 'common setup\ncommon setup\ncli setup\ncommon setup\nfile setup\ncommon check\ncli check\nfile check\ngate\n'; } > "$fixture/$disposition-expected-failed-dispatch.log"
     cmp target/preparation-dispatch.log "$fixture/$disposition-expected-failed-dispatch.log"
-    make --no-print-directory "release-$kind" > "$fixture/$disposition-restarted.log" 2>&1
+    # Qualify Auth's newly source-bound preparation and independent prepared
+    # check. Generic commit/tag/push permutations belong to Shared; both groups'
+    # actual complete delivery remains exercised elsewhere in this fixture.
+    remote_before="$(git --git-dir="$fixture/remote.git" rev-parse main)"
+    touch target/interrupt-prepared
+    if make --no-print-directory "release-$kind" > "$fixture/$disposition-restarted.log" 2>&1; then exit 1; fi
+    rm target/interrupt-prepared
+    RELEASE_PREVIOUS="$base" RELEASE_VERSION="$candidate" RELEASE_SOURCE="$current_source" \
+    RELEASE_KIND="$kind" RELEASE_DATE="$(jq -r .date release-validation.json)" \
+        bash scripts/release/metadata.sh prepared-check > "$fixture/$disposition-prepared-check.log" 2>&1
     [[ "$(make -s release-version)" == "$candidate" && -f target/keep ]] || exit 1
     [[ "$(jq -r .source release-validation.json)" == "$current_source" && "$(jq -r .previous release-validation.json)" == "$base" ]] || exit 1
     [[ "$(jq -r .candidate release-validation.json)" == "$candidate" && "$(jq -r .kind release-validation.json)" == "$kind" ]] || exit 1
-    bash scripts/ci/check-release-tag.sh "$(git rev-parse HEAD)" "$candidate" "$RELEASE_GROUP"
-    [[ "$(git --git-dir="$fixture/remote.git" rev-parse main)" == "$(git rev-parse HEAD)" ]] || exit 1
+    [[ "$(git rev-parse HEAD)" == "$current_source" && -z "$(git tag -l "protocol-v$candidate")" ]] || exit 1
+    [[ "$(git --git-dir="$fixture/remote.git" rev-parse main)" == "$remote_before" ]] || exit 1
     cmp "$old_plan" "$fixture/$disposition-saved.plan"
     cmp "$state/0.0.0.plan" "$fixture/malformed-historical.plan"
     cmp "$old_receipt" "$fixture/$disposition-saved-receipt.json"
@@ -734,6 +736,8 @@ for disposition in restored prepared; do
     fi
     yq -p toml -o json '.' Cargo.lock | jq -S '[.package[] | select(.source != null)]' > "$fixture/$disposition-external.json"
     cmp "$fixture/external-before.json" "$fixture/$disposition-external.json"
+    git add -- Cargo.toml Cargo.lock releases/protocol/CHANGELOG.md crates/ic-auth-protocol-types/Cargo.toml crates/ic-auth-wire/Cargo.toml release-validation.json
+    git commit -qm 'Retain qualified restarted group metadata'
 done
 # All Protocol releases above left Engine package versions and notes unchanged.
 while IFS= read -r path; do

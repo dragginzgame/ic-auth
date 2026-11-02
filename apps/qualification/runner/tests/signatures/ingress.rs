@@ -11,7 +11,7 @@ async fn ingress(
     root: &[u8],
     identity: impl Identity + 'static,
     target: Principal,
-) -> Result<Result<Principal, String>, AgentError> {
+) -> Result<Result<Principal, controls::Refusal>, AgentError> {
     // Reuse the caller runtime, but bind a fresh Agent to this explicit identity
     // and root on every call. Identity changes must not reuse old authority.
     let agent = Agent::builder()
@@ -28,12 +28,11 @@ async fn ingress(
         .await?;
     Ok(controls::OwnerOperation::decode_response(&bytes)
         .unwrap()
-        .map(|p| Principal::try_from_slice(p.as_slice()).unwrap())
-        .map_err(|e| e.into_string()))
+        .map(|p| Principal::try_from_slice(p.as_slice()).unwrap()))
 }
 
 fn assert_replica_rejection(
-    result: Result<Result<Principal, String>, AgentError>,
+    result: Result<Result<Principal, controls::Refusal>, AgentError>,
     expected_reason: &str,
 ) {
     let error = result.expect_err("invalid delegation must not reach the application");

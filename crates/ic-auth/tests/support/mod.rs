@@ -3,7 +3,7 @@
 use ic_auth_protocol_types::{
     AudienceId, CanonicalId, DelegatedRoleGrant, PortableClaims, PortableMechanism, Principal,
 };
-use ic_platform::ed25519::SigningKey;
+use ic_platform::ed25519::{Signer, SigningKey};
 use sha2::{Digest, Sha256};
 
 pub fn issuer_key() -> SigningKey {
@@ -30,5 +30,40 @@ pub fn claims(browser_public_key: [u8; 32]) -> PortableClaims {
             target: "user".parse().unwrap(),
             scopes: vec!["read".into()],
         }],
+    }
+}
+
+/// Shared valid signing mechanics; independent/adversarial vectors remain local.
+pub fn signature(claims: &PortableClaims, key: &SigningKey) -> [u8; 64] {
+    key.sign(&ic_auth::portable::claims_hash(claims).unwrap())
+        .to_bytes()
+}
+pub fn authority<'a>(
+    claims: &'a PortableClaims,
+    grants: &'a ic_auth::portable::ValidatedGrants,
+    now_ns: u64,
+) -> ic_auth::portable::PortableAuthority<'a> {
+    ic_auth::portable::PortableAuthority {
+        audience: &claims.audience,
+        issuer: claims.issuer,
+        mechanism: claims.mechanism,
+        key_binding_id: claims.key_binding_id,
+        grants,
+        caller: ic_auth::portable::browser_principal(&claims.browser_public_key),
+        now_ns,
+        authority_not_before_ns: 0,
+        authority_expires_at_ns: u64::MAX,
+        enrollment_expires_at_ns: u64::MAX,
+        min_login_started_at_ns: 0,
+    }
+}
+pub fn claims_context(
+    authority: ic_auth::portable::PortableAuthority<'_>,
+) -> ic_auth::portable::PortableClaimsContext<'_> {
+    ic_auth::portable::PortableClaimsContext {
+        authority,
+        min_proof_issued_at_ns: 0,
+        max_login_ttl_ns: 86_400_000_000_000,
+        max_proof_ttl_ns: 60_000_000_000,
     }
 }

@@ -2,7 +2,7 @@
 
 include ci/tool-versions.env
 # Extend the shared ordered aggregates after common host and Rust admission.
-LOCAL_TOOL_INSTALL_TARGETS := install-msrv install-testkit-tools install-host-file
+LOCAL_TOOL_INSTALL_TARGETS := install-testkit-tools install-host-file
 LOCAL_TOOL_CHECK_TARGETS := msrv-tools-check testkit-tools-check host-file-check
 RELEASE_DELIVERY_POLICY := $(CURDIR)/ci/release-delivery.txt
 override SHARED_TOOLING_ROOT := $(CURDIR)
@@ -80,6 +80,10 @@ install-msrv: install-host-tools
 
 msrv-tools-check:
 	+bash scripts/dev/msrv-tools.sh check
+
+.PHONY: test-compiler-policy
+test-compiler-policy:
+	bash scripts/ci/test-compiler-policy.sh
 
 check-msrv:
 	+bash scripts/dev/check-msrv.sh
@@ -192,7 +196,7 @@ check-doc-links:
 # the complete existing lint gate before product tests, builds or packaging.
 ci:
 	+bash scripts/ci/run-validation-targets.sh --fail-fast \
-	  --input Cargo.toml --input Cargo.lock --input rust-toolchain.toml \
+	  --input Cargo.toml --input Cargo.lock --input rust-toolchain.toml --input scripts/dev/msrv-tools.sh \
 	  --input ci/tool-versions.env --input ci/ic-tools.tsv --input ci/release-delivery.txt \
 	  --input ci/cargo-dependency-boundaries.json --input ci/external-ic-dependencies.txt \
 	  --input ci/cargo-release-groups.json \
@@ -203,7 +207,7 @@ ci:
 	  --input ci/host-file.env --input scripts/dev/host-file-tools.sh --input scripts/dev/run-host-file.sh \
 	  --input packages/client/package.json --input packages/client/package-lock.json \
 	  --input packages/client/.nvmrc \
-	  check-snapshot tools-check clippy check-dependency-pins check-doc-links test-make-jobserver fmt-check test-formatting-hooks metadata check-boundaries check-msrv test-tools-evidence test-testkit-tools test-client-tools test-client test-types test-protocol test-portable-signatures test-chain-key-signatures test-signatures test-signature-store test-certified-proofs test-sessions test-host-tooling test-qualification check-wasm check-package-builds test-release-tools
+	  check-snapshot tools-check clippy check-dependency-pins check-doc-links test-make-jobserver fmt-check test-formatting-hooks metadata check-boundaries check-msrv test-compiler-policy test-tools-evidence test-testkit-tools test-client-tools test-client test-types test-protocol test-portable-signatures test-chain-key-signatures test-signatures test-signature-store test-certified-proofs test-sessions test-host-tooling test-qualification check-package-builds test-release-tools
 
 check-package-licenses:
 	@bash -eu -c 'source scripts/release/packages.sh all; \

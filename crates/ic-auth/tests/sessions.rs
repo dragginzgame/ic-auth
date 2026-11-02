@@ -1,5 +1,6 @@
 #![cfg(all(feature = "sessions", feature = "portable-signature-verification"))]
 mod support;
+use support::claims_context;
 
 use ic_auth::{
     admission_budget::SessionAdmissionBudget,
@@ -236,19 +237,10 @@ impl Fixture {
         browser_principal(&self.claims.browser_public_key)
     }
     fn authority(&self, now: u64) -> ic_auth::portable::PortableAuthority<'_> {
-        ic_auth::portable::PortableAuthority {
-            audience: &self.claims.audience,
-            issuer: self.claims.issuer,
-            mechanism: self.claims.mechanism,
-            key_binding_id: self.claims.key_binding_id,
-            grants: &self.grants,
-            caller: self.caller(),
-            now_ns: now,
-            authority_not_before_ns: 0,
-            authority_expires_at_ns: NOW + 120 * SECOND,
-            enrollment_expires_at_ns: NOW + 90 * SECOND,
-            min_login_started_at_ns: 0,
-        }
+        let mut authority = support::authority(&self.claims, &self.grants, now);
+        authority.authority_expires_at_ns = NOW + 120 * SECOND;
+        authority.enrollment_expires_at_ns = NOW + 90 * SECOND;
+        authority
     }
     fn claims_context(&self, now: u64) -> PortableClaimsContext<'_> {
         claims_context(self.authority(now))
@@ -265,11 +257,7 @@ impl Fixture {
         PortableCredential {
             claims: encode_claims(&self.claims).unwrap(),
             proof: PortableProof::Ed25519 {
-                signature: self
-                    .key
-                    .sign(&claims_hash(&self.claims).unwrap())
-                    .to_bytes()
-                    .to_vec(),
+                signature: support::signature(&self.claims, &self.key).to_vec(),
             },
         }
     }
@@ -339,16 +327,6 @@ impl Receiver {
             LogoutResult::Revoked { deny_until_ns } => Ok(deny_until_ns),
             other => Err(other),
         }
-    }
-}
-fn claims_context(
-    authority: ic_auth::portable::PortableAuthority<'_>,
-) -> PortableClaimsContext<'_> {
-    PortableClaimsContext {
-        authority,
-        min_proof_issued_at_ns: 0,
-        max_login_ttl_ns: 86_400 * SECOND,
-        max_proof_ttl_ns: 60 * SECOND,
     }
 }
 fn ttl() -> ic_auth::session_request::SessionTtlPolicy {
@@ -2168,4 +2146,67 @@ fn authorization_projects_inside_snapshot_and_never_calls_on_refusal() {
     );
     assert_eq!(calls, 1);
     assert_eq!(r.ledger.observed_at_ns(), NOW + 1);
+}
+
+#[test]
+fn fresh_admission_is_authorizable_with_each_original_deadline_cap() {
+    // Independently run the full read authorization after fresh construction.
+    // Tiny and exact TTL cutoffs exercise clamps without reusing a cached result.
+    for deadline in [NOW + 1, NOW + SECOND, NOW + 5 * SECOND, NOW + 10 * SECOND] {
+        for cap in 0..3 {
+            let mut f = Fixture::new(1);
+            if cap == 0 {
+                f.claims.login_deadline_ns = deadline;
+                f.claims.admission_expires_at_ns = deadline.min(NOW + SECOND);
+            }
+            let mut claims = f.claims_context(NOW);
+            if cap == 1 {
+                claims.authority.authority_expires_at_ns = deadline;
+            }
+            if cap == 2 {
+                claims.authority.enrollment_expires_at_ns = deadline;
+            }
+            let credential = f.credential();
+            let mut receiver = Receiver::new(&f);
+            let result = establish_session(
+                &mut receiver.store,
+                &mut receiver.ledger,
+                &mut receiver.budget,
+                &credential,
+                request(),
+                &SessionAdmissionContext {
+                    verification: PortableVerificationContext::Ed25519 {
+                        claims: &claims,
+                        public_key: &f.issuer_key,
+                    },
+                    role: &f.role,
+                    ttl: ttl(),
+                },
+                policy(),
+            )
+            .unwrap();
+            let context = SessionContext {
+                authority: claims.authority,
+                max_ttl: ttl().maximum(),
+                role: &f.role,
+                required_scopes: RequiredScopes::NONE,
+            };
+            let expires = authorize_session(
+                &mut receiver.store,
+                &mut receiver.ledger,
+                &context,
+                policy(),
+                Session::expires_at_ns,
+            )
+            .unwrap();
+            assert_eq!(expires, deadline.min(NOW + 5 * SECOND));
+            let receipt = result.receipt();
+            assert_eq!(receipt.expires_at_ns(), expires);
+            #[cfg(feature = "session-restore")]
+            {
+                let stored = stored(&mut receiver.store, receipt);
+                assert_eq!(Session::decode(&stored.encode().unwrap()).unwrap(), stored);
+            }
+        }
+    }
 }

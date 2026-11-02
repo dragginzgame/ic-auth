@@ -2,10 +2,15 @@
 use ic_auth_qualification_contracts::*;
 use ic_wire::{Bytes, Error};
 
-macro_rules! refusal_contract { ($method:ty) => {{
- let encoded = <$method>::encode_response(&Err(refusal("controller required".into()))).unwrap();
- assert!(matches!(<$method>::decode_response(&encoded), Ok(Err(error)) if error.as_str() == "controller required"));
-}}; }
+macro_rules! refusal_contract {
+    ($method:ty) => {{
+        let encoded = <$method>::encode_response(&Err(Refusal::ControllerRequired)).unwrap();
+        assert!(matches!(
+            <$method>::decode_response(&encoded),
+            Ok(Err(Refusal::ControllerRequired))
+        ));
+    }};
+}
 #[test]
 fn controls_refuse_old_transport_wrong_identity_and_unbounded_requests() {
     let owner = Bytes::new(vec![1, 2, 3]).unwrap();
@@ -52,9 +57,16 @@ fn fixture_diagnostics_keep_admission_reply_opaque_and_bounded() {
         ProfileAdmission::decode_response(encoded.as_slice()).unwrap(),
         reply
     );
-    let error = refusal("🚫".repeat(100));
-    assert!(error.as_str().len() <= 256);
-    assert!("🚫".repeat(100).starts_with(error.as_str()));
+    let retired = ic_wire::native::encode_response(
+        Prepare::ID,
+        &Err::<u64, _>(ic_wire::Text::<256>::new("controller required".into()).unwrap()),
+        Prepare::RESPONSE_LIMITS,
+    )
+    .unwrap();
+    assert!(
+        Prepare::decode_response(&retired).is_err(),
+        "retired textual control refusals must fail closed"
+    );
 
     let profile = Ok(model::CertifiedProfile {
         credential_instructions: 1,

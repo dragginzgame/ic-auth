@@ -139,14 +139,9 @@ impl SessionReader for Encoded {
         Ok(self.replays.contains_key(&fingerprint))
     }
     fn occupancy(&self, caller: Principal) -> Result<SessionOccupancy, SessionError> {
-        let replays_for_caller = self
-            .replays
-            .values()
-            .map(|bytes| Replay::decode(bytes))
-            .collect::<Result<Vec<_>, _>>()?
-            .iter()
-            .filter(|r| r.caller() == caller)
-            .count();
+        let replays_for_caller = self.replays.values().try_fold(0, |count, bytes| {
+            Replay::decode(bytes).map(|replay| count + usize::from(replay.caller() == caller))
+        })?;
         Ok(SessionOccupancy {
             sessions: self.sessions.len(),
             replays: self.replays.len(),

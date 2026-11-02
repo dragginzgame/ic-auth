@@ -147,7 +147,7 @@ pub struct SignatureStore {
 struct EmptyLeaf;
 impl AsHashTree for EmptyLeaf {
     fn root_hash(&self) -> Hash {
-        self.as_hash_tree().digest()
+        Vec::<u8>::new().root_hash()
     }
     fn as_hash_tree(&self) -> ic_platform::certification::HashTree {
         leaf(Vec::<u8>::new())

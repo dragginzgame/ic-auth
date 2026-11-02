@@ -4,7 +4,26 @@ use ic_wire::{Bytes, Limits};
 pub mod model;
 use model::{AdmissionProfile, ReceiverConfig, SessionProfile};
 
-pub type Refusal = ic_wire::Text<256>;
+/// Private control-stage diagnostics. Detailed engine errors stay at their native
+/// owners; these bounded codes never grant authority or acknowledge a failed write.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub enum Refusal {
+    ControllerRequired,
+    OwnerRequired,
+    InvalidConfiguration,
+    InvalidAuthority,
+    AwaitingAuthority,
+    AuthorityMismatch,
+    AuthorityExpired,
+    ReceiverUnavailable,
+    Signature,
+    Codec,
+    Session,
+    MissingSession,
+    RestorationMismatch,
+    AdmissionBudget,
+    Clock,
+}
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct SignatureInput {
     pub seed: Bytes<1024>,
@@ -124,13 +143,3 @@ method!(EnableCheckpoint, 0x41555449f00d, "enable_session_checkpoint", (), Resul
 method!(ConfirmAuthority, 0x41555449f00e, "confirm_restored_session_authority", ReceiverConfig, Result<(), Refusal>, REPLY_LIMITS);
 method!(SetSessionAsset, 0x41555449f00f, "session_set_asset", u64, Result<(), Refusal>, REPLY_LIMITS);
 method!(ProfileCertified, 0x41555449f010, "profile_certified_proof", ic_auth_wire::SessionInput, Result<model::CertifiedProfile, model::CertifiedProfileFailure>, ic_auth_wire::EstablishSession::REQUEST_LIMITS, PROFILE_LIMITS);
-
-/// Bounded UTF-8 diagnostics cannot trap and roll back admission charges.
-pub fn refusal(mut error: String) -> Refusal {
-    let mut end = error.len().min(256);
-    while !error.is_char_boundary(end) {
-        end -= 1;
-    }
-    error.truncate(end);
-    Refusal::new(error).expect("bounded UTF-8 refusal")
-}

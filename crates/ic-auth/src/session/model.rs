@@ -272,16 +272,21 @@ impl Session {
         feature = "portable-signature-verification",
         feature = "certified-proof-verification"
     ))]
-    pub(super) fn admit(
+    // The sole caller has checked policy/context, evaluated this exact request
+    // against the decoded grants, then verified those same claims without an
+    // await or authority change. All identity fields below come from that checked
+    // snapshot, and the lease is clamped to its live login/authority deadlines.
+    // Subsequent reads and exact retries still require complete check_live.
+    pub(super) fn from_admission(
         verified: &VerifiedPortableClaims,
         request: SessionRequest,
         ctx: &SessionContext<'_>,
         policy: SessionPolicy,
         requested_expiry: u64,
-    ) -> Result<Self, SessionError> {
+    ) -> Self {
         let claims = verified.claims();
         let request_hash = request.hash();
-        let session = Self(SessionData {
+        Self(SessionData {
             caller: ctx.authority.caller,
             subject: claims.account_subject,
             issuer: claims.issuer,
@@ -297,9 +302,7 @@ impl Session {
             expires_at_ns: verified.clamp_session_expiry(requested_expiry),
             fingerprint: verified.fingerprint(),
             request_hash,
-        });
-        session.check_live(ctx, policy)?;
-        Ok(session)
+        })
     }
     pub(super) fn check_revocation(&self, login: Option<LoginBinding>) -> Result<(), SessionError> {
         if login != Some(self.login_binding()) {

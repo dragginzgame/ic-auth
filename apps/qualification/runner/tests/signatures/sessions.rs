@@ -36,7 +36,7 @@ fn measured<T>(f: &Fixture, target: Principal, label: &str, operation: impl FnOn
 }
 
 fn install(f: &Fixture, target: Principal, config: &ReceiverConfig) {
-    let result: Result<(), String> = update_control::<controls::model::ReceiverConfig, ()>(
+    let result: Result<(), controls::Refusal> = update_control::<controls::model::ReceiverConfig, ()>(
         f.pic.instance(),
         target,
         f.controller,
@@ -91,12 +91,7 @@ fn logout(f: &Fixture, target: Principal, caller: Principal) -> Result<u64, Logo
     {
         m::LogoutResult::Revoked(until) => Ok(until),
         m::LogoutResult::InvalidCaller => Err(LogoutResult::InvalidCaller),
-        m::LogoutResult::Unavailable(reason) => Err(LogoutResult::Unavailable(match reason {
-            m::LogoutUnavailable::Capacity => LogoutUnavailable::Capacity,
-            m::LogoutUnavailable::Storage => LogoutUnavailable::Storage,
-            m::LogoutUnavailable::Clock => LogoutUnavailable::Clock,
-            m::LogoutUnavailable::ResetPending => LogoutUnavailable::ResetPending,
-        })),
+        m::LogoutResult::Unavailable(reason) => Err(LogoutResult::Unavailable(reason.into())),
     }
 }
 
@@ -450,7 +445,7 @@ fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ingress()
         .is_ok()
     );
     logout(&f, f.resource, caller).unwrap();
-    let profile: Result<SessionProfile, String> =
+    let profile: Result<SessionProfile, controls::Refusal> =
         query_control::<(), controls::model::SessionProfile>(
             f.pic.instance(),
             f.signer,
@@ -470,7 +465,7 @@ fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ingress()
     claims.issued_at_ns = f.now();
     claims.admission_expires_at_ns = f.now() + 2 * SECOND;
     assert!(admission(&f, f.signer, unknown, &input(&claims, &key)).is_err());
-    let result: Result<(), String> = update_control::<bool, ()>(
+    let result: Result<(), controls::Refusal> = update_control::<bool, ()>(
         f.pic.instance(),
         f.signer,
         f.controller,
@@ -846,7 +841,7 @@ fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_authority() 
     };
     install(&f, f.resource, &config);
     install(&f, f.signer, &config);
-    let enabled: Result<(), String> = update_control::<(), ()>(
+    let enabled: Result<(), controls::Refusal> = update_control::<(), ()>(
         f.pic.instance(),
         f.resource,
         f.controller,
@@ -909,13 +904,14 @@ fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_authority() 
         logout(&f, f.resource, live),
         Err(LogoutResult::Unavailable(LogoutUnavailable::ResetPending))
     );
-    let unauthorized: Result<(), String> = update_control::<controls::model::ReceiverConfig, ()>(
-        f.pic.instance(),
-        f.resource,
-        live,
-        spec!(controls::ConfirmAuthority),
-        (config.clone()).try_into().unwrap(),
-    );
+    let unauthorized: Result<(), controls::Refusal> =
+        update_control::<controls::model::ReceiverConfig, ()>(
+            f.pic.instance(),
+            f.resource,
+            live,
+            spec!(controls::ConfirmAuthority),
+            (config.clone()).try_into().unwrap(),
+        );
     assert!(unauthorized.is_err());
     let mut mismatch = config.clone();
     mismatch.authority = ReceiverAuthority::Ed25519(Box::new(
@@ -924,7 +920,7 @@ fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_authority() 
         )
         .unwrap(),
     ));
-    let wrong: Result<(), String> = update_control::<controls::model::ReceiverConfig, ()>(
+    let wrong: Result<(), controls::Refusal> = update_control::<controls::model::ReceiverConfig, ()>(
         f.pic.instance(),
         f.resource,
         f.controller,
@@ -933,13 +929,14 @@ fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_authority() 
     );
     assert!(wrong.is_err());
     assert!(read(&f, f.resource, live).is_err());
-    let confirmed: Result<(), String> = update_control::<controls::model::ReceiverConfig, ()>(
-        f.pic.instance(),
-        f.resource,
-        f.controller,
-        spec!(controls::ConfirmAuthority),
-        (config.clone()).try_into().unwrap(),
-    );
+    let confirmed: Result<(), controls::Refusal> =
+        update_control::<controls::model::ReceiverConfig, ()>(
+            f.pic.instance(),
+            f.resource,
+            f.controller,
+            spec!(controls::ConfirmAuthority),
+            (config.clone()).try_into().unwrap(),
+        );
     confirmed.unwrap();
     assert_eq!(read(&f, f.resource, live).unwrap(), session);
     // Restoration retains the live exact retry and its original lease even
@@ -962,7 +959,7 @@ fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_authority() 
     assert_eq!(renewed_peer.subject, session.subject);
     claims.browser_public_key = unknown_key;
     assert!(admission(&f, f.resource, unknown, &input(&claims, &key)).is_err());
-    let disabled: Result<(), String> = update_control::<bool, ()>(
+    let disabled: Result<(), controls::Refusal> = update_control::<bool, ()>(
         f.pic.instance(),
         f.resource,
         f.controller,
@@ -979,13 +976,14 @@ fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_authority() 
             Some(f.controller.into()),
         )
         .unwrap();
-    let confirmed: Result<(), String> = update_control::<controls::model::ReceiverConfig, ()>(
-        f.pic.instance(),
-        f.resource,
-        f.controller,
-        spec!(controls::ConfirmAuthority),
-        (config).try_into().unwrap(),
-    );
+    let confirmed: Result<(), controls::Refusal> =
+        update_control::<controls::model::ReceiverConfig, ()>(
+            f.pic.instance(),
+            f.resource,
+            f.controller,
+            spec!(controls::ConfirmAuthority),
+            (config).try_into().unwrap(),
+        );
     confirmed.unwrap();
     assert!(read(&f, f.resource, live).is_err());
     assert_eq!(logout(&f, f.resource, revoked).unwrap(), denied_until);

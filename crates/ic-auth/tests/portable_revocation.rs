@@ -3,12 +3,12 @@
 mod support;
 
 use ic_auth::portable::{
-    LoginRevocationError as Error, MemoryLoginRevocations, PortableClaimsContext, ValidatedGrants,
-    VerifiedPortableClaims, browser_principal, claims_hash, encode_claims,
+    LoginRevocationError as Error, MemoryLoginRevocations, ValidatedGrants, VerifiedPortableClaims,
+    browser_principal, claims_hash, encode_claims,
 };
 use ic_auth::portable_signature::verify_ed25519_claims;
 use ic_auth_protocol_types::{AudienceId, CanonicalId, PortableClaims, Principal};
-use ic_platform::ed25519::{Signer, SigningKey};
+use ic_platform::ed25519::SigningKey;
 use sha2::{Digest, Sha256};
 
 fn audience() -> AudienceId {
@@ -40,26 +40,10 @@ fn verify_with_budget(
     budget: &mut ic_auth::admission_budget::SessionAdmissionBudget,
 ) -> Result<VerifiedPortableClaims, ic_auth::portable_signature::PortableSignatureError> {
     let key = support::issuer_key();
-    let signature = key.sign(&claims_hash(c).unwrap()).to_bytes();
+    let signature = support::signature(c, &key);
     let grants = ValidatedGrants::new(c.grants.clone()).unwrap();
-    let context = PortableClaimsContext {
-        authority: ic_auth::portable::PortableAuthority {
-            audience: &c.audience,
-            issuer: c.issuer,
-            mechanism: c.mechanism,
-            key_binding_id: c.key_binding_id,
-            grants: &grants,
-            caller: browser_principal(&c.browser_public_key),
-            now_ns: now,
-            authority_not_before_ns: 0,
-            authority_expires_at_ns: u64::MAX,
-            enrollment_expires_at_ns: u64::MAX,
-            min_login_started_at_ns: 0,
-        },
-        min_proof_issued_at_ns: 0,
-        max_login_ttl_ns: DAY,
-        max_proof_ttl_ns: 60,
-    };
+    let mut context = support::claims_context(support::authority(c, &grants, now));
+    context.max_proof_ttl_ns = 60;
     verify_ed25519_claims(
         budget,
         &encode_claims(c).unwrap(),

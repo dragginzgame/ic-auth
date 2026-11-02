@@ -12,6 +12,7 @@ printf 'Backend package evidence retained: %s\n' "$evidence"
 tool="$(bash scripts/dev/host-file-tools.sh check)"
 version="$(yq -p toml -o json '.' crates/ic-auth/Cargo.toml | jq -er '.package.version')"
 protocol_version="$(yq -p toml -o json '.' crates/ic-auth-protocol-types/Cargo.toml | jq -er '.package.version')"
+floor="$(bash scripts/dev/msrv-tools.sh floor)"
 name="ic-auth-backend-conformance-$version"
 consumer="$evidence/consumer"
 bundle="$consumer/test-support/$name"
@@ -49,6 +50,7 @@ exclude = ["test-support/$name"]
 name = "auth-backend-package-consumer"
 version = "0.0.0"
 edition = "2024"
+rust-version = "$floor"
 publish = false
 [dependencies]
 ic-auth = { version = "=$version", default-features = false, features = ["session-restore", "portable-signature-verification"] }

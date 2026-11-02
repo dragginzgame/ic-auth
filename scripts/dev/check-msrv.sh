@@ -9,7 +9,6 @@ source scripts/ci/auth-dependency-policy.sh
 printf 'MSRV wrapper Bash %s\n' "$BASH_VERSION"
 export PATH="$root/.tools/host/bin:$PATH" RUSTUP_AUTO_INSTALL=0 CARGO_NET_OFFLINE=true
 floor="$(bash scripts/dev/msrv-tools.sh floor)"
-development="$(yq -p toml -o json '.' rust-toolchain.toml | jq -er '.toolchain.channel')"
 version="$(yq -p toml -o json '.' crates/ic-auth/Cargo.toml | jq -er '.package.version')"
 protocol_version="$(yq -p toml -o json '.' crates/ic-auth-protocol-types/Cargo.toml | jq -er '.package.version')"
 bash scripts/dev/msrv-tools.sh check
@@ -23,9 +22,9 @@ cp Cargo.lock "$fixture/original-workspace.lock"
 # Cargo owns package normalization. Check its real payloads outside the workspace
 # so private test dependencies cannot supply features to a public consumer.
 source scripts/release/packages.sh all
-CARGO_TARGET_DIR="$root/target/msrv-package" cargo +"$development" package \
+CARGO_TARGET_DIR="$root/target/msrv-package" cargo +"$floor" package \
     --locked --offline --allow-dirty --no-verify "${package_args[@]}"
-CARGO_TARGET_DIR="$root/target" cargo +"$development" build --locked --offline -p ic-auth-tooling
+CARGO_TARGET_DIR="$root/target" cargo +"$floor" build --locked --offline -p ic-auth-tooling
 for package in "${packages[@]}"; do
     package_version="$protocol_version"
     [[ "$package" != ic-auth ]] || package_version="$version"
@@ -105,7 +104,7 @@ pub fn canonical_session_request(
 }
 RUST
 cp "$fixture/original-workspace.lock" "$fixture/Cargo.lock"
-cargo +"$development" metadata --offline --format-version 1 --all-features \
+cargo +"$floor" metadata --offline --format-version 1 --all-features \
     --manifest-path "$fixture/Cargo.toml" > "$fixture/metadata.json"
 bash scripts/ci/check-package-consumer.sh "$fixture/original-workspace.lock" "$fixture" "$version" "$protocol_version"
 package_inputs > "$fixture/resolved-archive-inputs"
@@ -113,7 +112,7 @@ cmp "$fixture/archive-inputs" "$fixture/resolved-archive-inputs"
 package_inputs "$fixture/Cargo.toml" "$fixture/Cargo.lock" "$fixture/src/lib.rs" > "$fixture/inputs-before"
 cmp Cargo.toml "$fixture/original-workspace.toml"
 cmp Cargo.lock "$fixture/original-workspace.lock"
-export CARGO_TARGET_DIR="$root/target/msrv"
+export CARGO_TARGET_DIR="$root/target"
 selections="$(bash scripts/ci/auth-feature-selections.sh "$auth/Cargo.toml")"
 for target in native wasm32-unknown-unknown; do
     target_args=()
@@ -143,10 +142,8 @@ for target in native wasm32-unknown-unknown; do
         fi
     done <<< "$selections"
 done
-# Internal applications use the same floor with separate native/Wasm checks.
-# Runtime qualification remains test-qualification.
-cargo +"$floor" check --locked --offline -p ic-auth-tooling -p ic-auth-qualification -p ic-auth-qualification-contracts -p ic-auth-qualification-fixtures -p ic-auth-backend-conformance -p ic-auth-feature-unification --all-targets --all-features
-cargo +"$floor" check --locked --offline -p ic-auth-qualification-canister --target wasm32-unknown-unknown
+# CI's native all-target/all-feature and canister Wasm Clippy stages compile the
+# internal applications with this same compiler. Runtime proof is test-qualification.
 package_inputs "$fixture/Cargo.toml" "$fixture/Cargo.lock" "$fixture/src/lib.rs" > "$fixture/inputs-after"
 cmp "$fixture/inputs-before" "$fixture/inputs-after"
 printf 'Package archives, unpacked sources, manifests and locks remained unchanged\n'

@@ -27,28 +27,10 @@ pub enum CertificateIssuanceError {
         expected: Principal,
         found: Principal,
     },
-    #[error("certificate validity must start at or after issuance and have positive duration")]
-    InvalidCertWindow,
-    #[error("certificate TTL {ttl_ns} exceeds host maximum {max_ttl_ns}")]
-    CertTtlExceeded { ttl_ns: u64, max_ttl_ns: u64 },
-    #[error("delegated token TTL must be greater than zero")]
-    TokenTtlZero,
-    #[error("delegated token TTL {ttl_ns} exceeds host maximum {max_ttl_ns}")]
-    TokenTtlExceeded { ttl_ns: u64, max_ttl_ns: u64 },
-    #[error("delegated token TTL {token_ttl_ns} exceeds certificate duration {cert_ttl_ns}")]
-    TokenTtlOutlivesCert { token_ttl_ns: u64, cert_ttl_ns: u64 },
-    #[error("certificate grants must not be empty")]
-    GrantsEmpty,
-    #[error("certificate grants {found} exceed host maximum {max}")]
-    TooManyGrants { found: usize, max: usize },
-    #[error("grant for {role:?} has no scopes")]
-    EmptyGrantScopes { role: AuthRole },
-    #[error("grant for {role:?} has {found} scopes exceeding host maximum {max}")]
-    TooManyGrantScopes {
-        role: AuthRole,
-        found: usize,
-        max: usize,
-    },
+    #[error(transparent)]
+    Lifetime(#[from] CertificateLifetimeError),
+    #[error(transparent)]
+    Grants(#[from] GrantValidationError),
     #[error("issuer proof binding hash mismatch")]
     IssuerProofBindingHashMismatch,
     #[error(transparent)]
@@ -78,14 +60,21 @@ pub fn validate_certificate_issuance(
     Ok(())
 }
 
-// Internal causes let existing callers reuse the rules without changing their
-// public rejection surface or the placement of independent clock/crypto checks.
-pub(crate) enum CertificateLifetimeError {
+/// Ordered lifetime causes shared by issuance and delegation verification.
+/// Neither this error nor the shape validator establishes current authority.
+#[derive(Debug, Eq, Error, PartialEq)]
+pub enum CertificateLifetimeError {
+    #[error("certificate was issued after its validity start")]
     IssuedAfterStart,
+    #[error("certificate validity must have positive duration")]
     InvalidWindow,
+    #[error("certificate TTL {ttl_ns} exceeds host maximum {max_ttl_ns}")]
     CertTtlExceeded { ttl_ns: u64, max_ttl_ns: u64 },
+    #[error("delegated token TTL must be greater than zero")]
     TokenTtlZero,
+    #[error("delegated token TTL {ttl_ns} exceeds host maximum {max_ttl_ns}")]
     TokenTtlExceeded { ttl_ns: u64, max_ttl_ns: u64 },
+    #[error("delegated token TTL {token_ttl_ns} exceeds certificate duration {cert_ttl_ns}")]
     TokenTtlOutlivesCert { token_ttl_ns: u64, cert_ttl_ns: u64 },
 }
 
@@ -126,29 +115,6 @@ pub(crate) fn validate_certificate_lifetime(
         });
     }
     Ok(())
-}
-
-impl From<CertificateLifetimeError> for CertificateIssuanceError {
-    fn from(error: CertificateLifetimeError) -> Self {
-        use CertificateLifetimeError as E;
-        match error {
-            E::IssuedAfterStart | E::InvalidWindow => Self::InvalidCertWindow,
-            E::CertTtlExceeded { ttl_ns, max_ttl_ns } => {
-                Self::CertTtlExceeded { ttl_ns, max_ttl_ns }
-            }
-            E::TokenTtlZero => Self::TokenTtlZero,
-            E::TokenTtlExceeded { ttl_ns, max_ttl_ns } => {
-                Self::TokenTtlExceeded { ttl_ns, max_ttl_ns }
-            }
-            E::TokenTtlOutlivesCert {
-                token_ttl_ns,
-                cert_ttl_ns,
-            } => Self::TokenTtlOutlivesCert {
-                token_ttl_ns,
-                cert_ttl_ns,
-            },
-        }
-    }
 }
 
 /// A standalone grant-shape failure, before any certificate or token exists.
@@ -213,19 +179,6 @@ pub fn validate_grants(
         validate_scopes(&grant.scopes).map_err(E::Canonical)?;
     }
     Ok(())
-}
-
-impl From<GrantValidationError> for CertificateIssuanceError {
-    fn from(error: GrantValidationError) -> Self {
-        use GrantValidationError as E;
-        match error {
-            E::Empty => Self::GrantsEmpty,
-            E::TooMany { found, max } => Self::TooManyGrants { found, max },
-            E::EmptyScopes { role } => Self::EmptyGrantScopes { role },
-            E::TooManyScopes { role, found, max } => Self::TooManyGrantScopes { role, found, max },
-            E::Canonical(error) => Self::Canonical(error),
-        }
-    }
 }
 
 // Both callers admit canonical parent scopes first: protected claims authority

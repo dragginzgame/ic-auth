@@ -293,7 +293,7 @@ pub fn establish_session(
         ControlFlow::Continue(fresh) => fresh,
     };
     let verified = prepared.verify(budget, &credential.proof)?;
-    let session = Session::admit(&verified, request, &context, policy, requested_expiry)?;
+    let session = Session::from_admission(&verified, request, &context, policy, requested_expiry);
     let replay = Replay::new(&session, admission_expires_at_ns);
     let receipt = SessionReceipt::from(&session);
     ledger.with_reservation(authority.caller, &verified, authority.now_ns, |login| {

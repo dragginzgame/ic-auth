@@ -18,7 +18,7 @@ use ic_auth::{
 use ic_auth_protocol_types::{
     LogoutResult, LogoutUnavailable, PortableCredential, SessionReadRefusal,
 };
-use ic_auth_qualification_contracts as controls;
+use ic_auth_qualification_contracts::{self as controls, Refusal};
 pub(crate) use ic_auth_qualification_fixtures::sessions as contract;
 use ic_auth_wire::{SessionInput, SessionView, model::AdmissionRefusal};
 use ic_platform::Principal;
@@ -124,15 +124,15 @@ impl ReceiverInputs {
 fn budgets(
     config: &ReceiverConfig,
     now: u64,
-) -> Result<(SessionAdmissionBudget, SessionAdmissionBudget), String> {
+) -> Result<(SessionAdmissionBudget, SessionAdmissionBudget), Refusal> {
     Ok((
         SessionAdmissionBudget::new(
             config.verification_burst,
             config.verification_refill_ns,
             now,
         )
-        .map_err(|e| e.to_string())?,
-        SessionAdmissionBudget::new(16, 1, now).map_err(|e| e.to_string())?,
+        .map_err(|_| Refusal::AdmissionBudget)?,
+        SessionAdmissionBudget::new(16, 1, now).map_err(|_| Refusal::AdmissionBudget)?,
     ))
 }
 
@@ -146,7 +146,7 @@ impl Receiver {
         store: MemorySessionStore,
         ledger: MemoryLoginRevocations,
         now: u64,
-    ) -> Result<Self, String> {
+    ) -> Result<Self, Refusal> {
         let (admission, unknown) = budgets(&inputs.config, now)?;
         Ok(Self {
             inputs,
@@ -179,9 +179,9 @@ fn view(receipt: SessionReceipt) -> SessionView {
     }
 }
 struct ReceiverUnavailable;
-impl From<ReceiverUnavailable> for String {
+impl From<ReceiverUnavailable> for Refusal {
     fn from(_: ReceiverUnavailable) -> Self {
-        "receiver not ready".into()
+        Refusal::ReceiverUnavailable
     }
 }
 impl From<ReceiverUnavailable> for AdmissionRefusal {
@@ -211,18 +211,18 @@ fn with_receiver<T, E: From<ReceiverUnavailable>>(
     decode_with = "crate::control::InstallReceiver::decode",
     encode_with = "crate::control::InstallReceiver::encode"
 )]
-fn install_session_receiver(config: controls::model::ReceiverConfig) -> Result<(), String> {
+fn install_session_receiver(config: controls::model::ReceiverConfig) -> Result<(), Refusal> {
     super::controller()?;
     let config: ReceiverConfig = config
         .try_into()
-        .map_err(|e: ic_wire::Error| e.to_string())?;
+        .map_err(|_: ic_wire::Error| Refusal::Codec)?;
     let now = ic_platform_runtime::cdk::api::time();
     if config.issuer == Principal::anonymous()
         || config.valid_from_ns > now
         || config.valid_until_ns <= now
         || config.enrollment_until_ns <= now
     {
-        return Err("invalid receiver authority".into());
+        return Err(Refusal::InvalidAuthority);
     }
     if let ReceiverAuthority::Certified {
         root, network_key, ..
@@ -231,7 +231,7 @@ fn install_session_receiver(config: controls::model::ReceiverConfig) -> Result<(
             || root.root_canister_id == Principal::anonymous()
             || config.valid_until_ns > root.accept_until_ns)
     {
-        return Err("invalid certified receiver authority".into());
+        return Err(Refusal::InvalidAuthority);
     }
     let mut inputs = ReceiverInputs {
         config,
@@ -239,7 +239,7 @@ fn install_session_receiver(config: controls::model::ReceiverConfig) -> Result<(
         proof_floor: 0,
     };
     let mut ctx = inputs.claims_context(Principal::anonymous(), now);
-    ctx.advance_reset_floors(0).map_err(|e| e.to_string())?;
+    ctx.advance_reset_floors(0).map_err(|_| Refusal::Clock)?;
     let floors = (
         ctx.authority.min_login_started_at_ns,
         ctx.min_proof_issued_at_ns,
@@ -253,7 +253,7 @@ fn install_session_receiver(config: controls::model::ReceiverConfig) -> Result<(
         0,
         now,
     )
-    .map_err(|e| e.to_string())?;
+    .map_err(|_| Refusal::Session)?;
     let host = Receiver::new(
         inputs,
         ReceiverLifecycle::Active,
@@ -382,8 +382,8 @@ fn authorize(operation: SessionOperation) -> Result<SessionView, SessionReadRefu
     decode_with = "crate::control::SetSessionAsset::decode",
     encode_with = "crate::control::SetSessionAsset::encode"
 )]
-fn session_set_asset(version: u64) -> Result<(), String> {
-    authorize(SessionOperation::Write).map_err(|e| format!("{e:?}"))?;
+fn session_set_asset(version: u64) -> Result<(), Refusal> {
+    authorize(SessionOperation::Write).map_err(|_| Refusal::Session)?;
     // No await separates the session decision from the application effect.
     super::with_state(|state| {
         state.metadata.asset_version = version;
@@ -416,10 +416,12 @@ fn logout_portable_session() -> LogoutResult {
     decode_with = "crate::control::InvalidateAuthority::decode",
     encode_with = "crate::control::InvalidateAuthority::encode"
 )]
-fn invalidate_session_authority(enabled: bool) -> Result<(), String> {
+fn invalidate_session_authority(enabled: bool) -> Result<(), Refusal> {
     super::controller()?;
     with_receiver(|host| {
-        host.store.advance_generation().map_err(|e| e.to_string())?;
+        host.store
+            .advance_generation()
+            .map_err(|_| Refusal::Session)?;
         host.enabled = enabled;
         Ok(())
     })
@@ -429,7 +431,7 @@ fn invalidate_session_authority(enabled: bool) -> Result<(), String> {
     decode_with = "crate::control::ProfileSession::decode",
     encode_with = "crate::control::ProfileSession::encode"
 )]
-fn profile_portable_session() -> Result<SessionProfile, String> {
+fn profile_portable_session() -> Result<SessionProfile, Refusal> {
     with_receiver(|host| {
         let caller = ic_platform_runtime::cdk::api::msg_caller();
         let session = host
@@ -438,14 +440,14 @@ fn profile_portable_session() -> Result<SessionProfile, String> {
                 tx.session(caller)
                     .map(|session| session.map(std::borrow::Cow::into_owned))
             })
-            .map_err(|e| e.to_string())?
-            .ok_or("no session")?;
-        let encoded = session.encode().map_err(|e| e.to_string())?;
+            .map_err(|_| Refusal::Session)?
+            .ok_or(Refusal::MissingSession)?;
+        let encoded = session.encode().map_err(|_| Refusal::Session)?;
         let start = ic_platform_runtime::ic0::performance_counter(0);
-        let decoded = Session::decode(&encoded).map_err(|e| e.to_string())?;
+        let decoded = Session::decode(&encoded).map_err(|_| Refusal::Session)?;
         let after_decode = ic_platform_runtime::ic0::performance_counter(0);
         if decoded != session {
-            return Err("restoration differs".into());
+            return Err(Refusal::RestorationMismatch);
         }
         let ctx = host
             .inputs
@@ -455,7 +457,7 @@ fn profile_portable_session() -> Result<SessionProfile, String> {
         authorize_session(&mut host.store, &mut host.ledger, &ctx, policy, |session| {
             view(session.into())
         })
-        .map_err(|e| e.to_string())?;
+        .map_err(|_| Refusal::Session)?;
         Ok(SessionProfile {
             record_bytes: encoded.len() as u64,
             decode_instructions: after_decode - start,
@@ -516,7 +518,7 @@ mod tests {
         assert_eq!(refusal, Err(AdmissionRefusal::Unavailable));
         let refusal: Result<(), SessionReadRefusal> = with_receiver(|_| panic!("read ran"));
         assert_eq!(refusal, Err(SessionReadRefusal::Unavailable));
-        let refusal: Result<(), String> = with_receiver(|_| panic!("control ran"));
-        assert_eq!(refusal, Err("receiver not ready".into()));
+        let refusal: Result<(), Refusal> = with_receiver(|_| panic!("control ran"));
+        assert_eq!(refusal, Err(Refusal::ReceiverUnavailable));
     }
 }

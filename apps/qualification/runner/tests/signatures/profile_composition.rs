@@ -82,7 +82,7 @@ fn root_and_issuer_profiles_share_one_composed_store_without_crossing_authority(
             .retrieve_with_seed(ROOT_PROFILE, ROOT_PROFILE, &payload)
             .is_err()
     );
-    let removed: Result<u32, String> = update_control::<u32, u32>(
+    let removed: Result<u32, controls::Refusal> = update_control::<u32, u32>(
         fixture.pic.instance(),
         fixture.signer,
         fixture.controller,

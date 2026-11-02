@@ -64,17 +64,22 @@ pub(crate) fn save(bytes: &[u8]) {
     });
 }
 
-pub(crate) fn load() -> Vec<u8> {
+pub(crate) fn with_payload<T>(read: impl FnOnce(&[u8]) -> T) -> T {
     CELL.with(|state| {
         let state = state.borrow();
-        state
+        let payload = state
             .as_ref()
             .expect("checkpoint not initialized")
             .get()
             .strip_prefix(MAGIC)
-            .expect("missing checkpoint or wrong payload identity")
-            .to_vec()
+            .expect("missing checkpoint or wrong payload identity");
+        read(payload)
     })
+}
+
+#[cfg(test)]
+fn load() -> Vec<u8> {
+    with_payload(<[u8]>::to_vec)
 }
 
 #[cfg(test)]

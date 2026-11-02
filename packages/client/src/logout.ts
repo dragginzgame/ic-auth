@@ -24,12 +24,8 @@ function nextAttemptNs(target: LogoutTarget): bigint | undefined {
 // Synchronous journal transitions; callers commit them through update before I/O.
 // One live lease across tabs. A crash consumes its attempt; the lease expires
 // after the call bound. Keep the last attempt for after admission expiry.
-function claimCleanup(record: LogoutJournal, now: bigint) {
+function claimCleanup(record: LogoutJournal & { phase: 'cleanup' }, now: bigint) {
   const idle = { record, value: undefined };
-  if (record.phase !== 'cleanup') return idle;
-  if (cleanupComplete(record, now)) {
-    return { record: { ...record, phase: 'finished' as const }, value: undefined };
-  }
   if (record.busyUntilNs > now) return idle;
   const target = record.targets.find(t => {
     const next = nextAttemptNs(t);
@@ -179,7 +175,8 @@ export class PortableLogoutClient {
     for (;;) {
       const current = await this.update<
         { kind: 'active' } | { kind: 'return'; journal: LogoutJournal }
-        | { kind: 'continue'; caller: string; signer: Identity }
+        | { kind: 'wait'; milliseconds: number }
+        | { kind: 'dispatch'; claim: NonNullable<ReturnType<typeof claimCleanup>['value']>; signer: Identity }
       >(generation, (record, now) => {
         const next = record.phase === 'cleanup' && cleanupComplete(record, now)
           ? { ...record, phase: 'finished' as const } : record;
@@ -187,26 +184,24 @@ export class PortableLogoutClient {
         if (next.phase === 'finished' || !identity) {
           return { record: next, value: { kind: 'return', journal: structuredClone(next) } };
         }
-        return { record: next, value: { kind: 'continue', caller: next.caller, signer: identity } };
+        if (identity.getPrincipal().toText() !== next.caller) throw new ClientError('configuration');
+        // Select waiting or persist the attempt/lease in this same isolated
+        // transaction. Signing still rechecks the committed lease after awaits.
+        const { record: claimed, value: claim } = claimCleanup(next, now);
+        return claim
+          ? { record: claimed, value: { kind: 'dispatch', claim, signer: identity } }
+          : { record: claimed, value: { kind: 'wait', milliseconds: cleanupWaitMs(claimed, now) } };
       });
       if (current.kind === 'active') throw new ClientError('configuration');
       if (current.kind === 'return') {
         if (current.journal.phase === 'finished') await this.transport.dispose(generation);
         return current.journal;
       }
-      const signer = current.signer;
-      if (signer.getPrincipal().toText() !== current.caller) throw new ClientError('configuration');
-      // A tab without a local signer returns its detached journal above. It
-      // must not cancel another worker or dispose shared signing material.
-      // Persist the attempt and cross-tab dispatch lease before network I/O.
-      const claim = await this.update(generation, claimCleanup);
-      if (!claim) {
-        const waitMs = await this.update(generation, (record, now) => ({ record,
-          value: record.phase === 'cleanup' ? cleanupWaitMs(record, now) : undefined }));
-        if (waitMs === undefined) continue;
-        await this.clock.wait(waitMs);
+      if (current.kind === 'wait') {
+        await this.clock.wait(current.milliseconds);
         continue;
       }
+      const { signer, claim } = current;
       let response: LogoutResult | undefined;
       try {
         response = await boundedCall(claim.timeoutMs, async signal => {

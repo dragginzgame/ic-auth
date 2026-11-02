@@ -1,5 +1,5 @@
 //! Fixture-only CDK codec hooks over the canonical native Wire contracts.
-use ic_auth_qualification_contracts::{self as controls, CONTROL_LIMITS, refusal};
+use ic_auth_qualification_contracts::{self as controls, CONTROL_LIMITS, Refusal};
 use ic_wire::Bytes;
 
 pub(crate) fn guard() -> Result<(), String> {
@@ -28,9 +28,8 @@ macro_rules! bind {
             pub(crate) fn decode(bytes: Vec<u8>) -> $request {
                 controls::$name::decode_request(&bytes).expect("bounded fixture Wire request")
             }
-            pub(crate) fn encode(value: Result<$value, String>) -> Vec<u8> {
-                controls::$name::encode_response(&value.map_err(refusal))
-                    .expect("bounded fixture Wire response")
+            pub(crate) fn encode(value: Result<$value, Refusal>) -> Vec<u8> {
+                controls::$name::encode_response(&value).expect("bounded fixture Wire response")
             }
         }
     };

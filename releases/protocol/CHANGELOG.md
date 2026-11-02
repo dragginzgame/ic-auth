@@ -3,6 +3,14 @@
 Covers `ic-auth-protocol-types` and `ic-auth-wire`, released together.
 The independent series starts after the [last coordinated release, 0.29.2](../history.md).
 
+## [0.31.0] - Unreleased
+
+### ⚠️ Breaking
+
+- Require Rust 1.99.1, matching the pinned development/release compiler
+  ([#124](https://github.com/dragginzgame/ic-auth/issues/124)). Retain independent
+  native/Wasm archive consumers and passive dependency isolation.
+
 ## [0.30.0] - 2026-11-01
 
 ### ⚠️ Breaking
