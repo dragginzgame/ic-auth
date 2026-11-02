@@ -1,10 +1,9 @@
-//! Fixture-owned checkpoint allocation. No library bootstraps a competing manager.
+//! Fixture-owned checkpoint allocation through the consolidated Storage runtime.
 //! Writes run synchronously in pre_upgrade; IC message rollback owns trap atomicity.
-use ic_memory::{
-    DefaultMemoryImpl, Memory, MemoryManagerConfig, RuntimeMemory, StableKey,
-    stable_cell_payload_length, testing::fixture_runtime,
-};
 use ic_storage::adapter::StableCell;
+use ic_storage::{
+    DefaultMemoryImpl, Memory, RuntimeMemory, StableKey, StorageConfig, testing::fixture_runtime,
+};
 use std::cell::RefCell;
 
 thread_local! {
@@ -22,7 +21,7 @@ fn checkpoint_allocation(backing: DefaultMemoryImpl) -> RuntimeMemory<DefaultMem
         "ic_auth_qualification",
         "ic_auth_qualification.",
         &[KEY],
-        MemoryManagerConfig::default(),
+        StorageConfig::default(),
     )
     .expect("checkpoint runtime admission")
     .open_memory(&key)
@@ -38,13 +37,10 @@ pub(crate) fn bootstrap(backing: DefaultMemoryImpl, restore: bool) {
         }
         let memory = checkpoint_allocation(backing);
         let cell = if restore {
-            // Admit the retained size before the collection allocates/decodes it.
-            stable_cell_payload_length(&memory, MAX_BYTES + MAGIC.len())
-                .expect("checkpoint payload admission");
-            StableCell::load(memory).expect("checkpoint cell admission")
+            StableCell::load(memory, MAX_BYTES + MAGIC.len()).expect("checkpoint cell admission")
         } else {
             assert_eq!(memory.size(), 0, "checkpoint allocation already occupied");
-            StableCell::create(memory, Vec::new())
+            StableCell::create(memory, Vec::new()).expect("checkpoint cell creation")
         };
         *state = Some(cell);
     });
@@ -60,7 +56,8 @@ pub(crate) fn save(bytes: &[u8]) {
             .borrow_mut()
             .as_mut()
             .expect("checkpoint not initialized")
-            .set(framed);
+            .set(framed)
+            .expect("persist fixture checkpoint");
     });
 }
 
@@ -85,57 +82,42 @@ fn load() -> Vec<u8> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ic_memory::{
-        RuntimeConstructionError, StableCellPayloadError,
-        testing::{FixtureCell, FixtureCellError, FixtureRuntimeError},
-    };
+    use ic_storage::{RuntimeConstructionError, StableCellPayloadError, adapter::CollectionError};
     use std::panic::AssertUnwindSafe;
 
     #[test]
-    fn previous_memory_ledger_refuses_without_clearing_application_backing() {
-        use ic_platform::stable_structures::{
-            Cell,
-            memory_manager::{MemoryId, MemoryManager},
-        };
-
+    fn previous_memory_manager_refuses_without_clearing_application_backing() {
         let backing = DefaultMemoryImpl::default();
-        let old_ledger: Vec<u8> =
-            include_str!("../fixtures/memory-055/ledger_commit_store_single.cbor.hex")
-                .trim()
-                .as_bytes()
-                .as_chunks::<2>()
-                .0
-                .iter()
-                .map(|pair| u8::from_str_radix(std::str::from_utf8(pair).unwrap(), 16).unwrap())
-                .collect();
-        // Isolated refusal fixture only: no live governed runtime or aliases.
-        // Slot 100 is the application allocation recorded by the frozen ledger.
-        {
-            let manager = MemoryManager::init(backing.clone());
-            Cell::new(manager.get(MemoryId::new(0)), old_ledger);
-            Cell::new(
-                manager.get(MemoryId::new(100)),
-                b"retained application data".to_vec(),
-            );
-        }
+        let old_header: Vec<u8> = include_str!("../fixtures/memory-063/manager-header.hex")
+            .trim()
+            .as_bytes()
+            .as_chunks::<2>()
+            .0
+            .iter()
+            .map(|pair| u8::from_str_radix(std::str::from_utf8(pair).unwrap(), 16).unwrap())
+            .collect();
+        // Isolated foreign-format fixture; never an alternate live store path.
+        assert_eq!(backing.grow(2), 0);
+        backing.write(0, &old_header);
+        backing.write(65_536, b"retained application data");
         let bytes = || {
             let mut bytes = vec![0; backing.size() as usize * 65_536];
             backing.read(0, &mut bytes);
             bytes
         };
         let before = bytes();
+        let error = fixture_runtime(
+            backing.clone(),
+            "ic_auth_qualification",
+            "ic_auth_qualification.",
+            &[KEY],
+            StorageConfig::default(),
+        )
+        .err()
+        .expect("old manager must be refused");
         assert!(matches!(
-            fixture_runtime(
-                backing.clone(),
-                "ic_auth_qualification",
-                "ic_auth_qualification.",
-                &[KEY],
-                MemoryManagerConfig::default(),
-            ),
-            Err(FixtureRuntimeError::Bootstrap(error))
-                if matches!(*error, ic_memory::RuntimeBootstrapError::StableCellLedger(
-                    ic_memory::StableCellLedgerError::Record(_)
-                ))
+            error.downcast_ref::<RuntimeConstructionError>(),
+            Some(RuntimeConstructionError::Directory(_))
         ));
         assert!(
             std::panic::catch_unwind(AssertUnwindSafe(|| bootstrap(backing.clone(), true)))
@@ -174,16 +156,14 @@ mod tests {
             backing.read(0, &mut bytes);
             bytes
         };
-        // Runtime bootstrap may commit its own ledger. Snapshot after obtaining
+        // Runtime bootstrap owns its directory. Snapshot after obtaining
         // the lease to isolate the collection's fresh-only creation boundary.
         let allocation = checkpoint_allocation(backing.clone());
         let before = retained_bytes();
-        assert!(
-            std::panic::catch_unwind(AssertUnwindSafe(|| {
-                StableCell::create(allocation, Vec::<u8>::new())
-            }))
-            .is_err()
-        );
+        assert!(matches!(
+            StableCell::create(allocation, Vec::<u8>::new()),
+            Err(CollectionError::NotEmpty)
+        ));
         assert!(
             retained_bytes() == before,
             "collection creation must preserve occupied backing"
@@ -200,6 +180,7 @@ mod tests {
                 .as_mut()
                 .unwrap()
                 .set(b"BADMAGIC".to_vec())
+                .unwrap()
         });
         assert!(std::panic::catch_unwind(load).is_err());
         save(&[]);
@@ -210,7 +191,14 @@ mod tests {
     fn retired_candid_checkpoint_is_refused_without_clearing() {
         bootstrap(Default::default(), false);
         let old = b"AUTHCELLDIDL\x00\x00".to_vec();
-        CELL.with(|state| state.borrow_mut().as_mut().unwrap().set(old.clone()));
+        CELL.with(|state| {
+            state
+                .borrow_mut()
+                .as_mut()
+                .unwrap()
+                .set(old.clone())
+                .unwrap()
+        });
         assert!(std::panic::catch_unwind(load).is_err());
         CELL.with(|state| assert_eq!(*state.borrow().as_ref().unwrap().get(), old));
     }
@@ -219,7 +207,14 @@ mod tests {
     fn retired_finite_wire_checkpoint_is_refused_without_clearing() {
         bootstrap(Default::default(), false);
         let old = b"AUTHWIR2IWold-finite-frame".to_vec();
-        CELL.with(|state| state.borrow_mut().as_mut().unwrap().set(old.clone()));
+        CELL.with(|state| {
+            state
+                .borrow_mut()
+                .as_mut()
+                .unwrap()
+                .set(old.clone())
+                .unwrap()
+        });
         assert!(std::panic::catch_unwind(load).is_err());
         CELL.with(|state| assert_eq!(*state.borrow().as_ref().unwrap().get(), old));
     }
@@ -228,7 +223,14 @@ mod tests {
     fn retired_cbor_records_checkpoint_is_refused_without_clearing() {
         bootstrap(Default::default(), false);
         let old = b"AUTHNAT1IWold-cbor-records".to_vec();
-        CELL.with(|state| state.borrow_mut().as_mut().unwrap().set(old.clone()));
+        CELL.with(|state| {
+            state
+                .borrow_mut()
+                .as_mut()
+                .unwrap()
+                .set(old.clone())
+                .unwrap()
+        });
         assert!(std::panic::catch_unwind(load).is_err());
         CELL.with(|state| assert_eq!(*state.borrow().as_ref().unwrap().get(), old));
     }
@@ -237,7 +239,14 @@ mod tests {
     fn retired_text_id_checkpoint_is_refused_without_clearing() {
         bootstrap(Default::default(), false);
         let old = b"AUTHNAT2IWold-text-id-records".to_vec();
-        CELL.with(|state| state.borrow_mut().as_mut().unwrap().set(old.clone()));
+        CELL.with(|state| {
+            state
+                .borrow_mut()
+                .as_mut()
+                .unwrap()
+                .set(old.clone())
+                .unwrap()
+        });
         assert!(std::panic::catch_unwind(load).is_err());
         CELL.with(|state| assert_eq!(*state.borrow().as_ref().unwrap().get(), old));
     }
@@ -253,8 +262,11 @@ mod tests {
         memory.write(0, &old);
         drop(memory);
         assert!(matches!(
-            StableCell::<Vec<u8>, _>::load(checkpoint_allocation(backing.clone())),
-            Err(StableCellPayloadError::NotStableCell)
+            StableCell::<Vec<u8>, _>::load(
+                checkpoint_allocation(backing.clone()),
+                MAX_BYTES + MAGIC.len()
+            ),
+            Err(CollectionError::Cell(StableCellPayloadError::NotStableCell))
         ));
         assert!(
             std::panic::catch_unwind(AssertUnwindSafe(|| bootstrap(backing.clone(), true)))
@@ -272,22 +284,19 @@ mod tests {
         let backing = DefaultMemoryImpl::default();
         bootstrap(backing.clone(), false);
         save(b"retained checkpoint");
-        let open = || {
-            FixtureCell::open_bounded(
+        let assert_claimed = || {
+            let error = fixture_runtime(
                 backing.clone(),
                 "ic_auth_qualification",
                 "ic_auth_qualification.",
-                KEY,
-                MemoryManagerConfig::default(),
-                MAX_BYTES + MAGIC.len(),
+                &[KEY],
+                StorageConfig::default(),
             )
-        };
-        let assert_claimed = || {
+            .err()
+            .expect("live backing must remain claimed");
             assert!(matches!(
-                open(),
-                Err(FixtureCellError::Setup(FixtureRuntimeError::Construction(
-                    RuntimeConstructionError::BackingAlreadyClaimed
-                )))
+                error.downcast_ref::<RuntimeConstructionError>(),
+                Some(RuntimeConstructionError::BackingAlreadyClaimed)
             ));
         };
         assert_claimed();
@@ -301,29 +310,49 @@ mod tests {
     }
 
     #[test]
+    fn checkpoint_checksum_refusal_preserves_backing() {
+        let backing = DefaultMemoryImpl::default();
+        bootstrap(backing.clone(), false);
+        save(b"checksummed checkpoint");
+        CELL.with(|state| state.borrow_mut().take());
+        let memory = checkpoint_allocation(backing.clone());
+        // Isolated corruption injection through a checked lease after the cell
+        // releases it. No parallel raw backing path exists in the fixture host.
+        memory.write(ic_storage::STABLE_CELL_HEADER_SIZE as u64, b"X");
+        drop(memory);
+        let before = backing.borrow().clone();
+        assert!(matches!(
+            StableCell::<Vec<u8>, _>::load(
+                checkpoint_allocation(backing.clone()),
+                MAX_BYTES + MAGIC.len()
+            ),
+            Err(CollectionError::Checksum)
+        ));
+        assert!(
+            std::panic::catch_unwind(AssertUnwindSafe(|| bootstrap(backing.clone(), true)))
+                .is_err()
+        );
+        assert_eq!(*backing.borrow(), before);
+        CELL.with(|state| assert!(state.borrow().is_none()));
+    }
+
+    #[test]
     fn checkpoint_retains_fixture_cell_format_and_rejects_oversized_restore() {
         for size in [MAX_BYTES, MAX_BYTES + 1] {
             let backing = DefaultMemoryImpl::default();
             let open = |restore| {
-                let constructor = if restore {
-                    FixtureCell::open_bounded
+                let memory = checkpoint_allocation(backing.clone());
+                if restore {
+                    StableCell::load(memory, MAX_BYTES + MAGIC.len() + 1)
                 } else {
-                    FixtureCell::create_bounded
-                };
-                constructor(
-                    backing.clone(),
-                    "ic_auth_qualification",
-                    "ic_auth_qualification.",
-                    KEY,
-                    MemoryManagerConfig::default(),
-                    MAX_BYTES + MAGIC.len() + 1,
-                )
+                    StableCell::create(memory, Vec::new())
+                }
                 .unwrap()
             };
             let payload = vec![42; size];
             let mut expected = [MAGIC.as_slice(), &payload].concat();
             let mut original = open(false);
-            original.try_set(expected.clone()).unwrap();
+            original.set(expected.clone()).unwrap();
             drop(original);
             if size > MAX_BYTES {
                 assert!(
@@ -338,7 +367,7 @@ mod tests {
                 expected = [MAGIC.as_slice(), b"storage replacement"].concat();
                 CELL.with(|state| state.borrow_mut().take());
             }
-            assert_eq!(open(true).bytes(), expected);
+            assert_eq!(open(true).get(), &expected);
         }
     }
 }

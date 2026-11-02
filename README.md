@@ -96,19 +96,21 @@ package belongs to another IC-Auth project and does not implement our applicatio
 token/proof contracts. Crates.io treats hyphens and underscores as colliding
 names, so changing only the punctuation cannot resolve that conflict.
 
-The public domain types depend directly on canonical `ic-platform-types` 0.15
+The public domain types depend directly on canonical `ic-platform-types`
 identities. Auth's engine selects Types' `principal-self-authenticating`
 for browser-key hashing, with byte-preserving conversions at external
 Agent/Testkit/crypto boundaries. Public library capabilities and the reference
 Wasm exclude Candid; native Agent/Testkit retain their required Candid dependencies.
-Platform supplies signature creation/verification and the Candid-free runtime;
-Auth retains admission limits, protected authority and session policy. See the
+Platform supplies signature creation/verification; `ic-platform-runtime` supplies
+the Candid-free runtime. Auth retains admission limits, protected authority and session policy. See the
 [Platform migration](docs/canic-adoption.md#platform-015-migration) and
 [dependency boundary](docs/development.md#ic-platform-boundary).
 
 Application endpoints, generated TypeScript, private fixture controls and upgrade
-checkpoints use bounded native Serde IC Wire 0.13 contracts.
-Wire 0.13 preserves encoder bytes and IDs; consumers sharing Rust types align to 0.13.
+checkpoints use bounded native Serde IC Wire contracts. The root dependency
+catalog owns the selected Wire and Types versions; consumers exchanging Rust
+types align those identities. Qualify frame bytes and method IDs when changing
+those suppliers.
 The Auth 0.15 admission cut uses a new method identity; update its receiver and client
 together. Credential/read/logout frames, signed material and retained production
 records keep their formats. The unpublished finite-Wire checkpoint is retired;

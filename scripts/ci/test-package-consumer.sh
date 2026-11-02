@@ -62,7 +62,7 @@ reject_graph unresolved-auth '.resolve.nodes |= map(select(.id != "auth"))'
 reject_graph wrong-root '.resolve.root = "auth"'
 reject_graph live-root '.packages[0].manifest_path = "/live-workspace/Cargo.toml"'
 reject_graph extra-local '.packages += [{id: "extra", name: "extra", source: null}] | .resolve.nodes += [{id: "extra"}]'
-for forbidden in canic-core toko solana-sdk ic-siws ic-host-fs ic-build ic-auth-qualification-contracts ic-auth-tooling ic-testkit ic-agent tokio pocket-ic ic-cdk ic-stable-structures ic-memory ic-timers; do
+for forbidden in canic-core toko solana-sdk ic-siws ic-host-fs ic-build ic-auth-qualification-contracts ic-auth-tooling ic-testkit ic-agent tokio pocket-ic ic-platform-pocket-ic ic-cdk ic-stable-structures ic-memory ic-storage ic-timers; do
     reject_graph "$forbidden" ".packages[4].name = \"$forbidden\""
 done
 cp "$fixture/base.lock" "$fixture/Cargo.lock"
@@ -120,6 +120,8 @@ deployment ic-agent yes
 deployment tokio yes
 deployment ic-cdk yes
 deployment ic-memory yes
+deployment ic-storage yes
+deployment ic-platform-pocket-ic yes
 deployment candid yes
 deployment ic0 yes
 deployment ic-verify-bls-signature no

@@ -11,8 +11,8 @@ use ic_platform::canister_sig_creation::{
 use ic_platform::{
     Principal,
     agent::{Agent, BasicIdentity, Delegation, Identity, SignedDelegation},
-    pocket_ic::{PocketIc, PocketIcBuilder, Time},
 };
+use ic_platform_pocket_ic::{PocketIc, PocketIcBuilder, Time};
 use ic_testkit::pic::{
     PocketIcInstance, PocketIcStartupConfig, WireCallError, WireCallSpec, query_wire, update_wire,
 };

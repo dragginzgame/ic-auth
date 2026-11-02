@@ -7,6 +7,10 @@ The independent series starts after the [last coordinated release, 0.29.2](../hi
 
 ### ⚠️ Breaking
 
+- Adopt canonical Types 0.17 and Wire/derive 0.15. Consumers exchanging
+  Principal, parse errors, schema traits or codec limits must align those Rust
+  identities. Principal derivation, schemas, transport bytes and budgets remain
+  unchanged; generated browser contracts are unchanged.
 - Require Rust 1.99.1, matching the pinned development/release compiler
   ([#124](https://github.com/dragginzgame/ic-auth/issues/124)). Retain independent
   native/Wasm archive consumers and passive dependency isolation.

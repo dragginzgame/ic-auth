@@ -42,10 +42,10 @@ ic-auth-wire = { version = "0.30.0", path = "crates/ic-auth-wire" }
 # Production dependencies
 # Types owns canonical identities; Platform supplies crypto and native IC adapters.
 # Passive protocol, default and session-only graphs need no facade or runtime.
-ic-platform = { version = "0.17.0", default-features = false }
-ic-platform-types = { version = "0.16.0", default-features = false }
+ic-platform = { version = "0.18.0", default-features = false }
+ic-platform-types = { version = "0.17.0", default-features = false }
 # Host generation uses the lock-selected runtime and diagnostic callback.
-ic-wire = "0.14.1"
+ic-wire = "0.15.0"
 leb128 = "0.2"
 serde = { version = "1", features = ["derive"] }
 serde_bytes = "0.11"
@@ -58,14 +58,14 @@ clap = { version = "4", default-features = false, features = ["derive", "error-c
 dhat = "0.3.3"
 # Adversarial feature trigger only; production and test crypto APIs use Platform.
 ed25519-dalek = { version = "3.0", default-features = false }
-ic-build = { version = "0.73.6", default-features = false }
-ic-host-fs = { version = "0.73.6", default-features = false }
-ic-host-process = { version = "0.73.6", default-features = false }
-ic-memory = "0.63.0"
-ic-metrics = { version = "0.26.0", default-features = false }
-ic-platform-runtime = { version = "0.17.1", default-features = false }
-ic-storage = "0.63.0"
-ic-testkit = { version = "0.78.0", default-features = false }
+ic-build = { version = "0.74.0", default-features = false }
+ic-host-fs = { version = "0.74.1", default-features = false }
+ic-host-process = { version = "0.74.1", default-features = false }
+ic-metrics = { version = "0.27.0", default-features = false }
+ic-platform-pocket-ic = { version = "0.18.0", default-features = false }
+ic-platform-runtime = { version = "0.18.0", default-features = false }
+ic-storage = "0.65.0"
+ic-testkit = { version = "0.80.0", default-features = false }
 serde_json = "1"
 tokio = { version = "1", features = ["rt-multi-thread", "sync", "time"] }
 

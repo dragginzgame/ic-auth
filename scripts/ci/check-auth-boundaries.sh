@@ -52,7 +52,7 @@ for target in "$native_target" wasm32-unknown-unknown; do
         --forbid-feature ic-platform/ic0 --forbid-feature ic-platform/executor \
         --forbid-feature ic-platform/runtime --forbid-feature ic-platform/cdk
 done
-# Curve/signature providers retain one identity. Platform 0.17's RustCrypto
+# Curve/signature providers retain one identity. Platform 0.18's RustCrypto
 # generation and maintained BLS/Principal hashing require two support generations.
 crypto_singletons=(
     base16ct const-oid crypto-bigint curve25519-dalek
@@ -66,13 +66,18 @@ for package in block-buffer crypto-common digest ff group rand_core sha2; do
     rules+=(--max-count "$package=2")
 done
 "${checker[@]}" --package ic-auth --target wasm32-unknown-unknown --all-features "${rules[@]}"
+# Storage 0.65 selects Runtime directly on Wasm.
+# It resolves to the host's one maintained owner; keep its singleton guard
+# and generator checks, while public library graphs still forbid those features.
 "${checker[@]}" --package ic-auth-qualification-canister --target wasm32-unknown-unknown \
     --forbid-pattern "$(auth_dependency_pattern profiling)" \
     --forbid-pattern '^(candid|candid_derive|candid_parser|ic-canister-sig-creation|ic-signature-verification|ic-host|ic-build|ic-agent|ic-testkit|pocket-ic|tokio)([- ]|$)' \
     --forbid ic-cdk --forbid ic-cdk-macros --forbid ic-cdk-executor --forbid ic0 \
+    --forbid ic-memory --forbid ic-stable-structures --forbid ic-platform-pocket-ic \
     --forbid-feature ic-platform/candid \
     --forbid-feature ic-platform/ic0 --forbid-feature ic-platform/executor \
-    --forbid-feature ic-platform/runtime --forbid-feature ic-platform/cdk \
+    --forbid-feature ic-platform/runtime \
+    --forbid-feature ic-platform/cdk \
     --require ic-platform-runtime=1 --require ic-platform-macros=1 --require ic-platform-runtime-guard=1 \
-    --require ic-wire=1
+    --require ic-wire=1 --require ic-storage=1
 echo 'Auth dependency boundaries verified'

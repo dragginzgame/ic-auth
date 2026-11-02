@@ -1,7 +1,7 @@
 # IC Auth Agent Instructions
 
 Apply the installed [baseline](DRAGGINZGAME.md), adopted from Shared Tooling
-0.27.26 at `e84252f5740bacd708359580455ea2b6fd67df38`, and its task-specific
+0.27.28 at `8c7fae6605c69a930e3b1f14e1ff5c4c9dafbcb7`, and its task-specific
 references. The [snapshot manifest](.shared-tooling.snapshot) records the exact
 policy/tooling selection. Read [the current handoff](docs/status/current.md)
 before implementation. Product-specific safeguards and scoped permissions below
@@ -42,6 +42,12 @@ remain binding.
 - The host owns the clock, stable-memory allocation, transaction boundary and
   certification-root publication. Library operations must not secretly write a
   global certification root or allocate conflicting stable-memory regions.
+- The requested Storage consolidation moves allocation governance and
+  checked leases from retired `ic-memory` into `ic-storage`. Use Storage-owned
+  keys, namespace grants, backing and collection APIs; preserve the older Shared
+  snapshot's governance invariants under that new owner. Only the private host
+  selects Storage; its direct Wasm Runtime dependency resolves to the host's one
+  executor/guard. Legacy backing is refused without reset or a compatibility reader.
 - Use published `ic-host-*` for applicable local file, artifact and process
   mechanics and `ic-build` for generic Cargo lock admission. Native host tooling
   belongs in `apps/tooling/` and test infrastructure
@@ -97,7 +103,8 @@ and `ci/cargo-dependency-boundaries.json` for direct-dependency ownership.
 
 - Native canister qualification uses published `ic-testkit` for typed Wire calls,
   deliberate raw-call evidence and bounded startup. Import simulator clients and
-  DTOs from Platform's `pocket-ic` capability in the native runner only. Do not add a direct
+  DTOs from the independent canonical `ic-platform-pocket-ic` owner in the native
+  runner only, matching Testkit's implementation identity. Do not add a registry
   `pocket-ic` dependency. The locked Testkit package selects the setup/check CLI;
   Testkit owns server selection and admission outside the shared five-tool bundle.
   `make install-testkit-tools` explicitly prepares it, and

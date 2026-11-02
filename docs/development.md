@@ -4,8 +4,8 @@ The virtual root owns the protocol/types, Auth engine and Wire transport librari
 unpublished native tooling in `apps/tooling/` and the reference host/runner in
 `apps/qualification/`. The root catalog selects published Types and Platform, the
 Host FS/Process, Build and Testkit packages from
-[IC Tooling](https://github.com/dragginzgame/ic-tooling), Memory from
-[IC Persistence](https://github.com/dragginzgame/ic-persistence) and the Wire 0.14
+[IC Tooling](https://github.com/dragginzgame/ic-tooling), allocation/collections from
+[IC Storage](https://github.com/dragginzgame/ic-storage) and the Wire 0.15
 codec/TypeScript generator. The lock and [handoff](status/current.md) record exact selections and evidence;
 [session contracts](sessions.md) distinguish supported behavior from pending hosts.
 Rust `1.99.1` is both the pinned development/release compiler and the common
@@ -135,23 +135,28 @@ The repository's Wasm target flags select upstream RustCrypto's qualified
 `cpubits="32"` backend. Other canister build owners must select it themselves;
 dependency Cargo configuration is not inherited, and explicit `RUSTFLAGS` or
 `CARGO_ENCODED_RUSTFLAGS` overrides must preserve this selection.
-Platform's explicit `pocket-ic` capability owns native simulator clients and DTOs.
+The independent `ic-platform-pocket-ic` 0.18 owner supplies native clients and DTOs.
 Testkit owns bounded server startup, lifecycle extensions and typed Wire calls;
 only the native runner selects these capabilities.
 
-Native file and process callers select Host FS/Process 0.73.6 with defaults
+Native file and process callers select Host FS/Process 0.74.1 with defaults
 disabled. Library use does not enable Host's optional CLI, certificate decoder
 or Wasm text/encoding backends. Host stays outside the production library graph.
-Build 0.73.6 and Testkit 0.78.0 select the same Host 0.73 identities as Auth's direct
-callers; no dependency override or old Host family is needed. The independently
-pinned file CLI is independently selected at 0.73.6 for this adoption.
+Build 0.74.0 and Testkit 0.80.0 share Auth's Host 0.74 identities. The independently
+pinned file CLI is selected at 0.74.1.
 Build and Testkit libraries keep `cli` disabled; only the prepared executable
-selections request it. Testkit owns its benchmark-average errors and selects
-arithmetic-only Metrics 0.25.1 internally. Auth's native diagnostics use Metrics
-0.26.0; no Metrics values cross the Testkit boundary, and neither selection enables
-optional native metadata. These native package identities remain separate.
+selections request it. Testkit owns its benchmark-average errors and retains
+arithmetic-only Metrics 0.26.1 internally; Auth's diagnostics select Metrics 0.27.0.
+These counters do not cross that boundary. No caller enables optional native
+metadata; the old Host 0.73 and Metrics 0.25 providers are removed.
 
-The unpublished qualification host selects IC Metrics 0.26.0 for fixed
+Auth and the native Testkit/PocketIC stack share Platform 0.18 and Types 0.17.
+The host selects Runtime 0.18 directly, matching Storage 0.65's Wasm dependency.
+Wire 0.15 provides the matching canonical Principal schema implementation.
+Native calls retain explicit external Principal conversions; native SDK packages
+remain outside public Auth and the reference Wasm graph.
+
+The unpublished qualification host selects IC Metrics 0.27.0 for fixed
 admission outcome counters, with defaults disabled: arithmetic and validated Serde
 do not select its optional native Wire metadata. Public Auth graphs forbid that
 dependency. See the
@@ -166,8 +171,8 @@ for the existing byte/path limits and release-recovery boundary.
 
 ## Dependency roles and deployment admission
 
-Shared Tooling revision `e84252f5740bacd708359580455ea2b6fd67df38` is adopted
-(its committed VERSION records 0.27.26; this is reviewed source, not a claim of
+Shared Tooling revision `8c7fae6605c69a930e3b1f14e1ff5c4c9dafbcb7` is adopted
+(its committed VERSION records 0.27.28; this is reviewed source, not a claim of
 registry publication or a matching release tag). Auth retains Cargo-owned versions
 and the default release mode; Shared's pending canonical `VERSION` workflow does
 not add a version file, prepare-work command or package-version edit here.
@@ -201,7 +206,7 @@ libraries exclude native Host/Build/Testkit/Agent/Tokio, fixture packages and
 service-owned CDK/storage. Certified capabilities intentionally retain their
 upstream certificate stack; portable/session-only graphs remain certificate-free.
 
-There is no production service or deployment command here. The Memory/CDK Wasm
+There is no production service or deployment command here. The Storage/runtime Wasm
 host is qualification-only and legitimately uses test/tooling packages. A Canic or
 future wallet-service deployment must check its own exact target/features and
 bind source, lockfile and successful build evidence to the final artifact digest.
@@ -210,16 +215,16 @@ validate role comments mechanically, or qualify unlisted feature combinations.
 
 ## IC Platform boundary
 
-The protocol package selects published `ic-platform-types` 0.16.0 directly for
+The protocol package selects published `ic-platform-types` 0.17.0 directly for
 canonical Principal and parse-error identities, without a facade, external
 Principal, SHA-2, Candid or runtime edge. The Auth engine selects Types'
 `principal-self-authenticating` for browser-key hashing. Its Platform dependency
 is optional: only crypto capabilities select it, while default and session-only
-graphs exclude the facade. This changes the public Rust identity from Types 0.15;
-consumers must align on Types 0.16 and Wire 0.14. Serialized bytes are unchanged.
+graphs exclude the facade. This changes the public Rust identity from Types 0.16;
+consumers must align on Types 0.17 and Wire 0.15. Serialized bytes are unchanged.
 Direct dependency and resolved graph policies enforce the owner boundaries. Convert
 explicitly at native Agent/Testkit boundaries using Platform's
-`principal::ExternalPrincipal` with `principal-external` selected. Platform 0.17
+`principal::ExternalPrincipal` with `principal-external` selected. Platform 0.18
 canister-signature keys instead use the canonical owned Principal directly.
 Significant bytes, ordering and binary serialization remain compatible; text
 longer than 63 bytes is now refused before normalization. See the
@@ -247,49 +252,31 @@ Auth 0.22 introduced the bounded native-Wire checkpoint. Auth 0.25 uses
 `0x41555449f101`, containing the new Wire session/replay/login records. Previous
 `AUTHNAT2` (text-ID records), `AUTHNAT1` (CBOR records), `AUTHCELL`/Candid and finite-Wire `AUTHWIR2` payloads
 are refused without migration or reset. The maintainer confirmed no retained Auth
-records require preservation. IC Memory allocation and StableCell framing remain
-unchanged. Start with a coherent new fixture checkpoint for this hard cut.
+records require preservation. The later Storage consolidation also changes
+backing formats; start with a coherent new fixture checkpoint for this hard cut.
 Checkpoint restores remain closed until matching controller authority is confirmed.
-The qualification host selects Memory/Storage 0.63.0 with the standard canister
-backing. Memory admits one runtime/allocation; Storage's `StableCell` consumes
-that checked lease. Auth checks the retained payload ceiling before loading and
-refuses occupied fresh state before creating a cell. Setup parses a `StableKey`
-for `open_memory`; fresh state uses `StableCell::create`, while retained state
-uses `StableCell::load`. No combined initialization or reset path is selected.
-Memory/Storage 0.62 aligns its codec-error identity with Wire 0.14; durable bytes,
-allocation custody, admission limits and recovery behavior stay unchanged. The
-host graph requires one Wire provider for both RPCs and persistence.
-Memory/Storage 0.63 and Metrics 0.26 require the already selected Rust 1.99.1;
-their published runtime sources match the previous versions. This adoption
-changes no storage framing or diagnostic arithmetic. The Wasm host selects only
-Metrics 0.26; Testkit's older Metrics remains confined to the native runner.
-Memory 0.53 trusts exclusive
-backing custody between manager checks at construction, lease opening and growth;
-raw backing aliases remain prohibited. Native reopen tests release the cell and
-any detached handle first; attempted aliases refuse while either lease remains
-live. Substrate Cell and manager layouts are unchanged; Auth owns its payload format. Storage is confined
-to the unpublished qualification host.
-Memory 0.56 changes the allocation-ledger/Cell-value records from CBOR to bounded
-Wire (`ICML` / `ICMWIRE1`). Earlier Memory backings cannot be upgraded directly;
-they are refused without fallback or automatic clearing. Qualify this unpublished
-host on fresh isolated backing and retain older binaries/states. Any retained
-installation needs its own reviewed transition before upgrade; never clear only
-the ledger while leaving application data. No reinstall, data retirement or
-reset of retained installations is authorized by this dependency adoption.
-That Memory cut is separate from the Auth 0.25 binary-ID record change and
-`AUTHNAT3` checkpoint. The maintainer separately confirmed no retained current
-session/login records; neither consent permits erasing Memory backing or its ledger.
-The 0.53.1 repair releases backing claims before their identity allocations are
-destroyed, including construction refusal and unwinding; detached handles still
-retain custody. Platform 0.7.4/0.7.5's external Candid endpoint/protocol additions remain
-unselected by the owned Wire/public library capabilities.
-Memory/Storage 0.54 adopts IC Metrics 0.17 at its Metrics adapter boundary. Auth
-uses the governed cell adapter and does not select that Metrics adapter or pass
-its arithmetic types, so no Auth metrics API or stored-data migration is needed.
-Persistence 0.55 retires old Metrics Stable records in favor of Wire checkpoints.
-Auth does not select `ic-metrics-stable`; no Auth allocation, cell, session,
-revocation or fixture checkpoint is cleared or re-encoded by this adoption.
-The separate Auth 0.22 stored-record hard cut is explicitly approved; see
+The unpublished qualification host selects Storage 0.65.0 for both allocation
+and collections; `ic-memory` and `ic-stable-structures` are absent from the lock.
+Storage owns `StableKey`, `StorageConfig`, namespace grants, backing and exclusive
+leases. Its `StableCell::create` requires empty memory; `load(memory, maximum)`
+admits Auth's 128 KiB payload plus magic before allocation and validates the cell
+checksum. Fallible creation/writes are checked; host traps retain IC rollback.
+No combined initialization or reset path is selected.
+
+This supplier release changes allocator and collection formats: use fresh backing.
+Old manager/ledger images are refused without fallback, initialization or clearing.
+The native fixture freezes a published Memory 0.63 manager header and preserves
+separate application sentinel bytes on refusal. Current Storage-format reopen,
+occupied creation, detached-lease custody, size bounds and checksum corruption
+have explicit tests. Existing installations require a separately reviewed whole
+backing transition; this adoption performs no reset or data retirement.
+
+Auth's `AUTHNAT3` payload, Wire method/record identities and signed bytes remain
+unchanged. The host graph retains one Wire, Runtime, generator and runtime guard.
+Storage's direct Wasm Runtime dependency resolves to that same maintained owner;
+public library graphs still forbid runtime capabilities and Storage. The host
+selects Metrics 0.27.0; Testkit's independent benchmark counters retain 0.26.1.
+No Metrics/Logging storage adapter is selected. See
 [session restoration](sessions.md#storage-and-reset).
 
 CDK runtime/controller behavior is retained ([Platform #1](https://github.com/dragginzgame/ic-platform/issues/1)).
@@ -305,9 +292,9 @@ features. All direct registry creation/verifier declarations and local crypto
 implementations remain absent ([#16](https://github.com/dragginzgame/ic-platform/issues/16),
 [#17](https://github.com/dragginzgame/ic-platform/issues/17),
 [#18](https://github.com/dragginzgame/ic-platform/issues/18)).
-Platform 0.17 maintains the imported certification/BLS code and retained licenses,
+Platform 0.18 maintains the imported certification/BLS code and retained licenses,
 without the unexposed store or Candid import. Certificate, tree and key identities
-belong to Platform; the key's Principal is canonical Types 0.16.0. DER/CBOR bytes,
+belong to Platform; the key's Principal is canonical Types 0.17.0. DER/CBOR bytes,
 resource admission and protected authority remain. Its BLS identity-key correction
 rejects forged certificates, covered through Auth's verifier; native Agent's
 separate external verifier does not inherit that correction. These capabilities
@@ -318,19 +305,19 @@ codec entrypoints without depending on the full CDK or selecting Candid. The
 host's runtime calls and lifecycle/query/update macros use `ic_platform_runtime::cdk`;
 no local runtime wrapper is introduced. Explicit Wire hooks, including unit RPCs,
 retain byte admission, payloads, errors and traps. Controller Boolean/panic
-behavior remains. Runtime 0.17.1 owns its maintained executor and IC0 bindings,
+behavior remains. Runtime 0.18 owns its maintained executor and IC0 bindings,
 with their upstream provenance; no separate registry executor is selected.
 The retired no-op `hidden = true` option is removed from all fixture entrypoints;
 explicit Wire decoding/encoding and endpoint exports remain unchanged.
 
 Auth keeps runtime-specific call/error types internal and uses none of the
 retired storage or `change_timeout` APIs. Its public Principal has canonical
-Types 0.16 identity, reexported by Platform. Select `principal` when using the
+Types 0.17 identity, reexported by Platform. Select `principal` when using the
 facade alone; self-authentication and external conversions are separate capabilities.
-Published Memory/Storage and native Testkit share Platform 0.17 and its Types with Auth;
-they do not define Auth's public Principal. Storage retains the same
-upstream stable-structures types, and native Agent/Testkit boundaries retain the
-upstream external Principal. No dependency override or new conversion is needed.
+Published Storage selects Runtime 0.18 directly on Wasm. Native Testkit shares
+Platform 0.18 and its Types with Auth; it does not define Auth's public Principal.
+Storage owns its backing/collection types; native Agent/Testkit boundaries retain
+the upstream external Principal. No dependency override or new conversion is needed.
 Counter-zero measurements continue using the exact raw API, equivalent to CDK's
 conversion of the same constant.
 
@@ -436,8 +423,8 @@ No native package installer or browser download runs inside an ordinary check.
 The Makefile includes reviewed [`make/consumer.mk`](make-interface.md), which owns
 common setup, formatting, hooks, snapshot verification and release routing.
 `check-snapshot` retains its public name and depends on `shared-tooling-check`.
-The recorded snapshot pins Shared Tooling 0.27.26 at
-`e84252f5740bacd708359580455ea2b6fd67df38`. Adopt its committed source and
+The recorded snapshot pins Shared Tooling 0.27.28 at
+`8c7fae6605c69a930e3b1f14e1ff5c4c9dafbcb7`. Adopt its committed source and
 recorded entrypoint closure through the canonical exporter; see
 [snapshot adoption](consuming-snapshots.md#entrypoint-selection-in-070).
 Adoption also compares every exported payload with an independently reviewed
@@ -966,7 +953,7 @@ in publication state; no cleanup, GitHub Release object or deployment is
 implicit. See [Cargo publication](https://doc.rust-lang.org/cargo/commands/cargo-publish.html)
 for credentials, dry-run and index-propagation semantics.
 
-File mechanics use the published `ic-host-file` executable. Auth pins 0.73.6 in
+File mechanics use the published `ic-host-file` executable. Auth pins 0.74.1 in
 `ci/host-file.env`, independently of the library versions selected by Cargo.lock.
 `make install-host-file` prepares it through Shared Tooling with
 `--features cli`; `make host-file-check` admits that exact selection offline. The

@@ -10,22 +10,38 @@ native tooling packages. The independent series starts after the
 
 - Require Rust 1.99.1 for all packages, matching the pinned development/release
   compiler ([#124](https://github.com/dragginzgame/ic-auth/issues/124)).
+- Align public Principal and crypto/certificate APIs with Protocol's canonical
+  Types 0.17 and Platform 0.18. Consumers must select matching Rust identities;
+  cryptographic checks, signed bytes and the trust model are unchanged.
 - Carry shared certificate lifetime and grant errors directly in issuance errors;
   callers match `Lifetime` and `Grants` rather than duplicate flattened variants.
 - Private qualification controls use typed refusal codes instead of text. All
   native callers and codec hooks change together; public Auth Wire and retained
   checkpoint/record formats are unchanged.
+- Adopt Storage 0.65's consolidated allocator and checksummed collections in the
+  private fixture. Fresh backing is required; previous manager/ledger images are
+  refused without reset. Auth's payload/record bytes and crypto remain unchanged.
 
 ### ⬆️ Dependencies
 
-- Adopt Memory/Storage 0.63.0 and Metrics 0.26.0 in private qualification, matching
-  the selected Rust 1.99.1 floor. Preserve checked allocation, checkpoint bytes,
-  bounded loading and admission counters. The Wasm host keeps one Metrics provider;
-  native Testkit independently retains 0.25.1 without exchanging Metrics values.
-- Adopt Shared Tooling 0.27.26 at `e84252f5740bacd708359580455ea2b6fd67df38`,
-  including the Rust 1.99.1 policy, native build-input classification and managed
-  tool retention. Refresh Auth's prepared selections and retain installer
-  companion loading in its failure-evidence fixture. Release custody is unchanged.
+- Replace Memory/Storage 0.63 with published `ic-storage` 0.65.0, removing both
+  `ic-memory` and `ic-stable-structures` from the lock. Use checked Storage leases,
+  explicit Cell load ceilings and typed write errors; retain one maintained
+  Runtime/generator/guard through its direct Wasm Runtime dependency.
+- Select Metrics 0.27.0 in private qualification, preserving admission counters.
+  Testkit/Host retain independent arithmetic-only Metrics 0.26.1 internally; no
+  counter type crosses that boundary and native report metadata stays disabled.
+- Adopt Build 0.74.0 and Host FS/Process/Artifacts 0.74.1, including the explicitly
+  prepared file CLI and release editor. Adopt Testkit 0.80.0 and the canonical
+  independent PocketIC 0.18 client with the unchanged 16.1 server pairing. Remove
+  the old Host 0.73, Metrics 0.25 and management DTO 0.8 providers.
+- Adopt Shared Tooling 0.27.28 at `8c7fae6605c69a930e3b1f14e1ff5c4c9dafbcb7`.
+  Retain Auth's complete CI/release roster; optional release-group plans are not
+  activated. Existing tool retention and release custody remain unchanged.
+- Align public Auth, Storage and Testkit with Platform 0.18, Types 0.17,
+  Runtime 0.18 and Wire/derive 0.15. The new Storage and Wire releases resolve
+  the prior runtime-guard and Principal-schema blockers. Preserve one host
+  Runtime/generator/guard, all public capability boundaries, schemas and bytes.
 
 ### 🧹 Cleanup
 

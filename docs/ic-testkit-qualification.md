@@ -9,16 +9,17 @@ Earlier pairings and benchmarks are preserved in
 
 ## Setup and ownership
 
-The root catalog/lock select published Testkit 0.75.1 from
-[IC Tooling](https://github.com/dragginzgame/ic-tooling) and Auth's Platform 0.15 family.
-Testkit and Auth share Wire 0.13 types directly. `WireCallSpec` takes the canonical
+The root catalog/lock select published Testkit 0.80.0 from
+[IC Tooling](https://github.com/dragginzgame/ic-tooling), the independent PocketIC
+client 0.18.0 and server 16.1.0. Testkit and Auth share Wire 0.15.0 types directly.
+`WireCallSpec` takes the canonical
 contract limits without conversion; responses require only `DeserializeOwned`.
 The temporary Wire 0.6 alias and limit bridge are removed following
 [Tooling #248](https://github.com/dragginzgame/ic-tooling/issues/248).
 Application identities use owned Principal; direct Testkit/Agent calls convert
-explicitly to their retained external type. Testkit shares Platform 0.15 and
-canonical Types 0.15 with Auth
-and selects `principal-external`; no dependency override is needed. Native Candid dependencies stay
+explicitly to their external type. Native Testkit/client and public Auth select Platform 0.18 and
+Types 0.17; the Storage host selects Runtime 0.18 directly. No alias or dependency override is used.
+Native Candid dependencies stay
 outside public Auth library and deployed-Wasm graphs. Testkit no longer supplies
 Candid call helpers; its native management fixtures select Platform's `candid`
 feature, and native Agent/PocketIC retain their Candid dependencies.
@@ -28,8 +29,8 @@ Platform owns native Agent/delegated identity imports. Agent remains transitive
 with its native PEM feature; caller/root-key and request policy remain with the
 fixture. There is no direct Agent declaration or local facade. Testkit supplies
 typed Wire query/update calls and bounded startup. The native runner imports
-`PocketIc`, `PocketIcBuilder` and `Time` directly from Platform's `pocket-ic`
-capability; Testkit no longer re-exports those types. The fixture retains the
+`PocketIc`, `PocketIcBuilder` and `Time` directly from the canonical
+`ic-platform-pocket-ic` owner, matching Testkit's implementation. The fixture retains the
 managed `PocketIcInstance` owner throughout setup and live calls. It borrows the
 client through `instance()` or `instance_mut()`; Testkit preserves client-before-server
 teardown, including when setup panics. Only the native runner
@@ -50,8 +51,8 @@ remain under a unique `target/portable-fixtures/qualification.*` directory after
 success or failure. The canister uses Platform runtime and generated entrypoint
 macros with explicit Wire codec hooks; the direct CDK exception is removed
 ([Platform #21](https://github.com/dragginzgame/ic-platform/issues/21)).
-Root-selected IC Memory from [IC Persistence](https://github.com/dragginzgame/ic-persistence)
-supplies checkpoint-cell mechanics, and Platform supplies raw length
+Root-selected [IC Storage](https://github.com/dragginzgame/ic-storage)
+supplies allocation and checksummed checkpoint cells, and Platform supplies raw length
 admission before CDK copying, counter-zero measurements, certified-tree types
 and canister-signature key/hash operations. Its `cdk` capability now supplies
 certificate read/publish helpers and the original runtime/controller semantics.
@@ -109,29 +110,30 @@ protect different integration/trust boundaries; neither replaces the other.
 
 ## Portable session restoration across independent receivers
 
-The checkpoint host uses `ic_storage::adapter::StableCell` with one explicit
-host-owned Memory runtime/allocation. Auth owns its `AUTHNAT3` native-Wire payload
-identity, 128 KiB ceiling and checked metadata/session contents. Memory admits the
-checked allocation and bounded retained-cell envelope; Storage owns collection
-loading/access with the existing substrate bytes. Init requires an empty
-allocation before creating a cell; post-upgrade loads retained state only after
-checking its size. Missing, corrupt or unexpectedly occupied state refuses. The
+The checkpoint host uses Storage 0.64's `ic_storage::adapter::StableCell` with one
+host-owned runtime and checked allocation. Auth owns its `AUTHNAT3` native-Wire
+payload identity, 128 KiB ceiling and metadata/session contents. Storage admits
+namespace grants, exclusive leases, bounded loading and collection checksums.
+Init requires an empty allocation; post-upgrade loads retained state with the
+explicit payload ceiling. Creation and writes return checked errors. Missing,
+corrupt or unexpectedly occupied state refuses. The
 raw `AUTHQCP1`, `AUTHCELL` Candid, finite-Wire `AUTHWIR2` and older CBOR-record
 `AUTHNAT1` layouts, plus the text-ID `AUTHNAT2` checkpoint, are retired
 with maintainer approval, without automatic reset or a second reader.
 For the Auth 0.25 binary-ID change, the maintainer separately confirmed no
 retained current Auth session/login records. Old checkpoint bytes remain intact
-on refusal; this grants no permission to erase Memory backing or its ledger.
+on refusal; this grants no permission to erase backing or its allocation metadata.
 Qualification starts fresh and tests repeated current-format upgrades; it does
 not prove historical ledger/image compatibility.
 
-Memory/Storage 0.56 additionally changes Memory's allocation-ledger Cell value to
-bounded Wire. Older Memory backings are incompatible even when they contain an
-`AUTHNAT2` application payload. A native refusal fixture retains all old-ledger
-and application bytes; there is no fallback or automatic reset. Installed tests
-use fresh backing and same-format upgrades. A real retained installation needs
-an explicitly reviewed transition before adoption; this qualification authorizes
-no reinstall or data loss.
+Storage 0.64 replaces the old manager/ledger and collection layouts with its
+owned formats. Fresh backing is required, even if an older image contains an
+`AUTHNAT3` payload. A frozen Memory 0.63 manager-header test preserves a separate
+application sentinel on refusal; no legacy decoder or automatic reset exists.
+Native tests also verify read-only checksum-corruption and size refusals.
+Installed tests use fresh backing and current-format upgrades. A real retained
+installation requires a separately reviewed whole-image transition; this
+qualification authorizes no reinstall or data loss.
 
 After upgrade, fresh matching controller confirmation is required before
 admission, authorization or logout acknowledgement. Existing leases are not

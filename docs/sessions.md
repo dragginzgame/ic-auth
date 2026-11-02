@@ -386,13 +386,14 @@ upgrade. Durable hosts must retain sessions, replay, revocation and protected
 reset/authority state atomically. A production durable host adapter is not yet
 implemented; the ledger supplied here is volatile.
 
-The durable adapter must use `ic-memory` for host-composed allocation ownership,
+The durable adapter must use `ic-storage` for host-composed allocation ownership,
 with the host supplying the combined declarations and performing bootstrap before
-stores open. The selected IC Memory 0.48 supplies allocation admission and narrow
-memory types; it does not supply Auth's record schema or transaction. The internal
-checkpoint uses `ic_memory::DefaultMemoryImpl` and `testing::FixtureCell`, not the
-retired `ic_memory::ic_stable_structures` re-export. All workspace packages share
-the qualified Rust 1.91 minimum; see [minimum compiler qualification](msrv.md).
+stores open. Storage 0.65 supplies namespace admission, checked leases and its owned
+collections; it does not supply Auth's record schema or transaction. The internal
+checkpoint uses `ic_storage::DefaultMemoryImpl` and bounded, checksummed
+`adapter::StableCell` loading. Its allocator/collection formats require fresh
+backing; older Memory images are refused without reset. All workspace packages
+share Rust 1.99.1; see [minimum compiler qualification](msrv.md).
 Keep this dependency in a separately selected durable adapter, outside the pure
 engine and volatile receiver graph. It must not persist the local issuer key.
 
@@ -422,7 +423,7 @@ than invent missing reservations. [Canic #491](https://github.com/dragginzgame/c
 owns that consumer integration and its failure/upgrade qualification. Auth's
 storage/reset interfaces are delivered; [Auth #58](https://github.com/dragginzgame/ic-auth/issues/58)
 retains their historical implementation evidence. The qualification host selects
-`ic-memory`; none of the three public libraries depends on it.
+`ic-storage`; none of the three public libraries depends on it.
 
 ## Custom host transaction contract
 
