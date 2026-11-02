@@ -51,7 +51,7 @@ fn claims() -> PortableClaims {
         nonce: [0x55; 16],
         grants: vec![DelegatedRoleGrant {
             target: "user".parse().unwrap(),
-            scopes: vec!["read".into()],
+            scopes: vec!["read".parse().unwrap()],
         }],
     }
 }
@@ -175,7 +175,7 @@ fn signed_claim_changes_fail_and_success_does_not_imply_admission() {
         |c| c.issued_at_ns += 1,
         |c| c.admission_expires_at_ns += 1,
         |c| c.nonce[0] ^= 1,
-        |c| c.grants[0].scopes[0] = "write".into(),
+        |c| c.grants[0].scopes[0] = "write".parse().unwrap(),
     ];
     for change in mutations {
         let mut value = claims();
@@ -435,11 +435,11 @@ fn session_request_narrows_one_protected_role_without_combining_grants() {
     c.grants = vec![
         DelegatedRoleGrant {
             target: "admin".parse().unwrap(),
-            scopes: vec!["write".into()],
+            scopes: vec!["write".parse().unwrap()],
         },
         DelegatedRoleGrant {
             target: "user".parse().unwrap(),
-            scopes: vec!["read".into(), "view".into()],
+            scopes: vec!["read".parse().unwrap(), "view".parse().unwrap()],
         },
     ];
     let encoded = encode_claims(&c).unwrap();

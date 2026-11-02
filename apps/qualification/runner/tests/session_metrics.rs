@@ -83,7 +83,7 @@ impl Host {
             nonce: [0; 16],
             grants: vec![DelegatedRoleGrant {
                 target: "user".parse().unwrap(),
-                scopes: vec!["read".into()],
+                scopes: vec!["read".parse().unwrap()],
             }],
         };
         Self {

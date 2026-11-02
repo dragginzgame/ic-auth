@@ -3,6 +3,19 @@
 Covers `ic-auth-protocol-types` and `ic-auth-wire`, released together.
 The independent series starts after the [last coordinated release, 0.29.2](../history.md).
 
+## [0.32.0] - Unreleased
+
+### ⚠️ Breaking
+
+- Grant scopes use checked `ScopeLabel` values instead of strings, and `AuthRole`
+  enforces the existing transport's 64-byte ceiling at construction and decoding.
+  Rust callers must parse labels or use their fallible owned constructors. Grant
+  cardinality, ordering and authority remain explicit engine/host checks.
+- Valid label text, signed bytes and Wire frames are unchanged. Invalid grant
+  labels fail during construction or decoding, before grant-set policy checks.
+  The maintainer confirmed no retained roles above 64 bytes need preservation;
+  no data reset or alternate reader is introduced.
+
 ## [0.31.0] - 2026-11-02
 
 ### ⚠️ Breaking

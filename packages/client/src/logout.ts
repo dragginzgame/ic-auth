@@ -4,6 +4,7 @@ import { Principal } from '@tokostudios/ic-platform/principal';
 import type { Identity } from '@tokostudios/ic-platform/agent';
 import type { LogoutResult } from './codec.js';
 import { ClientError } from './contracts.js';
+import { isU64 } from './u64.js';
 import { IndexedDbLogoutStore, MAX_ATTEMPTS, MAX_TARGETS, type LogoutJournal, type LogoutTarget } from './logout-store.js';
 
 const MS = 1_000_000n;
@@ -53,8 +54,7 @@ function settleCleanup(record: LogoutJournal, now: bigint,
   const target = record.targets.find(t => t.canister === claim.canister)!;
   if (target.attempts !== claim.attempt || record.busyUntilNs !== claim.lease) return;
   record.busyUntilNs = 0n;
-  if (response && response.tag === 'Revoked' && typeof response.value === 'bigint'
-    && response.value > 0n && response.value <= (1n << 64n) - 1n) {
+  if (response && response.tag === 'Revoked' && isU64(response.value) && response.value > 0n) {
     target.confirmedUntilNs = response.value;
   } else target.nextNs = now + BigInt(500 + Math.floor(jitter * 1_000)) * MS;
 }

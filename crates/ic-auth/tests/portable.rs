@@ -50,7 +50,7 @@ fn claims() -> PortableClaims {
         nonce: [0x55; 16],
         grants: vec![DelegatedRoleGrant {
             target: "user".parse().unwrap(),
-            scopes: vec!["read".into()],
+            scopes: vec!["read".parse().unwrap()],
         }],
     }
 }
@@ -97,7 +97,7 @@ fn every_semantic_field_is_bound_and_mechanisms_have_distinct_bytes() {
         |c| c.admission_expires_at_ns += 1,
         |c| c.nonce[0] ^= 1,
         |c| c.grants[0].target = "admin".parse().unwrap(),
-        |c| c.grants[0].scopes[0] = "write".into(),
+        |c| c.grants[0].scopes[0] = "write".parse().unwrap(),
     ];
     for change in changes {
         let mut value = original.clone();
@@ -152,26 +152,21 @@ fn malformed_lengths_domains_and_trailing_data_refuse() {
         let mut invalid = bytes.clone();
         invalid[offset] = 0xff;
         assert_eq!(decode_claims(&invalid), Err(Error::InvalidShape));
+        invalid[offset] = b'R';
+        assert_eq!(decode_claims(&invalid), Err(Error::InvalidShape));
     }
 }
 
 #[test]
 fn no_normalization_or_unbounded_grants() {
     let mut value = claims();
-    value.grants[0].scopes = vec!["write".into(), "read".into()];
+    value.grants[0].scopes = vec!["write".parse().unwrap(), "read".parse().unwrap()];
     assert!(encode_claims(&value).is_err());
-    value.grants[0].scopes = vec!["read".into(), "read".into()];
+    value.grants[0].scopes = vec!["read".parse().unwrap(), "read".parse().unwrap()];
     assert!(encode_claims(&value).is_err());
     value = claims();
     value.grants.push(value.grants[0].clone());
     assert!(encode_claims(&value).is_err());
-    value = claims();
-    value.grants[0].target = "a".repeat(65).parse().unwrap();
-    assert_eq!(encode_claims(&value), Err(Error::InvalidShape));
-    value = claims();
-    value.grants[0].scopes = vec!["a".repeat(65)];
-    assert!(encode_claims(&value).is_err());
-
     // Maximum legal shape, including principal lengths and label/count limits.
     value = claims();
     value.issuer = Principal::from_slice(&[1; 29]);
@@ -180,7 +175,7 @@ fn no_normalization_or_unbounded_grants() {
         .map(|i| DelegatedRoleGrant {
             target: format!("r{i:02}{}", "a".repeat(61)).parse().unwrap(),
             scopes: (0..32)
-                .map(|j| format!("s{j:02}{}", "a".repeat(61)))
+                .map(|j| format!("s{j:02}{}", "a".repeat(61)).parse().unwrap())
                 .collect(),
         })
         .collect();
@@ -192,17 +187,32 @@ fn no_normalization_or_unbounded_grants() {
     // happen to have a 16-item limit in different dimensions.
     use ic_auth::session_request::{SessionRequest, SessionRequestError};
     let offered = &value.grants[0].scopes;
-    assert!(SessionRequest::new(offered[..16].to_vec(), None).is_ok());
+    assert!(
+        SessionRequest::new(
+            offered[..16]
+                .iter()
+                .map(|s| s.as_str().to_owned())
+                .collect(),
+            None
+        )
+        .is_ok()
+    );
     assert_eq!(
-        SessionRequest::new(offered[..17].to_vec(), None),
+        SessionRequest::new(
+            offered[..17]
+                .iter()
+                .map(|s| s.as_str().to_owned())
+                .collect(),
+            None
+        ),
         Err(SessionRequestError::InvalidRequest)
     );
-    value.grants[0].scopes.push("z".into());
+    value.grants[0].scopes.push("z".parse().unwrap());
     assert!(encode_claims(&value).is_err());
     value.grants[0].scopes.pop();
     value.grants.push(DelegatedRoleGrant {
         target: "z".parse().unwrap(),
-        scopes: vec!["read".into()],
+        scopes: vec!["read".parse().unwrap()],
     });
     assert!(encode_claims(&value).is_err());
 }
@@ -210,7 +220,7 @@ fn no_normalization_or_unbounded_grants() {
 #[test]
 fn wire_order_duplicates_and_invalid_grammar_refuse_without_normalization() {
     let mut value = claims();
-    value.grants[0].scopes = vec!["read".into(), "wear".into()];
+    value.grants[0].scopes = vec!["read".parse().unwrap(), "wear".parse().unwrap()];
     let mut bytes = encode_claims(&value).unwrap();
     // Equal-length last scope: neither duplicate nor descending order is admitted.
     let end = bytes.len();
@@ -219,7 +229,7 @@ fn wire_order_duplicates_and_invalid_grammar_refuse_without_normalization() {
     bytes[end - 4..].copy_from_slice(b"aaaa");
     assert!(matches!(decode_claims(&bytes), Err(Error::Grants(_))));
     bytes[end - 4..].copy_from_slice(b"READ");
-    assert!(matches!(decode_claims(&bytes), Err(Error::Grants(_))));
+    assert_eq!(decode_claims(&bytes), Err(Error::InvalidShape));
     let mut bytes = hex(VECTOR);
     bytes[225..229].copy_from_slice(b"USER");
     assert_eq!(decode_claims(&bytes), Err(Error::InvalidShape));
@@ -233,7 +243,11 @@ fn accepted_claim_bytes_are_the_unique_encoding_used_for_fingerprints() {
         .map(|role| DelegatedRoleGrant {
             target: format!("role{role:02}").parse().unwrap(),
             scopes: (0..32)
-                .map(|scope| format!("scope{scope:02}{}", "x".repeat(57)))
+                .map(|scope| {
+                    format!("scope{scope:02}{}", "x".repeat(57))
+                        .parse()
+                        .unwrap()
+                })
                 .collect(),
         })
         .collect();

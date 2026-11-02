@@ -340,7 +340,7 @@ impl Fixture {
             nonce: [1; 16],
             grants: vec![DelegatedRoleGrant {
                 target: role.clone(),
-                scopes: vec!["read".into(), "write".into()],
+                scopes: vec!["read".parse().unwrap(), "write".parse().unwrap()],
             }],
         };
         let grants = ValidatedGrants::new(claims.grants.clone()).unwrap();

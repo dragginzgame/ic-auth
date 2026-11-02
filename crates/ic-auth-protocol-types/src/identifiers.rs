@@ -10,7 +10,7 @@ use thiserror::Error;
 pub enum IdentifierError {
     #[error("identifier must contain exactly 64 lowercase hexadecimal characters")]
     NonCanonicalId,
-    #[error("role must be nonempty and contain only a-z, 0-9, underscore, colon or hyphen")]
+    #[error("role must contain 1..=64 bytes using only a-z, 0-9, underscore, colon or hyphen")]
     InvalidRole,
 }
 
@@ -85,7 +85,7 @@ pub struct AudienceId {
     pub fleet_id: CanonicalId,
 }
 
-/// Canonical role label, checked at construction and deserialization.
+/// Canonical 1..=64-byte role label, checked at construction and deserialization.
 /// The grammar matches the existing signed protocol; it adds no case folding,
 /// normalization, built-in roles or implicit role authority.
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
@@ -104,6 +104,7 @@ impl AuthRole {
 
     fn validate(value: &str) -> Result<(), IdentifierError> {
         if value.is_empty()
+            || value.len() > crate::limits::MAX_LABEL_BYTES
             || !value.bytes().all(|b| {
                 b.is_ascii_lowercase() || b.is_ascii_digit() || matches!(b, b'_' | b':' | b'-')
             })
@@ -161,6 +162,21 @@ mod tests {
                 Err(IdentifierError::InvalidRole)
             );
             assert_eq!(label.parse::<AuthRole>(), Err(IdentifierError::InvalidRole));
+        }
+        assert!("a".repeat(64).parse::<AuthRole>().is_ok());
+        assert_eq!(
+            "a".repeat(65).parse::<AuthRole>(),
+            Err(IdentifierError::InvalidRole)
+        );
+        assert_eq!(
+            AuthRole::try_from("a".repeat(65)),
+            Err(IdentifierError::InvalidRole)
+        );
+        for text in ["a".repeat(64), "a".repeat(65)] {
+            let decoded = AuthRole::deserialize(serde::de::value::StringDeserializer::<
+                serde::de::value::Error,
+            >::new(text.clone()));
+            assert_eq!(decoded.ok(), text.parse().ok());
         }
     }
 }

@@ -150,7 +150,7 @@ fn portable_proof_rechecks_live_authority_and_real_certification_after_upgrade()
         aud: DelegationAudience::Fleet(audience),
         grants: vec![DelegatedRoleGrant {
             target: role.clone(),
-            scopes: vec!["read".into(), "write".into()],
+            scopes: vec!["read".parse().unwrap(), "write".parse().unwrap()],
         }],
     };
     let proof = DelegationProof {
@@ -174,7 +174,7 @@ fn portable_proof_rechecks_live_authority_and_real_certification_after_upgrade()
         nonce: [4; 16],
         grants: vec![DelegatedRoleGrant {
             target: role.clone(),
-            scopes: vec!["read".into()],
+            scopes: vec!["read".parse().unwrap()],
         }],
     };
     let encoded = encode_claims(&claims).unwrap();
@@ -252,7 +252,7 @@ fn portable_proof_rechecks_live_authority_and_real_certification_after_upgrade()
     context.claims.authority.audience = &audience;
     let narrowed = vec![DelegatedRoleGrant {
         target: role.clone(),
-        scopes: vec!["write".into()],
+        scopes: vec!["write".parse().unwrap()],
     }];
     let narrowed = ic_auth::portable::ValidatedGrants::new(narrowed).unwrap();
     context.claims.authority.grants = &narrowed;

@@ -24,7 +24,7 @@ fn claims() -> PortableClaims {
         nonce: [5; 16],
         grants: vec![DelegatedRoleGrant {
             target: "user".parse().unwrap(),
-            scopes: vec!["read".into()],
+            scopes: vec!["read".parse().unwrap()],
         }],
     }
 }
@@ -123,7 +123,7 @@ fn live_authority_and_grant_ceiling_are_independent_of_claims() {
         Err(Error::StaleAuthority)
     );
     let mut escalated = value.clone();
-    escalated.grants[0].scopes.push("write".into());
+    escalated.grants[0].scopes.push("write".parse().unwrap());
     assert_eq!(
         validate_claims_context(
             &escalated,

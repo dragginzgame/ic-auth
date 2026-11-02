@@ -134,7 +134,7 @@ fn frame_identity_direction_exact_consumption_and_bounds_are_independent() {
 fn checked_role_projection_rejects_invalid_text_instead_of_coercing_it() {
     let valid = domain::DelegatedRoleGrant {
         target: "project_instance".parse().unwrap(),
-        scopes: vec!["read".into()],
+        scopes: vec!["read".parse().unwrap()],
     };
     let projected: model::DelegatedRoleGrant = valid.clone().try_into().unwrap();
     assert_eq!(
@@ -149,6 +149,24 @@ fn checked_role_projection_rejects_invalid_text_instead_of_coercing_it() {
         domain::DelegatedRoleGrant::try_from(invalid),
         Err(wire::Error::Malformed)
     );
+    for scope in ["", "Read", "read::write", "read:_write", "é"] {
+        let invalid = model::DelegatedRoleGrant {
+            target: Text::new("user".into()).unwrap(),
+            scopes: wire::List::new(vec![Text::new(scope.into()).unwrap()]).unwrap(),
+        };
+        let limits = CredentialEnvelope::REQUEST_LIMITS;
+        let bytes = wire::native::encode_request(42, &invalid, limits).unwrap();
+        let decoded: model::DelegatedRoleGrant =
+            wire::native::decode_request(42, &bytes, limits).unwrap();
+        assert_eq!(
+            domain::DelegatedRoleGrant::try_from(decoded),
+            Err(wire::Error::Malformed)
+        );
+        // The passive type's deserializer enforces the same grammar without a Wire adapter.
+        assert!(
+            wire::native::decode_request::<domain::DelegatedRoleGrant>(42, &bytes, limits).is_err()
+        );
+    }
 }
 
 #[test]

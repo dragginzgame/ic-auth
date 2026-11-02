@@ -21,7 +21,7 @@ fn check_grants_size(
         take(remaining, grant.target.as_str().len())?;
         take(remaining, grant.scopes.len())?;
         for scope in &grant.scopes {
-            take(remaining, scope.len())?;
+            take(remaining, scope.as_str().len())?;
         }
     }
     Ok(())

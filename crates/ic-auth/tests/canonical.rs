@@ -59,7 +59,7 @@ fn sample_cert() -> DelegationCert {
 fn grant(role: &str, scopes: &[&str]) -> DelegatedRoleGrant {
     DelegatedRoleGrant {
         target: role.parse().unwrap(),
-        scopes: scopes.iter().map(|scope| (*scope).to_string()).collect(),
+        scopes: scopes.iter().map(|scope| scope.parse().unwrap()).collect(),
     }
 }
 

@@ -1,149 +1,157 @@
 # Current handoff — 2026-11-02
 
-## Release preparation
+## Delegated 0.32 delivery
 
-The requested delivery targets Protocol **0.31.0** (`ic-auth-protocol-types`,
-`ic-auth-wire`), then Engine **0.31.0** (`ic-auth`), with annotated group tags,
-atomic pushes to `main` at `https://github.com/dragginzgame/ic-auth.git` and
-crates.io publication. Source adoption is committed locally as
-`ac0d196db6169b17033e74a55e533ab4b0ba6af6`; no release tag, push or upload ran.
-Automatic approval review rejected the Protocol release command because “deploy”
-was not specific enough for that exact irreversible target. Obtain explicit user
-confirmation of these effects before retrying; do not bypass that rejection.
+The user requested deployment of this batch: prepare source, run the standard
+Protocol then Engine minor releases, push their exact commits/tags to origin/main
+and publish the three 0.32.0 crates to crates.io. Use the dedicated checkout
+`/tmp/ic-auth-release.qoEtNy`; preserve its recovery state and all older attempts.
+`target/complexity-032-delivery/` records the frozen source and delivery evidence.
+Storage 0.65.2, Build 0.74.1 and ctutils 0.4.8 landed after focused qualification;
+the release gates must qualify this frozen selection. Later development updates
+stay outside that checkout. No service, sibling or npm deployment is included.
 
-The dedicated checkout is `/tmp/ic-auth-release.x4YbcZ`. Its locked tools, Node/npm,
-Testkit server and client dependencies are prepared. Standalone complete CI on
-`ac0d196` passed lint and setup but failed the boundary caller's outdated positive
-host observation: it omitted the now-required Storage. The development fix adds
-Storage and explicit missing/duplicate/retired/native-provider refusal cases.
-Keep the failed logs under that checkout's `target/delivery/validation-logs/`;
-its exact proposed effects are in `target/delivery/proposed-delivery.json`.
-Complete CI is rerun after the corrected caller fixture is committed/adopted.
+## Delivered 0.31.0
 
-## Current local upstream adoption
+Protocol **0.31.0** (`ic-auth-protocol-types`, `ic-auth-wire`) is published at
+`ae8ae1dc20c26d70a026dc9481a465f4d39338fd`, annotated tag `protocol-v0.31.0`.
+Engine **0.31.0** (`ic-auth`) is published at
+`38ba68f6ad06735d94566e964c11169bf46413da`, annotated tag `engine-v0.31.0`.
+Both release commits/tags were atomically pushed to `dragginzgame/ic-auth` main;
+all three exact crates.io archive checksums were verified by the publisher.
+Protocol was published before Engine. The user explicitly confirmed these
+release, push and registry effects after the initial automatic-review refusal.
 
-The all-upstream retry selects published Platform **0.18.0**, Types **0.17.0**,
-Runtime **0.18.0**, Storage **0.65.0**, Wire/derive **0.15.0**, Metrics **0.27.0**
-and Testkit **0.80.0**. Build **0.74.0**, Host FS/Process/Artifacts **0.74.1**,
-canonical PocketIC client **0.18.0** and browser SDK **0.1.1** remain current.
-The browser lock is unchanged. Storage now imports Runtime directly on Wasm;
-Wire's schema bridge now implements the canonical Types 0.17 identity. The two
-previous publication blockers are resolved without aliases or overrides. Public
-and native graphs share one Platform/Types generation; the host retains one
-Runtime/generator/guard. Native Testkit/Host retain arithmetic-only Metrics 0.26.1
-internally, separate from Auth's 0.27.0 counters; no counter crosses that boundary.
+Both standard releases passed the complete local CI gate, including native/Wasm
+lint, isolated archive/compiler consumers, 70 browser tests, crypto/session tests,
+11 live PocketIC tests and the full release/recovery/publication fixture.
+Protocol gate: `validation.Zw2P6z`; Engine gate: `validation.OxL1Ze`,
+both under `/tmp/ic-auth-release.x4YbcZ/.git/release-state/validation-logs/`.
+Source adoption is `ac0d196`; `3e72767` fixes the simulated positive host graph's
+missing Storage and adds missing/duplicate/retired/native-provider refusals.
+The original failed gate and passing standalone retry remain under that
+checkout's `target/delivery/`; failures were retained, never bypassed.
 
-Shared Tooling is canonically refreshed to **0.27.28** at
-`8c7fae6605c69a930e3b1f14e1ff5c4c9dafbcb7`, independently verified against its
-frozen committed source (145 payloads). This fixes the release-group guide's
-companion closure; optional group plans remain unselected and Auth retains the
-complete existing CI/release gate. No sibling working tree was changed. The
-maintainer has authorized deployment: prepare Protocol 0.31.0 first, publish it,
-then release/publish Engine 0.31.0 through a dedicated release checkout. The
-source package versions remain 0.30.0 until the release runner prepares them.
+Keep `/tmp/ic-auth-release.x4YbcZ`, both completed group plans, validation receipts,
+publication intents/dispatch observations, archives and raw logs. No resume or
+uncertain upload remains. Its clean HEAD stays at the Engine release for recovery.
+`target/upstream-delivery/` in development records delivery and original lock input.
+Hosted [Protocol CI 41504448978](https://github.com/dragginzgame/ic-auth/actions/runs/41504448978)
+was superseded/cancelled by the Engine push; [Engine CI 41508566403](https://github.com/dragginzgame/ic-auth/actions/runs/41508566403)
+is running at the final observation; no new macOS acceptance is claimed yet.
 
-Current retry evidence is under `target/upstream-retry/`. Locked metadata, native
-and canister Wasm Clippy, 221 library/crypto checks, adversarial feature-unification
-tests, seven backend conformance scenarios, 11 Storage tests and five metrics
-tests pass. All five generated browser files remain unchanged; 70 browser checks,
-archive builds for all three libraries, package/declaration/graph refusals and
-11 live PocketIC tests pass (one profiler intentionally ignored). Live evidence
-covers certified proofs, composed roots, protected-authority upgrades, signed
-ingress, SDK admission and durable logout. The host again forbids all Platform
-facade runtime-forwarding features; Storage selects the direct Runtime owner.
-Testkit 0.80 setup/caller fixtures and offline file/editor/server admission pass.
-The initial sandbox registry refusal and successful network retry are retained.
-Formatting, local links and 145-payload snapshot/source verification pass.
-Earlier partial-adoption proof remains under `target/all-upstream-adoption/`,
-including the prior blockers and passing Build 0.74 release/recovery fixture.
-That fixture's editor/runner code is unchanged by this retry; no full CI or
-hosted matrix is claimed for the current dependency set.
+The previous handoff-only commit/push was refused as outside the exact 0.31
+authorization. The new delegated 0.32 delivery includes current source and docs;
+the completed 0.31 release state stays intact.
 
-The maintainer requested the consolidation from retired Memory into Storage.
-The uncommitted Storage migration now selects published **ic-storage 0.65.0**,
-archive source `84a7ecf6ed6517b989848c8e953d93fb5f561505`. It removes `ic-memory` and
-`ic-stable-structures` from the workspace/lock and migrates the private checkpoint
-host to Storage-owned backing, keys, namespace admission and checked leases.
-The authorized release includes this migration; it performs no backing reset or
-sibling change. Pending Protocol and Engine notes are independently at 0.31.0.
+## Local canister dependency cleanup
 
-The release preserves the reviewed incoming README corrections and qualified
-cc 1.11.0/crc32fast 1.5.4 lock selections.
-Incoming Metrics 0.26.1 is deliberately advanced to 0.27.0 by this adoption.
-Before inputs and qualified locks are retained under `target/upstream-retry/` and
-`target/storage-owner-adoption/`; no unrelated dependency selection was refreshed.
-The previous Git delivery intentionally excluded those README/cc/crc32fast edits.
+The private canister drops unused direct Metrics and Serde-bytes dependencies;
+fixtures own its metrics and Wire owns its certificate envelope bytes. Direct
+Metrics policy permits only fixtures and the native runner. Both dependencies
+remain transitive, so no Wasm reduction is claimed. Original focused evidence
+is under `target/canister-dependency-cleanup/`; this local cleanup is included in
+the pending Engine 0.32 notes below, without a package version change or delivery.
 
-The Storage 0.64 consolidation and 0.65 B-tree change alter backing formats. Use fresh
-backing; previous manager/ledger images are refused without a reader or automatic
-reset. No retained backing was cleared. A production installation requires a
-separately reviewed whole-image transition. The fixture is unpublished and has
-no production deployment here. Auth still owns its `AUTHNAT3` application payload,
-128 KiB ceiling and Wire session/replay/login formats; those bytes are unchanged.
+## Local complexity hard cut
 
-The host uses `StorageConfig`, `testing::fixture_runtime`, `StableKey`, checked
-`RuntimeMemory` and `adapter::StableCell`. Loading passes the explicit byte ceiling
-and verifies checksums; create/set errors are checked. Host message rollback owns
-trap atomicity. Public Auth packages, passive contracts and backend conformance
-remain independent of Storage/runtime. The direct dependency policy permits
-Storage only in the private host and forbids retired Memory everywhere.
-Storage's direct Wasm Runtime dependency resolves to the host's one maintained
-Runtime, generator and singleton guard. Registry CDK/executor and Candid
-remain excluded from Wasm; public graphs still forbid runtime capabilities.
-The installed Shared snapshot's older Memory wording is reconciled by the
-explicit consolidation note in AGENTS; snapshot-owned payloads were not edited.
+Audit items 1–9 are implemented locally: one private codec-binding pattern with
+canonical per-method guards, one login record representation, consuming checkpoint
+restore, borrowed session profiling, owned role projections, checked grant scopes
+and 64-byte roles, one private enrollment field roster, shared browser u64 checks
+and Cargo-discovered CI manifest sealing. The maintainer confirmed no retained
+roles above 64 bytes need preservation. Valid signed/Wire/storage bytes and all
+cryptographic/trust checks remain unchanged; no record reset occurred. Malformed
+portable scope text now fails as `InvalidShape` during decoding. Both groups have
+pending 0.32.0 notes; package versions remain 0.31.0 until standard preparation.
 
-## Earlier Storage 0.64 qualification
+Focused evidence is under `target/complexity-031/`: affected native and Wasm
+Clippy, passive engine lint, contract/fixture and session/revocation tests, seven
+compile-fail examples, 70 client tests, jobserver/input-seal caller proofs and six
+live PocketIC session/certificate/upgrade/ingress/SDK cases pass. Chromium was not
+run. Startup-only failures from an unfinished path and a reused create-only log
+directory are retained beside their passing fresh-directory retries.
+No matched Wasm/latency improvement is claimed. Group-scoped release validation
+(audit item 10) stays unselected: this cross-group batch requires the full gate;
+omissions need separate same-source, host and receipt qualification.
 
-Retain `target/storage-owner-adoption/`: locked graph/declaration isolation,
-native/Wasm lint, 11 host tests, fresh-Wasm build and 11 live lifecycle tests pass.
-The frozen Memory 0.63 header checks read-only legacy refusal with a separate
-application sentinel. Checks cover bounds, occupied creation, detached custody
-and checksum corruption. Failed preparation/input-admission logs remain beside
-their successful retries. These prove fresh Storage backing/current-format
-upgrades, not a production-backend or Memory 0.63 whole-image transition.
-No hosted Linux/macOS acceptance is claimed for the new adoption.
+## Development checkout and frozen selections
 
-## Prior delivered work and acceptance
+Development main remains at the delivered Engine commit; all changes are local.
+Confirmed incoming selections are Runtime/macros/guard **0.18.1**, Testkit
+**0.80.1**, Wire/derive **0.15.1**, Storage **0.65.1**, Metrics **0.27.2** and Host
+FS/Process/Artifacts **0.74.2**. The user confirmed leaving the lock stable for
+qualification. The `incoming-*` logs and `incoming-final.lock` under
+`target/complexity-031/` bind the passing Rust/lint/client/six PocketIC checks to
+that selection; `qualified.lock` preserves the earlier checked selection.
+Regeneration and review found all five browser files unchanged. Explicit setup
+prepared Testkit 0.80.1 and admitted the same 16.1 server. The independent file
+CLI stays pinned to 0.74.1. None of this is release/full-gate/macOS acceptance.
+Original/base/released/merged locks remain in
+`target/upstream-delivery/development-sync/`; local package versions stay 0.31.0.
 
-Commit **28ee29d12122cfbfe05b19a49460bd5ee79bf7c8** is pushed to main. It contains
-the ten accepted complexity cuts, Rust 1.99.1 support/qualification consolidation,
-Shared 0.27.26, Memory/Storage 0.63 and Metrics 0.26 adoption. All three jobs in
-[CI 41434941116](https://github.com/dragginzgame/ic-auth/actions/runs/41434941116)
-passed (Linux, Intel macOS, Apple Silicon macOS), including their full Validate
-steps. [Auth #124](https://github.com/dragginzgame/ic-auth/issues/124) is closed
-with that exact source/run evidence. This does not qualify the newer local
-Storage 0.64 batch or publish pending package versions.
+The published lock selects Platform **0.18.0**, Types **0.17.0**, Runtime **0.18.0**,
+Storage **0.65.0**, Wire/derive **0.15.0**, Metrics **0.27.0**, Testkit **0.80.0**,
+Build **0.74.0**, Host FS/Process/Artifacts **0.74.1** and canonical PocketIC
+**0.18.0**. The server is **16.1.0** and browser SDK **0.1.1**; the browser lock
+and all five generated browser files are unchanged. Published Testkit internally
+retains arithmetic-only Metrics 0.26.1; no counter crosses that boundary.
+Storage imports Runtime directly on Wasm and Wire now implements the canonical
+Types 0.17 schema identity, resolving both earlier supplier blockers. No aliases
+or overrides are used. The host retains one Runtime/generator/guard; public
+libraries remain runtime, native-SDK, Storage and Candid-free by capability.
 
-The prior delivery used Shared Tooling **0.27.26**,
-`e84252f5740bacd708359580455ea2b6fd67df38` (142 payloads); the current refresh is
-qualified above. Keep `target/shared-tooling-0.27.26/`,
-`target/issue124-delivery/`, `target/memory-metrics-storage-adoption/` and
-`target/complexity-hard-cut/` evidence. The historical matched raw qualification
-Wasm comparison was 2,065,826 → 2,042,064 total and 1,543,468 → 1,530,443 code
-bytes, using the earlier 0.62.1/0.25.1 lock. No new size or speed claim is made.
+Shared Tooling **0.27.28**, `8c7fae6605c69a930e3b1f14e1ff5c4c9dafbcb7`, is
+canonically exported and independently source-verified (145 payloads). Optional
+group validation/reuse remains unselected; both releases used the full gate.
+Rust **1.99.1** is the pinned and minimum compiler. Reviewed README corrections,
+cc 1.11.0 and crc32fast 1.5.4 are included. No sibling checkout was changed.
 
-## Safety, recovery custody and consumer ownership
+## Storage and authentication boundaries
 
-Preserve signed bytes, cryptographic verification, protected authority and the
-TEE/non-TEE trust model. Keep session/login IDs `0x415554485311`/`0x415554485313`
-and replay `0x415554485302`. Hosts own clock, allocation, protected generation,
-atomicity and certification-root publication. Do not use a storage-format cut to
-weaken restoration, erase unknown issuance or clear only allocation metadata.
+Storage 0.65 replaces retired Memory/stable-structures in the private checkpoint
+host. Its allocator, checksummed collections and B-tree backing require fresh
+state. Old manager/ledger images are refused without a reader, fallback or reset;
+no retained backing was cleared. A production installation needs its own reviewed
+whole-image transition. No production service is deployed in this repository.
 
-Protocol 0.30.0 is published at `ec0233f3c4d746bb9bf7009f7432683a57c0b616`,
-tag `protocol-v0.30.0`; Engine 0.30.0 at
-`80459e300cdb6fb67a94ff45d33f0774ebf0bd9f`, tag `engine-v0.30.0`.
-Keep `/tmp/ic-auth-release.EqLgnm`, its original `validation.OQxMG0`,
-`validation.P7atRk`, failed `validation.YInWyN`, journals, receipts, intents and
-archives. Both attempts completed; no resume is pending. Historical recovery
-must use its original adapter and saved source/group/version, never the new
-Storage formats or a bypassed custody lock. Older evidence remains under
-`target/persistence-wire-delivery/`, `target/cohort-adoption/`,
+The host selects `StorageConfig`, namespace grants, checked `RuntimeMemory` leases
+and `adapter::StableCell`. Load bounds cover the 128 KiB Auth payload plus magic
+and verify checksums; create/set failures are checked. The host owns atomicity,
+clock, protected generation and certification-root publication. The retired
+Memory 0.63 header test preserves a separate application sentinel on refusal.
+Source/qualification evidence remains under `target/storage-owner-adoption/`,
+`target/all-upstream-adoption/` and `target/upstream-retry/`.
+
+Auth's `AUTHNAT3` payload, Wire methods, record bytes and signed material are
+unchanged. Preserve session/login IDs `0x415554485311` / `0x415554485313` and replay
+`0x415554485302`. Cryptographic checks, protected authority and the TEE/non-TEE
+trust model are unchanged; no verifier rewrite or verification-result cache exists.
+Auth's public Principal/Wire Rust identities change, so consumers must align with
+Protocol 0.31, Types 0.17, Wire 0.15 and Platform 0.18 at their selected boundaries.
+
+## Historical acceptance and consumer ownership
+
+[Auth #124](https://github.com/dragginzgame/ic-auth/issues/124) is closed against
+`28ee29d12122cfbfe05b19a49460bd5ee79bf7c8` and the all-host passing
+[CI 41434941116](https://github.com/dragginzgame/ic-auth/actions/runs/41434941116).
+That delivery contained the ten complexity cuts, Rust 1.99.1, Shared 0.27.26,
+Memory/Storage 0.63 and Metrics 0.26. Retain its `target/issue124-delivery/`,
+`target/shared-tooling-0.27.26/`, `target/memory-metrics-storage-adoption/` and
+`target/complexity-hard-cut/` evidence. The earlier matched raw Wasm observation
+was 2,065,826 → 2,042,064 total and 1,543,468 → 1,530,443 code bytes on the older
+0.62.1/0.25.1 lock; no new size or speed claim is made by this release.
+
+Protocol 0.30.0 remains at `ec0233f3c4d746bb9bf7009f7432683a57c0b616`,
+Engine 0.30.0 at `80459e300cdb6fb67a94ff45d33f0774ebf0bd9f`, with their group
+tags. Preserve historical journals/receipts and the recorded original checkout
+`/tmp/ic-auth-release.EqLgnm` if present. Historical recovery uses its original
+adapter, saved source/group/version and storage formats. Older evidence remains
+under `target/persistence-wire-delivery/`, `target/cohort-adoption/`,
 `target/memory-storage-adoption/`, `target/release-groups-work/` and
 `target/types-boundary.BvpfC1/`.
 
 [Canic #491](https://github.com/dragginzgame/canic/issues/491) owns installed
 adoption, issuer/renewal, guards, durable backend and browser acceptance; #720 owns
-storage deduplication. No Canic source, production issuer/backend, npm package or
-live-IC deployment is changed here. No verifier rewrite or result cache is implied.
+storage deduplication. No Canic source, production issuer/backend, npm publication
+or live-IC deployment changed here. Consumer adoption/qualification stays there.

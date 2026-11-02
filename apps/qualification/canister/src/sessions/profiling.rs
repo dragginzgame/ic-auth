@@ -48,7 +48,7 @@ fn bls_message(hash: [u8; 32]) -> Vec<u8> {
 }
 
 #[ic_platform_runtime::cdk::update(
-    guard = "super::admission_guard",
+    guard = "crate::control::ProfileCertified::guard",
     decode_with = "crate::control::ProfileCertified::decode",
     encode_with = "crate::control::ProfileCertified::encode"
 )]

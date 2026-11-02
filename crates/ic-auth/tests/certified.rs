@@ -40,7 +40,7 @@ fn audience() -> AudienceId {
 fn grant(scopes: &[&str]) -> DelegatedRoleGrant {
     DelegatedRoleGrant {
         target: role(),
-        scopes: scopes.iter().map(|s| s.to_string()).collect(),
+        scopes: scopes.iter().map(|s| s.parse().unwrap()).collect(),
     }
 }
 fn root_signing_key() -> SigningKey {

@@ -223,7 +223,7 @@ impl Fixture {
         claims.admission_expires_at_ns = NOW + 2 * SECOND;
         claims.nonce = [1; 16];
         claims.key_binding_id = issuer_key.binding();
-        claims.grants[0].scopes.push("write".into());
+        claims.grants[0].scopes.push("write".parse().unwrap());
         let grants = ValidatedGrants::new(claims.grants.clone()).unwrap();
         Self {
             issuer_key,
@@ -402,10 +402,10 @@ fn required_scopes_accept_any_order_but_never_borrow_another_roles_grant() {
         0,
         DelegatedRoleGrant {
             target: "admin".parse().unwrap(),
-            scopes: vec!["write".into()],
+            scopes: vec!["write".parse().unwrap()],
         },
     );
-    grants[1].scopes = vec!["read".into()];
+    grants[1].scopes = vec!["read".parse().unwrap()];
     let grants = ValidatedGrants::new(grants).unwrap();
     live.authority.grants = &grants;
     assert_eq!(

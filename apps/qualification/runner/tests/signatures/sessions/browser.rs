@@ -19,7 +19,7 @@ fn actual_browser_storage_signing_and_receiver_transport() {
         role: "user".parse().unwrap(),
         grants: ic_auth::portable::ValidatedGrants::new(vec![DelegatedRoleGrant {
             target: "user".parse().unwrap(),
-            scopes: vec!["read".into()],
+            scopes: vec!["read".parse().unwrap()],
         }])
         .unwrap(),
         valid_from_ns: f.now(),

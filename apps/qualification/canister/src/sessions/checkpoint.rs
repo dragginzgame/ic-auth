@@ -92,13 +92,13 @@ pub(crate) fn restore(snapshot: Option<Snapshot>) {
             saved.encoded_bytes as usize,
             saved
                 .sessions
-                .as_slice()
-                .iter()
+                .into_vec()
+                .into_iter()
                 .map(|bytes| Session::decode(bytes.as_slice()).expect("decode session")),
             saved
                 .replays
-                .as_slice()
-                .iter()
+                .into_vec()
+                .into_iter()
                 .map(|bytes| Replay::decode(bytes.as_slice()).expect("decode replay")),
         )
         .expect("restore complete session/replay store");
@@ -114,7 +114,7 @@ pub(crate) fn restore(snapshot: Option<Snapshot>) {
         .restore_records(
             saved.observed,
             (saved.admitted_count as usize, saved.unknown_count as usize),
-            saved.logins.as_slice().iter().map(|bytes| {
+            saved.logins.into_vec().into_iter().map(|bytes| {
                 LoginRevocationChange::decode(bytes.as_slice()).expect("decode login")
             }),
         )
@@ -137,7 +137,7 @@ pub(crate) fn restore(snapshot: Option<Snapshot>) {
 }
 
 #[ic_platform_runtime::cdk::update(
-    guard = "crate::control::guard",
+    guard = "crate::control::EnableCheckpoint::guard",
     decode_with = "crate::control::EnableCheckpoint::decode",
     encode_with = "crate::control::EnableCheckpoint::encode"
 )]
@@ -152,7 +152,7 @@ fn enable_session_checkpoint() -> Result<(), Refusal> {
 /// The fixture's controller attests current authority after this boot. Production
 /// requires authenticated receiver-bound Root enrollment, not this test endpoint.
 #[ic_platform_runtime::cdk::update(
-    guard = "crate::control::guard",
+    guard = "crate::control::ConfirmAuthority::guard",
     decode_with = "crate::control::ConfirmAuthority::decode",
     encode_with = "crate::control::ConfirmAuthority::encode"
 )]

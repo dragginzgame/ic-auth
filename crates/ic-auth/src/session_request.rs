@@ -118,7 +118,7 @@ impl SessionRequest {
             .checked_add(ttl * crate::limits::NS_PER_SECOND)
             .ok_or(SessionRequestError::InvalidLifetime)
     }
-    fn check_granted_scopes(&self, granted: &[String]) -> Result<(), SessionRequestError> {
+    fn check_granted_scopes(&self, granted: &[ScopeLabel]) -> Result<(), SessionRequestError> {
         if !crate::certificate_issuance::scopes_are_subset(&self.scopes, granted) {
             return Err(SessionRequestError::ScopeRejected);
         }

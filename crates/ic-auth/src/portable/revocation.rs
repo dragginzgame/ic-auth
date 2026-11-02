@@ -78,18 +78,13 @@ pub struct LoginBinding {
 /// Proposed ledger record from a serialized commit callback or trusted storage.
 /// A durable host must persist this with its session/replay changes before
 /// returning success. This is not a credential or reusable authorization result.
-pub struct LoginRevocationChange {
-    audience: AudienceId,
-    caller: Principal,
-    record: Record,
-}
+pub struct LoginRevocationChange(LoginData);
 
-#[cfg(feature = "sessions")]
-#[derive(serde::Serialize)]
+#[cfg_attr(feature = "sessions", derive(serde::Serialize))]
 #[cfg_attr(feature = "session-restore", derive(serde::Deserialize))]
-#[serde(deny_unknown_fields)]
-struct StoredLogin {
-    #[serde(with = "crate::storage_codec::audience")]
+#[cfg_attr(feature = "sessions", serde(deny_unknown_fields))]
+struct LoginData {
+    #[cfg_attr(feature = "sessions", serde(with = "crate::storage_codec::audience"))]
     audience: AudienceId,
     caller: Principal,
     record: Record,
@@ -107,11 +102,11 @@ impl LoginRevocationChange {
         previous: &Self,
         now_ns: u64,
     ) -> Result<(), LoginRevocationError> {
-        if self.audience != previous.audience
-            || self.caller != previous.caller
+        if self.0.audience != previous.0.audience
+            || self.0.caller != previous.0.caller
             || (previous.until_ns() > now_ns
-                && (self.record.login() != previous.record.login()
-                    || (previous.record.revoked() && !self.record.revoked())
+                && (self.0.record.login() != previous.0.record.login()
+                    || (previous.0.record.revoked() && !self.0.record.revoked())
                     || self.until_ns() < previous.until_ns()))
         {
             return Err(LoginRevocationError::InvalidPolicy);
@@ -121,37 +116,26 @@ impl LoginRevocationChange {
     /// Encode the proposed record for the host's atomic durable commit.
     #[cfg(feature = "sessions")]
     pub fn encode(&self) -> Result<Vec<u8>, LoginRevocationError> {
-        crate::storage_codec::encode(
-            &StoredLogin {
-                audience: self.audience,
-                caller: self.caller,
-                record: self.record,
-            },
-            crate::storage_codec::LOGIN,
-            MAX_RECORD_BYTES,
-        )
-        .map_err(|error| match error {
-            ic_wire::Error::Limit | ic_wire::Error::Allocation => {
-                LoginRevocationError::InvalidPolicy
-            }
-            _ => LoginRevocationError::Storage,
-        })
+        crate::storage_codec::encode(&self.0, crate::storage_codec::LOGIN, MAX_RECORD_BYTES)
+            .map_err(|error| match error {
+                ic_wire::Error::Limit | ic_wire::Error::Allocation => {
+                    LoginRevocationError::InvalidPolicy
+                }
+                _ => LoginRevocationError::Storage,
+            })
     }
 
     /// Decode trusted storage only; never accept these bytes from a client.
     /// This checks shape, not provenance, completeness, rollback or live authority.
     #[cfg(feature = "session-restore")]
     pub fn decode(bytes: &[u8]) -> Result<Self, LoginRevocationError> {
-        let StoredLogin {
-            audience,
-            caller,
-            record,
-        } = crate::storage_codec::decode(bytes, crate::storage_codec::LOGIN, MAX_RECORD_BYTES)
-            .map_err(|_| LoginRevocationError::InvalidPolicy)?;
-        if !is_login_caller(caller) {
+        let data: LoginData =
+            crate::storage_codec::decode(bytes, crate::storage_codec::LOGIN, MAX_RECORD_BYTES)
+                .map_err(|_| LoginRevocationError::InvalidPolicy)?;
+        if !is_login_caller(data.caller) {
             return Err(LoginRevocationError::InvalidCaller);
         }
-        if let Some(login) = record.login()
+        if let Some(login) = data.record.login()
             && (login.issuer == Principal::anonymous()
                 || login.subject == Principal::anonymous()
                 || login.started_at_ns >= login.deadline_ns
@@ -159,30 +143,25 @@ impl LoginRevocationChange {
         {
             return Err(LoginRevocationError::InvalidPolicy);
         }
-        let change = Self {
-            audience,
-            caller,
-            record,
-        };
-        Ok(change)
+        Ok(Self(data))
     }
 
     /// Protected trust domain owning the record.
     pub fn audience(&self) -> AudienceId {
-        self.audience
+        self.0.audience
     }
     /// Authenticated runtime caller whose record changes.
     pub fn caller(&self) -> Principal {
-        self.caller
+        self.0.caller
     }
     /// Exclusive retention deadline, including the configured clock margin.
     pub fn until_ns(&self) -> u64 {
-        self.record.until_ns
+        self.0.record.until_ns
     }
     /// Typed state from this checked ledger record. Storage codecs retain their
     /// existing frozen representation independently of this Rust projection.
     pub fn state(&self) -> LoginRecordState {
-        self.record.state
+        self.0.record.state
     }
 }
 
@@ -223,13 +202,13 @@ impl MemoryLoginRevocations {
     /// state atomically; expired entries count until explicit pruning.
     #[cfg(feature = "session-restore")]
     pub fn records(&self) -> impl ExactSizeIterator<Item = LoginRevocationChange> + '_ {
-        self.records
-            .iter()
-            .map(|(&caller, &record)| LoginRevocationChange {
+        self.records.iter().map(|(&caller, &record)| {
+            LoginRevocationChange(LoginData {
                 audience: self.audience,
                 caller,
                 record,
             })
+        })
     }
 
     /// Rebuild a fresh ledger from a complete, trusted atomic storage generation.
@@ -256,10 +235,10 @@ impl MemoryLoginRevocations {
         }
         let max_until = retention(observed_ns, self.skew_ns)?;
         for change in records {
-            if change.audience != self.audience || self.records.contains_key(&change.caller) {
+            if change.0.audience != self.audience || self.records.contains_key(&change.0.caller) {
                 return Err(LoginRevocationError::InvalidPolicy);
             }
-            let record = change.record;
+            let record = change.0.record;
             if record.until_ns == 0 || record.until_ns > max_until {
                 return Err(LoginRevocationError::InvalidPolicy);
             }
@@ -284,7 +263,7 @@ impl MemoryLoginRevocations {
             if used >= expected {
                 return Err(LoginRevocationError::Capacity);
             }
-            self.install(change.caller, record);
+            self.install(change.0.caller, record);
         }
         if self.occupancy() != expected_counts {
             return Err(LoginRevocationError::InvalidPolicy);
@@ -475,18 +454,18 @@ impl MemoryLoginRevocations {
         record: Record,
         commit: impl FnOnce(&LoginRevocationChange) -> Result<T, E>,
     ) -> Result<T, E> {
-        let change = LoginRevocationChange {
+        let change = LoginRevocationChange(LoginData {
             audience: self.audience,
             caller,
             record,
-        };
+        });
         if let Some(previous) = self.records.get(&caller) {
             change.check_replacement(
-                &LoginRevocationChange {
+                &LoginRevocationChange(LoginData {
                     audience: self.audience,
                     caller,
                     record: *previous,
-                },
+                }),
                 self.observed_ns,
             )?;
         }
@@ -679,13 +658,15 @@ mod replacement_tests {
             started_at_ns: 1,
             deadline_ns: 10,
         };
-        let change = |state, until_ns| LoginRevocationChange {
-            audience: AudienceId {
-                canonical_network_id: CanonicalId::from_bytes([1; 32]),
-                fleet_id: CanonicalId::from_bytes([2; 32]),
-            },
-            caller: Principal::from_slice(&[3]),
-            record: Record { state, until_ns },
+        let change = |state, until_ns| {
+            LoginRevocationChange(LoginData {
+                audience: AudienceId {
+                    canonical_network_id: CanonicalId::from_bytes([1; 32]),
+                    fleet_id: CanonicalId::from_bytes([2; 32]),
+                },
+                caller: Principal::from_slice(&[3]),
+                record: Record { state, until_ns },
+            })
         };
         let reserved = change(LoginRecordState::Reserved(binding), 11);
         let revoked = change(LoginRecordState::Revoked(Some(binding)), 12);
@@ -720,13 +701,13 @@ mod replacement_tests {
             Err(LoginRevocationError::InvalidPolicy)
         );
         let mut wrong_key = change(LoginRecordState::Reserved(binding), 13);
-        wrong_key.caller = Principal::from_slice(&[4]);
+        wrong_key.0.caller = Principal::from_slice(&[4]);
         assert_eq!(
             wrong_key.check_replacement(&revoked, 12),
             Err(LoginRevocationError::InvalidPolicy)
         );
-        wrong_key.caller = revoked.caller;
-        wrong_key.audience.fleet_id = CanonicalId::from_bytes([3; 32]);
+        wrong_key.0.caller = revoked.0.caller;
+        wrong_key.0.audience.fleet_id = CanonicalId::from_bytes([3; 32]);
         assert_eq!(
             wrong_key.check_replacement(&revoked, 12),
             Err(LoginRevocationError::InvalidPolicy)

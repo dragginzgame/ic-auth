@@ -186,7 +186,7 @@ pub(crate) fn encode_role_grants<const ADMITTED: bool>(
         }
         encode_len(out, grant.scopes.len())?;
         for scope in &grant.scopes {
-            encode_bytes(out, scope.as_bytes())?;
+            encode_bytes(out, scope.as_str().as_bytes())?;
         }
     }
     Ok(())
@@ -344,15 +344,14 @@ fn encode_role(out: &mut Vec<u8>, role: &AuthRole) -> Result<(), CanonicalAuthEr
     Ok(())
 }
 
-/// Validate label grammar and strictly increasing, unique UTF-8 byte order.
+/// Validate strictly increasing, unique UTF-8 byte order of checked labels.
 ///
 /// An empty list is valid. Cardinality, normalization and application authority
 /// remain caller-owned; use the bounded grant validator for nonempty grants.
-pub fn validate_scopes(scopes: &[String]) -> Result<(), CanonicalAuthError> {
+pub fn validate_scopes(scopes: &[ScopeLabel]) -> Result<(), CanonicalAuthError> {
     let mut previous = None;
     for scope in scopes {
-        validate_scope_label(scope)?;
-        let current = scope.as_bytes();
+        let current = scope.as_str().as_bytes();
         if previous.is_some_and(|previous| previous >= current) {
             return Err(CanonicalAuthError::NonCanonicalScopes);
         }

@@ -21,8 +21,8 @@ pub struct ValidatedGrants(Vec<DelegatedRoleGrant>);
 
 impl ValidatedGrants {
     /// Admit nonempty, strictly ordered role/scope grants without normalization.
-    /// Refuse more than 16 roles or 32 scopes per role, empty scope sets and
-    /// invalid scope labels through the canonical grant validator.
+    /// Refuse more than 16 roles or 32 scopes per role and empty scope sets.
+    /// Individual labels are already checked by the passive protocol types.
     pub fn new(grants: Vec<DelegatedRoleGrant>) -> Result<Self, GrantValidationError> {
         validate_grants(
             &grants,

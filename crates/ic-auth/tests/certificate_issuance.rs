@@ -8,7 +8,7 @@ fn p(byte: u8) -> Principal {
 fn grant(role: &str, scopes: &[&str]) -> DelegatedRoleGrant {
     DelegatedRoleGrant {
         target: role.parse().unwrap(),
-        scopes: scopes.iter().map(|scope| scope.to_string()).collect(),
+        scopes: scopes.iter().map(|scope| scope.parse().unwrap()).collect(),
     }
 }
 
@@ -208,18 +208,6 @@ fn canonical_grants_and_scope_errors_precede_binding_hash_refusal() {
             }),
         ),
         (
-            vec![grant("app_service", &[""])],
-            E::Grants(GrantValidationError::Canonical(CanonicalAuthError::Scope(
-                ic_auth_protocol_types::ScopeLabelError::Empty,
-            ))),
-        ),
-        (
-            vec![grant("app_service", &["Read"])],
-            E::Grants(GrantValidationError::Canonical(CanonicalAuthError::Scope(
-                ic_auth_protocol_types::ScopeLabelError::InvalidSegmentStart { offset: 0 },
-            ))),
-        ),
-        (
             vec![grant("app_service", &["read", "read"])],
             E::Grants(GrantValidationError::Canonical(
                 CanonicalAuthError::NonCanonicalScopes,
@@ -240,18 +228,11 @@ fn canonical_grants_and_scope_errors_precede_binding_hash_refusal() {
         (
             vec![
                 grant("other_service", &["read"]),
-                grant("app_service", &["Bad"]),
+                grant("app_service", &["read"]),
             ],
             E::Grants(GrantValidationError::Canonical(
                 CanonicalAuthError::NonCanonicalRoles,
             )),
-        ),
-        // Earlier grant scope failure precedes a later role-order error.
-        (
-            vec![grant("other_service", &["Bad"]), grant("app_service", &[])],
-            E::Grants(GrantValidationError::Canonical(CanonicalAuthError::Scope(
-                ic_auth_protocol_types::ScopeLabelError::InvalidSegmentStart { offset: 0 },
-            ))),
         ),
     ];
     for (grants, expected) in cases {
@@ -271,7 +252,9 @@ fn host_grant_and_scope_limits_accept_equality_and_refuse_one_over() {
     cert.grants = (0..16)
         .map(|i| grant(&format!("role_{i:02}"), &["read"]))
         .collect();
-    cert.grants[0].scopes = (0..32).map(|i| format!("scope_{i:02}")).collect();
+    cert.grants[0].scopes = (0..32)
+        .map(|i| format!("scope_{i:02}").parse().unwrap())
+        .collect();
     validate(&cert).unwrap();
     cert.grants.push(grant("role_16", &[]));
     assert_eq!(
@@ -282,7 +265,7 @@ fn host_grant_and_scope_limits_accept_equality_and_refuse_one_over() {
         }))
     );
     cert.grants.pop();
-    cert.grants[0].scopes.push("Bad".into());
+    cert.grants[0].scopes.push("zz".parse().unwrap());
     assert_eq!(
         validate(&cert),
         Err(E::Grants(GrantValidationError::TooManyScopes {

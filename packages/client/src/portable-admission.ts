@@ -8,6 +8,7 @@ import { defaultMaximumBytes, maximumConfiguredBytes } from './generated/credent
 import type { PortableCredential } from './codec.js';
 import type { PortableLogoutClient } from './logout.js';
 import { MAX_TARGETS } from './logout-store.js';
+import { isU64 } from './u64.js';
 
 export interface AdmissionCredential {
   credential: PortableCredential;
@@ -111,7 +112,7 @@ export class PortableAdmissionClient {
       const until = result.admissionUntilNs;
       const bytes = credentialBytes(result.credential, this.maximumBytes);
       const now = await this.active();
-      if (typeof until !== 'bigint' || until <= now || until > (1n << 64n) - 1n) throw new ClientError('retrieval_expired');
+      if (!isU64(until) || until <= now) throw new ClientError('retrieval_expired');
       this.cached = { bytes, until };
       return this.cached;
     })();

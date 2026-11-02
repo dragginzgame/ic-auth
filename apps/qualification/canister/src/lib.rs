@@ -136,7 +136,7 @@ fn post_upgrade() {
 }
 
 #[ic_platform_runtime::cdk::update(
-    guard = "control::guard",
+    guard = "control::Prepare::guard",
     decode_with = "control::Prepare::decode",
     encode_with = "control::Prepare::encode"
 )]
@@ -171,7 +171,7 @@ fn prepare(
 }
 
 #[ic_platform_runtime::cdk::query(
-    guard = "control::guard",
+    guard = "control::Retrieve::guard",
     decode_with = "control::Retrieve::decode",
     encode_with = "control::Retrieve::encode"
 )]
@@ -207,7 +207,7 @@ fn retrieve(
 }
 
 #[ic_platform_runtime::cdk::update(
-    guard = "control::guard",
+    guard = "control::Prune::guard",
     decode_with = "control::Prune::decode",
     encode_with = "control::Prune::encode"
 )]
@@ -224,7 +224,7 @@ fn prune(budget: u32) -> Result<u32, Refusal> {
 }
 
 #[ic_platform_runtime::cdk::update(
-    guard = "control::guard",
+    guard = "control::SetAsset::guard",
     decode_with = "control::SetAsset::decode",
     encode_with = "control::SetAsset::encode"
 )]
@@ -238,7 +238,7 @@ fn set_asset(version: u64) -> Result<(), Refusal> {
 }
 
 #[ic_platform_runtime::cdk::query(
-    guard = "control::guard",
+    guard = "control::AssetVersion::guard",
     decode_with = "control::AssetVersion::decode",
     encode_with = "control::AssetVersion::encode"
 )]
@@ -247,7 +247,7 @@ fn asset_version() -> u64 {
 }
 
 #[ic_platform_runtime::cdk::update(
-    guard = "control::guard",
+    guard = "control::OwnerOperation::guard",
     decode_with = "control::OwnerOperation::decode",
     encode_with = "control::OwnerOperation::encode"
 )]

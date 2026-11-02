@@ -1,4 +1,5 @@
 import { ClientError } from './contracts.js';
+import { isU64 as time } from './u64.js';
 
 /** Non-secret cleanup state. This store never holds a signing key or token. */
 export interface LogoutTarget {
@@ -29,13 +30,11 @@ export type LogoutJournal = JournalCommon & (
 );
 
 const FORMAT = 'ic-auth-logout-journal-v1';
-const U64_MAX = (1n << 64n) - 1n;
 export const MAX_TARGETS = 64;
 export const MAX_ATTEMPTS = 8;
 const object = (x: unknown): x is Record<string, unknown> => typeof x === 'object' && x !== null;
 const fields = (x: Record<string, unknown>, names: string[]) => Object.keys(x).length === names.length && names.every(name => Object.hasOwn(x, name));
 const text = (x: unknown): x is string => typeof x === 'string' && x.length > 0 && x.length <= 128;
-const time = (x: unknown): x is bigint => typeof x === 'bigint' && x >= 0n && x <= U64_MAX;
 
 function validate(value: unknown): asserts value is LogoutJournal {
   if (!object(value) || !fields(value, ['generation', 'caller', 'issuer', 'clockId', 'observedNs', 'busyUntilNs', 'phase', 'deadlineNs', 'issuanceUnknown', 'targets']) || !text(value.generation) || !text(value.caller) || !text(value.issuer)

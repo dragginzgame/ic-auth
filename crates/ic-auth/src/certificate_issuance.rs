@@ -139,9 +139,9 @@ pub enum GrantValidationError {
 /// Validate nonempty grants against caller-owned cardinality bounds.
 ///
 /// Checks the grant count first, then each role's strict byte ordering, scope
-/// count, label grammar and strict scope ordering in input order. It neither
-/// sorts nor grants authority. Typed roles must already be valid; hosts retain
-/// role projection and its error precedence at their own input boundary.
+/// count and strict scope ordering in input order. It neither sorts nor grants
+/// authority. Roles and scope labels are checked by their types; hosts retain
+/// raw projection and its error precedence at their own input boundary.
 pub fn validate_grants(
     grants: &[DelegatedRoleGrant],
     max_grants: usize,
@@ -258,7 +258,7 @@ mod tests {
     fn grant_narrowing_keeps_role_boundaries_and_missing_scope_refusals() {
         let grant = |role: &str, scopes: &[&str]| DelegatedRoleGrant {
             target: role.parse().unwrap(),
-            scopes: scopes.iter().map(|scope| (*scope).into()).collect(),
+            scopes: scopes.iter().map(|scope| scope.parse().unwrap()).collect(),
         };
         let ceiling = [grant("a", &["read", "write"]), grant("c", &["read"])];
         for (requested, expected) in [

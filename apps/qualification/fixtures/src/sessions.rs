@@ -41,11 +41,45 @@ impl ReceiverAuthority {
     }
 }
 
+// The private enrollment projection shares its unchanged field roster. Key
+// preparation remains explicit at the receiver authority boundary below.
+macro_rules! root_projection {
+    ($($field:ident),* $(,)?) => {
+        fn root_to_wire(root: RootKeyPolicy) -> Result<ic_auth_qualification_contracts::model::RootEnrollment, ic_auth_wire::wire::Error> {
+            Ok(ic_auth_qualification_contracts::model::RootEnrollment {
+                $($field: root.$field,)*
+                algorithm: root.algorithm.into(),
+                key_name: ic_auth_wire::wire::Text::new(root.key_id.name)?,
+                public_key: ic_auth_wire::wire::Bytes::new(root.public_key)?,
+            })
+        }
+        fn root_from_wire(root: ic_auth_qualification_contracts::model::RootEnrollment) -> RootKeyPolicy {
+            RootKeyPolicy {
+                $($field: root.$field,)*
+                algorithm: root.algorithm.into(),
+                key_id: ic_auth_protocol_types::ChainKeyKeyId { name: root.key_name.into_string() },
+                public_key: root.public_key.into_vec(),
+            }
+        }
+    };
+}
+root_projection!(
+    root_canister_id,
+    derivation_path_hash,
+    key_version,
+    min_accepted_key_version,
+    min_accepted_proof_epoch,
+    min_accepted_registry_epoch,
+    valid_from_ns,
+    accept_until_ns,
+    max_revocation_latency_ns,
+);
+
 impl TryFrom<ReceiverAuthority> for ic_auth_qualification_contracts::model::ReceiverAuthority {
     type Error = ic_auth_wire::wire::Error;
     fn try_from(value: ReceiverAuthority) -> Result<Self, Self::Error> {
         use ic_auth_qualification_contracts::model as w;
-        use ic_auth_wire::wire::{Bytes, Text};
+        use ic_auth_wire::wire::Bytes;
         Ok(match value {
             ReceiverAuthority::Ed25519(key) => w::ReceiverAuthority::Ed25519(*key.bytes()),
             ReceiverAuthority::Certified {
@@ -54,20 +88,7 @@ impl TryFrom<ReceiverAuthority> for ic_auth_qualification_contracts::model::Rece
                 network_key,
             } => w::ReceiverAuthority::Certified(w::CertifiedAuthority {
                 binding,
-                root: w::RootEnrollment {
-                    root_canister_id: root.root_canister_id,
-                    algorithm: root.algorithm.into(),
-                    key_name: Text::new(root.key_id.name)?,
-                    derivation_path_hash: root.derivation_path_hash,
-                    public_key: Bytes::new(root.public_key)?,
-                    key_version: root.key_version,
-                    min_accepted_key_version: root.min_accepted_key_version,
-                    min_accepted_proof_epoch: root.min_accepted_proof_epoch,
-                    min_accepted_registry_epoch: root.min_accepted_registry_epoch,
-                    valid_from_ns: root.valid_from_ns,
-                    accept_until_ns: root.accept_until_ns,
-                    max_revocation_latency_ns: root.max_revocation_latency_ns,
-                },
+                root: root_to_wire(*root)?,
                 network_key: Bytes::new(network_key)?,
             }),
         })
@@ -90,26 +111,7 @@ impl TryFrom<ic_auth_qualification_contracts::model::ReceiverAuthority> for Rece
                 network_key,
             }) => ReceiverAuthority::Certified {
                 binding,
-                root: Box::new(RootKeyPolicy {
-                    root_canister_id: root.root_canister_id,
-                    algorithm: match root.algorithm {
-                        ic_auth_wire::model::ChainKeyAlgorithm::EcdsaSecp256k1 => {
-                            ic_auth_protocol_types::ChainKeyAlgorithm::EcdsaSecp256k1
-                        }
-                    },
-                    key_id: ic_auth_protocol_types::ChainKeyKeyId {
-                        name: root.key_name.into_string(),
-                    },
-                    derivation_path_hash: root.derivation_path_hash,
-                    public_key: root.public_key.into_vec(),
-                    key_version: root.key_version,
-                    min_accepted_key_version: root.min_accepted_key_version,
-                    min_accepted_proof_epoch: root.min_accepted_proof_epoch,
-                    min_accepted_registry_epoch: root.min_accepted_registry_epoch,
-                    valid_from_ns: root.valid_from_ns,
-                    accept_until_ns: root.accept_until_ns,
-                    max_revocation_latency_ns: root.max_revocation_latency_ns,
-                }),
+                root: Box::new(root_from_wire(root)),
                 network_key: network_key.into_vec(),
             },
         })
@@ -124,7 +126,7 @@ impl TryFrom<ReceiverConfig> for ic_auth_qualification_contracts::model::Receive
             audience: value.audience.try_into()?,
             issuer: value.issuer,
             authority: value.authority.try_into()?,
-            role: Text::new(value.role.as_str().into())?,
+            role: Text::new(value.role.into_string())?,
             grants: List::new(
                 value
                     .grants
@@ -151,7 +153,7 @@ impl TryFrom<ic_auth_qualification_contracts::model::ReceiverConfig> for Receive
             audience: value.audience.try_into()?,
             issuer: value.issuer,
             authority: value.authority.try_into()?,
-            role: value.role.as_str().parse().map_err(|_| Error::Malformed)?,
+            role: AuthRole::try_from(value.role.into_string()).map_err(|_| Error::Malformed)?,
             grants: ValidatedGrants::new(
                 value
                     .grants
@@ -197,7 +199,7 @@ mod tests {
             role: "user".parse().unwrap(),
             grants: ValidatedGrants::new(vec![DelegatedRoleGrant {
                 target: "user".parse().unwrap(),
-                scopes: vec!["read".into()],
+                scopes: vec!["read".parse().unwrap()],
             }])
             .unwrap(),
             valid_from_ns: 5,
@@ -250,7 +252,7 @@ mod tests {
                 };
                 assert_eq!(
                     wire::ReceiverAuthority::try_from(oversized),
-                    Err(ic_wire::Error::Limit)
+                    Err(ic_auth_wire::wire::Error::Limit)
                 );
             }
             let expected = ReceiverConfig {
@@ -268,25 +270,25 @@ mod tests {
             assert_eq!(ReceiverConfig::try_from(decoded).unwrap(), expected);
             let mut malformed = transport.clone();
             let grant = malformed.grants.as_slice()[0].clone();
-            malformed.grants = ic_wire::List::new(vec![grant.clone(), grant]).unwrap();
+            malformed.grants = ic_auth_wire::wire::List::new(vec![grant.clone(), grant]).unwrap();
             assert_eq!(
                 ReceiverConfig::try_from(malformed),
-                Err(ic_wire::Error::Malformed)
+                Err(ic_auth_wire::wire::Error::Malformed)
             );
             let mut malformed = transport.clone();
             let mut grant = malformed.grants.as_slice()[0].clone();
-            grant.scopes = ic_wire::List::new(vec![
-                ic_wire::Text::new("write".into()).unwrap(),
-                ic_wire::Text::new("read".into()).unwrap(),
+            grant.scopes = ic_auth_wire::wire::List::new(vec![
+                ic_auth_wire::wire::Text::new("write".into()).unwrap(),
+                ic_auth_wire::wire::Text::new("read".into()).unwrap(),
             ])
             .unwrap();
-            malformed.grants = ic_wire::List::new(vec![grant]).unwrap();
+            malformed.grants = ic_auth_wire::wire::List::new(vec![grant]).unwrap();
             assert_eq!(
                 ReceiverConfig::try_from(malformed),
-                Err(ic_wire::Error::Malformed)
+                Err(ic_auth_wire::wire::Error::Malformed)
             );
             let mut invalid = transport;
-            invalid.role = ic_wire::Text::new("Invalid Role".into()).unwrap();
+            invalid.role = ic_auth_wire::wire::Text::new("Invalid Role".into()).unwrap();
             assert!(ReceiverConfig::try_from(invalid).is_err());
         }
     }

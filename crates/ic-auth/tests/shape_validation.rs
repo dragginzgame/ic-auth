@@ -9,7 +9,7 @@ const STATIC_INVALID: Result<(), ScopeLabelError> = ScopeLabel::validate("fleet:
 fn grant(role: &str, scopes: &[&str]) -> DelegatedRoleGrant {
     DelegatedRoleGrant {
         target: role.parse().unwrap(),
-        scopes: scopes.iter().map(|value| (*value).into()).collect(),
+        scopes: scopes.iter().map(|value| value.parse().unwrap()).collect(),
     }
 }
 
@@ -67,24 +67,22 @@ fn const_and_runtime_scope_checks_preserve_detailed_byte_causes_and_canonical_pr
 }
 
 #[test]
-fn ordered_scopes_allow_empty_and_report_grammar_before_order_at_each_label() {
+fn checked_scopes_allow_empty_and_require_strict_order() {
     assert_eq!(validate_scopes(&[]), Ok(()));
     assert_eq!(
-        validate_scopes(&["a".into(), "a:b".into(), "b".into()]),
+        validate_scopes(&[
+            "a".parse().unwrap(),
+            "a:b".parse().unwrap(),
+            "b".parse().unwrap()
+        ]),
         Ok(())
     );
     for scopes in [["b", "a"], ["a", "a"]] {
         assert_eq!(
-            validate_scopes(&scopes.map(String::from)),
+            validate_scopes(&scopes.map(|s| s.parse().unwrap())),
             Err(CanonicalAuthError::NonCanonicalScopes)
         );
     }
-    assert_eq!(
-        validate_scopes(&["b".into(), "Bad".into()]),
-        Err(CanonicalAuthError::Scope(
-            ic_auth_protocol_types::ScopeLabelError::InvalidSegmentStart { offset: 0 }
-        ))
-    );
 }
 
 #[test]
@@ -122,18 +120,20 @@ fn standalone_grants_enforce_explicit_bounds_without_a_certificate() {
 #[test]
 fn standalone_grant_refusals_preserve_input_order_for_mixed_invalid_values() {
     use GrantValidationError as E;
-    // Global count wins over the first malformed scope.
-    let grants = [grant("b", &["Bad"]), grant("a", &[])];
+    // Cardinality is checked before role ordering.
+    let grants = [grant("b", &["read", "write"]), grant("a", &[])];
     assert_eq!(
         validate_grants(&grants, 1, 1),
         Err(E::TooMany { found: 2, max: 1 })
     );
-    // Earlier scope failure wins over later role-order and empty-scope failures.
+    // Earlier scope-count failure wins over later role order.
     assert_eq!(
         validate_grants(&grants, 2, 1),
-        Err(E::Canonical(CanonicalAuthError::Scope(
-            ic_auth_protocol_types::ScopeLabelError::InvalidSegmentStart { offset: 0 }
-        )))
+        Err(E::TooManyScopes {
+            role: "b".parse().unwrap(),
+            found: 2,
+            max: 1
+        })
     );
     for role in ["a", "b"] {
         assert_eq!(
@@ -142,7 +142,7 @@ fn standalone_grant_refusals_preserve_input_order_for_mixed_invalid_values() {
         );
     }
     assert_eq!(
-        validate_grants(&[grant("a", &["Bad", "Bad"])], 1, 1),
+        validate_grants(&[grant("a", &["read", "read"])], 1, 1),
         Err(E::TooManyScopes {
             role: "a".parse().unwrap(),
             found: 2,

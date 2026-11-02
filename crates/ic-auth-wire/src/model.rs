@@ -64,6 +64,14 @@ impl Field<domain::AuthRole> for Text<MAX_LABEL_BYTES> {
         domain::AuthRole::try_from(self.into_string()).map_err(|_| Error::Malformed)
     }
 }
+impl Field<domain::ScopeLabel> for Text<MAX_LABEL_BYTES> {
+    fn from_domain(value: domain::ScopeLabel) -> Result<Self, Error> {
+        Self::new(value.into_string())
+    }
+    fn into_domain(self) -> Result<domain::ScopeLabel, Error> {
+        domain::ScopeLabel::try_from(self.into_string()).map_err(|_| Error::Malformed)
+    }
+}
 // One declaration owns each Serde transport field and both typed
 // projections. Rust checks the domain field names/types; no intermediate codec.
 macro_rules! record {

@@ -331,7 +331,7 @@ fn qualify_wide_grants(f: &Fixture, base: &ReceiverConfig, key: &SigningKey) {
         (0..16)
             .map(|n| DelegatedRoleGrant {
                 target: format!("role{n:02}").parse().unwrap(),
-                scopes: scopes.clone(),
+                scopes: scopes.iter().map(|s| s.parse().unwrap()).collect(),
             })
             .collect(),
     )

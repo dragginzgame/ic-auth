@@ -207,7 +207,7 @@ fn with_receiver<T, E: From<ReceiverUnavailable>>(
     })
 }
 #[ic_platform_runtime::cdk::update(
-    guard = "crate::control::guard",
+    guard = "crate::control::InstallReceiver::guard",
     decode_with = "crate::control::InstallReceiver::decode",
     encode_with = "crate::control::InstallReceiver::encode"
 )]
@@ -266,9 +266,9 @@ fn install_session_receiver(config: controls::model::ReceiverConfig) -> Result<(
     Ok(())
 }
 #[ic_platform_runtime::cdk::update(
-    guard = "admission_guard",
-    decode_with = "decode_admission",
-    encode_with = "encode_admission"
+    guard = "crate::control::EstablishSession::guard",
+    decode_with = "crate::control::EstablishSession::decode",
+    encode_with = "crate::control::EstablishSession::encode"
 )]
 fn establish_portable_session(input: SessionInput) -> Result<SessionView, AdmissionRefusal> {
     let credential: PortableCredential = input
@@ -327,7 +327,7 @@ fn establish_portable_session(input: SessionInput) -> Result<SessionView, Admiss
     })
 }
 #[ic_platform_runtime::cdk::update(
-    guard = "admission_guard",
+    guard = "crate::control::ProfileAdmission::guard",
     decode_with = "crate::control::ProfileAdmission::decode",
     encode_with = "crate::control::ProfileAdmission::encode"
 )]
@@ -336,14 +336,15 @@ fn profile_portable_admission(input: SessionInput) -> AdmissionProfile {
     let result = establish_portable_session(input);
     let instructions = ic_platform_runtime::ic0::performance_counter(0) - start;
     AdmissionProfile {
-        reply: ic_wire::Bytes::new(encode_admission(result)).expect("bounded admission diagnostic"),
+        reply: ic_wire::Bytes::new(crate::control::EstablishSession::encode(result))
+            .expect("bounded admission diagnostic"),
         instructions,
     }
 }
 
 #[ic_platform_runtime::cdk::update(
-    guard = "read_guard",
-    decode_with = "decode_read",
+    guard = "crate::control::ReadSession::guard",
+    decode_with = "crate::control::ReadSession::decode",
     encode_with = "encode_read"
 )]
 fn portable_session_read() -> Result<SessionView, SessionReadRefusal> {
@@ -378,7 +379,7 @@ fn authorize(operation: SessionOperation) -> Result<SessionView, SessionReadRefu
 // One fixture application asset is writable by the protected "write" scope.
 // Real application resource/account policy remains the consuming host's job.
 #[ic_platform_runtime::cdk::update(
-    guard = "crate::control::guard",
+    guard = "crate::control::SetSessionAsset::guard",
     decode_with = "crate::control::SetSessionAsset::decode",
     encode_with = "crate::control::SetSessionAsset::encode"
 )]
@@ -392,8 +393,8 @@ fn session_set_asset(version: u64) -> Result<(), Refusal> {
     Ok(())
 }
 #[ic_platform_runtime::cdk::update(
-    guard = "logout_guard",
-    decode_with = "decode_logout",
+    guard = "crate::control::Logout::guard",
+    decode_with = "crate::control::Logout::decode",
     encode_with = "encode_logout"
 )]
 fn logout_portable_session() -> LogoutResult {
@@ -412,7 +413,7 @@ fn logout_portable_session() -> LogoutResult {
     })
 }
 #[ic_platform_runtime::cdk::update(
-    guard = "crate::control::guard",
+    guard = "crate::control::InvalidateAuthority::guard",
     decode_with = "crate::control::InvalidateAuthority::decode",
     encode_with = "crate::control::InvalidateAuthority::encode"
 )]
@@ -427,28 +428,29 @@ fn invalidate_session_authority(enabled: bool) -> Result<(), Refusal> {
     })
 }
 #[ic_platform_runtime::cdk::query(
-    guard = "crate::control::guard",
+    guard = "crate::control::ProfileSession::guard",
     decode_with = "crate::control::ProfileSession::decode",
     encode_with = "crate::control::ProfileSession::encode"
 )]
 fn profile_portable_session() -> Result<SessionProfile, Refusal> {
     with_receiver(|host| {
         let caller = ic_platform_runtime::cdk::api::msg_caller();
-        let session = host
+        let (record_bytes, decode_instructions) = host
             .store
             .read(|tx| {
-                tx.session(caller)
-                    .map(|session| session.map(std::borrow::Cow::into_owned))
+                let Some(session) = tx.session(caller)? else {
+                    return Ok(Err(Refusal::MissingSession));
+                };
+                let encoded = session.encode()?;
+                let start = ic_platform_runtime::ic0::performance_counter(0);
+                let decoded = Session::decode(&encoded)?;
+                let after_decode = ic_platform_runtime::ic0::performance_counter(0);
+                if decoded != *session {
+                    return Ok(Err(Refusal::RestorationMismatch));
+                }
+                Ok(Ok((encoded.len() as u64, after_decode - start)))
             })
-            .map_err(|_| Refusal::Session)?
-            .ok_or(Refusal::MissingSession)?;
-        let encoded = session.encode().map_err(|_| Refusal::Session)?;
-        let start = ic_platform_runtime::ic0::performance_counter(0);
-        let decoded = Session::decode(&encoded).map_err(|_| Refusal::Session)?;
-        let after_decode = ic_platform_runtime::ic0::performance_counter(0);
-        if decoded != session {
-            return Err(Refusal::RestorationMismatch);
-        }
+            .map_err(|_| Refusal::Session)??;
         let ctx = host
             .inputs
             .context(caller, ic_platform_runtime::cdk::api::time());
@@ -459,52 +461,19 @@ fn profile_portable_session() -> Result<SessionProfile, Refusal> {
         })
         .map_err(|_| Refusal::Session)?;
         Ok(SessionProfile {
-            record_bytes: encoded.len() as u64,
-            decode_instructions: after_decode - start,
+            record_bytes,
+            decode_instructions,
             authorization_instructions: ic_platform_runtime::ic0::performance_counter(0)
                 - start_authorization,
         })
     })
 }
 
-// Fixture exports bind the shared contract explicitly. Admit raw length before
-// CDK copying; malformed input traps before the stateful handler. Failed reply
-// encoding traps as well, rolling back local session/revocation mutations.
-fn argument_guard(maximum: usize) -> Result<(), String> {
-    if ic_platform_runtime::ic0::msg_arg_data_size() > maximum {
-        Err("wire argument too large".into())
-    } else {
-        Ok(())
-    }
-}
-fn admission_guard() -> Result<(), String> {
-    argument_guard(ic_auth_wire::EstablishSession::REQUEST_LIMITS.bytes)
-}
-fn read_guard() -> Result<(), String> {
-    argument_guard(ic_auth_wire::ReadSession::REQUEST_LIMITS.bytes)
-}
-fn logout_guard() -> Result<(), String> {
-    argument_guard(ic_auth_wire::Logout::REQUEST_LIMITS.bytes)
-}
-fn decode_admission(bytes: Vec<u8>) -> SessionInput {
-    ic_auth_wire::EstablishSession::decode_request(&bytes).expect("bounded admission request")
-}
-
-fn decode_read(bytes: Vec<u8>) {
-    ic_auth_wire::ReadSession::decode_request(&bytes).expect("bounded read request");
-}
-fn decode_logout(bytes: Vec<u8>) {
-    ic_auth_wire::Logout::decode_request(&bytes).expect("bounded logout request");
-}
-fn encode_admission(result: Result<SessionView, AdmissionRefusal>) -> Vec<u8> {
-    ic_auth_wire::EstablishSession::encode_response(&result).expect("bounded admission reply")
-}
 fn encode_read(result: Result<SessionView, SessionReadRefusal>) -> Vec<u8> {
-    ic_auth_wire::ReadSession::encode_response(&result.map_err(Into::into))
-        .expect("bounded read reply")
+    crate::control::ReadSession::encode(result.map_err(Into::into))
 }
 fn encode_logout(result: LogoutResult) -> Vec<u8> {
-    ic_auth_wire::Logout::encode_response(&result.into()).expect("bounded logout reply")
+    crate::control::Logout::encode(result.into())
 }
 
 #[cfg(test)]

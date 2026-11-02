@@ -654,6 +654,7 @@ multi-package, multi-feature and multi-target entries are aggregate suites.
 | `make test-host-tooling` | Native file-operation CLI: bounded input, exact digest output, no-follow reads and preserved create-only evidence |
 | `make check-msrv` | Aggregate: isolated public package payloads using the declared compiler, with native/Wasm and feature coverage; internal applications are covered by Clippy |
 | `make test-compiler-policy` | Compiler pin/version/active-selection and Wasm refusal cases; explicit preparation with substituted compiler effects |
+| `make test-validation-inputs` | Discover Cargo workspace manifests for CI sealing; qualify added members, paths with spaces, input drift and discovery refusals |
 | `make tasks` | Read the adopted maintenance task catalog; no task, agent or schedule starts |
 | `make test-qualification` | Build the internal Wasm host; verify real certificates, portable proof/session admission, live authority rejection, root composition, upgrades, authenticated ingress and SDK logout through `ic-testkit` with the checked server and prepared client dependencies |
 | `make build-qualification-canister` | Build the internal host's release Wasm without starting a server |

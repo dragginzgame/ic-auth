@@ -245,7 +245,7 @@ fn delegation_ceiling_binding_and_certificate_time_are_enforced() {
     let f = Fixture::new();
     let c = claims(&f);
     let mut elevated = c.clone();
-    elevated.grants[0].scopes.push("zz".into());
+    elevated.grants[0].scopes.push("zz".parse().unwrap());
     let checked_grants = ValidatedGrants::new(f.proof.cert.grants.clone()).unwrap();
     let mut ctx = context(&f, &c, &checked_grants);
     let elevated_grants = ValidatedGrants::new(elevated.grants.clone()).unwrap();

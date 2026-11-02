@@ -67,7 +67,7 @@ for script in dev/testkit-tools.sh dev/msrv-tools.sh dev/host-file-tools.sh dev/
     dev/test-qualification.sh dev/client-contracts.sh dev/test-client.sh dev/test-client-browser.sh dev/package-client.sh dev/release-tools.sh \
     dev/profile-canonical-allocations.sh dev/test-backend-package.sh \
     ci/check-cargo-dependency-boundaries.sh ci/test-auth-boundaries.sh \
-    ci/check-auth-boundaries.sh ci/test-client-tools.sh ci/check-dependency-pins.sh \
+    ci/check-auth-boundaries.sh ci/test-client-tools.sh ci/check-dependency-pins.sh ci/test-auth-validation.sh \
     release/publish.sh release/metadata.sh release/test-tools.sh; do
     cat > "$consumer/scripts/$script" <<'SCRIPT'
 #!/usr/bin/env bash

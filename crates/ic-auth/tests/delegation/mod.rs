@@ -73,12 +73,6 @@ fn certificate_shape_and_canonical_grants_are_checked_before_root_crypto() {
             vec![grant(&["read"]); 2],
             Error::Canonical(CanonicalAuthError::NonCanonicalRoles),
         ),
-        (
-            vec![grant(&["Read"])],
-            Error::Canonical(CanonicalAuthError::Scope(
-                ic_auth_protocol_types::ScopeLabelError::InvalidSegmentStart { offset: 0 },
-            )),
-        ),
     ] {
         let mut f = Fixture::new();
         f.proof.cert.grants = grants;
@@ -227,8 +221,12 @@ fn every_variable_proof_component_and_witness_count_is_bounded_before_validation
         let mut f = Fixture::new();
         let RootProof::IcChainKeyBatchSignatureV1(root) = &mut f.proof.root_proof;
         match field {
-            "cert_grants" => f.proof.cert.grants[0].scopes.push("a".repeat(2000)),
-            "leaf_grants" => root.delegation_cert.grants[0].scopes.push("a".repeat(2000)),
+            "cert_grants" => f.proof.cert.grants[0]
+                .scopes
+                .resize(32, "a".repeat(64).parse().unwrap()),
+            "leaf_grants" => root.delegation_cert.grants[0]
+                .scopes
+                .resize(32, "a".repeat(64).parse().unwrap()),
             "header_key" => root.header.key_id.name = "a".repeat(2000),
             "signature_key" => root.signature.key_id.name = "a".repeat(2000),
             "key" => root.signature.public_key.resize(2000, 0),

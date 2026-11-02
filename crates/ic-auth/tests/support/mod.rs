@@ -28,7 +28,7 @@ pub fn claims(browser_public_key: [u8; 32]) -> PortableClaims {
         nonce: [0; 16],
         grants: vec![DelegatedRoleGrant {
             target: "user".parse().unwrap(),
-            scopes: vec!["read".into()],
+            scopes: vec!["read".parse().unwrap()],
         }],
     }
 }

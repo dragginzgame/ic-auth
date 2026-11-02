@@ -57,7 +57,7 @@ fn fixture(roles: usize, scopes: usize) -> DelegationProof {
         .map(|role| DelegatedRoleGrant {
             target: format!("role{role:02}").parse().unwrap(),
             scopes: (0..scopes)
-                .map(|scope| format!("scope{scope:02}"))
+                .map(|scope| format!("scope{scope:02}").parse().unwrap())
                 .collect(),
         })
         .collect::<Vec<_>>();

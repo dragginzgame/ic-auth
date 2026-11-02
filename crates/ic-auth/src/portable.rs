@@ -137,7 +137,12 @@ pub fn decode_claims(bytes: &[u8]) -> Result<PortableClaims, PortableEncodingErr
         let count = input.count(MAX_SCOPES_PER_GRANT)?;
         let mut scopes = Vec::with_capacity(count);
         for _ in 0..count {
-            scopes.push(input.label()?.to_owned());
+            scopes.push(
+                input
+                    .label()?
+                    .parse()
+                    .map_err(|_| PortableEncodingError::InvalidShape)?,
+            );
         }
         grants.push(DelegatedRoleGrant { target, scopes });
     }
@@ -193,13 +198,6 @@ fn validate_shape(claims: &PortableClaims) -> Result<(), PortableEncodingError> 
         return Err(PortableEncodingError::AnonymousSubject);
     }
     validate_grants(&claims.grants, MAX_GRANTS, MAX_SCOPES_PER_GRANT)?;
-    if claims
-        .grants
-        .iter()
-        .any(|grant| grant.target.as_str().len() > MAX_LABEL_BYTES)
-    {
-        return Err(PortableEncodingError::InvalidShape);
-    }
     Ok(())
 }
 

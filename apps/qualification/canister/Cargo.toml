@@ -19,14 +19,12 @@ ic-auth-protocol-types.workspace = true
 ic-auth-qualification-contracts.workspace = true
 ic-auth-qualification-fixtures.workspace = true
 ic-auth-wire.workspace = true
-ic-metrics.workspace = true
 ic-platform = { workspace = true, features = ["bls", "certification"] }
 ic-platform-runtime = { workspace = true, features = ["cdk"] }
 ic-storage = { workspace = true, features = ["test-support"] }
 ic-wire.workspace = true
 serde.workspace = true
 # Private component probes decode the same IC certificate envelopes as Platform.
-serde_bytes.workspace = true
 serde_cbor.workspace = true
 
 [lints]

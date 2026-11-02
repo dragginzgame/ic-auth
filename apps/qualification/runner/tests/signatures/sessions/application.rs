@@ -19,7 +19,7 @@ fn scoped_application_updates_use_only_the_live_caller_session() {
         role: "user".parse().unwrap(),
         grants: ic_auth::portable::ValidatedGrants::new(vec![DelegatedRoleGrant {
             target: "user".parse().unwrap(),
-            scopes: vec!["read".into(), "write".into()],
+            scopes: vec!["read".parse().unwrap(), "write".parse().unwrap()],
         }])
         .unwrap(),
         valid_from_ns: now,

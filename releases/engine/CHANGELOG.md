@@ -4,6 +4,43 @@ Covers public `ic-auth` and the unpublished backend conformance, qualification a
 native tooling packages. The independent series starts after the
 [last coordinated release, 0.29.2](../history.md).
 
+## [0.32.0] - Unreleased
+
+### ⚠️ Breaking
+
+- Align grant APIs with Protocol's checked scope labels and 64-byte roles.
+  `canonical::validate_scopes` accepts `ScopeLabel` slices and checks strict
+  ordering; individual label admission belongs to the passive types. Malformed
+  portable scope text is refused as `InvalidShape` while decoding. Signed bytes,
+  verification algorithms, authority checks and valid stored formats are unchanged.
+
+### ⬆️ Dependencies
+
+- Adopt the incoming lock selections for Runtime 0.18.1, Testkit 0.80.1,
+  Wire/derive 0.15.1, Storage 0.65.2, Metrics 0.27.2, Build 0.74.1 and Host
+  FS/Process/Artifacts 0.74.2. Keep the independent file CLI pin at 0.74.1.
+  Advance ctutils to 0.4.8.
+  Regenerated browser contracts are unchanged.
+
+### 🧹 Cleanup
+
+- Remove unused direct Metrics and Serde-bytes dependencies from the private
+  qualification canister. Keep metrics with the shared fixtures and certificate
+  envelope bytes with Wire; tighten direct Metrics ownership accordingly.
+- Share private canister codec bindings and use each method's canonical request
+  ceiling before copying input. Consolidate login record serialization without
+  exposing unchecked deserialization or changing its stored bytes.
+- Consume checkpoint buffers during restoration and profile a borrowed session.
+  Move owned role strings through fixture projections and declare the private
+  enrollment field mapping once. Share primitive browser u64 admission while
+  preserving each owner's clock, expiry and positivity rules.
+
+### 🧪 Testing
+
+- Derive the CI manifest seal from Cargo's admitted workspace inventory, including
+  newly added members. Refuse incomplete discovery and changed preparation inputs;
+  qualify paths with spaces and preserve the complete CI/release stage roster.
+
 ## [0.31.0] - 2026-11-02
 
 ### ⚠️ Breaking

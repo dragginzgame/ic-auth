@@ -128,7 +128,7 @@ fn sdk_preserves_typed_refusals_and_retries_the_original_future_credential() {
         role: "user".parse().unwrap(),
         grants: ic_auth::portable::ValidatedGrants::new(vec![DelegatedRoleGrant {
             target: "user".parse().unwrap(),
-            scopes: vec!["read".into()],
+            scopes: vec!["read".parse().unwrap()],
         }])
         .unwrap(),
         valid_from_ns: now,
@@ -230,7 +230,7 @@ fn issuer_scoped_accounts_survive_wire_projection_and_independent_logout() {
         role: "user".parse().unwrap(),
         grants: ic_auth::portable::ValidatedGrants::new(vec![DelegatedRoleGrant {
             target: "user".parse().unwrap(),
-            scopes: vec!["read".into()],
+            scopes: vec!["read".parse().unwrap()],
         }])
         .unwrap(),
         valid_from_ns: now,
@@ -336,7 +336,7 @@ fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ingress()
         role: "user".parse().unwrap(),
         grants: ic_auth::portable::ValidatedGrants::new(vec![DelegatedRoleGrant {
             target: "user".parse().unwrap(),
-            scopes: vec!["read".into()],
+            scopes: vec!["read".parse().unwrap()],
         }])
         .unwrap(),
         valid_from_ns: now,
@@ -830,7 +830,7 @@ fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_authority() 
         role: "user".parse().unwrap(),
         grants: ic_auth::portable::ValidatedGrants::new(vec![DelegatedRoleGrant {
             target: "user".parse().unwrap(),
-            scopes: vec!["read".into()],
+            scopes: vec!["read".parse().unwrap()],
         }])
         .unwrap(),
         valid_from_ns: now,
