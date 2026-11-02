@@ -3,7 +3,7 @@
 Covers `ic-auth-protocol-types` and `ic-auth-wire`, released together.
 The independent series starts after the [last coordinated release, 0.29.2](../history.md).
 
-## [0.32.0] - Unreleased
+## [0.32.0] - 2026-11-02
 
 ### ⚠️ Breaking
 
