@@ -4,7 +4,7 @@ Covers public `ic-auth` and the unpublished backend conformance, qualification a
 native tooling packages. The independent series starts after the
 [last coordinated release, 0.29.2](../history.md).
 
-## [0.31.0] - Unreleased
+## [0.31.0] - 2026-11-02
 
 ### ⚠️ Breaking
 
