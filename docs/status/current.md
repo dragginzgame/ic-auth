@@ -10,6 +10,8 @@ and publish the three 0.32.0 crates to crates.io. Use the dedicated checkout
 Storage 0.65.2, Build 0.74.1 and ctutils 0.4.8 landed after focused qualification;
 the release gates must qualify this frozen selection. Later development updates
 stay outside that checkout. No service, sibling or npm deployment is included.
+The initial attempt was interrupted to correct the scope-validator documentation;
+its `validation.DpoFIl` logs remain retained. Restart fresh after the doc commit.
 
 ## Delivered 0.31.0
 
@@ -27,10 +29,6 @@ lint, isolated archive/compiler consumers, 70 browser tests, crypto/session test
 11 live PocketIC tests and the full release/recovery/publication fixture.
 Protocol gate: `validation.Zw2P6z`; Engine gate: `validation.OxL1Ze`,
 both under `/tmp/ic-auth-release.x4YbcZ/.git/release-state/validation-logs/`.
-Source adoption is `ac0d196`; `3e72767` fixes the simulated positive host graph's
-missing Storage and adds missing/duplicate/retired/native-provider refusals.
-The original failed gate and passing standalone retry remain under that
-checkout's `target/delivery/`; failures were retained, never bypassed.
 
 Keep `/tmp/ic-auth-release.x4YbcZ`, both completed group plans, validation receipts,
 publication intents/dispatch observations, archives and raw logs. No resume or
@@ -135,21 +133,15 @@ Protocol 0.31, Types 0.17, Wire 0.15 and Platform 0.18 at their selected boundar
 [Auth #124](https://github.com/dragginzgame/ic-auth/issues/124) is closed against
 `28ee29d12122cfbfe05b19a49460bd5ee79bf7c8` and the all-host passing
 [CI 41434941116](https://github.com/dragginzgame/ic-auth/actions/runs/41434941116).
-That delivery contained the ten complexity cuts, Rust 1.99.1, Shared 0.27.26,
-Memory/Storage 0.63 and Metrics 0.26. Retain its `target/issue124-delivery/`,
-`target/shared-tooling-0.27.26/`, `target/memory-metrics-storage-adoption/` and
-`target/complexity-hard-cut/` evidence. The earlier matched raw Wasm observation
-was 2,065,826 → 2,042,064 total and 1,543,468 → 1,530,443 code bytes on the older
-0.62.1/0.25.1 lock; no new size or speed claim is made by this release.
+Retain all historical artifacts and evidence recorded in the preceding handoff
+at `d08ae8916dca83b6583e1550173328b877ddd41f`; no cleanup is authorized. Its
+older matched Wasm observation does not establish a saving for this release.
 
 Protocol 0.30.0 remains at `ec0233f3c4d746bb9bf7009f7432683a57c0b616`,
 Engine 0.30.0 at `80459e300cdb6fb67a94ff45d33f0774ebf0bd9f`, with their group
 tags. Preserve historical journals/receipts and the recorded original checkout
 `/tmp/ic-auth-release.EqLgnm` if present. Historical recovery uses its original
-adapter, saved source/group/version and storage formats. Older evidence remains
-under `target/persistence-wire-delivery/`, `target/cohort-adoption/`,
-`target/memory-storage-adoption/`, `target/release-groups-work/` and
-`target/types-boundary.BvpfC1/`.
+adapter, saved source/group/version and storage formats.
 
 [Canic #491](https://github.com/dragginzgame/canic/issues/491) owns installed
 adoption, issuer/renewal, guards, durable backend and browser acceptance; #720 owns

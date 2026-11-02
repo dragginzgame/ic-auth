@@ -24,14 +24,14 @@ The rejection order is fixed:
 4. Zero delegated token TTL (`Lifetime(TokenTtlZero)`), then above the host token bound
    (`Lifetime(TokenTtlExceeded)`), then above certificate duration (`Lifetime(TokenTtlOutlivesCert)`).
 5. Empty or oversized grants (`Grants(Empty)`, `Grants(TooMany)`). For each grant,
-   noncanonical role order, empty or oversized scopes, then scope grammar and
-   strictly sorted unique scopes. Cardinality causes carry actual/maximum counts
-   and affected roles. Grant grammar/order errors are `Grants(Canonical(cause))`;
-   the typed causes and rejection order are unchanged. Lifetime causes are carried
+   noncanonical role order, empty or oversized scopes, then strictly sorted unique
+   scopes. Cardinality causes carry actual/maximum counts and affected roles.
+   Grant ordering errors are `Grants(Canonical(cause))`. Lifetime causes are carried
    by `CertificateLifetimeError`, without duplicate issuance variants.
 6. Recomputed issuer-proof binding hash mismatch (`IssuerProofBindingHashMismatch`).
 
-`AuthRole` already enforces role grammar at construction and decoding. A Canic DTO
+`AuthRole` enforces role grammar and the 64-byte bound at construction and decoding.
+Grant scopes use `ScopeLabel`, which checks each label at the same boundary. A Canic DTO
 projection must preserve its existing invalid-role error there; do not manufacture
 an unchecked library role. No role label supplies application authority. Scope
 validation and hashing reuse the canonical encoding owner. Validation borrows the
@@ -47,7 +47,7 @@ with zero Root/issuer proof callbacks. See the [consumer evidence](https://githu
 That choice is locally qualified in its held integration batch; consumer delivery
 and complete session-engine acceptance remain separate. Do not bypass `AuthRole`
 validation or manufacture substitute signed fields to hide a projection error.
-The producer's ordered contract covers validly constructed passive roles.
+The producer's ordered contract covers validly constructed passive roles and scopes.
 
 Anonymous principals, current-clock acceptance, issuer approval, enrolled Root
 policy and certificate freshness are deliberately separate obligations. Complete
@@ -73,7 +73,7 @@ exposes the same rules without requiring a certificate, expiry arithmetic or
 issuer proof. `GrantValidationError` carries empty/count failures, affected roles
 and existing canonical causes. Zero bounds reject nonempty corresponding values;
 equality is accepted. The grant-count check precedes per-grant role ordering,
-scope count, label grammar and strict scope ordering. Issuance carries these
+scope count and strict scope ordering. Issuance carries these
 causes directly in `Grants`; delegation verification retains its separate error
 projection and uses this owner.
 
@@ -86,9 +86,9 @@ wins before left-to-right byte errors; offsets are UTF-8 byte offsets. Static
 constructors can match the returned `Result` in const evaluation. The existing
 `canonical::validate_scope_label` projects `CanonicalAuthError::Scope(cause)`.
 Owned `ScopeLabel` construction and deserialization use this same grammar without
-normalizing bytes. Request and operation-scope getters expose checked labels;
-raw submitted proof grants remain strings and are checked at their existing stage.
-`canonical::validate_scopes` borrows a string slice and checks grammar and strict
+normalizing bytes. Grants, requests and operation-scope getters expose checked
+labels. Raw proof/transport text must pass label admission before it becomes a
+passive grant. `canonical::validate_scopes` borrows `&[ScopeLabel]` and checks strict
 unique byte ordering; it permits an empty list and does not impose a count bound.
 
 These are shape checks, never resource grants. Canic retains its namespace and
@@ -96,8 +96,9 @@ resource policy, 16/32 bounds, sorting at configuration boundaries and intention
 empty disabled configuration. Do not invoke bounded nonempty validation where
 empty configuration is valid. Keep its signed registry/key-policy envelope and
 encoding unchanged while reusing scope ordering. Raw role projection still needs
-an explicit consumer refusal contract: eager conversion of a later malformed role
-can precede an earlier scope error. No producer API bypasses passive role parsing.
+an explicit consumer refusal contract: eager conversion of a later malformed label
+can precede an earlier count or ordering error. No producer API bypasses passive
+role or scope parsing.
 [Auth #50](https://github.com/dragginzgame/ic-auth/issues/50) owns producer work;
 [Canic #491](https://github.com/dragginzgame/canic/issues/491) owns consumer adoption
 and retirement of duplicate checks.
