@@ -1,100 +1,248 @@
-# Current handoff — 2026-11-02
+# Current handoff — 2026-11-03
 
-## Delegated 0.32 delivery
+## Protocol/Engine 0.33 release preparation
 
-The user requested deployment of the cleanup: standard Protocol and Engine minor
-releases, exact commits/tags pushed to origin/main and all three crates published
-to crates.io. No service, sibling, npm deployment or data reset is authorized.
-Keep the dedicated release checkout `/tmp/ic-auth-release.qoEtNy` isolated from
-ordinary edits. Development changes belong here, then fast-forward that checkout
-only when its release process is stopped and source/index are admitted clean.
-`target/complexity-032-delivery/` records delivery scope, source and evidence.
+The maintainer requested delivery of the completed upstream and validation batch.
+The selected order is Protocol 0.33.0 (`ic-auth-protocol-types`, `ic-auth-wire`),
+then Engine 0.33.0 (`ic-auth`). Source preparation is in the normal Auth checkout;
+release gates, group version preparation and publication use a separately
+approved dedicated checkout. The destination is `dragginzgame/ic-auth` on
+`origin/main`, annotated `protocol-v0.33.0` / `engine-v0.33.0`, and crates.io.
+No application service or Canic deployment is included. The observations below
+precede release preparation and do not establish delivery of this candidate.
 
-Protocol **0.32.0** is published and checksum-verified at
-`d31dc297e5026c2e6d2b1b97af99a761b50ae686`, annotated tag `protocol-v0.32.0`.
-Its complete gate passed in `validation.xgxTtJ`, under the release checkout's
-`.git/release-state/validation-logs/`. Source is
-`119ea01520b9c129a8dd37a7c206a5d5792a5263`; publication evidence is
-`target/publication-protocol-0.32.0.ZMVFZG/` there. Engine remains **0.31.0** with
-pending **0.32.0** notes; no Engine 0.32 commit, tag or upload occurred.
+## Auth validation ownership — [#125](https://github.com/dragginzgame/ic-auth/issues/125)
 
-The first Engine gate passed locally (`validation.021air`) against the Protocol
-commit, but delivery stopped during preparation because the hosted Protocol run
-[41523561693](https://github.com/dragginzgame/ic-auth/actions/runs/41523561693)
-failed its Apple Silicon client test. The 5 ms real deadline could precede mocked
-transport entry after IndexedDB work. The repair uses Node's controlled timers,
-waits for transport entry, then advances the same 5 ms deadline; production code
-and timeout/cancellation assertions are unchanged. Its focused regression passes;
-client-suite evidence is `target/complexity-032-delivery/controlled-clock-client-suite.log`.
+Auth now delegates canonical run-evidence admission, roster validation and
+baseline observation to Shared Tooling 0.28.3. The local generic evidence parser
+is deleted. `validation-plan.pl` retains product exclusions and complete source
+custody; `validation-record.pl` binds Shared's opaque proof to Auth's receipt.
+Schema-4 receipts preserve original-source/notes admission and retained proof
+bytes during interrupted preparation. Exact committed publication admits that
+self-contained record in a fresh clone. Historical schema-2/3 attempts require
+their original adapters; the earlier frozen qualification below keeps its own
+meaning and is not reinterpreted.
 
-The stopped Engine plan is in phase `prepare`, bound to the Protocol source.
-Tracked files/index remain unchanged and no candidate tag exists. Preserve its
-plan, receipt, `metadata.iS4j8p` and logs. Commit the test repair, then start a
-fresh normal Engine release and complete gate from that source. Do not reuse the
-older successful gate as proof of the repaired source or run exact resume with it.
+CI discovers manifests from Shared's admitted Cargo group plans, retaining the
+before/after discovery seal and every returned member even with unequal group
+versions. No new Cargo inventory or event/timing parser is maintained here.
+Ordinary CI remains the full 30-stage gate. Both mappings run additionally only
+under explicit `qualify_release_groups` workflow dispatch. No whole-gate reuse,
+version projection or product/crypto/runtime change is introduced.
 
-Earlier attempts remain retained: `validation.DpoFIl` was interrupted for the API
-documentation correction; `validation.tf4ZxL` caught a nested console assertion;
-`validation.CiPdKc` caught missing read-only inventory in the Testkit substitute.
-Repaired fixtures inspect retained checkpoints and preserve real Cargo inventory
-while substituting product effects. Nested input-seal, Testkit and client caller
-regressions pass. Do not erase these attempts or disable source-drift admission.
+Focused consumer qualification is retained under `target/issue-125/`.
+Group dispatch/Shared evidence (`group-rerun.log`, `release-validation.ZuGdwf`),
+the separate actual-CI roster refusal (`roster-caller-final.log`), unequal-version
+manifest discovery (`discovery-final.log`, `auth-validation.p8w3v8`) and Testkit
+caller checks (`testkit-caller.log`, `testkit-tools.shK9Is`) pass. The final focused
+release fixture passes (`recovery-focused.log`, `release-tools.S8whci`): actual
+metadata, changed-retained-log refusal, exact resume without gate replay,
+fresh-clone publication, both groups and unselected identity/ledger preservation.
+It uses local Git/bare remotes and mocked stage/upload effects; stopped and failed
+attempts are retained separately, not counted as passes. ShellCheck, Perl syntax,
+documentation links and diff whitespace checks pass. The complete CI target
+retains its full setup/registry/recovery matrix. Full CI, Rust/MSRV,
+new hosted/macOS mapping measurements and publication are outside this batch.
+These focused checks completed in the requested checkout before source preparation.
 
-## Scope and frozen selections
+## Current upstream update and Canic review
 
-Audit items 1–9 are implemented: shared private codec bindings and canonical
-per-method guards; one login record representation; consuming checkpoint restore;
-borrowed session profiling; owned role projections; checked grant scopes and
-64-byte roles; one private enrollment roster; shared browser u64 checks; and
-Cargo-discovered CI manifest sealing. The maintainer confirmed no retained roles
-above 64 bytes need preservation. Valid signed/Wire/storage bytes and crypto/trust
-checks remain unchanged; malformed portable scopes fail as `InvalidShape` at decode.
-The private canister also drops unused direct Metrics and Serde-bytes declarations.
+The current maintainer request adopts published upstream dependencies and reviews
+Canic adoption. Existing uncommitted group-CI and conformance work is preserved.
+The selected family is Platform/PocketIC **0.20.0**, Types **0.18.0**, independent
+Runtime/macros/guard **0.19.0**, Testkit **0.83.0**, Metrics **0.28.2**, Storage
+**0.66.1**, Wire/derive **0.16.0**, Build **0.74.1**, Host libraries and the
+independent file CLI **0.74.2**. Browser SDK **0.1.1** is still latest. All current
+published selections were checked against the supplier registries. Shared Tooling
+**0.28.3** is adopted at merged `07f41c2723850f8fd86c61f2f50e65b0c6cde886`;
+all 149 payloads match that independently selected source. Its VERSION is stable;
+this does not assert a matching release tag.
 
-Group-scoped release validation (item 10) remains unselected. Both groups retain
-the complete gate. No matched Wasm or latency improvement is claimed.
-Earlier focused evidence is under `target/complexity-031/`; the later release gates
-qualify the frozen package selections. Chromium remains opt-in and was not run.
+This upstream selection supplies the Shared helpers used by the #125 consumer
+migration above. Routine CI still runs one full gate and group comparison stays opt-in.
 
-The release selects Platform **0.18.0**, Types **0.17.0**, Runtime/macros/guard
-**0.18.1**, Wire/derive **0.15.1**, Storage **0.65.2**, Metrics **0.27.2**, Testkit
-**0.80.1**, Build **0.74.1**, Host FS/Process/Artifacts **0.74.2** and ctutils
-**0.4.8**. The independent file CLI stays **0.74.1**. PocketIC server **16.1.0**
-and browser SDK **0.1.1** are unchanged. Generation/review found all five browser
-files unchanged. Later development dependency edits must remain outside the
-frozen release checkout and are not qualified by its receipts.
+Native runner/fixture and Wasm canister Clippy, five Metrics cases, one fixture
+unit case, four real file-CLI caller cases, selected normal/Wasm graphs,
+manifest-input caller tests, dependency pins and actual group-dispatch/refusal
+tests pass. Testkit/server, Host file and release-editor
+setup is explicit. Three selected real pairing cases pass: certified proof with
+upgrade, signed ingress after upgrade, and SDK receiver/device admission plus logout. Each exact
+filter runs one named test; the SDK case exercises lost-reply/reopened-journal
+recovery without reissuance, two receivers/devices, independent durable logout
+and retained-key refusal. Their logs are `certified-upgrade.log`,
+`signed-ingress.log` and `sdk-sessions.log` in the evidence directory. Full CI,
+archive/MSRV matrices and hosted/native macOS acceptance are not inherited from the previous cohort. Evidence is under
+`target/upstream-20261103/`. Wire/derive remained 0.16.0, so its browser runtime
+generator selection did not change. Native entrypoints were compiled without
+advertising production wallet or Canic installation acceptance.
 
-Shared Tooling **0.27.28**, `8c7fae6605c69a930e3b1f14e1ff5c4c9dafbcb7`, is
-source-verified (145 payloads). Rust **1.99.1** is pinned/minimum. The host retains
-one Runtime/generator/guard; public capability graphs exclude Runtime, native SDKs,
-Storage and Candid. Passive identities use Types directly; crypto capabilities
-select Platform explicitly. The native boundary retains explicit external conversion.
+Canic source review is read-only at HEAD `0509ec870891515923f79d3932ece127b351cd15`
+plus its owned dirty integration. Controlled-local receiver/guards and issuer-key
+registration now exist. Both #720 helpers are already in its uncommitted adapter;
+qualification/closure remains with Canic. #491 retains production clock bounds,
+snapshot fencing, issuance/reconciliation, browser delivery and installed proof.
+The published Timers 0.38.1 still selects Runtime 0.18.1 and blocks a complete
+Runtime 0.19 singleton family. Host Tools 0.80 is now published with Types 0.18;
+Query 0.89 uses that Types identity too. Auth's matching 0.33 Protocol/Engine
+cohort is still unpublished. No new missing Auth API was found. See
+`docs/canic-adoption.md` for exact ownership and evidence limits. No sibling edits,
+issue mutations, real commits, pushes, releases or deployments were performed.
 
-## Storage, trust and retained custody
+## Previous group-CI qualification (earlier dependency cohort)
 
-Storage 0.65 replaced Memory/stable-structures in the private checkpoint host and
-requires fresh backing. Old manager/ledger images are refused without fallback or
-reset. No retained backing was cleared; production needs its own reviewed whole-
-image transition. No production wallet service/backend is deployed here. The host
-owns checked allocation, clock, atomicity, protected generation and root publication.
+The maintainer requested Shared's group CI rules. Auth now owns one ordered
+30-stage roster in `ci/release-validation.json`; ordinary CI always runs it all.
+Source-only Protocol plans retain 29 stages, Engine 27. Coverage reasons are in
+`ci/release-validation-coverage.json`; shared/unknown changes select all 30.
+Both retain complete Clippy/MSRV/graph/browser/crypto/session/canister/archive
+obligations. Scripts, locks, manifests, generators and cross-owner changes are full.
+The adapter uses Shared's plan runner and Auth's complete source inventory checks
+before/after every stage. No stage reuse or Cargo version projection is enabled.
 
-Keep `AUTHNAT3`, session/login IDs `0x415554485311` / `0x415554485313` and replay
-`0x415554485302`. Preserve cryptographic algorithms, signed material, certificate
-and delegation checks and the TEE/non-TEE model. There is no verification-result
-cache. Canic consumers must adopt Protocol 0.32's checked labels explicitly.
+That frozen source's schema-3 receipts carry plans, original context and stage log hashes. Unfinished
+releases re-admit retained proof bytes; exact committed releases can publish from
+fresh clones using their self-contained record. Schema-2 recovery uses its original
+checkout. See `docs/auth-release-validation.md`. Explicit native workflow dispatch
+with `qualify_release_groups=true` compares both mappings with its same-source
+full gate and retains successful proof artifacts; ordinary CI runs one full gate.
+Linux full/group qualification passes. macOS Intel/Apple Silicon comparisons await
+explicit workflow dispatch; no hosted result is inferred from the Linux run.
+The full gate seals its starting clean-source attestation; comparisons reject
+evidence from a different HEAD or dirty source.
+Dispatch tests with substituted stage bodies cover both groups, full expansion,
+required/excluded failures, drift, stale plans, corruption and ordinary CI routing.
+Release/resume/publication fixture qualification passes, including fresh-clone
+publication (`release-tools.00q6Jn` in the full gate and focused
+`release-tools.Q9viuF`, local Git/mocked upload effects). Keep failed
+and interrupted attempts in target. Native tooling tests consume Wire contracts
+and are retained in both groups; only unchanged release fixtures are omitted in
+Protocol, with passive Protocol unit tests additionally omitted in Engine.
 
-Protocol **0.31.0** remains at `ae8ae1dc20c26d70a026dc9481a465f4d39338fd` and
-Engine **0.31.0** at `38ba68f6ad06735d94566e964c11169bf46413da`, with their group
-tags and verified publications. Keep `/tmp/ic-auth-release.x4YbcZ` and all saved
-release/publication custody; no uncertain upload remains. Earlier 0.30 identities,
-evidence paths and historical measurements are recorded in the preceding handoff
-at `d08ae8916dca83b6583e1550173328b877ddd41f`. Preserve that evidence and
-`/tmp/ic-auth-release.EqLgnm` if present; recover historical attempts with their
-original adapter, source, group, versions and formats. No cleanup is authorized.
+Linux evidence uses frozen source `e2bb7024cab4e6bf40e691925ea9ae241b0aca3e`
+in `target/group-validation-adoption/source.ZklNDJ/`. Full gate
+`target/ci-validation-sequential/validation.OjiP20/` passed all 30 stages.
+`target/release-validation/qualification.O0jl30/comparison.json` binds that full
+proof to Protocol's 29 passes/1 exclusion and Engine's 27 passes/3 exclusions;
+both raw evidence sets were checked again after collection. Summed observed stage
+times: full **1245 s**, Protocol **382 s**, Engine **388 s** (same source/Linux host).
+These are qualification observations, not production/Wasm measurements.
+The standalone helper's Make target environment fix followed that frozen cohort;
+`target/release-group-make-context.log` passes the focused regression with the
+actual Make export and an initially unset target. The unchanged cohort's real
+comparison used the equivalent explicit target. The `.git` evidence-path/Testkit
+caller probe passed (`path-probe.9eDS4x`).
 
-[Auth #124](https://github.com/dragginzgame/ic-auth/issues/124) is closed against
-`28ee29d12122cfbfe05b19a49460bd5ee79bf7c8` and passing all-host
-[CI 41434941116](https://github.com/dragginzgame/ic-auth/actions/runs/41434941116).
-[Canic #491](https://github.com/dragginzgame/canic/issues/491) owns installed
-adoption, issuer/renewal, guards, durable backend and browser acceptance; #720 owns
-storage deduplication. No sibling checkout or deployment was changed.
+Pending notes select **Protocol 0.33.0** and **Engine 0.33.0** for public dependency
+identity alignment and the new release receipt contract. Package versions remain
+0.32.0. No real commit, tag, push, publication, sibling edit or deployment is made.
+
+## Previous dependency qualification
+
+The previous qualification used published Platform/PocketIC/
+Runtime/macros/guard **0.19.0**, Types **0.18.0**, Testkit **0.82.0**, Wire/derive
+**0.16.0** and Storage **0.66.1** (incoming patch after the 0.66.0 cohort). This resolves the prior duplicate Runtime,
+Principal schema and Testkit Limits blockers. Platform 0.20/PocketIC 0.20 are
+separate optional adapter cuts; this batch retains Testkit 0.82's matching 0.19
+family. Metrics 0.27.2, Build 0.74.1, Host libraries 0.74.2 and file CLI 0.74.1
+remain selected. Rust 1.99.1, PocketIC server 16.1.0 and browser SDK 0.1.1 stay.
+
+Native fixtures explicitly handle PocketIC's fallible calls without adding retries.
+Native runner Clippy passes. All five browser files were regenerated and reviewed
+unchanged; all 70 browser tests, Rust/TS interoperability and packed consumer checks
+pass. Testkit 0.82 and the release editor are explicitly prepared. New-graph
+native/Wasm Clippy, dependency boundaries and isolated MSRV checks pass. Actual
+canister qualification passes (11 tests, 1 separate Chromium case ignored).
+PocketIC transport scratch uses a short recorded `/tmp` path to avoid Unix socket
+limits; canister state/logs remain under target. The caller fixture verifies
+cleanup on success and retention on failure. All three local package archives
+also build together on the new identity cohort.
+The late incoming lock changed only Storage 0.66.0 to 0.66.1. Both registry
+archives match their locked checksums; every library source file is identical,
+and the normalized manifest changes only its version. Changes are confined to
+release examples/tooling outside Auth's selected graph. Focused Wasm Clippy for
+the qualification canister passes on 0.66.1. Evidence is
+`target/storage-0661-source-review.json` and `target/storage-0661-clippy.log`.
+Keep the earlier full/group measurements explicitly on 0.66.0.
+
+Retain failed/interrupted attempts. `validation.WlxbFr` failed its last fixture
+on disk exhaustion (`release-tools.pFmFMz`); `validation.Mfsk9G` lost active `/tmp`
+scratch (`release-tools.p5e3yk`). The maintainer confirmed cleanup paused.
+`validation.s1JBEn` lost Cargo's unpacked temporary-registry source during archive
+verification; the isolated retry passed (`target/package-builds.retry.log`). The
+successful final comparison ran sequentially with normal scratch under the
+checkout's `target/portable-fixtures/`; only socket scratch uses `/tmp`.
+The first group attempt (`qualification.JCa5Xi`) correctly refused the changed
+Make target environment. Keep it alongside the successful attempt; never turn
+failed full attempts into passing evidence. Older 0.30–0.32 custody is corrected
+below after cleanup removed those locations.
+Evidence: `target/group-validation-adoption/` and `target/release-group-*.log`.
+Earlier failed registry trials remain in `target/platform-019-adoption/`,
+`target/platform-latest-adoption/`, `target/upstream-033-adoption/` and
+`target/platform-wire-adoption/`. The former two-Runtime prerequisite failure is
+retained at `target/release-group-runtime-prerequisite.log`.
+
+That earlier cohort used Shared Tooling **0.28.0**, commit
+`70939d3b6ca335cb718363b47f15cc616c3bed1c`, with 145 source-verified payloads.
+No private-package restructuring is activated. Auth's delivery authority rules
+remain binding; adopting a plan does not authorize remote or release effects.
+
+## Canic support and archive boundary
+
+The shared backend contract adds scoped callbacks, unadmitted caller/changed issuer
+refusals and before/exact/after expiry, before and after reopen. Eight native tests
+and focused Clippy passed on the earlier 0.32 graph. The candidate archives and
+receipts in `target/canic-adoption-032/delivery/manifest.json` also passed their
+registry/backend and browser-consumer checks on that earlier cohort. They retain
+base `bbcd4cc` plus dirty inputs, Platform 0.18 and Types 0.17. They are not delivery
+proof for current source. New backend archives require published matching 0.33
+libraries; do not mix registry 0.32 with current Types 0.18 source.
+
+Original archive evidence is `target/portable-fixtures/backend-package.9VuiS0/`
+and `target/browser-client-packages/package.YRrwfx/`; the earlier backend
+`backend-package.4hpO9J` predates a README correction. Reference backends and fake
+IndexedDB/injected transports do not qualify Canic production storage, installed
+endpoints or Chromium. Canic #491 owns production issuer/renewal, guards, durable
+backend and browser acceptance; #720 owns storage deduplication.
+
+## Delivered releases and recovery custody
+
+Published/checksum-verified Protocol **0.32.0** is commit
+`d31dc297e5026c2e6d2b1b97af99a761b50ae686`, tag `protocol-v0.32.0`; Engine
+**0.32.0** is `bbcd4cc694e91f3b133d9c5bf0dc25c012b6d481`, tag `engine-v0.32.0`.
+Both tags/main were pushed; no service/npm/sibling/reset effects occurred.
+The former `/tmp/ic-auth-release.qoEtNy` checkout is now absent after cleanup,
+as is `target/complexity-032-delivery/`. Its local raw proof/archive custody must
+not be claimed available. No uncertain upload or release/helper lock remained
+at delivery. Development is based on `bbcd4cc` and
+preserves its incoming dependency work outside that frozen checkout.
+
+Original complete gates are `validation.xgxTtJ` (Protocol source `119ea015`) and
+`validation.6Sm2XS` (Engine source `e93794c`) under the release clone's
+`.git/release-state/validation-logs/`. Publication evidence there is
+`target/publication-protocol-0.32.0.ZMVFZG/` and
+`target/publication-engine-0.32.0.S8p3im/`. Development copies receipts/checksums,
+remote refs, interrupted/failed attempts and source/lock preservation facts under
+the now-missing `target/complexity-032-delivery/`. These paths describe original
+delivery evidence, not currently available copies. The Engine source includes the controlled-clock
+repair for the old hosted browser timeout race; no fresh native-host CI status is
+inferred for this new batch. Audit items 1–9 shipped in 0.32; retain their ledgers.
+
+Earlier 0.31 identities are Protocol `ae8ae1dc`, Engine `38ba68f6` and their tags;
+the former `/tmp/ic-auth-release.x4YbcZ` and 0.30 `/tmp/ic-auth-release.EqLgnm`
+checkouts are also now absent. Earlier 0.30 identities/evidence remain described in the handoff
+at `d08ae8916dca83b6583e1550173328b877ddd41f` and `/tmp/ic-auth-release.EqLgnm`.
+Historical recovery requires its original source, adapter and formats; do not
+manufacture missing raw validation evidence from release tags or passing summaries.
+
+## Storage and trust
+
+Keep `AUTHNAT3`, session/login IDs `0x415554485311` / `0x415554485313`, replay
+`0x415554485302`, valid signed/Wire/storage bytes and every crypto/delegation/
+certificate check. Auth has no Account DTO and no verification-result cache.
+The TEE/non-TEE trust model is unchanged. No production wallet service/backend
+is deployed. The maintainer confirmed no retained roles above 64 bytes.
+Storage's consolidated backing still requires fresh state; old manager/ledger
+images refuse without fallback/reset. No retained backing was cleared. Production
+needs a reviewed whole-image transition. The host owns clock, checked allocation,
+atomicity, protected generation and certification-root publication. No matched
+Wasm or latency improvement is claimed from this batch.

@@ -12,19 +12,28 @@ printf 'Auth validation input evidence retained: %s\n' "$evidence"
 export VALIDATION_LOG_DIR="$evidence/logs" VALIDATION_FAILURE_LOG_DIR="$evidence/failure-logs"
 consumer="$evidence/consumer with spaces"
 mkdir -p "$consumer/scripts/ci" "$consumer/first/src" "$consumer/added member/src" "$evidence/bin"
-for helper in run-auth-validation.sh run-validation-targets.sh check-make-execution.sh verify-file-checksum.sh validation-input-checkpoint.pl release-validation-plan.pl; do
+for helper in run-auth-validation.sh run-validation-targets.sh check-make-execution.sh verify-file-checksum.sh validation-input-checkpoint.pl release-validation-plan.pl ValidationPlan.pm cargo-release-group.sh cargo-release-groups.jq release-metadata-transaction.sh compare-stable-versions.pl; do
     cp "scripts/ci/$helper" "$consumer/scripts/ci/"
 done
 cat > "$consumer/Cargo.toml" <<'TOML'
 [workspace]
 members = ["first"]
 resolver = "3"
+[workspace.dependencies]
+first = { path = "first", version = "0.0.0" }
 TOML
 for member in first 'added member'; do
     name="${member// /-}"
     printf '[package]\nname = "%s"\nversion = "0.0.0"\nedition = "2024"\n' "$name" > "$consumer/$member/Cargo.toml"
     printf '// Fixture library.\n' > "$consumer/$member/src/lib.rs"
 done
+cat > "$consumer/ci-policy.json" <<'JSON'
+{"schema":1,"shared_metadata_files":[],"groups":[{"name":"first","primary":"first","version":"package","members":["first"],"changelog":"FIRST.md","dependencies":["first"]}]}
+JSON
+mkdir -p "$consumer/ci"
+cp "$consumer/ci-policy.json" "$consumer/ci/cargo-release-groups.json"
+printf '# Fixture notes\n' > "$consumer/FIRST.md"
+printf '# Fixture notes\n' > "$consumer/ADDED.md"
 cat > "$consumer/Makefile" <<'MAKE'
 pass:
 	@touch passed
@@ -39,6 +48,15 @@ MAKE
 [[ -f "$consumer/passed" ]]
 rm "$consumer/passed"
 perl -pi -e 's/members = \["first"\]/members = ["first", "added member"]/' "$consumer/Cargo.toml"
+printf '\nadded-member = { path = "added member", version = "0.0.0" }\n' >> "$consumer/Cargo.toml"
+jq '.groups += [{name:"added",primary:"added-member",version:"package",members:["added-member"],changelog:"ADDED.md",dependencies:["added-member"]}]' \
+    "$consumer/ci-policy.json" > "$consumer/ci/cargo-release-groups.json"
+# Unequal group versions must remain valid through the shared admission.
+sed 's/version = "0.0.0"/version = "0.1.0"/' "$consumer/added member/Cargo.toml" > "$evidence/added.toml"
+cp "$evidence/added.toml" "$consumer/added member/Cargo.toml"
+sed 's/path = "added member", version = "0.0.0"/path = "added member", version = "0.1.0"/' \
+    "$consumer/Cargo.toml" > "$evidence/root.toml"
+cp "$evidence/root.toml" "$consumer/Cargo.toml"
 (cd "$consumer"; cargo generate-lockfile --offline; bash scripts/ci/run-auth-validation.sh pass) > "$evidence/added.log" 2>&1
 [[ -f "$consumer/passed" ]]
 rm "$consumer/passed"
@@ -72,4 +90,4 @@ for failure in true false; do
     [[ "$status" != 0 && ! -e "$consumer/passed" ]]
     if [[ "$failure" == true ]]; then [[ "$status" == 37 ]]; fi
 done
-printf 'Cargo member discovery, added member sealing, drift and discovery refusals passed\n'
+printf 'Shared group-plan discovery, unequal versions, added member sealing and drift/refusals passed\n'

@@ -30,7 +30,10 @@ fn scoped_application_updates_use_only_the_live_caller_session() {
     };
     install(&f, f.signer, &config);
     install(&f, f.resource, &config);
-    f.pic.instance().advance_time(Duration::from_secs(1));
+    f.pic
+        .instance()
+        .advance_time(Duration::from_secs(1))
+        .unwrap();
     let now = f.now();
     let reader_claims = PortableClaims {
         mechanism: PortableMechanism::Ed25519,
@@ -88,10 +91,13 @@ fn scoped_application_updates_use_only_the_live_caller_session() {
     assert_eq!(version(&f, f.signer), 1);
     admission(&f, f.signer, writer, &writer_input).unwrap();
 
-    f.pic.instance().advance_time(Duration::from_secs(11));
+    f.pic
+        .instance()
+        .advance_time(Duration::from_secs(11))
+        .unwrap();
     assert!(f.now() > writer_claims.admission_expires_at_ns);
-    let url = f.pic.instance_mut().make_live(None).to_string();
-    let network = f.pic.instance().root_key().unwrap();
+    let url = f.pic.instance_mut().make_live(None).unwrap().to_string();
+    let network = f.root_key();
     let receiver = f.resource;
     let runtime = tokio::runtime::Runtime::new().unwrap();
     let signed_write = |device: u8, value: u64| {

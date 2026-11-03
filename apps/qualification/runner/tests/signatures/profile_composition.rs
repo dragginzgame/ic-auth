@@ -76,7 +76,8 @@ fn root_and_issuer_profiles_share_one_composed_store_without_crossing_authority(
     fixture
         .pic
         .instance()
-        .set_time(Time::from_nanos_since_unix_epoch(root_deadline));
+        .set_time(Time::from_nanos_since_unix_epoch(root_deadline))
+        .unwrap();
     assert!(
         fixture
             .retrieve_with_seed(ROOT_PROFILE, ROOT_PROFILE, &payload)

@@ -32,7 +32,7 @@ pub trait Backend: SessionStore + Sized {
     fn retained_logins(&self) -> Vec<LoginRevocationChange>;
 }
 
-/// Run the same admission, retry, rollback, logout, reopen and capacity scenarios
+/// Run the same admission, authorization, retry, rollback, logout, reopen and capacity scenarios
 /// against a host adapter. Panics identify a violated assertion. Use only with
 /// disposable qualification backing; this deliberately injects failed commits.
 pub fn assert_backend_contract<B: Backend>() {
@@ -40,6 +40,112 @@ pub fn assert_backend_contract<B: Backend>() {
     assert_logout_reopen::<B>();
     assert_replacement_generation::<B>();
     assert_capacity::<B>();
+    assert_authorization::<B>();
+}
+
+/// Only the admitted caller with current issuer authority and an admitted scope
+/// may invoke the operation. Exact expiry refuses without pruning or mutation,
+/// including after reopening the host's persisted records.
+pub fn assert_authorization<B: Backend>() {
+    let f = Fixture::new(1);
+    let other = Fixture::new(2);
+    let read = RequiredScopes::new(vec!["read".into()]).unwrap();
+    // The issuer grants write, but this session requested only read.
+    let write = RequiredScopes::new(vec!["write".into()]).unwrap();
+    for reopen in [false, true] {
+        let mut store = B::fresh(0, limits(4, 65_536));
+        let mut ledger = f.ledger();
+        let mut budget = SessionAdmissionBudget::new(1, NOW, 0).unwrap();
+        let expires = f
+            .admit(&mut store, &mut ledger, &mut budget, NOW)
+            .unwrap()
+            .receipt()
+            .expires_at_ns();
+        let before = snapshot(&mut store, &f, &other);
+        if reopen {
+            store = store.reopen();
+            ledger = f
+                .ledger_at(NOW)
+                .restore_records(
+                    ledger.observed_at_ns(),
+                    ledger.occupancy(),
+                    store.retained_logins(),
+                )
+                .unwrap();
+            assert_eq!(snapshot(&mut store, &f, &other), before);
+        }
+        let counts = ledger.occupancy();
+        let mut wrong_issuer = f.authority(NOW);
+        wrong_issuer.issuer = Principal::from_slice(&[99]);
+        for (case, authority, required, expected) in [
+            ("admitted read", f.authority(NOW), &read, Ok(f.caller())),
+            (
+                "unadmitted scope",
+                f.authority(NOW),
+                &write,
+                Err(SessionError::ScopeRejected),
+            ),
+            (
+                "unadmitted caller",
+                other.authority(NOW),
+                &read,
+                Err(SessionError::MissingOrExpired),
+            ),
+            (
+                "different issuer, same subject",
+                wrong_issuer,
+                &read,
+                Err(SessionError::StaleAuthority),
+            ),
+            (
+                "before expiry",
+                f.authority(expires - 1),
+                &read,
+                Ok(f.caller()),
+            ),
+            (
+                "exact expiry",
+                f.authority(expires),
+                &read,
+                Err(SessionError::MissingOrExpired),
+            ),
+            (
+                "expiry before scope refusal",
+                f.authority(expires),
+                &write,
+                Err(SessionError::MissingOrExpired),
+            ),
+            (
+                "after expiry",
+                f.authority(expires + 1),
+                &read,
+                Err(SessionError::MissingOrExpired),
+            ),
+        ] {
+            let mut invoked = false;
+            let result = authorize_session(
+                &mut store,
+                &mut ledger,
+                &SessionContext {
+                    authority,
+                    max_ttl: SessionTtlPolicy::new(5, 30).unwrap().maximum(),
+                    role: &f.role,
+                    required_scopes: required,
+                },
+                policy(0),
+                |session| {
+                    invoked = true;
+                    assert_eq!(session.issuer(), f.claims.issuer);
+                    assert_eq!(session.subject(), f.claims.account_subject);
+                    session.caller()
+                },
+            );
+            assert_eq!(invoked, expected.is_ok(), "{case}; reopened={reopen}");
+            assert_eq!(result, expected, "{case}; reopened={reopen}");
+            assert_eq!(snapshot(&mut store, &f, &other), before, "{case}");
+            assert_eq!(ledger.occupancy(), counts, "{case}");
+        }
+    }
 }
 
 /// Failed admission is atomic, consumes proof credit, and exact retry preserves

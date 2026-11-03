@@ -135,28 +135,28 @@ The repository's Wasm target flags select upstream RustCrypto's qualified
 `cpubits="32"` backend. Other canister build owners must select it themselves;
 dependency Cargo configuration is not inherited, and explicit `RUSTFLAGS` or
 `CARGO_ENCODED_RUSTFLAGS` overrides must preserve this selection.
-The independent `ic-platform-pocket-ic` 0.18 owner supplies native clients and DTOs.
+The independent `ic-platform-pocket-ic` 0.20 owner supplies native clients and DTOs.
 Testkit owns bounded server startup, lifecycle extensions and typed Wire calls;
 only the native runner selects these capabilities.
 
-Native file and process callers select Host FS/Process 0.74.1 with defaults
+Native file and process callers select Host FS/Process 0.74.2 with defaults
 disabled. Library use does not enable Host's optional CLI, certificate decoder
 or Wasm text/encoding backends. Host stays outside the production library graph.
-Build 0.74.0 and Testkit 0.80.0 share Auth's Host 0.74 identities. The independently
-pinned file CLI is selected at 0.74.1.
+Build 0.74.1 and Testkit 0.83.0 share Auth's Host 0.74 identities. The independently
+pinned file CLI is selected at 0.74.2.
 Build and Testkit libraries keep `cli` disabled; only the prepared executable
 selections request it. Testkit owns its benchmark-average errors and retains
-arithmetic-only Metrics 0.26.1 internally; Auth's diagnostics select Metrics 0.27.0.
+arithmetic-only Metrics 0.26.1 internally; Auth's diagnostics select Metrics 0.28.2.
 These counters do not cross that boundary. No caller enables optional native
 metadata; the old Host 0.73 and Metrics 0.25 providers are removed.
 
-Auth and the native Testkit/PocketIC stack share Platform 0.18 and Types 0.17.
-The host selects Runtime 0.18 directly, matching Storage 0.65's Wasm dependency.
-Wire 0.15 provides the matching canonical Principal schema implementation.
+Auth and the native Testkit/PocketIC stack share Platform 0.20 and Types 0.18.
+The host selects Runtime 0.19 directly, matching Storage 0.66's Wasm dependency.
+Wire 0.16 provides the matching canonical Principal schema implementation.
 Native calls retain explicit external Principal conversions; native SDK packages
 remain outside public Auth and the reference Wasm graph.
 
-The unpublished qualification host selects IC Metrics 0.27.0 for fixed
+The unpublished qualification host selects IC Metrics 0.28.2 for fixed
 admission outcome counters, with defaults disabled: arithmetic and validated Serde
 do not select its optional native Wire metadata. Public Auth graphs forbid that
 dependency. See the
@@ -171,8 +171,8 @@ for the existing byte/path limits and release-recovery boundary.
 
 ## Dependency roles and deployment admission
 
-Shared Tooling revision `8c7fae6605c69a930e3b1f14e1ff5c4c9dafbcb7` is adopted
-(its committed VERSION records 0.27.28; this is reviewed source, not a claim of
+Shared Tooling revision `07f41c2723850f8fd86c61f2f50e65b0c6cde886` is adopted
+(its committed VERSION records 0.28.3; this is reviewed source, not a claim of
 registry publication or a matching release tag). Auth retains Cargo-owned versions
 and the default release mode; Shared's pending canonical `VERSION` workflow does
 not add a version file, prepare-work command or package-version edit here.
@@ -237,6 +237,15 @@ recorder have one unpublished library owner in `apps/qualification/fixtures/`;
 both host and native runner import it through Cargo. The shared fixture's unit
 test runs under `test-qualification`, Clippy and MSRV alongside those consumers.
 Application methods remain in `ic-auth-wire`.
+
+Native qualification retains state and logs under `target/portable-fixtures/`.
+PocketIC's Unix socket path limit requires short transport scratch under
+`/tmp/ic-auth-pic.*`; the launcher records that path with the retained state,
+removes its own scratch after success and preserves it on failure. This is a
+transport-only exception; build output and canister state stay in the repository. After preparing
+the canister with `make build-qualification-canister`, select a native case with
+`bash scripts/dev/test-qualification.sh <test-name> --exact`; omitting the filter
+retains the complete native signature target used by CI.
 
 The runner uses Testkit's opt-in typed Wire calls for ordinary
 requests/replies, with raw calls retained for malformed inputs and explicit byte
@@ -423,8 +432,8 @@ No native package installer or browser download runs inside an ordinary check.
 The Makefile includes reviewed [`make/consumer.mk`](make-interface.md), which owns
 common setup, formatting, hooks, snapshot verification and release routing.
 `check-snapshot` retains its public name and depends on `shared-tooling-check`.
-The recorded snapshot pins Shared Tooling 0.27.28 at
-`8c7fae6605c69a930e3b1f14e1ff5c4c9dafbcb7`. Adopt its committed source and
+The recorded snapshot pins Shared Tooling 0.28.3 at
+`07f41c2723850f8fd86c61f2f50e65b0c6cde886`. Adopt its committed source and
 recorded entrypoint closure through the canonical exporter; see
 [snapshot adoption](consuming-snapshots.md#entrypoint-selection-in-070).
 Adoption also compares every exported payload with an independently reviewed
@@ -691,6 +700,10 @@ release/recovery and publication rejection/retry; `test-tools-evidence` and
 `test-testkit-tools` exercise its setup and CI archive callers, including failure
 and retained evidence. Snapshot integrity still qualifies adopted bytes. No
 product, native-host or release-adapter coverage is removed by this roster change.
+For validation-receipt edits, `bash scripts/release/test-tools.sh --validation`
+selects real metadata preparation, interrupted recovery and fresh-clone publication
+with local Git and mocked upload effects. It skips unchanged setup and registry
+response matrices; the complete CI target still runs the full fixture.
 
 It uses the Shared Tooling 0.6.6 logger and retains failures. CI declares the
 root Cargo manifest/lock, all member manifests, group policy, Rust compiler selection, common host/Rust and IC pins,
@@ -699,6 +712,8 @@ identities are checked before and after each stage. A change, deletion or read
 failure stops later dispatch, preserves an original stage failure and reports
 which inputs require fresh preparation and the full gate. Nested gates in the
 same checkout retain the checkpoint; disposable checkouts establish their own.
+Member manifests come from Shared's admitted Cargo group plans, including when
+Protocol and Engine versions differ; Auth seals every returned member.
 This detects drift at stage boundaries, without isolating arbitrary source edits
 inside a running stage. Checks never fetch, reinstall or silently restart.
 The workflow prepares tools and caches first, then calls that same gate. The public remote is
@@ -888,12 +903,18 @@ tools. Shared group preparation changes only selected member versions, their roo
 dependency requirements, selected local lock identities and the selected ledger.
 Auth renders from an exported validated source using the shared helper, then
 installs the exact file plan and receipt through the shared metadata transaction.
-`release-validation.json` binds the complete gate to the group, policy checksum,
+`release-validation.json` binds the selected exhaustive plan to the group, policy checksum,
 validated source/lock, original notes and release identity. Saved receipts include
 the group in their names. External selections and unselected versions/notes are
 preserved. The primary member's version is installed last; source-only version
 observation lets recovery reach saved-source reconciliation with a partial payload.
 Interrupted base/prepared files are reconciled against that same source.
+
+The [Auth group-validation contract](auth-release-validation.md) defines required
+and excluded stages, full-scope expansion and schema-4 receipts binding Shared's
+canonical run evidence. `make ci` always runs the entire canonical roster.
+Historical schema-2/3 receipts retain their original meaning and require their
+original release checkout.
 
 The runner stages only the owned release files, commits and creates an annotated
 `<group>-vX.Y.Z` tag, then atomically pushes that branch and tag. Group journals
@@ -954,7 +975,7 @@ in publication state; no cleanup, GitHub Release object or deployment is
 implicit. See [Cargo publication](https://doc.rust-lang.org/cargo/commands/cargo-publish.html)
 for credentials, dry-run and index-propagation semantics.
 
-File mechanics use the published `ic-host-file` executable. Auth pins 0.74.1 in
+File mechanics use the published `ic-host-file` executable. Auth pins 0.74.2 in
 `ci/host-file.env`, independently of the library versions selected by Cargo.lock.
 `make install-host-file` prepares it through Shared Tooling with
 `--features cli`; `make host-file-check` admits that exact selection offline. The

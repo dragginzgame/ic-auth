@@ -1,7 +1,7 @@
 # IC Auth Agent Instructions
 
 Apply the installed [baseline](DRAGGINZGAME.md), adopted from Shared Tooling
-0.27.28 at `8c7fae6605c69a930e3b1f14e1ff5c4c9dafbcb7`, and its task-specific
+0.28.3 at `07f41c2723850f8fd86c61f2f50e65b0c6cde886`, and its task-specific
 references. The [snapshot manifest](.shared-tooling.snapshot) records the exact
 policy/tooling selection. Read [the current handoff](docs/status/current.md)
 before implementation. Product-specific safeguards and scoped permissions below
@@ -125,7 +125,10 @@ and `ci/cargo-dependency-boundaries.json` for direct-dependency ownership.
   download one. See [minimum compiler qualification](docs/msrv.md).
   Choose the package, test and capability affected by the completed batch;
   [developer setup](docs/development.md#validation) distinguishes narrow commands
-  from aggregate suites. `make ci` is the explicit complete CI/release gate.
+  from aggregate suites. `make ci` remains the complete repository gate. Releases
+  select the exhaustive source-bound Protocol/Engine plans described in
+  [Auth release validation](docs/auth-release-validation.md), with full coverage
+  for shared or uncertain changes and retained per-stage recovery evidence.
   Local validation cadence follows
   [the shared baseline](DRAGGINZGAME.md#validation-and-evidence). The validation
   runner seals declared Rust/frontend preparation inputs
@@ -170,8 +173,8 @@ and `ci/cargo-dependency-boundaries.json` for direct-dependency ownership.
   three current local archives together and remains in the complete gate. It permits
   prepublication Protocol identity changes without selecting an older registry peer.
   `make test-release-tools` uses local bare remotes and mocked
-  upload/registry transport. The three release targets share the complete gate
-  and direct-delivery runner; `make publish` requires a clean, exactly tagged and
+  upload/registry transport. Release targets share the group-plan adapter and
+  existing delivery runner; `make publish` requires a clean, exactly tagged and
   pushed release. Running those effectful commands still requires explicit
   release/publication authority.
 

@@ -1,5 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
+validation_only=false
+case "${1:-}" in
+    '') [[ $# == 0 ]] ;;
+    --validation) [[ $# == 1 ]]; validation_only=true ;;
+    *) echo 'usage: test-tools.sh [--validation]' >&2; exit 2 ;;
+esac
 
 # The fixture owns its nested Make selections, including missing-group probes.
 # An enclosing release must not force its command-line group into these calls.
@@ -39,6 +45,7 @@ chmod +x "$IC_AUTH_FIXTURE_HOST_FILE"
 unset CARGO_RELEASE_METADATA_EDITOR CARGO_RELEASE_METADATA_MAX_BYTES
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR
 export GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null
+if [[ "$validation_only" == false ]]; then
 # Qualify both current feature admission and saved pre-CLI selections without
 # installing another executable or depending on today's Cargo metadata.
 mkdir -p "$fixture/editor-selection/scripts/dev"
@@ -88,17 +95,20 @@ if IC_AUTH_FIXTURE_EXPECT_CLI=yes bash \
     echo 'invalid saved editor features unexpectedly admitted' >&2; exit 1
 fi
 rg -F 'invalid release editor features' "$fixture/invalid-editor-features.log" > /dev/null
+fi
 mkdir "$fixture/repo"
 # Qualify one coherent working source, including uncommitted additions/deletions.
 bash "$root/scripts/ci/verify-shared-tooling-snapshot.sh"
-bash "$root/scripts/ci/test-release-fixture-source.sh"
+if [[ "$validation_only" == false ]]; then bash "$root/scripts/ci/test-release-fixture-source.sh"; fi
 bash "$root/scripts/release/export-fixture-source.sh" "$root" "$fixture/repo"
 # Exercise the actual shared Make entrypoints before substituting the larger
 # gate below. The opt-in includes and execution probe are explicit inputs.
+if [[ "$validation_only" == false ]]; then
 TMPDIR="$fixture" bash scripts/ci/check-release-commands.sh "$fixture/repo" \
     ci/tool-versions.env make/consumer.mk make/tools.mk make/release.mk make/rust-format.mk \
     make/execution.mk scripts/ci/check-make-execution.sh \
     scripts/ci/check-release-delivery.sh ci/release-delivery.txt
+fi
 cd "$fixture/repo"
 export RELEASE_GROUP=protocol
 # Keep an inherited search path throughout release and publication flows.
@@ -147,6 +157,52 @@ set -euo pipefail
 printf 'gate\n' >> target/preparation-dispatch.log
 [[ ! -f target/fail-gate ]] || exit 1
 echo fixture-complete-gate
+# Substitute only stage execution. Keep the real group selector and receipt
+# owner, with explicit runner-shaped events/logs rather than a whole-gate PASS.
+plan=''
+base_inputs=()
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --input) base_inputs+=("$2"); shift 2 ;;
+        --plan) plan=$2; shift 2 ;;
+        --fail-fast) shift ;;
+        *) exit 2 ;;
+    esac
+done
+[[ -n "$plan" ]]
+logs="$VALIDATION_LOG_DIR/validation.fixture"
+mkdir -p "$logs"
+# Keep Shared's actual plan parser and checkpoint format. Substitute only the
+# underlying stage bodies, so the canonical verifier admits the same protocol.
+perl scripts/ci/validation-input-checkpoint.pl "$PWD" '' "$logs/inputs.json" \
+    scripts/ci/verify-file-checksum.sh "${base_inputs[@]}" "$plan"
+perl scripts/ci/release-validation-plan.pl "$PWD" "$plan" "$RELEASE_SOURCE" "$RELEASE_GROUP" \
+    "$logs/inputs.json" "$logs/parsed-inputs.json" > "$logs/plan-selection.tsv"
+inputs=()
+while IFS=$'\t' read -r decision value _reason; do
+    [[ "$decision" != input ]] || inputs+=("$value")
+done < "$logs/plan-selection.tsv"
+perl scripts/ci/validation-input-checkpoint.pl "$PWD" "$logs/parsed-inputs.json" \
+    "$logs/plan-inputs.json" scripts/ci/verify-file-checksum.sh "${inputs[@]}"
+printf 'target\tstate\treason\n' > "$logs/plan-events.tsv"
+printf 'target\tresult\tseconds\tlog\n' > "$logs/timings.tsv"
+while IFS=$'\t' read -r decision target reason; do
+    case "$decision" in
+        required) printf '%s\tblocked\t%s\n' "$target" "$reason" >> "$logs/plan-events.tsv" ;;
+        not-applicable) printf '%s\tnot-applicable\t%s\n' "$target" "$reason" >> "$logs/plan-events.tsv" ;;
+    esac
+done < "$logs/plan-selection.tsv"
+index=0
+while IFS=$'\t' read -r decision target _reason; do
+    [[ "$decision" == required ]] || continue
+    log="$PWD/$logs/$index.log"
+    printf 'Substituted Auth stage effects\n' > "$log"
+    cp "$logs/plan-inputs.json" "$logs/$index-before-inputs.json"
+    cp "$logs/plan-inputs.json" "$logs/$index-after-inputs.json"
+    printf '%s\tPASS\t%s\n' "$target" "$log" >> "$logs/plan-events.tsv"
+    printf '%s\tPASS\t0\t%s\n' "$target" "$log" >> "$logs/timings.tsv"
+    index=$((index+1))
+done < "$logs/plan-selection.tsv"
 SCRIPT
 cat > scripts/dev/install-host-tools.sh <<'SCRIPT'
 #!/usr/bin/env bash
@@ -246,6 +302,8 @@ git push -q origin main
 mkdir target
 printf 'retained artifact\n' > target/keep
 before="$(git rev-parse HEAD)"
+cp releases/protocol/CHANGELOG.md "$fixture/pending-notes"
+if [[ "$validation_only" == false ]]; then
 # Missing/empty/unknown selections refuse through the actual public entrypoints,
 # before setup, the gate, package creation or any Git release effect.
 for selected_group in '' unknown; do
@@ -338,6 +396,7 @@ rg -F 'commit or restore staged changes before starting a release' "$fixture/sta
 cmp .git/index "$fixture/staged-index"
 cmp crates/ic-auth/src/lib.rs "$fixture/staged-worktree"
 git restore --staged crates/ic-auth/src/lib.rs
+fi
 # Standard preparation accepts the numbered marker and replaces it with its
 # saved UTC date before committing/tagging. Earlier refusal cases cover the bare
 # numbered spelling; do not require a manual heading edit for this path.
@@ -452,6 +511,7 @@ esac
 SH
 chmod +x "$fixture/bin/cargo" "$fixture/bin/curl" "$fixture/bin/wc"
 export PATH="$fixture/bin:$PATH" CARGO_TARGET_DIR="$PWD/target"
+if [[ "$validation_only" == false ]]; then
 export FIXTURE_MODE=package-failure
 # Group-qualified intents cannot evade an uncertain coordinated upload of the
 # same crate version. Refuse before even the substituted package operation.
@@ -586,6 +646,17 @@ if bash scripts/release/publish.sh > "$fixture/untagged.log" 2>&1; then exit 1; 
 git tag -a protocol-v0.1.1 "$commit" -m 'Release 0.1.1'
 
 export PATH="${PATH#"$fixture/bin:"}"
+else
+    # A fresh publication clone has no ignored raw gate directory. Keep the
+    # actual self-contained record admission, local Git and mocked upload path.
+    git clone -q "$PWD" "$fixture/fresh-publication"
+    (cd "$fixture/fresh-publication";
+        mkdir target;
+        touch target/host-file-ready target/release-editor-ready target/common-tools-ready;
+        CARGO_TARGET_DIR="$PWD/target" FIXTURE_MODE=success bash scripts/release/publish.sh) > "$fixture/fresh-publication.log" 2>&1
+    [[ "$(wc -l < "$fixture/uploads")" -eq 2 ]]
+    export PATH="${PATH#"$fixture/bin:"}"
+fi
 # Late metadata checks must select the old release commit even after later
 # source fixes, rather than silently validating against the current HEAD.
 printf '\n// Later fixture source fix.\n' >> crates/ic-auth/src/lib.rs
@@ -638,6 +709,14 @@ git commit -qm 'Prepare interrupted Protocol fixture notes'
 touch target/interrupt-prepare
 if make --no-print-directory release-minor > "$fixture/interrupted-prepare.log" 2>&1; then exit 1; fi
 [[ "$(make -s release-version)" == 0.1.1 && -z "$(git tag -l protocol-v0.2.0)" ]] || exit 1
+# Refuse changed original logs while metadata is already partially installed.
+receipt=".git/release-state/validation-protocol-$(git rev-parse HEAD)-$candidate.json"
+run=$(jq -er '.validation.proof.run' "$receipt")
+cp "$run/0.log" "$fixture/retained-stage.saved"
+printf 'changed retained evidence\n' >> "$run/0.log"
+if make --no-print-directory release-resume VERSION="$candidate" > "$fixture/retained-corruption.log" 2>&1; then exit 1; fi
+rg -F 'retained Shared evidence changed' "$fixture/retained-corruption.log" > /dev/null
+cp "$fixture/retained-stage.saved" "$run/0.log"
 rm target/interrupt-prepare
 cp target/preparation-dispatch.log "$fixture/interrupted-dispatch.log"
 editor_installs="$(awk '/^install$/ { n++ } END { print n+0 }' target/editor-events.log)"
@@ -650,6 +729,7 @@ bash scripts/ci/check-release-tag.sh "$(git rev-parse HEAD)" "$candidate" "$RELE
 # Qualify the consumer's actual local metadata/receipt owner when a maintainer
 # commits the disposition of interrupted preparation. Shared 0.26.18 starts
 # afresh from that metadata without reading or replaying the historical journal.
+if [[ "$validation_only" == false ]]; then
 for disposition in restored prepared; do
     base="$(make -s release-version)"
     saved_candidate="$(bash scripts/ci/next-release-version.sh "$base" patch)"
@@ -739,6 +819,7 @@ for disposition in restored prepared; do
     git add -- Cargo.toml Cargo.lock releases/protocol/CHANGELOG.md crates/ic-auth-protocol-types/Cargo.toml crates/ic-auth-wire/Cargo.toml release-validation.json
     git commit -qm 'Retain qualified restarted group metadata'
 done
+fi
 # All Protocol releases above left Engine package versions and notes unchanged.
 while IFS= read -r path; do
     cmp "$path" "$fixture/unselected-engine/$path"
@@ -765,7 +846,7 @@ done
 yq -p toml -o json '.' Cargo.lock | jq -S '[.package[] | select(.name == "ic-auth-protocol-types" or .name == "ic-auth-wire")]' > "$fixture/protocol-lock-after.json"
 cmp "$fixture/protocol-lock-before.json" "$fixture/protocol-lock-after.json"
 make --no-print-directory release-resume VERSION=0.10.0 > "$fixture/engine-resume.log" 2>&1
-jq -e '.group == "engine" and .schema == 2' release-validation.json > /dev/null
+jq -e '.group == "engine" and .schema == 4 and .gate == "release-plan"' release-validation.json > /dev/null
 export PATH="$fixture/bin:$PATH" FIXTURE_MODE=success
 bash scripts/release/publish.sh > "$fixture/engine-publish.log" 2>&1
 [[ "$(cat "$fixture/uploads")" == $'ic-auth-protocol-types\nic-auth-wire\nic-auth' ]]

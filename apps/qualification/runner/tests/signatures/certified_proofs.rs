@@ -101,7 +101,8 @@ fn portable_proof_rechecks_live_authority_and_real_certification_after_upgrade()
     fixture
         .pic
         .instance()
-        .set_time((std::time::UNIX_EPOCH + Duration::from_secs(1_800_000_000)).into());
+        .set_time((std::time::UNIX_EPOCH + Duration::from_secs(1_800_000_000)).into())
+        .unwrap();
     let started = fixture.now();
     let key = SigningKey::from_slice(&[7; 32]).unwrap();
     let policy = RootKeyPolicy {
@@ -186,8 +187,7 @@ fn portable_proof_rechecks_live_authority_and_real_certification_after_upgrade()
         .retrieve(CERTIFIED_SIGNATURE_DOMAIN, &payload)
         .unwrap();
     let unchanged = signature.clone();
-    let network =
-        extract_raw_root_pk_from_der(&fixture.pic.instance().root_key().unwrap()).unwrap();
+    let network = extract_raw_root_pk_from_der(&fixture.root_key()).unwrap();
     let checked_grants =
         ic_auth::portable::ValidatedGrants::new(proof.cert.grants.clone()).unwrap();
     let mut context = PortableCertifiedContext {
@@ -303,7 +303,11 @@ fn portable_proof_rechecks_live_authority_and_real_certification_after_upgrade()
     ));
     context.ic_root_public_key_raw = &network;
     assert_eq!(signature, unchanged);
-    fixture.pic.instance().advance_time(Duration::from_secs(30));
+    fixture
+        .pic
+        .instance()
+        .advance_time(Duration::from_secs(30))
+        .unwrap();
     context.claims.authority.now_ns = fixture.now();
     assert_eq!(
         verify(&signature, &context).unwrap_err(),

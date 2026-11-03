@@ -68,12 +68,32 @@ read_receipt() {
     [[ -f "$1" && ! -L "$1" ]] || fail 'missing validation receipt; run the release through the shared runner'
     jq -e --arg source "$RELEASE_SOURCE" --arg previous "$RELEASE_PREVIOUS" --arg candidate "$RELEASE_VERSION" \
         --arg kind "${RELEASE_KIND:?}" --arg date "$RELEASE_DATE" --arg group "$RELEASE_GROUP" --arg policy "$policy_digest" '
-        .schema == 2 and .gate == "ci" and .group == $group and .policy_sha256 == $policy
+        .schema == 4 and .gate == "release-plan" and .group == $group and .policy_sha256 == $policy
         and .source == $source and .previous == $previous and .candidate == $candidate
         and .kind == $kind and .date == $date and (.changelog | type == "string")
         and (.lock_sha256 | test("^[a-f0-9]{64}$"))
-    ' "$1" > /dev/null || fail 'validation receipt does not match the selected group/source/release'
+    ' "$1" > /dev/null || fail 'validation receipt does not match the selected group/source/release; historical schema-2/3 attempts require their original release checkout'
     [[ "$(bash scripts/ci/verify-file-checksum.sh --print sha256 "$auth_scratch/base.lock")" == "$(jq -r .lock_sha256 "$1")" ]] || fail 'validated lockfile mismatch'
+    local gate record_path
+    # Shared's bounded reader admits checkout-relative paths only. Scratch paths
+    # are absolute for filesystem operations but stay inside this checkout.
+    record_path="${1#"$PWD/"}"
+    gate="$(jq -er '.validation.directory' "$1")"
+    jq -j .changelog "$1" > "$auth_scratch/source/$changelog"
+    if [[ "${2:-retained}" == committed ]]; then
+        # The exact committed release carries its original execution context.
+        # Fresh publication clones need not possess ignored validation logs;
+        # this admits the existing tagged gate, never a new release validation.
+        perl scripts/release/validation-plan.pl "$RELEASE_SOURCE" "$RELEASE_GROUP" "$RELEASE_PREVIOUS" "$gate" \
+            --check --source-root "$auth_scratch/source" --record "$record_path"
+        perl scripts/release/validation-record.pl check-record "$record_path" > "$auth_scratch/observed-validation.json"
+    else
+        perl scripts/release/validation-plan.pl "$RELEASE_SOURCE" "$RELEASE_GROUP" "$RELEASE_PREVIOUS" "$gate" \
+            --check --source-root "$auth_scratch/source"
+        perl scripts/release/validation-record.pl check-retained "$gate" > "$auth_scratch/observed-validation.json"
+    fi
+    jq -cS .validation "$1" > "$auth_scratch/expected-validation.json"
+    cmp "$auth_scratch/expected-validation.json" "$auth_scratch/observed-validation.json" || fail 'validation evidence mismatch'
 }
 render() {
     local editor status
@@ -150,7 +170,13 @@ case "$operation" in
         [[ "$(git rev-parse HEAD)" == "$RELEASE_SOURCE" ]] || fail 'validation source mismatch'
         admit_changes
         cp "$changelog" "$auth_scratch/notes"
-        VALIDATION_LOG_DIR="$state/validation-logs" make --no-print-directory ci
+        gate_root="$(git rev-parse --git-path release-state)"
+        [[ "$gate_root" == .git/release-state ]] || gate_root=target/release-validation
+        mkdir -p "$gate_root"
+        gate="$(mktemp -d "$gate_root/$RELEASE_GROUP-gate.XXXXXX")"
+        # The owner creates the absent directory; retain failed/interrupted gates.
+        rmdir "$gate"
+        bash scripts/release/validation.sh "$gate"
         [[ "$(git rev-parse HEAD)" == "$RELEASE_SOURCE" ]] || fail 'validation source changed'
         admit_changes
         cmp -s "$changelog" "$auth_scratch/notes" || fail 'notes changed during validation'
@@ -159,8 +185,10 @@ case "$operation" in
         jq -n --arg source "$RELEASE_SOURCE" --arg previous "$RELEASE_PREVIOUS" --arg candidate "$RELEASE_VERSION" \
             --arg kind "$RELEASE_KIND" --arg date "$RELEASE_DATE" --rawfile notes "$auth_scratch/notes" \
             --arg group "$RELEASE_GROUP" --arg policy "$policy_digest" --arg lock "$lock_digest" --arg verified "$(date -u +%FT%TZ)" \
-            '{schema:2, gate:"ci", group:$group, policy_sha256:$policy, source:$source, previous:$previous,
-              candidate:$candidate, kind:$kind, date:$date, verified_at:$verified, lock_sha256:$lock, changelog:$notes}' > "$auth_scratch/receipt.json"
+            --slurpfile validation "$gate/evidence.json" \
+            '{schema:4, gate:"release-plan", group:$group, policy_sha256:$policy, source:$source, previous:$previous,
+              candidate:$candidate, kind:$kind, date:$date, verified_at:$verified, lock_sha256:$lock, changelog:$notes,
+              validation:$validation[0]}' > "$auth_scratch/receipt.json"
         bash scripts/dev/run-host-file.sh replace-private "$auth_scratch/receipt.json" "$receipt" 1048576
         ;;
     prepare-version|prepared-check|commit-check)
@@ -186,7 +214,7 @@ case "$operation" in
             [[ "$path" != */* ]] || mkdir -p "$auth_scratch/committed/${path%/*}"
             git show "$selected_commit:$path" > "$auth_scratch/committed/$path"
         done
-        read_receipt "$auth_scratch/committed/release-validation.json"
+        read_receipt "$auth_scratch/committed/release-validation.json" committed
         cp "$auth_scratch/committed/release-validation.json" "$auth_scratch/receipt.json"
         render
         check_payload "$auth_scratch/committed"

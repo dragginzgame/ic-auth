@@ -4,8 +4,8 @@ use ic_auth::{
     session::*,
 };
 use ic_auth_backend_conformance::{
-    Backend, assert_admission_retry, assert_backend_contract, assert_capacity,
-    assert_logout_reopen, assert_replacement_generation,
+    Backend, assert_admission_retry, assert_authorization, assert_backend_contract,
+    assert_capacity, assert_logout_reopen, assert_replacement_generation,
 };
 use ic_auth_protocol_types::Principal;
 use std::{borrow::Cow, collections::BTreeMap};
@@ -249,6 +249,10 @@ fn independent_replacement_generation_conforms() {
 #[test]
 fn independent_capacity_conforms() {
     assert_capacity::<Encoded>();
+}
+#[test]
+fn independent_authorization_conforms() {
+    assert_authorization::<Encoded>();
 }
 
 // Select which write violates atomicity without copying the adapter mechanics.

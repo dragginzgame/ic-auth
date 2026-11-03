@@ -25,10 +25,10 @@ const SECOND: u64 = 1_000_000_000;
 // Balance deltas include platform/update charges and fixture work. They are not
 // instruction counters, production prices, issuer costs or subnet latency.
 fn measured<T>(f: &Fixture, target: Principal, label: &str, operation: impl FnOnce() -> T) -> T {
-    let before = f.pic.instance().cycle_balance(target.into());
+    let before = f.pic.instance().cycle_balance(target.into()).unwrap();
     let result = operation();
     let spent = before
-        .checked_sub(f.pic.instance().cycle_balance(target.into()))
+        .checked_sub(f.pic.instance().cycle_balance(target.into()).unwrap())
         .unwrap();
     assert!(spent > 0, "an update must consume cycles");
     eprintln!("portable receiver cycles: {label}={spent}");
@@ -146,7 +146,10 @@ fn sdk_preserves_typed_refusals_and_retries_the_original_future_credential() {
             ..config.clone()
         },
     );
-    f.pic.instance().advance_time(Duration::from_secs(1));
+    f.pic
+        .instance()
+        .advance_time(Duration::from_secs(1))
+        .unwrap();
     let now = f.now();
     let valid = PortableClaims {
         mechanism: PortableMechanism::Ed25519,
@@ -179,7 +182,7 @@ fn sdk_preserves_typed_refusals_and_retries_the_original_future_credential() {
     let mut invalid = input(&valid, &key);
     invalid.credential.proof =
         ic_auth_wire::model::PortableProof::Ed25519(Bytes::new(vec![0; 64]).unwrap());
-    let url = f.pic.instance_mut().make_live(None).to_string();
+    let url = f.pic.instance_mut().make_live(None).unwrap().to_string();
     let hex = |bytes: &[u8]| {
         bytes
             .iter()
@@ -197,7 +200,7 @@ fn sdk_preserves_typed_refusals_and_retries_the_original_future_credential() {
         .arg(&url)
         .arg(f.signer.to_text())
         .arg(f.resource.to_text())
-        .arg(hex(&f.pic.instance().root_key().unwrap()));
+        .arg(hex(&f.root_key()));
     for value in [&future, &expired, &invalid] {
         let frame = ic_auth_wire::CredentialEnvelope::encode_request(&value.credential).unwrap();
         command.arg(hex(frame.as_slice()));
@@ -251,7 +254,10 @@ fn issuer_scoped_accounts_survive_wire_projection_and_independent_logout() {
     };
     install(&f, f.signer, &first);
     install(&f, f.resource, &second);
-    f.pic.instance().advance_time(Duration::from_secs(1));
+    f.pic
+        .instance()
+        .advance_time(Duration::from_secs(1))
+        .unwrap();
     let first_claims = PortableClaims {
         mechanism: PortableMechanism::Ed25519,
         audience: first.audience,
@@ -313,8 +319,8 @@ fn issuer_scoped_accounts_survive_wire_projection_and_independent_logout() {
 fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ingress() {
     let mut f = Fixture::with_application_subnets(2);
     assert_ne!(
-        f.pic.instance().get_subnet(f.signer.into()),
-        f.pic.instance().get_subnet(f.resource.into())
+        f.pic.instance().get_subnet(f.signer.into()).unwrap(),
+        f.pic.instance().get_subnet(f.resource.into()).unwrap()
     );
     eprintln!(
         "portable receiver artifact: bytes={}, sha256={:x}; two Testkit application subnets; volatile storage; issuer signing excluded",
@@ -365,7 +371,10 @@ fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ingress()
         );
         assert!(read(&f, f.resource, f.owner).is_err());
     }
-    f.pic.instance().advance_time(Duration::from_secs(1));
+    f.pic
+        .instance()
+        .advance_time(Duration::from_secs(1))
+        .unwrap();
     let mut claims = PortableClaims {
         mechanism: PortableMechanism::Ed25519,
         audience: config.audience,
@@ -419,7 +428,10 @@ fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ingress()
         admission(&f, f.signer, other_caller, &other_input)
     })
     .unwrap();
-    f.pic.instance().advance_time(Duration::from_secs(3));
+    f.pic
+        .instance()
+        .advance_time(Duration::from_secs(3))
+        .unwrap();
     let mut retry = first.clone();
     retry.credential.proof =
         ic_auth_wire::model::PortableProof::Ed25519(Bytes::new(vec![]).unwrap());
@@ -494,7 +506,10 @@ fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ingress()
     );
     install(&f, f.resource, &config);
     install(&f, f.signer, &config);
-    f.pic.instance().advance_time(Duration::from_secs(1));
+    f.pic
+        .instance()
+        .advance_time(Duration::from_secs(1))
+        .unwrap();
     claims.browser_public_key = SigningKey::from_bytes(&[1; 32]).verifying_key().to_bytes();
     claims.issued_at_ns = f.now();
     claims.admission_expires_at_ns = f.now() + 2 * SECOND;
@@ -513,8 +528,8 @@ fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ingress()
     fresh_input.ttl_secs = Some(60);
     let fresh_session = admission(&f, f.resource, fresh, &fresh_input).unwrap();
     let peer_session = admission(&f, f.signer, fresh, &fresh_input).unwrap();
-    let url = f.pic.instance_mut().make_live(None).to_string();
-    let network = f.pic.instance().root_key().unwrap();
+    let url = f.pic.instance_mut().make_live(None).unwrap().to_string();
+    let network = f.root_key();
     for device in [4, 5] {
         let result = tokio::runtime::Runtime::new().unwrap().block_on(async {
             let agent = Agent::builder()
@@ -777,7 +792,10 @@ pub(super) fn qualify_certified(
         p,
     )
     .unwrap();
-    f.pic.instance().advance_time(Duration::from_secs(3));
+    f.pic
+        .instance()
+        .advance_time(Duration::from_secs(3))
+        .unwrap();
     ctx.authority.now_ns = f.now();
     proof_context.claims.authority.now_ns = ctx.authority.now_ns;
     assert!(matches!(
@@ -849,7 +867,10 @@ fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_authority() 
         (),
     );
     enabled.unwrap();
-    f.pic.instance().advance_time(Duration::from_secs(1));
+    f.pic
+        .instance()
+        .advance_time(Duration::from_secs(1))
+        .unwrap();
     let mut claims = PortableClaims {
         mechanism: PortableMechanism::Ed25519,
         audience: config.audience,
@@ -877,9 +898,12 @@ fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_authority() 
     let unknown_key = SigningKey::from_bytes(&[3; 32]).verifying_key().to_bytes();
     let unknown = browser_principal(&unknown_key);
     let unknown_until = logout(&f, f.resource, unknown).unwrap();
-    f.pic.instance().advance_time(Duration::from_secs(3));
+    f.pic
+        .instance()
+        .advance_time(Duration::from_secs(3))
+        .unwrap();
     assert!(f.now() >= claims.admission_expires_at_ns);
-    let before_upgrade = f.pic.instance().cycle_balance(f.resource.into());
+    let before_upgrade = f.pic.instance().cycle_balance(f.resource.into()).unwrap();
     f.pic
         .instance()
         .upgrade_canister(
@@ -891,7 +915,7 @@ fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_authority() 
         .unwrap();
     eprintln!(
         "checkpoint upgrade cycles: {}",
-        before_upgrade - f.pic.instance().cycle_balance(f.resource.into())
+        before_upgrade - f.pic.instance().cycle_balance(f.resource.into()).unwrap()
     );
     assert_eq!(
         read(&f, f.resource, live).unwrap_err(),

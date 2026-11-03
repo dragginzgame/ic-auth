@@ -14,6 +14,19 @@ consumer="$fixture/consumer with spaces"
 mkdir -p "$consumer" "$fixture/bin"
 bash scripts/release/export-fixture-source.sh "$root" "$consumer"
 mkdir -p "$consumer/.tools/ic/bin"
+# Group discovery belongs to Shared, qualified by test-auth-validation.sh. Keep
+# its admitted source roster while substituting tool/qualification effects here.
+export TESTKIT_FIXTURE_PLANS="$fixture/plans"
+mkdir "$TESTKIT_FIXTURE_PLANS"
+for group in protocol engine; do
+    bash scripts/ci/cargo-release-group.sh plan "$group" > "$TESTKIT_FIXTURE_PLANS/$group.json"
+done
+cat > "$consumer/scripts/ci/cargo-release-group.sh" <<'SCRIPT'
+#!/usr/bin/env bash
+set -euo pipefail
+[[ $# == 2 && "$1" == plan && ( "$2" == protocol || "$2" == engine ) ]] || exit 2
+cat "$TESTKIT_FIXTURE_PLANS/$2.json"
+SCRIPT
 cat > "$consumer/Cargo.lock" <<'LOCK'
 version = 4
 [[package]]
@@ -112,9 +125,13 @@ fi
 printf 'cargo dispatch %s\n' "$*" >> "$TESTKIT_FIXTURE_CONSUMER/cargo-dispatch.log"
 [[ "$POCKET_IC_BIN" == "$TESTKIT_FIXTURE_SERVER" ]] || exit 1
 [[ "$IC_AUTH_QUALIFICATION_WASM" == "$TESTKIT_FIXTURE_CONSUMER/target/wasm32-unknown-unknown/release/ic_auth_qualification_canister.wasm" ]] || exit 1
-[[ -d "$IC_AUTH_QUALIFICATION_STATE_ROOT" && "$TMPDIR" == "$IC_AUTH_QUALIFICATION_STATE_ROOT" ]] || exit 1
+[[ -d "$IC_AUTH_QUALIFICATION_STATE_ROOT" && -d "$TMPDIR" && "$TMPDIR" == /tmp/ic-auth-pic.* ]] || exit 1
+[[ "$IC_AUTH_QUALIFICATION_STATE_ROOT" == "$TESTKIT_FIXTURE_CONSUMER/target/portable-fixtures/qualification."* ]] || exit 1
+[[ "$(cat "$IC_AUTH_QUALIFICATION_STATE_ROOT/socket-scratch")" == "$TMPDIR" ]] || exit 1
+printf '%s\n' "$IC_AUTH_QUALIFICATION_STATE_ROOT" > "$TESTKIT_FIXTURE_LOG.state"
 [[ "$*" == 'test --locked --offline -p ic-auth-qualification --test signatures -- --nocapture' ]] || exit 1
 printf 'qualified admitted server\n' >> "$TESTKIT_FIXTURE_LOG"
+exit "${TESTKIT_FIXTURE_NATIVE_STATUS:-0}"
 SCRIPT
 cat > "$consumer/scripts/dev/client-tools.sh" <<'SCRIPT'
 #!/usr/bin/env bash
@@ -439,6 +456,14 @@ POCKET_IC_BIN=/unadmitted/override "$BASH" "$consumer/scripts/dev/test-qualifica
 }
 [[ "$(tail -n 7 "$TESTKIT_FIXTURE_LOG")" == $'cli check\nserver check\ncli check\nclient tools check\nclient contracts check\nclient build\nqualified admitted server' ]] || exit 1
 [[ "$(cat "$consumer/.tools/ic/bin/pocket-ic")" == 'retained former bundle' ]] || exit 1
+state=$(cat "$TESTKIT_FIXTURE_LOG.state")
+[[ -d "$state" && ! -e "$(cat "$state/socket-scratch")" ]] || exit 1
+status=0
+TESTKIT_FIXTURE_NATIVE_STATUS=38 "$BASH" "$consumer/scripts/dev/test-qualification.sh" \
+    > "$fixture/native-failure.stdout" 2> "$fixture/native-failure.stderr" || status=$?
+state=$(cat "$TESTKIT_FIXTURE_LOG.state")
+[[ "$status" == 38 && -d "$state" && -d "$(cat "$state/socket-scratch")" ]] || exit 1
+rg -F "$(cat "$state/socket-scratch")" "$fixture/native-failure.stderr" > /dev/null
 
 # Client admission, contracts and build failures stop before native dispatch,
 # without setup; contract refusal must also stop before the client build.

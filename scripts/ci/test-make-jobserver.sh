@@ -67,8 +67,8 @@ for script in dev/testkit-tools.sh dev/msrv-tools.sh dev/host-file-tools.sh dev/
     dev/test-qualification.sh dev/client-contracts.sh dev/test-client.sh dev/test-client-browser.sh dev/package-client.sh dev/release-tools.sh \
     dev/profile-canonical-allocations.sh dev/test-backend-package.sh \
     ci/check-cargo-dependency-boundaries.sh ci/test-auth-boundaries.sh \
-    ci/check-auth-boundaries.sh ci/test-client-tools.sh ci/check-dependency-pins.sh ci/test-auth-validation.sh \
-    release/publish.sh release/metadata.sh release/test-tools.sh; do
+    ci/check-auth-boundaries.sh ci/test-client-tools.sh ci/check-dependency-pins.sh ci/test-auth-validation.sh ci/test-release-validation.sh \
+    release/publish.sh release/metadata.sh release/test-tools.sh release/validation-stage.sh; do
     cat > "$consumer/scripts/$script" <<'SCRIPT'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -97,6 +97,7 @@ awk '
         print line; line=""
     }
 ' "$consumer/Makefile" | awk '
+    /^[^[:space:]#][^:]*:/ { targets="" }
     /^[[:alnum:]_-]+([[:space:]]+[[:alnum:]_-]+)*:/ {
         targets=$0; sub(/:.*/, "", targets)
     }
@@ -106,6 +107,11 @@ awk '
             if (names[i] != "ci" && names[i] != "test-formatting-hooks") print names[i]
     }
 ' | sort -u > "$fixture/targets"
+# Pattern rules are not ordinary target declarations. Expand the release wrapper
+# through its canonical roster and check the real Make-to-script FD handoff.
+jq -r '.stages[]' "$consumer/ci/release-validation.json" >> "$fixture/targets"
+sort -u "$fixture/targets" > "$fixture/sorted-targets"
+mv "$fixture/sorted-targets" "$fixture/targets"
 # Guard the parser against accidentally dropping known multiline/normal recipes.
 rg -Fx test-portable-signatures "$fixture/targets" > /dev/null
 rg -Fx test-client-browser "$fixture/targets" > /dev/null

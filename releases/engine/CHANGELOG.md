@@ -4,6 +4,51 @@ Covers public `ic-auth` and the unpublished backend conformance, qualification a
 native tooling packages. The independent series starts after the
 [last coordinated release, 0.29.2](../history.md).
 
+## [0.33.0] - Unreleased
+
+### ⚠️ Breaking
+
+- Release validation uses source-bound Protocol/Engine plans and schema-4 receipts
+  binding Shared's admitted run evidence. Resume older schema-2/3 attempts in their original
+  release checkout. Session semantics, signed material and stored records are unchanged.
+- Align public Principal and certificate APIs with Protocol's canonical Types 0.18
+  and Platform 0.20. Keep existing verification checks and the TEE/non-TEE trust model.
+
+### 🔧 Changed
+
+- Keep repository CI complete while source-only group releases omit independently
+  unchanged obligations. Shared, dependency, manifest, generator and uncertain
+  changes retain the full roster. Opt-in native workflow qualification compares
+  both mappings with its full gate on the same source and retains successful logs
+  and receipts; ordinary CI runs one complete gate.
+- Use Shared's evidence verifier, baseline observation and admitted Cargo group
+  plans, deleting Auth's generic run parser and separate manifest discovery.
+  Preserve original-source recovery, retained proof bytes and fresh-clone
+  publication. Add a focused validation-receipt fixture selection
+  ([#125](https://github.com/dragginzgame/ic-auth/issues/125)).
+
+### ⬆️ Dependencies
+
+- Adopt Shared Tooling 0.28.3 at committed revision `07f41c2`, preserving Auth's
+  release groups and complete validation roster. Select Platform/PocketIC
+  0.20, independent Runtime 0.19, Types 0.18, Testkit 0.83, Wire/derive 0.16,
+  Metrics 0.28.2 and Storage 0.66.1. Select the file CLI at 0.74.2. Native fixtures
+  handle the fallible PocketIC API explicitly without retrying uncertain effects.
+- Delegate full-stage roster admission to Shared's canonical helper. Auth retains
+  product mapping and source/recovery custody. Native qualification accepts exact case filters.
+
+### 🧪 Testing
+
+- Extend the reusable backend contract with scoped authorization, caller/issuer
+  isolation and exact-expiry checks before and after reopening storage. Verify
+  denied operations never invoke application callbacks or mutate stored records.
+
+### 📚 Documentation
+
+- Align the Canic and backend adoption guides with published Protocol/Engine
+  0.32 and checked labels. Document matched backend/browser archive qualification
+  and integrity-based installation without implying production integration.
+
 ## [0.32.0] - 2026-11-02
 
 ### ⚠️ Breaking

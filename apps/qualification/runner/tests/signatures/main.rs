@@ -99,20 +99,23 @@ impl Fixture {
         .expect("bounded testkit startup with the verified server");
         // Retain Testkit's field drop order during setup, including panic paths.
         let pic = owned.instance();
-        pic.set_time(SystemTime::now().into());
+        pic.set_time(SystemTime::now().into()).unwrap();
         let controller = Principal::self_authenticating(b"qualification controller");
-        let subnets = pic.topology().get_app_subnets();
+        let subnets = pic.topology().unwrap().get_app_subnets();
         assert_eq!(subnets.len(), count);
-        let signer = pic.create_canister_on_subnet(Some(controller.into()), None, subnets[0]);
-        let resource =
-            pic.create_canister_on_subnet(Some(controller.into()), None, subnets[count - 1]);
-        assert_eq!(pic.get_subnet(signer), Some(subnets[0]));
-        assert_eq!(pic.get_subnet(resource), Some(subnets[count - 1]));
+        let signer = pic
+            .create_canister_on_subnet(Some(controller.into()), None, subnets[0])
+            .unwrap();
+        let resource = pic
+            .create_canister_on_subnet(Some(controller.into()), None, subnets[count - 1])
+            .unwrap();
+        assert_eq!(pic.get_subnet(signer).unwrap(), Some(subnets[0]));
+        assert_eq!(pic.get_subnet(resource).unwrap(), Some(subnets[count - 1]));
         let owner = Principal::self_authenticating(
             CanisterSigPublicKey::new(signer.into(), SEED.to_vec()).to_der(),
         );
         for canister in [signer, resource] {
-            pic.add_cycles(canister, 2_000_000_000_000);
+            pic.add_cycles(canister, 2_000_000_000_000).unwrap();
             pic.install_canister(
                 canister,
                 wasm.clone(),
@@ -121,7 +124,8 @@ impl Fixture {
                 )
                 .unwrap(),
                 Some(controller.into()),
-            );
+            )
+            .unwrap();
         }
         Self {
             pic: owned,
@@ -134,7 +138,19 @@ impl Fixture {
     }
 
     fn now(&self) -> u64 {
-        self.pic.instance().get_time().as_nanos_since_unix_epoch()
+        self.pic
+            .instance()
+            .get_time()
+            .unwrap()
+            .as_nanos_since_unix_epoch()
+    }
+
+    fn root_key(&self) -> Vec<u8> {
+        self.pic
+            .instance()
+            .root_key()
+            .expect("PocketIC root key response")
+            .expect("fixture NNS root key")
     }
 
     fn prepare(&self, domain: &[u8], message: &[u8], ttl: u64) -> Result<u64, controls::Refusal> {
@@ -179,7 +195,7 @@ impl Fixture {
         message: &[u8],
     ) -> Result<IcCanisterSignatureProofV1, controls::Refusal> {
         // Certificates become available after the update's state is certified.
-        self.pic.instance().tick();
+        self.pic.instance().tick().unwrap();
         let proof: Result<ic_auth_wire::model::IcCanisterSignatureProofV1, controls::Refusal> =
             query_control::<
                 controls::SignatureInput,
@@ -213,8 +229,7 @@ impl Fixture {
         payload: [u8; 32],
         proof: &IcCanisterSignatureProofV1,
     ) -> Result<(), CanisterSignatureError> {
-        let network =
-            extract_raw_root_pk_from_der(&self.pic.instance().root_key().unwrap()).unwrap();
+        let network = extract_raw_root_pk_from_der(&self.root_key()).unwrap();
         let policy = CanisterSignaturePolicy {
             signing_canister: self.signer,
             seed_hash: hash_bytes(seed),
@@ -389,7 +404,8 @@ fn real_certificates_composition_cleanup_and_upgrade_obey_the_host_contract() {
     fixture
         .pic
         .instance()
-        .set_time(Time::from_nanos_since_unix_epoch(fixture.now() + 10));
+        .set_time(Time::from_nanos_since_unix_epoch(fixture.now() + 10))
+        .unwrap();
     assert!(fixture.retrieve(DOMAIN, &payload).is_err());
     let removed: Result<u32, controls::Refusal> = update_control::<u32, u32>(
         fixture.pic.instance(),

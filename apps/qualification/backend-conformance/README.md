@@ -33,37 +33,39 @@ reports a missing download, run `cargo fetch --locked --manifest-path
 <printed-evidence>/consumer/Cargo.toml`, then rerun the check into a fresh retained
 directory. The check itself never downloads or uploads.
 
-Current source targets the published Auth Protocol/Engine 0.30.0 cohort with
-Platform 0.17 and Types 0.16. The 0.30.0 release archive passed registry-consumer
-and packaged-scenario qualification; see the [current evidence](../../../docs/status/current.md).
-The published 0.29.2 baseline uses Platform 0.16/Types 0.15. Keep the single-Platform/
-Types admission intact; it refuses mixing that baseline with this newer bundle.
+Current source prepares Auth Protocol/Engine 0.33 with Platform 0.19 and Types 0.18;
+Cargo versions remain 0.32 until release preparation. Archive delivery from this
+source must wait for the matching new public libraries to be published. Do not
+mix it with registry Auth 0.32's Types 0.17 identity. The retained 0.32 candidate
+archive uses Platform 0.18/Types 0.17 and remains separate evidence. See the
+[current evidence](../../../docs/status/current.md) for qualification and receipts.
+Keep the single-Platform/Types admission intact across consumer and source bundle.
 
 Extract this source archive into the consumer's test-support directory and add
 it as a **development dependency**. Use the archive's normalized `Cargo.toml`;
 depending on the producer's working workspace can introduce a second Git/path
 identity for Auth alongside the consumer's registry dependency.
 
-Example for the qualified 0.30.0 bundle:
+Example for the retained bundle targeting published 0.32.0 libraries:
 
 ```toml
 # Append this path to the consumer's existing workspace exclusions. The foreign
 # source bundle must not become a consumer-owned release-group member.
 [workspace]
-exclude = ["test-support/ic-auth-backend-conformance-0.30.0"]
+exclude = ["test-support/ic-auth-backend-conformance-0.32.0"]
 
 [dev-dependencies]
-ic-auth-backend-conformance = { path = "test-support/ic-auth-backend-conformance-0.30.0" }
-ic-auth = { version = "=0.30.0", default-features = false, features = ["session-restore", "portable-signature-verification"] }
+ic-auth-backend-conformance = { path = "test-support/ic-auth-backend-conformance-0.32.0" }
+ic-auth = { version = "=0.32.0", default-features = false, features = ["session-restore", "portable-signature-verification"] }
 ```
 
 Implement `ic_auth_backend_conformance::Backend` on a test driver for the actual
 adapter and call `assert_backend_contract::<YourDriver>()` from a native test.
-The complete entrypoint always runs all four named scenarios:
-`assert_admission_retry`, `assert_logout_reopen`, `assert_replacement_generation`
-and `assert_capacity`. Each uses fresh disposable backing and can also be called
-from a separately named native test for clearer failure diagnosis. A subset is
-not complete backend conformance.
+The complete entrypoint always runs all five named scenarios:
+`assert_admission_retry`, `assert_logout_reopen`, `assert_replacement_generation`,
+`assert_capacity` and `assert_authorization`. Each uses fresh disposable backing
+and can also be called from a separately named native test for clearer failure
+diagnosis. A subset is not complete backend conformance.
 `fresh` supplies isolated backing with the requested generation and bounds;
 `fail_next_commit` injects a normal error before mutations; `reopen` reconstructs
 the adapter from persisted representation; `advance_generation` persists the new
@@ -80,6 +82,9 @@ generation invalidation and physical session/replay count/byte capacity. Replay
 capacity covers receiver-wide and per-caller exhaustion, preserves original exact
 retry at saturation, and checks that per-caller saturation leaves other callers
 admissible. Deliberately broken admission and logout writes prove that returned
-errors cannot publish mutations. These checks do not establish
+errors cannot publish mutations. Authorization scenarios verify scoped callbacks,
+unadmitted callers, changed issuer authority and before/exact/after expiry,
+including after reopen. Refusals never invoke the application callback or mutate
+stored records. These checks do not establish
 crash atomicity, rollback protection, durable clocks/authority, cleanup bounds or
 installed endpoint acceptance. The host owns those additional proofs.

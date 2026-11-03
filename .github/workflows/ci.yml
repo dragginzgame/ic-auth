@@ -6,6 +6,11 @@ on:
       - main
   pull_request:
   workflow_dispatch:
+    inputs:
+      qualify_release_groups:
+        description: Compare both release-group mappings against the full gate
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -120,6 +125,16 @@ jobs:
           test ! -e rust-unrelated
       - name: Validate
         run: make ci
+      - name: Qualify both release groups against the same-source full gate
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.qualify_release_groups }}
+        run: bash scripts/release/qualify-validation.sh
+      - name: Retain successful release-group qualification
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.qualify_release_groups }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ic-auth-release-groups-${{ matrix.os }}-${{ github.run_attempt }}
+          path: target/release-validation/
+          if-no-files-found: error
       - name: Archive retained Testkit setup evidence
         if: ${{ failure() && !cancelled() }}
         run: |

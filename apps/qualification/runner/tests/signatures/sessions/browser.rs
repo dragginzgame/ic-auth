@@ -31,7 +31,10 @@ fn actual_browser_storage_signing_and_receiver_transport() {
     for receiver in [f.signer, f.resource] {
         install(&f, receiver, &config);
     }
-    f.pic.instance().advance_time(Duration::from_secs(1));
+    f.pic
+        .instance()
+        .advance_time(Duration::from_secs(1))
+        .unwrap();
     let subject = browser_principal(&SigningKey::from_bytes(&[81; 32]).verifying_key().to_bytes());
     let now = f.now();
     let credentials: Vec<_> = [9, 10]
@@ -57,7 +60,7 @@ fn actual_browser_storage_signing_and_receiver_transport() {
                 .unwrap()
         })
         .collect();
-    let url = f.pic.instance_mut().make_live(None).to_string();
+    let url = f.pic.instance_mut().make_live(None).unwrap().to_string();
     let hex = |bytes: &[u8]| {
         bytes
             .iter()
@@ -75,7 +78,7 @@ fn actual_browser_storage_signing_and_receiver_transport() {
         .arg(url)
         .arg(f.signer.to_text())
         .arg(f.resource.to_text())
-        .arg(hex(&f.pic.instance().root_key().unwrap()))
+        .arg(hex(&f.root_key()))
         .arg(now.to_string())
         .arg(hex(&credentials[0]))
         .arg(subject.to_text())

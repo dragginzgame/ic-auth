@@ -119,7 +119,10 @@ pub(super) fn qualify(
             assert_ne!(network_key, old.ic_root_public_key_raw);
         }
         install(f, f.resource, &rejecting);
-        f.pic.instance().advance_time(Duration::from_secs(1));
+        f.pic
+            .instance()
+            .advance_time(Duration::from_secs(1))
+            .unwrap();
         let rejected_claims = make_claims(19);
         let rejected_caller = browser_principal(&rejected_claims.browser_public_key);
         let mut rejected = make_input(&rejected_claims);
@@ -155,7 +158,10 @@ pub(super) fn qualify(
         // This is an explicit test reset, never production enrollment refresh.
         install(f, f.resource, &config);
         install(f, f.signer, &config);
-        f.pic.instance().advance_time(Duration::from_secs(1));
+        f.pic
+            .instance()
+            .advance_time(Duration::from_secs(1))
+            .unwrap();
         let mut first = None;
         for device in 20..23 {
             let claims = make_claims(device);
@@ -200,7 +206,10 @@ pub(super) fn qualify(
             }
         }
         let (caller, input, mut admitted, original_claims) = first.unwrap();
-        f.pic.instance().advance_time(Duration::from_secs(3));
+        f.pic
+            .instance()
+            .advance_time(Duration::from_secs(3))
+            .unwrap();
         assert_eq!(
             profile(
                 f,
@@ -338,7 +347,10 @@ fn qualify_wide_grants(f: &Fixture, base: &ReceiverConfig, key: &SigningKey) {
     .unwrap();
     config.role = config.grants.as_slice().last().unwrap().target.clone();
     install(f, f.resource, &config);
-    f.pic.instance().advance_time(Duration::from_secs(1));
+    f.pic
+        .instance()
+        .advance_time(Duration::from_secs(1))
+        .unwrap();
     for device in 30..33 {
         let claims = PortableClaims {
             mechanism: config.authority.mechanism(),

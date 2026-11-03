@@ -3,6 +3,15 @@
 Covers `ic-auth-protocol-types` and `ic-auth-wire`, released together.
 The independent series starts after the [last coordinated release, 0.29.2](../history.md).
 
+## [0.33.0] - Unreleased
+
+### ⚠️ Breaking
+
+- Adopt canonical Types 0.18 and Wire/derive 0.16. Rust consumers exchanging
+  Principal, parse errors, schema traits or codec limits must align those identities.
+  Auth uses no Account DTOs: its frames, contract IDs, signed material and stored
+  records are unchanged; all five regenerated browser files are unchanged.
+
 ## [0.32.0] - 2026-11-02
 
 ### ⚠️ Breaking

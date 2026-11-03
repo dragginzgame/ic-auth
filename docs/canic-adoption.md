@@ -8,19 +8,60 @@ Older migrations and observations are preserved in [adoption history](canic-adop
 
 ## Current integration cohort
 
-The last coordinated Auth release is **0.29.2**, source
-[`529a521`](https://github.com/dragginzgame/ic-auth/tree/529a5212c1730d2cc5df7820d9ecf1a15a086e6b).
-Protocol (`ic-auth-protocol-types`, `ic-auth-wire`) now has an independent release
-group from Engine (`ic-auth`). Keep the two Protocol packages aligned; use the
+Published **Protocol 0.32.0** (`ic-auth-protocol-types`, `ic-auth-wire`) and
+**Engine 0.32.0** (`ic-auth`) are the current adoption cohort. Protocol releases
+independently from Engine. Keep the two Protocol packages aligned; use the
 Engine package's declared Protocol requirement rather than forcing equal versions
 across groups. An Engine-only update leaves Protocol's Rust type identity intact.
-[`Cargo.toml`](../Cargo.toml) and the [current handoff](status/current.md#selected-suppliers-and-governance)
-own this checkout's exact upstream selections. All member versions remain 0.29.2
-until an authorized release; [group ledgers](../CHANGELOG.md) own pending changes.
+The published cohort uses canonical Types 0.17, Platform 0.18 and Wire 0.15.
+The qualification host selects independent Runtime 0.18 and the native runner
+uses `ic-platform-pocket-ic` 0.18 with Testkit 0.80. Rust 1.99.1 is the minimum.
+[`Cargo.toml`](../Cargo.toml), the lockfile and the [current handoff](status/current.md)
+distinguish this checkout's selections from delivered release evidence;
+[group ledgers](../CHANGELOG.md) own pending changes. This checkout prepares
+Protocol/Engine 0.33 with Platform/PocketIC 0.20, Runtime 0.19, Types 0.18,
+Wire 0.16, Testkit 0.83, Metrics 0.28.2 and Storage 0.66.1. These resolve the former Principal/Wire and duplicate
+Runtime blockers. Align Rust consumers when that cohort is released. Auth carries
+no Account DTOs, so the upstream Account byte-adapter cut does not change Auth's
+frames, method identities or stored records. Regenerated browser files are unchanged.
+
+## Current Canic source review — 2026-11-03
+
+Read-only review used Canic HEAD `0509ec870891515923f79d3932ece127b351cd15`
+plus its existing uncommitted integration. No Canic build, edit or installed
+acceptance is supplied by this review. Its authentication guide now records
+controlled-local persistent admission/read/logout, Root refresh and scoped
+guards, plus heap-only issuer key preparation/registration. The production clock
+bound, snapshot restore fencing, credential issuance/reconciliation and browser
+delivery remain Canic-owned acceptance under #491. The facade now calls the
+portable authorizer when enabled; older reports of an unconditional denial are
+historical. Production activation remains explicitly gated.
+
+The working persistent adapter already calls `Session::check_admission_pair`
+and `SessionLimits::check_capacity`, the two changes requested by
+[Canic #720](https://github.com/dragginzgame/canic/issues/720). These changes are
+uncommitted; the owner still needs their focused acceptance and closure review.
+No new Auth API is indicated by this inspection. Adopt the matching backend
+conformance bundle and private browser archive with source/integrity receipts
+when selecting the published Auth cohort; production transports and durable
+adapter qualification stay in Canic.
+
+The registry currently offers Host Tools 0.80 (Platform 0.20/Types 0.18), which
+can address the newer native Host identity family. Query 0.89 also uses the
+matching Types 0.18 through Platform 0.19. Canic's complete latest family still
+needs a Timers-compatible Runtime transition: published Timers 0.38.1 selects
+Runtime 0.18.1, while Storage 0.66 and Auth's qualification host select Runtime
+0.19 with a different singleton guard. Do not retain both executors/guards or
+add identity aliases to force resolution. Metrics/Storage 0.67 matches Metrics
+0.28 and Storage 0.66. Supplier alignment and publication of Auth's pending
+0.33 cohort are separate from implementing a new Auth compatibility layer.
 
 `Session::scopes()` returns checked `ScopeLabel` values; use `as_str()` for text.
-Requests move their checked labels into sessions. Signed protocol grants remain
-raw DTOs checked by `ValidatedGrants`; never normalize or rewrite signed bytes.
+Requests move their checked labels into sessions. `DelegatedRoleGrant::scopes`
+also contains checked `ScopeLabel` values. Construct labels with `parse()` or
+`ScopeLabel::try_from(String)`; use `ValidatedGrants` for grant cardinality and
+strict ordering. `AuthRole` enforces 1–64 bytes during construction and decoding.
+These shape checks grant no authority; never normalize or rewrite signed bytes.
 The 0.29 API cut removed the unused top-level session budget variants and
 conversion. Fresh proof budget failures retain their mechanism-specific credential
 error; use `PortableCredentialError::budget_error()` for diagnostic classification.
@@ -105,7 +146,8 @@ signatures, expiry, reset-floor or stale-authority refusals automatically.
 
 ## Auth 0.30 / Platform 0.17 / Wire 0.14 adoption
 
-The published Protocol and Engine 0.30.0 releases select canonical Types 0.16.0,
+This historical cohort precedes the current 0.32 selection above. The published
+Protocol and Engine 0.30.0 releases select canonical Types 0.16.0,
 Platform 0.17.0, Wire/derive 0.14.2 and native Testkit 0.78.0. Existing Principal,
 parse-error, codec and limits values have a new Rust package identity; align the
 consumer's declarations with this cohort. This is a public Rust cut, with unchanged
@@ -166,6 +208,21 @@ behavior: both mechanisms, two receivers/devices, allowed scoped updates, issuer
 namespacing, failure/replay/logout, fresh enrollment after upgrade, bounded cleanup
 and before/exact/after expiry. Measure the actual host path at representative
 occupancy; fixture costs do not establish production performance or crash atomicity.
+
+For a matched handoff, run `make test-backend-package` and
+`make test-client-package` from the same fixed Auth source after preparing their
+declared dependencies. These existing commands create and qualify the actual
+backend `.crate` and browser `.tgz`; separate pack-only runs are unnecessary.
+Retain both `delivery.json` receipts, source/input records and archive integrity.
+The backend bundle targets the exact published Engine/Protocol versions recorded
+in its receipt. The private browser package retains version 0.0.0: identify its
+delivery by source revision, input hashes and npm integrity, not that version.
+A receipt marked dirty identifies a local candidate, not a released source.
+Copy the selected archives into durable consumer-owned test-support/dependency
+locations and follow their installation instructions. Backend scenarios still
+need to run against Canic's actual adapter, and the browser still needs Canic's
+production issuer/reconciliation and receiver endpoints. Neither archive installs
+those components or establishes production acceptance.
 
 Current `AUTHNAT3` is the private qualification checkpoint. Current Auth session,
 login and replay discriminators remain unchanged; no new reset or migration is
