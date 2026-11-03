@@ -21,6 +21,11 @@ dependency. Rust 1.99.1 is the minimum.
 The pending Engine 0.33.1 adopts Platform 0.21 without changing Protocol or
 Types. Testkit 0.84.1 aligns its native Candid/management DTOs with that facade;
 the complete checkout selects one Platform 0.21, with Runtime 0.19 unchanged.
+Engine 0.33.1 also removes fixed deployment ceilings from `SessionLimits`,
+allowing protected host-selected profiles such as 100,000 sessions. It supplies
+no receiver default or automatic backing allocation. Canic owns its configured
+default/maximum, proportional retention/byte/index budgets and actual-store
+capacity/performance qualification. Individual Auth record limits are unchanged.
 [`Cargo.toml`](../Cargo.toml), the lockfile and the [current handoff](status/current.md)
 record selections and delivered release evidence;
 [group ledgers](../CHANGELOG.md) own release notes. The private host also selects

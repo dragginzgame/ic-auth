@@ -1,7 +1,10 @@
 #![cfg(feature = "sessions")]
 use ic_auth::{
     canonical::CanonicalAuthError,
-    session::{MemorySessionStore, RequiredScopes, SessionError, SessionLimits, SessionStore},
+    session::{
+        MemorySessionStore, RequiredScopes, SessionError, SessionLimits, SessionOccupancy,
+        SessionStore,
+    },
 };
 
 #[test]
@@ -42,18 +45,16 @@ fn required_scope_admission_preserves_operation_semantics_and_enforces_bounds() 
 
 #[test]
 fn limits_refuse_each_invalid_dimension_before_store_construction() {
-    let maximum = [2048, 4096, 256, 8 * 1024 * 1024];
+    let selected = [100_000, 200_000, 1024, 512 * 1024 * 1024];
     for index in 0..4 {
-        for invalid in [0, maximum[index] + 1] {
-            let mut values = maximum;
-            values[index] = invalid;
-            assert_eq!(
-                SessionLimits::new(values[0], values[1], values[2], values[3]),
-                Err(SessionError::InvalidPolicyOrRecord)
-            );
-        }
+        let mut values = selected;
+        values[index] = 0;
+        assert_eq!(
+            SessionLimits::new(values[0], values[1], values[2], values[3]),
+            Err(SessionError::InvalidPolicyOrRecord)
+        );
     }
-    for values in [[1; 4], maximum] {
+    for values in [[1; 4], selected, [usize::MAX; 4]] {
         let limits = SessionLimits::new(values[0], values[1], values[2], values[3]).unwrap();
         assert_eq!(
             [
@@ -69,4 +70,64 @@ fn limits_refuse_each_invalid_dimension_before_store_construction() {
         assert_eq!(store.generation(), u64::MAX);
         assert_eq!(store.encoded_bytes(), 0);
     }
+}
+
+#[test]
+fn host_selected_capacity_refuses_each_exhausted_dimension_and_preserves_replacement() {
+    let limits = SessionLimits::new(100_000, 200_000, 1024, 512 * 1024 * 1024).unwrap();
+    let available = SessionOccupancy {
+        sessions: 99_999,
+        replays: 199_999,
+        replays_for_caller: 1023,
+    };
+    assert_eq!(limits.check_capacity(available, false), Ok(()));
+    let sessions_full = SessionOccupancy {
+        sessions: 100_000,
+        ..available
+    };
+    assert_eq!(
+        limits.check_capacity(sessions_full, false),
+        Err(SessionError::Capacity)
+    );
+    assert_eq!(limits.check_capacity(sessions_full, true), Ok(()));
+    for full in [
+        SessionOccupancy {
+            replays: 200_000,
+            ..available
+        },
+        SessionOccupancy {
+            replays_for_caller: 1024,
+            ..available
+        },
+    ] {
+        for replacing in [false, true] {
+            assert_eq!(
+                limits.check_capacity(full, replacing),
+                Err(SessionError::Capacity)
+            );
+        }
+    }
+    let maximum = SessionLimits::new(usize::MAX, usize::MAX, usize::MAX, usize::MAX).unwrap();
+    assert_eq!(
+        maximum.check_capacity(
+            SessionOccupancy {
+                sessions: usize::MAX - 1,
+                replays: usize::MAX - 1,
+                replays_for_caller: usize::MAX - 1
+            },
+            false
+        ),
+        Ok(())
+    );
+    assert_eq!(
+        maximum.check_capacity(
+            SessionOccupancy {
+                sessions: usize::MAX,
+                replays: usize::MAX,
+                replays_for_caller: usize::MAX
+            },
+            true
+        ),
+        Err(SessionError::Capacity)
+    );
 }

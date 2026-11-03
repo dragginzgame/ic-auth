@@ -1,6 +1,6 @@
 # Current handoff — 2026-11-03
 
-## Platform 0.21 / Engine 0.33.1 delivery in progress
+## Platform 0.21 and host-selected capacity / Engine 0.33.1 delivery in progress
 
 The maintainer authorized Platform adoption and delivery in the normal Auth
 checkout. Published Platform 0.21 removes its retired PocketIC client feature;
@@ -23,6 +23,30 @@ passes do not admit the incoming selection. Failed evidence remains at
 `.git/release-state/engine-gate.ErSiKn/logs/validation.Kar1mL`; no release metadata,
 tag, push or upload was performed. The incoming lock is preserved, the declared
 minimum and current docs are aligned, and a fresh full gate is required.
+
+The maintainer then requested inclusion of the prepared 100,000-session supplier
+patch. The second run on `4d74611` was stopped before source mutation, while
+still validating; no version/tag/push/upload occurred. The reviewed upstream
+patch from Canic's adoption evidence applied cleanly here: `SessionLimits`
+accepts positive protected host budgets without the fixed deployment ceilings.
+Construction still allocates no backing; physical count/byte enforcement,
+checked byte arithmetic, restoration refusal, individual record bounds and
+verification rules remain. The Canic default/profile patch stays with Canic.
+The interrupted evidence remains at
+`.git/release-state/engine-gate.W3mctJ/logs/validation.P1Ug8A` and is not a passing
+release receipt. The expanded source requires a new committed selection and fresh
+complete gate. Focused `session_configuration` checks pass all three cases:
+positive/zero budget admission without preallocation, 100,000-session physical
+count/replay exhaustion and replacement, and scope admission. The selected
+session-restore Clippy target and Rust formatting also pass; evidence is under
+`target/platform-021-delivery/capacity-*`.
+
+The separately requested Canic default-Wasm warning fix is local in its capacity
+module: the profile/constructor compile for native validation, tests and enabled
+receiver consumers, while the default constant remains available everywhere.
+Default Wasm, receiver-enabled Wasm and native default Core Clippy passed with
+`-D warnings`. Evidence is `canic/target/auth-capacity-cfg/`; no Canic commit or
+deployment was performed and its installed timer regression stays with its owner.
 
 ## Maximum-shape and packed-browser qualification
 

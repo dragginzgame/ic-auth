@@ -6,6 +6,14 @@ native tooling packages. The independent series starts after the
 
 ## [0.33.1] - Unreleased
 
+### 🔧 Changed
+
+- Accept positive host-selected session/replay/count and encoded-byte budgets
+  instead of fixed deployment ceilings, enabling Canic's 100,000-session profile.
+  Keep per-write capacity/overflow checks, restoration refusal, record codec
+  bounds and proof verification unchanged. Hosts still qualify backing,
+  retention, cleanup and instruction costs for their selected capacity.
+
 ### 🧪 Testing
 
 - Add maximum-shape backend conformance through admission, reopen and scoped

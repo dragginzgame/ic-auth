@@ -44,6 +44,9 @@ pub struct SessionLimits {
 impl SessionLimits {
     /// Admit protected storage configuration once. Reconstruct after decoding;
     /// current occupancy and encoded-byte capacity are still checked per write.
+    /// Each limit must be positive. The host chooses deployment capacity and must
+    /// qualify allocation, restoration and cleanup costs for that capacity. This
+    /// constructor allocates no backing and does not enlarge individual records.
     pub const fn new(
         max_sessions: usize,
         max_replays: usize,
@@ -51,13 +54,9 @@ impl SessionLimits {
         max_encoded_bytes: usize,
     ) -> Result<Self, SessionError> {
         if max_sessions == 0
-            || max_sessions > 2048
             || max_replays == 0
-            || max_replays > 4096
             || max_replays_per_caller == 0
-            || max_replays_per_caller > 256
             || max_encoded_bytes == 0
-            || max_encoded_bytes > 8 * 1024 * 1024
         {
             return Err(SessionError::InvalidPolicyOrRecord);
         }

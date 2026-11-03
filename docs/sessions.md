@@ -6,6 +6,16 @@ select `portable-signature-verification` for Ed25519 or `certified-proof-verific
 complete certified portable proofs. Fresh admission is available only with a complete
 verifier selected; session-only builds retain authorization, logout and storage. It does not depend on Canic, Toko, CDK or stable memory.
 
+## Host-selected capacity
+
+`SessionLimits::new` accepts positive host-selected session, replay, per-caller
+replay and encoded-byte budgets. It does not impose a deployment-wide session
+ceiling or allocate backing. Admission and restoration still enforce the selected
+budgets; individual record codec limits are unchanged. A host may select 100,000
+sessions with proportional retention budgets, but must qualify its actual store,
+heap indexes, reconstruction, cleanup and instruction costs. These values are
+protected configuration, never token or caller input.
+
 ## Admission and ordinary calls
 
 `establish_session` takes a host store, retained login ledger, shared work budget,
