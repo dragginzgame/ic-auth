@@ -146,7 +146,7 @@ only the native runner selects these capabilities.
 Native file and process callers select Host FS/Process 0.74.2 with defaults
 disabled. Library use does not enable Host's optional CLI, certificate decoder
 or Wasm text/encoding backends. Host stays outside the production library graph.
-The locked Build 0.74.2 and Testkit 0.84.0 share Auth's Host 0.74 identities. The independently
+The locked Build 0.74.2 and Testkit 0.84.1 share Auth's Host 0.74 identities. The independently
 pinned file CLI is selected at 0.74.2.
 Build and Testkit libraries keep `cli` disabled; only the prepared executable
 selections request it. Testkit owns its benchmark-average errors and has no
@@ -154,9 +154,9 @@ Metrics dependency; Auth's diagnostics select Metrics 0.28.2.
 No caller enables optional native
 metadata; the old Host 0.73 and Metrics 0.25 providers are removed.
 
-Auth selects Platform 0.21. Testkit 0.84 retains Platform 0.20 solely for native
-Candid/management DTOs; both facades use canonical Types 0.18. Neither native
-Testkit nor its older facade enters the public library or Wasm host graphs.
+Auth and Testkit 0.84.1 select one Platform 0.21 facade and canonical Types 0.18.
+Native Testkit and its Candid/management DTOs remain outside the public library
+and Wasm host graphs.
 The host selects Runtime 0.19 directly, matching Storage 0.66's Wasm dependency.
 Wire 0.16 provides the matching canonical Principal schema implementation.
 Native calls retain explicit external Principal conversions; native SDK packages

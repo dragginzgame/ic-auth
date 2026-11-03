@@ -5,9 +5,10 @@
 The maintainer authorized Platform adoption and delivery in the normal Auth
 checkout. Published Platform 0.21 removes its retired PocketIC client feature;
 its Types, Runtime, Agent and crypto implementations are unchanged. Auth selects
-0.21 and already uses Testkit 0.84's owned client. Testkit's native-only
-Candid/management DTOs retain the 0.20 facade; Types 0.18 and Runtime 0.19
-remain canonical. No facade alias or verifier relaxation is introduced.
+0.21 and uses Testkit 0.84.1's owned client. Testkit now also selects Platform
+0.21 for its native Candid/management DTOs, leaving one facade in the complete
+checkout. Types 0.18 and Runtime 0.19 remain canonical. No facade alias or
+verifier relaxation is introduced.
 
 The selected release is Engine 0.33.1, with Protocol left at 0.33.0. The pending
 Shared 0.29.2, Testkit and conformance/browser work is included. Delivery uses
@@ -15,6 +16,13 @@ this checkout and `origin/main`, an annotated `engine-v0.33.1` tag and crates.io
 publication. Historical recovery state and the completed 0.33 release checkout
 remain intact. Earlier candidate receipts below keep their original meaning;
 they do not qualify the newly selected dependency until checked afresh.
+
+The first complete gate at `f8d693c` stopped at the last stage because Cargo.lock
+changed from Testkit 0.84.0 to the published 0.84.1 during execution. Its earlier
+passes do not admit the incoming selection. Failed evidence remains at
+`.git/release-state/engine-gate.ErSiKn/logs/validation.Kar1mL`; no release metadata,
+tag, push or upload was performed. The incoming lock is preserved, the declared
+minimum and current docs are aligned, and a fresh full gate is required.
 
 ## Maximum-shape and packed-browser qualification
 

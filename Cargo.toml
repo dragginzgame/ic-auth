@@ -64,7 +64,7 @@ ic-host-process = { version = "0.74.2", default-features = false }
 ic-metrics = { version = "0.28.2", default-features = false }
 ic-platform-runtime = { version = "0.19.0", default-features = false }
 ic-storage = "0.66.1"
-ic-testkit = { version = "0.84.0", default-features = false }
+ic-testkit = { version = "0.84.1", default-features = false }
 serde_json = "1"
 tokio = { version = "1", features = ["rt-multi-thread", "sync", "time"] }
 

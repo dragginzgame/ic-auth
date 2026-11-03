@@ -28,9 +28,10 @@ native tooling packages. The independent series starts after the
   existing local supplier repository. Preserve normal-checkout work, native
   Testkit ownership and manifest-order refusal behavior.
 
-- Adopt Testkit 0.84.0 and import the maintained simulator client/DTOs from
+- Adopt Testkit 0.84.1 and import the maintained simulator client/DTOs from
   `ic_testkit::pocket_ic`. Remove `ic-platform-pocket-ic`; keep the PocketIC
-  16.1.0 server, Types 0.18 and Runtime 0.19 pairing. Preserve the incoming
+  16.1.0 server, Types 0.18 and Runtime 0.19 pairing. Its Platform 0.21 alignment
+  removes the older native facade. Preserve the incoming
   locked Build 0.74.2 selection.
 
 ### 🥾 Governance

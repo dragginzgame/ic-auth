@@ -9,7 +9,7 @@ Earlier pairings and benchmarks are preserved in
 
 ## Setup and ownership
 
-The root catalog/lock select published Testkit 0.84.0 from
+The root catalog/lock select published Testkit 0.84.1 from
 [IC Tooling](https://github.com/dragginzgame/ic-tooling), its maintained PocketIC
 client and server 16.1.0. Testkit and Auth share locked Wire 0.16.1 types directly.
 `WireCallSpec` takes the canonical
@@ -17,8 +17,7 @@ contract limits without conversion; responses require only `DeserializeOwned`.
 The temporary Wire 0.6 alias and limit bridge are removed following
 [Tooling #248](https://github.com/dragginzgame/ic-tooling/issues/248).
 Application identities use owned Principal; direct Testkit/Agent calls convert
-explicitly to their external type. Auth selects Platform 0.21; Testkit's native
-Candid/management DTOs retain Platform 0.20. Both use
+explicitly to their external type. Auth and Testkit now share Platform 0.21 and
 Types 0.18; the Storage host selects Runtime 0.19 directly. No alias or dependency override is used.
 Native Candid dependencies stay
 outside public Auth library and deployed-Wasm graphs. Testkit no longer supplies
