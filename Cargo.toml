@@ -36,8 +36,8 @@ ic-auth-tooling = { version = "0.32.0", path = "apps/tooling" }
 
 # Protocol
 # Changelog : releases/protocol/CHANGELOG.md
-ic-auth-protocol-types = { version = "0.32.0", path = "crates/ic-auth-protocol-types" }
-ic-auth-wire = { version = "0.32.0", path = "crates/ic-auth-wire" }
+ic-auth-protocol-types = { version = "0.33.0", path = "crates/ic-auth-protocol-types" }
+ic-auth-wire = { version = "0.33.0", path = "crates/ic-auth-wire" }
 
 # Production dependencies
 # Types owns canonical identities; Platform supplies crypto and native IC adapters.
