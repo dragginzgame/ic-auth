@@ -42,7 +42,7 @@ ic-auth-wire = { version = "0.33.0", path = "crates/ic-auth-wire" }
 # Production dependencies
 # Types owns canonical identities; Platform supplies crypto and native IC adapters.
 # Passive protocol, default and session-only graphs need no facade or runtime.
-ic-platform = { version = "0.20.0", default-features = false }
+ic-platform = { version = "0.21.0", default-features = false }
 ic-platform-types = { version = "0.18.0", default-features = false }
 # Host generation uses the lock-selected runtime and diagnostic callback.
 ic-wire = "0.16.0"
@@ -62,10 +62,9 @@ ic-build = { version = "0.74.1", default-features = false }
 ic-host-fs = { version = "0.74.2", default-features = false }
 ic-host-process = { version = "0.74.2", default-features = false }
 ic-metrics = { version = "0.28.2", default-features = false }
-ic-platform-pocket-ic = { version = "0.20.0", default-features = false }
 ic-platform-runtime = { version = "0.19.0", default-features = false }
 ic-storage = "0.66.1"
-ic-testkit = { version = "0.83.0", default-features = false }
+ic-testkit = { version = "0.84.0", default-features = false }
 serde_json = "1"
 tokio = { version = "1", features = ["rt-multi-thread", "sync", "time"] }
 

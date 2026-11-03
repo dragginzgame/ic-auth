@@ -41,6 +41,73 @@ pub fn assert_backend_contract<B: Backend>() {
     assert_replacement_generation::<B>();
     assert_capacity::<B>();
     assert_authorization::<B>();
+    assert_maximum_shape::<B>();
+}
+
+/// Maximum grant/scopes/label bounds survive admission, record restoration and
+/// scoped authorization. This is a shape contract, not a host cost measurement.
+pub fn assert_maximum_shape<B: Backend>() {
+    let mut f = Fixture::new(1);
+    f.claims.grants = (0..limits::MAX_GRANTS)
+        .map(|role| DelegatedRoleGrant {
+            target: format!("r{role:02}{}", "r".repeat(limits::MAX_LABEL_BYTES - 3))
+                .parse()
+                .unwrap(),
+            scopes: (0..limits::MAX_SCOPES_PER_GRANT)
+                .map(|scope| {
+                    format!("s{scope:02}{}", "s".repeat(limits::MAX_LABEL_BYTES - 3))
+                        .parse()
+                        .unwrap()
+                })
+                .collect(),
+        })
+        .collect();
+    let grant = f.claims.grants.last().unwrap();
+    f.role = grant.target.clone();
+    let requested = grant.scopes[grant.scopes.len() - limits::MAX_SESSION_SCOPES..].to_vec();
+    f.grants = ValidatedGrants::new(f.claims.grants.clone()).unwrap();
+    let required =
+        RequiredScopes::new(requested.iter().map(ToString::to_string).collect()).unwrap();
+    let mut store = B::fresh(0, limits(4, 65_536));
+    let mut ledger = f.ledger();
+    let mut budget = SessionAdmissionBudget::new(1, NOW, 0).unwrap();
+    let admitted = f
+        .admit_request(
+            &mut store,
+            &mut ledger,
+            &mut budget,
+            NOW,
+            SessionRequest::new(requested.iter().map(ToString::to_string).collect(), None).unwrap(),
+        )
+        .unwrap();
+    let before = f.authorize(&mut store, &mut ledger, NOW, 0).unwrap();
+    assert_eq!(before.scopes(), requested);
+    assert_eq!(before.expires_at_ns(), admitted.receipt().expires_at_ns());
+    let before_records = snapshot(&mut store, &f, &Fixture::new(2));
+    let mut store = store.reopen();
+    let mut ledger = f
+        .ledger_at(NOW)
+        .restore_records(
+            ledger.observed_at_ns(),
+            ledger.occupancy(),
+            store.retained_logins(),
+        )
+        .unwrap();
+    let after = authorize_session(
+        &mut store,
+        &mut ledger,
+        &SessionContext {
+            authority: f.authority(NOW),
+            max_ttl: SessionTtlPolicy::new(5, 30).unwrap().maximum(),
+            role: &f.role,
+            required_scopes: &required,
+        },
+        policy(0),
+        Session::clone,
+    )
+    .unwrap();
+    assert_eq!(after, before, "maximum-size session must survive reopen");
+    assert_eq!(snapshot(&mut store, &f, &Fixture::new(2)), before_records);
 }
 
 /// Only the admitted caller with current issuer authority and an admitted scope
@@ -489,6 +556,22 @@ impl Fixture {
         budget: &mut SessionAdmissionBudget,
         now: u64,
     ) -> Result<SessionEstablished, SessionError> {
+        self.admit_request(
+            store,
+            ledger,
+            budget,
+            now,
+            SessionRequest::new(vec!["read".into()], None).unwrap(),
+        )
+    }
+    fn admit_request(
+        &self,
+        store: &mut impl SessionStore,
+        ledger: &mut MemoryLoginRevocations,
+        budget: &mut SessionAdmissionBudget,
+        now: u64,
+        request: SessionRequest,
+    ) -> Result<SessionEstablished, SessionError> {
         let claims = PortableClaimsContext {
             authority: self.authority(now),
             min_proof_issued_at_ns: 0,
@@ -510,7 +593,7 @@ impl Fixture {
             ledger,
             budget,
             &credential,
-            SessionRequest::new(vec!["read".into()], None).unwrap(),
+            request,
             &SessionAdmissionContext {
                 verification: PortableVerificationContext::Ed25519 {
                     claims: &claims,

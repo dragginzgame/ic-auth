@@ -7,7 +7,7 @@ import { qualifyClientPackage } from '../ci/check-client-package.mjs';
 
 const phase = process.argv[2];
 assert(phase === 'prepare' ? process.argv.length === 3
-  : ['pack', 'check'].includes(phase) && process.argv.length === 4, 'Select package preparation or a prepared pack/check');
+  : ['pack', 'check', 'check-browser'].includes(phase) && process.argv.length === 4, 'Select package preparation or a prepared pack/check');
 const root = fileURLToPath(new URL('../..', import.meta.url));
 const source = resolve(root, 'packages/client');
 const parent = resolve(root, 'target/browser-client-packages');
@@ -94,7 +94,8 @@ async function packClient() {
     assert(packed.files.some(file => file.path === path), `Missing archive entry: ${path}`);
   }
   writeFileSync(resolve(directory, 'npm-pack.json'), JSON.stringify(report, null, 2) + '\n');
-  if (phase === 'check') await qualifyClientPackage({ root, source, directory, packed, command });
+  if (phase !== 'pack') await qualifyClientPackage({ root, source, directory, packed, command,
+    browser: phase === 'check-browser' });
   assert.equal(inputPaths(), selected, 'Source input roster changed during package preparation');
   assert.equal(seal(), before, 'Source inputs changed during package preparation');
   assert.equal(command('git', ['rev-parse', 'HEAD']).trim(), revision, 'Source revision changed');
@@ -106,7 +107,8 @@ async function packClient() {
     source: { revision, dirty, inputs: 'inputs.tsv0' },
     tools: { node: process.versions.node, npm: command('npm', ['--version']).trim(), typescript },
     archive: { filename: packed.filename, integrity: packed.integrity, shasum: packed.shasum },
-    qualification: phase === 'check' ? 'packed-consumer' : 'archive-only',
+    qualification: phase === 'check-browser' ? 'packed-consumer-chromium'
+      : phase === 'check' ? 'packed-consumer' : 'archive-only',
   };
   writeFileSync(resolve(directory, 'delivery.json'), JSON.stringify(receipt, null, 2) + '\n');
   console.log(`Client archive: ${resolve(directory, packed.filename)}`);

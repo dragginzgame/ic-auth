@@ -53,13 +53,15 @@ trailing newlines before state writes. Auth retains direct release delivery.
 
 ## Release editor setup
 
-### Branch and PR workflow
+### Normal checkout workflow
 
-Use topic branches and pull requests in the normal Auth checkout. Keep the
-implementation, dependency changes and reviewable diff there; do not create
-contribution directories, additional clones or worktrees for delivery. Merge the
-reviewed PR through the established repository workflow before releasing its
-changes from clean `main` in the same checkout.
+Make routine implementation and dependency changes directly in the normal Auth
+checkout. Leave reviewable local changes and run the relevant focused checks.
+Create a PR when requested or required by repository workflow. When a PR is
+needed, use a topic branch in this checkout. Do not create contribution
+directories, additional clones or worktrees for ordinary work or delivery.
+Authorized releases run from clean `main` in the same checkout after the selected
+source has been integrated through its authorized workflow.
 
 A branch does not isolate simultaneous sessions sharing a checkout. Coordinate
 with active agents, editors, dependency updaters and builds before switching
@@ -69,9 +71,8 @@ input-drift guard remain required.
 
 The existing `make release-patch`, `make release-minor` and `make release-major`
 commands still require release authority and an explicit `RELEASE_GROUP`.
-Implementation review uses PRs; the release runner retains its qualified direct
-commit/tag/push workflow after merge. Its separate `RELEASE_DELIVERY=pr` mode is
-not qualified in Auth.
+The release runner retains its qualified direct commit/tag/push workflow. Its
+separate `RELEASE_DELIVERY=pr` mode is not qualified in Auth.
 
 For exact recovery, keep the original source, adapter and attempt state, then run
 `make release-resume RELEASE_GROUP=protocol|engine VERSION=X.Y.Z`. Preserve
@@ -82,7 +83,7 @@ historical plans do not supply their validation.
 
 The existing `/home/adam/projects/ic-auth-release-033` checkout retains the
 completed 0.33 release and publication evidence. Preserve it for that historical
-custody; new work and releases use the normal checkout and branch/PR workflow.
+custody; new work and releases use the normal checkout.
 
 ### Editor preparation and recovery
 
@@ -138,22 +139,24 @@ The repository's Wasm target flags select upstream RustCrypto's qualified
 `cpubits="32"` backend. Other canister build owners must select it themselves;
 dependency Cargo configuration is not inherited, and explicit `RUSTFLAGS` or
 `CARGO_ENCODED_RUSTFLAGS` overrides must preserve this selection.
-The independent `ic-platform-pocket-ic` 0.20 owner supplies native clients and DTOs.
-Testkit owns bounded server startup, lifecycle extensions and typed Wire calls;
+Testkit 0.84 owns native clients and DTOs in `ic_testkit::pocket_ic`, together with
+bounded server startup, lifecycle extensions and typed Wire calls;
 only the native runner selects these capabilities.
 
 Native file and process callers select Host FS/Process 0.74.2 with defaults
 disabled. Library use does not enable Host's optional CLI, certificate decoder
 or Wasm text/encoding backends. Host stays outside the production library graph.
-Build 0.74.1 and Testkit 0.83.0 share Auth's Host 0.74 identities. The independently
+The locked Build 0.74.2 and Testkit 0.84.0 share Auth's Host 0.74 identities. The independently
 pinned file CLI is selected at 0.74.2.
 Build and Testkit libraries keep `cli` disabled; only the prepared executable
-selections request it. Testkit owns its benchmark-average errors and retains
-arithmetic-only Metrics 0.26.1 internally; Auth's diagnostics select Metrics 0.28.2.
-These counters do not cross that boundary. No caller enables optional native
+selections request it. Testkit owns its benchmark-average errors and has no
+Metrics dependency; Auth's diagnostics select Metrics 0.28.2.
+No caller enables optional native
 metadata; the old Host 0.73 and Metrics 0.25 providers are removed.
 
-Auth and the native Testkit/PocketIC stack share Platform 0.20 and Types 0.18.
+Auth selects Platform 0.21. Testkit 0.84 retains Platform 0.20 solely for native
+Candid/management DTOs; both facades use canonical Types 0.18. Neither native
+Testkit nor its older facade enters the public library or Wasm host graphs.
 The host selects Runtime 0.19 directly, matching Storage 0.66's Wasm dependency.
 Wire 0.16 provides the matching canonical Principal schema implementation.
 Native calls retain explicit external Principal conversions; native SDK packages
@@ -218,13 +221,13 @@ validate role comments mechanically, or qualify unlisted feature combinations.
 
 ## IC Platform boundary
 
-The protocol package selects published `ic-platform-types` 0.17.0 directly for
+The protocol package selects published `ic-platform-types` 0.18.0 directly for
 canonical Principal and parse-error identities, without a facade, external
 Principal, SHA-2, Candid or runtime edge. The Auth engine selects Types'
 `principal-self-authenticating` for browser-key hashing. Its Platform dependency
 is optional: only crypto capabilities select it, while default and session-only
-graphs exclude the facade. This changes the public Rust identity from Types 0.16;
-consumers must align on Types 0.17 and Wire 0.15. Serialized bytes are unchanged.
+graphs exclude the facade. Consumers must align on Types 0.18 and Wire 0.16.
+Serialized bytes are unchanged.
 Direct dependency and resolved graph policies enforce the owner boundaries. Convert
 explicitly at native Agent/Testkit boundaries using Platform's
 `principal::ExternalPrincipal` with `principal-external` selected. Platform 0.18
@@ -267,7 +270,7 @@ are refused without migration or reset. The maintainer confirmed no retained Aut
 records require preservation. The later Storage consolidation also changes
 backing formats; start with a coherent new fixture checkpoint for this hard cut.
 Checkpoint restores remain closed until matching controller authority is confirmed.
-The unpublished qualification host selects Storage 0.65.0 for both allocation
+The unpublished qualification host selects Storage 0.66.1 for both allocation
 and collections; `ic-memory` and `ic-stable-structures` are absent from the lock.
 Storage owns `StableKey`, `StorageConfig`, namespace grants, backing and exclusive
 leases. Its `StableCell::create` requires empty memory; `load(memory, maximum)`
@@ -287,7 +290,7 @@ Auth's `AUTHNAT3` payload, Wire method/record identities and signed bytes remain
 unchanged. The host graph retains one Wire, Runtime, generator and runtime guard.
 Storage's direct Wasm Runtime dependency resolves to that same maintained owner;
 public library graphs still forbid runtime capabilities and Storage. The host
-selects Metrics 0.27.0; Testkit's independent benchmark counters retain 0.26.1.
+selects Metrics 0.28.2; Testkit's independent benchmark counters need no Metrics dependency.
 No Metrics/Logging storage adapter is selected. See
 [session restoration](sessions.md#storage-and-reset).
 
@@ -304,9 +307,9 @@ features. All direct registry creation/verifier declarations and local crypto
 implementations remain absent ([#16](https://github.com/dragginzgame/ic-platform/issues/16),
 [#17](https://github.com/dragginzgame/ic-platform/issues/17),
 [#18](https://github.com/dragginzgame/ic-platform/issues/18)).
-Platform 0.18 maintains the imported certification/BLS code and retained licenses,
+Platform 0.21 maintains the imported certification/BLS code and retained licenses,
 without the unexposed store or Candid import. Certificate, tree and key identities
-belong to Platform; the key's Principal is canonical Types 0.17.0. DER/CBOR bytes,
+belong to Platform; the key's Principal is canonical Types 0.18.0. DER/CBOR bytes,
 resource admission and protected authority remain. Its BLS identity-key correction
 rejects forged certificates, covered through Auth's verifier; native Agent's
 separate external verifier does not inherit that correction. These capabilities
@@ -317,17 +320,17 @@ codec entrypoints without depending on the full CDK or selecting Candid. The
 host's runtime calls and lifecycle/query/update macros use `ic_platform_runtime::cdk`;
 no local runtime wrapper is introduced. Explicit Wire hooks, including unit RPCs,
 retain byte admission, payloads, errors and traps. Controller Boolean/panic
-behavior remains. Runtime 0.18 owns its maintained executor and IC0 bindings,
+behavior remains. Runtime 0.19 owns its maintained executor and IC0 bindings,
 with their upstream provenance; no separate registry executor is selected.
 The retired no-op `hidden = true` option is removed from all fixture entrypoints;
 explicit Wire decoding/encoding and endpoint exports remain unchanged.
 
 Auth keeps runtime-specific call/error types internal and uses none of the
 retired storage or `change_timeout` APIs. Its public Principal has canonical
-Types 0.17 identity, reexported by Platform. Select `principal` when using the
+Types 0.18 identity, reexported by Platform. Select `principal` when using the
 facade alone; self-authentication and external conversions are separate capabilities.
-Published Storage selects Runtime 0.18 directly on Wasm. Native Testkit shares
-Platform 0.18 and its Types with Auth; it does not define Auth's public Principal.
+Published Storage selects Runtime 0.19 directly on Wasm. Native Testkit shares
+canonical Types 0.18 with Auth; it does not define Auth's public Principal.
 Storage owns its backing/collection types; native Agent/Testkit boundaries retain
 the upstream external Principal. No dependency override or new conversion is needed.
 Counter-zero measurements continue using the exact raw API, equivalent to CDK's
@@ -363,12 +366,12 @@ Platform's `agent` feature for real signed ingress, and Testkit's `wire` feature
 for application calls. Candid still arrives through two native paths:
 
 - Platform `agent` selects IC Agent, which depends on Candid and IC transport types.
-- Testkit selects Platform `pocket-ic`; PocketIC's client, transport and management
-  types also depend on Candid.
+- Testkit owns the native PocketIC client and its external transport/management
+  DTOs, which depend on Candid.
 
-Testkit 0.63 removes its own Candid helpers and no longer enables Platform's
-`candid` feature. Platform's boundary does not remove Agent or PocketIC's native
-dependencies. All Auth application requests remain Wire frames.
+Auth uses Testkit's Wire call helpers. Testkit's native management helpers select
+Platform's external protocol adapters; neither these nor Agent/PocketIC's native
+dependencies enter Auth's deployed graphs. All Auth application requests remain Wire frames.
 
 A workspace-wide reverse tree unifies Platform features across selected members,
 so it can print Candid beneath shared Auth dependencies. Inspect isolated package
@@ -428,7 +431,8 @@ must retain fingerprint refusal rather than installing or repairing implicitly.
 
 Client preparation disables npm lifecycle scripts and does not change compiler,
 SDK or system-package inputs, so CI may prepare it before Cargo tools. Real
-Chromium is an additional explicit prerequisite only for `test-client-browser`;
+Chromium is an additional explicit prerequisite for `test-client-browser` and
+`test-client-package-browser`;
 the ordinary CI/release gate compiles that harness and runs Node SDK fixtures.
 No native package installer or browser download runs inside an ordinary check.
 
@@ -613,6 +617,14 @@ and `make install-testkit-tools`. Then run:
 IC_AUTH_BROWSER_EXECUTABLE=/absolute/path/to/chromium make test-client-browser
 ```
 
+For archive/public-API composition with real IndexedDB, run
+`IC_AUTH_BROWSER_EXECUTABLE=/absolute/path/to/chromium make test-client-package-browser`.
+This builds, installs and qualifies the actual `.tgz`, then checks admission,
+logout invalidation and journal reopen/cleanup with injected transports. It
+retains a `packed-consumer-chromium` receipt and browser executable/bundle hashes.
+It does not need Testkit or a Wasm build. Both Chromium commands use isolated
+profiles and never download a browser.
+
 This focused, opt-in command uses locked Playwright Core and esbuild, builds the
 reference Wasm, and runs one explicitly ignored native test. It downloads no
 browser and uses an isolated profile, never a personal profile. The local HTTP
@@ -647,6 +659,7 @@ multi-package, multi-feature and multi-target entries are aggregate suites.
 | `make test-client` | Packed-consumer proof, portable admission/logout, strict journal transactions and Rust/TypeScript Wire roundtrips |
 | `make pack-client` | Build a local private npm archive with source-input and integrity receipts; no upload |
 | `make test-client-package` | Offline archive installation, strict public declarations, browser bundling and injected admission/logout |
+| `make test-client-package-browser` | Opt-in: installed archive/public exports with real Chromium IndexedDB and journal reopen; injected transports and explicit executable |
 | `make test-client-browser` | Opt-in: actual Chromium storage, cross-tab/crash recovery and signed SDK receiver calls; requires an explicitly prepared executable |
 | `make check-client-contracts` | Compare fresh locked bindings with the Rust-owned checked-in contracts offline |
 | `make check-client-boundary` | Reject direct/aliased SDK dependencies and literal imports in the browser package; also runs in `make test-client` through npm |
@@ -885,9 +898,9 @@ and its pending notes before executing a release; ordinary preflight requires cl
 
 All three release targets use the adopted runner, the same `make ci` gate and
 direct delivery to `origin/main` by default. `RELEASE_REMOTE` and `RELEASE_BRANCH`
-select another already-authorized destination. Implementation changes use a
-topic branch and PR in the normal checkout before release. The runner's separate
-PR delivery mode is not qualified here.
+select another already-authorized destination. Ordinary implementation remains
+local; use a PR when requested or required. The runner's separate PR delivery
+mode is not qualified here.
 `ci/release-delivery.txt` declares the supported direct delivery once; Make and
 standalone metadata use the shared read-only policy checker. CI seals this file
 with its other preparation inputs and refuses policy drift before later stages.

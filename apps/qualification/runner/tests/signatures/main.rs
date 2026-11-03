@@ -12,10 +12,10 @@ use ic_platform::{
     Principal,
     agent::{Agent, BasicIdentity, Delegation, Identity, SignedDelegation},
 };
-use ic_platform_pocket_ic::{PocketIc, PocketIcBuilder, Time};
 use ic_testkit::pic::{
     PocketIcInstance, PocketIcStartupConfig, WireCallError, WireCallSpec, query_wire, update_wire,
 };
+use ic_testkit::pocket_ic::{PocketIc, PocketIcBuilder, Time};
 use ic_wire::Bytes;
 use std::{
     path::{Path, PathBuf},

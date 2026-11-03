@@ -5,7 +5,7 @@ use ic_auth::{
 };
 use ic_auth_backend_conformance::{
     Backend, assert_admission_retry, assert_authorization, assert_backend_contract,
-    assert_capacity, assert_logout_reopen, assert_replacement_generation,
+    assert_capacity, assert_logout_reopen, assert_maximum_shape, assert_replacement_generation,
 };
 use ic_auth_protocol_types::Principal;
 use std::{borrow::Cow, collections::BTreeMap};
@@ -253,6 +253,10 @@ fn independent_capacity_conforms() {
 #[test]
 fn independent_authorization_conforms() {
     assert_authorization::<Encoded>();
+}
+#[test]
+fn independent_maximum_shape_conforms() {
+    assert_maximum_shape::<Encoded>();
 }
 
 // Select which write violates atomicity without copying the adapter mechanics.

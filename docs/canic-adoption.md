@@ -14,8 +14,13 @@ independently from Engine. Keep the two Protocol packages aligned; use the
 Engine package's declared Protocol requirement rather than forcing equal versions
 across groups. An Engine-only update leaves Protocol's Rust type identity intact.
 The released lock selects canonical Types 0.18, Platform 0.20 and Wire/derive 0.16.1.
-The qualification host selects independent Runtime 0.19 and the native runner
-uses `ic-platform-pocket-ic` 0.20 with Testkit 0.83. Rust 1.99.1 is the minimum.
+The released qualification host selects independent Runtime 0.19, and its native
+runner uses `ic-platform-pocket-ic` 0.20 with Testkit 0.83. This checkout now adopts
+Testkit 0.84's owned `ic_testkit::pocket_ic` client and removes that separate
+dependency. Rust 1.99.1 is the minimum.
+The pending Engine 0.33.1 adopts Platform 0.21 without changing Protocol or
+Types. Testkit's native Candid/management DTOs retain the older 0.20 facade;
+public Auth and the Wasm fixture select only 0.21, with Runtime 0.19 unchanged.
 [`Cargo.toml`](../Cargo.toml), the lockfile and the [current handoff](status/current.md)
 record selections and delivered release evidence;
 [group ledgers](../CHANGELOG.md) own release notes. The private host also selects
@@ -46,15 +51,15 @@ conformance bundle and private browser archive with source/integrity receipts
 when selecting the published Auth cohort; production transports and durable
 adapter qualification stay in Canic.
 
-The registry currently offers Host Tools 0.80 (Platform 0.20/Types 0.18), which
-can address the newer native Host identity family. Query 0.89 also uses the
-matching Types 0.18 through Platform 0.19. Canic's complete latest family still
-needs a Timers-compatible Runtime transition: published Timers 0.38.1 selects
-Runtime 0.18.1, while Storage 0.66 and Auth's qualification host select Runtime
-0.19 with a different singleton guard. Do not retain both executors/guards or
-add identity aliases to force resolution. Metrics/Storage 0.67 matches Metrics
-0.28 and Storage 0.66. Auth 0.33 is now published; remaining Canic supplier
-alignment and adapter acceptance stay with Canic rather than an Auth compatibility layer.
+The reviewed Canic working manifest and lock now select all three Auth packages
+at 0.33.0 and Timers 0.39.0. Its handoff records that this resolves the earlier
+Timers/Runtime transition; newer-family installed qualification is still in
+progress. Historical installed Auth checks on the frozen graph do not qualify
+the incoming graph. Keep one executor/guard and canonical identity family;
+do not add aliases to force resolution. Production activation still refuses
+`UnqualifiedClock`. Clock/restore fencing, certified issuance, maximum-shape
+cost and real browser delivery remain Canic-owned acceptance. No new Auth API
+blocker was found, and this read-only review does not supply those checks.
 
 `Session::scopes()` returns checked `ScopeLabel` values; use `as_str()` for text.
 Requests move their checked labels into sessions. `DelegatedRoleGrant::scopes`
@@ -146,7 +151,7 @@ signatures, expiry, reset-floor or stale-authority refusals automatically.
 
 ## Auth 0.30 / Platform 0.17 / Wire 0.14 adoption
 
-This historical cohort precedes the current 0.32 selection above. The published
+This historical cohort precedes the current 0.33 selection above. The published
 Protocol and Engine 0.30.0 releases select canonical Types 0.16.0,
 Platform 0.17.0, Wire/derive 0.14.2 and native Testkit 0.78.0. Existing Principal,
 parse-error, codec and limits values have a new Rust package identity; align the
@@ -209,11 +214,17 @@ namespacing, failure/replay/logout, fresh enrollment after upgrade, bounded clea
 and before/exact/after expiry. Measure the actual host path at representative
 occupancy; fixture costs do not establish production performance or crash atomicity.
 
+## Matched qualification handoff
+
 For a matched handoff, run `make test-backend-package` and
 `make test-client-package` from the same fixed Auth source after preparing their
 declared dependencies. These existing commands create and qualify the actual
 backend `.crate` and browser `.tgz`; separate pack-only runs are unnecessary.
 Retain both `delivery.json` receipts, source/input records and archive integrity.
+To include real Chromium/IndexedDB archive qualification, select a prepared
+`IC_AUTH_BROWSER_EXECUTABLE` and use `make test-client-package-browser` for the
+browser bundle. It includes the ordinary package checks and injected transports;
+the live receiver/production endpoint qualification remains separate.
 The backend bundle targets the exact published Engine/Protocol versions recorded
 in its receipt. The private browser package retains version 0.0.0: identify its
 delivery by source revision, input hashes and npm integrity, not that version.
@@ -223,6 +234,30 @@ locations and follow their installation instructions. Backend scenarios still
 need to run against Canic's actual adapter, and the browser still needs Canic's
 production issuer/reconciliation and receiver endpoints. Neither archive installs
 those components or establishes production acceptance.
+
+The current assembled local handoff is
+`target/adoption-boundaries/delivery/manifest.json`; the earlier
+`target/canic-adoption-033/delivery/` remains separate evidence.
+It identifies the two exact archives, their receipts/input records and the source
+and published Engine/Protocol versions used for qualification. Run
+`sha256sum --check SHA256SUMS` from that delivery directory before copying it.
+The browser's npm `integrity` is retained separately from its SHA-256.
+
+Extract the backend archive into the consumer's excluded `test-support/`
+directory and use its normalized manifest as a development dependency; do not
+point Cargo at Auth's working workspace. Implement its `Backend` driver for the
+actual store and run `assert_backend_contract`, including authorization and
+maximum-shape admission/reopen checks. Shape conformance is not a measurement
+of the actual host's cost or capacity at representative occupancy.
+Install the browser archive through an exact `file:` dependency, retain the
+archive/integrity and resulting consumer lock, and qualify the selected SDK
+graph and real issuer/receiver transports. The private package's `0.0.0` version
+cannot distinguish these artifacts.
+
+Current receipts explicitly mark the uncommitted source as a candidate. These
+archives can support development qualification; rebuild and requalify them from
+the intended delivered commit before production adoption. Neither the matching
+Rust source versions nor an archive checksum turns a dirty source into a release.
 
 Current `AUTHNAT3` is the private qualification checkpoint. Current Auth session,
 login and replay discriminators remain unchanged; no new reset or migration is

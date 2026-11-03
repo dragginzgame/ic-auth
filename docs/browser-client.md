@@ -31,6 +31,13 @@ The consumer proof uses the archive's bare import with locked external npm
 selections, strict declarations and browser bundling. Its fake IndexedDB and
 injected issuer/receiver operations check package composition and identity/logout
 lifecycle; they do not establish real browser or installed Canic acceptance.
+`make test-client-package-browser` adds a bounded Chromium run of that installed
+archive through its public exports, using real IndexedDB and reopening the
+logout journal before cleanup. Select `IC_AUTH_BROWSER_EXECUTABLE` explicitly;
+no browser download occurs. Its receipt says `packed-consumer-chromium` and
+retains `browser-proof.json` with browser version and executable/bundle hashes.
+Issuer/receiver operations remain injected; this is separate from the live
+receiver qualification described below.
 Canic still owns its issuer transport, final source distribution and deployment
 under [#507](https://github.com/dragginzgame/canic/issues/507).
 

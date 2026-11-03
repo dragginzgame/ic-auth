@@ -33,8 +33,9 @@ reports a missing download, run `cargo fetch --locked --manifest-path
 <printed-evidence>/consumer/Cargo.toml`, then rerun the check into a fresh retained
 directory. The check itself never downloads or uploads.
 
-Auth Protocol/Engine 0.33 is published with Platform 0.20 and Types 0.18.
-Generate and qualify a matching 0.33 source archive with the commands above. Do not
+Protocol/Engine 0.33.0 is published with Platform 0.20 and Types 0.18.
+The pending Engine 0.33.1 bundle selects Platform 0.21 and requires its matching
+published Engine before archive qualification. Protocol remains 0.33.0. Do not
 mix this source with registry Auth 0.32's Types 0.17 identity. The retained 0.32 candidate
 archive uses Platform 0.18/Types 0.17 and remains separate evidence. See the
 [current evidence](../../../docs/status/current.md) for qualification and receipts.
@@ -45,25 +46,25 @@ it as a **development dependency**. Use the archive's normalized `Cargo.toml`;
 depending on the producer's working workspace can introduce a second Git/path
 identity for Auth alongside the consumer's registry dependency.
 
-Example targeting published 0.33.0 libraries:
+Example for Engine 0.33.1 after publication:
 
 ```toml
 # Append this path to the consumer's existing workspace exclusions. The foreign
 # source bundle must not become a consumer-owned release-group member.
 [workspace]
-exclude = ["test-support/ic-auth-backend-conformance-0.33.0"]
+exclude = ["test-support/ic-auth-backend-conformance-0.33.1"]
 
 [dev-dependencies]
-ic-auth-backend-conformance = { path = "test-support/ic-auth-backend-conformance-0.33.0" }
-ic-auth = { version = "=0.33.0", default-features = false, features = ["session-restore", "portable-signature-verification"] }
+ic-auth-backend-conformance = { path = "test-support/ic-auth-backend-conformance-0.33.1" }
+ic-auth = { version = "=0.33.1", default-features = false, features = ["session-restore", "portable-signature-verification"] }
 ```
 
 Implement `ic_auth_backend_conformance::Backend` on a test driver for the actual
 adapter and call `assert_backend_contract::<YourDriver>()` from a native test.
-The complete entrypoint always runs all five named scenarios:
+The complete entrypoint always runs all six named scenarios:
 `assert_admission_retry`, `assert_logout_reopen`, `assert_replacement_generation`,
-`assert_capacity` and `assert_authorization`. Each uses fresh disposable backing
-and can also be called from a separately named native test for clearer failure
+`assert_capacity`, `assert_authorization` and `assert_maximum_shape`. Each uses
+fresh disposable backing and can also be called from a separately named native test for clearer failure
 diagnosis. A subset is not complete backend conformance.
 `fresh` supplies isolated backing with the requested generation and bounds;
 `fail_next_commit` injects a normal error before mutations; `reopen` reconstructs
@@ -84,6 +85,9 @@ admissible. Deliberately broken admission and logout writes prove that returned
 errors cannot publish mutations. Authorization scenarios verify scoped callbacks,
 unadmitted callers, changed issuer authority and before/exact/after expiry,
 including after reopen. Refusals never invoke the application callback or mutate
-stored records. These checks do not establish
-crash atomicity, rollback protection, durable clocks/authority, cleanup bounds or
-installed endpoint acceptance. The host owns those additional proofs.
+stored records. The maximum-shape scenario admits 16 grants with 32 scopes
+each, 64-byte role/scope labels and 16 requested session scopes, then reopens
+the backend and authorizes all requested scopes without record changes. These
+checks do not establish host performance, crash atomicity, rollback protection,
+durable clocks/authority, cleanup bounds or installed endpoint acceptance. The
+host owns those additional proofs.

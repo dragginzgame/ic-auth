@@ -6,11 +6,39 @@ native tooling packages. The independent series starts after the
 
 ## [0.33.1] - Unreleased
 
+### 🧪 Testing
+
+- Add maximum-shape backend conformance through admission, reopen and scoped
+  authorization. Add opt-in installed-client archive qualification in Chromium,
+  retaining real IndexedDB reopen/cleanup and executable/bundle hash evidence.
+  Public verification and transport semantics are unchanged.
+
+- Qualify matching 0.33 backend and private browser archive candidates, retaining
+  their receipts and integrity in one local handoff. Document installation into
+  consumer test support and exact browser file dependencies; require actual
+  store and production transport qualification in Canic.
+
+### ⬆️ Dependencies
+
+- Adopt Platform 0.21.0 after moving simulator clients to Testkit. Preserve
+  canonical Types 0.18, Runtime 0.19, crypto checks and the existing Protocol
+  identity; this update retires the unused Platform client feature.
+
+- Adopt Shared Tooling 0.29.2 at `04a87b3`, using pinned-commit export from the
+  existing local supplier repository. Preserve normal-checkout work, native
+  Testkit ownership and manifest-order refusal behavior.
+
+- Adopt Testkit 0.84.0 and import the maintained simulator client/DTOs from
+  `ic_testkit::pocket_ic`. Remove `ic-platform-pocket-ic`; keep the PocketIC
+  16.1.0 server, Types 0.18 and Runtime 0.19 pairing. Preserve the incoming
+  locked Build 0.74.2 selection.
+
 ### 🥾 Governance
 
-- Use topic branches and PRs in the normal checkout for implementation and
-  adoption. Remove the additional release-clone requirement, coordinate active
-  sessions before branch switches and preserve original recovery evidence.
+- Make routine implementation and adoption changes in the normal checkout;
+  use topic branches and PRs when requested or required. Remove the additional
+  release-clone requirement, coordinate active sessions before branch switches
+  and preserve original recovery evidence.
 
 ## [0.33.0] - 2026-11-03
 

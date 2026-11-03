@@ -18,7 +18,7 @@ export RELEASE_REMOTE RELEASE_BRANCH RELEASE_GROUP
         install-testkit-tools testkit-tools-check test-testkit-tools install-release-tools release-tools-check \
         test-types test-protocol test-portable-signatures test-chain-key-signatures test-signatures test-signature-store test-certified-proofs test-sessions check-wasm clippy check-boundaries \
         check-snapshot check-dependency-pins check-doc-links check-msrv install-msrv msrv-tools-check tasks ci \
-        client-tools-check install-client-dependencies generate-client-contracts check-client-contracts check-client-boundary test-client test-client-tools pack-client test-client-package \
+        client-tools-check install-client-dependencies generate-client-contracts check-client-contracts check-client-boundary test-client test-client-tools pack-client test-client-package test-client-package-browser \
         publish publish-dry-run check-package-builds check-package-licenses test-release-tools pack-backend-conformance test-backend-conformance test-backend-package profile-canonical-allocations \
         test-host-tooling test-qualification build-qualification-canister test-release-runner test-evidence-archive test-tools-evidence test-make-jobserver \
         release-version release-preflight release-verify release-prepare-version \
@@ -37,7 +37,7 @@ help:
 	@echo 'Local browser archives: pack-client, test-client-package (offline; no publication)'
 	@echo 'Native backend scenarios: test-backend-conformance; source archive after cohort publication: pack-backend-conformance'
 	@echo 'Delivery qualification after cohort publication: test-backend-package; native allocation observation: profile-canonical-allocations'
-	@echo 'Opt-in Chromium qualification: test-client-browser (IC_AUTH_BROWSER_EXECUTABLE required)'
+	@echo 'Opt-in Chromium qualification: test-client-browser, test-client-package-browser (IC_AUTH_BROWSER_EXECUTABLE required)'
 	@echo 'Formatting: fmt, fmt-check, test-formatting-hooks'
 	@echo 'Governance: check-snapshot, check-dependency-pins, check-doc-links, check-boundaries, check-msrv; maintenance catalog: tasks'
 	@echo 'Complete CI gate (explicit only): ci'
@@ -180,6 +180,9 @@ pack-client:
 
 test-client-package:
 	+bash scripts/dev/package-client.sh check
+
+test-client-package-browser:
+	+bash scripts/dev/package-client.sh check-browser
 
 .PHONY: test-client-browser
 test-client-browser:

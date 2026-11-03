@@ -21,18 +21,19 @@ export async function smoke(factory: IDBFactory) {
   // Reference every runtime export so browser bundling checks the full public entry.
   check(Object.keys(auth).length > 0 && typeof auth.httpAdmissionTransport === 'function'
     && typeof auth.httpLogoutTransport === 'function');
-  const store = await auth.IndexedDbLogoutStore.open(factory, 'packed-consumer');
+  let store = await auth.IndexedDbLogoutStore.open(factory, 'packed-consumer');
+  const journalFor = (store: auth.IndexedDbLogoutStore) => new auth.PortableLogoutClient(store, {
+    id: 'consumer-clock', nowNs: () => now, wait: async () => { throw Error('Unexpected retry'); },
+  }, {
+    revoke: async (_target, identity) => {
+      check(identity.getPrincipal().toText() === browser.getPrincipal().toText());
+      counts.revocations++;
+      return { tag: 'Revoked', value: now + 120_000_000_000n };
+    },
+    dispose: async () => {},
+  });
   try {
-    const journal = new auth.PortableLogoutClient(store, {
-      id: 'consumer-clock', nowNs: () => now, wait: async () => { throw Error('Unexpected retry'); },
-    }, {
-      revoke: async (_target, identity) => {
-        check(identity.getPrincipal().toText() === browser.getPrincipal().toText());
-        counts.revocations++;
-        return { tag: 'Revoked', value: now + 120_000_000_000n };
-      },
-      dispose: async () => {},
-    });
+    let journal = journalFor(store);
     await journal.start('consumer-login', browser, issuer);
     const transport: auth.PortableAdmissionTransport = {
       issue: async identity => {
@@ -56,6 +57,10 @@ export async function smoke(factory: IDBFactory) {
     } catch (error) {
       check(error instanceof auth.ClientError && error.code === 'stale_generation');
     }
+    store.close();
+    store = await auth.IndexedDbLogoutStore.open(factory, 'packed-consumer');
+    journal = journalFor(store);
+    check((await journal.status('consumer-login')).phase === 'cleanup');
     check((await journal.cleanup('consumer-login', browser)).phase === 'finished');
     return counts;
   } finally { store.close(); }

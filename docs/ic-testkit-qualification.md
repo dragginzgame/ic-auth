@@ -9,16 +9,17 @@ Earlier pairings and benchmarks are preserved in
 
 ## Setup and ownership
 
-The root catalog/lock select published Testkit 0.80.0 from
-[IC Tooling](https://github.com/dragginzgame/ic-tooling), the independent PocketIC
-client 0.18.0 and server 16.1.0. Testkit and Auth share Wire 0.15.0 types directly.
+The root catalog/lock select published Testkit 0.84.0 from
+[IC Tooling](https://github.com/dragginzgame/ic-tooling), its maintained PocketIC
+client and server 16.1.0. Testkit and Auth share locked Wire 0.16.1 types directly.
 `WireCallSpec` takes the canonical
 contract limits without conversion; responses require only `DeserializeOwned`.
 The temporary Wire 0.6 alias and limit bridge are removed following
 [Tooling #248](https://github.com/dragginzgame/ic-tooling/issues/248).
 Application identities use owned Principal; direct Testkit/Agent calls convert
-explicitly to their external type. Native Testkit/client and public Auth select Platform 0.18 and
-Types 0.17; the Storage host selects Runtime 0.18 directly. No alias or dependency override is used.
+explicitly to their external type. Auth selects Platform 0.21; Testkit's native
+Candid/management DTOs retain Platform 0.20. Both use
+Types 0.18; the Storage host selects Runtime 0.19 directly. No alias or dependency override is used.
 Native Candid dependencies stay
 outside public Auth library and deployed-Wasm graphs. Testkit no longer supplies
 Candid call helpers; its native management fixtures select Platform's `candid`
@@ -29,8 +30,8 @@ Platform owns native Agent/delegated identity imports. Agent remains transitive
 with its native PEM feature; caller/root-key and request policy remain with the
 fixture. There is no direct Agent declaration or local facade. Testkit supplies
 typed Wire query/update calls and bounded startup. The native runner imports
-`PocketIc`, `PocketIcBuilder` and `Time` directly from the canonical
-`ic-platform-pocket-ic` owner, matching Testkit's implementation. The fixture retains the
+`PocketIc`, `PocketIcBuilder` and `Time` from `ic_testkit::pocket_ic` in Testkit
+0.84. The separate Platform client dependency is removed. The fixture retains the
 managed `PocketIcInstance` owner throughout setup and live calls. It borrows the
 client through `instance()` or `instance_mut()`; Testkit preserves client-before-server
 teardown, including when setup panics. Only the native runner

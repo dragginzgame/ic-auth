@@ -1,24 +1,133 @@
 # Current handoff — 2026-11-03
 
-## Branch/PR workflow correction
+## Platform 0.21 / Engine 0.33.1 delivery in progress
 
-The maintainer explicitly replaced the clone-based workflow with topic branches
-and PRs in the normal Auth checkout. Adoption work is on
+The maintainer authorized Platform adoption and delivery in the normal Auth
+checkout. Published Platform 0.21 removes its retired PocketIC client feature;
+its Types, Runtime, Agent and crypto implementations are unchanged. Auth selects
+0.21 and already uses Testkit 0.84's owned client. Testkit's native-only
+Candid/management DTOs retain the 0.20 facade; Types 0.18 and Runtime 0.19
+remain canonical. No facade alias or verifier relaxation is introduced.
+
+The selected release is Engine 0.33.1, with Protocol left at 0.33.0. The pending
+Shared 0.29.2, Testkit and conformance/browser work is included. Delivery uses
+this checkout and `origin/main`, an annotated `engine-v0.33.1` tag and crates.io
+publication. Historical recovery state and the completed 0.33 release checkout
+remain intact. Earlier candidate receipts below keep their original meaning;
+they do not qualify the newly selected dependency until checked afresh.
+
+## Maximum-shape and packed-browser qualification
+
+Auth's backend conformance entrypoint now includes `assert_maximum_shape` as its
+sixth scenario. It admits all 16 role grants with 32 scopes per grant and
+64-byte labels, requests 16 scopes from the final role, reopens session/login
+backing and authorizes every requested scope with unchanged records. Real
+Platform signatures and the public engine perform admission. Both the reference
+callbacks and independent encoded-record adapter pass; the native suite has
+nine passing cases. Focused backend Clippy also passes. This tests shapes and
+restoration, not actual Canic host performance.
+
+`make test-client-package-browser` now extends the existing packed consumer with
+an explicit prepared Chromium executable and a bounded, isolated-profile run.
+The bundle imports only installed archive/public exports. The shared consumer
+smoke now closes/reopens the logout journal before cleanup, in both fake and
+real IndexedDB. The actual check passed with Chromium 156.0.8078.4: one issuance,
+one admission, local logout invalidation and two revocation acknowledgements.
+Issuer/receiver calls remain injected. Browser version and executable/bundle
+hashes are retained; no browser was downloaded and no user profile was used.
+
+Updated candidates are assembled at
+`target/adoption-boundaries/delivery/manifest.json` with verified checksums.
+Backend archive evidence is `target/portable-fixtures/backend-package.qnK9he/`:
+registry identity/consumer admission, graph refusals and all nine packaged cases
+pass. Browser archive evidence is `target/browser-client-packages/package.qndU6C/`,
+with `packed-consumer-chromium` receipt and `browser-proof.json`. Missing/relative
+browser selection refuses before setup. Shell lint, JavaScript syntax and Rust
+format checks pass. All changes remain local dirty candidates; library/runtime
+and generated-contract sources still match the published 0.33 tags. No crypto,
+verification behavior, TEE policy, consumer deployment or publication changed.
+Evidence summaries are under `target/adoption-boundaries/`.
+
+## Earlier matched Canic adoption candidates
+
+The matching backend and private browser bundles are assembled at
+`target/canic-adoption-033/delivery/manifest.json`, with archive/receipt copies,
+input records and a verified `SHA256SUMS`. Both receipts identify local dirty
+source `a35db7b6c5f462bf8bc81441f665a23dac00a97d`; these are development
+candidates, not newly delivered releases. Library and generated-contract source
+still match the published Protocol/Engine 0.33.0 tags. Rebuild and requalify from
+the intended delivered commit before production adoption.
+
+`make test-backend-package` passed the normalized archive's registry consumer,
+dependency-graph refusals and eight packaged scenario tests, including detection
+of admission/logout mutations before an error. Exact evidence is
+`target/portable-fixtures/backend-package.H4R974/`. After simplifying the browser
+README to use one build-and-qualify command, `make test-client-package` passed
+strict declarations, injected-transport/IndexedDB smoke, private-import refusal
+and browser bundling of the actual archive. Final browser evidence is
+`target/browser-client-packages/package.wumMjR/`; the earlier archive remains
+separate. The source/dependency cohort seal is unchanged. Setup-only release
+metadata attempts remain recorded separately from the passing admitted group
+callers and failure-status test below.
+
+The [adoption guide](../canic-adoption.md#matched-qualification-handoff) now gives
+exact archive installation and integrity instructions. Run the backend contract
+against Canic's actual adapter and qualify its real production browser transports
+there; Auth's reference/test adapters do not establish that acceptance. Read-only
+Canic review confirms Auth 0.33 and Timers 0.39 selections. The former runtime
+blocker is resolved, with incoming-family qualification still in progress and
+production clock/restore, certified issuance, maximum-shape cost and browser
+delivery remaining Canic-owned. No sibling changes or new publication occurred.
+
+## Testkit 0.84 adoption
+
+The current local batch selects published Testkit 0.84.0. The native runner now
+imports clients/DTOs from `ic_testkit::pocket_ic`; the separate
+`ic-platform-pocket-ic` declaration and locked package are removed, and the local
+direct-dependency policy forbids its return. The incoming Build 0.74.2 lock
+selection was preserved. PocketIC server 16.1.0, Platform 0.20, Types 0.18,
+Runtime 0.19 and Wire/derive 0.16.1 remain selected. Public package versions remain
+0.33.0, with Engine 0.33.1 notes pending. No new commit, PR or release was made.
+
+Focused checks pass under `target/testkit-084/`: native runner Clippy, actual
+direct-dependency admission, Wasm library/host isolation and singleton guards,
+fixture Wasm build, four file-tooling tests, and explicit Testkit CLI/server
+setup plus offline admission. Three exact real cases pass independently:
+`certified-upgrade.log`, `signed-ingress.log` and `sdk-sessions.log`. They cover
+certification/upgrade, ingress after upgrade and SDK admission/logout across two
+receivers/devices, including lost replies, reopened journal and retained-key
+refusal. `selection-check.log` confirms unchanged manifest/lock/runner/policy
+bytes throughout. Full CI, hosted acceptance and production Canic integration
+are not inferred from these selected checks.
+
+Auth's direct-boundary checker admits this consumer because the native external
+dependencies belong to registry Testkit, not an Auth workspace member. Shared
+0.29.2 also records Testkit's ownership; its resolved refresh is described below.
+No supplier-owner exception was patched locally or weakened.
+
+## Normal-checkout workflow correction
+
+The maintainer clarified that routine coding and adoption happen directly in the
+normal checkout; PRs are used when requested or required. No additional clone or
+automatic PR is needed. Existing work is preserved on
 `chore/shared-tooling-029-branch-workflow` in `/home/adam/projects/ic-auth`.
 The Auth overlay and development guide no longer require a separate release
 clone. Coordinate shared-checkout sessions before branch switches and keep
-release inputs stable. Implementation PRs precede the existing qualified direct
-release commands; no unqualified PR release adapter is advertised.
+release inputs stable. The existing qualified direct release commands retain
+their separate authority; no unqualified PR release adapter is advertised.
 The completed 0.33 release checkout and its original evidence remain intact.
+[Auth PR #126](https://github.com/dragginzgame/ic-auth/pull/126) was closed at the
+maintainer's request; its branch/commit remain, and this clarification is local.
 
-The snapshot still selects Shared 0.28.3 at `07f41c2`. Released 0.29.0 is
-`5767ac6`, but the existing local supplier checkout is dirty at `0025cd4` and
-its canonical exporter refuses the source. No dirty supplier bytes were adopted
-as committed payloads. [Shared #353](https://github.com/dragginzgame/shared-tooling/issues/353)
-owns pinned-commit export from an existing local repository without a branch
-switch or new clone. The refusal is retained in
-`target/shared-tooling-029/impact.log`. Auth's branch/PR correction is independent
-of that exporter capability; local Markdown links and diff checks pass.
+The former exporter refusal is resolved by Shared 0.29.2 at
+`04a87b366eae3e63b9f032c0b891c17bdc59e69b`. Auth now adopts that exact commit
+using `--revision` against the existing local supplier repository; no source
+checkout, source branch switch or new clone is needed. All 149 payloads match
+the independently selected commit. Both actual group-order callers and
+direct-dependency admission pass, and a substituted sort failure preserves
+status 37 through Auth's caller. Evidence is under `target/canic-adoption-033/`.
+[Shared #353](https://github.com/dragginzgame/shared-tooling/issues/353) is closed;
+its earlier refusal remains at `target/shared-tooling-029/impact.log`.
 
 ## Protocol/Engine 0.33 delivered
 

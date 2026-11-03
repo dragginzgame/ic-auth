@@ -1,7 +1,7 @@
 # IC Auth Agent Instructions
 
 Apply the installed [baseline](DRAGGINZGAME.md), adopted from Shared Tooling
-0.28.3 at `07f41c2723850f8fd86c61f2f50e65b0c6cde886`, and its task-specific
+0.29.2 at `04a87b366eae3e63b9f032c0b891c17bdc59e69b`, and its task-specific
 references. The [snapshot manifest](.shared-tooling.snapshot) records the exact
 policy/tooling selection. Read [the current handoff](docs/status/current.md)
 before implementation. Product-specific safeguards and scoped permissions below
@@ -103,9 +103,9 @@ and `ci/cargo-dependency-boundaries.json` for direct-dependency ownership.
 
 - Native canister qualification uses published `ic-testkit` for typed Wire calls,
   deliberate raw-call evidence and bounded startup. Import simulator clients and
-  DTOs from the independent canonical `ic-platform-pocket-ic` owner in the native
-  runner only, matching Testkit's implementation identity. Do not add a registry
-  `pocket-ic` dependency. The locked Testkit package selects the setup/check CLI;
+  DTOs from `ic_testkit::pocket_ic` in the native runner only. Testkit owns that
+  maintained client and its lifecycle helpers; do not add a separate Platform
+  client or registry `pocket-ic` dependency. The locked Testkit package selects the setup/check CLI;
   Testkit owns server selection and admission outside the shared five-tool bundle.
   `make install-testkit-tools` explicitly prepares it, and
   `make testkit-tools-check` returns its admitted server path offline.
@@ -185,7 +185,9 @@ and `ci/cargo-dependency-boundaries.json` for direct-dependency ownership.
   contracts; use PocketIC for real canister lifecycle and ingress delegation.
 - Check for active builds before compilation or source mutation. Keep build
   output in this repository and preserve other work.
-- Use [topic branches and PRs in the normal checkout](docs/development.md#branch-and-pr-workflow).
+- Make routine changes directly in the [normal checkout](docs/development.md#normal-checkout-workflow).
+  Use topic branches and PRs when requested or required by the repository workflow;
+  a coding or dependency-adoption request does not itself require a PR.
   Do not create contribution directories, clones or worktrees for ordinary work
   or release delivery. Coordinate active sessions before switching branches or
   changing release inputs; never disable input-drift admission or discard recovery
