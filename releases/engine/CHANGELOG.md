@@ -4,6 +4,14 @@ Covers public `ic-auth` and the unpublished backend conformance, qualification a
 native tooling packages. The independent series starts after the
 [last coordinated release, 0.29.2](../history.md).
 
+## [0.33.1] - Unreleased
+
+### 🥾 Governance
+
+- Use topic branches and PRs in the normal checkout for implementation and
+  adoption. Remove the additional release-clone requirement, coordinate active
+  sessions before branch switches and preserve original recovery evidence.
+
 ## [0.33.0] - 2026-11-03
 
 ### ⚠️ Breaking

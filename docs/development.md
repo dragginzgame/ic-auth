@@ -53,33 +53,36 @@ trailing newlines before state writes. Auth retains direct release delivery.
 
 ## Release editor setup
 
-### Release checkout isolation
+### Branch and PR workflow
 
-Keep a dedicated clean checkout for release/publication and a separate checkout
-for development and dependency updates. Finish and commit the dependency batch
-before bringing it into the release checkout. For initial setup:
+Use topic branches and pull requests in the normal Auth checkout. Keep the
+implementation, dependency changes and reviewable diff there; do not create
+contribution directories, additional clones or worktrees for delivery. Merge the
+reviewed PR through the established repository workflow before releasing its
+changes from clean `main` in the same checkout.
 
-```sh
-git clone https://github.com/dragginzgame/ic-auth.git /path/to/ic-auth-release
-cd /path/to/ic-auth-release
-git status --short
-```
+A branch does not isolate simultaneous sessions sharing a checkout. Coordinate
+with active agents, editors, dependency updaters and builds before switching
+branches or changing inputs. Keep the selected source stable throughout release
+and publication. The source/index checks, complete admitted release plan and
+input-drift guard remain required.
 
-Run the existing `make release-patch`, `make release-minor` or
-`make release-major` there only with release authority. Keep agents, editors,
-dependency updaters and other validation out of that checkout for the entire
-attempt. The release still performs source admission and the complete gate;
-the input hash guard remains necessary. A separate checkout prevents ordinary
-development edits from changing its files; it does not serialize competing
-remote releases or make a failed gate reusable.
+The existing `make release-patch`, `make release-minor` and `make release-major`
+commands still require release authority and an explicit `RELEASE_GROUP`.
+Implementation review uses PRs; the release runner retains its qualified direct
+commit/tag/push workflow after merge. Its separate `RELEASE_DELIVERY=pr` mode is
+not qualified in Auth.
 
-For exact recovery, keep the original checkout and run
-`make release-resume VERSION=X.Y.Z`, preserving `.git/release-state`, publication
-intent, prepared tools and `target` evidence. Do not reset, re-clone or clean away
-that recovery state. For a fresh later release, fast-forward a clean checkout as
-appropriate and use a normal release target from current committed metadata;
-historical plans are not inputs to that new attempt. After delivery, fast-forward
-the development checkout when its own pending work permits it.
+For exact recovery, keep the original source, adapter and attempt state, then run
+`make release-resume RELEASE_GROUP=protocol|engine VERSION=X.Y.Z`. Preserve
+`.git/release-state`, publication intent, prepared tools and `target` evidence.
+Do not reset, re-clone or clean away recovery state to retry. Normal later
+releases start from current clean, committed metadata and run fresh admission;
+historical plans do not supply their validation.
+
+The existing `/home/adam/projects/ic-auth-release-033` checkout retains the
+completed 0.33 release and publication evidence. Preserve it for that historical
+custody; new work and releases use the normal checkout and branch/PR workflow.
 
 ### Editor preparation and recovery
 
@@ -882,7 +885,9 @@ and its pending notes before executing a release; ordinary preflight requires cl
 
 All three release targets use the adopted runner, the same `make ci` gate and
 direct delivery to `origin/main` by default. `RELEASE_REMOTE` and `RELEASE_BRANCH`
-select another already-authorized destination. PR delivery is not qualified here.
+select another already-authorized destination. Implementation changes use a
+topic branch and PR in the normal checkout before release. The runner's separate
+PR delivery mode is not qualified here.
 `ci/release-delivery.txt` declares the supported direct delivery once; Make and
 standalone metadata use the shared read-only policy checker. CI seals this file
 with its other preparation inputs and refuses policy drift before later stages.

@@ -1,5 +1,25 @@
 # Current handoff — 2026-11-03
 
+## Branch/PR workflow correction
+
+The maintainer explicitly replaced the clone-based workflow with topic branches
+and PRs in the normal Auth checkout. Adoption work is on
+`chore/shared-tooling-029-branch-workflow` in `/home/adam/projects/ic-auth`.
+The Auth overlay and development guide no longer require a separate release
+clone. Coordinate shared-checkout sessions before branch switches and keep
+release inputs stable. Implementation PRs precede the existing qualified direct
+release commands; no unqualified PR release adapter is advertised.
+The completed 0.33 release checkout and its original evidence remain intact.
+
+The snapshot still selects Shared 0.28.3 at `07f41c2`. Released 0.29.0 is
+`5767ac6`, but the existing local supplier checkout is dirty at `0025cd4` and
+its canonical exporter refuses the source. No dirty supplier bytes were adopted
+as committed payloads. [Shared #353](https://github.com/dragginzgame/shared-tooling/issues/353)
+owns pinned-commit export from an existing local repository without a branch
+switch or new clone. The refusal is retained in
+`target/shared-tooling-029/impact.log`. Auth's branch/PR correction is independent
+of that exporter capability; local Markdown links and diff checks pass.
+
 ## Protocol/Engine 0.33 delivered
 
 Protocol 0.33.0 (`ic-auth-protocol-types`, `ic-auth-wire`) and Engine 0.33.0
