@@ -33,9 +33,8 @@ reports a missing download, run `cargo fetch --locked --manifest-path
 <printed-evidence>/consumer/Cargo.toml`, then rerun the check into a fresh retained
 directory. The check itself never downloads or uploads.
 
-Protocol/Engine 0.33.0 is published with Platform 0.20 and Types 0.18.
-The pending Engine 0.33.1 bundle selects Platform 0.21 and requires its matching
-published Engine before archive qualification. Protocol remains 0.33.0. Do not
+Engine 0.33.1 is published with Platform 0.21 and Types 0.18; Protocol remains
+0.33.0. Qualify this bundle against that matching published Engine. Do not
 mix this source with registry Auth 0.32's Types 0.17 identity. The retained 0.32 candidate
 archive uses Platform 0.18/Types 0.17 and remains separate evidence. See the
 [current evidence](../../../docs/status/current.md) for qualification and receipts.
@@ -46,7 +45,7 @@ it as a **development dependency**. Use the archive's normalized `Cargo.toml`;
 depending on the producer's working workspace can introduce a second Git/path
 identity for Auth alongside the consumer's registry dependency.
 
-Example for Engine 0.33.1 after publication:
+Example targeting published Engine 0.33.1:
 
 ```toml
 # Append this path to the consumer's existing workspace exclusions. The foreign

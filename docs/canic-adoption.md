@@ -9,18 +9,15 @@ Older migrations and observations are preserved in [adoption history](canic-adop
 ## Current integration cohort
 
 Published **Protocol 0.33.0** (`ic-auth-protocol-types`, `ic-auth-wire`) and
-**Engine 0.33.0** (`ic-auth`) are the current adoption cohort. Protocol releases
+**Engine 0.33.1** (`ic-auth`) are the current adoption cohort. Protocol releases
 independently from Engine. Keep the two Protocol packages aligned; use the
 Engine package's declared Protocol requirement rather than forcing equal versions
 across groups. An Engine-only update leaves Protocol's Rust type identity intact.
-The released lock selects canonical Types 0.18, Platform 0.20 and Wire/derive 0.16.1.
-The released qualification host selects independent Runtime 0.19, and its native
-runner uses `ic-platform-pocket-ic` 0.20 with Testkit 0.83. This checkout now adopts
-Testkit 0.84's owned `ic_testkit::pocket_ic` client and removes that separate
-dependency. Rust 1.99.1 is the minimum.
-The pending Engine 0.33.1 adopts Platform 0.21 without changing Protocol or
-Types. Testkit 0.84.1 aligns its native Candid/management DTOs with that facade;
-the complete checkout selects one Platform 0.21, with Runtime 0.19 unchanged.
+The released lock selects canonical Types 0.18, Platform 0.21 and Wire/derive
+0.16.1. The qualification host selects independent Runtime 0.19. Its native
+runner uses Testkit 0.84.1's owned `ic_testkit::pocket_ic` client, with no separate
+Platform client dependency. Testkit's Candid/management DTOs share the one
+Platform facade. Rust 1.99.1 is the minimum.
 Engine 0.33.1 also removes fixed deployment ceilings from `SessionLimits`,
 allowing protected host-selected profiles such as 100,000 sessions. It supplies
 no receiver default or automatic backing allocation. Canic owns its configured
@@ -35,7 +32,7 @@ identities. Auth carries
 no Account DTOs, so the upstream Account byte-adapter cut does not change Auth's
 frames, method identities or stored records. Regenerated browser files are unchanged.
 
-## Current Canic source review — 2026-11-03
+## Earlier read-only Canic source review — 2026-11-03
 
 Read-only review used Canic HEAD `0509ec870891515923f79d3932ece127b351cd15`
 plus its existing uncommitted integration. No Canic build, edit or installed
@@ -241,8 +238,10 @@ production issuer/reconciliation and receiver endpoints. Neither archive install
 those components or establishes production acceptance.
 
 The current assembled local handoff is
-`target/adoption-boundaries/delivery/manifest.json`; the earlier
-`target/canic-adoption-033/delivery/` remains separate evidence.
+`target/platform-021-delivery/delivery/manifest.json`, built from clean release
+`f9105b9` with Engine 0.33.1 and Protocol 0.33.0. Earlier
+`target/adoption-boundaries/delivery/` and `target/canic-adoption-033/delivery/`
+remain separate candidate evidence.
 It identifies the two exact archives, their receipts/input records and the source
 and published Engine/Protocol versions used for qualification. Run
 `sha256sum --check SHA256SUMS` from that delivery directory before copying it.
@@ -259,10 +258,10 @@ archive/integrity and resulting consumer lock, and qualify the selected SDK
 graph and real issuer/receiver transports. The private package's `0.0.0` version
 cannot distinguish these artifacts.
 
-Current receipts explicitly mark the uncommitted source as a candidate. These
-archives can support development qualification; rebuild and requalify them from
-the intended delivered commit before production adoption. Neither the matching
-Rust source versions nor an archive checksum turns a dirty source into a release.
+Current receipts mark the exact released source as clean. Earlier dirty-source
+receipts identify development candidates and must not replace that source
+selection. Clean archive qualification still requires the actual consumer's
+store and production transports to pass its acceptance.
 
 Current `AUTHNAT3` is the private qualification checkpoint. Current Auth session,
 login and replay discriminators remain unchanged; no new reset or migration is

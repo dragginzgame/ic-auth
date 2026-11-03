@@ -1,52 +1,58 @@
 # Current handoff — 2026-11-03
 
-## Platform 0.21 and host-selected capacity / Engine 0.33.1 delivery in progress
+## Engine 0.33.1 delivered — Platform 0.21 and host-selected capacity
 
-The maintainer authorized Platform adoption and delivery in the normal Auth
-checkout. Published Platform 0.21 removes its retired PocketIC client feature;
-its Types, Runtime, Agent and crypto implementations are unchanged. Auth selects
-0.21 and uses Testkit 0.84.1's owned client. Testkit now also selects Platform
-0.21 for its native Candid/management DTOs, leaving one facade in the complete
-checkout. Types 0.18 and Runtime 0.19 remain canonical. No facade alias or
-verifier relaxation is introduced.
+Engine 0.33.1 (`ic-auth`) is published on crates.io. The source batch at
+`173ab465f8d81e671f54164081eae7ebd3a1d8fb` was released at
+`f9105b938aa76de80f1e83c635e1ab445133911c`; `main` and annotated tag
+`engine-v0.33.1` were pushed to `origin`. Registry observation verified archive
+SHA-256 `44ffe15b94526c3ad7c79194b10d0c4a7efc21643a54a85ad904c6a01ea61dd2`.
+The publication adapter completed with no unresolved upload. Protocol remains
+0.33.0; its package manifests, release ledger and canonical identities are unchanged.
 
-The selected release is Engine 0.33.1, with Protocol left at 0.33.0. The pending
-Shared 0.29.2, Testkit and conformance/browser work is included. Delivery uses
-this checkout and `origin/main`, an annotated `engine-v0.33.1` tag and crates.io
-publication. Historical recovery state and the completed 0.33 release checkout
-remain intact. Earlier candidate receipts below keep their original meaning;
-they do not qualify the newly selected dependency until checked afresh.
+The release selects Platform 0.21, Testkit 0.84.1, Types 0.18, Runtime/guard 0.19,
+Wire/derive 0.16.1 and Shared Tooling 0.29.2. Testkit owns the simulator client;
+the complete lock now has one Platform facade. All 30 fresh release stages
+passed, including native/Wasm Clippy, boundary/MSRV/archive consumers, client and
+crypto/session tests, live certification/upgrade/ingress and release/recovery/
+publication fixtures. Original evidence is retained at
+`.git/release-state/engine-gate.Uy6QIN/logs/validation.4GXM4g`; the release plan is
+`.git/release-state/engine-0.33.1.plan`. No alternate checkout was created.
 
-The first complete gate at `f8d693c` stopped at the last stage because Cargo.lock
-changed from Testkit 0.84.0 to the published 0.84.1 during execution. Its earlier
-passes do not admit the incoming selection. Failed evidence remains at
-`.git/release-state/engine-gate.ErSiKn/logs/validation.Kar1mL`; no release metadata,
-tag, push or upload was performed. The incoming lock is preserved, the declared
-minimum and current docs are aligned, and a fresh full gate is required.
+The requested capacity patch removes fixed deployment ceilings from
+`SessionLimits`, accepting positive protected host budgets such as 100,000
+sessions. Construction allocates no backing. Physical count/byte enforcement,
+checked byte arithmetic, restoration refusal, individual record limits,
+verification and the TEE/non-TEE trust model remain unchanged. Canic owns its
+default/maximum, proportional retention/index/backing budgets and installed
+capacity/performance qualification; no Canic default was changed here.
 
-The maintainer then requested inclusion of the prepared 100,000-session supplier
-patch. The second run on `4d74611` was stopped before source mutation, while
-still validating; no version/tag/push/upload occurred. The reviewed upstream
-patch from Canic's adoption evidence applied cleanly here: `SessionLimits`
-accepts positive protected host budgets without the fixed deployment ceilings.
-Construction still allocates no backing; physical count/byte enforcement,
-checked byte arithmetic, restoration refusal, individual record bounds and
-verification rules remain. The Canic default/profile patch stays with Canic.
-The interrupted evidence remains at
-`.git/release-state/engine-gate.W3mctJ/logs/validation.P1Ug8A` and is not a passing
-release receipt. The expanded source requires a new committed selection and fresh
-complete gate. Focused `session_configuration` checks pass all three cases:
-positive/zero budget admission without preallocation, 100,000-session physical
-count/replay exhaustion and replacement, and scope admission. The selected
-session-restore Clippy target and Rust formatting also pass; evidence is under
-`target/platform-021-delivery/capacity-*`.
+Matching clean-release bundles are assembled at
+`target/platform-021-delivery/delivery/manifest.json` with verified checksums.
+Both receipts identify exact release `f9105b9` with `dirty: false`. Backend
+archive evidence `target/portable-fixtures/backend-package.yJHN35/` passes
+registry identity/consumer admission, graph refusals and all nine packaged
+scenarios. Browser evidence `target/browser-client-packages/package.23BJd2/`
+passes the installed archive's public API in Chromium 156.0.8078.4, including
+real IndexedDB journal reopen/cleanup; its receipt and executable/bundle hashes
+are retained. Transports remain injected. Private bundles are local artifacts,
+not npm publication or actual Canic-adapter/production-endpoint acceptance.
 
-The separately requested Canic default-Wasm warning fix is local in its capacity
-module: the profile/constructor compile for native validation, tests and enabled
-receiver consumers, while the default constant remains available everywhere.
-Default Wasm, receiver-enabled Wasm and native default Core Clippy passed with
-`-D warnings`. Evidence is `canic/target/auth-capacity-cfg/`; no Canic commit or
-deployment was performed and its installed timer regression stays with its owner.
+Earlier attempts remain separate: `f8d693c` was rejected after incoming lock
+changes (`engine-gate.ErSiKn/logs/validation.Kar1mL`), and the run on `4d74611`
+was stopped before adding the requested capacity patch
+(`engine-gate.W3mctJ/logs/validation.P1Ug8A`), both under `.git/release-state/`.
+Neither was reused as release admission. Publication/evidence is under
+`target/platform-021-delivery/` and `target/publication-engine-0.33.1.vNoB5Z/`.
+Historical release/recovery state and the completed 0.33 checkout remain intact.
+
+The separately requested Canic default-Wasm warning fix was left in its capacity
+module and pending framework notes. The profile/constructor compile for native
+validation, tests and enabled receiver consumers; the default constant remains
+available everywhere. Default Wasm, receiver-enabled Wasm and native default
+Core Clippy passed with `-D warnings`, retained in
+`/home/adam/projects/canic/target/auth-capacity-cfg/`. No Canic commit/deployment
+was performed by this session; its installed timer regression stays with its owner.
 
 ## Maximum-shape and packed-browser qualification
 
