@@ -1,15 +1,29 @@
 # Current handoff — 2026-11-03
 
-## Protocol/Engine 0.33 release preparation
+## Protocol/Engine 0.33 delivered
 
-The maintainer requested delivery of the completed upstream and validation batch.
-The selected order is Protocol 0.33.0 (`ic-auth-protocol-types`, `ic-auth-wire`),
-then Engine 0.33.0 (`ic-auth`). Source preparation is in the normal Auth checkout;
-release gates, group version preparation and publication use a separately
-approved dedicated checkout. The destination is `dragginzgame/ic-auth` on
-`origin/main`, annotated `protocol-v0.33.0` / `engine-v0.33.0`, and crates.io.
-No application service or Canic deployment is included. The observations below
-precede release preparation and do not establish delivery of this candidate.
+Protocol 0.33.0 (`ic-auth-protocol-types`, `ic-auth-wire`) and Engine 0.33.0
+(`ic-auth`) are published on crates.io. Source candidate `27373a9` was delivered
+Protocol first at `b5d8756596976d05060e6ec35e3dd87b88273f01`, then Engine at
+`fa6823a25cedb04f55f91301efcf261ab4109b1f`. Both annotated tags
+`protocol-v0.33.0` / `engine-v0.33.0` and `main` were pushed to
+`dragginzgame/ic-auth`. Registry observations match all three archive checksums;
+both publication adapters completed with no unresolved upload.
+
+Each group passed its fresh complete 30-stage local release plan, including
+native/Wasm Clippy, archive/MSRV consumers, browser tests, cryptographic/session
+checks, live PocketIC and the full release/recovery/publication fixture.
+The approved dedicated checkout `/home/adam/projects/ic-auth-release-033`
+preserves `.git/release-state`, `.git/publication-state` and `target/delivery/`
+logs. Protocol proof is `protocol-gate.agsMcV/logs/validation.5ADxWq`; Engine
+proof is `engine-gate.A89Q1Y/logs/validation.BPefXH`, both under release state.
+The normal checkout was fast-forwarded to the Engine release before this handoff
+update. No application or Canic deployment was performed.
+
+The explicit [native group-comparison run](https://github.com/dragginzgame/ic-auth/actions/runs/41680139546)
+uses the exact Engine release commit with `qualify_release_groups=true` and retains
+Ubuntu, macOS Intel and Apple Silicon. It was in progress at handoff; hosted
+acceptance and #125 closure are not claimed from local release success.
 
 ## Auth validation ownership — [#125](https://github.com/dragginzgame/ic-auth/issues/125)
 
@@ -45,13 +59,13 @@ retains its full setup/registry/recovery matrix. Full CI, Rust/MSRV,
 new hosted/macOS mapping measurements and publication are outside this batch.
 These focused checks completed in the requested checkout before source preparation.
 
-## Current upstream update and Canic review
+## Upstream update and Canic review before delivery
 
 The current maintainer request adopts published upstream dependencies and reviews
 Canic adoption. Existing uncommitted group-CI and conformance work is preserved.
 The selected family is Platform/PocketIC **0.20.0**, Types **0.18.0**, independent
 Runtime/macros/guard **0.19.0**, Testkit **0.83.0**, Metrics **0.28.2**, Storage
-**0.66.1**, Wire/derive **0.16.0**, Build **0.74.1**, Host libraries and the
+**0.66.1**, Wire/derive **0.16.1**, Build **0.74.1**, Host libraries and the
 independent file CLI **0.74.2**. Browser SDK **0.1.1** is still latest. All current
 published selections were checked against the supplier registries. Shared Tooling
 **0.28.3** is adopted at merged `07f41c2723850f8fd86c61f2f50e65b0c6cde886`;
@@ -72,8 +86,10 @@ recovery without reissuance, two receivers/devices, independent durable logout
 and retained-key refusal. Their logs are `certified-upgrade.log`,
 `signed-ingress.log` and `sdk-sessions.log` in the evidence directory. Full CI,
 archive/MSRV matrices and hosted/native macOS acceptance are not inherited from the previous cohort. Evidence is under
-`target/upstream-20261103/`. Wire/derive remained 0.16.0, so its browser runtime
-generator selection did not change. Native entrypoints were compiled without
+`target/upstream-20261103/`. Delivery explicitly regenerated the locked Wire
+0.16.1 browser output: all five files were unchanged, and all 70 client tests
+passed (`target/delivery-033/wire-generation.log` and
+`target/delivery-033/wire-client-qualified.log`). Native entrypoints were compiled without
 advertising production wallet or Canic installation acceptance.
 
 Canic source review is read-only at HEAD `0509ec870891515923f79d3932ece127b351cd15`
@@ -84,7 +100,7 @@ snapshot fencing, issuance/reconciliation, browser delivery and installed proof.
 The published Timers 0.38.1 still selects Runtime 0.18.1 and blocks a complete
 Runtime 0.19 singleton family. Host Tools 0.80 is now published with Types 0.18;
 Query 0.89 uses that Types identity too. Auth's matching 0.33 Protocol/Engine
-cohort is still unpublished. No new missing Auth API was found. See
+cohort was still unpublished at that review and is now delivered above. No new missing Auth API was found. See
 `docs/canic-adoption.md` for exact ownership and evidence limits. No sibling edits,
 issue mutations, real commits, pushes, releases or deployments were performed.
 
@@ -105,8 +121,8 @@ fresh clones using their self-contained record. Schema-2 recovery uses its origi
 checkout. See `docs/auth-release-validation.md`. Explicit native workflow dispatch
 with `qualify_release_groups=true` compares both mappings with its same-source
 full gate and retains successful proof artifacts; ordinary CI runs one full gate.
-Linux full/group qualification passes. macOS Intel/Apple Silicon comparisons await
-explicit workflow dispatch; no hosted result is inferred from the Linux run.
+Linux full/group qualification passed. No macOS result is claimed for that frozen
+source; the current native comparison is dispatched separately above.
 The full gate seals its starting clean-source attestation; comparisons reject
 evidence from a different HEAD or dirty source.
 Dispatch tests with substituted stage bodies cover both groups, full expansion,
@@ -132,9 +148,9 @@ actual Make export and an initially unset target. The unchanged cohort's real
 comparison used the equivalent explicit target. The `.git` evidence-path/Testkit
 caller probe passed (`path-probe.9eDS4x`).
 
-Pending notes select **Protocol 0.33.0** and **Engine 0.33.0** for public dependency
-identity alignment and the new release receipt contract. Package versions remain
-0.32.0. No real commit, tag, push, publication, sibling edit or deployment is made.
+Before delivery, pending notes selected **Protocol 0.33.0** and **Engine 0.33.0**
+for public dependency identity alignment and the new release receipt contract;
+package versions then remained 0.32.0. Those observations preceded delivery above.
 
 ## Previous dependency qualification
 

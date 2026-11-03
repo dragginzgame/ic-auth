@@ -8,20 +8,20 @@ Older migrations and observations are preserved in [adoption history](canic-adop
 
 ## Current integration cohort
 
-Published **Protocol 0.32.0** (`ic-auth-protocol-types`, `ic-auth-wire`) and
-**Engine 0.32.0** (`ic-auth`) are the current adoption cohort. Protocol releases
+Published **Protocol 0.33.0** (`ic-auth-protocol-types`, `ic-auth-wire`) and
+**Engine 0.33.0** (`ic-auth`) are the current adoption cohort. Protocol releases
 independently from Engine. Keep the two Protocol packages aligned; use the
 Engine package's declared Protocol requirement rather than forcing equal versions
 across groups. An Engine-only update leaves Protocol's Rust type identity intact.
-The published cohort uses canonical Types 0.17, Platform 0.18 and Wire 0.15.
-The qualification host selects independent Runtime 0.18 and the native runner
-uses `ic-platform-pocket-ic` 0.18 with Testkit 0.80. Rust 1.99.1 is the minimum.
+The released lock selects canonical Types 0.18, Platform 0.20 and Wire/derive 0.16.1.
+The qualification host selects independent Runtime 0.19 and the native runner
+uses `ic-platform-pocket-ic` 0.20 with Testkit 0.83. Rust 1.99.1 is the minimum.
 [`Cargo.toml`](../Cargo.toml), the lockfile and the [current handoff](status/current.md)
-distinguish this checkout's selections from delivered release evidence;
-[group ledgers](../CHANGELOG.md) own pending changes. This checkout prepares
-Protocol/Engine 0.33 with Platform/PocketIC 0.20, Runtime 0.19, Types 0.18,
-Wire 0.16, Testkit 0.83, Metrics 0.28.2 and Storage 0.66.1. These resolve the former Principal/Wire and duplicate
-Runtime blockers. Align Rust consumers when that cohort is released. Auth carries
+record selections and delivered release evidence;
+[group ledgers](../CHANGELOG.md) own release notes. The private host also selects
+Metrics 0.28.2 and Storage 0.66.1. Auth's graph retains one Runtime/guard;
+Canic must qualify its complete family. Align Rust consumers to these canonical
+identities. Auth carries
 no Account DTOs, so the upstream Account byte-adapter cut does not change Auth's
 frames, method identities or stored records. Regenerated browser files are unchanged.
 
@@ -53,8 +53,8 @@ needs a Timers-compatible Runtime transition: published Timers 0.38.1 selects
 Runtime 0.18.1, while Storage 0.66 and Auth's qualification host select Runtime
 0.19 with a different singleton guard. Do not retain both executors/guards or
 add identity aliases to force resolution. Metrics/Storage 0.67 matches Metrics
-0.28 and Storage 0.66. Supplier alignment and publication of Auth's pending
-0.33 cohort are separate from implementing a new Auth compatibility layer.
+0.28 and Storage 0.66. Auth 0.33 is now published; remaining Canic supplier
+alignment and adapter acceptance stay with Canic rather than an Auth compatibility layer.
 
 `Session::scopes()` returns checked `ScopeLabel` values; use `as_str()` for text.
 Requests move their checked labels into sessions. `DelegatedRoleGrant::scopes`
