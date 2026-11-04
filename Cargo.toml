@@ -25,14 +25,14 @@ repository = "https://github.com/dragginzgame/ic-auth"
 [workspace.dependencies]
 # Engine
 # Changelog : releases/engine/CHANGELOG.md
-ic-auth = { version = "0.33.1", path = "crates/ic-auth" }
-ic-auth-backend-conformance = { version = "0.33.1", path = "apps/qualification/backend-conformance" }
-ic-auth-feature-unification = { version = "0.33.1", path = "apps/qualification/feature-unification" }
-ic-auth-qualification = { version = "0.33.1", path = "apps/qualification/runner" }
-ic-auth-qualification-canister = { version = "0.33.1", path = "apps/qualification/canister" }
-ic-auth-qualification-contracts = { version = "0.33.1", path = "apps/qualification/contracts" }
-ic-auth-qualification-fixtures = { version = "0.33.1", path = "apps/qualification/fixtures" }
-ic-auth-tooling = { version = "0.33.1", path = "apps/tooling" }
+ic-auth = { version = "0.33.2", path = "crates/ic-auth" }
+ic-auth-backend-conformance = { version = "0.33.2", path = "apps/qualification/backend-conformance" }
+ic-auth-feature-unification = { version = "0.33.2", path = "apps/qualification/feature-unification" }
+ic-auth-qualification = { version = "0.33.2", path = "apps/qualification/runner" }
+ic-auth-qualification-canister = { version = "0.33.2", path = "apps/qualification/canister" }
+ic-auth-qualification-contracts = { version = "0.33.2", path = "apps/qualification/contracts" }
+ic-auth-qualification-fixtures = { version = "0.33.2", path = "apps/qualification/fixtures" }
+ic-auth-tooling = { version = "0.33.2", path = "apps/tooling" }
 
 # Protocol
 # Changelog : releases/protocol/CHANGELOG.md
