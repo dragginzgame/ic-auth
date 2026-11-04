@@ -28,9 +28,11 @@ native tooling packages. The independent series starts after the
 
 ### ⬆️ Dependencies
 
-- Adopt Metrics 0.29.0 for qualification admission instrumentation. Keep recording
+- Adopt Metrics 0.29.1 for qualification admission instrumentation. Keep recording
   separate from report serialization, which belongs to Canic's metrics adapter;
   retain coverage that counter overflow cannot alter admission or exact retries.
+- Select Storage 0.66.2 for the private qualification host, retaining its public
+  APIs and stored format while removing an intermediate map-value decode copy.
 - Adopt Shared Tooling 0.29.4 at `628ccc7`, including retained-state admission,
   test-source layout and application-instrumentation ownership guidance.
 

@@ -70,6 +70,14 @@ the normal checkout on `main`, direct delivery to `origin/main` and crates.io.
 Group ledgers own the pending notes; incoming TOML-only lockfile updates were
 preserved. Release versions, full-gate results and publication are not yet final.
 
+The first release source is `eec726e`. Its Protocol gate passed the first 29
+stages and completed all release-tools fixture cases, but final source admission
+refused incoming lock drift to Metrics 0.29.1 and Storage 0.66.2. No real version,
+tag or upload was created. Original evidence is retained at
+`target/release-validation/protocol-gate.z5fVNr/logs/validation.pPPrEH`; it is not
+reused as admission for the incoming lock. The two compatible patch selections
+are preserved for fresh source commitment and complete qualification.
+
 ## Retired sibling checkouts
 
 The maintainer authorized consolidation/deletion of
