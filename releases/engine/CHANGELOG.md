@@ -4,6 +4,43 @@ Covers public `ic-auth` and the unpublished backend conformance, qualification a
 native tooling packages. The independent series starts after the
 [last coordinated release, 0.29.2](../history.md).
 
+## [0.33.2] - Unreleased
+
+### 🩹 Fixed
+
+- Enforce the signature-output byte limit during CBOR serialization, preserving
+  envelope bytes and exact-boundary admission while stopping oversized writes.
+- Bound retained Git-side release/publication state using the shared guard,
+  including direct adapter calls. Keep new source extracts and gate logs under
+  `target/`; preserve old recovery evidence and original command failures.
+
+### 🧪 Testing
+
+- Extend the reusable backend bundle with cleanup rollback/bounds and retained
+  clock/generation scenarios. Consumer test drivers must implement the new
+  maintenance/clock hooks and handle fallible generation updates.
+- Add an opt-in native exact-retry allocation profile, with setup and signing
+  excluded. Keep the existing retry behavior while measuring its claims decoding.
+- Move engine and qualification unit tests and their private helpers into
+  adjacent `tests.rs` modules, using ordinary Rust module discovery. Preserve
+  assertions, private access and fixture bytes; retain executable API docs
+  beside their declarations.
+
+### ⬆️ Dependencies
+
+- Adopt Metrics 0.29.0 for qualification admission instrumentation. Keep recording
+  separate from report serialization, which belongs to Canic's metrics adapter;
+  retain coverage that counter overflow cannot alter admission or exact retries.
+- Adopt Shared Tooling 0.29.4 at `628ccc7`, including retained-state admission,
+  test-source layout and application-instrumentation ownership guidance.
+
+### 🥾 Governance
+
+- Retire the redundant capacity and 0.33 release checkouts after verifying that
+  their work is integrated. Keep required compact evidence in the owning target
+  directory and history in ordinary Git refs; keep checkout/build archives out
+  of `.git`. Use the normal checkout for continued work.
+
 ## [0.33.1] - 2026-11-03
 
 ### 🔧 Changed

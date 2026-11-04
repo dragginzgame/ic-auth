@@ -567,11 +567,12 @@ defers commit beyond the engine call, it must defer success observation too.
 
 The reference window is volatile and starts empty at installation/restoration.
 Starting a new diagnostic window changes no budget, replay, denial, generation or
-authority state. Reports retain `u128` totals and Metrics' actual-overflow flags;
-an exact maximum is distinct from actual overflow. Numeric deserialization uses
-Metrics admission. No caller, principal, token, proof or credential-derived label
-is recorded. The host owns window identity, persistence, report authorization,
-replication and resets. A report failure must not change an admission result.
+authority state. Recorders retain `u128` totals and Metrics' actual-overflow flags;
+an exact maximum is distinct from actual overflow. They are not transport DTOs
+and do not implement Serde. Canic's metrics adapter owns reporting and Wire/TypeScript
+projection. No caller, principal, token, proof or credential-derived label is
+recorded. The host owns window identity, persistence, report authorization,
+replication and resets. Counter overflow must not change an admission result.
 There is no report/reset RPC, production adapter or instruction measurement here.
 
 Run the focused example tests with

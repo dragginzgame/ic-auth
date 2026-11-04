@@ -94,9 +94,22 @@ fn both_canic_domains_keep_the_exact_certified_path_and_der_key() {
         let prepared = store.prepare(input, NOW, MAX_RETENTION_NS).unwrap();
         assert_eq!(prepared.retrieval_expires_at_ns, NOW + MAX_RETENTION_NS);
         assert_eq!(store.root_hash(), expected_leaf(input).digest());
-        let proof = store
-            .retrieve(input, NOW, &certificate(signer(), store.root_hash()), &[])
-            .unwrap();
+        let cert = certificate(signer(), store.root_hash());
+        let proof = store.retrieve(input, NOW, &cert, &[]).unwrap();
+        #[derive(Serialize)]
+        struct Envelope<'a> {
+            #[serde(with = "serde_bytes")]
+            certificate: &'a [u8],
+            tree: HashTree,
+        }
+        assert_eq!(
+            proof.signature_cbor,
+            cbor(&Envelope {
+                certificate: &cert,
+                tree: expected_leaf(input),
+            }),
+            "bounded serialization must preserve the original envelope bytes"
+        );
         assert_eq!(
             proof.public_key_der,
             CanisterSigPublicKey::new(signer(), domain.to_vec()).to_der()

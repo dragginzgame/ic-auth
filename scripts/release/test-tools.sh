@@ -4,7 +4,8 @@ validation_only=false
 case "${1:-}" in
     '') [[ $# == 0 ]] ;;
     --validation) [[ $# == 1 ]]; validation_only=true ;;
-    *) echo 'usage: test-tools.sh [--validation]' >&2; exit 2 ;;
+    --retention) [[ $# == 1 ]]; exec bash "${BASH_SOURCE[0]%/*}/test-retention.sh" ;;
+    *) echo 'usage: test-tools.sh [--validation|--retention]' >&2; exit 2 ;;
 esac
 
 # The fixture owns its nested Make selections, including missing-group probes.
@@ -17,6 +18,7 @@ script_path="${BASH_SOURCE[0]}"
 [[ "$script_path" == /* ]] || script_path="$PWD/$script_path"
 cd -P "${script_path%/*}/../.."
 root="$PWD"
+if [[ "$validation_only" == false ]]; then bash scripts/release/test-retention.sh; fi
 export PATH="$root/.tools/host/bin:$root/.tools/rust/common/bin:$PATH"
 export CARGO_NET_OFFLINE=true RUSTUP_AUTO_INSTALL=0
 mkdir -p "$root/target/portable-fixtures"
@@ -244,7 +246,7 @@ for argument in "$@"; do
     if [[ "$previous" == --lockfile ]]; then lock="$argument"; fi
     previous="$argument"
 done
-[[ "$lock" == "$PWD/.git/release-state/metadata."*/base.lock && -f "$lock" ]]
+[[ "$lock" == "$PWD/target/release-metadata/metadata."*/base.lock && -f "$lock" ]]
 git show "$RELEASE_SOURCE:Cargo.lock" | cmp - "$lock"
 [[ " $* " == *' --features cli '* ]] || exit 1
 if [[ " $* " == *' --check '* ]]; then

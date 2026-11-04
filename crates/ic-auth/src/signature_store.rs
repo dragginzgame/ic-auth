@@ -12,6 +12,7 @@ use ic_platform::certification::{
 };
 use serde::Serialize;
 use std::collections::{BTreeMap, BTreeSet};
+use std::io::{self, Write};
 use thiserror::Error;
 
 /// Maximum number of retained leaves, including expired leaves awaiting cleanup.
@@ -36,7 +37,7 @@ pub struct SignatureLimits {
     pub max_message_bytes: usize,
     /// At most 64 KiB before decoding the host's query certificate.
     pub max_certificate_bytes: usize,
-    /// At most 128 KiB of returned CBOR, checked before returning the proof.
+    /// At most 128 KiB of returned CBOR, enforced while serializing the proof.
     pub max_signature_bytes: usize,
 }
 
@@ -331,27 +332,33 @@ impl SignatureStore {
             LookupResult::Found(root) if root == tree.digest() => {}
             _ => return Err(SignatureStoreError::CertificateRootMismatch),
         }
-        // Both certificate bytes and witness depth/record count are bounded
-        // before serialization. This output limit does not measure heap usage.
+        // Input decoding and witness construction retain their separate bounds.
+        // The output sink refuses oversized CBOR before extending its buffer.
         #[derive(Serialize)]
         struct Envelope<'a> {
             #[serde(with = "serde_bytes")]
             certificate: &'a [u8],
             tree: ic_platform::certification::HashTree,
         }
-        let mut serializer = serde_cbor::Serializer::new(Vec::new());
-        serializer
+        let mut output = SignatureOutput {
+            bytes: Vec::new(),
+            maximum: self.limits.max_signature_bytes,
+        };
+        let mut serializer =
+            serde_cbor::Serializer::new(serde_cbor::ser::IoWrite::new(&mut output));
+        let encoded = serializer
             .self_describe()
-            .map_err(|_| SignatureStoreError::Encoding)?;
-        Envelope { certificate, tree }
-            .serialize(&mut serializer)
-            .map_err(|_| SignatureStoreError::Encoding)?;
-        let signature_cbor = serializer.into_inner();
-        if signature_cbor.len() > self.limits.max_signature_bytes {
-            return Err(SignatureStoreError::SignatureTooLarge);
+            .and_then(|()| Envelope { certificate, tree }.serialize(&mut serializer));
+        if let Err(error) = encoded {
+            // This private sink's only I/O error is output-budget exhaustion.
+            return Err(if error.is_io() {
+                SignatureStoreError::SignatureTooLarge
+            } else {
+                SignatureStoreError::Encoding
+            });
         }
         Ok(IcCanisterSignatureProofV1 {
-            signature_cbor,
+            signature_cbor: output.bytes,
             public_key_der: CanisterSigPublicKey::new(self.signing_canister, inputs.seed.to_vec())
                 .to_der(),
         })
@@ -397,38 +404,31 @@ impl SignatureStore {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn retries_and_expired_repreparation_keep_exactly_one_expiration_entry() {
-        let mut store = SignatureStore::new(
-            Principal::from_slice(&[1]),
-            SignatureLimits {
-                max_signatures: 1,
-                max_message_bytes: 32,
-                max_certificate_bytes: 1024,
-                max_signature_bytes: 2048,
-            },
-        )
-        .unwrap();
-        let inputs = SignatureInputs {
-            seed: b"seed",
-            domain: b"domain",
-            message: b"message",
-        };
-        store.prepare(inputs, 0, 2000).unwrap();
-        for now in 1..2000 {
-            let prepared = store.prepare(inputs, now, 2000).unwrap();
-            assert_eq!(prepared.retrieval_expires_at_ns, 2000);
-            assert_eq!(store.expirations.len(), 1);
+// A CBOR output sink, not another encoder. Keep geometric growth within the
+// selected byte cap; this bounds buffer capacity, not allocator/tree overhead.
+struct SignatureOutput {
+    bytes: Vec<u8>,
+    maximum: usize,
+}
+impl Write for SignatureOutput {
+    fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
+        if bytes.len() > self.maximum - self.bytes.len() {
+            return Err(io::ErrorKind::WriteZero.into());
         }
-        store.prepare(inputs, 2000, 2000).unwrap();
-        assert_eq!(store.expirations.len(), 1);
-        assert_eq!(store.prune(2000, 128), Ok(0));
-        assert_eq!(store.prune(4000, 128), Ok(1));
-        assert!(store.expirations.is_empty());
-        assert!(store.is_empty());
+        let required = self.bytes.len() + bytes.len();
+        if required > self.bytes.capacity() {
+            let capacity = required
+                .max(self.bytes.capacity().saturating_mul(2))
+                .min(self.maximum);
+            self.bytes.reserve_exact(capacity - self.bytes.len());
+        }
+        self.bytes.extend_from_slice(bytes);
+        Ok(bytes.len())
+    }
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests;

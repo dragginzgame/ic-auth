@@ -1,7 +1,7 @@
 //! Reusable native backend scenarios for this source cohort. These assertions
 //! exercise Auth's public engine with real fixture signatures, not a production
 //! issuer. Passing them does not establish backing provenance, crash atomicity,
-//! bounded cleanup, durable clock/authority metadata or production adoption.
+//! real clock provenance, crash atomicity or production adoption.
 use ic_auth::{
     admission_budget::SessionAdmissionBudget,
     portable::{
@@ -22,12 +22,22 @@ const NOW: u64 = 10 * SECOND;
 /// Test-driver hooks, not another production storage interface. Each `fresh`
 /// call must allocate isolated test state with the requested protected bounds.
 /// Reopen must reconstruct from the adapter's persisted representation. Failure
-/// injection applies to the next admission/logout commit, before any mutation.
+/// injection applies to the next nonempty admission/logout/prune/generation commit,
+/// before any mutation. Clock hooks project the host's protected high-water mark;
+/// supplied timestamps are fixture inputs, not a production clock implementation.
 pub trait Backend: SessionStore + Sized {
     fn fresh(generation: u64, limits: SessionLimits) -> Self;
     fn fail_next_commit(&mut self);
     fn reopen(self) -> Self;
-    fn advance_generation(&mut self);
+    fn advance_generation(&mut self) -> Result<u64, SessionError>;
+    /// Atomically remove at most min(budget, 128) expired session/replay records.
+    /// Smaller positive host batch caps are accepted. Nonempty expired work must
+    /// progress; empty work must not commit. Login records remain intact.
+    fn prune(&mut self, now_ns: u64, budget: usize) -> Result<SessionPruned, SessionError>;
+    /// Persist a monotonic trusted-clock observation, refusing rollback with
+    /// SessionError::Revocation(LoginRevocationError::Clock).
+    fn observe_clock(&mut self, now_ns: u64) -> Result<(), SessionError>;
+    fn observed_at_ns(&self) -> u64;
     /// Complete physical login records, from the same serialized checkpoint.
     fn retained_logins(&self) -> Vec<LoginRevocationChange>;
 }
@@ -35,6 +45,9 @@ pub trait Backend: SessionStore + Sized {
 /// Run the same admission, authorization, retry, rollback, logout, reopen and capacity scenarios
 /// against a host adapter. Panics identify a violated assertion. Use only with
 /// disposable qualification backing; this deliberately injects failed commits.
+///
+/// # Panics
+/// Panics when the adapter violates a scenario's contract or fixture admission fails.
 pub fn assert_backend_contract<B: Backend>() {
     assert_admission_retry::<B>();
     assert_logout_reopen::<B>();
@@ -42,6 +55,8 @@ pub fn assert_backend_contract<B: Backend>() {
     assert_capacity::<B>();
     assert_authorization::<B>();
     assert_maximum_shape::<B>();
+    assert_pruning::<B>();
+    assert_metadata_reopen::<B>();
 }
 
 /// Maximum grant/scopes/label bounds survive admission, record restoration and
@@ -354,7 +369,7 @@ pub fn assert_replacement_generation<B: Backend>() {
     ));
     let before = snapshot(&mut store, &f, &other);
     assert_eq!(before.occupancy[0].replays, 2);
-    store.advance_generation();
+    assert_eq!(store.advance_generation(), Ok(1));
     assert_eq!(
         f.authorize(&mut store, &mut ledger, NOW, 0),
         Err(SessionError::StaleAuthority)
@@ -436,6 +451,171 @@ pub fn assert_capacity<B: Backend>() {
             ));
         }
     }
+}
+
+/// Cleanup errors preserve records across reopen, zero/empty work never commits,
+/// and a large caller budget still removes at most 128 expired records. Live
+/// sessions/replays and login reservations survive session/replay maintenance.
+///
+/// # Panics
+/// Panics on a violated cleanup contract, unexpected adapter error or fixture refusal.
+pub fn assert_pruning<B: Backend>() {
+    let mut f = Fixture::new(1);
+    let mut other = Fixture::new(2);
+    let mut store = B::fresh(0, SessionLimits::new(4, 132, 132, 65_536).unwrap());
+    let mut ledger = f.ledger();
+    let mut budget = SessionAdmissionBudget::new(256, 1, 0).unwrap();
+    for nonce in 0..129 {
+        f.claims.nonce = [nonce; 16];
+        f.admit(&mut store, &mut ledger, &mut budget, NOW).unwrap();
+    }
+    other.claims.issued_at_ns += SECOND;
+    other.claims.admission_expires_at_ns += SECOND;
+    other
+        .admit(&mut store, &mut ledger, &mut budget, NOW + SECOND)
+        .unwrap();
+    let before = snapshot(&mut store, &f, &other);
+    store.fail_next_commit();
+    assert_eq!(store.prune(NOW + SECOND, 128), Ok(SessionPruned::default()));
+    assert_eq!(
+        store.prune(NOW + 2 * SECOND, 0),
+        Ok(SessionPruned::default())
+    );
+    assert_eq!(
+        store.prune(NOW + 2 * SECOND, 128),
+        Err(SessionError::StorageFailure)
+    );
+    assert_eq!(
+        snapshot(&mut store, &f, &other),
+        before,
+        "failed pruning must preserve every record"
+    );
+    let mut store = store.reopen();
+    assert_eq!(
+        snapshot(&mut store, &f, &other),
+        before,
+        "failed pruning must preserve every record after reopen"
+    );
+    let pruned = store.prune(NOW + 2 * SECOND, usize::MAX).unwrap();
+    assert!(
+        pruned.sessions == 0 && (1..=128).contains(&pruned.replays),
+        "cleanup must obey its 128-record work bound"
+    );
+    let after = snapshot(&mut store, &f, &other);
+    assert_eq!(after.sessions, before.sessions);
+    assert_eq!(after.logins, before.logins);
+    assert_eq!(after.occupancy[0].replays, 130 - pruned.replays);
+    assert!(after.replays[1], "live replay must survive cleanup");
+    let mut store = store.reopen();
+    assert_eq!(snapshot(&mut store, &f, &other), after);
+    for _ in pruned.replays..129 {
+        assert_eq!(
+            store.prune(NOW + 2 * SECOND, 1),
+            Ok(SessionPruned {
+                sessions: 0,
+                replays: 1
+            })
+        );
+    }
+    assert!(matches!(
+        f.admit(&mut store, &mut ledger, &mut budget, NOW + 2 * SECOND),
+        Ok(SessionEstablished::ExactRetry(_))
+    ));
+    // Exactly one session and one replay are now expired. Hosts may choose
+    // either record kind first; each single-record budget must still hold.
+    let mut total = SessionPruned::default();
+    for _ in 0..2 {
+        let pruned = store.prune(NOW + 5 * SECOND, 1).unwrap();
+        assert_eq!(pruned.sessions + pruned.replays, 1);
+        total.sessions += pruned.sessions;
+        total.replays += pruned.replays;
+    }
+    assert_eq!(
+        total,
+        SessionPruned {
+            sessions: 1,
+            replays: 1
+        }
+    );
+    let after = snapshot(&mut store, &f, &other);
+    assert!(after.sessions[0].is_none());
+    assert_eq!(after.sessions[1], before.sessions[1]);
+    assert_eq!(after.logins, before.logins);
+    let mut store = store.reopen();
+    assert_eq!(snapshot(&mut store, &f, &other), after);
+    other
+        .authorize(&mut store, &mut ledger, NOW + 5 * SECOND, 0)
+        .unwrap();
+}
+
+/// Failed generation writes cannot invalidate authority. Committed generation
+/// and clock floors survive reopen, and ordinary admission errors cannot erase
+/// a separately committed clock observation. Clock authenticity and atomic host
+/// configuration changes still need the consumer's installed qualification.
+///
+/// # Panics
+/// Panics on a violated metadata contract, unexpected adapter error or fixture refusal.
+pub fn assert_metadata_reopen<B: Backend>() {
+    let f = Fixture::new(1);
+    let other = Fixture::new(2);
+    let mut store = B::fresh(0, limits(4, 65_536));
+    let mut ledger = f.ledger();
+    let mut budget = SessionAdmissionBudget::new(8, SECOND, 0).unwrap();
+    f.admit(&mut store, &mut ledger, &mut budget, NOW).unwrap();
+    store.observe_clock(NOW).unwrap();
+    let before = snapshot(&mut store, &f, &other);
+    store.fail_next_commit();
+    assert_eq!(
+        store.advance_generation(),
+        Err(SessionError::StorageFailure)
+    );
+    assert_eq!(
+        snapshot(&mut store, &f, &other),
+        before,
+        "failed generation write must preserve authority"
+    );
+    let mut store = store.reopen();
+    assert_eq!(snapshot(&mut store, &f, &other), before);
+    assert_eq!(
+        store.observed_at_ns(),
+        NOW,
+        "clock floor must survive reopen"
+    );
+    assert_eq!(
+        store.observe_clock(NOW - 1),
+        Err(SessionError::Revocation(
+            ic_auth::portable::LoginRevocationError::Clock
+        ))
+    );
+    assert_eq!(store.observed_at_ns(), NOW);
+    f.authorize(&mut store, &mut ledger, NOW, 0).unwrap();
+    store.observe_clock(NOW + SECOND).unwrap();
+    store.fail_next_commit();
+    assert_eq!(
+        other.admit(&mut store, &mut ledger, &mut budget, NOW + SECOND),
+        Err(SessionError::StorageFailure)
+    );
+    let mut store = store.reopen();
+    assert_eq!(snapshot(&mut store, &f, &other), before);
+    assert_eq!(
+        store.observed_at_ns(),
+        NOW + SECOND,
+        "clock floor must survive refused admission"
+    );
+    assert_eq!(
+        store.observe_clock(NOW),
+        Err(SessionError::Revocation(
+            ic_auth::portable::LoginRevocationError::Clock
+        ))
+    );
+    assert_eq!(store.advance_generation(), Ok(1));
+    let mut store = store.reopen();
+    assert_eq!(store.observed_at_ns(), NOW + SECOND);
+    assert_eq!(snapshot(&mut store, &f, &other).generation, 1);
+    assert_eq!(
+        f.authorize(&mut store, &mut ledger, NOW + SECOND, 1),
+        Err(SessionError::StaleAuthority)
+    );
 }
 
 #[derive(Debug, Eq, PartialEq)]

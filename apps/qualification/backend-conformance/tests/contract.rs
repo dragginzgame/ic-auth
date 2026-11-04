@@ -5,7 +5,8 @@ use ic_auth::{
 };
 use ic_auth_backend_conformance::{
     Backend, assert_admission_retry, assert_authorization, assert_backend_contract,
-    assert_capacity, assert_logout_reopen, assert_maximum_shape, assert_replacement_generation,
+    assert_capacity, assert_logout_reopen, assert_maximum_shape, assert_metadata_reopen,
+    assert_pruning, assert_replacement_generation,
 };
 use ic_auth_protocol_types::Principal;
 use std::{borrow::Cow, collections::BTreeMap};
@@ -14,6 +15,7 @@ struct Reference {
     store: MemorySessionStore,
     logins: BTreeMap<Principal, Vec<u8>>,
     fail: bool,
+    observed_ns: u64,
 }
 impl SessionStore for Reference {
     fn read<T>(
@@ -56,6 +58,7 @@ impl Backend for Reference {
             store: MemorySessionStore::new(generation, limits),
             logins: BTreeMap::new(),
             fail: false,
+            observed_ns: 0,
         }
     }
     fn fail_next_commit(&mut self) {
@@ -83,10 +86,34 @@ impl Backend for Reference {
             .unwrap();
         Self { store, ..self }
     }
-    fn advance_generation(&mut self) {
-        self.store
-            .advance_generation_with_commit(|_| Ok(()))
-            .unwrap();
+    fn advance_generation(&mut self) -> Result<u64, SessionError> {
+        let fail = std::mem::take(&mut self.fail);
+        self.store.advance_generation_with_commit(|_| {
+            if fail {
+                Err(SessionError::StorageFailure)
+            } else {
+                Ok(())
+            }
+        })
+    }
+    fn prune(&mut self, now_ns: u64, budget: usize) -> Result<SessionPruned, SessionError> {
+        self.store.prune_with_commit(now_ns, budget, |_| {
+            if std::mem::take(&mut self.fail) {
+                Err(SessionError::StorageFailure)
+            } else {
+                Ok(())
+            }
+        })
+    }
+    fn observe_clock(&mut self, now_ns: u64) -> Result<(), SessionError> {
+        if now_ns < self.observed_ns {
+            return Err(ic_auth::portable::LoginRevocationError::Clock.into());
+        }
+        self.observed_ns = now_ns;
+        Ok(())
+    }
+    fn observed_at_ns(&self) -> u64 {
+        self.observed_ns
     }
     fn retained_logins(&self) -> Vec<LoginRevocationChange> {
         self.logins
@@ -105,6 +132,7 @@ struct Encoded {
     replays: BTreeMap<[u8; 32], Vec<u8>>,
     logins: BTreeMap<Principal, Vec<u8>>,
     fail: bool,
+    observed_ns: u64,
 }
 impl Encoded {
     fn bytes(&self) -> usize {
@@ -211,6 +239,7 @@ impl Backend for Encoded {
             replays: BTreeMap::new(),
             logins: BTreeMap::new(),
             fail: false,
+            observed_ns: 0,
         }
     }
     fn fail_next_commit(&mut self) {
@@ -219,8 +248,67 @@ impl Backend for Encoded {
     fn reopen(self) -> Self {
         self
     }
-    fn advance_generation(&mut self) {
-        self.generation = self.generation.checked_add(1).unwrap();
+    fn advance_generation(&mut self) -> Result<u64, SessionError> {
+        let next = self
+            .generation
+            .checked_add(1)
+            .ok_or(SessionError::GenerationExhausted)?;
+        self.commit()?;
+        self.generation = next;
+        Ok(next)
+    }
+    fn prune(&mut self, now_ns: u64, budget: usize) -> Result<SessionPruned, SessionError> {
+        #[derive(Eq, Ord, PartialEq, PartialOrd)]
+        enum Key {
+            Session(Principal),
+            Replay([u8; 32]),
+        }
+        let mut expired = Vec::new();
+        for (caller, bytes) in &self.sessions {
+            let deadline = Session::decode(bytes)?.expires_at_ns();
+            if deadline <= now_ns {
+                expired.push((deadline, Key::Session(*caller)));
+            }
+        }
+        for (fingerprint, bytes) in &self.replays {
+            let deadline = Replay::decode(bytes)?.remove_at_ns();
+            if deadline <= now_ns {
+                expired.push((deadline, Key::Replay(*fingerprint)));
+            }
+        }
+        expired.sort_unstable();
+        // A valid tighter host cap and reversed expired-row order exercise the
+        // shared contract independently of the reference backend's scheduler.
+        expired.reverse();
+        expired.truncate(budget.min(32));
+        if expired.is_empty() {
+            return Ok(SessionPruned::default());
+        }
+        self.commit()?;
+        let mut result = SessionPruned::default();
+        for (_, key) in expired {
+            match key {
+                Key::Session(caller) => {
+                    self.sessions.remove(&caller);
+                    result.sessions += 1;
+                }
+                Key::Replay(fingerprint) => {
+                    self.replays.remove(&fingerprint);
+                    result.replays += 1;
+                }
+            }
+        }
+        Ok(result)
+    }
+    fn observe_clock(&mut self, now_ns: u64) -> Result<(), SessionError> {
+        if now_ns < self.observed_ns {
+            return Err(ic_auth::portable::LoginRevocationError::Clock.into());
+        }
+        self.observed_ns = now_ns;
+        Ok(())
+    }
+    fn observed_at_ns(&self) -> u64 {
+        self.observed_ns
     }
     fn retained_logins(&self) -> Vec<LoginRevocationChange> {
         self.logins
@@ -260,8 +348,8 @@ fn independent_maximum_shape_conforms() {
 }
 
 // Select which write violates atomicity without copying the adapter mechanics.
-struct Broken<const LOGOUT: bool>(Encoded);
-impl<const LOGOUT: bool> Broken<LOGOUT> {
+struct Broken<const WRITE: u8>(Encoded);
+impl<const WRITE: u8> Broken<WRITE> {
     fn write_then_error<T>(
         &mut self,
         write: impl FnOnce(&mut Encoded) -> Result<T, SessionError>,
@@ -275,7 +363,7 @@ impl<const LOGOUT: bool> Broken<LOGOUT> {
         }
     }
 }
-impl<const LOGOUT: bool> SessionStore for Broken<LOGOUT> {
+impl<const WRITE: u8> SessionStore for Broken<WRITE> {
     fn read<T>(
         &mut self,
         operation: impl FnOnce(&dyn SessionReader) -> Result<T, SessionError>,
@@ -288,32 +376,74 @@ impl<const LOGOUT: bool> SessionStore for Broken<LOGOUT> {
         replay: Replay,
         login: &LoginRevocationChange,
     ) -> Result<bool, SessionError> {
-        if LOGOUT {
+        if WRITE != 0 {
             self.0.admit(session, replay, login)
         } else {
             self.write_then_error(|store| store.admit(session, replay, login))
         }
     }
     fn logout(&mut self, login: &LoginRevocationChange) -> Result<(), SessionError> {
-        if LOGOUT {
+        if WRITE == 1 {
             self.write_then_error(|store| store.logout(login))
         } else {
             self.0.logout(login)
         }
     }
 }
-impl<const LOGOUT: bool> Backend for Broken<LOGOUT> {
+impl<const WRITE: u8> Backend for Broken<WRITE> {
     fn fresh(generation: u64, limits: SessionLimits) -> Self {
         Self(Encoded::fresh(generation, limits))
     }
     fn fail_next_commit(&mut self) {
         self.0.fail_next_commit();
     }
-    fn reopen(self) -> Self {
+    fn reopen(mut self) -> Self {
+        if WRITE == 4 {
+            self.0.observed_ns = 0;
+        }
         self
     }
-    fn advance_generation(&mut self) {
-        self.0.advance_generation();
+    fn advance_generation(&mut self) -> Result<u64, SessionError> {
+        if WRITE == 3 {
+            self.write_then_error(Encoded::advance_generation)
+        } else {
+            self.0.advance_generation()
+        }
+    }
+    fn prune(&mut self, now_ns: u64, budget: usize) -> Result<SessionPruned, SessionError> {
+        let nonempty = budget > 0
+            && (self
+                .0
+                .sessions
+                .values()
+                .any(|b| Session::decode(b).unwrap().expires_at_ns() <= now_ns)
+                || self
+                    .0
+                    .replays
+                    .values()
+                    .any(|b| Replay::decode(b).unwrap().remove_at_ns() <= now_ns));
+        if WRITE == 2 && nonempty {
+            self.write_then_error(|store| store.prune(now_ns, budget))
+        } else {
+            let mut result = self.0.prune(now_ns, budget)?;
+            if WRITE == 5 && budget > 128 {
+                loop {
+                    let extra = self.0.prune(now_ns, 128)?;
+                    result.sessions += extra.sessions;
+                    result.replays += extra.replays;
+                    if extra.sessions + extra.replays == 0 {
+                        break;
+                    }
+                }
+            }
+            Ok(result)
+        }
+    }
+    fn observe_clock(&mut self, now_ns: u64) -> Result<(), SessionError> {
+        self.0.observe_clock(now_ns)
+    }
+    fn observed_at_ns(&self) -> u64 {
+        self.0.observed_at_ns()
     }
     fn retained_logins(&self) -> Vec<LoginRevocationChange> {
         self.0.retained_logins()
@@ -322,10 +452,40 @@ impl<const LOGOUT: bool> Backend for Broken<LOGOUT> {
 #[test]
 #[should_panic(expected = "failed admission must preserve every record")]
 fn admission_write_then_error_is_detected() {
-    assert_admission_retry::<Broken<false>>();
+    assert_admission_retry::<Broken<0>>();
 }
 #[test]
 #[should_panic(expected = "failed logout must preserve session, replay and reservation")]
 fn logout_write_then_error_is_detected() {
-    assert_logout_reopen::<Broken<true>>();
+    assert_logout_reopen::<Broken<1>>();
+}
+
+#[test]
+fn independent_pruning_conforms() {
+    assert_pruning::<Encoded>();
+}
+#[test]
+fn independent_metadata_reopen_conforms() {
+    assert_metadata_reopen::<Encoded>();
+}
+#[test]
+#[should_panic(expected = "failed pruning must preserve every record")]
+fn prune_write_then_error_is_detected() {
+    assert_pruning::<Broken<2>>();
+}
+#[test]
+#[should_panic(expected = "failed generation write must preserve authority")]
+fn generation_write_then_error_is_detected() {
+    assert_metadata_reopen::<Broken<3>>();
+}
+#[test]
+#[should_panic(expected = "clock floor must survive reopen")]
+fn forgotten_clock_floor_is_detected() {
+    assert_metadata_reopen::<Broken<4>>();
+}
+
+#[test]
+#[should_panic(expected = "cleanup must obey its 128-record work bound")]
+fn unbounded_cleanup_is_detected() {
+    assert_pruning::<Broken<5>>();
 }

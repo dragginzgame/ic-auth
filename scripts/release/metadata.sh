@@ -25,11 +25,16 @@ auth_release_group - < <(git show "$RELEASE_SOURCE:ci/cargo-release-groups.json"
 limit=8388608
 state="$(git rev-parse --absolute-git-dir)/release-state"
 [[ ! -L "$state" ]] || fail 'symlinked release state'
+source scripts/release/retention.sh
+auth_release_retention || fail 'retained state requires review before metadata work'
 mkdir -p "$state"
-auth_scratch="$(mktemp -d "$state/metadata.XXXXXX")"
+mkdir -p target/release-metadata
+auth_scratch="$(mktemp -d "$PWD/target/release-metadata/metadata.XXXXXX")"
 complete=false
 finish() {
-    local status=$?
+    local status=$? retention_status=0
+    auth_release_retention || retention_status=$?
+    [[ "$status" != 0 ]] || status=$retention_status
     if [[ "$complete" == true && "$status" == 0 ]]; then rm -rf "$auth_scratch"
     else printf 'Release metadata evidence retained: %s\n' "$auth_scratch" >&2; fi
     exit "$status"
@@ -170,8 +175,7 @@ case "$operation" in
         [[ "$(git rev-parse HEAD)" == "$RELEASE_SOURCE" ]] || fail 'validation source mismatch'
         admit_changes
         cp "$changelog" "$auth_scratch/notes"
-        gate_root="$(git rev-parse --git-path release-state)"
-        [[ "$gate_root" == .git/release-state ]] || gate_root=target/release-validation
+        gate_root=target/release-validation
         mkdir -p "$gate_root"
         gate="$(mktemp -d "$gate_root/$RELEASE_GROUP-gate.XXXXXX")"
         # The owner creates the absent directory; retain failed/interrupted gates.

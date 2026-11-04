@@ -81,9 +81,14 @@ Do not reset, re-clone or clean away recovery state to retry. Normal later
 releases start from current clean, committed metadata and run fresh admission;
 historical plans do not supply their validation.
 
-The existing `/home/adam/projects/ic-auth-release-033` checkout retains the
-completed 0.33 release and publication evidence. Preserve it for that historical
-custody; new work and releases use the normal checkout.
+The former sibling capacity and 0.33 release checkouts are retired. Their HEADs
+are preserved by local branches `archive/ic-auth-capacity` and
+`archive/ic-auth-release-033`; both are already in `main`. Required historical
+release/publication records, capacity evidence and selected final artifacts are
+retained with checksums under `target/checkout-retirement/20261104-siblings/`.
+These are historical observations, not new recovery admission. Reproducible
+source/build trees were removed; no full checkout archive belongs in `.git`.
+Explicit `cargo clean` may remove the entire target, including retained evidence.
 
 ### Editor preparation and recovery
 
@@ -676,6 +681,7 @@ multi-package, multi-feature and multi-target entries are aggregate suites.
 | `make pack-backend-conformance` | Cargo-normalized unpublished source archive for a consumer's dev dependency; selected Engine/Protocol dependencies must already be published; no upload |
 | `make test-backend-package` | Opt-in: archive, excluded dev-dependency consumer, exact registry Auth identities, packaged scenarios and graph refusals; receipt and inputs retained; registry cohort must be explicitly cached |
 | `make profile-canonical-allocations` | Opt-in: release-mode native DHAT observations of unchanged canonical hash functions on synthetic small/wide inputs; outside CI; see [measurement limits and results](canonical-allocation-observations.md) |
+| `bash scripts/dev/profile-retry-allocations.sh` | Opt-in: native DHAT observations of existing exact retries and claims decoding, excluding setup/signing/request construction; see [measurement scope and results](retry-allocation-observations.md) |
 | `make test-host-tooling` | Native file-operation CLI: bounded input, exact digest output, no-follow reads and preserved create-only evidence |
 | `make check-msrv` | Aggregate: isolated public package payloads using the declared compiler, with native/Wasm and feature coverage; internal applications are covered by Clippy |
 | `make test-compiler-policy` | Compiler pin/version/active-selection and Wasm refusal cases; explicit preparation with substituted compiler effects |
@@ -750,8 +756,8 @@ Existing staging and caches are preserved.
 `publish-dry-run RELEASE_GROUP=…` separately checks the selected group's normal
 registry admission under `target/publication-dry-runs/`. That readiness check can
 refuse until a changed Protocol supplier is published; the local archive check
-does not relax final publication admission. Release logs remain under
-`.git/release-state/validation-logs/`.
+does not relax final publication admission. New release gate logs remain under
+`target/release-validation/`; saved receipts still admit historical log paths.
 
 Once this workflow is delivered to `main`, an explicitly authorized qualification
 of another branch or a tag-only release can dispatch the same workflow at that ref:
@@ -927,6 +933,16 @@ the group in their names. External selections and unselected versions/notes are
 preserved. The primary member's version is installed last; source-only version
 observation lets recovery reach saved-source reconciliation with a partial payload.
 Interrupted base/prepared files are reconciled against that same source.
+
+New validated-source extracts use `target/release-metadata/`. The shared runner
+and direct Auth metadata/publication adapters apply the
+[retained-state guard](releases.md#artifact-retention-and-exact-push-scope) before
+work and afterward, preserving the original failure if a step also violates
+retention. Git-side state has a 512 MiB aggregate budget, 32 MiB per file and a
+30-day age limit for bulk files of at least 1 MiB; compact receipts do not expire.
+Refusal preserves evidence for review rather than deleting recovery state.
+The focused caller check is `bash scripts/release/test-tools.sh --retention`;
+it also runs in the normal release-tools fixture target.
 
 The [Auth group-validation contract](auth-release-validation.md) defines required
 and excluded stages, full-scope expansion and schema-4 receipts binding Shared's

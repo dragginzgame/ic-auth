@@ -138,6 +138,13 @@ Volatile reset requires qualified reset floors and fresh enrollment. Bounded
 cleanup reclaims expired rows without evicting live replay/denial state.
 See [storage and transaction details](sessions.md#custom-host-transaction-contract).
 
+The candidate [backend conformance bundle](../apps/qualification/backend-conformance/README.md)
+now includes cleanup rollback/work-count bounds and clock/generation reopening
+scenarios, in addition to admission/logout checks. Consumer test drivers supply
+the new maintenance/clock hooks and fallible generation update. This is Auth-side
+qualification support; actual backing costs, clock provenance, authority changes
+and installed Canic acceptance remain with the consumer.
+
 ## Wire transport
 
 Use canonical method identities, limits and codecs from

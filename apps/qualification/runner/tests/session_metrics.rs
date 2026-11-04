@@ -10,7 +10,7 @@ use ic_auth::{
     session_request::{SessionRequest, SessionTtlPolicy},
 };
 use ic_auth_protocol_types::*;
-use ic_metrics::{MeasurementCounter, MeasurementCounterError};
+use ic_metrics::{MeasurementCounterError, persistence::restore_counter};
 use ic_platform::ed25519::{Signer, SigningKey};
 use metrics::AdmissionMetrics;
 
@@ -342,81 +342,38 @@ fn both_budget_paths_and_cheap_refusals_are_bounded_categories() {
 }
 
 #[test]
-fn diagnostic_projection_preserves_wide_totals_loss_and_failure_isolation() {
+fn diagnostic_overflow_preserves_committed_admission_and_exact_retry() {
     let mut host = Host::new();
-    host.metrics.created = MeasurementCounter::from_parts(u128::MAX, false).unwrap();
-    let limits = ic_wire::Limits {
-        bytes: 4096,
-        allocation: 16384,
-        nodes: 256,
-        depth: 8,
-    };
-    let bytes = ic_wire::native::encode(&host.metrics, limits).unwrap();
-    assert_eq!(
-        ic_wire::native::decode::<AdmissionMetrics>(&bytes, limits),
-        Ok(host.metrics)
-    );
-    host.admit(&host.credential()).unwrap();
+    // Seed the recording boundary; restoration admission is Metrics-owned.
+    host.metrics.created = restore_counter(u128::MAX, false).unwrap();
+    assert_eq!(host.metrics.created.exact_total(), Ok(u128::MAX));
+    assert!(matches!(
+        host.admit(&host.credential()),
+        Ok(SessionEstablished::Created(_))
+    ));
     assert_eq!(
         host.metrics.created.exact_total(),
         Err(MeasurementCounterError::TotalOverflow)
     );
-    let before = host.metrics;
-    let bytes = ic_wire::native::encode(&before, limits).unwrap();
-    assert_eq!(
-        ic_wire::native::decode::<AdmissionMetrics>(&bytes, limits),
-        Ok(before)
-    );
-    // Unavailable bounded reports cannot turn a committed admission into a
-    // refusal or alter the host's diagnostic state.
-    assert_eq!(
-        ic_wire::native::encode(&before, ic_wire::Limits { bytes: 1, ..limits }),
-        Err(ic_wire::Error::Limit)
-    );
-    assert!(
-        ic_wire::native::decode::<AdmissionMetrics>(&bytes[..bytes.len() - 1], limits).is_err()
-    );
-    #[derive(serde::Serialize)]
-    struct InvalidCounter {
-        total: u128,
-        total_overflowed: bool,
-    }
-    #[derive(serde::Serialize)]
-    struct InvalidReport {
-        created: InvalidCounter,
-        replaced: MeasurementCounter,
-        exact_retry: MeasurementCounter,
-        proof_refused: MeasurementCounter,
-        budget_refused: MeasurementCounter,
-        other_refused: MeasurementCounter,
-    }
-    let invalid = ic_wire::native::encode(
-        &InvalidReport {
-            created: InvalidCounter {
-                total: 1,
-                total_overflowed: true,
-            },
-            replaced: before.replaced,
-            exact_retry: before.exact_retry,
-            proof_refused: before.proof_refused,
-            budget_refused: before.budget_refused,
-            other_refused: before.other_refused,
-        },
-        limits,
-    )
-    .unwrap();
-    assert_eq!(
-        ic_wire::native::decode::<AdmissionMetrics>(&invalid, limits),
-        Err(ic_wire::Error::Malformed)
-    );
-    assert_eq!(host.metrics, before);
     let caller = browser_principal(&host.claims.browser_public_key);
     assert_eq!(
         host.store.read(|r| r.occupancy(caller)).unwrap().sessions,
         1
     );
+    // Overflow is diagnostic state, so the exhausted verification budget still
+    // permits an exact retry and the committed session remains usable.
     assert!(matches!(
         host.admit(&host.credential()),
         Ok(SessionEstablished::ExactRetry(_))
     ));
+    assert_eq!(host.metrics.exact_retry.exact_total(), Ok(1));
+    assert_eq!(
+        host.metrics.created.exact_total(),
+        Err(MeasurementCounterError::TotalOverflow)
+    );
+    assert_eq!(host.metrics.other_refused.exact_total(), Ok(0));
+    assert_eq!(
+        host.store.read(|r| r.occupancy(caller)).unwrap().sessions,
+        1
+    );
 }

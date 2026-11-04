@@ -6,6 +6,8 @@ script_path="${BASH_SOURCE[0]}"
 [[ "$script_path" == /* ]] || script_path="$PWD/$script_path"
 cd -P "${script_path%/*}/../.."
 fail() { echo "publication refused: $*" >&2; exit 1; }
+source scripts/release/retention.sh
+auth_release_retention || fail 'retained state requires review before publication'
 source scripts/release/packages.sh selected
 version="$(bash "$PWD/scripts/ci/cargo-release-group.sh" version "$RELEASE_GROUP")"
 source="$(git rev-parse --verify HEAD)"
@@ -42,11 +44,26 @@ done
 mkdir -p "$state"
 mkdir "$state/lock" 2>/dev/null || fail 'publication lock is occupied; inspect its owner before clearing stale state'
 printf '%s\n' "$$" > "$state/lock/owner"
-trap 'rm -f "$state/lock/owner"; rmdir "$state/lock"' EXIT
+finish() {
+    local status=$? retention_status=0
+    auth_release_retention || retention_status=$?
+    [[ "$status" != 0 ]] || status=$retention_status
+    rm -f "$state/lock/owner" || { [[ "$status" != 0 ]] || status=1; }
+    rmdir "$state/lock" || { [[ "$status" != 0 ]] || status=1; }
+    exit "$status"
+}
+trap finish EXIT
 mkdir -p "${CARGO_TARGET_DIR:-$PWD/target}"
 logs="$(mktemp -d "${CARGO_TARGET_DIR:-$PWD/target}/publication-$RELEASE_GROUP-$version.XXXXXX")"
 echo "Publication evidence retained: $logs"
-step() { "$@" 2>&1 | tee -a "$logs/output.log"; }
+step() {
+    auth_release_retention || return
+    local status=0 retention_status=0
+    "$@" 2>&1 | tee -a "$logs/output.log" || status=$?
+    auth_release_retention || retention_status=$?
+    [[ "$status" != 0 ]] || status=$retention_status
+    return "$status"
+}
 step make --no-print-directory check-package-licenses
 step cargo package --locked --registry crates-io "${package_args[@]}"
 assert_source

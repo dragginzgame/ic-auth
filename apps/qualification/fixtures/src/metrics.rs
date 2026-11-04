@@ -8,11 +8,9 @@ use ic_auth::{
 use ic_metrics::MeasurementCounter;
 
 /// Diagnostic event counts, never verification credit or session authority.
-/// Copy for a report; replace with `Default` to start a new window. Hosts own
-/// report authorization/window identity. These counters are not checkpointed.
-/// Serde delegates numeric admission to Metrics, preserving u128 and actual loss.
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
-#[serde(deny_unknown_fields)]
+/// Replace with `Default` to start a new window. Canic's metrics adapter owns
+/// reporting and window identity. These counters are not checkpointed or DTOs.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct AdmissionMetrics {
     pub created: MeasurementCounter,
     pub replaced: MeasurementCounter,

@@ -1,7 +1,7 @@
 # IC Auth Agent Instructions
 
 Apply the installed [baseline](DRAGGINZGAME.md), adopted from Shared Tooling
-0.29.2 at `04a87b366eae3e63b9f032c0b891c17bdc59e69b`, and its task-specific
+0.29.4 at `628ccc75d813bfd9bae777bfbaef55838d25b1b2`, and its task-specific
 references. The [snapshot manifest](.shared-tooling.snapshot) records the exact
 policy/tooling selection. Read [the current handoff](docs/status/current.md)
 before implementation. Product-specific safeguards and scoped permissions below
@@ -191,7 +191,10 @@ and `ci/cargo-dependency-boundaries.json` for direct-dependency ownership.
   Do not create contribution directories, clones or worktrees for ordinary work
   or release delivery. Coordinate active sessions before switching branches or
   changing release inputs; never disable input-drift admission or discard recovery
-  state to retry. Preserve the existing 0.33 release checkout as historical evidence.
+  state to retry. The redundant capacity/0.33 checkouts are retired; their
+  integrated history has local `archive/` refs and required evidence is under
+  `target/checkout-retirement/`. Keep build trees and bulk checkout archives out
+  of `.git`; explicit `cargo clean` still owns the entire workspace `target/`.
 - No package commands, runtime capabilities or qualification may be advertised
   before they exist and are checked. Do not create placeholder auth endpoints
   that accept requests without complete verification.

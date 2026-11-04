@@ -3,6 +3,13 @@
 Covers `ic-auth-protocol-types` and `ic-auth-wire`, released together.
 The independent series starts after the [last coordinated release, 0.29.2](../history.md).
 
+## [0.33.1] - Unreleased
+
+### 🧪 Testing
+
+- Move Principal parsing and scope-label unit tests into adjacent `tests.rs`
+  modules. Keep assertions, public types and transport contracts unchanged.
+
 ## [0.33.0] - 2026-11-03
 
 ### ⚠️ Breaking

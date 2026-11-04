@@ -7,7 +7,7 @@
   {"dependency": "ic-metrics", "allowed_packages": ["ic-auth-qualification", "ic-auth-qualification-fixtures"]},
   {"dependency": "ic-memory", "allowed_packages": []},
   {"dependency": "ic-storage", "allowed_packages": ["ic-auth-qualification-canister"]},
-  {"dependency": "ic-platform", "allowed_packages": ["ic-auth", "ic-auth-qualification-canister", "ic-auth-qualification", "ic-auth-feature-unification", "ic-auth-qualification-fixtures", "ic-auth-backend-conformance"]},
+  {"dependency": "ic-platform", "allowed_packages": ["ic-auth", "ic-auth-qualification-canister", "ic-auth-qualification", "ic-auth-feature-unification", "ic-auth-qualification-fixtures", "ic-auth-backend-conformance", "ic-auth-tooling"]},
   {"dependency": "ic-platform-types", "allowed_packages": ["ic-auth-protocol-types", "ic-auth"]},
   {"dependency": "ic-platform-runtime", "allowed_packages": ["ic-auth-qualification-canister"]},
   {"dependency": "ic-platform-pocket-ic", "allowed_packages": []}
