@@ -1509,7 +1509,7 @@ dependencies = [
 
 [[package]]
 name = "ic-auth-protocol-types"
-version = "0.33.0"
+version = "0.33.1"
 dependencies = [
  "ic-platform-types",
  "serde",
@@ -1594,7 +1594,7 @@ dependencies = [
 
 [[package]]
 name = "ic-auth-wire"
-version = "0.33.0"
+version = "0.33.1"
 dependencies = [
  "ic-auth-protocol-types",
  "ic-wire",
