@@ -33,8 +33,9 @@ reports a missing download, run `cargo fetch --locked --manifest-path
 <printed-evidence>/consumer/Cargo.toml`, then rerun the check into a fresh retained
 directory. The check itself never downloads or uploads.
 
-This candidate bundle targets Engine 0.33.2 and Protocol 0.33.1, with Platform
-0.21 and Types 0.18. Qualify its archive after that matching cohort is published.
+This bundle targets published Engine 0.33.2 and Protocol 0.33.1, with Platform
+0.21 and Types 0.18. Its clean release archive passes registry-consumer and
+packaged-scenario qualification; the current handoff records its exact receipt.
 Do not mix this source with registry Auth 0.32's Types 0.17 identity. The retained 0.32 candidate
 archive uses Platform 0.18/Types 0.17 and remains separate evidence. See the
 [current evidence](../../../docs/status/current.md) for qualification and receipts.
@@ -77,7 +78,7 @@ expired-row ordering are accepted. Nonempty expired work must progress; empty
 work skips persistence. `observe_clock`
 and `observed_at_ns` project the host's durable clock floor. Fixture timestamps
 exercise monotonicity and reopening, not the authenticity of a production clock.
-Drivers adopting this candidate bundle must implement these new hooks; earlier
+Drivers adopting this bundle must implement these new hooks; earlier
 delivered source archives retain their original six-scenario interface.
 Do not reset or erase production backing to run these scenarios.
 

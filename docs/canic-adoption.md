@@ -8,13 +8,13 @@ Older migrations and observations are preserved in [adoption history](canic-adop
 
 ## Current integration cohort
 
-Published **Protocol 0.33.0** (`ic-auth-protocol-types`, `ic-auth-wire`) and
-**Engine 0.33.1** (`ic-auth`) are the current adoption cohort. Protocol releases
+Published **Protocol 0.33.1** (`ic-auth-protocol-types`, `ic-auth-wire`) and
+**Engine 0.33.2** (`ic-auth`) are the current adoption cohort. Protocol releases
 independently from Engine. Keep the two Protocol packages aligned; use the
 Engine package's declared Protocol requirement rather than forcing equal versions
 across groups. An Engine-only update leaves Protocol's Rust type identity intact.
 The released lock selects canonical Types 0.18, Platform 0.21 and Wire/derive
-0.16.1. The qualification host selects independent Runtime 0.19. Its native
+0.16.1. The qualification host selects independent Runtime 0.19.1. Its native
 runner uses Testkit 0.84.1's owned `ic_testkit::pocket_ic` client, with no separate
 Platform client dependency. Testkit's Candid/management DTOs share the one
 Platform facade. Rust 1.99.1 is the minimum.
@@ -26,7 +26,7 @@ capacity/performance qualification. Individual Auth record limits are unchanged.
 [`Cargo.toml`](../Cargo.toml), the lockfile and the [current handoff](status/current.md)
 record selections and delivered release evidence;
 [group ledgers](../CHANGELOG.md) own release notes. The private host also selects
-Metrics 0.28.2 and Storage 0.66.1. Auth's graph retains one Runtime/guard;
+Metrics 0.29.1 and Storage 0.66.2. Auth's graph retains one Runtime/guard;
 Canic must qualify its complete family. Align Rust consumers to these canonical
 identities. Auth carries
 no Account DTOs, so the upstream Account byte-adapter cut does not change Auth's
@@ -138,7 +138,7 @@ Volatile reset requires qualified reset floors and fresh enrollment. Bounded
 cleanup reclaims expired rows without evicting live replay/denial state.
 See [storage and transaction details](sessions.md#custom-host-transaction-contract).
 
-The candidate [backend conformance bundle](../apps/qualification/backend-conformance/README.md)
+The released-source [backend conformance bundle](../apps/qualification/backend-conformance/README.md)
 now includes cleanup rollback/work-count bounds and clock/generation reopening
 scenarios, in addition to admission/logout checks. Consumer test drivers supply
 the new maintenance/clock hooks and fallible generation update. This is Auth-side
@@ -244,7 +244,7 @@ need to run against Canic's actual adapter, and the browser still needs Canic's
 production issuer/reconciliation and receiver endpoints. Neither archive installs
 those components or establishes production acceptance.
 
-The current assembled local handoff is
+The previous assembled local handoff is
 `target/platform-021-delivery/delivery/manifest.json`, built from clean release
 `f9105b9` with Engine 0.33.1 and Protocol 0.33.0. Earlier
 `target/adoption-boundaries/delivery/` and `target/canic-adoption-033/delivery/`
@@ -253,6 +253,12 @@ It identifies the two exact archives, their receipts/input records and the sourc
 and published Engine/Protocol versions used for qualification. Run
 `sha256sum --check SHA256SUMS` from that delivery directory before copying it.
 The browser's npm `integrity` is retained separately from its SHA-256.
+
+The new Engine 0.33.2/Protocol 0.33.1 backend archive has its own clean-source
+registry-consumer qualification receipt at
+`target/portable-fixtures/backend-package.WoSpAu/delivery.json`; the
+[current handoff](status/current.md) records its archive and checksum. The older
+assembled pair does not qualify the new backend maintenance/clock hooks.
 
 Extract the backend archive into the consumer's excluded `test-support/`
 directory and use its normalized manifest as a development dependency; do not
