@@ -35,6 +35,8 @@ native tooling packages. The independent series starts after the
   APIs and stored format while removing an intermediate map-value decode copy.
 - Select Host 0.74.3 and Runtime/macros/guard 0.19.1, retaining the published
   runtime behavior while adopting their test-source layout cleanup.
+- Select Build 0.74.3, including its consolidated artifact-cache finalization
+  and unchanged release-editor contract.
 - Adopt Shared Tooling 0.29.4 at `628ccc7`, including retained-state admission,
   test-source layout and application-instrumentation ownership guidance.
 

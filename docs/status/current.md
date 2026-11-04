@@ -89,6 +89,14 @@ The maintainer confirmed all Auth updaters are paused. Preserve and qualify
 these test-layout-only supplier patch selections in a fresh Engine attempt;
 do not reuse the interrupted gate as release admission.
 
+The next Engine attempt from `5a4c346` passed its first 29 stages, including
+live canister qualification and local archive builds, but incoming IC Build
+0.74.3 changed the lock during release-tools testing. It was stopped before
+version preparation. Evidence remains at
+`target/release-validation/engine-gate.rEEpuX/logs/validation.GxoZGh`.
+Preserve this additional patch selection and run a fresh gate; none of these
+interrupted attempts authorizes Engine publication.
+
 ## Retired sibling checkouts
 
 The maintainer authorized consolidation/deletion of
