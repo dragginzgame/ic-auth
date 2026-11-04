@@ -76,7 +76,18 @@ refused incoming lock drift to Metrics 0.29.1 and Storage 0.66.2. No real versio
 tag or upload was created. Original evidence is retained at
 `target/release-validation/protocol-gate.z5fVNr/logs/validation.pPPrEH`; it is not
 reused as admission for the incoming lock. The two compatible patch selections
-are preserved for fresh source commitment and complete qualification.
+were committed in `9168a91` and passed all 30 fresh Protocol gate stages at
+`target/release-validation/protocol-gate.H39gaN/logs/validation.mqtPDn`.
+Protocol 0.33.1 was committed as `4dec02e`, pushed with `protocol-v0.33.1`,
+and both public Protocol crates were published with observed registry checksums.
+
+The first Engine gate passed its first 29 stages, then incoming lock changes
+selected Host 0.74.3 and Runtime/macros/guard 0.19.1 during release-tools testing.
+That invalidated gate was stopped before version preparation; evidence remains
+at `target/release-validation/engine-gate.GYD3n3/logs/validation.ZdiDU0`.
+The maintainer confirmed all Auth updaters are paused. Preserve and qualify
+these test-layout-only supplier patch selections in a fresh Engine attempt;
+do not reuse the interrupted gate as release admission.
 
 ## Retired sibling checkouts
 

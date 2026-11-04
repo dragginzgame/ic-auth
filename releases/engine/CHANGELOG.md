@@ -33,6 +33,8 @@ native tooling packages. The independent series starts after the
   retain coverage that counter overflow cannot alter admission or exact retries.
 - Select Storage 0.66.2 for the private qualification host, retaining its public
   APIs and stored format while removing an intermediate map-value decode copy.
+- Select Host 0.74.3 and Runtime/macros/guard 0.19.1, retaining the published
+  runtime behavior while adopting their test-source layout cleanup.
 - Adopt Shared Tooling 0.29.4 at `628ccc7`, including retained-state admission,
   test-source layout and application-instrumentation ownership guidance.
 
