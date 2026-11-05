@@ -1,7 +1,7 @@
 # Tests and tooling packages
 [package]
 name = "ic-auth-feature-unification"
-version = "0.34.0"
+version = "0.34.1"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
