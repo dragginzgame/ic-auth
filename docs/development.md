@@ -709,7 +709,8 @@ multi-package, multi-feature and multi-target entries are aggregate suites.
 | `make check-wasm` | Aggregate: compile-check all supported public library capabilities for `wasm32-unknown-unknown` |
 | `make clippy` | Aggregate: lint all libraries, native tooling/qualification and the Wasm host |
 | `make metadata` | Validate the selected locked graph offline |
-| `make check-boundaries` | Inspect every capability graph, admitting upstream certificate dependencies only in certificate-enabled graphs; preserve host/runtime and passive-contract boundaries |
+| `make check-candid-boundary` | Lightweight lexical check of owned Candid declarations across `crates/` and `apps/`, with no allowances; macro expansion and cross-module aliases need separate review |
+| `make check-boundaries` | Run the Candid source check and inspect every capability graph, admitting upstream certificate dependencies only in certificate-enabled graphs; preserve host/runtime and passive-contract boundaries |
 | `make fmt` / `make fmt-check` | Shared manifest sorting followed by Rust formatting |
 | `make check-snapshot` | Verify the adopted shared files and modes |
 | `make check-dependency-pins` | Check declarations, lockfile tracking and root inheritance |

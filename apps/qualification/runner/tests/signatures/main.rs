@@ -58,11 +58,11 @@ struct Fixture {
 }
 
 impl Fixture {
-    fn new() -> Self {
-        Self::with_application_subnets(1)
+    async fn new() -> Self {
+        Self::with_application_subnets(1).await
     }
 
-    fn with_application_subnets(count: usize) -> Self {
+    async fn with_application_subnets(count: usize) -> Self {
         assert!(matches!(count, 1 | 2));
         let server = PathBuf::from(
             std::env::var_os("POCKET_IC_BIN")
@@ -96,26 +96,33 @@ impl Fixture {
             )),
         }
         .build_instance(builder)
+        .await
         .expect("bounded testkit startup with the verified server");
-        // Retain Testkit's field drop order during setup, including panic paths.
+        // Keep the managed server alive through setup and explicit async close.
+        // On panic, its Drop still stops/reaps the process and all its instances.
         let pic = owned.instance();
-        pic.set_time(SystemTime::now().into()).unwrap();
+        pic.set_time(SystemTime::now().into()).await.unwrap();
         let controller = Principal::self_authenticating(b"qualification controller");
-        let subnets = pic.topology().unwrap().get_app_subnets();
+        let subnets = pic.topology().await.unwrap().get_app_subnets();
         assert_eq!(subnets.len(), count);
         let signer = pic
             .create_canister_on_subnet(Some(controller.into()), None, subnets[0])
+            .await
             .unwrap();
         let resource = pic
             .create_canister_on_subnet(Some(controller.into()), None, subnets[count - 1])
+            .await
             .unwrap();
-        assert_eq!(pic.get_subnet(signer).unwrap(), Some(subnets[0]));
-        assert_eq!(pic.get_subnet(resource).unwrap(), Some(subnets[count - 1]));
+        assert_eq!(pic.get_subnet(signer).await.unwrap(), Some(subnets[0]));
+        assert_eq!(
+            pic.get_subnet(resource).await.unwrap(),
+            Some(subnets[count - 1])
+        );
         let owner = Principal::self_authenticating(
             CanisterSigPublicKey::new(signer.into(), SEED.to_vec()).to_der(),
         );
         for canister in [signer, resource] {
-            pic.add_cycles(canister, 2_000_000_000_000).unwrap();
+            pic.add_cycles(canister, 2_000_000_000_000).await.unwrap();
             pic.install_canister(
                 canister,
                 wasm.clone(),
@@ -125,6 +132,7 @@ impl Fixture {
                 .unwrap(),
                 Some(controller.into()),
             )
+            .await
             .unwrap();
         }
         Self {
@@ -137,27 +145,34 @@ impl Fixture {
         }
     }
 
-    fn now(&self) -> u64 {
+    async fn now(&self) -> u64 {
         self.pic
             .instance()
             .get_time()
+            .await
             .unwrap()
             .as_nanos_since_unix_epoch()
     }
 
-    fn root_key(&self) -> Vec<u8> {
+    async fn root_key(&self) -> Vec<u8> {
         self.pic
             .instance()
             .root_key()
+            .await
             .expect("PocketIC root key response")
             .expect("fixture NNS root key")
     }
 
-    fn prepare(&self, domain: &[u8], message: &[u8], ttl: u64) -> Result<u64, controls::Refusal> {
-        self.prepare_with_seed(SEED, domain, message, ttl)
+    async fn prepare(
+        &self,
+        domain: &[u8],
+        message: &[u8],
+        ttl: u64,
+    ) -> Result<u64, controls::Refusal> {
+        self.prepare_with_seed(SEED, domain, message, ttl).await
     }
 
-    fn prepare_with_seed(
+    async fn prepare_with_seed(
         &self,
         seed: &[u8],
         domain: &[u8],
@@ -178,24 +193,25 @@ impl Fixture {
                 retention_ns: ttl,
             },
         )
+        .await
     }
 
-    fn retrieve(
+    async fn retrieve(
         &self,
         domain: &[u8],
         message: &[u8],
     ) -> Result<IcCanisterSignatureProofV1, controls::Refusal> {
-        self.retrieve_with_seed(SEED, domain, message)
+        self.retrieve_with_seed(SEED, domain, message).await
     }
 
-    fn retrieve_with_seed(
+    async fn retrieve_with_seed(
         &self,
         seed: &[u8],
         domain: &[u8],
         message: &[u8],
     ) -> Result<IcCanisterSignatureProofV1, controls::Refusal> {
         // Certificates become available after the update's state is certified.
-        self.pic.instance().tick().unwrap();
+        self.pic.instance().tick().await.unwrap();
         let proof: Result<ic_auth_wire::model::IcCanisterSignatureProofV1, controls::Refusal> =
             query_control::<
                 controls::SignatureInput,
@@ -210,31 +226,36 @@ impl Fixture {
                     domain: Bytes::new(domain.to_vec()).unwrap(),
                     message: Bytes::new(message.to_vec()).unwrap(),
                 },
-            );
+            )
+            .await;
         proof.map(|value| value.try_into().unwrap())
     }
 
-    fn verify(&self, domain: &[u8], payload: [u8; 32], proof: &IcCanisterSignatureProofV1) {
-        assert_eq!(self.verify_result(SEED, domain, payload, proof), Ok(()));
+    async fn verify(&self, domain: &[u8], payload: [u8; 32], proof: &IcCanisterSignatureProofV1) {
         assert_eq!(
-            self.verify_result(b"unapproved seed", domain, payload, proof),
+            self.verify_result(SEED, domain, payload, proof).await,
+            Ok(())
+        );
+        assert_eq!(
+            self.verify_result(b"unapproved seed", domain, payload, proof)
+                .await,
             Err(CanisterSignatureError::SeedMismatch)
         );
     }
 
-    fn verify_result(
+    async fn verify_result(
         &self,
         seed: &[u8],
         domain: &[u8],
         payload: [u8; 32],
         proof: &IcCanisterSignatureProofV1,
     ) -> Result<(), CanisterSignatureError> {
-        let network = extract_raw_root_pk_from_der(&self.root_key()).unwrap();
+        let network = extract_raw_root_pk_from_der(&self.root_key().await).unwrap();
         let policy = CanisterSignaturePolicy {
             signing_canister: self.signer,
             seed_hash: hash_bytes(seed),
             ic_root_public_key_raw: &network,
-            now_ns: self.now(),
+            now_ns: self.now().await,
             max_certificate_age_ns: 5_000_000_000,
             max_future_skew_ns: 0,
             max_signature_bytes: 128 * 1024,
@@ -243,18 +264,19 @@ impl Fixture {
         verify_canister_signature(&domain_separated_message(domain, payload)?, proof, &policy)
     }
 
-    fn set_asset(&self, version: u64) {
+    async fn set_asset(&self, version: u64) {
         let result: Result<(), controls::Refusal> = update_control::<u64, ()>(
             self.pic.instance(),
             self.signer,
             self.controller,
             spec!(controls::SetAsset),
             version,
-        );
+        )
+        .await;
         result.unwrap();
     }
 
-    fn asset_version(&self) -> u64 {
+    async fn asset_version(&self) -> u64 {
         query_wire::<(), u64>(
             self.pic.instance(),
             self.signer.into(),
@@ -262,10 +284,11 @@ impl Fixture {
             spec!(controls::AssetVersion),
             &(),
         )
+        .await
         .expect("qualified Wire query")
     }
 
-    fn upgrade(&self) {
+    async fn upgrade(&self) {
         for canister in [self.signer, self.resource] {
             self.pic
                 .instance()
@@ -275,11 +298,12 @@ impl Fixture {
                     controls::Upgrade::encode_request(&()).unwrap(),
                     Some(self.controller.into()),
                 )
+                .await
                 .unwrap();
         }
     }
 
-    fn delegation(
+    async fn delegation(
         &self,
         key: u8,
         expiration: u64,
@@ -302,9 +326,10 @@ impl Fixture {
             .try_into()
             .unwrap();
         self.prepare(INGRESS_DOMAIN, &payload, 60_000_000_000)
+            .await
             .unwrap();
-        let proof = self.retrieve(INGRESS_DOMAIN, &payload).unwrap();
-        self.verify(INGRESS_DOMAIN, payload, &proof);
+        let proof = self.retrieve(INGRESS_DOMAIN, &payload).await.unwrap();
+        self.verify(INGRESS_DOMAIN, payload, &proof).await;
         (
             proof.public_key_der,
             SignedDelegation {
@@ -315,9 +340,9 @@ impl Fixture {
     }
 }
 
-#[test]
-fn real_certificates_composition_cleanup_and_upgrade_obey_the_host_contract() {
-    let fixture = Fixture::new();
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn real_certificates_composition_cleanup_and_upgrade_obey_the_host_contract() {
+    let fixture = Fixture::new().await;
     let payload = [7; 32];
     // The retired Candid transport, another method's envelope and an oversized
     // request must fail before reaching the controller-installed mutation.
@@ -336,9 +361,10 @@ fn real_certificates_composition_cleanup_and_upgrade_obey_the_host_contract() {
                     controls::SetAsset::NAME,
                     bytes
                 )
+                .await
                 .is_err()
         );
-        assert_eq!(fixture.asset_version(), 1);
+        assert_eq!(fixture.asset_version().await, 1);
     }
     // A query cannot dispatch the controller mutation. Keep transport refusal
     // distinct from an encoded application refusal returned by a valid update.
@@ -348,12 +374,13 @@ fn real_certificates_composition_cleanup_and_upgrade_obey_the_host_contract() {
         fixture.controller.into(),
         spec!(controls::SetAsset),
         &99,
-    );
+    )
+    .await;
     assert!(matches!(refused, Err(WireCallError::Call { context, .. })
         if Principal::from(context.canister_id) == fixture.signer
             && Principal::from(context.caller) == fixture.controller
             && context.method == controls::SetAsset::NAME));
-    assert_eq!(fixture.asset_version(), 1);
+    assert_eq!(fixture.asset_version().await, 1);
     let unauthorized = update_wire::<controls::PrepareInput, Result<u64, controls::Refusal>>(
         fixture.pic.instance(),
         fixture.signer.into(),
@@ -367,22 +394,28 @@ fn real_certificates_composition_cleanup_and_upgrade_obey_the_host_contract() {
             },
             retention_ns: 60_000_000_000_u64,
         },
-    );
+    )
+    .await;
     assert!(matches!(unauthorized, Ok(Err(_))));
-    let deadline = fixture.prepare(DOMAIN, &payload, 60_000_000_000).unwrap();
+    let deadline = fixture
+        .prepare(DOMAIN, &payload, 60_000_000_000)
+        .await
+        .unwrap();
     assert_eq!(
-        fixture.prepare(DOMAIN, &payload, 60_000_000_000),
+        fixture.prepare(DOMAIN, &payload, 60_000_000_000).await,
         Ok(deadline)
     );
-    let proof = fixture.retrieve(DOMAIN, &payload).unwrap();
-    fixture.verify(DOMAIN, payload, &proof);
-    fixture.set_asset(9);
-    assert_eq!(fixture.asset_version(), 9);
-    fixture.verify(
-        DOMAIN,
-        payload,
-        &fixture.retrieve(DOMAIN, &payload).unwrap(),
-    );
+    let proof = fixture.retrieve(DOMAIN, &payload).await.unwrap();
+    fixture.verify(DOMAIN, payload, &proof).await;
+    fixture.set_asset(9).await;
+    assert_eq!(fixture.asset_version().await, 9);
+    fixture
+        .verify(
+            DOMAIN,
+            payload,
+            &fixture.retrieve(DOMAIN, &payload).await.unwrap(),
+        )
+        .await;
     assert!(
         fixture
             .pic
@@ -393,36 +426,47 @@ fn real_certificates_composition_cleanup_and_upgrade_obey_the_host_contract() {
                 controls::AssetVersion::encode_request(&()).unwrap(),
                 Some(fixture.controller.into())
             )
+            .await
             .is_err(),
         "wrong upgrade envelope must roll back"
     );
-    assert_eq!(fixture.asset_version(), 9);
-    fixture.upgrade();
-    assert_eq!(fixture.asset_version(), 9);
-    assert!(fixture.retrieve(DOMAIN, &payload).is_err());
-    fixture.prepare(DOMAIN, &payload, 10).unwrap();
+    assert_eq!(fixture.asset_version().await, 9);
+    fixture.upgrade().await;
+    assert_eq!(fixture.asset_version().await, 9);
+    assert!(fixture.retrieve(DOMAIN, &payload).await.is_err());
+    fixture.prepare(DOMAIN, &payload, 10).await.unwrap();
     fixture
         .pic
         .instance()
-        .set_time(Time::from_nanos_since_unix_epoch(fixture.now() + 10))
+        .set_time(Time::from_nanos_since_unix_epoch(fixture.now().await + 10))
+        .await
         .unwrap();
-    assert!(fixture.retrieve(DOMAIN, &payload).is_err());
+    assert!(fixture.retrieve(DOMAIN, &payload).await.is_err());
     let removed: Result<u32, controls::Refusal> = update_control::<u32, u32>(
         fixture.pic.instance(),
         fixture.signer,
         fixture.controller,
         spec!(controls::Prune),
         128_u32,
-    );
+    )
+    .await;
     assert_eq!(removed, Ok(1));
-    fixture.prepare(DOMAIN, &payload, 60_000_000_000).unwrap();
-    let restored = fixture.retrieve(DOMAIN, &payload).unwrap();
+    fixture
+        .prepare(DOMAIN, &payload, 60_000_000_000)
+        .await
+        .unwrap();
+    let restored = fixture.retrieve(DOMAIN, &payload).await.unwrap();
     assert_eq!(proof.public_key_der, restored.public_key_der);
-    fixture.verify(DOMAIN, payload, &restored);
-    assert_eq!(fixture.asset_version(), 9);
+    fixture.verify(DOMAIN, payload, &restored).await;
+    assert_eq!(fixture.asset_version().await, 9);
+    fixture
+        .pic
+        .close()
+        .await
+        .expect("delete qualification instance before stopping its server");
 }
 
-fn update_control<Request, T>(
+async fn update_control<Request, T>(
     pic: &PocketIc,
     target: Principal,
     caller: Principal,
@@ -440,9 +484,10 @@ where
         spec,
         &request,
     )
+    .await
     .expect("qualified Wire update")
 }
-fn query_control<Request, T>(
+async fn query_control<Request, T>(
     pic: &PocketIc,
     target: Principal,
     caller: Principal,
@@ -460,5 +505,6 @@ where
         spec,
         &request,
     )
+    .await
     .expect("qualified Wire query")
 }

@@ -1,7 +1,7 @@
 # IC Auth Agent Instructions
 
 Apply the installed [baseline](DRAGGINZGAME.md), adopted from Shared Tooling
-0.30.0 at `b37a882314d22bf7ab393b3fe561809377ffd22d`, and its task-specific
+0.30.4 at `2aa41c7394300302fe802b69b31b855bdc89b671`, and its task-specific
 references. The [snapshot manifest](.shared-tooling.snapshot) records the exact
 policy/tooling selection. Read [the current handoff](docs/status/current.md)
 before implementation. Product-specific safeguards and scoped permissions below
@@ -110,8 +110,10 @@ and `ci/cargo-dependency-boundaries.json` for direct-dependency ownership.
 - Native canister qualification uses published `ic-testkit` for typed Wire calls,
   deliberate raw-call evidence and bounded startup. Import simulator clients and
   DTOs from `ic_testkit::pocket_ic` in the native runner only. Testkit owns that
-  maintained client and its lifecycle helpers; do not add a separate Platform
-  client or registry `pocket-ic` dependency. The locked Testkit package selects the setup/check CLI;
+  async client and its lifecycle helpers. Tests own the runtime and await
+  explicit instance close before server shutdown; retain teardown failures.
+  Do not add a blocking facade, separate Platform client or registry `pocket-ic`
+  dependency. The locked Testkit package selects the setup/check CLI;
   Testkit owns server selection and admission outside the shared five-tool bundle.
   `make install-testkit-tools` explicitly prepares it, and
   `make testkit-tools-check` returns its admitted server path offline.

@@ -1,10 +1,10 @@
 //! Opt-in real-browser qualification; native fixture issuance remains injected.
 use super::*;
 
-#[test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 #[ignore = "requires explicitly prepared Chromium: make test-client-browser"]
-fn actual_browser_storage_signing_and_receiver_transport() {
-    let mut f = Fixture::with_application_subnets(2);
+async fn actual_browser_storage_signing_and_receiver_transport() {
+    let mut f = Fixture::with_application_subnets(2).await;
     let key = SigningKey::from_bytes(&[42; 32]);
     let config = ReceiverConfig {
         audience: AudienceId {
@@ -22,21 +22,22 @@ fn actual_browser_storage_signing_and_receiver_transport() {
             scopes: vec!["read".parse().unwrap()],
         }])
         .unwrap(),
-        valid_from_ns: f.now(),
-        valid_until_ns: f.now() + 120 * SECOND,
-        enrollment_until_ns: f.now() + 120 * SECOND,
+        valid_from_ns: f.now().await,
+        valid_until_ns: f.now().await + 120 * SECOND,
+        enrollment_until_ns: f.now().await + 120 * SECOND,
         verification_burst: 32,
         verification_refill_ns: 1,
     };
     for receiver in [f.signer, f.resource] {
-        install(&f, receiver, &config);
+        install(&f, receiver, &config).await;
     }
     f.pic
         .instance()
         .advance_time(Duration::from_secs(1))
+        .await
         .unwrap();
     let subject = browser_principal(&SigningKey::from_bytes(&[81; 32]).verifying_key().to_bytes());
-    let now = f.now();
+    let now = f.now().await;
     let credentials: Vec<_> = [9, 10]
         .into_iter()
         .map(|device| {
@@ -60,7 +61,13 @@ fn actual_browser_storage_signing_and_receiver_transport() {
                 .unwrap()
         })
         .collect();
-    let url = f.pic.instance_mut().make_live(None).unwrap().to_string();
+    let url = f
+        .pic
+        .instance_mut()
+        .make_live(None)
+        .await
+        .unwrap()
+        .to_string();
     let hex = |bytes: &[u8]| {
         bytes
             .iter()
@@ -78,7 +85,7 @@ fn actual_browser_storage_signing_and_receiver_transport() {
         .arg(url)
         .arg(f.signer.to_text())
         .arg(f.resource.to_text())
-        .arg(hex(&f.root_key()))
+        .arg(hex(&f.root_key().await))
         .arg(now.to_string())
         .arg(hex(&credentials[0]))
         .arg(subject.to_text())
@@ -96,9 +103,13 @@ fn actual_browser_storage_signing_and_receiver_transport() {
         );
         for receiver in [f.signer, f.resource] {
             assert!(
-                read(&f, receiver, caller).is_err(),
+                read(&f, receiver, caller).await.is_err(),
                 "native receiver must retain browser logout"
             );
         }
     }
+    f.pic
+        .close()
+        .await
+        .expect("delete qualification instance before stopping its server");
 }

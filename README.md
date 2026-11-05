@@ -101,7 +101,7 @@ identities. Auth's engine selects Types' `principal-self-authenticating`
 for browser-key hashing, with byte-preserving conversions at external
 Agent/Testkit/crypto boundaries. Default/session, wallet-signature and passive
 contracts exclude Candid/raw IC0. Certificate capabilities and the reference
-Wasm admit Platform 0.22's upstream certificate dependencies under a scoped
+Wasm admit Platform's upstream certificate dependencies under a scoped
 exception; native Agent/Testkit also retain their required Candid dependencies.
 Platform supplies signature creation/verification; `ic-platform-runtime` supplies
 the Candid-free runtime. Auth retains admission limits, protected authority and session policy. See the
@@ -160,5 +160,6 @@ request to every protected application call.
 Signed claims, bounded transport and checked stored records serve different trust
 boundaries; their independent validation is intentional. Production wallet/issuer
 and durable host acceptance remain explicit unfinished work, not alternative
-authentication flows. The [current handoff](docs/status/current.md) separates
-current evidence from [historical extraction notes](docs/status/history-through-0.9.1.md).
+authentication flows. The [current handoff](docs/status/current.md) records
+current qualification; the [accepted design](docs/design/extraction.md) owns the
+extraction boundaries. Superseded handoff journals remain in Git history.

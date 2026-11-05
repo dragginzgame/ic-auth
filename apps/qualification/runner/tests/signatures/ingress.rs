@@ -44,8 +44,8 @@ fn assert_replica_rejection(
     );
 }
 
-#[test]
-fn ingress_protocol_failure_remains_distinct_from_application_rejection() {
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn ingress_protocol_failure_remains_distinct_from_application_rejection() {
     let fixture = HttpFixture::spawn(
         b"\xff",
         "application/cbor",
@@ -56,8 +56,7 @@ fn ingress_protocol_failure_remains_distinct_from_application_rejection() {
         },
     )
     .unwrap();
-    let runtime = tokio::runtime::Runtime::new().unwrap();
-    let result = runtime.block_on(async {
+    let result = async {
         tokio::time::timeout(
             Duration::from_secs(10),
             ingress(
@@ -69,7 +68,8 @@ fn ingress_protocol_failure_remains_distinct_from_application_rejection() {
         )
         .await
         .expect("malformed response must fail within the caller's deadline")
-    });
+    }
+    .await;
     assert!(matches!(result, Err(AgentError::InvalidCborData(_))));
     let request = fixture.finish().unwrap();
     assert!(request.starts_with(b"POST "));
@@ -80,9 +80,8 @@ fn ingress_protocol_failure_remains_distinct_from_application_rejection() {
     );
 }
 
-#[test]
-fn ingress_deadline_and_abort_release_pending_transport() {
-    let runtime = tokio::runtime::Runtime::new().unwrap();
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn ingress_deadline_and_abort_release_pending_transport() {
     for use_deadline in [true, false] {
         let listener = TcpListener::bind(("127.0.0.1", 0)).unwrap();
         let url = format!("http://{}/", listener.local_addr().unwrap());
@@ -112,10 +111,10 @@ fn ingress_deadline_and_abort_release_pending_transport() {
             );
             request
         });
-        let mut request = runtime.spawn(async move {
+        let mut request = tokio::spawn(async move {
             ingress(&url, &[], AnonymousIdentity, Principal::anonymous()).await
         });
-        runtime.block_on(async {
+        async {
             tokio::time::timeout(Duration::from_secs(10), received)
                 .await
                 .expect("Agent must send its request")
@@ -137,7 +136,8 @@ fn ingress_deadline_and_abort_release_pending_transport() {
                     .unwrap_err()
                     .is_cancelled()
             );
-        });
+        }
+        .await;
         let dispatched = server.join().unwrap();
         assert!(dispatched.starts_with(b"POST "));
         assert!(
@@ -150,26 +150,28 @@ fn ingress_deadline_and_abort_release_pending_transport() {
     }
 }
 
-#[test]
-fn replica_checks_real_ingress_delegations_and_fresh_browser_keys_keep_identity_after_upgrade() {
-    let ingress_runtime = tokio::runtime::Runtime::new().unwrap();
-    let mut fixture = Fixture::new();
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn replica_checks_real_ingress_delegations_and_fresh_browser_keys_keep_identity_after_upgrade()
+ {
+    let mut fixture = Fixture::new().await;
     let url = fixture
         .pic
         .instance_mut()
         .make_live(None)
+        .await
         .unwrap()
         .to_string();
-    let network = fixture.root_key();
+    let network = fixture.root_key().await;
     let mut wrong_root = network.clone();
     *wrong_root.last_mut().unwrap() ^= 1;
     assert!(matches!(
-        ingress_runtime.block_on(ingress(
+        ingress(
             &url,
             &wrong_root,
             BasicIdentity::from_raw_key(&[6; 32]),
             fixture.resource,
-        )),
+        )
+        .await,
         Err(AgentError::CertificateVerificationFailed())
     ));
     // Trust refusal does not prove that an update was never executed. The fixture
@@ -177,22 +179,23 @@ fn replica_checks_real_ingress_delegations_and_fresh_browser_keys_keep_identity_
     // Valid ingress authentication still grants no resource ownership. Keep
     // application denial separate from transport/replica signature rejection.
     assert!(matches!(
-        ingress_runtime.block_on(ingress(
+        ingress(
             &url,
             &network,
             BasicIdentity::from_raw_key(&[6; 32]),
             fixture.resource
-        )),
+        )
+        .await,
         Ok(Err(_))
     ));
     assert!(matches!(
-        ingress_runtime.block_on(ingress(&url, &network, AnonymousIdentity, fixture.resource)),
+        ingress(&url, &network, AnonymousIdentity, fixture.resource).await,
         Ok(Err(_))
     ));
     let mut previous: Option<(Vec<u8>, SignedDelegation)> = None;
     for key in [7, 8] {
         if key == 8 {
-            fixture.upgrade();
+            fixture.upgrade().await;
             // Clearing pending signature leaves is not revocation of an already
             // issued ingress delegation. The receiver's stored owner survives.
             let (public_key, delegation) = previous.as_ref().unwrap();
@@ -204,12 +207,17 @@ fn replica_checks_real_ingress_delegations_and_fresh_browser_keys_keep_identity_
             )
             .unwrap();
             assert_eq!(
-                ingress_runtime.block_on(ingress(&url, &network, old, fixture.resource)),
+                ingress(&url, &network, old, fixture.resource).await,
                 Ok(Ok(fixture.owner))
             );
         }
-        let (public_key, chain) =
-            fixture.delegation(key, fixture.now() + 120_000_000_000, vec![fixture.resource]);
+        let (public_key, chain) = fixture
+            .delegation(
+                key,
+                fixture.now().await + 120_000_000_000,
+                vec![fixture.resource],
+            )
+            .await;
         let identity = DelegatedIdentity::new_with_root_key(
             public_key.clone(),
             Box::new(BasicIdentity::from_raw_key(&[key; 32])),
@@ -218,7 +226,7 @@ fn replica_checks_real_ingress_delegations_and_fresh_browser_keys_keep_identity_
         )
         .unwrap();
         assert_eq!(
-            ingress_runtime.block_on(ingress(&url, &network, identity, fixture.resource)),
+            ingress(&url, &network, identity, fixture.resource).await,
             Ok(Ok(fixture.owner))
         );
         // Unchecked identities intentionally bypass the client's early validation
@@ -229,7 +237,7 @@ fn replica_checks_real_ingress_delegations_and_fresh_browser_keys_keep_identity_
             vec![chain.clone()],
         );
         assert_replica_rejection(
-            ingress_runtime.block_on(ingress(&url, &network, identity, fixture.signer)),
+            ingress(&url, &network, identity, fixture.signer).await,
             "not one of the delegation targets",
         );
         let mut changed = chain.clone();
@@ -249,7 +257,7 @@ fn replica_checks_real_ingress_delegations_and_fresh_browser_keys_keep_identity_
             vec![changed],
         );
         assert_replica_rejection(
-            ingress_runtime.block_on(ingress(&url, &network, identity, fixture.resource)),
+            ingress(&url, &network, identity, fixture.resource).await,
             "signature",
         );
         let identity = DelegatedIdentity::new_unchecked(
@@ -258,12 +266,14 @@ fn replica_checks_real_ingress_delegations_and_fresh_browser_keys_keep_identity_
             vec![chain.clone()],
         );
         assert_replica_rejection(
-            ingress_runtime.block_on(ingress(&url, &network, identity, fixture.resource)),
+            ingress(&url, &network, identity, fixture.resource).await,
             "signature",
         );
         previous = Some((public_key, chain));
     }
-    let (public_key, expired) = fixture.delegation(9, fixture.now() - 1, vec![fixture.resource]);
+    let (public_key, expired) = fixture
+        .delegation(9, fixture.now().await - 1, vec![fixture.resource])
+        .await;
     let identity = DelegatedIdentity::new_with_root_key(
         public_key,
         Box::new(BasicIdentity::from_raw_key(&[9; 32])),
@@ -272,7 +282,12 @@ fn replica_checks_real_ingress_delegations_and_fresh_browser_keys_keep_identity_
     )
     .unwrap();
     assert_replica_rejection(
-        ingress_runtime.block_on(ingress(&url, &network, identity, fixture.resource)),
+        ingress(&url, &network, identity, fixture.resource).await,
         "expired",
     );
+    fixture
+        .pic
+        .close()
+        .await
+        .expect("delete qualification instance before stopping its server");
 }

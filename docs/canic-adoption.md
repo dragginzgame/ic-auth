@@ -4,38 +4,32 @@ Auth owns reusable authentication machinery. Canic owns its runtime composition,
 issuer approval/renewal, fleet/member/role policy, endpoint guards and deployment.
 [Canic #491](https://github.com/dragginzgame/canic/issues/491) tracks production
 integration; this guide supplies the contract, not evidence of deployment.
-Older migrations and observations are preserved in [adoption history](canic-adoption-history.md).
+Superseded migration journals remain in Git history; use the current contracts below.
 
 ## Current integration cohort
 
-Published **Protocol 0.33.1** (`ic-auth-protocol-types`, `ic-auth-wire`) and
-**Engine 0.33.2** (`ic-auth`) are the current adoption cohort. Protocol releases
-independently from Engine. Keep the two Protocol packages aligned; use the
-Engine package's declared Protocol requirement rather than forcing equal versions
-across groups. An Engine-only update leaves Protocol's Rust type identity intact.
-The released lock selects canonical Types 0.18, Platform 0.21 and Wire/derive
-0.16.1. The qualification host selects independent Runtime 0.19.1. Its native
-runner uses Testkit 0.84.1's owned `ic_testkit::pocket_ic` client, with no separate
-Platform client dependency. Testkit's Candid/management DTOs share the one
-Platform facade. Rust 1.99.1 is the minimum.
-Engine 0.33.1 also removes fixed deployment ceilings from `SessionLimits`,
-allowing protected host-selected profiles such as 100,000 sessions. It supplies
-no receiver default or automatic backing allocation. Canic owns its configured
-default/maximum, proportional retention/byte/index budgets and actual-store
-capacity/performance qualification. Individual Auth record limits are unchanged.
-[`Cargo.toml`](../Cargo.toml), the lockfile and the [current handoff](status/current.md)
-record selections and delivered release evidence;
-[group ledgers](../CHANGELOG.md) own release notes. The private host also selects
-Metrics 0.29.1 and Storage 0.66.2. Auth's graph retains one Runtime/guard;
-Canic must qualify its complete family. Align Rust consumers to these canonical
-identities. Auth carries
-no Account DTOs, so the upstream Account byte-adapter cut does not change Auth's
-frames, method identities or stored records. Regenerated browser files are unchanged.
+Published **Protocol 0.34.0** (`ic-auth-protocol-types`, `ic-auth-wire`) and
+**Engine 0.34.0** (`ic-auth`) form the released cohort. Keep both Protocol packages
+aligned and satisfy Engine's declared Protocol requirement; the groups release
+independently. The released qualification lock uses Platform 0.22.1, Types 0.18.1,
+Wire 0.17.1, Testkit 0.86, Runtime 0.19.1, Storage 0.67 and Metrics 0.29.2.
+Engine 0.34.1 is unreleased; its qualified Platform 0.23/browser SDK adoption is
+recorded in the [current handoff](status/current.md). Rust 1.99.1 remains the minimum.
+[Cargo.toml](../Cargo.toml), the lockfile and [group ledgers](../CHANGELOG.md)
+record development selections and release notes, respectively.
+
+Host-selected `SessionLimits` support profiles such as 100,000 sessions without
+providing a receiver default or allocating backing. Canic owns its configured
+maximum, proportional retention/byte/index budgets and actual-store capacity and
+performance qualification. Individual Auth record limits are unchanged. Auth
+carries no Account DTOs; the upstream Account byte-adapter cut does not change
+Auth frames, method identities or stored records. Qualify the complete consumer
+graph with one Runtime executor/generator/guard.
 
 ## Read-only Canic source review — 2026-11-04
 
-Reviewed Canic HEAD `e6a061999` plus its existing uncommitted work. Its current
-lock selects Engine 0.33.2, Protocol 0.33.1, Platform 0.22, Types 0.18.1,
+This historical review used Canic HEAD `e6a061999` plus its then-uncommitted
+work. Its lock selected Engine 0.33.2, Protocol 0.33.1, Platform 0.22, Types 0.18.1,
 Wire 0.16.2 and Testkit 0.85.1. These are consumer selections, distinct from
 Auth's released qualification lock above. No Canic edits, builds or fresh
 installed acceptance were performed by this review.
@@ -62,10 +56,10 @@ owner. No missing Auth API was identified.
 Certified issuance is the next concrete consumer gap. Use the existing
 [certified issuance handoff](signature-preparation.md#certified-portable-issuance-handoff)
 to compose Auth's preparation/retrieval APIs with Canic's durable journal.
-Auth's local Platform 0.22 update remains held over its Wasm increase; Canic's
-selection does not resolve that measurement. Auth's pending Wire 0.17 adoption
-now pairs with published Testkit 0.86; it is not yet a released Auth cohort.
-See the [current handoff](status/current.md).
+The Platform Wasm publication hold was subsequently lifted with the maintainer's
+accepted residual size tradeoff. The [current handoff](status/current.md) records
+that decision and released qualification; it does not update this historical
+Canic acceptance review.
 
 ## Current Rust contract
 
@@ -166,7 +160,7 @@ signatures, expiry, reset-floor or stale-authority refusals automatically.
 
 ## Auth 0.30 / Platform 0.17 / Wire 0.14 adoption
 
-This historical cohort precedes the current 0.33 selection above. The published
+The following migration sections describe historical cohorts, preceding 0.34. The published
 Protocol and Engine 0.30.0 releases select canonical Types 0.16.0,
 Platform 0.17.0, Wire/derive 0.14.2 and native Testkit 0.78.0. Existing Principal,
 parse-error, codec and limits values have a new Rust package identity; align the
@@ -260,10 +254,10 @@ and published Engine/Protocol versions used for qualification. Run
 `sha256sum --check SHA256SUMS` from that delivery directory before copying it.
 The browser's npm `integrity` is retained separately from its SHA-256.
 
-The new Engine 0.33.2/Protocol 0.33.1 backend archive has its own clean-source
+The historical Engine 0.33.2/Protocol 0.33.1 backend archive has its own clean-source
 registry-consumer qualification receipt at
 `target/portable-fixtures/backend-package.WoSpAu/delivery.json`; the
-[current handoff](status/current.md) records its archive and checksum. The older
+[handoff at that source revision](https://github.com/dragginzgame/ic-auth/blob/a11f7558bd2187c06fedc739c7a0c36b470ba9ca/docs/status/history-0.33-delivery-and-qualification.md) records its delivery. The older
 assembled pair does not qualify the new backend maintenance/clock hooks.
 
 Extract the backend archive into the consumer's excluded `test-support/`
@@ -277,7 +271,7 @@ archive/integrity and resulting consumer lock, and qualify the selected SDK
 graph and real issuer/receiver transports. The private package's `0.0.0` version
 cannot distinguish these artifacts.
 
-Current receipts mark the exact released source as clean. Earlier dirty-source
+Those release receipts mark their exact source as clean. Earlier dirty-source
 receipts identify development candidates and must not replace that source
 selection. Clean archive qualification still requires the actual consumer's
 store and production transports to pass its acceptance.
@@ -290,4 +284,4 @@ admission. Cryptographic checks and the TEE/non-TEE trust model are unchanged.
 <a id="platform-07-migration"></a>
 
 Historical Platform 0.7 migration notes referenced by older release notes are
-preserved in [adoption history](canic-adoption-history.md#platform-07-migration).
+preserved in [the migration journal in Git](https://github.com/dragginzgame/ic-auth/blob/a11f7558bd2187c06fedc739c7a0c36b470ba9ca/docs/canic-adoption-history.md#platform-07-migration).

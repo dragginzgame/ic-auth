@@ -94,16 +94,17 @@ pub(super) fn root_proof(
     })
 }
 
-#[test]
-fn portable_proof_rechecks_live_authority_and_real_certification_after_upgrade() {
-    let fixture = Fixture::new();
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn portable_proof_rechecks_live_authority_and_real_certification_after_upgrade() {
+    let fixture = Fixture::new().await;
     // Freeze signed timestamps as well as topology/keys for matched Wasm costs.
     fixture
         .pic
         .instance()
         .set_time((std::time::UNIX_EPOCH + Duration::from_secs(1_800_000_000)).into())
+        .await
         .unwrap();
-    let started = fixture.now();
+    let started = fixture.now().await;
     let key = SigningKey::from_slice(&[7; 32]).unwrap();
     let policy = RootKeyPolicy {
         root_canister_id: fixture.resource,
@@ -182,12 +183,14 @@ fn portable_proof_rechecks_live_authority_and_real_certification_after_upgrade()
     let payload = claims_hash(&claims).unwrap();
     fixture
         .prepare(CERTIFIED_SIGNATURE_DOMAIN, &payload, 60 * SECOND)
+        .await
         .unwrap();
     let mut signature = fixture
         .retrieve(CERTIFIED_SIGNATURE_DOMAIN, &payload)
+        .await
         .unwrap();
     let unchanged = signature.clone();
-    let network = extract_raw_root_pk_from_der(&fixture.root_key()).unwrap();
+    let network = extract_raw_root_pk_from_der(&fixture.root_key().await).unwrap();
     let checked_grants =
         ic_auth::portable::ValidatedGrants::new(proof.cert.grants.clone()).unwrap();
     let mut context = PortableCertifiedContext {
@@ -199,7 +202,7 @@ fn portable_proof_rechecks_live_authority_and_real_certification_after_upgrade()
                 key_binding_id: claims.key_binding_id,
                 grants: &checked_grants,
                 caller: browser_principal(&browser_key),
-                now_ns: fixture.now(),
+                now_ns: fixture.now().await,
                 authority_not_before_ns: started,
                 authority_expires_at_ns: proof.cert.expires_at_ns,
                 enrollment_expires_at_ns: proof.cert.expires_at_ns,
@@ -307,28 +310,37 @@ fn portable_proof_rechecks_live_authority_and_real_certification_after_upgrade()
         .pic
         .instance()
         .advance_time(Duration::from_secs(30))
+        .await
         .unwrap();
-    context.claims.authority.now_ns = fixture.now();
+    context.claims.authority.now_ns = fixture.now().await;
     assert_eq!(
         verify(&signature, &context).unwrap_err(),
         Error::Signature(CanisterSignatureError::CertificateTooOld)
     );
-    fixture.set_asset(8);
-    fixture.upgrade();
-    assert_eq!(fixture.asset_version(), 8);
+    fixture.set_asset(8).await;
+    fixture.upgrade().await;
+    assert_eq!(fixture.asset_version().await, 8);
     assert!(
         fixture
             .retrieve(CERTIFIED_SIGNATURE_DOMAIN, &payload)
+            .await
             .is_err()
     );
     fixture
         .prepare(CERTIFIED_SIGNATURE_DOMAIN, &payload, 60 * SECOND)
+        .await
         .unwrap();
     signature = fixture
         .retrieve(CERTIFIED_SIGNATURE_DOMAIN, &payload)
+        .await
         .unwrap();
-    context.claims.authority.now_ns = fixture.now();
+    context.claims.authority.now_ns = fixture.now().await;
     assert_eq!(verify(&signature, &context).unwrap().fingerprint(), payload);
     assert_eq!(encode_claims(&claims).unwrap(), encoded);
-    super::sessions::qualify_certified(&fixture, &proof, &context, &role);
+    super::sessions::qualify_certified(&fixture, &proof, &context, &role).await;
+    fixture
+        .pic
+        .close()
+        .await
+        .expect("delete qualification instance before stopping its server");
 }

@@ -18,6 +18,27 @@ native tooling packages. The independent series starts after the
   read-state response fixtures in transport tests. Retain signed-request and
   invalid-certificate checks, with SDK Core still at 6.1.1.
 
+### ⬆️ Dependencies
+
+- Adopt Testkit 0.87 for native qualification and share Platform 0.23 throughout
+  the workspace. Migrate live fixtures to its async client with one caller-owned
+  runtime per test and explicit, checked instance deletion before server shutdown.
+  Preserve signed-ingress, Wire, lifecycle and admission assertions.
+
+### 🔧 Tooling
+
+- Adopt committed Shared Tooling 0.30.4, including LOC/formatting scratch fixes
+  and numbered release-draft handling. Enforce its Candid source check across
+  Auth libraries and private apps through the existing boundary gate, with no
+  application-type allowances. Repair the formatting-hook refusal fixture after
+  removal of the direct CBOR dependency.
+
+### 📚 Documentation
+
+- Replace superseded handoff/adoption journals with current contract guidance
+  and Git history pointers. Compact the historical Wasm study while retaining
+  its results and limits; preserve release receipts and recovery records.
+
 ## [0.34.0] - 2026-11-05
 
 ### ⚠️ Breaking

@@ -27,7 +27,7 @@ ic-testkit = { workspace = true, features = ["wire"] }
 ic-wire.workspace = true
 serde.workspace = true
 sha2.workspace = true
-tokio.workspace = true
+tokio = { workspace = true, features = ["macros"] }
 
 [lints]
 workspace = true

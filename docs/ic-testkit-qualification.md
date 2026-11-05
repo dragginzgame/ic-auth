@@ -4,21 +4,21 @@
 runs the native fixture tests and [backend conformance scenarios](sessions.md#backend-conformance-scenarios), builds `apps/qualification/canister/` and executes
 `apps/qualification/runner/` against that server. These unpublished applications
 qualify Auth's reference host, not a production wallet/issuer or durable backend.
-Earlier pairings and benchmarks are preserved in
-[qualification history](ic-testkit-qualification-history.md).
+Earlier pairings and benchmark narratives remain in Git history; they do not
+qualify the current dependency graph.
 
 ## Setup and ownership
 
-The root catalog/lock select published Testkit 0.86.0 from
+The root catalog/lock select published Testkit 0.87.0 from
 [IC Tooling](https://github.com/dragginzgame/ic-tooling), its maintained PocketIC
-client and server 16.1.0. Testkit and Auth share locked Wire 0.17.0 types directly.
+client and server 16.1.0. Testkit and Auth share locked Wire 0.17.2 types directly.
 `WireCallSpec` takes the canonical
 contract limits without conversion; responses require only `DeserializeOwned`.
 The temporary Wire 0.6 alias and limit bridge are removed following
 [Tooling #248](https://github.com/dragginzgame/ic-tooling/issues/248).
 Application identities use owned Principal; direct Testkit/Agent calls convert
-explicitly to their external type. Auth and Testkit 0.86 share Platform 0.22
-and Types 0.18; the Storage host
+explicitly to their external type. Auth and Testkit share Platform 0.23 and
+canonical Types 0.18.1; the Storage host
 selects Runtime 0.19 directly. No alias or dependency override is used.
 Native Agent/client dependencies stay outside public Auth library and
 deployed-Wasm graphs; the certificate-only dependency exception is separate.
@@ -32,12 +32,15 @@ with its native PEM feature; caller/root-key and request policy remain with the
 fixture. There is no direct Agent declaration or local facade. Testkit supplies
 typed Wire query/update calls and bounded startup. The native runner imports
 `PocketIc`, `PocketIcBuilder` and `Time` from `ic_testkit::pocket_ic` in Testkit
-0.86. Clients require an explicit server endpoint; Auth's existing managed
-`build_instance` supplies it through the admitted `PocketIcStartupConfig::Spawn`.
+0.87. Clients require an explicit server endpoint; Auth's managed
+`build_instance(builder).await` supplies it through the admitted `PocketIcStartupConfig::Spawn`.
 The separate Platform client dependency is removed. The fixture retains the
 managed `PocketIcInstance` owner throughout setup and live calls. It borrows the
-client through `instance()` or `instance_mut()`; Testkit preserves client-before-server
-teardown, including when setup panics. Only the native runner
+client through `instance()` or `instance_mut()`. Each live test owns one two-worker
+Tokio runtime, awaits network/lifecycle/Wire calls and explicitly awaits
+`close()` before stopping its managed server; deletion failures fail the test.
+Managed-server Drop still stops/reaps its process group on setup/test panic.
+There is no blocking facade or nested runtime. Only the native runner
 enables Testkit's `wire` feature; IC Wire owns the
 native Serde codec; Auth owns method identities and explicit traversal limits.
 Deliberately malformed inputs and byte-level
@@ -60,7 +63,7 @@ supplies allocation and checksummed checkpoint cells, and Platform supplies raw 
 admission before CDK copying, counter-zero measurements, certified-tree types
 and canister-signature key/hash operations. Its `cdk` capability now supplies
 certificate read/publish helpers and the original runtime/controller semantics.
-The selected Runtime remains Candid-free. Platform 0.22's upstream certificate
+The selected Runtime remains Candid-free. Platform's upstream certificate
 helpers bring transitive Candid/raw IC0 into the reference Wasm under the
 maintainer-approved certificate exception; native Agent/Testkit also bring Candid.
 Controls and checkpoints remain Wire, with one Runtime executor/guard and
@@ -248,5 +251,6 @@ occupancy progression; the runner also checks budget exhaustion and logout.
 Recorded artifact identities and raw samples qualify only their actual source,
 not a universal saving or SLA. Current code emits raw diagnostic samples; the
 retired token-specific instruction sweep/IC Metrics summary is historical, not
-an advertised current command. Earlier numerical comparisons remain in
-[the immutable evidence archive](ic-testkit-qualification-history.md).
+an advertised current command. Earlier comparisons are described in
+[the historical qualification journal](https://github.com/dragginzgame/ic-auth/blob/a11f7558bd2187c06fedc739c7a0c36b470ba9ca/docs/ic-testkit-qualification-history.md).
+That narrative is not durable custody of its raw measurements.

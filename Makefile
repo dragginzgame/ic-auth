@@ -16,7 +16,7 @@ export RELEASE_REMOTE RELEASE_BRANCH RELEASE_GROUP
 
 .PHONY: help install-hooks fetch metadata test-formatting-hooks \
         install-testkit-tools testkit-tools-check test-testkit-tools install-release-tools release-tools-check \
-        test-types test-protocol test-portable-signatures test-chain-key-signatures test-signatures test-signature-store test-certified-proofs test-sessions check-wasm clippy check-boundaries \
+        test-types test-protocol test-portable-signatures test-chain-key-signatures test-signatures test-signature-store test-certified-proofs test-sessions check-wasm clippy check-boundaries check-candid-boundary \
         check-snapshot check-dependency-pins check-doc-links check-msrv install-msrv msrv-tools-check tasks ci \
         client-tools-check install-client-dependencies generate-client-contracts check-client-contracts check-client-boundary test-client test-client-tools pack-client test-client-package test-client-package-browser \
         publish publish-dry-run check-package-builds check-package-licenses test-release-tools pack-backend-conformance test-backend-conformance test-backend-package profile-canonical-allocations \
@@ -39,7 +39,7 @@ help:
 	@echo 'Delivery qualification after cohort publication: test-backend-package; native allocation observation: profile-canonical-allocations'
 	@echo 'Opt-in Chromium qualification: test-client-browser, test-client-package-browser (IC_AUTH_BROWSER_EXECUTABLE required)'
 	@echo 'Formatting: fmt, fmt-check, test-formatting-hooks'
-	@echo 'Governance: check-snapshot, check-dependency-pins, check-doc-links, check-boundaries, check-msrv; maintenance catalog: tasks'
+	@echo 'Governance: check-snapshot, check-dependency-pins, check-doc-links, check-candid-boundary, check-boundaries, check-msrv; maintenance catalog: tasks'
 	@echo 'Complete CI gate (explicit only): ci'
 	@echo 'Releases: release-patch/minor/major RELEASE_GROUP=protocol|engine; recovery also selects VERSION=X.Y.Z'
 	@echo 'Crates.io: publish RELEASE_GROUP=protocol|engine; local checks: publish-dry-run RELEASE_GROUP=..., check-package-builds, test-release-tools'
@@ -70,7 +70,7 @@ test-formatting-hooks:
 	@mkdir -p target/portable-fixtures
 	+@set -e; fixture="$$(mktemp "$(CURDIR)/target/portable-fixtures/unsorted-manifest.XXXXXX")"; \
 		trap 'rm -f "$$fixture"' EXIT; \
-		perl -0777 -pe 's/^(serde_bytes = [^\n]*\n)(serde_cbor = [^\n]*\n)/$$2$$1/m or die "missing selected dependency pair"' Cargo.toml > "$$fixture"; \
+		perl -0777 -pe 's/^(serde_bytes = [^\n]*\n)(sha2 = [^\n]*\n)/$$2$$1/m or die "missing selected dependency pair"' Cargo.toml > "$$fixture"; \
 		TMPDIR="$(CURDIR)/target/portable-fixtures" bash scripts/ci/check-formatting-hooks.sh \
 		"$(CURDIR)" crates/ic-auth/src/lib.rs Cargo.toml "$$fixture" --rust-sources \
 		make/consumer.mk
@@ -150,7 +150,10 @@ test-qualification: testkit-tools-check client-tools-check
 	+$(MAKE) --no-print-directory build-qualification-canister
 	+bash scripts/dev/test-qualification.sh
 
-check-boundaries:
+check-candid-boundary:
+	perl scripts/ci/check-candid-boundary.pl "$(CURDIR)" ci/candid-boundary.json crates apps
+
+check-boundaries: check-candid-boundary
 	+bash scripts/ci/check-cargo-dependency-boundaries.sh --consumer "$(CURDIR)" --external-ic
 	+bash scripts/ci/test-auth-boundaries.sh
 	+bash scripts/ci/check-auth-boundaries.sh

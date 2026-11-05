@@ -2,14 +2,14 @@
 use super::*;
 use ic_auth::portable_certified::PortableCertifiedContext;
 
-fn profile(
+async fn profile(
     f: &Fixture,
     target: Principal,
     caller: Principal,
     input: &SessionInput,
     label: &str,
 ) -> Result<SessionView, AdmissionRefusal> {
-    let report: AdmissionProfile = measured(f, target, label, || {
+    let report: AdmissionProfile = measured(f, target, label, async || {
         update_wire::<ic_auth_wire::SessionInput, controls::model::AdmissionProfile>(
             f.pic.instance(),
             target.into(),
@@ -17,8 +17,10 @@ fn profile(
             spec!(controls::ProfileAdmission),
             input,
         )
+        .await
         .expect("qualified Wire admission profile")
-    });
+    })
+    .await;
     assert!(report.instructions > 0);
     eprintln!(
         "portable receiver admission instructions: {label}={}",
@@ -28,7 +30,7 @@ fn profile(
         .expect("bounded shared admission reply")
 }
 
-pub(super) fn qualify(
+pub(super) async fn qualify(
     f: &Fixture,
     proof: &DelegationProof,
     old: &PortableCertifiedContext<'_>,
@@ -69,7 +71,7 @@ pub(super) fn qualify(
             verification_burst: 16,
             verification_refill_ns: 1,
         };
-        let make_claims = |device: u8| PortableClaims {
+        let make_claims = async |device: u8| PortableClaims {
             mechanism: config.authority.mechanism(),
             audience: config.audience,
             issuer: config.issuer,
@@ -78,26 +80,26 @@ pub(super) fn qualify(
                 .verifying_key()
                 .to_bytes(),
             account_subject: f.owner,
-            login_started_at_ns: f.now(),
-            login_deadline_ns: f.now() + 60 * SECOND,
-            issued_at_ns: f.now(),
-            admission_expires_at_ns: f.now() + 2 * SECOND,
+            login_started_at_ns: f.now().await,
+            login_deadline_ns: f.now().await + 60 * SECOND,
+            issued_at_ns: f.now().await,
+            admission_expires_at_ns: f.now().await + 2 * SECOND,
             nonce: [device; 16],
             grants: cert.grants.clone(),
         };
-        let make_input = |claims: &PortableClaims| {
+        let make_input = async |claims: &PortableClaims| {
             if !certified {
                 return input(claims, &key);
             }
             let digest = claims_hash(claims).unwrap();
             let domain = ic_auth::portable_certified::CERTIFIED_SIGNATURE_DOMAIN;
-            f.prepare(domain, &digest, 60 * SECOND).unwrap();
+            f.prepare(domain, &digest, 60 * SECOND).await.unwrap();
             SessionInput {
                 credential: PortableCredential {
                     claims: encode_claims(claims).unwrap(),
                     proof: PortableProof::Certified {
                         delegation: Box::new(proof.clone()),
-                        issuer_signature: f.retrieve(domain, &digest).unwrap(),
+                        issuer_signature: f.retrieve(domain, &digest).await.unwrap(),
                     },
                 }
                 .try_into()
@@ -118,14 +120,15 @@ pub(super) fn qualify(
             .unwrap();
             assert_ne!(network_key, old.ic_root_public_key_raw);
         }
-        install(f, f.resource, &rejecting);
+        install(f, f.resource, &rejecting).await;
         f.pic
             .instance()
             .advance_time(Duration::from_secs(1))
+            .await
             .unwrap();
-        let rejected_claims = make_claims(19);
+        let rejected_claims = make_claims(19).await;
         let rejected_caller = browser_principal(&rejected_claims.browser_public_key);
-        let mut rejected = make_input(&rejected_claims);
+        let mut rejected = make_input(&rejected_claims).await;
         if let ic_auth_wire::model::PortableProof::Ed25519(signature) =
             &mut rejected.credential.proof
         {
@@ -135,38 +138,40 @@ pub(super) fn qualify(
         }
         let label = format!("matched_{mechanism}_invalid_proof");
         assert_eq!(
-            profile(f, f.resource, rejected_caller, &rejected, &label),
+            profile(f, f.resource, rejected_caller, &rejected, &label).await,
             Err(AdmissionRefusal::InvalidCredential)
         );
-        assert!(read(f, f.resource, rejected_caller).is_err());
-        let another = make_claims(18);
+        assert!(read(f, f.resource, rejected_caller).await.is_err());
+        let another = make_claims(18).await;
         let another_caller = browser_principal(&another.browser_public_key);
-        let another_input = make_input(&another);
+        let another_input = make_input(&another).await;
         let throttled = profile(
             f,
             f.resource,
             another_caller,
             &another_input,
             &format!("matched_{mechanism}_throttled_other_caller"),
-        );
+        )
+        .await;
         assert_eq!(throttled, Err(AdmissionRefusal::Throttled));
-        assert!(read(f, f.resource, another_caller).is_err());
+        assert!(read(f, f.resource, another_caller).await.is_err());
         // Fresh-verification exhaustion cannot consume the separate logout budget.
-        logout(f, f.resource, rejected_caller).unwrap();
+        logout(f, f.resource, rejected_caller).await.unwrap();
 
         // Reinstall into fresh fixture state for identical valid-admission occupancy.
         // This is an explicit test reset, never production enrollment refresh.
-        install(f, f.resource, &config);
-        install(f, f.signer, &config);
+        install(f, f.resource, &config).await;
+        install(f, f.signer, &config).await;
         f.pic
             .instance()
             .advance_time(Duration::from_secs(1))
+            .await
             .unwrap();
         let mut first = None;
         for device in 20..23 {
-            let claims = make_claims(device);
+            let claims = make_claims(device).await;
             let caller = browser_principal(&claims.browser_public_key);
-            let input = make_input(&claims);
+            let input = make_input(&claims).await;
             let admitted = profile(
                 f,
                 f.resource,
@@ -174,6 +179,7 @@ pub(super) fn qualify(
                 &input,
                 &format!("matched_{mechanism}_fresh_{device}"),
             )
+            .await
             .unwrap();
             assert_eq!(
                 (
@@ -190,8 +196,8 @@ pub(super) fn qualify(
             assert!(admitted.expires_at_ns <= claims.login_deadline_ns);
             if device == 20 {
                 if certified {
-                    components(f, caller, &input);
-                    assert_eq!(read(f, f.resource, caller).unwrap(), admitted);
+                    components(f, caller, &input).await;
+                    assert_eq!(read(f, f.resource, caller).await.unwrap(), admitted);
                 }
                 let peer = profile(
                     f,
@@ -200,6 +206,7 @@ pub(super) fn qualify(
                     &input,
                     &format!("matched_{mechanism}_second_receiver"),
                 )
+                .await
                 .unwrap();
                 assert_eq!(peer.subject, admitted.subject);
                 first = Some((caller, input, admitted, claims));
@@ -209,6 +216,7 @@ pub(super) fn qualify(
         f.pic
             .instance()
             .advance_time(Duration::from_secs(3))
+            .await
             .unwrap();
         assert_eq!(
             profile(
@@ -218,16 +226,17 @@ pub(super) fn qualify(
                 &input,
                 &format!("matched_{mechanism}_expired_proof_retry")
             )
+            .await
             .unwrap(),
             admitted
         );
         // A new signed proof within the same login is a fresh renewal, even
         // while its previous lease remains live. Exact retries above skip it.
         let mut renewal = original_claims;
-        renewal.issued_at_ns = f.now();
-        renewal.admission_expires_at_ns = f.now() + 2 * SECOND;
+        renewal.issued_at_ns = f.now().await;
+        renewal.admission_expires_at_ns = f.now().await + 2 * SECOND;
         renewal.nonce[0] ^= 1;
-        let renewal_input = make_input(&renewal);
+        let renewal_input = make_input(&renewal).await;
         let renewed = profile(
             f,
             f.resource,
@@ -235,6 +244,7 @@ pub(super) fn qualify(
             &renewal_input,
             &format!("matched_{mechanism}_renewal"),
         )
+        .await
         .unwrap();
         assert!(renewed.expires_at_ns > admitted.expires_at_ns);
         admitted = renewed;
@@ -243,8 +253,9 @@ pub(super) fn qualify(
                 f,
                 f.resource,
                 &format!("matched_{mechanism}_session_read"),
-                || read(f, f.resource, caller)
+                async || read(f, f.resource, caller).await
             )
+            .await
             .unwrap(),
             admitted
         );
@@ -255,7 +266,8 @@ pub(super) fn qualify(
                 caller,
                 spec!(controls::ProfileSession),
                 (),
-            );
+            )
+            .await;
         let hot = hot.unwrap();
         assert!(hot.authorization_instructions > 0);
         eprintln!("matched {mechanism} session profile: {hot:?}");
@@ -263,25 +275,26 @@ pub(super) fn qualify(
             f,
             f.resource,
             &format!("matched_{mechanism}_logout"),
-            || logout(f, f.resource, caller),
+            async || logout(f, f.resource, caller).await,
         )
+        .await
         .unwrap();
         assert_eq!(
-            admission(f, f.resource, caller, &input),
+            admission(f, f.resource, caller, &input).await,
             Err(AdmissionRefusal::Revoked)
         );
         assert!(
-            read(f, f.signer, caller).is_ok(),
+            read(f, f.signer, caller).await.is_ok(),
             "local logout preserves peer lease"
         );
         if !certified {
-            qualify_wide_grants(f, &config, &key);
+            qualify_wide_grants(f, &config, &key).await;
         }
     }
 }
 
-fn components(f: &Fixture, caller: Principal, input: &SessionInput) {
-    let call = |caller, input: &SessionInput| {
+async fn components(f: &Fixture, caller: Principal, input: &SessionInput) {
+    let call = async |caller, input: &SessionInput| {
         update_wire::<
             ic_auth_wire::SessionInput,
             Result<controls::model::CertifiedProfile, controls::model::CertifiedProfileFailure>,
@@ -292,10 +305,11 @@ fn components(f: &Fixture, caller: Principal, input: &SessionInput) {
             spec!(controls::ProfileCertified),
             input,
         )
+        .await
         .expect("bounded certified component probe")
     };
     for sample in 0..3 {
-        let report = call(caller.into(), input).unwrap();
+        let report = call(caller.into(), input).await.unwrap();
         assert!(report.credential_instructions > 0);
         assert!(report.root_delegation_instructions > 0);
         assert!(report.issuer_instructions > 0);
@@ -310,7 +324,7 @@ fn components(f: &Fixture, caller: Principal, input: &SessionInput) {
     }
     assert!(
         matches!(
-            call(Principal::anonymous().into(), input),
+            call(Principal::anonymous().into(), input).await,
             Err(controls::model::CertifiedProfileFailure::Verification(_))
         ),
         "caller binding precedes component results"
@@ -322,7 +336,7 @@ fn components(f: &Fixture, caller: Principal, input: &SessionInput) {
     proof.issuer_signature.signature_cbor = Bytes::new(vec![0]).unwrap();
     assert!(
         matches!(
-            call(caller.into(), &invalid),
+            call(caller.into(), &invalid).await,
             Err(controls::model::CertifiedProfileFailure::Verification(_))
         ),
         "complete verification precedes component results"
@@ -331,7 +345,7 @@ fn components(f: &Fixture, caller: Principal, input: &SessionInput) {
 
 // Same executable and endpoints as the one-scope sample, with the maximum
 // grant/scope cardinalities and 16 requested scopes. Native signing is excluded.
-fn qualify_wide_grants(f: &Fixture, base: &ReceiverConfig, key: &SigningKey) {
+async fn qualify_wide_grants(f: &Fixture, base: &ReceiverConfig, key: &SigningKey) {
     let mut config = base.clone();
     let scopes: Vec<String> = std::iter::once("read".into())
         .chain((0..31).map(|n| format!("scope{n:02}")))
@@ -346,10 +360,11 @@ fn qualify_wide_grants(f: &Fixture, base: &ReceiverConfig, key: &SigningKey) {
     )
     .unwrap();
     config.role = config.grants.as_slice().last().unwrap().target.clone();
-    install(f, f.resource, &config);
+    install(f, f.resource, &config).await;
     f.pic
         .instance()
         .advance_time(Duration::from_secs(1))
+        .await
         .unwrap();
     for device in 30..33 {
         let claims = PortableClaims {
@@ -361,10 +376,10 @@ fn qualify_wide_grants(f: &Fixture, base: &ReceiverConfig, key: &SigningKey) {
                 .verifying_key()
                 .to_bytes(),
             account_subject: f.owner,
-            login_started_at_ns: f.now(),
-            login_deadline_ns: f.now() + 60 * SECOND,
-            issued_at_ns: f.now(),
-            admission_expires_at_ns: f.now() + 2 * SECOND,
+            login_started_at_ns: f.now().await,
+            login_deadline_ns: f.now().await + 60 * SECOND,
+            issued_at_ns: f.now().await,
+            admission_expires_at_ns: f.now().await + 2 * SECOND,
             nonce: [device; 16],
             grants: config.grants.as_slice().to_vec(),
         };
@@ -385,8 +400,9 @@ fn qualify_wide_grants(f: &Fixture, base: &ReceiverConfig, key: &SigningKey) {
             &input,
             &format!("wide_ed25519_fresh_{device}"),
         )
+        .await
         .unwrap();
-        assert_eq!(read(f, f.resource, caller).unwrap(), admitted);
+        assert_eq!(read(f, f.resource, caller).await.unwrap(), admitted);
         let hot = query_control::<(), controls::model::SessionProfile>(
             f.pic.instance(),
             f.resource,
@@ -394,6 +410,7 @@ fn qualify_wide_grants(f: &Fixture, base: &ReceiverConfig, key: &SigningKey) {
             spec!(controls::ProfileSession),
             (),
         )
+        .await
         .unwrap();
         eprintln!("wide ed25519 session profile {device}: {hot:?}");
         assert!(hot.authorization_instructions > 0);
