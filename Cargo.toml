@@ -42,14 +42,13 @@ ic-auth-wire = { version = "0.34.0", path = "crates/ic-auth-wire" }
 # Production dependencies
 # Types owns canonical identities; Platform supplies crypto and native IC adapters.
 # Passive protocol, default and session-only graphs need no facade or runtime.
-ic-platform = { version = "0.22.1", default-features = false }
+ic-platform = { version = "0.23.0", default-features = false }
 ic-platform-types = { version = "0.18.0", default-features = false }
 # Host generation uses the lock-selected runtime and diagnostic callback.
 ic-wire = "0.17.0"
 leb128 = "0.2"
 serde = { version = "1", features = ["derive"] }
 serde_bytes = "0.11"
-serde_cbor = "0.11"
 sha2 = "0.10"
 thiserror = "2"
 

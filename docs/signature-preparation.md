@@ -104,8 +104,15 @@ structure and root coherence; it does not authenticate a client-supplied BLS
 chain or enforce certificate freshness. Consumers must still use the full
 verifier with their protected network, signer, seed and clock policy.
 
+Platform's explicit `certification-cbor` capability owns certificate decoding and
+standard canister-signature encoding. Auth supplies the host-selected byte caps,
+constructs the witness and checks its certified-root binding. The private
+qualification profiler uses Platform's bounded envelope/certificate decoders
+only after complete verification, with the admitted issuer-signature byte cap
+for the envelope, signing certificate and optional delegation certificate.
+
 The selected output byte cap is enforced as CBOR is serialized, before appending
-an oversized chunk. Buffer growth stays within that cap. Certificate decoding,
+an oversized chunk. Platform's buffer growth stays within that cap. Certificate decoding,
 witness construction and allocator overhead retain their separate bounds; this
 is not a total heap quota. Exact-cap output remains accepted, with unchanged
 envelope bytes and `SignatureTooLarge` refusal for oversized output.

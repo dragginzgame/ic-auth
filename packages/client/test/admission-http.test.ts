@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Cbor } from '@tokostudios/ic-platform/agent';
+import { inspectIngress } from '@tokostudios/ic-platform/agent';
+import { readStateResponseFixture } from '@tokostudios/ic-platform/testing';
 import { Ed25519KeyIdentity } from '@tokostudios/ic-platform/identity';
 import { Principal } from '@tokostudios/ic-platform/principal';
 import { ClientError, httpAdmissionTransport, type PortableCredential } from '../src/index.js';
@@ -21,12 +22,14 @@ test('HTTP admission signs the exact credential and fixed scopes; HTTP acceptanc
     const path = new URL(input.toString()).pathname;
     paths.push(path);
     assert.equal(init?.signal, controller.signal);
-    const signed = Cbor.decode<{ content: { method_name?: string; arg?: Uint8Array; sender: Uint8Array }; sender_pubkey: Uint8Array }>(init!.body as Uint8Array);
-    assert.equal(Principal.fromUint8Array(signed.content.sender).toText(), identity.getPrincipal().toText());
-    assert.deepEqual([...signed.sender_pubkey], [...identity.getPublicKey().toDer()]);
+    const signed = inspectIngress(init!.body as Uint8Array);
+    assert.equal(signed.sender.toText(), identity.getPrincipal().toText());
+    assert(signed.senderPublicKey);
+    assert.deepEqual([...signed.senderPublicKey], [...identity.getPublicKey().toDer()]);
     if (path.endsWith('/call')) {
-      assert.equal(signed.content.method_name, options.methodName);
-      const request = decodeRequest(signed.content.arg!);
+      assert(signed.requestType === 'call');
+      assert.equal(signed.methodName, options.methodName);
+      const request = decodeRequest(signed.arg);
       assert.deepEqual([...request.credential.claims], [...credential.claims]);
       assert.equal(request.credential.proof.tag, 'Ed25519');
       assert.deepEqual([...request.credential.proof.value as Uint8Array], new Array(64).fill(0));
@@ -34,7 +37,7 @@ test('HTTP admission signs the exact credential and fixed scopes; HTTP acceptanc
       assert.deepEqual(request.ttl_secs, { some: 30n });
       return new Response(null, { status: 202 });
     }
-    return new Response(Cbor.encode({ certificate: new Uint8Array([0]) }));
+    return new Response(new Uint8Array(readStateResponseFixture(new Uint8Array([0]))).buffer);
   } });
   scopes[0] = 'write';
   await assert.rejects(admit(target, identity, credential, controller.signal));

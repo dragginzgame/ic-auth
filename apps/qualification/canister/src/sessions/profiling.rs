@@ -17,9 +17,11 @@ use ic_auth_protocol_types::{IssuerProofBinding, PortableProof};
 use ic_platform::{
     bls::verify_bls_signature,
     canister_sig_creation::extract_raw_root_pk_from_der,
-    certification::{Certificate, HashTree, LookupResult},
+    certification::{
+        LookupResult,
+        cbor::{CborError, decode_canister_signature, decode_certificate},
+    },
 };
-use serde::Deserialize;
 
 impl From<ReceiverUnavailable> for Failure {
     fn from(_: ReceiverUnavailable) -> Self {
@@ -34,12 +36,6 @@ fn measure<T>(operation: impl FnOnce() -> T) -> (T, u64) {
         value,
         ic_platform_runtime::ic0::performance_counter(0) - start,
     )
-}
-
-#[derive(Deserialize)]
-struct Envelope {
-    certificate: ic_wire::ByteBuf,
-    tree: HashTree,
 }
 
 fn bls_message(hash: [u8; 32]) -> Vec<u8> {
@@ -142,13 +138,15 @@ fn profile(
     });
     issuer_result.map_err(|_| Failure::IssuerSignature)?;
 
-    let (decoded, decode_instructions) = measure(|| -> Result<_, serde_cbor::Error> {
-        let envelope: Envelope = serde_cbor::from_slice(&issuer_signature.signature_cbor)?;
-        let certificate: Certificate = serde_cbor::from_slice(&envelope.certificate)?;
+    let (decoded, decode_instructions) = measure(|| -> Result<_, CborError> {
+        // All components come from the same fully verified bounded proof.
+        let maximum = context.limits.max_issuer_signature_bytes;
+        let envelope = decode_canister_signature(&issuer_signature.signature_cbor, maximum)?;
+        let certificate = decode_certificate(&envelope.certificate, maximum)?;
         let subnet = certificate
             .delegation
             .as_ref()
-            .map(|d| serde_cbor::from_slice::<Certificate>(&d.certificate))
+            .map(|d| decode_certificate(&d.certificate, maximum))
             .transpose()?;
         Ok((envelope, certificate, subnet))
     });

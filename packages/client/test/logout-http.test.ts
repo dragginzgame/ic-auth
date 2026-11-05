@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Cbor } from '@tokostudios/ic-platform/agent';
+import { inspectIngress } from '@tokostudios/ic-platform/agent';
+import { readStateResponseFixture } from '@tokostudios/ic-platform/testing';
 import { Ed25519KeyIdentity } from '@tokostudios/ic-platform/identity';
 import { Principal } from '@tokostudios/ic-platform/principal';
 import { httpLogoutTransport, ClientError } from '../src/index.js';
@@ -20,20 +21,21 @@ test('HTTP logout signs one empty update with the supplied identity; HTTP accept
     const path = new URL(input.toString()).pathname;
     paths.push(path);
     assert.equal(init?.signal, controller.signal);
-    const signed = Cbor.decode<{ content: { request_type: string; method_name?: string; arg?: Uint8Array; sender: Uint8Array }; sender_pubkey: Uint8Array; sender_sig: Uint8Array }>(init!.body as Uint8Array);
-    assert.equal(Principal.fromUint8Array(signed.content.sender).toText(), identity.getPrincipal().toText());
-    assert.deepEqual([...signed.sender_pubkey], [...identity.getPublicKey().toDer()]);
-    assert.equal(signed.sender_sig.length, 64);
+    const signed = inspectIngress(init!.body as Uint8Array);
+    assert.equal(signed.sender.toText(), identity.getPrincipal().toText());
+    assert(signed.senderPublicKey);
+    assert.deepEqual([...signed.senderPublicKey], [...identity.getPublicKey().toDer()]);
+    assert.equal(signed.senderSignature?.length, 64);
     if (path.endsWith('/call')) {
-      assert.equal(signed.content.request_type, 'call');
-      assert.equal(signed.content.method_name, methodName);
-      assert.equal(decodeRequest(signed.content.arg!), null);
+      assert(signed.requestType === 'call');
+      assert.equal(signed.methodName, methodName);
+      assert.equal(decodeRequest(signed.arg), null);
       return new Response(null, { status: 202 });
     }
-    assert.equal(signed.content.request_type, 'read_state');
+    assert.equal(signed.requestType, 'read_state');
     // A server can supply arbitrary bytes, but cannot acknowledge revocation
     // without a certificate authenticating this exact request's reply.
-    return new Response(Cbor.encode({ certificate: new Uint8Array([0]) }));
+    return new Response(new Uint8Array(readStateResponseFixture(new Uint8Array([0]))).buffer);
   } });
   await assert.rejects(transport.revoke(target, identity, controller.signal));
   assert.deepEqual(paths, [`/api/v2/canister/${target}/call`, `/api/v3/canister/${target}/read_state`]);

@@ -12,10 +12,8 @@ use ic_auth::{
 use ic_auth_protocol_types::*;
 use ic_platform::bls::PrivateKey;
 use ic_platform::canister_sig_creation::CanisterSigPublicKey;
-use ic_platform::certification::{Certificate, HashTree, fork, labeled, leaf};
+use ic_platform::certification::{Certificate, fork, labeled, leaf};
 use ic_platform::ecdsa::{PrehashSigner, Signature, SigningKey};
-use ic_wire::ByteBuf;
-use serde::Serialize;
 use sha2::{Digest, Sha256};
 
 const SEED: &[u8] = b"canic-issuer-delegated-token";
@@ -54,18 +52,15 @@ fn bls_key(value: u8) -> PrivateKey {
 fn hash(bytes: &[u8]) -> [u8; 32] {
     Sha256::digest(bytes).into()
 }
-fn cbor<T: Serialize>(value: &T) -> Vec<u8> {
-    let mut bytes = Vec::new();
-    let mut serializer = serde_cbor::Serializer::new(&mut bytes);
-    serializer.self_describe().unwrap();
-    value.serialize(&mut serializer).unwrap();
-    bytes
+fn signature_bytes(value: &Envelope) -> Vec<u8> {
+    ic_platform::certification::cbor::encode_canister_signature(
+        &value.certificate,
+        &value.tree,
+        usize::MAX,
+    )
+    .unwrap()
 }
-#[derive(Serialize)]
-struct Envelope {
-    certificate: ByteBuf,
-    tree: HashTree,
-}
+use ic_platform::certification::cbor::CanisterSignature as Envelope;
 
 fn issuer_proof_message(
     issuer: Principal,
@@ -97,8 +92,12 @@ fn issuer_proof_message(
         delegation: None,
     };
     IcCanisterSignatureProofV1 {
-        signature_cbor: cbor(&Envelope {
-            certificate: ByteBuf::from(cbor(&certificate)),
+        signature_cbor: signature_bytes(&Envelope {
+            certificate: ic_platform::certification::cbor::encode_certificate(
+                &certificate,
+                usize::MAX,
+            )
+            .unwrap(),
             tree,
         }),
         public_key_der: CanisterSigPublicKey::new(issuer, seed.to_vec()).to_der(),

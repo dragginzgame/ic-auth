@@ -4,6 +4,20 @@ Covers public `ic-auth` and the unpublished backend conformance, qualification a
 native tooling packages. The independent series starts after the
 [last coordinated release, 0.29.2](../history.md).
 
+## [0.34.1] - Unreleased
+
+### 🔧 Changed
+
+- Delegate bounded certificate decoding and standard canister-signature CBOR
+  encoding to Platform, including the private qualification profiler's decoding.
+  Preserve Auth's host-selected budgets, store policy, witness construction,
+  certified-root binding, error variants and exact envelope bytes. Require
+  published Platform 0.23.0 with its `certification-cbor` capability and remove
+  Auth's direct CBOR dependency.
+- Adopt published browser SDK 0.2.0 and use its typed ingress inspection and
+  read-state response fixtures in transport tests. Retain signed-request and
+  invalid-certificate checks, with SDK Core still at 6.1.1.
+
 ## [0.34.0] - 2026-11-05
 
 ### ⚠️ Breaking

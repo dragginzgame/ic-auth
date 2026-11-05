@@ -8,11 +8,11 @@
 use ic_auth_protocol_types::{IcCanisterSignatureProofV1, Principal};
 use ic_platform::canister_sig_creation::{CanisterSigPublicKey, hash_bytes, hash_with_domain};
 use ic_platform::certification::{
-    AsHashTree, Certificate, Hash, LookupResult, RbTree, fork, labeled, labeled_hash, leaf, pruned,
+    AsHashTree, Hash, LookupResult, RbTree,
+    cbor::{CborError, decode_certificate, encode_canister_signature},
+    fork, labeled, labeled_hash, leaf, pruned,
 };
-use serde::Serialize;
 use std::collections::{BTreeMap, BTreeSet};
-use std::io::{self, Write};
 use thiserror::Error;
 
 /// Maximum number of retained leaves, including expired leaves awaiting cleanup.
@@ -308,11 +308,12 @@ impl SignatureStore {
         if certificate.is_empty() {
             return Err(SignatureStoreError::NoCertificate);
         }
-        if certificate.len() > self.limits.max_certificate_bytes {
-            return Err(SignatureStoreError::CertificateTooLarge);
-        }
-        let decoded: Certificate = serde_cbor::from_slice(certificate)
-            .map_err(|_| SignatureStoreError::InvalidCertificate)?;
+        let decoded = decode_certificate(certificate, self.limits.max_certificate_bytes).map_err(
+            |error| match error {
+                CborError::InputTooLarge => SignatureStoreError::CertificateTooLarge,
+                _ => SignatureStoreError::InvalidCertificate,
+            },
+        )?;
         let mut tree = labeled(
             LABEL_SIG,
             self.tree
@@ -332,33 +333,14 @@ impl SignatureStore {
             LookupResult::Found(root) if root == tree.digest() => {}
             _ => return Err(SignatureStoreError::CertificateRootMismatch),
         }
-        // Input decoding and witness construction retain their separate bounds.
-        // The output sink refuses oversized CBOR before extending its buffer.
-        #[derive(Serialize)]
-        struct Envelope<'a> {
-            #[serde(with = "serde_bytes")]
-            certificate: &'a [u8],
-            tree: ic_platform::certification::HashTree,
-        }
-        let mut output = SignatureOutput {
-            bytes: Vec::new(),
-            maximum: self.limits.max_signature_bytes,
-        };
-        let mut serializer =
-            serde_cbor::Serializer::new(serde_cbor::ser::IoWrite::new(&mut output));
-        let encoded = serializer
-            .self_describe()
-            .and_then(|()| Envelope { certificate, tree }.serialize(&mut serializer));
-        if let Err(error) = encoded {
-            // This private sink's only I/O error is output-budget exhaustion.
-            return Err(if error.is_io() {
-                SignatureStoreError::SignatureTooLarge
-            } else {
-                SignatureStoreError::Encoding
-            });
-        }
+        let signature_cbor =
+            encode_canister_signature(certificate, &tree, self.limits.max_signature_bytes)
+                .map_err(|error| match error {
+                    CborError::OutputTooLarge => SignatureStoreError::SignatureTooLarge,
+                    _ => SignatureStoreError::Encoding,
+                })?;
         Ok(IcCanisterSignatureProofV1 {
-            signature_cbor: output.bytes,
+            signature_cbor,
             public_key_der: CanisterSigPublicKey::new(self.signing_canister, inputs.seed.to_vec())
                 .to_der(),
         })
@@ -401,32 +383,6 @@ impl SignatureStore {
             self.tree.delete(&key.0);
         }
         true
-    }
-}
-
-// A CBOR output sink, not another encoder. Keep geometric growth within the
-// selected byte cap; this bounds buffer capacity, not allocator/tree overhead.
-struct SignatureOutput {
-    bytes: Vec<u8>,
-    maximum: usize,
-}
-impl Write for SignatureOutput {
-    fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
-        if bytes.len() > self.maximum - self.bytes.len() {
-            return Err(io::ErrorKind::WriteZero.into());
-        }
-        let required = self.bytes.len() + bytes.len();
-        if required > self.bytes.capacity() {
-            let capacity = required
-                .max(self.bytes.capacity().saturating_mul(2))
-                .min(self.maximum);
-            self.bytes.reserve_exact(capacity - self.bytes.len());
-        }
-        self.bytes.extend_from_slice(bytes);
-        Ok(bytes.len())
-    }
-    fn flush(&mut self) -> io::Result<()> {
-        Ok(())
     }
 }
 

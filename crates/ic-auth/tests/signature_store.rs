@@ -8,7 +8,6 @@ use ic_auth_protocol_types::Principal;
 use ic_platform::bls::PrivateKey;
 use ic_platform::canister_sig_creation::{CanisterSigPublicKey, hash_bytes, hash_with_domain};
 use ic_platform::certification::{Certificate, Hash, HashTree, fork, fork_hash, labeled, leaf};
-use serde::Serialize;
 
 const NOW: u64 = 10;
 const SEED: &[u8] = b"canic-issuer-delegated-token";
@@ -45,13 +44,6 @@ fn key() -> PrivateKey {
     PrivateKey::deserialize(&bytes).unwrap()
 }
 
-fn cbor<T: Serialize>(value: &T) -> Vec<u8> {
-    let mut serializer = serde_cbor::Serializer::new(Vec::new());
-    serializer.self_describe().unwrap();
-    value.serialize(&mut serializer).unwrap();
-    serializer.into_inner()
-}
-
 fn certificate(canister: Principal, root: Hash) -> Vec<u8> {
     let tree = fork(
         labeled(
@@ -62,11 +54,15 @@ fn certificate(canister: Principal, root: Hash) -> Vec<u8> {
     );
     let mut message = b"\x0Dic-state-root".to_vec();
     message.extend_from_slice(&tree.digest());
-    cbor(&Certificate {
-        tree,
-        signature: key().sign(&message).serialize().to_vec(),
-        delegation: None,
-    })
+    ic_platform::certification::cbor::encode_certificate(
+        &Certificate {
+            tree,
+            signature: key().sign(&message).serialize().to_vec(),
+            delegation: None,
+        },
+        usize::MAX,
+    )
+    .unwrap()
 }
 
 fn expected_leaf(input: SignatureInputs<'_>) -> HashTree {
@@ -96,18 +92,14 @@ fn both_canic_domains_keep_the_exact_certified_path_and_der_key() {
         assert_eq!(store.root_hash(), expected_leaf(input).digest());
         let cert = certificate(signer(), store.root_hash());
         let proof = store.retrieve(input, NOW, &cert, &[]).unwrap();
-        #[derive(Serialize)]
-        struct Envelope<'a> {
-            #[serde(with = "serde_bytes")]
-            certificate: &'a [u8],
-            tree: HashTree,
-        }
         assert_eq!(
             proof.signature_cbor,
-            cbor(&Envelope {
-                certificate: &cert,
-                tree: expected_leaf(input),
-            }),
+            ic_platform::certification::cbor::encode_canister_signature(
+                &cert,
+                &expected_leaf(input),
+                usize::MAX
+            )
+            .unwrap(),
             "bounded serialization must preserve the original envelope bytes"
         );
         assert_eq!(
@@ -389,6 +381,17 @@ fn retrieval_rejects_wrong_payload_missing_bad_or_stale_certification() {
             Err(Error::InvalidCertificate)
         );
     }
+    let mut trailing = original.clone();
+    trailing.push(0);
+    assert_eq!(
+        store.retrieve(inputs(), NOW, &trailing, &[]),
+        Err(Error::InvalidCertificate)
+    );
+    let oversized_malformed = vec![0xff; limits().max_certificate_bytes + 1];
+    assert_eq!(
+        store.retrieve(inputs(), NOW, &oversized_malformed, &[]),
+        Err(Error::CertificateTooLarge)
+    );
     let wrong_signer = certificate(Principal::from_slice(&[2; 10]), store.root_hash());
     assert_eq!(
         store.retrieve(inputs(), NOW, &wrong_signer, &[]),

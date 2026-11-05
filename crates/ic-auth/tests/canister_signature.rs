@@ -8,8 +8,6 @@ use ic_auth_protocol_types::{IcCanisterSignatureProofV1, Principal};
 use ic_platform::bls::PrivateKey;
 use ic_platform::canister_sig_creation::{CanisterSigPublicKey, IC_ROOT_PK_DER_PREFIX};
 use ic_platform::certification::{Certificate, Delegation, HashTree, fork, labeled, leaf, pruned};
-use ic_wire::ByteBuf;
-use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 const SEED: &[u8] = b"canic-issuer-delegated-token";
@@ -35,12 +33,13 @@ fn time_bytes(time: u64) -> Vec<u8> {
     bytes
 }
 
-fn cbor<T: Serialize>(value: &T) -> Vec<u8> {
-    let mut bytes = Vec::new();
-    let mut serializer = serde_cbor::Serializer::new(&mut bytes);
-    serializer.self_describe().unwrap();
-    value.serialize(&mut serializer).unwrap();
-    bytes
+fn signature_bytes(value: &Envelope) -> Vec<u8> {
+    ic_platform::certification::cbor::encode_canister_signature(
+        &value.certificate,
+        &value.tree,
+        usize::MAX,
+    )
+    .unwrap()
 }
 
 fn certificate(tree: HashTree, key: &PrivateKey, delegation: Option<Delegation>) -> Certificate {
@@ -53,11 +52,7 @@ fn certificate(tree: HashTree, key: &PrivateKey, delegation: Option<Delegation>)
     }
 }
 
-#[derive(Serialize, Deserialize)]
-struct Envelope {
-    certificate: ByteBuf,
-    tree: HashTree,
-}
+use ic_platform::certification::cbor::CanisterSignature as Envelope;
 
 fn proof(
     message: &[u8],
@@ -81,8 +76,12 @@ fn proof(
         None => certified_data,
     };
     IcCanisterSignatureProofV1 {
-        signature_cbor: cbor(&Envelope {
-            certificate: ByteBuf::from(cbor(&certificate(cert_tree, certificate_key, delegation))),
+        signature_cbor: signature_bytes(&Envelope {
+            certificate: ic_platform::certification::cbor::encode_certificate(
+                &certificate(cert_tree, certificate_key, delegation),
+                usize::MAX,
+            )
+            .unwrap(),
             tree,
         }),
         public_key_der: CanisterSigPublicKey::new(signer(), SEED.to_vec()).to_der(),
@@ -106,12 +105,21 @@ fn policy(root: &[u8]) -> CanisterSignaturePolicy<'_> {
 fn forged_identity_root_certificate_is_rejected() {
     // Platform #127: identity points parse, but cannot authenticate any tree.
     let mut forged = proof(&message(), Some(time_bytes(NOW)), &key(1), None);
-    let mut envelope: Envelope = serde_cbor::from_slice(&forged.signature_cbor).unwrap();
-    let mut certificate: Certificate = serde_cbor::from_slice(&envelope.certificate).unwrap();
+    let mut envelope: Envelope = ic_platform::certification::cbor::decode_canister_signature(
+        &forged.signature_cbor,
+        forged.signature_cbor.len(),
+    )
+    .unwrap();
+    let mut certificate: Certificate = ic_platform::certification::cbor::decode_certificate(
+        &envelope.certificate,
+        envelope.certificate.len(),
+    )
+    .unwrap();
     certificate.signature = vec![0; 48];
     certificate.signature[0] = 0xc0;
-    envelope.certificate = ByteBuf::from(cbor(&certificate));
-    forged.signature_cbor = cbor(&envelope);
+    envelope.certificate =
+        ic_platform::certification::cbor::encode_certificate(&certificate, usize::MAX).unwrap();
+    forged.signature_cbor = signature_bytes(&envelope);
     let mut identity_root = [0; 96];
     identity_root[0] = 0xc0;
     assert!(matches!(
@@ -287,8 +295,16 @@ fn rejects_absent_truncated_overflow_and_trailing_certificate_time() {
 fn authenticated_time_requires_one_visible_leaf_after_signature_verification() {
     let root = key(1).public_key().serialize();
     let original = proof(&message(), None, &key(1), None);
-    let envelope: Envelope = serde_cbor::from_slice(&original.signature_cbor).unwrap();
-    let base: Certificate = serde_cbor::from_slice(&envelope.certificate).unwrap();
+    let envelope: Envelope = ic_platform::certification::cbor::decode_canister_signature(
+        &original.signature_cbor,
+        original.signature_cbor.len(),
+    )
+    .unwrap();
+    let base: Certificate = ic_platform::certification::cbor::decode_certificate(
+        &envelope.certificate,
+        envelope.certificate.len(),
+    )
+    .unwrap();
     for time in [
         labeled(b"time".to_vec(), pruned([0; 32])),
         labeled(
@@ -302,8 +318,9 @@ fn authenticated_time_requires_one_visible_leaf_after_signature_verification() {
     ] {
         let mut cert = certificate(fork(base.tree.clone(), time), &key(1), None);
         let mut candidate = original.clone();
-        candidate.signature_cbor = cbor(&Envelope {
-            certificate: ByteBuf::from(cbor(&cert)),
+        candidate.signature_cbor = signature_bytes(&Envelope {
+            certificate: ic_platform::certification::cbor::encode_certificate(&cert, usize::MAX)
+                .unwrap(),
             tree: envelope.tree.clone(),
         });
         assert_eq!(
@@ -311,8 +328,9 @@ fn authenticated_time_requires_one_visible_leaf_after_signature_verification() {
             Err(Error::InvalidCertificateTime)
         );
         cert.signature[0] ^= 1;
-        candidate.signature_cbor = cbor(&Envelope {
-            certificate: ByteBuf::from(cbor(&cert)),
+        candidate.signature_cbor = signature_bytes(&Envelope {
+            certificate: ic_platform::certification::cbor::encode_certificate(&cert, usize::MAX)
+                .unwrap(),
             tree: envelope.tree.clone(),
         });
         assert!(matches!(
@@ -348,9 +366,13 @@ fn rejects_modified_message_domain_and_signature_tree() {
             Err(Error::InvalidSignature(_))
         ));
     }
-    let mut envelope: Envelope = serde_cbor::from_slice(&proof.signature_cbor).unwrap();
+    let mut envelope: Envelope = ic_platform::certification::cbor::decode_canister_signature(
+        &proof.signature_cbor,
+        proof.signature_cbor.len(),
+    )
+    .unwrap();
     envelope.tree = leaf(Vec::new());
-    proof.signature_cbor = cbor(&envelope);
+    proof.signature_cbor = signature_bytes(&envelope);
     assert!(matches!(
         verify_canister_signature(&message(), &proof, &policy(&root)),
         Err(Error::InvalidSignature(_))
@@ -362,11 +384,20 @@ fn rejects_tampered_certificate_and_nonempty_signature_leaf() {
     let root = key(1).public_key().serialize();
     let original = proof(&message(), Some(time_bytes(NOW)), &key(1), None);
     let mut proof = original.clone();
-    let mut envelope: Envelope = serde_cbor::from_slice(&proof.signature_cbor).unwrap();
-    let mut certificate: Certificate = serde_cbor::from_slice(&envelope.certificate).unwrap();
+    let mut envelope: Envelope = ic_platform::certification::cbor::decode_canister_signature(
+        &proof.signature_cbor,
+        proof.signature_cbor.len(),
+    )
+    .unwrap();
+    let mut certificate: Certificate = ic_platform::certification::cbor::decode_certificate(
+        &envelope.certificate,
+        envelope.certificate.len(),
+    )
+    .unwrap();
     certificate.signature[0] ^= 1;
-    envelope.certificate = ByteBuf::from(cbor(&certificate));
-    proof.signature_cbor = cbor(&envelope);
+    envelope.certificate =
+        ic_platform::certification::cbor::encode_certificate(&certificate, usize::MAX).unwrap();
+    proof.signature_cbor = signature_bytes(&envelope);
     assert!(matches!(
         verify_canister_signature(&message(), &proof, &policy(&root)),
         Err(Error::InvalidSignature(_))
@@ -387,8 +418,12 @@ fn rejects_tampered_certificate_and_nonempty_signature_leaf() {
         ),
         labeled(b"time".to_vec(), leaf(time_bytes(NOW))),
     );
-    proof.signature_cbor = cbor(&Envelope {
-        certificate: ByteBuf::from(cbor(&crate::certificate(cert_tree, &key(1), None))),
+    proof.signature_cbor = signature_bytes(&Envelope {
+        certificate: ic_platform::certification::cbor::encode_certificate(
+            &crate::certificate(cert_tree, &key(1), None),
+            usize::MAX,
+        )
+        .unwrap(),
         tree,
     });
     assert!(matches!(
@@ -460,7 +495,8 @@ fn subnet_delegation(sharded: bool, includes_signer: bool, nested: bool) -> Dele
     } else {
         Principal::from_slice(&[2; 10])
     };
-    let range_bytes = serde_cbor::to_vec(&vec![(range, range)]).unwrap();
+    let range_bytes =
+        ic_platform::ic_protocol::fixtures::canister_ranges(&[(range, range)], usize::MAX).unwrap();
     let tree = if sharded {
         fork(
             labeled(
@@ -498,7 +534,11 @@ fn subnet_delegation(sharded: bool, includes_signer: bool, nested: bool) -> Dele
     });
     Delegation {
         subnet_id,
-        certificate: cbor(&certificate(tree, &key(1), nested)),
+        certificate: ic_platform::certification::cbor::encode_certificate(
+            &certificate(tree, &key(1), nested),
+            usize::MAX,
+        )
+        .unwrap(),
     }
 }
 

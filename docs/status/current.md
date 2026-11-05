@@ -1,5 +1,35 @@
 # Current handoff — 2026-11-05
 
+## Qualified Platform 0.23 and browser SDK adoption
+
+Auth now requires published Rust Platform 0.23.0 and selects the published
+@tokostudios/ic-platform browser SDK 0.2.0. The SDK lock points to npm, with the
+verified supplier archive integrity and unchanged SDK Core 6.1.1. No sibling
+path overrides are selected. The codec migration delegates bounded certificate
+and standard signature-envelope encoding/decoding to Platform; Auth retains
+host budgets, witness construction, root binding and store policy. Its direct
+CBOR dependency is removed. Public Protocol identities remain 0.34.0.
+
+All 55 affected integration tests, the signature-store unit test, strict
+Auth/canister lint, standalone preparation Wasm check and release canister build
+pass. Preparation/session graph checks pass; the Wasm selects one Platform 0.23,
+while native Testkit 0.86 retains Platform 0.22. All 70 browser tests, the packed
+client consumer and Rust/TypeScript interoperability pass against registry SDK
+0.2.0. Four focused live cases pass: certificate/store composition, Root/issuer
+profile composition, portable certified proof/authority/upgrade and the SDK
+two-receiver/device admission/logout journey with lost replies and durable reopen.
+Evidence: target/platform023-adoption/. Older 0.22.3 evidence retains its scope
+under target/platform0223-qualification/. No new full release gate is claimed.
+
+The independent Platform npm release is complete: source d30e01c, tag
+browser-v0.2.0, registry integrity checked against its qualified archive. Its
+21 tests, packed compiler/provider graphs and actual Chromium page/module worker
+pass; supplier custody is at Platform target/browser020-delivery/. Auth
+consumer qualification above is separate. Canic remains read-only here.
+
+Engine 0.34.1 is drafted but unreleased. Next is its standard release gate and
+publication; Protocol remains 0.34.0. Preserve all existing recovery evidence.
+
 ## Published state
 
 Protocol 0.34.0 (`ic-auth-protocol-types`, `ic-auth-wire`) and Engine 0.34.0
@@ -66,7 +96,7 @@ Detailed audit evidence remains under `target/shared-tooling030-audit/`.
 
 ## Remaining ownership and recovery
 
-This Auth delivery is complete; no release blocker remains.
+The published 0.34.0 delivery is complete; pending work is described above.
 [Canic adoption](../canic-adoption.md) and
 [signature preparation](../signature-preparation.md) describe the consumer
 contracts, including certified issuance's durable journal and update/query split.

@@ -1,27 +1,6 @@
 use super::*;
 
 #[test]
-fn output_refuses_before_growing_past_the_host_budget() {
-    let mut output = SignatureOutput {
-        bytes: Vec::new(),
-        maximum: 17,
-    };
-    output.write_all(b"abc").unwrap();
-    output.write_all(&[7; 14]).unwrap();
-    assert_eq!(output.bytes.len(), 17);
-    assert!(output.bytes.capacity() <= 17);
-    let before = output.bytes.clone();
-    let capacity = output.bytes.capacity();
-    assert_eq!(
-        output.write_all(&[0; 4096]).unwrap_err().kind(),
-        io::ErrorKind::WriteZero
-    );
-    assert_eq!(output.bytes, before);
-    assert_eq!(output.bytes.capacity(), capacity);
-    output.write_all(&[]).unwrap();
-}
-
-#[test]
 fn retries_and_expired_repreparation_keep_exactly_one_expiration_entry() {
     let mut store = SignatureStore::new(
         Principal::from_slice(&[1]),

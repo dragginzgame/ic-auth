@@ -19,10 +19,7 @@ chain-key-verification = ["dep:ic-platform", "ic-platform/ecdsa"]
 canister-signature-preparation = [
     "dep:ic-platform",
     "ic-platform/canister-sig-creation",
-    "ic-platform/certification",
-    "dep:serde",
-    "dep:serde_bytes",
-    "dep:serde_cbor",
+    "ic-platform/certification-cbor",
 ]
 sessions = ["dep:serde", "dep:serde_bytes", "dep:ic-wire"]
 session-restore = ["sessions"]
@@ -41,17 +38,15 @@ ic-platform-types = { workspace = true, features = ["principal-self-authenticati
 ic-wire = { workspace = true, optional = true }
 serde = { workspace = true, optional = true }
 serde_bytes = { workspace = true, optional = true }
-serde_cbor = { workspace = true, optional = true }
 sha2.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
-ic-platform = { workspace = true, features = ["bls", "ecdsa", "ed25519"] }
+ic-platform = { workspace = true, features = ["bls", "ecdsa", "ed25519", "ic-protocol-fixtures"] }
 ic-wire.workspace = true
 leb128.workspace = true
 serde.workspace = true
 serde_bytes.workspace = true
-serde_cbor.workspace = true
 
 [lints]
 workspace = true

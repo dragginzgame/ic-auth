@@ -10,7 +10,11 @@
     "url": "git+https://github.com/dragginzgame/ic-auth.git",
     "directory": "packages/client"
   },
-  "files": ["dist/src", "README.md", "LICENSE"],
+  "files": [
+    "dist/src",
+    "README.md",
+    "LICENSE"
+  ],
   "packageManager": "npm@12.2.0",
   "engines": {
     "node": ">=24.21.0 <25",
@@ -30,7 +34,7 @@
     "test": "npm run check:sdk && npm run build && node --test --test-isolation=none --test-reporter=tap dist/test/*.test.js"
   },
   "dependencies": {
-    "@tokostudios/ic-platform": "^0.1.1"
+    "@tokostudios/ic-platform": "^0.2.0"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
