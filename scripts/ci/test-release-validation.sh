@@ -80,6 +80,10 @@ if perl scripts/release/validation-plan.pl "$RELEASE_SOURCE" engine "$RELEASE_PR
 git update-ref refs/tags/engine-v0.32.0 "$saved_tag"
 # Required failure blocks, but an unrelated release-fixture failure is excluded.
 export RELEASE_GROUP=engine
+# test-protocol executes the Engine's default-feature tests despite its name.
+jq -e 'any(.stages[]; .target == "release-stage-test-protocol" and .required)' target/engine/plan.json >/dev/null
+if FAIL_TARGET=test-protocol run engine-default-failure; then exit 1; fi
+[[ ! -e target/engine-default-failure/evidence.json ]]
 if FAIL_TARGET=test-sessions run required-failure; then exit 1; fi
 [[ ! -e target/required-failure/evidence.json ]]
 FAIL_TARGET=test-release-tools run excluded-failure

@@ -8,9 +8,10 @@ see the [Auth #113 experiment record](https://github.com/dragginzgame/ic-auth/is
 ## Reproduction and scope
 
 Run `make profile-canonical-allocations` after ordinary explicit dependency/tool
-preparation. The native example uses DHAT 0.3.3 in release mode. DHAT is a dev
+preparation. The harness-free benchmark under `apps/tooling/benches/` uses
+DHAT 0.3.3 in Cargo's optimized bench profile. DHAT is a dev
 dependency of unpublished tooling only; its allocator never enters production
-Auth or the canister fixture. The example refuses debug mode, accepts a nonzero
+Auth or the canister fixture. The benchmark refuses debug mode, accepts a nonzero
 `--iterations` argument and defaults to 100 calls per observation.
 
 Inputs are constructed before measurement, with one unmeasured warmup per

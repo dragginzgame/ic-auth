@@ -342,6 +342,13 @@ function readValue(s: Schema, input: Reader, budget: Budget, depth: number, type
     }
   }
 }
+// Keep error translation in one place while retaining the separate framed and
+// payload boundaries. Their read/write paths, bytes, trailing checks and error
+// precedence are unchanged; broader completion helpers were not a measured win.
+function decodeError(error: unknown): never {
+  if (error instanceof WireError) throw error;
+  return fail('malformed');
+}
 // Accept only generated trusted metadata. No SDK/auth/transport policy lives here.
 export function createPayloadCodec(metadata: unknown, registry: unknown = {}, checks: Checks = {}) {
   const meta = metadata as Payload, types = registry as Types;
@@ -365,7 +372,7 @@ export function createPayloadCodec(metadata: unknown, registry: unknown = {}, ch
         const value = read(meta.schema, input, new Budget(meta.nodes, meta.depth), 1, types, checks);
         if (input.offset !== bytes.length) return fail('malformed');
         return value;
-      } catch (error) { if (error instanceof WireError) throw error; return fail('malformed'); }
+      } catch (error) { return decodeError(error); }
     }
   };
 }
@@ -396,7 +403,7 @@ export function createCodec(metadata: unknown, registry: unknown = {}, checks: C
       const value = read(direction ? meta.response : meta.request, input, new Budget(direction ? meta.responseNodes : meta.requestNodes, direction ? meta.responseDepth : meta.requestDepth), 1, types, checks);
       if (input.offset !== bytes.length) return fail('malformed');
       return value;
-    } catch (error) { if (error instanceof WireError) throw error; return fail('malformed'); }
+    } catch (error) { return decodeError(error); }
   }
   return { encodeRequest: (value: unknown) => encode(value, 0), decodeRequest: (bytes: Uint8Array) => decode(bytes, 0), encodeResponse: (value: unknown) => encode(value, 1), decodeResponse: (bytes: Uint8Array) => decode(bytes, 1) };
 }

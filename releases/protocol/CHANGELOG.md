@@ -3,6 +3,15 @@
 Covers `ic-auth-protocol-types` and `ic-auth-wire`, released together.
 The independent series starts after the [last coordinated release, 0.29.2](../history.md).
 
+## [0.34.0] - Unreleased
+
+### ⚠️ Breaking
+
+- Adopt Wire/derive 0.17. Rust consumers exchanging Wire limits, errors, bounded
+  DTO fields or schema traits must align to that identity. Existing schema
+  feature forwarding selects the now-optional metadata derive. Auth frames,
+  method identities, budgets and stored formats are unchanged.
+
 ## [0.33.1] - 2026-11-04
 
 ### 🧪 Testing

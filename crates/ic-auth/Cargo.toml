@@ -11,8 +11,8 @@ description = "Portable authentication, delegation proof verification and local 
 publish = ["crates-io"]
 
 [features]
-# Every library capability is Candid/runtime-free, including certified signatures.
-# Platform owns the imported creation/verifier code; Auth owns admission policy.
+# Certificate capabilities admit Platform's upstream Candid/IC0 dependencies.
+# Auth keeps Wire transport and host-owned runtime/admission policy.
 default = []
 portable-signature-verification = ["dep:ic-platform", "ic-platform/ed25519"]
 chain-key-verification = ["dep:ic-platform", "ic-platform/ecdsa"]

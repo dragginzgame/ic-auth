@@ -14,6 +14,9 @@ auth_dependency_pattern() {
         passive) pattern="ic_principal|sha2|$storage|ic0|$certificates|ic-verify-bls-signature" ;;
         pure) pattern="candid|candid_derive|curve25519-dalek|ed25519-dalek|k256|$certificates|ic-verify-bls-signature|ic-cdk|ic-stable-structures" ;;
         capability|deployment|packaged) pattern="$product|$storage|candid|candid_derive|ic0|ic-canister-sig-creation|ic-signature-verification" ;;
+        # Approved Platform 0.22 exception: upstream certificate dependencies,
+        # with native tooling and runtime/executor ownership still forbidden.
+        certified|packaged-certified) pattern="$product|$storage" ;;
         certificate-free) pattern="$certificates|ic-verify-bls-signature|candid|candid_derive" ;;
         session) pattern="serde_cbor|candid|candid_derive|k256|$certificates|ic-verify-bls-signature" ;;
         *) echo 'unknown Auth dependency policy' >&2; return 1 ;;

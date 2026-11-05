@@ -9,6 +9,9 @@ repository.workspace = true
 publish = false
 description = "Internal bounded Wire contracts for Auth qualification"
 
+[package.metadata.shared-tooling.loc]
+category = "tests"
+
 # These controls are unpublished; application methods remain in ic-auth-wire.
 [dependencies]
 ic-auth-protocol-types.workspace = true

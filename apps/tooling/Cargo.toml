@@ -9,6 +9,12 @@ repository.workspace = true
 description = "IC Auth client-contract generation and external Cargo-lock admission"
 publish = false
 
+[package.metadata.shared-tooling.loc]
+category = "build_tooling"
+
+[package.metadata.shared-tooling.loc.paths]
+"benches" = "benchmarks"
+
 [dependencies]
 clap.workspace = true
 ic-auth-wire = { workspace = true, features = ["typescript"] }
@@ -21,6 +27,14 @@ dhat.workspace = true
 ic-auth = { workspace = true, features = ["sessions", "portable-signature-verification"] }
 ic-auth-protocol-types.workspace = true
 ic-platform = { workspace = true, features = ["ed25519"] }
+
+[[bench]]
+name = "canonical_allocations"
+harness = false
+
+[[bench]]
+name = "retry_allocations"
+harness = false
 
 [lints]
 workspace = true

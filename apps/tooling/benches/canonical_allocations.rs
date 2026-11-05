@@ -14,6 +14,9 @@ static ALLOCATOR: dhat::Alloc = dhat::Alloc;
 #[derive(Parser)]
 #[command(about = "Measure unchanged canonical hashing allocations on synthetic native inputs")]
 struct Arguments {
+    // Cargo supplies this flag to harness-free benchmark executables.
+    #[arg(long = "bench", hide = true)]
+    _bench: bool,
     #[arg(long, default_value = "100")]
     iterations: NonZeroU16,
 }

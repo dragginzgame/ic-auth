@@ -32,36 +32,42 @@ identities. Auth carries
 no Account DTOs, so the upstream Account byte-adapter cut does not change Auth's
 frames, method identities or stored records. Regenerated browser files are unchanged.
 
-## Earlier read-only Canic source review — 2026-11-03
+## Read-only Canic source review — 2026-11-04
 
-Read-only review used Canic HEAD `0509ec870891515923f79d3932ece127b351cd15`
-plus its existing uncommitted integration. No Canic build, edit or installed
-acceptance is supplied by this review. Its authentication guide now records
-controlled-local persistent admission/read/logout, Root refresh and scoped
-guards, plus heap-only issuer key preparation/registration. The production clock
-bound, snapshot restore fencing, credential issuance/reconciliation and browser
-delivery remain Canic-owned acceptance under #491. The facade now calls the
-portable authorizer when enabled; older reports of an unconditional denial are
-historical. Production activation remains explicitly gated.
+Reviewed Canic HEAD `e6a061999` plus its existing uncommitted work. Its current
+lock selects Engine 0.33.2, Protocol 0.33.1, Platform 0.22, Types 0.18.1,
+Wire 0.16.2 and Testkit 0.85.1. These are consumer selections, distinct from
+Auth's released qualification lock above. No Canic edits, builds or fresh
+installed acceptance were performed by this review.
 
-The working persistent adapter already calls `Session::check_admission_pair`
-and `SessionLimits::check_capacity`, the two changes requested by
-[Canic #720](https://github.com/dragginzgame/canic/issues/720). These changes are
-uncommitted; the owner still needs their focused acceptance and closure review.
-No new Auth API is indicated by this inspection. Adopt the matching backend
-conformance bundle and private browser archive with source/integrity receipts
-when selecting the published Auth cohort; production transports and durable
-adapter qualification stay in Canic.
+Canic's authentication guide and current handoff record the following evidence:
 
-The reviewed Canic working manifest and lock now select all three Auth packages
-at 0.33.0 and Timers 0.39.0. Its handoff records that this resolves the earlier
-Timers/Runtime transition; newer-family installed qualification is still in
-progress. Historical installed Auth checks on the frozen graph do not qualify
-the incoming graph. Keep one executor/guard and canonical identity family;
-do not add aliases to force resolution. Production activation still refuses
-`UnqualifiedClock`. Clock/restore fencing, certified issuance, maximum-shape
-cost and real browser delivery remain Canic-owned acceptance. No new Auth API
-blocker was found, and this read-only review does not supply those checks.
+| Boundary | Recorded consumer progress | Remaining production obligation |
+| --- | --- | --- |
+| Receiver and storage | Persistent admission/read/logout, scoped guards, Root refresh, and Auth 0.33.1 backend conformance against the actual stable adapter | Complete denial/recovery acceptance, storage profiles and combined-state costs; the newer Auth backend maintenance hooks need their own matched receipt |
+| Issuer | Controlled-local Ed25519 issuance, renewal and reconciliation | Certified issuance and the complete production approval/custody lifecycle |
+| Browser | Controlled-local Chromium journey with two receivers/devices, lost replies and durable logout across reopen | Production account-login UI, key custody and activation |
+| Authority and restore | Scoped Root/issuer snapshot retirement checks; new installed unavailable-enrollment, refresh-expiry and retirement checks | Production clock bound and arbitrary unsealed authority restoration remain unqualified |
+| Operator inspection | Protected receiver inspection and controller/Root/CLI paths | Final consumer acceptance and documentation reconciliation |
+
+The persistent adapter uses `Session::check_admission_pair` and
+`SessionLimits::check_capacity`, as requested by
+[Canic #720](https://github.com/dragginzgame/canic/issues/720). Production
+activation remains refused; controlled-local proofs do not qualify its clock.
+The latest focused cases are not a fresh complete passing integration target,
+and earlier browser evidence retains its original dependency graph. Canic
+[#491](https://github.com/dragginzgame/canic/issues/491) remains the acceptance
+owner. No missing Auth API was identified.
+
+Certified issuance is the next concrete consumer gap. Use the existing
+[certified issuance handoff](signature-preparation.md#certified-portable-issuance-handoff)
+to compose Auth's preparation/retrieval APIs with Canic's durable journal.
+Auth's local Platform 0.22 update remains held over its Wasm increase; Canic's
+selection does not resolve that measurement. Auth's pending Wire 0.17 adoption
+now pairs with published Testkit 0.86; it is not yet a released Auth cohort.
+See the [current handoff](status/current.md).
+
+## Current Rust contract
 
 `Session::scopes()` returns checked `ScopeLabel` values; use `as_str()` for text.
 Requests move their checked labels into sessions. `DelegatedRoleGrant::scopes`

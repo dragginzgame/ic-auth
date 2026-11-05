@@ -9,18 +9,20 @@ Earlier pairings and benchmarks are preserved in
 
 ## Setup and ownership
 
-The root catalog/lock select published Testkit 0.84.1 from
+The root catalog/lock select published Testkit 0.86.0 from
 [IC Tooling](https://github.com/dragginzgame/ic-tooling), its maintained PocketIC
-client and server 16.1.0. Testkit and Auth share locked Wire 0.16.1 types directly.
+client and server 16.1.0. Testkit and Auth share locked Wire 0.17.0 types directly.
 `WireCallSpec` takes the canonical
 contract limits without conversion; responses require only `DeserializeOwned`.
 The temporary Wire 0.6 alias and limit bridge are removed following
 [Tooling #248](https://github.com/dragginzgame/ic-tooling/issues/248).
 Application identities use owned Principal; direct Testkit/Agent calls convert
-explicitly to their external type. Auth and Testkit now share Platform 0.21 and
-Types 0.18; the Storage host selects Runtime 0.19 directly. No alias or dependency override is used.
-Native Candid dependencies stay
-outside public Auth library and deployed-Wasm graphs. Testkit no longer supplies
+explicitly to their external type. Auth and Testkit 0.86 share Platform 0.22
+and Types 0.18; the Storage host
+selects Runtime 0.19 directly. No alias or dependency override is used.
+Native Agent/client dependencies stay outside public Auth library and
+deployed-Wasm graphs; the certificate-only dependency exception is separate.
+Testkit no longer supplies
 Candid call helpers; its native management fixtures select Platform's `candid`
 feature, and native Agent/PocketIC retain their Candid dependencies.
 See [the native Candid paths](development.md#why-candid-appears-in-cargolock) for
@@ -30,7 +32,9 @@ with its native PEM feature; caller/root-key and request policy remain with the
 fixture. There is no direct Agent declaration or local facade. Testkit supplies
 typed Wire query/update calls and bounded startup. The native runner imports
 `PocketIc`, `PocketIcBuilder` and `Time` from `ic_testkit::pocket_ic` in Testkit
-0.84. The separate Platform client dependency is removed. The fixture retains the
+0.86. Clients require an explicit server endpoint; Auth's existing managed
+`build_instance` supplies it through the admitted `PocketIcStartupConfig::Spawn`.
+The separate Platform client dependency is removed. The fixture retains the
 managed `PocketIcInstance` owner throughout setup and live calls. It borrows the
 client through `instance()` or `instance_mut()`; Testkit preserves client-before-server
 teardown, including when setup panics. Only the native runner
@@ -56,9 +60,11 @@ supplies allocation and checksummed checkpoint cells, and Platform supplies raw 
 admission before CDK copying, counter-zero measurements, certified-tree types
 and canister-signature key/hash operations. Its `cdk` capability now supplies
 certificate read/publish helpers and the original runtime/controller semantics.
-The selected Platform runtime and imported certified-verifier stack are Candid-free.
-The reference Wasm rejects Candid; native Agent/Testkit still bring it transitively.
-Controls and checkpoints remain Wire.
+The selected Runtime remains Candid-free. Platform 0.22's upstream certificate
+helpers bring transitive Candid/raw IC0 into the reference Wasm under the
+maintainer-approved certificate exception; native Agent/Testkit also bring Candid.
+Controls and checkpoints remain Wire, with one Runtime executor/guard and
+host-owned clocks, persistence and certification-root publication.
 No direct Candid, CDK or Testkit Candid declaration remains.
 These host dependencies are absent from Auth's public libraries.
 Testkit owns generic typed call transport; Auth retains application refusal

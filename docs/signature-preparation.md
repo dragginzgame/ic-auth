@@ -115,6 +115,77 @@ global certification root or allocates a stable-memory region. Native `ic-host-*
 file utilities remain outside this pure library graph. DFINITY owns tree
 hashing/witness generation, key encoding and signature verification.
 
+## Certified portable issuance handoff
+
+Canic's certified receiver branch already exists; its durable issuer workflow
+currently constructs Ed25519 results. Auth supplies the certified mechanism,
+while Canic owns authenticated issuance intent, approval, reconciliation and
+publication. Select `canister-signature-preparation` on the issuer and
+`certified-proof-verification` plus the required session capability on receivers.
+The separate [certificate issuance validator](certificate-issuance.md) checks
+delegation shape; it does not authorize an issuance or produce an IC certificate.
+
+The existing [installed certified-proof example](../apps/qualification/runner/tests/signatures/certified_proofs.rs)
+constructs a delegation proof, prepares a claims hash, retrieves a real query
+certificate and verifies it before exercising session admission. Its Root signing
+key is a native test key, not a production Root signing adapter. The
+[fixture host](../apps/qualification/canister/src/lib.rs) demonstrates root
+composition, publication and query-certificate acquisition; its controller guard
+is qualification scaffolding, not Canic's production account policy.
+
+| Phase | Auth mechanism | Canic-owned integration |
+| --- | --- | --- |
+| Authorize and retain intent | Canonical claims encoding/hash and delegation validation | Authenticate account separately from browser identity; persist the exact request, claims, binding generation and original deadlines before effects |
+| Prepare in an update | `SignatureStore::prepare` returns a `/sig` digest and exclusive retrieval deadline | Recheck current approval and authority; select the protected seed; commit journal transitions and compose/publish the global root without an intervening await |
+| Retrieve in a query | `SignatureStore::retrieve` returns the bounded signature envelope | Authorize access to the retained operation; supply the runtime's data certificate and current protected sibling roots |
+| Admit at the receiver | `verify_certified_claims`, or certified verification through `establish_session` | Supply current protected enrollment, Root policy, network trust root, actual caller/time and admission budget; atomically commit session/replay/login state |
+
+For portable credentials, set the claims mechanism to `Certified` and bind
+`key_binding_id` to `canonical::cert_hash` of the approved delegation certificate.
+Use `portable::claims_hash` as the raw signature message and
+`portable_certified::CERTIFIED_SIGNATURE_DOMAIN` as the domain. The seed must
+match the certificate's issuer binding. Do not prefix or hash the domain a second
+time, change the claims during retrieval, or derive trusted enrollment from the
+submitted proof. The example keeps `encode_claims` bytes unchanged across this
+flow. The resulting `PortableProof::Certified` carries the delegation proof and
+issuer signature; receiver verification remains mandatory.
+
+### Journal, retries and upgrade boundaries
+
+`SignatureStore` is not the durable issuance journal. Canic must retain enough
+protected state to distinguish pending, completed and unresolved operations.
+An update cannot obtain the query certificate needed to return the finished
+proof; preparation and retrieval are separate phases. A query returns a witness
+but cannot durably mark the journal completed. Canic must define its authenticated
+completion/reconciliation transition and validate any returned material before
+retaining it. Query success alone is not a durable issuance receipt.
+
+A live duplicate `prepare` preserves the retrieval deadline. Once expired, the
+primitive permits a new preparation window; that is not permission to renew an
+existing issuance. Lookup-only reconciliation must not call `prepare` to recover
+a lost response, extend a deadline or manufacture a replacement result. Repeated
+queries can contain different IC certificate bytes even for identical claims:
+once an exact result is committed, reconciliation returns that retained result,
+not a newly retrieved envelope. If no result can be recovered under the original
+contract, retain an unresolved outcome rather than silently reissuing.
+
+Upgrade clears this volatile signature store. Retained issuance intent does not
+restore a leaf or authorize its recreation. Recreating a leaf is a new signing
+decision requiring current authority and explicit host recovery policy; it must
+not revive retired authority or change original claims/deadlines. The installed
+example deliberately prepares again after upgrade to test the mechanism. That
+test does not qualify Canic's durable recovery policy. Removing/pruning a leaf
+also does not revoke already retrieved proofs; signed expiry, certificate
+freshness and current receiver authority remain authoritative.
+
+Canic's acceptance under [#491](https://github.com/dragginzgame/canic/issues/491)
+should bind this flow to its actual journal and certification owner: lost replies
+in both phases, exact-result reconciliation, expiry at the retrieval boundary,
+authority retirement between phases, upgrade with pending work, and composition
+with other certified state. Auth's mechanism evidence supplies no production
+clock, TEE custody or restore guarantee. No new Auth API or cryptographic behavior
+is introduced by this handoff.
+
 ## Lifecycle and qualification
 
 Reset/upgrade handling belongs to the host. This reference store has no durable

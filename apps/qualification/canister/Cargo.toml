@@ -9,6 +9,9 @@ repository.workspace = true
 publish = false
 description = "Internal canister host for IC Auth qualification"
 
+[package.metadata.shared-tooling.loc]
+category = "tests"
+
 [lib]
 crate-type = ["cdylib"]
 

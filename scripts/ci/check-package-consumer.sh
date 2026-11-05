@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 source "${BASH_SOURCE[0]%/*}/auth-dependency-policy.sh"
-forbidden="$(auth_dependency_pattern packaged)"
+# This admission selects every library capability. check-auth-boundaries.sh
+# retains strict rules for default/session and non-certificate graphs.
+forbidden="$(auth_dependency_pattern packaged-certified)"
 
 [[ $# == 4 ]] || { echo 'usage: check-package-consumer.sh WORKSPACE_LOCK FIXTURE ENGINE_VERSION PROTOCOL_VERSION' >&2; exit 2; }
 workspace_lock="$1"

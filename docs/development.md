@@ -144,26 +144,28 @@ The repository's Wasm target flags select upstream RustCrypto's qualified
 `cpubits="32"` backend. Other canister build owners must select it themselves;
 dependency Cargo configuration is not inherited, and explicit `RUSTFLAGS` or
 `CARGO_ENCODED_RUSTFLAGS` overrides must preserve this selection.
-Testkit 0.84 owns native clients and DTOs in `ic_testkit::pocket_ic`, together with
+Testkit 0.86 owns native clients and DTOs in `ic_testkit::pocket_ic`, together with
 bounded server startup, lifecycle extensions and typed Wire calls;
-only the native runner selects these capabilities.
+only the native runner selects these capabilities. Its client requires an
+explicit server endpoint; Auth's existing managed `build_instance` supplies it
+and retains the admitted server handle.
 
 Native file and process callers select Host FS/Process 0.74.2 with defaults
 disabled. Library use does not enable Host's optional CLI, certificate decoder
 or Wasm text/encoding backends. Host stays outside the production library graph.
-The locked Build 0.74.2 and Testkit 0.84.1 share Auth's Host 0.74 identities. The independently
+The locked Build 0.74.3 and Testkit 0.86.0 share Auth's Host 0.74 identities. The independently
 pinned file CLI is selected at 0.74.2.
 Build and Testkit libraries keep `cli` disabled; only the prepared executable
 selections request it. Testkit owns its benchmark-average errors and has no
-Metrics dependency; Auth's diagnostics select Metrics 0.28.2.
+Metrics dependency; Auth's diagnostics select Metrics 0.29.1.
 No caller enables optional native
 metadata; the old Host 0.73 and Metrics 0.25 providers are removed.
 
-Auth and Testkit 0.84.1 select one Platform 0.21 facade and canonical Types 0.18.
+Auth and Testkit 0.86 share Platform 0.22 and canonical Types 0.18.
 Native Testkit and its Candid/management DTOs remain outside the public library
 and Wasm host graphs.
-The host selects Runtime 0.19 directly, matching Storage 0.66's Wasm dependency.
-Wire 0.16 provides the matching canonical Principal schema implementation.
+The host selects Runtime 0.19 directly, matching Storage 0.67's Wasm dependency.
+Wire 0.17 provides the matching canonical Principal schema implementation.
 Native calls retain explicit external Principal conversions; native SDK packages
 remain outside public Auth and the reference Wasm graph.
 
@@ -192,8 +194,10 @@ member annotations distinguish the three production libraries from internal
 qualification and native tooling packages. These roles describe graph use, not
 registry publication. Types is the passive identity owner; Platform is an optional
 production entry selected by crypto capabilities and admitted per graph.
-Certified libraries select BLS, while all library
-capabilities refuse Candid and ic0. Only the runtime host selects ic0/executor.
+Certified libraries select BLS and admit upstream Candid/raw IC0 dependencies
+under the approved Platform 0.22 certificate exception. Default/session-only,
+wallet-signature and passive contracts retain their stricter graph boundaries.
+Only the runtime host selects Runtime IC0/executor.
 Native Host, Build and Testkit selections remain
 tests/tooling entries.
 
@@ -275,7 +279,7 @@ are refused without migration or reset. The maintainer confirmed no retained Aut
 records require preservation. The later Storage consolidation also changes
 backing formats; start with a coherent new fixture checkpoint for this hard cut.
 Checkpoint restores remain closed until matching controller authority is confirmed.
-The unpublished qualification host selects Storage 0.66.1 for both allocation
+The unpublished qualification host selects Storage 0.67.0 for both allocation
 and collections; `ic-memory` and `ic-stable-structures` are absent from the lock.
 Storage owns `StableKey`, `StorageConfig`, namespace grants, backing and exclusive
 leases. Its `StableCell::create` requires empty memory; `load(memory, maximum)`
@@ -283,7 +287,7 @@ admits Auth's 128 KiB payload plus magic before allocation and validates the cel
 checksum. Fallible creation/writes are checked; host traps retain IC rollback.
 No combined initialization or reset path is selected.
 
-This supplier release changes allocator and collection formats: use fresh backing.
+The historical Storage consolidation changed allocator and collection formats.
 Old manager/ledger images are refused without fallback, initialization or clearing.
 The native fixture freezes a published Memory 0.63 manager header and preserves
 separate application sentinel bytes on refusal. Current Storage-format reopen,
@@ -292,7 +296,10 @@ have explicit tests. Existing installations require a separately reviewed whole
 backing transition; this adoption performs no reset or data retirement.
 
 Auth's `AUTHNAT3` payload, Wire method/record identities and signed bytes remain
-unchanged. The host graph retains one Wire, Runtime, generator and runtime guard.
+unchanged. Storage 0.67 adds no backing-format change or reset requirement. Its
+internal codec, Auth's contracts and Testkit now share Wire 0.17. No Wire values
+cross Auth's Storage adapter boundary. The host retains one Runtime, generator
+and runtime guard.
 Storage's direct Wasm Runtime dependency resolves to that same maintained owner;
 public library graphs still forbid runtime capabilities and Storage. The host
 selects Metrics 0.28.2; Testkit's independent benchmark counters need no Metrics dependency.
@@ -312,13 +319,16 @@ features. All direct registry creation/verifier declarations and local crypto
 implementations remain absent ([#16](https://github.com/dragginzgame/ic-platform/issues/16),
 [#17](https://github.com/dragginzgame/ic-platform/issues/17),
 [#18](https://github.com/dragginzgame/ic-platform/issues/18)).
-Platform 0.21 maintains the imported certification/BLS code and retained licenses,
-without the unexposed store or Candid import. Certificate, tree and key identities
-belong to Platform; the key's Principal is canonical Types 0.18.0. DER/CBOR bytes,
-resource admission and protected authority remain. Its BLS identity-key correction
-rejects forged certificates, covered through Auth's verifier; native Agent's
-separate external verifier does not inherit that correction. These capabilities
-select no Candid, raw IC calls or executor; no local replacement is introduced.
+Platform 0.22 delegates certification/BLS to published upstream implementations;
+certificate/tree and signature/error types have upstream identities. Its key
+adapter retains canonical Types 0.18.0 issuer identities. DER/CBOR bytes, Auth
+resource admission and protected authority remain. Platform's adapters reject
+identity trust-root and delegated keys, covered through Auth's verifier; native
+Agent's separate external verifier does not inherit that correction. The
+maintainer approved Candid and raw IC0 as transitive dependencies of these
+certificate helpers. Platform exposes no upstream signature-store API; Auth's
+store still takes host-supplied time/certificates and the host publishes roots.
+Public libraries still exclude Runtime/executor capabilities.
 
 The independent `ic-platform-runtime` owner's `cdk` feature supplies runtime adapters and explicit
 codec entrypoints without depending on the full CDK or selecting Candid. The
@@ -344,18 +354,19 @@ conversion of the same constant.
 `make check-boundaries` runs the adopted Shared direct-dependency checker with
 `ci/cargo-dependency-boundaries.json`. It checks canonical package identities,
 including aliases and normal/build/dev/target/optional declarations, independently
-of enabled features. Transitive library checks permit principal-only Platform
-while excluding Candid, raw IC calls and registry signature packages from every
-public capability, including certified verification and isolated package consumers. Refusal fixtures cover Candid and executor leakage
-into the passive protocol graph. The reference-Wasm graph
-also rejects host parsers/native tooling, the separate registry executor and
-runtime capabilities in public libraries. It retains one Platform generator identity.
+of enabled features. Transitive library checks admit upstream Candid/raw IC0
+and registry signature packages only for the three certificate capabilities and
+their all-feature composition. Default/session, wallet-signature, passive and
+unknown future capabilities retain strict exclusions. The all-feature archive
+consumer admits the same certificate dependency family. Refusal fixtures cover
+Candid/raw IC0 leakage into non-certificate capabilities, explicit Platform
+Candid/runtime features and executor leakage into public libraries.
 Private Wire schemas reject Candid/CDK/tooling on native and Wasm. The reference
-host now rejects the full `ic-cdk` and `ic-cdk-macros` packages and Platform's
-`candid` feature, plus all Candid packages and retired signature-registry edges.
-Negative fixtures cover each refusal. Platform's generator and the shared
-executor remain in the qualified host; dependency removal alone is not a Wasm
-size or performance measurement.
+host admits the upstream certificate dependencies while rejecting parsers,
+native tooling, full `ic-cdk`/macros and Platform's Candid/runtime features. It
+retains one Runtime executor/guard/generator identity. Negative and positive
+fixtures qualify this scoped exception. Graph changes alone establish no Wasm
+size or performance result.
 
 The root catalog was reviewed separately: the Shared checker does not inspect
 unused catalog entries or infer exclusions from role comments. There is one
@@ -368,15 +379,21 @@ consumer deployment admission and native macOS qualification remain separate.
 The one workspace lockfile includes native qualification dependencies as well as
 the deployed packages. The runner in `apps/qualification/runner/` selects
 Platform's `agent` feature for real signed ingress, and Testkit's `wire` feature
-for application calls. Candid still arrives through two native paths:
+for application calls. Candid arrives through three paths:
 
 - Platform `agent` selects IC Agent, which depends on Candid and IC transport types.
 - Testkit owns the native PocketIC client and its external transport/management
   DTOs, which depend on Candid.
+- Platform 0.22's certificate capabilities select upstream canister-signature
+  helpers that depend on Candid and raw IC0, including on Wasm. This is the
+  approved certificate-only exception; default/session and passive graphs
+  remain independent of these packages.
 
 Auth uses Testkit's Wire call helpers. Testkit's native management helpers select
-Platform's external protocol adapters; neither these nor Agent/PocketIC's native
-dependencies enter Auth's deployed graphs. All Auth application requests remain Wire frames.
+Platform's external protocol adapters; those native Agent/PocketIC paths stay
+outside deployed graphs. Testkit 0.86 and Auth share Platform 0.22;
+canonical Types and the actual Wasm Runtime owner stay
+aligned. All Auth application requests remain Wire frames.
 
 A workspace-wide reverse tree unifies Platform features across selected members,
 so it can print Candid beneath shared Auth dependencies. Inspect isolated package
@@ -387,7 +404,7 @@ cargo tree --locked --offline --workspace -i candid
 make check-boundaries
 ```
 
-The first command explains the native paths; the second checks every supported
+The first command explains the dependency paths; the second checks every supported
 public library capability on native/Wasm and the qualification canister's Wasm
 normal/build graph, rejecting Candid and its Platform feature where prohibited.
 
@@ -680,7 +697,7 @@ multi-package, multi-feature and multi-target entries are aggregate suites.
 | `make test-backend-conformance` | Shared native backend scenarios against reference callbacks and an independent encoded store; deliberate partial-commit rejection; no simulator/private fixture dependency |
 | `make pack-backend-conformance` | Cargo-normalized unpublished source archive for a consumer's dev dependency; selected Engine/Protocol dependencies must already be published; no upload |
 | `make test-backend-package` | Opt-in: archive, excluded dev-dependency consumer, exact registry Auth identities, packaged scenarios and graph refusals; receipt and inputs retained; registry cohort must be explicitly cached |
-| `make profile-canonical-allocations` | Opt-in: release-mode native DHAT observations of unchanged canonical hash functions on synthetic small/wide inputs; outside CI; see [measurement limits and results](canonical-allocation-observations.md) |
+| `make profile-canonical-allocations` | Opt-in: optimized harness-free Cargo benchmark with native DHAT observations of unchanged canonical hash functions on synthetic small/wide inputs; outside CI; see [measurement limits and results](canonical-allocation-observations.md) |
 | `bash scripts/dev/profile-retry-allocations.sh` | Opt-in: native DHAT observations of existing exact retries and claims decoding, excluding setup/signing/request construction; see [measurement scope and results](retry-allocation-observations.md) |
 | `make test-host-tooling` | Native file-operation CLI: bounded input, exact digest output, no-follow reads and preserved create-only evidence |
 | `make check-msrv` | Aggregate: isolated public package payloads using the declared compiler, with native/Wasm and feature coverage; internal applications are covered by Clippy |
@@ -692,7 +709,7 @@ multi-package, multi-feature and multi-target entries are aggregate suites.
 | `make check-wasm` | Aggregate: compile-check all supported public library capabilities for `wasm32-unknown-unknown` |
 | `make clippy` | Aggregate: lint all libraries, native tooling/qualification and the Wasm host |
 | `make metadata` | Validate the selected locked graph offline |
-| `make check-boundaries` | Inspect every capability graph; reject Candid/raw IC dependencies in libraries and Candid in reference Wasm |
+| `make check-boundaries` | Inspect every capability graph, admitting upstream certificate dependencies only in certificate-enabled graphs; preserve host/runtime and passive-contract boundaries |
 | `make fmt` / `make fmt-check` | Shared manifest sorting followed by Rust formatting |
 | `make check-snapshot` | Verify the adopted shared files and modes |
 | `make check-dependency-pins` | Check declarations, lockfile tracking and root inheritance |

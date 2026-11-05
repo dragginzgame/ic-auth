@@ -9,7 +9,7 @@ experiment described in [canonical allocation observations](canonical-allocation
 
 Run `bash scripts/dev/profile-retry-allocations.sh --iterations 100` after normal
 explicit tool/dependency preparation. The wrapper runs a release-mode native
-example with DHAT 0.3.3 and seals the source/lock/compiler inputs before and after
+benchmark from `apps/tooling/benches/` with DHAT 0.3.3 and seals the source/lock/compiler inputs before and after
 execution. Evidence, source/dirty identity, raw command output and JSON results
 remain beneath `target/portable-fixtures/retry-allocations.*`.
 

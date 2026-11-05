@@ -26,6 +26,9 @@ static ALLOCATOR: dhat::Alloc = dhat::Alloc;
 #[derive(Parser)]
 #[command(about = "Observe native allocations of already-admitted exact retries")]
 struct Arguments {
+    // Cargo supplies this flag to harness-free benchmark executables.
+    #[arg(long = "bench", hide = true)]
+    _bench: bool,
     #[arg(long, default_value = "100")]
     iterations: NonZeroU16,
 }

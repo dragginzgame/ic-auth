@@ -9,6 +9,9 @@ repository.workspace = true
 publish = false
 description = "Internal IC Testkit and ingress-delegation qualification"
 
+[package.metadata.shared-tooling.loc]
+category = "tests"
+
 [dev-dependencies]
 ic-auth = { workspace = true, features = ["sessions", "certified-proof-verification", "portable-signature-verification"] }
 ic-auth-protocol-types.workspace = true

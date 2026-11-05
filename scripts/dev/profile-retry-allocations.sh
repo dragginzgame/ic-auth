@@ -12,7 +12,7 @@ tool="$(bash scripts/dev/host-file-tools.sh check)"
 {
     rg --files crates/ic-auth/src crates/ic-auth-protocol-types/src -0
     printf '%s\0' Cargo.toml Cargo.lock rust-toolchain.toml apps/tooling/Cargo.toml \
-        apps/tooling/examples/retry_allocations.rs "${BASH_SOURCE[0]}"
+        apps/tooling/benches/retry_allocations.rs "${BASH_SOURCE[0]}"
 } > "$evidence/inputs.nul"
 "$tool" hash-files0 8388608 4194304 4096 < "$evidence/inputs.nul" > "$evidence/before.hashes"
 git rev-parse HEAD > "$evidence/source.txt"
@@ -22,8 +22,8 @@ rustc --version > "$evidence/compiler.txt"
     # DHAT writes a failure profile in the process cwd. Keep that evidence here
     # as well, rather than allowing a failed assertion to write in source.
     cd "$evidence"
-    cargo run --manifest-path "$OLDPWD/Cargo.toml" --locked --offline --release \
-        -p ic-auth-tooling --example retry_allocations -- "$@"
+    cargo bench --manifest-path "$OLDPWD/Cargo.toml" --locked --offline \
+        -p ic-auth-tooling --bench retry_allocations -- "$@"
 ) > "$evidence/report.json" 2> "$evidence/command.log"
 "$tool" hash-files0 8388608 4194304 4096 < "$evidence/inputs.nul" > "$evidence/after.hashes"
 cmp "$evidence/before.hashes" "$evidence/after.hashes"

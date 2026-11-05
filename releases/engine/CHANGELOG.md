@@ -4,6 +4,50 @@ Covers public `ic-auth` and the unpublished backend conformance, qualification a
 native tooling packages. The independent series starts after the
 [last coordinated release, 0.29.2](../history.md).
 
+## [0.34.0] - Unreleased
+
+### ⚠️ Breaking
+
+- Align the pending Engine release with Protocol 0.34's Wire 0.17 identity.
+  Public Protocol types exchanged with Engine must use the matching cohort;
+  signed material, session records and verification behavior remain unchanged.
+
+### 📚 Documentation
+
+- Document certified issuance composition with a durable consumer journal,
+  including update/query separation, exact-result recovery and volatile leaf
+  loss on upgrade. Refresh the Canic adoption review with recorded local
+  acceptance and remaining production requirements; no runtime behavior changes.
+
+### 🔧 Tooling
+
+- Adopt committed Shared Tooling 0.30.0 rules and its schema-2 Rust LOC reporter.
+  Declare private qualification/tooling roles and move allocation observations
+  to harness-free `benches/` targets, preserving their script entrypoints.
+  The corrected LOC categories are accounting changes, not removed code.
+  Include the follow-up display fix: single-workspace tables use the directory
+  name while JSON retains the full manifest path, omit the duplicate TOTAL row,
+  and use portable exported documentation links.
+- Require `test-protocol` in Engine-only release plans: it runs Engine default
+  tests, despite its name. Cover failure propagation in the actual selector fixture.
+
+### ⬆️ Dependencies
+
+- Adopt Storage 0.67 for the private checkpoint host, including its internal
+  Wire 0.17 codec. Preserve checkpoint bytes and backing layouts; no storage
+  reset is required.
+- Adopt Platform 0.22.1's upstream certificate and BLS implementations, restored
+  packed-map/sequence envelope admission and reduced redundant BLS key parsing. Preserve
+  Auth's public APIs, signature bytes, verification checks and host-owned trust
+  inputs. Certificate-enabled graphs now permit the upstream helpers' transitive
+  Candid/raw IC0 dependencies; default/session, wallet-signature and passive Wire
+  graphs retain their exclusions. Runtime/executor ownership remains with hosts.
+  Upstream packaging increases the reference canister's Wasm footprint.
+- Adopt Testkit 0.86.0 with matching Wire 0.17 limits and its explicit-server
+  client contract. Keep Auth's managed
+  startup, retained server custody, offline CLI admission and PocketIC 16.1.0
+  pairing; the existing caller already supplies the endpoint through Testkit.
+
 ## [0.33.2] - 2026-11-04
 
 ### 🩹 Fixed

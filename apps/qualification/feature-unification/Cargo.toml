@@ -9,6 +9,9 @@ repository.workspace = true
 publish = false
 description = "Adversarial consumer feature-unification checks for portable Auth"
 
+[package.metadata.shared-tooling.loc]
+category = "tests"
+
 [features]
 default = ["portable-signature-verification"]
 portable-signature-verification = ["ic-auth/portable-signature-verification"]

@@ -24,12 +24,18 @@ for target in "$native_target" wasm32-unknown-unknown; do
         fi
         "${checker[@]}" --package "$package" --target "$target" --no-default-features "${rules[@]}"
     done
-    # Platform owns imported signature code; library graphs need no Candid/IC0.
+    # Only certificate capabilities admit upstream Candid/raw IC0 dependencies.
     while IFS= read -r feature; do
         [[ "$feature" != default ]] || continue
         selected=(--no-default-features --features "$feature")
         [[ "$feature" != all ]] || selected=(--all-features)
-        rules=(--forbid-pattern "$(auth_dependency_pattern capability)"
+        policy=capability
+        case "$feature" in
+            all|canister-signature-preparation|canister-signature-verification|certified-proof-verification)
+                policy=certified ;;
+        esac
+        rules=(--forbid-pattern "$(auth_dependency_pattern "$policy")"
+               --forbid-feature ic-platform/candid
                --forbid-feature ic-platform/ic0 --forbid-feature ic-platform/executor
                --forbid-feature ic-platform/runtime --forbid-feature ic-platform/cdk)
         if [[ "$feature" == chain-key-verification || "$feature" == portable-signature-verification ]]; then
@@ -71,8 +77,8 @@ done
 # and generator checks, while public library graphs still forbid those features.
 "${checker[@]}" --package ic-auth-qualification-canister --target wasm32-unknown-unknown \
     --forbid-pattern "$(auth_dependency_pattern profiling)" \
-    --forbid-pattern '^(candid|candid_derive|candid_parser|ic-canister-sig-creation|ic-signature-verification|ic-host|ic-build|ic-agent|ic-testkit|pocket-ic|tokio)([- ]|$)' \
-    --forbid ic-cdk --forbid ic-cdk-macros --forbid ic-cdk-executor --forbid ic0 \
+    --forbid-pattern '^(candid_parser|ic-host|ic-build|ic-agent|ic-testkit|pocket-ic|tokio)([- ]|$)' \
+    --forbid ic-cdk --forbid ic-cdk-macros --forbid ic-cdk-executor \
     --forbid ic-memory --forbid ic-stable-structures --forbid ic-platform-pocket-ic \
     --forbid-feature ic-platform/candid \
     --forbid-feature ic-platform/ic0 --forbid-feature ic-platform/executor \

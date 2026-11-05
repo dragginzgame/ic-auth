@@ -1,7 +1,7 @@
 # IC Auth Agent Instructions
 
 Apply the installed [baseline](DRAGGINZGAME.md), adopted from Shared Tooling
-0.29.4 at `628ccc75d813bfd9bae777bfbaef55838d25b1b2`, and its task-specific
+0.30.0 at `b37a882314d22bf7ab393b3fe561809377ffd22d`, and its task-specific
 references. The [snapshot manifest](.shared-tooling.snapshot) records the exact
 policy/tooling selection. Read [the current handoff](docs/status/current.md)
 before implementation. Product-specific safeguards and scoped permissions below
@@ -93,9 +93,15 @@ its maintained executor is the sole runtime executor. Reject the separate
 registry executor and retain one Platform generator identity. Its `cdk` feature is Candid-free.
 Platform's runtime singleton guard is selected only with the executor. Require
 one coordinated guard in the host and exclude it from public library graphs.
-All public library capability graphs and the reference Wasm refuse Candid.
-Native Agent/Testkit still bring it transitively. Platform's raw APIs support
-existing admission/profiling; only the actual host selects IC0/executor.
+The maintainer approved Platform 0.22's upstream certificate dependency exception:
+certificate capabilities and the reference Wasm may transitively select Candid
+and registry raw IC0 through those helpers. Default/session-only, wallet-signature
+and passive protocol/Wire graphs remain Candid/IC0-free. Auth-owned models and
+endpoints remain Wire-only; the upstream signature store is not selected through
+Platform's API. Keep clocks, persistence and root publication host-owned, and
+retain the single Runtime executor/guard. Native Agent/Testkit also bring Candid
+transitively. Platform's raw APIs support
+existing admission/profiling; only the actual host selects Runtime IC0/executor.
 See [the handoff](docs/status/current.md), Platform #16/#17/#18 adoption evidence
 and `ci/cargo-dependency-boundaries.json` for direct-dependency ownership.
 

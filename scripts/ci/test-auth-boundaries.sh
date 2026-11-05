@@ -67,9 +67,10 @@ if [[ "$package" == ic-auth-qualification-canister ]]; then
     if [[ "$BOUNDARY_MODE" == executor ]]; then printf 'ic-cdk-executor v3.0.0\n'; fi
     if [[ "$BOUNDARY_MODE" == executor-source ]]; then printf 'ic-cdk-executor v2.0.0 (git+https://example.invalid/executor#12345678)\n'; fi
     if [[ "$BOUNDARY_MODE" == generator-source ]]; then printf 'ic-platform-macros v0.9.1 (git+https://example.invalid/macros#12345678)\n'; fi
-    # Neither certified verification nor the Wire runtime may import Candid.
+    # The certified host admits upstream Candid/IC0, but no facade runtime.
     if [[ "$BOUNDARY_MODE" == host-candid ]]; then printf 'candid v0.10.38\n'; fi
     if [[ "$BOUNDARY_MODE" == host-candid-derive ]]; then printf 'candid_derive v0.10.38\n'; fi
+    if [[ "$BOUNDARY_MODE" == host-registry-ic0 ]]; then printf 'ic0 v1.2.0\n'; fi
     if [[ "$BOUNDARY_MODE" == host-cdk ]]; then printf 'ic-cdk v0.20.3\n'; fi
     if [[ "$BOUNDARY_MODE" == host-cdk-macros ]]; then printf 'ic-cdk-macros v0.20.3\n'; fi
     if [[ "$BOUNDARY_MODE" == host-profiler ]]; then printf 'dhat v0.3.3\n'; fi
@@ -159,6 +160,14 @@ if [[ "$target" == wasm32-unknown-unknown ]]; then
         printf 'ic-testkit-candid v0.53.0\n'
     elif [[ "$BOUNDARY_MODE" == wasm-portable-bls && "$features" == portable-signature-verification ]]; then
         printf 'ic-verify-bls-signature v0.6.0\n'
+    elif [[ "$BOUNDARY_MODE" == wasm-session-candid && "$features" == sessions ]]; then
+        printf 'candid v0.10.38\n'
+    elif [[ "$BOUNDARY_MODE" == wasm-session-ic0 && "$features" == sessions ]]; then
+        printf 'ic0 v1.2.0\n'
+    elif [[ "$BOUNDARY_MODE" == wasm-portable-ic0 && "$features" == portable-signature-verification ]]; then
+        printf 'ic0 v1.2.0\n'
+    elif [[ "$BOUNDARY_MODE" == wasm-unknown-candid && "$features" == future-capability ]]; then
+        printf 'candid v0.10.38\n'
     elif [[ "$features" == certified-proof-verification ]]; then
         case "$BOUNDARY_MODE" in
             wasm-certified-candid) printf 'candid v0.10.38\n' ;;
@@ -175,12 +184,15 @@ STUB
 chmod +x "$fixture/bin/"*
 export PATH="$fixture/bin:$root/.tools/host/bin:$PATH"
 export BOUNDARY_EVENTS="$fixture/events"
-for mode in accepted crypto-generations crypto-generations-third crypto-algorithm-duplicate principal-facade wire-facade control-facade engine-facade session-facade session-runtime principal-runtime-owner conformance-metrics conformance-private conformance-certified conformance-profiler library-profiler host-profiler principal-external wire-hashing control-external principal-candid principal-executor principal-owned-executor principal-runtime-guard principal-bls principal-storage control-candid control-storage control-platform-feature wasm-default wasm-combined wasm-capability wasm-portable-bls wasm-certified-candid wasm-certified-ic0 wasm-certified-runtime wasm-certified-cdk wasm-certified-creation wasm-certified-verifier host-candid host-candid-derive parser executor executor-source generator generator-source runtime-guard-missing runtime-guard-source host-cdk host-cdk-macros host-platform-feature host-runtime-missing host-runtime-duplicate host-facade-ic0 host-facade-executor host-facade-runtime host-facade-cdk host-wire-duplicate host-storage-missing host-storage-duplicate host-retired-memory host-legacy-stable-structures host-native-client; do
+for mode in accepted crypto-generations crypto-generations-third crypto-algorithm-duplicate principal-facade wire-facade control-facade engine-facade session-facade session-runtime principal-runtime-owner conformance-metrics conformance-private conformance-certified conformance-profiler library-profiler host-profiler principal-external wire-hashing control-external principal-candid principal-executor principal-owned-executor principal-runtime-guard principal-bls principal-storage control-candid control-storage control-platform-feature wasm-default wasm-combined wasm-capability wasm-portable-bls wasm-portable-ic0 wasm-session-candid wasm-session-ic0 wasm-unknown-candid wasm-certified-owned-ic0 wasm-certified-candid wasm-certified-ic0 wasm-certified-runtime wasm-certified-cdk wasm-certified-creation wasm-certified-verifier host-candid host-candid-derive host-registry-ic0 parser executor executor-source generator generator-source runtime-guard-missing runtime-guard-source host-cdk host-cdk-macros host-platform-feature host-runtime-missing host-runtime-duplicate host-facade-ic0 host-facade-executor host-facade-runtime host-facade-cdk host-wire-duplicate host-storage-missing host-storage-duplicate host-retired-memory host-legacy-stable-structures host-native-client; do
     export BOUNDARY_MODE="$mode"
     : > "$BOUNDARY_EVENTS"
     status=0
     bash "$fixture/repo/scripts/ci/check-auth-boundaries.sh" > "$fixture/$mode.log" 2>&1 || status=$?
-    if [[ "$mode" == accepted || "$mode" == crypto-generations ]]; then
+    if [[ "$mode" == accepted || "$mode" == crypto-generations ||
+          "$mode" == wasm-certified-candid || "$mode" == wasm-certified-ic0 ||
+          "$mode" == wasm-certified-creation || "$mode" == wasm-certified-verifier ||
+          "$mode" == host-candid || "$mode" == host-candid-derive || "$mode" == host-registry-ic0 ]]; then
         [[ "$status" == 0 ]] || { cat "$fixture/$mode.log"; exit 1; }
         # Replace Auth's default selection with all three public defaults, then
         # add private Wire schemas per target, two final host checks and the
