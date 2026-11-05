@@ -18,6 +18,9 @@ The first release attempt stopped on external lock drift to Metrics 0.29.3;
 its source matches 0.29.2 and all five Auth metrics tests pass. Preserve that
 incoming selection and the stopped attempt under
 `target/release-validation/engine-gate.rl6XlY/`. Delivery requires a fresh gate.
+The next attempt passed runtime/package checks but found a second stale CBOR
+dependency-pair assumption in the saved-source recovery fixture. Its pair now
+matches the formatting fixture; retain `target/release-validation/engine-gate.vabiHR/`.
 
 Auth requires published Rust Platform 0.23.0 and the npm browser SDK
 @tokostudios/ic-platform 0.2.0, with verified archive integrity and unchanged SDK

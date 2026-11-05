@@ -667,7 +667,7 @@ git commit -qm 'Later fixture source fix'
 # Current working manifests are deliberately unsorted: the check must inspect
 # the selected committed source instead, without rewriting either source.
 cp Cargo.toml "$fixture/before-unsorted-current.toml"
-perl -0777 -pe 's/^(serde_bytes = [^\n]*\n)(serde_cbor = [^\n]*\n)/$2$1/m or die "missing selected dependency pair"' \
+perl -0777 -pe 's/^(serde_bytes = [^\n]*\n)(sha2 = [^\n]*\n)/$2$1/m or die "missing selected dependency pair"' \
     Cargo.toml > "$fixture/unsorted-current.toml"
 cp "$fixture/unsorted-current.toml" Cargo.toml
 # Recovery must keep the saved CLI feature set, not today's edited policy.

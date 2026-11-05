@@ -32,8 +32,8 @@ native tooling packages. The independent series starts after the
 - Adopt committed Shared Tooling 0.30.4, including LOC/formatting scratch fixes
   and numbered release-draft handling. Enforce its Candid source check across
   Auth libraries and private apps through the existing boundary gate, with no
-  application-type allowances. Repair the formatting-hook refusal fixture after
-  removal of the direct CBOR dependency.
+  application-type allowances. Repair formatting-hook and saved-source recovery
+  refusal fixtures after removal of the direct CBOR dependency.
 
 ### 📚 Documentation
 
