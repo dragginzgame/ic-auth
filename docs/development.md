@@ -184,9 +184,9 @@ for the existing byte/path limits and release-recovery boundary.
 
 ## Dependency roles and deployment admission
 
-Shared Tooling revision `07f41c2723850f8fd86c61f2f50e65b0c6cde886` is adopted
-(its committed VERSION records 0.28.3; this is reviewed source, not a claim of
-registry publication or a matching release tag). Auth retains Cargo-owned versions
+Shared Tooling 0.30.4 at `2aa41c7394300302fe802b69b31b855bdc89b671` is adopted
+through the canonical snapshot. This identifies reviewed committed source, not a
+claim of upstream publication or a matching release tag. Auth retains Cargo-owned versions
 and the default release mode; Shared's pending canonical `VERSION` workflow does
 not add a version file, prepare-work command or package-version edit here.
 The root catalog uses `Production dependencies` and `Tests and tooling only`;

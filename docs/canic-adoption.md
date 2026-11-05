@@ -9,12 +9,12 @@ Superseded migration journals remain in Git history; use the current contracts b
 ## Current integration cohort
 
 Published **Protocol 0.34.0** (`ic-auth-protocol-types`, `ic-auth-wire`) and
-**Engine 0.34.0** (`ic-auth`) form the released cohort. Keep both Protocol packages
+**Engine 0.34.1** (`ic-auth`) form the released cohort. Keep both Protocol packages
 aligned and satisfy Engine's declared Protocol requirement; the groups release
-independently. The released qualification lock uses Platform 0.22.1, Types 0.18.1,
-Wire 0.17.1, Testkit 0.86, Runtime 0.19.1, Storage 0.67 and Metrics 0.29.2.
-Engine 0.34.1 is unreleased; its qualified Platform 0.23/browser SDK adoption is
-recorded in the [current handoff](status/current.md). Rust 1.99.1 remains the minimum.
+independently. Engine's qualification lock uses Platform 0.23.0, Types 0.18.1,
+Wire 0.17.2, Testkit 0.87.0, Runtime 0.19.2, Storage 0.67.1 and Metrics 0.29.3.
+Platform 0.23/browser SDK 0.2 adoption and the complete Engine gate are recorded
+in the [current handoff](status/current.md). Rust 1.99.1 remains the minimum.
 [Cargo.toml](../Cargo.toml), the lockfile and [group ledgers](../CHANGELOG.md)
 record development selections and release notes, respectively.
 
