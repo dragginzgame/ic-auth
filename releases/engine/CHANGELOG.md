@@ -24,6 +24,8 @@ native tooling packages. The independent series starts after the
   the workspace. Migrate live fixtures to its async client with one caller-owned
   runtime per test and explicit, checked instance deletion before server shutdown.
   Preserve signed-ingress, Wire, lifecycle and admission assertions.
+- Select Metrics 0.29.3 for private qualification; its production source and
+  Auth's metrics contract are unchanged.
 
 ### 🔧 Tooling
 

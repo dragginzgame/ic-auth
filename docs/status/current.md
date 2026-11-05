@@ -14,6 +14,11 @@ upgrade, signed ingress and SDK transport; explicit close succeeds. The optional
 Chromium case is skipped. Evidence: `target/evidence/testkit087/`. The standard
 release gate remains pending. No public Auth API changes.
 
+The first release attempt stopped on external lock drift to Metrics 0.29.3;
+its source matches 0.29.2 and all five Auth metrics tests pass. Preserve that
+incoming selection and the stopped attempt under
+`target/release-validation/engine-gate.rl6XlY/`. Delivery requires a fresh gate.
+
 Auth requires published Rust Platform 0.23.0 and the npm browser SDK
 @tokostudios/ic-platform 0.2.0, with verified archive integrity and unchanged SDK
 Core 6.1.1. No sibling path overrides are selected. Platform owns bounded
