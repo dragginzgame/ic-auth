@@ -93,24 +93,28 @@ are available but remain disabled pending Auth hook/recovery qualification;
 ordinary delivery still refuses source drift. No new release or timing savings
 are claimed. Existing conformance work and incoming lock edits are preserved.
 
-## Backend-conformance delivery preparation
+## Clean backend-conformance source delivery
 
 The unpublished source bundle now adds unknown-logout failed commits, spent work
 credit, non-sliding `Unconfirmed` retries and mixed known/unknown restoration.
 Its complete entrypoint runs nine scenarios with the existing `Backend` hooks;
 production Auth behavior and record formats are unchanged. Focused conformance
-tests (18) and package-scoped Clippy passed. The isolated registry consumer and
-all 18 packaged tests also passed against published Engine/Protocol 0.35.0.
+tests (18) and package-scoped Clippy passed. The clean archive's isolated registry
+consumer and all 18 packaged tests passed against published Engine/Protocol 0.35.0
+with the committed release lock; focused Clippy also passed on that selection.
 
-Candidate receipt: `target/portable-fixtures/backend-package.kHsJVL/delivery.json`,
-archive SHA-256 `7fd79816e0f8655d665da9318062f8cd8c5f076d13f62775e60050100bfd0fd8`.
-The receipt records `dfed09d` plus dirty source, including incoming Platform 0.23.3.
-The maintainer authorized committing the completed tooling/conformance work and
-rebuilding from clean committed source with the existing committed lock. Incoming
-lock edits are preserved separately for exact restoration after qualification.
-This source-archive delivery does not publish a new release or establish Canic
-production acceptance. Canic already passes the expanded stable-adapter entrypoint
-against registry Auth 0.35.0 using the candidate helper.
+Receipt: `target/portable-fixtures/backend-package.6nTRoO/delivery.json`, source
+`7153d05cd2779f8c0d89bc325e075b1a86f63805`, `dirty: false`, archive SHA-256
+`2c880116ee63672235dee0df5e17eb450ac445f31faa898dc90f45cfecd88365`.
+The archive is under that evidence directory's `target/package/`; preserve archive
+and receipt at the consumer before producer cleanup. No new registry publication,
+remote push or Canic production acceptance is claimed. Canic passes the expanded
+stable-adapter entrypoint using the prior dirty candidate; clean archive adoption
+remains consumer-owned. Earlier candidate evidence is retained unchanged.
+
+Incoming lock edits were restored byte-for-byte after qualification. They now
+select Metrics 0.29.5, Platform 0.23.4 and Testkit 0.89.1, plus TOML updates;
+these are outside the clean archive's qualified dependency selection.
 
 ## Deferred updates and recovery
 
