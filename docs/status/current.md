@@ -92,8 +92,8 @@ Callers now use `RELEASE_GROUPS`, `RELEASE_PUBLISH_TARGET`, `RELEASE_SETUP_TARGE
 `RELEASE_SETUP_MODE` and `RELEASE_BATCH_ACTIVE`, with `run-release-batch.pl` and
 the renamed guide. Retired settings refuse without aliases. No active pre-0.31
 Auth batch exists; old journals and stable storage paths/source pins are unchanged.
-Shared owns single-group capture;
-`RELEASE_GROUPS=protocol,engine` selects the supplier-first roster. Publication
+Shared owns single-group capture; `RELEASE_GROUPS=protocol,engine` selects the
+supplier-first roster. Publication
 remains explicit and candidate setup prepares its own tools/browser dependencies.
 
 Linux native setup and real package archives pass. The schema-2 two-group fixture
@@ -107,8 +107,7 @@ Live Engine delivery completed as `batch-aSZPSweq`, then Shared's fast-forward
 reconciliation advanced the normal branch. Deferred lock edits were reapplied
 with identical dependency hunks. Original recovery state remains under
 `.git/release-state/frozen/batch-aSZPSweq/`; the candidate/evidence is retained,
-not retired. Older evidence keeps its original source/version. This tooling
-release does not establish Canic production acceptance.
+not retired. This tooling release does not establish Canic production acceptance.
 
 ## Clean backend-conformance source delivery
 
@@ -117,13 +116,12 @@ Unknown logout covers failed initial/retry commits, spent work credit, non-slidi
 `Unconfirmed` retries, mixed known/unknown restoration and isolation from known
 logout. Independent encoded backing and broken-backend controls pass.
 
-The matching Engine 0.35.1 / Protocol 0.35.0 archive passed registry-consumer
+The matching Engine 0.35.2 / Protocol 0.35.0 archive passed registry-consumer
 qualification and all 18 packaged tests. Receipt:
-`target/portable-fixtures/backend-package.rm50vk/delivery.json`, clean source
-`e78d1a76f3f277e3600eac3b31247cd29f0daf3d`, `dirty: false`, archive SHA-256
-`153e106f5bdffe49691f0c7030a96573ac026e17fe8be5a2914ebb0785451fca`.
-Archive: that evidence directory's
-`target/package/ic-auth-backend-conformance-0.35.1.crate`. Retain archive and receipt
+`target/portable-fixtures/backend-package.1Zq4ye/delivery.json`, clean source
+`36b3f27e6d0ed3c65a1027376540eb7808744d36`, `dirty: false`, archive SHA-256
+`cc09eadea778769ab0be8ce19ead1eb4e523d02a778538f493b547af07a1077c`.
+Archive: that evidence directory's `target/package/ic-auth-backend-conformance-0.35.2.crate`. Retain archive and receipt
 at the consumer before producer cleanup. Canic passes the expanded stable-adapter
 entrypoint using its earlier 0.35.0 candidate; new archive adoption and installed
 production acceptance remain consumer-owned. Earlier archive receipts remain intact.
@@ -137,16 +135,14 @@ excluded from the release. Recovery patch and tested/incoming locks are under
 `.git/release-state/deferred-engine-0352/`; durable branch
 `deferred/upstream-20261106-engine-0352` is `1b1aca9`. The working lock retains
 Engine 0.35.2. Do not adopt this newer graph without its own qualification.
-Earlier deferred branches `deferred/upstream-20261106-platform-testkit` (`ec3f9b6`)
-and `deferred/upstream-20261106-metrics-platform-testkit` (`a420a85`) remain historical.
-Do not merge their old package-version rows over released metadata.
+Earlier deferred branches remain historical. Do not merge their old package-version
+rows over released metadata.
 
 Preserve `.git/release-state/`, `.git/publication-state/` and required target custody.
 Older release gates, publication attempts and archive receipts remain historical
 under their original identities; no cleanup or recovery bypass was performed.
 Retired checkout refs are `archive/ic-auth-capacity` and `archive/ic-auth-release-033`,
 with evidence under `target/checkout-retirement/20261104-siblings/`.
-
 The maintainer accepted Platform's residual Wasm increase on 2026-11-05 and lifted
 the hold. Its matched Canic report found about 29 KB over 0.21 after correction,
 not parity or an Auth optimizer change. Preserve the
