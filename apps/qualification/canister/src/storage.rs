@@ -11,7 +11,7 @@ thread_local! {
 }
 
 const KEY: &str = "ic_auth_qualification.checkpoint.v1";
-const MAGIC: &[u8; 8] = b"AUTHNAT3";
+const MAGIC: &[u8; 8] = b"AUTHCLK1";
 const MAX_BYTES: usize = 131_072;
 
 fn checkpoint_allocation(backing: DefaultMemoryImpl) -> RuntimeMemory<DefaultMemoryImpl> {

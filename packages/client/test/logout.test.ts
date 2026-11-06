@@ -13,6 +13,28 @@ const issuer = Principal.fromUint8Array(new Uint8Array([1]));
 const receiver = Principal.fromUint8Array(new Uint8Array([2]));
 const revoked: LogoutResult = { tag: 'Revoked', value: 86_400_000_000_000n };
 
+for (const profile of ['ic-auth-logout-journal-v1', 'ic-auth-remembered-login-journal-v1'])
+test(`retired browser journal ${profile} is refused without clearing its records`, async () => {
+  const factory = new IDBFactory();
+  const request = factory.open('retired', 1);
+  request.onupgradeneeded = () => {
+    const bucket = request.result.createObjectStore('journal');
+    bucket.put(profile, 'format');
+    bucket.put({ issuanceUnknown: true, caller: 'retained' }, 'login');
+  };
+  const db = await new Promise<IDBDatabase>((resolve, reject) => {
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+  try {
+    await assert.rejects(IndexedDbLogoutStore.open(factory, 'retired'), (e: ClientError) => e.code === 'storage_corrupt');
+    const tx = db.transaction('journal', 'readonly');
+    const retained = tx.objectStore('journal').get('login');
+    await new Promise<void>((resolve, reject) => { tx.oncomplete = () => resolve(); tx.onabort = () => reject(tx.error); });
+    assert.deepEqual(retained.result, { issuanceUnknown: true, caller: 'retained' });
+  } finally { db.close(); }
+});
+
 async function fixture(revoke: LogoutTransport['revoke']) {
   const factory = new IDBFactory();
   const store = await IndexedDbLogoutStore.open(factory, 'logout');
@@ -37,11 +59,11 @@ test('logout commits invalidation before fan-out and retries Capacity after late
   });
   try {
     await f.client.destination('login-a', receiver, f.state.now + 2_000n * MS);
-    assert.equal(await f.client.claimIssuance('login-a'), true);
-    assert.equal(await f.client.claimIssuance('login-a'), false);
+    assert.equal((await f.client.claimCredential('login-a')).first, true);
+    assert.equal((await f.client.claimCredential('login-a')).first, false);
     await f.client.begin('login-a', f.state.now + 10_000n * MS);
     await assert.rejects(f.client.destination('login-a', receiver, f.state.now), ClientError);
-    await assert.rejects(f.client.claimIssuance('login-a'), ClientError);
+    await assert.rejects(f.client.claimCredential('login-a'), ClientError);
     const status = await f.client.cleanup('login-a', identity);
     assert.equal(status.phase, 'finished');
     assert.equal(status.issuanceUnknown, true);
@@ -51,17 +73,17 @@ test('logout commits invalidation before fan-out and retries Capacity after late
   } finally { f.store.close(); }
 });
 
-test('proof expiry does not imply logout: reserve final attempt after admission window, retain issuer uncertainty', async () => {
+test('unconfirmed local denial and local expiry never confirm remote revocation', async () => {
   const times: bigint[] = [];
   const f = await fixture(async target => {
     if (target.toText() === receiver.toText()) times.push(f.state.now);
-    return { tag: 'Unavailable', value: { tag: 'Capacity', value: null } };
+    return { tag: 'Unconfirmed', value: 100_000_000_000_000n };
   });
   try {
     const expiry = f.state.now + 20_000n * MS;
     const deadline = f.state.now + 30_000n * MS;
     await f.client.destination('login-a', receiver, expiry);
-    assert.equal(await f.client.claimIssuance('login-a'), true);
+    assert.equal((await f.client.claimCredential('login-a')).first, true);
     await f.client.begin('login-a', deadline);
     await f.client.begin('login-a', deadline + 100_000n * MS);
     const result = await f.client.cleanup('login-a', identity);
@@ -69,13 +91,13 @@ test('proof expiry does not imply logout: reserve final attempt after admission 
     assert.equal(result.phase, 'finished');
     assert.equal(result.issuanceUnknown, true);
     assert.equal(times.length, 8);
-    assert.ok(times.at(-1)! > expiry);
+    assert.ok(times.at(-1)! < expiry);
     assert.ok(times.at(-1)! < deadline);
     assert.ok(result.targets.every(t => t.confirmedUntilNs === undefined && t.attempts <= 8));
   } finally { f.store.close(); }
 });
 
-test('a reserved final attempt does not delay an eligible destination', async () => {
+test('the last bounded attempt does not wait for a remote expiry estimate', async () => {
   const calls: [string, bigint][] = [];
   const f = await fixture(async target => { calls.push([target.toText(), f.state.now]); return revoked; });
   try {
@@ -91,9 +113,8 @@ test('a reserved final attempt does not delay an eligible destination', async ()
     });
     const result = await f.client.cleanup('login-a', identity);
     assert.equal(result.phase, 'finished');
-    assert.deepEqual(calls[0], [receiver.toText(), start]);
-    assert.equal(calls[1]![0], issuer.toText());
-    assert.ok(calls[1]![1] > expiry);
+    assert.deepEqual(calls[0], [issuer.toText(), start]);
+    assert.deepEqual(calls[1], [receiver.toText(), start]);
     assert.equal(result.targets[0]!.attempts, 8);
   } finally { f.store.close(); }
 });
@@ -126,7 +147,7 @@ test('missing handle and lost replies remain unknown, never implicit success', a
   let calls = 0;
   const f = await fixture(async () => { calls++; throw new Error('reply lost'); });
   try {
-    assert.equal(await f.client.claimIssuance('login-a'), true);
+    assert.equal((await f.client.claimCredential('login-a')).first, true);
     await f.client.begin('login-a', f.state.now + 10_000n * MS);
     const result = await f.client.cleanup('login-a', undefined);
     assert.equal(calls, 0);
@@ -156,7 +177,7 @@ test('journal transaction failure cannot publish logout or partially add a targe
       assert.ok(record); record.phase = 'cleanup'; throw new Error('abort');
     }));
     assert.equal((await f.client.status('login-a')).phase, 'active');
-    await assert.rejects(f.client.begin('login-a', f.state.now + 1n), ClientError);
+    await assert.rejects(f.client.begin('login-a', f.state.now), ClientError);
     await assert.rejects(f.client.cleanup('login-a', identity), ClientError);
     await assert.rejects(f.client.status('other-generation'), ClientError);
     f.state.now--;
@@ -203,7 +224,7 @@ test('a suspended callback cannot restore login or change status after cleanup d
     const result = await f.client.cleanup('login-a', identity);
     assert.equal(result.phase, 'finished');
     assert.equal(result.targets[0]!.confirmedUntilNs, undefined);
-    await assert.rejects(f.client.claimIssuance('login-a'), ClientError);
+    await assert.rejects(f.client.claimCredential('login-a'), ClientError);
     assert.equal(f.state.disposed, 1);
   } finally { f.store.close(); }
 });
@@ -494,7 +515,7 @@ test('a keyless tab cannot finish cleanup or dispose a key held by another worke
   }
 });
 
-test('admission windows reserve enough room for immediate bounded logout', async () => {
+test('local logout can finish before a destination scheduling hint', async () => {
   const f = await fixture(async () => revoked);
   try {
     const latest = f.state.now + 295_000n * MS;
@@ -502,7 +523,7 @@ test('admission windows reserve enough room for immediate bounded logout', async
       (error: unknown) => error instanceof ClientError && error.code === 'configuration');
     assert.equal((await f.client.status('login-a')).targets.length, 1);
     await f.client.destination('login-a', receiver, latest - 1n);
-    await f.client.begin('login-a', f.state.now + 300_000n * MS);
+    await f.client.begin('login-a', f.state.now + 10_000n * MS);
     assert.equal((await f.client.status('login-a')).phase, 'cleanup');
   } finally { f.store.close(); }
 });

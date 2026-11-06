@@ -227,15 +227,15 @@ fn checkpoint_reopen_requires_release_of_cell_and_detached_handle() {
 }
 
 #[test]
-fn checkpoint_checksum_refusal_preserves_backing() {
+fn checkpoint_framing_refusal_preserves_backing() {
     let backing = DefaultMemoryImpl::default();
     bootstrap(backing.clone(), false);
-    save(b"checksummed checkpoint");
+    save(b"retained checkpoint");
     CELL.with(|state| state.borrow_mut().take());
     let memory = checkpoint_allocation(backing.clone());
     // Isolated corruption injection through a checked lease after the cell
     // releases it. No parallel raw backing path exists in the fixture host.
-    memory.write(ic_storage::STABLE_CELL_HEADER_SIZE as u64, b"X");
+    memory.write(0, b"X");
     drop(memory);
     let before = backing.borrow().clone();
     assert!(matches!(
@@ -243,7 +243,32 @@ fn checkpoint_checksum_refusal_preserves_backing() {
             checkpoint_allocation(backing.clone()),
             MAX_BYTES + MAGIC.len()
         ),
-        Err(CollectionError::Checksum)
+        Err(CollectionError::Cell(StableCellPayloadError::NotStableCell))
+    ));
+    assert!(
+        std::panic::catch_unwind(AssertUnwindSafe(|| bootstrap(backing.clone(), true))).is_err()
+    );
+    assert_eq!(*backing.borrow(), before);
+    CELL.with(|state| assert!(state.borrow().is_none()));
+}
+
+#[test]
+fn retired_storage_cell_framing_is_refused_without_clearing() {
+    let backing = DefaultMemoryImpl::default();
+    bootstrap(backing.clone(), false);
+    CELL.with(|state| state.borrow_mut().take());
+    let memory = checkpoint_allocation(backing.clone());
+    // Published Storage 0.67.1 used this eight-byte cell marker. Exercise that
+    // retired framing through a checked lease, not a fallback reader or reset.
+    memory.write(0, b"ICCELL01");
+    drop(memory);
+    let before = backing.borrow().clone();
+    assert!(matches!(
+        StableCell::<Vec<u8>, _>::load(
+            checkpoint_allocation(backing.clone()),
+            MAX_BYTES + MAGIC.len()
+        ),
+        Err(CollectionError::Cell(StableCellPayloadError::NotStableCell))
     ));
     assert!(
         std::panic::catch_unwind(AssertUnwindSafe(|| bootstrap(backing.clone(), true))).is_err()
@@ -285,4 +310,20 @@ fn checkpoint_retains_fixture_cell_format_and_rejects_oversized_restore() {
         }
         assert_eq!(open(true).get(), &expected);
     }
+}
+
+#[test]
+fn retired_skew_checkpoint_is_refused_without_clearing() {
+    bootstrap(Default::default(), false);
+    let old = b"AUTHNAT3IWretained-skew-checkpoint".to_vec();
+    CELL.with(|state| {
+        state
+            .borrow_mut()
+            .as_mut()
+            .unwrap()
+            .set(old.clone())
+            .unwrap()
+    });
+    assert!(std::panic::catch_unwind(load).is_err());
+    CELL.with(|state| assert_eq!(*state.borrow().as_ref().unwrap().get(), old));
 }

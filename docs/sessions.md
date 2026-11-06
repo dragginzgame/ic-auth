@@ -283,7 +283,7 @@ not establish that policy.
 Only completely verified admission can reserve an admitted-login slot. One
 runtime caller retains one login binding; cheap refusals and failed commits
 cannot install a reservation. A reservation lasts through its issuer-authenticated
-original login deadline plus the protected skew, even after its shorter session
+original login deadline, even after its shorter session
 expires. Hosts can constrain accepted login duration through protected claims
 policy. Multiple valid issued credentials can fill a finite pool; admission must
 then refuse rather than evict retained safety evidence.
@@ -292,10 +292,11 @@ Unknown-login logout uses its own pool and budget. Repeated logout by one caller
 keeps one record and its original deadline; rotating self-authenticating keys can
 fill that unknown pool without an issuer credential. This cannot take admitted
 slots or prevent an admitted login from converting its reserved slot to a denial.
-Unknown tombstones cover the protocol's maximum login window plus clock margin;
-shortening them to a session/proof lease could permit delayed admission after
-logout. Unknown saturation can still refuse other unknown logouts, never falsely
-acknowledge them. Configure physical storage for both declared pools.
+Unknown tombstones provide temporary local denial for the protected host login
+ceiling, not confirmation about every unseen credential. The same original
+signed credential may first become valid after that denial expires. Unknown
+saturation can refuse other unknown logouts but never falsely acknowledge them.
+Configure physical storage for both declared pools.
 
 Expired physical rows continue occupying capacity until explicit bounded
 maintenance commits. Persist deletions/counts atomically, retain failure and clock
@@ -306,7 +307,8 @@ admission after bounded pruning. They do not establish availability under an
 unlimited adversarial load or a production host's admission policy.
 
 `logout_session` returns the shared `LogoutResult`: `Revoked { deny_until_ns }`
-only after commit, `InvalidCaller`, or typed `Unavailable` (capacity, storage or
+only for a known login after commit, `Unconfirmed { deny_until_ns }` for
+temporary unseen-login denial, `InvalidCaller`, or typed `Unavailable` (capacity, storage or
 clock). Hosts return `Unavailable(ResetPending)` before touching unavailable
 startup state. The Wire unit request `()` accepts no client-selected identity or
 proof; hosts pass the authenticated runtime caller. Transport failures remain
@@ -365,8 +367,14 @@ its encoded-byte totals. The private qualification checkpoint is `AUTHNAT3`;
 `AUTHNAT2` is refused without clearing. This consent does not authorize erasing a
 Memory allocation ledger or resetting backing storage.
 
+The pending clock-independent hard cut separately retires the login-record and
+private checkpoint identities. The maintainer confirmed no retained affected Rust
+records on 2026-11-06. Login identity `0x415554485313` and checkpoint `AUTHNAT3`
+are refused; the current checkpoint is `AUTHCLK1`. This does not authorize implicit
+clearing of consumer storage. Session/replay layouts and identities stay unchanged.
+
 Current records are native IC Wire request frames, using storage-only identities
-`0x415554485311` (session), `0x415554485302` (unchanged replay) and `0x415554485313`
+`0x415554485311` (session), `0x415554485302` (unchanged replay) and `0x415554485323`
 (login ledger); these are never mounted RPC methods. Byte bounds include the
 11-byte header: 2048, 512 and 1024 respectively. Traversal is bounded at 1024
 nodes, depth 16 and a 65,536-byte native allocation allowance, independent of the
@@ -389,18 +397,18 @@ records survive logout, and an expired replay may have been pruned before its
 session expires; restoration supports both states. Snapshot completeness and
 rollback protection remain host obligations, including when counts match.
 
-After volatile reset, advance login/proof floors using trusted boot time and the
-qualified clock-skew bound, discard lost-state-dependent sessions and authenticate
-fresh enrollment before readiness. This forces fresh browser login after receiver
-upgrade. Durable hosts must retain sessions, replay, revocation and protected
-reset/authority state atomically. A production durable host adapter is not yet
-implemented; the ledger supplied here is volatile.
+After safety-state loss, stay closed pending trusted complete recovery. Local
+time floors, local generation increments and fresh enrollment cannot fence every
+old signed login. Normal durable upgrades restore complete session/replay/login
+and authority metadata atomically, then authenticate fresh enrollment before
+readiness. The ledger supplied here is volatile; a production durable host adapter
+remains consumer-owned. See the [clock contract](design/portable-clock-audit.md).
 
 The durable adapter must use `ic-storage` for host-composed allocation ownership,
 with the host supplying the combined declarations and performing bootstrap before
-stores open. Storage 0.65 supplies namespace admission, checked leases and its owned
+stores open. Storage 0.68 supplies namespace admission, checked leases and its owned
 collections; it does not supply Auth's record schema or transaction. The internal
-checkpoint uses `ic_storage::DefaultMemoryImpl` and bounded, checksummed
+checkpoint uses `ic_storage::DefaultMemoryImpl` and bounded
 `adapter::StableCell` loading. Its allocator/collection formats require fresh
 backing; older Memory images are refused without reset. All workspace packages
 share Rust 1.99.1; see [minimum compiler qualification](msrv.md).
@@ -424,11 +432,10 @@ the new trusted clock and never extends a reservation or tombstone.
 
 These checks do not authenticate storage or detect a coherently rolled-back
 snapshot. The host must protect the generation, configuration and completeness;
-changing the qualified skew or recovering incomplete storage requires the reset
-contract. Canic's per-operation persistent adapter acceptance remains consumer-owned.
+recovering incomplete storage cannot use local time as an invalidation fence. Canic's per-operation persistent adapter acceptance remains consumer-owned.
 A durable implementation must cover protected reset/authority metadata. Returned
 failures leave state unchanged while retaining charged work budgets. Normal upgrades must restore matching reservations
-as well as sessions; incomplete recovery must enforce fresh-login reset rather
+as well as sessions; incomplete recovery must stay closed rather
 than invent missing reservations. [Canic #491](https://github.com/dragginzgame/canic/issues/491)
 owns that consumer integration and its failure/upgrade qualification. Auth's
 storage/reset interfaces are delivered; [Auth #58](https://github.com/dragginzgame/ic-auth/issues/58)
@@ -485,8 +492,8 @@ The rest of the host cut must be propagated together:
 - Durable hosts select `session-restore` and use the bounded session/replay/login
   codecs. Remove raw replay deserialization and explicitly retire incompatible
   retained layouts. Restore complete matching metadata and records, then obtain
-  fresh receiver-bound enrollment before serving. Volatile hosts enforce reset
-  floors instead; neither profile can fabricate missing reservations.
+  fresh receiver-bound enrollment before serving. Volatile state loss stays closed
+  pending trusted complete recovery; neither profile can fabricate missing reservations.
 - Qualify failed commits, exact retries, same-account separate browser callers,
   session-only logout with replay retention, unknown-login logout and upgrade
   restoration/reset in the actual host. Auth's fixture is reference evidence,

@@ -74,6 +74,9 @@ pub(crate) fn capture() -> Option<Snapshot> {
 }
 
 pub(crate) fn restore(snapshot: Option<Snapshot>) {
+    // Post-upgrade never represents a fresh receiver: missing complete state
+    // cannot be repaired with current time or a fresh authority attestation.
+    FRESH_BOOT.with(|fresh| fresh.set(false));
     let Some(saved) = snapshot else { return };
     let config: ReceiverConfig = saved.config.try_into().expect("checkpoint config");
     let now = ic_platform_runtime::cdk::api::time();
@@ -107,7 +110,7 @@ pub(crate) fn restore(snapshot: Option<Snapshot>) {
             config.audience,
             MAX_ADMITTED_LOGINS,
             MAX_UNKNOWN_LOGINS,
-            0,
+            86_400_000_000_000,
             now,
         )
         .expect("ledger limits")

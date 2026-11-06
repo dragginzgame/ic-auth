@@ -5,6 +5,8 @@ import type { Identity } from '@tokostudios/ic-platform/agent';
 import type { LogoutResult } from './codec.js';
 import { ClientError } from './contracts.js';
 import { isU64 } from './u64.js';
+import { credentialFromBytes } from './codec.js';
+import { maximumConfiguredBytes } from './generated/credential.js';
 import { IndexedDbLogoutStore, MAX_ATTEMPTS, MAX_TARGETS, type LogoutJournal, type LogoutTarget } from './logout-store.js';
 
 const MS = 1_000_000n;
@@ -14,17 +16,16 @@ function cleanupComplete(record: LogoutJournal & { phase: 'cleanup' | 'finished'
   return now >= record.deadlineNs || record.targets.every(target => target.confirmedUntilNs !== undefined);
 }
 
-// One eligibility rule for both dispatch and waiting. The final attempt cannot
-// run until admission has expired, even when its persisted backoff is earlier.
+// One local eligibility rule for dispatch and waiting; remote clock values
+// cannot establish that a previously issued credential is no longer usable.
 function nextAttemptNs(target: LogoutTarget): bigint | undefined {
   if (target.confirmedUntilNs !== undefined || target.attempts >= MAX_ATTEMPTS) return undefined;
-  return target.attempts === MAX_ATTEMPTS - 1 && target.nextNs <= target.admissionUntilNs
-    ? target.admissionUntilNs + 1n : target.nextNs;
+  return target.nextNs;
 }
 
 // Synchronous journal transitions; callers commit them through update before I/O.
 // One live lease across tabs. A crash consumes its attempt; the lease expires
-// after the call bound. Keep the last attempt for after admission expiry.
+// after the call bound. Unconfirmed replies never become confirmation by waiting.
 function claimCleanup(record: LogoutJournal & { phase: 'cleanup' }, now: bigint) {
   const idle = { record, value: undefined };
   if (record.busyUntilNs > now) return idle;
@@ -60,10 +61,15 @@ function settleCleanup(record: LogoutJournal, now: bigint,
 }
 
 export interface LogoutClock {
-  /** Stable across reloads; adapter must bound IC clock uncertainty and rollback. */
+  /** Stable local scheduling clock across reloads; reject rollback. No remote expiry guarantee. */
   id: string;
   nowNs(): bigint;
   wait(ms: number): Promise<void>;
+}
+export interface CredentialClaim {
+  sequence: bigint;
+  first: boolean;
+  saved?: { bytes: Uint8Array; until: bigint };
 }
 export interface LogoutTransport {
   /** Must authenticate as this exact identity; target and empty request are fixed. */
@@ -91,20 +97,20 @@ export class PortableLogoutClient {
       return { record: { generation, caller: callerText, issuer: issuerText, clockId,
         observedNs: now, busyUntilNs: 0n, phase: 'active', deadlineNs: 0n, issuanceUnknown: false,
         targets: [{ canister: issuerText, admissionUntilNs: now, attempts: 0, nextNs: now }] }, value: undefined };
-    });
+    }, true);
   }
 
-  private update<T>(generation: string, operation: (record: LogoutJournal, now: bigint) => { record: LogoutJournal; value: T }): Promise<T> {
+  private update<T>(generation: string, operation: (record: LogoutJournal, now: bigint) => { record: LogoutJournal; value: T }, evidence = false): Promise<T> {
     return this.store.transact(record => {
       if (!record || record.generation !== generation) throw new ClientError('stale_generation');
       const now = this.clock.nowNs();
       if (record.clockId !== this.clock.id || now < record.observedNs) throw new ClientError('configuration');
       record.observedNs = now;
       return operation(record, now);
-    });
+    }, evidence);
   }
 
-  /** Commit BEFORE dispatching admission; expiry is conservatively mapped by the admitted clock. */
+  /** Commit BEFORE dispatching admission; expiry is a local scheduling hint only. */
   async destination(generation: string, target: Principal, admissionUntilNs: bigint): Promise<void> {
     const key = target.toText();
     const anonymous = target.isAnonymous();
@@ -121,14 +127,42 @@ export class PortableLogoutClient {
     });
   }
 
-  /** Exactly one caller may initiate issuance. Others must reconcile, never reissue. */
-  async claimIssuance(generation: string): Promise<boolean> {
-    return this.update(generation, record => {
+  /** Persist one intent before issuance. Pending sequences remain lookup-only.
+   * Completed evidence can advance on proof expiry or when readiness requests
+   * refresh through the sequence used by an expired receiver lease. */
+  async claimCredential(generation: string, accountAvailable = true, refreshThrough?: bigint): Promise<CredentialClaim> {
+    if (refreshThrough !== undefined && !isU64(refreshThrough)) throw new ClientError('configuration');
+    return this.update<CredentialClaim>(generation, (record, now) => {
       if (record.phase !== 'active') throw new ClientError('stale_generation');
-      const first = !record.issuanceUnknown;
+      const op = record.issuance;
+      if (!accountAvailable && (!op || (op.sequence === 0n && !op.bytes))) throw new ClientError('account_required');
+      if (op?.bytes && op.untilNs! > now && (refreshThrough === undefined || op.sequence > refreshThrough)) return { record, value: {
+        sequence: op.sequence, first: false, saved: { bytes: new Uint8Array(op.bytes), until: op.untilNs! },
+      } };
+      if (op && !op.bytes) return { record, value: { sequence: op.sequence, first: false } };
+      const sequence = op ? op.sequence + 1n : 0n;
+      if (!isU64(sequence)) throw new ClientError('storage_capacity');
       record.issuanceUnknown = true;
-      return { record, value: first };
-    });
+      record.issuance = { sequence };
+      return { record, value: { sequence, first: true } };
+    }, true);
+  }
+
+  /** Retain exact returned evidence before admission. Conflicting replies never
+   * replace the committed result or extend its original deadline. */
+  async completeCredential(generation: string, sequence: bigint, bytes: Uint8Array, untilNs: bigint): Promise<void> {
+    if (bytes.length < 1 || bytes.length > maximumConfiguredBytes) throw new ClientError('invalid_material');
+    const owned = new Uint8Array(bytes);
+    credentialFromBytes(owned, maximumConfiguredBytes);
+    await this.update(generation, record => {
+      if (record.phase !== 'active') throw new ClientError('stale_generation');
+      const op = record.issuance;
+      if (!op || op.sequence !== sequence || !isU64(untilNs) || untilNs === 0n) throw new ClientError('retrieval_expired');
+      if (op.bytes && (op.untilNs !== untilNs || op.bytes.length !== owned.length
+        || op.bytes.some((byte, index) => byte !== owned[index]))) throw new ClientError('storage_conflict');
+      record.issuance = { sequence, bytes: owned, untilNs };
+      return { record, value: undefined };
+    }, true);
   }
 
   async status(generation: string): Promise<LogoutJournal> {
@@ -164,8 +198,11 @@ export class PortableLogoutClient {
   async begin(generation: string, deadlineNs: bigint): Promise<void> {
     await this.update(generation, (record, now) => {
       if (record.phase !== 'active') return { record, value: undefined };
-      if (deadlineNs <= now || deadlineNs > now + MAX_CLEANUP_NS
-        || record.targets.some(target => target.admissionUntilNs + BigInt(CALL_MS) * MS >= deadlineNs)) throw new ClientError('configuration');
+      if (deadlineNs <= now || deadlineNs > now + MAX_CLEANUP_NS) throw new ClientError('configuration');
+      if (record.issuance) {
+        delete record.issuance.bytes;
+        delete record.issuance.untilNs;
+      }
       return { record: { ...record, phase: 'cleanup', deadlineNs }, value: undefined };
     });
   }

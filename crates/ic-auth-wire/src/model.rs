@@ -278,6 +278,7 @@ unit_enum!(LogoutUnavailable {
 #[cfg_attr(feature = "typescript", derive(ic_wire::Wire))]
 pub enum LogoutResult {
     Revoked(u64),
+    Unconfirmed(u64),
     InvalidCaller,
     Unavailable(LogoutUnavailable),
 }
@@ -285,6 +286,7 @@ impl From<domain::LogoutResult> for LogoutResult {
     fn from(value: domain::LogoutResult) -> Self {
         match value {
             domain::LogoutResult::Revoked { deny_until_ns } => Self::Revoked(deny_until_ns),
+            domain::LogoutResult::Unconfirmed { deny_until_ns } => Self::Unconfirmed(deny_until_ns),
             domain::LogoutResult::InvalidCaller => Self::InvalidCaller,
             domain::LogoutResult::Unavailable(reason) => Self::Unavailable(reason.into()),
         }

@@ -41,15 +41,21 @@ export async function smoke(factory: IDBFactory) {
         counts.issues++;
         return material;
       },
-      reconcile: async () => { throw Error('Unexpected replacement issuance'); },
+      renew: async () => { throw new Error('unexpected renewal in this fixture'); }, reconcile: async () => { throw Error('Unexpected replacement issuance'); },
       admit: async (target, identity) => {
         check(target.toText() === receiver.toText());
         check(identity.getPrincipal().toText() === browser.getPrincipal().toText());
         counts.admissions++;
+        return { caller: browser.getPrincipal().toUint8Array(), issuer: issuer.toUint8Array(),
+          subject: account.getPrincipal().toUint8Array(), expires_at_ns: now + 30_000_000_000n };
       },
     };
     const client = new auth.PortableAdmissionClient(journal, 'consumer-login', { browser, account }, issuer, transport);
     check((await client.establish(receiver)).getPrincipal().toText() === browser.getPrincipal().toText());
+    // Controlled fixture clocks share an epoch. A production host supplies its
+    // admitted mapping instead of assuming unrelated receiver time is local.
+    check((await client.ensureSession(receiver, receipt => receipt.expires_at_ns)).getPrincipal().toText() === browser.getPrincipal().toText());
+    check(counts.admissions === 1);
     await journal.begin('consumer-login', now + 120_000_000_000n);
     try {
       await client.establish(receiver);

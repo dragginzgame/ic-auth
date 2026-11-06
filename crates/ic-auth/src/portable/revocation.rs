@@ -154,7 +154,7 @@ impl LoginRevocationChange {
     pub fn caller(&self) -> Principal {
         self.0.caller
     }
-    /// Exclusive retention deadline, including the configured clock margin.
+    /// Exclusive receiver-local retention deadline.
     pub fn until_ns(&self) -> u64 {
         self.0.record.until_ns
     }
@@ -167,7 +167,7 @@ impl LoginRevocationChange {
 
 /// Bounded reference ledger for one host-installed trust domain. Callers are
 /// runtime principals, never request fields; this ledger cannot authenticate them.
-/// One admitted slot survives lease expiry until the login deadline plus skew.
+/// One admitted slot survives lease expiry until the authenticated login deadline.
 /// Unknown callers have a separate pool and cannot consume admitted capacity.
 ///
 /// The host MUST serialize these operations with proof/session/replay state and
@@ -180,10 +180,10 @@ impl LoginRevocationChange {
 ///
 /// This is not portable admission or a logout endpoint. No proof verification,
 /// startup/enrollment readiness or durable storage is supplied here. Hosts MUST
-/// apply those gates and a qualified clock-skew bound separately. Fresh unknown
-/// revocations consume an explicit host-retained budget before the commit callback.
-/// Losing this ledger requires the protocol's fresh login/reset floors; restoring
-/// sessions alone is unsafe. Never recreate it per request or share across domains.
+/// apply those gates separately. Unknown local denial is unconfirmed and consumes
+/// an explicit host-retained budget before the commit callback. After losing the
+/// complete ledger, fail closed pending trusted recovery; timestamp floors and
+/// fresh enrollment alone cannot fence old logins. Never recreate per request.
 pub struct MemoryLoginRevocations {
     audience: AudienceId,
     records: BTreeMap<Principal, Record>,
@@ -192,7 +192,7 @@ pub struct MemoryLoginRevocations {
     max_unknown: usize,
     admitted: usize,
     unknown: usize,
-    skew_ns: u64,
+    max_login_ttl_ns: u64,
     observed_ns: u64,
 }
 
@@ -233,7 +233,7 @@ impl MemoryLoginRevocations {
         {
             return Err(LoginRevocationError::InvalidPolicy);
         }
-        let max_until = retention(observed_ns, self.skew_ns)?;
+        let max_until = retention(observed_ns, self.max_login_ttl_ns)?;
         for change in records {
             if change.0.audience != self.audience || self.records.contains_key(&change.0.caller) {
                 return Err(LoginRevocationError::InvalidPolicy);
@@ -243,11 +243,9 @@ impl MemoryLoginRevocations {
                 return Err(LoginRevocationError::InvalidPolicy);
             }
             if let Some(login) = record.login() {
-                let minimum = login
-                    .deadline_ns
-                    .checked_add(self.skew_ns)
-                    .ok_or(LoginRevocationError::Clock)?;
-                if login.started_at_ns > observed_ns
+                let minimum = login.deadline_ns;
+                if login.deadline_ns - login.started_at_ns > self.max_login_ttl_ns
+                    || login.started_at_ns > observed_ns
                     || record.until_ns < minimum
                     || (!record.revoked() && record.until_ns != minimum)
                 {
@@ -272,18 +270,23 @@ impl MemoryLoginRevocations {
     }
 
     /// Fixed record counts bound memory; no caller-supplied blobs are retained.
-    /// `skew_ns` is deployment-qualified protected configuration, not a default.
+    /// The positive login ceiling is protected host policy, at most 90 days;
+    /// it bounds accepted reservations and unknown denial retention together.
     pub fn new(
         audience: AudienceId,
         max_admitted: usize,
         max_unknown: usize,
-        skew_ns: u64,
+        max_login_ttl_ns: u64,
         now_ns: u64,
     ) -> Result<Self, LoginRevocationError> {
-        if max_admitted == 0 || max_unknown == 0 {
+        if max_admitted == 0
+            || max_unknown == 0
+            || max_login_ttl_ns == 0
+            || max_login_ttl_ns > crate::limits::MAX_LOGIN_NS
+        {
             return Err(LoginRevocationError::InvalidPolicy);
         }
-        retention(now_ns, skew_ns)?;
+        retention(now_ns, max_login_ttl_ns)?;
         Ok(Self {
             audience,
             records: BTreeMap::new(),
@@ -292,7 +295,7 @@ impl MemoryLoginRevocations {
             max_unknown,
             admitted: 0,
             unknown: 0,
-            skew_ns,
+            max_login_ttl_ns,
             observed_ns: now_ns,
         })
     }
@@ -393,7 +396,7 @@ impl MemoryLoginRevocations {
         self.commit_record(caller, record, commit)
     }
 
-    /// Stage local denial, then atomically remove this caller's host sessions in
+    /// Stage local denial (not necessarily confirmed revocation), then atomically remove this caller's host sessions in
     /// `commit`. Return the denial deadline only after that callback commits.
     /// An existing live tombstone keeps its deadline; the callback still runs so
     /// retry never falsely acknowledges a failed host operation. No proof needed.
@@ -405,8 +408,10 @@ impl MemoryLoginRevocations {
     /// charge; hosts must return normal errors rather than trap/roll back credit.
     /// Live reservations and tombstone retries do not compete for this budget.
     /// The callback receives the proposed tombstone, including retained binding.
-    /// Its error is returned unchanged; `E` also carries ledger refusals through
-    /// `From<LoginRevocationError>`. A failed callback never installs denial.
+    /// Only `Revoked(Some(binding))` confirms the authenticated login window.
+    /// `Revoked(None)` is temporary denial: never project its deadline as confirmed
+    /// revocation. Its error is returned unchanged; `E` also carries ledger refusals
+    /// through `From<LoginRevocationError>`. Failed callbacks never install denial.
     pub fn with_revocation<E: From<LoginRevocationError>>(
         &mut self,
         unknown_budget: &mut SessionAdmissionBudget,
@@ -420,13 +425,13 @@ impl MemoryLoginRevocations {
             .get(&caller)
             .copied()
             .filter(|r| r.until_ns > now_ns);
-        let record = if let Some(old) = old.filter(|r| r.revoked()) {
-            old
-        } else {
-            let until_ns = retention(now_ns, self.skew_ns)?;
-            if old.is_some_and(|r| r.until_ns > until_ns) {
-                return Err(LoginRevocationError::Clock.into());
+        let record = if let Some(old) = old {
+            Record {
+                until_ns: old.until_ns,
+                state: LoginRecordState::Revoked(old.login()),
             }
+        } else {
+            let until_ns = retention(now_ns, self.max_login_ttl_ns)?;
             Record {
                 until_ns,
                 state: LoginRecordState::Revoked(old.and_then(Record::login)),
@@ -555,12 +560,16 @@ impl MemoryLoginRevocations {
         now_ns: u64,
     ) -> Result<Record, LoginRevocationError> {
         let login_deadline_ns = claims.login_deadline_ns;
-        if claims.audience != self.audience || browser_caller != caller {
+        if claims.audience != self.audience
+            || browser_caller != caller
+            || claims
+                .login_deadline_ns
+                .checked_sub(claims.login_started_at_ns)
+                .is_none_or(|ttl| ttl == 0 || ttl > self.max_login_ttl_ns)
+        {
             return Err(LoginRevocationError::InvalidPolicy);
         }
-        let until_ns = login_deadline_ns
-            .checked_add(self.skew_ns)
-            .ok_or(LoginRevocationError::Clock)?;
+        let until_ns = login_deadline_ns;
         let login = LoginBinding {
             issuer: claims.issuer,
             subject: claims.account_subject,
@@ -637,11 +646,9 @@ impl MemoryLoginRevocations {
     }
 }
 
-fn retention(now_ns: u64, skew_ns: u64) -> Result<u64, LoginRevocationError> {
-    skew_ns
-        .checked_mul(2)
-        .and_then(|skew| crate::limits::MAX_LOGIN_NS.checked_add(skew))
-        .and_then(|ttl| now_ns.checked_add(ttl))
+fn retention(now_ns: u64, max_login_ttl_ns: u64) -> Result<u64, LoginRevocationError> {
+    now_ns
+        .checked_add(max_login_ttl_ns)
         .ok_or(LoginRevocationError::Clock)
 }
 

@@ -151,7 +151,7 @@ test-qualification: testkit-tools-check client-tools-check
 	+bash scripts/dev/test-qualification.sh
 
 check-candid-boundary:
-	perl scripts/ci/check-candid-boundary.pl "$(CURDIR)" ci/candid-boundary.json crates apps
+	perl scripts/ci/check-candid-boundary.pl --cbor "$(CURDIR)" ci/candid-boundary.json crates apps
 
 check-boundaries: check-candid-boundary
 	+bash scripts/ci/check-cargo-dependency-boundaries.sh --consumer "$(CURDIR)" --external-ic

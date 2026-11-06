@@ -56,12 +56,178 @@ fn verified(n: u64, deadline: u64, now: u64) -> VerifiedPortableClaims {
     verify(&claims(n, deadline, now), now)
 }
 
-const DAY: u64 = 86_400_000_000_000;
+// Unknown logout retains the full supported login ceiling, independently of
+// the much shorter fixture login windows below.
+const MAX_LOGIN_TTL: u64 = 90 * 86_400_000_000_000;
 fn caller(n: u64) -> Principal {
     browser_principal(&browser_key(n))
 }
 fn ledger(admitted: usize, unknown: usize) -> MemoryLoginRevocations {
-    MemoryLoginRevocations::new(audience(), admitted, unknown, 10, 0).unwrap()
+    MemoryLoginRevocations::new(audience(), admitted, unknown, MAX_LOGIN_TTL, 0).unwrap()
+}
+
+#[test]
+fn clock_contract_unknown_logout_cannot_bound_an_unseen_future_login() {
+    use ic_auth::portable::PortableClaimsError;
+    use ic_auth::portable_signature::PortableSignatureError;
+
+    // A finite temporary denial cannot cover an arbitrarily ahead issuer.
+    // The session endpoint must therefore report this unknown login unconfirmed.
+    let mut store = ledger(1, 1);
+    let until = store
+        .with_revocation::<Error>(&mut budget(), caller(1), 1, |_| Ok(()))
+        .unwrap();
+    let original = claims(1, until + 2_000, until + 1_000);
+    assert_eq!(
+        verify_with_budget(&original, 1, &mut budget()).unwrap_err(),
+        PortableSignatureError::Claims(PortableClaimsError::NotYetValid)
+    );
+    assert!(store.is_revoked(caller(1), until - 1).unwrap());
+    assert_eq!(store.prune(until, 1), Ok(1));
+    // Exact original signed bytes, no renewal, forged timestamp or bypassed
+    // cryptography: they become valid after the denial has been forgotten.
+    let verified = verify(&original, original.issued_at_ns);
+    store
+        .with_reservation::<(), Error>(caller(1), &verified, original.issued_at_ns, |_| Ok(()))
+        .unwrap();
+}
+
+#[test]
+fn clock_contract_fresh_evidence_cannot_confirm_every_unknown_logout() {
+    use ic_auth::portable::PortableClaimsError;
+    use ic_auth::portable_signature::PortableSignatureError;
+
+    let original = claims(1, 100, 20);
+    // The very same fully authenticated evidence is usable only in its original
+    // proof window. Extending it or using a made-up verification clock is not a fix.
+    for (now, expected) in [
+        (19, Some(PortableClaimsError::NotYetValid)),
+        (20, None),
+        (21, Some(PortableClaimsError::Expired)),
+        (99, Some(PortableClaimsError::Expired)),
+    ] {
+        let checked = verify_with_budget(&original, now, &mut budget());
+        match expected {
+            Some(error) => assert_eq!(checked.unwrap_err(), PortableSignatureError::Claims(error)),
+            None => assert_eq!(checked.unwrap().claims().login_deadline_ns, 100),
+        }
+    }
+    // Expiry is not proof of revocation: this login can have a fresh renewal.
+    let renewed = claims(1, 100, 22);
+    assert_eq!(verify(&renewed, 22).claims().login_deadline_ns, 100);
+}
+
+#[cfg(feature = "session-restore")]
+#[test]
+fn clock_contract_durable_unknown_tombstone_still_needs_a_lifetime_bound() {
+    use ic_auth::portable::LoginRevocationChange;
+
+    let mut store = ledger(1, 1);
+    let until = store
+        .with_revocation::<Error>(&mut budget(), caller(1), 1, |_| Ok(()))
+        .unwrap();
+    let records: Vec<_> = store
+        .records()
+        .map(|record| record.encode().unwrap())
+        .collect();
+    let mut restored = MemoryLoginRevocations::new(audience(), 1, 1, MAX_LOGIN_TTL, 2)
+        .unwrap()
+        .restore_records(
+            1,
+            (0, 1),
+            records
+                .iter()
+                .map(|record| LoginRevocationChange::decode(record).unwrap()),
+        )
+        .unwrap();
+    assert!(restored.is_revoked(caller(1), 2).unwrap());
+    assert_eq!(restored.prune(until, 1), Ok(1));
+    let original = verified(1, until + 2_000, until + 1_000);
+    restored
+        .with_reservation::<(), Error>(caller(1), &original, until + 1_000, |_| Ok(()))
+        .unwrap();
+}
+
+#[test]
+#[cfg(feature = "session-restore")]
+fn ninety_day_login_restores_and_renews_without_extending_its_window() {
+    use ic_auth::portable::LoginRevocationChange;
+    let mut original = claims(1, 1 + MAX_LOGIN_TTL, 1);
+    original.login_started_at_ns = 1;
+    let mut store = ledger(1, 1);
+    store
+        .with_reservation::<(), Error>(caller(1), &verify(&original, 1), 1, |_| Ok(()))
+        .unwrap();
+    let saved = store.records().next().unwrap().encode().unwrap();
+    assert!(matches!(
+        MemoryLoginRevocations::new(audience(), 1, 1, 86_400_000_000_000, 1)
+            .unwrap()
+            .restore_records(1, (1, 0), [LoginRevocationChange::decode(&saved).unwrap()]),
+        Err(Error::InvalidPolicy)
+    ));
+    let now = 1 + 60 * 86_400_000_000_000;
+    let mut restored = MemoryLoginRevocations::new(audience(), 1, 1, MAX_LOGIN_TTL, now)
+        .unwrap()
+        .restore_records(1, (1, 0), [LoginRevocationChange::decode(&saved).unwrap()])
+        .unwrap();
+    let mut renewed = original.clone();
+    renewed.issued_at_ns = now;
+    renewed.admission_expires_at_ns = now + 1;
+    restored
+        .with_reservation::<(), Error>(caller(1), &verify(&renewed, now), now, |_| Ok(()))
+        .unwrap();
+    assert_eq!(
+        restored.records().next().unwrap().until_ns(),
+        original.login_deadline_ns
+    );
+    renewed.login_deadline_ns += 1;
+    renewed.login_started_at_ns += 1;
+    assert_eq!(
+        restored.with_reservation::<(), Error>(caller(1), &verify(&renewed, now), now, |_| Ok(())),
+        Err(Error::InvalidPolicy)
+    );
+    restored
+        .with_revocation::<Error>(&mut budget(), caller(1), now, |_| Ok(()))
+        .unwrap();
+    assert_eq!(
+        restored.with_reservation::<(), Error>(
+            caller(1),
+            &verify(&original_renewal(&original, now), now),
+            now,
+            |_| Ok(())
+        ),
+        Err(Error::Revoked)
+    );
+}
+
+#[cfg(feature = "session-restore")]
+fn original_renewal(original: &PortableClaims, now: u64) -> PortableClaims {
+    let mut renewed = original.clone();
+    renewed.issued_at_ns = now;
+    renewed.admission_expires_at_ns = now + 1;
+    renewed
+}
+
+#[test]
+fn shorter_login_policy_keeps_short_retention_and_refuses_long_reservations() {
+    const SHORT: u64 = 86_400_000_000_000;
+    let mut short = MemoryLoginRevocations::new(audience(), 1, 1, SHORT, 0).unwrap();
+    let mut long = claims(1, 1 + MAX_LOGIN_TTL, 1);
+    long.login_started_at_ns = 1;
+    assert_eq!(
+        short.with_reservation::<(), Error>(caller(1), &verify(&long, 1), 1, |_| Ok(())),
+        Err(Error::InvalidPolicy)
+    );
+    assert_eq!(
+        short.with_revocation::<Error>(&mut budget(), caller(1), 1, |_| Ok(())),
+        Ok(1 + SHORT)
+    );
+    for cap in [0, MAX_LOGIN_TTL + 1] {
+        assert!(matches!(
+            MemoryLoginRevocations::new(audience(), 1, 1, cap, 0),
+            Err(Error::InvalidPolicy)
+        ));
+    }
 }
 
 #[test]
@@ -89,7 +255,7 @@ fn unknown_flood_cannot_steal_admitted_logout_capacity() {
     let deadline = store
         .with_revocation::<Error>(&mut budget(), caller(1), 6, |_| Ok(()))
         .unwrap();
-    assert_eq!(deadline, 6 + DAY + 20);
+    assert_eq!(deadline, 100);
     assert_eq!(store.occupancy(), (1, 1));
     assert!(store.is_revoked(caller(1), 6).unwrap());
     assert_eq!(
@@ -256,9 +422,9 @@ fn reservation_retention_and_renewal_deadline_are_exact() {
             Err(Error::InvalidPolicy)
         );
     }
-    assert_eq!(store.prune(109, 128), Ok(0));
+    assert_eq!(store.prune(99, 128), Ok(0));
     assert_eq!(store.occupancy(), (1, 0));
-    assert_eq!(store.prune(110, 128), Ok(1));
+    assert_eq!(store.prune(100, 128), Ok(1));
     // A distinct device has independent capacity and denial state.
     store
         .with_reservation::<(), Error>(caller(2), &verified(2, 200, 110), 110, |_| Ok(()))
@@ -350,20 +516,27 @@ fn invalid_callers_clock_rollback_and_overflow_cannot_acknowledge_logout() {
     );
     assert_eq!(store.occupancy(), (0, 0));
     assert!(matches!(
-        MemoryLoginRevocations::new(audience(), 1, 1, u64::MAX, 0),
+        MemoryLoginRevocations::new(
+            audience(),
+            1,
+            1,
+            MAX_LOGIN_TTL,
+            u64::MAX - MAX_LOGIN_TTL + 1
+        ),
         Err(Error::Clock)
     ));
     assert!(matches!(
-        MemoryLoginRevocations::new(audience(), 0, 1, 0, 0),
+        MemoryLoginRevocations::new(audience(), 0, 1, MAX_LOGIN_TTL, 0),
         Err(Error::InvalidPolicy)
     ));
     let mut boundary =
-        MemoryLoginRevocations::new(audience(), 1, 1, 10, u64::MAX - DAY - 20).unwrap();
+        MemoryLoginRevocations::new(audience(), 1, 1, MAX_LOGIN_TTL, u64::MAX - MAX_LOGIN_TTL)
+            .unwrap();
     assert_eq!(
         boundary.with_revocation::<Error>(
             &mut budget(),
             caller(1),
-            u64::MAX - DAY - 20,
+            u64::MAX - MAX_LOGIN_TTL,
             |_| Ok(())
         ),
         Ok(u64::MAX)
@@ -380,12 +553,12 @@ fn maintenance_is_bounded_and_does_not_scan_or_evict_live_entries() {
             .with_revocation::<Error>(&mut budget(), caller(n), 1, |_| Ok(()))
             .unwrap();
     }
-    assert_eq!(store.prune(1 + DAY + 19, usize::MAX), Ok(0));
-    assert_eq!(store.prune(1 + DAY + 20, 0), Ok(0));
-    assert_eq!(store.prune(1 + DAY + 20, usize::MAX), Ok(128));
+    assert_eq!(store.prune(MAX_LOGIN_TTL, usize::MAX), Ok(0));
+    assert_eq!(store.prune(1 + MAX_LOGIN_TTL, 0), Ok(0));
+    assert_eq!(store.prune(1 + MAX_LOGIN_TTL, usize::MAX), Ok(128));
     assert_eq!(store.occupancy(), (0, 2));
-    assert_eq!(store.prune(1 + DAY + 20, 1), Ok(1));
-    assert_eq!(store.prune(1 + DAY + 20, 128), Ok(1));
+    assert_eq!(store.prune(1 + MAX_LOGIN_TTL, 1), Ok(1));
+    assert_eq!(store.prune(1 + MAX_LOGIN_TTL, 128), Ok(1));
     assert_eq!(store.occupancy(), (0, 0));
 }
 
@@ -576,11 +749,11 @@ fn preflight_bounds_untrusted_input_and_retains_clock_on_failure() {
         Err(Error::InvalidPolicy)
     );
     c = claims(1, 100, 10);
+    c.login_started_at_ns = u64::MAX - 1000;
     c.login_deadline_ns = u64::MAX;
-    assert_eq!(
-        store.check_reservation(caller(1), &c, 10),
-        Err(Error::Clock)
-    );
+    c.issued_at_ns = u64::MAX - 10;
+    c.admission_expires_at_ns = u64::MAX;
+    assert_eq!(store.check_reservation(caller(1), &c, 10), Ok(()));
     assert_eq!(store.occupancy(), (0, 0));
 }
 
@@ -717,7 +890,7 @@ fn commit_receives_complete_login_change_before_any_ledger_installation() {
         store.with_reservation::<_, Error>(caller(1), &checked, 1, |change| {
             assert_eq!(change.audience(), audience());
             assert_eq!(change.caller(), caller(1));
-            assert_eq!(change.until_ns(), 110);
+            assert_eq!(change.until_ns(), 100);
             assert_eq!(
                 change.state(),
                 ic_auth::portable::LoginRecordState::Reserved(binding)
@@ -735,7 +908,7 @@ fn commit_receives_complete_login_change_before_any_ledger_installation() {
                 change.state(),
                 ic_auth::portable::LoginRecordState::Revoked(Some(binding))
             );
-            assert_eq!(change.until_ns(), 2 + DAY + 20);
+            assert_eq!(change.until_ns(), 100);
             Ok(())
         })
         .unwrap();
@@ -761,7 +934,7 @@ fn commit_receives_complete_login_change_before_any_ledger_installation() {
 #[test]
 fn restore_retains_reservations_tombstones_and_clock_without_partial_results() {
     use ic_auth::portable::LoginRevocationChange;
-    let mut ledger = MemoryLoginRevocations::new(audience(), 2, 1, 10, 0).unwrap();
+    let mut ledger = MemoryLoginRevocations::new(audience(), 2, 1, MAX_LOGIN_TTL, 0).unwrap();
     let proof = verified(1, 100, 1);
     let caller = browser_principal(&proof.claims().browser_public_key);
     let mut reservation = Vec::new();
@@ -780,7 +953,7 @@ fn restore_retains_reservations_tombstones_and_clock_without_partial_results() {
         })
         .unwrap();
     let restore = |rows: Vec<Vec<u8>>, counts, observed, now| {
-        MemoryLoginRevocations::new(audience(), 2, 1, 10, now)
+        MemoryLoginRevocations::new(audience(), 2, 1, MAX_LOGIN_TTL, now)
             .unwrap()
             .restore_records(
                 observed,
@@ -815,7 +988,7 @@ fn restore_retains_reservations_tombstones_and_clock_without_partial_results() {
     let mut wrong_domain = audience();
     wrong_domain.fleet_id = CanonicalId::from_bytes([99; 32]);
     assert!(
-        MemoryLoginRevocations::new(wrong_domain, 2, 1, 10, 3)
+        MemoryLoginRevocations::new(wrong_domain, 2, 1, MAX_LOGIN_TTL, 3)
             .unwrap()
             .restore_records(
                 2,
@@ -830,7 +1003,7 @@ fn restore_retains_reservations_tombstones_and_clock_without_partial_results() {
         restored
             .with_revocation::<Error>(&mut budget(), unknown, 3, |_| Ok(()))
             .unwrap(),
-        2 + DAY + 20
+        2 + MAX_LOGIN_TTL
     );
 }
 
@@ -852,7 +1025,7 @@ struct LoginRecord {
     state: ic_auth::portable::LoginRecordState,
 }
 #[cfg(feature = "session-restore")]
-const LOGIN_ID: u64 = 0x415554485313;
+const LOGIN_ID: u64 = 0x415554485323;
 #[cfg(feature = "session-restore")]
 const LOGIN_LIMITS: ic_wire::Limits = ic_wire::Limits {
     bytes: 1024,
@@ -917,7 +1090,7 @@ fn stored_login_state_has_exactly_three_valid_projections() {
 #[test]
 fn login_record_decoder_and_restoration_reject_corruption_and_retention_changes() {
     use ic_auth::portable::{LoginBinding, LoginRecordState, LoginRevocationChange};
-    let mut ledger = MemoryLoginRevocations::new(audience(), 1, 1, 10, 0).unwrap();
+    let mut ledger = MemoryLoginRevocations::new(audience(), 1, 1, MAX_LOGIN_TTL, 0).unwrap();
     let proof = verified(1, 100, 1);
     let caller = browser_principal(&proof.claims().browser_public_key);
     let mut bytes = Vec::new();
@@ -927,6 +1100,28 @@ fn login_record_decoder_and_restoration_reject_corruption_and_retention_changes(
             Ok(())
         })
         .unwrap();
+    let retired = ic_wire::native::encode_request(
+        0x415554485313,
+        &(
+            stored_audience(audience()),
+            caller,
+            LoginRecord {
+                until_ns: 100,
+                state: ic_auth::portable::LoginRecordState::Reserved(
+                    ic_auth::portable::LoginBinding {
+                        issuer: proof.claims().issuer,
+                        subject: proof.claims().account_subject,
+                        started_at_ns: 0,
+                        deadline_ns: 100,
+                    },
+                ),
+            },
+        ),
+        LOGIN_LIMITS,
+    );
+    // The old record cannot be reinterpreted under the new retention contract.
+    assert!(retired.is_ok());
+    assert!(LoginRevocationChange::decode(&retired.unwrap()).is_err());
     for cut in 0..bytes.len() {
         assert!(LoginRevocationChange::decode(&bytes[..cut]).is_err());
     }
@@ -939,14 +1134,14 @@ fn login_record_decoder_and_restoration_reject_corruption_and_retention_changes(
     let encode = |record: LoginRecord| {
         ic_wire::native::encode_request(LOGIN_ID, &(domain, caller, record), LOGIN_LIMITS).unwrap()
     };
-    for until_ns in [0, 109, 111, DAY + 30] {
+    for until_ns in [0, 99, 101, MAX_LOGIN_TTL + 30] {
         let changed = encode(LoginRecord {
             until_ns,
             ..original.clone()
         });
         let record = LoginRevocationChange::decode(&changed).unwrap();
         assert!(
-            MemoryLoginRevocations::new(audience(), 1, 1, 10, 3)
+            MemoryLoginRevocations::new(audience(), 1, 1, MAX_LOGIN_TTL, 3)
                 .unwrap()
                 .restore_records(2, (1, 0), [record])
                 .is_err()
@@ -1000,7 +1195,7 @@ fn login_record_decoder_and_restoration_reject_corruption_and_retention_changes(
 
 #[test]
 fn durable_ledger_pruning_retains_denials_and_clock_on_commit_failure() {
-    let mut ledger = MemoryLoginRevocations::new(audience(), 2, 2, 10, 0).unwrap();
+    let mut ledger = MemoryLoginRevocations::new(audience(), 2, 2, MAX_LOGIN_TTL, 0).unwrap();
     let proof = verified(1, 100, 1);
     let admitted = browser_principal(&proof.claims().browser_public_key);
     ledger
@@ -1016,7 +1211,7 @@ fn durable_ledger_pruning_retains_denials_and_clock_on_commit_failure() {
             .unwrap(),
         0
     );
-    let now = DAY + 22;
+    let now = MAX_LOGIN_TTL + 22;
     assert_eq!(
         ledger.prune_with_commit(now, 128, |callers, counts| {
             assert_eq!(callers, &[admitted, unknown]);

@@ -40,7 +40,7 @@ try {
   await client.start('testkit-login', identity, issuer);
   const until = clock.nowNs() + 60_000_000_000n;
   await client.destination('testkit-login', receiver, until);
-  assert.equal(await client.claimIssuance('testkit-login'), true); // Conservatively retain an unknown issuance.
+  assert.equal((await client.claimCredential('testkit-login')).first, true); // Conservatively retain an unknown issuance.
   const guarded = client.guardedIdentity('testkit-login', identity);
   await client.begin('testkit-login', clock.nowNs() + 70_000_000_000n);
   const result = await client.cleanup('testkit-login', identity);
@@ -54,6 +54,10 @@ try {
   assert.deepEqual(submissions.sort(), [issuer, receiver]
     .map(target => `/api/v2/canister/${target.toText()}/call`).sort());
   assert.equal(disposed, 1);
+  const unseen = Ed25519KeyIdentity.generate(new Uint8Array(32).fill(15));
+  const uncertain = await transport.revoke(receiver, unseen, new AbortController().signal);
+  assert.equal(uncertain.tag, 'Unconfirmed');
+  assert.ok(uncertain.value > origin);
   await assert.rejects(guarded.transformRequest({
     endpoint: Endpoint.Call, request: { method: 'POST' },
     body: { request_type: SubmitRequestType.Call, canister_id: receiver,

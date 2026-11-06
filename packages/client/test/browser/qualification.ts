@@ -54,7 +54,7 @@ export async function open(name: string, start = false): Promise<void> {
 }
 export const time = (value: string): void => { now = BigInt(value); };
 export const state = () => client.status('generation');
-export const issuance = () => client.claimIssuance('generation');
+export const issuance = async () => (await client.claimCredential('generation')).first;
 export const begin = () => client.begin('generation', 11_000_000_000n);
 export const network = (hold: boolean, fail: boolean): void => { holdNetwork = hold; failNetwork = fail; };
 export const counts = () => ({ attempts, disposed });
@@ -118,9 +118,11 @@ export async function admissionContention(name: string, phase: 'issuance' | 'adm
       await signer.transformRequest(request(signer, issuer));
       if (phase === 'issuance') { entered(); await held; }
       return material;
-    }, reconcile: async () => { throw new Error('unexpected second issuance'); },
+    }, renew: async () => { throw new Error('unexpected renewal in this fixture'); }, reconcile: async () => { throw new Error('unexpected second issuance'); },
     admit: async (target, signer) => {
       await signer.transformRequest(request(signer, target)); entered(); await held;
+      return { caller: signer.getPrincipal().toUint8Array(), issuer: issuer.toUint8Array(),
+        subject: account.getPrincipal().toUint8Array(), expires_at_ns: now + 3_000_000_000n };
     },
   });
   const pending = Promise.allSettled(Array.from({ length: MAX_TARGETS }, () => admission.establish(destination)));
@@ -182,7 +184,7 @@ export async function sdk(input: LiveInput): Promise<Record<string, number>> {
   };
   const makeClient = () => new PortableAdmissionClient(journal, 'live-first', { browser: first, account }, targets[0]!, {
     issue: async signer => { await probeAccount(signer); issued++; throw new Error('injected lost issuance reply'); },
-    reconcile: async signer => { await probeAccount(signer); reconciled++; if (!lookupReady) throw new Error('unresolved lookup'); return original; },
+    renew: async () => { throw new Error('unexpected renewal in this fixture'); }, reconcile: async signer => { await probeAccount(signer); reconciled++; if (!lookupReady) throw new Error('unresolved lookup'); return original; },
     admit,
   }, undefined, 131_072);
   let currentStore = firstStore;
@@ -208,7 +210,7 @@ export async function sdk(input: LiveInput): Promise<Record<string, number>> {
     await peerJournal.start('live-peer', peer, targets[0]!);
     const peerClient = new PortableAdmissionClient(peerJournal, 'live-peer', { browser: peer, account }, targets[0]!, {
       issue: async signer => { await probeAccount(signer); return { credential: credentialFromBytes(unhex(input.peerCredential), 131_072), admissionUntilNs: BigInt(input.until) }; },
-      reconcile: async () => { throw new Error('unexpected peer reconcile'); }, admit,
+      renew: async () => { throw new Error('unexpected renewal in this fixture'); }, reconcile: async () => { throw new Error('unexpected peer reconcile'); }, admit,
     }, undefined, 131_072);
     const peerGuarded = await peerClient.establish(targets[0]!);
     await peerClient.establish(targets[1]!);

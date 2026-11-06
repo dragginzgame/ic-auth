@@ -176,6 +176,7 @@ fn caller_only_requests_and_all_logout_outcomes_have_bounded_distinct_frames() {
     assert!(ReadSession::decode_request(request.as_slice()).is_err());
     for value in [
         model::LogoutResult::Revoked(u64::MAX),
+        model::LogoutResult::Unconfirmed(u64::MAX),
         model::LogoutResult::InvalidCaller,
         model::LogoutResult::Unavailable(model::LogoutUnavailable::Capacity),
         model::LogoutResult::Unavailable(model::LogoutUnavailable::Storage),
@@ -264,7 +265,12 @@ fn released_credential_and_logout_frames_survive_and_old_read_identity_is_refuse
             .as_slice(),
         credential_frame
     );
-    let logout_frame = decode("4957040048545541000000");
+    let retired_logout = decode("4957040048545541000000");
+    assert_eq!(
+        Logout::decode_request(&retired_logout),
+        Err(wire::Error::Identity)
+    );
+    let logout_frame = decode("4957140048545541000000");
     Logout::decode_request(&logout_frame).unwrap();
     assert_eq!(
         Logout::encode_request(&()).unwrap().as_slice(),

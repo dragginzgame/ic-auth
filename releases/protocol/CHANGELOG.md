@@ -3,6 +3,21 @@
 Covers `ic-auth-protocol-types` and `ic-auth-wire`, released together.
 The independent series starts after the [last coordinated release, 0.29.2](../history.md).
 
+## [0.35.0] - Unreleased
+
+### ⚠️ Breaking
+
+- Distinguish confirmed known-login revocation from bounded unknown-login denial
+  with `Unconfirmed`. Retire the logout Wire identity; receivers and generated
+  clients must update together for the clock-independent
+  [#127 contract](https://github.com/dragginzgame/ic-auth/issues/127).
+
+### ⬆️ Dependencies
+
+- Select Wire/derive 0.17.4. Regenerate and review all five browser contract/runtime
+  files. The logout binding changes with the current confirmation contract;
+  other transport budgets and identities are unchanged.
+
 ## [0.34.0] - 2026-11-05
 
 ### ⚠️ Breaking

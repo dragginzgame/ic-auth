@@ -96,7 +96,8 @@ impl Host {
                 ),
                 fail_commit: false,
             },
-            ledger: MemoryLoginRevocations::new(claims.audience, 4, 4, 0, 0).unwrap(),
+            ledger: MemoryLoginRevocations::new(claims.audience, 4, 4, 86_400_000_000_000, 0)
+                .unwrap(),
             claims,
             budget: SessionAdmissionBudget::new(1, SECOND, NOW - SECOND).unwrap(),
             metrics: Default::default(),

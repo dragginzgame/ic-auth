@@ -30,5 +30,6 @@ export function httpAdmissionTransport(options: HttpAdmissionOptions): PortableA
       }
     } catch (cause) { throw new ClientError('invalid_material', { cause }); }
     if ('err' in result) throw new AdmissionError(result.err.tag);
+    return result.ok;
   };
 }

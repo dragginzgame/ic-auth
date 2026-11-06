@@ -12,9 +12,9 @@ struct Stored<T> {
 /// Bounded volatile reference backend for native and Wasm hosts. No stable
 /// memory, globals, timers or certification-root effects. Transactions stage
 /// only the touched pair; expiry indexes bound cleanup work without a store scan.
-/// Losing this store also loses replay history. Before serving after a reset,
-/// hosts must advance portable login/proof reset floors with qualified skew,
-/// discard revocation state and authenticate fresh enrollment before readiness.
+/// Losing this store also loses replay history. Hosts must stay closed after
+/// safety-state loss pending trusted complete recovery; local time and fresh
+/// enrollment alone cannot exclude old signed logins.
 /// Persistent hosts retain sessions, replay and revocation state atomically.
 pub struct MemorySessionStore {
     generation: u64,

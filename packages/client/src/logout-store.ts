@@ -1,7 +1,8 @@
 import { ClientError } from './contracts.js';
 import { isU64 as time } from './u64.js';
+import { maximumConfiguredBytes } from './generated/credential.js';
 
-/** Non-secret cleanup state. This store never holds a signing key or token. */
+/** Caller-bound admission evidence and cleanup state; never a signing key. */
 export interface LogoutTarget {
   canister: string;
   admissionUntilNs: bigint;
@@ -16,6 +17,7 @@ interface JournalCommon {
   clockId: string;
   observedNs: bigint;
   issuanceUnknown: boolean;
+  issuance?: { sequence: bigint; bytes?: Uint8Array; untilNs?: bigint };
   targets: LogoutTarget[];
 }
 
@@ -29,19 +31,28 @@ export type LogoutJournal = JournalCommon & (
   | { phase: 'finished'; deadlineNs: bigint; busyUntilNs: bigint }
 );
 
-const FORMAT = 'ic-auth-logout-journal-v1';
+const FORMAT = 'ic-auth-local-logout-journal-v1';
 export const MAX_TARGETS = 64;
 export const MAX_ATTEMPTS = 8;
 const object = (x: unknown): x is Record<string, unknown> => typeof x === 'object' && x !== null;
 const fields = (x: Record<string, unknown>, names: string[]) => Object.keys(x).length === names.length && names.every(name => Object.hasOwn(x, name));
 const text = (x: unknown): x is string => typeof x === 'string' && x.length > 0 && x.length <= 128;
 
-function validate(value: unknown): asserts value is LogoutJournal {
-  if (!object(value) || !fields(value, ['generation', 'caller', 'issuer', 'clockId', 'observedNs', 'busyUntilNs', 'phase', 'deadlineNs', 'issuanceUnknown', 'targets']) || !text(value.generation) || !text(value.caller) || !text(value.issuer)
+function validate(value: unknown, evidence = false): asserts value is LogoutJournal {
+  if (!object(value) || !fields(value, ['generation', 'caller', 'issuer', 'clockId', 'observedNs', 'busyUntilNs', 'phase', 'deadlineNs', 'issuanceUnknown', 'targets', ...(value.issuance === undefined ? [] : ['issuance'])]) || !text(value.generation) || !text(value.caller) || !text(value.issuer)
     || !text(value.clockId) || !time(value.observedNs) || !time(value.busyUntilNs) || !time(value.deadlineNs)
     || !['active', 'cleanup', 'finished'].includes(String(value.phase))
     || typeof value.issuanceUnknown !== 'boolean' || !Array.isArray(value.targets)
     || value.targets.length < 1 || value.targets.length > MAX_TARGETS) throw new ClientError('storage_corrupt');
+  if (value.issuance !== undefined) {
+    const op = value.issuance;
+    if (!object(op) || !time(op.sequence) || !value.issuanceUnknown
+      || !fields(op, ['sequence', ...(op.untilNs === undefined ? [] : ['untilNs']), ...(op.bytes === undefined ? [] : ['bytes'])])
+      || (op.untilNs !== undefined && (!time(op.untilNs) || op.untilNs === 0n || (evidence && op.bytes === undefined)))
+      || (value.phase !== 'active' && op.untilNs !== undefined)
+      || (op.bytes !== undefined && (!(op.bytes instanceof Uint8Array) || op.bytes.length < 1
+        || op.bytes.length > maximumConfiguredBytes || !time(op.untilNs) || op.untilNs === 0n))) throw new ClientError('storage_corrupt');
+  }
   const seen = new Set<string>();
   for (const target of value.targets) {
     if (!object(target) || !fields(target, ['canister', 'admissionUntilNs', 'attempts', 'nextNs', ...(target.confirmedUntilNs === undefined ? [] : ['confirmedUntilNs'])]) || !text(target.canister) || seen.has(target.canister)
@@ -50,10 +61,9 @@ function validate(value: unknown): asserts value is LogoutJournal {
       || (target.confirmedUntilNs !== undefined && !time(target.confirmedUntilNs))) throw new ClientError('storage_corrupt');
     seen.add(target.canister);
   }
-  const deadline = value.deadlineNs;
   if ((value.phase === 'active' && (value.deadlineNs !== 0n || value.busyUntilNs !== 0n
     || value.targets.some(t => t.attempts !== 0 || t.confirmedUntilNs !== undefined)))
-    || (value.phase !== 'active' && (value.deadlineNs === 0n || value.targets.some(t => t.admissionUntilNs >= deadline)))
+    || (value.phase !== 'active' && value.deadlineNs === 0n)
     || !seen.has(value.issuer)) throw new ClientError('storage_corrupt');
 }
 
@@ -103,9 +113,9 @@ export class IndexedDbLogoutStore {
   close(): void { this.db.close(); }
 
   /** Synchronous mutation, isolated across tabs; resolves only after strict commit. */
-  transact<T>(operation: (record: LogoutJournal | undefined) => { record: LogoutJournal; value: T }): Promise<T>;
-  transact<T>(operation: (record: LogoutJournal | undefined) => { record: LogoutJournal; value: T } | undefined): Promise<T | undefined>;
-  transact<T>(operation: (record: LogoutJournal | undefined) => { record: LogoutJournal; value: T } | undefined): Promise<T | undefined> {
+  transact<T>(operation: (record: LogoutJournal | undefined) => { record: LogoutJournal; value: T }, evidence?: boolean): Promise<T>;
+  transact<T>(operation: (record: LogoutJournal | undefined) => { record: LogoutJournal; value: T } | undefined, evidence?: boolean): Promise<T | undefined>;
+  transact<T>(operation: (record: LogoutJournal | undefined) => { record: LogoutJournal; value: T } | undefined, evidence = false): Promise<T | undefined> {
     return new Promise((resolve, reject) => {
       let tx: IDBTransaction;
       try { tx = this.db.transaction('journal', 'readwrite', { durability: 'strict' }); }
@@ -138,13 +148,39 @@ export class IndexedDbLogoutStore {
           const request = bucket.get('login');
           request.onsuccess = () => {
             if (outcome.phase === 'failed') return;
-            try {
-              if (request.result !== undefined) validate(request.result);
-              const change = operation(request.result);
-              if (change) { validate(change.record); bucket.put(change.record, 'login'); }
-              // Request success stages only; strict commit publishes.
-              outcome = { phase: 'staged', value: change?.value };
-            } catch (cause) { fail(cause); }
+            const apply = (bytes?: unknown) => {
+              try {
+                const record: unknown = request.result;
+                if (record !== undefined) {
+                  validate(record);
+                  if (record.issuance?.bytes !== undefined) throw new ClientError('storage_corrupt');
+                  if (evidence && record.issuance?.untilNs !== undefined) {
+                    if (!(bytes instanceof Uint8Array)) throw new ClientError('storage_corrupt');
+                    record.issuance.bytes = bytes;
+                  } else if (bytes !== undefined) throw new ClientError('storage_corrupt');
+                  validate(record, evidence);
+                } else if (bytes !== undefined) throw new ClientError('storage_corrupt');
+                const change = operation(record);
+                if (change) {
+                  validate(change.record, evidence);
+                  const op = change.record.issuance;
+                  const persisted = { ...change.record };
+                  if (op) {
+                    const { bytes: frame, ...metadata } = op;
+                    persisted.issuance = metadata;
+                    if (evidence && frame) bucket.put(frame, 'credential');
+                  }
+                  if (op?.untilNs === undefined) bucket.delete('credential');
+                  bucket.put(persisted, 'login');
+                }
+                // Request success stages only; strict commit publishes both keys.
+                outcome = { phase: 'staged', value: change?.value };
+              } catch (cause) { fail(cause); }
+            };
+            if (evidence) {
+              const frame = bucket.get('credential');
+              frame.onsuccess = () => { if (outcome.phase !== 'failed') apply(frame.result); };
+            } else apply();
           };
         };
       } catch (cause) { fail(cause); }

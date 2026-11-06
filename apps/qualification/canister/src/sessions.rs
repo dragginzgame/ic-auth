@@ -23,7 +23,7 @@ pub(crate) use ic_auth_qualification_fixtures::sessions as contract;
 use ic_auth_wire::{SessionInput, SessionView, model::AdmissionRefusal};
 use ic_platform::Principal;
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 const SECOND: u64 = 1_000_000_000;
 const MAX_SESSIONS: usize = 8;
 const MAX_REPLAYS: usize = 32;
@@ -77,6 +77,7 @@ struct Receiver {
     read_scopes: RequiredScopes,
     write_scopes: RequiredScopes,
 }
+thread_local! { static FRESH_BOOT: Cell<bool> = const { Cell::new(true) }; }
 thread_local! { static RECEIVER: RefCell<Option<Receiver>> = const { RefCell::new(None) }; }
 struct ReceiverInputs {
     config: ReceiverConfig,
@@ -233,24 +234,19 @@ fn install_session_receiver(config: controls::model::ReceiverConfig) -> Result<(
     {
         return Err(Refusal::InvalidAuthority);
     }
-    let mut inputs = ReceiverInputs {
+    if !FRESH_BOOT.with(Cell::get) || RECEIVER.with(|state| state.borrow().is_some()) {
+        return Err(Refusal::ReceiverUnavailable);
+    }
+    let inputs = ReceiverInputs {
         config,
         login_floor: 0,
         proof_floor: 0,
     };
-    let mut ctx = inputs.claims_context(Principal::anonymous(), now);
-    ctx.advance_reset_floors(0).map_err(|_| Refusal::Clock)?;
-    let floors = (
-        ctx.authority.min_login_started_at_ns,
-        ctx.min_proof_issued_at_ns,
-    );
-    inputs.login_floor = floors.0;
-    inputs.proof_floor = floors.1;
     let ledger = MemoryLoginRevocations::new(
         inputs.config.audience,
         MAX_ADMITTED_LOGINS,
         MAX_UNKNOWN_LOGINS,
-        0,
+        86_400_000_000_000,
         now,
     )
     .map_err(|_| Refusal::Session)?;

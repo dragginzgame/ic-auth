@@ -53,6 +53,101 @@ fn context<'a>(
     }
 }
 
+// Clock-independent admission bounds and lost-state counterexample (#127).
+#[test]
+fn clock_contract_signed_deadline_bounds_every_renewal_without_an_offset_estimate() {
+    for mechanism in [PortableMechanism::Certified, PortableMechanism::Ed25519] {
+        // Translate the issuer's whole window, rather than assuming its epoch is
+        // near the receiver's. Only receiver-local comparisons decide validity.
+        for start in [0, 1, 1_000, 86_400_000_000_000, u64::MAX - 200] {
+            let mut value = claims();
+            value.mechanism = mechanism;
+            value.login_started_at_ns = start;
+            value.login_deadline_ns = start + 100;
+            let grants = ValidatedGrants::new(value.grants.clone()).unwrap();
+            let trusted = value.clone();
+            let mut host = context(&trusted, &grants);
+            host.authority.authority_expires_at_ns = u64::MAX;
+            host.authority.enrollment_expires_at_ns = u64::MAX;
+            host.authority.min_login_started_at_ns = 0;
+            host.min_proof_issued_at_ns = 0;
+            // Enumerate every positive proof window within this small login.
+            for issued in start..value.login_deadline_ns {
+                value.issued_at_ns = issued;
+                for expiry in issued + 1..=(issued + 60).min(value.login_deadline_ns) {
+                    value.admission_expires_at_ns = expiry;
+                    host.authority.now_ns = issued;
+                    assert_eq!(validate_claims_context(&value, &host), Ok(()));
+                    host.authority.now_ns = value.login_deadline_ns;
+                    assert_eq!(validate_claims_context(&value, &host), Err(Error::Expired));
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn local_timestamp_floor_cannot_fence_a_lost_login() {
+    for mechanism in [PortableMechanism::Certified, PortableMechanism::Ed25519] {
+        let mut old = claims();
+        old.mechanism = mechanism;
+        // An old login can already exist at issuer time 40 when receiver boots
+        // at 30. A local time floor does not prove this login is new.
+        old.login_started_at_ns = 40;
+        old.issued_at_ns = 40;
+        let grants = ValidatedGrants::new(old.grants.clone()).unwrap();
+        let mut host = context(&old, &grants);
+        host.authority.min_login_started_at_ns = 31;
+        host.min_proof_issued_at_ns = 31;
+        assert_eq!(
+            validate_claims_context(&old, &host),
+            Err(Error::NotYetValid)
+        );
+        host.authority.now_ns = 40;
+        assert_eq!(validate_claims_context(&old, &host), Ok(()));
+        // A fresh renewal of that same pre-reset login also passes this floor.
+        let mut renewed = old.clone();
+        renewed.issued_at_ns = 41;
+        host.authority.now_ns = 41;
+        assert_eq!(validate_claims_context(&renewed, &host), Ok(()));
+    }
+}
+
+#[test]
+fn ninety_day_login_ceiling_keeps_short_proofs_and_stricter_host_policy() {
+    const LOGIN: u64 = 90 * 86_400_000_000_000;
+    const PROOF: u64 = 60_000_000_000;
+    for mechanism in [PortableMechanism::Certified, PortableMechanism::Ed25519] {
+        let mut value = claims();
+        value.mechanism = mechanism;
+        value.login_deadline_ns = value.login_started_at_ns + LOGIN;
+        value.admission_expires_at_ns = value.issued_at_ns + PROOF;
+        let trusted = value.clone();
+        let grants = ValidatedGrants::new(trusted.grants.clone()).unwrap();
+        let mut host = context(&trusted, &grants);
+        host.max_login_ttl_ns = LOGIN;
+        host.max_proof_ttl_ns = PROOF;
+        assert_eq!(validate_claims_context(&value, &host), Ok(()));
+        host.max_login_ttl_ns = LOGIN - 1;
+        assert_eq!(
+            validate_claims_context(&value, &host),
+            Err(Error::InvalidWindow)
+        );
+        host.max_login_ttl_ns = LOGIN;
+        value.login_deadline_ns += 1;
+        assert_eq!(
+            validate_claims_context(&value, &host),
+            Err(Error::InvalidWindow)
+        );
+        value.login_deadline_ns -= 1;
+        value.admission_expires_at_ns += 1;
+        assert_eq!(
+            validate_claims_context(&value, &host),
+            Err(Error::InvalidWindow)
+        );
+    }
+}
+
 #[test]
 fn both_mechanisms_use_identical_strict_time_rules() {
     for mechanism in [PortableMechanism::Certified, PortableMechanism::Ed25519] {
@@ -217,7 +312,7 @@ fn impossible_or_overlong_windows_and_policy_are_refused_without_wrapping() {
             Err(Error::InvalidWindow)
         );
     }
-    for max in [0, 86_400_000_000_001, u64::MAX] {
+    for max in [0, 7_776_000_000_000_001, u64::MAX] {
         let checked_grants = ValidatedGrants::new(trusted.grants.clone()).unwrap();
         let mut host = context(&trusted, &checked_grants);
         host.max_login_ttl_ns = max;
@@ -246,108 +341,4 @@ fn impossible_or_overlong_windows_and_policy_are_refused_without_wrapping() {
     host.authority.authority_expires_at_ns = u64::MAX;
     host.authority.enrollment_expires_at_ns = u64::MAX;
     assert_eq!(validate_claims_context(&boundary, &host), Ok(()));
-}
-
-#[test]
-fn reset_cutoffs_cover_issuer_ahead_clocks_and_reject_renewed_old_logins() {
-    for mechanism in [PortableMechanism::Certified, PortableMechanism::Ed25519] {
-        let mut original = claims();
-        original.mechanism = mechanism;
-        // At receiver boot time 30 the issuer could already have issued at 35.
-        original.login_started_at_ns = 35;
-        original.issued_at_ns = 35;
-        let checked_grants = ValidatedGrants::new(original.grants.clone()).unwrap();
-        let mut host = context(&original, &checked_grants);
-        host.advance_reset_floors(5).unwrap();
-        assert_eq!(
-            (
-                host.authority.min_login_started_at_ns,
-                host.min_proof_issued_at_ns
-            ),
-            (36, 31)
-        );
-        host.authority.now_ns = 40;
-        assert_eq!(
-            validate_claims_context(&original, &host),
-            Err(Error::BeforeReset)
-        );
-        let mut renewed = original.clone();
-        renewed.issued_at_ns = 40;
-        renewed.admission_expires_at_ns = 100;
-        assert_eq!(
-            validate_claims_context(&renewed, &host),
-            Err(Error::BeforeReset)
-        );
-        // A fresh login beyond the margin is eligible, with a distinct browser key.
-        let mut fresh = renewed;
-        fresh.browser_public_key = [9; 32];
-        fresh.login_started_at_ns = 36;
-        host.authority.caller = browser_principal(&fresh.browser_public_key);
-        assert_eq!(validate_claims_context(&fresh, &host), Ok(()));
-        host.authority.now_ns = 39;
-        assert_eq!(
-            validate_claims_context(&fresh, &host),
-            Err(Error::NotYetValid)
-        );
-        host.authority.now_ns = 100;
-        assert_eq!(validate_claims_context(&fresh, &host), Err(Error::Expired));
-    }
-}
-
-#[test]
-fn reset_cutoffs_never_decrease_or_partially_change_on_overflow() {
-    let c = claims();
-    let checked_grants = ValidatedGrants::new(c.grants.clone()).unwrap();
-    let mut host = context(&c, &checked_grants);
-    host.advance_reset_floors(5).unwrap();
-    host.advance_reset_floors(0).unwrap();
-    assert_eq!(
-        (
-            host.authority.min_login_started_at_ns,
-            host.min_proof_issued_at_ns
-        ),
-        (36, 31)
-    );
-    host.authority.now_ns = 50;
-    host.advance_reset_floors(0).unwrap();
-    assert_eq!(
-        (
-            host.authority.min_login_started_at_ns,
-            host.min_proof_issued_at_ns
-        ),
-        (51, 51)
-    );
-    for (now, skew) in [(u64::MAX, 0), (u64::MAX - 1, 1), (50, u64::MAX)] {
-        host.authority.now_ns = now;
-        assert_eq!(host.advance_reset_floors(skew), Err(Error::InvalidContext));
-        assert_eq!(
-            (
-                host.authority.min_login_started_at_ns,
-                host.min_proof_issued_at_ns
-            ),
-            (51, 51)
-        );
-    }
-    host.authority.now_ns = u64::MAX - 1;
-    host.advance_reset_floors(0).unwrap();
-    assert_eq!(
-        (
-            host.authority.min_login_started_at_ns,
-            host.min_proof_issued_at_ns
-        ),
-        (u64::MAX, u64::MAX)
-    );
-    let checked_grants = ValidatedGrants::new(c.grants.clone()).unwrap();
-    let mut origin = context(&c, &checked_grants);
-    origin.authority.now_ns = 0;
-    origin.authority.min_login_started_at_ns = 0;
-    origin.min_proof_issued_at_ns = 0;
-    origin.advance_reset_floors(0).unwrap();
-    assert_eq!(
-        (
-            origin.authority.min_login_started_at_ns,
-            origin.min_proof_issued_at_ns
-        ),
-        (1, 1)
-    );
 }

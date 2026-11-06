@@ -105,7 +105,8 @@ fn profile(name: &str, roles: usize, scopes: usize, iterations: u16) -> Value {
         },
     };
     let mut store = MemorySessionStore::new(0, SessionLimits::new(4, 8, 4, 65_536).unwrap());
-    let mut ledger = MemoryLoginRevocations::new(claims.audience, 4, 4, 0, NOW).unwrap();
+    let mut ledger =
+        MemoryLoginRevocations::new(claims.audience, 4, 4, 86_400_000_000_000, NOW).unwrap();
     let mut budget = SessionAdmissionBudget::new(1, NOW, 0).unwrap();
     let policy = SessionPolicy {
         generation: 0,

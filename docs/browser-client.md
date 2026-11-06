@@ -44,7 +44,7 @@ under [#507](https://github.com/dragginzgame/canic/issues/507).
 ## SDK boundary
 
 The client imports Principal, identity, Agent/CBOR and signing-request/expiry APIs
-from published `@tokostudios/ic-platform` 0.1.1. Platform owns the exact transitive
+from published `@tokostudios/ic-platform` 0.2.0. Platform owns the exact transitive
 SDK Core 6.1.1 selection; there is no direct Core dependency or local SDK facade.
 Existing SDK identities, explicit trust roots, zero retries, before/after signing
 authority checks, Wire bytes and uncertain-effect recovery remain unchanged.
@@ -55,12 +55,13 @@ its application code imports Platform. This guard is not runtime/browser proof.
 
 ## Application transport hard cut
 
-Auth uses `crates/ic-auth-wire/` with published IC Wire 0.13.1 native
+Auth uses `crates/ic-auth-wire/` with published IC Wire 0.17.4 native
 Serde. Released Auth 0.14 uses Wire 0.5; update receivers and generated clients
 together. Admission changes its ID to `0x415554480012` to isolate zero-based
-refusal tags; the retired ID is refused. Credential/read/logout identities and
-frozen frames remain unchanged. No browser storage reset or journal migration
-is needed. See [consumer selection](canic-adoption.md#wire-transport).
+refusal tags; the retired ID is refused. Credential/read identities and frames remain unchanged. The current logout
+hard cut selects `0x415554480014` and adds explicit `Unconfirmed`; update receiver
+and browser together. The retired logout identity is refused. The private browser
+journal is also retired explicitly as described below. See [consumer selection](canic-adoption.md#wire-transport).
 Serde declaration order, bounded fields, explicit native traversal limits and
 method identities own the Rust codecs and generated TypeScript contracts.
 Metadata derives belong only to the host generator, not deployed dependencies.
@@ -160,9 +161,10 @@ durably before admission and returns a generation-guarded identity on success.
 Ordinary calls carry no proof; receivers check their caller-bound local session.
 
 Auth 0.14 requires the identity object instead of the former single signer.
-`account` authenticates `issue`/`reconcile` to the issuer; `browser` is the fresh,
+`account` authenticates initial `issue` and sequence-zero reconciliation to the issuer; `browser` is the fresh,
 directly authenticated receiver login and the only identity returned for ordinary
-calls. Start the logout journal with `browser` and use that identity for receiver
+calls. After initial completion, `account` may be omitted when reopening; renewal
+and its reconciliation authenticate with the retained browser key. Start the logout journal with `browser` and use that identity for receiver
 logout. Do not use a different delegated signing key as proof of a different
 principal: ordinary ingress delegation preserves its delegating caller.
 
@@ -183,33 +185,45 @@ to remain signed in. The issuer's logout endpoint must resolve that browser logi
 to its original issuance/account binding; it cannot treat the browser caller as a
 new account subject. This does not provide a production issuer logout endpoint.
 
-The journal atomically claims issuance before dispatch. The first claimant calls
-`issue`; overlapping instances, reloads and uncertain attempts use `reconcile`.
-The sole journal claim API is `claimIssuance(generation)`: `true` permits the first
-issuance attempt, while `false` requires reconciliation. Direct adapters must
-check that result. The redundant `issuing()` wrapper is removed; this changes no
-stored journal bytes and does not clear unknown issuance evidence.
-Reconciliation must recover the original material or refuse unresolved; it must
-not issue a replacement, extend a deadline or infer no effect from absent/pruned
-evidence. The transport owns exact intent persistence and the crash boundary
-between journal claim and issuer dispatch. It must authenticate admission replies.
-A production issuer/reconciliation adapter remains unimplemented here.
-Its exact saved intent must also bind the original account caller and browser
-public key. Reopening with a different account must not recover or reissue for
-the old intent. The logout journal's unchanged profile does not store that issuer
-request/account binding; this remains the issuer adapter's existing intent owner.
-Do not recover it by replacing the account caller with the browser principal.
+The journal commits one issuance sequence before dispatch. Sequence zero's first
+claim calls `issue`; later first claims call `renew(browser, sequence, signal)`.
+A pending claim always uses lookup-only `reconcile(identity, sequence, signal)`.
+The issuer must durably bind each sequence to the original browser/account binding,
+request/grants and exact completed bytes/deadline. Missing/pruned evidence remains
+unresolved; it never permits replacement issuance. Initial reconciliation uses the
+account identity; later sequences use the browser key. A completed credential is
+stored before any receiver dispatch and reused across connections and receivers.
+Completed evidence permits the next sequence on proof expiry or when readiness
+must refresh the sequence used by an expired receiver lease. A pending sequence
+always remains lookup-only, even across timeout/reopen. Newer completed sequences
+are shared across receivers rather than renewed again for each stale lease.
+Recovering an already expired result records its completion. Explicit `establish`
+returns `retrieval_expired`; readiness can then make one fresh-proof attempt
+within its bounded preparation, after uncertainty has been resolved. There is no
+unbounded automatic retry loop.
+
+`claimCredential` is the sole intent owner. Direct adapters must honor its first/
+lookup decision and `completeCredential`'s exact-result commit. The host issuer
+must serialize renewal with revocation and recheck authority after signing work;
+it must not create a new login, slide its deadline or widen grants using a browser
+key. A production issuer/reconciliation endpoint is not implemented here. Resetting
+client sequence numbers must never let an issuer recreate a consumed binding.
+The initial issuer intent still owns the exact account caller/public-key pairing;
+no browser-supplied field can replace account authentication for a new login.
 
 `httpAdmissionTransport({ host, methodName, scopes, ttlSecs?, rootKey?, fetch? })`
 supplies the receiver `admit` operation. Compose it with the application's existing
-`issue` and non-issuing `reconcile` operations; it installs no issuer endpoint or
+`issue`, browser-bound `renew` and non-issuing `reconcile` operations; it installs no issuer endpoint or
 recovery policy. The method must implement the shared `EstablishSession` Wire
 contract. Scopes and requested TTL are fixed when the adapter is constructed.
 The adapter encodes through the generated codec, uses the current guarded signer,
 submits one update, authenticates the reply through the SDK and decodes the bounded
 response. HTTP acceptance alone is insufficient; a receiver error refuses and a
 successful reply must name the same caller. Root trust is explicit, never fetched
-from credentials or an endpoint. The coordinator retains retry and logout rules.
+from credentials or an endpoint. It returns the decoded `AdmissionReceipt`. The coordinator exposes detached
+`sessionReceipt(receiver)` metadata for scheduling, never as authorization. Its
+expiry is in the receiver clock domain; the host owns any browser-clock mapping.
+Reopening has no retained receiver session authority: establish again before use.
 
 Auth 0.14 changes only admission's error reply from text to the bounded
 `AdmissionRefusal` enum. Receiver adapters use the core
@@ -223,7 +237,8 @@ and read/logout contracts are unchanged.
 `NotYetValid` is a retry hint, not evidence that the submitted proof is valid.
 The caller may explicitly retry the identical credential with bounded backoff
 inside its original proof/operation deadline and active login generation. Neither
-the transport nor coordinator automatically retries or renews. Expiry, invalid
+the transport nor coordinator retries that refusal automatically. A later
+explicit establishment may renew a completed expired proof, never a pending one. Expiry, invalid
 signatures, authority failures, reset and other refusal tags must not be treated
 as future-start hints. Never parse diagnostic strings to select retry policy.
 
@@ -241,9 +256,29 @@ reused across receivers. The transport supplies `admissionUntilNs` conservativel
 in the journal clock domain; recovery never resets that deadline relative to
 retrieval. Concurrent calls for one receiver share a bounded in-flight admission;
 other receivers proceed independently. Completed calls are not session authority.
-There is no automatic renewal or application-operation retry.
+A later `establish` renews an expired completed proof without account authentication.
+No background worker or application-operation replay is installed. Applications
+can opt into `ensureSession(receiver, refreshTime)` before constructing their
+receiver SDK agent. It returns a receiver-bound identity that checks readiness
+before signing each new call/query, including after suspension. A live receipt
+hint needs only small journal metadata, with no proof load or issuer/admission
+request. Expired hints refresh through the sequence that created the lease; a
+short lease can therefore renew before the old proof expires. The host supplies
+the conservative refresh time in the journal clock domain using the detached
+receipt's receiver-domain deadline. No cross-canister offset or grace is inferred.
 
-One coordinator permits at most 64 outstanding `establish` calls, including
+After reopen, readiness first attempts admission with retained exact evidence.
+An authenticated typed `Expired` refusal permits one fresh-proof admission retry.
+An exactly recovered expired proof can also refresh once, after its completed
+sequence is persisted. There are at most two preparation attempts; other refusals
+and uncertain transport outcomes propagate without that retry. This retries only Auth admission, never an
+application operation. Read-state polling of an already submitted request bypasses
+readiness, while keeping logout checks. Fresh mapped deadlines already reached
+return `lease_expired` without an admission loop. Explicit `establish` remains a
+forced admission with no expiry retry. Receiver guards remain authoritative even
+when the browser hint appears live; authority changes can invalidate a lease.
+
+One coordinator permits at most 64 outstanding establishment/readiness operations, including
 duplicates waiting for issuance or journal work. Further calls return
 `storage_capacity` before opening another transaction. Each completion, refusal
 or timeout returns its capacity; this does not clear the journal or permit
@@ -257,23 +292,70 @@ identity. Durable generation/lease checks surround signing and completion. Logou
 rejects late results; already signed/accepted requests cannot be recalled.
 Receiver proof expiry, authority, replay, scope and atomicity checks remain mandatory.
 
+## Ninety-day remembered login
+
+Auth now admits original login windows up to 90 days when protected host policy
+selects that ceiling. Hosts can retain shorter policies. The proof ceiling remains
+60 seconds and receiver leases remain at most 30 minutes, clamped by current
+key/enrollment validity. Login start and absolute deadline are immutable across
+renewals. This changes policy, not canonical signed fields or Rust record layouts.
+Issuer key rotation and fresh enrollment remain independent; do not keep issuer
+keys or certificates valid for 90 days to avoid account prompts.
+
+The browser renewal coordinator and durable sequence recovery are implemented.
+A resumed browser can use its original identity without an account provider once
+initial issuance completed. Exact evidence is retained across reopen; uncertain
+issuance never becomes a new operation simply because time passed. Logout commits
+local invalidation and deletes retained evidence before network cleanup, fencing
+late issuance/renewal/admission results. Sensitive-action reauthentication and the
+chosen login duration remain Toko policy.
+
+A production remembered-device experience additionally requires application-owned
+durable browser-key custody, a Canic issuer implementing this binding/sequence
+contract, the host clock mapping and SDK readiness wiring, and installed acceptance. Auth stores no private
+key and installs neither issuer endpoints nor application callbacks. Clearing or
+evicting key storage requires account authentication again. Ordinary application
+calls remain local, with no proof verification or receiver-to-issuer lookup.
+No browser timer is required for safety, and submitted mutations must never be
+replayed automatically after uncertain replies.
+
+`MemoryLoginRevocations::new` now requires the protected host's maximum login
+TTL before its local time input. Use the same or a stricter admission ceiling.
+Reservations and restored records refuse longer windows. Known denial ends at
+the signed original deadline; unknown denial uses the host ceiling and remains
+unconfirmed. Renewal reuses a login reservation and short replay retention.
+Fixed quotas still need deployment sizing; no size or instruction saving is claimed.
+
+[#127's clock-independent contract](design/portable-clock-audit.md) removes the
+unqualified skew precondition. It does not permit automatic recovery after lost
+state or prove revocation at an unseen receiver. Canic owns actual persistent
+binding/receiver adapters, production refusal and installed acceptance; this batch
+changes Auth only.
+
 ## Durable logout and guarded identities
 
 `IndexedDbLogoutStore` uses one dedicated application-owned database per login.
-The unchanged `ic-auth-logout-journal-v1` profile stores no secret or credential:
+The `ic-auth-local-logout-journal-v1` profile stores no signing key. Metadata includes
 caller, issuer, generation, clock, destination/deadline inventory, attempts,
 acknowledgements and conservative unknown-issuance state. Opening and strict transaction lifecycle now live directly with the sole journal
-owner; no generic token-store callbacks remain. Strict transactions
+owner. One bounded exact credential frame is stored under a separate key and
+loaded only by issuance/admission operations. Ordinary guards and status load only
+metadata. Evidence and metadata commit atomically in the same strict transaction.
+The maintainer confirmed no retained old portable-journal records on 2026-11-06:
+`ic-auth-logout-journal-v1` and the unreleased remembered-login profile are retired
+and refused, never migrated or silently reset. Strict transactions
 commit durable invalidation before any network fan-out; corruption, profile drift,
 clock rollback and conflicting state refuse instead of clearing records.
 
 The inventory is bounded at 64 destinations including the issuer, with at most
 eight attempts each. `begin` commits cleanup and its finite deadline first.
 `cleanup` persists a dispatch lease/attempt before calling each destination.
-Capacity and uncertain replies do not acknowledge revocation; a final attempt is
-reserved until after the admission window. Crash/reload and suspended tabs share
+Capacity, `Unconfirmed` and uncertain replies do not acknowledge revocation.
+Retries use bounded local backoff; they do not wait for a remote-expiry estimate. Crash/reload and suspended tabs share
 the journal. Only authenticated `Revoked` replies acknowledge that destination;
-issuer confirmation does not erase historical unknown issuance.
+issuer confirmation does not erase historical unknown issuance. The local clock
+must remain stable across reloads and reject rollback; it needs no safety-critical
+IC offset bound. Cleanup may end before a scheduling hint for remote admission.
 
 Call `begin` directly when logout is requested; do not await admission flights
 before invalidating the generation. Repeated `begin` calls keep the original

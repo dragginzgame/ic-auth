@@ -102,7 +102,7 @@ impl ReadSession {
 /// Caller-authenticated logout; no submitted proof or caller identity is trusted.
 pub struct Logout;
 impl Logout {
-    pub const ID: u64 = 0x415554480004;
+    pub const ID: u64 = 0x415554480014;
     pub const NAME: &'static str = "logout_portable_session";
     pub const REQUEST_LIMITS: Limits = EMPTY_LIMITS;
     pub const RESPONSE_LIMITS: Limits = REPLY_LIMITS;

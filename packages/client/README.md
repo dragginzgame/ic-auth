@@ -23,8 +23,9 @@ Rust-owned generated Wire codecs. Its SDK boundary is
 its identities, Principals or Agent APIs. Internal paths are not exported.
 
 Use separate account and fresh browser identities. The account authenticates
-issuer operations; the browser identity admits and calls receivers. Consumers
-provide `issue` and lookup-only `reconcile`, protected issuer/root configuration,
+initial issuance; the retained browser identity renews the original login, admits
+and calls receivers. Account identity may be omitted after initial completion. Consumers
+provide `issue`, browser-bound `renew` and sequence-specific lookup-only `reconcile`, protected issuer/root configuration,
 application-owned IndexedDB, clocks and key custody. The HTTP transports supply
 receiver admission/logout, not issuer endpoints. Preserve exact issuance intent,
 original deadlines and unknown effects. Authentication grants no resource ownership.
@@ -69,3 +70,25 @@ establishes an older compiler floor, Canic endpoint integration, production
 issuer behavior or TEE custody.
 The full maintained contract is in `docs/browser-client.md` in the source
 repository; Canic production acceptance remains #491/#507 there.
+
+The remembered-login journal retains one bounded exact credential separately from
+its small guard metadata. Completed proof expiry permits a new renewal sequence;
+lost replies require exact lookup. The old portable-journal profile is retired
+with maintainer confirmation of no retained records; unknown profiles are refused,
+never reset. Auth supports protected login windows up to 90 days, with short
+proofs and receiver leases. Hosts own persistent key custody and issuer bindings.
+`sessionReceipt(receiver)` returns detached scheduling metadata in receiver time;
+receiver authorization remains authoritative. No background timer or application
+mutation retry is installed. Known-login logout is confirmed only after committed
+denial; unseen-login denial stays explicitly unconfirmed. Local cleanup timeouts
+do not prove remote expiry. Canic production adoption remains consumer-owned.
+
+Use `ensureSession(receiver, refreshTime)` to obtain a receiver-bound SDK identity
+that prepares a lease before each new call/query, including after browser resume.
+The host supplies a conservative receiver-expiry-to-journal-clock mapping; Auth
+does not infer one. Live lease hints skip proof work and network admission. Short
+leases refresh the completed credential sequence even before proof expiry; pending
+sequences remain lookup-only. After reopen, an authenticated expiry refusal allows
+one fresh-proof admission retry. Polling already submitted requests never renews,
+and application operations are never replayed. `establish` remains explicit forced
+admission. The remembered device key and actual issuer binding remain host-owned.

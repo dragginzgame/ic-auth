@@ -63,7 +63,7 @@ pub fn claims_context(
     ic_auth::portable::PortableClaimsContext {
         authority,
         min_proof_issued_at_ns: 0,
-        max_login_ttl_ns: 86_400_000_000_000,
+        max_login_ttl_ns: 90 * 86_400_000_000_000,
         max_proof_ttl_ns: 60_000_000_000,
     }
 }

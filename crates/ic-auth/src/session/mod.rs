@@ -341,7 +341,9 @@ pub fn authorize_session<T>(
 
 /// Authenticate logout with the runtime caller even if proof/enrollment expired
 /// or admission is disabled. Commit session removal before acknowledging denial;
-/// replay records remain. Host startup readiness and serialization still apply.
+/// replay records remain. Only a retained authenticated login window permits
+/// `Revoked`; an unseen login gets bounded temporary denial and `Unconfirmed`.
+/// Host startup readiness, complete safety state and serialization still apply.
 pub fn logout_session(
     store: &mut impl SessionStore,
     ledger: &mut MemoryLoginRevocations,
@@ -349,14 +351,21 @@ pub fn logout_session(
     caller: Principal,
     now_ns: u64,
 ) -> LogoutResult {
+    let mut confirmed = false;
     let result = ledger.with_revocation(unknown_budget, caller, now_ns, |change| {
         store
             .logout(change)
-            .map_err(|_| LoginRevocationError::Storage)
+            .map_err(|_| LoginRevocationError::Storage)?;
+        confirmed = matches!(
+            change.state(),
+            crate::portable::LoginRecordState::Revoked(Some(_))
+        );
+        Ok::<_, LoginRevocationError>(())
     });
     // Backend diagnostics stay host-side; never acknowledge a failed commit.
     match result {
-        Ok(deny_until_ns) => LogoutResult::Revoked { deny_until_ns },
+        Ok(deny_until_ns) if confirmed => LogoutResult::Revoked { deny_until_ns },
+        Ok(deny_until_ns) => LogoutResult::Unconfirmed { deny_until_ns },
         Err(LoginRevocationError::InvalidCaller) => LogoutResult::InvalidCaller,
         Err(LoginRevocationError::Capacity) => {
             LogoutResult::Unavailable(LogoutUnavailable::Capacity)

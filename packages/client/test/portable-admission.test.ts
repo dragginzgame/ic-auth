@@ -2,10 +2,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { IDBFactory } from 'fake-indexeddb';
 import { Principal } from '@tokostudios/ic-platform/principal';
-import { Endpoint, SubmitRequestType, Expiry, type Identity } from '@tokostudios/ic-platform/agent';
+import { Endpoint, SubmitRequestType, ReadRequestType, Expiry, type Identity } from '@tokostudios/ic-platform/agent';
 import { Ed25519KeyIdentity } from '@tokostudios/ic-platform/identity';
-import { PortableAdmissionClient, PortableLogoutClient, IndexedDbLogoutStore, ClientError,
-  type AdmissionCredential, type PortableAdmissionTransport } from '../src/index.js';
+import { PortableAdmissionClient, PortableLogoutClient, IndexedDbLogoutStore, ClientError, AdmissionError,
+  credentialBytes, type AdmissionReceipt, type AdmissionCredential, type PortableAdmissionTransport } from '../src/index.js';
 import { MAX_TARGETS } from '../src/logout-store.js';
 
 const MS = 1_000_000n;
@@ -14,6 +14,10 @@ const account = Ed25519KeyIdentity.generate(new Uint8Array(32).fill(81));
 const issuer = Principal.fromUint8Array(new Uint8Array([1]));
 const a = Principal.fromUint8Array(new Uint8Array([2]));
 const b = Principal.fromUint8Array(new Uint8Array([3]));
+function receipt(): AdmissionReceipt {
+  return { caller: identity.getPrincipal().toUint8Array(), issuer: issuer.toUint8Array(),
+    subject: account.getPrincipal().toUint8Array(), expires_at_ns: 100_000_000_000n };
+}
 function deferred<T>() {
   let resolve!: (value: T) => void;
   const promise = new Promise<T>(done => { resolve = done; });
@@ -38,12 +42,12 @@ async function fixture() {
   };
   const transport: PortableAdmissionTransport = {
     issue: async caller => { assert.equal(caller.getPrincipal().toText(), account.getPrincipal().toText()); state.issues++; assert.equal((await journal.status('login')).issuanceUnknown, true); return material; },
-    reconcile: async caller => { assert.equal(caller.getPrincipal().toText(), account.getPrincipal().toText()); state.reconciles++; return material; },
+    renew: async () => { throw new Error('unexpected renewal in this fixture'); }, reconcile: async caller => { assert.equal(caller.getPrincipal().toText(), account.getPrincipal().toText()); state.reconciles++; return material; },
     admit: async (target, caller, credential) => {
       assert.equal(caller.getPrincipal().toText(), identity.getPrincipal().toText());
       assert.ok((await journal.status('login')).targets.some(t => t.canister === target.toText()));
       assert.deepEqual(credential.claims, new Uint8Array([1, 2, 3]));
-      state.admissions.push(target.toText());
+      state.admissions.push(target.toText()); return receipt();
     },
   };
   const client = () => new PortableAdmissionClient(journal, 'login', { browser: identity, account }, issuer, transport);
@@ -63,7 +67,7 @@ for (const phase of ['issuance', 'admission'] as const) {
           f.state.issues++; entered.resolve(); await release.promise; return f.material;
         };
       } else {
-        f.transport.admit = async () => { entered.resolve(); await release.promise; };
+        f.transport.admit = async () => { entered.resolve(); await release.promise; return receipt(); };
       }
       pending = Promise.allSettled(Array.from({ length: MAX_TARGETS }, () => client.establish(a)));
       await entered.promise;
@@ -127,8 +131,11 @@ test('one issuance serves multiple receivers; each destination is durable before
     (f.material.credential.claims as Uint8Array).fill(9);
     await client.establish(a); // cached signed bytes were detached from the adapter
     f.state.now = f.material.admissionUntilNs;
-    await assert.rejects(client.establish(b), (e: ClientError) => e.code === 'retrieval_expired');
-    assert.equal(f.state.issues, 1); // no automatic renewal or application-call retry
+    let renewals = 0;
+    f.transport.renew = async () => { renewals++; throw new ClientError('transport'); };
+    await assert.rejects(client.establish(b), (e: ClientError) => e.code === 'transport');
+    assert.equal(renewals, 1);
+    assert.equal(f.state.issues, 1); // renewal never repeats account issuance
   } finally { f.store.close(); }
 });
 
@@ -148,6 +155,7 @@ test('mutable SDK Principal cannot retarget admission beyond its durable logout 
       // change the signer's permitted target after that target was journaled.
       target.toUint8Array().set(b.toUint8Array());
       await caller.transformRequest(signingRequest(caller, target));
+      return receipt();
     };
     const client = new PortableAdmissionClient(f.journal, 'login', { browser, account }, issuer, f.transport);
     await assert.rejects(client.establish(Principal.fromText(a.toText())),
@@ -303,6 +311,7 @@ test('concurrent first contact shares one receiver update while another receiver
     f.transport.admit = async target => {
       calls.push(target.toText());
       if (target.toText() === a.toText()) { entered.resolve(); await release.promise; }
+      return receipt();
     };
     pending.push(client.establish(a));
     await entered.promise;
@@ -338,6 +347,7 @@ test('shared admission failure permits explicit retry with the same proof and ne
         entered.resolve(); await release.promise;
         throw new Error('lost admission reply');
       }
+      return receipt();
     };
     const first = client.establish(a);
     await entered.promise;
@@ -370,7 +380,7 @@ test('admission timeout releases the shared attempt and rejects its retained sig
   try {
     f.transport.admit = async (_target, caller) => {
       calls++; retained = caller; entered.resolve();
-      return new Promise<void>(() => {});
+      return new Promise<AdmissionReceipt>(() => {});
     };
     const first = client.establish(a);
     const refused = assert.rejects(first, (e: ClientError) => e.code === 'timeout');
@@ -381,7 +391,7 @@ test('admission timeout releases the shared attempt and rejects its retained sig
     assert.ok(retained);
     await assert.rejects(retained.transformRequest({} as Parameters<typeof retained.transformRequest>[0]),
       (e: ClientError) => e.code === 'timeout');
-    f.transport.admit = async () => { calls++; };
+    f.transport.admit = async () => { calls++; return receipt(); };
     await client.establish(a);
     assert.equal(calls, 2);
     assert.equal(f.state.issues, 1);
@@ -400,16 +410,525 @@ test('lost issuance stays uncertain across client recreation; recovery never iss
     reopened = await IndexedDbLogoutStore.open(f.factory, 'admission');
     const journal = new PortableLogoutClient(reopened, { id: 'test-clock', nowNs: () => f.state.now, wait: async () => {} },
       { revoke: async () => ({ tag: 'Revoked', value: 100_000n * MS }), dispose: async () => {} });
-    f.transport.admit = async () => { f.state.admissions.push(b.toText()); };
+    f.transport.admit = async () => { f.state.admissions.push(b.toText()); return receipt(); };
     const recovered = () => new PortableAdmissionClient(journal, 'login', { browser: identity, account }, issuer, f.transport);
     await recovered().establish(b);
     assert.equal(f.state.issues, 1);
     assert.equal(f.state.reconciles, 1);
     f.transport.reconcile = async () => { throw new Error('unresolved'); };
-    await assert.rejects(recovered().establish(a), /unresolved/);
+    await recovered().establish(a); // Exact evidence survives coordinator recreation.
+    assert.equal(f.state.reconciles, 1);
     assert.equal((await journal.status('login')).issuanceUnknown, true);
     assert.equal(f.state.issues, 1);
   } finally { reopened?.close(); f.store.close(); }
+});
+
+test('browser-only renewal survives lost replies and journal reopen without account issuance', async () => {
+  const f = await fixture();
+  let reopened: IndexedDbLogoutStore | undefined;
+  let renewals = 0;
+  try {
+    await f.client().establish(a);
+    f.state.now = f.material.admissionUntilNs;
+    const renewed = { ...f.material, admissionUntilNs: f.state.now + 60_000n * MS };
+    f.transport.renew = async (signer, sequence) => {
+      assert.equal(signer.getPrincipal().toText(), identity.getPrincipal().toText());
+      assert.equal(sequence, 1n);
+      assert.deepEqual((await f.journal.status('login')).issuance, { sequence: 1n });
+      renewals++;
+      throw new ClientError('transport');
+    };
+    const browserOnly = (journal = f.journal) => new PortableAdmissionClient(journal, 'login', { browser: identity }, issuer, f.transport);
+    await assert.rejects(browserOnly().establish(a), ClientError);
+    f.transport.reconcile = async (_signer, sequence) => {
+      assert.equal(sequence, 1n);
+      throw new ClientError('transport');
+    };
+    await assert.rejects(browserOnly().establish(a), (e: ClientError) => e.code === 'transport');
+    // The unresolved sequence cannot advance just because a local timeout passes.
+    f.store.close();
+    reopened = await IndexedDbLogoutStore.open(f.factory, 'admission');
+    const journal = new PortableLogoutClient(reopened, { id: 'test-clock', nowNs: () => f.state.now, wait: async () => {} },
+      { revoke: async () => ({ tag: 'Revoked', value: 1n }), dispose: async () => {} });
+    f.transport.admit = async target => {
+      assert.ok((await journal.status('login')).targets.some(t => t.canister === target.toText()));
+      f.state.admissions.push(target.toText()); return receipt();
+    };
+    f.transport.reconcile = async (signer, sequence) => {
+      assert.equal(sequence, 1n);
+      assert.equal(signer.getPrincipal().toText(), identity.getPrincipal().toText());
+      f.state.reconciles++;
+      return renewed;
+    };
+    await browserOnly(journal).establish(b);
+    await browserOnly(journal).establish(a);
+    assert.equal(renewals, 1);
+    assert.equal(f.state.issues, 1);
+    assert.equal(f.state.reconciles, 1);
+    assert.equal((await journal.status('login')).issuance?.untilNs, renewed.admissionUntilNs);
+  } finally { reopened?.close(); f.store.close(); }
+});
+
+test('missing initial account identity leaves issuance intent untouched', async () => {
+  const f = await fixture();
+  try {
+    const client = new PortableAdmissionClient(f.journal, 'login', { browser: identity }, issuer, f.transport);
+    await assert.rejects(client.establish(a), (e: ClientError) => e.code === 'account_required');
+    assert.equal((await f.journal.status('login')).issuanceUnknown, false);
+    assert.equal((await f.journal.status('login')).issuance, undefined);
+    assert.equal(f.state.issues, 0);
+  } finally { f.store.close(); }
+});
+
+test('readiness keeps a live receiver lease after proof expiry without loading evidence', async t => {
+  const f = await fixture();
+  try {
+    const client = f.client();
+    const guarded = await client.establish(a);
+    f.state.now = f.material.admissionUntilNs;
+    const evidence = t.mock.method(f.journal, 'claimCredential');
+    const same = await client.ensureSession(a, value => value.expires_at_ns);
+    assert.equal(same.getPrincipal().toText(), guarded.getPrincipal().toText());
+    assert.equal(evidence.mock.callCount(), 0);
+    assert.equal(f.state.issues, 1);
+    assert.equal(f.state.admissions.length, 1);
+    await f.journal.begin('login', f.state.now + 10_000n * MS);
+    await assert.rejects(client.ensureSession(a, value => value.expires_at_ns),
+      (e: ClientError) => e.code === 'stale_generation');
+    await assert.rejects(same.transformRequest(signingRequest(same, a)),
+      (e: ClientError) => e.code === 'stale_generation');
+  } finally { f.store.close(); }
+});
+
+test('readiness after suspend or reopen silently renews with the browser key and shares admission', async () => {
+  const f = await fixture();
+  try {
+    const client = f.client();
+    await client.establish(a);
+    f.state.now = receipt().expires_at_ns;
+    let renewals = 0;
+    f.transport.renew = async (signer, sequence) => {
+      assert.equal(signer.getPrincipal().toText(), identity.getPrincipal().toText());
+      assert.equal(sequence, 1n); renewals++;
+      return { ...f.material, admissionUntilNs: f.state.now + 60_000n * MS };
+    };
+    f.transport.admit = async () => {
+      f.state.admissions.push(a.toText());
+      return { ...receipt(), expires_at_ns: f.state.now + 30_000n * MS };
+    };
+    const identities = await Promise.all(Array.from({ length: 8 }, () => client.ensureSession(a, value => value.expires_at_ns)));
+    assert.ok(identities.every(value => value.getPrincipal().toText() === identity.getPrincipal().toText()));
+    assert.equal(renewals, 1);
+    assert.equal(f.state.issues, 1);
+    assert.equal(f.state.admissions.length, 2);
+    const reopened = new PortableAdmissionClient(f.journal, 'login', { browser: identity }, issuer, f.transport);
+    // A new coordinator admits before use; it cannot treat old receipts as authority.
+    await reopened.ensureSession(a, value => value.expires_at_ns);
+    assert.equal(f.state.issues, 1);
+    assert.equal(renewals, 1);
+    assert.equal(f.state.admissions.length, 3);
+  } finally { f.store.close(); }
+});
+
+test('readiness uses the explicit clock mapping, detaches receipts and refuses invalid hints', async () => {
+  const f = await fixture();
+  try {
+    const client = f.client();
+    await client.establish(a);
+    // The controlled test's receiver epoch is ahead of its journal epoch.
+    const offset = 10_000n * MS;
+    const map = (value: AdmissionReceipt) => {
+      value.caller.fill(0);
+      return value.expires_at_ns - offset;
+    };
+    assert.ok(await client.ensureSession(a, map));
+    assert.deepEqual(await client.sessionReceipt(a), receipt());
+    await assert.rejects(client.ensureSession(a, () => -1n), (e: ClientError) => e.code === 'configuration');
+    assert.equal(f.state.admissions.length, 1);
+    f.state.now = receipt().expires_at_ns - offset;
+    f.transport.renew = async () => ({ ...f.material, admissionUntilNs: f.state.now + 60_000n * MS });
+    f.transport.admit = async () => {
+      f.state.admissions.push(a.toText());
+      return { ...receipt(), expires_at_ns: f.state.now + offset };
+    };
+    await assert.rejects(client.ensureSession(a, map), (e: ClientError) => e.code === 'lease_expired');
+    assert.equal(f.state.admissions.length, 2, 'an expired new hint must not start an admission loop');
+  } finally { f.store.close(); }
+});
+
+test('readiness propagates renewal refusal without account fallback or application effects', async () => {
+  const f = await fixture();
+  try {
+    const client = f.client();
+    await client.establish(a);
+    f.state.now = receipt().expires_at_ns;
+    let renewals = 0;
+    f.transport.renew = async () => { renewals++; throw new ClientError('account_required'); };
+    await assert.rejects(client.ensureSession(a, value => value.expires_at_ns),
+      (e: ClientError) => e.code === 'account_required');
+    assert.equal(f.state.issues, 1);
+    assert.equal(renewals, 1);
+    assert.equal(f.state.admissions.length, 1);
+  } finally { f.store.close(); }
+});
+
+test('readiness observes a newer lease installed while its journal check was queued', async t => {
+  const f = await fixture();
+  const entered = deferred<void>();
+  const release = deferred<void>();
+  let pending: Promise<Identity> | undefined;
+  try {
+    const client = f.client();
+    await client.establish(a);
+    f.state.now = receipt().expires_at_ns;
+    f.transport.renew = async () => ({ ...f.material, admissionUntilNs: f.state.now + 60_000n * MS });
+    f.transport.admit = async () => {
+      f.state.admissions.push(a.toText());
+      return { ...receipt(), expires_at_ns: f.state.now + 30_000n * MS };
+    };
+    const status = f.journal.admissionStatus.bind(f.journal);
+    let pause = true;
+    t.mock.method(f.journal, 'admissionStatus', async (generation: string) => {
+      const value = await status(generation);
+      if (pause) { pause = false; entered.resolve(); await release.promise; }
+      return value;
+    });
+    pending = client.ensureSession(a, value => value.expires_at_ns);
+    await entered.promise;
+    await client.establish(a);
+    release.resolve();
+    await pending;
+    assert.equal(f.state.admissions.length, 2, 'queued readiness must reuse the newly installed lease');
+  } finally { release.resolve(); await pending?.catch(() => {}); f.store.close(); }
+});
+
+test('readiness renews short receiver leases before proof expiry and shares the newer sequence', async () => {
+  const f = await fixture();
+  try {
+    f.transport.admit = async target => {
+      f.state.admissions.push(target.toText());
+      return { ...receipt(), expires_at_ns: f.state.now + 5_000n * MS };
+    };
+    const client = f.client();
+    await client.establish(a);
+    await client.establish(b);
+    f.state.now += 5_000n * MS;
+    assert.ok(f.state.now < f.material.admissionUntilNs);
+    let renewals = 0;
+    f.transport.renew = async (signer, sequence) => {
+      assert.equal(sequence, 1n);
+      assert.equal(signer.getPrincipal().toText(), identity.getPrincipal().toText());
+      renewals++;
+      return { credential: { ...f.material.credential, claims: new Uint8Array([9]) },
+        admissionUntilNs: f.state.now + 60_000n * MS };
+    };
+    await Promise.all([client.ensureSession(a, value => value.expires_at_ns), client.ensureSession(b, value => value.expires_at_ns)]);
+    assert.equal(renewals, 1);
+    assert.equal(f.state.issues, 1);
+    assert.equal(f.state.admissions.length, 4);
+    assert.equal((await f.journal.status('login')).issuance?.sequence, 1n);
+  } finally { f.store.close(); }
+});
+
+test('reopened readiness refreshes once after authenticated expiry and retains older proof inventory', async () => {
+  const f = await fixture();
+  try {
+    await f.client().establish(a);
+    let attempts = 0;
+    let renewals = 0;
+    const until = f.state.now + 10_000n * MS;
+    f.transport.renew = async (_signer, sequence) => {
+      assert.equal(sequence, 1n); renewals++;
+      return { credential: { ...f.material.credential, claims: new Uint8Array([9]) }, admissionUntilNs: until };
+    };
+    f.transport.admit = async (_target, _identity, credential) => {
+      attempts++;
+      if (attempts === 1) { assert.equal(credential.claims[0], 1); throw new AdmissionError('Expired'); }
+      assert.equal(credential.claims[0], 9);
+      return { ...receipt(), expires_at_ns: f.state.now + 5_000n * MS };
+    };
+    const reopened = new PortableAdmissionClient(f.journal, 'login', { browser: identity }, issuer, f.transport);
+    await reopened.ensureSession(a, value => value.expires_at_ns);
+    assert.equal(attempts, 2);
+    assert.equal(renewals, 1);
+    assert.equal(f.state.issues, 1);
+    assert.equal((await f.journal.status('login')).targets.find(t => t.canister === a.toText())!.admissionUntilNs,
+      f.material.admissionUntilNs, 'shorter new proofs must not erase older outstanding windows');
+    assert.equal((await f.journal.status('login')).issuance?.untilNs, until);
+  } finally { f.store.close(); }
+});
+
+test('readiness bounds expiry recovery and never retries other receiver refusals', async () => {
+  for (const refusal of ['Expired', 'NotYetValid', 'Revoked', 'AuthorityUnavailable', 'Throttled'] as const) {
+    const f = await fixture();
+    try {
+      await f.client().establish(a);
+      let attempts = 0;
+      let renewals = 0;
+      f.transport.renew = async () => {
+        renewals++;
+        return { ...f.material, admissionUntilNs: f.state.now + 10_000n * MS };
+      };
+      f.transport.admit = async () => { attempts++; throw new AdmissionError(refusal); };
+      const reopened = new PortableAdmissionClient(f.journal, 'login', { browser: identity }, issuer, f.transport);
+      await assert.rejects(reopened.ensureSession(a, value => value.expires_at_ns),
+        (e: AdmissionError) => e.refusal === refusal);
+      assert.equal(attempts, refusal === 'Expired' ? 2 : 1);
+      assert.equal(renewals, refusal === 'Expired' ? 1 : 0);
+      assert.equal(f.state.issues, 1);
+    } finally { f.store.close(); }
+  }
+});
+
+test('readiness waits for an older proof flight then shares one fresh renewal', async t => {
+  const f = await fixture();
+  const entered = deferred<void>();
+  const release = deferred<void>();
+  const pending: Promise<Identity>[] = [];
+  try {
+    f.transport.admit = async target => {
+      f.state.admissions.push(target.toText());
+      return { ...receipt(), expires_at_ns: f.state.now + 5_000n * MS };
+    };
+    const client = f.client();
+    await client.establish(a);
+    await client.establish(b);
+    f.state.now += 5_000n * MS;
+    const claim = f.journal.claimCredential.bind(f.journal);
+    let pause = true;
+    t.mock.method(f.journal, 'claimCredential', async (generation: string, accountAvailable?: boolean, through?: bigint) => {
+      const value = await claim(generation, accountAvailable, through);
+      if (pause) { pause = false; entered.resolve(); await release.promise; }
+      return value;
+    });
+    let renewals = 0;
+    f.transport.renew = async (_signer, sequence) => {
+      assert.equal(sequence, 1n); renewals++;
+      return { ...f.material, admissionUntilNs: f.state.now + 60_000n * MS };
+    };
+    pending.push(client.establish(issuer));
+    await entered.promise;
+    pending.push(client.ensureSession(a, value => value.expires_at_ns), client.ensureSession(b, value => value.expires_at_ns));
+    await new Promise(resolve => setImmediate(resolve));
+    release.resolve();
+    await Promise.all(pending);
+    assert.equal(renewals, 1);
+    assert.equal(f.state.issues, 1);
+  } finally { release.resolve(); await Promise.allSettled(pending); f.store.close(); }
+});
+
+test('readiness identity renews before signing after suspend and stays receiver-bound', async () => {
+  const f = await fixture();
+  let signatures = 0;
+  const browser: Identity = { getPrincipal: () => identity.getPrincipal(), transformRequest: async request => {
+    signatures++;
+    assert.equal(f.state.admissions.length, signatures, 'admission must finish before application signing');
+    return identity.transformRequest(request);
+  } };
+  try {
+    f.transport.admit = async target => {
+      f.state.admissions.push(target.toText());
+      return { ...receipt(), expires_at_ns: f.state.now + 5_000n * MS };
+    };
+    const client = new PortableAdmissionClient(f.journal, 'login', { browser, account }, issuer, f.transport);
+    const signer = await client.ensureSession(a, value => value.expires_at_ns);
+    await signer.transformRequest(signingRequest(signer, a));
+    f.state.now += 5_000n * MS;
+    let renewals = 0;
+    f.transport.renew = async () => {
+      renewals++;
+      return { ...f.material, admissionUntilNs: f.state.now + 60_000n * MS };
+    };
+    await signer.transformRequest(signingRequest(signer, a));
+    assert.equal(signatures, 2);
+    assert.equal(renewals, 1);
+    assert.equal(f.state.issues, 1);
+    await assert.rejects(signer.transformRequest(signingRequest(signer, b)),
+      (e: ClientError) => e.code === 'configuration');
+    assert.equal(signatures, 2);
+    await f.journal.begin('login', f.state.now + 70_000n * MS);
+    await assert.rejects(signer.transformRequest(signingRequest(signer, a)),
+      (e: ClientError) => e.code === 'stale_generation');
+    assert.equal(signatures, 2);
+  } finally { f.store.close(); }
+});
+
+test('readiness identity polls an existing request without refreshing an expired lease', async () => {
+  const f = await fixture();
+  try {
+    const signer = await f.client().ensureSession(a, value => value.expires_at_ns);
+    f.state.now = receipt().expires_at_ns;
+    const request: Parameters<Identity['transformRequest']>[0] = {
+      endpoint: Endpoint.ReadState, request: { method: 'POST' },
+      body: { request_type: ReadRequestType.ReadState, paths: [], sender: signer.getPrincipal(),
+        ingress_expiry: Expiry.fromJSON('{"__expiry__":"100000000000"}') },
+    };
+    assert.deepEqual(await signer.transformRequest(request), await identity.transformRequest(request));
+    assert.equal(f.state.admissions.length, 1);
+    assert.equal(f.state.issues, 1);
+    await f.journal.begin('login', f.state.now + 10_000n * MS);
+    await assert.rejects(signer.transformRequest(request), (e: ClientError) => e.code === 'stale_generation');
+  } finally { f.store.close(); }
+});
+
+test('readiness settles expired exact recovery before silently renewing a pending sequence', async () => {
+  const f = await fixture();
+  try {
+    await f.client().establish(a);
+    f.state.now = f.material.admissionUntilNs;
+    f.transport.renew = async () => { throw new ClientError('transport'); };
+    await assert.rejects(f.client().establish(a), ClientError); // Pending sequence one.
+    let lookups = 0;
+    let renewals = 0;
+    f.transport.reconcile = async (_signer, sequence) => {
+      assert.equal(sequence, 1n); lookups++;
+      return { ...f.material, admissionUntilNs: f.state.now };
+    };
+    f.transport.renew = async (signer, sequence) => {
+      assert.equal(signer.getPrincipal().toText(), identity.getPrincipal().toText());
+      assert.equal(sequence, 2n);
+      assert.equal(lookups, 1, 'the uncertain operation must resolve before renewal');
+      renewals++;
+      return { ...f.material, admissionUntilNs: f.state.now + 60_000n * MS };
+    };
+    f.transport.admit = async target => {
+      f.state.admissions.push(target.toText());
+      return { ...receipt(), expires_at_ns: f.state.now + 5_000n * MS };
+    };
+    const resumed = new PortableAdmissionClient(f.journal, 'login', { browser: identity }, issuer, f.transport);
+    await resumed.ensureSession(a, value => value.expires_at_ns);
+    assert.equal(renewals, 1);
+    assert.equal(f.state.issues, 1);
+    assert.equal(f.state.admissions.length, 2);
+    assert.equal((await f.journal.status('login')).issuance?.sequence, 2n);
+  } finally { f.store.close(); }
+});
+
+test('session receipts are detached scheduling metadata and logout fences their retrieval', async () => {
+  const f = await fixture();
+  try {
+    const client = f.client();
+    assert.equal(await client.sessionReceipt(a), undefined);
+    await client.establish(a);
+    const saved = (await client.sessionReceipt(a))!;
+    assert.deepEqual(saved, receipt());
+    saved.caller.fill(0);
+    assert.deepEqual(await client.sessionReceipt(a), receipt());
+    f.transport.admit = async () => ({ ...receipt(), caller: account.getPrincipal().toUint8Array() });
+    await assert.rejects(client.establish(b), (e: ClientError) => e.code === 'invalid_material');
+    assert.equal(await client.sessionReceipt(b), undefined);
+    await f.journal.begin('login', f.state.now + 70_000n * MS);
+    await assert.rejects(client.sessionReceipt(a), (e: ClientError) => e.code === 'stale_generation');
+  } finally { f.store.close(); }
+});
+
+test('expired exact recovery completes its sequence before a separate fresh renewal', async () => {
+  const f = await fixture();
+  try {
+    await f.client().establish(a);
+    f.state.now = f.material.admissionUntilNs;
+    f.transport.renew = async () => { throw new ClientError('transport'); };
+    await assert.rejects(f.client().establish(a), ClientError);
+    const expired = { ...f.material, admissionUntilNs: f.state.now };
+    f.transport.reconcile = async (_signer, sequence) => { assert.equal(sequence, 1n); return expired; };
+    await assert.rejects(f.client().establish(a), (e: ClientError) => e.code === 'retrieval_expired');
+    assert.equal(f.state.admissions.length, 1);
+    let renewals = 0;
+    f.transport.renew = async (_signer, sequence) => {
+      assert.equal(sequence, 2n); renewals++;
+      return { ...f.material, admissionUntilNs: f.state.now + 60_000n * MS };
+    };
+    await f.client().establish(a);
+    assert.equal(renewals, 1);
+    assert.equal(f.state.issues, 1);
+  } finally { f.store.close(); }
+});
+
+test('competing tabs recover one renewal sequence and retain identical original evidence', async () => {
+  const f = await fixture();
+  const entered = deferred<void>();
+  const release = deferred<void>();
+  let first: Promise<Identity> | undefined;
+  try {
+    await f.client().establish(a);
+    f.state.now = f.material.admissionUntilNs;
+    const result = { ...f.material, admissionUntilNs: f.state.now + 60_000n * MS };
+    let renewals = 0;
+    let lookups = 0;
+    f.transport.renew = async (signer, sequence) => {
+      assert.equal(signer.getPrincipal().toText(), identity.getPrincipal().toText());
+      assert.equal(sequence, 1n); renewals++; entered.resolve(); await release.promise; return result;
+    };
+    f.transport.reconcile = async (signer, sequence) => {
+      assert.equal(signer.getPrincipal().toText(), identity.getPrincipal().toText());
+      assert.equal(sequence, 1n); lookups++; return result;
+    };
+    first = f.client().establish(a);
+    await entered.promise;
+    await f.client().establish(b);
+    release.resolve(); await first;
+    assert.equal(renewals, 1);
+    assert.equal(lookups, 1);
+    const saved = (await f.journal.status('login')).issuance!;
+    assert.equal(saved.sequence, 1n);
+    assert.equal(saved.bytes, undefined, 'status reads metadata without loading proof bytes');
+    const frame = (await f.journal.claimCredential('login')).saved!.bytes;
+    assert.deepEqual(frame, credentialBytes(result.credential, 131_072));
+    await assert.rejects(f.journal.completeCredential('login', 1n, frame, result.admissionUntilNs + 1n),
+      (e: ClientError) => e.code === 'storage_conflict');
+    const changed = credentialBytes({ ...result.credential, claims: new Uint8Array([99]) }, 131_072);
+    await assert.rejects(f.journal.completeCredential('login', 1n, changed, result.admissionUntilNs),
+      (e: ClientError) => e.code === 'storage_conflict');
+  } finally { release.resolve(); await first?.catch(() => {}); f.store.close(); }
+});
+
+test('failed evidence persistence leaves lookup intent and dispatches no receiver update', async t => {
+  const f = await fixture();
+  try {
+    const mock = t.mock.method(f.journal, 'completeCredential', async () => { throw new ClientError('storage_unavailable'); });
+    await assert.rejects(f.client().establish(a), (e: ClientError) => e.code === 'storage_unavailable');
+    assert.equal(f.state.admissions.length, 0);
+    assert.deepEqual((await f.journal.status('login')).issuance, { sequence: 0n });
+    mock.mock.restore();
+    await f.client().establish(a);
+    assert.equal(f.state.issues, 1);
+    assert.equal(f.state.reconciles, 1);
+  } finally { f.store.close(); }
+});
+
+test('exact evidence owns Buffer input before an asynchronous journal boundary', async () => {
+  const f = await fixture();
+  try {
+    const claim = await f.journal.claimCredential('login');
+    const frame = credentialBytes(f.material.credential, 131_072);
+    const borrowed = Buffer.from(frame);
+    const pending = f.journal.completeCredential('login', claim.sequence, borrowed, f.material.admissionUntilNs);
+    borrowed.fill(99);
+    await pending;
+    assert.deepEqual((await f.journal.claimCredential('login')).saved!.bytes, frame);
+  } finally { f.store.close(); }
+});
+
+test('logout fences in-flight renewal and removes retained proof evidence', async () => {
+  const f = await fixture();
+  const entered = deferred<void>();
+  const release = deferred<void>();
+  let pending: Promise<unknown> | undefined;
+  try {
+    await f.client().establish(a);
+    f.state.now = f.material.admissionUntilNs;
+    f.transport.renew = async () => {
+      entered.resolve(); await release.promise;
+      return { ...f.material, admissionUntilNs: f.state.now + 60_000n * MS };
+    };
+    pending = f.client().establish(a);
+    await entered.promise;
+    await f.journal.begin('login', f.state.now + 10_000n * MS);
+    release.resolve();
+    await assert.rejects(pending, (e: ClientError) => e.code === 'stale_generation');
+    assert.equal(f.state.admissions.length, 1);
+    assert.deepEqual((await f.journal.status('login')).issuance, { sequence: 1n });
+  } finally { release.resolve(); await pending?.catch(() => {}); f.store.close(); }
 });
 
 test('independent clients atomically claim issuance and reconcile competing attempts', async () => {
@@ -442,7 +961,7 @@ test('logout during admission retains destination and rejects late success', asy
   try {
     const entered = deferred<void>();
     const result = deferred<void>();
-    f.transport.admit = async () => { entered.resolve(); await result.promise; };
+    f.transport.admit = async () => { entered.resolve(); await result.promise; return receipt(); };
     const client = f.client();
     const pending = Promise.allSettled([client.establish(a), client.establish(a)]);
     await entered.promise;
@@ -495,7 +1014,7 @@ test('invalid identity binding and failed journal access refuse before issuance'
 test('malformed or expired recovered material never reaches a receiver or triggers issuance', async () => {
   const f = await fixture();
   try {
-    assert.equal(await f.journal.claimIssuance('login'), true);
+    assert.equal((await f.journal.claimCredential('login')).first, true);
     f.material.credential = { ...f.material.credential, claims: new Uint8Array(131_073) };
     await assert.rejects(f.client().establish(a), (e: ClientError) => e.code === 'invalid_material');
     f.material.credential = { ...f.material.credential, claims: new Uint8Array([1]) };

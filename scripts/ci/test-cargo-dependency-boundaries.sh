@@ -3,10 +3,10 @@
 set -euo pipefail
 selection=all
 if [[ $# != 0 ]]; then
-    [[ $# == 2 && $1 == --case && $2 == native-client ]] || {
-        echo 'usage: test-cargo-dependency-boundaries.sh [--case native-client]' >&2; exit 2;
+    [[ $# == 2 && $1 == --case && ($2 == native-client || $2 == cbor) ]] || {
+        echo 'usage: test-cargo-dependency-boundaries.sh [--case native-client|cbor]' >&2; exit 2;
     }
-    selection=native-client
+    selection="$2"
 fi
 root="${BASH_SOURCE[0]}"
 [[ "$root" == /* ]] || root="$PWD/$root"
@@ -16,7 +16,8 @@ original_path="$PATH"
 real_cargo="$(command -v cargo)"
 # shellcheck source=scripts/ci/fixture-lifecycle.sh
 source "$root/scripts/ci/fixture-lifecycle.sh"
-FIXTURE="$(fixture_create "${TMPDIR:-/tmp}/cargo-boundaries.XXXXXX")"
+mkdir -p "$root/target/tmp"
+FIXTURE="$(fixture_create "$root/target/tmp/cargo-boundaries.XXXXXX")"
 fixture_complete=false
 trap 'fixture_finish "$?" "$FIXTURE" "Boundary fixture retained"' EXIT
 mkdir -p "$FIXTURE/ci" "$FIXTURE/bin"
@@ -35,6 +36,31 @@ chmod +x "$FIXTURE/bin/cargo"
 export PATH="$FIXTURE/bin:$PATH"
 perl -MJSON::PP -e 'print encode_json({version => 1, workspace_root => $ARGV[0], workspace_members => ["consumer"], packages => [{id => "consumer", name => "consumer", dependencies => [{name => "substrate", rename => "hidden", kind => "dev", target => "cfg(windows)"}]}]})' "$FIXTURE" > "$FIXTURE/metadata.json"
 cp "$FIXTURE/metadata.json" "$FIXTURE/valid-metadata.json"
+# CBOR ownership uses the shared inventory, not consumer-specific subsets.
+if [[ $selection == all || $selection == cbor ]]; then
+    for dependency in serde_cbor ciborium ciborium-io ciborium-ll minicbor minicbor-serde cbor4ii serde_ipld_dagcbor icrc-cbor; do
+        for package in consumer ic-testkit ic-platform ic-platform-types; do
+            for kind in normal dev build; do
+                perl -MJSON::PP -e '
+                  print encode_json({version=>1,workspace_root=>$ARGV[0],workspace_members=>["member"],packages=>[
+                    {id=>"member",name=>$ARGV[1],dependencies=>[{name=>$ARGV[2],rename=>"hidden",optional=>JSON::PP::true,kind=>$ARGV[3] eq "normal" ? undef : $ARGV[3],target=>q{cfg(not(target_family = "wasm"))}}]},
+                    {id=>"transitive",name=>"upstream",dependencies=>[{name=>$ARGV[2]}]}]});
+                ' "$FIXTURE" "$package" "$dependency" "$kind" > "$FIXTURE/metadata.json"
+                printf '[{"dependency":"%s","allowed_packages":["%s"]}]\n' "$dependency" "$package" > "$FIXTURE/ci/cargo-dependency-boundaries.json"
+                actual=reject
+                if bash "$root/scripts/ci/check-cargo-dependency-boundaries.sh" --consumer "$FIXTURE" --external-ic > "$FIXTURE/cbor.log" 2>&1; then actual=pass; fi
+                expected=reject
+                if [[ $package == ic-platform || ($package == ic-platform-types && $kind == dev) ]]; then expected=pass; fi
+                [[ $actual == "$expected" ]] || { cat "$FIXTURE/cbor.log" >&2; exit 1; }
+            done
+        done
+    done
+    if [[ $selection == cbor ]]; then
+        fixture_complete=true
+        echo 'CBOR ownership: 108 alias/optional/target/kind/owner cases passed; transitive codecs permitted'
+        exit 0
+    fi
+fi
 # Common rules are opt-in, cover renamed non-production declarations, and
 # cannot be relaxed by a consumer allowlist. Platform remains the explicit owner.
 if [[ $selection == all ]]; then

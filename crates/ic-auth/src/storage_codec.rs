@@ -6,7 +6,7 @@ use ic_wire::{Error, Limits, native};
 
 pub(crate) const SESSION: u64 = 0x415554485311;
 pub(crate) const REPLAY: u64 = 0x415554485302;
-pub(crate) const LOGIN: u64 = 0x415554485313;
+pub(crate) const LOGIN: u64 = 0x415554485323;
 
 fn limits(maximum: usize) -> Limits {
     Limits {

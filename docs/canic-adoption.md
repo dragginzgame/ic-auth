@@ -18,6 +18,13 @@ in the [current handoff](status/current.md). Rust 1.99.1 remains the minimum.
 [Cargo.toml](../Cargo.toml), the lockfile and [group ledgers](../CHANGELOG.md)
 record development selections and release notes, respectively.
 
+Pending Engine 0.35 and Protocol 0.35 development selects Build 0.75.0,
+Storage 0.68.0, Testkit 0.89.0, Wire 0.17.4 and Shared Tooling 0.30.6.
+Storage's collection image cut applies only to
+Auth's private qualification host here; fresh fixture allocation is required and
+old images are refused without clearing. This is not an in-place production-store
+upgrade or a newly published Auth release.
+
 Host-selected `SessionLimits` support profiles such as 100,000 sessions without
 providing a receiver default or allocating backing. Canic owns its configured
 maximum, proportional retention/byte/index budgets and actual-store capacity and
@@ -25,6 +32,23 @@ performance qualification. Individual Auth record limits are unchanged. Auth
 carries no Account DTOs; the upstream Account byte-adapter cut does not change
 Auth frames, method identities or stored records. Qualify the complete consumer
 graph with one Runtime executor/generator/guard.
+
+## Pending clock-independent adoption
+
+The [#127 contract](design/portable-clock-audit.md) is an unpublished minor hard
+cut. Keep production activation refused until the actual consumer qualifies it.
+Canic must update the receiver Wire codec and browser bindings together, handle
+`Unconfirmed` without reporting logout success, and select the explicit protected
+login ceiling in ledger construction. Known logout retains denial through its
+signed immutable deadline; unknown logout commits only bounded temporary denial.
+
+Preserve complete session/replay/login and protected authority metadata on normal
+upgrade, then obtain current enrollment before readiness. Remove timestamp-based
+lost-state reopening: incomplete state remains closed pending trusted recovery.
+Old login records and fixture payloads are refused under fresh identities; Auth's
+no-retained-record confirmation does not authorize clearing Canic's actual stores.
+Qualify disposition of its installations, failure atomicity, retained denial,
+unknown outcomes and browser recovery under #491. No Canic source was changed.
 
 ## Read-only Canic source review — 2026-11-04
 
@@ -41,13 +65,14 @@ Canic's authentication guide and current handoff record the following evidence:
 | Receiver and storage | Persistent admission/read/logout, scoped guards, Root refresh, and Auth 0.33.1 backend conformance against the actual stable adapter | Complete denial/recovery acceptance, storage profiles and combined-state costs; the newer Auth backend maintenance hooks need their own matched receipt |
 | Issuer | Controlled-local Ed25519 issuance, renewal and reconciliation | Certified issuance and the complete production approval/custody lifecycle |
 | Browser | Controlled-local Chromium journey with two receivers/devices, lost replies and durable logout across reopen | Production account-login UI, key custody and activation |
-| Authority and restore | Scoped Root/issuer snapshot retirement checks; new installed unavailable-enrollment, refresh-expiry and retirement checks | Production clock bound and arbitrary unsealed authority restoration remain unqualified |
+| Authority and restore | Scoped Root/issuer snapshot retirement checks; new installed unavailable-enrollment, refresh-expiry and retirement checks | Clock-independent contract adoption and arbitrary unsealed restoration remain consumer-owned |
 | Operator inspection | Protected receiver inspection and controller/Root/CLI paths | Final consumer acceptance and documentation reconciliation |
 
 The persistent adapter uses `Session::check_admission_pair` and
 `SessionLimits::check_capacity`, as requested by
 [Canic #720](https://github.com/dragginzgame/canic/issues/720). Production
-activation remains refused; controlled-local proofs do not qualify its clock.
+activation remains refused; controlled-local proofs do not establish production
+clock/storage provenance or adoption of the pending clock-independent contract.
 The latest focused cases are not a fresh complete passing integration target,
 and earlier browser evidence retains its original dependency graph. Canic
 [#491](https://github.com/dragginzgame/canic/issues/491) remains the acceptance
@@ -134,7 +159,8 @@ Keep one ledger and the two independent budgets across calls. Restore complete
 session/replay/login records with generation, clock high-water mark, pool counts,
 reset floors and authority metadata from one protected generation. Obtain fresh
 receiver-bound enrollment before readiness; restoration alone never opens access.
-Volatile reset requires qualified reset floors and fresh enrollment. Bounded
+Volatile upgrade/state loss stays closed pending trusted complete recovery;
+local timestamp floors and fresh enrollment alone cannot reopen it. Bounded
 cleanup reclaims expired rows without evicting live replay/denial state.
 See [storage and transaction details](sessions.md#custom-host-transaction-contract).
 
@@ -187,7 +213,9 @@ strict verification and explicit high-S policy. The upstream BLS identity-key
 fix rejects forged certificates; native Agent's separate verifier is unchanged.
 Canister build owners should select the qualified 32-bit RustCrypto backend;
 this checkout declares it in [Cargo configuration](../.cargo/config.toml).
-Current Wire and stored formats require no migration or reset.
+The pending logout hard cut retires its Wire identity and login-record identity.
+Update receiver/browser adapters together; unknown logout is explicitly unconfirmed.
+No retained affected Auth records were reported; never reset consumer state implicitly.
 
 ## Platform 0.15 migration
 

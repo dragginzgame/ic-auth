@@ -3,7 +3,7 @@ import type { Response } from './generated/establish.js';
 export type AdmissionRefusal = Extract<Response, { err: unknown }>['err']['tag'];
 
 export type ClientErrorCode =
-  | 'configuration' | 'stale_generation' | 'retrieval_expired' | 'transport'
+  | 'configuration' | 'account_required' | 'stale_generation' | 'retrieval_expired' | 'lease_expired' | 'transport'
   | 'invalid_material' | 'storage_conflict' | 'timeout'
   | 'storage_capacity' | 'storage_corrupt' | 'storage_unavailable' | 'admission_refused';
 

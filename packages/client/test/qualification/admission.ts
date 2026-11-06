@@ -76,7 +76,7 @@ export async function qualifyAdmission(host: string, issuer: Principal, receiver
         throw new Error('injected lost issuer reply');
       },
       // Injected issuer lookup only: this does not qualify a production endpoint.
-      reconcile: async (caller, signal) => {
+      renew: async () => { throw new Error('unexpected renewal in this fixture'); }, reconcile: async (caller, _sequence, signal) => {
         await probeAccount(caller, signal);
         reconciled++;
         assert.equal(issued, 1);
@@ -86,7 +86,7 @@ export async function qualifyAdmission(host: string, issuer: Principal, receiver
       admit: async (target, caller, proof, signal) => {
         assert.deepEqual(credentialBytes(proof, 131_072), originalFrame);
         assert.ok((await journal.status('sdk-admission')).targets.some(t => t.canister === target.toText()));
-        await admit(target, caller, proof, signal);
+        const receipt = await admit(target, caller, proof, signal);
         const result = await update(target, 'portable_session_read', sessionRead.encodeRequest(null), caller, signal);
         assert.ok('ok' in result, 'err' in result ? result.err.tag : undefined);
         assert.equal(Principal.fromUint8Array(result.ok.caller).toText(), identity.getPrincipal().toText());
@@ -96,6 +96,7 @@ export async function qualifyAdmission(host: string, issuer: Principal, receiver
         const previous = admitted.get(target.toText());
         if (previous) assert.deepEqual(result.ok, previous); // Exact retry cannot extend the lease.
         admitted.set(target.toText(), result.ok);
+        return receipt;
       },
     });
     const peerIdentity = Ed25519KeyIdentity.generate(new Uint8Array(32).fill(10));
@@ -117,12 +118,19 @@ export async function qualifyAdmission(host: string, issuer: Principal, receiver
     const guarded = await client.establish(issuer);
     await client.establish(receiver);
     await client.establish(receiver); // Explicit retry reuses the original credential.
+    // Controlled fixture clocks share this origin. This is not a production
+    // clock qualification or permission to assume independent canister epochs.
+    const beforeReadiness = submissions.length;
+    const readyIdentity = await client.ensureSession(receiver, value => value.expires_at_ns);
+    assert.equal(readyIdentity.getPrincipal().toText(), guarded.getPrincipal().toText());
+    assert.equal(submissions.length, beforeReadiness, 'a live receiver lease needs no issuer/admission request');
     assert.equal(issued, 1);
     assert.equal(reconciled, 2);
     assert.equal(admitted.size, 2);
     assert.ok((await journal.status('sdk-admission')).targets.every(target => target.admissionUntilNs === admissionUntilNs));
     for (const target of [issuer, receiver]) {
-      const read = await update(target, 'portable_session_read', sessionRead.encodeRequest(null), guarded, signal);
+      const signer = target.toText() === receiver.toText() ? readyIdentity : guarded;
+      const read = await update(target, 'portable_session_read', sessionRead.encodeRequest(null), signer, signal);
       assert.ok('ok' in read, 'err' in read ? read.err.tag : undefined);
       assert.deepEqual(read.ok, admitted.get(target.toText())); // No proof in application arguments.
     }
@@ -144,7 +152,7 @@ export async function qualifyAdmission(host: string, issuer: Principal, receiver
         peerIssued++;
         return { credential: peerCredential, admissionUntilNs };
       },
-      reconcile: async () => { throw new Error('unexpected peer reconciliation'); },
+      renew: async () => { throw new Error('unexpected renewal in this fixture'); }, reconcile: async () => { throw new Error('unexpected peer reconciliation'); },
       admit,
     });
     const peerGuarded = await peerClient.establish(issuer);

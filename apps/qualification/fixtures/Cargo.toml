@@ -18,7 +18,6 @@ ic-auth-protocol-types.workspace = true
 ic-auth-qualification-contracts.workspace = true
 ic-auth-wire.workspace = true
 ic-metrics.workspace = true
-serde.workspace = true
 
 [dev-dependencies]
 ic-platform = { workspace = true, features = ["ed25519"] }

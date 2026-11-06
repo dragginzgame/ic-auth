@@ -161,10 +161,10 @@ Metrics dependency; Auth's diagnostics select Metrics 0.29.1.
 No caller enables optional native
 metadata; the old Host 0.73 and Metrics 0.25 providers are removed.
 
-Auth and Testkit 0.86 share Platform 0.22 and canonical Types 0.18.
+Auth and Testkit 0.89 share Platform 0.23 and canonical Types 0.18.
 Native Testkit and its Candid/management DTOs remain outside the public library
 and Wasm host graphs.
-The host selects Runtime 0.19 directly, matching Storage 0.67's Wasm dependency.
+The host selects Runtime 0.19 directly, matching Storage 0.68's Wasm dependency.
 Wire 0.17 provides the matching canonical Principal schema implementation.
 Native calls retain explicit external Principal conversions; native SDK packages
 remain outside public Auth and the reference Wasm graph.
@@ -184,7 +184,7 @@ for the existing byte/path limits and release-recovery boundary.
 
 ## Dependency roles and deployment admission
 
-Shared Tooling 0.30.4 at `2aa41c7394300302fe802b69b31b855bdc89b671` is adopted
+Shared Tooling 0.30.6 at `45c0295e23d3d23225e31f47c018c30ff0c75581` is adopted
 through the canonical snapshot. This identifies reviewed committed source, not a
 claim of upstream publication or a matching release tag. Auth retains Cargo-owned versions
 and the default release mode; Shared's pending canonical `VERSION` workflow does
@@ -220,6 +220,13 @@ check runs in CI/release validation, independently of comment labels. Public
 libraries exclude native Host/Build/Testkit/Agent/Tokio, fixture packages and
 service-owned CDK/storage. Certified capabilities intentionally retain their
 upstream certificate stack; portable/session-only graphs remain certificate-free.
+
+Its `check-candid-boundary` prerequisite also selects Shared's `--cbor` source
+mode across `crates/` and `apps/`, with no allowances. Cargo's `--external-ic`
+check uses the canonical CBOR dependency inventory; the browser SDK guard checks
+the client and generated sources. The root is this repository's only maintained
+Cargo workspace. These checks are lexical/dependency ownership evidence, not
+macro expansion, copied-parser detection or proof of external packet identity.
 
 There is no production service or deployment command here. The Storage/runtime Wasm
 host is qualification-only and legitimately uses test/tooling packages. A Canic or
@@ -279,24 +286,30 @@ are refused without migration or reset. The maintainer confirmed no retained Aut
 records require preservation. The later Storage consolidation also changes
 backing formats; start with a coherent new fixture checkpoint for this hard cut.
 Checkpoint restores remain closed until matching controller authority is confirmed.
-The unpublished qualification host selects Storage 0.67.0 for both allocation
+The unpublished qualification host selects Storage 0.68.0 for both allocation
 and collections; `ic-memory` and `ic-stable-structures` are absent from the lock.
 Storage owns `StableKey`, `StorageConfig`, namespace grants, backing and exclusive
 leases. Its `StableCell::create` requires empty memory; `load(memory, maximum)`
-admits Auth's 128 KiB payload plus magic before allocation and validates the cell
-checksum. Fallible creation/writes are checked; host traps retain IC rollback.
+admits Auth's 128 KiB payload plus magic before allocation and validates cell
+framing. Storage 0.68 uses copied ICSS cell images without collection checksums;
+Auth still checks its payload identity and bounded Wire records. Fallible
+creation/writes are checked; host traps retain IC rollback.
 No combined initialization or reset path is selected.
 
 The historical Storage consolidation changed allocator and collection formats.
 Old manager/ledger images are refused without fallback, initialization or clearing.
 The native fixture freezes a published Memory 0.63 manager header and preserves
 separate application sentinel bytes on refusal. Current Storage-format reopen,
-occupied creation, detached-lease custody, size bounds and checksum corruption
+occupied creation, detached-lease custody, size bounds and framing corruption
 have explicit tests. Existing installations require a separately reviewed whole
 backing transition; this adoption performs no reset or data retirement.
 
-Auth's `AUTHNAT3` payload, Wire method/record identities and signed bytes remain
-unchanged. Storage 0.67 adds no backing-format change or reset requirement. Its
+Storage adoption alone keeps the Auth payload and signed bytes unchanged.
+The pending #127 hard cut separately replaces `AUTHNAT3` with `AUTHCLK1`,
+retires the login-record/logout identities and refuses their old bytes. The
+maintainer confirmed no retained affected records; no implicit reset is added. Storage 0.68 retires the previous collection images: use fresh allocation
+for the private fixture; old cell framing is explicitly refused without clearing.
+No production Auth store is migrated and no retained backing is reset here. Its
 internal codec, Auth's contracts and Testkit now share Wire 0.17. No Wire values
 cross Auth's Storage adapter boundary. The host retains one Runtime, generator
 and runtime guard.

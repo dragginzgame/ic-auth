@@ -445,7 +445,8 @@ fn certified_result_uses_the_same_reservation_and_logout_gate() {
     )
     .unwrap();
     let caller = browser_principal(&c.browser_public_key);
-    let mut ledger = MemoryLoginRevocations::new(c.audience, 1, 1, 0, NOW).unwrap();
+    let mut ledger =
+        MemoryLoginRevocations::new(c.audience, 1, 1, 86_400_000_000_000, NOW).unwrap();
     ledger
         .with_reservation::<_, ic_auth::portable::LoginRevocationError>(
             caller,
@@ -653,7 +654,7 @@ fn certified_proof_uses_the_shared_session_lifecycle() {
         0,
         SessionLimits::new(2, 4, 2, 8192).expect("fixture limits"),
     );
-    let mut ledger = MemoryLoginRevocations::new(c.audience, 2, 2, 0, 0).unwrap();
+    let mut ledger = MemoryLoginRevocations::new(c.audience, 2, 2, 86_400_000_000_000, 0).unwrap();
     let mut budget = budget();
     let request = SessionRequest::new(vec!["read".into()], None).unwrap();
     let SessionEstablished::Created(session) = establish_session(
@@ -681,7 +682,8 @@ fn certified_proof_uses_the_shared_session_lifecycle() {
         0,
         SessionLimits::new(2, 4, 2, 8192).expect("fixture limits"),
     );
-    let mut second_ledger = MemoryLoginRevocations::new(c.audience, 2, 2, 0, 0).unwrap();
+    let mut second_ledger =
+        MemoryLoginRevocations::new(c.audience, 2, 2, 86_400_000_000_000, 0).unwrap();
     let mut second_budget =
         ic_auth::admission_budget::SessionAdmissionBudget::new(1, 1, NOW - 1).unwrap();
     let second_session = establish_session(

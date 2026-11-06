@@ -712,7 +712,7 @@ impl Fixture {
         self.ledger_at(0)
     }
     fn ledger_at(&self, now: u64) -> MemoryLoginRevocations {
-        MemoryLoginRevocations::new(self.claims.audience, 4, 4, SECOND, now).unwrap()
+        MemoryLoginRevocations::new(self.claims.audience, 4, 4, 86_400_000_000_000, now).unwrap()
     }
     fn authority(&self, now: u64) -> PortableAuthority<'_> {
         PortableAuthority {

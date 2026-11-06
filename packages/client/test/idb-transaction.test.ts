@@ -7,14 +7,16 @@ async function transaction() {
   let automatic = true;
   let durability: IDBTransactionDurability = 'strict';
   let tx!: ReturnType<typeof next>;
+  const reads: string[] = [];
   function next() {
     const current = {
       durability, onabort: undefined as (() => void) | undefined,
       oncomplete: undefined as (() => void) | undefined, error: new Error('storage'),
       abort() { queueMicrotask(() => current.onabort?.()); },
-      objectStore: () => ({ keyPath: null, autoIncrement: false, indexNames: [], put() {},
+      objectStore: () => ({ keyPath: null, autoIncrement: false, indexNames: [], put() {}, delete() {},
         get(key: string) {
-          const request = { result: key === 'format' ? 'ic-auth-logout-journal-v1' : undefined,
+          reads.push(key);
+          const request = { result: key === 'format' ? 'ic-auth-local-logout-journal-v1' : undefined,
             onsuccess: undefined as (() => void) | undefined };
           queueMicrotask(() => {
             request.onsuccess?.();
@@ -36,7 +38,7 @@ async function transaction() {
   } } as unknown as IDBFactory;
   const store = await IndexedDbLogoutStore.open(factory, 'journal');
   automatic = false;
-  return { store, current: () => tx, relaxed: () => { durability = 'relaxed'; } };
+  return { store, reads, current: () => tx, relaxed: () => { durability = 'relaxed'; } };
 }
 const error = (code: string) => (cause: unknown) => cause instanceof ClientError && cause.code === code;
 const record: LogoutJournal = { generation: 'login', caller: 'caller', issuer: 'issuer', clockId: 'test',
@@ -49,6 +51,7 @@ test('staged journal result waits for commit and late abort retains storage erro
   const pending = f.store.transact(() => ({ record, value: 42 }));
   void pending.then(() => { finished = true; }, () => { finished = true; });
   await Promise.resolve(); await Promise.resolve();
+  assert.ok(!f.reads.includes('credential'), 'ordinary journal writes must not load proof evidence');
   assert.equal(finished, false);
   f.current().onabort?.();
   await assert.rejects(pending, error('storage_unavailable'));

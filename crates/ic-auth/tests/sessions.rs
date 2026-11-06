@@ -302,7 +302,14 @@ impl Receiver {
     fn new(f: &Fixture) -> Self {
         Self {
             store: MemorySessionStore::new(0, limits()),
-            ledger: MemoryLoginRevocations::new(f.claims.audience, 4, 4, SECOND, 0).unwrap(),
+            ledger: MemoryLoginRevocations::new(
+                f.claims.audience,
+                4,
+                4,
+                90 * 86_400_000_000_000,
+                0,
+            )
+            .unwrap(),
             budget: SessionAdmissionBudget::new(32, 1, 0).unwrap(),
             logout: SessionAdmissionBudget::new(32, 1, 0).unwrap(),
         }
@@ -621,7 +628,10 @@ fn renewal_replaces_only_within_original_login_and_logout_blocks_fresh_proofs() 
         Err(SessionError::Revocation(LoginRevocationError::Revoked))
     ));
     let mut absent = Receiver::new(&f);
-    absent.logout(f.caller(), NOW + 4 * SECOND).unwrap();
+    assert!(matches!(
+        absent.logout(f.caller(), NOW + 4 * SECOND),
+        Err(LogoutResult::Unconfirmed { .. })
+    ));
     assert!(f.admit(&mut absent, NOW + 4 * SECOND).is_err());
 }
 
@@ -756,7 +766,8 @@ fn live_authority_scope_generation_expiry_and_lost_ledger_are_enforced() {
         Err(SessionError::StaleAuthority)
     );
     assert!(ValidatedGrants::new(Vec::new()).is_err());
-    let mut lost = MemoryLoginRevocations::new(f.claims.audience, 4, 4, SECOND, 0).unwrap();
+    let mut lost =
+        MemoryLoginRevocations::new(f.claims.audience, 4, 4, 90 * 86_400_000_000_000, 0).unwrap();
     assert!(
         authorize_session(
             &mut r.store,
@@ -771,7 +782,10 @@ fn live_authority_scope_generation_expiry_and_lost_ledger_are_enforced() {
         r.auth(&f, session.expires_at_ns()),
         Err(SessionError::MissingOrExpired)
     );
-    assert!(r.logout(f.caller(), NOW + 200 * SECOND).is_ok()); // no live enrollment required
+    assert!(matches!(
+        r.logout(f.caller(), NOW + 200 * SECOND),
+        Err(LogoutResult::Unconfirmed { .. })
+    )); // expired login: temporary denial only
     let mut r = Receiver::new(&f);
     f.admit(&mut r, NOW).unwrap();
     let mut p = policy();
@@ -1269,12 +1283,22 @@ fn logout_reports_typed_refusals_without_acknowledging_revocation() {
         Err(LogoutResult::Unavailable(LogoutUnavailable::Capacity))
     );
     assert!(!r.ledger.is_revoked(f.caller(), 0).unwrap());
-    let until = r.logout(f.caller(), NOW).unwrap();
+    let LogoutResult::Unconfirmed {
+        deny_until_ns: until,
+    } = r.logout(f.caller(), NOW).unwrap_err()
+    else {
+        panic!("unknown login must be unconfirmed")
+    };
     assert_eq!(
         r.logout(f.caller(), NOW - 1),
         Err(LogoutResult::Unavailable(LogoutUnavailable::Clock))
     );
-    assert_eq!(r.logout(f.caller(), NOW), Ok(until));
+    assert_eq!(
+        r.logout(f.caller(), NOW),
+        Err(LogoutResult::Unconfirmed {
+            deny_until_ns: until
+        })
+    );
 }
 
 #[test]
@@ -1293,7 +1317,8 @@ fn logout_uses_change_caller_and_refuses_foreign_domain_without_partial_effects(
     assert_eq!(r.auth(&f, NOW), Ok(session.clone()));
     let mut domain = f.claims.audience;
     domain.fleet_id = CanonicalId::from_bytes([77; 32]);
-    let mut foreign = MemoryLoginRevocations::new(domain, 4, 4, SECOND, 0).unwrap();
+    let mut foreign =
+        MemoryLoginRevocations::new(domain, 4, 4, 90 * 86_400_000_000_000, 0).unwrap();
     assert_eq!(
         foreign.with_revocation::<LoginRevocationError>(&mut r.logout, f.caller(), NOW, |login| r
             .store
@@ -1332,7 +1357,7 @@ fn restored_login_records_gate_retained_sessions_and_reject_revoked_retries() {
         })
         .unwrap();
     let restore = |bytes: &[u8]| {
-        MemoryLoginRevocations::new(f.claims.audience, 4, 4, SECOND, NOW)
+        MemoryLoginRevocations::new(f.claims.audience, 4, 4, 90 * 86_400_000_000_000, NOW)
             .unwrap()
             .restore_records(NOW, (1, 0), [LoginRevocationChange::decode(bytes).unwrap()])
             .unwrap()
@@ -1373,6 +1398,63 @@ fn restored_store(store: &MemorySessionStore) -> MemorySessionStore {
 
 #[cfg(feature = "session-restore")]
 #[test]
+fn clock_contract_durable_known_logout_rejects_exact_retry_and_fresh_renewal() {
+    use ic_auth::portable::LoginRevocationChange;
+
+    let mut f = Fixture::new(1);
+    let mut r = Receiver::new(&f);
+    // Exact signed-deadline retention is independent of inter-host clock offset.
+    r.ledger =
+        MemoryLoginRevocations::new(f.claims.audience, 4, 4, 90 * 86_400_000_000_000, 0).unwrap();
+    f.admit(&mut r, NOW).unwrap();
+    r.logout(f.caller(), NOW).unwrap();
+    r.store = restored_store(&r.store);
+    let records: Vec<_> = r
+        .ledger
+        .records()
+        .map(|record| record.encode().unwrap())
+        .collect();
+    r.ledger = MemoryLoginRevocations::new(f.claims.audience, 4, 4, 90 * 86_400_000_000_000, NOW)
+        .unwrap()
+        .restore_records(
+            NOW,
+            (1, 0),
+            records
+                .iter()
+                .map(|record| LoginRevocationChange::decode(record).unwrap()),
+        )
+        .unwrap();
+    assert_eq!(
+        f.admit(&mut r, NOW),
+        Err(SessionError::Revocation(LoginRevocationError::Revoked))
+    );
+    f.claims.issued_at_ns = NOW + SECOND;
+    f.claims.admission_expires_at_ns = NOW + 2 * SECOND;
+    f.claims.nonce[0] ^= 1;
+    assert_eq!(
+        f.admit(&mut r, NOW + SECOND),
+        Err(SessionError::Revocation(LoginRevocationError::Revoked))
+    );
+    assert!(r.auth(&f, NOW + SECOND).is_err());
+}
+
+#[test]
+fn clock_contract_known_logout_does_not_need_fresh_proof_or_enrollment() {
+    let mut f = Fixture::new(1);
+    f.claims.login_deadline_ns = NOW + 300 * SECOND;
+    let mut r = Receiver::new(&f);
+    f.admit(&mut r, NOW).unwrap();
+    // Proof, local session lease and enrolled key are all expired. The retained
+    // login reservation still permits denying this caller without cryptography.
+    let now = NOW + 121 * SECOND;
+    assert!(f.admit(&mut r, now).is_err());
+    r.logout(f.caller(), now).unwrap();
+    assert!(r.ledger.is_revoked(f.caller(), now).unwrap());
+    assert!(r.auth(&f, now).is_err());
+}
+
+#[cfg(feature = "session-restore")]
+#[test]
 fn restored_store_preserves_sessions_replay_history_and_pruning_indexes() {
     let f = Fixture::new(1);
     let mut r = Receiver::new(&f);
@@ -1396,7 +1478,8 @@ fn restored_store_preserves_sessions_replay_history_and_pruning_indexes() {
     assert_eq!(r.store.session_records().len(), 0);
     assert_eq!(r.store.replay_records().len(), 1);
     // Even a lost login ledger must not erase consumed-proof evidence.
-    r.ledger = MemoryLoginRevocations::new(f.claims.audience, 4, 4, SECOND, NOW).unwrap();
+    r.ledger =
+        MemoryLoginRevocations::new(f.claims.audience, 4, 4, 90 * 86_400_000_000_000, NOW).unwrap();
     assert_eq!(f.admit(&mut r, NOW), Err(SessionError::ReplayConflict));
     r.store.advance_generation().unwrap();
     r.store = restored_store(&r.store);
@@ -1404,6 +1487,101 @@ fn restored_store_preserves_sessions_replay_history_and_pruning_indexes() {
     assert_eq!(r.store.replay_records().len(), 1);
     assert_eq!(r.store.prune(NOW + 2 * SECOND, 1).replays, 1);
     assert_eq!(r.store.encoded_bytes(), 0);
+}
+
+#[cfg(feature = "session-restore")]
+#[test]
+fn ninety_day_login_keeps_short_session_leases_and_restorable_records() {
+    let mut f = Fixture::new(1);
+    f.claims.login_deadline_ns = f.claims.login_started_at_ns + 90 * 86_400 * SECOND;
+    let mut r = Receiver::new(&f);
+    let session = created(f.admit(&mut r, NOW).unwrap(), &mut r.store);
+    assert!(session.expires_at_ns() <= NOW + 30 * SECOND);
+    let encoded = session.encode().unwrap();
+    assert_eq!(Session::decode(&encoded).unwrap(), session);
+    r.store = restored_store(&r.store);
+    assert_eq!(r.auth(&f, NOW).unwrap(), session);
+}
+
+#[cfg(feature = "session-restore")]
+#[test]
+fn ninety_day_restored_login_renews_at_its_end_without_sliding_the_deadline() {
+    use ic_auth::portable::LoginRevocationChange;
+
+    let mut f = Fixture::new(1);
+    f.claims.login_deadline_ns = f.claims.login_started_at_ns + 90 * 86_400 * SECOND;
+    let deadline = f.claims.login_deadline_ns;
+    let mut r = Receiver::new(&f);
+    f.admit(&mut r, NOW).unwrap();
+    r.store = restored_store(&r.store);
+    let records: Vec<_> = r
+        .ledger
+        .records()
+        .map(|record| record.encode().unwrap())
+        .collect();
+    let late = deadline - SECOND;
+    r.ledger = MemoryLoginRevocations::new(f.claims.audience, 4, 4, 90 * 86_400 * SECOND, late)
+        .unwrap()
+        .restore_records(
+            NOW,
+            (1, 0),
+            records
+                .iter()
+                .map(|record| LoginRevocationChange::decode(record).unwrap()),
+        )
+        .unwrap();
+    // Renew with the original caller/account/window under a fresh protected
+    // authority snapshot. No lost-state reset or new account authentication.
+    f.claims.issued_at_ns = late;
+    f.claims.admission_expires_at_ns = deadline;
+    f.claims.nonce[0] ^= 1;
+    let mut claims = f.claims_context(late);
+    claims.authority.authority_not_before_ns = late - SECOND;
+    claims.authority.authority_expires_at_ns = late + 120 * SECOND;
+    claims.authority.enrollment_expires_at_ns = late + 90 * SECOND;
+    let result = establish_session(
+        &mut r.store,
+        &mut r.ledger,
+        &mut r.budget,
+        &f.credential(),
+        request(),
+        &SessionAdmissionContext {
+            verification: PortableVerificationContext::Ed25519 {
+                claims: &claims,
+                public_key: &f.issuer_key,
+            },
+            role: &f.role,
+            ttl: ttl(),
+        },
+        policy(),
+    )
+    .unwrap();
+    let SessionEstablished::Replaced(receipt) = result else {
+        panic!("expired lease must be replaced")
+    };
+    assert_eq!(receipt.expires_at_ns(), deadline);
+    let mut context = SessionContext {
+        authority: claims.authority,
+        max_ttl: ttl().maximum(),
+        role: &f.role,
+        required_scopes: RequiredScopes::NONE,
+    };
+    assert_eq!(
+        authorize_session(
+            &mut r.store,
+            &mut r.ledger,
+            &context,
+            policy(),
+            Session::issuer
+        )
+        .unwrap(),
+        f.claims.issuer
+    );
+    context.authority.now_ns = deadline;
+    assert_eq!(
+        authorize_session(&mut r.store, &mut r.ledger, &context, policy(), |_| ()),
+        Err(SessionError::MissingOrExpired)
+    );
 }
 
 #[cfg(feature = "session-restore")]
@@ -1836,7 +2014,10 @@ fn custom_store_checks_login_binding_through_public_api() {
 
     // Proofless logout can remove an old retained session without a reservation.
     let mut unknown = Receiver::new(&fixture);
-    unknown.logout(fixture.caller(), NOW).unwrap();
+    assert!(matches!(
+        unknown.logout(fixture.caller(), NOW),
+        Err(LogoutResult::Unconfirmed { .. })
+    ));
     let tombstone = unknown.ledger.records().next().unwrap();
     assert_eq!(
         tombstone.state(),
@@ -1852,7 +2033,10 @@ fn custom_store_checks_login_binding_through_public_api() {
             other.claims.audience.fleet_id = CanonicalId::from_bytes([3; 32]);
         }
         let mut host = Receiver::new(&other);
-        host.logout(other.caller(), NOW).unwrap();
+        assert!(matches!(
+            host.logout(other.caller(), NOW),
+            Err(LogoutResult::Unconfirmed { .. })
+        ));
         assert_eq!(
             session.check_login_change(&host.ledger.records().next().unwrap()),
             Err(SessionError::InvalidPolicyOrRecord)
@@ -2054,13 +2238,23 @@ fn unknown_logout_saturation_and_expired_reservations_preserve_legitimate_recove
     let first = Fixture::new(1);
     let mut next = Fixture::new(2);
     let mut r = Receiver::new(&first);
-    r.ledger = MemoryLoginRevocations::new(first.claims.audience, 1, 2, SECOND, 0).unwrap();
+    r.ledger = MemoryLoginRevocations::new(first.claims.audience, 1, 2, 90 * 86_400_000_000_000, 0)
+        .unwrap();
     let stranger = Fixture::new(10).caller();
-    let until = r.logout(stranger, NOW).unwrap();
+    let unknown = r.logout(stranger, NOW);
+    let Err(LogoutResult::Unconfirmed {
+        deny_until_ns: until,
+    }) = unknown
+    else {
+        panic!("unseen login cannot be confirmed")
+    };
     for _ in 0..256 {
-        assert_eq!(r.logout(stranger, NOW), Ok(until));
+        assert_eq!(r.logout(stranger, NOW), unknown);
     }
-    r.logout(Fixture::new(11).caller(), NOW).unwrap();
+    assert!(matches!(
+        r.logout(Fixture::new(11).caller(), NOW),
+        Err(LogoutResult::Unconfirmed { .. })
+    ));
     for seed in 12..32 {
         assert_eq!(
             r.logout(Fixture::new(seed).caller(), NOW),
@@ -2209,4 +2403,42 @@ fn fresh_admission_is_authorizable_with_each_original_deadline_cap() {
             }
         }
     }
+}
+
+#[cfg(feature = "session-restore")]
+#[test]
+fn unknown_logout_remains_unconfirmed_through_restore_and_can_expire_before_admission() {
+    use ic_auth::portable::LoginRevocationChange;
+    let mut f = Fixture::new(1);
+    // A real signed login can exist ahead of this receiver's clock.
+    f.claims.login_started_at_ns = NOW + 3 * SECOND;
+    f.claims.login_deadline_ns = NOW + 4 * SECOND;
+    f.claims.issued_at_ns = f.claims.login_started_at_ns;
+    f.claims.admission_expires_at_ns = f.claims.login_deadline_ns;
+    let mut r = Receiver::new(&f);
+    r.ledger = MemoryLoginRevocations::new(f.claims.audience, 1, 1, 2 * SECOND, NOW).unwrap();
+    let unconfirmed = Err(LogoutResult::Unconfirmed {
+        deny_until_ns: NOW + 2 * SECOND,
+    });
+    assert_eq!(r.logout(f.caller(), NOW), unconfirmed);
+    let bytes = r.ledger.records().next().unwrap().encode().unwrap();
+    r.ledger = MemoryLoginRevocations::new(f.claims.audience, 1, 1, 2 * SECOND, NOW + SECOND)
+        .unwrap()
+        .restore_records(
+            NOW,
+            (0, 1),
+            [LoginRevocationChange::decode(&bytes).unwrap()],
+        )
+        .unwrap();
+    assert_eq!(r.logout(f.caller(), NOW + SECOND), unconfirmed);
+    assert!(f.admit(&mut r, NOW + SECOND).is_err());
+    assert_eq!(r.ledger.prune(NOW + 2 * SECOND, 1), Ok(1));
+    assert!(f.admit(&mut r, NOW + 3 * SECOND).is_ok());
+    // Admission supplies the missing immutable lifetime: subsequent logout can
+    // now confirm this exact login, using no fresh proof or account identity.
+    assert_eq!(
+        r.logout(f.caller(), NOW + 3 * SECOND),
+        Ok(f.claims.login_deadline_ns)
+    );
+    assert!(f.admit(&mut r, NOW + 3 * SECOND).is_err());
 }

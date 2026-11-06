@@ -23,7 +23,7 @@ pub struct PortableAuthority<'a> {
     pub authority_not_before_ns: u64,
     pub authority_expires_at_ns: u64,
     pub enrollment_expires_at_ns: u64,
-    /// Immutable login start floor, including the host's qualified reset margin.
+    /// Protected policy floor; a local timestamp alone cannot fence lost state.
     pub min_login_started_at_ns: u64,
 }
 
@@ -33,7 +33,7 @@ pub struct PortableAuthority<'a> {
 pub struct PortableClaimsContext<'a> {
     pub authority: PortableAuthority<'a>,
     pub min_proof_issued_at_ns: u64,
-    /// Positive host limits, capped at 86,400 and 60 seconds respectively.
+    /// Positive host limits, capped at 90 days and 60 seconds respectively.
     pub max_login_ttl_ns: u64,
     pub max_proof_ttl_ns: u64,
 }
@@ -44,30 +44,6 @@ impl PortableAuthority<'_> {
     pub(crate) fn authority_shape_valid(&self) -> bool {
         self.issuer != Principal::anonymous()
             && self.authority_not_before_ns < self.authority_expires_at_ns
-    }
-}
-
-impl PortableClaimsContext<'_> {
-    /// Advance both admission cutoffs after losing session/replay/revocation state.
-    /// Uses this context's trusted boot time and deployment-qualified skew bound;
-    /// the host must reject unavailable/rolled-back clocks before calling this.
-    /// Floors never decrease, and overflow leaves both unchanged. This only
-    /// calculates policy: the host must retain these values atomically with state
-    /// invalidation, authenticate fresh enrollment and fail closed until ready.
-    /// Do not call per request or discard the resulting floors after startup.
-    pub fn advance_reset_floors(&mut self, clock_skew_ns: u64) -> Result<(), PortableClaimsError> {
-        let proof_floor = self
-            .authority
-            .now_ns
-            .checked_add(1)
-            .ok_or(PortableClaimsError::InvalidContext)?;
-        let login_floor = proof_floor
-            .checked_add(clock_skew_ns)
-            .ok_or(PortableClaimsError::InvalidContext)?;
-        self.authority.min_login_started_at_ns =
-            self.authority.min_login_started_at_ns.max(login_floor);
-        self.min_proof_issued_at_ns = self.min_proof_issued_at_ns.max(proof_floor);
-        Ok(())
     }
 }
 
@@ -106,8 +82,8 @@ pub enum PortableClaimsError {
 ///
 /// Success authenticates nothing by itself. Refusal may precede cryptography;
 /// notably `NotYetValid` is a bounded retry hint, never evidence of a valid proof.
-/// No skew grace is added to admission. The host incorporates its qualified skew
-/// bound into reset floors and tombstone retention, not the clock supplied here.
+/// No skew grace is added. The host must preserve revocation/replay state and
+/// fail closed after state loss; these timestamp checks cannot replace it.
 pub fn validate_claims_context(
     claims: &PortableClaims,
     context: &PortableClaimsContext<'_>,

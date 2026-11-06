@@ -4,6 +4,70 @@ Covers public `ic-auth` and the unpublished backend conformance, qualification a
 native tooling packages. The independent series starts after the
 [last coordinated release, 0.29.2](../history.md).
 
+## [0.35.0] - Unreleased
+
+### ⚠️ Breaking
+
+- Support protected login windows up to 90 days while retaining short proofs and
+  session leases. Login-ledger construction now requires an explicit maximum
+  login TTL, bounding reservations, restoration and conservative logout retention;
+  shorter host policies retain their shorter storage horizon.
+- Replace the private browser journal profile with durable issuance/renewal
+  sequences and exact result recovery. The maintainer confirmed no retained old
+  records; the retired profile is refused without migration or automatic reset.
+  Issuer adapters must supply browser-bound renewal and sequence-specific lookup;
+  receiver adapters return the authenticated admission receipt.
+- Remove the unqualified skew assumption from local revocation: retain known
+  denial through the signed login deadline, report unknown denial as unconfirmed,
+  and keep lost-state receivers closed pending trusted recovery. Retire the
+  timestamp reset helper, login-record identity and private fixture checkpoint.
+  The maintainer confirmed no retained affected Rust/browser records. Browser
+  cleanup remains finite without treating local expiry as remote confirmation.
+  Canic owns production adoption of the
+  [#127 contract](https://github.com/dragginzgame/ic-auth/issues/127).
+
+### ➕ Added
+
+- Reuse retained proof evidence after browser reopen and renew completed expired
+  proofs using the browser key without the account provider. Persist intent before
+  dispatch and evidence before admission; unresolved sequences remain lookup-only.
+  Logout fences late results and deletes evidence atomically. Ordinary signing
+  reads only small metadata. Detached receipt metadata supports host scheduling;
+  key custody, issuer endpoints and SDK identity wiring remain host-owned.
+- Add receiver-bound readiness identities that reuse live lease hints and renew
+  before signing after suspension. Support short-lease refresh before proof
+  expiry and one admission retry after an authenticated expiry refusal on reopen;
+  pending issuance stays lookup-only. Polling submitted requests never renews and
+  application effects are never replayed. Hosts supply the clock mapping and SDK
+  wiring. Expired exact recovery can refresh only after durable completion of
+  the uncertain sequence. Qualify late renewal against the original 90-day deadline.
+
+### 🔧 Dependencies
+
+- Adopt IC Build 0.75.0, Storage 0.68.0, Testkit 0.89.0 and Wire 0.17.4 in tooling and
+  qualification. Storage's collection images require fresh fixture allocation;
+  retained old framing is refused without clearing. Collection checksums are
+  retired upstream; Auth retains its payload identity and bounded Wire admission.
+  No production Auth storage migration is performed.
+- Testkit client logging is application-owned. Auth uses no retired environment
+  logging setup; keep its explicit server-output custody without a replacement
+  global subscriber. Wire adoption alone leaves the browser runtime unchanged;
+  the separate logout hard cut updates its generated binding.
+- Adopt Shared Tooling 0.30.6 and enable its CBOR source check alongside the
+  existing Cargo and browser dependency/import enforcement. Retain an empty
+  source allowance policy and the Protocol/Engine validation groups.
+
+### 🧹 Cleanup
+
+- Remove the private qualification fixture's unused direct Serde dependency;
+  retain the separate feature-unification fixture's deliberate dependencies.
+
+### 🧪 Testing
+
+- Add clock-independent deadline/denial, unknown-result, durable recovery and
+  lost-state refusal acceptance. Preserve strict future-proof rejection, bounded
+  capacity/work and local ordinary authorization.
+
 ## [0.34.1] - 2026-11-05
 
 ### 🔧 Changed

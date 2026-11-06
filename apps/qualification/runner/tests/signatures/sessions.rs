@@ -100,6 +100,9 @@ async fn logout(f: &Fixture, target: Principal, caller: Principal) -> Result<u64
     .expect("qualified Wire logout")
     {
         m::LogoutResult::Revoked(until) => Ok(until),
+        m::LogoutResult::Unconfirmed(deny_until_ns) => {
+            Err(LogoutResult::Unconfirmed { deny_until_ns })
+        }
         m::LogoutResult::InvalidCaller => Err(LogoutResult::InvalidCaller),
         m::LogoutResult::Unavailable(reason) => Err(LogoutResult::Unavailable(reason.into())),
     }
@@ -525,7 +528,10 @@ async fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ing
     eprintln!("portable session Wasm profile: {profile:?}");
     let unknown_key = SigningKey::from_bytes(&[3; 32]).verifying_key().to_bytes();
     let unknown = browser_principal(&unknown_key);
-    logout(&f, f.signer, unknown).await.unwrap();
+    assert!(matches!(
+        logout(&f, f.signer, unknown).await,
+        Err(LogoutResult::Unconfirmed { .. })
+    ));
     claims.browser_public_key = unknown_key;
     claims.issued_at_ns = f.now().await;
     claims.admission_expires_at_ns = f.now().await + 2 * SECOND;
@@ -545,41 +551,20 @@ async fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ing
     result.unwrap();
     assert!(read(&f, f.signer, other_caller).await.is_err());
     logout(&f, f.signer, other_caller).await.unwrap();
-    f.pic
-        .instance()
-        .upgrade_canister(
-            f.resource.into(),
-            f.wasm.clone(),
-            controls::Upgrade::encode_request(&()).unwrap(),
-            Some(f.controller.into()),
-        )
-        .await
-        .unwrap();
-    assert_eq!(
-        read(&f, f.resource, caller).await.unwrap_err(),
-        SessionReadRefusal::Unavailable
-    );
-    assert_eq!(
-        logout(&f, f.resource, caller).await,
-        Err(LogoutResult::Unavailable(LogoutUnavailable::ResetPending))
-    );
-    install(&f, f.resource, &config).await;
-    install(&f, f.signer, &config).await;
-    f.pic
-        .instance()
-        .advance_time(Duration::from_secs(1))
-        .await
-        .unwrap();
-    claims.browser_public_key = SigningKey::from_bytes(&[1; 32]).verifying_key().to_bytes();
-    claims.issued_at_ns = f.now().await;
-    claims.admission_expires_at_ns = f.now().await + 2 * SECOND;
-    assert_eq!(
-        admission(&f, f.resource, caller, &input(&claims, &key)).await,
-        Err(AdmissionRefusal::BeforeReset)
-    );
+    let enabled: Result<(), controls::Refusal> = update_control::<bool, ()>(
+        f.pic.instance(),
+        f.signer,
+        f.controller,
+        spec!(controls::InvalidateAuthority),
+        true,
+    )
+    .await;
+    enabled.unwrap();
     claims.browser_public_key = SigningKey::from_bytes(&[4; 32]).verifying_key().to_bytes();
     claims.login_started_at_ns = f.now().await;
-    claims.login_deadline_ns = f.now().await + 90 * SECOND;
+    claims.login_deadline_ns = claims.login_started_at_ns + 90 * SECOND;
+    claims.issued_at_ns = claims.login_started_at_ns;
+    claims.admission_expires_at_ns = claims.issued_at_ns + 2 * SECOND;
     let fresh = browser_principal(&claims.browser_public_key);
     // This device must outlive signed ingress plus the bounded SDK child on
     // slower hosts. Request the existing maximum without changing default TTLs;
@@ -729,6 +714,48 @@ async fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ing
         );
     }
     f.pic
+        .instance()
+        .upgrade_canister(
+            f.resource.into(),
+            f.wasm.clone(),
+            controls::Upgrade::encode_request(&()).unwrap(),
+            Some(f.controller.into()),
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        read(&f, f.resource, caller).await.unwrap_err(),
+        SessionReadRefusal::Unavailable
+    );
+    assert_eq!(
+        logout(&f, f.resource, caller).await,
+        Err(LogoutResult::Unavailable(LogoutUnavailable::ResetPending))
+    );
+    let reinstall: Result<(), controls::Refusal> =
+        update_control::<controls::model::ReceiverConfig, ()>(
+            f.pic.instance(),
+            f.resource,
+            f.controller,
+            spec!(controls::InstallReceiver),
+            config.clone().try_into().unwrap(),
+        )
+        .await;
+    assert_eq!(reinstall, Err(controls::Refusal::ReceiverUnavailable));
+    let confirm: Result<(), controls::Refusal> =
+        update_control::<controls::model::ReceiverConfig, ()>(
+            f.pic.instance(),
+            f.resource,
+            f.controller,
+            spec!(controls::ConfirmAuthority),
+            config.clone().try_into().unwrap(),
+        )
+        .await;
+    assert_eq!(confirm, Err(controls::Refusal::AwaitingAuthority));
+    assert_eq!(
+        admission(&f, f.resource, fresh, &fresh_input).await,
+        Err(AdmissionRefusal::Unavailable)
+    );
+    f.pic
         .close()
         .await
         .expect("delete qualification instance before stopping its server");
@@ -833,7 +860,8 @@ pub(super) async fn qualify_certified(
         SessionLimits::new(1, 2, 2, 8192).expect("fixture limits"),
     );
     let mut ledger =
-        MemoryLoginRevocations::new(*old.claims.authority.audience, 1, 1, 0, 0).unwrap();
+        MemoryLoginRevocations::new(*old.claims.authority.audience, 1, 1, 86_400_000_000_000, 0)
+            .unwrap();
     let mut budget = SessionAdmissionBudget::new(8, 1, 0).unwrap();
     let bytes = encode_claims(&claims).unwrap();
     let credential = PortableCredential {
@@ -990,7 +1018,12 @@ async fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_author
     assert!(read(&f, f.signer, revoked).await.is_ok());
     let unknown_key = SigningKey::from_bytes(&[3; 32]).verifying_key().to_bytes();
     let unknown = browser_principal(&unknown_key);
-    let unknown_until = logout(&f, f.resource, unknown).await.unwrap();
+    let Err(LogoutResult::Unconfirmed {
+        deny_until_ns: unknown_until,
+    }) = logout(&f, f.resource, unknown).await
+    else {
+        panic!("unseen login must remain unconfirmed")
+    };
     f.pic
         .instance()
         .advance_time(Duration::from_secs(3))
@@ -1084,8 +1117,10 @@ async fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_author
     assert!(read(&f, f.resource, revoked).await.is_err());
     assert_eq!(logout(&f, f.resource, revoked).await.unwrap(), denied_until);
     assert_eq!(
-        logout(&f, f.resource, unknown).await.unwrap(),
-        unknown_until
+        logout(&f, f.resource, unknown).await,
+        Err(LogoutResult::Unconfirmed {
+            deny_until_ns: unknown_until
+        })
     );
     // Newly signed credentials for both revoked logins remain denied after boot.
     claims.issued_at_ns = f.now().await;
