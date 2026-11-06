@@ -8,22 +8,22 @@ Superseded migration journals remain in Git history; use the current contracts b
 
 ## Current integration cohort
 
-Published **Protocol 0.34.0** (`ic-auth-protocol-types`, `ic-auth-wire`) and
-**Engine 0.34.1** (`ic-auth`) form the released cohort. Keep both Protocol packages
+Published **Protocol 0.35.0** (`ic-auth-protocol-types`, `ic-auth-wire`) and
+**Engine 0.35.0** (`ic-auth`) form the released cohort. Keep both Protocol packages
 aligned and satisfy Engine's declared Protocol requirement; the groups release
-independently. Engine's qualification lock uses Platform 0.23.0, Types 0.18.1,
-Wire 0.17.2, Testkit 0.87.0, Runtime 0.19.2, Storage 0.67.1 and Metrics 0.29.3.
+independently. Engine's qualification lock uses Platform 0.23.2, Types 0.18.2,
+Wire 0.17.4, Testkit 0.89.0, Runtime 0.19.3, Storage 0.68.0 and Metrics 0.29.3.
 Platform 0.23/browser SDK 0.2 adoption and the complete Engine gate are recorded
 in the [current handoff](status/current.md). Rust 1.99.1 remains the minimum.
 [Cargo.toml](../Cargo.toml), the lockfile and [group ledgers](../CHANGELOG.md)
 record development selections and release notes, respectively.
 
-Pending Engine 0.35 and Protocol 0.35 development selects Build 0.75.0,
-Storage 0.68.0, Testkit 0.89.0, Wire 0.17.4 and Shared Tooling 0.30.6.
+The released cohort also selects Build 0.75.0,
+Host 0.74.4 and Shared Tooling 0.30.6.
 Storage's collection image cut applies only to
 Auth's private qualification host here; fresh fixture allocation is required and
 old images are refused without clearing. This is not an in-place production-store
-upgrade or a newly published Auth release.
+upgrade. Newer dependency selections remain deferred as recorded in the handoff.
 
 Host-selected `SessionLimits` support profiles such as 100,000 sessions without
 providing a receiver default or allocating backing. Canic owns its configured
@@ -35,8 +35,8 @@ graph with one Runtime executor/generator/guard.
 
 ## Pending clock-independent adoption
 
-The [#127 contract](design/portable-clock-audit.md) is an unpublished minor hard
-cut. Keep production activation refused until the actual consumer qualifies it.
+Protocol and Engine 0.35.0 deliver the
+[#127 contract](design/portable-clock-audit.md) as a minor hard cut. Keep production activation refused until the actual consumer qualifies it.
 Canic must update the receiver Wire codec and browser bindings together, handle
 `Unconfirmed` without reporting logout success, and select the explicit protected
 login ceiling in ledger construction. Known logout retains denial through its
@@ -186,7 +186,7 @@ signatures, expiry, reset-floor or stale-authority refusals automatically.
 
 ## Auth 0.30 / Platform 0.17 / Wire 0.14 adoption
 
-The following migration sections describe historical cohorts, preceding 0.34. The published
+The following migration sections describe historical cohorts, preceding 0.35. The published
 Protocol and Engine 0.30.0 releases select canonical Types 0.16.0,
 Platform 0.17.0, Wire/derive 0.14.2 and native Testkit 0.78.0. Existing Principal,
 parse-error, codec and limits values have a new Rust package identity; align the
@@ -213,9 +213,6 @@ strict verification and explicit high-S policy. The upstream BLS identity-key
 fix rejects forged certificates; native Agent's separate verifier is unchanged.
 Canister build owners should select the qualified 32-bit RustCrypto backend;
 this checkout declares it in [Cargo configuration](../.cargo/config.toml).
-The pending logout hard cut retires its Wire identity and login-record identity.
-Update receiver/browser adapters together; unknown logout is explicitly unconfirmed.
-No retained affected Auth records were reported; never reset consumer state implicitly.
 
 ## Platform 0.15 migration
 
