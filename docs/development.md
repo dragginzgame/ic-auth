@@ -60,21 +60,45 @@ checkout. Leave reviewable local changes and run the relevant focused checks.
 Create a PR when requested or required by repository workflow. When a PR is
 needed, use a topic branch in this checkout. Do not create contribution
 directories, additional clones or worktrees for ordinary work or delivery.
-Authorized releases run from clean `main` in the same checkout after the selected
-source has been integrated through its authorized workflow.
+Authorized releases start from clean `main` after the selected source has been
+integrated through its authorized workflow. Shared's qualified frozen controller
+captures that source under this repository's `target/release-frozen/BATCH`, with
+Git objects/journals under `.git/release-state/frozen/BATCH`. This is a managed
+delivery path, not an additional implementation checkout.
 
 A branch does not isolate simultaneous sessions sharing a checkout. Coordinate
 with active agents, editors, dependency updaters and builds before switching
-branches or changing inputs. Keep the selected source stable throughout release
-and publication. The source/index checks, complete admitted release plan and
-input-drift guard remain required.
+branches or changing inputs. The captured source stays stable during release and
+publication; later normal-checkout updates belong to the next batch. Source/index
+checks, the complete admitted release plan and the input-drift guard remain
+required inside the candidate. Do not clean `target/` during an active batch.
 
 The existing `make release-patch`, `make release-minor` and `make release-major`
-commands still require release authority and an explicit `RELEASE_GROUP`.
-The release runner retains its qualified direct commit/tag/push workflow. Its
-separate `RELEASE_DELIVERY=pr` mode is not qualified in Auth.
+commands still require release authority. Select one group with `RELEASE_GROUP`,
+or the complete supplier-first roster through Shared's `RELEASE_GROUPS`.
+Git-only delivery remains the default; registry publication is explicit:
 
-For exact recovery, keep the original source, adapter and attempt state, then run
+```sh
+make release-patch RELEASE_GROUP=engine
+make release-patch RELEASE_GROUPS=protocol,engine RELEASE_PUBLISH_TARGET=publish
+make release-batch-status BATCH=batch-XXXXXXXX
+make release-batch-resume BATCH=batch-XXXXXXXX
+```
+
+Run the controller from an ordinary shell without `CARGO_TARGET_DIR` or other
+Git/Cargo context overrides. Candidate hooks select their own target and prepare
+their own formatting tools and browser dependencies; recovery checks saved-source
+tool selections offline. The standard runner retains direct commit/tag/push and
+the product's exact publication receipts. PR delivery remains unqualified.
+
+The normal branch does not advance automatically. Preserve deferred work durably
+before `make release-batch-reconcile BATCH=…`, which requires a clean branch and
+fast-forwards only. Reapply deferred dependency edits deliberately afterward.
+`make release-batch-retire BATCH=…` explicitly removes the selected completed
+batch's managed checkout and recovery state; retain required evidence elsewhere
+first. No local lifecycle wrappers or automatic stash/reset/merge exist.
+
+For legacy ordinary journals, keep the original source, adapter and attempt state, then run
 `make release-resume RELEASE_GROUP=protocol|engine VERSION=X.Y.Z`. Preserve
 `.git/release-state`, publication intent, prepared tools and `target` evidence.
 Do not reset, re-clone or clean away recovery state to retry. Normal later
@@ -184,7 +208,7 @@ for the existing byte/path limits and release-recovery boundary.
 
 ## Dependency roles and deployment admission
 
-Shared Tooling 0.30.8 at `dc9df707b3b1e616973494eab961c1c214d12260` is adopted
+Shared Tooling 0.31.0 at `74313941af2fce4399bec0e6909ca6229673c3f8` is adopted
 through the canonical snapshot. This identifies reviewed committed source, not a
 claim of upstream publication or a matching release tag. Auth retains Cargo-owned versions
 and the default release mode; Shared's pending canonical `VERSION` workflow does
@@ -474,8 +498,8 @@ No native package installer or browser download runs inside an ordinary check.
 The Makefile includes reviewed [`make/consumer.mk`](make-interface.md), which owns
 common setup, formatting, hooks, snapshot verification and release routing.
 `check-snapshot` retains its public name and depends on `shared-tooling-check`.
-The recorded snapshot pins Shared Tooling 0.30.8 at
-`dc9df707b3b1e616973494eab961c1c214d12260`. Adopt its committed source and
+The recorded snapshot pins Shared Tooling 0.31.0 at
+`74313941af2fce4399bec0e6909ca6229673c3f8`. Adopt its committed source and
 recorded entrypoint closure through the canonical exporter; see
 [snapshot adoption](consuming-snapshots.md#entrypoint-selection-in-070).
 Adoption also compares every exported payload with an independently reviewed

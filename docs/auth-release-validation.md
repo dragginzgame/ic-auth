@@ -6,12 +6,38 @@ groups must match `ci/cargo-release-groups.json`. Ordinary `make ci` executes
 every stage. Release verification selects a source-bound plan rather than invoking
 that aggregate unconditionally. No prior whole-gate receipt or stage is reused.
 
-Shared Tooling 0.30.8 supplies opt-in [frozen release batches](frozen-releases.md),
-including recovery of generated batch IDs containing underscores.
-Auth has not enabled `RELEASE_FROZEN_GROUPS`: its actual group release,
-publication and recovery hooks still require qualification in the managed
-delivery checkout before that mode can be selected. Ordinary releases retain
-the current source-drift admission and group-specific commands below.
+Auth uses Shared Tooling 0.31.0's [release batches](release-batches.md),
+with shared candidate setup, saved hook context and batch status/resume,
+fast-forward reconciliation and explicit retirement. Use those shared controls
+for delivery; Auth owns no parallel batch wrappers. A single-group release keeps
+`RELEASE_GROUP=protocol|engine`; a multi-group release selects the complete roster
+with `RELEASE_GROUPS=protocol,engine`. Shared owns the single-group default
+and refuses clearing its roster to return to live delivery. Registry delivery is
+explicit through
+`RELEASE_PUBLISH_TARGET=publish`. All existing source-drift, validation,
+metadata, exact-tag and registry-receipt admission runs inside the captured source.
+
+`release-candidate-setup` prepares that candidate's own host/formatting tools and
+browser dependencies before version lookup. The existing preflight retains
+compiler, product-tool and complete gate preparation. Recovery only checks those
+prepared tools and the editor selected by the saved source's lock/manifest, even
+when current release metadata is partially installed. Missing tools refuse;
+recovery never installs from a partial live lock.
+
+The normal checkout retains subsequent edits and does not advance automatically.
+Use Shared's `release-batch-status` and `release-batch-resume` with the printed
+`BATCH`; reconcile completed delivery only from a clean normal branch. Preserve
+deferred edits durably before reconciliation and reapply them deliberately.
+Retirement explicitly deletes the selected batch's managed checkout and recovery
+state, so preserve required evidence first. The older group/version
+`release-resume` remains available for ordinary journals; it does not resume a
+frozen controller. An inherited `CARGO_TARGET_DIR` is refused before dispatch.
+
+Shared's schema-2 batch intents require the recorded publication commit. Retired
+`RELEASE_FROZEN_*`/`FROZEN_RELEASE_ACTIVE` settings are refused without aliases.
+Finish any pre-0.31 batch with its original tooling before adoption; never relabel
+its journal. Auth has no active pre-0.31 batch. The `release-frozen`/`frozen`
+storage paths and source pins remain stable identifiers.
 
 ## Selection
 
@@ -91,6 +117,16 @@ to validation receipts, `bash scripts/release/test-tools.sh --validation` select
 the actual metadata, interruption/resume and fresh-clone publication callers
 without replaying unchanged setup and registry response matrices. The complete
 CI target retains those matrices.
+
+`bash scripts/release/test-tools.sh --batch` selects the frozen-flow consumer
+qualification without those unrelated matrices. It builds actual locked native
+package archives in a fresh source location, then uses Auth's real metadata and
+publication adapters with substituted gate/tool-install/upload/registry effects.
+It covers both groups in one batch, a concurrent normal lock edit, partial
+metadata, missing saved editor, uncertain publication and explicit reconciliation,
+completed resume without republishing, and the shared status/reconcile/retire
+commands. The complete `test-release-tools` includes this case. This is local
+consumer qualification, not a live upload or installed-canister acceptance run.
 
 Explicit workflow dispatch with `qualify_release_groups=true` runs
 `bash scripts/release/qualify-validation.sh` after each native job's complete

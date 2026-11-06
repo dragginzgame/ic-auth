@@ -1,16 +1,21 @@
 #!/usr/bin/env bash
 set -euo pipefail
 validation_only=false
+batch_only=false
 case "${1:-}" in
     '') [[ $# == 0 ]] ;;
     --validation) [[ $# == 1 ]]; validation_only=true ;;
+    --batch) [[ $# == 1 ]]; validation_only=true; batch_only=true ;;
     --retention) [[ $# == 1 ]]; exec bash "${BASH_SOURCE[0]%/*}/test-retention.sh" ;;
-    *) echo 'usage: test-tools.sh [--validation|--retention]' >&2; exit 2 ;;
+    *) echo 'usage: test-tools.sh [--validation|--batch|--retention]' >&2; exit 2 ;;
 esac
 
 # The fixture owns its nested Make selections, including missing-group probes.
 # An enclosing release must not force its command-line group into these calls.
 unset MAKEFLAGS MFLAGS MAKEOVERRIDES GNUMAKEFLAGS MAKEFILES
+# Existing leaf-contract cases exercise the standard runner inside a candidate.
+# The frozen case below clears this only when entering the real controller.
+export RELEASE_BATCH_ACTIVE=1
 
 # Local Git/bare-remote fixtures, real metadata transforms and mocked upload
 # transport. No source commit, remote ref or registry effect in the real repo.
@@ -20,6 +25,7 @@ cd -P "${script_path%/*}/../.."
 root="$PWD"
 if [[ "$validation_only" == false ]]; then bash scripts/release/test-retention.sh; fi
 export PATH="$root/.tools/host/bin:$root/.tools/rust/common/bin:$PATH"
+auth_fixture_path="$PATH"
 export CARGO_NET_OFFLINE=true RUSTUP_AUTO_INSTALL=0
 mkdir -p "$root/target/portable-fixtures"
 fixture="$(mktemp -d "$root/target/portable-fixtures/release-tools.XXXXXX")"
@@ -113,6 +119,10 @@ TMPDIR="$fixture" bash scripts/ci/check-release-commands.sh "$fixture/repo" \
 fi
 cd "$fixture/repo"
 export RELEASE_GROUP=protocol
+if [[ "$batch_only" == true ]]; then
+    source scripts/release/test-batch.sh
+    auth_batch_native
+fi
 # Keep an inherited search path throughout release and publication flows.
 # Machine-readable metadata and digest output must not acquire a cd banner.
 export CDPATH=".:$fixture"
@@ -145,6 +155,9 @@ for selected_group in engine protocol; do
     cp "$fixture/lock" Cargo.lock
 done
 printf '# Changelog\n\n## [0.1.1]\n\n- Fixture release.\n' > releases/protocol/CHANGELOG.md
+if [[ "$batch_only" == true ]]; then
+    printf '# Changelog\n\n## [0.9.1]\n\n- Frozen Engine fixture.\n' > releases/engine/CHANGELOG.md
+fi
 RELEASE_VERSION=0.9.1 bash "$PWD/scripts/ci/cargo-release-group.sh" plan engine > "$fixture/engine-before.json"
 while IFS= read -r path; do
     mkdir -p "$fixture/unselected-engine/${path%/*}"
@@ -159,6 +172,11 @@ set -euo pipefail
 printf 'gate\n' >> target/preparation-dispatch.log
 [[ ! -f target/fail-gate ]] || exit 1
 echo fixture-complete-gate
+if [[ -n "${IC_AUTH_BATCH_FIXTURE_ROOT:-}" && "$RELEASE_GROUP" == protocol &&
+      ! -e "$FIXTURE_LOG/normal-update" ]]; then
+    printf '\n# Deferred frozen-flow fixture update\n' >> "$IC_AUTH_BATCH_FIXTURE_ROOT/Cargo.lock"
+    touch "$FIXTURE_LOG/normal-update"
+fi
 # Substitute only stage execution. Keep the real group selector and receipt
 # owner, with explicit runner-shaped events/logs rather than a whole-gate PASS.
 plan=''
@@ -209,6 +227,7 @@ SCRIPT
 cat > scripts/dev/install-host-tools.sh <<'SCRIPT'
 #!/usr/bin/env bash
 set -euo pipefail
+mkdir -p target
 if [[ " $* " == *' --check '* ]]; then
     printf 'common check\n' >> target/preparation-dispatch.log
     [[ ! -f target/fail-common-check && -f target/common-tools-ready ]] || exit 1
@@ -239,14 +258,19 @@ if [[ " $* " == *' --package ic-host-fs '* ]]; then
     printf '%s\n' "$IC_AUTH_FIXTURE_HOST_FILE"
     exit 0
 fi
-[[ " $* " == *' --package ic-build '* ]] || exit 0
+if [[ " $* " != *' --package ic-build '* ]]; then
+    if [[ " $* " == *' --check '* ]]; then [[ -f target/rust-tools-ready ]]
+    else touch target/rust-tools-ready; fi
+    exit
+fi
 lock=''
 previous=''
 for argument in "$@"; do
     if [[ "$previous" == --lockfile ]]; then lock="$argument"; fi
     previous="$argument"
 done
-[[ "$lock" == "$PWD/target/release-metadata/metadata."*/base.lock && -f "$lock" ]]
+[[ ( "$lock" == "$PWD/target/release-metadata/metadata."*/base.lock ||
+     "$lock" == "$PWD/target/release-candidate-setup/saved."*/base.lock ) && -f "$lock" ]]
 git show "$RELEASE_SOURCE:Cargo.lock" | cmp - "$lock"
 [[ " $* " == *' --features cli '* ]] || exit 1
 if [[ " $* " == *' --check '* ]]; then
@@ -274,12 +298,29 @@ case "$1" in
     *) exit 2 ;;
 esac
 SCRIPT
+if [[ "$batch_only" == true ]]; then
+cat > scripts/dev/client-tools.sh <<'SCRIPT'
+#!/usr/bin/env bash
+set -euo pipefail
+case "$1" in
+    install) touch target/client-ready ;;
+    check) [[ -f target/client-ready ]] ;;
+    *) exit 2 ;;
+esac
+SCRIPT
+fi
 cp scripts/release/metadata.sh scripts/release/fixture-metadata.sh
 cat > scripts/release/metadata.sh <<'SCRIPT'
 #!/usr/bin/env bash
 set -euo pipefail
 bash scripts/release/fixture-metadata.sh "$@" || exit "$?"
 if [[ "$1" == prepare-version ]]; then
+    if [[ -n "${IC_AUTH_BATCH_FIXTURE_ROOT:-}" && ! -e "$FIXTURE_LOG/interrupted-once" ]]; then
+        touch "$FIXTURE_LOG/interrupted-once"
+        git show HEAD:Cargo.toml > Cargo.toml
+        git show HEAD:crates/ic-auth-protocol-types/Cargo.toml > crates/ic-auth-protocol-types/Cargo.toml
+        exit 19
+    fi
     if [[ -f target/interrupt-prepare ]]; then
         primary="$(jq -r --arg group "$RELEASE_GROUP" '.groups[] | select(.name == $group) | .primary' ci/cargo-release-groups.json)"
         git show HEAD:Cargo.toml > Cargo.toml
@@ -289,6 +330,101 @@ if [[ "$1" == prepare-version ]]; then
     if [[ -f target/interrupt-prepared ]]; then exit 19; fi
 fi
 SCRIPT
+# Fake only package creation/upload and registry reads. Metadata, tag checks,
+# clean-worktree admission and publication intent/reconciliation stay real.
+mkdir "$fixture/bin"
+FIXTURE_WC="$(command -v wc)"
+export FIXTURE_WC
+# BSD wc pads line counts. Exercise that output on every host, preserving the
+# real count while testing publication dispatch/reconciliation numerically.
+cat > "$fixture/bin/wc" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+count="$("$FIXTURE_WC" "$@")"
+printf '%8s\n' "$count"
+SH
+actual_cargo="$(command -v cargo)"
+export FIXTURE_CARGO="$actual_cargo" FIXTURE_LOG="$fixture" FIXTURE_MODE=unknown
+cat > "$fixture/bin/cargo" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+case "$1" in
+    package)
+        printf '%s\t%s\n' "$RELEASE_GROUP" "$*" >> "$FIXTURE_LOG/package-argv"
+        [[ "$FIXTURE_MODE" != package-failure ]] || exit 101
+        mkdir -p "$CARGO_TARGET_DIR/package"
+        source scripts/release/packages.sh selected
+        for package in "${packages[@]}"; do
+            version="$(yq -p toml -o json '.' "crates/$package/Cargo.toml" | jq -r .package.version)"
+            printf '%s' "$package" > "$CARGO_TARGET_DIR/package/$package-$version.crate"
+        done
+        if [[ "$FIXTURE_MODE" == source-change ]]; then git commit --allow-empty -qm 'Concurrent fixture source'; fi
+        ;;
+    publish)
+        [[ $# == 6 && "$2" == --locked && "$3" == --registry && "$4" == crates-io && "$5" == --package ]]
+        selector="$6"
+        package="${selector%@*}"
+        version="$(yq -p toml -o json '.' "crates/$package/Cargo.toml" | jq -r .package.version)"
+        [[ "$selector" == "$package@$version" ]]
+        case "$RELEASE_GROUP/$package" in protocol/ic-auth-protocol-types|protocol/ic-auth-wire|engine/ic-auth) ;; *) exit 2 ;; esac
+        printf '%s\n' "$package" >> "$FIXTURE_LOG/uploads"
+        if [[ "$FIXTURE_MODE" == lost-reply ]]; then exit 101; fi
+        if [[ "$FIXTURE_MODE" == interrupted ]]; then kill -TERM "$PPID"; exit 143; fi
+        touch "$FIXTURE_LOG/observed-$package"
+        ;;
+    *) exec "$FIXTURE_CARGO" "$@" ;;
+esac
+SH
+cat > "$fixture/bin/curl" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+if [[ "$*" == '--disable --version' ]]; then
+    if [[ "$FIXTURE_MODE" == old-curl ]]; then printf 'curl 8.3.0\n'; else printf 'curl 8.4.0\n'; fi
+    exit 0
+fi
+output=''
+diagnostics=''
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --output) output="$2"; shift 2 ;;
+        --stderr) diagnostics="$2"; shift 2 ;;
+        *) url="$1"; shift ;;
+    esac
+done
+[[ -z "$diagnostics" ]] || : > "$diagnostics"
+package="$(basename "$(dirname "$url")")"
+version="${url##*/}"
+checksum="$(bash scripts/dev/run-host-file.sh hash-file "$CARGO_TARGET_DIR/package/$package-$version.crate" 67108864)"
+case "$FIXTURE_MODE" in
+    unknown) printf 503 ;;
+    conflict)
+        jq -n --arg crate "$package" --arg version "$version" '{version:{crate:$crate,num:$version,checksum:("0" * 64),yanked:false}}' > "$output"
+        printf 200 ;;
+    wrong-crate|wrong-version|invalid-checksum|invalid-yanked|multiple-json)
+        jq -n --arg crate "$package" --arg version "$version" --arg checksum "$checksum" --arg mode "$FIXTURE_MODE" '
+            {version:{crate:$crate,num:$version,checksum:$checksum,yanked:false}} |
+            if $mode == "wrong-crate" then .version.crate = "other-crate"
+            elif $mode == "wrong-version" then .version.num = "0.1.2"
+            elif $mode == "invalid-checksum" then .version.checksum = "wrong"
+            elif $mode == "invalid-yanked" then .version.yanked = "false"
+            else . end
+        ' > "$output"
+        if [[ "$FIXTURE_MODE" == multiple-json ]]; then printf '{}\n' >> "$output"; fi
+        printf 200 ;;
+    malformed) printf '{' > "$output"; printf 200 ;;
+    oversized) head -c 1048577 /dev/zero > "$output"; printf 200 ;;
+    transport) printf '{' > "$output"; printf 000; exit 28 ;;
+    *)
+        if [[ -f "$FIXTURE_LOG/observed-$package" ]]; then
+            jq -n --arg crate "$package" --arg version "$version" --arg checksum "$checksum" --arg mode "$FIXTURE_MODE" \
+                '{version:{crate:$crate,num:$version,checksum:$checksum,yanked:($mode == "yanked")}}' > "$output"
+            printf 200
+        else printf 404; fi
+        ;;
+esac
+SH
+chmod +x "$fixture/bin/cargo" "$fixture/bin/curl" "$fixture/bin/wc"
+export PATH="$fixture/bin:$PATH" CARGO_TARGET_DIR="$PWD/target"
 # Diagnose recipe drift rather than filtering Make stderr. Every nested parse
 # uses this same production Makefile and its unchanged canonical includes.
 make --no-print-directory help > "$fixture/make-parse.log" 2>&1
@@ -301,10 +437,14 @@ git commit -qm 'Fixture source'
 git init -q --bare "$fixture/remote.git"
 git remote add origin "$fixture/remote.git"
 git push -q origin main
-mkdir target
+mkdir -p target
 printf 'retained artifact\n' > target/keep
 before="$(git rev-parse HEAD)"
 cp releases/protocol/CHANGELOG.md "$fixture/pending-notes"
+if [[ "$batch_only" == true ]]; then
+    auth_batch_contract
+    exit 0
+fi
 if [[ "$validation_only" == false ]]; then
 # Missing/empty/unknown selections refuse through the actual public entrypoints,
 # before setup, the gate, package creation or any Git release effect.
@@ -419,100 +559,6 @@ cmp "$fixture/external-before.json" "$fixture/external-after.json"
 make --no-print-directory release-resume VERSION=0.1.1 > "$fixture/resume.log" 2>&1
 [[ "$(git rev-parse HEAD)" == "$commit" ]] || exit 1
 
-# Fake only package creation/upload and registry reads. Metadata, tag checks,
-# clean-worktree admission and publication intent/reconciliation stay real.
-mkdir "$fixture/bin"
-FIXTURE_WC="$(command -v wc)"
-export FIXTURE_WC
-# BSD wc pads line counts. Exercise that output on every host, preserving the
-# real count while testing publication dispatch/reconciliation numerically.
-cat > "$fixture/bin/wc" <<'SH'
-#!/usr/bin/env bash
-set -euo pipefail
-count="$("$FIXTURE_WC" "$@")"
-printf '%8s\n' "$count"
-SH
-actual_cargo="$(command -v cargo)"
-export FIXTURE_CARGO="$actual_cargo" FIXTURE_LOG="$fixture" FIXTURE_MODE=unknown
-cat > "$fixture/bin/cargo" <<'SH'
-#!/usr/bin/env bash
-set -euo pipefail
-case "$1" in
-    package)
-        [[ "$FIXTURE_MODE" != package-failure ]] || exit 101
-        mkdir -p "$CARGO_TARGET_DIR/package"
-        source scripts/release/packages.sh selected
-        for package in "${packages[@]}"; do
-            version="$(yq -p toml -o json '.' "crates/$package/Cargo.toml" | jq -r .package.version)"
-            printf '%s' "$package" > "$CARGO_TARGET_DIR/package/$package-$version.crate"
-        done
-        if [[ "$FIXTURE_MODE" == source-change ]]; then git commit --allow-empty -qm 'Concurrent fixture source'; fi
-        ;;
-    publish)
-        [[ $# == 6 && "$2" == --locked && "$3" == --registry && "$4" == crates-io && "$5" == --package ]]
-        selector="$6"
-        package="${selector%@*}"
-        version="$(yq -p toml -o json '.' "crates/$package/Cargo.toml" | jq -r .package.version)"
-        [[ "$selector" == "$package@$version" ]]
-        case "$RELEASE_GROUP/$package" in protocol/ic-auth-protocol-types|protocol/ic-auth-wire|engine/ic-auth) ;; *) exit 2 ;; esac
-        printf '%s\n' "$package" >> "$FIXTURE_LOG/uploads"
-        if [[ "$FIXTURE_MODE" == lost-reply ]]; then exit 101; fi
-        if [[ "$FIXTURE_MODE" == interrupted ]]; then kill -TERM "$PPID"; exit 143; fi
-        touch "$FIXTURE_LOG/observed-$package"
-        ;;
-    *) exec "$FIXTURE_CARGO" "$@" ;;
-esac
-SH
-cat > "$fixture/bin/curl" <<'SH'
-#!/usr/bin/env bash
-set -euo pipefail
-if [[ "$*" == '--disable --version' ]]; then
-    if [[ "$FIXTURE_MODE" == old-curl ]]; then printf 'curl 8.3.0\n'; else printf 'curl 8.4.0\n'; fi
-    exit 0
-fi
-output=''
-diagnostics=''
-while [[ $# -gt 0 ]]; do
-    case "$1" in
-        --output) output="$2"; shift 2 ;;
-        --stderr) diagnostics="$2"; shift 2 ;;
-        *) url="$1"; shift ;;
-    esac
-done
-[[ -z "$diagnostics" ]] || : > "$diagnostics"
-package="$(basename "$(dirname "$url")")"
-version="${url##*/}"
-checksum="$(bash scripts/dev/run-host-file.sh hash-file "$CARGO_TARGET_DIR/package/$package-$version.crate" 67108864)"
-case "$FIXTURE_MODE" in
-    unknown) printf 503 ;;
-    conflict)
-        jq -n --arg crate "$package" --arg version "$version" '{version:{crate:$crate,num:$version,checksum:("0" * 64),yanked:false}}' > "$output"
-        printf 200 ;;
-    wrong-crate|wrong-version|invalid-checksum|invalid-yanked|multiple-json)
-        jq -n --arg crate "$package" --arg version "$version" --arg checksum "$checksum" --arg mode "$FIXTURE_MODE" '
-            {version:{crate:$crate,num:$version,checksum:$checksum,yanked:false}} |
-            if $mode == "wrong-crate" then .version.crate = "other-crate"
-            elif $mode == "wrong-version" then .version.num = "0.1.2"
-            elif $mode == "invalid-checksum" then .version.checksum = "wrong"
-            elif $mode == "invalid-yanked" then .version.yanked = "false"
-            else . end
-        ' > "$output"
-        if [[ "$FIXTURE_MODE" == multiple-json ]]; then printf '{}\n' >> "$output"; fi
-        printf 200 ;;
-    malformed) printf '{' > "$output"; printf 200 ;;
-    oversized) head -c 1048577 /dev/zero > "$output"; printf 200 ;;
-    transport) printf '{' > "$output"; printf 000; exit 28 ;;
-    *)
-        if [[ -f "$FIXTURE_LOG/observed-$package" ]]; then
-            jq -n --arg crate "$package" --arg version "$version" --arg checksum "$checksum" --arg mode "$FIXTURE_MODE" \
-                '{version:{crate:$crate,num:$version,checksum:$checksum,yanked:($mode == "yanked")}}' > "$output"
-            printf 200
-        else printf 404; fi
-        ;;
-esac
-SH
-chmod +x "$fixture/bin/cargo" "$fixture/bin/curl" "$fixture/bin/wc"
-export PATH="$fixture/bin:$PATH" CARGO_TARGET_DIR="$PWD/target"
 if [[ "$validation_only" == false ]]; then
 export FIXTURE_MODE=package-failure
 # Group-qualified intents cannot evade an uncertain coordinated upload of the
@@ -858,3 +904,6 @@ jq -e '.group == "engine" and [.packages[].name] == ["ic-auth"]' .git/publicatio
 if RELEASE_GROUP=protocol bash scripts/release/publish.sh > "$fixture/wrong-group-publication.log" 2>&1; then exit 1; fi
 [[ "$(wc -l < "$fixture/uploads")" -eq 3 ]]
 echo 'Both release groups, unselected identities/notes, failure admission, exact tags/push, resume and publication reconciliation passed (local/mocked effects)'
+if [[ "$validation_only" == false ]]; then
+    PATH="$auth_fixture_path" bash "$root/scripts/release/test-tools.sh" --batch
+fi

@@ -71,15 +71,42 @@ The release uses Platform 0.23.2, Testkit 0.89.0, Metrics 0.29.3, Build 0.75.0,
 Storage 0.68.0, Wire/derive 0.17.4, Types 0.18.2, Runtime/guard 0.19.3 and Host 0.74.4.
 Rust 1.99.1 remains compiler/minimum; PocketIC is 16.1.0. Shared Tooling 0.30.8
 at `dc9df707b3b1e616973494eab961c1c214d12260` has 161 verified payloads.
-Its generated-underscore recovery fix is included. Frozen release batches remain
-disabled pending Auth hook/recovery qualification; this release used the ordinary
-guarded workflow. Adoption evidence is under `target/evidence/shared-tooling-0308/`.
+Its generated-underscore recovery fix is included. That release used the ordinary
+guarded workflow; the newer frozen wiring is described below. Earlier adoption
+evidence is under `target/evidence/shared-tooling-0308/`.
 
 The earlier clean private browser archive at
 `target/browser-client-packages/package.5x3Jeg/` retains its original 0.35 source
 and receipt. It is source/archive delivery, not npm publication or production
 issuer acceptance. Storage's old collection framing refuses without clearing;
 fresh private fixture allocation is required. No production migration occurred.
+
+## Pending Shared Tooling adoption and batch wiring
+
+Shared Tooling 0.31.0 at `74313941af2fce4399bec0e6909ca6229673c3f8`, including
+PR #361, is exported and independently verified (161 payloads, required version
+and entrypoint annotations). Auth's checksum callers reject NUL-containing output
+and preserve backend status 3 with one diagnostic. npm schema-3 and dependency
+pin admission pass. Evidence: `target/evidence/shared-tooling-0.31.0-pr361/`.
+
+Callers now use `RELEASE_GROUPS`, `RELEASE_PUBLISH_TARGET`, `RELEASE_SETUP_TARGET`,
+`RELEASE_SETUP_MODE` and `RELEASE_BATCH_ACTIVE`, with `run-release-batch.pl` and
+the renamed guide. Retired settings refuse without aliases. No active pre-0.31
+Auth batch exists; old journals and stable storage paths/source pins are unchanged.
+Shared owns single-group capture;
+`RELEASE_GROUPS=protocol,engine` selects the supplier-first roster. Publication
+remains explicit and candidate setup prepares its own tools/browser dependencies.
+
+Linux native setup and real package archives pass. The schema-2 two-group fixture
+also passes with mocked gate/tool/upload/registry effects: partial preparation,
+saved editor refusal, recorded publication identity, uncertain upload, deferred
+normal-lock preservation, completed resume, reconciliation and retirement.
+Native/batch logs: `target/portable-fixtures/release-tools.8R2OHK/`. Make routing,
+jobserver, unsafe-mode and retired-setting refusals pass. Legacy journal checks
+pass under `target/portable-fixtures/release-tools.gF3NGy/`.
+No live release or product acceptance is claimed. The dependency lock is unchanged;
+older evidence retains its source/version under `target/evidence/frozen-0309/` and
+`target/evidence/shared-tooling-0310/`.
 
 ## Clean backend-conformance source delivery
 

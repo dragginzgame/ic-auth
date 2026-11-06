@@ -1,7 +1,7 @@
 # IC Auth Agent Instructions
 
 Apply the installed [baseline](DRAGGINZGAME.md), adopted from Shared Tooling
-0.30.8 at `dc9df707b3b1e616973494eab961c1c214d12260`, and its task-specific
+0.31.0 at `74313941af2fce4399bec0e6909ca6229673c3f8`, and its task-specific
 references. The [snapshot manifest](.shared-tooling.snapshot) records the exact
 policy/tooling selection. Read [the current handoff](docs/status/current.md)
 before implementation. Product-specific safeguards and scoped permissions below
@@ -175,7 +175,11 @@ and `ci/cargo-dependency-boundaries.json` for direct-dependency ownership.
 - Protocol (`ic-auth-protocol-types`, `ic-auth-wire`) and Engine (`ic-auth` plus
   private qualification/tooling) release independently. All member versions are
   explicit; `ci/cargo-release-groups.json` owns group membership and ledgers.
-  Select `RELEASE_GROUP=protocol|engine` explicitly for release, resume and publication.
+  Select `RELEASE_GROUP=protocol|engine` for a single-group frozen release, or
+  `RELEASE_GROUPS=protocol,engine` for the complete supplier-first batch.
+  `RELEASE_PUBLISH_TARGET=publish` includes registry delivery when authorized.
+  Shared's batch status/resume/reconcile/retire commands own lifecycle custody;
+  legacy ordinary recovery still selects an explicit group and exact version.
   `make publish-dry-run RELEASE_GROUP=…` checks the selected group's builds using
   live registry metadata without uploading; `make check-package-builds` verifies all
   three current local archives together and remains in the complete gate. It permits
@@ -197,7 +201,10 @@ and `ci/cargo-dependency-boundaries.json` for direct-dependency ownership.
   Use topic branches and PRs when requested or required by the repository workflow;
   a coding or dependency-adoption request does not itself require a PR.
   Do not create contribution directories, clones or worktrees for ordinary work
-  or release delivery. Coordinate active sessions before switching branches or
+  or ordinary release delivery. Qualified frozen delivery alone uses Shared's
+  managed `target/release-frozen/` checkout and durable `.git/release-state/frozen/`
+  custody under the baseline's exception. Coordinate active sessions before
+  switching branches or
   changing release inputs; never disable input-drift admission or discard recovery
   state to retry. The redundant capacity/0.33 checkouts are retired; their
   integrated history has local `archive/` refs and required evidence is under

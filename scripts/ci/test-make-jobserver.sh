@@ -7,6 +7,9 @@ cd -P "${script_path%/*}/../.."
 root="$PWD"
 export PATH="$root/.tools/host/bin:$PATH"
 unset MAKEFLAGS MFLAGS MAKEOVERRIDES GNUMAKEFLAGS MAKEFILES
+# This fixture selects its own controller roster/publication cases, including
+# when the enclosing real release has explicitly selected registry delivery.
+unset RELEASE_GROUPS RELEASE_PUBLISH_TARGET RELEASE_SETUP_MODE
 mkdir -p target/portable-fixtures
 fixture="$(mktemp -d "$root/target/portable-fixtures/make-jobserver.XXXXXX")"
 printf 'Make jobserver evidence retained: %s\n' "$fixture"
@@ -68,7 +71,7 @@ for script in dev/testkit-tools.sh dev/msrv-tools.sh dev/host-file-tools.sh dev/
     dev/profile-canonical-allocations.sh dev/test-backend-package.sh \
     ci/check-cargo-dependency-boundaries.sh ci/test-auth-boundaries.sh \
     ci/check-auth-boundaries.sh ci/test-client-tools.sh ci/check-dependency-pins.sh ci/test-auth-validation.sh ci/test-release-validation.sh \
-    release/publish.sh release/metadata.sh release/test-tools.sh release/validation-stage.sh; do
+    release/publish.sh release/metadata.sh release/candidate-setup.sh release/test-tools.sh release/validation-stage.sh; do
     cat > "$consumer/scripts/$script" <<'SCRIPT'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -177,5 +180,58 @@ for mode in -n -t -q -i; do
         [[ "$status" != 0 && ! -s "$AUTH_JOBSERVER_LOG" ]]
     done
 done
+# Exercise Auth's actual includes and context policy with the frozen controller
+# substituted at its process boundary. No release source or remote is touched.
+export AUTH_FROZEN_ROUTING_LOG="$fixture/frozen-routing.jsonl"
+cat > "$consumer/scripts/ci/run-release-batch.pl" <<'PERL'
+use strict;
+use warnings;
+use JSON::PP;
+die "controller inherited Cargo target\n" if exists $ENV{CARGO_TARGET_DIR};
+open my $log, '>>', $ENV{AUTH_FROZEN_ROUTING_LOG} or die $!;
+print {$log} JSON::PP->new->encode(\@ARGV), "\n";
+close $log or die $!;
+exit($ENV{AUTH_FROZEN_ROUTING_STATUS} // 0);
+PERL
+cat > "$consumer/scripts/ci/run-release.sh" <<'SCRIPT'
+#!/usr/bin/env bash
+echo 'selected group escaped frozen capture' >&2
+exit 97
+SCRIPT
+for kind in patch minor major; do
+    while IFS= read -r group; do
+        env -u CARGO_TARGET_DIR -u RELEASE_BATCH_ACTIVE make -C "$consumer" \
+            --no-print-directory "release-$kind" RELEASE_GROUP="$group" \
+            RELEASE_REMOTE=routing RELEASE_BRANCH=routing > "$fixture/routing-$kind-$group.log" 2>&1
+        tail -n 1 "$AUTH_FROZEN_ROUTING_LOG" | jq -e --arg root "$consumer" --arg group "$group" --arg kind "$kind" '
+            def value($key): . as $args | index($key) as $i | $args[$i + 1];
+            value("--root") == $root and value("--groups") == $group and value("--kind") == $kind
+            and value("--remote") == "routing" and value("--branch") == "routing"
+            and value("--setup-target") == "release-candidate-setup"
+            and index("--publish-target") == null' > /dev/null
+    done < <(jq -r '.groups[].name' "$consumer/ci/cargo-release-groups.json")
+done
+cp "$AUTH_FROZEN_ROUTING_LOG" "$fixture/routing-before-refusal.jsonl"
+if env -u CARGO_TARGET_DIR -u RELEASE_BATCH_ACTIVE make -C "$consumer" --no-print-directory \
+    release-patch RELEASE_GROUP=engine RELEASE_GROUPS= > "$fixture/refused-empty-roster.log" 2>&1; then
+    echo 'empty roster unexpectedly bypassed frozen capture' >&2; exit 1
+fi
+rg -F 'A selected release group requires batch capture' "$fixture/refused-empty-roster.log" > /dev/null
+cmp "$AUTH_FROZEN_ROUTING_LOG" "$fixture/routing-before-refusal.jsonl"
+for retired in RELEASE_FROZEN_GROUPS RELEASE_FROZEN_PUBLISH_TARGET RELEASE_FROZEN_SETUP_TARGET RELEASE_FROZEN_SETUP_MODE FROZEN_RELEASE_ACTIVE; do
+    if env -u CARGO_TARGET_DIR -u RELEASE_BATCH_ACTIVE make -C "$consumer" --no-print-directory \
+        release-patch RELEASE_GROUP=engine "$retired=" > "$fixture/refused-$retired.log" 2>&1; then
+        echo "retired setting unexpectedly admitted: $retired" >&2; exit 1
+    fi
+    rg -F "Retired release settings: $retired" "$fixture/refused-$retired.log" > /dev/null
+done
+cmp "$AUTH_FROZEN_ROUTING_LOG" "$fixture/routing-before-refusal.jsonl"
+env -u CARGO_TARGET_DIR -u RELEASE_BATCH_ACTIVE make -C "$consumer" --no-print-directory \
+    release-patch RELEASE_GROUPS=protocol,engine RELEASE_PUBLISH_TARGET=publish \
+    > "$fixture/routing-multiple.log" 2>&1
+tail -n 1 "$AUTH_FROZEN_ROUTING_LOG" | jq -e '
+    . as $args | $args[index("--groups") + 1] == "protocol,engine"
+    and $args[index("--publish-target") + 1] == "publish"' > /dev/null
 if rg 'warning: (overriding recipe|ignoring old recipe)' "$fixture"/*.log; then exit 1; fi
 printf 'Actual Make Cargo descriptor handoff and unsafe-mode refusal verified (substituted effects)\n'
+printf 'Automatic single-group frozen capture, empty-roster refusal and explicit multi-group publication routing verified\n'

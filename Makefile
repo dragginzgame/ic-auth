@@ -5,11 +5,22 @@ include ci/tool-versions.env
 LOCAL_TOOL_INSTALL_TARGETS := install-testkit-tools install-host-file
 LOCAL_TOOL_CHECK_TARGETS := msrv-tools-check testkit-tools-check host-file-check
 RELEASE_DELIVERY_POLICY := $(CURDIR)/ci/release-delivery.txt
+RELEASE_SETUP_TARGET := release-candidate-setup
 override SHARED_TOOLING_ROOT := $(CURDIR)
 include make/consumer.mk
 
-# Keep Cargo artifacts in this checkout, including CI and hook invocations.
+# The controller rejects inherited Cargo context. Only candidate hooks and
+# ordinary commands select this checkout's target; never erase a user override.
+auth_frozen_controller := $(filter release-patch release-minor release-major release-batch-%,$(MAKECMDGOALS))
+ifeq ($(RELEASE_BATCH_ACTIVE),1)
 export CARGO_TARGET_DIR := $(CURDIR)/target
+else ifneq ($(strip $(auth_frozen_controller)),)
+ifneq ($(origin CARGO_TARGET_DIR),undefined)
+$(error Frozen release requires ordinary Cargo context; unset CARGO_TARGET_DIR)
+endif
+else
+export CARGO_TARGET_DIR := $(CURDIR)/target
+endif
 export RUSTUP_AUTO_INSTALL := 0
 export RELEASE_DELIVERY := direct
 export RELEASE_REMOTE RELEASE_BRANCH RELEASE_GROUP
@@ -41,7 +52,8 @@ help:
 	@echo 'Formatting: fmt, fmt-check, test-formatting-hooks'
 	@echo 'Governance: check-snapshot, check-dependency-pins, check-doc-links, check-candid-boundary, check-boundaries, check-msrv; maintenance catalog: tasks'
 	@echo 'Complete CI gate (explicit only): ci'
-	@echo 'Releases: release-patch/minor/major RELEASE_GROUP=protocol|engine; recovery also selects VERSION=X.Y.Z'
+	@echo 'Frozen releases: release-patch/minor/major RELEASE_GROUP=protocol|engine; roster: RELEASE_GROUPS=protocol,engine'
+	@echo 'Optional publication: RELEASE_PUBLISH_TARGET=publish; shared recovery/status: release-batch-resume/status BATCH=batch-...'
 	@echo 'Crates.io: publish RELEASE_GROUP=protocol|engine; local checks: publish-dry-run RELEASE_GROUP=..., check-package-builds, test-release-tools'
 
 install-testkit-tools: install-host-tools
@@ -290,6 +302,10 @@ test-evidence-archive:
 
 release-version:
 	@bash -eu -c 'source scripts/release/group.sh; auth_release_version'
+
+.PHONY: release-candidate-setup
+release-candidate-setup:
+	+bash scripts/release/candidate-setup.sh
 
 release-preflight release-prepare-version release-prepared-check release-files \
 release-commit-check release-committed-check release-tagged-check release-push-check:

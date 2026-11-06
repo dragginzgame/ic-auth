@@ -4,6 +4,23 @@ Covers public `ic-auth` and the unpublished backend conformance, qualification a
 native tooling packages. The independent series starts after the
 [last coordinated release, 0.29.2](../history.md).
 
+## [0.35.2] - Unreleased
+
+### 🔧 Changed
+
+- Adopt Shared Tooling 0.31.0 with shared batch setup, saved hook context
+  and lifecycle controls. Route releases through captured source, preserving
+  later normal-checkout dependency edits. Prepare candidate tools and browser
+  dependencies locally; recover using the saved editor selection without installs.
+  Shared owns automatic single-group capture and refuses an empty roster for a
+  selected group. Keep publication explicit and retain the existing gates and
+  receipts.
+- Migrate batch settings to Shared's `RELEASE_GROUPS`, `RELEASE_PUBLISH_TARGET`,
+  `RELEASE_SETUP_TARGET`/`RELEASE_SETUP_MODE` and `RELEASE_BATCH_ACTIVE` contract.
+  Retired settings have no aliases; existing batch storage paths are unchanged.
+  Adopt the checksum-output admission fixes from
+  [Shared Tooling PR #361](https://github.com/dragginzgame/shared-tooling/pull/361).
+
 ## [0.35.1] - 2026-11-06
 
 ### 🔧 Changed
