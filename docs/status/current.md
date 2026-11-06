@@ -85,10 +85,12 @@ allocation is required. No production store migration occurs.
 
 ## Shared Tooling adoption
 
-Shared Tooling 0.30.7 at `22a853e26c05ec323f06c57fa316c08b808f252b` is
+Shared Tooling 0.30.8 at `dc9df707b3b1e616973494eab961c1c214d12260` is
 exported and independently verified (161 payloads), matching upstream main.
 Auth's Make caller/jobserver and unsafe-mode checks pass with substituted effects;
-evidence is under `target/evidence/shared-tooling-0307/`. Frozen release batches
+0.30.7 caller evidence is under `target/evidence/shared-tooling-0307/`, and the
+0.30.8 adoption evidence is under `target/evidence/shared-tooling-0308/`. Its
+underscore recovery-ID fix is included. Frozen release batches
 are available but remain disabled pending Auth hook/recovery qualification;
 ordinary delivery still refuses source drift. No new release or timing savings
 are claimed. Existing conformance work and incoming lock edits are preserved.

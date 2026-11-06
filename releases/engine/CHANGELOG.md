@@ -8,7 +8,8 @@ native tooling packages. The independent series starts after the
 
 ### 🔧 Changed
 
-- Adopt Shared Tooling 0.30.7 and its release-efficiency rules. Frozen release
+- Adopt Shared Tooling 0.30.8 and its release-efficiency rules, including the
+  frozen-batch recovery fix for generated IDs containing underscores. Frozen release
   batches remain opt-in and unqualified for Auth; existing delivery is unchanged.
 
 ### 🧪 Testing
