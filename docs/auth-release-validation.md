@@ -6,6 +6,12 @@ groups must match `ci/cargo-release-groups.json`. Ordinary `make ci` executes
 every stage. Release verification selects a source-bound plan rather than invoking
 that aggregate unconditionally. No prior whole-gate receipt or stage is reused.
 
+Shared Tooling 0.30.7 supplies opt-in [frozen release batches](frozen-releases.md).
+Auth has not enabled `RELEASE_FROZEN_GROUPS`: its actual group release,
+publication and recovery hooks still require qualification in the managed
+delivery checkout before that mode can be selected. Ordinary releases retain
+the current source-drift admission and group-specific commands below.
+
 ## Selection
 
 The baseline is the selected group's exact previous annotated release tag.

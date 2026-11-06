@@ -1,7 +1,7 @@
 # IC Auth Agent Instructions
 
 Apply the installed [baseline](DRAGGINZGAME.md), adopted from Shared Tooling
-0.30.6 at `45c0295e23d3d23225e31f47c018c30ff0c75581`, and its task-specific
+0.30.7 at `22a853e26c05ec323f06c57fa316c08b808f252b`, and its task-specific
 references. The [snapshot manifest](.shared-tooling.snapshot) records the exact
 policy/tooling selection. Read [the current handoff](docs/status/current.md)
 before implementation. Product-specific safeguards and scoped permissions below
