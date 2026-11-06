@@ -6,7 +6,7 @@ use ic_auth::{
 use ic_auth_backend_conformance::{
     Backend, assert_admission_retry, assert_authorization, assert_backend_contract,
     assert_capacity, assert_logout_reopen, assert_maximum_shape, assert_metadata_reopen,
-    assert_pruning, assert_replacement_generation,
+    assert_pruning, assert_replacement_generation, assert_unknown_logout_reopen,
 };
 use ic_auth_protocol_types::Principal;
 use std::{borrow::Cow, collections::BTreeMap};
@@ -331,6 +331,10 @@ fn independent_logout_reopen_conforms() {
     assert_logout_reopen::<Encoded>();
 }
 #[test]
+fn independent_unknown_logout_reopen_conforms() {
+    assert_unknown_logout_reopen::<Encoded>();
+}
+#[test]
 fn independent_replacement_generation_conforms() {
     assert_replacement_generation::<Encoded>();
 }
@@ -401,6 +405,14 @@ impl<const WRITE: u8> Backend for Broken<WRITE> {
         if WRITE == 4 {
             self.0.observed_ns = 0;
         }
+        if WRITE == 6 {
+            self.0.logins.retain(|_, bytes| {
+                !matches!(
+                    LoginRevocationChange::decode(bytes).unwrap().state(),
+                    LoginRecordState::Revoked(None)
+                )
+            });
+        }
         self
     }
     fn advance_generation(&mut self) -> Result<u64, SessionError> {
@@ -458,6 +470,16 @@ fn admission_write_then_error_is_detected() {
 #[should_panic(expected = "failed logout must preserve session, replay and reservation")]
 fn logout_write_then_error_is_detected() {
     assert_logout_reopen::<Broken<1>>();
+}
+#[test]
+#[should_panic(expected = "failed unknown logout must preserve every record")]
+fn unknown_logout_write_then_error_is_detected() {
+    assert_unknown_logout_reopen::<Broken<1>>();
+}
+#[test]
+#[should_panic(expected = "unknown denial must survive complete reopen")]
+fn forgotten_unknown_denial_is_detected() {
+    assert_unknown_logout_reopen::<Broken<6>>();
 }
 
 #[test]

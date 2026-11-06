@@ -1,7 +1,7 @@
 //! Reusable native backend scenarios for this source cohort. These assertions
 //! exercise Auth's public engine with real fixture signatures, not a production
 //! issuer. Passing them does not establish backing provenance, crash atomicity,
-//! real clock provenance, crash atomicity or production adoption.
+//! real clock provenance or production adoption.
 use ic_auth::{
     admission_budget::SessionAdmissionBudget,
     portable::{
@@ -51,12 +51,162 @@ pub trait Backend: SessionStore + Sized {
 pub fn assert_backend_contract<B: Backend>() {
     assert_admission_retry::<B>();
     assert_logout_reopen::<B>();
+    assert_unknown_logout_reopen::<B>();
     assert_replacement_generation::<B>();
     assert_capacity::<B>();
     assert_authorization::<B>();
     assert_maximum_shape::<B>();
     assert_pruning::<B>();
     assert_metadata_reopen::<B>();
+}
+
+/// Unknown logout commits temporary denial without confirming an authenticated
+/// login window. Failed writes and retries preserve that distinction across
+/// reopen, without spending admitted-login logout capacity.
+///
+/// # Panics
+/// Panics when the adapter loses denial, publishes a failed write, or violates
+/// the known/unknown logout distinction.
+pub fn assert_unknown_logout_reopen<B: Backend>() {
+    let unknown = Fixture::new(1);
+    let known = Fixture::new(2);
+    let mut store = B::fresh(0, limits(4, 65_536));
+    let mut ledger = unknown.ledger();
+    let mut admission = SessionAdmissionBudget::new(1, NOW, 0).unwrap();
+    known
+        .admit(&mut store, &mut ledger, &mut admission, NOW)
+        .unwrap();
+    let before = snapshot(&mut store, &unknown, &known);
+    let mut budget = SessionAdmissionBudget::new(1, SECOND, NOW - SECOND).unwrap();
+    store.fail_next_commit();
+    assert_eq!(
+        logout_session(&mut store, &mut ledger, &mut budget, unknown.caller(), NOW),
+        LogoutResult::Unavailable(LogoutUnavailable::Storage)
+    );
+    assert_eq!(
+        snapshot(&mut store, &unknown, &known),
+        before,
+        "failed unknown logout must preserve every record"
+    );
+    assert_eq!(
+        logout_session(&mut store, &mut ledger, &mut budget, unknown.caller(), NOW),
+        LogoutResult::Unavailable(LogoutUnavailable::Capacity),
+        "failed unknown logout must retain its spent work credit"
+    );
+    assert_eq!(snapshot(&mut store, &unknown, &known), before);
+    assert_eq!(ledger.occupancy(), (1, 0));
+
+    let result = logout_session(
+        &mut store,
+        &mut ledger,
+        &mut budget,
+        unknown.caller(),
+        NOW + SECOND,
+    );
+    assert_eq!(
+        result,
+        LogoutResult::Unconfirmed {
+            deny_until_ns: NOW + SECOND + 86_400 * SECOND,
+        }
+    );
+    let denied = snapshot(&mut store, &unknown, &known);
+    let mut store = store.reopen();
+    ledger = unknown
+        .ledger_at(NOW + 2 * SECOND)
+        .restore_records(
+            ledger.observed_at_ns(),
+            ledger.occupancy(),
+            store.retained_logins(),
+        )
+        .expect("unknown denial must survive complete reopen");
+    assert_eq!(snapshot(&mut store, &unknown, &known), denied);
+
+    // Live retries require another successful commit, but no new unknown credit.
+    let mut empty = SessionAdmissionBudget::new(1, SECOND, NOW + 2 * SECOND).unwrap();
+    store.fail_next_commit();
+    assert_eq!(
+        logout_session(
+            &mut store,
+            &mut ledger,
+            &mut empty,
+            unknown.caller(),
+            NOW + 2 * SECOND
+        ),
+        LogoutResult::Unavailable(LogoutUnavailable::Storage)
+    );
+    assert_eq!(
+        snapshot(&mut store, &unknown, &known),
+        denied,
+        "failed unknown retry must preserve committed denial"
+    );
+    assert_eq!(
+        logout_session(
+            &mut store,
+            &mut ledger,
+            &mut empty,
+            unknown.caller(),
+            NOW + 2 * SECOND
+        ),
+        result,
+        "unknown retry must neither confirm nor extend denial"
+    );
+    assert!(
+        known
+            .authorize(&mut store, &mut ledger, NOW + 2 * SECOND, 0)
+            .is_ok(),
+        "unknown denial must not revoke another caller"
+    );
+
+    let confirmed = LogoutResult::Revoked {
+        deny_until_ns: known.claims.login_deadline_ns,
+    };
+    assert_eq!(
+        logout_session(
+            &mut store,
+            &mut ledger,
+            &mut empty,
+            known.caller(),
+            NOW + 2 * SECOND
+        ),
+        confirmed,
+        "known logout must not depend on unknown work credit"
+    );
+    let revoked = snapshot(&mut store, &unknown, &known);
+    assert!(revoked.sessions[1].is_none());
+    assert!(
+        revoked.replays[1],
+        "known logout must retain replay evidence"
+    );
+    let mut store = store.reopen();
+    ledger = unknown
+        .ledger_at(NOW + 2 * SECOND)
+        .restore_records(
+            ledger.observed_at_ns(),
+            ledger.occupancy(),
+            store.retained_logins(),
+        )
+        .expect("mixed known and unknown denial must survive complete reopen");
+    assert_eq!(
+        logout_session(
+            &mut store,
+            &mut ledger,
+            &mut empty,
+            unknown.caller(),
+            NOW + 2 * SECOND
+        ),
+        result
+    );
+    assert_eq!(
+        logout_session(
+            &mut store,
+            &mut ledger,
+            &mut empty,
+            known.caller(),
+            NOW + 2 * SECOND
+        ),
+        confirmed
+    );
+    assert_eq!(snapshot(&mut store, &unknown, &known), revoked);
 }
 
 /// Maximum grant/scopes/label bounds survive admission, record restoration and

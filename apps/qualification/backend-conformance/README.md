@@ -33,36 +33,36 @@ reports a missing download, run `cargo fetch --locked --manifest-path
 <printed-evidence>/consumer/Cargo.toml`, then rerun the check into a fresh retained
 directory. The check itself never downloads or uploads.
 
-This bundle targets published Engine 0.33.2 and Protocol 0.33.1, with Platform
-0.21 and Types 0.18. Its clean release archive passes registry-consumer and
-packaged-scenario qualification; the current handoff records its exact receipt.
-Do not mix this source with registry Auth 0.32's Types 0.17 identity. The retained 0.32 candidate
-archive uses Platform 0.18/Types 0.17 and remains separate evidence. See the
-[current evidence](../../../docs/status/current.md) for qualification and receipts.
-Keep the single-Platform/Types admission intact across consumer and source bundle.
+The current bundle targets published Engine and Protocol **0.35.0**, with
+Platform 0.23 and Types 0.18. Keep the single-Platform/Types admission intact
+across consumer and source bundle. Earlier archives retain their original graphs;
+they do not qualify this cohort. See the [current evidence](../../../docs/status/current.md)
+for the source revision, dirty-candidate status and delivery receipt. Rebuild a
+dirty candidate from its intended delivered revision before consumer adoption.
 
 Extract this source archive into the consumer's test-support directory and add
 it as a **development dependency**. Use the archive's normalized `Cargo.toml`;
 depending on the producer's working workspace can introduce a second Git/path
 identity for Auth alongside the consumer's registry dependency.
 
-Example for the Engine 0.33.2 delivery cohort:
+Example for the Engine 0.35.0 delivery cohort:
 
 ```toml
 # Append this path to the consumer's existing workspace exclusions. The foreign
 # source bundle must not become a consumer-owned release-group member.
 [workspace]
-exclude = ["test-support/ic-auth-backend-conformance-0.33.2"]
+exclude = ["test-support/ic-auth-backend-conformance-0.35.0"]
 
 [dev-dependencies]
-ic-auth-backend-conformance = { path = "test-support/ic-auth-backend-conformance-0.33.2" }
-ic-auth = { version = "=0.33.2", default-features = false, features = ["session-restore", "portable-signature-verification"] }
+ic-auth-backend-conformance = { path = "test-support/ic-auth-backend-conformance-0.35.0" }
+ic-auth = { version = "=0.35.0", default-features = false, features = ["session-restore", "portable-signature-verification"] }
 ```
 
 Implement `ic_auth_backend_conformance::Backend` on a test driver for the actual
 adapter and call `assert_backend_contract::<YourDriver>()` from a native test.
-The complete entrypoint always runs all eight named scenarios:
-`assert_admission_retry`, `assert_logout_reopen`, `assert_replacement_generation`,
+The complete entrypoint always runs all nine named scenarios:
+`assert_admission_retry`, `assert_logout_reopen`, `assert_unknown_logout_reopen`,
+`assert_replacement_generation`,
 `assert_capacity`, `assert_authorization`, `assert_maximum_shape`, `assert_pruning`
 and `assert_metadata_reopen`. Each uses
 fresh disposable backing and can also be called from a separately named native test for clearer failure
@@ -94,10 +94,15 @@ retry at saturation, and checks that per-caller saturation leaves other callers
 admissible. Deliberately broken admission and logout writes prove that returned
 errors cannot publish mutations. Authorization scenarios verify scoped callbacks,
 unadmitted callers, changed issuer authority and before/exact/after expiry,
-including after reopen. Refusals never invoke the application callback or mutate
+including after reopen. Unknown logout checks failed initial and retry commits,
+spent unknown-work credit, non-sliding unconfirmed denial across reopen, and
+known-login logout with an empty unknown budget. Reopening must preserve the
+known/unknown distinction, other callers and consumed-proof evidence. The driver
+trait is unchanged; the complete entrypoint inherits this additional scenario.
+Refusals never invoke the application callback or mutate
 stored records. The maximum-shape scenario admits 16 grants with 32 scopes
 each, 64-byte role/scope labels and 16 requested session scopes, then reopens
-the backend and authorizes all requested scopes without record changes. These
+the backend and authorizes all requested scopes without record changes.
 Cleanup scenarios exercise zero/empty work, failed commits, a 129-expired-replay
 backlog, the 128-record work cap, live-row retention and reopening. Metadata
 scenarios exercise failed generation commits, retained clock floors and rollback

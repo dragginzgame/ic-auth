@@ -4,6 +4,21 @@ Covers public `ic-auth` and the unpublished backend conformance, qualification a
 native tooling packages. The independent series starts after the
 [last coordinated release, 0.29.2](../history.md).
 
+## [0.35.1] - Unreleased
+
+### 🔧 Changed
+
+- Adopt Shared Tooling 0.30.7 and its release-efficiency rules. Frozen release
+  batches remain opt-in and unqualified for Auth; existing delivery is unchanged.
+
+### 🧪 Testing
+
+- Extend the unpublished backend conformance suite with unknown-login logout
+  failure, work-credit, retry and restoration checks. Known logout remains
+  independent of unknown work credit; no driver hooks or runtime API changes.
+- Refresh the source-bundle handoff and registry-consumer qualification for the
+  published Engine/Protocol 0.35.0 cohort.
+
 ## [0.35.0] - 2026-11-06
 
 ### ⚠️ Breaking

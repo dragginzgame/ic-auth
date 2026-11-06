@@ -76,11 +76,41 @@ before adoption; ignored producer artifacts remain removable by explicit clean.
 The maintainer explicitly selected the tested dependency graph: Platform 0.23.2,
 Testkit 0.89.0 and Metrics 0.29.3. The lock also selects Build 0.75.0, Storage 0.68.0,
 Wire/derive 0.17.4, Types 0.18.2, Runtime/guard 0.19.3 and Host 0.74.4.
-Shared Tooling 0.30.6 at `45c0295e23d3d23225e31f47c018c30ff0c75581` has
-159 verified payloads. Rust 1.99.1 remains the compiler/minimum. PocketIC 16.1.0,
+The delivered release used Shared Tooling 0.30.6 at
+`45c0295e23d3d23225e31f47c018c30ff0c75581` (159 payloads).
+Rust 1.99.1 remains the compiler/minimum. PocketIC 16.1.0,
 Build's editor and Platform browser SDK 0.2.0/Core 6.1.1 are qualified selections.
 Storage's old collection framing is refused without clearing; fresh private fixture
 allocation is required. No production store migration occurs.
+
+## Shared Tooling adoption
+
+Shared Tooling 0.30.7 at `22a853e26c05ec323f06c57fa316c08b808f252b` is
+exported and independently verified (161 payloads), matching upstream main.
+Auth's Make caller/jobserver and unsafe-mode checks pass with substituted effects;
+evidence is under `target/evidence/shared-tooling-0307/`. Frozen release batches
+are available but remain disabled pending Auth hook/recovery qualification;
+ordinary delivery still refuses source drift. No new release or timing savings
+are claimed. Existing conformance work and incoming lock edits are preserved.
+
+## Backend-conformance delivery preparation
+
+The unpublished source bundle now adds unknown-logout failed commits, spent work
+credit, non-sliding `Unconfirmed` retries and mixed known/unknown restoration.
+Its complete entrypoint runs nine scenarios with the existing `Backend` hooks;
+production Auth behavior and record formats are unchanged. Focused conformance
+tests (18) and package-scoped Clippy passed. The isolated registry consumer and
+all 18 packaged tests also passed against published Engine/Protocol 0.35.0.
+
+Candidate receipt: `target/portable-fixtures/backend-package.kHsJVL/delivery.json`,
+archive SHA-256 `7fd79816e0f8655d665da9318062f8cd8c5f076d13f62775e60050100bfd0fd8`.
+The receipt records `dfed09d` plus dirty source, including incoming Platform 0.23.3.
+The maintainer authorized committing the completed tooling/conformance work and
+rebuilding from clean committed source with the existing committed lock. Incoming
+lock edits are preserved separately for exact restoration after qualification.
+This source-archive delivery does not publish a new release or establish Canic
+production acceptance. Canic already passes the expanded stable-adapter entrypoint
+against registry Auth 0.35.0 using the candidate helper.
 
 ## Deferred updates and recovery
 
