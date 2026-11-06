@@ -9,7 +9,7 @@ Superseded migration journals remain in Git history; use the current contracts b
 ## Current integration cohort
 
 Published **Protocol 0.35.0** (`ic-auth-protocol-types`, `ic-auth-wire`) and
-**Engine 0.35.0** (`ic-auth`) form the released cohort. Keep both Protocol packages
+**Engine 0.35.1** (`ic-auth`) form the released cohort. Keep both Protocol packages
 aligned and satisfy Engine's declared Protocol requirement; the groups release
 independently. Engine's qualification lock uses Platform 0.23.2, Types 0.18.2,
 Wire 0.17.4, Testkit 0.89.0, Runtime 0.19.3, Storage 0.68.0 and Metrics 0.29.3.
@@ -19,7 +19,7 @@ in the [current handoff](status/current.md). Rust 1.99.1 remains the minimum.
 record development selections and release notes, respectively.
 
 The released cohort also selects Build 0.75.0,
-Host 0.74.4 and Shared Tooling 0.30.6.
+Host 0.74.4 and Shared Tooling 0.30.8.
 Storage's collection image cut applies only to
 Auth's private qualification host here; fresh fixture allocation is required and
 old images are refused without clearing. This is not an in-place production-store

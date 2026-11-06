@@ -184,7 +184,7 @@ for the existing byte/path limits and release-recovery boundary.
 
 ## Dependency roles and deployment admission
 
-Shared Tooling 0.30.6 at `45c0295e23d3d23225e31f47c018c30ff0c75581` is adopted
+Shared Tooling 0.30.8 at `dc9df707b3b1e616973494eab961c1c214d12260` is adopted
 through the canonical snapshot. This identifies reviewed committed source, not a
 claim of upstream publication or a matching release tag. Auth retains Cargo-owned versions
 and the default release mode; Shared's pending canonical `VERSION` workflow does
@@ -474,8 +474,8 @@ No native package installer or browser download runs inside an ordinary check.
 The Makefile includes reviewed [`make/consumer.mk`](make-interface.md), which owns
 common setup, formatting, hooks, snapshot verification and release routing.
 `check-snapshot` retains its public name and depends on `shared-tooling-check`.
-The recorded snapshot pins Shared Tooling 0.28.3 at
-`07f41c2723850f8fd86c61f2f50e65b0c6cde886`. Adopt its committed source and
+The recorded snapshot pins Shared Tooling 0.30.8 at
+`dc9df707b3b1e616973494eab961c1c214d12260`. Adopt its committed source and
 recorded entrypoint closure through the canonical exporter; see
 [snapshot adoption](consuming-snapshots.md#entrypoint-selection-in-070).
 Adoption also compares every exported payload with an independently reviewed

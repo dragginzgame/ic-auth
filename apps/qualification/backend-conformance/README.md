@@ -33,7 +33,7 @@ reports a missing download, run `cargo fetch --locked --manifest-path
 <printed-evidence>/consumer/Cargo.toml`, then rerun the check into a fresh retained
 directory. The check itself never downloads or uploads.
 
-The current bundle targets published Engine and Protocol **0.35.0**, with
+The current bundle targets published Engine **0.35.1** and Protocol **0.35.0**, with
 Platform 0.23 and Types 0.18. Keep the single-Platform/Types admission intact
 across consumer and source bundle. Earlier archives retain their original graphs;
 they do not qualify this cohort. See the [current evidence](../../../docs/status/current.md)
@@ -45,17 +45,17 @@ it as a **development dependency**. Use the archive's normalized `Cargo.toml`;
 depending on the producer's working workspace can introduce a second Git/path
 identity for Auth alongside the consumer's registry dependency.
 
-Example for the Engine 0.35.0 delivery cohort:
+Example for the Engine 0.35.1 delivery cohort:
 
 ```toml
 # Append this path to the consumer's existing workspace exclusions. The foreign
 # source bundle must not become a consumer-owned release-group member.
 [workspace]
-exclude = ["test-support/ic-auth-backend-conformance-0.35.0"]
+exclude = ["test-support/ic-auth-backend-conformance-0.35.1"]
 
 [dev-dependencies]
-ic-auth-backend-conformance = { path = "test-support/ic-auth-backend-conformance-0.35.0" }
-ic-auth = { version = "=0.35.0", default-features = false, features = ["session-restore", "portable-signature-verification"] }
+ic-auth-backend-conformance = { path = "test-support/ic-auth-backend-conformance-0.35.1" }
+ic-auth = { version = "=0.35.1", default-features = false, features = ["session-restore", "portable-signature-verification"] }
 ```
 
 Implement `ic_auth_backend_conformance::Backend` on a test driver for the actual
