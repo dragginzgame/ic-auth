@@ -36,7 +36,9 @@ logout or cryptographic relaxation is added; ordinary authorization remains loca
 The timestamp reset helper is retired. Complete durable restore plus fresh
 authority remains supported; actual safety-state loss stays closed pending trusted
 recovery. The fixture refuses reinstall/fresh authority after losing its checkpoint.
-Browser cleanup has finite local work/key-disposal budgets, retains uncertainty
+The trusted checkpoint distinguishes never-configured, closed and retained
+receivers; a closed marker survives further upgrades. Browser cleanup has finite
+local work/key-disposal budgets, retains uncertainty
 and never infers remote confirmation from waiting or an expiry estimate.
 
 The maintainer confirmed no retained affected Rust or private browser records.
@@ -48,7 +50,7 @@ Canic #491 owns consumer installation disposition and production acceptance.
 ## Current selections and implementation evidence
 
 Build 0.75.0, Storage 0.68.0, Testkit 0.89.0, Wire/derive 0.17.4, Platform 0.23.2,
-Types 0.18.2, Runtime/guard 0.19.2, Metrics 0.29.3 and Host 0.74.4 are selected.
+Types 0.18.2, Runtime/guard 0.19.3, Metrics 0.29.3 and Host 0.74.4 are selected.
 Shared Tooling 0.30.6 at `45c0295e23d3d23225e31f47c018c30ff0c75581` has
 159 canonical payloads. Rust 1.99.1 remains the compiler and minimum. Build's
 editor and Testkit's PocketIC 16.1.0 are prepared/admitted offline. The browser
@@ -67,6 +69,14 @@ Only the logout binding changes among the five regenerated browser files.
 Earlier readiness evidence: `target/evidence/remembered-login-readiness/`.
 Earlier upstream gate evidence: `target/evidence/testkit089-wire0174/` and
 `target/evidence/upstream-20261106/`. None is a complete release gate for this cut.
+
+The first Protocol gate passed through session/host-tooling checks, then found
+first receiver installation after an unrelated upgrade was over-restricted. The
+fixture now records an explicit never-configured marker instead of inferring it
+from missing state. Failed evidence: `target/release-validation/protocol-gate.U4hgFU/`.
+The four other installed upgrade cases and corrected certified case now pass.
+Focused correction evidence: `target/delivery-035/lifecycle-*.log`. Restart the
+complete gate from the corrected committed source; reuse no failed gate stages.
 
 ## Previously published state and recovery
 

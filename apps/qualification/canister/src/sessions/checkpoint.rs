@@ -6,7 +6,15 @@ use ic_auth_qualification_contracts::{self as controls, Refusal};
 use ic_wire::{Bytes, List};
 
 #[derive(serde::Serialize, serde::Deserialize)]
-pub(crate) struct Snapshot {
+pub(crate) enum Snapshot {
+    // An explicit trusted checkpoint marker, never inferred from missing state.
+    Unconfigured,
+    Closed,
+    Retained(Box<SavedReceiver>),
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub(crate) struct SavedReceiver {
     config: controls::model::ReceiverConfig,
     login_floor: u64,
     proof_floor: u64,
@@ -24,11 +32,20 @@ pub(crate) struct Snapshot {
     logins: List<Bytes<MAX_SMALL_RECORD_BYTES>, MAX_LOGIN_RECORDS>,
 }
 
-pub(crate) fn capture() -> Option<Snapshot> {
+pub(crate) fn capture() -> Snapshot {
     RECEIVER.with(|state| {
         let state = state.borrow();
-        let host = state.as_ref().filter(|host| host.lifecycle.checkpoint())?;
-        Some(Snapshot {
+        let Some(host) = state.as_ref() else {
+            return if UNCONFIGURED.with(Cell::get) {
+                Snapshot::Unconfigured
+            } else {
+                Snapshot::Closed
+            };
+        };
+        if !host.lifecycle.checkpoint() {
+            return Snapshot::Closed;
+        }
+        Snapshot::Retained(Box::new(SavedReceiver {
             config: host
                 .inputs
                 .config
@@ -69,15 +86,17 @@ pub(crate) fn capture() -> Option<Snapshot> {
                     .collect(),
             )
             .expect("checkpoint record count"),
-        })
+        }))
     })
 }
 
-pub(crate) fn restore(snapshot: Option<Snapshot>) {
-    // Post-upgrade never represents a fresh receiver: missing complete state
-    // cannot be repaired with current time or a fresh authority attestation.
-    FRESH_BOOT.with(|fresh| fresh.set(false));
-    let Some(saved) = snapshot else { return };
+pub(crate) fn restore(snapshot: Snapshot) {
+    // Only the explicit trusted never-configured marker permits first install.
+    // A configured receiver's lost state remains closed across further upgrades.
+    UNCONFIGURED.with(|unconfigured| unconfigured.set(matches!(&snapshot, Snapshot::Unconfigured)));
+    let Snapshot::Retained(saved) = snapshot else {
+        return;
+    };
     let config: ReceiverConfig = saved.config.try_into().expect("checkpoint config");
     let now = ic_platform_runtime::cdk::api::time();
     assert!(now >= saved.checkpoint_time, "checkpoint clock rollback");

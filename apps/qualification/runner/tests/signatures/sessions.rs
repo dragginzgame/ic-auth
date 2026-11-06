@@ -755,6 +755,28 @@ async fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ing
         admission(&f, f.resource, fresh, &fresh_input).await,
         Err(AdmissionRefusal::Unavailable)
     );
+    // A second upgrade must persist the closed marker, not reinterpret absence
+    // of an active receiver as a never-configured installation.
+    f.pic
+        .instance()
+        .upgrade_canister(
+            f.resource.into(),
+            f.wasm.clone(),
+            controls::Upgrade::encode_request(&()).unwrap(),
+            Some(f.controller.into()),
+        )
+        .await
+        .unwrap();
+    let reinstall: Result<(), controls::Refusal> =
+        update_control::<controls::model::ReceiverConfig, ()>(
+            f.pic.instance(),
+            f.resource,
+            f.controller,
+            spec!(controls::InstallReceiver),
+            config.clone().try_into().unwrap(),
+        )
+        .await;
+    assert_eq!(reinstall, Err(controls::Refusal::ReceiverUnavailable));
     f.pic
         .close()
         .await

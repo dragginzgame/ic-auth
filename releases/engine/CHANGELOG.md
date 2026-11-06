@@ -66,7 +66,9 @@ native tooling packages. The independent series starts after the
 
 - Add clock-independent deadline/denial, unknown-result, durable recovery and
   lost-state refusal acceptance. Preserve strict future-proof rejection, bounded
-  capacity/work and local ordinary authorization.
+  capacity/work and local ordinary authorization. The private checkpoint records
+  never-configured, closed or retained receivers explicitly: first installation
+  after an unrelated upgrade works, while closed state survives later upgrades.
 
 ## [0.34.1] - 2026-11-05
 

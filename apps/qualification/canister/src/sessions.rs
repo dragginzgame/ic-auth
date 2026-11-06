@@ -77,7 +77,7 @@ struct Receiver {
     read_scopes: RequiredScopes,
     write_scopes: RequiredScopes,
 }
-thread_local! { static FRESH_BOOT: Cell<bool> = const { Cell::new(true) }; }
+thread_local! { static UNCONFIGURED: Cell<bool> = const { Cell::new(true) }; }
 thread_local! { static RECEIVER: RefCell<Option<Receiver>> = const { RefCell::new(None) }; }
 struct ReceiverInputs {
     config: ReceiverConfig,
@@ -234,7 +234,7 @@ fn install_session_receiver(config: controls::model::ReceiverConfig) -> Result<(
     {
         return Err(Refusal::InvalidAuthority);
     }
-    if !FRESH_BOOT.with(Cell::get) || RECEIVER.with(|state| state.borrow().is_some()) {
+    if !UNCONFIGURED.with(Cell::get) || RECEIVER.with(|state| state.borrow().is_some()) {
         return Err(Refusal::ReceiverUnavailable);
     }
     let inputs = ReceiverInputs {
@@ -259,6 +259,7 @@ fn install_session_receiver(config: controls::model::ReceiverConfig) -> Result<(
         now,
     )?;
     RECEIVER.with(|state| *state.borrow_mut() = Some(host));
+    UNCONFIGURED.with(|unconfigured| unconfigured.set(false));
     Ok(())
 }
 #[ic_platform_runtime::cdk::update(

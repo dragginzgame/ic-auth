@@ -2,6 +2,23 @@
 use super::*;
 use ic_auth::portable_certified::PortableCertifiedContext;
 
+// Cost samples deliberately start from empty disposable canisters. Use the real
+// management reinstall rather than a receiver endpoint that discards safety state.
+async fn reinstall_receiver(f: &Fixture, target: Principal, config: &ReceiverConfig) {
+    f.pic
+        .instance()
+        .reinstall_canister(
+            target.into(),
+            f.wasm.clone(),
+            controls::Initialize::encode_request(&Bytes::new(f.owner.as_slice().to_vec()).unwrap())
+                .unwrap(),
+            Some(f.controller.into()),
+        )
+        .await
+        .unwrap();
+    install(f, target, config).await;
+}
+
 async fn profile(
     f: &Fixture,
     target: Principal,
@@ -120,7 +137,7 @@ pub(super) async fn qualify(
             .unwrap();
             assert_ne!(network_key, old.ic_root_public_key_raw);
         }
-        install(f, f.resource, &rejecting).await;
+        reinstall_receiver(f, f.resource, &rejecting).await;
         f.pic
             .instance()
             .advance_time(Duration::from_secs(1))
@@ -156,12 +173,15 @@ pub(super) async fn qualify(
         assert_eq!(throttled, Err(AdmissionRefusal::Throttled));
         assert!(read(f, f.resource, another_caller).await.is_err());
         // Fresh-verification exhaustion cannot consume the separate logout budget.
-        logout(f, f.resource, rejected_caller).await.unwrap();
+        assert!(matches!(
+            logout(f, f.resource, rejected_caller).await,
+            Err(LogoutResult::Unconfirmed { .. })
+        ));
 
         // Reinstall into fresh fixture state for identical valid-admission occupancy.
         // This is an explicit test reset, never production enrollment refresh.
-        install(f, f.resource, &config).await;
-        install(f, f.signer, &config).await;
+        reinstall_receiver(f, f.resource, &config).await;
+        reinstall_receiver(f, f.signer, &config).await;
         f.pic
             .instance()
             .advance_time(Duration::from_secs(1))
@@ -360,7 +380,7 @@ async fn qualify_wide_grants(f: &Fixture, base: &ReceiverConfig, key: &SigningKe
     )
     .unwrap();
     config.role = config.grants.as_slice().last().unwrap().target.clone();
-    install(f, f.resource, &config).await;
+    reinstall_receiver(f, f.resource, &config).await;
     f.pic
         .instance()
         .advance_time(Duration::from_secs(1))

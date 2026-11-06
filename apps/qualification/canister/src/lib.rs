@@ -268,7 +268,7 @@ fn owner_checked_operation() -> Result<Bytes<29>, Refusal> {
 struct CheckpointData {
     owner: Bytes<29>,
     asset_version: u64,
-    receiver: Option<sessions::Snapshot>,
+    receiver: sessions::Snapshot,
 }
 const CHECKPOINT_ID: u64 = 0x41555449f101;
 const CHECKPOINT_LIMITS: Limits = Limits {
