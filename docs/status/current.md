@@ -2,42 +2,42 @@
 
 ## Published state
 
-**Engine 0.35.3** (`ic-auth`) and **Protocol 0.35.0**
+**Engine 0.35.4** (`ic-auth`) and **Protocol 0.35.0**
 (`ic-auth-protocol-types`, `ic-auth-wire`) are published on crates.io.
 Their release commits and annotated tags are pushed to `origin/main`.
 
-- Engine: `21b51c93e0fb839cc5ead14c866f8dcb9eac307e`, tag `engine-v0.35.3`
-  (`f0b0131084c423199cb6a3a61ddd90ec96d360d9`). Registry checksum:
-  `14e696a283d636607f00ac6720e1007debc74da13b06767bbef7475c44690eee`.
+- Engine: `0b431149bbcbcd9a9f1c445ac382bff38ab9b3a6`, tag `engine-v0.35.4`
+  (`c65dd425ff46b2f803525716ce04c653d6413a88`). Registry checksum:
+  `771bb2b46a608190710df260f12448bb50621910f42b0230e45126a40700ca09`.
 - Protocol: `83028f07c75bb80d38867b69ae31cd9e0a2651c4`, tag `protocol-v0.35.0`
   (`fc8755ef3572af17d806aa6dfc8203f93350bc73`). Registry checksums:
   types `6204b7d777028c617275f1f63b15bf7d542d89a7b8735c952edaf6770f5421c2`,
   Wire `b1a16f6109fe1736d81512fb43e3e4e03efcb8e821e023f62d97d18f354136c3`.
 
-Custody: `.git/publication-state/engine-0.35.3.json` and
+Custody: `.git/publication-state/engine-0.35.4.json` and
 `.git/publication-state/protocol-0.35.0.json`. The Engine upload/readback is at
-`target/release-frozen/batch-vgrJaHrk/target/publication-engine-0.35.3.OTxz96/`.
+`target/release-frozen/batch-mhsYrIQc/target/publication-engine-0.35.4.MxWRc3/`.
 The batch is complete and fast-forward reconciled; its durable recovery remains
-at `.git/release-state/frozen/batch-vgrJaHrk/`. No upload is unresolved.
+at `.git/release-state/frozen/batch-mhsYrIQc/`. No upload is unresolved.
 [#127](https://github.com/dragginzgame/ic-auth/issues/127) remains closed.
 
-## Engine 0.35.4 delivery in preparation
+## Completed Engine 0.35.4 delivery
 
-The maintainer authorized delivery and closing
-[#128](https://github.com/dragginzgame/ic-auth/issues/128). Its fix and incoming
+[#128](https://github.com/dragginzgame/ic-auth/issues/128) is closed as completed
+after verified publication. Its fix and incoming
 updates were preserved in `deferred/auth-128-20261107` (`47c776f`) before
 reconciling 0.35.3, then reapplied without reverting local package versions.
-The normal checkout fixes its only PocketIC constructor with
+The released source fixes its only PocketIC constructor with
 `PocketIcBuilder::new(Duration::from_secs(30))`. Startup retains its separate
 30-second budget; managed instance/server teardown remains explicit and async.
 No public Auth protocol, crypto, browser or stored-record contract changes.
 
-The selected graph is Build 0.77.0, Testkit 0.90.0, Platform 0.23.5,
+The released graph is Build 0.77.0, Testkit 0.90.0, Platform 0.23.5,
 Types 0.18.2, Runtime/macros/guard 0.19.5, Storage 0.68.3, Metrics 0.29.6,
 Wire/derive 0.17.6 and Host 0.74.4 (file CLI 0.74.2). Platform 0.23.5 was the
 latest published facade at admission. Testkit's registry checksum is
 `aeeb9dd0920b5a4343aed61f2cb7c0266488823dab5f7b19e0b632b54b7d8f5a`.
-The public package versions remain Engine 0.35.3 / Protocol 0.35.0 until release.
+The public package versions are Engine 0.35.4 / Protocol 0.35.0.
 
 Focused Linux evidence recreated after cleanup:
 
@@ -50,9 +50,33 @@ Focused Linux evidence recreated after cleanup:
   Auth does not use the removed cache-report getters. Protocol and all external
   selections survive rendering unchanged.
 
-These focused checks precede release; run the full source-bound gate in the new
-captured batch. Keep #128 open until the fix is pushed and publication verified.
-Do not change an existing batch's captured source or discard recovery state.
+The fresh complete **30-stage Linux release gate** passed against captured source
+`dd4004ba64c4477f3bbcd30cac8a5e0b0eb37774`, including all 93 client tests,
+20 backend-conformance tests, 11 ordinary installed cases and complete archives,
+MSRV and release/recovery/publication callers. Gate:
+`target/release-frozen/batch-mhsYrIQc/target/release-validation/engine-gate.W4Va0C/logs/validation.Qmv1B0`.
+The final release-tools stage took 1056 seconds; no timing saving is claimed.
+Both completed batch journals and their evidence remain retained.
+
+Platform 0.23.6 arrived in the normal lock during this gate, together with
+crypto-common 0.1.7 and generic-array 0.14.7. It did not enter either captured
+release. Preserve this pending update on `deferred/upstream-20261107-engine-0354`
+(`2a6723a`) and under
+`.git/release-state/deferred-engine-0354/incoming-after-capture/`.
+It is reapplied after clean delivery qualification; the working lock's later
+selection is not the released or qualified graph. A future batch must qualify it.
+
+## Clean backend helper delivery
+
+The Engine 0.35.4 / Protocol 0.35.0 helper archive passed registry-consumer identity
+checks and all 20 packaged tests from clean release source
+`0b431149bbcbcd9a9f1c445ac382bff38ab9b3a6` (`dirty: false`). Receipt:
+`target/portable-fixtures/backend-package.mEpEDB/delivery.json`. Archive:
+that evidence directory's `target/package/ic-auth-backend-conformance-0.35.4.crate`.
+SHA-256: `a768350ba06a5eb6c73049d5ee4603b8b6139122e2d4c71a40d6098e351233b0`.
+The ten scenarios retain the existing `Backend` hooks, including 90-day renewal
+and expanded authority checks. Canic must retain the archive and receipt in its
+own custody and qualify its actual adapter; this is supplying evidence only.
 
 ## Completed 0.35.3 qualification and recovery
 
@@ -80,8 +104,8 @@ browser runtime. Its unpublished backend helper adds a tenth scenario: 90-day
 login restore, late renewal under fresh authority, immutable deadlines and a
 second restore. The expanded authority matrix covers key/mechanism changes,
 withdrawn grants and authority/enrollment expiry before/after reopen.
-Earlier delivered source archives keep their original scenario sets. A new clean
-helper archive requires qualification against its published matching cohort.
+Earlier delivered source archives keep their original scenario sets; the new
+qualified archive above carries the expanded set.
 
 ## Auth contract and Canic adoption
 
