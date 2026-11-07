@@ -41,11 +41,20 @@ release-group adapters with inherited release settings and substituted runners;
 and workspace LOC reporting from a previously absent scratch path with zero
 unclassified lines. Fresh evidence: `target/evidence/shared-tooling-0314/`.
 The local interpreter is Bash 5.2. The Shared-only commit `a6e2370` is pushed;
-[native CI](https://github.com/dragginzgame/ic-auth/actions/runs/42363303068) runs
+[native CI](https://github.com/dragginzgame/ic-auth/actions/runs/42363303068) used
 its original released dependency selection. Both macOS architectures passed the
-previously failing bootstrap step; full job conclusions remain pending. Keep this
-run alive before pushing another main commit. The maintainer authorized completing
-these native checks, qualifying Platform 0.23.6 and publishing Engine 0.35.5.
+previously failing bootstrap step. Ubuntu passed all product/package stages but
+failed the final release-command fixture: the updated checker correctly rejects
+the CI Make target inherited through `CARGO_TARGET_DIR`.
+
+The Auth caller now clears that variable at its ordinary-shell fixture boundary,
+matching the existing batch fixture policy. The delivery guard is unchanged.
+`bash scripts/release/test-tools.sh --commands` executes this actual caller without
+the unrelated metadata/publication matrices. The original failure is reproduced;
+the corrected caller passes with no selected group, Protocol and Engine while
+inheriting CI Cargo and release settings. A replacement native run must qualify
+this repair together with the separately committed Platform selection before
+publication. Evidence is under `target/delivery-0355/`.
 
 ## Platform 0.23.6 qualification for Engine 0.35.5
 

@@ -12,6 +12,8 @@ native tooling packages. The independent series starts after the
   Bash 3.2 before host-tool setup. Keep NUL-output rejection and backend failure
   propagation, and adopt its isolated grouped-release checks and LOC scratch
   handling after cleanup.
+- Clear CI's Cargo target at the release-command fixture boundary, preserving
+  the ordinary-shell delivery guard. Add focused execution of that actual caller.
 
 ### 🔧 Changed
 

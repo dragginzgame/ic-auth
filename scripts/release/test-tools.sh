@@ -2,12 +2,14 @@
 set -euo pipefail
 validation_only=false
 batch_only=false
+commands_only=false
 case "${1:-}" in
     '') [[ $# == 0 ]] ;;
     --validation) [[ $# == 1 ]]; validation_only=true ;;
     --batch) [[ $# == 1 ]]; validation_only=true; batch_only=true ;;
+    --commands) [[ $# == 1 ]]; commands_only=true; validation_only=true ;;
     --retention) [[ $# == 1 ]]; exec bash "${BASH_SOURCE[0]%/*}/test-retention.sh" ;;
-    *) echo 'usage: test-tools.sh [--validation|--batch|--retention]' >&2; exit 2 ;;
+    *) echo 'usage: test-tools.sh [--validation|--batch|--commands|--retention]' >&2; exit 2 ;;
 esac
 
 # The fixture owns its nested Make selections, including missing-group probes.
@@ -30,6 +32,18 @@ export CARGO_NET_OFFLINE=true RUSTUP_AUTO_INSTALL=0
 mkdir -p "$root/target/portable-fixtures"
 fixture="$(mktemp -d "$root/target/portable-fixtures/release-tools.XXXXXX")"
 echo "Release/publication fixture evidence: $fixture"
+check_release_commands() {
+    # The checker exercises an ordinary release shell, including outer batch
+    # dispatch. Keep the enclosing CI target local to CI, as in auth_batch_make.
+    TMPDIR="$fixture" env -u CARGO_TARGET_DIR bash "$root/scripts/ci/check-release-commands.sh" "$1" \
+        ci/tool-versions.env make/consumer.mk make/tools.mk make/release.mk make/rust-format.mk \
+        make/execution.mk scripts/ci/check-make-execution.sh \
+        scripts/ci/check-release-delivery.sh ci/release-delivery.txt
+}
+if [[ "$commands_only" == true ]]; then
+    check_release_commands "$root"
+    exit
+fi
 # The published owner renders candidates; this suite qualifies Auth's actual
 # saved-source selection, coordinated requirements and recovery below.
 # Run the normal entrypoints in a fresh shell: a pre-export used to mask a
@@ -112,10 +126,7 @@ bash "$root/scripts/release/export-fixture-source.sh" "$root" "$fixture/repo"
 # Exercise the actual shared Make entrypoints before substituting the larger
 # gate below. The opt-in includes and execution probe are explicit inputs.
 if [[ "$validation_only" == false ]]; then
-TMPDIR="$fixture" bash scripts/ci/check-release-commands.sh "$fixture/repo" \
-    ci/tool-versions.env make/consumer.mk make/tools.mk make/release.mk make/rust-format.mk \
-    make/execution.mk scripts/ci/check-make-execution.sh \
-    scripts/ci/check-release-delivery.sh ci/release-delivery.txt
+check_release_commands "$fixture/repo"
 fi
 cd "$fixture/repo"
 export RELEASE_GROUP=protocol
@@ -679,7 +690,7 @@ git clone -q --no-hardlinks "$PWD" "$fixture/interrupted-repo"
     cmp .git/publication-state/protocol-0.1.1-ic-auth-protocol-types.dispatched "$FIXTURE_LOG/saved-dispatch"
 )
 # Already exported in the parent; replace the value after the isolated scenario.
-FIXTURE_MODE=source-change
+FIXTURE_MODE='source-change'
 if bash scripts/release/publish.sh > "$fixture/source-change.log" 2>&1; then exit 1; fi
 [[ "$(wc -l < "$fixture/uploads")" -eq 2 ]] || exit 1
 git reset --hard "$commit" > /dev/null

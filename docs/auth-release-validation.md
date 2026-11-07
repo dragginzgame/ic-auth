@@ -118,6 +118,11 @@ the actual metadata, interruption/resume and fresh-clone publication callers
 without replaying unchanged setup and registry response matrices. The complete
 CI target retains those matrices.
 
+`bash scripts/release/test-tools.sh --commands` selects only Auth's actual
+release-command checker caller. It clears the enclosing CI Cargo target before
+checking ordinary and captured dispatch with substituted runners. It runs no
+metadata preparation, native archive, upload or registry matrix.
+
 `bash scripts/release/test-tools.sh --batch` selects the frozen-flow consumer
 qualification without those unrelated matrices. It builds actual locked native
 package archives in a fresh source location, then uses Auth's real metadata and
