@@ -202,8 +202,12 @@ returns `retrieval_expired`; readiness can then make one fresh-proof attempt
 within its bounded preparation, after uncertainty has been resolved. There is no
 unbounded automatic retry loop.
 
-`claimCredential` is the sole intent owner. Direct adapters must honor its first/
-lookup decision and `completeCredential`'s exact-result commit. The host issuer
+`claimCredential` is the sole intent owner. It returns an in-memory tagged action:
+`saved` carries detached evidence; `issue`, `renew` and `reconcile` select the
+effect and required account/browser signer. Direct adapters dispatch that action
+and honor `completeCredential`'s exact-result commit instead of reconstructing
+intent from sequence/first flags. The persisted journal profile is unchanged.
+The host issuer
 must serialize renewal with revocation and recheck authority after signing work;
 it must not create a new login, slide its deadline or widen grants using a browser
 key. A production issuer/reconciliation endpoint is not implemented here. Resetting

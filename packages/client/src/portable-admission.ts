@@ -123,14 +123,17 @@ export class PortableAdmissionClient {
     }
     const flight = (async () => {
       const claim = await this.journal.claimCredential(this.generation, this.identities.account !== undefined, refreshThrough);
-      if (claim.saved) return { ...claim.saved, sequence: claim.sequence };
-      const initial = claim.sequence === 0n;
-      const signer = initial ? this.identities.account : this.identities.browser;
-      const caller = initial ? this.accountCaller : this.caller;
+      if (claim.kind === 'saved') return { bytes: claim.bytes, until: claim.until, sequence: claim.sequence };
+      const signer = this.identities[claim.signer];
+      const caller = claim.signer === 'account' ? this.accountCaller : this.caller;
       if (!signer || !caller) throw new ClientError('account_required');
-      const result = await this.call(signer, caller, this.issuer, (signal, identity) => !claim.first
-        ? this.transport.reconcile(identity, claim.sequence, signal)
-        : initial ? this.transport.issue(identity, signal) : this.transport.renew(identity, claim.sequence, signal));
+      const result = await this.call(signer, caller, this.issuer, (signal, identity) => {
+        switch (claim.kind) {
+          case 'issue': return this.transport.issue(identity, signal);
+          case 'renew': return this.transport.renew(identity, claim.sequence, signal);
+          case 'reconcile': return this.transport.reconcile(identity, claim.sequence, signal);
+        }
+      });
       // Copy returned bytes before another asynchronous boundary. Transport decoding
       // is not authentication; the receiver remains the verifier.
       const until = result.admissionUntilNs;

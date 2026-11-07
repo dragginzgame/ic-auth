@@ -60,13 +60,16 @@ ic-auth = { version = "=0.35.2", default-features = false, features = ["session-
 
 Implement `ic_auth_backend_conformance::Backend` on a test driver for the actual
 adapter and call `assert_backend_contract::<YourDriver>()` from a native test.
-The complete entrypoint always runs all nine named scenarios:
+The working entrypoint runs all ten named scenarios:
 `assert_admission_retry`, `assert_logout_reopen`, `assert_unknown_logout_reopen`,
-`assert_replacement_generation`,
+`assert_replacement_generation`, `assert_ninety_day_renewal`,
 `assert_capacity`, `assert_authorization`, `assert_maximum_shape`, `assert_pruning`
 and `assert_metadata_reopen`. Each uses
 fresh disposable backing and can also be called from a separately named native test for clearer failure
 diagnosis. A subset is not complete backend conformance.
+The tenth scenario is pending source delivery; the previously delivered 0.35.2
+archive retains its nine-scenario contract and original receipt. Rebuild and
+qualify the new archive from its intended delivered source before consumer use.
 `fresh` supplies isolated backing with the requested generation and bounds;
 `fail_next_commit` injects a normal error before admission/logout, nonempty prune
 or generation mutations; `reopen` reconstructs the adapter from persisted
@@ -82,6 +85,13 @@ Drivers adopting this bundle must implement these new hooks; earlier
 delivered source archives retain their original six-scenario interface.
 Do not reset or erase production backing to run these scenarios.
 
+The 90-day scenario admits a short lease, restores the complete retained login,
+renews one second before the original deadline under fresh protected authority,
+then restores again. It checks unchanged login bytes, a lease capped at the
+original deadline and authorization before/exactly/after expiry without cleanup
+or record mutation. It uses the existing driver hooks and synthetic timestamps;
+it does not qualify a production issuer, wall clock or snapshot rollback fence.
+
 Check `cargo tree -i ic-auth` and the protocol/Platform identities: the harness and
 adapter must use the same selected packages. Registry identity is essential to
 implementing the same Rust traits; matching version text alone is insufficient.
@@ -93,8 +103,11 @@ capacity covers receiver-wide and per-caller exhaustion, preserves original exac
 retry at saturation, and checks that per-caller saturation leaves other callers
 admissible. Deliberately broken admission and logout writes prove that returned
 errors cannot publish mutations. Authorization scenarios verify scoped callbacks,
-unadmitted callers, changed issuer authority and before/exact/after expiry,
-including after reopen. Unknown logout checks failed initial and retry commits,
+unadmitted callers, issuer/key/mechanism changes, withdrawn scopes, expired
+authority/enrollment and a lease that outlives shortened enrollment, including
+after reopen. A valid authority refresh preserves the original lease and records.
+Before/exact/after session expiry remains independent of cleanup. Unknown logout
+checks failed initial and retry commits,
 spent unknown-work credit, non-sliding unconfirmed denial across reopen, and
 known-login logout with an empty unknown budget. Reopening must preserve the
 known/unknown distinction, other callers and consumed-proof evidence. The driver

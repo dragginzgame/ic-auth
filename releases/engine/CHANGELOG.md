@@ -4,6 +4,34 @@ Covers public `ic-auth` and the unpublished backend conformance, qualification a
 native tooling packages. The independent series starts after the
 [last coordinated release, 0.29.2](../history.md).
 
+## [0.35.3] - Unreleased
+
+### 🔧 Changed
+
+- Adopt IC Build 0.76.0 for native lock admission and the explicitly prepared
+  release editor. Public library dependencies and release custody are unchanged.
+- Make the private browser journal return an explicit credential action and
+  required signer, keeping issuance/recovery decisions with their durable owner.
+  The stored journal format and lookup-only recovery behavior are unchanged.
+- Regenerate the browser contracts from the incoming locked IC Wire 0.17.6;
+  Auth method bindings are unchanged.
+
+### 🧪 Testing
+
+- Extend the unpublished backend conformance suite with 90-day login restoration,
+  late renewal, issuer key/mechanism changes, withdrawn grants and changed
+  authority/enrollment deadlines using the existing adapter hooks. Earlier source
+  archives retain their original scenario set.
+- Include portable claims hashing in the existing native allocation profiler.
+  Production hashing, signed bytes and verification behavior are unchanged.
+- Share allocation-profile capture and DHAT observation across both native
+  benchmarks, preserving their commands, input custody and report schema.
+
+### 📚 Documentation
+
+- Refresh Canic's recorded integration progress and distinguish logout, complete
+  recovery, missing state and snapshot rollback acceptance in the adoption guide.
+
 ## [0.35.2] - 2026-11-06
 
 ### 🔧 Changed

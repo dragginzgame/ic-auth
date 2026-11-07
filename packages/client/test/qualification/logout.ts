@@ -40,7 +40,7 @@ try {
   await client.start('testkit-login', identity, issuer);
   const until = clock.nowNs() + 60_000_000_000n;
   await client.destination('testkit-login', receiver, until);
-  assert.equal((await client.claimCredential('testkit-login')).first, true); // Conservatively retain an unknown issuance.
+  assert.equal((await client.claimCredential('testkit-login')).kind, 'issue'); // Conservatively retain an unknown issuance.
   const guarded = client.guardedIdentity('testkit-login', identity);
   await client.begin('testkit-login', clock.nowNs() + 70_000_000_000n);
   const result = await client.cleanup('testkit-login', identity);

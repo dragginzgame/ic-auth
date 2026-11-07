@@ -54,6 +54,36 @@ async function fixture() {
   return { factory, store, state, journal, material, transport, client };
 }
 
+test('journal actions retain exact intent and signer selection across reopen and renewal', async () => {
+  const f = await fixture();
+  let store = f.store;
+  try {
+    await assert.rejects(f.journal.claimCredential('login', false),
+      (error: ClientError) => error.code === 'account_required');
+    assert.deepEqual(await f.journal.claimCredential('login'), { kind: 'issue', sequence: 0n, signer: 'account' });
+    store.close();
+    store = await IndexedDbLogoutStore.open(f.factory, 'admission');
+    const journal = new PortableLogoutClient(store,
+      { id: 'test-clock', nowNs: () => f.state.now, wait: async () => {} },
+      { revoke: async () => ({ tag: 'Revoked', value: 100_000n * MS }), dispose: async () => {} });
+    assert.deepEqual(await journal.claimCredential('login'), { kind: 'reconcile', sequence: 0n, signer: 'account' });
+    const bytes = credentialBytes(f.material.credential, 131_072);
+    await journal.completeCredential('login', 0n, bytes, f.material.admissionUntilNs);
+    assert.deepEqual(await journal.claimCredential('login', false),
+      { kind: 'saved', sequence: 0n, bytes, until: f.material.admissionUntilNs });
+    f.state.now = f.material.admissionUntilNs;
+    assert.deepEqual(await journal.claimCredential('login', false), { kind: 'renew', sequence: 1n, signer: 'browser' });
+    assert.deepEqual(await journal.claimCredential('login', false), { kind: 'reconcile', sequence: 1n, signer: 'browser' });
+    assert.deepEqual((await journal.status('login')).issuance, { sequence: 1n });
+    await journal.completeCredential('login', 1n, bytes, f.state.now + 60_000n * MS);
+    assert.deepEqual(await journal.claimCredential('login', false),
+      { kind: 'saved', sequence: 1n, bytes, until: f.state.now + 60_000n * MS });
+    assert.equal(f.state.issues, 0);
+    assert.equal(f.state.reconciles, 0);
+    assert.deepEqual(f.state.admissions, []);
+  } finally { store.close(); }
+});
+
 for (const phase of ['issuance', 'admission'] as const) {
   test(`outstanding admission work is bounded before storage and cannot postpone logout during ${phase}`, async t => {
     const f = await fixture();
@@ -872,7 +902,9 @@ test('competing tabs recover one renewal sequence and retain identical original 
     const saved = (await f.journal.status('login')).issuance!;
     assert.equal(saved.sequence, 1n);
     assert.equal(saved.bytes, undefined, 'status reads metadata without loading proof bytes');
-    const frame = (await f.journal.claimCredential('login')).saved!.bytes;
+    const claim = await f.journal.claimCredential('login');
+    assert.ok(claim.kind === 'saved');
+    const frame = claim.bytes;
     assert.deepEqual(frame, credentialBytes(result.credential, 131_072));
     await assert.rejects(f.journal.completeCredential('login', 1n, frame, result.admissionUntilNs + 1n),
       (e: ClientError) => e.code === 'storage_conflict');
@@ -905,7 +937,9 @@ test('exact evidence owns Buffer input before an asynchronous journal boundary',
     const pending = f.journal.completeCredential('login', claim.sequence, borrowed, f.material.admissionUntilNs);
     borrowed.fill(99);
     await pending;
-    assert.deepEqual((await f.journal.claimCredential('login')).saved!.bytes, frame);
+    const saved = await f.journal.claimCredential('login');
+    assert.ok(saved.kind === 'saved');
+    assert.deepEqual(saved.bytes, frame);
   } finally { f.store.close(); }
 });
 
@@ -1014,7 +1048,7 @@ test('invalid identity binding and failed journal access refuse before issuance'
 test('malformed or expired recovered material never reaches a receiver or triggers issuance', async () => {
   const f = await fixture();
   try {
-    assert.equal((await f.journal.claimCredential('login')).first, true);
+    assert.equal((await f.journal.claimCredential('login')).kind, 'issue');
     f.material.credential = { ...f.material.credential, claims: new Uint8Array(131_073) };
     await assert.rejects(f.client().establish(a), (e: ClientError) => e.code === 'invalid_material');
     f.material.credential = { ...f.material.credential, claims: new Uint8Array([1]) };

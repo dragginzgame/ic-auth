@@ -1,9 +1,12 @@
 //! Native allocation observations only: no verifier or production allocator changes.
+mod allocation_profile;
+
 use clap::Parser;
 use ic_auth::canonical::{
     cert_hash, chain_key_batch_header_hash, chain_key_delegation_cert_hash,
     chain_key_derivation_path_hash, issuer_proof_binding_hash, proof_hash,
 };
+use ic_auth::portable::claims_hash;
 use ic_auth_protocol_types::*;
 use serde_json::{Value, json};
 use std::{hint::black_box, num::NonZeroU16};
@@ -24,27 +27,10 @@ struct Arguments {
 fn measure(name: &str, iterations: u16, operation: impl Fn() -> [u8; 32]) -> Value {
     // Input construction, one warmup, reporting and profiling setup are outside
     // the observed operations. DHAT includes reallocations in its byte totals.
-    let expected = black_box(operation());
-    let profiler = dhat::Profiler::builder()
-        .testing()
-        .trim_backtraces(Some(0))
-        .build();
-    for _ in 0..iterations {
-        assert_eq!(black_box(operation()), expected);
-    }
-    let stats = dhat::HeapStats::get();
-    dhat::assert_eq!(stats.curr_bytes, 0);
-    drop(profiler);
-    json!({
-        "operation": name,
-        "iterations": iterations,
-        "total_blocks": stats.total_blocks,
-        "total_bytes": stats.total_bytes,
-        "peak_live_bytes": stats.max_bytes,
-        "blocks_per_operation": stats.total_blocks as f64 / f64::from(iterations),
-        "bytes_per_operation": stats.total_bytes as f64 / f64::from(iterations),
-        "digest": expected,
-    })
+    let (expected, mut stats) = allocation_profile::measure(iterations, || black_box(operation()));
+    stats["operation"] = json!(name);
+    stats["digest"] = json!(expected);
+    stats
 }
 
 fn fixture(roles: usize, scopes: usize) -> DelegationProof {
@@ -135,8 +121,26 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     for (name, roles, scopes) in [("small", 1, 2), ("wide", 16, 32)] {
         let proof = fixture(roles, scopes);
         let RootProof::IcChainKeyBatchSignatureV1(root) = &proof.root_proof;
+        let DelegationAudience::Fleet(audience) = &proof.cert.aud;
+        let claims = PortableClaims {
+            audience: *audience,
+            mechanism: PortableMechanism::Ed25519,
+            issuer: proof.cert.issuer_pid,
+            account_subject: Principal::from_slice(&[9]),
+            key_binding_id: [5; 32],
+            browser_public_key: [6; 32],
+            login_started_at_ns: 100,
+            login_deadline_ns: 200,
+            issued_at_ns: 100,
+            admission_expires_at_ns: 110,
+            nonce: [7; 16],
+            grants: proof.cert.grants.clone(),
+        };
         let n = arguments.iterations.get();
         let observations = [
+            measure("portable_claims", n, || {
+                claims_hash(black_box(&claims)).unwrap()
+            }),
             measure("certificate", n, || {
                 cert_hash(black_box(&proof.cert)).unwrap()
             }),

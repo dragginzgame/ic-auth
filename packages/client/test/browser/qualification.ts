@@ -54,7 +54,10 @@ export async function open(name: string, start = false): Promise<void> {
 }
 export const time = (value: string): void => { now = BigInt(value); };
 export const state = () => client.status('generation');
-export const issuance = async () => (await client.claimCredential('generation')).first;
+export const issuance = async () => {
+  const claim = await client.claimCredential('generation');
+  return claim.kind === 'issue' || claim.kind === 'renew';
+};
 export const begin = () => client.begin('generation', 11_000_000_000n);
 export const network = (hold: boolean, fail: boolean): void => { holdNetwork = hold; failNetwork = fail; };
 export const counts = () => ({ attempts, disposed });

@@ -1,5 +1,7 @@
 //! Native exact-retry allocations; fixture setup/signing and request construction
 //! are outside measurement. No production allocator or verifier behavior changes.
+mod allocation_profile;
+
 use clap::Parser;
 use ic_auth::{
     admission_budget::SessionAdmissionBudget,
@@ -31,23 +33,6 @@ struct Arguments {
     _bench: bool,
     #[arg(long, default_value = "100")]
     iterations: NonZeroU16,
-}
-fn measure(iterations: u16, mut operation: impl FnMut()) -> Value {
-    operation();
-    let profiler = dhat::Profiler::builder()
-        .testing()
-        .trim_backtraces(Some(0))
-        .build();
-    for _ in 0..iterations {
-        operation();
-    }
-    let stats = dhat::HeapStats::get();
-    dhat::assert_eq!(stats.curr_bytes, 0);
-    drop(profiler);
-    json!({"iterations": iterations, "total_blocks": stats.total_blocks,
-        "total_bytes": stats.total_bytes, "peak_live_bytes": stats.max_bytes,
-        "blocks_per_operation": stats.total_blocks as f64 / f64::from(iterations),
-        "bytes_per_operation": stats.total_bytes as f64 / f64::from(iterations)})
 }
 fn profile(name: &str, roles: usize, scopes: usize, iterations: u16) -> Value {
     const SECOND: u64 = 1_000_000_000;
@@ -146,7 +131,7 @@ fn profile(name: &str, roles: usize, scopes: usize, iterations: u16) -> Value {
     };
     let requests: Vec<_> = (0..=iterations).map(|_| request.clone()).collect();
     let mut requests = requests.into_iter();
-    let retry = measure(iterations, || {
+    let (_, retry) = allocation_profile::measure(iterations, || {
         assert_eq!(
             black_box(establish_session(
                 &mut store,
@@ -161,7 +146,7 @@ fn profile(name: &str, roles: usize, scopes: usize, iterations: u16) -> Value {
             SessionEstablished::ExactRetry(receipt)
         );
     });
-    let decode = measure(iterations, || {
+    let (_, decode) = allocation_profile::measure(iterations, || {
         drop(black_box(
             decode_claims(black_box(&credential.claims)).unwrap(),
         ));

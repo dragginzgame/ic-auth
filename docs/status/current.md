@@ -1,4 +1,4 @@
-# Current handoff — 2026-11-06
+# Current handoff — 2026-11-07
 
 ## Published state
 
@@ -82,39 +82,20 @@ fresh private fixture allocation is required. No production migration occurred.
 
 ## Adopted Shared Tooling and completed batch
 
-Shared Tooling 0.31.0 at `74313941af2fce4399bec0e6909ca6229673c3f8`, including
-PR #361, is exported and independently verified (161 payloads, required version
-and entrypoint annotations). Auth's checksum callers reject NUL-containing output
-and preserve backend status 3 with one diagnostic. npm schema-3 and dependency
-pin admission pass. Evidence: `target/evidence/shared-tooling-0.31.0-pr361/`.
-
-Callers now use `RELEASE_GROUPS`, `RELEASE_PUBLISH_TARGET`, `RELEASE_SETUP_TARGET`,
-`RELEASE_SETUP_MODE` and `RELEASE_BATCH_ACTIVE`, with `run-release-batch.pl` and
-the renamed guide. Retired settings refuse without aliases. No active pre-0.31
-Auth batch exists; old journals and stable storage paths/source pins are unchanged.
-Shared owns single-group capture; `RELEASE_GROUPS=protocol,engine` selects the
-supplier-first roster. Publication
-remains explicit and candidate setup prepares its own tools/browser dependencies.
-
-Linux native setup and real package archives pass. The schema-2 two-group fixture
-also passes with mocked gate/tool/upload/registry effects: partial preparation,
-saved editor refusal, recorded publication identity, uncertain upload, deferred
-normal-lock preservation, completed resume, reconciliation and retirement.
-Native/batch logs: `target/portable-fixtures/release-tools.8R2OHK/`. Make routing,
-jobserver, unsafe-mode and retired-setting refusals pass. Legacy journal checks
-pass under `target/portable-fixtures/release-tools.gF3NGy/`.
-Live Engine delivery completed as `batch-aSZPSweq`, then Shared's fast-forward
-reconciliation advanced the normal branch. Deferred lock edits were reapplied
-with identical dependency hunks. Original recovery state remains under
-`.git/release-state/frozen/batch-aSZPSweq/`; the candidate/evidence is retained,
-not retired. This tooling release does not establish Canic production acceptance.
+Shared Tooling 0.31.0/PR #361 has 161 independently verified payloads. Evidence:
+`target/evidence/shared-tooling-0.31.0-pr361/`. The release gate includes actual
+candidate setup/archives, legacy recovery and schema-2 two-group batch fixtures.
+Earlier focused logs remain at `target/portable-fixtures/release-tools.8R2OHK/`
+and `release-tools.gF3NGy/`. Shared owns capture, explicit publication and lifecycle;
+retired settings refuse without aliases. Auth's completed `batch-aSZPSweq` was
+fast-forward reconciled, preserving deferred dependency hunks. Recovery remains at
+`.git/release-state/frozen/batch-aSZPSweq/`; candidate and evidence are not retired.
 
 ## Clean backend-conformance source delivery
 
-The complete entrypoint runs nine scenarios with the existing `Backend` hooks.
-Unknown logout covers failed initial/retry commits, spent work credit, non-sliding
-`Unconfirmed` retries, mixed known/unknown restoration and isolation from known
-logout. Independent encoded backing and broken-backend controls pass.
+The delivered nine scenarios use the existing `Backend` hooks. Unknown logout
+covers atomicity, spent work credit, fixed `Unconfirmed` deadlines, restoration
+and known-login isolation; independent backing and broken-backend controls pass.
 
 The matching Engine 0.35.2 / Protocol 0.35.0 archive passed registry-consumer
 qualification and all 18 packaged tests. Receipt:
@@ -122,29 +103,69 @@ qualification and all 18 packaged tests. Receipt:
 `36b3f27e6d0ed3c65a1027376540eb7808744d36`, `dirty: false`, archive SHA-256
 `cc09eadea778769ab0be8ce19ead1eb4e523d02a778538f493b547af07a1077c`.
 Archive: that evidence directory's `target/package/ic-auth-backend-conformance-0.35.2.crate`. Retain archive and receipt
-at the consumer before producer cleanup. Canic passes the expanded stable-adapter
-entrypoint using its earlier 0.35.0 candidate; new archive adoption and installed
-production acceptance remain consumer-owned. Earlier archive receipts remain intact.
+at the consumer before producer cleanup. Canic's working tree now passes the clean
+0.35.1 helper on its actual stable adapter; the adoption guide records its local
+browser/logout/restore progress and separate production obligations. Earlier receipts remain intact.
+
+## Pending consumer qualification support
+
+The working helper adds a tenth scenario using the existing `Backend` hooks:
+90-day login restore, late renewal under fresh authority, unchanged login window,
+second restore and before/exact/after deadline authorization without cleanup.
+Both local adapters and a missing-login control pass in the 20-test package suite;
+warning-denied package/all-target Clippy and local documentation links pass.
+The authority matrix now adds key/mechanism changes, withdrawn scopes, expired or
+shortened enrollment and a valid refresh, before/after reopen without record changes.
+The adoption guide now separates confirmed/unconfirmed logout, complete restore,
+missing state and older-valid-snapshot acceptance. Evidence:
+`target/evidence/auth-canic-handoff-035/`. The scenario is uncommitted, outside the
+delivered archive; Canic remains read-only. Production behavior is unchanged.
+
+New native profiling adds portable claims: small/wide allocation totals are
+868/14,308 bytes per call, including growth; older delegation rows are unchanged.
+The fresh reference Wasm has one retained admission and authorization instantiation
+each. No hashing or generic-code refactor is justified by this evidence alone;
+the earlier streaming experiment was rejected. See the existing allocation guide
+and `target/evidence/auth-next-035/`; no production performance saving is claimed.
+
+The private browser journal now returns `saved`/`issue`/`renew`/`reconcile` actions
+with the required signer, replacing caller reconstruction from flags. Stored
+journal records are unchanged. All 93 client tests, archive checks and Wire
+interop pass; the five browser contracts were regenerated/reviewed for incoming
+Wire 0.17.6 (only the shared runtime changed). Allocation runners now share capture
+and DHAT helpers, with complete before/after reports unchanged and the shared
+sources sealed. Bench Clippy, ShellCheck and syntax checks pass. Evidence:
+`target/evidence/auth-dedup-035/`. These source changes remain unpublished.
+
+IC Build 0.76.0 is selected in the root catalog/lock and its CLI editor is prepared.
+Auth tooling tests, strict package Clippy and real Engine manifest/lock rendering
+pass; Protocol/external selections and original inputs remain intact. Evidence:
+`target/evidence/ic-build-076/`. No release ran; prior publication custody is unchanged.
+
+The Nov 7 read-only Canic check finds root Engine 0.35.2/Testkit 0.89.4, with private
+consumers/helper still on 0.35.1. Its working snapshot guide allows captured-state
+rollback with original deadlines; only the clock activation gate remains in code.
+The new installed snapshot/expiry attempt stopped for unprepared Testkit 0.89.4.
+Its handoff still describes a different proposed policy; the adoption guide records
+this discrepancy. Final policy/docs/installed acceptance remain Canic-owned.
 
 ## Deferred updates and recovery
 
-The pending dependency diff was reapplied unchanged over released Auth metadata.
-It selects Metrics 0.29.5, Platform 0.23.4, Runtime/macros/guard 0.19.4, Testkit
-0.89.3, Storage 0.68.1, Wire/derive 0.17.5 and TOML updates. These selections were
-excluded from the release. Recovery patch and tested/incoming locks are under
+External updates now select Metrics 0.29.6, Platform 0.23.5, Runtime/guard 0.19.4,
+Testkit 0.89.3, Storage 0.68.2, Wire/derive 0.17.6 and TOML updates. The focused
+backend checks used this graph without changing its lock; it is not release-qualified.
+The earlier excluded updates and released/tested locks remain under
 `.git/release-state/deferred-engine-0352/`; durable branch
 `deferred/upstream-20261106-engine-0352` is `1b1aca9`. The working lock retains
-Engine 0.35.2. Do not adopt this newer graph without its own qualification.
-Earlier deferred branches remain historical. Do not merge their old package-version
-rows over released metadata.
+Engine 0.35.2. Full adoption needs its own qualification.
+Earlier deferred branches remain historical; do not merge their old package-version rows.
 
 Preserve `.git/release-state/`, `.git/publication-state/` and required target custody.
 Older release gates, publication attempts and archive receipts remain historical
 under their original identities; no cleanup or recovery bypass was performed.
 Retired checkout refs are `archive/ic-auth-capacity` and `archive/ic-auth-release-033`,
 with evidence under `target/checkout-retirement/20261104-siblings/`.
-The maintainer accepted Platform's residual Wasm increase on 2026-11-05 and lifted
-the hold. Its matched Canic report found about 29 KB over 0.21 after correction,
-not parity or an Auth optimizer change. Preserve the
+The maintainer accepted Platform's residual Wasm increase on 2026-11-05: about
+29 KB over 0.21 in the matched Canic report. Preserve the
 [historical scope](https://github.com/dragginzgame/ic-auth/blob/ed785d7/docs/status/current.md).
 No new Wasm size comparison is claimed.

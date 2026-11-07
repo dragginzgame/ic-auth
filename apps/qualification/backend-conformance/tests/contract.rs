@@ -6,7 +6,8 @@ use ic_auth::{
 use ic_auth_backend_conformance::{
     Backend, assert_admission_retry, assert_authorization, assert_backend_contract,
     assert_capacity, assert_logout_reopen, assert_maximum_shape, assert_metadata_reopen,
-    assert_pruning, assert_replacement_generation, assert_unknown_logout_reopen,
+    assert_ninety_day_renewal, assert_pruning, assert_replacement_generation,
+    assert_unknown_logout_reopen,
 };
 use ic_auth_protocol_types::Principal;
 use std::{borrow::Cow, collections::BTreeMap};
@@ -339,6 +340,10 @@ fn independent_replacement_generation_conforms() {
     assert_replacement_generation::<Encoded>();
 }
 #[test]
+fn independent_ninety_day_renewal_conforms() {
+    assert_ninety_day_renewal::<Encoded>();
+}
+#[test]
 fn independent_capacity_conforms() {
     assert_capacity::<Encoded>();
 }
@@ -413,6 +418,9 @@ impl<const WRITE: u8> Backend for Broken<WRITE> {
                 )
             });
         }
+        if WRITE == 7 {
+            self.0.logins.clear();
+        }
         self
     }
     fn advance_generation(&mut self) -> Result<u64, SessionError> {
@@ -480,6 +488,11 @@ fn unknown_logout_write_then_error_is_detected() {
 #[should_panic(expected = "unknown denial must survive complete reopen")]
 fn forgotten_unknown_denial_is_detected() {
     assert_unknown_logout_reopen::<Broken<6>>();
+}
+#[test]
+#[should_panic(expected = "90-day login records must survive complete reopen")]
+fn forgotten_ninety_day_login_is_detected() {
+    assert_ninety_day_renewal::<Broken<7>>();
 }
 
 #[test]

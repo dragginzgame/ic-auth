@@ -59,8 +59,8 @@ test('logout commits invalidation before fan-out and retries Capacity after late
   });
   try {
     await f.client.destination('login-a', receiver, f.state.now + 2_000n * MS);
-    assert.equal((await f.client.claimCredential('login-a')).first, true);
-    assert.equal((await f.client.claimCredential('login-a')).first, false);
+    assert.equal((await f.client.claimCredential('login-a')).kind, 'issue');
+    assert.deepEqual(await f.client.claimCredential('login-a'), { kind: 'reconcile', sequence: 0n, signer: 'account' });
     await f.client.begin('login-a', f.state.now + 10_000n * MS);
     await assert.rejects(f.client.destination('login-a', receiver, f.state.now), ClientError);
     await assert.rejects(f.client.claimCredential('login-a'), ClientError);
@@ -83,7 +83,7 @@ test('unconfirmed local denial and local expiry never confirm remote revocation'
     const expiry = f.state.now + 20_000n * MS;
     const deadline = f.state.now + 30_000n * MS;
     await f.client.destination('login-a', receiver, expiry);
-    assert.equal((await f.client.claimCredential('login-a')).first, true);
+    assert.equal((await f.client.claimCredential('login-a')).kind, 'issue');
     await f.client.begin('login-a', deadline);
     await f.client.begin('login-a', deadline + 100_000n * MS);
     const result = await f.client.cleanup('login-a', identity);
@@ -147,7 +147,7 @@ test('missing handle and lost replies remain unknown, never implicit success', a
   let calls = 0;
   const f = await fixture(async () => { calls++; throw new Error('reply lost'); });
   try {
-    assert.equal((await f.client.claimCredential('login-a')).first, true);
+    assert.equal((await f.client.claimCredential('login-a')).kind, 'issue');
     await f.client.begin('login-a', f.state.now + 10_000n * MS);
     const result = await f.client.cleanup('login-a', undefined);
     assert.equal(calls, 0);

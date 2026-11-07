@@ -33,11 +33,11 @@ carries no Account DTOs; the upstream Account byte-adapter cut does not change
 Auth frames, method identities or stored records. Qualify the complete consumer
 graph with one Runtime executor/generator/guard.
 
-## Pending clock-independent adoption
+## Clock-independent acceptance
 
 Protocol and Engine 0.35.0 deliver the
 [#127 contract](design/portable-clock-audit.md) as a minor hard cut. Keep production activation refused until the actual consumer qualifies it.
-Canic must update the receiver Wire codec and browser bindings together, handle
+Consumers must update the receiver Wire codec and browser bindings together, handle
 `Unconfirmed` without reporting logout success, and select the explicit protected
 login ceiling in ledger construction. Known logout retains denial through its
 signed immutable deadline; unknown logout commits only bounded temporary denial.
@@ -50,41 +50,66 @@ no-retained-record confirmation does not authorize clearing Canic's actual store
 Qualify disposition of its installations, failure atomicity, retained denial,
 unknown outcomes and browser recovery under #491. No Canic source was changed.
 
-## Read-only Canic source review — 2026-11-04
+The consumer acceptance boundaries are independent:
 
-This historical review used Canic HEAD `e6a061999` plus its then-uncommitted
-work. Its lock selected Engine 0.33.2, Protocol 0.33.1, Platform 0.22, Types 0.18.1,
-Wire 0.16.2 and Testkit 0.85.1. These are consumer selections, distinct from
-Auth's released qualification lock above. No Canic edits, builds or fresh
-installed acceptance were performed by this review.
-
-Canic's authentication guide and current handoff record the following evidence:
-
-| Boundary | Recorded consumer progress | Remaining production obligation |
+| Boundary | Required result | Evidence that does not establish it |
 | --- | --- | --- |
-| Receiver and storage | Persistent admission/read/logout, scoped guards, Root refresh, and Auth 0.33.1 backend conformance against the actual stable adapter | Complete denial/recovery acceptance, storage profiles and combined-state costs; the newer Auth backend maintenance hooks need their own matched receipt |
-| Issuer | Controlled-local Ed25519 issuance, renewal and reconciliation | Certified issuance and the complete production approval/custody lifecycle |
-| Browser | Controlled-local Chromium journey with two receivers/devices, lost replies and durable logout across reopen | Production account-login UI, key custody and activation |
-| Authority and restore | Scoped Root/issuer snapshot retirement checks; new installed unavailable-enrollment, refresh-expiry and retirement checks | Clock-independent contract adoption and arbitrary unsealed restoration remain consumer-owned |
-| Operator inspection | Protected receiver inspection and controller/Root/CLI paths | Final consumer acceptance and documentation reconciliation |
+| Known-login logout | Atomically remove that caller's session and retain denial through its immutable signed login deadline, including after restore. Return `Revoked` only after commit; preserve state on failure. | A browser timeout, expired proof or fresh enrollment alone does not establish logout. |
+| Unknown-login logout | Commit bounded temporary local denial and return `Unconfirmed`. Retries retain its original deadline and uncertainty; after expiry/pruning a delayed credential may admit. | Temporary denial is not confirmation of permanent revocation. |
+| Complete durable restore | Restore sessions, replay/login records, authority, generation, clock and pool metadata consistently. Require fresh authenticated enrollment before readiness; preserve deadlines and denials. | Decoding session bytes alone does not qualify complete recovery. |
+| Missing safety state | Stay closed pending trusted complete recovery, including when session/login rows happen to be empty. | A timestamp floor, generation increment or new enrollment cannot manufacture lost denial history. |
+| Older internally valid snapshot | Qualify the host's protected authority/retirement fence against rollback of the whole accepted state. | Refusing missing metadata does not prove detection of an older valid snapshot; Auth cannot detect rollback when every trusted input is rolled back with it. |
+| Ninety-day login | Preserve the original login window across renewal and restore. Keep proofs short and session leases bounded; refuse authorization exactly at the immutable deadline without relying on cleanup. | A 90-day login is not a 90-day session or permission to extend the deadline on renewal. |
 
-The persistent adapter uses `Session::check_admission_pair` and
-`SessionLimits::check_capacity`, as requested by
-[Canic #720](https://github.com/dragginzgame/canic/issues/720). Production
-activation remains refused; controlled-local proofs do not establish production
-clock/storage provenance or adoption of the pending clock-independent contract.
-The latest focused cases are not a fresh complete passing integration target,
-and earlier browser evidence retains its original dependency graph. Canic
-[#491](https://github.com/dragginzgame/canic/issues/491) remains the acceptance
-owner. No missing Auth API was identified.
+The signed-deadline contract does not require a cross-canister clock-skew bound
+for those logout guarantees. Hosts still supply trusted local time, preserve its
+monotonic observations and qualify their recovery/authority lifecycle. Do not
+remove production activation gates merely because Auth's #127 is closed.
 
-Certified issuance is the next concrete consumer gap. Use the existing
-[certified issuance handoff](signature-preparation.md#certified-portable-issuance-handoff)
-to compose Auth's preparation/retrieval APIs with Canic's durable journal.
-The Platform Wasm publication hold was subsequently lifted with the maintainer's
-accepted residual size tradeoff. The [current handoff](status/current.md) records
-that decision and released qualification; it does not update this historical
-Canic acceptance review.
+## Read-only Canic review — 2026-11-06
+
+Inspected Canic HEAD `e6a061999dfae207bc20917ffefa2082e7ffe2e7` plus its
+uncommitted working tree, current authentication guide and handoff. These local
+changes are not a delivered release. The working root and both private consumer
+locks select registry Engine 0.35.1 with Protocol/Wire 0.35.0. Their clean backend
+archive is Auth source `e78d1a76f3f277e3600eac3b31247cd29f0daf3d`, SHA-256
+`153e106f5bdffe49691f0c7030a96573ac026e17fe8be5a2914ebb0785451fca`.
+Engine 0.35.2 changes tooling; it does not supply a missing production Auth API.
+
+The following are recorded Canic results, not tests rerun by this Auth review:
+
+| Boundary | Recorded local consumer evidence | Remaining acceptance |
+| --- | --- | --- |
+| Receiver and storage | Clean 0.35.1 helper's nine scenarios pass against the actual stable adapter; installed unknown logout retains `Unconfirmed` and the same deadline across reconstruction | Qualify the final production denial/recovery and retention/capacity matrix on the selected binary and graph |
+| Issuer | Ed25519 and certified issuance/renewal, exact-result recovery and browser binding pass focused checks | Qualify production approval, key custody, retirement and recovery together |
+| Browser | Real Internet Identity login, lost issuance/renewal replies, page reopening, two receivers/devices and cross-tab logout pass | Production activation and the selected production custody/transport assumptions remain consumer-owned; certified installed renewal is not a Chromium certified-login proof |
+| Authority and restore | Missing activation metadata traps on two reconstructions without changing the corrupted stable bytes; scoped retirement checks pass | Complete protected-state/arbitrary-snapshot review; a missing-state refusal is not older-valid-snapshot acceptance |
+| Harness and inspection | Native authorization pool reuse, awaited shutdown and strict target lint pass; protected operator inspection is recorded | Bind the final complete journey and documentation to delivered source |
+
+Canic evidence owners include `target/evidence/auth-0351/`,
+`target/evidence/auth-unknown-logout/`, `target/evidence/auth-receiver-restore/`,
+`target/evidence/auth-certified-browser-renewal/` and
+`target/evidence/auth-harness-cleanup/` in that checkout. Their results retain
+their own dependency graphs; they are not a single new full gate. Production
+activation remains closed. The persistent adapter already uses the shared
+pair/capacity checks from [#720](https://github.com/dragginzgame/canic/issues/720).
+[#491](https://github.com/dragginzgame/canic/issues/491) remains the canonical
+consumer acceptance owner. No Canic source, tests or deployment were changed here.
+
+### Follow-up — 2026-11-07
+
+Canic's working root lock now selects Engine 0.35.2 and Testkit 0.89.4; the two
+private Blob consumer locks and retained backend helper remain on Engine 0.35.1.
+Its current activation policy retains only the unqualified production clock gate.
+The snapshot guide now explicitly restores captured Auth state and original
+deadlines, including rolling back logout performed after capture. That contract
+does not claim the whole-state rollback protection described in the matrix above.
+An installed regression checks restored-session identity and expiry, but its latest
+retained attempt at `target/evidence/auth-snapshot-contract/installed.log` stopped
+before execution because the selected Testkit 0.89.4 server was not prepared.
+The handoff still describes a proposed different recovery policy; reconcile those
+consumer documents and qualify the selected contract before production activation.
+No fresh Canic execution or supplying Auth API gap is claimed by this review.
 
 ## Current Rust contract
 
@@ -157,7 +182,7 @@ Reuse the reference commit callbacks or the shared checks:
 
 Keep one ledger and the two independent budgets across calls. Restore complete
 session/replay/login records with generation, clock high-water mark, pool counts,
-reset floors and authority metadata from one protected generation. Obtain fresh
+activation cutoffs and authority metadata from one protected generation. Obtain fresh
 receiver-bound enrollment before readiness; restoration alone never opens access.
 Volatile upgrade/state loss stays closed pending trusted complete recovery;
 local timestamp floors and fresh enrollment alone cannot reopen it. Bounded
@@ -301,10 +326,13 @@ receipts identify development candidates and must not replace that source
 selection. Clean archive qualification still requires the actual consumer's
 store and production transports to pass its acceptance.
 
-Current `AUTHNAT3` is the private qualification checkpoint. Current Auth session,
-login and replay discriminators remain unchanged; no new reset or migration is
-introduced. Never erase Memory backing or only its allocation ledger to obtain
-admission. Cryptographic checks and the TEE/non-TEE trust model are unchanged.
+Current `AUTHCLK1` is the private qualification checkpoint. The 0.35 hard cut
+selects login record identity `0x415554485323` and logout Wire identity
+`0x415554480014`; session/replay identities are unchanged. Old affected bytes
+refuse without clearing. Auth's no-retained-record confirmation does not authorize
+resetting a consumer's stores. Never erase Storage backing or only its allocation
+ledger to obtain admission. Cryptographic checks and the TEE/non-TEE trust model
+are unchanged.
 
 <a id="platform-07-migration"></a>
 

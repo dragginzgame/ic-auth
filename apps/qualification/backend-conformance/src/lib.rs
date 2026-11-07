@@ -53,6 +53,7 @@ pub fn assert_backend_contract<B: Backend>() {
     assert_logout_reopen::<B>();
     assert_unknown_logout_reopen::<B>();
     assert_replacement_generation::<B>();
+    assert_ninety_day_renewal::<B>();
     assert_capacity::<B>();
     assert_authorization::<B>();
     assert_maximum_shape::<B>();
@@ -276,8 +277,9 @@ pub fn assert_maximum_shape<B: Backend>() {
 }
 
 /// Only the admitted caller with current issuer authority and an admitted scope
-/// may invoke the operation. Exact expiry refuses without pruning or mutation,
-/// including after reopening the host's persisted records.
+/// may invoke the operation. Changed key/mechanism, withdrawn grants and expired
+/// or shortened authority refuse without invoking it. Refresh and exact expiry
+/// preserve records, including after reopening the host's persisted records.
 pub fn assert_authorization<B: Backend>() {
     let f = Fixture::new(1);
     let other = Fixture::new(2);
@@ -309,8 +311,30 @@ pub fn assert_authorization<B: Backend>() {
         let counts = ledger.occupancy();
         let mut wrong_issuer = f.authority(NOW);
         wrong_issuer.issuer = Principal::from_slice(&[99]);
+        let mut rotated_key = f.authority(NOW);
+        rotated_key.key_binding_id[0] ^= 1;
+        let mut changed_mechanism = f.authority(NOW);
+        changed_mechanism.mechanism = PortableMechanism::Certified;
+        let withdrawn_grants = ValidatedGrants::new(vec![DelegatedRoleGrant {
+            target: f.role.clone(),
+            scopes: vec!["write".parse().unwrap()],
+        }])
+        .unwrap();
+        let mut withdrawn = f.authority(NOW);
+        withdrawn.grants = &withdrawn_grants;
+        let mut expired_authority = f.authority(NOW);
+        expired_authority.authority_expires_at_ns = NOW;
+        let mut expired_enrollment = f.authority(NOW);
+        expired_enrollment.enrollment_expires_at_ns = NOW;
+        let mut shortened_enrollment = f.authority(NOW);
+        shortened_enrollment.enrollment_expires_at_ns = expires - 1;
+        let mut refreshed = f.authority(NOW);
+        refreshed.authority_not_before_ns = NOW;
+        refreshed.authority_expires_at_ns += SECOND;
+        refreshed.enrollment_expires_at_ns += SECOND;
         for (case, authority, required, expected) in [
             ("admitted read", f.authority(NOW), &read, Ok(f.caller())),
+            ("refreshed authority", refreshed, &read, Ok(f.caller())),
             (
                 "unadmitted scope",
                 f.authority(NOW),
@@ -326,6 +350,42 @@ pub fn assert_authorization<B: Backend>() {
             (
                 "different issuer, same subject",
                 wrong_issuer,
+                &read,
+                Err(SessionError::StaleAuthority),
+            ),
+            (
+                "rotated issuer key",
+                rotated_key,
+                &read,
+                Err(SessionError::StaleAuthority),
+            ),
+            (
+                "changed proof mechanism",
+                changed_mechanism,
+                &read,
+                Err(SessionError::StaleAuthority),
+            ),
+            (
+                "withdrawn admitted scope",
+                withdrawn,
+                &read,
+                Err(SessionError::ScopeRejected),
+            ),
+            (
+                "expired issuer authority",
+                expired_authority,
+                &read,
+                Err(SessionError::StaleAuthority),
+            ),
+            (
+                "expired receiver enrollment",
+                expired_enrollment,
+                &read,
+                Err(SessionError::StaleAuthority),
+            ),
+            (
+                "session outlives shortened enrollment",
+                shortened_enrollment,
                 &read,
                 Err(SessionError::StaleAuthority),
             ),
@@ -533,6 +593,124 @@ pub fn assert_replacement_generation<B: Backend>() {
     assert_eq!(changed.generation, 1);
     assert_eq!(changed.logins, before.logins);
     assert_eq!(changed.occupancy[0].replays, 2);
+}
+
+/// A restored 90-day login can renew under fresh authority just before its
+/// original deadline. Reopening preserves the capped lease; authorization stops
+/// exactly at the deadline without cleanup or a write on refusal.
+///
+/// # Panics
+/// Panics when the adapter loses long-lived records or violates the fixed deadline.
+pub fn assert_ninety_day_renewal<B: Backend>() {
+    let mut f = Fixture::new(1);
+    let other = Fixture::new(2);
+    f.max_login_ttl_ns = 90 * 86_400 * SECOND;
+    f.claims.login_deadline_ns = f.claims.login_started_at_ns + f.max_login_ttl_ns;
+    let deadline = f.claims.login_deadline_ns;
+    let mut store = B::fresh(0, limits(4, 65_536));
+    let mut ledger = f.ledger();
+    let mut budget = SessionAdmissionBudget::new(2, SECOND, 0).unwrap();
+    store.observe_clock(NOW).unwrap();
+    let initial = f.admit(&mut store, &mut ledger, &mut budget, NOW).unwrap();
+    assert_eq!(initial.receipt().expires_at_ns(), NOW + 5 * SECOND);
+    let before = snapshot(&mut store, &f, &other);
+    let mut store = store.reopen();
+    assert_eq!(
+        snapshot(&mut store, &f, &other),
+        before,
+        "90-day login records must survive complete reopen"
+    );
+
+    let late = deadline - SECOND;
+    let mut ledger = f
+        .ledger_at(late)
+        .restore_records(
+            store.observed_at_ns(),
+            ledger.occupancy(),
+            store.retained_logins(),
+        )
+        .expect("90-day login ledger must restore completely");
+    store.observe_clock(late).unwrap();
+    // The issuer supplies a fresh proof of the original account/browser/window;
+    // the host independently supplies a fresh protected authority snapshot.
+    f.claims.issued_at_ns = late;
+    f.claims.admission_expires_at_ns = deadline;
+    f.claims.nonce[0] ^= 1;
+    let claims = PortableClaimsContext {
+        authority: PortableAuthority {
+            authority_not_before_ns: late - SECOND,
+            authority_expires_at_ns: late + 120 * SECOND,
+            enrollment_expires_at_ns: late + 90 * SECOND,
+            ..f.authority(late)
+        },
+        min_proof_issued_at_ns: 0,
+        max_login_ttl_ns: f.max_login_ttl_ns,
+        max_proof_ttl_ns: 60 * SECOND,
+    };
+    let renewed = establish_session(
+        &mut store,
+        &mut ledger,
+        &mut budget,
+        &f.credential(),
+        SessionRequest::new(vec!["read".into()], None).unwrap(),
+        &SessionAdmissionContext {
+            verification: PortableVerificationContext::Ed25519 {
+                claims: &claims,
+                public_key: &f.prepared,
+            },
+            role: &f.role,
+            ttl: SessionTtlPolicy::new(5, 30).unwrap(),
+        },
+        policy(0),
+    )
+    .unwrap();
+    assert!(matches!(renewed, SessionEstablished::Replaced(_)));
+    let receipt = renewed.receipt();
+    assert_eq!(receipt.expires_at_ns(), deadline);
+    let renewed_records = snapshot(&mut store, &f, &other);
+    assert_eq!(
+        renewed_records.logins, before.logins,
+        "renewal must retain the original login window"
+    );
+    let mut store = store.reopen();
+    let mut ledger = f
+        .ledger_at(late)
+        .restore_records(
+            store.observed_at_ns(),
+            ledger.occupancy(),
+            store.retained_logins(),
+        )
+        .expect("renewed 90-day login ledger must restore completely");
+    let mut context = SessionContext {
+        authority: claims.authority,
+        max_ttl: SessionTtlPolicy::new(5, 30).unwrap().maximum(),
+        role: &f.role,
+        required_scopes: RequiredScopes::NONE,
+    };
+    for now in [late, deadline - 1, deadline, deadline + 1] {
+        context.authority.now_ns = now;
+        let expected = if now < deadline {
+            Ok(receipt.expires_at_ns())
+        } else {
+            Err(SessionError::MissingOrExpired)
+        };
+        assert_eq!(
+            authorize_session(
+                &mut store,
+                &mut ledger,
+                &context,
+                policy(0),
+                Session::expires_at_ns
+            ),
+            expected,
+            "restored renewal must expire at the original login deadline"
+        );
+        assert_eq!(
+            snapshot(&mut store, &f, &other),
+            renewed_records,
+            "authorization and expiry refusal must preserve records without pruning"
+        );
+    }
 }
 
 /// Session, global/per-caller replay and encoded-byte exhaustion refuse without
@@ -818,6 +996,7 @@ struct Fixture {
     prepared: PreparedIssuerKey,
     role: AuthRole,
     grants: ValidatedGrants,
+    max_login_ttl_ns: u64,
 }
 impl Fixture {
     fn new(device: u8) -> Self {
@@ -853,6 +1032,7 @@ impl Fixture {
             prepared,
             role,
             grants,
+            max_login_ttl_ns: 86_400 * SECOND,
         }
     }
     fn caller(&self) -> Principal {
@@ -862,7 +1042,7 @@ impl Fixture {
         self.ledger_at(0)
     }
     fn ledger_at(&self, now: u64) -> MemoryLoginRevocations {
-        MemoryLoginRevocations::new(self.claims.audience, 4, 4, 86_400_000_000_000, now).unwrap()
+        MemoryLoginRevocations::new(self.claims.audience, 4, 4, self.max_login_ttl_ns, now).unwrap()
     }
     fn authority(&self, now: u64) -> PortableAuthority<'_> {
         PortableAuthority {
@@ -905,24 +1085,14 @@ impl Fixture {
         let claims = PortableClaimsContext {
             authority: self.authority(now),
             min_proof_issued_at_ns: 0,
-            max_login_ttl_ns: 86_400 * SECOND,
+            max_login_ttl_ns: self.max_login_ttl_ns,
             max_proof_ttl_ns: 60 * SECOND,
-        };
-        let credential = PortableCredential {
-            claims: encode_claims(&self.claims).unwrap(),
-            proof: PortableProof::Ed25519 {
-                signature: self
-                    .key
-                    .sign(&claims_hash(&self.claims).unwrap())
-                    .to_bytes()
-                    .to_vec(),
-            },
         };
         establish_session(
             store,
             ledger,
             budget,
-            &credential,
+            &self.credential(),
             request,
             &SessionAdmissionContext {
                 verification: PortableVerificationContext::Ed25519 {
@@ -934,6 +1104,18 @@ impl Fixture {
             },
             policy(0),
         )
+    }
+    fn credential(&self) -> PortableCredential {
+        PortableCredential {
+            claims: encode_claims(&self.claims).unwrap(),
+            proof: PortableProof::Ed25519 {
+                signature: self
+                    .key
+                    .sign(&claims_hash(&self.claims).unwrap())
+                    .to_bytes()
+                    .to_vec(),
+            },
+        }
     }
     fn authorize(
         &self,

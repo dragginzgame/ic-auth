@@ -66,11 +66,12 @@ export interface LogoutClock {
   nowNs(): bigint;
   wait(ms: number): Promise<void>;
 }
-export interface CredentialClaim {
-  sequence: bigint;
-  first: boolean;
-  saved?: { bytes: Uint8Array; until: bigint };
-}
+/** The journal chooses the next effect only after committing its intent. */
+export type CredentialClaim =
+  | { kind: 'saved'; sequence: bigint; bytes: Uint8Array; until: bigint }
+  | { kind: 'issue'; sequence: 0n; signer: 'account' }
+  | { kind: 'renew'; sequence: bigint; signer: 'browser' }
+  | { kind: 'reconcile'; sequence: bigint; signer: 'account' | 'browser' };
 export interface LogoutTransport {
   /** Must authenticate as this exact identity; target and empty request are fixed. */
   revoke(target: Principal, identity: Identity, signal: AbortSignal): Promise<LogoutResult>;
@@ -137,14 +138,18 @@ export class PortableLogoutClient {
       const op = record.issuance;
       if (!accountAvailable && (!op || (op.sequence === 0n && !op.bytes))) throw new ClientError('account_required');
       if (op?.bytes && op.untilNs! > now && (refreshThrough === undefined || op.sequence > refreshThrough)) return { record, value: {
-        sequence: op.sequence, first: false, saved: { bytes: new Uint8Array(op.bytes), until: op.untilNs! },
+        kind: 'saved', sequence: op.sequence, bytes: new Uint8Array(op.bytes), until: op.untilNs!,
       } };
-      if (op && !op.bytes) return { record, value: { sequence: op.sequence, first: false } };
+      if (op && !op.bytes) return { record, value: {
+        kind: 'reconcile', sequence: op.sequence, signer: op.sequence === 0n ? 'account' : 'browser',
+      } };
       const sequence = op ? op.sequence + 1n : 0n;
       if (!isU64(sequence)) throw new ClientError('storage_capacity');
       record.issuanceUnknown = true;
       record.issuance = { sequence };
-      return { record, value: { sequence, first: true } };
+      return { record, value: sequence === 0n
+        ? { kind: 'issue', sequence, signer: 'account' }
+        : { kind: 'renew', sequence, signer: 'browser' } };
     }, true);
   }
 
