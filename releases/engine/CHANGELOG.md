@@ -4,6 +4,15 @@ Covers public `ic-auth` and the unpublished backend conformance, qualification a
 native tooling packages. The independent series starts after the
 [last coordinated release, 0.29.2](../history.md).
 
+## [0.35.5] - Unreleased
+
+### 🩹 Fixed
+
+- Adopt Shared Tooling 0.31.4, fixing checksum-helper parsing under macOS's
+  Bash 3.2 before host-tool setup. Keep NUL-output rejection and backend failure
+  propagation, and adopt its isolated grouped-release checks and LOC scratch
+  handling after cleanup.
+
 ## [0.35.4] - 2026-11-07
 
 ### 🔧 Changed

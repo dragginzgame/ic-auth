@@ -21,6 +21,30 @@ The batch is complete and fast-forward reconciled; its durable recovery remains
 at `.git/release-state/frozen/batch-mhsYrIQc/`. No upload is unresolved.
 [#127](https://github.com/dragginzgame/ic-auth/issues/127) remains closed.
 
+## Pending Shared Tooling 0.31.4 adoption
+
+The normal checkout adopts reviewed Shared Tooling 0.31.4 at
+`dad6d15750db66726850710f5fb423921b652c8d` through its canonical exporter.
+All 161 payloads independently match that commit; existing entrypoints, catalogs,
+package versions and the pending Platform 0.23.6 lock are preserved. AGENTS.md
+selects the new baseline. The published 0.35.4 release retains its captured 0.31.0.
+
+This repairs the checksum helper's Bash 3.2 parser issue seen in both macOS jobs
+of [run 42359982273](https://github.com/dragginzgame/ic-auth/actions/runs/42359982273),
+which stopped before Auth validation; Ubuntu passed. The snapshot also corrects
+grouped-release command checks and LOC scratch handling after cleanup. No Auth
+Rust, crypto, transport or stored-record implementation changed.
+
+Focused Linux checks pass: actual host-tool admission; GNU/Perl checksum output,
+NUL refusal and backend failure propagation; ShellCheck/syntax; both actual Auth
+release-group adapters with inherited release settings and substituted runners;
+and workspace LOC reporting from a previously absent scratch path with zero
+unclassified lines. Fresh evidence: `target/evidence/shared-tooling-0314/`.
+The local interpreter is Bash 5.2. The maintainer authorized pushing this fix,
+verifying native macOS CI, qualifying Platform 0.23.6 and releasing Engine 0.35.5.
+Native CI results are pending; the Shared fix is committed separately from the
+dependency selection so the macOS bootstrap correction can be verified first.
+
 ## Completed Engine 0.35.4 delivery
 
 [#128](https://github.com/dragginzgame/ic-auth/issues/128) is closed as completed
