@@ -1,7 +1,7 @@
 # Tests and tooling packages
 [package]
 name = "ic-auth-qualification-canister"
-version = "0.35.3"
+version = "0.35.4"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
