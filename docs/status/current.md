@@ -2,32 +2,33 @@
 
 ## Published state
 
-**Engine 0.35.4** (`ic-auth`) and **Protocol 0.35.0**
+**Engine 0.35.5** (`ic-auth`) and **Protocol 0.35.0**
 (`ic-auth-protocol-types`, `ic-auth-wire`) are published on crates.io.
 Their release commits and annotated tags are pushed to `origin/main`.
 
-- Engine: `0b431149bbcbcd9a9f1c445ac382bff38ab9b3a6`, tag `engine-v0.35.4`
-  (`c65dd425ff46b2f803525716ce04c653d6413a88`). Registry checksum:
-  `771bb2b46a608190710df260f12448bb50621910f42b0230e45126a40700ca09`.
+- Engine: `f5625e79e3fb600d607a6e6fd8a31fa6c9e61f98`, tag `engine-v0.35.5`
+  (`cdbb352ecd4572f0debe65f5e9dba6b6f4432b6f`). Registry checksum:
+  `6d303f188bf9acc2b981110ad174aadb0ef9a98afbaec2f4228b5983250fa6f1`.
 - Protocol: `83028f07c75bb80d38867b69ae31cd9e0a2651c4`, tag `protocol-v0.35.0`
   (`fc8755ef3572af17d806aa6dfc8203f93350bc73`). Registry checksums:
   types `6204b7d777028c617275f1f63b15bf7d542d89a7b8735c952edaf6770f5421c2`,
   Wire `b1a16f6109fe1736d81512fb43e3e4e03efcb8e821e023f62d97d18f354136c3`.
 
-Custody: `.git/publication-state/engine-0.35.4.json` and
+Custody: `.git/publication-state/engine-0.35.5.json` and
 `.git/publication-state/protocol-0.35.0.json`. The Engine upload/readback is at
-`target/release-frozen/batch-mhsYrIQc/target/publication-engine-0.35.4.MxWRc3/`.
+`target/release-frozen/batch-IjY8zEHe/target/publication-engine-0.35.5.ohgYQ0/`.
 The batch is complete and fast-forward reconciled; its durable recovery remains
-at `.git/release-state/frozen/batch-mhsYrIQc/`. No upload is unresolved.
+at `.git/release-state/frozen/batch-IjY8zEHe/`. No upload is unresolved.
 [#127](https://github.com/dragginzgame/ic-auth/issues/127) remains closed.
 
-## Pending Shared Tooling 0.31.4 adoption
+## Completed Shared Tooling 0.31.4 adoption and Engine 0.35.5 delivery
 
 The normal checkout adopts reviewed Shared Tooling 0.31.4 at
 `dad6d15750db66726850710f5fb423921b652c8d` through its canonical exporter.
 All 161 payloads independently match that commit; existing entrypoints, catalogs,
-package versions and the pending Platform 0.23.6 lock are preserved. AGENTS.md
-selects the new baseline. The published 0.35.4 release retains its captured 0.31.0.
+package versions and the incoming Platform 0.23.6 lock were preserved during
+adoption. AGENTS.md selects the new baseline; Engine 0.35.5 captures it.
+The earlier 0.35.4 release retains its captured 0.31.0.
 
 This repairs the checksum helper's Bash 3.2 parser issue seen in both macOS jobs
 of [run 42359982273](https://github.com/dragginzgame/ic-auth/actions/runs/42359982273),
@@ -58,8 +59,16 @@ qualifies source `272cb99fe475afc116a0e38d0b331979f9e45201`, including the
 separately committed Platform selection. All three complete suites pass: Linux,
 Apple Silicon macOS and Intel macOS. Intel's final release-tools stage took 2295
 seconds; its long active status was not a failure. No native host was substituted.
-Evidence is under `target/delivery-0355/`. The next action is the fresh captured
-Engine 0.35.5 release gate and registry publication.
+Evidence is under `target/delivery-0355/`. Subsequent hosted CI runs asynchronously;
+the earlier synchronous Intel wait added delay and is not the delivery policy.
+
+A fresh complete **30-stage Linux release gate** passed against captured source
+`247e172758bbc3b1eb61211910f3ff2b233098da`, including all 93 client tests,
+20 backend-conformance tests, 11 ordinary installed cases, MSRV/archives and the
+actual release/recovery/publication callers. Gate:
+`target/release-frozen/batch-IjY8zEHe/target/release-validation/engine-gate.RkMc4u/logs/validation.haMLoj`.
+The final release-tools stage took 1063 seconds. Delivery, reconciliation and
+registry-source logs are under `target/delivery-0355/`. No earlier gate was reused.
 
 ## Platform 0.23.6 qualification for Engine 0.35.5
 
@@ -81,20 +90,20 @@ Storage 0.68.4 also arrived before qualification and is held separately on
 `deferred/storage-0684-before-engine-0355` (`67d2359`). Its complete incoming lock
 and Storage-only reapplication patch are under
 `.git/release-state/deferred-engine-0355/`. It is not part of the selected release.
-After native CI passes, capture the completed source and run the full release gate;
-later incoming updates must remain outside that batch.
 
 Subsequent updater writes are also preserved separately. The latest selects
-Storage 0.68.5 and Wire/derive 0.17.8 on
-`deferred/upstream-storage-0685-wire-0178-engine-0355` (`944396c`), with its
-reapplication patch and complete incoming lock under the same durable custody
-directory. The earlier Storage 0.68.4 / Wire 0.17.7 selection remains on
-`deferred/upstream-20261107-engine-0355` (`05f91fc`). None of these later
-selections belongs to the qualified 0.35.5 source. Reapply the latest patch only
-after clean release reconciliation; a Wire adoption must regenerate and qualify
-the browser contracts in its own batch.
+Storage 0.68.5 and Wire/derive 0.17.9 on
+`deferred/upstream-after-engine-0355` (`3f68f95`), with the complete incoming lock
+and `after-publication.patch` under the same durable custody directory. Earlier
+selections remain on their local custody branches. Only this dependency delta is
+reapplied after clean release reconciliation, preserving Engine 0.35.5's local
+versions. It remains unqualified and outside the published 0.35.5 graph; a Wire
+adoption must regenerate and qualify browser contracts in its own batch.
 
 ## Completed Engine 0.35.4 delivery
+
+Release `0b431149bbcbcd9a9f1c445ac382bff38ab9b3a6` and its verified receipt
+`.git/publication-state/engine-0.35.4.json` remain retained alongside that batch.
 
 [#128](https://github.com/dragginzgame/ic-auth/issues/128) is closed as completed
 after verified publication. Its fix and incoming
@@ -133,23 +142,26 @@ Both completed batch journals and their evidence remain retained.
 
 Platform 0.23.6 arrived in the normal lock during this gate, together with
 crypto-common 0.1.7 and generic-array 0.14.7. It did not enter either captured
-release. Preserve this pending update on `deferred/upstream-20261107-engine-0354`
+release. It was preserved on `deferred/upstream-20261107-engine-0354`
 (`2a6723a`) and under
 `.git/release-state/deferred-engine-0354/incoming-after-capture/`.
-It is reapplied after clean delivery qualification; the working lock's later
-selection is not the released or qualified graph. A future batch must qualify it.
+Its later qualification and publication are now recorded in the 0.35.5 sections
+above; this does not change either older captured graph.
 
 ## Clean backend helper delivery
 
-The Engine 0.35.4 / Protocol 0.35.0 helper archive passed registry-consumer identity
+The Engine 0.35.5 / Protocol 0.35.0 helper archive passed registry-consumer identity
 checks and all 20 packaged tests from clean release source
-`0b431149bbcbcd9a9f1c445ac382bff38ab9b3a6` (`dirty: false`). Receipt:
-`target/portable-fixtures/backend-package.mEpEDB/delivery.json`. Archive:
-that evidence directory's `target/package/ic-auth-backend-conformance-0.35.4.crate`.
-SHA-256: `a768350ba06a5eb6c73049d5ee4603b8b6139122e2d4c71a40d6098e351233b0`.
+`f5625e79e3fb600d607a6e6fd8a31fa6c9e61f98` (`dirty: false`). Receipt:
+`target/release-frozen/batch-IjY8zEHe/target/portable-fixtures/backend-package.FItPBs/delivery.json`.
+Archive: that evidence directory's
+`target/package/ic-auth-backend-conformance-0.35.5.crate`.
+SHA-256: `4450e78127b2841bbfad265af3b39c9317dadbbd5be739dda3116d2c497e9b02`.
 The ten scenarios retain the existing `Backend` hooks, including 90-day renewal
 and expanded authority checks. Canic must retain the archive and receipt in its
 own custody and qualify its actual adapter; this is supplying evidence only.
+The earlier 0.35.4 helper and receipt remain at
+`target/portable-fixtures/backend-package.mEpEDB/`.
 
 ## Completed 0.35.3 qualification and recovery
 

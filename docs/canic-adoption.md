@@ -9,9 +9,9 @@ Superseded migration journals remain in Git history; use the current contracts b
 ## Current integration cohort
 
 Published **Protocol 0.35.0** (`ic-auth-protocol-types`, `ic-auth-wire`) and
-**Engine 0.35.4** (`ic-auth`) form the released cohort. Keep both Protocol packages
+**Engine 0.35.5** (`ic-auth`) form the released cohort. Keep both Protocol packages
 aligned and satisfy Engine's declared Protocol requirement; the groups release
-independently. Engine's qualification lock uses Platform 0.23.5, Types 0.18.2,
+independently. Engine's qualification lock uses Platform 0.23.6, Types 0.18.2,
 Wire 0.17.6, Testkit 0.90.0, Runtime 0.19.5, Storage 0.68.3 and Metrics 0.29.6.
 Platform 0.23/browser SDK 0.2 adoption and the complete Engine gate are recorded
 in the [current handoff](status/current.md). Rust 1.99.1 remains the minimum.
@@ -19,13 +19,13 @@ in the [current handoff](status/current.md). Rust 1.99.1 remains the minimum.
 record development selections and release notes, respectively.
 
 The released cohort also selects Build 0.77.0,
-Host 0.74.4 and Shared Tooling 0.31.0.
+Host 0.74.4 and Shared Tooling 0.31.4.
 Storage's collection image cut applies only to
 Auth's private qualification host here; fresh fixture allocation is required and
 old images are refused without clearing. This is not an in-place production-store
 upgrade. Newer dependency selections remain deferred as recorded in the handoff.
 
-The clean 0.35.4 backend helper archive passes registry identity checks and all
+The clean 0.35.5 backend helper archive passes registry identity checks and all
 20 packaged tests. Its ten scenarios include immutable 90-day login deadlines,
 late renewal and restore under fresh authority, with unchanged `Backend` hooks.
 The handoff records its exact source, checksum and receipt. Retain that archive
