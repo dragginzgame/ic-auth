@@ -6,7 +6,7 @@ groups must match `ci/cargo-release-groups.json`. Ordinary `make ci` executes
 every stage. Release verification selects a source-bound plan rather than invoking
 that aggregate unconditionally. No prior whole-gate receipt or stage is reused.
 
-Auth uses Shared Tooling 0.31.0's [release batches](release-batches.md),
+Auth uses Shared Tooling 0.31.4's [release batches](release-batches.md),
 with shared candidate setup, saved hook context and batch status/resume,
 fast-forward reconciliation and explicit retirement. Use those shared controls
 for delivery; Auth owns no parallel batch wrappers. A single-group release keeps

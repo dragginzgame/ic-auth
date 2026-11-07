@@ -52,9 +52,14 @@ matching the existing batch fixture policy. The delivery guard is unchanged.
 `bash scripts/release/test-tools.sh --commands` executes this actual caller without
 the unrelated metadata/publication matrices. The original failure is reproduced;
 the corrected caller passes with no selected group, Protocol and Engine while
-inheriting CI Cargo and release settings. A replacement native run must qualify
-this repair together with the separately committed Platform selection before
-publication. Evidence is under `target/delivery-0355/`.
+inheriting CI Cargo and release settings. The replacement
+[native run](https://github.com/dragginzgame/ic-auth/actions/runs/42364852620)
+qualifies source `272cb99fe475afc116a0e38d0b331979f9e45201`, including the
+separately committed Platform selection. All three complete suites pass: Linux,
+Apple Silicon macOS and Intel macOS. Intel's final release-tools stage took 2295
+seconds; its long active status was not a failure. No native host was substituted.
+Evidence is under `target/delivery-0355/`. The next action is the fresh captured
+Engine 0.35.5 release gate and registry publication.
 
 ## Platform 0.23.6 qualification for Engine 0.35.5
 
@@ -78,6 +83,16 @@ and Storage-only reapplication patch are under
 `.git/release-state/deferred-engine-0355/`. It is not part of the selected release.
 After native CI passes, capture the completed source and run the full release gate;
 later incoming updates must remain outside that batch.
+
+Subsequent updater writes are also preserved separately. The latest selects
+Storage 0.68.5 and Wire/derive 0.17.8 on
+`deferred/upstream-storage-0685-wire-0178-engine-0355` (`944396c`), with its
+reapplication patch and complete incoming lock under the same durable custody
+directory. The earlier Storage 0.68.4 / Wire 0.17.7 selection remains on
+`deferred/upstream-20261107-engine-0355` (`05f91fc`). None of these later
+selections belongs to the qualified 0.35.5 source. Reapply the latest patch only
+after clean release reconciliation; a Wire adoption must regenerate and qualify
+the browser contracts in its own batch.
 
 ## Completed Engine 0.35.4 delivery
 
