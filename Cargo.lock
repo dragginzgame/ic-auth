@@ -1567,9 +1567,9 @@ dependencies = [
 
 [[package]]
 name = "ic-build"
-version = "0.76.0"
+version = "0.77.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e46dc1d452989a7a9637fee92652e73b0776093c4e3f528e788921dfb26476a5"
+checksum = "41883c4420ed9c70d4a0be08718141675001315f1f1964e13169b253bbb3ee01"
 dependencies = [
  "cargo_metadata",
  "ic-host-artifacts",
@@ -1711,9 +1711,9 @@ dependencies = [
 
 [[package]]
 name = "ic-platform-macros"
-version = "0.19.4"
+version = "0.19.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c0e5f1c4b4931ed6cc321160096f19c1b6449f7a118c0da1bcca76664b04a529"
+checksum = "69216204e7b9cf7daf73280719d4afb0311083cb95f932c856cea2ca8ad6772e"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1722,9 +1722,9 @@ dependencies = [
 
 [[package]]
 name = "ic-platform-runtime"
-version = "0.19.4"
+version = "0.19.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c36c7a65b74de9cb53145545a50f3603d988f61d24936923cfba720f19f16c57"
+checksum = "50c3993129a37d30563cc7cda9e38e922c7f5986c9c9424dae804d9e5f2545ae"
 dependencies = [
  "ic-platform-macros",
  "ic-platform-runtime-guard",
@@ -1737,9 +1737,9 @@ dependencies = [
 
 [[package]]
 name = "ic-platform-runtime-guard"
-version = "0.19.4"
+version = "0.19.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eca2d68a0a478b5eccf82d55776a8a095a3dea822f9e097888199faa39951616"
+checksum = "7b77c70c88f0192ffd34fffc44d0f47bee07c84dcd9364ecaa8657307dae4bb4"
 
 [[package]]
 name = "ic-platform-types"
@@ -1784,9 +1784,9 @@ dependencies = [
 
 [[package]]
 name = "ic-storage"
-version = "0.68.2"
+version = "0.68.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "accdfc2a7880dcdd5ce38495a71fc19e70c54d7546ce1cea47adeb7858745c2b"
+checksum = "4c761f73148a61431ede0384c668e5f84446518bf5cffe650ef09fd01237bb38"
 dependencies = [
  "ic-platform-runtime",
  "ic-wire",
@@ -1796,11 +1796,10 @@ dependencies = [
 
 [[package]]
 name = "ic-testkit"
-version = "0.89.4"
+version = "0.90.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cc21437fbd55ba1158f4a0dd56a372e2ebc04f43a3552bf519f990a5a235ee14"
+checksum = "aeeb9dd0920b5a4343aed61f2cb7c0266488823dab5f7b19e0b632b54b7d8f5a"
 dependencies = [
- "backon",
  "base64 0.23.1",
  "candid",
  "hex",
@@ -2213,22 +2212,6 @@ dependencies = [
  "keccak",
  "rand_core 0.6.4",
  "zeroize",
-]
-
-[[package]]
-name = "mime"
-version = "0.3.18"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d5848f5a9e8117cf94f2f90faac24a87ff81600ff8628c1e3deaab572e76bfa1"
-
-[[package]]
-name = "mime_guess"
-version = "2.0.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f7c44f8e672c00fe5308fa235f821cb4198414e1c77935c1ab6948d3fd78550e"
-dependencies = [
- "mime",
- "unicase",
 ]
 
 [[package]]
@@ -2707,7 +2690,6 @@ dependencies = [
  "hyper-util",
  "js-sys",
  "log",
- "mime_guess",
  "percent-encoding",
  "pin-project-lite",
  "quinn",
@@ -3538,12 +3520,6 @@ name = "typenum"
 version = "1.20.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b6f5e870be6c3b371b77fe0ee0bafb859fa4964b4404c27de1d380043c4dda20"
-
-[[package]]
-name = "unicase"
-version = "2.10.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "357cc3acc6a036009fd6c973ed009037c732d60d0b4f6c673e9041497482a28f"
 
 [[package]]
 name = "unicode-ident"

@@ -4,6 +4,20 @@ Covers public `ic-auth` and the unpublished backend conformance, qualification a
 native tooling packages. The independent series starts after the
 [last coordinated release, 0.29.2](../history.md).
 
+## [0.35.4] - Unreleased
+
+### 🔧 Changed
+
+- Adopt IC Build 0.77.0 for native lock admission and the prepared release editor.
+- Adopt Runtime 0.19.5 with its matching macros/guard and Storage 0.68.3 in the
+  private qualification host, preserving the public Auth runtime boundary.
+
+### 🧪 Testing
+
+- Migrate the qualification runner to Testkit 0.90's explicit finite request
+  budget, retaining the 30-second allowance, separate startup timeout and managed
+  instance/server teardown ([#128](https://github.com/dragginzgame/ic-auth/issues/128)).
+
 ## [0.35.3] - 2026-11-07
 
 ### 🔧 Changed

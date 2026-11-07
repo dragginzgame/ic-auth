@@ -77,11 +77,10 @@ impl Fixture {
         );
         let instance = format!("instance-{}", NEXT_INSTANCE.fetch_add(1, Ordering::Relaxed));
         let state_path = state_root.join(&instance);
-        let mut builder = PocketIcBuilder::new()
+        let mut builder = PocketIcBuilder::new(Duration::from_secs(30))
             .with_state_dir(state_path)
             .with_nns_subnet()
-            .with_application_subnet()
-            .with_max_request_time_ms(Some(30_000));
+            .with_application_subnet();
         if count == 2 {
             builder = builder.with_application_subnet();
         }

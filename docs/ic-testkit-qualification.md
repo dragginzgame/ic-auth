@@ -9,17 +9,17 @@ qualify the current dependency graph.
 
 ## Setup and ownership
 
-The root catalog/lock select published Testkit 0.87.0 from
+The root catalog/lock select published Testkit 0.90.0 from
 [IC Tooling](https://github.com/dragginzgame/ic-tooling), its maintained PocketIC
-client and server 16.1.0. Testkit and Auth share locked Wire 0.17.2 types directly.
+client and server 16.1.0. Testkit and Auth share locked Wire 0.17.6 types directly.
 `WireCallSpec` takes the canonical
 contract limits without conversion; responses require only `DeserializeOwned`.
 The temporary Wire 0.6 alias and limit bridge are removed following
 [Tooling #248](https://github.com/dragginzgame/ic-tooling/issues/248).
 Application identities use owned Principal; direct Testkit/Agent calls convert
-explicitly to their external type. Auth and Testkit share Platform 0.23 and
-canonical Types 0.18.1; the Storage host
-selects Runtime 0.19 directly. No alias or dependency override is used.
+explicitly to their external type. Auth and Testkit share Platform 0.23.5 and
+canonical Types 0.18.2; the Storage host
+selects Runtime 0.19.5 directly. No alias or dependency override is used.
 Native Agent/client dependencies stay outside public Auth library and
 deployed-Wasm graphs; the certificate-only dependency exception is separate.
 Testkit no longer supplies
@@ -32,8 +32,12 @@ with its native PEM feature; caller/root-key and request policy remain with the
 fixture. There is no direct Agent declaration or local facade. Testkit supplies
 typed Wire query/update calls and bounded startup. The native runner imports
 `PocketIc`, `PocketIcBuilder` and `Time` from `ic_testkit::pocket_ic` in Testkit
-0.87. Clients require an explicit server endpoint; Auth's managed
-`build_instance(builder).await` supplies it through the admitted `PocketIcStartupConfig::Spawn`.
+0.90. Clients require an explicit server endpoint and positive finite request
+budget. Auth selects `PocketIcBuilder::new(Duration::from_secs(30))`; its managed
+`build_instance(builder).await` supplies the endpoint through the admitted
+`PocketIcStartupConfig::Spawn`. Testkit applies one request deadline through
+dispatch, response-body reads and accepted-operation polling; the startup
+deadline remains separate.
 The separate Platform client dependency is removed. The fixture retains the
 managed `PocketIcInstance` owner throughout setup and live calls. It borrows the
 client through `instance()` or `instance_mut()`. Each live test owns one two-worker

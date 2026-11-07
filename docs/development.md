@@ -168,16 +168,18 @@ The repository's Wasm target flags select upstream RustCrypto's qualified
 `cpubits="32"` backend. Other canister build owners must select it themselves;
 dependency Cargo configuration is not inherited, and explicit `RUSTFLAGS` or
 `CARGO_ENCODED_RUSTFLAGS` overrides must preserve this selection.
-Testkit 0.86 owns native clients and DTOs in `ic_testkit::pocket_ic`, together with
+Testkit 0.90 owns native clients and DTOs in `ic_testkit::pocket_ic`, together with
 bounded server startup, lifecycle extensions and typed Wire calls;
 only the native runner selects these capabilities. Its client requires an
-explicit server endpoint; Auth's existing managed `build_instance` supplies it
-and retains the admitted server handle.
+explicit server endpoint and positive finite request budget. Auth constructs its
+builder with `Duration::from_secs(30)`; the managed `build_instance` supplies the
+endpoint and retains the admitted server handle. Its separate startup timeout
+also remains 30 seconds.
 
 Native file and process callers select Host FS/Process 0.74.2 with defaults
 disabled. Library use does not enable Host's optional CLI, certificate decoder
 or Wasm text/encoding backends. Host stays outside the production library graph.
-The locked Build 0.74.3 and Testkit 0.86.0 share Auth's Host 0.74 identities. The independently
+The locked Build 0.77.0 and Testkit 0.90.0 share Auth's Host 0.74 identities. The independently
 pinned file CLI is selected at 0.74.2.
 Build and Testkit libraries keep `cli` disabled; only the prepared executable
 selections request it. Testkit owns its benchmark-average errors and has no
@@ -185,7 +187,7 @@ Metrics dependency; Auth's diagnostics select Metrics 0.29.1.
 No caller enables optional native
 metadata; the old Host 0.73 and Metrics 0.25 providers are removed.
 
-Auth and Testkit 0.89 share Platform 0.23 and canonical Types 0.18.
+Auth and Testkit 0.90 share Platform 0.23 and canonical Types 0.18.
 Native Testkit and its Candid/management DTOs remain outside the public library
 and Wasm host graphs.
 The host selects Runtime 0.19 directly, matching Storage 0.68's Wasm dependency.

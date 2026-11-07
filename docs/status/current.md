@@ -2,170 +2,119 @@
 
 ## Published state
 
-**Engine 0.35.2** (`ic-auth`) and **Protocol 0.35.0**
+**Engine 0.35.3** (`ic-auth`) and **Protocol 0.35.0**
 (`ic-auth-protocol-types`, `ic-auth-wire`) are published on crates.io.
-Release commits and annotated tags are pushed to `origin/main`:
+Their release commits and annotated tags are pushed to `origin/main`.
 
-- Engine: `f6f55dd623ab8cb907de34a4ed413b40db119def`, tag `engine-v0.35.2`
-  (`7099d193c4d2abde2f81c1b48cf8a19517d116ea`). Registry checksum:
-  `7f7e6ee51ee11ebf20b86db0dd8f564fe5e2d9a3ea351a1b3f3368257def272b`.
+- Engine: `21b51c93e0fb839cc5ead14c866f8dcb9eac307e`, tag `engine-v0.35.3`
+  (`f0b0131084c423199cb6a3a61ddd90ec96d360d9`). Registry checksum:
+  `14e696a283d636607f00ac6720e1007debc74da13b06767bbef7475c44690eee`.
 - Protocol: `83028f07c75bb80d38867b69ae31cd9e0a2651c4`, tag `protocol-v0.35.0`
   (`fc8755ef3572af17d806aa6dfc8203f93350bc73`). Registry checksums:
   types `6204b7d777028c617275f1f63b15bf7d542d89a7b8735c952edaf6770f5421c2`,
   Wire `b1a16f6109fe1736d81512fb43e3e4e03efcb8e821e023f62d97d18f354136c3`.
 
-Custody: `.git/publication-state/engine-0.35.2.json` and
-`.git/publication-state/protocol-0.35.0.json`. Upload/readback evidence:
-`target/release-frozen/batch-aSZPSweq/target/publication-engine-0.35.2.dClEoR/` and
-`target/publication-protocol-0.35.0.P5GKEs/`. There is no unresolved upload.
-[#127](https://github.com/dragginzgame/ic-auth/issues/127) is closed as completed.
-Canic production adoption remains owned by #491; Canic stayed read-only.
+Custody: `.git/publication-state/engine-0.35.3.json` and
+`.git/publication-state/protocol-0.35.0.json`. The Engine upload/readback is at
+`target/release-frozen/batch-vgrJaHrk/target/publication-engine-0.35.3.OTxz96/`.
+The batch is complete and fast-forward reconciled; its durable recovery remains
+at `.git/release-state/frozen/batch-vgrJaHrk/`. No upload is unresolved.
+[#127](https://github.com/dragginzgame/ic-auth/issues/127) remains closed.
 
-## Released contract and consumer action
+## Engine 0.35.4 delivery in preparation
 
-Engine 0.35.2 adopts Shared Tooling 0.31.0 and qualifies its captured batch flow;
-it does not change production Auth behavior, record formats or crypto.
-The [Canic adoption contract](../canic-adoption.md) describes the released cohort.
+The maintainer authorized delivery and closing
+[#128](https://github.com/dragginzgame/ic-auth/issues/128). Its fix and incoming
+updates were preserved in `deferred/auth-128-20261107` (`47c776f`) before
+reconciling 0.35.3, then reapplied without reverting local package versions.
+The normal checkout fixes its only PocketIC constructor with
+`PocketIcBuilder::new(Duration::from_secs(30))`. Startup retains its separate
+30-second budget; managed instance/server teardown remains explicit and async.
+No public Auth protocol, crypto, browser or stored-record contract changes.
 
-The 0.35 contract supports protected login windows up to 90 days, retaining
-60-second proofs and 30-minute session ceilings. Hosts select their protected
-maximum login TTL explicitly; shorter policies remain supported. Known logout
-retains denial through its signed immutable deadline. Unseen logout commits
-bounded temporary denial and returns `Unconfirmed`, including retries. Keep work
-budgets separate. No per-operation inter-canister calls or crypto relaxations
-were added; ordinary authorization stays local.
+The selected graph is Build 0.77.0, Testkit 0.90.0, Platform 0.23.5,
+Types 0.18.2, Runtime/macros/guard 0.19.5, Storage 0.68.3, Metrics 0.29.6,
+Wire/derive 0.17.6 and Host 0.74.4 (file CLI 0.74.2). Platform 0.23.5 was the
+latest published facade at admission. Testkit's registry checksum is
+`aeeb9dd0920b5a4343aed61f2cb7c0266488823dab5f7b19e0b632b54b7d8f5a`.
+The public package versions remain Engine 0.35.3 / Protocol 0.35.0 until release.
 
-The [clock-independent contract](../design/portable-clock-audit.md) retires
-unqualified timestamp-based reopening. Complete durable restore plus fresh
-authority remains supported; actual safety-state loss stays closed pending
-trusted recovery. The fixture checkpoints never-configured, closed and retained
-states. Profiling resets reinstall disposable canisters; they are not a receiver
-recovery bypass. The maintainer confirmed no retained affected Rust/private
-browser records. Logout Wire identity is `0x415554480014`, login storage identity
-`0x415554485323`, fixture payload `AUTHCLK1`, and private journal
-`ic-auth-local-logout-journal-v1`. Old bytes refuse without clearing; this does not
-authorize resetting Canic's stores.
+Focused Linux evidence recreated after cleanup:
 
-The [remembered-login client](../browser-client.md#ninety-day-remembered-login)
-retains exact issuance evidence and renewal sequences separately from guard
-metadata. Unresolved issuance is lookup-only; durable completion permits
-browser-key renewal. Initial issuance requires account authentication. Readiness
-prepares before new signing, bounds expiry recovery and never replays application
-effects or renews while polling. Logout fences late results and retains uncertainty.
-Issuer endpoints, durable key custody, clock mapping and Canic/Toko wiring remain
-consumer-owned.
+- `target/evidence/platform-testkit-20261107/`: warning-denied runner Clippy,
+  reference Wasm build, all 11 ordinary installed cases, formatting, ownership,
+  dependency pins and documentation links pass. The opt-in Chromium case is
+  ignored; native macOS was not run. One Runtime executor/guard remains in Wasm.
+- `target/evidence/ic-build-077/`: bounded-lock admission, strict tooling-binary
+  Clippy, real Engine manifest/lock rendering and input-limit refusal pass.
+  Auth does not use the removed cache-report getters. Protocol and all external
+  selections survive rendering unchanged.
 
-## Qualified delivery and dependency selection
+These focused checks precede release; run the full source-bound gate in the new
+captured batch. Keep #128 open until the fix is pushed and publication verified.
+Do not change an existing batch's captured source or discard recovery state.
 
-Engine 0.35.2 passed all **30 release-gate stages**, including native/Wasm Clippy,
-package/MSRV and boundary checks, 92 client tests/interoperability, all 11 ordinary
-installed cases, local archives and release/recovery/publication fixtures.
-Chromium remains opt-in/skipped. Gate:
-`target/release-frozen/batch-aSZPSweq/target/release-validation/engine-gate.WFyGP0/logs/validation.SZgrt6`.
-Its source is `df396bb`; `target/delivery-0352/` retains delivery/reconciliation logs.
-The release-control fixture took 1110 seconds; no timing savings are claimed.
-Protocol's prior complete gate remains at
-`target/release-validation/protocol-gate.CAofib/logs/validation.JeBDEm`.
+## Completed 0.35.3 qualification and recovery
 
-The release uses Platform 0.23.2, Testkit 0.89.0, Metrics 0.29.3, Build 0.75.0,
-Storage 0.68.0, Wire/derive 0.17.4, Types 0.18.2, Runtime/guard 0.19.3 and Host 0.74.4.
+External cleanup deleted the entire normal `target/` during the first final
+release-tools stage. Durable Git state survived. The exact clean candidate was
+reconstructed from its verified index; tools were explicitly prepared and the
+same batch resumed. No deleted proof was reused. A fresh complete **30-stage**
+Linux gate passed against captured source `d1f7b8c`:
+`target/release-frozen/batch-vgrJaHrk/target/release-validation/engine-gate.Z9veMt/logs/validation.w5XTFO`.
+This includes native/Wasm Clippy, MSRV/archives, boundaries, all 93 client tests,
+Wire interoperability, 20 backend-conformance tests, all 11 ordinary installed
+cases and real release/recovery/publication callers. Chromium stayed opt-in.
+The final release-tools stage took 1067 seconds; no timing saving is claimed.
+
+The captured graph used Build 0.76.0, Testkit 0.89.4, Runtime/guard 0.19.4,
+Storage 0.68.2, Platform 0.23.5, Types 0.18.2, Metrics 0.29.6 and Wire 0.17.6.
 Rust 1.99.1 remains compiler/minimum; PocketIC is 16.1.0. Shared Tooling 0.31.0
 at `74313941af2fce4399bec0e6909ca6229673c3f8` has 161 verified payloads.
-The release used the shared batch controller, with explicit registry publication.
-Earlier release/adoption evidence remains under its original paths.
+Delivery/reconciliation logs: `target/delivery-0354/`.
 
-The earlier clean private browser archive at
-`target/browser-client-packages/package.5x3Jeg/` retains its original 0.35 source
-and receipt. It is source/archive delivery, not npm publication or production
-issuer acceptance. Storage's old collection framing refuses without clearing;
-fresh private fixture allocation is required. No production migration occurred.
+Engine 0.35.3 delivers the private journal's explicit
+`saved`/`issue`/`renew`/`reconcile` credential actions, unchanged stored journal
+bytes, shared allocation-profile capture/DHAT helpers and regenerated Wire 0.17.6
+browser runtime. Its unpublished backend helper adds a tenth scenario: 90-day
+login restore, late renewal under fresh authority, immutable deadlines and a
+second restore. The expanded authority matrix covers key/mechanism changes,
+withdrawn grants and authority/enrollment expiry before/after reopen.
+Earlier delivered source archives keep their original scenario sets. A new clean
+helper archive requires qualification against its published matching cohort.
 
-## Adopted Shared Tooling and completed batch
+## Auth contract and Canic adoption
 
-Shared Tooling 0.31.0/PR #361 has 161 independently verified payloads. Evidence:
-`target/evidence/shared-tooling-0.31.0-pr361/`. The release gate includes actual
-candidate setup/archives, legacy recovery and schema-2 two-group batch fixtures.
-Earlier focused logs remain at `target/portable-fixtures/release-tools.8R2OHK/`
-and `release-tools.gF3NGy/`. Shared owns capture, explicit publication and lifecycle;
-retired settings refuse without aliases. Auth's completed `batch-aSZPSweq` was
-fast-forward reconciled, preserving deferred dependency hunks. Recovery remains at
-`.git/release-state/frozen/batch-aSZPSweq/`; candidate and evidence are not retired.
+The [Canic adoption contract](../canic-adoption.md) and
+[clock-independent contract](../design/portable-clock-audit.md) separate reusable
+Auth machinery from consumer authority, issuer policy, persistence and recovery.
+Protected login windows can last up to 90 days; proofs stay short-lived and
+session leases retain their 30-minute ceiling. Renewal cannot extend the original
+login deadline. Known logout denies through that deadline. Unknown logout commits
+bounded temporary denial and returns `Unconfirmed`, including retries. Ordinary
+authorization stays local; no per-operation inter-canister call was added.
 
-## Clean backend-conformance source delivery
+The [private client](../browser-client.md#ninety-day-remembered-login) retains exact
+issuance evidence and renewal sequences, keeps unknown issuance lookup-only and
+fences late results after logout. No production issuer or npm publication is
+implied. Actual loss of protected safety state stays closed pending trusted
+recovery; complete durable restore plus fresh authority remains supported.
+Old Rust/browser formats refuse without clearing, under the maintainer's prior
+no-retained-record approvals. Those approvals do not authorize erasing Canic state.
 
-The delivered nine scenarios use the existing `Backend` hooks. Unknown logout
-covers atomicity, spent work credit, fixed `Unconfirmed` deadlines, restoration
-and known-login isolation; independent backing and broken-backend controls pass.
+The earlier Nov 7 read-only Canic review found root Engine 0.35.2/Testkit 0.89.4,
+private consumers and retained helper on 0.35.1, and snapshot policy allowing
+captured-state rollback subject to original deadlines. Its new installed
+snapshot-expiry attempt stopped for unprepared Testkit; its handoff described a
+different proposed policy. Final policy/docs/installed acceptance remains owned
+by [Canic #491](https://github.com/dragginzgame/canic/issues/491). Canic stays read-only here.
 
-The matching Engine 0.35.2 / Protocol 0.35.0 archive passed registry-consumer
-qualification and all 18 packaged tests. Receipt:
-`target/portable-fixtures/backend-package.1Zq4ye/delivery.json`, clean source
-`36b3f27e6d0ed3c65a1027376540eb7808744d36`, `dirty: false`, archive SHA-256
-`cc09eadea778769ab0be8ce19ead1eb4e523d02a778538f493b547af07a1077c`.
-Archive: that evidence directory's `target/package/ic-auth-backend-conformance-0.35.2.crate`. Retain archive and receipt
-at the consumer before producer cleanup. Canic's working tree now passes the clean
-0.35.1 helper on its actual stable adapter; the adoption guide records its local
-browser/logout/restore progress and separate production obligations. Earlier receipts remain intact.
+## Evidence retention
 
-## Pending consumer qualification support
-
-The working helper adds a tenth scenario using the existing `Backend` hooks:
-90-day login restore, late renewal under fresh authority, unchanged login window,
-second restore and before/exact/after deadline authorization without cleanup.
-Both local adapters and a missing-login control pass in the 20-test package suite;
-warning-denied package/all-target Clippy and local documentation links pass.
-The authority matrix now adds key/mechanism changes, withdrawn scopes, expired or
-shortened enrollment and a valid refresh, before/after reopen without record changes.
-The adoption guide now separates confirmed/unconfirmed logout, complete restore,
-missing state and older-valid-snapshot acceptance. Evidence:
-`target/evidence/auth-canic-handoff-035/`. The scenario is uncommitted, outside the
-delivered archive; Canic remains read-only. Production behavior is unchanged.
-
-New native profiling adds portable claims: small/wide allocation totals are
-868/14,308 bytes per call, including growth; older delegation rows are unchanged.
-The fresh reference Wasm has one retained admission and authorization instantiation
-each. No hashing or generic-code refactor is justified by this evidence alone;
-the earlier streaming experiment was rejected. See the existing allocation guide
-and `target/evidence/auth-next-035/`; no production performance saving is claimed.
-
-The private browser journal now returns `saved`/`issue`/`renew`/`reconcile` actions
-with the required signer, replacing caller reconstruction from flags. Stored
-journal records are unchanged. All 93 client tests, archive checks and Wire
-interop pass; the five browser contracts were regenerated/reviewed for incoming
-Wire 0.17.6 (only the shared runtime changed). Allocation runners now share capture
-and DHAT helpers, with complete before/after reports unchanged and the shared
-sources sealed. Bench Clippy, ShellCheck and syntax checks pass. Evidence:
-`target/evidence/auth-dedup-035/`. These source changes remain unpublished.
-
-IC Build 0.76.0 is selected in the root catalog/lock and its CLI editor is prepared.
-Auth tooling tests, strict package Clippy and real Engine manifest/lock rendering
-pass; Protocol/external selections and original inputs remain intact. Evidence:
-`target/evidence/ic-build-076/`. No release ran; prior publication custody is unchanged.
-
-The Nov 7 read-only Canic check finds root Engine 0.35.2/Testkit 0.89.4, with private
-consumers/helper still on 0.35.1. Its working snapshot guide allows captured-state
-rollback with original deadlines; only the clock activation gate remains in code.
-The new installed snapshot/expiry attempt stopped for unprepared Testkit 0.89.4.
-Its handoff still describes a different proposed policy; the adoption guide records
-this discrepancy. Final policy/docs/installed acceptance remain Canic-owned.
-
-## Deferred updates and recovery
-
-External updates now select Metrics 0.29.6, Platform 0.23.5, Runtime/guard 0.19.4,
-Testkit 0.89.3, Storage 0.68.2, Wire/derive 0.17.6 and TOML updates. The focused
-backend checks used this graph without changing its lock; it is not release-qualified.
-The earlier excluded updates and released/tested locks remain under
-`.git/release-state/deferred-engine-0352/`; durable branch
-`deferred/upstream-20261106-engine-0352` is `1b1aca9`. The working lock retains
-Engine 0.35.2. Full adoption needs its own qualification.
-Earlier deferred branches remain historical; do not merge their old package-version rows.
-
-Preserve `.git/release-state/`, `.git/publication-state/` and required target custody.
-Older release gates, publication attempts and archive receipts remain historical
-under their original identities; no cleanup or recovery bypass was performed.
-Retired checkout refs are `archive/ic-auth-capacity` and `archive/ic-auth-release-033`,
-with evidence under `target/checkout-retirement/20261104-siblings/`.
-The maintainer accepted Platform's residual Wasm increase on 2026-11-05: about
-29 KB over 0.21 in the matched Canic report. Preserve the
-[historical scope](https://github.com/dragginzgame/ic-auth/blob/ed785d7/docs/status/current.md).
-No new Wasm size comparison is claimed.
+Before the cleanup incident, raw evidence and archives existed under earlier
+`target/` paths recorded in Git history. Those files were deleted and cannot be
+independently verified locally now. Committed source, published releases, Git-owned
+publication receipts and earlier deferred branches remain retained. Newly recreated
+paths above are current. Do not clean `target/` during delivery or erase journals.
+Keep bulk artifacts out of `.git`; only source, small custody records and refs
+belong there. No new Wasm performance or production-adoption claim is made.
