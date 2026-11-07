@@ -11,8 +11,8 @@ qualify the current dependency graph.
 
 The root manifest selects published Testkit 0.92.0 from
 [IC Tooling](https://github.com/dragginzgame/ic-tooling), its maintained PocketIC
-client and server 16.1.0. The qualified pairing shares Wire 0.17.6 types directly;
-separate incoming dependency selections remain unqualified as recorded in the
+client and server 16.1.0. The qualified pairing shares Wire 0.17.11 types directly;
+the complete Engine 0.35.6 gate is recorded in the
 [current handoff](status/current.md).
 `WireCallSpec` takes the canonical
 contract limits without conversion; responses require only `DeserializeOwned`.
