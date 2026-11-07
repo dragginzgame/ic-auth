@@ -56,7 +56,6 @@ if [[ "$package" == ic-auth-qualification-canister ]]; then
         host-facade-ic0) printf 'ic-platform feature "ic0"\n' ;;
         host-facade-executor) printf 'ic-platform feature "executor"\n' ;;
         host-facade-runtime) printf 'ic-platform feature "runtime"\n' ;;
-        host-facade-cdk) printf 'ic-platform feature "cdk"\n' ;;
     esac
     if [[ "$BOUNDARY_MODE" != generator ]]; then
         printf 'ic-platform-macros v0.9.1\nic-platform-macros v0.9.1 (*)\n'
@@ -174,7 +173,6 @@ if [[ "$target" == wasm32-unknown-unknown ]]; then
             wasm-certified-ic0) printf 'ic0 v1.2.0\n' ;;
             wasm-certified-owned-ic0) printf 'ic-platform feature "ic0"\n' ;;
             wasm-certified-runtime) printf 'ic-platform feature "runtime"\n' ;;
-            wasm-certified-cdk) printf 'ic-platform feature "cdk"\n' ;;
             wasm-certified-creation) printf 'ic-canister-sig-creation v1.3.1\n' ;;
             wasm-certified-verifier) printf 'ic-signature-verification v0.3.0\n' ;;
         esac
@@ -184,7 +182,7 @@ STUB
 chmod +x "$fixture/bin/"*
 export PATH="$fixture/bin:$root/.tools/host/bin:$PATH"
 export BOUNDARY_EVENTS="$fixture/events"
-for mode in accepted crypto-generations crypto-generations-third crypto-algorithm-duplicate principal-facade wire-facade control-facade engine-facade session-facade session-runtime principal-runtime-owner conformance-metrics conformance-private conformance-certified conformance-profiler library-profiler host-profiler principal-external wire-hashing control-external principal-candid principal-executor principal-owned-executor principal-runtime-guard principal-bls principal-storage control-candid control-storage control-platform-feature wasm-default wasm-combined wasm-capability wasm-portable-bls wasm-portable-ic0 wasm-session-candid wasm-session-ic0 wasm-unknown-candid wasm-certified-owned-ic0 wasm-certified-candid wasm-certified-ic0 wasm-certified-runtime wasm-certified-cdk wasm-certified-creation wasm-certified-verifier host-candid host-candid-derive host-registry-ic0 parser executor executor-source generator generator-source runtime-guard-missing runtime-guard-source host-cdk host-cdk-macros host-platform-feature host-runtime-missing host-runtime-duplicate host-facade-ic0 host-facade-executor host-facade-runtime host-facade-cdk host-wire-duplicate host-storage-missing host-storage-duplicate host-retired-memory host-legacy-stable-structures host-native-client; do
+for mode in accepted crypto-generations crypto-generations-third crypto-algorithm-duplicate principal-facade wire-facade control-facade engine-facade session-facade session-runtime principal-runtime-owner conformance-metrics conformance-private conformance-certified conformance-profiler library-profiler host-profiler principal-external wire-hashing control-external principal-candid principal-executor principal-owned-executor principal-runtime-guard principal-bls principal-storage control-candid control-storage control-platform-feature wasm-default wasm-combined wasm-capability wasm-portable-bls wasm-portable-ic0 wasm-session-candid wasm-session-ic0 wasm-unknown-candid wasm-certified-owned-ic0 wasm-certified-candid wasm-certified-ic0 wasm-certified-runtime wasm-certified-creation wasm-certified-verifier host-candid host-candid-derive host-registry-ic0 parser executor executor-source generator generator-source runtime-guard-missing runtime-guard-source host-cdk host-cdk-macros host-platform-feature host-runtime-missing host-runtime-duplicate host-facade-ic0 host-facade-executor host-facade-runtime host-wire-duplicate host-storage-missing host-storage-duplicate host-retired-memory host-legacy-stable-structures host-native-client; do
     export BOUNDARY_MODE="$mode"
     : > "$BOUNDARY_EVENTS"
     status=0

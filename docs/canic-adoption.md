@@ -75,50 +75,67 @@ for those logout guarantees. Hosts still supply trusted local time, preserve its
 monotonic observations and qualify their recovery/authority lifecycle. Do not
 remove production activation gates merely because Auth's #127 is closed.
 
-## Read-only Canic review — 2026-11-06
+## Read-only Canic review — 2026-11-07
 
-Inspected Canic HEAD `e6a061999dfae207bc20917ffefa2082e7ffe2e7` plus its
-uncommitted working tree, current authentication guide and handoff. These local
-changes are not a delivered release. The working root and both private consumer
-locks select registry Engine 0.35.1 with Protocol/Wire 0.35.0. Their clean backend
-archive is Auth source `e78d1a76f3f277e3600eac3b31247cd29f0daf3d`, SHA-256
-`153e106f5bdffe49691f0c7030a96573ac026e17fe8be5a2914ebb0785451fca`.
-Engine 0.35.2 changes tooling; it does not supply a missing production Auth API.
+Reviewed Canic HEAD `e6a061999dfae207bc20917ffefa2082e7ffe2e7` plus its
+uncommitted source, authentication guide, current handoff and retained results.
+The reviewed root selects Engine 0.35.5 and Protocol/Wire 0.35.0. The following
+results qualify the existing consumer composition locally; this review did not
+rerun those suites or establish a delivered release or mainnet deployment.
+Earlier dated reviews remain in Git history.
 
-The following are recorded Canic results, not tests rerun by this Auth review:
+| Boundary | Inspected consumer evidence |
+| --- | --- |
+| Receiver and storage | 179 native Auth cases and 51 actual stable-adapter cases pass, including the retained 0.35.1 conformance helper and shared pair/capacity checks. |
+| Retention and capacity | Installed 4,096-login / 2,048 maximum-scope-session / 256 unknown-logout-denial profile passes exact retry, full-pool known logout, reconstruction, bounded expiry cleanup and fresh admission. |
+| Issuer and authority | Installed Root membership, permission changes across awaits, certified approval/retirement, query-proof recovery, maximum-grant byte refusal and issuer-history reclamation pass. |
+| Browser | Real Internet Identity with virtual WebAuthn passes issuance/recovery, renewal/reopening, two receivers/devices, logout and sign-out refusal; consumer deletion and supplier shutdown are recorded. |
+| Lifetime and restore | Installed startup, refresh and snapshot cases preserve original deadlines and refuse missing safety metadata. Canic's selected full-snapshot contract is described below. |
 
-| Boundary | Recorded local consumer evidence | Remaining acceptance |
-| --- | --- | --- |
-| Receiver and storage | Clean 0.35.1 helper's nine scenarios pass against the actual stable adapter; installed unknown logout retains `Unconfirmed` and the same deadline across reconstruction | Qualify the final production denial/recovery and retention/capacity matrix on the selected binary and graph |
-| Issuer | Ed25519 and certified issuance/renewal, exact-result recovery and browser binding pass focused checks | Qualify production approval, key custody, retirement and recovery together |
-| Browser | Real Internet Identity login, lost issuance/renewal replies, page reopening, two receivers/devices and cross-tab logout pass | Production activation and the selected production custody/transport assumptions remain consumer-owned; certified installed renewal is not a Chromium certified-login proof |
-| Authority and restore | Missing activation metadata traps on two reconstructions without changing the corrupted stable bytes; scoped retirement checks pass | Complete protected-state/arbitrary-snapshot review; a missing-state refusal is not older-valid-snapshot acceptance |
-| Harness and inspection | Native authorization pool reuse, awaited shutdown and strict target lint pass; protected operator inspection is recorded | Bind the final complete journey and documentation to delivered source |
+Evidence is retained in Canic's `target/evidence/auth-patch-acceptance/` and
+`target/evidence/auth-authority-capacity/`. Each phase retains its own lock:
+the browser/initial installed/capacity results use Wire 0.17.9; later issuer
+cases use Wire 0.17.10. They are not one new full-gate result on the final graph.
+The inspected records support functional completion of that existing composition;
+no missing Auth API or additional Auth implementation defect was identified.
 
-Canic evidence owners include `target/evidence/auth-0351/`,
-`target/evidence/auth-unknown-logout/`, `target/evidence/auth-receiver-restore/`,
-`target/evidence/auth-certified-browser-renewal/` and
-`target/evidence/auth-harness-cleanup/` in that checkout. Their results retain
-their own dependency graphs; they are not a single new full gate. Production
-activation remains closed. The persistent adapter already uses the shared
-pair/capacity checks from [#720](https://github.com/dragginzgame/canic/issues/720).
-[#491](https://github.com/dragginzgame/canic/issues/491) remains the canonical
-consumer acceptance owner. No Canic source, tests or deployment were changed here.
+Canic now documents removing its temporary clock-skew activation gate under the
+signed-deadline contract, after its own local acceptance. Its accepted full
+same-release snapshot restores captured sessions, logout state and original
+deadlines; changes made after capture, including logout, roll back with that
+snapshot. This does not establish the independent whole-state rollback protection
+in the matrix above. Missing metadata refusal remains distinct. No new Auth trust
+mechanism, remote authorization check or extension of signed deadlines is implied.
 
-### Follow-up — 2026-11-07
+### Adapter extraction now in progress
 
-Canic's working root lock now selects Engine 0.35.2 and Testkit 0.89.4; the two
-private Blob consumer locks and retained backend helper remain on Engine 0.35.1.
-Its current activation policy retains only the unqualified production clock gate.
-The snapshot guide now explicitly restores captured Auth state and original
-deadlines, including rolling back logout performed after capture. That contract
-does not claim the whole-state rollback protection described in the matrix above.
-An installed regression checks restored-session identity and expiry, but its latest
-retained attempt at `target/evidence/auth-snapshot-contract/installed.log` stopped
-before execution because the selected Testkit 0.89.4 server was not prepared.
-The handoff still describes a proposed different recovery policy; reconcile those
-consumer documents and qualify the selected contract before production activation.
-No fresh Canic execution or supplying Auth API gap is claimed by this review.
+After the functional closeout, Canic's current handoff records a newly accepted
+extraction into a real `canic-auth` integration package with an explicit mount.
+Application authorization and restoration boundaries have begun moving, but the
+package, mount, storage/memory/lifecycle composition and installed acceptance of
+the extracted arrangement are incomplete. The proposed mount is not yet an
+available, qualified API. Prior tests qualify the earlier composition, not this
+new arrangement. Core retains Fleet/Root authority; reusable Auth engine ownership
+stays here, with no dependency from Auth back into Canic.
+
+Canic's [production integration tracker](https://github.com/dragginzgame/canic/issues/491)
+remains the work owner. Its supplier alignment, selected release gate, delivery
+and deployment are separate consumer work. No Canic source, test, issue or release
+state was changed by this Auth review.
+
+### Backend bundle handoff
+
+Canic still consumes the clean 0.35.1 helper under
+`integrations/auth-backend-conformance`, as an excluded development-only package.
+The already-qualified 0.35.5 helper adds the 90-day renewal/reopen case and expanded
+authority refusals without changing the `Backend` hooks. Its exact source,
+archive SHA-256 and receipt are in the
+[clean delivery record](status/current.md#clean-backend-helper-delivery).
+Retain that archive and receipt in Canic custody, preserve its normalized package
+metadata, and run the existing complete conformance entrypoint against the actual
+driver after relocation. See the [consumer refresh instructions](../apps/qualification/backend-conformance/README.md#refreshing-an-existing-consumer).
+This is ready Auth-side support; it does not claim Canic adopted or passed the
+new helper.
 
 ## Current Rust contract
 

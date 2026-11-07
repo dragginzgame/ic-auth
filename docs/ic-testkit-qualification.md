@@ -9,17 +9,20 @@ qualify the current dependency graph.
 
 ## Setup and ownership
 
-The root catalog/lock select published Testkit 0.90.0 from
+The root manifest selects published Testkit 0.92.0 from
 [IC Tooling](https://github.com/dragginzgame/ic-tooling), its maintained PocketIC
-client and server 16.1.0. Testkit and Auth share locked Wire 0.17.6 types directly.
+client and server 16.1.0. The qualified pairing shares Wire 0.17.6 types directly;
+separate incoming dependency selections remain unqualified as recorded in the
+[current handoff](status/current.md).
 `WireCallSpec` takes the canonical
 contract limits without conversion; responses require only `DeserializeOwned`.
 The temporary Wire 0.6 alias and limit bridge are removed following
 [Tooling #248](https://github.com/dragginzgame/ic-tooling/issues/248).
 Application identities use owned Principal; direct Testkit/Agent calls convert
-explicitly to their external type. Auth and Testkit share Platform 0.23.5 and
-canonical Types 0.18.2; the Storage host
-selects Runtime 0.19.5 directly. No alias or dependency override is used.
+explicitly to their external type. Auth selects Platform 0.25.0; Testkit 0.92
+retains Platform 0.24.0 for native Candid/protocol helpers. Both share canonical
+Types 0.18.2; the Storage host selects Runtime 0.20.0 directly. No alias or
+dependency override is used.
 Native Agent/client dependencies stay outside public Auth library and
 deployed-Wasm graphs; the certificate-only dependency exception is separate.
 Testkit no longer supplies
@@ -32,7 +35,7 @@ with its native PEM feature; caller/root-key and request policy remain with the
 fixture. There is no direct Agent declaration or local facade. Testkit supplies
 typed Wire query/update calls and bounded startup. The native runner imports
 `PocketIc`, `PocketIcBuilder` and `Time` from `ic_testkit::pocket_ic` in Testkit
-0.90. Clients require an explicit server endpoint and positive finite request
+0.92. Clients require an explicit server endpoint and positive finite request
 budget. Auth selects `PocketIcBuilder::new(Duration::from_secs(30))`; its managed
 `build_instance(builder).await` supplies the endpoint through the admitted
 `PocketIcStartupConfig::Spawn`. Testkit applies one request deadline through
@@ -59,7 +62,7 @@ Node/npm dependencies; see [client setup](development.md#browser-client-setup).
 IC Host supplies bounded no-follow Wasm reads and native process mechanics. The
 fixture's startup limit is 30 seconds; state, stdout/stderr and SDK scratch inputs
 remain under a unique `target/portable-fixtures/qualification.*` directory after
-success or failure. The canister uses Platform runtime and generated entrypoint
+success or failure. The canister selects independent Runtime and its generated entrypoint
 macros with explicit Wire codec hooks; the direct CDK exception is removed
 ([Platform #21](https://github.com/dragginzgame/ic-platform/issues/21)).
 Root-selected [IC Storage](https://github.com/dragginzgame/ic-storage)

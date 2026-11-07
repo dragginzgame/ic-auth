@@ -21,6 +21,147 @@ The batch is complete and fast-forward reconciled; its durable recovery remains
 at `.git/release-state/frozen/batch-IjY8zEHe/`. No upload is unresolved.
 [#127](https://github.com/dragginzgame/ic-auth/issues/127) remains closed.
 
+## Engine 0.35.6 release preparation
+
+The maintainer authorized Engine publication from the pending batch. Protocol
+remains 0.35.0: its source, four generated method bindings and declared compatible
+dependency requirements are unchanged. The selected full lock includes Platform
+0.25.0, Runtime/macros/guard 0.20.0, Storage 0.68.7, Host 0.75.0, Build 0.78.0,
+Testkit 0.92.0, Wire/derive 0.17.11, crypto-common 0.1.6 and generic-array 0.14.9.
+The Wire runtime was regenerated and all five files reviewed; only 19 packed-bool
+runtime lines changed, with no Auth field using the opt-in adapter. The fresh
+captured release gate must qualify this combined graph and run the client suite;
+the earlier focused receipts below retain their exact narrower selections.
+
+Delivery uses Shared's existing managed `target/release-frozen/BATCH` workflow,
+with main/tag delivery to `origin` and crates.io publication. Later normal-tree
+updates stay outside the captured batch. Hosted CI remains asynchronous.
+Preparation and delivery logs are under `target/delivery-0356/`.
+
+## Pending aligned Platform 0.25 / Runtime 0.20 / Storage 0.68.7 adoption
+
+Workspace requirements and the qualified lock select Platform 0.25.0, Runtime,
+macros and guard 0.20.0, and Storage 0.68.7. Storage's newly published Runtime
+0.20 requirement resolves the earlier single-owner blocker below. The private
+host retains exactly one Platform, Runtime, macro generator and singleton guard.
+Auth already uses ordinary `ic_platform_runtime::cdk` entrypoints, so no Rust
+source migration is needed. The graph policy drops the removed facade `cdk`
+feature and its two synthetic cases; current facade/runtime, registry-executor
+and public-library isolation checks remain enforced.
+
+Focused checks pass: strict Wasm-host and native signature-target Clippy, all 51
+certified/portable/chain-key cases, all 11 ordinary installed certificate,
+upgrade, session and signed-ingress cases, ShellCheck/syntax, current boundary
+refusal fixtures and actual native/Wasm capability graphs. Chromium remains
+opt-in/ignored. Crypto algorithms, signed bytes, public contracts, trust inputs
+and stored layouts are unchanged. Host 0.75, Build 0.78, Testkit 0.92 and Types
+0.18.2 remain selected. Testkit retains Platform 0.24 only in its native helpers;
+that older facade is absent from the canister graph. No error-identity bridge or
+dependency override is introduced.
+
+The matched reference Wasm compares Platform 0.24 / Runtime 0.19.5 / Storage
+0.68.3 with this aligned cohort. Auth Rust source, compiler 1.99.1, flags and
+release profile are unchanged. The baseline artifact is reused after verifying
+its source, build context and dependency identities/features. Total bytes move
+from 1,905,153 to 1,905,386 (**+233**); code-section bytes move from 1,468,844 to
+1,468,827 (**-17**). This measures the three-dependency cohort, not Platform alone,
+and makes no runtime-performance claim. Evidence, artifacts and the exact
+qualification lock are in `target/evidence/platform-0250-runtime-0200/`.
+
+Qualification holds Wire/derive 0.17.6, crypto-common 0.1.7 and generic-array
+0.14.7 fixed. Incoming Wire/derive 0.17.11, crypto-common 0.1.6 and generic-array
+0.14.9 are preserved under `.git/release-state/deferred-platform-0250/` and
+restored afterward as unqualified edits. The captured incoming lock had already
+partially advanced Storage to 0.68.7 while retaining both Runtime generations;
+the aligned single-owner selection supersedes that partial transition. Its
+original bytes remain in that custody.
+The combined working lock is not the exact measured/qualified graph. Engine
+0.35.6 remains a draft; public package versions and publication above are unchanged.
+
+## Earlier Platform 0.24 qualification
+
+The initial Platform-only qualification selected published Platform 0.24.0
+(`6f2bafc5da7b457cb0efdb622151e74c3367740d26eb8892f72be2c9b4683c53`).
+The release removes native offline public-key derivation and unconfigured Candid
+decoder shortcuts; Auth uses neither. No Auth Rust source, public protocol,
+signed bytes, verification policy or retained-record format changed. The pending
+Engine ledger is 0.35.6; package versions and the published state above remain
+unchanged. The aligned cohort above supersedes this development selection.
+
+Focused qualification passes: warning-denied native signature-runner Clippy,
+51 certified/portable/chain-key tests, all 11 ordinary installed certificate,
+upgrade, session and ingress cases, and actual native/Wasm dependency boundaries.
+The opt-in Chromium case remains ignored. This initial Platform-only check used
+Testkit 0.90.0, which retained Platform 0.23.6 for native Candid/protocol helpers.
+The Wasm host selected one Platform 0.24.0 and one Runtime/macros/guard 0.19.5.
+The following native-tooling batch removes that remaining older native facade;
+Types and Runtime selections are unchanged.
+
+The matched reference Wasm builds use the same Auth 0.35.5 source, Rust 1.99.1,
+target flags and Cargo release profile without post-processing. Platform 0.23.6
+produces 1,904,961 total bytes and 1,468,843 code-section bytes; Platform 0.24.0
+produces 1,905,153 and 1,468,844 respectively: **+192 total bytes, +1 code-section
+byte**. No runtime-performance claim is made. Evidence, both artifacts, source
+seals, build context and exact locks are under `target/evidence/platform-0240/`.
+
+These checks hold Storage 0.68.3 and Wire/derive 0.17.6 constant. The separately
+preserved incoming Storage 0.68.5 / Wire 0.17.9 delta is restored afterward and
+remains unqualified, as recorded below. Its browser generator adoption is outside
+this Platform-only batch; do not treat the combined working lock as released or
+as the exact graph measured above.
+
+## Earlier Host 0.75, Build 0.78 and Testkit 0.92 qualification
+
+Workspace requirements and the selected lock now use Build 0.78.0,
+Host Artifacts/FS/Process 0.75.0 and Testkit 0.92.0. The independently pinned
+Host file CLI is also 0.75.0. Auth uses none of Build's retired compiler-wrapper,
+prepared-input or progress APIs, or Host's retired provenance/RSS modules.
+No Auth Rust source change was required. At this stage the native client shared
+one Platform 0.24.0 and Types 0.18.2 identity; Platform 0.23.6 was removed from the lock.
+Public Auth contracts, explicit request/startup budgets and managed teardown are
+unchanged. PocketIC stays 16.1.0 and Rust stays 1.99.1.
+
+Focused qualification passes: warning-denied tooling-binary and native
+signature-target Clippy; all four actual file/lock/argument/contract adapter tests;
+real Engine manifest/lock rendering with the selected Build editor; preservation
+of Protocol versions and all external selections; the 8 MiB input-limit refusal;
+and all 11 ordinary installed certificate, upgrade, session and signed-ingress
+cases. The opt-in Chromium case remains ignored. All three selected executables
+are explicitly prepared and their offline admission is exercised by these checks.
+The Wasm dependency identities/features and retained qualification binary match
+the earlier Platform 0.24 evidence exactly, so no additional Wasm rebuild or size
+claim is needed for this native-only batch.
+
+Evidence and the exact qualification lock are under
+`target/evidence/host-build-testkit-20261107/`. Qualification holds Storage 0.68.3,
+Wire/derive 0.17.6, crypto-common 0.1.7 and generic-array 0.14.7 constant. Incoming
+updater edits instead select Storage 0.68.5, Wire/derive 0.17.9, crypto-common
+0.1.6 and generic-array 0.14.9. That complete incoming lock and reapplication
+patch are preserved under
+`.git/release-state/deferred-host-build-testkit-20261107/` and restored after
+qualification. They remain unqualified; the combined working lock is not the
+exact qualification graph or a published release.
+
+## Earlier Runtime 0.20 blocker — resolved
+
+Published Runtime, macros and guard 0.20.0 are available. Auth already uses the
+ordinary entrypoints through `ic_platform_runtime::cdk`; it uses none of the
+removed prefixed macro exports. The remaining blocker is the host composition:
+then-latest published Storage 0.68.6 required Runtime `^0.19.4` on Wasm with only
+`ic0` enabled. It cannot resolve to the requested Runtime 0.20 owner.
+
+A minimal dependency-resolution probe using Runtime 0.20.0/`cdk` and Storage
+0.68.6/`test-support` resolves Runtime 0.19.5 (`ic0`) alongside Runtime 0.20.0
+(`cdk`, `executor`, `ic0`, `runtime`), with macros/guard 0.20.0. The one-Runtime
+package check correctly refuses two identities. This is not a claim of two
+executors: the older package supplies raw IC0 only, but it still violates Auth's
+single-owner composition requirement. No policy or dependency override was added.
+
+That metadata-only probe left Runtime 0.19.5 and root manifest/lock bytes unchanged;
+evidence remains under `target/evidence/runtime-0200/`. Storage 0.68.7 subsequently
+published the compatible Runtime 0.20 requirement. The aligned cohort and fresh
+host qualification above resolve this blocker without weakening the policy.
+
 ## Completed Shared Tooling 0.31.4 adoption and Engine 0.35.5 delivery
 
 The normal checkout adopts reviewed Shared Tooling 0.31.4 at
@@ -211,12 +352,27 @@ recovery; complete durable restore plus fresh authority remains supported.
 Old Rust/browser formats refuse without clearing, under the maintainer's prior
 no-retained-record approvals. Those approvals do not authorize erasing Canic state.
 
-The earlier Nov 7 read-only Canic review found root Engine 0.35.2/Testkit 0.89.4,
-private consumers and retained helper on 0.35.1, and snapshot policy allowing
-captured-state rollback subject to original deadlines. Its new installed
-snapshot-expiry attempt stopped for unprepared Testkit; its handoff described a
-different proposed policy. Final policy/docs/installed acceptance remains owned
-by [Canic #491](https://github.com/dragginzgame/canic/issues/491). Canic stays read-only here.
+The refreshed [read-only Canic review](../canic-adoption.md#read-only-canic-review--2026-11-07)
+inspects registry Engine 0.35.5 / Protocol 0.35.0, 179 passing native Auth tests,
+51 actual stable-adapter tests, installed authority/capacity acceptance and the
+real-II browser/cleanup records. Their Wire 0.17.9 and 0.17.10 phases keep their
+own saved graphs. This supports local functional completion of the existing
+composition, not a fresh full release gate or mainnet deployment.
+
+Canic has since begun a separately accepted extraction into a real `canic-auth`
+adapter with explicit mounting. Its current handoff records partial authorization
+and restoration separation; package/mount, storage/memory/lifecycle composition
+and installed qualification of that arrangement remain incomplete. The earlier
+proofs do not qualify the new composition. No Auth implementation gap was found;
+Canic's [integration tracker](https://github.com/dragginzgame/canic/issues/491)
+still owns that work and final delivery. Canic remains read-only here.
+
+The 0.35.5 backend archive and receipt above were rechecked against the retained
+checksum and clean release source. Its original 20 packaged tests pass; they were
+not rerun for this documentation update. Canic still consumes the 0.35.1 helper.
+The refreshed helper README supplies the existing-driver adoption steps for all
+ten scenarios, including 90-day renewal/reopen, without a new hook or production
+format change. Small integrity evidence: `target/evidence/canic-handoff-20261107/`.
 
 ## Evidence retention
 

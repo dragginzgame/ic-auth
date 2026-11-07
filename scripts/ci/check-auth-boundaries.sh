@@ -15,7 +15,7 @@ for target in "$native_target" wasm32-unknown-unknown; do
         rules=(--forbid-pattern "$(auth_dependency_pattern deployment)"
                --forbid-pattern "$(auth_dependency_pattern default)"
                --forbid-feature ic-platform/ic0 --forbid-feature ic-platform/executor
-               --forbid-feature ic-platform/runtime --forbid-feature ic-platform/cdk)
+               --forbid-feature ic-platform/runtime)
         if [[ "$package" == ic-auth-protocol-types || "$package" == ic-auth-wire ]]; then
             rules+=(--forbid-pattern "$(auth_dependency_pattern passive)")
         fi
@@ -37,7 +37,7 @@ for target in "$native_target" wasm32-unknown-unknown; do
         rules=(--forbid-pattern "$(auth_dependency_pattern "$policy")"
                --forbid-feature ic-platform/candid
                --forbid-feature ic-platform/ic0 --forbid-feature ic-platform/executor
-               --forbid-feature ic-platform/runtime --forbid-feature ic-platform/cdk)
+               --forbid-feature ic-platform/runtime)
         if [[ "$feature" == chain-key-verification || "$feature" == portable-signature-verification ]]; then
             rules+=(--forbid-pattern "$(auth_dependency_pattern certificate-free)")
         fi
@@ -56,7 +56,7 @@ for target in "$native_target" wasm32-unknown-unknown; do
         --forbid-pattern '^(candid|candid_derive|candid_parser|ic-cdk|ic0|ic-memory|ic-storage|ic-agent|ic-host|ic-build|ic-testkit|pocket-ic|tokio)([- ]|$)' \
         --forbid-feature ic-platform/candid \
         --forbid-feature ic-platform/ic0 --forbid-feature ic-platform/executor \
-        --forbid-feature ic-platform/runtime --forbid-feature ic-platform/cdk
+        --forbid-feature ic-platform/runtime
 done
 # Curve/signature providers retain one identity. Platform 0.18's RustCrypto
 # generation and maintained BLS/Principal hashing require two support generations.
@@ -83,7 +83,6 @@ done
     --forbid-feature ic-platform/candid \
     --forbid-feature ic-platform/ic0 --forbid-feature ic-platform/executor \
     --forbid-feature ic-platform/runtime \
-    --forbid-feature ic-platform/cdk \
     --require ic-platform-runtime=1 --require ic-platform-macros=1 --require ic-platform-runtime-guard=1 \
     --require ic-wire=1 --require ic-storage=1
 echo 'Auth dependency boundaries verified'

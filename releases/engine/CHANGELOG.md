@@ -4,6 +4,28 @@ Covers public `ic-auth` and the unpublished backend conformance, qualification a
 native tooling packages. The independent series starts after the
 [last coordinated release, 0.29.2](../history.md).
 
+## [0.35.6] - Unreleased
+
+### 🔧 Changed
+
+- Adopt Platform 0.25 for Auth's crypto and native Agent adapters. Auth already
+  imports ordinary entrypoints from Runtime; its public contracts and
+  verification policy are unchanged.
+- Align Runtime, macros and guard 0.20 with Storage 0.68.7 in the private host,
+  preserving one executor/guard, canonical entrypoints and stored layouts.
+- Adopt IC Build 0.78 and Host 0.75 for native tooling, including the explicitly
+  selected Host file CLI. Auth does not use their retired compiler-wrapper,
+  prepared-input, provenance or process-sampling APIs.
+- Adopt Testkit 0.92 for native qualification's Host 0.75 error identities,
+  preserving explicit request budgets and managed teardown.
+- Regenerate the private browser runtime from Wire 0.17.11 while preserving
+  Auth's four method bindings, transport bytes and validation budgets.
+
+### 📚 Documentation
+
+- Refresh the clean backend-bundle adoption instructions and Canic handoff,
+  distinguishing qualified existing integration from its new adapter extraction.
+
 ## [0.35.5] - 2026-11-07
 
 ### 🩹 Fixed

@@ -33,43 +33,45 @@ reports a missing download, run `cargo fetch --locked --manifest-path
 <printed-evidence>/consumer/Cargo.toml`, then rerun the check into a fresh retained
 directory. The check itself never downloads or uploads.
 
-The current bundle targets published Engine **0.35.2** and Protocol **0.35.0**, with
-Platform 0.23 and Types 0.18. Keep the single-Platform/Types admission intact
-across consumer and source bundle. Earlier archives retain their original graphs;
-they do not qualify this cohort. See the [current evidence](../../../docs/status/current.md)
-for the source revision, dirty-candidate status and delivery receipt. Rebuild a
-dirty candidate from its intended delivered revision before consumer adoption.
+The latest clean delivered bundle targets published Engine **0.35.5** and Protocol
+**0.35.0**, with Platform 0.23 and Types 0.18. Keep the single-Platform/Types
+admission intact across consumer and source bundle. Earlier archives retain their
+original graphs. The working workspace additionally has unreleased Platform 0.25
+and Runtime 0.20 adoptions; packaging it does not reproduce the clean 0.35.5
+delivery. Use the
+[current delivery receipt](../../../docs/status/current.md#clean-backend-helper-delivery)
+for the exact clean source, archive and checksum.
 
 Extract this source archive into the consumer's test-support directory and add
 it as a **development dependency**. Use the archive's normalized `Cargo.toml`;
 depending on the producer's working workspace can introduce a second Git/path
 identity for Auth alongside the consumer's registry dependency.
 
-Example for the Engine 0.35.2 delivery cohort:
+Example for the Engine 0.35.5 delivery cohort:
 
 ```toml
 # Append this path to the consumer's existing workspace exclusions. The foreign
 # source bundle must not become a consumer-owned release-group member.
 [workspace]
-exclude = ["test-support/ic-auth-backend-conformance-0.35.2"]
+exclude = ["test-support/ic-auth-backend-conformance-0.35.5"]
 
 [dev-dependencies]
-ic-auth-backend-conformance = { path = "test-support/ic-auth-backend-conformance-0.35.2" }
-ic-auth = { version = "=0.35.2", default-features = false, features = ["session-restore", "portable-signature-verification"] }
+ic-auth-backend-conformance = { path = "test-support/ic-auth-backend-conformance-0.35.5" }
+ic-auth = { version = "=0.35.5", default-features = false, features = ["session-restore", "portable-signature-verification"] }
 ```
 
 Implement `ic_auth_backend_conformance::Backend` on a test driver for the actual
 adapter and call `assert_backend_contract::<YourDriver>()` from a native test.
-The working entrypoint runs all ten named scenarios:
+The clean 0.35.5 entrypoint runs all ten named scenarios:
 `assert_admission_retry`, `assert_logout_reopen`, `assert_unknown_logout_reopen`,
 `assert_replacement_generation`, `assert_ninety_day_renewal`,
 `assert_capacity`, `assert_authorization`, `assert_maximum_shape`, `assert_pruning`
 and `assert_metadata_reopen`. Each uses
 fresh disposable backing and can also be called from a separately named native test for clearer failure
 diagnosis. A subset is not complete backend conformance.
-The tenth scenario is pending source delivery; the previously delivered 0.35.2
-archive retains its nine-scenario contract and original receipt. Rebuild and
-qualify the new archive from its intended delivered source before consumer use.
+The 0.35.1 and 0.35.2 archives retain their nine-scenario contracts and original
+receipts. The 0.35.5 archive includes the 90-day scenario and expanded authority
+refusals; upgrading from 0.35.1 requires no new `Backend` hook.
 `fresh` supplies isolated backing with the requested generation and bounds;
 `fail_next_commit` injects a normal error before admission/logout, nonempty prune
 or generation mutations; `reopen` reconstructs the adapter from persisted
@@ -81,9 +83,21 @@ expired-row ordering are accepted. Nonempty expired work must progress; empty
 work skips persistence. `observe_clock`
 and `observed_at_ns` project the host's durable clock floor. Fixture timestamps
 exercise monotonicity and reopening, not the authenticity of a production clock.
-Drivers adopting this bundle must implement these new hooks; earlier
-delivered source archives retain their original six-scenario interface.
+Drivers must implement these existing hooks; earlier delivered source archives
+retain their own interfaces.
 Do not reset or erase production backing to run these scenarios.
+
+### Refreshing an existing consumer
+
+Retain the clean 0.35.5 archive and delivery receipt in consumer-owned custody,
+verify their checksum/source identity, and replace the excluded helper directory
+with the archive's normalized contents. Keep its package metadata and license
+intact; do not add it to consumer workspace membership or release groups.
+Keep the consumer's actual stable driver and its existing
+`assert_backend_contract::<YourDriver>()` call. Requalify that complete entrypoint
+against the consumer's selected registry Auth identity; the new scenario runs
+automatically. Retain the result alongside the archive receipt. Supplier tests
+do not substitute for this actual-adapter run.
 
 The 90-day scenario admits a short lease, restores the complete retained login,
 renews one second before the original deadline under fresh protected authority,

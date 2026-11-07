@@ -122,7 +122,7 @@ Missing/corrupt selections remain failures. Ordinary `release-tools-check` stays
 immediate; `scripts/dev/release-tools.sh check-wait` selects bounded waiting.
 
 Shared 0.25.1 delegates Cargo manifest and lock rendering to the released IC Build
-editor. The selected Build 0.63 binary requires `cli`; Auth records its executable
+editor. Build's release metadata binary requires `cli`; Auth records its executable
 features in `workspace.metadata.ic-auth.release-editor-features`, separately from
 its feature-free library dependency. Auth's normal release preflight prepares and
 admits the selected editor after source and changelog admission, alongside the other required tools. The
@@ -168,7 +168,7 @@ The repository's Wasm target flags select upstream RustCrypto's qualified
 `cpubits="32"` backend. Other canister build owners must select it themselves;
 dependency Cargo configuration is not inherited, and explicit `RUSTFLAGS` or
 `CARGO_ENCODED_RUSTFLAGS` overrides must preserve this selection.
-Testkit 0.90 owns native clients and DTOs in `ic_testkit::pocket_ic`, together with
+Testkit 0.92 owns native clients and DTOs in `ic_testkit::pocket_ic`, together with
 bounded server startup, lifecycle extensions and typed Wire calls;
 only the native runner selects these capabilities. Its client requires an
 explicit server endpoint and positive finite request budget. Auth constructs its
@@ -176,18 +176,19 @@ builder with `Duration::from_secs(30)`; the managed `build_instance` supplies th
 endpoint and retains the admitted server handle. Its separate startup timeout
 also remains 30 seconds.
 
-Native file and process callers select Host FS/Process 0.74.2 with defaults
+Native file and process callers select Host FS/Process 0.75.0 with defaults
 disabled. Library use does not enable Host's optional CLI, certificate decoder
 or Wasm text/encoding backends. Host stays outside the production library graph.
-The locked Build 0.77.0 and Testkit 0.90.0 share Auth's Host 0.74 identities. The independently
-pinned file CLI is selected at 0.74.2.
+The locked Build 0.78.0 and Testkit 0.92.0 share Auth's Host 0.75 identities. The
+independently pinned file CLI is selected at 0.75.0.
 Build and Testkit libraries keep `cli` disabled; only the prepared executable
-selections request it. Testkit owns its benchmark-average errors and has no
-Metrics dependency; Auth's diagnostics select Metrics 0.29.1.
+selections request it. Testkit has no Metrics dependency; Auth's diagnostics
+select Metrics directly.
 No caller enables optional native
 metadata; the old Host 0.73 and Metrics 0.25 providers are removed.
 
-Auth and Testkit 0.90 share Platform 0.23 and canonical Types 0.18.
+Auth selects Platform 0.25; Testkit 0.92 retains Platform 0.24 inside its native
+client. Both share canonical Types 0.18.
 Native Testkit and its Candid/management DTOs remain outside the public library
 and Wasm host graphs.
 The host selects Runtime 0.19 directly, matching Storage 0.68's Wasm dependency.
@@ -298,9 +299,9 @@ retains the complete native signature target used by CI.
 The runner uses Testkit's opt-in typed Wire calls for ordinary
 requests/replies, with raw calls retained for malformed inputs and explicit byte
 evidence. Init and post-upgrade arguments also use explicit Wire method identities.
-Platform entrypoints with explicit codec hooks require no direct Candid declaration,
-derive or service export. The host selects Platform
-`cdk`/`certification`; the native runner selects `agent`/`canister-sig-creation`.
+Runtime entrypoints with explicit codec hooks require no direct Candid declaration,
+derive or service export. The host selects Runtime's `cdk` and Platform's
+`certification`; the native runner selects `agent`/`canister-sig-creation`.
 The host parser stays disabled.
 
 The maintainer authorized retiring the unpublished fixture's Candid checkpoint.
@@ -312,7 +313,7 @@ are refused without migration or reset. The maintainer confirmed no retained Aut
 records require preservation. The later Storage consolidation also changes
 backing formats; start with a coherent new fixture checkpoint for this hard cut.
 Checkpoint restores remain closed until matching controller authority is confirmed.
-The unpublished qualification host selects Storage 0.68.0 for both allocation
+The unpublished qualification host selects Storage 0.68.7 for both allocation
 and collections; `ic-memory` and `ic-stable-structures` are absent from the lock.
 Storage owns `StableKey`, `StorageConfig`, namespace grants, backing and exclusive
 leases. Its `StableCell::create` requires empty memory; `load(memory, maximum)`
@@ -374,7 +375,7 @@ codec entrypoints without depending on the full CDK or selecting Candid. The
 host's runtime calls and lifecycle/query/update macros use `ic_platform_runtime::cdk`;
 no local runtime wrapper is introduced. Explicit Wire hooks, including unit RPCs,
 retain byte admission, payloads, errors and traps. Controller Boolean/panic
-behavior remains. Runtime 0.19 owns its maintained executor and IC0 bindings,
+behavior remains. Runtime 0.20 owns its maintained executor and IC0 bindings,
 with their upstream provenance; no separate registry executor is selected.
 The retired no-op `hidden = true` option is removed from all fixture entrypoints;
 explicit Wire decoding/encoding and endpoint exports remain unchanged.
@@ -383,7 +384,7 @@ Auth keeps runtime-specific call/error types internal and uses none of the
 retired storage or `change_timeout` APIs. Its public Principal has canonical
 Types 0.18 identity, reexported by Platform. Select `principal` when using the
 facade alone; self-authentication and external conversions are separate capabilities.
-Published Storage selects Runtime 0.19 directly on Wasm. Native Testkit shares
+Published Storage 0.68.7 selects Runtime 0.20 directly on Wasm. Native Testkit shares
 canonical Types 0.18 with Auth; it does not define Auth's public Principal.
 Storage owns its backing/collection types; native Agent/Testkit boundaries retain
 the upstream external Principal. No dependency override or new conversion is needed.
@@ -1066,7 +1067,7 @@ in publication state; no cleanup, GitHub Release object or deployment is
 implicit. See [Cargo publication](https://doc.rust-lang.org/cargo/commands/cargo-publish.html)
 for credentials, dry-run and index-propagation semantics.
 
-File mechanics use the published `ic-host-file` executable. Auth pins 0.74.2 in
+File mechanics use the published `ic-host-file` executable. Auth pins 0.75.0 in
 `ci/host-file.env`, independently of the library versions selected by Cargo.lock.
 `make install-host-file` prepares it through Shared Tooling with
 `--features cli`; `make host-file-check` admits that exact selection offline. The
