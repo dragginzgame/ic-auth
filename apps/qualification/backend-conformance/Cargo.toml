@@ -1,7 +1,7 @@
 # Tests and tooling packages
 [package]
 name = "ic-auth-backend-conformance"
-version = "0.35.2"
+version = "0.35.3"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
