@@ -13,6 +13,11 @@ native tooling packages. The independent series starts after the
   propagation, and adopt its isolated grouped-release checks and LOC scratch
   handling after cleanup.
 
+### 🔧 Changed
+
+- Adopt Platform 0.23.6 and its locked support dependencies. Preserve Auth's
+  verification policy, signed bytes, owned protocol identities and runtime boundary.
+
 ## [0.35.4] - 2026-11-07
 
 ### 🔧 Changed

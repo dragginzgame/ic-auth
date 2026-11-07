@@ -40,10 +40,35 @@ NUL refusal and backend failure propagation; ShellCheck/syntax; both actual Auth
 release-group adapters with inherited release settings and substituted runners;
 and workspace LOC reporting from a previously absent scratch path with zero
 unclassified lines. Fresh evidence: `target/evidence/shared-tooling-0314/`.
-The local interpreter is Bash 5.2. The maintainer authorized pushing this fix,
-verifying native macOS CI, qualifying Platform 0.23.6 and releasing Engine 0.35.5.
-Native CI results are pending; the Shared fix is committed separately from the
-dependency selection so the macOS bootstrap correction can be verified first.
+The local interpreter is Bash 5.2. The Shared-only commit `a6e2370` is pushed;
+[native CI](https://github.com/dragginzgame/ic-auth/actions/runs/42363303068) runs
+its original released dependency selection. Both macOS architectures passed the
+previously failing bootstrap step; full job conclusions remain pending. Keep this
+run alive before pushing another main commit. The maintainer authorized completing
+these native checks, qualifying Platform 0.23.6 and publishing Engine 0.35.5.
+
+## Platform 0.23.6 qualification for Engine 0.35.5
+
+The selected update advances Platform 0.23.5 to 0.23.6, crypto-common 0.1.6 to
+0.1.7 and generic-array 0.14.9 to 0.14.7. Other selections remain unchanged,
+including Storage 0.68.3, Testkit 0.90.0 and Runtime/macros/guard 0.19.5.
+Warning-denied native consumer Clippy, 51 focused certificate/portable/chain-key
+tests and all 11 ordinary installed certificate/session/ingress cases pass on Linux.
+The opt-in Chromium case stays ignored. This adds no Auth crypto or protocol code.
+
+Matched Wasm builds use the same Auth source, Rust 1.99.1, target flags and Cargo
+release profile without post-processing. Total bytes change from 1,905,088 to
+1,904,978 (-110); code-section payload size stays 1,468,844 bytes. This is no code
+size or runtime-performance saving claim. Source/lock seals, build commands,
+compiler context and both artifacts are retained at `target/delivery-0355/`.
+Do not compare these totals to artifacts with different source or optimizers.
+
+Storage 0.68.4 also arrived before qualification and is held separately on
+`deferred/storage-0684-before-engine-0355` (`67d2359`). Its complete incoming lock
+and Storage-only reapplication patch are under
+`.git/release-state/deferred-engine-0355/`. It is not part of the selected release.
+After native CI passes, capture the completed source and run the full release gate;
+later incoming updates must remain outside that batch.
 
 ## Completed Engine 0.35.4 delivery
 
