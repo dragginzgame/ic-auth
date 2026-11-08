@@ -194,9 +194,17 @@ case "$1" in
     *) exit 2 ;;
 esac
 SCRIPT
-cat > "$consumer/scripts/ci/verify-shared-tooling-snapshot.sh" <<'SCRIPT'
+# Substitute the current Make admission boundary. Ordinary CI checks tooling
+# before its runner seals inputs, then check-snapshot runs inside that seal.
+# Inject drift only at the latter boundary; intact tooling is qualified separately.
+cat > "$consumer/scripts/dev/shared-tooling.sh" <<'SCRIPT'
 #!/usr/bin/env bash
 set -euo pipefail
+[[ "${1:-}" == check ]]
+if [[ "${VALIDATION_INPUT_ROOT:-}" != "$PWD" ]]; then
+    printf 'tooling admission\n' >> "$TESTKIT_FIXTURE_LOG"
+    exit 0
+fi
 printf 'snapshot check\n' >> "$TESTKIT_FIXTURE_LOG"
 if [[ -n "${TESTKIT_FIXTURE_INPUT_EDIT:-}" ]]; then
     case "${TESTKIT_FIXTURE_INPUT_ACTION:-append}" in
@@ -221,7 +229,7 @@ for target in test-qualification ci; do
         exit 1
     fi
     if [[ "$target" == ci ]]; then
-        printf '%s\n' 'snapshot check' host-tools-check rust-tools-check \
+        printf '%s\n' 'tooling admission' 'snapshot check' host-tools-check rust-tools-check \
             msrv-tools-check 'cli check' > "$fixture/expected-early.log"
         cmp "$fixture/expected-early.log" "$TESTKIT_FIXTURE_LOG"
     fi
@@ -254,7 +262,7 @@ for scenario in rust compiler-selector frontend delivery boundaries external-bou
         TESTKIT_FIXTURE_INPUT_EDIT="$input" TESTKIT_FIXTURE_INPUT_ACTION="$action" \
         TESTKIT_FIXTURE_SNAPSHOT_STATUS="$snapshot_status" make --no-print-directory -j4 ci) \
         > "$fixture/drift-$scenario.log" 2>&1 || status=$?
-    [[ "$status" == 2 && "$(cat "$TESTKIT_FIXTURE_LOG")" == 'snapshot check' && \
+    [[ "$status" == 2 && "$(cat "$TESTKIT_FIXTURE_LOG")" == $'tooling admission\nsnapshot check' && \
        ! -e "$mutant/cargo-dispatch.log" ]] || exit 1
     # Nested runners leave raw post-stage diagnostics in retained logs; only
     # the outermost runner prints final excerpts. Check the evidence itself.
@@ -333,7 +341,7 @@ for scenario in native wasm success; do
         TESTKIT_FIXTURE_WASM_LINT_STATUS="$wasm_status" \
         make --no-print-directory -j4 ci) > "$fixture/lint-$scenario.log" 2>&1 || status=$?
     [[ "$status" == 2 ]]
-    printf 'snapshot check\n' > "$fixture/expected-lint-$scenario.log"
+    printf 'tooling admission\nsnapshot check\n' > "$fixture/expected-lint-$scenario.log"
     cat "$fixture/expected-check.log" >> "$fixture/expected-lint-$scenario.log"
     printf 'clippy native\n' >> "$fixture/expected-lint-$scenario.log"
     if [[ "$scenario" != native ]]; then

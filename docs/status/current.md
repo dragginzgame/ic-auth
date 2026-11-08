@@ -23,9 +23,12 @@ The [Engine changelog](../../releases/engine/CHANGELOG.md) owns the shipped chan
 Engine 0.35.10 delivery is scoped to Auth. Initial batch `batch-8Pq1jYH0`, source
 `d8ffaa01c444cf8bc6cf5cbe0e2e76e612e44e27`, was interrupted during validation after
 a focused check found missing substitutions for Tooling 0.34's admission/cleanup
-in Auth's synthetic jobserver fixture. The corrected fixture passes; fresh source
-capture is pending. No version preparation, tag, push or upload occurred.
-Keep its `.git/release-state/frozen/` journal and `target/release-frozen/` checkout.
+in Auth's synthetic jobserver fixture. Replacement `batch-VzhWRpEn`, source
+`a33fe182ed7b8a4ae9cc1aa26424264d77fb19ef`, passed 15 gate stages before its Testkit
+caller fixture refused at the old admission stub. Both corrected callers and the
+client pipeline now pass focused checks; fresh capture is pending. No version
+preparation, tag, push or upload occurred. Keep both `.git/release-state/frozen/`
+journals and `target/release-frozen/` checkouts.
 Logs and correction evidence: `target/delivery-03510/`.
 
 The completed 0.35.9 batch `batch-rovUq5Bd` and its two contention interruptions
