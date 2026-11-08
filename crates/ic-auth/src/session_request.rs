@@ -118,12 +118,6 @@ impl SessionRequest {
             .checked_add(ttl * crate::limits::NS_PER_SECOND)
             .ok_or(SessionRequestError::InvalidLifetime)
     }
-    fn check_granted_scopes(&self, granted: &[ScopeLabel]) -> Result<(), SessionRequestError> {
-        if !crate::certificate_issuance::scopes_are_subset(&self.scopes, granted) {
-            return Err(SessionRequestError::ScopeRejected);
-        }
-        Ok(())
-    }
     /// Evaluate narrowing and requested TTL at this caller's protected snapshot.
     /// Admission and verified claims both use this policy; each retains its own
     /// authority checks and the verified lease additionally caps signed deadlines.
@@ -136,7 +130,9 @@ impl SessionRequest {
     ) -> Result<u64, SessionRequestError> {
         let grant = crate::certificate_issuance::grant_for_role(grants, role)
             .ok_or(SessionRequestError::ScopeRejected)?;
-        self.check_granted_scopes(&grant.scopes)?;
+        if !crate::certificate_issuance::scopes_are_subset(&self.scopes, &grant.scopes) {
+            return Err(SessionRequestError::ScopeRejected);
+        }
         self.expires_at_ns(now_ns, policy)
     }
     /// Exact Canic V1 request hash; None and an explicit default TTL differ.

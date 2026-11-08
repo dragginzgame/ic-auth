@@ -5,7 +5,7 @@
 //! certificate, authorize issuance or install a delegation. No field is normalized.
 
 use crate::canonical::{CanonicalAuthError, issuer_proof_binding_hash, validate_scopes};
-use ic_auth_protocol_types::{AuthRole, DelegatedRoleGrant, DelegationCert, Principal};
+use ic_auth_protocol_types::{AuthRole, DelegatedRoleGrant, DelegationCert, Principal, ScopeLabel};
 use thiserror::Error;
 
 /// Explicit host-selected issuance bounds; no Fleet or grant defaults are inferred.
@@ -202,19 +202,16 @@ pub(crate) fn grant_for_role<'a>(
 
 // The ceiling must already be canonical. Requested scopes need not be ordered
 // (ordinary authorization accepts host-required scopes in any order).
-pub(crate) fn scopes_are_subset(
-    requested: &[impl AsRef<str>],
-    ceiling: &[impl AsRef<str>],
-) -> bool {
+pub(crate) fn scopes_are_subset(requested: &[ScopeLabel], ceiling: &[ScopeLabel]) -> bool {
     requested.iter().all(|scope| {
-        let scope = scope.as_ref();
+        let scope = scope.as_str();
         // The measured one/two-scope profile is cheaper with a direct scan;
         // wider canonical ceilings avoid repeated full scans through search.
         if ceiling.len() <= 2 {
-            ceiling.iter().any(|allowed| allowed.as_ref() == scope)
+            ceiling.iter().any(|allowed| allowed.as_str() == scope)
         } else {
             ceiling
-                .binary_search_by(|allowed| allowed.as_ref().cmp(scope))
+                .binary_search_by(|allowed| allowed.as_str().cmp(scope))
                 .is_ok()
         }
     })

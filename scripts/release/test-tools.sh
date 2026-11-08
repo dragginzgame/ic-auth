@@ -3,13 +3,15 @@ set -euo pipefail
 validation_only=false
 batch_only=false
 commands_only=false
+tooling_only=false
 case "${1:-}" in
     '') [[ $# == 0 ]] ;;
     --validation) [[ $# == 1 ]]; validation_only=true ;;
     --batch) [[ $# == 1 ]]; validation_only=true; batch_only=true ;;
     --commands) [[ $# == 1 ]]; commands_only=true; validation_only=true ;;
+    --tooling) [[ $# == 1 ]]; tooling_only=true; validation_only=true ;;
     --retention) [[ $# == 1 ]]; exec bash "${BASH_SOURCE[0]%/*}/test-retention.sh" ;;
-    *) echo 'usage: test-tools.sh [--validation|--batch|--commands|--retention]' >&2; exit 2 ;;
+    *) echo 'usage: test-tools.sh [--validation|--batch|--commands|--tooling|--retention]' >&2; exit 2 ;;
 esac
 
 # The fixture owns its nested Make selections, including missing-group probes.
@@ -44,6 +46,52 @@ if [[ "$commands_only" == true ]]; then
     check_release_commands "$root"
     exit
 fi
+if [[ "$validation_only" == false || "$tooling_only" == true ]]; then
+    mkdir "$fixture/tooling-consumer" "$fixture/tooling-bin"
+    bash scripts/release/export-fixture-source.sh "$root" "$fixture/tooling-consumer"
+    cp "$fixture/tooling-consumer/Cargo.toml" "$fixture/tooling-root.toml"
+    cp "$fixture/tooling-consumer/toko-tooling.lock" "$fixture/tooling.lock"
+    export AUTH_PUBLICATION_EVENTS="$fixture/publication-events"
+    for executable in git cargo curl; do
+        cat > "$fixture/tooling-bin/$executable" <<'SH'
+#!/usr/bin/env bash
+printf '%s\n' "${0##*/}" >> "$AUTH_PUBLICATION_EVENTS"
+exit 73
+SH
+        chmod +x "$fixture/tooling-bin/$executable"
+    done
+    for mode in admitted missing-lock checksum-drift declaration-drift; do
+        cp "$fixture/tooling-root.toml" "$fixture/tooling-consumer/Cargo.toml"
+        cp "$fixture/tooling.lock" "$fixture/tooling-consumer/toko-tooling.lock"
+        case "$mode" in
+            missing-lock) rm "$fixture/tooling-consumer/toko-tooling.lock" ;;
+            checksum-drift)
+                jq '.checksum = ("0" * 64)' "$fixture/tooling.lock" > "$fixture/tooling-consumer/toko-tooling.lock" ;;
+            declaration-drift)
+                perl -0pi -e 's/(\[workspace\.metadata\.toko-tooling\]\nversion = )"[^"]+"/${1}"0.34.1"/ or die "missing tooling metadata\n"' \
+                    "$fixture/tooling-consumer/Cargo.toml" ;;
+        esac
+        : > "$AUTH_PUBLICATION_EVENTS"
+        status=0
+        PATH="$fixture/tooling-bin:$auth_fixture_path" bash "$fixture/tooling-consumer/scripts/release/publish.sh" \
+            > "$fixture/tooling-$mode.log" 2>&1 || status=$?
+        [[ "$status" != 0 ]]
+        if [[ "$mode" == admitted ]]; then
+            rg -F 'Root tooling declaration, lock and installed snapshot agree.' "$fixture/tooling-$mode.log" > /dev/null
+            [[ "$(cat "$AUTH_PUBLICATION_EVENTS")" == git ]]
+        else
+            [[ ! -s "$AUTH_PUBLICATION_EVENTS" ]]
+            [[ ! -e "$fixture/tooling-consumer/.git/publication-state" ]]
+            status=0
+            PATH="$fixture/tooling-bin:$auth_fixture_path" make --no-print-directory -C "$fixture/tooling-consumer" ci \
+                > "$fixture/tooling-ci-$mode.log" 2>&1 || status=$?
+            [[ "$status" != 0 && ! -s "$AUTH_PUBLICATION_EVENTS" ]]
+        fi
+    done
+    unset AUTH_PUBLICATION_EVENTS
+    echo 'Direct publication admits root tooling; CI/publication refuse missing/drifted selections before effects'
+fi
+if [[ "$tooling_only" == true ]]; then exit; fi
 # The published owner renders candidates; this suite qualifies Auth's actual
 # saved-source selection, coordinated requirements and recovery below.
 # Run the normal entrypoints in a fresh shell: a pre-export used to mask a
@@ -129,6 +177,15 @@ if [[ "$validation_only" == false ]]; then
 check_release_commands "$fixture/repo"
 fi
 cd "$fixture/repo"
+# The larger recovery fixture substitutes snapshot-owned installers and runners
+# below. Tooling admission is qualified against intact payloads by --tooling;
+# retain that boundary explicitly rather than accepting edited snapshot bytes.
+cat > scripts/dev/shared-tooling.sh <<'SCRIPT'
+#!/usr/bin/env bash
+set -euo pipefail
+[[ "${1:-}" == check ]]
+echo 'Tooling admission substituted for release/recovery qualification.'
+SCRIPT
 export RELEASE_GROUP=protocol
 if [[ "$batch_only" == true ]]; then
     source scripts/release/test-batch.sh

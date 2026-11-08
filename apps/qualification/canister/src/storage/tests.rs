@@ -98,7 +98,6 @@ fn checkpoint_bounds_and_replacement() {
             .as_mut()
             .unwrap()
             .set(b"BADMAGIC".to_vec())
-            .unwrap()
     });
     assert!(std::panic::catch_unwind(load).is_err());
     save(&[]);
@@ -109,14 +108,7 @@ fn checkpoint_bounds_and_replacement() {
 fn retired_candid_checkpoint_is_refused_without_clearing() {
     bootstrap(Default::default(), false);
     let old = b"AUTHCELLDIDL\x00\x00".to_vec();
-    CELL.with(|state| {
-        state
-            .borrow_mut()
-            .as_mut()
-            .unwrap()
-            .set(old.clone())
-            .unwrap()
-    });
+    CELL.with(|state| state.borrow_mut().as_mut().unwrap().set(old.clone()));
     assert!(std::panic::catch_unwind(load).is_err());
     CELL.with(|state| assert_eq!(*state.borrow().as_ref().unwrap().get(), old));
 }
@@ -125,14 +117,7 @@ fn retired_candid_checkpoint_is_refused_without_clearing() {
 fn retired_finite_wire_checkpoint_is_refused_without_clearing() {
     bootstrap(Default::default(), false);
     let old = b"AUTHWIR2IWold-finite-frame".to_vec();
-    CELL.with(|state| {
-        state
-            .borrow_mut()
-            .as_mut()
-            .unwrap()
-            .set(old.clone())
-            .unwrap()
-    });
+    CELL.with(|state| state.borrow_mut().as_mut().unwrap().set(old.clone()));
     assert!(std::panic::catch_unwind(load).is_err());
     CELL.with(|state| assert_eq!(*state.borrow().as_ref().unwrap().get(), old));
 }
@@ -141,14 +126,7 @@ fn retired_finite_wire_checkpoint_is_refused_without_clearing() {
 fn retired_cbor_records_checkpoint_is_refused_without_clearing() {
     bootstrap(Default::default(), false);
     let old = b"AUTHNAT1IWold-cbor-records".to_vec();
-    CELL.with(|state| {
-        state
-            .borrow_mut()
-            .as_mut()
-            .unwrap()
-            .set(old.clone())
-            .unwrap()
-    });
+    CELL.with(|state| state.borrow_mut().as_mut().unwrap().set(old.clone()));
     assert!(std::panic::catch_unwind(load).is_err());
     CELL.with(|state| assert_eq!(*state.borrow().as_ref().unwrap().get(), old));
 }
@@ -157,14 +135,7 @@ fn retired_cbor_records_checkpoint_is_refused_without_clearing() {
 fn retired_text_id_checkpoint_is_refused_without_clearing() {
     bootstrap(Default::default(), false);
     let old = b"AUTHNAT2IWold-text-id-records".to_vec();
-    CELL.with(|state| {
-        state
-            .borrow_mut()
-            .as_mut()
-            .unwrap()
-            .set(old.clone())
-            .unwrap()
-    });
+    CELL.with(|state| state.borrow_mut().as_mut().unwrap().set(old.clone()));
     assert!(std::panic::catch_unwind(load).is_err());
     CELL.with(|state| assert_eq!(*state.borrow().as_ref().unwrap().get(), old));
 }
@@ -293,7 +264,7 @@ fn checkpoint_retains_fixture_cell_format_and_rejects_oversized_restore() {
         let payload = vec![42; size];
         let mut expected = [MAGIC.as_slice(), &payload].concat();
         let mut original = open(false);
-        original.set(expected.clone()).unwrap();
+        original.set(expected.clone());
         drop(original);
         if size > MAX_BYTES {
             assert!(
@@ -316,14 +287,7 @@ fn checkpoint_retains_fixture_cell_format_and_rejects_oversized_restore() {
 fn retired_skew_checkpoint_is_refused_without_clearing() {
     bootstrap(Default::default(), false);
     let old = b"AUTHNAT3IWretained-skew-checkpoint".to_vec();
-    CELL.with(|state| {
-        state
-            .borrow_mut()
-            .as_mut()
-            .unwrap()
-            .set(old.clone())
-            .unwrap()
-    });
+    CELL.with(|state| state.borrow_mut().as_mut().unwrap().set(old.clone()));
     assert!(std::panic::catch_unwind(load).is_err());
     CELL.with(|state| assert_eq!(*state.borrow().as_ref().unwrap().get(), old));
 }

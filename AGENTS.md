@@ -1,9 +1,13 @@
 # IC Auth Agent Instructions
 
-Apply the installed [baseline](DRAGGINZGAME.md), adopted from Shared Tooling
-0.31.11 at `6c529e6940a97226cca826726491e03173b08cd2`, and its task-specific
-references. The [snapshot manifest](.shared-tooling.snapshot) records the exact
-policy/tooling selection. Read [the current handoff](docs/status/current.md)
+Apply the installed [baseline](DRAGGINZGAME.md), supplied by crates.io's
+`toko-tooling` 0.34.0, and its task-specific references. Root
+`[workspace.metadata.toko-tooling]` selects the exact release; `toko-tooling.lock`
+records its registry checksum and the [snapshot manifest](.shared-tooling.snapshot)
+records the installed payload. Use `make shared-tooling-update` after changing
+the root selection, or `make shared-tooling-install` to reinstall its existing
+lock. Application Cargo dependencies and Cargo.lock do not select tooling.
+Read [the current handoff](docs/status/current.md)
 before implementation. Product-specific safeguards and scoped permissions below
 remain binding.
 
@@ -31,7 +35,7 @@ remain binding.
 ## Implementation boundaries
 
 - Follow [the accepted design](docs/design/extraction.md). Use a virtual root,
-  one lockfile, root-owned dependency selections and reusable packages in `crates/`.
+  one application Cargo.lock, root-owned dependency selections and reusable packages in `crates/`.
   Reserve `apps/wallet-auth/` for the future service; no deployed service exists here.
 - Keep protocol/type dependencies independent of CDK and storage. Make platform
   signing and wallet functionality explicit capabilities. Canic consumers must

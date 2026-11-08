@@ -4,6 +4,25 @@ Covers public `ic-auth` and the unpublished backend conformance, qualification a
 native tooling packages. The independent series starts after the
 [last coordinated release, 0.29.2](../history.md).
 
+## [0.35.10] - Unreleased
+
+### 🧹 Cleanup
+
+- Narrow internal scope-subset checks to validated labels and fold the single-use
+  request wrapper into its caller, preserving scope selection and refusal order.
+- Compile the private browser-caller accessor only with sessions, removing an
+  unused-method warning from standalone proof-verification builds.
+- Select Shared Tooling 0.34.0 through root metadata and `toko-tooling.lock`,
+  independently of application Cargo dependencies. Remove the former tooling
+  dev-dependency, preserve Auth's real tools and release gates, and check the
+  selection before direct publication effects.
+- Add compact sibling LOC progress and terminal colours for workspace, crate and
+  module names, preserving plain redirected reports.
+- Adopt Platform 0.27.0 without changing Auth APIs or cryptographic policy;
+  Testkit's native helpers retain their compatible Platform 0.26.1 selection.
+- Adopt Storage 0.69.0 in the private checkpoint host and use direct cell write
+  results, preserving checkpoint formats, bounds and refusal behavior.
+
 ## [0.35.9] - 2026-11-08
 
 ### 🧹 Cleanup

@@ -56,8 +56,7 @@ pub(crate) fn save(bytes: &[u8]) {
             .borrow_mut()
             .as_mut()
             .expect("checkpoint not initialized")
-            .set(framed)
-            .expect("persist fixture checkpoint");
+            .set(framed);
     });
 }
 

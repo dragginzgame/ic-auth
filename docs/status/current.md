@@ -49,6 +49,55 @@ asynchronously; no hosted completion is claimed here.
 
 ## Selected dependencies and footprint
 
+Shared Tooling now selects crates.io **toko-tooling 0.34.0** through root metadata
+and the separate `toko-tooling.lock`. Its archive SHA-256 and installed 172-file
+snapshot agree at
+`5ca8ad09ad9359bc4945a4afdaafce301dd5a4b4955cd5c9f5058d7a54ffcf10`.
+All Cargo tooling dependencies/policy entries are removed; the real Auth tooling
+member and its commands/benchmarks remain. Other application lock selections,
+all 84 entrypoints, local Rust edits and product release groups/roster are preserved.
+Installation/tool admission, offline Make checks, membership and release routing
+pass. CI and direct publication refuse missing/drifted tooling before effects;
+the validation input seal also detects mid-run tooling-lock drift. No full gate ran.
+Edit the exact root version, then use `make shared-tooling-update`; install
+reuses its existing lock. Evidence: `target/tooling-034-migration/`.
+The earlier registry migration evidence remains in `target/tooling-registry-migration/`.
+The earlier LOC display checks remain in `target/shared-tooling-adoption-03112/`.
+
+Pending Engine 0.35.10 narrows the private scope helper to `ScopeLabel`,
+inlines its single-use request wrapper and gates the private browser-caller getter
+to sessions. Public APIs, checks and stored/signed bytes are unchanged. Engine
+0.35.10 delivery is authorized; package versions remain 0.35.9 before capture.
+The complete source-bound gate and registry delivery are pending. Protocol stays
+at 0.35.1. Delivery evidence belongs in `target/delivery-03510/`.
+
+Auth now requires published **Platform 0.27.0**. Testkit 0.93.2 retains Platform
+0.26.1 for its native helpers; Types 0.18.2 and Runtime/macros/guard 0.20.2 remain
+shared and unchanged. The removed entropy API has no Auth callers. Locked fetch,
+declaration/graph boundaries, affected native consumers and the Wasm host's
+Clippy (`-D warnings`) pass, as do six selected crypto/proof cases. Existing
+package versions/checksums, Wire generation and local Rust edits are preserved.
+Evidence: `target/platform-027-adoption/`. No full gate ran; the later Storage
+adoption below adds one installed checkpoint case. Earlier scope checks and the matched
+measurement below used Platform 0.26.1, before this adoption.
+
+The private checkpoint host now selects **Storage 0.69.0**, using direct cell
+write results. Constructor errors, bounds and stored framing remain unchanged;
+no reset or record migration is introduced. All other lock entries are preserved.
+Graph checks, native/Wasm Clippy, 12 checkpoint tests and one installed PocketIC
+upgrade/session-denial/fresh-authority case pass. Evidence:
+`target/storage-069-adoption/`. This is focused adoption, not a full release gate.
+
+Matched normal-checkout builds at `02c5d98` plus the local patch use the same lock
+(`c2d9f5d8fd022d20ca5f200925ac737b91c1c72be9d4ee88f1f62759be411e42`),
+Rust 1.99.1, Cargo release, existing target flags and no post-optimizer. They move
+from **1,878,589 total / 1,444,351 code bytes** to **1,876,791 / 1,443,359 bytes**:
+**1,798 total / 992 code bytes saved**. Final SHA-256:
+`fb24bb0002bff2ec92e905c9a18f5a451161208772d73a92706647341d7d86cb`.
+Evidence and input snapshots: `target/evidence/scope-surface-20261108/`.
+This is reference fixture footprint, not throughput or a comparison with the
+published cohort. Earlier qualification and measurements below retain their scope.
+
 The released cohort selects Platform 0.26.0 (native Testkit alone retains 0.25.1),
 Types 0.18.2, Runtime/macros/guard 0.20.1, Testkit 0.93.1, Build 0.79.1,
 Host 0.75.1, Metrics 0.29.6, Storage 0.68.11 and Wire/derive 0.17.14.

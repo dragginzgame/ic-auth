@@ -11,7 +11,7 @@ checkpoint=scripts/ci/validation-input-checkpoint.pl
 checksum=scripts/ci/verify-file-checksum.sh
 ci_mode=false
 if [[ "${1:-}" == --ci ]]; then ci_mode=true; shift; fi
-discovery=(Cargo.toml Cargo.lock ci/cargo-release-groups.json scripts/ci/run-auth-validation.sh
+discovery=(Cargo.toml Cargo.lock toko-tooling.lock ci/cargo-release-groups.json scripts/ci/run-auth-validation.sh
     scripts/ci/cargo-release-group.sh scripts/ci/cargo-release-groups.jq)
 if [[ "$ci_mode" == true ]]; then
     discovery+=(ci/release-validation.json ci/cargo-release-groups.json scripts/ci/run-auth-ci.sh
@@ -29,7 +29,7 @@ while IFS= read -r group; do
     (unset RELEASE_COMMIT; CDPATH='' bash scripts/ci/cargo-release-group.sh plan "$group") > "$evidence/$group-plan.json"
     jq -er '.manifests[].path' "$evidence/$group-plan.json" >> "$evidence/manifests"
 done < "$evidence/group-names"
-inputs=(--input Cargo.toml --input Cargo.lock --input ci/cargo-release-groups.json
+inputs=(--input Cargo.toml --input Cargo.lock --input toko-tooling.lock --input ci/cargo-release-groups.json
     --input scripts/ci/run-auth-validation.sh --input scripts/ci/cargo-release-group.sh
     --input scripts/ci/cargo-release-groups.jq)
 while IFS= read -r manifest; do inputs+=(--input "$manifest"); done < "$evidence/manifests"

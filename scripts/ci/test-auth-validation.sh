@@ -12,6 +12,7 @@ printf 'Auth validation input evidence retained: %s\n' "$evidence"
 export VALIDATION_LOG_DIR="$evidence/logs" VALIDATION_FAILURE_LOG_DIR="$evidence/failure-logs"
 consumer="$evidence/consumer with spaces"
 mkdir -p "$consumer/scripts/ci" "$consumer/first/src" "$consumer/added member/src" "$evidence/bin"
+cp toko-tooling.lock "$consumer/toko-tooling.lock"
 for helper in run-auth-validation.sh run-validation-targets.sh check-make-execution.sh verify-file-checksum.sh validation-input-checkpoint.pl release-validation-plan.pl ValidationPlan.pm cargo-release-group.sh cargo-release-groups.jq release-metadata-transaction.sh compare-stable-versions.pl; do
     cp "scripts/ci/$helper" "$consumer/scripts/ci/"
 done
@@ -41,6 +42,8 @@ mutate-member:
 	@echo '# drift' >> 'added member/Cargo.toml'
 mutate-root:
 	@echo '# drift' >> Cargo.toml
+mutate-tooling:
+	@echo ' ' >> toko-tooling.lock
 later:
 	@touch later
 MAKE
@@ -60,7 +63,7 @@ cp "$evidence/root.toml" "$consumer/Cargo.toml"
 (cd "$consumer"; cargo generate-lockfile --offline; bash scripts/ci/run-auth-validation.sh pass) > "$evidence/added.log" 2>&1
 [[ -f "$consumer/passed" ]]
 rm "$consumer/passed"
-for stage in mutate-member mutate-root; do
+for stage in mutate-member mutate-root mutate-tooling; do
     if (cd "$consumer"; VALIDATION_LOG_DIR="$evidence/$stage-logs" bash scripts/ci/run-auth-validation.sh "$stage" later) > "$evidence/$stage.log" 2>&1; then
         echo "validation accepted $stage drift" >&2; exit 1
     fi
@@ -71,6 +74,7 @@ for stage in mutate-member mutate-root; do
     [[ "${#runs[@]}" == 1 && -f "${runs[0]}/0-after-inputs.json" ]]
     manifest=Cargo.toml
     [[ "$stage" != mutate-member ]] || manifest='added member/Cargo.toml'
+    [[ "$stage" != mutate-tooling ]] || manifest=toko-tooling.lock
     jq -e --arg manifest "$manifest" --slurpfile after "${runs[0]}/0-after-inputs.json" '
       (.[$manifest] | type == "string") and
       ($after[0][$manifest] | type == "string") and
@@ -90,4 +94,4 @@ for failure in true false; do
     [[ "$status" != 0 && ! -e "$consumer/passed" ]]
     if [[ "$failure" == true ]]; then [[ "$status" == 37 ]]; fi
 done
-printf 'Shared group-plan discovery, unequal versions, added member sealing and drift/refusals passed\n'
+printf 'Shared group-plan discovery, unequal versions, member/root/tooling-lock sealing and drift/refusals passed\n'

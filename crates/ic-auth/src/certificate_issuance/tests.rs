@@ -5,12 +5,12 @@ fn scope_narrowing_matches_set_inclusion_for_sparse_and_unordered_requests() {
     for allowed in 0_u32..64 {
         let ceiling: Vec<_> = (0..6)
             .filter(|bit| allowed & (1 << bit) != 0)
-            .map(|bit| format!("scope{bit}"))
+            .map(|bit| format!("scope{bit}").parse().unwrap())
             .collect();
         for wanted in 0_u32..64 {
             let mut requested: Vec<_> = (0..6)
                 .filter(|bit| wanted & (1 << bit) != 0)
-                .map(|bit| format!("scope{bit}"))
+                .map(|bit| format!("scope{bit}").parse().unwrap())
                 .collect();
             requested.reverse();
             requested.extend(requested.clone());

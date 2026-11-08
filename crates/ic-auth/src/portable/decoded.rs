@@ -53,6 +53,7 @@ impl<'a, 'ctx> ContextualClaims<'a, 'ctx> {
         &self.decoded
     }
 
+    #[cfg(feature = "sessions")]
     pub(crate) fn browser_caller(&self) -> Principal {
         self.browser_caller
     }
