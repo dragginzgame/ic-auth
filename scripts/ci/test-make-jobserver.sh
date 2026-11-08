@@ -79,6 +79,17 @@ exec cargo "$@"
 SCRIPT
 done
 printf '#!/usr/bin/env bash\nexit 0\n' > "$consumer/scripts/dev/install-host-tools.sh"
+# This fixture substitutes snapshot-owned installers and release effects. Root
+# tooling admission has its own intact-payload proof in test-tools.sh --tooling;
+# source cleanup cannot run against this synthetic non-Git fixture.
+cat > "$consumer/scripts/dev/shared-tooling.sh" <<'SCRIPT'
+#!/usr/bin/env bash
+set -euo pipefail
+[[ "${1:-}" == check ]]
+SCRIPT
+cat > "$consumer/scripts/dev/clean-empty-source-dirs.pl" <<'SCRIPT'
+print "Source cleanup substituted for jobserver qualification.\n";
+SCRIPT
 # Admission does not invoke Cargo; its ordinary recipe need not inherit the
 # jobserver descriptors. Qualification still exercises its actual Cargo recipes.
 cat > "$consumer/scripts/dev/client-tools.sh" <<'SCRIPT'

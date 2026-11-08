@@ -18,34 +18,24 @@ incoming Build 0.79.1, Host 0.75.1, Storage 0.68.11 and Wire/derive 0.17.14.
 The [Engine changelog](../../releases/engine/CHANGELOG.md) owns the shipped changes.
 [#127](https://github.com/dragginzgame/ic-auth/issues/127) remains closed.
 
-## Completed frozen delivery
+## Delivery custody
 
-Batch `batch-rovUq5Bd` captured source
-`96dbfd0c2c2b1428d6325031dd6e741553cc23ea` for Engine alone. It completed publication
-and registry checksum readback, then was reconciled without deferred normal edits.
-No upload remains unresolved. Protocol manifests and its ledger were preserved.
+Engine 0.35.10 delivery is scoped to Auth. Initial batch `batch-8Pq1jYH0`, source
+`d8ffaa01c444cf8bc6cf5cbe0e2e76e612e44e27`, was interrupted during validation after
+a focused check found missing substitutions for Tooling 0.34's admission/cleanup
+in Auth's synthetic jobserver fixture. The corrected fixture passes; fresh source
+capture is pending. No version preparation, tag, push or upload occurred.
+Keep its `.git/release-state/frozen/` journal and `target/release-frozen/` checkout.
+Logs and correction evidence: `target/delivery-03510/`.
 
-- Durable intent, Git and recovery: `.git/release-state/frozen/batch-rovUq5Bd/`.
-- Registry receipt: `.git/publication-state/engine-0.35.9.json`; the original also
-  remains in that batch's `repository.git/publication-state/`.
-- Managed delivery checkout: `target/release-frozen/batch-rovUq5Bd/`.
-- Publication evidence: its `target/publication-engine-0.35.9.4viiS5/`.
-- Delivery/resume/reconciliation logs: `target/delivery-0359/`.
-
-An initial gate stopped on shared tool-install contention before compilation.
-The resumed fresh gate passed all **30 stages**. A second transient editor lock
-stopped pre-push admission after the release commit; exact saved-release recovery
-retained the valid gate and completed push/publication without rerunning it.
-Both interruptions and their evidence remain retained.
-
-The successful Linux gate is
+The completed 0.35.9 batch `batch-rovUq5Bd` and its two contention interruptions
+remain retained in the same custody roots. Its 30-stage Linux gate passed at
 `target/release-frozen/batch-rovUq5Bd/target/release-validation/engine-gate.LbbY8l/`,
-with logs in `logs/validation.W4fCAE/`. It covers native/Wasm Clippy, isolated
-package/MSRV qualification, dependency boundaries, all 95 client cases and Wire
-interoperability, proof/session suites, all 11 ordinary installed qualification
-cases, package archives and release/recovery fixtures. Chromium remains opt-in
-and ignored. The final fixture stage took 1,047 seconds. Hosted CI runs
-asynchronously; no hosted completion is claimed here.
+logs `logs/validation.W4fCAE/`; publication evidence is its
+`target/publication-engine-0.35.9.4viiS5/`. The verified receipt is
+`.git/publication-state/engine-0.35.9.json`, also in that batch's Git store.
+`target/delivery-0359/` retains delivery/readback/reconciliation logs. No upload is
+unresolved. Chromium remains opt-in; hosted CI remains asynchronous.
 
 ## Selected dependencies and footprint
 

@@ -15,7 +15,8 @@ native tooling packages. The independent series starts after the
 - Select Shared Tooling 0.34.0 through root metadata and `toko-tooling.lock`,
   independently of application Cargo dependencies. Remove the former tooling
   dev-dependency, preserve Auth's real tools and release gates, and check the
-  selection before direct publication effects.
+  selection before direct publication effects. Update the jobserver fixture for
+  the new admission and cleanup prerequisites.
 - Add compact sibling LOC progress and terminal colours for workspace, crate and
   module names, preserving plain redirected reports.
 - Adopt Platform 0.27.0 without changing Auth APIs or cryptographic policy;
