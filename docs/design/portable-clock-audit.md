@@ -113,8 +113,10 @@ ordinals cannot be confused with `Unconfirmed`. Login records move from
 claims do not change. The private fixture checkpoint moves from `AUTHNAT3` to
 `AUTHCLK1`. Old bytes are refused without clearing. The maintainer confirmed no
 retained affected Rust records and no retained private browser-journal records.
-The private client selects `ic-auth-local-logout-journal-v1`; retired journals
-are refused, never migrated or implicitly reset. Consumers update both endpoints
+The private client now selects the [current login-cleanup journal](../browser-client.md#durable-logout-and-guarded-identities);
+the original `ic-auth-local-logout-journal-v1` profile is retired under the
+2026-11-08 no-retained-journals approval. Retired journals are refused, never
+migrated or implicitly reset. Consumers update both endpoints
 and generated clients together and own any actual deployed-record disposition.
 
 ## Acceptance

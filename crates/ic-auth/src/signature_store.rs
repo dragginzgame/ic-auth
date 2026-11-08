@@ -12,7 +12,7 @@ use ic_platform::certification::{
     cbor::{CborError, decode_certificate, encode_canister_signature},
     fork, labeled, labeled_hash, leaf, pruned,
 };
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeSet;
 use thiserror::Error;
 
 /// Maximum number of retained leaves, including expired leaves awaiting cleanup.
@@ -138,15 +138,17 @@ pub enum SignatureStoreError {
 pub struct SignatureStore {
     signing_canister: Principal,
     limits: SignatureLimits,
-    tree: RbTree<Hash, RbTree<Hash, EmptyLeaf>>,
-    entries: BTreeMap<SignatureKey, u64>,
+    tree: RbTree<Hash, RbTree<Hash, RetainedLeaf>>,
     expirations: BTreeSet<Expiration>,
     last_mutation_ns: u64,
 }
 
-// Standard empty certified leaf, represented without per-node Vec metadata.
-struct EmptyLeaf;
-impl AsHashTree for EmptyLeaf {
+// Retrieval metadata shares the existing node. It is deliberately excluded
+// from the standard empty certified leaf and never changes its signed bytes.
+struct RetainedLeaf {
+    expires_at_ns: u64,
+}
+impl AsHashTree for RetainedLeaf {
     fn root_hash(&self) -> Hash {
         Vec::<u8>::new().root_hash()
     }
@@ -169,7 +171,6 @@ impl SignatureStore {
             signing_canister,
             limits,
             tree: RbTree::new(),
-            entries: BTreeMap::new(),
             expirations: BTreeSet::new(),
             last_mutation_ns: 0,
         })
@@ -177,12 +178,12 @@ impl SignatureStore {
 
     /// Physical records, including expired leaves not yet explicitly pruned.
     pub fn len(&self) -> usize {
-        self.entries.len()
+        self.expirations.len()
     }
 
     /// Whether there are no physical records.
     pub fn is_empty(&self) -> bool {
-        self.entries.is_empty()
+        self.expirations.is_empty()
     }
 
     /// Digest of the labeled `/sig` subtree; compose with other owners' roots.
@@ -209,7 +210,7 @@ impl SignatureStore {
         let deadline = now_ns
             .checked_add(retention_ns)
             .ok_or(SignatureStoreError::DeadlineOverflow)?;
-        let existing = self.entries.get(&key).copied();
+        let existing = self.deadline(key);
         if let Some(expires_at) = existing
             && now_ns < expires_at
         {
@@ -221,21 +222,21 @@ impl SignatureStore {
         }
         if let Some(old) = existing {
             self.expirations.remove(&(old, key.0, key.1));
-        } else {
-            if self.len() >= self.limits.max_signatures {
-                return Err(SignatureStoreError::Capacity);
-            }
-            if self.tree.get(&key.0).is_none() {
-                let mut messages = RbTree::new();
-                messages.insert(key.1, EmptyLeaf);
-                self.tree.insert(key.0, messages);
-            } else {
-                self.tree.modify(&key.0, |messages| {
-                    messages.insert(key.1, EmptyLeaf);
-                });
-            }
+        } else if self.len() >= self.limits.max_signatures {
+            return Err(SignatureStoreError::Capacity);
         }
-        self.entries.insert(key, deadline);
+        let retained = RetainedLeaf {
+            expires_at_ns: deadline,
+        };
+        if self.tree.get(&key.0).is_none() {
+            let mut messages = RbTree::new();
+            messages.insert(key.1, retained);
+            self.tree.insert(key.0, messages);
+        } else {
+            self.tree.modify(&key.0, |messages| {
+                messages.insert(key.1, retained);
+            });
+        }
         self.expirations.insert((deadline, key.0, key.1));
         self.last_mutation_ns = now_ns;
         Ok(PreparedSignature {
@@ -295,11 +296,8 @@ impl SignatureStore {
     ) -> Result<IcCanisterSignatureProofV1, SignatureStoreError> {
         let key = self.key(inputs)?;
         self.check_clock(now_ns)?;
-        let expires_at = self
-            .entries
-            .get(&key)
-            .ok_or(SignatureStoreError::NotPrepared)?;
-        if now_ns >= *expires_at {
+        let expires_at = self.deadline(key).ok_or(SignatureStoreError::NotPrepared)?;
+        if now_ns >= expires_at {
             return Err(SignatureStoreError::Expired);
         }
         if siblings.len() > MAX_COMPOSITION_DEPTH {
@@ -369,8 +367,15 @@ impl SignatureStore {
         ))
     }
 
+    fn deadline(&self, key: SignatureKey) -> Option<u64> {
+        self.tree
+            .get(&key.0)?
+            .get(&key.1)
+            .map(|leaf| leaf.expires_at_ns)
+    }
+
     fn delete(&mut self, key: SignatureKey) -> bool {
-        let Some(deadline) = self.entries.remove(&key) else {
+        let Some(deadline) = self.deadline(key) else {
             return false;
         };
         self.expirations.remove(&(deadline, key.0, key.1));

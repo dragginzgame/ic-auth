@@ -201,23 +201,32 @@ test('mutable SDK Principal cannot retarget admission beyond its durable logout 
   } finally { f.store.close(); }
 });
 
-test('mutable caller Principal cannot change an admission destination while issuance is pending', async () => {
+for (const operation of ['establish', 'ensureSession'] as const)
+test(`mutable caller Principal cannot retarget ${operation} while issuance is pending`, async () => {
   const f = await fixture();
   const entered = deferred<void>();
   const release = deferred<void>();
   const target = Principal.fromText(a.toText());
-  let pending: Promise<unknown> | undefined;
+  let pending: Promise<Identity> | undefined;
   try {
+    const admit = f.transport.admit;
+    f.transport.admit = async (...args) => ({ ...await admit(...args), expires_at_ns: f.state.now + 20_000n * MS });
     const issue = f.transport.issue;
     f.transport.issue = async (caller, signal) => {
       entered.resolve(); await release.promise;
       return issue(caller, signal);
     };
-    pending = f.client().establish(target);
+    const client = f.client();
+    pending = operation === 'establish' ? client.establish(target) : client.ensureSession(target, value => value.expires_at_ns);
     await entered.promise;
     target.toUint8Array().set(b.toUint8Array());
     release.resolve();
-    await pending;
+    const ready = await pending;
+    if (operation === 'ensureSession') {
+      await ready.transformRequest(signingRequest(ready, a));
+      await assert.rejects(ready.transformRequest(signingRequest(ready, b)),
+        (error: unknown) => error instanceof ClientError && error.code === 'configuration');
+    }
     assert.equal(target.toText(), b.toText()); // Caller still owns its mutable object.
     assert.deepEqual(f.state.admissions, [a.toText()]);
     const targets = (await f.journal.status('login')).targets.map(item => item.canister);
@@ -660,7 +669,7 @@ test('readiness renews short receiver leases before proof expiry and shares the 
   } finally { f.store.close(); }
 });
 
-test('reopened readiness refreshes once after authenticated expiry and retains older proof inventory', async () => {
+test('reopened readiness refreshes once after authenticated expiry and keeps one durable destination', async () => {
   const f = await fixture();
   try {
     await f.client().establish(a);
@@ -682,8 +691,7 @@ test('reopened readiness refreshes once after authenticated expiry and retains o
     assert.equal(attempts, 2);
     assert.equal(renewals, 1);
     assert.equal(f.state.issues, 1);
-    assert.equal((await f.journal.status('login')).targets.find(t => t.canister === a.toText())!.admissionUntilNs,
-      f.material.admissionUntilNs, 'shorter new proofs must not erase older outstanding windows');
+    assert.equal((await f.journal.status('login')).targets.filter(t => t.canister === a.toText()).length, 1);
     assert.equal((await f.journal.status('login')).issuance?.untilNs, until);
   } finally { f.store.close(); }
 });

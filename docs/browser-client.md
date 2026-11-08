@@ -339,15 +339,20 @@ changes Auth only.
 ## Durable logout and guarded identities
 
 `IndexedDbLogoutStore` uses one dedicated application-owned database per login.
-The `ic-auth-local-logout-journal-v1` profile stores no signing key. Metadata includes
-caller, issuer, generation, clock, destination/deadline inventory, attempts,
+The `ic-auth-login-cleanup-journal-v1` profile stores no signing key. Metadata includes
+caller, issuer, generation, clock, destination inventory, attempts,
 acknowledgements and conservative unknown-issuance state. Opening and strict transaction lifecycle now live directly with the sole journal
 owner. One bounded exact credential frame is stored under a separate key and
 loaded only by issuance/admission operations. Ordinary guards and status load only
 metadata. Evidence and metadata commit atomically in the same strict transaction.
-The maintainer confirmed no retained old portable-journal records on 2026-11-06:
-`ic-auth-logout-journal-v1` and the unreleased remembered-login profile are retired
-and refused, never migrated or silently reset. Strict transactions
+The maintainer confirmed no retained local-logout journals on 2026-11-08. The
+`ic-auth-local-logout-journal-v1` profile is retired: per-target admission deadlines
+are removed because they do not govern cleanup or establish remote revocation.
+The exact credential expiry remains in issuance metadata and is never extended
+on recovery. The earlier `ic-auth-logout-journal-v1` and unreleased remembered-login
+profiles also remain retired. Old profiles are refused, never migrated or silently
+reset. A retained journal requires an explicit retirement decision before using
+the new profile; unknown issuance is never discarded automatically. Strict transactions
 commit durable invalidation before any network fan-out; corruption, profile drift,
 clock rollback and conflicting state refuse instead of clearing records.
 

@@ -21,6 +21,13 @@ export type SessionRefreshTime = (receipt: AdmissionReceipt) => bigint;
 
 interface CredentialState { bytes: Uint8Array; until: bigint; sequence: bigint }
 
+// SDK Principals expose mutable backing bytes. Own one checked destination
+// before any await; only transport boundaries construct fresh SDK objects.
+function destinationKey(target: Principal): string {
+  if (target.isAnonymous()) throw new ClientError('configuration');
+  return target.toText();
+}
+
 export interface AdmissionCredential {
   credential: PortableCredential;
   /** Qualified adapter maps the original proof expiry conservatively to the journal clock.
@@ -153,7 +160,7 @@ export class PortableAdmissionClient {
    * durable logout state at signing; ordinary application calls use receiver guards.
    */
   async establish(target: Principal): Promise<Identity> {
-    return this.prepareSession(target);
+    return this.prepareSession(destinationKey(target));
   }
 
   /** Prepare before dispatching an application operation or after browser resume.
@@ -164,27 +171,25 @@ export class PortableAdmissionClient {
    */
   async ensureSession(target: Principal, refreshTime: SessionRefreshTime): Promise<Identity> {
     if (typeof refreshTime !== 'function') throw new ClientError('configuration');
-    const key = target.toText();
-    await this.prepareSession(Principal.fromText(key), refreshTime);
+    const key = destinationKey(target);
+    await this.prepareSession(key, refreshTime);
     const check = (request: Parameters<Identity['transformRequest']>[0]) =>
       checkDestination(request, destination => destination === key);
     return checkedIdentity(this.guarded, () => Principal.fromText(this.caller), async request => {
       check(request);
       // Polling an already submitted call must not trigger a new issuance or
       // admission. The underlying identity still enforces durable logout.
-      if (request.body.request_type !== 'read_state') await this.prepareSession(Principal.fromText(key), refreshTime);
+      if (request.body.request_type !== 'read_state') await this.prepareSession(key, refreshTime);
       check(request);
     }, async request => { check(request); });
   }
 
-  private async prepareSession(target: Principal, refreshTime?: SessionRefreshTime): Promise<Identity> {
+  private async prepareSession(key: string, refreshTime?: SessionRefreshTime): Promise<Identity> {
     // Bound callers before even opening a journal transaction. Destination
     // deduplication happens later and cannot bound queued issuance/status work.
     if (this.pending >= MAX_TARGETS) throw new ClientError('storage_capacity');
     this.pending++;
     try {
-      if (target.isAnonymous()) throw new ClientError('configuration');
-      const key = target.toText();
       let refreshThrough: bigint | undefined;
       if (refreshTime && this.receipts.has(key)) {
         const before = await this.active();
@@ -192,7 +197,7 @@ export class PortableAdmissionClient {
         if (this.refreshAt(previous.receipt, refreshTime) > before) return this.guarded;
         refreshThrough = previous.sequence;
       }
-      const identity = await this.establishTarget(Principal.fromText(key), refreshThrough, refreshTime !== undefined);
+      const identity = await this.establishTarget(key, refreshThrough, refreshTime !== undefined);
       if (refreshTime) {
         const receipt = this.receipts.get(key)!.receipt;
         const until = this.refreshAt(receipt, refreshTime);
@@ -219,11 +224,7 @@ export class PortableAdmissionClient {
     return value && structuredClone(value.receipt);
   }
 
-  private async establishTarget(target: Principal, refreshThrough?: bigint, retryExpired = false): Promise<Identity> {
-    if (target.isAnonymous()) throw new ClientError('configuration');
-    // SDK Principals expose mutable backing bytes. Own the destination before
-    // any await and keep transport objects separate from signing authority.
-    const key = target.toText();
+  private async establishTarget(key: string, refreshThrough?: bigint, retryExpired = false): Promise<Identity> {
     const refreshing = refreshThrough !== undefined;
     for (let attempt = 0; ; attempt++) {
       const value = await this.credential(refreshThrough);

@@ -46,112 +46,109 @@ pub(crate) fn run(
         )?;
         Ok(())
     };
-    match mode {
-        crate::ContractMode::Generate => {
-            // Record actual publications, so the driver needs no parallel
-            // source/vector roster. The manifest itself is candidate metadata.
-            let mut artifacts = String::new();
-            let mut publish =
-                |kind: &str, name: &str, bytes: &[u8]| -> Result<(), Box<dyn std::error::Error>> {
-                    save(name, bytes)?;
-                    use std::fmt::Write;
-                    writeln!(artifacts, "{kind}\t{name}")?;
-                    Ok(())
-                };
-            let mut policies = serde_json::Map::new();
-            for (name, (source, (id, limits)), policy) in [
-                (
-                    "credential.ts",
-                    binding!(CredentialEnvelope),
-                    format!(
-                        "export const defaultMaximumBytes = {};\nexport const maximumConfiguredBytes = {};\n",
-                        ic_auth_wire::BROWSER_DEFAULT_CREDENTIAL_BYTES,
-                        ic_auth_wire::BROWSER_MAX_CONFIGURED_CREDENTIAL_BYTES,
-                    ),
+    // Record actual publications, so the driver needs no parallel roster.
+    let mut artifacts = String::new();
+    let mut publish =
+        |kind: &str, name: &str, bytes: &[u8]| -> Result<(), Box<dyn std::error::Error>> {
+            save(name, bytes)?;
+            use std::fmt::Write;
+            writeln!(artifacts, "{kind}\t{name}")?;
+            Ok(())
+        };
+    if matches!(mode, crate::ContractMode::Generate) {
+        let mut policies = serde_json::Map::new();
+        for (name, (source, (id, limits)), policy) in [
+            (
+                "credential.ts",
+                binding!(CredentialEnvelope),
+                format!(
+                    "export const defaultMaximumBytes = {};\nexport const maximumConfiguredBytes = {};\n",
+                    ic_auth_wire::BROWSER_DEFAULT_CREDENTIAL_BYTES,
+                    ic_auth_wire::BROWSER_MAX_CONFIGURED_CREDENTIAL_BYTES,
                 ),
-                ("establish.ts", binding!(EstablishSession), String::new()),
-                ("read.ts", binding!(ReadSession), String::new()),
-                (
-                    "logout.ts",
-                    binding!(Logout),
-                    format!(
-                        "export const maximumResponseBytes = {};\n",
-                        ic_auth_wire::BROWSER_LOGOUT_RESPONSE_BYTES,
-                    ),
+            ),
+            ("establish.ts", binding!(EstablishSession), String::new()),
+            ("read.ts", binding!(ReadSession), String::new()),
+            (
+                "logout.ts",
+                binding!(Logout),
+                format!(
+                    "export const maximumResponseBytes = {};\n",
+                    ic_auth_wire::BROWSER_LOGOUT_RESPONSE_BYTES,
                 ),
-            ] {
-                publish("source", name, format!("{source}{policy}").as_bytes())?;
-                policies.insert(id, limits);
-            }
-            publish(
-                "source",
-                "wire-runtime.ts",
-                wire::typescript::RUNTIME.as_bytes(),
-            )?;
-            // Policy evidence is carried alongside each generated binding.
-            publish(
-                "evidence",
-                "codec-policy.json",
-                &serde_json::to_vec(&policies)?,
-            )?;
-
-            for (name, bytes) in [
-                (
-                    "credential-vector.hex",
-                    CredentialEnvelope::encode_request(&credential())?,
-                ),
-                (
-                    "logout-vector.hex",
-                    Logout::encode_response(&model::LogoutResult::Revoked(9_007_199_254_740_993))?,
-                ),
-                (
-                    "admission-vector.hex",
-                    EstablishSession::encode_response(&Err(model::AdmissionRefusal::NotYetValid))?,
-                ),
-                (
-                    "read-vector.hex",
-                    ReadSession::encode_response(&Err(model::SessionReadRefusal::Revoked))?,
-                ),
-            ] {
-                let hex: String = bytes.iter().map(|byte| format!("{byte:02x}")).collect();
-                publish("evidence", name, format!("{hex}\n").as_bytes())?;
-            }
-            save("artifacts.tsv", artifacts.as_bytes())?;
+            ),
+        ] {
+            publish("source", name, format!("{source}{policy}").as_bytes())?;
+            policies.insert(id, limits);
         }
-        crate::ContractMode::Check => {
-            let bytes = read_file_no_follow(
-                &directory.join("credential-from-ts.bin"),
-                CredentialEnvelope::REQUEST_LIMITS.bytes,
-            )?;
-            if CredentialEnvelope::decode_request(&bytes)? != credential() {
-                return Err("credential vector mismatch".into());
+        publish(
+            "source",
+            "wire-runtime.ts",
+            wire::typescript::RUNTIME.as_bytes(),
+        )?;
+        // Policy evidence is carried alongside each generated binding.
+        publish(
+            "evidence",
+            "codec-policy.json",
+            &serde_json::to_vec(&policies)?,
+        )?;
+    }
+    // One typed declaration owns each vector's value, direction, bound and
+    // filenames in both Rust generation and TypeScript-result admission.
+    macro_rules! vector {
+        ($name:literal, $limits:expr, $encode:path, $decode:path, $expected:expr) => {
+            match mode {
+                crate::ContractMode::Generate => {
+                    let bytes = $encode(&$expected)?;
+                    let hex: String = bytes.iter().map(|byte| format!("{byte:02x}")).collect();
+                    publish(
+                        "evidence",
+                        concat!($name, "-vector.hex"),
+                        format!("{hex}\n").as_bytes(),
+                    )?;
+                }
+                crate::ContractMode::Check => {
+                    let bytes = read_file_no_follow(
+                        &directory.join(concat!($name, "-from-ts.bin")),
+                        $limits.bytes,
+                    )?;
+                    if $decode(&bytes)? != $expected {
+                        return Err(concat!($name, " vector mismatch").into());
+                    }
+                }
             }
-            let bytes = read_file_no_follow(
-                &directory.join("logout-from-ts.bin"),
-                Logout::RESPONSE_LIMITS.bytes,
-            )?;
-            if Logout::decode_response(&bytes)?
-                != model::LogoutResult::Revoked(9_007_199_254_740_993)
-            {
-                return Err("logout vector mismatch".into());
-            }
-            let bytes = read_file_no_follow(
-                &directory.join("admission-from-ts.bin"),
-                EstablishSession::RESPONSE_LIMITS.bytes,
-            )?;
-            if EstablishSession::decode_response(&bytes)?
-                != Err(model::AdmissionRefusal::NotYetValid)
-            {
-                return Err("admission vector mismatch".into());
-            }
-            let bytes = read_file_no_follow(
-                &directory.join("read-from-ts.bin"),
-                ReadSession::RESPONSE_LIMITS.bytes,
-            )?;
-            if ReadSession::decode_response(&bytes)? != Err(model::SessionReadRefusal::Revoked) {
-                return Err("session read vector mismatch".into());
-            }
-        }
+        };
+    }
+    vector!(
+        "credential",
+        CredentialEnvelope::REQUEST_LIMITS,
+        CredentialEnvelope::encode_request,
+        CredentialEnvelope::decode_request,
+        credential()
+    );
+    vector!(
+        "logout",
+        Logout::RESPONSE_LIMITS,
+        Logout::encode_response,
+        Logout::decode_response,
+        model::LogoutResult::Revoked(9_007_199_254_740_993)
+    );
+    vector!(
+        "admission",
+        EstablishSession::RESPONSE_LIMITS,
+        EstablishSession::encode_response,
+        EstablishSession::decode_response,
+        Err(model::AdmissionRefusal::NotYetValid)
+    );
+    vector!(
+        "read",
+        ReadSession::RESPONSE_LIMITS,
+        ReadSession::encode_response,
+        ReadSession::decode_response,
+        Err(model::SessionReadRefusal::Revoked)
+    );
+    if matches!(mode, crate::ContractMode::Generate) {
+        save("artifacts.tsv", artifacts.as_bytes())?;
     }
     Ok(())
 }
@@ -202,3 +199,6 @@ fn generate<Request: wire::typescript::Wire, Response: wire::typescript::Wire>(
     source.push_str(&format!("\nexport const methodName = {};\nexport const {{ encodeRequest, decodeRequest, encodeResponse, decodeResponse }} = contract;\n", json!(name)));
     Ok((source, policy))
 }
+
+#[cfg(test)]
+mod tests;

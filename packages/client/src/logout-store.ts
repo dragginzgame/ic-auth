@@ -5,7 +5,6 @@ import { maximumConfiguredBytes } from './generated/credential.js';
 /** Caller-bound admission evidence and cleanup state; never a signing key. */
 export interface LogoutTarget {
   canister: string;
-  admissionUntilNs: bigint;
   attempts: number;
   nextNs: bigint;
   confirmedUntilNs?: bigint;
@@ -37,7 +36,7 @@ export type LogoutJournal = JournalCommon & (
   | { phase: 'finished'; deadlineNs: bigint; busyUntilNs: bigint }
 );
 
-const FORMAT = 'ic-auth-local-logout-journal-v1';
+const FORMAT = 'ic-auth-login-cleanup-journal-v1';
 export const MAX_TARGETS = 64;
 export const MAX_ATTEMPTS = 8;
 const object = (x: unknown): x is Record<string, unknown> => typeof x === 'object' && x !== null;
@@ -61,8 +60,8 @@ function validate(value: unknown, evidence = false): asserts value is LogoutJour
   }
   const seen = new Set<string>();
   for (const target of value.targets) {
-    if (!object(target) || !fields(target, ['canister', 'admissionUntilNs', 'attempts', 'nextNs', ...(target.confirmedUntilNs === undefined ? [] : ['confirmedUntilNs'])]) || !text(target.canister) || seen.has(target.canister)
-      || !time(target.admissionUntilNs) || !time(target.nextNs)
+    if (!object(target) || !fields(target, ['canister', 'attempts', 'nextNs', ...(target.confirmedUntilNs === undefined ? [] : ['confirmedUntilNs'])]) || !text(target.canister) || seen.has(target.canister)
+      || !time(target.nextNs)
       || !Number.isSafeInteger(target.attempts) || Number(target.attempts) < 0 || Number(target.attempts) > MAX_ATTEMPTS
       || (target.confirmedUntilNs !== undefined && !time(target.confirmedUntilNs))) throw new ClientError('storage_corrupt');
     seen.add(target.canister);

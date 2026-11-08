@@ -35,12 +35,10 @@ pub(crate) struct SavedReceiver {
 pub(crate) fn capture() -> Snapshot {
     RECEIVER.with(|state| {
         let state = state.borrow();
-        let Some(host) = state.as_ref() else {
-            return if UNCONFIGURED.with(Cell::get) {
-                Snapshot::Unconfigured
-            } else {
-                Snapshot::Closed
-            };
+        let host = match &*state {
+            ReceiverState::Unconfigured => return Snapshot::Unconfigured,
+            ReceiverState::Closed => return Snapshot::Closed,
+            ReceiverState::Configured(host) => host.as_ref(),
         };
         if !host.lifecycle.checkpoint() {
             return Snapshot::Closed;
@@ -93,10 +91,19 @@ pub(crate) fn capture() -> Snapshot {
 pub(crate) fn restore(snapshot: Snapshot) {
     // Only the explicit trusted never-configured marker permits first install.
     // A configured receiver's lost state remains closed across further upgrades.
-    UNCONFIGURED.with(|unconfigured| unconfigured.set(matches!(&snapshot, Snapshot::Unconfigured)));
-    let Snapshot::Retained(saved) = snapshot else {
-        return;
+    let saved = match snapshot {
+        Snapshot::Unconfigured => {
+            RECEIVER.with(|state| *state.borrow_mut() = ReceiverState::Unconfigured);
+            return;
+        }
+        Snapshot::Closed => {
+            RECEIVER.with(|state| *state.borrow_mut() = ReceiverState::Closed);
+            return;
+        }
+        Snapshot::Retained(saved) => saved,
     };
+    // Refuse first install even if trusted checkpoint validation traps.
+    RECEIVER.with(|state| *state.borrow_mut() = ReceiverState::Closed);
     let config: ReceiverConfig = saved.config.try_into().expect("checkpoint config");
     let now = ic_platform_runtime::cdk::api::time();
     assert!(now >= saved.checkpoint_time, "checkpoint clock rollback");
@@ -148,7 +155,7 @@ pub(crate) fn restore(snapshot: Snapshot) {
         now,
     )
     .expect("restored budgets");
-    RECEIVER.with(|state| *state.borrow_mut() = Some(host));
+    RECEIVER.with(|state| *state.borrow_mut() = ReceiverState::Configured(Box::new(host)));
 }
 
 #[ic_platform_runtime::cdk::update(
@@ -181,7 +188,7 @@ fn confirm_restored_session_authority(
     RECEIVER.with(|state| {
         let mut state = state.borrow_mut();
         let host = state
-            .as_mut()
+            .configured()
             .filter(|host| host.lifecycle == ReceiverLifecycle::AwaitingAuthority)
             .ok_or(Refusal::AwaitingAuthority)?;
         if config != host.inputs.config {

@@ -127,7 +127,7 @@ export async function qualifyAdmission(host: string, issuer: Principal, receiver
     assert.equal(issued, 1);
     assert.equal(reconciled, 2);
     assert.equal(admitted.size, 2);
-    assert.ok((await journal.status('sdk-admission')).targets.every(target => target.admissionUntilNs === admissionUntilNs));
+    assert.equal((await journal.status('sdk-admission')).issuance?.untilNs, admissionUntilNs);
     for (const target of [issuer, receiver]) {
       const signer = target.toText() === receiver.toText() ? readyIdentity : guarded;
       const read = await update(target, 'portable_session_read', sessionRead.encodeRequest(null), signer, signal);
@@ -158,7 +158,7 @@ export async function qualifyAdmission(host: string, issuer: Principal, receiver
     const peerGuarded = await peerClient.establish(issuer);
     await peerClient.establish(receiver);
     assert.equal(peerIssued, 1);
-    assert.ok((await peerJournal.status('sdk-admission-peer')).targets.every(target => target.admissionUntilNs === admissionUntilNs));
+    assert.equal((await peerJournal.status('sdk-admission-peer')).issuance?.untilNs, admissionUntilNs);
     const peerSessions = new Map<string, SessionView>();
     for (const target of [issuer, receiver]) {
       const peerRead = await update(target, 'portable_session_read', sessionRead.encodeRequest(null), peerGuarded, signal);

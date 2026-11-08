@@ -23,7 +23,7 @@ pub(crate) use ic_auth_qualification_fixtures::sessions as contract;
 use ic_auth_wire::{SessionInput, SessionView, model::AdmissionRefusal};
 use ic_platform::Principal;
 
-use std::cell::{Cell, RefCell};
+use std::cell::RefCell;
 const SECOND: u64 = 1_000_000_000;
 const MAX_LOGIN_TTL_NS: u64 = 86_400 * SECOND;
 const MAX_SESSIONS: usize = 8;
@@ -78,8 +78,22 @@ struct Receiver {
     read_scopes: RequiredScopes,
     write_scopes: RequiredScopes,
 }
-thread_local! { static UNCONFIGURED: Cell<bool> = const { Cell::new(true) }; }
-thread_local! { static RECEIVER: RefCell<Option<Receiver>> = const { RefCell::new(None) }; }
+// Presence and first-install permission change together; missing retained state
+// is closed, never inferred to be an unconfigured receiver.
+enum ReceiverState {
+    Unconfigured,
+    Closed,
+    Configured(Box<Receiver>),
+}
+impl ReceiverState {
+    fn configured(&mut self) -> Option<&mut Receiver> {
+        match self {
+            Self::Configured(host) => Some(host.as_mut()),
+            Self::Unconfigured | Self::Closed => None,
+        }
+    }
+}
+thread_local! { static RECEIVER: RefCell<ReceiverState> = const { RefCell::new(ReceiverState::Unconfigured) }; }
 struct ReceiverInputs {
     config: ReceiverConfig,
     login_floor: u64,
@@ -215,7 +229,7 @@ fn with_receiver<T, E: From<ReceiverUnavailable>>(
     RECEIVER.with(|state| {
         let mut state = state.borrow_mut();
         let host = state
-            .as_mut()
+            .configured()
             .filter(|host| host.lifecycle.ready())
             .ok_or(ReceiverUnavailable)?;
         operation(host)
@@ -248,7 +262,7 @@ fn install_session_receiver(config: controls::model::ReceiverConfig) -> Result<(
     {
         return Err(Refusal::InvalidAuthority);
     }
-    if !UNCONFIGURED.with(Cell::get) || RECEIVER.with(|state| state.borrow().is_some()) {
+    if !RECEIVER.with(|state| matches!(&*state.borrow(), ReceiverState::Unconfigured)) {
         return Err(Refusal::ReceiverUnavailable);
     }
     let inputs = ReceiverInputs {
@@ -265,8 +279,7 @@ fn install_session_receiver(config: controls::model::ReceiverConfig) -> Result<(
         ledger,
         now,
     )?;
-    RECEIVER.with(|state| *state.borrow_mut() = Some(host));
-    UNCONFIGURED.with(|unconfigured| unconfigured.set(false));
+    RECEIVER.with(|state| *state.borrow_mut() = ReceiverState::Configured(Box::new(host)));
     Ok(())
 }
 #[ic_platform_runtime::cdk::update(
@@ -404,7 +417,7 @@ fn session_set_asset(version: u64) -> Result<(), Refusal> {
 fn logout_portable_session() -> LogoutResult {
     RECEIVER.with(|state| {
         let mut state = state.borrow_mut();
-        let Some(host) = state.as_mut().filter(|host| host.lifecycle.ready()) else {
+        let Some(host) = state.configured().filter(|host| host.lifecycle.ready()) else {
             return LogoutResult::Unavailable(LogoutUnavailable::ResetPending);
         };
         logout_session(

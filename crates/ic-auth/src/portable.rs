@@ -103,7 +103,7 @@ fn encode_claims_into(
         out(&time.to_be_bytes());
     }
     out(&claims.nonce);
-    encode_role_grants::<true>(&mut out, &claims.grants)?;
+    encode_role_grants(&mut out, &claims.grants, true)?;
     if length > MAX_CLAIMS_BYTES {
         return Err(PortableEncodingError::TooLarge);
     }

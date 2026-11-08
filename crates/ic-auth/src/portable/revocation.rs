@@ -434,7 +434,7 @@ impl MemoryLoginRevocations {
             let until_ns = retention(now_ns, self.max_login_ttl_ns)?;
             Record {
                 until_ns,
-                state: LoginRecordState::Revoked(old.and_then(Record::login)),
+                state: LoginRecordState::Revoked(None),
             }
         };
         self.capacity(caller, record)?;

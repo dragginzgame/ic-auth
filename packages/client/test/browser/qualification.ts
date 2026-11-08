@@ -209,7 +209,7 @@ export async function sdk(input: LiveInput): Promise<Record<string, number>> {
     const retry = await session(targets[1]!, guarded);
     check('ok' in retry && 'ok' in before && retry.ok.expires_at_ns === before.ok.expires_at_ns, 'retry extended lease');
     check(issued === 1 && reconciled === 2, 'recovery reissued');
-    check((await journal.status('live-first')).targets.every(t => t.admissionUntilNs === original.admissionUntilNs), 'recovery extended proof deadline');
+    check((await journal.status('live-first')).issuance?.untilNs === original.admissionUntilNs, 'recovery extended proof deadline');
     await peerJournal.start('live-peer', peer, targets[0]!);
     const peerClient = new PortableAdmissionClient(peerJournal, 'live-peer', { browser: peer, account }, targets[0]!, {
       issue: async signer => { await probeAccount(signer); return { credential: credentialFromBytes(unhex(input.peerCredential), 131_072), admissionUntilNs: BigInt(input.until) }; },

@@ -323,9 +323,7 @@ impl Session {
         ctx: &SessionContext<'_>,
         policy: SessionPolicy,
     ) -> Result<(), SessionError> {
-        if !policy.enabled || !policy.subject_admissible {
-            return Err(SessionError::Disabled);
-        }
+        // Both engine callers validate this same immutable policy first.
         let authority = &ctx.authority;
         if authority.now_ns < self.0.established_at_ns || authority.now_ns >= self.0.expires_at_ns {
             return Err(SessionError::MissingOrExpired);

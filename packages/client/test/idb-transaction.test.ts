@@ -16,7 +16,7 @@ async function transaction() {
       objectStore: () => ({ keyPath: null, autoIncrement: false, indexNames: [], put() {}, delete() {},
         get(key: string) {
           reads.push(key);
-          const request = { result: key === 'format' ? 'ic-auth-local-logout-journal-v1' : undefined,
+          const request = { result: key === 'format' ? 'ic-auth-login-cleanup-journal-v1' : undefined,
             onsuccess: undefined as (() => void) | undefined };
           queueMicrotask(() => {
             request.onsuccess?.();
@@ -43,7 +43,7 @@ async function transaction() {
 const error = (code: string) => (cause: unknown) => cause instanceof ClientError && cause.code === code;
 const record: LogoutJournal = { generation: 'login', caller: 'caller', issuer: 'issuer', clockId: 'test',
   observedNs: 0n, busyUntilNs: 0n, phase: 'active', deadlineNs: 0n, issuanceUnknown: true,
-  targets: [{ canister: 'issuer', admissionUntilNs: 1n, attempts: 0, nextNs: 0n }] };
+  targets: [{ canister: 'issuer', attempts: 0, nextNs: 0n }] };
 
 test('staged journal result waits for commit and late abort retains storage error mapping', async () => {
   const f = await transaction();

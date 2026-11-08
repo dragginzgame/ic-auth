@@ -4,6 +4,34 @@ Covers public `ic-auth` and the unpublished backend conformance, qualification a
 native tooling packages. The independent series starts after the
 [last coordinated release, 0.29.2](../history.md).
 
+## [0.35.9] - Unreleased
+
+### 🧹 Cleanup
+
+- Keep signature-retention deadlines in the existing certified-tree leaves,
+  removing the duplicate map while preserving certified roots, witness bytes,
+  retry deadlines and bounded pruning. Share grant encoding without changing
+  canonical bytes or admission checks.
+- Capture browser destinations once before asynchronous work and pass immutable
+  keys through private admission coordination.
+- Reuse the parsed issuer key's original bytes and remove redundant private
+  branches while retaining strict verification and live eligibility checks.
+- Give the qualification receiver one owner for unconfigured, closed and
+  configured presence, preserving checkpoint bytes and fresh-authority gating.
+  Browser interoperability generation and checking share each vector declaration.
+- Remove unused per-target admission deadlines from the private logout journal.
+  Credential expiry and uncertain issuance recovery remain durable. The revised
+  `ic-auth-login-cleanup-journal-v1` profile refuses the retired local-logout
+  profile without clearing it; the maintainer confirmed no retained journals.
+  This affects the unpublished client only; public Rust contracts are unchanged.
+
+### 🔧 Changed
+
+- Qualify the incoming locked Wire/derive 0.17.14 patch. Its generator preserves
+  all five browser files byte-for-byte.
+- Preserve incoming Build 0.79.1, Host 0.75.1 and Storage 0.68.11 for release
+  qualification, retaining the existing native tooling and private storage APIs.
+
 ## [0.35.8] - 2026-11-08
 
 ### 🔧 Changed

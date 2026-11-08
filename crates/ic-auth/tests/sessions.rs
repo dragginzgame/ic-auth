@@ -735,12 +735,45 @@ fn live_authority_scope_generation_expiry_and_lost_ledger_are_enforced() {
     let mut r = Receiver::new(&f);
     let session = created(f.admit(&mut r, NOW).unwrap(), &mut r.store);
     let mut ctx = f.context(NOW);
-    let mut changed = policy();
-    changed.enabled = false;
-    assert_eq!(
-        authorize_session(&mut r.store, &mut r.ledger, &ctx, changed, Session::clone),
-        Err(SessionError::Disabled)
-    );
+    for (enabled, subject_admissible) in [(false, true), (true, false)] {
+        let changed = SessionPolicy {
+            enabled,
+            subject_admissible,
+            ..policy()
+        };
+        assert_eq!(
+            authorize_session(&mut r.store, &mut r.ledger, &ctx, changed, |_| {
+                panic!("disabled authorization ran")
+            }),
+            Err(SessionError::Disabled)
+        );
+        for malformed in [false, true] {
+            let mut credential = f.credential();
+            if malformed {
+                credential.claims.clear();
+            }
+            assert_eq!(
+                establish_session(
+                    &mut r.store,
+                    &mut r.ledger,
+                    &mut r.budget,
+                    &credential,
+                    request(),
+                    &SessionAdmissionContext {
+                        verification: PortableVerificationContext::Ed25519 {
+                            claims: &f.claims_context(NOW),
+                            public_key: &f.issuer_key,
+                        },
+                        role: &f.role,
+                        ttl: ttl(),
+                    },
+                    changed,
+                ),
+                Err(SessionError::Disabled),
+                "disabled admission must refuse before exact retry or decoding"
+            );
+        }
+    }
     let required = RequiredScopes::new(vec!["write".into()]).unwrap();
     ctx.required_scopes = &required;
     assert_eq!(

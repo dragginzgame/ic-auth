@@ -97,7 +97,7 @@ export class PortableLogoutClient {
       if (previous) throw new ClientError('storage_conflict');
       return { record: { generation, caller: callerText, issuer: issuerText, clockId,
         observedNs: now, busyUntilNs: 0n, phase: 'active', deadlineNs: 0n, issuanceUnknown: false,
-        targets: [{ canister: issuerText, admissionUntilNs: now, attempts: 0, nextNs: now }] }, value: undefined };
+        targets: [{ canister: issuerText, attempts: 0, nextNs: now }] }, value: undefined };
     }, true);
   }
 
@@ -118,11 +118,9 @@ export class PortableLogoutClient {
     await this.update(generation, (record, now) => {
       if (record.phase !== 'active') throw new ClientError('stale_generation');
       if (anonymous || admissionUntilNs < now || admissionUntilNs + BigInt(CALL_MS) * MS >= now + MAX_CLEANUP_NS) throw new ClientError('configuration');
-      const existing = record.targets.find(item => item.canister === key);
-      if (existing) existing.admissionUntilNs = existing.admissionUntilNs > admissionUntilNs ? existing.admissionUntilNs : admissionUntilNs;
-      else {
+      if (!record.targets.some(item => item.canister === key)) {
         if (record.targets.length === MAX_TARGETS) throw new ClientError('storage_capacity');
-        record.targets.push({ canister: key, admissionUntilNs, attempts: 0, nextNs: now });
+        record.targets.push({ canister: key, attempts: 0, nextNs: now });
       }
       return { record, value: undefined };
     });

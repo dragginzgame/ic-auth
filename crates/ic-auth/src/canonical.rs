@@ -130,7 +130,7 @@ fn encode_cert(out: &mut Sink<'_>, cert: &DelegationCert) -> Result<(), Canonica
     encode_u64(out, cert.expires_at_ns);
     encode_u64(out, cert.max_token_ttl_ns);
     encode_audience(out, &cert.aud);
-    encode_role_grants::<false>(out, &cert.grants)?;
+    encode_role_grants(out, &cert.grants, false)?;
 
     Ok(())
 }
@@ -156,22 +156,23 @@ fn encode_fleet_key(out: &mut Sink<'_>, fleet: AudienceId) {
     encode_fixed_32(out, *fleet.fleet_id.as_bytes());
 }
 
-// ADMITTED is private same-call shape evidence: portable encoding validates the
+// admitted is private same-call shape evidence: portable encoding validates the
 // immutable grants first. Standalone canonical encoders retain their own checks.
-pub(crate) fn encode_role_grants<const ADMITTED: bool>(
+pub(crate) fn encode_role_grants(
     out: &mut Sink<'_>,
     grants: &[DelegatedRoleGrant],
+    admitted: bool,
 ) -> Result<(), CanonicalAuthError> {
     encode_len(out, grants.len())?;
     let mut previous = None;
     for grant in grants {
         let current = grant.target.as_str().as_bytes();
-        if !ADMITTED && previous.is_some_and(|previous| previous >= current) {
+        if !admitted && previous.is_some_and(|previous| previous >= current) {
             return Err(CanonicalAuthError::NonCanonicalRoles);
         }
         previous = Some(current);
         encode_role(out, &grant.target)?;
-        if !ADMITTED {
+        if !admitted {
             validate_scopes(&grant.scopes)?;
         }
         encode_len(out, grant.scopes.len())?;
@@ -233,7 +234,7 @@ fn encode_chain_key_delegation_cert(
     encode_issuer_proof_binding(out, cert.issuer_proof_binding);
     encode_u64(out, cert.max_token_ttl_ns);
     encode_audience(out, &cert.audience);
-    encode_role_grants::<false>(out, &cert.grants)?;
+    encode_role_grants(out, &cert.grants, false)?;
     encode_u64(out, cert.not_before_ns);
     encode_u64(out, cert.expires_at_ns);
     encode_u64(out, cert.registry_epoch);

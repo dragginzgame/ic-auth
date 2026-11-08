@@ -134,6 +134,35 @@ fn live_retries_do_not_extend_the_deadline_and_expired_keys_can_be_reprepared() 
 }
 
 #[test]
+fn replacing_one_deadline_preserves_witness_bytes_and_other_retention_windows() {
+    let mut store = store();
+    let same_seed = SignatureInputs {
+        message: b"another payload",
+        ..inputs()
+    };
+    let other_seed = SignatureInputs {
+        seed: b"another seed",
+        ..inputs()
+    };
+    for (input, retention) in [(inputs(), 20), (same_seed, 30), (other_seed, 40)] {
+        store.prepare(input, NOW, retention).unwrap();
+    }
+    let root = store.root_hash();
+    let cert = certificate(signer(), root);
+    let proof = store.retrieve(inputs(), NOW, &cert, &[]).unwrap();
+    store.prepare(inputs(), NOW + 20, 100).unwrap();
+    assert_eq!(store.root_hash(), root);
+    assert_eq!(store.retrieve(inputs(), NOW + 20, &cert, &[]), Ok(proof));
+    assert_eq!(store.prune(NOW + 20, 128), Ok(0));
+    assert_eq!(store.prune(NOW + 30, 128), Ok(1));
+    assert_eq!(store.prune(NOW + 40, 128), Ok(1));
+    assert_eq!(store.len(), 1);
+    assert_eq!(store.root_hash(), expected_leaf(inputs()).digest());
+    assert_eq!(store.prune(NOW + 120, 128), Ok(1));
+    assert!(store.is_empty());
+}
+
+#[test]
 fn capacity_failure_does_not_prune_or_change_the_root() {
     let mut limit = limits();
     limit.max_signatures = 1;

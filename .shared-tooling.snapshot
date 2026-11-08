@@ -1,8 +1,8 @@
 # Shared Tooling snapshot v1
-# version	0.31.10
+# version	0.31.11
 format	1
 source	https://github.com/dragginzgame/shared-tooling
-revision	c5285791991c731d266fb5c85dc3ee876d29f6b9
+revision	6c529e6940a97226cca826726491e03173b08cd2
 # entrypoint	.githooks/pre-commit
 # entrypoint	.github/actions/retain-failure-evidence/action.yml
 # entrypoint	DRAGGINZGAME.md
@@ -89,7 +89,7 @@ revision	c5285791991c731d266fb5c85dc3ee876d29f6b9
 # entrypoint	scripts/ci/install-ci-tool.sh
 file	f6d100137dcf1097c807286fc5e028e9a49e15725164488ccc903643ceee4f45	x	.githooks/pre-commit
 file	26a269c0e63125e8bd939578a64a6a67dbc5280cd3fbfd7da8b9c8e4d44cc6d5	-	.github/actions/retain-failure-evidence/action.yml
-file	7ce22ad58eefe367363dc3b5806da7b0f8942d1bc3cf0afb6c2327750ad2b5d2	-	DRAGGINZGAME.md
+file	70f0b5af758d2a678e921fe7aafdc5cda41537e5e78a327aba3cfea2a645f58e	-	DRAGGINZGAME.md
 file	0a83af9098413380c4b556216428890e905d706e174ecee46034dd647ac2a633	-	audits/README.md
 file	c7bededc74e750a3c2380b50a1a48a0af4a443ece5d1cb0e684ff591f3ab83ef	-	audits/code-hygiene.md
 file	24574fc99a47e318357d6b14484d08cc6f583ed587d71f4ac57f1d22448f7b86	-	audits/complexity-and-technical-debt.md
@@ -112,7 +112,7 @@ file	162617ce20162932ec03c925eebc88d699c147d63d4602bdb957e3df38692d59	-	docs/sup
 file	1063002468575e2f821cfec71524bde06a64634bf30455d64d2d9fed872969d6	-	docs/tag-maintenance.md
 file	b86e521b3be213355dfd9d176c073991b109e4897386f5a9d525523abdb7b1d5	-	docs/verification-helpers.md
 file	cb896704cd9ff2302b59072d723fea2dc17169e41b1c3440156f6958ff9f5258	-	make/consumer.mk
-file	3b5ba8695cf4a29e1f89c6b902806a1d02021d031fbe1dfbf9320424545a370e	-	rules/agent-maintenance.md
+file	9b93514d689f924d7ba85263af64c126d13a4559ccd0c71c35e42b1860172917	-	rules/agent-maintenance.md
 file	cdd335b8676307592a098eea640c88c1b25ec8b63a3c47e8e2c66d2bded03a40	-	rules/cargo-dependencies.md
 file	7461444e97b8f36c1be8b0d8c9c56c58a1b303582c55abe5c1702466681b848b	-	rules/changelogs.md
 file	f176c35d2292d86bee5f856d476cbea5033143640bac44bb4236e8094e4cfd42	-	rules/contributions.md
@@ -137,7 +137,7 @@ file	3a40139e5d928a7a9917a2e2dbb11bec34f5a5b8350ac2de5d030082ffb32136	x	scripts/
 file	c056d7d7ff08260445587810274ba0022fe610e81da597ab9dc44444b4a179a3	-	scripts/dev/run-maintenance.sh
 file	b58c28709ad3d8a8fa950d7a27020fc87f5f10150b5dcb1e9351ca35790e2619	-	scripts/distribution/governance-files.txt
 file	eb2419a5762a3cb02f25811d93becb6b18ca520df0bc3448ea35dfa187a034b4	-	tasks/cargo-machete.md
-file	a61dd455dcd90518aa481a722a2c05618d17ebfd42465e919a210fd16205fe2f	-	tasks/ci-health.md
+file	ac79b0bd3283c88fca8757fbe9201bfd89e48aa45374708ca128bd56a13b65e6	-	tasks/ci-health.md
 file	5d0c7d274dd9da1e5064287c7bd89c7baec9b0a9ba5a8f1a44e918bb60a28943	-	tasks/code-audit.md
 file	1c733a041ed7cce3a63edb1da08c10896594e592d4f95359cbeb57f5dcd708a3	-	tasks/dependency-security.md
 file	9530a16ed139d77984744b194b354fbacb51b924a83549b19386077320284bf2	-	tasks/local-schedule.md
@@ -176,7 +176,7 @@ file	23c23beef41fda5f0acc1a404e40b04e5c362399a415524f16dbc4899120a5dd	x	scripts/
 file	9e32385247296ce95d2b15b1290c64e6b6dff15716c1c139f21ab5e5128f4be3	x	scripts/ci/check-make-execution.sh
 file	172ab2415f4816bdad7955720ef45445b4bd81283c928d7ef2ee3de9064b69b5	x	scripts/ci/collect-tool-evidence.sh
 file	d517344568e02a638cd19b99bfbcc63f000a0cf1df7b7713f901f52518b1e2ee	x	scripts/ci/formatting-evidence.sh
-file	a56644b2df1ed6171ab587683fef5792f995889bbae037bc76e046966f287116	-	rules/engineering-details.md
+file	0ba1f70f06a55288339ef2c40dfb74ccee2c8a5e5be11731671e067edda4804e	-	rules/engineering-details.md
 file	7efae41a6ad06bf8dd52ed440ff46268a22ef9bd579527b11e57790f29fbb361	-	rules/hashing.md
 file	e3aed908dd9b08bf93255328bb056bed57298dab39944e3726aad2726548e653	-	rules/rpc-budgets.md
 file	a916ce4194ae2bd5591d86219109e4527455ce7b6358de0023da6bbe00b8397f	-	docs/rust-toolchains.md

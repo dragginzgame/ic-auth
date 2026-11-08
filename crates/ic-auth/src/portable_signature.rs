@@ -75,7 +75,6 @@ pub fn verify_ed25519_claims(
 /// ```
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PreparedIssuerKey {
-    bytes: [u8; 32],
     binding: [u8; 32],
     key: VerifyingKey,
 }
@@ -89,14 +88,10 @@ impl PreparedIssuerKey {
         if key.is_weak() {
             return Err(PortableSignatureError::InvalidPublicKey);
         }
-        Ok(Self {
-            bytes,
-            binding,
-            key,
-        })
+        Ok(Self { binding, key })
     }
     pub fn bytes(&self) -> &[u8; 32] {
-        &self.bytes
+        self.key.as_bytes()
     }
     pub fn binding(&self) -> [u8; 32] {
         self.binding

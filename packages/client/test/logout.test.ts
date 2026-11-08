@@ -13,7 +13,7 @@ const issuer = Principal.fromUint8Array(new Uint8Array([1]));
 const receiver = Principal.fromUint8Array(new Uint8Array([2]));
 const revoked: LogoutResult = { tag: 'Revoked', value: 86_400_000_000_000n };
 
-for (const profile of ['ic-auth-logout-journal-v1', 'ic-auth-remembered-login-journal-v1'])
+for (const profile of ['ic-auth-logout-journal-v1', 'ic-auth-remembered-login-journal-v1', 'ic-auth-local-logout-journal-v1'])
 test(`retired browser journal ${profile} is refused without clearing its records`, async () => {
   const factory = new IDBFactory();
   const request = factory.open('retired', 1);

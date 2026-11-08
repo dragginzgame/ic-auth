@@ -1,8 +1,9 @@
 # Canonical hashing allocation observations
 
-The current encoder remains unchanged. These observations justify keeping the
-existing implementation until an actual host profile demonstrates a material
-cost. An earlier streaming experiment was rejected after its Wasm/cost comparison;
+Current canonical hashing streams the shared field encoder; the older allocation
+tables below describe earlier implementations, not the current allocation cost.
+The latest matched footprint comparison is recorded at the end of this document.
+An earlier streaming experiment was rejected after its Wasm/cost comparison;
 see the [Auth #113 experiment record](https://github.com/dragginzgame/ic-auth/issues/113#issuecomment-6503797232).
 
 ## Reproduction and scope
@@ -94,3 +95,63 @@ and build logs remain under `target/evidence/auth-next-035/`. Reproduce attribut
 with `twiggy top` and `twiggy monos -a --regex <artifact>
 '.*(establish_session|authorize_session).*'`. Future comparisons must keep source
 scope, selected dependencies, features, compiler and optimization settings matched.
+
+## Signature retention and shared grants — 2026-11-08
+
+Source: `291fbf1` plus the local cleanup batch. All three builds use the same
+incoming Wire/derive 0.17.14 lock (SHA-256
+`1f75b914f373c25e1231e2744b3ae2f75238f5a0638ba40c74dbb45e4aeea66d`),
+Rust 1.99.1 (`58cf8f9c3`), target `wasm32-unknown-unknown`, Cargo's existing
+release defaults and repository `--cfg=cpubits="32"`. There is no post-optimizer
+or profile change. Command: `cargo build --locked --offline -p
+ic-auth-qualification-canister --target wasm32-unknown-unknown --release`.
+
+| Reference fixture | Total bytes | Code-section bytes |
+| --- | ---: | ---: |
+| Before this batch | 1,899,580 | 1,462,831 |
+| Deadlines in existing certified-tree leaves; separate map removed | 1,885,348 | 1,448,864 |
+| Shared runtime-selected grant encoder | 1,884,640 | 1,448,619 |
+
+The retained changes save **14,940 total bytes and 14,212 code bytes** against
+this matched baseline. Code size is the Wasm section-10 payload length, parsed
+from the uncompressed module. Final artifact SHA-256:
+`feac794568fe7a97d4bccdfc76ca239852d19d3a40953c0539a5732a32406e31`.
+Raw artifacts, compiler identity, selected lock, source snapshots and build logs:
+`target/evidence/signature-index-20261108/`.
+
+Retention deadlines remain uncertified local metadata: the leaf still hashes
+and serializes as the same empty certified value. The expiry index still owns
+bounded cleanup and record counts. Exact-retry deadlines, expiry replacement,
+cross-key retention, unchanged witness bytes and real BLS verification are
+covered by focused tests. Grant admission and canonical bytes are unchanged.
+
+This is the complete Auth qualification fixture, not Canic's deployed Wasm.
+It establishes footprint reduction, not lower instruction counts or latency.
+Expired re-preparation now updates its existing tree leaf, while live retries
+still avoid tree mutation. No whole-verifier throughput claim is made. Browser
+destination and journal cleanup are separate JavaScript/storage changes and do
+not contribute to these Wasm deltas.
+
+### Prepared key and receiver-state follow-up
+
+The subsequent local batch preserves incoming native Host 0.75.1 and Wire 0.17.14
+with lock SHA-256 `c6c4725ad731fb485422c1d7e5e834f21adcf24a6facbf832c3e6996bd5f5db8`.
+The same compiler, target flags, release defaults and build command above apply;
+no optimizer changed. Its fresh baseline reproduces the previous final artifact.
+
+| Follow-up fixture | Total bytes | Code-section bytes |
+| --- | ---: | ---: |
+| Matched baseline | 1,884,640 | 1,448,619 |
+| Key/private-branch cleanup; original receiver presence | 1,884,465 | 1,448,924 |
+| Combined cleanup with inline receiver state (discarded) | 1,884,725 | 1,449,218 |
+| Combined cleanup with boxed configured receiver (retained) | 1,884,402 | 1,449,460 |
+
+This batch saves **238 total bytes but adds 841 code bytes**. It is retained for
+single-owner receiver state and less duplicated key data, not a code-size win.
+The private fixture allocates its receiver once per installation/restoration;
+ordinary authorization introduces no new allocation from that representation.
+Vector tooling is native-only. Public APIs, signature checks, signed bytes and
+stored/checkpoint formats remain unchanged. Final artifact SHA-256:
+`94aa95c3d28fdc3cdd023320574cd726c26e6b1f593191f5a5327ee87ffda44d`.
+Raw inputs, alternative sources, measurements and checks are retained under
+`target/evidence/prepared-state-20261108/`. Runtime speed was not measured.
