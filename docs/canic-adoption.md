@@ -9,24 +9,24 @@ Superseded migration journals remain in Git history; use the current contracts b
 ## Current integration cohort
 
 Published **Protocol 0.35.1** (`ic-auth-protocol-types`, `ic-auth-wire`) and
-**Engine 0.35.8** (`ic-auth`) form the released cohort. Keep both Protocol packages
+**Engine 0.35.10** (`ic-auth`) form the released cohort. Keep both Protocol packages
 aligned and satisfy Engine's declared Protocol requirement; the groups release
-independently. Engine's qualification lock uses Platform 0.26.0, Types 0.18.2,
-Wire 0.17.13, Testkit 0.93.1, Runtime 0.20.1, Storage 0.68.10 and Metrics 0.29.6.
-Testkit retains Platform 0.25.1 only in native qualification; the Wasm host has
+independently. Engine's qualification lock uses Platform 0.27.0, Types 0.18.2,
+Wire 0.17.14, Testkit 0.93.2, Runtime 0.20.2, Storage 0.69.0 and Metrics 0.29.6.
+Testkit retains Platform 0.26.1 only in native qualification; the Wasm host has
 one facade and one Runtime executor/generator/guard. The complete Engine gate is
 recorded in the [current handoff](status/current.md). Rust 1.99.1 remains the minimum.
 [Cargo.toml](../Cargo.toml), the lockfile and [group ledgers](../CHANGELOG.md)
 record development selections and release notes, respectively.
 
-The released cohort also selects Build 0.79.0,
-Host 0.75.0 and Shared Tooling 0.31.10. Existing Auth contracts are preserved;
+The released cohort also selects Build 0.79.1,
+Host 0.75.1 and root-owned Toko Tooling 0.34.0. Existing Auth contracts are preserved;
 no field selects Wire's opt-in packed 16-byte ID encoding. Both Protocol and
 Engine passed complete release gates, recorded in the handoff.
-Storage's collection image cut applies only to
-Auth's private qualification host here; fresh fixture allocation is required and
-old images are refused without clearing. This is not an in-place production-store
-upgrade.
+Storage 0.69 preserves current collection images and returns ordinary operation
+values directly. Historical image cuts apply only to Auth's private qualification
+host here; retired images are refused without clearing. No production store is
+migrated by this release.
 
 The clean 0.35.8 backend helper archive passes registry identity checks and all
 20 packaged tests. Its ten scenarios include immutable 90-day login deadlines,
