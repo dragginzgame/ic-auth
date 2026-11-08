@@ -9,12 +9,12 @@ Superseded migration journals remain in Git history; use the current contracts b
 ## Current integration cohort
 
 Published **Protocol 0.35.0** (`ic-auth-protocol-types`, `ic-auth-wire`) and
-**Engine 0.35.6** (`ic-auth`) form the released cohort. Keep both Protocol packages
+**Engine 0.35.7** (`ic-auth`) form the released cohort. Keep both Protocol packages
 aligned and satisfy Engine's declared Protocol requirement; the groups release
-independently. Engine's qualification lock uses Platform 0.25.0, Types 0.18.2,
-Wire 0.17.12, Testkit 0.92.0, Runtime 0.20.0, Storage 0.68.7 and Metrics 0.29.6.
-Testkit retains Platform 0.24 only in native helpers; the Wasm host has one Platform
-0.25 and one Runtime executor/generator/guard. The complete Engine gate is recorded
+independently. Engine's qualification lock uses Platform 0.25.1, Types 0.18.2,
+Wire 0.17.12, Testkit 0.93.0, Runtime 0.20.0, Storage 0.68.8 and Metrics 0.29.6.
+Auth and native Testkit share one Platform 0.25 identity; the Wasm host retains
+one Runtime executor/generator/guard. The complete Engine gate is recorded
 in the [current handoff](status/current.md). Rust 1.99.1 remains the minimum.
 [Cargo.toml](../Cargo.toml), the lockfile and [group ledgers](../CHANGELOG.md)
 record development selections and release notes, respectively.
@@ -26,12 +26,12 @@ Auth's private qualification host here; fresh fixture allocation is required and
 old images are refused without clearing. This is not an in-place production-store
 upgrade.
 
-The clean 0.35.6 backend helper archive passes registry identity checks and all
+The clean 0.35.7 backend helper archive passes registry identity checks and all
 20 packaged tests. Its ten scenarios include immutable 90-day login deadlines,
 late renewal and restore under fresh authority, with unchanged `Backend` hooks.
 The handoff records its exact source, checksum and receipt. Retain that archive
 and receipt in the consumer and qualify the actual adapter; earlier archives
-retain their original scenario sets. Native Testkit 0.92 callers must select a
+retain their original scenario sets. Native Testkit 0.93 callers must select a
 positive finite request `Duration`; Auth's runner retains 30-second request and
 separate startup budgets. This native fixture migration changes no Auth protocol.
 
@@ -128,7 +128,7 @@ state was changed by this Auth review.
 
 Canic still consumes the clean 0.35.1 helper under
 `integrations/auth-backend-conformance`, as an excluded development-only package.
-The already-qualified 0.35.6 helper adds the 90-day renewal/reopen case and expanded
+The already-qualified 0.35.7 helper adds the 90-day renewal/reopen case and expanded
 authority refusals without changing the `Backend` hooks. Its exact source,
 archive SHA-256 and receipt are in the
 [clean delivery record](status/current.md#clean-backend-helper-delivery).

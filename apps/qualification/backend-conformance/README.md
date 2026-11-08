@@ -33,7 +33,7 @@ reports a missing download, run `cargo fetch --locked --manifest-path
 <printed-evidence>/consumer/Cargo.toml`, then rerun the check into a fresh retained
 directory. The check itself never downloads or uploads.
 
-The latest clean delivered bundle targets published Engine **0.35.6** and Protocol
+The latest clean delivered bundle targets published Engine **0.35.7** and Protocol
 **0.35.0**, with Platform 0.25 and Types 0.18.2. Keep the single-Platform/Types
 admission intact across consumer and source bundle. Earlier archives retain their
 original graphs. Use the
@@ -45,22 +45,22 @@ it as a **development dependency**. Use the archive's normalized `Cargo.toml`;
 depending on the producer's working workspace can introduce a second Git/path
 identity for Auth alongside the consumer's registry dependency.
 
-Example for the Engine 0.35.6 delivery cohort:
+Example for the Engine 0.35.7 delivery cohort:
 
 ```toml
 # Append this path to the consumer's existing workspace exclusions. The foreign
 # source bundle must not become a consumer-owned release-group member.
 [workspace]
-exclude = ["test-support/ic-auth-backend-conformance-0.35.6"]
+exclude = ["test-support/ic-auth-backend-conformance-0.35.7"]
 
 [dev-dependencies]
-ic-auth-backend-conformance = { path = "test-support/ic-auth-backend-conformance-0.35.6" }
-ic-auth = { version = "=0.35.6", default-features = false, features = ["session-restore", "portable-signature-verification"] }
+ic-auth-backend-conformance = { path = "test-support/ic-auth-backend-conformance-0.35.7" }
+ic-auth = { version = "=0.35.7", default-features = false, features = ["session-restore", "portable-signature-verification"] }
 ```
 
 Implement `ic_auth_backend_conformance::Backend` on a test driver for the actual
 adapter and call `assert_backend_contract::<YourDriver>()` from a native test.
-The clean 0.35.6 entrypoint runs all ten named scenarios:
+The clean 0.35.7 entrypoint runs all ten named scenarios:
 `assert_admission_retry`, `assert_logout_reopen`, `assert_unknown_logout_reopen`,
 `assert_replacement_generation`, `assert_ninety_day_renewal`,
 `assert_capacity`, `assert_authorization`, `assert_maximum_shape`, `assert_pruning`
@@ -68,7 +68,7 @@ and `assert_metadata_reopen`. Each uses
 fresh disposable backing and can also be called from a separately named native test for clearer failure
 diagnosis. A subset is not complete backend conformance.
 The 0.35.1 and 0.35.2 archives retain their nine-scenario contracts and original
-receipts. The 0.35.6 archive includes the 90-day scenario and expanded authority
+receipts. The 0.35.7 archive includes the 90-day scenario and expanded authority
 refusals; upgrading from 0.35.1 requires no new `Backend` hook.
 `fresh` supplies isolated backing with the requested generation and bounds;
 `fail_next_commit` injects a normal error before admission/logout, nonempty prune
@@ -87,7 +87,7 @@ Do not reset or erase production backing to run these scenarios.
 
 ### Refreshing an existing consumer
 
-Retain the clean 0.35.6 archive and delivery receipt in consumer-owned custody,
+Retain the clean 0.35.7 archive and delivery receipt in consumer-owned custody,
 verify their checksum/source identity, and replace the excluded helper directory
 with the archive's normalized contents. Keep its package metadata and license
 intact; do not add it to consumer workspace membership or release groups.

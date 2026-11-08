@@ -12,15 +12,15 @@ qualify the current dependency graph.
 The root manifest selects published Testkit 0.93.0 from
 [IC Tooling](https://github.com/dragginzgame/ic-tooling), its maintained PocketIC
 client and server 16.1.0. The qualified pairing shares Wire 0.17.12 types directly;
-the focused Testkit 0.93 qualification and earlier complete Engine 0.35.6 gate
-(which selected Testkit 0.92) are recorded in the
+the complete Engine 0.35.7 gate qualifies Testkit 0.93 with all retained changes,
+as recorded in the
 [current handoff](status/current.md).
 `WireCallSpec` takes the canonical
 contract limits without conversion; responses require only `DeserializeOwned`.
 The temporary Wire 0.6 alias and limit bridge are removed following
 [Tooling #248](https://github.com/dragginzgame/ic-tooling/issues/248).
 Application identities use owned Principal; direct Testkit/Agent calls convert
-explicitly to their external type. Auth and Testkit 0.93 share Platform 0.25.0
+explicitly to their external type. Auth and Testkit 0.93 share Platform 0.25.1
 and canonical Types 0.18.2; the Storage host selects Runtime 0.20.0 directly. No alias or
 dependency override is used.
 Native CBOR errors use Testkit's `CborErrorKind` and retain the typed source;
