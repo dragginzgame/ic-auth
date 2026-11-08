@@ -3,6 +3,14 @@
 Covers `ic-auth-protocol-types` and `ic-auth-wire`, released together.
 The independent series starts after the [last coordinated release, 0.29.2](../history.md).
 
+## [0.35.1] - Unreleased
+
+### ⬆️ Dependencies
+
+- Select Wire/derive 0.17.13 as the compatible minimum. Auth does not select the
+  new packed 16-byte ID encoding; existing DTO bytes, method identities, bounds
+  and generated browser method contracts remain unchanged.
+
 ## [0.35.0] - 2026-11-06
 
 ### ⚠️ Breaking

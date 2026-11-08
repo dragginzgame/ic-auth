@@ -21,6 +21,119 @@ The batch is complete and fast-forward reconciled; its durable recovery remains
 at `.git/release-state/frozen/batch-FqmjNnSq/`. No upload is unresolved.
 [#127](https://github.com/dragginzgame/ic-auth/issues/127) remains closed.
 
+## Authorized Protocol / Engine delivery — 2026-11-08
+
+The maintainer requested deployment of the pending dependency and Shared Tooling
+changes. The normal `main` checkout is the source; destination is
+`https://github.com/dragginzgame/ic-auth.git`. Shared's managed frozen flow will
+release Protocol 0.35.1 before Engine 0.35.8 and publish both selected groups to
+crates.io. Each selects the full source-bound release plan because manifests,
+lock, generated runtime and shared tooling changed. Hosted CI remains
+asynchronous; Gitleaks stays outside release preparation and publication.
+Normal-tree updates after capture belong to the next candidate. Delivery logs
+and release observations are retained under `target/delivery-0358/`.
+
+## Shared Tooling 0.31.10 adoption — 2026-11-08
+
+The normal checkout adopts committed Shared Tooling 0.31.10 at
+`c5285791991c731d266fb5c85dc3ee876d29f6b9` through the canonical exporter.
+The 165-file closure explicitly selects the shared download-cache action and
+pinned CI-tool installer. Auth's CI restores authenticated downloads before
+setup and saves after admission, before tests. Its existing Cargo build cache
+and product setup remain intact. A separate, unconditional Linux repository
+secret job owns the full-history Gitleaks scan outside the host matrix; no
+scanner step enters Make CI, release-group gates, setup or publication.
+
+The first pinned scanner download exhausted bounded retries with HTTP 504.
+The identical official asset was obtained through GitHub's asset API, verified
+against the catalog SHA-256, then re-admitted through the canonical installer's
+authenticated cache. The initial history scan found 21 source SHA-256 rows,
+two generated diagram edges and one historical prose comment. The default
+rules remain enabled: only the generic heuristic receives path-and-full-line
+exceptions for those non-secret formats, and the comment has one exact finding
+fingerprint. The final full-history scan passes. Six controls confirm allowed
+forms, credential rejection in both exception files, Rust credential rejection
+and refusal to apply the source-hash exception outside its metadata file.
+
+Workflow lint, dependency pins, snapshot integrity, host-tool admission and
+Auth's actual client preparation/tool-evidence caller fixtures pass. New crate
+and `crate::module` LOC selections preserve classified counts; unknown modules
+refuse without a partial report. Evidence and previews are retained under
+`target/shared-tooling-adoption-03110/`. Hosted cache service execution and
+macOS remain untested locally; no hosted CI run was launched or awaited.
+
+Existing Build/Platform/Wire/Storage selections, Cargo files and all five
+generated browser files remain byte-identical to the incoming selection.
+That earlier adoption's focused evidence remains scoped as recorded below.
+This Shared update is private tooling maintenance; it does not select a package
+version bump, commit, push or publication.
+
+## Build / Platform / Wire / Storage adoption — 2026-11-08
+
+The unpublished workspace selects Build 0.79.0, Platform 0.26.0, Wire/derive
+0.17.13 and Storage 0.68.10. Incoming Runtime/macros/guard 0.20.1 are preserved.
+Auth uses neither Build's removed batch APIs nor Platform's retired BLAKE3
+facade, so no Rust source migration is needed. The compatible Wire minimum is
+now 0.17.13; no Auth field selects its new opt-in packed 16-byte ID encoding.
+The four regenerated method files are unchanged. The reviewed fifth file, the
+shared browser runtime, adds `hash16` support without changing Auth schemas,
+method identities, bounds or signed/stored bytes.
+
+Focused checks pass: 216 Auth cases including doctests, 17 Wire/contract/fixture
+cases, 13 private-host cases, 4 native tooling cases and 37 adversarial
+feature-unification cases. All 93 client tests, packed-consumer checks and
+Rust/TypeScript interoperability pass. Native/Wasm Clippy and actual dependency
+boundaries pass. The host has one Platform 0.26 and one Runtime executor,
+generator and guard; Testkit alone retains Platform 0.25 in native qualification.
+Build 0.79's release editor is explicitly prepared and admitted offline.
+
+Cargo.lock changed externally during qualification only to Testkit 0.93.1.
+The offline native lint and installed check refused its unprepared source/tool;
+that incoming patch was retained and explicitly prepared. Native/Wasm lint,
+final generator comparison and all 11 ordinary installed certificate, upgrade,
+ingress and SDK cases then passed with the final lock. PocketIC remains 16.1.
+The earlier client and pure-library results retain their original Testkit 0.93.0
+lock; their selected graphs do not include Testkit, and no relevant source or
+dependency changed. Chromium remains opt-in/ignored. No full release gate ran.
+
+The reference Wasm is **1,898,602 total / 1,461,817 code-section bytes**,
+SHA-256 `a335cb0822568d9afb9d269ab043459f859da0f41400fe30f50f80737edcb9a2`.
+Against the published reference it is **+174 total / -37 code bytes**, using the
+same release profile and no post-optimizer. This is a combined dependency/version
+comparison, not a matched single-dependency benchmark or throughput claim.
+Testkit's later native-only patch does not change that Wasm graph or artifact.
+Logs, the initial/final lock selections and the size receipt are under
+`target/upstream-adoption-20261108/`; installed state is retained at
+`target/portable-fixtures/qualification.0uu5P6/`.
+
+The existing Shared Tooling adoption is preserved. Public dependency requirements
+changed, so the pending Engine 0.35.8 and Protocol 0.35.1 notes record their own
+release impact. Package versions remain at published Engine 0.35.7 / Protocol
+0.35.0 until an actual release is selected. No commit, push or publication ran.
+
+## Shared Tooling 0.31.9 adoption — 2026-11-08
+
+The normal checkout adopts committed Shared Tooling 0.31.9 at
+`d95f271bc7b49951ccf286c3655cef7446b8cf56`, using the canonical exporter's
+explicit revision selection. Unrelated 0.31.10 drafts in the source checkout
+were excluded without creating or switching checkouts. The unchanged entrypoint
+selection now closes over 163 payloads, including the new shared hashing policy
+and inventory. Preview, impact and source verification are retained under
+`target/shared-tooling-adoption-0319/`.
+
+Auth's existing formatting entrypoint now selects only its owned Cargo members;
+actual formatting/hook preservation checks pass. The actual direct-dependency
+checker passes with shared hash/crypto admission enabled; Auth already uses the
+approved direct SHA-256 implementation. `make cloc CLOC_DEPTH=0` and
+`CLOC_DEPTH=2` expand crates/modules with equal category totals and no
+unclassified Rust. Snapshot integrity, documentation links and the diff pass.
+These are focused consumer checks, not a new full release or macOS result.
+
+That adoption alone was private tooling/governance maintenance: public library
+sources, manifests, readmes, dependency declarations and the lockfile remained
+unchanged from the published release. It did not select publication. Subsequent
+dependency-adoption work has its own scope and evidence above.
+
 ## Completed Engine 0.35.7 delivery — 2026-11-08
 
 Engine publication completed through Shared's managed frozen batch

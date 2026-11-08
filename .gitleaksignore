@@ -1,0 +1,3 @@
+# Historical English comment about delegation witness key names and ordering.
+# This exact finding is prose, not key material; future commits remain scanned.
+dfdc261b69e3fc661fe3d846246e23f337d9f50b:crates/ic-auth/tests/delegation/mod.rs:generic-api-key:198

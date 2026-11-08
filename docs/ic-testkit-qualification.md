@@ -9,20 +9,23 @@ qualify the current dependency graph.
 
 ## Setup and ownership
 
-The root manifest selects published Testkit 0.93.0 from
+The root manifest retains a Testkit 0.93 minimum; the lock selects published
+Testkit 0.93.1 from
 [IC Tooling](https://github.com/dragginzgame/ic-tooling), its maintained PocketIC
-client and server 16.1.0. The qualified pairing shares Wire 0.17.12 types directly;
-the complete Engine 0.35.7 gate qualifies Testkit 0.93 with all retained changes,
-as recorded in the
+client and server 16.1.0. The working lock now shares Wire 0.17.13 types directly.
+The complete Engine 0.35.7 gate qualified Testkit 0.93 with Wire 0.17.12;
+the subsequent dependency-adoption checks are recorded separately in the
 [current handoff](status/current.md).
 `WireCallSpec` takes the canonical
 contract limits without conversion; responses require only `DeserializeOwned`.
 The temporary Wire 0.6 alias and limit bridge are removed following
 [Tooling #248](https://github.com/dragginzgame/ic-tooling/issues/248).
 Application identities use owned Principal; direct Testkit/Agent calls convert
-explicitly to their external type. Auth and Testkit 0.93 share Platform 0.25.1
-and canonical Types 0.18.2; the Storage host selects Runtime 0.20.0 directly. No alias or
-dependency override is used.
+explicitly to their external type. Auth now selects Platform 0.26.0; Testkit 0.93
+retains Platform 0.25.1 only in native qualification. Both use canonical Types
+0.18.2; the Storage host selects Runtime 0.20.1 directly. No alias or dependency
+override is used. The Wasm host retains one Platform facade and one Runtime
+executor/generator/guard.
 Native CBOR errors use Testkit's `CborErrorKind` and retain the typed source;
 Auth does not match the retired Platform-error tuple variant.
 Native Agent/client dependencies stay outside public Auth library and

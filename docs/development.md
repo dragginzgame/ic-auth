@@ -179,7 +179,7 @@ also remains 30 seconds.
 Native file and process callers select Host FS/Process 0.75.0 with defaults
 disabled. Library use does not enable Host's optional CLI, certificate decoder
 or Wasm text/encoding backends. Host stays outside the production library graph.
-The locked Build 0.78.0 and Testkit 0.93.0 share Auth's Host 0.75 identities. The
+The locked Build 0.79.0 and Testkit 0.93.1 share Auth's Host 0.75 identities. The
 independently pinned file CLI is selected at 0.75.0.
 Build and Testkit libraries keep `cli` disabled; only the prepared executable
 selections request it. Testkit has no Metrics dependency; Auth's diagnostics
@@ -187,13 +187,16 @@ select Metrics directly.
 No caller enables optional native
 metadata; the old Host 0.73 and Metrics 0.25 providers are removed.
 
-Auth and Testkit 0.93 share Platform 0.25 and canonical Types 0.18.2.
+Auth selects Platform 0.26; Testkit 0.93 retains Platform 0.25 only in native
+qualification. Both use canonical Types 0.18.2. The Wasm host selects only
+Platform 0.26 and one Runtime executor/generator/guard.
 Testkit classifies native CBOR failures with its own `CborErrorKind`, retaining
 the original typed source without requiring a Platform-error downcast.
 Native Testkit and its Candid/management DTOs remain outside the public library
 and Wasm host graphs.
-The host selects Runtime 0.20 directly, matching Storage 0.68.7's Wasm dependency.
-Wire 0.17 provides the matching canonical Principal schema implementation.
+The host selects Runtime 0.20.1 directly, matching Storage 0.68.10's Wasm dependency.
+Wire 0.17.13 provides the matching canonical Principal schema implementation;
+Auth does not select its opt-in packed 16-byte ID fields.
 Native calls retain explicit external Principal conversions; native SDK packages
 remain outside public Auth and the reference Wasm graph.
 
@@ -212,7 +215,7 @@ for the existing byte/path limits and release-recovery boundary.
 
 ## Dependency roles and deployment admission
 
-Shared Tooling 0.31.0 at `74313941af2fce4399bec0e6909ca6229673c3f8` is adopted
+Shared Tooling 0.31.10 at `c5285791991c731d266fb5c85dc3ee876d29f6b9` is adopted
 through the canonical snapshot. This identifies reviewed committed source, not a
 claim of upstream publication or a matching release tag. Auth retains Cargo-owned versions
 and the default release mode; Shared's pending canonical `VERSION` workflow does
@@ -432,8 +435,8 @@ for application calls. Candid arrives through three paths:
 
 Auth uses Testkit's Wire call helpers. Testkit's native management helpers select
 Platform's external protocol adapters; those native Agent/PocketIC paths stay
-outside deployed graphs. Testkit 0.86 and Auth share Platform 0.22;
-canonical Types and the actual Wasm Runtime owner stay
+outside deployed graphs. Native Testkit 0.93 retains Platform 0.25 while Auth
+selects Platform 0.26; canonical Types and the actual Wasm Runtime owner stay
 aligned. All Auth application requests remain Wire frames.
 
 A workspace-wide reverse tree unifies Platform features across selected members,
@@ -502,8 +505,8 @@ No native package installer or browser download runs inside an ordinary check.
 The Makefile includes reviewed [`make/consumer.mk`](make-interface.md), which owns
 common setup, formatting, hooks, snapshot verification and release routing.
 `check-snapshot` retains its public name and depends on `shared-tooling-check`.
-The recorded snapshot pins Shared Tooling 0.31.0 at
-`74313941af2fce4399bec0e6909ca6229673c3f8`. Adopt its committed source and
+The recorded snapshot pins Shared Tooling 0.31.10 at
+`c5285791991c731d266fb5c85dc3ee876d29f6b9`. Adopt its committed source and
 recorded entrypoint closure through the canonical exporter; see
 [snapshot adoption](consuming-snapshots.md#entrypoint-selection-in-070).
 Adoption also compares every exported payload with an independently reviewed
@@ -699,6 +702,22 @@ for the injected issuer and clock boundaries.
 
 ## Validation
 
+CI has one Linux `Repository secrets` job, outside the Rust OS matrix. It uses
+the pinned Gitleaks installer and scans complete Git history, including on
+documentation-only changes, with full redaction and retained failure reports.
+Default detection rules remain enabled. The generic heuristic has only
+path-and-line exceptions for release-input SHA-256 rows and generated Mermaid
+edges; one historical prose finding has an exact fingerprint exception.
+Synthetic credential controls qualify that those files still reject API keys.
+Secret scanning is independent of Make CI, release groups and publication;
+delivery does not install or repeat it.
+
+Both CI jobs restore the shared pinned-download cache before host/CI tool setup
+and save after successful setup, before product checks. The shared action permits
+saving only on default-branch pushes; cached bytes still pass normal digest and
+tool admission. The Rust build cache and Auth's selected product setup retain
+their existing owners.
+
 The complete CI/release gate admits the snapshot and prepared tools, then runs
 `make clippy` before other validation targets. It keeps the same native all-target/
 all-feature and Wasm lint scope. The sequential runner stops on either lint
@@ -858,6 +877,19 @@ or macOS qualification before those jobs run.
 The snapshot deliberately omits fleet reporters. `make cloc` still reports this
 workspace; the optional shared `cloc-tooling` target explains that fleet reports
 run in Shared Tooling and does not execute another checkout.
+Use `make cloc CLOC_DEPTH=0` for crate rows or `CLOC_DEPTH=2` for two module
+levels below each crate. Direct script calls use `scripts/dev/cloc.sh -d N`;
+these replace the retired `CLOC_SUBCRATES` and `--subcrates` options.
+To inspect one crate or module, run `bash scripts/dev/cloc.sh -d 1 ic-auth` or
+`bash scripts/dev/cloc.sh -d 1 ic-auth::session`. Depth is relative to that
+selection; an unknown crate/module is refused.
+Formatting selects this workspace's explicit Cargo members, including non-default
+members, and refuses unavailable metadata before writing. It does not traverse
+external sibling path dependencies through `cargo fmt --all`.
+The direct Cargo boundary check also loads Shared's
+[hashing inventory](../rules/hashing.md). Auth retains its approved direct SHA-256
+implementation and existing digest/domain bytes; signature and certificate
+capabilities remain owned by Platform.
 
 Signature tests exercise real cryptography with deterministic fixture trust keys,
 including root/subnet chains, and preserve Canic's signature-domain bytes. They

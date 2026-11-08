@@ -21,6 +21,12 @@ record development selections and release notes, respectively.
 
 The released cohort also selects Build 0.78.0,
 Host 0.75.0 and Shared Tooling 0.31.4.
+The subsequent unpublished workspace adopts Platform 0.26, Wire 0.17.13,
+Storage 0.68.10, Build 0.79 and Runtime 0.20.1, preserving the existing Auth
+contracts. Testkit 0.93.1 retains Platform 0.25 only in native qualification;
+the Wasm host still has one facade and one Runtime executor/generator/guard.
+See the [current handoff](status/current.md) for that separate adoption evidence;
+the clean 0.35.7 consumer archives below retain their original release graph.
 Storage's collection image cut applies only to
 Auth's private qualification host here; fresh fixture allocation is required and
 old images are refused without clearing. This is not an in-place production-store

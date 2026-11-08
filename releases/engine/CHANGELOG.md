@@ -4,6 +4,25 @@ Covers public `ic-auth` and the unpublished backend conformance, qualification a
 native tooling packages. The independent series starts after the
 [last coordinated release, 0.29.2](../history.md).
 
+## [0.35.8] - Unreleased
+
+### 🔧 Changed
+
+- Adopt Shared Tooling 0.31.10 with workspace-member-only formatting, shared
+  hash-dependency admission and crate/module LOC selection. Cache authenticated
+  tool downloads before CI setup and save before tests; run one full-history
+  Gitleaks scan outside the host matrix and release/publication paths.
+  This is private tooling maintenance; public package versions remain unchanged.
+- Adopt Platform 0.26 for the existing crypto capabilities, Wire/derive 0.17.13
+  and Storage 0.68.10 for the private host. Preserve incoming Runtime, macros and
+  guard 0.20.1. No Auth caller selects Platform's retired BLAKE3 facade or Wire's
+  new opt-in packed ID encoding; Auth schemas, signed bytes and stored formats
+  remain unchanged.
+- Adopt Build 0.79 for native lock admission and the selected release editor.
+  Auth does not use its retired batch configuration or outcome aliases.
+- Qualify the incoming Testkit 0.93.1 native patch, retaining the unchanged
+  PocketIC 16.1 pairing, explicit request budgets and managed async teardown.
+
 ## [0.35.7] - 2026-11-08
 
 ### 🔧 Changed
