@@ -1,4 +1,4 @@
-# Current handoff — 2026-11-07
+# Current handoff — 2026-11-08
 
 ## Published state
 
@@ -21,13 +21,134 @@ The batch is complete and fast-forward reconciled; its durable recovery remains
 at `.git/release-state/frozen/batch-ZU5ln9dY/`. No upload is unresolved.
 [#127](https://github.com/dragginzgame/ic-auth/issues/127) remains closed.
 
+## Engine 0.35.7 release preparation — 2026-11-08
+
+The pending Engine 0.35.7 batch is ready for a source push on focused evidence.
+The final diff, Rust formatting, direct dependency ownership and actual
+native/Wasm capability boundaries pass. Final Rust inputs match the last
+qualified certified-message source; a fresh rebuild reproduces its artifact
+byte-for-byte, preserving the existing signed-byte, client and installed proofs.
+The optional ordered grant-walk experiment added 16 total / 18 code bytes and
+was discarded; its source, measurements and restoration seals remain in
+`target/evidence/grant-walk-20261108/`. No additional code change is retained.
+The current reference Wasm remains 1,898,428 bytes, 6,716 below the matched initial
+baseline, with the allocation reductions recorded below. The maintainer has now
+authorized Engine publication through Shared's managed frozen flow under
+`target/release-frozen/`, with durable `.git/release-state/frozen/` custody.
+Protocol remains 0.35.0. The complete source-bound release gate will run against
+the captured batch; hosted CI remains asynchronous. Later normal-tree dependency
+updates stay outside that capture. Delivery logs are under `target/delivery-0357/`.
+
+## Pending complexity cleanup and matched Wasm measurement
+
+Four cleanup candidates are retained: pending/completed browser issuance types
+with the same stored profile; one private receiver-configuration projection
+roster; one fixture login lifetime/ledger policy for installation and restoration;
+and canonical field encoding shared by byte output and streaming SHA-256.
+There is no public Rust API, signed-byte, verification-rule or stored-layout cut.
+The existing upstream cryptographic primitives remain unchanged. Length-framed
+hashes count the same encoder output before hashing; an overflow test refuses
+before the hashing pass. Standalone encoders retain their structural checks.
+
+Matched normal-checkout release Wasm builds use Rust 1.99.1, identical Cargo
+settings/target flags, no post-processing, and the same saved lock throughout.
+That incoming lock already selects Platform 0.25.1, Storage 0.68.8, Testkit 0.93,
+Runtime 0.20 and Wire/derive 0.17.12; it was preserved, not changed for the experiment.
+
+| Stage | Total bytes | Code-section bytes |
+| --- | ---: | ---: |
+| Before cleanup | 1,905,144 | 1,468,750 |
+| Fixture cleanup | 1,905,029 | 1,468,740 |
+| Retained streaming hashes | 1,899,691 | 1,462,917 |
+
+That stage's final artifact is byte-identical to its retained hashing stage: **5,453 fewer
+total bytes and 5,833 fewer code bytes** than baseline. Generic callback splitting
+was evaluated separately and discarded: the combined split added 3,944 total /
+3,108 code bytes over the hashing stage; the isolated revocation split also grew.
+No callback-plan abstraction or compiler inlining override is retained.
+
+Native DHAT observations use unchanged synthetic small and 16-role/32-scope
+inputs, 100 iterations and equal digests. Certificate, complete-proof, header,
+issuer-leaf and derivation-path hashing now allocate zero heap blocks; the wide
+complete-proof case previously allocated 32,640 cumulative bytes per operation.
+Portable-claims hashing was unchanged in that stage. These are allocation and Wasm-size results,
+not runtime-instruction or production-throughput claims.
+
+Focused Rust canonical/proof/session/refusal suites, fixture conversion tests,
+93 client tests plus packed-consumer/Wire interoperability, native/Wasm Clippy,
+and all 11 ordinary installed certificate/session/upgrade/ingress and SDK cases
+pass. Chromium remains opt-in/ignored. Evidence, exact source/input seals, native
+reports and all measured artifacts are in `target/evidence/complexity-20261108/`.
+Engine 0.35.7 remains a compatible draft alongside the pending Testkit adoption;
+the published state is unchanged. No full repository gate or Git delivery ran.
+
+The portable-claims follow-up also shares one bounded encoder between byte output
+and SHA-256. Fresh matched builds on the same lock/compiler/settings move from
+1,899,691 to **1,898,461 total bytes**, and 1,462,917 to **1,461,887 code bytes**:
+another **1,230 total / 1,030 code bytes saved**. Combined with the earlier batch,
+the reductions are 6,683 total and 6,863 code bytes. That artifact's SHA-256:
+`6322118651dd380c3a5f54abedda6aaef7517714a0b986935e0e4940cc795fed`.
+
+At 100 native DHAT iterations per profile, portable-claims hashing moves from
+5 blocks / 868 cumulative bytes (small) and 9 blocks / 14,308 bytes (wide) per
+operation to **zero**. All benchmark digests match. Frozen and wide/mechanism
+vectors, hash/encoding structural-refusal ordering, 115 focused Rust cases,
+native/Wasm Clippy and all 11 ordinary installed cases pass. Chromium remains
+ignored. The earlier client results retain their original stage; no frontend or
+protocol changes required another client suite. Evidence and exact input/source
+seals: `target/evidence/portable-claims-20261108/`; installed state:
+`target/portable-fixtures/qualification.ZK5rAO/`. No public API, stored format,
+signed bytes, crypto primitive, verification policy or dependency selection changed.
+
+The fixed certified-message follow-up replaces its temporary `Vec` with a 60-byte
+stack array; a compile-time check retains the one-byte domain-length bound.
+Matched builds on the unchanged lock/compiler/settings save another **33 total
+and 33 code bytes**: latest artifact 1,898,428 total / 1,461,854 code bytes,
+SHA-256 `363611d69dbd622270141e6401207a1476eb83448d5f04bbfbb8b049de15b196`.
+Cumulative savings across these cleanups are 6,716 total and 6,896 code bytes.
+Fifty focused signature/certified-proof/refusal cases and native/Wasm Clippy
+pass. All 11 ordinary installed cases pass against that exact artifact;
+Chromium remains ignored. Proofs produced with the existing general message
+helper confirm unchanged framing; no whole-verifier allocation or performance
+improvement is claimed. Evidence: `target/evidence/certified-message-20261108/`;
+installed state: `target/portable-fixtures/qualification.Yimzgb/`.
+
+## Pending Testkit 0.93 adoption
+
+The workspace and lock select published Testkit 0.93.0
+(`be8a613d17037c20953015fc85bdd46c4291799d97e93ab924c9e89ddd185e6b`).
+Native CBOR errors now use Testkit's `CborErrorKind` with their original typed
+source. Auth does not match the retired error variant, so no Rust source migration
+is needed. Testkit and Auth share Platform 0.25.0; the older native Platform 0.24
+identity is removed. Explicit 30-second request/startup budgets and managed async
+instance/server teardown are retained. PocketIC remains 16.1.0.
+
+The incoming arc-swap 1.9.4 selection is preserved and included in the focused
+checks. Wire/derive remain 0.17.12: inspection of the captured release lock and
+gate logs corrected stale 0.17.11 wording in the release/handoff documentation.
+The generator check matches all five current browser files; there is no new
+Wire selection or generated source change in this batch.
+
+Focused checks pass: warning-denied native runner all-target Clippy, actual Auth
+dependency boundaries and all 11 ordinary installed certificate/session/upgrade/
+signed-ingress and SDK admission/logout cases. The opt-in Chromium case is
+ignored. The lock-selected CLI was explicitly prepared and admitted offline.
+Evidence and the stable selected manifest/lock are under
+`target/evidence/testkit-0930/`; installed state is at
+`target/portable-fixtures/qualification.csrYfU/`.
+The Wasm dependency identities/features match the captured 0.35.6 release graph,
+including one Runtime executor/generator/guard; no byte-identical artifact or
+performance claim is made across different checkout paths. The full repository
+gate was not rerun. Engine 0.35.7 is a draft; package versions and the published
+state above remain unchanged. No Git delivery or publication was requested.
+
 ## Completed Engine 0.35.6 delivery
 
 The maintainer authorized and completed Engine publication. Protocol
 remains 0.35.0: its source, four generated method bindings and declared compatible
 dependency requirements are unchanged. The selected full lock includes Platform
 0.25.0, Runtime/macros/guard 0.20.0, Storage 0.68.7, Host 0.75.0, Build 0.78.0,
-Testkit 0.92.0, Wire/derive 0.17.11, crypto-common 0.1.6 and generic-array 0.14.9.
+Testkit 0.92.0, Wire/derive 0.17.12, crypto-common 0.1.6 and generic-array 0.14.9.
 The Wire runtime was regenerated and all five files reviewed; only 19 packed-bool
 runtime lines changed, with no Auth field using the opt-in adapter.
 

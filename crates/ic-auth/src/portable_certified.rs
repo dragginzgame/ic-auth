@@ -4,8 +4,7 @@
 use crate::admission_budget::{AdmissionBudgetError, SessionAdmissionBudget};
 use crate::{
     canister_signature::{
-        CanisterSignatureError, CanisterSignaturePolicy, domain_separated_message,
-        verify_canister_signature,
+        CanisterSignatureError, CanisterSignaturePolicy, verify_canister_signature,
     },
     canonical::CanonicalAuthError,
     certificate_issuance::grants_are_subset,
@@ -200,7 +199,14 @@ pub(crate) fn verify_prepared(
         limits: limits.into(),
     })?;
     let IssuerProofBinding::IcCanisterSignatureV1 { seed_hash } = cert.issuer_proof_binding;
-    let message = domain_separated_message(CERTIFIED_SIGNATURE_DOMAIN, fingerprint)?;
+    // This profile has one fixed domain and a 32-byte digest. Preserve the IC
+    // length/domain/payload framing without allocating the general Vec message.
+    const DOMAIN_LEN: usize = CERTIFIED_SIGNATURE_DOMAIN.len();
+    const { assert!(DOMAIN_LEN <= u8::MAX as usize) };
+    let mut message = [0; 1 + DOMAIN_LEN + 32];
+    message[0] = DOMAIN_LEN as u8;
+    message[1..1 + DOMAIN_LEN].copy_from_slice(CERTIFIED_SIGNATURE_DOMAIN);
+    message[1 + DOMAIN_LEN..].copy_from_slice(&fingerprint);
     verify_canister_signature(
         &message,
         issuer_signature,

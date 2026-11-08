@@ -260,6 +260,13 @@ test('journal rejects incompatible stored shape without overwriting retained sta
     const retained = await f.client.status('login-a');
     assert.equal(retained.phase, 'active');
     assert.equal(retained.deadlineNs, 0n);
+    await assert.rejects(f.store.transact(record => {
+      assert.ok(record);
+      // @ts-expect-error Pending issuance cannot contain a frame without its original expiry.
+      const invalid: import('../src/index.js').LogoutJournal = { ...record, issuanceUnknown: true, issuance: { sequence: 0n, bytes: new Uint8Array([1]) } };
+      return { record: invalid, value: undefined };
+    }, true), (error: unknown) => error instanceof ClientError && error.code === 'storage_corrupt');
+    assert.equal((await f.client.status('login-a')).issuance, undefined);
     const wrongClock = new PortableLogoutClient(f.store, { ...f.clock, id: 'different-domain' }, f.transport);
     await assert.rejects(wrongClock.begin('login-a', f.state.now + 10_000n * MS), ClientError);
     assert.equal((await f.client.status('login-a')).phase, 'active');

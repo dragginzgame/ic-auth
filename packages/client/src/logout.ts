@@ -137,10 +137,13 @@ export class PortableLogoutClient {
       if (record.phase !== 'active') throw new ClientError('stale_generation');
       const op = record.issuance;
       if (!accountAvailable && (!op || (op.sequence === 0n && !op.bytes))) throw new ClientError('account_required');
-      if (op?.bytes && op.untilNs! > now && (refreshThrough === undefined || op.sequence > refreshThrough)) return { record, value: {
-        kind: 'saved', sequence: op.sequence, bytes: new Uint8Array(op.bytes), until: op.untilNs!,
-      } };
-      if (op && !op.bytes) return { record, value: {
+      if (op?.untilNs !== undefined) {
+        if (!op.bytes) throw new ClientError('storage_corrupt');
+        if (op.untilNs > now && (refreshThrough === undefined || op.sequence > refreshThrough)) return { record, value: {
+          kind: 'saved', sequence: op.sequence, bytes: new Uint8Array(op.bytes), until: op.untilNs,
+        } };
+      }
+      if (op && op.untilNs === undefined) return { record, value: {
         kind: 'reconcile', sequence: op.sequence, signer: op.sequence === 0n ? 'account' : 'browser',
       } };
       const sequence = op ? op.sequence + 1n : 0n;
@@ -204,10 +207,7 @@ export class PortableLogoutClient {
     await this.update(generation, (record, now) => {
       if (record.phase !== 'active') return { record, value: undefined };
       if (deadlineNs <= now || deadlineNs > now + MAX_CLEANUP_NS) throw new ClientError('configuration');
-      if (record.issuance) {
-        delete record.issuance.bytes;
-        delete record.issuance.untilNs;
-      }
+      if (record.issuance) record.issuance = { sequence: record.issuance.sequence };
       return { record: { ...record, phase: 'cleanup', deadlineNs }, value: undefined };
     });
   }

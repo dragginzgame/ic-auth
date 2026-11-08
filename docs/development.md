@@ -168,7 +168,7 @@ The repository's Wasm target flags select upstream RustCrypto's qualified
 `cpubits="32"` backend. Other canister build owners must select it themselves;
 dependency Cargo configuration is not inherited, and explicit `RUSTFLAGS` or
 `CARGO_ENCODED_RUSTFLAGS` overrides must preserve this selection.
-Testkit 0.92 owns native clients and DTOs in `ic_testkit::pocket_ic`, together with
+Testkit 0.93 owns native clients and DTOs in `ic_testkit::pocket_ic`, together with
 bounded server startup, lifecycle extensions and typed Wire calls;
 only the native runner selects these capabilities. Its client requires an
 explicit server endpoint and positive finite request budget. Auth constructs its
@@ -179,7 +179,7 @@ also remains 30 seconds.
 Native file and process callers select Host FS/Process 0.75.0 with defaults
 disabled. Library use does not enable Host's optional CLI, certificate decoder
 or Wasm text/encoding backends. Host stays outside the production library graph.
-The locked Build 0.78.0 and Testkit 0.92.0 share Auth's Host 0.75 identities. The
+The locked Build 0.78.0 and Testkit 0.93.0 share Auth's Host 0.75 identities. The
 independently pinned file CLI is selected at 0.75.0.
 Build and Testkit libraries keep `cli` disabled; only the prepared executable
 selections request it. Testkit has no Metrics dependency; Auth's diagnostics
@@ -187,11 +187,12 @@ select Metrics directly.
 No caller enables optional native
 metadata; the old Host 0.73 and Metrics 0.25 providers are removed.
 
-Auth selects Platform 0.25; Testkit 0.92 retains Platform 0.24 inside its native
-client. Both share canonical Types 0.18.
+Auth and Testkit 0.93 share Platform 0.25 and canonical Types 0.18.2.
+Testkit classifies native CBOR failures with its own `CborErrorKind`, retaining
+the original typed source without requiring a Platform-error downcast.
 Native Testkit and its Candid/management DTOs remain outside the public library
 and Wasm host graphs.
-The host selects Runtime 0.19 directly, matching Storage 0.68's Wasm dependency.
+The host selects Runtime 0.20 directly, matching Storage 0.68.7's Wasm dependency.
 Wire 0.17 provides the matching canonical Principal schema implementation.
 Native calls retain explicit external Principal conversions; native SDK packages
 remain outside public Auth and the reference Wasm graph.

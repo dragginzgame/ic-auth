@@ -80,6 +80,33 @@ fn frozen_bytes_digest_and_direct_browser_principal() {
 }
 
 #[test]
+fn hashing_preserves_encoding_refusals_and_their_order() {
+    let mutations: &[fn(&mut PortableClaims)] = &[
+        |c| {
+            c.account_subject = Principal::anonymous();
+            c.grants.clear();
+        },
+        |c| c.grants.clear(),
+        |c| c.grants[0].scopes.clear(),
+        |c| c.grants.push(c.grants[0].clone()),
+        |c| c.grants[0].scopes = vec!["write".parse().unwrap(), "read".parse().unwrap()],
+        |c| c.grants[0].scopes = vec!["read".parse().unwrap(); 33],
+        |c| c.grants = vec![c.grants[0].clone(); 17],
+    ];
+    for mutate in mutations {
+        let mut value = claims();
+        mutate(&mut value);
+        assert_eq!(
+            claims_hash(&value).unwrap_err(),
+            encode_claims(&value).unwrap_err(),
+        );
+    }
+    let mut value = claims();
+    mutations[0](&mut value);
+    assert_eq!(claims_hash(&value), Err(Error::AnonymousSubject));
+}
+
+#[test]
 fn every_semantic_field_is_bound_and_mechanisms_have_distinct_bytes() {
     let original = claims();
     let digest = claims_hash(&original).unwrap();

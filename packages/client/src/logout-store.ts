@@ -10,6 +10,12 @@ export interface LogoutTarget {
   nextNs: bigint;
   confirmedUntilNs?: bigint;
 }
+/** A retained intent has no expiry or evidence. Completed metadata always has
+ * its original expiry; evidence transactions also load the separate frame. */
+type Issuance =
+  | { sequence: bigint; untilNs?: never; bytes?: never }
+  | { sequence: bigint; untilNs: bigint; bytes?: Uint8Array };
+
 interface JournalCommon {
   generation: string;
   caller: string;
@@ -17,7 +23,7 @@ interface JournalCommon {
   clockId: string;
   observedNs: bigint;
   issuanceUnknown: boolean;
-  issuance?: { sequence: bigint; bytes?: Uint8Array; untilNs?: bigint };
+  issuance?: Issuance;
   targets: LogoutTarget[];
 }
 

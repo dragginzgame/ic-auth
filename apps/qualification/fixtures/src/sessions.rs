@@ -118,6 +118,9 @@ impl TryFrom<ic_auth_qualification_contracts::model::ReceiverAuthority> for Rece
     }
 }
 
+// Both projections share the passive field roster; boundary admission stays explicit.
+macro_rules! receiver_projection {
+    ($($field:ident),* $(,)?) => {
 impl TryFrom<ReceiverConfig> for ic_auth_qualification_contracts::model::ReceiverConfig {
     type Error = ic_auth_wire::wire::Error;
     fn try_from(value: ReceiverConfig) -> Result<Self, Self::Error> {
@@ -135,11 +138,7 @@ impl TryFrom<ReceiverConfig> for ic_auth_qualification_contracts::model::Receive
                     .map(TryInto::try_into)
                     .collect::<Result<_, _>>()?,
             )?,
-            valid_from_ns: value.valid_from_ns,
-            valid_until_ns: value.valid_until_ns,
-            enrollment_until_ns: value.enrollment_until_ns,
-            verification_burst: value.verification_burst,
-            verification_refill_ns: value.verification_refill_ns,
+            $($field: value.$field,)*
         })
     }
 }
@@ -163,14 +162,19 @@ impl TryFrom<ic_auth_qualification_contracts::model::ReceiverConfig> for Receive
                     .collect::<Result<_, _>>()?,
             )
             .map_err(|_| Error::Malformed)?,
-            valid_from_ns: value.valid_from_ns,
-            valid_until_ns: value.valid_until_ns,
-            enrollment_until_ns: value.enrollment_until_ns,
-            verification_burst: value.verification_burst,
-            verification_refill_ns: value.verification_refill_ns,
+            $($field: value.$field,)*
         })
     }
 }
+    };
+}
+receiver_projection!(
+    valid_from_ns,
+    valid_until_ns,
+    enrollment_until_ns,
+    verification_burst,
+    verification_refill_ns,
+);
 
 #[cfg(test)]
 mod tests;

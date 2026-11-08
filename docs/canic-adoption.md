@@ -12,7 +12,7 @@ Published **Protocol 0.35.0** (`ic-auth-protocol-types`, `ic-auth-wire`) and
 **Engine 0.35.6** (`ic-auth`) form the released cohort. Keep both Protocol packages
 aligned and satisfy Engine's declared Protocol requirement; the groups release
 independently. Engine's qualification lock uses Platform 0.25.0, Types 0.18.2,
-Wire 0.17.11, Testkit 0.92.0, Runtime 0.20.0, Storage 0.68.7 and Metrics 0.29.6.
+Wire 0.17.12, Testkit 0.92.0, Runtime 0.20.0, Storage 0.68.7 and Metrics 0.29.6.
 Testkit retains Platform 0.24 only in native helpers; the Wasm host has one Platform
 0.25 and one Runtime executor/generator/guard. The complete Engine gate is recorded
 in the [current handoff](status/current.md). Rust 1.99.1 remains the minimum.

@@ -124,14 +124,7 @@ pub(crate) fn restore(snapshot: Snapshot) {
                 .map(|bytes| Replay::decode(bytes.as_slice()).expect("decode replay")),
         )
         .expect("restore complete session/replay store");
-    let ledger =
-        MemoryLoginRevocations::new(
-            config.audience,
-            MAX_ADMITTED_LOGINS,
-            MAX_UNKNOWN_LOGINS,
-            86_400_000_000_000,
-            now,
-        )
+    let ledger = login_ledger(config.audience, now)
         .expect("ledger limits")
         .restore_records(
             saved.observed,

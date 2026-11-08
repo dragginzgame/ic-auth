@@ -6,6 +6,9 @@ use ic_auth_protocol_types::*;
 use sha2::{Digest, Sha256};
 use thiserror::Error;
 
+// One field encoder feeds either exact byte output or the maintained SHA-256.
+pub(crate) type Sink<'a> = dyn FnMut(&[u8]) + 'a;
+
 const DOMAIN_SEPARATOR: &[u8] = b"CANIC-AUTH\0";
 const ISSUER_PROOF_BINDING_HASH_DOMAIN: &[u8] = b"canic-issuer-proof-binding-v1";
 const CHAIN_KEY_BATCH_HEADER_DOMAIN: &[u8] = b"CANIC_ROOT_DELEGATION_CHAIN_KEY_BATCH_V1";
@@ -42,30 +45,35 @@ pub enum CanonicalAuthError {
 
 /// Hash the canonical delegation certificate; this does not authenticate it.
 pub fn cert_hash(cert: &DelegationCert) -> Result<[u8; 32], CanonicalAuthError> {
-    Ok(hash_bytes(&cert_bytes(cert)?))
+    hash_encoded(&[], false, &|out| encode_cert(out, cert))
 }
 
 /// Hash a certificate together with its complete root proof.
 pub fn proof_hash(proof: &DelegationProof) -> Result<[u8; 32], CanonicalAuthError> {
-    Ok(hash_bytes(&proof_bytes(proof)?))
+    hash_encoded(&[], false, &|out| {
+        out(DOMAIN_SEPARATOR);
+        out(&[CanonicalDomain::DelegationProof as u8]);
+        encode_cert(out, &proof.cert)?;
+        encode_root_proof(out, &proof.root_proof)
+    })
 }
 
 /// Hash a chain-key batch header under its existing signed domain.
 pub fn chain_key_batch_header_hash(
     header: &ChainKeyBatchHeaderV1,
 ) -> Result<[u8; 32], CanonicalAuthError> {
-    let mut payload = Vec::with_capacity(256);
-    encode_chain_key_batch_header(&mut payload, header)?;
-    hash_chain_key_header_payload(&payload)
+    hash_encoded(&[CHAIN_KEY_BATCH_HEADER_DOMAIN], true, &|out| {
+        encode_chain_key_batch_header(out, header)
+    })
 }
 
 /// Hash an issuer leaf under the existing chain-key Merkle leaf domain.
 pub fn chain_key_delegation_cert_hash(
     cert: &ChainKeyDelegationCertV1,
 ) -> Result<[u8; 32], CanonicalAuthError> {
-    let mut payload = Vec::with_capacity(256);
-    encode_chain_key_delegation_cert(&mut payload, cert)?;
-    hash_chain_key_leaf_payload(&payload)
+    hash_encoded(&[&[0], CHAIN_KEY_DELEGATION_CERT_DOMAIN], true, &|out| {
+        encode_chain_key_delegation_cert(out, cert)
+    })
 }
 
 /// Hash the exact ordered derivation path under its existing Canic domain.
@@ -73,9 +81,9 @@ pub fn chain_key_delegation_cert_hash(
 pub fn chain_key_derivation_path_hash(
     derivation_path: &[Vec<u8>],
 ) -> Result<[u8; 32], CanonicalAuthError> {
-    let mut out = CHAIN_KEY_DERIVATION_PATH_DOMAIN.to_vec();
-    encode_chain_key_derivation_path(&mut out, derivation_path)?;
-    Ok(hash_bytes(&out))
+    hash_encoded(&[CHAIN_KEY_DERIVATION_PATH_DOMAIN], false, &|out| {
+        encode_chain_key_derivation_path(out, derivation_path)
+    })
 }
 
 /// Bind an issuer principal, proof algorithm and seed hash.
@@ -84,31 +92,33 @@ pub fn issuer_proof_binding_hash(
     issuer_proof_alg: IssuerProofAlgorithm,
     issuer_proof_binding: IssuerProofBinding,
 ) -> Result<[u8; 32], CanonicalAuthError> {
-    let mut out = Vec::with_capacity(128);
-    out.extend_from_slice(ISSUER_PROOF_BINDING_HASH_DOMAIN);
-    encode_principal(&mut out, issuer_pid)?;
-    encode_issuer_proof_algorithm(&mut out, issuer_proof_alg);
-    encode_issuer_proof_binding(&mut out, issuer_proof_binding);
-    Ok(hash_bytes(&out))
+    hash_encoded(&[ISSUER_PROOF_BINDING_HASH_DOMAIN], false, &|out| {
+        encode_principal(out, issuer_pid)?;
+        encode_issuer_proof_algorithm(out, issuer_proof_alg);
+        encode_issuer_proof_binding(out, issuer_proof_binding);
+        Ok(())
+    })
 }
 
 /// Hash the exact validated role label under the existing role domain.
 pub fn role_hash(role: &AuthRole) -> Result<[u8; 32], CanonicalAuthError> {
-    let mut out = domain_bytes(CanonicalDomain::RoleHash);
-    encode_string(&mut out, role.as_str())?;
-    Ok(hash_bytes(&out))
+    hash_encoded(&[], false, &|out| {
+        out(DOMAIN_SEPARATOR);
+        out(&[CanonicalDomain::RoleHash as u8]);
+        encode_string(out, role.as_str())
+    })
 }
 
 /// Encode a certificate without changing grant order or normalizing labels.
 pub fn cert_bytes(cert: &DelegationCert) -> Result<Vec<u8>, CanonicalAuthError> {
     let mut out = Vec::with_capacity(128);
-    encode_cert(&mut out, cert)?;
+    encode_cert(&mut |bytes| out.extend_from_slice(bytes), cert)?;
     Ok(out)
 }
 
-fn encode_cert(out: &mut Vec<u8>, cert: &DelegationCert) -> Result<(), CanonicalAuthError> {
-    out.extend_from_slice(DOMAIN_SEPARATOR);
-    out.push(CanonicalDomain::DelegationCert as u8);
+fn encode_cert(out: &mut Sink<'_>, cert: &DelegationCert) -> Result<(), CanonicalAuthError> {
+    out(DOMAIN_SEPARATOR);
+    out(&[CanonicalDomain::DelegationCert as u8]);
 
     encode_principal(out, cert.root_pid)?;
     encode_principal(out, cert.issuer_pid)?;
@@ -125,43 +135,23 @@ fn encode_cert(out: &mut Vec<u8>, cert: &DelegationCert) -> Result<(), Canonical
     Ok(())
 }
 
-fn proof_bytes(proof: &DelegationProof) -> Result<Vec<u8>, CanonicalAuthError> {
-    let mut out = domain_bytes(CanonicalDomain::DelegationProof);
-
-    encode_cert(&mut out, &proof.cert)?;
-    encode_root_proof(&mut out, &proof.root_proof)?;
-
-    Ok(out)
-}
-
-fn domain_bytes(domain: CanonicalDomain) -> Vec<u8> {
-    let mut out = Vec::with_capacity(128);
-    out.extend_from_slice(DOMAIN_SEPARATOR);
-    out.push(domain as u8);
-    out
-}
-
-fn hash_bytes(bytes: &[u8]) -> [u8; 32] {
-    Sha256::digest(bytes).into()
-}
-
-fn encode_issuer_proof_algorithm(out: &mut Vec<u8>, alg: IssuerProofAlgorithm) {
+fn encode_issuer_proof_algorithm(out: &mut Sink<'_>, alg: IssuerProofAlgorithm) {
     let tag = match alg {
         IssuerProofAlgorithm::IcCanisterSignatureV1 => 1,
     };
-    out.push(tag);
+    out(&[tag]);
 }
 
-fn encode_audience(out: &mut Vec<u8>, audience: &DelegationAudience) {
+fn encode_audience(out: &mut Sink<'_>, audience: &DelegationAudience) {
     match audience {
         DelegationAudience::Fleet(fleet) => {
-            out.push(1);
+            out(&[1]);
             encode_fleet_key(out, *fleet);
         }
     }
 }
 
-fn encode_fleet_key(out: &mut Vec<u8>, fleet: AudienceId) {
+fn encode_fleet_key(out: &mut Sink<'_>, fleet: AudienceId) {
     encode_fixed_32(out, *fleet.canonical_network_id.as_bytes());
     encode_fixed_32(out, *fleet.fleet_id.as_bytes());
 }
@@ -169,7 +159,7 @@ fn encode_fleet_key(out: &mut Vec<u8>, fleet: AudienceId) {
 // ADMITTED is private same-call shape evidence: portable encoding validates the
 // immutable grants first. Standalone canonical encoders retain their own checks.
 pub(crate) fn encode_role_grants<const ADMITTED: bool>(
-    out: &mut Vec<u8>,
+    out: &mut Sink<'_>,
     grants: &[DelegatedRoleGrant],
 ) -> Result<(), CanonicalAuthError> {
     encode_len(out, grants.len())?;
@@ -192,27 +182,27 @@ pub(crate) fn encode_role_grants<const ADMITTED: bool>(
     Ok(())
 }
 
-fn hash_chain_key_header_payload(payload: &[u8]) -> Result<[u8; 32], CanonicalAuthError> {
-    let len = u32::try_from(payload.len()).map_err(|_| CanonicalAuthError::LengthOverflow)?;
+fn hash_encoded(
+    prefix: &[&[u8]],
+    length_prefixed: bool,
+    encode: &dyn Fn(&mut Sink<'_>) -> Result<(), CanonicalAuthError>,
+) -> Result<[u8; 32], CanonicalAuthError> {
     let mut hash = Sha256::new();
-    hash.update(CHAIN_KEY_BATCH_HEADER_DOMAIN);
-    hash.update(len.to_be_bytes());
-    hash.update(payload);
-    Ok(hash.finalize().into())
-}
-
-fn hash_chain_key_leaf_payload(payload: &[u8]) -> Result<[u8; 32], CanonicalAuthError> {
-    let len = u32::try_from(payload.len()).map_err(|_| CanonicalAuthError::LengthOverflow)?;
-    let mut hash = Sha256::new();
-    hash.update([0]);
-    hash.update(CHAIN_KEY_DELEGATION_CERT_DOMAIN);
-    hash.update(len.to_be_bytes());
-    hash.update(payload);
+    for bytes in prefix {
+        hash.update(bytes);
+    }
+    if length_prefixed {
+        let mut length = 0u64;
+        encode(&mut |bytes| length = length.saturating_add(bytes.len() as u64))?;
+        let length = u32::try_from(length).map_err(|_| CanonicalAuthError::LengthOverflow)?;
+        hash.update(length.to_be_bytes());
+    }
+    encode(&mut |bytes| hash.update(bytes))?;
     Ok(hash.finalize().into())
 }
 
 fn encode_chain_key_batch_header(
-    out: &mut Vec<u8>,
+    out: &mut Sink<'_>,
     header: &ChainKeyBatchHeaderV1,
 ) -> Result<(), CanonicalAuthError> {
     encode_u16(out, header.schema_version);
@@ -232,7 +222,7 @@ fn encode_chain_key_batch_header(
 }
 
 fn encode_chain_key_delegation_cert(
-    out: &mut Vec<u8>,
+    out: &mut Sink<'_>,
     cert: &ChainKeyDelegationCertV1,
 ) -> Result<(), CanonicalAuthError> {
     encode_principal(out, cert.root_canister_id)?;
@@ -251,10 +241,10 @@ fn encode_chain_key_delegation_cert(
     Ok(())
 }
 
-fn encode_root_proof(out: &mut Vec<u8>, proof: &RootProof) -> Result<(), CanonicalAuthError> {
+fn encode_root_proof(out: &mut Sink<'_>, proof: &RootProof) -> Result<(), CanonicalAuthError> {
     match proof {
         RootProof::IcChainKeyBatchSignatureV1(proof) => {
-            out.push(2);
+            out(&[2]);
             encode_chain_key_proof(out, proof)?;
         }
     }
@@ -262,7 +252,7 @@ fn encode_root_proof(out: &mut Vec<u8>, proof: &RootProof) -> Result<(), Canonic
 }
 
 fn encode_chain_key_proof(
-    out: &mut Vec<u8>,
+    out: &mut Sink<'_>,
     proof: &IcChainKeyBatchSignatureProofV1,
 ) -> Result<(), CanonicalAuthError> {
     encode_chain_key_batch_header(out, &proof.header)?;
@@ -273,18 +263,18 @@ fn encode_chain_key_proof(
 }
 
 fn encode_chain_key_witness(
-    out: &mut Vec<u8>,
+    out: &mut Sink<'_>,
     witness: &ChainKeyBatchWitnessV1,
 ) -> Result<(), CanonicalAuthError> {
     encode_len(out, witness.steps.len())?;
     for step in &witness.steps {
         match step {
             ChainKeyBatchWitnessStepV1::LeftSibling(hash) => {
-                out.push(1);
+                out(&[1]);
                 encode_fixed_32(out, *hash);
             }
             ChainKeyBatchWitnessStepV1::RightSibling(hash) => {
-                out.push(2);
+                out(&[2]);
                 encode_fixed_32(out, *hash);
             }
         }
@@ -293,7 +283,7 @@ fn encode_chain_key_witness(
 }
 
 fn encode_chain_key_signature(
-    out: &mut Vec<u8>,
+    out: &mut Sink<'_>,
     signature: &ChainKeyRootSignatureV1,
 ) -> Result<(), CanonicalAuthError> {
     encode_chain_key_algorithm(out, signature.algorithm);
@@ -305,7 +295,7 @@ fn encode_chain_key_signature(
 }
 
 fn encode_chain_key_derivation_path(
-    out: &mut Vec<u8>,
+    out: &mut Sink<'_>,
     derivation_path: &[Vec<u8>],
 ) -> Result<(), CanonicalAuthError> {
     encode_len(out, derivation_path.len())?;
@@ -315,31 +305,31 @@ fn encode_chain_key_derivation_path(
     Ok(())
 }
 
-fn encode_chain_key_algorithm(out: &mut Vec<u8>, algorithm: ChainKeyAlgorithm) {
+fn encode_chain_key_algorithm(out: &mut Sink<'_>, algorithm: ChainKeyAlgorithm) {
     let tag = match algorithm {
         ChainKeyAlgorithm::EcdsaSecp256k1 => 1,
     };
-    out.push(tag);
+    out(&[tag]);
 }
 
 fn encode_chain_key_key_id(
-    out: &mut Vec<u8>,
+    out: &mut Sink<'_>,
     key_id: &ChainKeyKeyId,
 ) -> Result<(), CanonicalAuthError> {
     encode_string(out, &key_id.name)?;
     Ok(())
 }
 
-fn encode_issuer_proof_binding(out: &mut Vec<u8>, binding: IssuerProofBinding) {
+fn encode_issuer_proof_binding(out: &mut Sink<'_>, binding: IssuerProofBinding) {
     match binding {
         IssuerProofBinding::IcCanisterSignatureV1 { seed_hash } => {
-            out.push(1);
+            out(&[1]);
             encode_fixed_32(out, seed_hash);
         }
     }
 }
 
-fn encode_role(out: &mut Vec<u8>, role: &AuthRole) -> Result<(), CanonicalAuthError> {
+fn encode_role(out: &mut Sink<'_>, role: &AuthRole) -> Result<(), CanonicalAuthError> {
     encode_bytes(out, role.as_str().as_bytes())?;
     Ok(())
 }
@@ -366,40 +356,40 @@ pub fn validate_scope_label(scope: &str) -> Result<(), CanonicalAuthError> {
     ScopeLabel::validate(scope).map_err(Into::into)
 }
 
-fn encode_string(out: &mut Vec<u8>, value: &str) -> Result<(), CanonicalAuthError> {
+fn encode_string(out: &mut Sink<'_>, value: &str) -> Result<(), CanonicalAuthError> {
     encode_bytes(out, value.as_bytes())?;
     Ok(())
 }
 
 pub(crate) fn encode_principal(
-    out: &mut Vec<u8>,
+    out: &mut Sink<'_>,
     principal: Principal,
 ) -> Result<(), CanonicalAuthError> {
     encode_bytes(out, principal.as_slice())?;
     Ok(())
 }
 
-fn encode_bytes(out: &mut Vec<u8>, bytes: &[u8]) -> Result<(), CanonicalAuthError> {
+fn encode_bytes(out: &mut Sink<'_>, bytes: &[u8]) -> Result<(), CanonicalAuthError> {
     encode_len(out, bytes.len())?;
-    out.extend_from_slice(bytes);
+    out(bytes);
     Ok(())
 }
 
-fn encode_fixed_32(out: &mut Vec<u8>, bytes: [u8; 32]) {
-    out.extend_from_slice(&bytes);
+fn encode_fixed_32(out: &mut Sink<'_>, bytes: [u8; 32]) {
+    out(&bytes);
 }
 
-fn encode_u64(out: &mut Vec<u8>, value: u64) {
-    out.extend_from_slice(&value.to_be_bytes());
+fn encode_u64(out: &mut Sink<'_>, value: u64) {
+    out(&value.to_be_bytes());
 }
 
-fn encode_u16(out: &mut Vec<u8>, value: u16) {
-    out.extend_from_slice(&value.to_be_bytes());
+fn encode_u16(out: &mut Sink<'_>, value: u16) {
+    out(&value.to_be_bytes());
 }
 
-fn encode_len(out: &mut Vec<u8>, len: usize) -> Result<(), CanonicalAuthError> {
+fn encode_len(out: &mut Sink<'_>, len: usize) -> Result<(), CanonicalAuthError> {
     let len = u32::try_from(len).map_err(|_| CanonicalAuthError::LengthOverflow)?;
-    out.extend_from_slice(&len.to_be_bytes());
+    out(&len.to_be_bytes());
     Ok(())
 }
 

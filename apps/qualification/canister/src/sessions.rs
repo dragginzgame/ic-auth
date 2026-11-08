@@ -25,6 +25,7 @@ use ic_platform::Principal;
 
 use std::cell::{Cell, RefCell};
 const SECOND: u64 = 1_000_000_000;
+const MAX_LOGIN_TTL_NS: u64 = 86_400 * SECOND;
 const MAX_SESSIONS: usize = 8;
 const MAX_REPLAYS: usize = 32;
 const MAX_REPLAYS_PER_CALLER: usize = 8;
@@ -107,7 +108,7 @@ impl ReceiverInputs {
         PortableClaimsContext {
             authority: self.authority(caller, now),
             min_proof_issued_at_ns: self.proof_floor,
-            max_login_ttl_ns: 86_400 * SECOND,
+            max_login_ttl_ns: MAX_LOGIN_TTL_NS,
             max_proof_ttl_ns: 60 * SECOND,
         }
     }
@@ -119,6 +120,19 @@ impl ReceiverInputs {
             required_scopes: RequiredScopes::NONE,
         }
     }
+}
+
+fn login_ledger(
+    audience: ic_auth_protocol_types::AudienceId,
+    now: u64,
+) -> Result<MemoryLoginRevocations, ic_auth::portable::LoginRevocationError> {
+    MemoryLoginRevocations::new(
+        audience,
+        MAX_ADMITTED_LOGINS,
+        MAX_UNKNOWN_LOGINS,
+        MAX_LOGIN_TTL_NS,
+        now,
+    )
 }
 
 // Both installation and checkpoint restoration start with empty budgets.
@@ -242,14 +256,7 @@ fn install_session_receiver(config: controls::model::ReceiverConfig) -> Result<(
         login_floor: 0,
         proof_floor: 0,
     };
-    let ledger = MemoryLoginRevocations::new(
-        inputs.config.audience,
-        MAX_ADMITTED_LOGINS,
-        MAX_UNKNOWN_LOGINS,
-        86_400_000_000_000,
-        now,
-    )
-    .map_err(|_| Refusal::Session)?;
+    let ledger = login_ledger(inputs.config.audience, now).map_err(|_| Refusal::Session)?;
     let host = Receiver::new(
         inputs,
         ReceiverLifecycle::Active,

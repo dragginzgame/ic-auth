@@ -66,21 +66,33 @@ pub enum PortableEncodingError {
 /// Encode exactly the frozen 0.6 claims domain. Never sort or normalize input.
 /// Time relationships and protected authority are verification responsibilities.
 pub fn encode_claims(claims: &PortableClaims) -> Result<Vec<u8>, PortableEncodingError> {
+    let mut bytes = Vec::new();
+    encode_claims_into(claims, &mut |part| bytes.extend_from_slice(part))?;
+    Ok(bytes)
+}
+
+fn encode_claims_into(
+    claims: &PortableClaims,
+    sink: &mut crate::canonical::Sink<'_>,
+) -> Result<(), PortableEncodingError> {
     validate_shape(claims)?;
-    // Validated grant/count/label bounds limit allocation even before the final
-    // whole-blob check. No unbounded extension or caller-selected capacity.
-    let mut out = Vec::new();
-    out.extend_from_slice(DOMAIN);
-    out.extend_from_slice(&SCHEMA.to_be_bytes());
-    out.push(match claims.mechanism {
+    // The same bounded field traversal produces bytes or feeds SHA-256.
+    let mut length = 0usize;
+    let mut out = |bytes: &[u8]| {
+        length = length.saturating_add(bytes.len());
+        sink(bytes);
+    };
+    out(DOMAIN);
+    out(&SCHEMA.to_be_bytes());
+    out(&[match claims.mechanism {
         PortableMechanism::Certified => 0,
         PortableMechanism::Ed25519 => 1,
-    });
-    out.extend_from_slice(claims.audience.canonical_network_id.as_bytes());
-    out.extend_from_slice(claims.audience.fleet_id.as_bytes());
+    }]);
+    out(claims.audience.canonical_network_id.as_bytes());
+    out(claims.audience.fleet_id.as_bytes());
     encode_principal(&mut out, claims.issuer)?;
-    out.extend_from_slice(&claims.key_binding_id);
-    out.extend_from_slice(&claims.browser_public_key);
+    out(&claims.key_binding_id);
+    out(&claims.browser_public_key);
     encode_principal(&mut out, claims.account_subject)?;
     for time in [
         claims.login_started_at_ns,
@@ -88,14 +100,14 @@ pub fn encode_claims(claims: &PortableClaims) -> Result<Vec<u8>, PortableEncodin
         claims.issued_at_ns,
         claims.admission_expires_at_ns,
     ] {
-        out.extend_from_slice(&time.to_be_bytes());
+        out(&time.to_be_bytes());
     }
-    out.extend_from_slice(&claims.nonce);
+    out(&claims.nonce);
     encode_role_grants::<true>(&mut out, &claims.grants)?;
-    if out.len() > MAX_CLAIMS_BYTES {
+    if length > MAX_CLAIMS_BYTES {
         return Err(PortableEncodingError::TooLarge);
     }
-    Ok(out)
+    Ok(())
 }
 
 /// Decode bounded canonical claims. Lengths/counts are admitted before allocation;
@@ -170,7 +182,9 @@ pub fn decode_claims(bytes: &[u8]) -> Result<PortableClaims, PortableEncodingErr
 /// SHA-256 of the exact canonical signed blob, for signing and replay identity.
 /// The digest authenticates nothing by itself; signature bytes are not included.
 pub fn claims_hash(claims: &PortableClaims) -> Result<[u8; 32], PortableEncodingError> {
-    Ok(Sha256::digest(encode_claims(claims)?).into())
+    let mut hash = Sha256::new();
+    encode_claims_into(claims, &mut |bytes| hash.update(bytes))?;
+    Ok(hash.finalize().into())
 }
 
 /// Derive the IC sender for a directly authenticated Ed25519 browser key.

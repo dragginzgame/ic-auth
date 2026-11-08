@@ -165,7 +165,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("{}", serde_json::to_string_pretty(&json!({
         "kind": "native-canonical-allocation-observation", "auth_version": env!("CARGO_PKG_VERSION"),
         "profiler": "dhat 0.3.3", "profiles": profiles,
-        "limits": "Synthetic canonical inputs; not valid signatures, verifier cost, Wasm size/instructions, or production workload evidence. No optimization implemented."
+        "limits": "Synthetic canonical inputs; not valid signatures, verifier cost, Wasm size/instructions, or production workload evidence."
     })).unwrap());
     Ok(())
 }

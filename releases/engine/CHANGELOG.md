@@ -4,6 +4,29 @@ Covers public `ic-auth` and the unpublished backend conformance, qualification a
 native tooling packages. The independent series starts after the
 [last coordinated release, 0.29.2](../history.md).
 
+## [0.35.7]
+
+### 🔧 Changed
+
+- Adopt Testkit 0.93 for native qualification, aligning its Platform dependency
+  with Auth 0.25 and using its supplier-independent CBOR error contract.
+  Explicit request budgets and managed server teardown remain unchanged.
+- Qualify the incoming locked Platform 0.25.1 and Storage 0.68.8 patches with the
+  existing Runtime 0.20 selection.
+
+### 🧹 Cleanup
+
+- Stream canonical delegation and portable-claims hashes through the existing
+  SHA-256 implementation using the same field encoder as byte output. Preserve
+  signed bytes, domains, structural refusals and every verification check while
+  removing temporary hashing buffers.
+- Use a fixed stack buffer for the certified-proof signature message, preserving
+  its exact domain and digest framing without the temporary heap allocation.
+- Distinguish pending issuance from completed browser evidence in the journal's
+  checked types, preserving its stored profile and lookup-only recovery.
+- Share private qualification configuration projections and login lifetime policy
+  across fresh installation and restoration.
+
 ## [0.35.6] - 2026-11-07
 
 ### 🔧 Changed
@@ -18,7 +41,7 @@ native tooling packages. The independent series starts after the
   prepared-input, provenance or process-sampling APIs.
 - Adopt Testkit 0.92 for native qualification's Host 0.75 error identities,
   preserving explicit request budgets and managed teardown.
-- Regenerate the private browser runtime from Wire 0.17.11 while preserving
+- Regenerate the private browser runtime from Wire 0.17.12 while preserving
   Auth's four method bindings, transport bytes and validation budgets.
 
 ### 📚 Documentation

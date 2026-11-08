@@ -8,14 +8,38 @@ fn chain_key_payload_hashes_preserve_framing() {
         let header = [CHAIN_KEY_BATCH_HEADER_DOMAIN, &len, &payload].concat();
         let leaf = [&[0], CHAIN_KEY_DELEGATION_CERT_DOMAIN, &len, &payload].concat();
         assert_eq!(
-            hash_chain_key_header_payload(&payload).unwrap(),
+            hash_encoded(&[CHAIN_KEY_BATCH_HEADER_DOMAIN], true, &|out| {
+                out(&payload);
+                Ok(())
+            })
+            .unwrap(),
             <[u8; 32]>::from(Sha256::digest(header)),
         );
         assert_eq!(
-            hash_chain_key_leaf_payload(&payload).unwrap(),
+            hash_encoded(&[&[0], CHAIN_KEY_DELEGATION_CERT_DOMAIN], true, &|out| {
+                out(&payload);
+                Ok(())
+            })
+            .unwrap(),
             <[u8; 32]>::from(Sha256::digest(leaf)),
         );
     }
+}
+
+#[test]
+fn framed_length_overflow_refuses_before_the_hashing_pass() {
+    let passes = std::cell::Cell::new(0);
+    assert_eq!(
+        hash_encoded(&[], true, &|out| {
+            passes.set(passes.get() + 1);
+            for _ in 0..65_536 {
+                out(&[0; 65_536]);
+            }
+            Ok(())
+        }),
+        Err(CanonicalAuthError::LengthOverflow),
+    );
+    assert_eq!(passes.get(), 1);
 }
 
 #[test]
@@ -23,7 +47,10 @@ fn chain_key_payload_hashes_preserve_framing() {
 fn length_overflow_is_fallible_before_writing() {
     let mut out = vec![7];
     assert_eq!(
-        encode_len(&mut out, u32::MAX as usize + 1),
+        encode_len(
+            &mut |bytes| out.extend_from_slice(bytes),
+            u32::MAX as usize + 1
+        ),
         Err(CanonicalAuthError::LengthOverflow)
     );
     assert_eq!(out, [7]);
