@@ -8,31 +8,27 @@ Superseded migration journals remain in Git history; use the current contracts b
 
 ## Current integration cohort
 
-Published **Protocol 0.35.0** (`ic-auth-protocol-types`, `ic-auth-wire`) and
-**Engine 0.35.7** (`ic-auth`) form the released cohort. Keep both Protocol packages
+Published **Protocol 0.35.1** (`ic-auth-protocol-types`, `ic-auth-wire`) and
+**Engine 0.35.8** (`ic-auth`) form the released cohort. Keep both Protocol packages
 aligned and satisfy Engine's declared Protocol requirement; the groups release
-independently. Engine's qualification lock uses Platform 0.25.1, Types 0.18.2,
-Wire 0.17.12, Testkit 0.93.0, Runtime 0.20.0, Storage 0.68.8 and Metrics 0.29.6.
-Auth and native Testkit share one Platform 0.25 identity; the Wasm host retains
-one Runtime executor/generator/guard. The complete Engine gate is recorded
-in the [current handoff](status/current.md). Rust 1.99.1 remains the minimum.
+independently. Engine's qualification lock uses Platform 0.26.0, Types 0.18.2,
+Wire 0.17.13, Testkit 0.93.1, Runtime 0.20.1, Storage 0.68.10 and Metrics 0.29.6.
+Testkit retains Platform 0.25.1 only in native qualification; the Wasm host has
+one facade and one Runtime executor/generator/guard. The complete Engine gate is
+recorded in the [current handoff](status/current.md). Rust 1.99.1 remains the minimum.
 [Cargo.toml](../Cargo.toml), the lockfile and [group ledgers](../CHANGELOG.md)
 record development selections and release notes, respectively.
 
-The released cohort also selects Build 0.78.0,
-Host 0.75.0 and Shared Tooling 0.31.4.
-The subsequent unpublished workspace adopts Platform 0.26, Wire 0.17.13,
-Storage 0.68.10, Build 0.79 and Runtime 0.20.1, preserving the existing Auth
-contracts. Testkit 0.93.1 retains Platform 0.25 only in native qualification;
-the Wasm host still has one facade and one Runtime executor/generator/guard.
-See the [current handoff](status/current.md) for that separate adoption evidence;
-the clean 0.35.7 consumer archives below retain their original release graph.
+The released cohort also selects Build 0.79.0,
+Host 0.75.0 and Shared Tooling 0.31.10. Existing Auth contracts are preserved;
+no field selects Wire's opt-in packed 16-byte ID encoding. Both Protocol and
+Engine passed complete release gates, recorded in the handoff.
 Storage's collection image cut applies only to
 Auth's private qualification host here; fresh fixture allocation is required and
 old images are refused without clearing. This is not an in-place production-store
 upgrade.
 
-The clean 0.35.7 backend helper archive passes registry identity checks and all
+The clean 0.35.8 backend helper archive passes registry identity checks and all
 20 packaged tests. Its ten scenarios include immutable 90-day login deadlines,
 late renewal and restore under fresh authority, with unchanged `Backend` hooks.
 The handoff records its exact source, checksum and receipt. Retain that archive
@@ -134,7 +130,7 @@ state was changed by this Auth review.
 
 Canic still consumes the clean 0.35.1 helper under
 `integrations/auth-backend-conformance`, as an excluded development-only package.
-The already-qualified 0.35.7 helper adds the 90-day renewal/reopen case and expanded
+The already-qualified 0.35.8 helper adds the 90-day renewal/reopen case and expanded
 authority refusals without changing the `Backend` hooks. Its exact source,
 archive SHA-256 and receipt are in the
 [clean delivery record](status/current.md#clean-backend-helper-delivery).

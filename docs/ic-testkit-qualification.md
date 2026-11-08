@@ -12,9 +12,9 @@ qualify the current dependency graph.
 The root manifest retains a Testkit 0.93 minimum; the lock selects published
 Testkit 0.93.1 from
 [IC Tooling](https://github.com/dragginzgame/ic-tooling), its maintained PocketIC
-client and server 16.1.0. The working lock now shares Wire 0.17.13 types directly.
-The complete Engine 0.35.7 gate qualified Testkit 0.93 with Wire 0.17.12;
-the subsequent dependency-adoption checks are recorded separately in the
+client and server 16.1.0. The released lock shares Wire 0.17.13 types directly.
+The complete Protocol 0.35.1 and Engine 0.35.8 gates qualify this Testkit pairing,
+as recorded in the
 [current handoff](status/current.md).
 `WireCallSpec` takes the canonical
 contract limits without conversion; responses require only `DeserializeOwned`.

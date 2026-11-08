@@ -2,36 +2,69 @@
 
 ## Published state
 
-**Engine 0.35.7** (`ic-auth`) and **Protocol 0.35.0**
+**Engine 0.35.8** (`ic-auth`) and **Protocol 0.35.1**
 (`ic-auth-protocol-types`, `ic-auth-wire`) are published on crates.io.
 Their release commits and annotated tags are pushed to `origin/main`.
 
-- Engine: `f5296b189f4991ec7bbf2ffa25ba3717f9773da5`, tag `engine-v0.35.7`
-  (`ae8f0eb18a4581d333a758b5c9712e1ee5adc921`). Registry checksum:
-  `6cee3a75460d4560b2214287d003b12ac2bd67f9eef0df0a5d148cf98d55662b`.
-- Protocol: `83028f07c75bb80d38867b69ae31cd9e0a2651c4`, tag `protocol-v0.35.0`
-  (`fc8755ef3572af17d806aa6dfc8203f93350bc73`). Registry checksums:
-  types `6204b7d777028c617275f1f63b15bf7d542d89a7b8735c952edaf6770f5421c2`,
-  Wire `b1a16f6109fe1736d81512fb43e3e4e03efcb8e821e023f62d97d18f354136c3`.
+- Engine: `9ed4afbd74c27f56e00aed2dea18fcb195ffb674`, tag `engine-v0.35.8`
+  (`1a4e6e888e9465e8f4ae5f1ac5f081d0af540b46`). Registry checksum:
+  `e2cd57a28f4e190efef2d80a54bad323b4b47ac4d353e8e2d3f566da81e1defa`.
+- Protocol: `39b6e2605ad336c3aadff94bfd8af0dcb07cf8b3`, tag `protocol-v0.35.1`
+  (`e13957c26a45f90cecfa88c88f884342c6be04e5`). Registry checksums:
+  types `bb4db5f8c7da4dbfd2095cf3b9eff1b722fa4a6fd0e8bca04df05ed680183c99`,
+  Wire `9d147f39648df63d46c779ac7c44f666a6dcdacb6824da9b602f5ec164c9757c`.
 
-Custody: `.git/publication-state/engine-0.35.7.json` and
-`.git/publication-state/protocol-0.35.0.json`. The Engine upload/readback is at
-`target/release-frozen/batch-FqmjNnSq/target/publication-engine-0.35.7.c12uKP/`.
+Custody: `.git/publication-state/engine-0.35.8.json` and
+`.git/publication-state/protocol-0.35.1.json`. Upload/readback directories:
+`target/release-frozen/batch-YyKgHPDM/target/publication-protocol-0.35.1.xj7Apl/` and
+`target/release-frozen/batch-YyKgHPDM/target/publication-engine-0.35.8.1GVwin/`.
 The batch is complete and fast-forward reconciled; its durable recovery remains
-at `.git/release-state/frozen/batch-FqmjNnSq/`. No upload is unresolved.
+at `.git/release-state/frozen/batch-YyKgHPDM/`. No upload is unresolved.
 [#127](https://github.com/dragginzgame/ic-auth/issues/127) remains closed.
 
-## Authorized Protocol / Engine delivery — 2026-11-08
+## Completed Protocol 0.35.1 / Engine 0.35.8 delivery — 2026-11-08
 
-The maintainer requested deployment of the pending dependency and Shared Tooling
-changes. The normal `main` checkout is the source; destination is
-`https://github.com/dragginzgame/ic-auth.git`. Shared's managed frozen flow will
-release Protocol 0.35.1 before Engine 0.35.8 and publish both selected groups to
-crates.io. Each selects the full source-bound release plan because manifests,
-lock, generated runtime and shared tooling changed. Hosted CI remains
-asynchronous; Gitleaks stays outside release preparation and publication.
-Normal-tree updates after capture belong to the next candidate. Delivery logs
-and release observations are retained under `target/delivery-0358/`.
+The authorized supplier-first frozen batch `batch-YyKgHPDM` completed both
+registry publications and checksum readbacks. Source commit
+`f65f22700e05e15ade75a082c69e26a0fe9387ed` was captured from normal `main`;
+the Protocol release then supplied Engine's source. Both release commits and
+annotated tags are pushed to `https://github.com/dragginzgame/ic-auth.git`.
+The normal checkout was clean and fast-forward reconciled. Older batches,
+receipts, archives and raw evidence remain retained.
+
+Each group passed a fresh, complete **30-stage Linux release gate**:
+
+| Group | Gate source | Retained logs |
+| --- | --- | --- |
+| Protocol | `f65f22700e05e15ade75a082c69e26a0fe9387ed` | `target/release-frozen/batch-YyKgHPDM/target/release-validation/protocol-gate.vJVFGU/logs/validation.9wobJA` |
+| Engine | `39b6e2605ad336c3aadff94bfd8af0dcb07cf8b3` | `target/release-frozen/batch-YyKgHPDM/target/release-validation/engine-gate.vaIxEo/logs/validation.XXhUc6` |
+
+Both include native/Wasm Clippy, isolated archive/MSRV checks, boundaries,
+all 93 client tests and Wire interoperability, 20 backend-conformance tests,
+all 11 ordinary installed certificate/session/upgrade/ingress and SDK cases,
+local archives and release/recovery callers. Chromium remains opt-in/ignored.
+No gate or stage was reused. The final release-tools fixtures took 1,034 seconds
+for Protocol and 1,039 seconds for Engine. Hosted CI remains asynchronous;
+secret scanning stays outside release preparation, group gates and publication.
+
+The released selection is Platform 0.26.0, Types 0.18.2, Wire/derive 0.17.13,
+Storage 0.68.10, Runtime/macros/guard 0.20.1, Testkit 0.93.1, Build 0.79.0,
+Host 0.75.0, Metrics 0.29.6 and Shared Tooling 0.31.10. Testkit alone retains
+Platform 0.25.1 in native qualification; the Wasm host has one facade and one
+Runtime executor/generator/guard. Rust remains 1.99.1. No Auth field selects
+the new packed-ID codec; method identities, signed bytes and stored formats
+are unchanged.
+
+The Protocol-gate reference Wasm exactly reproduced the earlier 1,898,602-byte
+adoption artifact. After Protocol 0.35.1, the Engine-gate reference is
+**1,898,687 total / 1,461,817 code-section bytes**,
+SHA-256 `1ebded2e43a28e3d559387263f768f6e0ca3028dd1eb24180cd44565a7593eea`.
+The latter adds 85 non-code bytes with the same code-section size. Against the
+previous published reference it is +259 total / -37 code bytes. Compiler and
+release profile are unchanged; no post-optimizer or throughput claim is involved.
+These are reference qualification artifacts before each group's version
+preparation, not a deployed Canic binary. Receipts, delivery and reconciliation
+logs are retained under `target/delivery-0358/`.
 
 ## Shared Tooling 0.31.10 adoption — 2026-11-08
 
@@ -65,8 +98,8 @@ macOS remain untested locally; no hosted CI run was launched or awaited.
 Existing Build/Platform/Wire/Storage selections, Cargo files and all five
 generated browser files remain byte-identical to the incoming selection.
 That earlier adoption's focused evidence remains scoped as recorded below.
-This Shared update is private tooling maintenance; it does not select a package
-version bump, commit, push or publication.
+This Shared update alone was private tooling maintenance. Publication above was
+selected by the public dependency changes and the maintainer's deploy request.
 
 ## Build / Platform / Wire / Storage adoption — 2026-11-08
 
@@ -94,7 +127,8 @@ final generator comparison and all 11 ordinary installed certificate, upgrade,
 ingress and SDK cases then passed with the final lock. PocketIC remains 16.1.
 The earlier client and pure-library results retain their original Testkit 0.93.0
 lock; their selected graphs do not include Testkit, and no relevant source or
-dependency changed. Chromium remains opt-in/ignored. No full release gate ran.
+dependency changed. Chromium remains opt-in/ignored. These focused checks preceded the complete
+release gates recorded above.
 
 The reference Wasm is **1,898,602 total / 1,461,817 code-section bytes**,
 SHA-256 `a335cb0822568d9afb9d269ab043459f859da0f41400fe30f50f80737edcb9a2`.
@@ -106,10 +140,10 @@ Logs, the initial/final lock selections and the size receipt are under
 `target/upstream-adoption-20261108/`; installed state is retained at
 `target/portable-fixtures/qualification.0uu5P6/`.
 
-The existing Shared Tooling adoption is preserved. Public dependency requirements
-changed, so the pending Engine 0.35.8 and Protocol 0.35.1 notes record their own
-release impact. Package versions remain at published Engine 0.35.7 / Protocol
-0.35.0 until an actual release is selected. No commit, push or publication ran.
+The existing Shared Tooling adoption was preserved. Public dependency requirements
+changed, selecting the Engine 0.35.8 and Protocol 0.35.1 release notes. That later
+authorized delivery is recorded above; these earlier observations retain their
+original source, package versions and evidence scope.
 
 ## Shared Tooling 0.31.9 adoption — 2026-11-08
 
@@ -556,32 +590,36 @@ above; this does not change either older captured graph.
 
 ## Clean backend helper delivery
 
-The Engine 0.35.7 / Protocol 0.35.0 helper archive passed registry-consumer identity
+The Engine 0.35.8 / Protocol 0.35.1 helper archive passed registry-consumer identity
 checks and all 20 packaged tests from clean release source
-`f5296b189f4991ec7bbf2ffa25ba3717f9773da5` (`dirty: false`). Receipt:
-`target/release-frozen/batch-FqmjNnSq/target/portable-fixtures/backend-package.hc5VlO/delivery.json`.
+`9ed4afbd74c27f56e00aed2dea18fcb195ffb674` (`dirty: false`). Receipt:
+`target/release-frozen/batch-YyKgHPDM/target/portable-fixtures/backend-package.lRTaUR/delivery.json`.
 Archive: that evidence directory's
-`target/package/ic-auth-backend-conformance-0.35.7.crate`.
-SHA-256: `7871ae96b2e413cf0c75157b8f5aa32b303732ea1082c309b70bc309e298e167`.
+`target/package/ic-auth-backend-conformance-0.35.8.crate`.
+SHA-256: `2aa7dab3184ddd597d69fe5d6e211616f3fed4ac0e363214e25d0bb526ebb0be`.
 The ten scenarios retain the existing `Backend` hooks, including 90-day renewal
 and expanded authority checks. Canic must retain the archive and receipt in its
-own custody and qualify its actual adapter; this is supplying evidence only.
+own custody and qualify its actual adapter; this supplies evidence only.
 Earlier helper archives and receipts remain at
+`target/release-frozen/batch-FqmjNnSq/target/portable-fixtures/backend-package.hc5VlO/`
+(0.35.7),
 `target/release-frozen/batch-ZU5ln9dY/target/portable-fixtures/backend-package.xsCAV0/`
 (0.35.6),
 `target/release-frozen/batch-IjY8zEHe/target/portable-fixtures/backend-package.FItPBs/`
 (0.35.5) and `target/portable-fixtures/backend-package.mEpEDB/` (0.35.4).
 
 The private browser source archive is also captured from clean release source
-`f5296b189f4991ec7bbf2ffa25ba3717f9773da5`. Receipt and archive:
-`target/release-frozen/batch-FqmjNnSq/target/browser-client-packages/package.USHlpS/`.
+`9ed4afbd74c27f56e00aed2dea18fcb195ffb674`. Receipt and archive:
+`target/release-frozen/batch-YyKgHPDM/target/browser-client-packages/package.qkhp1l/`.
 The receipt records npm integrity
-`sha512-OfzJSWxxm42/LpYpChRiEzo+gtsCR/v0r0d42tuLg6RIDedwad4dIClQLBDHhOtDIozyJur3eLIQXf9POtnEoQ==`.
+`sha512-0ZmJ9URapYXYMYkXScORyJkPuv1HFAponFn72K6s/o6QIV87L83mZOAKtfZFebJGLSPhYkvGIXT+l0pM+bLGRg==`.
 This final archive is archive-only; client lifecycle and packaged-consumer checks
-passed in the captured release gate before version delivery. No npm publication,
-Chromium run or Canic adoption is claimed. The earlier 0.35.6 archive and receipt
-remain at
-`target/release-frozen/batch-ZU5ln9dY/target/browser-client-packages/package.rpLzwL/`.
+passed in both captured release gates before version delivery. No npm publication,
+Chromium run or Canic adoption is claimed. Earlier archives and receipts remain at
+`target/release-frozen/batch-FqmjNnSq/target/browser-client-packages/package.USHlpS/`
+(0.35.7) and
+`target/release-frozen/batch-ZU5ln9dY/target/browser-client-packages/package.rpLzwL/`
+(0.35.6).
 
 ## Completed 0.35.3 qualification and recovery
 
