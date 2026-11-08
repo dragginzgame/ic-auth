@@ -1,7 +1,7 @@
 # Production packages
 [package]
 name = "ic-auth-wire"
-version = "0.35.0"
+version = "0.35.1"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
