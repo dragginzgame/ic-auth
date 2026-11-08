@@ -1437,7 +1437,7 @@ dependencies = [
 
 [[package]]
 name = "ic-auth"
-version = "0.35.9"
+version = "0.35.10"
 dependencies = [
  "ic-auth-protocol-types",
  "ic-platform 0.27.0",
@@ -1452,7 +1452,7 @@ dependencies = [
 
 [[package]]
 name = "ic-auth-backend-conformance"
-version = "0.35.9"
+version = "0.35.10"
 dependencies = [
  "ic-auth",
  "ic-auth-protocol-types",
@@ -1461,7 +1461,7 @@ dependencies = [
 
 [[package]]
 name = "ic-auth-feature-unification"
-version = "0.35.9"
+version = "0.35.10"
 dependencies = [
  "ed25519-dalek 3.0.0",
  "ic-auth",
@@ -1484,7 +1484,7 @@ dependencies = [
 
 [[package]]
 name = "ic-auth-qualification"
-version = "0.35.9"
+version = "0.35.10"
 dependencies = [
  "ic-auth",
  "ic-auth-protocol-types",
@@ -1504,7 +1504,7 @@ dependencies = [
 
 [[package]]
 name = "ic-auth-qualification-canister"
-version = "0.35.9"
+version = "0.35.10"
 dependencies = [
  "ic-auth",
  "ic-auth-protocol-types",
@@ -1520,7 +1520,7 @@ dependencies = [
 
 [[package]]
 name = "ic-auth-qualification-contracts"
-version = "0.35.9"
+version = "0.35.10"
 dependencies = [
  "ic-auth-protocol-types",
  "ic-auth-wire",
@@ -1530,7 +1530,7 @@ dependencies = [
 
 [[package]]
 name = "ic-auth-qualification-fixtures"
-version = "0.35.9"
+version = "0.35.10"
 dependencies = [
  "ic-auth",
  "ic-auth-protocol-types",
@@ -1543,7 +1543,7 @@ dependencies = [
 
 [[package]]
 name = "ic-auth-tooling"
-version = "0.35.9"
+version = "0.35.10"
 dependencies = [
  "clap",
  "dhat",
