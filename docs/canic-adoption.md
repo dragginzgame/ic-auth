@@ -8,38 +8,36 @@ Superseded migration journals remain in Git history; use the current contracts b
 
 ## Current integration cohort
 
-Published **Protocol 0.36.0** (`ic-auth-protocol-types`, `ic-auth-wire`) and
-**Engine 0.36.1** (`ic-auth`) form the released cohort. Keep both Protocol packages
-aligned and satisfy Engine's declared Protocol requirement; the groups release
-independently. Engine's qualification lock uses Platform 0.27.1, Types 0.18.3,
-Wire/derive 0.18.0, Testkit 0.95.0, Runtime/macros/guard 0.20.3, Storage 0.70.0
-and Metrics 0.29.8. The Wasm host has one facade and one Runtime
-executor/generator/guard. The complete Engine gate is
-recorded in the [current handoff](status/current.md). Rust 1.99.1 remains the minimum.
-[Cargo.toml](../Cargo.toml), the lockfile and [group ledgers](../CHANGELOG.md)
-record development selections and release notes, respectively.
+Published **Protocol 0.37.0** (`ic-auth-protocol-types`, `ic-auth-wire`) and
+**Engine 0.37.0** (`ic-auth`) form the released cohort. Keep both Protocol
+packages aligned and satisfy Engine's declared Protocol requirement; the groups
+release independently. The delivered locks select Platform 0.29.1, Types 0.19,
+Wire 0.19, Testkit 0.97, Runtime/macros/guard 0.21, Storage 0.71.1, Metrics 0.29.9,
+Host 0.76.2, Build 0.81.1 and Toko Tooling 0.38.2. The host has one Runtime
+executor/generator/guard. Both complete release gates and exact registry
+checksums are recorded in the [handoff](status/current.md). Rust 1.99.1 remains
+the minimum. The normal product lock's deferred Platform 0.29.2 update is outside
+this delivered cohort and remains unqualified.
 
-The released cohort also selects Build 0.81.0, Host 0.76.1 and Cargo-selected
-Toko Tooling 0.36.1. Both Protocol and Engine passed complete release gates,
-recorded in the handoff. Protocol 0.36 changes the Rust identity of exposed Wire
-containers, limits, errors and schema traits: consumers exchanging those values
-must align to Wire 0.18. Method identities, budgets, encoded bytes, generated
-browser files and stored formats remain unchanged. No field selects Wire's
-opt-in packed 16-byte ID encoding. Engine 0.36.1 preserves the 0.36.0 Rust API;
-its client/tooling cleanup changes no trust rule or stored profile.
+Protocol 0.37 changes exposed Principal and Wire Rust identities. Consumers
+exchanging these values must align on canonical Types 0.19 and Wire 0.19. Method
+identities, budgets, signed/encoded bytes and stored formats remain unchanged.
+All five browser files were reviewed; four Auth contracts are unchanged and the
+shared Wire runtime was regenerated and qualified. No Auth field selects new
+packed-float or packed 16-byte ID encoding.
 
-Native Testkit 0.95 shares Wire 0.18. Pass the canonical Auth method budgets
-directly through its typed transport, retaining method IDs and all four
-allowances; no older Wire dependency or budget projection is needed. Keep
-simulator clients and DTOs under `ic_testkit::pocket_ic` in native qualification.
-After a consumer Wire update, regenerate and review browser bindings and qualify
-its selected transport; Auth's unchanged generated files do not establish the
-consumer's installed pairing. Storage 0.70 returns collection operation values
-directly, with fallible collection admission. Its host adoption belongs to Canic;
-this release performs no production-store migration.
+Testkit 0.97 shares the canonical Wire limits and owned Principal. Pass method
+budgets directly, retaining all four allowances, without an older codec alias
+or budget projection. Native Agent/delegation APIs retain supplier identities;
+copy validated Principal bytes explicitly at those private boundaries. The
+retired external Principal aliases/conversion feature are absent.
+Canic owns its own graph alignment, browser regeneration and installed transport
+qualification. Storage 0.71's bucket backing is qualified only in Auth's fixture;
+this release performs no production-store migration or Canic deployment.
 
-The clean 0.35.8 backend helper archive passes registry identity checks and all
-20 packaged tests. Its ten scenarios include immutable 90-day login deadlines,
+The historical clean 0.35.8 backend helper archive passes registry identity checks and all
+20 packaged tests. It is not the 0.37 helper delivery; prepare and qualify a fresh
+normalized source bundle against the published 0.37 Engine/Protocol cohort. Its ten scenarios include immutable 90-day login deadlines,
 late renewal and restore under fresh authority, with unchanged `Backend` hooks.
 The handoff records its exact source, checksum and receipt. Retain that archive
 and receipt in the consumer and qualify the actual adapter; earlier archives
@@ -54,20 +52,6 @@ performance qualification. Individual Auth record limits are unchanged. Auth
 carries no Account DTOs; the upstream Account byte-adapter cut does not change
 Auth frames, method identities or stored records. Qualify the complete consumer
 graph with one Runtime executor/generator/guard.
-
-## Development Platform and Wire cohort
-
-The unpublished candidate selects Platform 0.29, canonical Types 0.19 and Wire
-0.19. This changes exposed Rust type identities and requires coordinated consumer
-alignment when the next Protocol and Engine releases are published. Existing
-method identities, budgets, signed bytes and record formats remain unchanged.
-Agent boundaries copy validated Principal bytes into inferred supplier types;
-Platform's external Principal aliases and conversion feature are retired.
-The host and Storage 0.71.1 share Runtime 0.21. Testkit 0.97 shares Wire 0.19
-and Platform 0.29; native PocketIC calls use canonical Principal directly.
-Installed release qualification remains required; no composed Canic acceptance
-is claimed. See the [current evidence](status/current.md#platform-and-wire-adoption).
-The published cohort above retains its original graphs and receipts.
 
 ## Clock-independent acceptance
 
