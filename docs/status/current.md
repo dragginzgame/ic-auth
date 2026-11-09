@@ -29,8 +29,12 @@ has occurred. Prior source/test edits and delivery custody are preserved.
 Publication is authorized for Protocol 0.37.0 followed by Engine 0.37.0, only in
 Auth. Testkit 0.97 is now published with matching Wire 0.19 / Platform 0.29;
 its required Host 0.76.2 cohort also qualifies the earlier incoming product lock.
-The native limits blocker is cleared; source preparation and the complete
-frozen release gates are next. No new product version or upload has occurred.
+The native limits blocker is cleared. Batch `batch-Z6H_KgCz` passed 29/30
+Protocol stages, including installed certification, upgrade, ingress and SDK
+logout. Its last release-caller fixture failed on an obsolete dependency-pair
+assumption. The fixture now accounts for the current catalog and shared
+qualification metadata; a fresh source capture will rerun the required gates.
+The failed batch/evidence are preserved. No new product version or upload occurred.
 
 ## Current Tooling and qualification placement
 

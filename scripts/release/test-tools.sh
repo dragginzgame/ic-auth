@@ -263,7 +263,7 @@ RELEASE_VERSION=0.9.1 bash "$PWD/scripts/ci/cargo-release-group.sh" plan engine 
 while IFS= read -r path; do
     mkdir -p "$fixture/unselected-engine/${path%/*}"
     cp "$path" "$fixture/unselected-engine/$path"
-done < <(jq -r '.manifests[].path | select(. != "Cargo.toml"), empty' "$fixture/engine-before.json"; printf '%s\n' releases/engine/CHANGELOG.md)
+done < <(jq -r '.manifests[] | select(.version == "package") | .path' "$fixture/engine-before.json"; printf '%s\n' releases/engine/CHANGELOG.md)
 # Substitute external effects at script boundaries; retain the actual Make
 # recipes, ordered common/product admission and release routing without overrides.
 cat > scripts/ci/run-validation-targets.sh <<'SCRIPT'
@@ -813,7 +813,7 @@ git commit -qm 'Later fixture source fix'
 # Current working manifests are deliberately unsorted: the check must inspect
 # the selected committed source instead, without rewriting either source.
 cp Cargo.toml "$fixture/before-unsorted-current.toml"
-perl -0777 -pe 's/^(serde_bytes = [^\n]*\n)(sha2 = [^\n]*\n)/$2$1/m or die "missing selected dependency pair"' \
+perl -0777 -pe 's/^(serde_bytes = [^\n]*\n)(serde_json = [^\n]*\n)/$2$1/m or die "missing selected dependency pair"' \
     Cargo.toml > "$fixture/unsorted-current.toml"
 cp "$fixture/unsorted-current.toml" Cargo.toml
 # Recovery must keep the saved CLI feature set, not today's edited policy.
@@ -900,7 +900,7 @@ for disposition in restored prepared; do
     if [[ "$disposition" == restored ]]; then
         # Restore the whole partially written roster, then request a different
         # increment. The superseded patch must not control today's selection.
-        for path in Cargo.toml Cargo.lock releases/protocol/CHANGELOG.md crates/ic-auth-protocol-types/Cargo.toml crates/ic-auth-wire/Cargo.toml release-validation.json; do
+        for path in Cargo.toml Cargo.lock releases/protocol/CHANGELOG.md crates/ic-auth-protocol-types/Cargo.toml crates/ic-auth-wire/Cargo.toml release-validation.json qualification/Cargo.toml qualification/Cargo.lock; do
             git show "$saved_source:$path" > "$path"
         done
         kind=minor
@@ -912,7 +912,7 @@ for disposition in restored prepared; do
     base="$(make -s release-version)"
     candidate="$(bash scripts/ci/next-release-version.sh "$base" "$kind")"
     printf '# Changelog\n\n## [%s]\n\n- Committed preparation disposition fixture.\n\n## [%s] - 2026-10-05\n\n- Earlier fixture metadata.\n' "$candidate" "$base" > releases/protocol/CHANGELOG.md
-    git add -- Cargo.toml Cargo.lock releases/protocol/CHANGELOG.md crates/ic-auth-protocol-types/Cargo.toml crates/ic-auth-wire/Cargo.toml release-validation.json
+    git add -- Cargo.toml Cargo.lock releases/protocol/CHANGELOG.md crates/ic-auth-protocol-types/Cargo.toml crates/ic-auth-wire/Cargo.toml release-validation.json qualification/Cargo.toml qualification/Cargo.lock
     git commit -qm 'Commit fixture metadata disposition'
     current_source="$(git rev-parse HEAD)"
     git merge-base --is-ancestor "$saved_source" "$current_source"
@@ -936,7 +936,7 @@ for disposition in restored prepared; do
     cmp "$state/0.0.0.plan" "$fixture/malformed-historical.plan"
     [[ ! -e "$state/protocol-$candidate.plan" && "$(make -s release-version)" == "$base" ]] || exit 1
     [[ "$(git rev-parse HEAD)" == "$current_source" && -z "$(git tag -l "protocol-v$candidate")" ]] || exit 1
-    git diff --quiet HEAD -- Cargo.toml Cargo.lock releases/protocol/CHANGELOG.md release-validation.json
+    git diff --quiet HEAD -- Cargo.toml Cargo.lock qualification/Cargo.toml qualification/Cargo.lock releases/protocol/CHANGELOG.md release-validation.json
     git diff --cached --quiet HEAD --
     { cat "$fixture/$disposition-before-restart.log"; printf 'common setup\ncommon setup\ncli setup\ncommon setup\nfile setup\ncommon check\ncli check\nfile check\ngate\n'; } > "$fixture/$disposition-expected-failed-dispatch.log"
     cmp target/preparation-dispatch.log "$fixture/$disposition-expected-failed-dispatch.log"
@@ -964,14 +964,14 @@ for disposition in restored prepared; do
     fi
     yq -p toml -o json '.' Cargo.lock | jq -S '[.package[] | select(.source != null)]' > "$fixture/$disposition-external.json"
     cmp "$fixture/external-before.json" "$fixture/$disposition-external.json"
-    git add -- Cargo.toml Cargo.lock releases/protocol/CHANGELOG.md crates/ic-auth-protocol-types/Cargo.toml crates/ic-auth-wire/Cargo.toml release-validation.json
+    git add -- Cargo.toml Cargo.lock releases/protocol/CHANGELOG.md crates/ic-auth-protocol-types/Cargo.toml crates/ic-auth-wire/Cargo.toml release-validation.json qualification/Cargo.toml qualification/Cargo.lock
     git commit -qm 'Retain qualified restarted group metadata'
 done
 fi
 # All Protocol releases above left Engine package versions and notes unchanged.
 while IFS= read -r path; do
     cmp "$path" "$fixture/unselected-engine/$path"
-done < <(jq -r '.manifests[].path | select(. != "Cargo.toml"), empty' "$fixture/engine-before.json"; printf '%s\n' releases/engine/CHANGELOG.md)
+done < <(jq -r '.manifests[] | select(.version == "package") | .path' "$fixture/engine-before.json"; printf '%s\n' releases/engine/CHANGELOG.md)
 [[ "$(make -s release-version RELEASE_GROUP=engine)" == 0.9.0 ]]
 
 # The user's motivating case: a breaking Engine release must preserve both
