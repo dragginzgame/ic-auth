@@ -67,7 +67,7 @@ SH
                 perl -0pi -e 's/(name = "toko-tooling"\nversion = "[^"\n]+"\nsource = "[^"\n]+"\nchecksum = ")[^"]+/${1}.("0" x 64)/e or die "missing tooling checksum\n"' \
                     "$fixture/tooling-consumer/Cargo.lock" ;;
             declaration-drift)
-                perl -pi -e 's/^toko-tooling = "=0\.36\.0"/toko-tooling = "=0.36.1"/ or !/^toko-tooling = / or die "missing tooling pin\n"' \
+                perl -0pi -e 's/^toko-tooling = "=([0-9]+)\.([0-9]+)\.([0-9]+)"$/"toko-tooling = \"=$1.$2.".($3+1)."\""/me or die "missing tooling pin\n"' \
                     "$fixture/tooling-consumer/Cargo.toml" ;;
             missing-member)
                 perl -ni -e 'print unless /^toko-tooling\.workspace = true$/' \

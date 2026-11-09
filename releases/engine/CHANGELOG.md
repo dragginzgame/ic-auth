@@ -22,7 +22,8 @@ native tooling packages. The independent series starts after the
 
 - Adopt Toko Tooling 0.36.1's corrected test-only LOC classification inside
   call-argument closures. Preserve the installed entrypoints, product release
-  requirements and application dependency selections.
+  requirements and application dependency selections. Make the release fixture's
+  pin-drift case independent of the current Tooling patch version.
 
 ## [0.36.0] - 2026-11-09
 
