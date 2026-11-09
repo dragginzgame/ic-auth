@@ -15,7 +15,8 @@ qualification changes. Only the first two are Engine release-group members. The 
 
 ### ⬆️ Dependencies
 
-- Update direct Platform selections to 0.29.0 in both workspaces. Types 0.19 and
+- Update direct Platform selections to 0.29.1 in both workspaces, retaining
+  the compatible 0.29 minimum. Types 0.19 and
   Runtime 0.21 stay unchanged. New upstream Candid decoder APIs are unselected by
   the public libraries and Wasm host; native Testkit explicitly selects that
   codec. Crypto, signed bytes and owned Wire endpoints are unchanged.

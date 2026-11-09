@@ -23,8 +23,8 @@ Standard batch reconciliation fast-forwarded the normal checkout to that source.
 The 0.37.0 drafts include Platform/Wire adoption, the Storage 0.71 update,
 reference-store/pruning and signature-store cleanups, current Tooling/SHA-2
 adoption and #130 host nonce qualification. Product versions remain unchanged.
-Work is local, uncommitted and unpublished; prior source/test edits and delivery
-custody are preserved, with no sibling or delivery effects.
+Implementation is committed locally for release capture; no new publication
+has occurred. Prior source/test edits and delivery custody are preserved.
 
 Publication is authorized for Protocol 0.37.0 followed by Engine 0.37.0, only in
 Auth. Testkit 0.97 is now published with matching Wire 0.19 / Platform 0.29;
@@ -93,8 +93,9 @@ implemented and qualified; the changes remain uncommitted and unpublished.
 
 ## Platform and Wire adoption
 
-Both catalogs now select published Platform **0.29.0**, SHA-256
-`96a33522b86e1c775fbe3ce124657a4ff8a63c9a4280f3bb851e49e1b4fc210b`.
+Both catalogs retain the compatible Platform 0.29 minimum. Both locks select
+the incoming published **0.29.1**; its extra native Candid service exporter is
+unselected by Auth. The frozen release gate will qualify this incoming patch.
 Types 0.19.0, Wire 0.19.0, Runtime/macros/guard 0.21.0, Storage 0.71.1 and all
 unrelated selections are preserved. Native Testkit 0.97 shares Platform 0.29; the actual Wasm host has exactly one Platform 0.29 /
 Runtime 0.21 cohort. The changed upstream files are solely the owned Candid
