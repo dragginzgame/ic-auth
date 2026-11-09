@@ -6,7 +6,7 @@ groups must match `ci/cargo-release-groups.json`. Ordinary `make ci` executes
 every stage. Release verification selects a source-bound plan rather than invoking
 that aggregate unconditionally. No prior whole-gate receipt or stage is reused.
 
-Auth uses the Cargo-selected `toko-tooling` 0.36.0 [release batches](release-batches.md),
+Auth uses the Cargo-selected `toko-tooling` [release batches](release-batches.md),
 with shared candidate setup, saved hook context and batch status/resume,
 fast-forward reconciliation and explicit retirement. Use those shared controls
 for delivery; Auth owns no parallel batch wrappers. A single-group release keeps

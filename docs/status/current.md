@@ -2,23 +2,56 @@
 
 ## Published state
 
-**Engine 0.36.0** (`ic-auth`) and **Protocol 0.36.0**
+**Engine 0.36.1** (`ic-auth`) and **Protocol 0.36.0**
 (`ic-auth-protocol-types`, `ic-auth-wire`) are published on crates.io.
 Both release commits are on `origin/main` and both annotated tags are pushed.
 Standard batch reconciliation fast-forwarded the normal checkout to that source.
 
 - Protocol commit: `3c30f425bbc8864526514db0dcfa9d810591a2cc`;
   tag `protocol-v0.36.0`, object `4d187d269d247d3bb9be0caccc361cab2089e5a4`.
-- Engine commit: `9e13045373c1f33be71d31752dbc4614183a5d27`;
-  tag `engine-v0.36.0`, object `af44292ccd9b91afca7163ef2eeb4a7663fbf4a4`.
+- Engine commit: `f5c380f72119627fb33250fc449215a6615a5a5a`;
+  tag `engine-v0.36.1`, object `49e9b243e2f20a9b27a2ed2d9dd411903adfed37`.
 
 | Published package | Registry SHA-256 |
 | --- | --- |
 | `ic-auth-protocol-types` | `12ae95d99ec8d6efef08819986166914bbe201758da98fec84239fb0e3f5d8be` |
 | `ic-auth-wire` | `45dbcd7c83b877806c7e64b8cf49033248fe738bb66c6c169679e65f3e7d6340` |
-| `ic-auth` | `964ad6751e9a95afa604e999cf0b6578c48a1c7ee23603182f1501511ac55858` |
+| `ic-auth` | `09f6a947a0ea8ddfadd1b95949dde176e1906865b278e0923eac3fcb875547a3` |
 
-## Local Tooling 0.36.1 adoption
+## 0.36.1 delivery and qualification
+
+Engine-only batch **batch-QTi7wJc_** captured source
+`842194ba28741fa05740ed9a4bb187529a16876e`. Its source-bound workspace plan
+passed all **30 required stages**, including native/Wasm Clippy, isolated MSRV
+and package payloads, 97 client tests, installed certification/upgrade/ingress,
+input sealing and release/recovery/archive fixtures. No prior stage was reused.
+The final release-tool fixture took 1,028 seconds. Chromium remains opt-in and
+was not run; hosted CI completion is not claimed.
+
+Gate: `target/release-frozen/batch-QTi7wJc_/target/release-validation/engine-gate.6ZxtbE/`,
+logs `logs/validation.YffOH4/`. Publication artifacts remain in the candidate's
+`target/publication-engine-0.36.1.0uRoeN/`. The completed schema-2 intent, Git
+objects and original receipt remain under
+`.git/release-state/frozen/batch-QTi7wJc_/`; an identical receipt is retained at
+`.git/publication-state/engine-0.36.1.json`. Independent registry checksum and
+remote-ref readback, delivery and standard reconciliation logs are under
+`target/delivery-0361/`. The normal checkout fast-forwarded cleanly. Keep this
+custody and the managed checkout; no batch retirement was performed.
+
+The first attempt, **batch-8jjqjTO1**, passed 29 stages, then stopped in the
+release fixture before version preparation, push or publication. Its pin-drift
+case assumed Tooling 0.36.0. Commit `842194b` makes that test increment the actual
+selected patch version; its focused `--tooling` check passes. A new captured
+batch reran the complete gate. The original source `cc55f72`, failed gate
+`engine-gate.shGw7v` and delivery log remain retained; do not resume that attempt
+against the delivered version.
+
+The delivered lock retains the 0.36.0 cohort below, updating only Metrics to
+0.29.8 and Toko Tooling to 0.36.1. Protocol stays at 0.36.0. Cryptographic checks,
+signed bytes, trust rules and stored profiles remain unchanged. No sibling source,
+release or deployment changed; no standalone Auth service is deployed here.
+
+## Tooling 0.36.1 adoption evidence
 
 The working checkout now selects **Toko Tooling 0.36.1**, SHA-256
 `56ab4b48eb5264ad9a98426a685804fd6cbd441bb370ae9d0046aa43c4aee6a3`.
@@ -35,13 +68,13 @@ fixture was intentionally excluded beneath `target/`; the standard temporary
 source location passes. That failed setup and the successful run are retained
 under `target/tooling-next/`. Unrelated Cargo selections, including the incoming
 Metrics 0.29.8, are preserved. The completed 0.36.0 delivery below keeps its
-original Tooling 0.36.0 receipt. This adoption is local and unpublished; no Rust
-build, full CI or release gate was needed for this classifier-only update.
+original Tooling 0.36.0 receipt. These focused adoption checks preceded the
+complete 0.36.1 release gate above.
 
-## Local Metrics and client/tooling cleanup
+## Metrics and client/tooling cleanup evidence
 
 Metrics **0.29.8** is now qualified for private admission diagnostics alongside
-the pending Tooling 0.36.1 adoption. The stored journal profile, unknown issuance,
+the delivered Tooling 0.36.1 adoption. The stored journal profile, unknown issuance,
 fixed counter meanings and public Auth dependency boundaries are preserved.
 
 Metadata-only journal reads validate the unchanged loaded record once. Credential
@@ -62,10 +95,15 @@ pass; the installed SDK session/logout/upgrade/signed-ingress case passes agains
 that host. Public all-feature Wasm graph admission excludes Metrics/native tools.
 All five generated browser files and Cargo.lock remain unchanged through checks.
 Evidence: `target/cleanup-0361/`. These changes reduce client/tooling work; no
-runtime speedup or Wasm saving is inferred. The batch remains local, uncommitted
-and unpublished; no full CI or release gate ran for it.
+runtime speedup or Wasm saving is inferred. These focused checks preceded the
+complete 0.36.1 release gate above; the changes are now committed and delivered.
 
 ## 0.36.0 delivery and qualification
+
+The previous Engine release remains recorded at commit
+`9e13045373c1f33be71d31752dbc4614183a5d27`, tag `engine-v0.36.0`, object
+`af44292ccd9b91afca7163ef2eeb4a7663fbf4a4`, with registry SHA-256
+`964ad6751e9a95afa604e999cf0b6578c48a1c7ee23603182f1501511ac55858`.
 
 Batch **batch-i8_wg3AC** captured `6c51fa0e29b5501eaee2db44cf08a8dd81830bf8`
 and completed both groups in supplier-first order. Each source-bound workspace
