@@ -1,0 +1,10 @@
+[
+  {
+    "file": "Cargo.toml",
+    "rule": "cargo-exact",
+    "subject": "toko-tooling",
+    "value": "=0.36.0",
+    "reason": "The adopted tooling contract requires one exact root Cargo selection so member declarations, registry payload and installed snapshot receipt agree.",
+    "evidence": "rules/cargo-dependencies.md#shared-tooling-during-dependency-updates"
+  }
+]

@@ -31,7 +31,8 @@ native tooling packages. The independent series starts after the
   Public Auth APIs and protocol bytes are unchanged.
 - Adopt Toko Tooling 0.36 through one exact Cargo pin and inherited dev-dependencies
   in every real package. Remove the metadata/dedicated-lock scheme, preserve real
-  tools and qualify CI/publication refusal and Cargo input sealing.
+  tools and qualify CI/publication refusal and Cargo input sealing. Document the
+  required root exact pin in the dependency-pinning policy exceptions.
 - Move all seven private tooling/qualification packages into `crates/` under their
   existing package names, preserving versions, features and publication roles.
   Update scripts, input seals, release ownership and active guides together;
