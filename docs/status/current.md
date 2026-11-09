@@ -18,6 +18,53 @@ Standard batch reconciliation fast-forwarded the normal checkout to that source.
 | `ic-auth-wire` | `45dbcd7c83b877806c7e64b8cf49033248fe738bb66c6c169679e65f3e7d6340` |
 | `ic-auth` | `964ad6751e9a95afa604e999cf0b6578c48a1c7ee23603182f1501511ac55858` |
 
+## Local Tooling 0.36.1 adoption
+
+The working checkout now selects **Toko Tooling 0.36.1**, SHA-256
+`56ab4b48eb5264ad9a98426a685804fd6cbd441bb370ae9d0046aa43c4aee6a3`.
+The canonical updater installed authenticated crates.io bytes and retained all
+recorded entrypoints. Only the owned LOC classifier and its documentation change;
+product release hooks and the other snapshot payloads are unchanged. The root
+exact pin, dependency-pin justification and active setup instructions agree.
+Every real member retains its inherited dev-dependency and Machete exemption.
+
+Snapshot/member admission, dependency-pin policy, Auth's `make cloc` caller,
+local links and the focused published `test-cloc.sh --scopes-only` case pass.
+The classifier bytes exercised by that case match the installed script. Its first
+fixture was intentionally excluded beneath `target/`; the standard temporary
+source location passes. That failed setup and the successful run are retained
+under `target/tooling-next/`. Unrelated Cargo selections, including the incoming
+Metrics 0.29.8, are preserved. The completed 0.36.0 delivery below keeps its
+original Tooling 0.36.0 receipt. This adoption is local and unpublished; no Rust
+build, full CI or release gate was needed for this classifier-only update.
+
+## Local Metrics and client/tooling cleanup
+
+Metrics **0.29.8** is now qualified for private admission diagnostics alongside
+the pending Tooling 0.36.1 adoption. The stored journal profile, unknown issuance,
+fixed counter meanings and public Auth dependency boundaries are preserved.
+
+Metadata-only journal reads validate the unchanged loaded record once. Credential
+reads still validate stored metadata before attaching its separate frame, then
+validate the complete view. Both modes retain post-callback validation and strict
+transaction completion. A raw-storage corruption case verifies neither callback
+runs and both retained records survive refusal.
+
+Contract generation admits its Host file CLI once per bounded operation and uses
+that path for both source seals, matching the existing backend/package callers.
+Shared keys the selector by admitted build inputs; no cross-run cache or fallback
+is added. The caller fixture checks one admission, two hashes, missing-tool refusal
+before Cargo and unchanged inventory/source-drift refusals.
+
+Five Metrics outcome/reset/overflow cases, 97 client tests and local client
+archive checks pass. Native fixture compilation, Wasm Clippy and the rebuilt host
+pass; the installed SDK session/logout/upgrade/signed-ingress case passes against
+that host. Public all-feature Wasm graph admission excludes Metrics/native tools.
+All five generated browser files and Cargo.lock remain unchanged through checks.
+Evidence: `target/cleanup-0361/`. These changes reduce client/tooling work; no
+runtime speedup or Wasm saving is inferred. The batch remains local, uncommitted
+and unpublished; no full CI or release gate ran for it.
+
 ## 0.36.0 delivery and qualification
 
 Batch **batch-i8_wg3AC** captured `6c51fa0e29b5501eaee2db44cf08a8dd81830bf8`

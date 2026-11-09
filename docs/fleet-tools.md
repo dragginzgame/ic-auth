@@ -92,6 +92,9 @@ functions. Nested comments and quoted/raw strings are opaque. `cfg(all(test,
 source inventory, not compilation, macro expansion or a shipped-Wasm measurement.
 Predicates disabled in both test and non-test modes are not evidence of tests.
 Inner attributes and raw module identifiers participate in module discovery.
+Test-only ranges are also discovered inside call-argument closures and nested
+expression blocks; macro token trees remain unexpanded. The focused scanner
+regressions run with `bash scripts/ci/test-cloc.sh --scopes-only`.
 
 Supporting `tests/`, `tests.rs` and `*_tests.rs` paths identify test code.
 Legacy `test/` and `test.rs` are counted as tests with hard-cut rename diagnostics.

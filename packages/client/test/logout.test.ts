@@ -280,6 +280,45 @@ test('journal rejects incompatible stored shape without overwriting retained sta
   } finally { f.store.close(); }
 });
 
+test('both journal views reject retained credential bytes in metadata before callbacks', async () => {
+  const f = await fixture(async () => revoked);
+  const opening = f.factory.open('logout');
+  const raw = await new Promise<IDBDatabase>((resolve, reject) => {
+    opening.onsuccess = () => resolve(opening.result);
+    opening.onerror = () => reject(opening.error);
+  });
+  try {
+    const frame = new Uint8Array([1, 2]);
+    await f.store.transactCredential(record => {
+      assert.ok(record);
+      return { record: { ...record, issuanceUnknown: true,
+        issuance: { sequence: 0n, untilNs: f.state.now + MS, bytes: frame } }, value: undefined };
+    });
+    const tx = raw.transaction('journal', 'readwrite');
+    const bucket = tx.objectStore('journal');
+    const login = bucket.get('login');
+    login.onsuccess = () => bucket.put({ ...login.result,
+      issuance: { ...login.result.issuance, bytes: new Uint8Array([9]) } }, 'login');
+    await new Promise<void>((resolve, reject) => {
+      tx.oncomplete = () => resolve(); tx.onabort = () => reject(tx.error);
+    });
+    let called = false;
+    const operation = () => { called = true; return undefined; };
+    for (const read of [() => f.store.transact(operation), () => f.store.transactCredential(operation)]) {
+      await assert.rejects(read(), (error: unknown) => error instanceof ClientError && error.code === 'storage_corrupt');
+      assert.equal(called, false);
+    }
+    const retained = raw.transaction('journal', 'readonly');
+    const metadata = retained.objectStore('journal').get('login');
+    const credential = retained.objectStore('journal').get('credential');
+    await new Promise<void>((resolve, reject) => {
+      retained.oncomplete = () => resolve(); retained.onabort = () => reject(retained.error);
+    });
+    assert.deepEqual(metadata.result.issuance.bytes, new Uint8Array([9]));
+    assert.deepEqual(credential.result, frame);
+  } finally { raw.close(); f.store.close(); }
+});
+
 test('storage without strict durability refuses opening and preserves the login journal', async () => {
   const f = await fixture(async () => revoked);
   f.store.close();

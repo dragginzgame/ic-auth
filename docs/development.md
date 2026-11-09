@@ -221,8 +221,8 @@ retains managed-server custody and awaited teardown.
 
 ## Dependency roles and deployment admission
 
-Shared Tooling comes from crates.io's `toko-tooling` 0.36.0. Root
-`[workspace.dependencies]` owns the exact `=0.36.0` pin and every real package
+Shared Tooling comes from crates.io's `toko-tooling` 0.36.1. Root
+`[workspace.dependencies]` owns the exact `=0.36.1` pin and every real package
 inherits it in `[dev-dependencies]`, with the cargo-machete exemption for its
 source-bundle role. `Cargo.lock` owns the registry checksum; explicit installation
 authenticates that archive and records the payload in `.shared-tooling.snapshot`.

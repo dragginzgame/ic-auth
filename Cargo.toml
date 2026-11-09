@@ -66,7 +66,7 @@ ic-storage = "0.70.0"
 ic-testkit = { version = "0.95.0", default-features = false }
 serde_json = "1"
 tokio = { version = "1", features = ["rt-multi-thread", "sync", "time"] }
-toko-tooling = "=0.36.0"
+toko-tooling = "=0.36.1"
 
 [workspace.metadata.ic-auth]
 # Executable features are source-owned recovery inputs, not library features.

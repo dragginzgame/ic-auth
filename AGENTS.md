@@ -1,7 +1,7 @@
 # IC Auth Agent Instructions
 
 Apply the installed [baseline](DRAGGINZGAME.md), supplied by crates.io's
-`toko-tooling` 0.36.0, and its task-specific references. Root
+`toko-tooling` 0.36.1, and its task-specific references. Root
 `[workspace.dependencies]` pins it exactly; every real workspace package inherits
 it as a dev-dependency with a cargo-machete exemption. `Cargo.lock` records the
 registry checksum and the [snapshot manifest](.shared-tooling.snapshot) records

@@ -1,8 +1,8 @@
 # Shared Tooling snapshot v1
-# version	0.36.0
+# version	0.36.1
 format	1
 source	https://crates.io/crates/toko-tooling
-revision	de0dd05b6437061622a76942baa25d40d2181497e7ba66d9fd809132a3082936
+revision	56ab4b48eb5264ad9a98426a685804fd6cbd441bb370ae9d0046aa43c4aee6a3
 # entrypoint	.githooks/pre-commit
 # entrypoint	.github/actions/retain-failure-evidence/action.yml
 # entrypoint	DRAGGINZGAME.md
@@ -163,7 +163,7 @@ file	c790b3020a7bea22248f6145f46b4f768594ed50e08578ec0230d848f3f17a29	-	docs/nod
 file	77993e5d585d46b5112a5897e6a94b85dd421e383c2b1a1dea883d2a9e207257	-	scripts/ci/check-ic-sdk-boundary.mjs
 file	f961b1fc079f37e9da3d272a9308bc3d29bfcb1aa3fcc547a4ee778635c3abc5	-	docs/validation-runner.md
 file	cac38556b664aa1252b04fc3dd6b26408cfd42347c4c0de27b999ba93e049643	-	scripts/ci/validation-evidence.pl
-file	5c447b924791303f453e703547de47bda1aad87c0237a31742b6d8670f903b7e	-	docs/fleet-tools.md
+file	bcc9f96f14e48e4b7f346132395442630be975720075de202784c21a4785cb6d	-	docs/fleet-tools.md
 file	5171dd45802102a3e21627456f90e2a0d58746fe9e75ef3c96e32ea474451e7f	-	docs/stack.md
 file	7247a2eff290695bf1791e3080a0234148f27e413a23b47b514ee4942f64ce1f	-	docs/stack-catalog.json
 file	27586526bd973eef808e2b30b1309deef7288837f7134af7601efe1d2316bfb2	-	tasks/systemd/shared-tooling-stack-graph.service
@@ -210,7 +210,7 @@ file	5be336cb3e8045b2d2d536542a94944b376ee812b03f786a90b9d962ab697f13	x	scripts/
 file	d4d73d12601ca093878f8206a41185e383ad30484fa9206d60bfcf78248b865c	x	scripts/ci/run-release.sh
 file	d2670d079e6fe54ccb72f0f6fab328723bf1baf7829b852ba8157cc9ddebd27b	x	scripts/ci/validate-release-inputs.pl
 file	29f615ebb5393b02b901985a41e07c7838b3e37d39404a5b98f7c5e09b5f8043	-	scripts/ci/finalize-release-changelog.awk
-file	d34e2b68efd3e44b887f9fbb2e9e2996a7979118f07931d0f1d0ab277687de40	-	scripts/dev/cloc-classify.pl
+file	ee494c039c52e4b84df3ec84090d0618a57cf00d89e2afb9458c1ecd3cc83531	-	scripts/dev/cloc-classify.pl
 file	60061c6787d8a36916c7bbefd808eb856099cc1b5007203d7c96b44d7528f4ed	x	scripts/ci/tool-catalog-records.pl
 file	a89e3c407b2d6ca6ac2a45dd392c30f2ca04678b0f4da447a0618fd0c152ea95	-	scripts/dev/tool-store.sh
 file	2dd5d5da3a78a6b982f7eadb2c175cef9270d6e17753990817e5759f34fa1b7d	-	scripts/dev/cargo-tool-build.sh

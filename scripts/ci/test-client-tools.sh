@@ -175,10 +175,20 @@ for tool in node npm tsc; do
     chmod +x "$consumer/bin/$tool"
 done
 # Substitute Rust and file-tool effects; execute the actual generation driver.
-cat > "$consumer/scripts/dev/run-host-file.sh" <<'SCRIPT'
+export CLIENT_CONTRACT_EVENTS="$fixture/contracts.events"
+cat > "$consumer/scripts/dev/host-file-tools.sh" <<'SCRIPT'
+#!/usr/bin/env bash
+set -eu
+[[ "$*" == check ]]
+printf 'admit\n' >> "$CLIENT_CONTRACT_EVENTS"
+[[ "${CLIENT_CONTRACT_ADMISSION_STATUS:-0}" == 0 ]] || exit "$CLIENT_CONTRACT_ADMISSION_STATUS"
+printf '%s/bin/host-file\n' "$PWD"
+SCRIPT
+cat > "$consumer/bin/host-file" <<'SCRIPT'
 #!/usr/bin/env bash
 set -eu
 [[ "$1" == hash-files0 ]]
+printf 'hash\n' >> "$CLIENT_CONTRACT_EVENTS"
 while IFS= read -r -d '' path; do
     printf '%s\0' "$path"
     case "$path" in Cargo.toml|.cargo/config.toml|crates/ic-auth-tooling/src/nested/ignored.rs) cksum "$path" ;; esac
@@ -188,6 +198,7 @@ cat > "$consumer/bin/cargo" <<'SCRIPT'
 #!/usr/bin/env bash
 set -eu
 [[ "$*" == 'build --quiet --locked --offline -p ic-auth-tooling' ]]
+printf 'build\n' >> "$CLIENT_CONTRACT_EVENTS"
 mkdir -p "$CARGO_TARGET_DIR/debug"
 cp "$PWD/generator" "$CARGO_TARGET_DIR/debug/ic-auth-tooling"
 if [[ "${CLIENT_CONTRACT_MUTATION:-}" == build ]]; then echo changed >> "${CLIENT_CONTRACT_MUTATION_FILE:-Cargo.toml}"; fi
@@ -196,6 +207,7 @@ cat > "$consumer/generator" <<'SCRIPT'
 #!/usr/bin/env bash
 set -eu
 [[ "$1 $2" == 'client-contracts generate' ]]
+printf 'generate\n' >> "$CLIENT_CONTRACT_EVENTS"
 if [[ "${CLIENT_CONTRACT_MUTATION:-}" == generate ]]; then echo changed >> "${CLIENT_CONTRACT_MUTATION_FILE:-Cargo.toml}"; fi
 : > "$3/artifacts.tsv"
 # Future outputs deliberately exceed the current product roster: the driver
@@ -214,18 +226,28 @@ case "${CLIENT_CONTRACT_INVENTORY:-}" in
     unknown) printf 'unexpected\tunknown.hex\n' >> "$3/artifacts.tsv"; printf 'unpublished\n' > "$3/unknown.hex" ;;
 esac
 SCRIPT
-chmod +x "$consumer/bin/cargo" "$consumer/generator"
+chmod +x "$consumer/bin/cargo" "$consumer/bin/host-file" "$consumer/generator"
 mkdir -p "$consumer/.cargo"
 printf 'original config\n' > "$consumer/.cargo/config.toml"
 printf 'original source\n' > "$consumer/Cargo.toml"
 for mode in generate check; do
+    : > "$CLIENT_CONTRACT_EVENTS"
     (cd "$consumer"; PATH="$consumer/bin:$PATH" bash scripts/dev/client-contracts.sh "$mode") \
         > "$fixture/contracts-$mode.log" 2>&1
+    [[ "$(cat "$CLIENT_CONTRACT_EVENTS")" == $'admit\nhash\nbuild\ngenerate\nhash' ]]
     for name in credential logout admission read; do
         [[ "$(cat "$consumer/target/browser-client/$name-vector.hex")" == "rust-owned $name-vector.hex" ]]
     done
     [[ "$(cat "$consumer/packages/client/src/generated/future.ts")" == 'rust-owned future.ts' ]]
     [[ "$(cat "$consumer/target/browser-client/future-vector.hex")" == 'rust-owned future-vector.hex' ]]
+done
+for mode in generate check; do
+    : > "$CLIENT_CONTRACT_EVENTS"
+    status=0
+    (cd "$consumer"; CLIENT_CONTRACT_ADMISSION_STATUS=73 PATH="$consumer/bin:$PATH" \
+        bash scripts/dev/client-contracts.sh "$mode") > "$fixture/contracts-unprepared-$mode.log" 2>&1 || status=$?
+    [[ "$status" == 73 && "$(cat "$CLIENT_CONTRACT_EVENTS")" == admit ]]
+    [[ "$(cat "$consumer/packages/client/src/generated/credential.ts")" == 'rust-owned credential.ts' ]]
 done
 for invalid in empty unsafe missing duplicate unknown omitted; do
     if (cd "$consumer"; CLIENT_CONTRACT_INVENTORY="$invalid" PATH="$consumer/bin:$PATH" \

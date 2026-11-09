@@ -176,9 +176,9 @@ export class IndexedDbLogoutStore {
             const apply = (bytes?: unknown) => {
               try {
                 let record: unknown = request.result;
-                if (record !== undefined) {
+                if (record !== undefined && evidence) {
                   validate(record, false);
-                  if (evidence && record.issuance?.untilNs !== undefined) {
+                  if (record.issuance?.untilNs !== undefined) {
                     if (!(bytes instanceof Uint8Array)) throw new ClientError('storage_corrupt');
                     record = { ...record, issuance: { ...record.issuance, bytes } };
                   } else if (bytes !== undefined) throw new ClientError('storage_corrupt');

@@ -1698,9 +1698,9 @@ dependencies = [
 
 [[package]]
 name = "ic-metrics"
-version = "0.29.7"
+version = "0.29.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d56b2cfab39b52534105bcb3757a149f338e52d8f67fe0bf655141f165c1c6d7"
+checksum = "99684e3afc04c523f9276de65ea6fac6006615394827d458b0c540242c79bebf"
 
 [[package]]
 name = "ic-platform"
@@ -3397,9 +3397,9 @@ dependencies = [
 
 [[package]]
 name = "toko-tooling"
-version = "0.36.0"
+version = "0.36.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "de0dd05b6437061622a76942baa25d40d2181497e7ba66d9fd809132a3082936"
+checksum = "56ab4b48eb5264ad9a98426a685804fd6cbd441bb370ae9d0046aa43c4aee6a3"
 
 [[package]]
 name = "toml"

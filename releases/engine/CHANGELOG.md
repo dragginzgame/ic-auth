@@ -4,6 +4,26 @@ Covers public `ic-auth` and the unpublished backend conformance, qualification a
 native tooling packages. The independent series starts after the
 [last coordinated release, 0.29.2](../history.md).
 
+## [0.36.1] - Unreleased
+
+### ⬆️ Dependencies
+
+- Qualify the incoming Metrics 0.29.8 selection for private admission diagnostics;
+  retain fixed counter semantics and exclude Metrics from public library graphs.
+
+### 🧹 Cleanup
+
+- Validate unchanged metadata once before browser-journal callbacks, retaining
+  credential-view and post-mutation corruption checks and the stored profile.
+- Admit the Host file CLI once per bounded contract-generation operation while
+  retaining both source hashes and effect-free refusal before compilation.
+
+### 🛠️ Tooling
+
+- Adopt Toko Tooling 0.36.1's corrected test-only LOC classification inside
+  call-argument closures. Preserve the installed entrypoints, product release
+  requirements and application dependency selections.
+
 ## [0.36.0] - 2026-11-09
 
 ### ⚠️ Breaking
