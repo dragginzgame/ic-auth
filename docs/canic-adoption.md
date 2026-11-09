@@ -133,7 +133,7 @@ Canic still consumes the clean 0.35.1 helper under
 The already-qualified 0.35.8 helper adds the 90-day renewal/reopen case and expanded
 authority refusals without changing the `Backend` hooks. Its exact source,
 archive SHA-256 and receipt are in the
-[clean delivery record](status/current.md#clean-backend-helper-delivery).
+[clean delivery record](https://github.com/dragginzgame/ic-auth/blob/291fbf192c7dd69df7292cb062c5fc0a312f4a7f/docs/status/current.md#clean-backend-helper-delivery).
 Retain that archive and receipt in Canic custody, preserve its normalized package
 metadata, and run the existing complete conformance entrypoint against the actual
 driver after relocation. See the [consumer refresh instructions](../crates/ic-auth-backend-conformance/README.md#refreshing-an-existing-consumer).
