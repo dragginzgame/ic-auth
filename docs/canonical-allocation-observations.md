@@ -223,3 +223,188 @@ The later incoming Runtime/macros/guard 0.20.3 selection is recorded separately:
 Its lock, module and measurements have the `incoming-runtime` prefix in the same
 evidence directory. Both sides of the matched table above use Runtime 0.20.2;
 this later selection is not mixed into that comparison.
+
+## Reference-store replacement — 2026-11-09
+
+Session and login replacement now use the old value returned by `BTreeMap::insert`
+to remove the previous expiry/pool metadata. Deletion keeps the same accounting;
+all publication remains after the host's successful commit callback. No record,
+codec, proof, trust or cleanup-order contract changes.
+
+The baseline uses `e22cebd`'s public Engine code plus the pending Storage 0.71
+adoption. It is the module built during that adoption, copied before these store
+edits. Both sides select the identical Cargo.lock, Storage 0.71.0, Rust 1.99.1,
+existing Cargo release profile, `wasm32-unknown-unknown` and repository
+`cpubits="32"`; there is no post-link optimizer. The only deployed-source changes
+in this comparison are the two reference-store implementations. Build command:
+`cargo build --locked --offline -p ic-auth-qualification-canister --target wasm32-unknown-unknown --release`.
+
+| Reference fixture | Total module bytes | Code-section payload bytes |
+| --- | ---: | ---: |
+| Before replacement cleanup | 1,831,907 | 1,411,604 |
+| After replacement cleanup | 1,822,844 | 1,404,357 |
+| Change | -9,063 | -7,247 |
+
+Code size is the unsigned-LEB128 payload length of section 10 in the complete
+uncompressed module. Before SHA-256:
+`b1fe288b519ea6677ecec643fade08b129e3676a071699da9dc2ff1ddaa06482`;
+after SHA-256:
+`32367cea91ddddc5072ca1164b3622e80080c85430f29fbc103b28de5d1a8def`.
+The baseline build log is `target/storage-071/wasm-build.log`. Copied modules,
+original store sources, the selected lock/compiler, new build logs and
+`wasm-comparison.json` are retained under `target/store-cleanup/`.
+This measures the reference fixture's footprint, not an installed Canic binary
+or a runtime speedup. Storage adoption is present on both sides and receives
+none of this size attribution.
+
+## Signature-store seed lookup — 2026-11-09
+
+Signature preparation now retains the seed-presence result from its deadline
+lookup, rather than searching the outer tree again before insertion. Validation,
+capacity, retention, certified leaf bytes and root publication are unchanged.
+
+The baseline is the retained reference-store cleanup above. Both modules use its
+same sealed Storage 0.71 lock, Rust 1.99.1, release profile, Wasm target and
+`cpubits="32"`, without a post-link optimizer. Only `signature_store.rs` differs
+in the final deployed source. The build command remains the one above.
+
+| Reference fixture | Total module bytes | Code-section payload bytes |
+| --- | ---: | ---: |
+| Before seed-lookup reuse | 1,822,844 | 1,404,357 |
+| After seed-lookup reuse | 1,822,484 | 1,404,136 |
+| Change | -360 | -221 |
+
+Code size remains the unsigned-LEB128 section-10 payload length. Before SHA-256:
+`32367cea91ddddc5072ca1164b3622e80080c85430f29fbc103b28de5d1a8def`;
+after SHA-256:
+`b8df0c12a2c9e42a9c8e4d8c707debbcb690e44e9472055f544da734890d3c85`.
+Modules, source backups, unchanged lock, build/test logs and comparison JSON
+remain under `target/signature-cleanup/`. No runtime speedup or Canic footprint
+is inferred.
+
+A combined trial also replaced the qualification host's temporary byte vectors
+with borrowed hash-tree leaves. It produced 1,826,429 total / 1,406,558 code bytes,
+growing 3,585 total / 2,201 code bytes against this baseline. That host change was
+reverted, preserving its original source bytes. The rejected module and logs
+remain separately named in the evidence directory; it is not the final result.
+
+## Borrowed login predicates — 2026-11-09
+
+Private login-record queries now borrow their record; pool membership inspects
+the enum directly instead of extracting a full binding to test its presence.
+The private session-deletion helper also drops its unused boolean result. Public
+interfaces, serialized records, admission/denial policy and transaction ordering
+remain unchanged.
+
+The baseline is the retained seed-lookup result above. Both sides use the same
+sealed lock, Storage 0.71, Rust 1.99.1, Cargo release profile, Wasm target and
+`cpubits="32"`, without a post-link optimizer. Only the session-memory and login
+revocation implementations differ in deployed source. The build command remains
+the one above.
+
+| Reference fixture | Total module bytes | Code-section payload bytes |
+| --- | ---: | ---: |
+| Before borrowed predicates/deletion cleanup | 1,822,484 | 1,404,136 |
+| After cleanup | 1,820,985 | 1,402,758 |
+| Change | -1,499 | -1,378 |
+
+Code size is the unsigned-LEB128 payload length of section 10. Before SHA-256:
+`b8df0c12a2c9e42a9c8e4d8c707debbcb690e44e9472055f544da734890d3c85`;
+after SHA-256:
+`4a06259db848f67c6e31ec81a2fbf724f212a6e4f054c846b13f9654ae94e6d8`.
+Modules, original source copies, the sealed lock, build/test logs and comparison
+JSON remain under `target/record-cleanup/`. This is reference-fixture size
+evidence; no runtime speedup or Canic footprint is inferred.
+
+## Narrow pool-capacity inputs — 2026-11-09
+
+The private capacity helper receives the requested pool rather than a complete
+login record. Logout borrows the retained record while reading its deadline and
+binding. No capacity, clock, budget, retention or callback check changes.
+
+The baseline is the borrowed-predicate result above. Both modules use its same
+sealed Storage 0.71 lock, Rust 1.99.1, release profile, Wasm target and
+`cpubits="32"`, without a post-link optimizer. Only `portable/revocation.rs`
+differs in deployed source; the build command remains the one above.
+
+| Reference fixture | Total module bytes | Code-section payload bytes |
+| --- | ---: | ---: |
+| Before narrower inputs | 1,820,985 | 1,402,758 |
+| After narrower inputs | 1,821,026 | 1,402,675 |
+| Change | +41 | -83 |
+
+Code size is the unsigned-LEB128 section-10 payload length. Before SHA-256:
+`4a06259db848f67c6e31ec81a2fbf724f212a6e4f054c846b13f9654ae94e6d8`;
+after SHA-256:
+`e11ceca931b79b2707ec2bca410e0e39feb4f38683cb03958c192d8f403e8e19`.
+Modules, original source, the sealed lock, build/test logs and comparison JSON
+remain under `target/pool-cleanup/`. The size effect is mixed and small; this is
+retained for narrower inputs and borrowing, without a runtime speedup or Canic
+footprint claim.
+
+## Borrowed pruning candidates — 2026-11-09
+
+The two ordered expiry cursors keep their candidates borrowed while comparing
+deadlines. Only the selected caller or fingerprint is copied into the staged
+deletion. The separate indexes, session-first tie ordering, 128-record cap and
+commit-before-mutation contract remain unchanged.
+
+The baseline is the narrow-capacity result above. Both modules use its identical
+sealed Storage 0.71 lock, Rust 1.99.1, release profile, Wasm target and
+`cpubits="32"`, without a post-link optimizer. Only `session/memory.rs` differs
+in deployed source; the build command remains the one above.
+
+| Reference fixture | Total module bytes | Code-section payload bytes |
+| --- | ---: | ---: |
+| Before borrowed candidates | 1,821,026 | 1,402,675 |
+| After borrowed candidates | 1,821,027 | 1,402,675 |
+| Change | +1 | 0 |
+
+Code size is the unsigned-LEB128 section-10 payload length. Every non-custom
+section is byte-identical; the only difference is the `name` custom section.
+This is a source simplification with no executable size or speedup claim.
+Before SHA-256:
+`e11ceca931b79b2707ec2bca410e0e39feb4f38683cb03958c192d8f403e8e19`;
+after SHA-256:
+`3d2f2c443d409992ca002bcd13d5b09526e961596247d90393d3c2173af2fe06`.
+Modules, original source, the sealed lock, build/test logs, comparison JSON and
+`section-equality.json` remain under `target/prune-cleanup/`.
+
+A further replay-counter map-entry trial grew the module to 1,822,380 total /
+1,403,885 code bytes: +1,354 total / +1,210 code bytes against the same baseline.
+That trial was reverted; its separately named module, measurements and passing
+focused tests remain retained. The final rebuild matches the original borrowed-
+candidate module exactly.
+
+## Direct SHA-2 0.11 adoption — 2026-11-09
+
+Auth's root direct requirement changes from `sha2` 0.10 to 0.11.1, already
+selected by Platform's RustCrypto/Principal helpers. Upstream-only older SHA-2
+versions remain; no cryptographic body, canonical input, domain or signature
+policy changes. Two native artifact diagnostics project the new digest array to
+the existing hexadecimal display type; deployed Rust source is unchanged.
+
+Both reference modules use Rust 1.99.1, `wasm32-unknown-unknown`, the existing
+release profile and `cpubits="32"`, with no post-link optimizer. Both run
+`cargo build --locked --offline -p ic-auth-qualification-canister --target wasm32-unknown-unknown --release`.
+The old lock selects Tooling 0.37.2, the new lock 0.37.4; Tooling is a dev-only
+selection and its installed executables/build settings are unchanged. The only
+normal-graph change is the direct SHA-2 selection. No unrelated package version
+changes. The two native diagnostic edits are excluded from this Wasm.
+
+| Reference fixture | Total module bytes | Code-section payload bytes |
+| --- | ---: | ---: |
+| Direct SHA-2 0.10.9 | 1,821,027 | 1,402,675 |
+| Direct SHA-2 0.11.1 | 1,823,778 | 1,405,535 |
+| Change | +2,751 | +2,860 |
+
+Code size is the unsigned-LEB128 section-10 payload length. This is a dependency
+freshness update with a small measured footprint increase, not an optimization
+or runtime speedup claim. Before module SHA-256:
+`3d2f2c443d409992ca002bcd13d5b09526e961596247d90393d3c2173af2fe06`;
+after: `aba7ae48b250ec67a43a64ef5a8af1443c73abb71156d4f99b69eee20ba181b3`.
+Sealed lock copies/identities, modules, comparison JSON, focused test/build/lint
+logs and installed qualification output remain in `target/tooling-0374-sha2/`.
+The existing frozen canonical, Merkle, request, portable-claims and independent
+signature vectors pass. These measurements do not establish Canic adoption or
+its deployed size.

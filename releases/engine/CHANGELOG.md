@@ -1,8 +1,63 @@
 # Engine changelog
 
-Covers public `ic-auth` and the unpublished backend conformance, qualification and
-native tooling packages. The independent series starts after the
+Covers `ic-auth`, maintained `ic-auth-tooling`, and associated private
+qualification changes. Only the first two are Engine release-group members. The independent series starts after the
 [last coordinated release, 0.29.2](../history.md).
+
+## [0.37.0] - Unreleased
+
+### ⚠️ Breaking
+
+- Adopt Platform 0.29, canonical Types 0.19 and Wire 0.19 with the matching Protocol
+  identity cut. Preserve signed bytes, strict verification and stored formats.
+  Native Agent calls explicitly copy validated Principal bytes into inferred
+  supplier identities after upstream conversion impls were retired.
+
+### ⬆️ Dependencies
+
+- Update direct Platform selections to 0.29.0 in both workspaces. Types 0.19 and
+  Runtime 0.21 stay unchanged. New upstream Candid decoder APIs are unselected by
+  the public libraries and Wasm host; native Testkit explicitly selects that
+  codec. Crypto, signed bytes and owned Wire endpoints are unchanged.
+
+- Adopt crates.io Toko Tooling 0.38.2, including its `toko-tooling-*` commands,
+  `TOKO-TOOLING.md` baseline, `.toko-tooling.snapshot` receipt and renamed LOC
+  metadata. Preserve Auth's strict Make execution admission with scoped guards;
+  harmless help/catalog dry runs remain available. Dependency reports distinguish
+  conditional, development/build and qualification declarations. Move six private test-support/host
+  packages into an independent `qualification/` workspace with its own catalog
+  and lock. Keep product packages in `crates/` and private versions independent.
+  Adopt Shared's atomic two-lock group preparation with both-group rollback,
+  input-sealing and product-resolution isolation checks.
+- Update direct SHA-256 hashing to RustCrypto `sha2` 0.11.1, preserving canonical
+  inputs, digest bytes and signature policy. Retain upstream-only older versions
+  independently; native artifact diagnostics keep their existing hexadecimal output.
+- Align the private host on Runtime/macros/guard 0.21 with Storage 0.71.1,
+  resolving the previous duplicate Runtime graph. Adopt Testkit 0.97 and its
+  required Host 0.76.2 cohort, clearing the prior Wire mismatch with one Wire
+  0.19 / Platform 0.29 / Types 0.19 identity. Remove redundant private PocketIC
+  Principal conversions; Agent/delegation boundaries retain explicit byte copies.
+- Adopt Storage 0.71 for the private qualification host. Its bucket-backed
+  allocator requires fresh whole backing; retired snapshot images are refused
+  without clearing. Public Auth libraries, checkpoint payloads and signed bytes
+  are unchanged; no production backing is reset or migrated.
+
+### 🧪 Testing
+
+- Define host nonce freshness, replay and restart requirements, and qualify
+  published `ic-entropy` only in private backend tests. Cover real admission and
+  replay, fail-closed unavailable/exhausted providers and seed reuse without
+  changing verification, signed bytes or Canic's fresh challenge path.
+  [#130](https://github.com/dragginzgame/ic-auth/issues/130)
+
+### 🧹 Cleanup
+
+- Streamline reference-store replacement, login-state checks and bounded pruning
+  to avoid redundant map work and record/key copies. Preserve atomic callback
+  ordering, expiry/replay retention, byte accounting and stored formats.
+- Reuse signature preparation's seed lookup when selecting its existing or new
+  message tree. Preserve capacity refusal, retention deadlines and certified
+  roots without repeating that lookup.
 
 ## [0.36.1] - 2026-11-09
 

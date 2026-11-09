@@ -14,12 +14,12 @@ esac
 # The consumer lock selects the CLI package, not a second server catalog.
 # Shared Tooling owns executable installation/receipts; Testkit owns server
 # assets, compatibility and offline admission. No cache glob or fallback route.
-selection=(--consumer "$PWD" --package ic-testkit --lockfile Cargo.lock
+selection=(--consumer "$PWD" --package ic-testkit --lockfile qualification/Cargo.lock
     --bin ic-testkit-server --profile debug --features cli)
 [[ "$phase" != check ]] || selection+=(--check)
 cli="$(bash scripts/dev/install-rust-tools.sh "${selection[@]}")" || {
     status=$?
-    printf 'Testkit CLI ic-testkit-server selected by Cargo.lock %s failed (exit %s).\n' "$phase" "$status" >&2
+    printf 'Testkit CLI ic-testkit-server selected by qualification/Cargo.lock %s failed (exit %s).\n' "$phase" "$status" >&2
     if [[ "$status" == 75 ]]; then
         echo 'Selected Testkit tool store is busy; retry after its owner finishes. No installation is needed for contention.' >&2
     elif [[ "$phase" == check ]]; then

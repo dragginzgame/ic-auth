@@ -5,7 +5,7 @@ cd "$(dirname "${BASH_SOURCE[0]}")/../.."
 source scripts/ci/auth-dependency-policy.sh
 native_target="$(rustc -vV | sed -n 's/^host: //p')"
 [[ -n "$native_target" ]] || { echo 'missing compiler host target' >&2; exit 1; }
-perl scripts/ci/check-cargo-graph.pl --consumer "$PWD" \
+perl scripts/ci/check-cargo-graph.pl --consumer "$PWD/qualification" \
     --package ic-auth-backend-conformance --target "$native_target" \
     --forbid-pattern "$(auth_dependency_pattern backend-conformance)"
 selections="$(bash scripts/ci/auth-feature-selections.sh)"
@@ -51,7 +51,7 @@ for target in "$native_target" wasm32-unknown-unknown; do
     done <<< "$selections"
     # Private fixture schemas must stay Wire-only even though the actual host's
     # runtime selects an executor, but neither path requires Candid.
-    "${checker[@]}" --package ic-auth-qualification-contracts --target "$target" \
+    perl scripts/ci/check-cargo-graph.pl --consumer "$PWD/qualification" --package ic-auth-qualification-contracts --target "$target" \
         --forbid-pattern "$(auth_dependency_pattern passive)" \
         --forbid-pattern '^(candid|candid_derive|candid_parser|ic-cdk|ic0|ic-memory|ic-storage|ic-agent|ic-host|ic-build|ic-testkit|pocket-ic|tokio)([- ]|$)' \
         --forbid-feature ic-platform/candid \
@@ -75,9 +75,9 @@ done
 # Storage 0.65 selects Runtime directly on Wasm.
 # It resolves to the host's one maintained owner; keep its singleton guard
 # and generator checks, while public library graphs still forbid those features.
-"${checker[@]}" --package ic-auth-qualification-canister --target wasm32-unknown-unknown \
+perl scripts/ci/check-cargo-graph.pl --consumer "$PWD/qualification" --package ic-auth-qualification-canister --target wasm32-unknown-unknown \
     --forbid-pattern "$(auth_dependency_pattern profiling)" \
-    --forbid-pattern '^(candid_parser|ic-host|ic-build|ic-agent|ic-testkit|pocket-ic|tokio)([- ]|$)' \
+    --forbid-pattern '^(candid_parser|ic-host|ic-build|ic-agent|ic-testkit|ic-entropy|pocket-ic|tokio)([- ]|$)' \
     --forbid ic-cdk --forbid ic-cdk-macros --forbid ic-cdk-executor \
     --forbid ic-memory --forbid ic-stable-structures --forbid ic-platform-pocket-ic \
     --forbid-feature ic-platform/candid \

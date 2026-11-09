@@ -13,6 +13,12 @@ ci_mode=false
 if [[ "${1:-}" == --ci ]]; then ci_mode=true; shift; fi
 discovery=(Cargo.toml Cargo.lock ci/cargo-release-groups.json scripts/ci/run-auth-validation.sh
     scripts/ci/cargo-release-group.sh scripts/ci/cargo-release-groups.jq)
+qualification=false
+if jq -e 'has("qualification_workspace")' ci/cargo-release-groups.json > /dev/null; then
+    qualification=true
+    discovery+=(qualification/Cargo.toml qualification/Cargo.lock
+        scripts/ci/cargo-qualification-release.sh scripts/ci/cargo-qualification-release.jq)
+fi
 if [[ "$ci_mode" == true ]]; then
     discovery+=(ci/release-validation.json ci/cargo-release-groups.json scripts/ci/run-auth-ci.sh
         scripts/ci/validation-evidence.pl scripts/ci/ValidationPlan.pm)
@@ -29,9 +35,20 @@ while IFS= read -r group; do
     (unset RELEASE_COMMIT; CDPATH='' bash scripts/ci/cargo-release-group.sh plan "$group") > "$evidence/$group-plan.json"
     jq -er '.manifests[].path' "$evidence/$group-plan.json" >> "$evidence/manifests"
 done < "$evidence/group-names"
+if [[ "$qualification" == true ]]; then
+    cargo metadata --manifest-path qualification/Cargo.toml --locked --offline \
+        --no-deps --format-version 1 > "$evidence/qualification-metadata.json"
+    jq -r --arg root "$PWD/" '. as $m | .packages[] |
+        select(.id as $id | $m.workspace_members | index($id)) |
+        .manifest_path | ltrimstr($root)' "$evidence/qualification-metadata.json" >> "$evidence/manifests"
+fi
 inputs=(--input Cargo.toml --input Cargo.lock --input ci/cargo-release-groups.json
     --input scripts/ci/run-auth-validation.sh --input scripts/ci/cargo-release-group.sh
     --input scripts/ci/cargo-release-groups.jq)
+if [[ "$qualification" == true ]]; then
+    inputs+=(--input qualification/Cargo.toml --input qualification/Cargo.lock
+        --input scripts/ci/cargo-qualification-release.sh --input scripts/ci/cargo-qualification-release.jq)
+fi
 while IFS= read -r manifest; do inputs+=(--input "$manifest"); done < "$evidence/manifests"
 if [[ "$ci_mode" == true ]]; then
     ci_source=$(git rev-parse HEAD)

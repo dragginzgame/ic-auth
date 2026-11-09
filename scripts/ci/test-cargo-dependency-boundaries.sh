@@ -3,8 +3,8 @@
 set -euo pipefail
 selection=all
 if [[ $# != 0 ]]; then
-    [[ $# == 2 && $1 == --case && ($2 == native-client || $2 == cbor || $2 == hashing) ]] || {
-        echo 'usage: test-cargo-dependency-boundaries.sh [--case native-client|cbor|hashing]' >&2; exit 2;
+    [[ $# == 2 && $1 == --case && ($2 == native-client || $2 == cbor || $2 == hashing || $2 == wire-oracle) ]] || {
+        echo 'usage: test-cargo-dependency-boundaries.sh [--case native-client|cbor|hashing|wire-oracle]' >&2; exit 2;
     }
     selection="$2"
 fi
@@ -36,6 +36,34 @@ chmod +x "$FIXTURE/bin/cargo"
 export PATH="$FIXTURE/bin:$PATH"
 perl -MJSON::PP -e 'print encode_json({version => 1, workspace_root => $ARGV[0], workspace_members => ["consumer"], packages => [{id => "consumer", name => "consumer", dependencies => [{name => "substrate", rename => "hidden", kind => "dev", target => "cfg(windows)"}]}]})' "$FIXTURE" > "$FIXTURE/metadata.json"
 cp "$FIXTURE/metadata.json" "$FIXTURE/valid-metadata.json"
+# Only the named private, unconditional development oracle is admitted.
+if [[ $selection == all || $selection == wire-oracle ]]; then
+    for mode in valid normal build target published other-owner other-sdk tightened; do
+        perl -MJSON::PP -e '
+          my ($root,$mode)=@ARGV;
+          my $package={id=>"member",name=>"ic-wire-benchmarks",publish=>[],dependencies=>[{name=>"candid",rename=>"oracle",kind=>"dev",target=>undef}]};
+          $package->{dependencies}[0]{kind}=undef if $mode eq "normal";
+          $package->{dependencies}[0]{kind}="build" if $mode eq "build";
+          $package->{dependencies}[0]{target}="cfg(windows)" if $mode eq "target";
+          $package->{publish}=undef if $mode eq "published";
+          $package->{name}="other" if $mode eq "other-owner";
+          $package->{dependencies}[0]{name}="ic-agent" if $mode eq "other-sdk";
+          print encode_json({version=>1,workspace_root=>$root,workspace_members=>["member"],packages=>[$package]});
+        ' "$FIXTURE" "$mode" > "$FIXTURE/metadata.json"
+        printf '[{"dependency":"candid","allowed_packages":["ic-wire-benchmarks"]}]\n' > "$FIXTURE/ci/cargo-dependency-boundaries.json"
+        if [[ $mode == tightened ]]; then
+            printf '[{"dependency":"candid","allowed_packages":[]}]\n' > "$FIXTURE/ci/cargo-dependency-boundaries.json"
+        fi
+        if (cd "$FIXTURE" && bash "$root/scripts/ci/check-cargo-dependency-boundaries.sh" --consumer "$FIXTURE" --external-ic) > "$FIXTURE/oracle-$mode.log" 2>&1; then
+            [[ $mode == valid ]] || { echo "unexpected oracle admission: $mode" >&2; exit 1; }
+        else
+            [[ $mode != valid ]] || { cat "$FIXTURE/oracle-$mode.log" >&2; exit 1; }
+            grep -q 'Forbidden direct Cargo dependencies' "$FIXTURE/oracle-$mode.log"
+        fi
+    done
+    cp "$FIXTURE/valid-metadata.json" "$FIXTURE/metadata.json"
+    if [[ $selection == wire-oracle ]]; then fixture_complete=true; exit 0; fi
+fi
 # Common hash review is based on the real package name, not its local alias.
 if [[ $selection == all || $selection == hashing ]]; then
     for dependency in sha2 blake3 xxhash-rust hmac crc32fast sha1 sha3 blake2 md-5 twox-hash ring; do

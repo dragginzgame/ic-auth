@@ -112,7 +112,7 @@ printf '%s\n' --disable --silent --show-error --location --proto '=https' \
     --proto-redir '=https' --tlsv1.2 --connect-timeout 10 --max-time 30 \
     --output "$evidence/response.json" --max-filesize 1048576 --stderr "$evidence/curl.stderr" \
     --write-out '%{http_code}' --user-agent \
-    'dragginzgame-shared-tooling (https://github.com/dragginzgame/shared-tooling)' \
+    'dragginzgame-toko-tooling (https://github.com/dragginzgame/toko-tooling)' \
     'https://crates.io/api/v1/crates/fixture_crate/0.1.2' > "$fixture/expected-args"
 cmp "$fixture/expected-args" "$fixture/args"
 # Existing evidence (including a symlink to it) cannot be overwritten or queried again.

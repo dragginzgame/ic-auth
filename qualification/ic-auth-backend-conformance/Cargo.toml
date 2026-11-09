@@ -1,0 +1,29 @@
+# Tests and tooling packages
+[package]
+name = "ic-auth-backend-conformance"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+readme = "README.md"
+description = "Portable Auth backend contract scenarios for native qualification"
+
+[package.metadata.toko-tooling.loc]
+category = "tests"
+
+[package.metadata.cargo-machete]
+ignored = ["toko-tooling"]
+
+[dependencies]
+ic-auth = { workspace = true, features = ["session-restore", "portable-signature-verification"] }
+ic-auth-protocol-types.workspace = true
+ic-platform = { workspace = true, features = ["ed25519"] }
+
+[dev-dependencies]
+ic-entropy.workspace = true
+toko-tooling.workspace = true
+
+[lints]
+workspace = true

@@ -11,6 +11,8 @@ mkdir -p "$fixture/repo/scripts/ci" "$fixture/bin"
 cp scripts/ci/{check-auth-boundaries,auth-dependency-policy,auth-feature-selections}.sh "$fixture/repo/scripts/ci/"
 cp scripts/ci/check-cargo-graph.pl "$fixture/repo/scripts/ci/"
 mkdir -p "$fixture/repo/crates/ic-auth"
+mkdir -p "$fixture/repo/qualification"
+printf '[workspace]\n' > "$fixture/repo/qualification/Cargo.toml"
 # A new capability must enter both target checks without another curated list.
 awk '{ print } /^\[features\]$/ { print "future-capability = []" }' \
     crates/ic-auth/Cargo.toml > "$fixture/repo/crates/ic-auth/Cargo.toml"
@@ -73,6 +75,7 @@ if [[ "$package" == ic-auth-qualification-canister ]]; then
     if [[ "$BOUNDARY_MODE" == host-cdk ]]; then printf 'ic-cdk v0.20.3\n'; fi
     if [[ "$BOUNDARY_MODE" == host-cdk-macros ]]; then printf 'ic-cdk-macros v0.20.3\n'; fi
     if [[ "$BOUNDARY_MODE" == host-profiler ]]; then printf 'dhat v0.3.3\n'; fi
+    if [[ "$BOUNDARY_MODE" == host-entropy ]]; then printf 'ic-entropy v0.1.0\n'; fi
     if [[ "$BOUNDARY_MODE" == host-platform-feature ]]; then
         printf 'ic-platform feature "candid"\n'
     fi
@@ -95,6 +98,7 @@ if [[ "$package" == ic-auth-backend-conformance ]]; then
         conformance-private) printf 'ic-auth-qualification-contracts v0.28.0\n' ;;
         conformance-certified) printf 'ic-verify-bls-signature v0.6.0\n' ;;
         conformance-profiler) printf 'dhat v0.3.3\n' ;;
+        conformance-entropy) printf 'ic-entropy v0.1.0\n' ;;
     esac
 fi
 if [[ "$package" == ic-auth ]]; then printf 'ic_principal v0.1.5\n'; fi
@@ -111,6 +115,9 @@ if [[ "$package" == ic-auth && "$target" == wasm32-unknown-unknown && "$all_feat
 fi
 if [[ "$BOUNDARY_MODE" == library-profiler && "$package" == ic-auth && "$target" == wasm32-unknown-unknown && "$features" == sessions ]]; then
     printf 'dhat v0.3.3\n'
+fi
+if [[ "$BOUNDARY_MODE" == library-entropy && "$package" == ic-auth && "$target" == wasm32-unknown-unknown && "$features" == sessions ]]; then
+    printf 'ic-entropy v0.1.0\n'
 fi
 if [[ "$BOUNDARY_MODE" == principal-external && "$package" == ic-auth-protocol-types ]]; then
     printf 'ic_principal v0.1.5\n'
@@ -182,7 +189,7 @@ STUB
 chmod +x "$fixture/bin/"*
 export PATH="$fixture/bin:$root/.tools/host/bin:$PATH"
 export BOUNDARY_EVENTS="$fixture/events"
-for mode in accepted crypto-generations crypto-generations-third crypto-algorithm-duplicate principal-facade wire-facade control-facade engine-facade session-facade session-runtime principal-runtime-owner conformance-metrics conformance-private conformance-certified conformance-profiler library-profiler host-profiler principal-external wire-hashing control-external principal-candid principal-executor principal-owned-executor principal-runtime-guard principal-bls principal-storage control-candid control-storage control-platform-feature wasm-default wasm-combined wasm-capability wasm-portable-bls wasm-portable-ic0 wasm-session-candid wasm-session-ic0 wasm-unknown-candid wasm-certified-owned-ic0 wasm-certified-candid wasm-certified-ic0 wasm-certified-runtime wasm-certified-creation wasm-certified-verifier host-candid host-candid-derive host-registry-ic0 parser executor executor-source generator generator-source runtime-guard-missing runtime-guard-source host-cdk host-cdk-macros host-platform-feature host-runtime-missing host-runtime-duplicate host-facade-ic0 host-facade-executor host-facade-runtime host-wire-duplicate host-storage-missing host-storage-duplicate host-retired-memory host-legacy-stable-structures host-native-client; do
+for mode in accepted crypto-generations crypto-generations-third crypto-algorithm-duplicate principal-facade wire-facade control-facade engine-facade session-facade session-runtime principal-runtime-owner conformance-metrics conformance-private conformance-certified conformance-profiler library-profiler host-profiler library-entropy conformance-entropy host-entropy principal-external wire-hashing control-external principal-candid principal-executor principal-owned-executor principal-runtime-guard principal-bls principal-storage control-candid control-storage control-platform-feature wasm-default wasm-combined wasm-capability wasm-portable-bls wasm-portable-ic0 wasm-session-candid wasm-session-ic0 wasm-unknown-candid wasm-certified-owned-ic0 wasm-certified-candid wasm-certified-ic0 wasm-certified-runtime wasm-certified-creation wasm-certified-verifier host-candid host-candid-derive host-registry-ic0 parser executor executor-source generator generator-source runtime-guard-missing runtime-guard-source host-cdk host-cdk-macros host-platform-feature host-runtime-missing host-runtime-duplicate host-facade-ic0 host-facade-executor host-facade-runtime host-wire-duplicate host-storage-missing host-storage-duplicate host-retired-memory host-legacy-stable-structures host-native-client; do
     export BOUNDARY_MODE="$mode"
     : > "$BOUNDARY_EVENTS"
     status=0
@@ -203,7 +210,7 @@ for mode in accepted crypto-generations crypto-generations-third crypto-algorith
     else
         [[ "$status" != 0 ]] || { echo "missing exclusion: $mode" >&2; exit 1; }
         rg '^Cargo graph policy failed:' "$fixture/$mode.log" > /dev/null
-        rg 'ic-platform|ic-wire|ic-memory|ic-storage|ic-stable-structures|ic_principal|sha2|digest|k256|ic-agent|tokio|ic-testkit-candid|candid|ic-cdk|ic0|ic-canister-sig-creation|ic-signature-verification|ic-verify-bls-signature|dhat' "$fixture/$mode.log" > /dev/null
+        rg 'ic-platform|ic-wire|ic-memory|ic-storage|ic-stable-structures|ic_principal|sha2|digest|k256|ic-agent|tokio|ic-testkit-candid|ic-entropy|candid|ic-cdk|ic0|ic-canister-sig-creation|ic-signature-verification|ic-verify-bls-signature|dhat' "$fixture/$mode.log" > /dev/null
     fi
 done
 echo 'Native/Wasm graph selections and transitive tooling refusals passed'

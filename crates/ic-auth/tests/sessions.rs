@@ -1248,6 +1248,65 @@ fn bounded_pruning_releases_exact_bytes_and_caller_replay_capacity() {
 }
 
 #[test]
+fn pruning_equal_deadlines_preserves_work_order_and_failed_commit_state() {
+    let mut f = Fixture::new(1);
+    f.claims.admission_expires_at_ns = NOW + 5 * SECOND;
+    let mut r = Receiver::new(&f);
+    let session = created(f.admit(&mut r, NOW).unwrap(), &mut r.store);
+    let deadline = session.expires_at_ns();
+    assert_eq!(deadline, f.claims.admission_expires_at_ns);
+    let before = r.store.encoded_bytes();
+    let check = |delta: &SessionPrune<'_>| {
+        assert_eq!(delta.callers, &[f.caller()]);
+        assert!(delta.fingerprints.is_empty());
+        assert_eq!((delta.session_count, delta.replay_count), (0, 1));
+        assert_eq!(
+            delta.encoded_bytes,
+            before - session.encode().unwrap().len()
+        );
+    };
+    assert_eq!(
+        r.store
+            .prune_with_commit(deadline - 1, 1, |_| panic!("records are still live")),
+        Ok(SessionPruned::default())
+    );
+    assert_eq!(
+        r.store.prune_with_commit(deadline, 1, |delta| {
+            check(&delta);
+            Err(SessionError::StorageFailure)
+        }),
+        Err(SessionError::StorageFailure)
+    );
+    assert_eq!(r.store.encoded_bytes(), before);
+    assert_eq!(
+        r.store.prune_with_commit(deadline, 1, |delta| {
+            check(&delta);
+            Ok(())
+        }),
+        Ok(SessionPruned {
+            sessions: 1,
+            replays: 0
+        })
+    );
+    assert_eq!(
+        r.store.prune_with_commit(deadline, 1, |delta| {
+            assert!(delta.callers.is_empty());
+            assert_eq!(delta.fingerprints, &[session.fingerprint()]);
+            assert_eq!(
+                (delta.session_count, delta.replay_count, delta.encoded_bytes),
+                (0, 0, 0)
+            );
+            Ok(())
+        }),
+        Ok(SessionPruned {
+            sessions: 0,
+            replays: 1
+        })
+    );
+    assert_eq!(r.store.encoded_bytes(), 0);
+}
+
+#[test]
 fn byte_capacity_failure_preserves_previous_session_and_login_reservation() {
     let mut f = Fixture::new(1);
     let mut sizing = Receiver::new(&f);

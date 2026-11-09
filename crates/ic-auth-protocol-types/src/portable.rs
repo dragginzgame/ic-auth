@@ -25,6 +25,9 @@ pub struct PortableClaims {
     pub login_deadline_ns: u64,
     pub issued_at_ns: u64,
     pub admission_expires_at_ns: u64,
+    /// Issuer-assigned identity for a distinct credential within this login.
+    /// Exact issuance retries retain it. All-zero bytes are permitted; the full
+    /// signed claims digest, rather than this field alone, identifies replay.
     pub nonce: [u8; 16],
     pub grants: Vec<DelegatedRoleGrant>,
 }

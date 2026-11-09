@@ -3,7 +3,7 @@
 auth_dependency_pattern() {
     # Types owns passive identities; Platform is selected only for crypto.
     local profiling='dhat'
-    local product="candid_parser|canic|toko|solana|ic-siws|ic-host|ic-build|ic-testkit|ic-metrics|ic-agent|tokio|pocket-ic|ic-platform-pocket-ic|ic-auth-qualification|ic-auth-feature-unification|ic-auth-tooling|$profiling"
+    local product="candid_parser|canic|toko|solana|ic-siws|ic-host|ic-build|ic-testkit|ic-entropy|ic-metrics|ic-agent|tokio|pocket-ic|ic-platform-pocket-ic|ic-auth-qualification|ic-auth-feature-unification|ic-auth-tooling|$profiling"
     local storage='ic-platform-runtime|ic-platform-macros|ic-cdk|ic-stable-structures|ic-memory|ic-storage|ic-timers'
     local certificates='ic-certification|ic-signature-verification|ic-canister-sig-creation'
     local pattern

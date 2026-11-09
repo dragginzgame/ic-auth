@@ -46,19 +46,22 @@ pub enum LoginRecordState {
 }
 
 impl Record {
-    fn login(self) -> Option<LoginBinding> {
-        match self.state {
-            LoginRecordState::Reserved(login) => Some(login),
-            LoginRecordState::Revoked(login) => login,
+    fn login(&self) -> Option<LoginBinding> {
+        match &self.state {
+            LoginRecordState::Reserved(login) => Some(*login),
+            LoginRecordState::Revoked(login) => *login,
         }
     }
 
-    fn revoked(self) -> bool {
+    fn revoked(&self) -> bool {
         matches!(self.state, LoginRecordState::Revoked(_))
     }
 
-    fn admitted_pool(self) -> bool {
-        self.login().is_some()
+    fn admitted_pool(&self) -> bool {
+        matches!(
+            self.state,
+            LoginRecordState::Reserved(_) | LoginRecordState::Revoked(Some(_))
+        )
     }
 }
 
@@ -420,11 +423,7 @@ impl MemoryLoginRevocations {
         commit: impl FnOnce(&LoginRevocationChange) -> Result<(), E>,
     ) -> Result<u64, E> {
         self.observe(caller, now_ns)?;
-        let old = self
-            .records
-            .get(&caller)
-            .copied()
-            .filter(|r| r.until_ns > now_ns);
+        let old = self.records.get(&caller).filter(|r| r.until_ns > now_ns);
         let record = if let Some(old) = old {
             Record {
                 until_ns: old.until_ns,
@@ -437,7 +436,7 @@ impl MemoryLoginRevocations {
                 state: LoginRecordState::Revoked(None),
             }
         };
-        self.capacity(caller, record)?;
+        self.capacity(caller, record.admitted_pool())?;
         if old.is_none() {
             unknown_budget
                 .consume(now_ns)
@@ -588,7 +587,7 @@ impl MemoryLoginRevocations {
             until_ns,
             state: LoginRecordState::Reserved(login),
         };
-        self.capacity(caller, record)?;
+        self.capacity(caller, record.admitted_pool())?;
         Ok(record)
     }
 
@@ -607,12 +606,12 @@ impl MemoryLoginRevocations {
         self.clock(now_ns)
     }
 
-    fn capacity(&self, caller: Principal, record: Record) -> Result<(), LoginRevocationError> {
+    fn capacity(&self, caller: Principal, admitted_pool: bool) -> Result<(), LoginRevocationError> {
         let reuses_pool = self
             .records
             .get(&caller)
-            .is_some_and(|old| old.admitted_pool() == record.admitted_pool());
-        let (count, limit) = if record.admitted_pool() {
+            .is_some_and(|old| old.admitted_pool() == admitted_pool);
+        let (count, limit) = if admitted_pool {
             (self.admitted, self.max_admitted)
         } else {
             (self.unknown, self.max_unknown)
@@ -625,24 +624,29 @@ impl MemoryLoginRevocations {
 
     fn remove(&mut self, caller: Principal) {
         if let Some(old) = self.records.remove(&caller) {
-            self.expiry.remove(&(old.until_ns, caller));
-            if old.admitted_pool() {
-                self.admitted -= 1;
-            } else {
-                self.unknown -= 1;
-            }
+            self.unindex(caller, old);
+        }
+    }
+
+    fn unindex(&mut self, caller: Principal, old: Record) {
+        self.expiry.remove(&(old.until_ns, caller));
+        if old.admitted_pool() {
+            self.admitted -= 1;
+        } else {
+            self.unknown -= 1;
         }
     }
 
     fn install(&mut self, caller: Principal, record: Record) {
-        self.remove(caller);
+        if let Some(old) = self.records.insert(caller, record) {
+            self.unindex(caller, old);
+        }
         if record.admitted_pool() {
             self.admitted += 1;
         } else {
             self.unknown += 1;
         }
         self.expiry.insert((record.until_ns, caller));
-        self.records.insert(caller, record);
     }
 }
 

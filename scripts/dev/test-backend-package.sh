@@ -11,17 +11,18 @@ evidence="$(mktemp -d "$root/target/portable-fixtures/backend-package.XXXXXX")"
 printf 'Backend package evidence retained: %s\n' "$evidence"
 tool="$(bash scripts/dev/host-file-tools.sh check)"
 version="$(yq -p toml -o json '.' crates/ic-auth/Cargo.toml | jq -er '.package.version')"
+bundle_version="$(cargo metadata --manifest-path qualification/Cargo.toml --locked --offline --no-deps --format-version 1 | jq -er '.packages[] | select(.name == "ic-auth-backend-conformance") | .version')"
 protocol_version="$(yq -p toml -o json '.' crates/ic-auth-protocol-types/Cargo.toml | jq -er '.package.version')"
 floor="$(bash scripts/dev/msrv-tools.sh floor)"
-name="ic-auth-backend-conformance-$version"
+name="ic-auth-backend-conformance-$bundle_version"
 consumer="$evidence/consumer"
 bundle="$consumer/test-support/$name"
 scenarios="$consumer/test-support"
 export CARGO_TARGET_DIR="$evidence/target"
 mkdir -p "$consumer/src" "$consumer/test-support"
 {
-    rg --files crates/ic-auth-backend-conformance -0
-    printf '%s\0' Cargo.toml Cargo.lock crates/ic-auth/Cargo.toml crates/ic-auth-protocol-types/Cargo.toml rust-toolchain.toml ci/host-file.env \
+    rg --files qualification/ic-auth-backend-conformance -0
+    printf '%s\0' Cargo.toml Cargo.lock qualification/Cargo.toml qualification/Cargo.lock crates/ic-auth/Cargo.toml crates/ic-auth-protocol-types/Cargo.toml rust-toolchain.toml ci/host-file.env \
         scripts/dev/test-backend-package.sh scripts/ci/check-backend-package-graph.sh \
         scripts/ci/test-backend-package-graph.sh scripts/ci/auth-dependency-policy.sh
 } > "$evidence/inputs.nul"
@@ -38,7 +39,7 @@ run() {
         exit "$status"
     }
 }
-run package cargo package --locked --offline --allow-dirty --no-verify -p ic-auth-backend-conformance
+run package cargo package --manifest-path qualification/Cargo.toml --locked --offline --allow-dirty --no-verify -p ic-auth-backend-conformance
 # Use Cargo's final delivery archive, rather than its staging copy. Only this
 # freshly produced local archive is extracted into the private evidence directory.
 archive="$CARGO_TARGET_DIR/package/$name.crate"
@@ -79,7 +80,7 @@ pub mod identity {
     }
 }
 RUST
-cp Cargo.lock "$consumer/Cargo.lock"
+cp qualification/Cargo.lock "$consumer/Cargo.lock"
 run metadata cargo metadata --offline --format-version 1 --manifest-path "$consumer/Cargo.toml"
 cp "$evidence/metadata.stdout.log" "$evidence/metadata.json"
 bash scripts/ci/check-backend-package-graph.sh "$evidence/metadata.json" "$bundle/Cargo.toml" "$version" "$protocol_version"
@@ -111,7 +112,7 @@ inputs > "$evidence/after.hashes"
 cmp "$evidence/before.hashes" "$evidence/after.hashes"
 [[ "$("$tool" hash-file "$archive" 8388608)" == "$digest" ]]
 jq -n --arg source "$source_revision" --arg version "$version" --arg protocol "$protocol_version" --arg archive "$archive" \
-    --arg sha256 "$digest" --argjson dirty "$(test ! -s "$evidence/source-status.txt" && echo false || echo true)" \
-    '{source_revision: $source, dirty: $dirty, engine_version: $version, protocol_version: $protocol, archive: $archive,
+    --arg sha256 "$digest" --arg bundle "$bundle_version" --argjson dirty "$(test ! -s "$evidence/source-status.txt" && echo false || echo true)" \
+    '{source_revision: $source, dirty: $dirty, engine_version: $version, protocol_version: $protocol, bundle_version: $bundle, archive: $archive,
       sha256: $sha256, qualification: "registry-consumer-and-packaged-scenarios"}' > "$evidence/delivery.json"
 printf 'Backend archive, registry identities, consumer and packaged scenarios qualified: %s\n' "$evidence/delivery.json"

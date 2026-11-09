@@ -98,8 +98,14 @@ their receipts are never reinterpreted as the new evidence envelope.
 
 CI manifest discovery projects the complete admitted manifest lists from Shared's
 Cargo group plans. That owner admits actual workspace membership and unequal
-group versions. Auth seals discovery and every returned member before dispatch;
-it does not maintain another Cargo manifest inventory implementation.
+group versions. Auth seals discovery and every returned product member before dispatch. Locked
+Cargo metadata discovers the independent qualification members; its root manifest,
+lock and every private member manifest are sealed too. The release policy opts
+into Shared's qualification-workspace helper: both group file plans include its
+root manifest and lock, and preparation updates selected product identities in
+both locks atomically while preserving private versions. Auth owns no generic
+multi-lock renderer. The focused workspace fixture tests both groups, failed
+qualification rollback and isolated product dependency resolution.
 
 Fresh source/group/index and editor admission, exact local archives, unselected
 versions/ledgers, publication order and all delivery permissions remain required.

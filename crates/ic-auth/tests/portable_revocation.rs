@@ -264,6 +264,27 @@ fn unknown_flood_cannot_steal_admitted_logout_capacity() {
         )),
         Err(Error::Revoked)
     );
+    assert_eq!(
+        store.with_revocation::<Error>(&mut budget(), caller(1), 7, |_| Ok(())),
+        Ok(deadline)
+    );
+    assert_eq!(store.occupancy(), (1, 1));
+    assert_eq!(
+        store.with_reservation::<(), Error>(caller(4), &verified(4, 100, 8), 8, |_| panic!(
+            "known denial retains admitted capacity"
+        )),
+        Err(Error::Capacity)
+    );
+    assert_eq!(
+        store.with_revocation::<Error>(&mut budget(), caller(3), 8, |_| panic!(
+            "unknown denial retains separate capacity"
+        )),
+        Err(Error::Capacity)
+    );
+    assert_eq!(store.prune(99, 128), Ok(0));
+    assert_eq!(store.prune(100, 128), Ok(1));
+    assert_eq!(store.occupancy(), (0, 1));
+    assert!(store.is_revoked(caller(2), 100).unwrap());
 }
 
 #[test]
@@ -460,6 +481,8 @@ fn idempotent_retention_never_slides_and_expired_pool_transfer_is_atomic() {
         })
         .unwrap();
     assert_eq!(store.occupancy(), (1, 0));
+    assert_eq!(store.prune(until, 128), Ok(0), "old expiry must be removed");
+    assert_eq!(store.occupancy(), (1, 0));
     store
         .with_revocation::<Error>(&mut budget(), caller(2), until, |_| Ok(()))
         .unwrap();
@@ -467,6 +490,45 @@ fn idempotent_retention_never_slides_and_expired_pool_transfer_is_atomic() {
     // Same caller may belong to another independently installed trust domain.
     let mut other_domain = ledger(1, 1);
     assert!(!other_domain.is_revoked(caller(2), until).unwrap());
+    assert_eq!(store.prune(until + 99, 128), Ok(0));
+    assert_eq!(store.prune(until + 100, 128), Ok(1));
+    assert_eq!(store.occupancy(), (0, 1));
+    assert!(store.is_revoked(caller(2), until + 100).unwrap());
+}
+
+#[test]
+fn expired_pool_transfer_refuses_when_destination_pool_is_full() {
+    let mut store = MemoryLoginRevocations::new(audience(), 1, 1, 1000, 0).unwrap();
+    let unknown_until = store
+        .with_revocation::<Error>(&mut budget(), caller(1), 1, |_| Ok(()))
+        .unwrap();
+    assert_eq!(unknown_until, 1001);
+    store
+        .with_reservation::<(), Error>(caller(2), &verified(2, 1500, 1000), 1000, |_| Ok(()))
+        .unwrap();
+    assert_eq!(
+        store.with_reservation::<(), Error>(caller(1), &verified(1, 1500, 1001), 1001, |_| {
+            panic!("admitted pool is full")
+        }),
+        Err(Error::Capacity)
+    );
+    assert_eq!(store.occupancy(), (1, 1));
+    assert_eq!(store.prune(1001, 1), Ok(1));
+    assert_eq!(store.occupancy(), (1, 0));
+
+    store
+        .with_revocation::<Error>(&mut budget(), caller(3), 1001, |_| Ok(()))
+        .unwrap();
+    assert_eq!(
+        store.with_revocation::<Error>(&mut budget(), caller(2), 1500, |_| panic!(
+            "unknown pool is full"
+        )),
+        Err(Error::Capacity)
+    );
+    assert_eq!(store.occupancy(), (1, 1));
+    assert!(store.is_revoked(caller(3), 1500).unwrap());
+    assert_eq!(store.prune(1500, 1), Ok(1));
+    assert_eq!(store.occupancy(), (0, 1));
 }
 
 #[test]

@@ -1,12 +1,13 @@
 # IC Auth Agent Instructions
 
-Apply the installed [baseline](DRAGGINZGAME.md), supplied by crates.io's
-`toko-tooling` 0.36.1, and its task-specific references. Root
-`[workspace.dependencies]` pins it exactly; every real workspace package inherits
-it as a dev-dependency with a cargo-machete exemption. `Cargo.lock` records the
-registry checksum and the [snapshot manifest](.shared-tooling.snapshot) records
-the installed payload. After changing the root pin, update Cargo.lock with Cargo
-and run `make shared-tooling-update`; `make shared-tooling-install` reinstalls the
+Apply the installed [baseline](TOKO-TOOLING.md), supplied by crates.io's
+`toko-tooling` 0.38.2, and its task-specific references. Both workspace roots
+(`Cargo.toml` and `qualification/Cargo.toml`) pin it exactly in
+`[workspace.dependencies]`; every real workspace package inherits
+it as a dev-dependency with a cargo-machete exemption. Each workspace
+`Cargo.lock` records the registry checksum and the [snapshot manifest](.toko-tooling.snapshot) records
+the installed payload. After changing both pins, refresh both locks with Cargo
+and run `make toko-tooling-update`; `make toko-tooling-install` reinstalls the
 existing selection. Cargo builds and ordinary checks never install tooling.
 Read [the current handoff](docs/status/current.md)
 before implementation. Product-specific safeguards and scoped permissions below
@@ -35,10 +36,12 @@ remain binding.
 
 ## Implementation boundaries
 
-- Follow [the accepted design](docs/design/extraction.md). Use a virtual root,
-  one application Cargo.lock, root-owned dependency selections and reusable packages in `crates/`.
-  Keep every maintained Rust package under `crates/<package-name>/`, including
-  private tooling and qualification. No service or Canic fleet is deployed here.
+- Follow [the accepted design](docs/design/extraction.md). Product packages use
+  the virtual root and `crates/`; qualification-only packages follow Shared's
+  independent `qualification/` workspace standard. Each root owns its catalog
+  and lock; product packages have no normal/build/dev dependency on qualification.
+  Shared owns atomic two-lock release preparation through the release policy
+  opt-in; keep private qualification versions independent of product releases. No service or Canic fleet is deployed here.
 - Keep protocol/type dependencies independent of CDK and storage. Make platform
   signing and wallet functionality explicit capabilities. Canic consumers must
   not pull Solana dependencies into their selected graph.
@@ -57,7 +60,7 @@ remain binding.
 - Use published `ic-host-*` for applicable local file, artifact and process
   mechanics and `ic-build` for generic Cargo lock admission. Native host tooling
   belongs in `crates/ic-auth-tooling/` and test infrastructure
-  in unpublished qualification/conformance crates under `crates/`, outside the
+  in unpublished qualification/conformance crates, outside the
   public library graphs.
   Release identity and upload/retry policy stay here.
 - Wallet login must not use SIWS/ic-siws, require a Solana transaction or depend
@@ -78,8 +81,9 @@ Auth selects canonical Principal and parse errors from `ic-platform-types`.
 The engine explicitly selects Types' `principal-self-authenticating` for
 browser-key hashing; passive protocol and Wire packages select neither external
 Principal nor SHA-2. Platform is optional and selected only by crypto capabilities.
-Convert explicitly through `principal::ExternalPrincipal` at native
-Agent/Testkit boundaries; keep `principal-external` selected there.
+Native supplier APIs retain their registry identities. Copy validated Principal
+bytes explicitly into inferred supplier types at Agent boundaries; Types 0.19
+and Platform 0.28 retire the external aliases and conversion feature.
 Platform canister-signature keys and certificate types use owned identities.
 Keep application/runtime identities owned and preserve original bytes. It supplies
 maintained canister-signature, certificate-tree and BLS code plus upstream
@@ -120,13 +124,14 @@ and `ci/cargo-dependency-boundaries.json` for direct-dependency ownership.
   async client and its lifecycle helpers. Tests own the runtime and await
   explicit instance close before server shutdown; retain teardown failures.
   Do not add a blocking facade, separate Platform client or registry `pocket-ic`
-  dependency. The locked Testkit package selects the setup/check CLI;
+  dependency. The Testkit package locked in `qualification/Cargo.lock` selects the setup/check CLI;
   Testkit owns server selection and admission outside the shared five-tool bundle.
   `make install-testkit-tools` explicitly prepares it, and
   `make testkit-tools-check` returns its admitted server path offline.
-  Auth and Testkit 0.95 share one Wire 0.18 identity. Pass canonical method
-  budgets directly through Testkit's typed transport, retaining method IDs and
-  all four allowances; no older codec dependency or budget projection is needed.
+  Auth and the selected native Testkit transport must share one Wire identity.
+  Pass canonical method budgets directly, retaining method IDs and all four
+  allowances. Do not add an older codec alias or allowance projection to bypass
+  a supplier mismatch; record the qualification blocker in the handoff.
   Qualification also requires the explicitly prepared browser client dependencies
   for real SDK logout transport; see [client setup](docs/development.md#browser-client-setup).
   Changing that pairing requires successful certification, upgrade and ingress
@@ -148,7 +153,7 @@ and `ci/cargo-dependency-boundaries.json` for direct-dependency ownership.
   [Auth release validation](docs/auth-release-validation.md), with full coverage
   for shared or uncertain changes and retained per-stage recovery evidence.
   Local validation cadence follows
-  [the shared baseline](DRAGGINZGAME.md#validation-and-evidence). The validation
+  [the shared baseline](TOKO-TOOLING.md#validation-and-evidence). The validation
   runner seals declared Rust/frontend preparation inputs
   between stages and refuses drift without fetching or restarting implicitly.
   `make test-formatting-hooks` checks actual staged preservation and is part of
@@ -183,8 +188,9 @@ and `ci/cargo-dependency-boundaries.json` for direct-dependency ownership.
   selection offline; they never install or rebuild from partially prepared
   metadata. Auth retains an 8 MiB input limit and recovery custody.
 - Protocol (`ic-auth-protocol-types`, `ic-auth-wire`) and Engine (`ic-auth` plus
-  private qualification/tooling) release independently. All member versions are
-  explicit; `ci/cargo-release-groups.json` owns group membership and ledgers.
+  `ic-auth-tooling`) release independently. Qualification is outside both groups
+  and inherits its private version from its own workspace; product member versions
+  are explicit; `ci/cargo-release-groups.json` owns group membership and ledgers.
   Select `RELEASE_GROUP=protocol|engine` for a single-group frozen release, or
   `RELEASE_GROUPS=protocol,engine` for the complete supplier-first batch.
   `RELEASE_PUBLISH_TARGET=publish` includes registry delivery when authorized.

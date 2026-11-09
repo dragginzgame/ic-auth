@@ -32,4 +32,4 @@ cleanup_socket_scratch() {
 }
 trap cleanup_socket_scratch EXIT
 printf 'ic-testkit qualification state retained: %s\n' "$IC_AUTH_QUALIFICATION_STATE_ROOT"
-cargo test --locked --offline -p ic-auth-qualification --test signatures -- --nocapture "$@"
+cargo test --manifest-path qualification/Cargo.toml --locked --offline -p ic-auth-qualification --test signatures -- --nocapture "$@"

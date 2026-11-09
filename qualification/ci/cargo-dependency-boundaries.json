@@ -1,0 +1,71 @@
+[
+  {
+    "dependency": "k256",
+    "allowed_packages": []
+  },
+  {
+    "dependency": "curve25519-dalek",
+    "allowed_packages": []
+  },
+  {
+    "dependency": "ed25519-dalek",
+    "allowed_packages": [
+      "ic-auth-feature-unification"
+    ]
+  },
+  {
+    "dependency": "ic-platform-macros",
+    "allowed_packages": []
+  },
+  {
+    "dependency": "ic-testkit-candid",
+    "allowed_packages": []
+  },
+  {
+    "dependency": "ic-entropy",
+    "allowed_packages": [
+      "ic-auth-backend-conformance"
+    ]
+  },
+  {
+    "dependency": "ic-metrics",
+    "allowed_packages": [
+      "ic-auth-qualification",
+      "ic-auth-qualification-fixtures"
+    ]
+  },
+  {
+    "dependency": "ic-memory",
+    "allowed_packages": []
+  },
+  {
+    "dependency": "ic-storage",
+    "allowed_packages": [
+      "ic-auth-qualification-canister"
+    ]
+  },
+  {
+    "dependency": "ic-platform",
+    "allowed_packages": [
+      "ic-auth-qualification-canister",
+      "ic-auth-qualification",
+      "ic-auth-feature-unification",
+      "ic-auth-qualification-fixtures",
+      "ic-auth-backend-conformance"
+    ]
+  },
+  {
+    "dependency": "ic-platform-types",
+    "allowed_packages": []
+  },
+  {
+    "dependency": "ic-platform-runtime",
+    "allowed_packages": [
+      "ic-auth-qualification-canister"
+    ]
+  },
+  {
+    "dependency": "ic-platform-pocket-ic",
+    "allowed_packages": []
+  }
+]

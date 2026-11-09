@@ -1,7 +1,7 @@
 # Independent authentication ownership
 
 Accepted extraction direction: 2026-10-08; current boundary reconciled on
-2026-10-18. [Canic #491 — Extract reusable authentication, token and session machinery](https://github.com/dragginzgame/canic/issues/491)
+2026-11-09. [Canic #491 — Extract reusable authentication, token and session machinery](https://github.com/dragginzgame/canic/issues/491)
 owns consumer implementation and acceptance. Earlier source checkpoints are
 historical evidence, not alternate current APIs.
 
@@ -28,10 +28,11 @@ Toko NFTs remain in Toko. Auth requires no Solana RPC, minting or asset custody.
 | `ic-auth-wire` | Bounded Auth method/data layouts and structural domain projections over IC Wire. Generated browser codecs come from that dependency's generator. |
 | `packages/client` | Private portable admission coordinator, guarded SDK identity and durable logout journal/transport. Identity, issuer/admission operations and storage are injected. |
 | `crates/ic-auth-tooling` | Native file operations through IC Host and generic lock admission through IC Build. Auth owns release identity, exact package policy and upload/retry decisions. |
-| Private qualification/conformance crates under `crates/` | CDK/Testkit host and runner, bounded Wire controls, reusable fixtures, feature-unification and backend checks. Reference integration evidence with Storage-owned fixture backing, not a production service or storage adapter. |
+| Private qualification/conformance crates under `qualification/` | CDK/Testkit host and runner, bounded Wire controls, reusable fixtures, feature-unification and backend checks. Reference integration evidence with Storage-owned fixture backing, not a production service or storage adapter. |
 
-Every maintained Rust package uses `crates/<package-name>/`, regardless of
-publication eligibility. `apps/` is reserved for Canic fleets, which this repository
+Reusable product packages use `crates/<package-name>/`, including the maintained
+private generator/release tool. Test-only packages use
+`qualification/<package-name>/` in an independent virtual workspace. `apps/` is reserved for Canic fleets, which this repository
 does not contain. The future standalone wallet service remains unimplemented;
 no directory or package is reserved for it.
 
@@ -48,7 +49,9 @@ Canic/local host ----------> selected Auth verification/session capabilities
 future wallet-auth service -> Auth primitives (no Canic/Toko dependency)
 ```
 
-Use one virtual workspace/lock and root dependency catalog. Generic native file,
+Each virtual workspace owns its dependency catalog and lock. Product packages
+have no normal/build/dev edge back into qualification. Shared owns atomic
+product/qualification release preparation while preserving private versions. Generic native file,
 process, build and canister-test mechanics belong to Host, Build and Testkit.
 Auth supplies its policies and keeps focused consumer integration assertions.
 Do not extract a generic abstraction merely because two trust boundaries validate

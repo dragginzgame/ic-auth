@@ -179,10 +179,12 @@ impl MemorySessionStore {
     // admission invokes them only after commit; restore admits each record first.
     fn install_session(&mut self, session: Stored<Session>) {
         let caller = session.value.caller();
-        self.take_session(caller);
-        self.session_expiry
-            .insert((session.value.expires_at_ns(), caller));
-        self.sessions.insert(caller, session);
+        let expires_at_ns = session.value.expires_at_ns();
+        if let Some(old) = self.sessions.insert(caller, session) {
+            self.session_expiry
+                .remove(&(old.value.expires_at_ns(), caller));
+        }
+        self.session_expiry.insert((expires_at_ns, caller));
     }
 
     fn install_replay(&mut self, replay: Stored<Replay>) {
@@ -232,22 +234,12 @@ impl MemorySessionStore {
     pub fn encoded_bytes(&self) -> usize {
         self.encoded_bytes
     }
-    // Replacement and deletion share the expiry-index invariant; callers own
-    // their staged byte totals and update those only after durable success.
-    fn take_session(&mut self, caller: Principal) -> Option<Stored<Session>> {
-        let old = self.sessions.remove(&caller)?;
-        self.session_expiry
-            .remove(&(old.value.expires_at_ns(), caller));
-        Some(old)
-    }
-
     /// Logout removes only this caller's session, preserving consumed proofs.
-    fn clear(&mut self, caller: Principal) -> bool {
-        if let Some(old) = self.take_session(caller) {
+    fn clear(&mut self, caller: Principal) {
+        if let Some(old) = self.sessions.remove(&caller) {
+            self.session_expiry
+                .remove(&(old.value.expires_at_ns(), caller));
             self.encoded_bytes -= old.bytes;
-            true
-        } else {
-            false
         }
     }
     /// Remove at most min(budget,128) expired records through ordered indexes.
@@ -271,23 +263,15 @@ impl MemorySessionStore {
         let mut fingerprints = Vec::new();
         let mut bytes = self.encoded_bytes;
         for _ in 0..budget.min(128) {
-            let session = sessions
-                .peek()
-                .copied()
-                .copied()
-                .filter(|(time, _)| *time <= now_ns);
-            let replay = replays
-                .peek()
-                .copied()
-                .copied()
-                .filter(|(time, _)| *time <= now_ns);
-            if let Some((time, caller)) = session
-                && replay.is_none_or(|(other, _)| time <= other)
+            let session = sessions.peek().copied().filter(|(time, _)| *time <= now_ns);
+            let replay = replays.peek().copied().filter(|(time, _)| *time <= now_ns);
+            if let Some(&(time, caller)) = session
+                && replay.is_none_or(|&(other, _)| time <= other)
             {
                 sessions.next();
                 bytes -= self.sessions[&caller].bytes;
                 callers.push(caller);
-            } else if let Some((_, fingerprint)) = replay {
+            } else if let Some(&(_, fingerprint)) = replay {
                 replays.next();
                 bytes -= self.replays[&fingerprint].bytes;
                 fingerprints.push(fingerprint);

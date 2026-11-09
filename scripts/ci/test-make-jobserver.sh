@@ -20,6 +20,9 @@ export AUTH_JOBSERVER_LOG="$fixture/cargo-effects.log"
 cat > "$fixture/bin/cargo" <<'SCRIPT'
 #!/usr/bin/env bash
 set -euo pipefail
+# Record attempts even if descriptor admission fails, so unsafe-mode checks
+# cannot mistake a failed Cargo dispatch for refusal before dispatch.
+printf '%s\n' "$*" >> "$AUTH_JOBSERVER_LOG"
 # Check actual inherited descriptors, rather than trusting advertised flags.
 # GNU Make 3.81 uses fds; newer versions use auth. Force pipe style below.
 perl -e '
@@ -28,9 +31,8 @@ perl -e '
     open my $reader, "<&=$1" or die "closed jobserver reader: $!\n";
     open my $writer, ">&=$2" or die "closed jobserver writer: $!\n";
 '
-printf '%s\n' "$*" >> "$AUTH_JOBSERVER_LOG"
 if [[ "${1:-}" == --consumer ]]; then
-    [[ $# == 3 && "$2" == "$PWD" && "$3" == --external-ic ]]
+    [[ $# == 3 && ( "$2" == "$PWD" || "$2" == "$PWD/qualification" ) && "$3" == --external-ic ]]
 fi
 if [[ "${1:-}" == publish ]]; then
     [[ "$2" == --dry-run && "$3" == --locked &&
@@ -115,7 +117,9 @@ awk '
     /^\t[@+-]*[+]/ {
         count=split(targets, names, /[[:space:]]+/)
         for (i=1; i<=count; i++)
-            if (names[i] != "ci" && names[i] != "test-formatting-hooks") print names[i]
+            # Workspace admission is substituted without Cargo here; its real
+            # metadata/file-plan execution has a separate consumer fixture.
+            if (names[i] != "ci" && names[i] != "test-formatting-hooks" && names[i] != "check-qualification-workspace") print names[i]
     }
 ' | sort -u > "$fixture/targets"
 # Pattern rules are not ordinary target declarations. Expand the release wrapper
@@ -144,6 +148,7 @@ while IFS= read -r target; do
     [[ -s "$AUTH_JOBSERVER_LOG" ]]
     if [[ "$target" == check-boundaries ]]; then
         rg -Fx -- "--consumer $consumer --external-ic" "$AUTH_JOBSERVER_LOG" > /dev/null
+        rg -Fx -- "--consumer $consumer/qualification --external-ic" "$AUTH_JOBSERVER_LOG" > /dev/null
     fi
 done < "$fixture/targets"
 
@@ -177,6 +182,12 @@ rg -F 'Error 37' "$fixture/package-refusal.log" > /dev/null
 while IFS= read -r staging; do [[ -f "$staging/dispatched" ]]; done < "$AUTH_JOBSERVER_LOG.paths"
 [[ "$(cat "$consumer/target/package/keep")" == 'retained staging cache' ]]
 
+# Harmless discovery remains usable without executing admission probes.
+for target in help tasks; do
+    (cd "$consumer"; make -n --no-print-directory "$target" MAKEFLAGS=) \
+        > "$fixture/discovery-$target.log" 2>&1
+done
+
 # Recursive marking must never make unsafe modes execute these effects, even
 # when callers erase MAKEFLAGS. The shared independent guard stays authoritative.
 for mode in -n -t -q -i; do
@@ -186,6 +197,11 @@ for mode in -n -t -q -i; do
         (cd "$consumer"; make "$mode" --no-print-directory "$target" MAKEFLAGS=) \
             > "$fixture/refused-$mode-$target.log" 2>&1 || status=$?
         [[ "$status" != 0 && ! -s "$AUTH_JOBSERVER_LOG" ]]
+        # Question mode can stop at a nonrecursive prerequisite before the guard.
+        if [[ "$mode" != -q ]]; then
+            rg -F 'Toko Tooling requires Make recipe execution and failure propagation' \
+                "$fixture/refused-$mode-$target.log" > /dev/null
+        fi
     done
 done
 # Exercise Auth's actual includes and context policy with the frozen controller

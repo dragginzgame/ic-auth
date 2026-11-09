@@ -41,7 +41,7 @@ done
 # The canonical substitute provides a compiler-local Cargo boundary compatible
 # with the standard cleared build environment. It never contacts a registry.
 bash scripts/ci/prepare-cargo-failure-fixture.sh "$fixture/compiler"
-export SHARED_TOOLING_STORE="$fixture/store"
+export TOKO_TOOLING_STORE="$fixture/store"
 ln -s "$BASH" "$fixture/bin/bash"
 for phase in install check; do
     status=0
@@ -60,9 +60,9 @@ for phase in install check; do
         exit 1
     fi
 done
-set -- "$SHARED_TOOLING_STORE"/rust-*/set.*
+set -- "$TOKO_TOOLING_STORE"/rust-*/set.*
 [[ $# == 1 && -f "$1/build/failed-build.txt" ]] || exit 1
-attempt="${1#"$SHARED_TOOLING_STORE/"}"
+attempt="${1#"$TOKO_TOOLING_STORE/"}"
 [[ -s "$1/install.log" && -s "$1/inputs.json" ]] || exit 1
 [[ ! -e "$consumer/target/product-dispatch.log" ]]
 if rg 'warning: (overriding recipe|ignoring old recipe)' "$fixture"/*.stdout; then exit 1; fi
@@ -97,8 +97,8 @@ mkdir -p "$consumer/${slot_evidence%/*}" "$fixture/outside"
 printf 'retained prior slot build evidence\n' > "$consumer/$slot_evidence"
 printf 'must not upload\n' > "$fixture/outside/private"
 ln -s "$fixture/outside" "$consumer/.tools/rust/redirected-slot"
-mkdir -p "$SHARED_TOOLING_STORE/rust-unrelated/set.unrelated"
-printf 'must not upload\n' > "$SHARED_TOOLING_STORE/rust-unrelated/set.unrelated/private"
+mkdir -p "$TOKO_TOOLING_STORE/rust-unrelated/set.unrelated"
+printf 'must not upload\n' > "$TOKO_TOOLING_STORE/rust-unrelated/set.unrelated/private"
 
 # Execute the adopted collector block; never maintain another selection.
 yq -p yaml -o json '.' .github/actions/retain-failure-evidence/action.yml | \
@@ -116,7 +116,7 @@ archive="$(sed -n 's/^path=//p' "$fixture/collector.outputs")"
     done
     for path in build/failed-build.txt install.log inputs.json Cargo.lock source.crate native-environment.txt; do
         relative="$attempt/$path"
-        digest="$(bash scripts/ci/verify-file-checksum.sh --print sha256 "$SHARED_TOOLING_STORE/$relative")"
+        digest="$(bash scripts/ci/verify-file-checksum.sh --print sha256 "$TOKO_TOOLING_STORE/$relative")"
         printf '%s  %s\n' "$digest" "$relative"
     done
     digest="$(bash scripts/ci/verify-file-checksum.sh --print sha256 "$consumer/$slot_evidence")"
@@ -133,6 +133,6 @@ grep -Fx 'collection-complete=true' "$fixture/collector.outputs" > /dev/null
 # Native CI collects through the ordinary action and verifies the exact-ID
 # downloaded artifact against this oracle outside the upload selection.
 if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
-    printf 'consumer=%s\ntemp=%s\nexpected=%s\nstore=%s\n' "$consumer" "$consumer/target" "$fixture/expected.sha256" "$SHARED_TOOLING_STORE" >> "$GITHUB_OUTPUT"
+    printf 'consumer=%s\ntemp=%s\nexpected=%s\nstore=%s\n' "$consumer" "$consumer/target" "$fixture/expected.sha256" "$TOKO_TOOLING_STORE" >> "$GITHUB_OUTPUT"
 fi
 printf 'Rust setup/check failure status and collected bytes verified: %s\n' "$fixture"

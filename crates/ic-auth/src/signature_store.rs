@@ -210,7 +210,11 @@ impl SignatureStore {
         let deadline = now_ns
             .checked_add(retention_ns)
             .ok_or(SignatureStoreError::DeadlineOverflow)?;
-        let existing = self.deadline(key);
+        let messages = self.tree.get(&key.0);
+        let existing = messages
+            .and_then(|messages| messages.get(&key.1))
+            .map(|leaf| leaf.expires_at_ns);
+        let new_seed = messages.is_none();
         if let Some(expires_at) = existing
             && now_ns < expires_at
         {
@@ -228,7 +232,7 @@ impl SignatureStore {
         let retained = RetainedLeaf {
             expires_at_ns: deadline,
         };
-        if self.tree.get(&key.0).is_none() {
+        if new_seed {
             let mut messages = RbTree::new();
             messages.insert(key.1, retained);
             self.tree.insert(key.0, messages);

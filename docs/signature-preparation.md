@@ -132,11 +132,11 @@ publication. Select `canister-signature-preparation` on the issuer and
 The separate [certificate issuance validator](certificate-issuance.md) checks
 delegation shape; it does not authorize an issuance or produce an IC certificate.
 
-The existing [installed certified-proof example](../crates/ic-auth-qualification/tests/signatures/certified_proofs.rs)
+The existing [installed certified-proof example](../qualification/ic-auth-qualification/tests/signatures/certified_proofs.rs)
 constructs a delegation proof, prepares a claims hash, retrieves a real query
 certificate and verifies it before exercising session admission. Its Root signing
 key is a native test key, not a production Root signing adapter. The
-[fixture host](../crates/ic-auth-qualification-canister/src/lib.rs) demonstrates root
+[fixture host](../qualification/ic-auth-qualification-canister/src/lib.rs) demonstrates root
 composition, publication and query-certificate acquisition; its controller guard
 is qualification scaffolding, not Canic's production account policy.
 

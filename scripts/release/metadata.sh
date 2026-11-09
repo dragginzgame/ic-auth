@@ -164,7 +164,7 @@ case "$operation" in
             awk -v version="$RELEASE_VERSION" -v previous="$RELEASE_PREVIOUS" -v date="$RELEASE_DATE" \
                 -f scripts/ci/finalize-release-changelog.awk "$changelog" > /dev/null
             cargo sort --workspace --grouped --check
-            cargo fetch --locked
+            make --no-print-directory fetch
             make --no-print-directory install-tools
             make --no-print-directory tools-check
             bash scripts/dev/release-tools.sh install "$auth_scratch/base.lock" "$auth_scratch/base.toml"

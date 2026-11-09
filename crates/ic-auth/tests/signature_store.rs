@@ -166,9 +166,17 @@ fn capacity_failure_does_not_prune_or_change_the_root() {
         message: b"other",
         ..inputs()
     };
-    assert_eq!(store.prepare(other, NOW + 1, 1), Err(Error::Capacity));
-    assert_eq!(store.len(), 1);
-    assert_eq!(store.root_hash(), root);
+    for candidate in [
+        other,
+        SignatureInputs {
+            seed: b"new seed",
+            ..inputs()
+        },
+    ] {
+        assert_eq!(store.prepare(candidate, NOW + 1, 1), Err(Error::Capacity));
+        assert_eq!(store.len(), 1);
+        assert_eq!(store.root_hash(), root);
+    }
     assert_eq!(store.prune(NOW + 1, 0), Ok(0));
     assert_eq!(store.prune(NOW + 1, 1), Ok(1));
     assert!(store.prepare(other, NOW + 1, 1).is_ok());

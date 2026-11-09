@@ -9,10 +9,10 @@ repository.workspace = true
 description = "IC Auth client-contract generation and external Cargo-lock admission"
 publish = false
 
-[package.metadata.shared-tooling.loc]
+[package.metadata.toko-tooling.loc]
 category = "build_tooling"
 
-[package.metadata.shared-tooling.loc.paths]
+[package.metadata.toko-tooling.loc.paths]
 "benches" = "benchmarks"
 
 [package.metadata.cargo-machete]

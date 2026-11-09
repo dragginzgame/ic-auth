@@ -1,18 +1,43 @@
 # Development
 
-The virtual root owns the protocol/types, Auth engine and Wire transport libraries,
-unpublished native tooling in `crates/ic-auth-tooling/` and the reference host/runner in
-`crates/ic-auth-qualification-canister/` and `crates/ic-auth-qualification/`.
-The root catalog selects published Types and Platform, the
-Host FS/Process, Build and Testkit packages from
-[IC Tooling](https://github.com/dragginzgame/ic-tooling), allocation/collections from
-[IC Storage](https://github.com/dragginzgame/ic-storage) and the Wire 0.18
-codec/TypeScript generator. The lock and [handoff](status/current.md) record exact selections and evidence;
+The virtual product root owns the three public libraries and maintained native
+contract/release tool in `crates/ic-auth-tooling/`. Six private test-support,
+fixture and simulator packages belong to the independent `qualification/`
+workspace. Each root owns its dependency catalog and Cargo.lock. Their locks and
+[handoff](status/current.md) record exact selections and evidence;
 [session contracts](sessions.md) distinguish supported behavior from pending hosts.
-Rust `1.99.1` is both the pinned development/release compiler and the common
-package minimum, inherited from the root catalog by all members including the
-internal qualification canister. Explicit setup prepares it once. See [MSRV coverage](msrv.md).
-Linux x86_64 is the initially exercised host.
+Both workspaces declare Rust `1.99.1` as the minimum and use the root's pinned
+development/release compiler. Explicit setup prepares it once. See
+[MSRV coverage](msrv.md). Linux x86_64 is the initially exercised host.
+
+## Qualification workspace migration
+
+Toko Tooling 0.38.2's independent-workspace layout is adopted:
+
+| Packages | Placement | Reason |
+| --- | --- | --- |
+| `ic-auth`, `ic-auth-protocol-types`, `ic-auth-wire` | Product root, `crates/` | Public contracts and engine |
+| `ic-auth-tooling` | Product root, `crates/` | Maintained contract generator and release-lock tool; local benchmarks stay with their owner |
+| `ic-auth-backend-conformance`, `ic-auth-feature-unification`, `ic-auth-qualification`, `ic-auth-qualification-canister`, `ic-auth-qualification-contracts`, `ic-auth-qualification-fixtures` | Independent `qualification/<package-name>/` workspace | Test support, fixture controls, host and simulator runner |
+
+The product root excludes `qualification/` and has no normal/build/dev reverse
+edge into it. Qualification consumes the actual product path packages and keeps
+private versions independent of Protocol/Engine releases. Make targets retain
+their existing names; direct Cargo commands select
+`--manifest-path qualification/Cargo.toml` for those six packages. Build output
+stays under this repository's `target/` through the inherited Cargo configuration.
+
+`ci/cargo-release-groups.json` opts into Shared's `qualification_workspace` owner.
+Shared's group plan includes both qualification root files in release custody;
+its prepare operation updates selected product requirements and identities in both
+locks, admits both graphs and rolls back on failure. Private versions and unrelated
+suppliers remain unchanged. Auth's existing source-bound receipt, release/recovery
+adapter and publication permissions remain required. No local multi-lock renderer
+or second Tooling snapshot is used. Focused caller tests exercise both release
+groups, private-version preservation, rollback and product resolution with an
+incompatible qualification supplier. See [release validation](auth-release-validation.md).
+
+## Supported hosts
 
 The supported host matrix is Linux x86_64 and macOS 15 on Intel and Apple Silicon.
 CI runs the same complete gate on `ubuntu-24.04`, `macos-15-intel` and `macos-15`.
@@ -159,17 +184,20 @@ explicit producer normalization, canonical-scalar checks and verification policy
 There are no direct K256 imports or declarations; a test-only Dalek feature
 trigger remains in the unpublished adversarial harness. SHA-256, CBOR and LEB128
 remain direct general-purpose dependencies with current Auth-owned consumers.
-Platform 0.17 retains K256 0.14 and Dalek 3/signature 3. Auth retains strict
+Platform 0.29 supplies K256 0.14 and Dalek 3/signature 3. Auth retains strict
 verification, canonical-scalar admission and explicit high-S refusal, and the
 adversarial harness enables permissive parsing on that same Dalek generation.
-The Wasm graph admits two support generations for BLS/Principal hashing and the
-new RustCrypto stack; Wasm curve/signature providers still have one identity. The
+Direct hashing selects `sha2` 0.11.1 independently of upstream certificate
+helpers' older selection. Hash inputs, domains and 32-byte outputs are unchanged;
+digest implementation types do not cross Auth's public API. The Wasm graph admits
+two support generations for retained certificate helpers and the new RustCrypto
+stack; Wasm curve/signature providers still have one identity. The
 boundary fixtures refuse a third support generation or duplicate K256.
 The repository's Wasm target flags select upstream RustCrypto's qualified
 `cpubits="32"` backend. Other canister build owners must select it themselves;
 dependency Cargo configuration is not inherited, and explicit `RUSTFLAGS` or
 `CARGO_ENCODED_RUSTFLAGS` overrides must preserve this selection.
-Testkit 0.95 owns native clients and DTOs in `ic_testkit::pocket_ic`, together with
+Testkit 0.97 owns native clients and DTOs in `ic_testkit::pocket_ic`, together with
 bounded server startup, lifecycle extensions and typed Wire calls;
 only the native runner selects these capabilities. Its client requires an
 explicit server endpoint and positive finite request budget. Auth constructs its
@@ -177,10 +205,10 @@ builder with `Duration::from_secs(30)`; the managed `build_instance` supplies th
 endpoint and retains the admitted server handle. Its separate startup timeout
 also remains 30 seconds.
 
-Native file and process callers select Host FS/Process 0.76.1 with defaults
+Native file and process callers select Host FS/Process 0.76.2 with defaults
 disabled. Library use does not enable Host's optional CLI, certificate decoder
 or Wasm text backends. Host stays outside the production library graph.
-Build 0.81.0 and Testkit 0.95.0 share Host 0.76.1 identities in native tooling.
+Build 0.81.0 and Testkit 0.97.0 share Host 0.76.2 identities in native tooling.
 The independently pinned file CLI is selected at 0.76.1.
 Build and Testkit libraries keep `cli` disabled; only the prepared executable
 selections request it. Testkit has no Metrics dependency; Auth's diagnostics
@@ -188,20 +216,20 @@ select Metrics directly.
 No caller enables optional native
 metadata; the old Host 0.73 and Metrics 0.25 providers are removed.
 
-Auth and Testkit 0.95 select Platform 0.27 for native external adapters.
-Both use canonical Types 0.18.3. The Wasm host selects only
-Platform 0.27 and one Runtime executor/generator/guard.
+Auth and native Testkit 0.97 share Platform 0.29 and canonical Types 0.19.
+Testkit selects the owned external Candid codec only in its native profile. The Wasm host selects one coordinated Runtime
+0.21 executor/generator/guard.
 Testkit classifies native CBOR failures with its own `CborErrorKind`, retaining
 the original typed source without requiring a Platform-error downcast.
 Native Testkit and its Candid/management DTOs remain outside the public library
 and Wasm host graphs.
-The host selects Runtime 0.20.3 directly, matching Storage 0.70.0's Wasm dependency.
-Wire 0.18.0 provides the matching canonical Principal schema implementation;
+The host and Storage 0.71.1 now share Runtime 0.21, clearing the former
+singleton conflict. Wire 0.19 provides the matching canonical Principal schema implementation;
 Auth does not select its opt-in packed 16-byte ID fields.
 Native calls retain explicit external Principal conversions; native SDK packages
 remain outside public Auth and the reference Wasm graph.
 
-The unpublished qualification host selects IC Metrics 0.28.2 for fixed
+The unpublished qualification host selects IC Metrics 0.29 for fixed
 admission outcome counters, with defaults disabled: arithmetic and validated Serde
 do not select its optional native Wire metadata. Public Auth graphs forbid that
 dependency. See the
@@ -214,25 +242,28 @@ commands. Generic file operations now use the separately prepared published
 implementation or fallback. See [release and file-tool mechanics](#releases-and-publication)
 for the existing byte/path limits and release-recovery boundary.
 
-Auth, native Testkit 0.95 and the Storage 0.70 host share Wire 0.18. The
-qualification runner passes canonical method budgets directly, with no older
-codec dependency or allowance projection. Testkit's concrete `PocketIcInstance`
-retains managed-server custody and awaited teardown.
+Auth and Testkit 0.97 share Wire 0.19. The native runner passes canonical method
+limits directly through its typed transport. PocketIC operations use the same
+canonical Principal without identity conversions; Agent and delegation supplier
+boundaries still copy validated bytes explicitly. Testkit's concrete
+`PocketIcInstance` retains managed-server custody and awaited teardown.
 
 ## Dependency roles and deployment admission
 
-Shared Tooling comes from crates.io's `toko-tooling` 0.36.1. Root
-`[workspace.dependencies]` owns the exact `=0.36.1` pin and every real package
+Toko Tooling comes from crates.io's `toko-tooling` 0.38.2. Each workspace
+`[workspace.dependencies]` owns the same exact `=0.38.2` pin and every real package
 inherits it in `[dev-dependencies]`, with the cargo-machete exemption for its
-source-bundle role. `Cargo.lock` owns the registry checksum; explicit installation
-authenticates that archive and records the payload in `.shared-tooling.snapshot`.
+source-bundle role. Each `Cargo.lock` owns the registry checksum; explicit installation
+authenticates that archive and records the payload in `.toko-tooling.snapshot`.
 No separate tooling lock, metadata version or selection-only package is used.
+Future Tooling updates deliberately update both exact pins and both Cargo locks,
+then run the root update/install/check commands. The root check also admits the
+qualification selection and refuses mismatched Tooling versions or checksums.
 The real `ic-auth-tooling` package retains contract generation, external-lock
 admission and allocation benchmarks. Auth retains Cargo-owned product versions, its
 Protocol/Engine release groups and their exhaustive source-bound release plans.
-The root catalog uses `Production dependencies` and `Tests and tooling only`;
-member annotations distinguish the three production libraries from internal
-qualification and native tooling packages. These roles describe graph use, not
+The product catalog contains library and local test/tool requirements; the
+qualification catalog contains its own private support and host requirements. These roles describe graph use, not
 registry publication. Types is the passive identity owner; Platform is an optional
 production entry selected by crypto capabilities and admitted per graph.
 Certified libraries select BLS and admit upstream Candid/raw IC0 dependencies
@@ -244,7 +275,8 @@ tests/tooling entries.
 
 `make fmt`, `make fmt-check` and the pre-commit hook use Shared's Rust formatting
 driver: grouped Cargo sorting followed by Rustfmt, with progress and timing per
-pass. Auth has no paired formatter override or extra workspace roster. The driver
+pass. Auth passes `--extra-workspace qualification` to cover both roots and has no
+paired formatter override. The driver
 can reuse unchanged inputs when its source discovery supports them; Auth's
 explicit module paths disable that shortcut, and staged hooks always run the
 formatters. `FORMAT_RUST_ARGS=--no-cache` explicitly runs every pass.
@@ -263,10 +295,9 @@ service-owned CDK/storage. Certified capabilities intentionally retain their
 upstream certificate stack; portable/session-only graphs remain certificate-free.
 
 Its `check-candid-boundary` prerequisite also selects Shared's `--cbor` source
-mode across `crates/` and `apps/`, with no allowances. Cargo's `--external-ic`
+mode across `crates/` and `qualification/`, with no allowances. Cargo's `--external-ic`
 check uses the canonical CBOR dependency inventory; the browser SDK guard checks
-the client and generated sources. The root is this repository's only maintained
-Cargo workspace. These checks are lexical/dependency ownership evidence, not
+the client and generated sources. Both maintained Cargo workspaces have separate dependency-ownership policies. These checks are lexical/dependency ownership evidence, not
 macro expansion, copied-parser detection or proof of external packet identity.
 
 There is no production service or deployment command here. The Storage/runtime Wasm
@@ -278,25 +309,25 @@ validate role comments mechanically, or qualify unlisted feature combinations.
 
 ## IC Platform boundary
 
-The protocol package selects published `ic-platform-types` 0.18.0 directly for
+The protocol package selects published `ic-platform-types` 0.19.0 directly for
 canonical Principal and parse-error identities, without a facade, external
 Principal, SHA-2, Candid or runtime edge. The Auth engine selects Types'
 `principal-self-authenticating` for browser-key hashing. Its Platform dependency
 is optional: only crypto capabilities select it, while default and session-only
-graphs exclude the facade. Consumers must align on Types 0.18 and Wire 0.16.
+graphs exclude the facade. Consumers must align on Types 0.19 and Wire 0.19.
 Serialized bytes are unchanged.
-Direct dependency and resolved graph policies enforce the owner boundaries. Convert
-explicitly at native Agent/Testkit boundaries using Platform's
-`principal::ExternalPrincipal` with `principal-external` selected. Platform 0.18
-canister-signature keys instead use the canonical owned Principal directly.
+Direct dependency and resolved graph policies enforce the owner boundaries. Native Agent APIs retain supplier Principal identities. Copy the already
+validated bytes with inferred `TryFrom<&[u8]>` at those private boundaries; the
+external aliases, conversion impls and `principal-external` feature are retired.
+Canister-signature keys use the canonical owned Principal directly.
 Significant bytes, ordering and binary serialization remain compatible; text
 longer than 63 bytes is now refused before normalization. See the
 [consumer migration](canic-adoption.md#platform-015-migration). No storage migration
 or replacement cryptography is introduced.
 
 Private controls and diagnostics now use bounded Wire contracts under
-`crates/ic-auth-qualification-contracts/`. Shared checked configuration and the admission
-recorder have one unpublished library owner in `crates/ic-auth-qualification-fixtures/`;
+`qualification/ic-auth-qualification-contracts/`. Shared checked configuration and the admission
+recorder have one unpublished library owner in `qualification/ic-auth-qualification-fixtures/`;
 both host and native runner import it through Cargo. The shared fixture's unit
 test runs under `test-qualification`, Clippy and MSRV alongside those consumers.
 Application methods remain in `ic-auth-wire`.
@@ -327,37 +358,40 @@ are refused without migration or reset. The maintainer confirmed no retained Aut
 records require preservation. The later Storage consolidation also changes
 backing formats; start with a coherent new fixture checkpoint for this hard cut.
 Checkpoint restores remain closed until matching controller authority is confirmed.
-The unpublished qualification host selects Storage 0.69.0 for both allocation
+The unpublished qualification host declares Storage 0.71 for both allocation
 and collections; `ic-memory` and `ic-stable-structures` are absent from the lock.
 Storage owns `StableKey`, `StorageConfig`, namespace grants, backing and exclusive
 leases. Its `StableCell::create` requires empty memory; `load(memory, maximum)`
 admits Auth's 128 KiB payload plus magic before allocation and validates cell
-framing. Storage 0.69 preserves the copied ICSS cell images introduced in 0.68,
-without collection checksums. Auth checks its payload identity and bounded Wire
-records. Constructors retain typed errors; ordinary cell writes return the
-replaced value directly. Codec failures trap, preserving IC rollback semantics.
-No combined initialization or reset path is selected.
+framing. Storage 0.71 preserves collection images but replaces the whole-store
+snapshot directory with bucket backing. The host's existing default configuration
+reserves 15 control pages and uses eight-page buckets; no retired `wire` override
+is selected. Auth checks its `AUTHCLK1` payload identity and bounded Wire records.
+Constructors retain typed errors; ordinary cell writes return the replaced value
+directly. Codec failures trap, preserving IC rollback semantics. No combined
+initialization or reset path is selected.
 
-The historical Storage consolidation changed allocator and collection formats.
-Old manager/ledger images are refused without fallback, initialization or clearing.
-The native fixture freezes a published Memory 0.63 manager header and preserves
-separate application sentinel bytes on refusal. Current Storage-format reopen,
-occupied creation, detached-lease custody, size bounds and framing corruption
-have explicit tests. Existing installations require a separately reviewed whole
-backing transition; this adoption performs no reset or data retirement.
+Storage 0.70 and earlier snapshot backing cannot be reopened by 0.71. Use fresh
+backing for the private fixture; an existing installation requires a separately
+reviewed whole-backing transition. Same-version checkpoint upgrades retain their
+normal load path. Old manager/ledger images are refused without fallback,
+initialization or clearing. Native foreign-header fixtures cover the published
+Memory 0.63 header and Storage 0.70's `ICROOTR1` discriminator, preserving separate
+application sentinel bytes on refusal. Current-format reopen, occupied creation,
+detached-lease custody, size bounds and framing corruption also have explicit
+tests. This adoption performs no reset or data retirement.
 
-Storage adoption alone keeps the Auth payload and signed bytes unchanged.
-The pending #127 hard cut separately replaces `AUTHNAT3` with `AUTHCLK1`,
-retires the login-record/logout identities and refuses their old bytes. The
-maintainer confirmed no retained affected records; no implicit reset is added. Storage 0.68 retires the previous collection images: use fresh allocation
-for the private fixture; old cell framing is explicitly refused without clearing.
-No production Auth store is migrated and no retained backing is reset here. Its
-internal codec, Auth's contracts and Testkit now share Wire 0.17. No Wire values
-cross Auth's Storage adapter boundary. The host retains one Runtime, generator
-and runtime guard.
-Storage's direct Wasm Runtime dependency resolves to that same maintained owner;
-public library graphs still forbid runtime capabilities and Storage. The host
-selects Metrics 0.28.2; Testkit's independent benchmark counters need no Metrics dependency.
+Storage adoption keeps the Auth payload and signed bytes unchanged. The earlier
+#127 hard cut retired `AUTHNAT3` for `AUTHCLK1` and retired the old login-record/
+logout identities; those bytes remain refused. Its no-retained-record approval
+does not authorize clearing other backing. No production Auth store is migrated
+and no retained backing is reset here. The internal codec, Auth's contracts and
+the host share Wire 0.19; core Storage no longer requires Wire. No Wire values
+cross Auth's Storage adapter boundary. The boundary check admits the aligned
+Runtime 0.21 generator and guard. Public library graphs still forbid runtime
+capabilities and Storage. The host selects Metrics 0.29 (exact patch in the
+qualification lock); Testkit's independent benchmark counters need no Metrics
+dependency.
 No Metrics/Logging storage adapter is selected. See
 [session restoration](sessions.md#storage-and-reset).
 
@@ -375,8 +409,8 @@ implementations remain absent ([#16](https://github.com/dragginzgame/ic-platform
 [#17](https://github.com/dragginzgame/ic-platform/issues/17),
 [#18](https://github.com/dragginzgame/ic-platform/issues/18)).
 Platform 0.22 delegates certification/BLS to published upstream implementations;
-certificate/tree and signature/error types have upstream identities. Its key
-adapter retains canonical Types 0.18.0 issuer identities. DER/CBOR bytes, Auth
+certificate/tree and signature/error types have upstream identities. The current key
+adapter retains canonical Types 0.19 issuer identities. DER/CBOR bytes, Auth
 resource admission and protected authority remain. Platform's adapters reject
 identity trust-root and delegated keys, covered through Auth's verifier; native
 Agent's separate external verifier does not inherit that correction. The
@@ -390,17 +424,17 @@ codec entrypoints without depending on the full CDK or selecting Candid. The
 host's runtime calls and lifecycle/query/update macros use `ic_platform_runtime::cdk`;
 no local runtime wrapper is introduced. Explicit Wire hooks, including unit RPCs,
 retain byte admission, payloads, errors and traps. Controller Boolean/panic
-behavior remains. Runtime 0.20 owns its maintained executor and IC0 bindings,
+behavior remains. Runtime 0.21 owns its maintained executor and IC0 bindings,
 with their upstream provenance; no separate registry executor is selected.
 The retired no-op `hidden = true` option is removed from all fixture entrypoints;
 explicit Wire decoding/encoding and endpoint exports remain unchanged.
 
 Auth keeps runtime-specific call/error types internal and uses none of the
 retired storage or `change_timeout` APIs. Its public Principal has canonical
-Types 0.18 identity, reexported by Platform. Select `principal` when using the
+Types 0.19 identity, reexported by Platform. Select `principal` when using the
 facade alone; self-authentication and external conversions are separate capabilities.
-Published Storage 0.69.0 selects Runtime 0.20 directly on Wasm. Native Testkit shares
-canonical Types 0.18 with Auth; it does not define Auth's public Principal.
+Storage selects Runtime directly on Wasm; that identity must match the host. Native Testkit shares
+canonical Types 0.19 with Auth; it does not define Auth's public Principal.
 Storage owns its backing/collection types; native Agent/Testkit boundaries retain
 the upstream external Principal. No dependency override or new conversion is needed.
 Counter-zero measurements continue using the exact raw API, equivalent to CDK's
@@ -424,15 +458,15 @@ fixtures qualify this scoped exception. Graph changes alone establish no Wasm
 size or performance result.
 
 The root catalog was reviewed separately: the Shared checker does not inspect
-unused catalog entries or infer exclusions from role comments. There is one
-workspace/lockfile and no independent maintained fixture workspace. These checks
+unused catalog entries or infer exclusions from role comments. The product and qualification roots each own a lockfile. These checks
 still do not bind another application's deployed artifact to its source/lockfile;
 consumer deployment admission and native macOS qualification remain separate.
 
 ### Why Candid appears in Cargo.lock
 
-The one workspace lockfile includes native qualification dependencies as well as
-the deployed packages. The runner in `crates/ic-auth-qualification/` selects
+The qualification lock includes native test dependencies; the product lock
+contains the library and maintained-tool graph. Lock membership alone does not
+show which dependencies a deployed artifact selects. The runner in `qualification/ic-auth-qualification/` selects
 Platform's `agent` feature for real signed ingress, and Testkit's `wire` feature
 for application calls. Candid arrives through three paths:
 
@@ -446,16 +480,15 @@ for application calls. Candid arrives through three paths:
 
 Auth uses Testkit's Wire call helpers. Testkit's native management helpers select
 Platform's external protocol adapters; those native Agent/PocketIC paths stay
-outside deployed graphs. Native Testkit 0.93 retains Platform 0.25 while Auth
-selects Platform 0.26; canonical Types and the actual Wasm Runtime owner stay
-aligned. All Auth application requests remain Wire frames.
+outside deployed graphs. The current qualification admission result, including any supplier identity
+conflict, is recorded in the [handoff](status/current.md). All Auth application requests remain Wire frames.
 
 A workspace-wide reverse tree unifies Platform features across selected members,
 so it can print Candid beneath shared Auth dependencies. Inspect isolated package
 and target graphs to determine deployment dependencies. These checks are offline:
 
 ```sh
-cargo tree --locked --offline --workspace -i candid
+cargo tree --manifest-path qualification/Cargo.toml --locked --offline --workspace -i candid
 make check-boundaries
 ```
 
@@ -515,20 +548,24 @@ No native package installer or browser download runs inside an ordinary check.
 
 The Makefile includes reviewed [`make/consumer.mk`](make-interface.md), which owns
 common setup, formatting, hooks, snapshot verification and release routing.
-`check-snapshot` retains its public name and depends on `shared-tooling-check`.
+`check-snapshot` retains its public name and depends on `toko-tooling-check`.
 Change the exact root tooling dependency pin intentionally, run
-`cargo update -p toko-tooling`, then `make shared-tooling-update` to install the
-selected crate. `make shared-tooling-install` reinstalls the current Cargo.lock
+`cargo update -p toko-tooling`, then `make toko-tooling-update` to install the
+selected crate. `make toko-tooling-install` reinstalls the current Cargo.lock
 selection. Installation preserves recorded entrypoints and local edits, then
 prepares and admits tools through `install-tools` and `tools-check`.
-`make shared-tooling-status` reports the installed and locked identities offline;
-`make shared-tooling-check` verifies every member's inherited declaration, the
-root pin, Cargo.lock checksum and installed snapshot, refusing drift without
+`make toko-tooling-preview` previews the selected refresh without changes.
+The 0.37 naming cut uses `TOKO-TOOLING.md`, `.toko-tooling.snapshot`,
+`TOKO_TOOLING_*` overrides and `package.metadata.toko-tooling.loc`; the retired
+Shared-prefixed commands and paths have no compatibility aliases.
+`make toko-tooling-status` reports the installed and locked identities offline;
+`make toko-tooling-check` verifies every member's inherited declaration, the
+both workspace pins, Cargo.lock checksums and the installed snapshot, refusing drift without
 repair. Common CI/release entrypoints and direct publication admit tooling before
 effects. Cargo builds and ordinary checks do not install it.
 
 The new [Cargo-tool freshness task](../tasks/cargo-tool-versions.md) is included
-with the catalog; its online checker runs from Shared Tooling and is separate
+with the catalog; its online checker runs from Toko Tooling and is separate
 from Auth's offline admission and CI. No schedule is enabled by adoption.
 The shared LOC helper also supports machine-readable workspace counts:
 `bash scripts/dev/cloc.sh --json "$PWD"`. Its package rows and totals use numeric
@@ -551,28 +588,31 @@ Clippy and Wasm target (and host tool prerequisites); `make msrv-tools-check`
 checks the pin, actual compiler identities and Wasm target.
 Installation is explicit; checks run
 offline. `fetch` prepares the selected lockfile without changing it.
-Shared includes own standard release dispatch and single-workspace formatting;
+Shared includes own standard release dispatch and multi-workspace formatting;
 IC Auth retains its direct delivery policy, cache preparation, metadata adapters
 and complete validation roster. Formatting checks use the prepared checkout-local
 tools without installing them or activating Git hooks.
-Shared Tooling 0.6.6 selects cargo-sort-derives 0.14.1 for its literal `$crate`
+Toko Tooling 0.6.6 selects cargo-sort-derives 0.14.1 for its literal `$crate`
 macro-path fix. Run `make install-rust-tools`, then `make rust-tools-check` when
 adopting that pin. Auth's formatter uses grouped Cargo manifest sorting and
 rustfmt; the common tool selection does not enable derive sorting locally.
-The release/format includes also load the selected `make/execution.mk` companion,
-which rejects ignore-errors, dry-run, touch and question modes before recipes.
+The release/format includes also load the selected `make/execution.mk` companion.
+Admission is scoped to protected recipes, including Auth's executing local
+targets through order-only `toko-execution-check` prerequisites. It rejects
+ignore-errors, dry-run, touch and question modes before protected effects;
+`make -n help` and `make -n tasks` remain available without probing execution.
 IC Auth-owned Cargo recipes and wrappers preserve Make's inherited jobserver
 descriptors with recursive recipe marking. The same execution guard refuses
 unsafe modes before installations, builds, publication or metadata effects;
 callers do not replace jobserver flags or select a separate parallelism budget.
-Shared Tooling 0.3.2 supplies the corresponding formatter, Rust installer/check
+Toko Tooling 0.3.2 supplies the corresponding formatter, Rust installer/check
 and LOC recipe handoff under
 [Shared #99](https://github.com/dragginzgame/shared-tooling/issues/99). Its tool
 include also admits Make execution independently, so standalone tool consumers
 retain refusal of unsafe modes. Shared fixtures require explicit completion
 before reporting success or deleting their evidence, including on Bash 3.2.
 The validation runner also rejects malformed nesting depth before dispatch and
-requires explicit completion before success. Shared Tooling 0.3.7 also enforces
+requires explicit completion before success. Toko Tooling 0.3.7 also enforces
 mandatory portable assertions explicitly on Bash 3.2, including selected Cargo
 tool activation. The formatting-adoption checker refuses premature completion
 under [Shared #103](https://github.com/dragginzgame/shared-tooling/issues/103).
@@ -584,20 +624,20 @@ the selected consumer directory, using its prepared compiler. Tool builds use
 the standard environment; application Cargo configuration remains local.
 Live diagnostics and retained error summaries now share one classification,
 including early fatal, LLVM and missing-file failures.
-Shared Tooling installs common Rust tools through its existing versioned
+Toko Tooling installs common Rust tools through its existing versioned
 Cargo slot/receipt engine. Run `make install-rust-tools` explicitly after adoption,
 then `make rust-tools-check`; common PATH activation requires all three pinned
 tools to pass. Earlier in-place installations and selected artifacts remain
 protected under the [tool retention policy](tool-store-maintenance.md).
 This contributor setup change preserves IC Auth's published
-contract and uses patch notes. Shared Tooling 0.5.0 now shares verified host and IC
+contract and uses patch notes. Toko Tooling 0.5.0 now shares verified host and IC
 bundles across checkouts through its per-user store. Common host admission uses
 `make install-host-tools` and `make host-tools-check`; the separate IC commands
 apply only when explicitly selecting those optional executables. Existing PATH entries remain valid; earlier physical bundles stay
 retained but are no longer admitted as active installations. The default store is
-`${XDG_DATA_HOME:-$HOME/.local/share}/shared-tooling/tools`; use the same absolute
-`SHARED_TOOLING_STORE` override for setup, checks and failure collection if needed.
-Shared Tooling 0.6.0 also shares Cargo tools under exact compiler, native environment,
+`${XDG_DATA_HOME:-$HOME/.local/share}/toko-tooling/tools`; use the same absolute
+`TOKO_TOOLING_STORE` override for setup, checks and failure collection if needed.
+Toko Tooling 0.6.0 also shares Cargo tools under exact compiler, native environment,
 package and packaged-lock identities. Run `make install-rust-tools` and
 `make rust-tools-check`, then `make install-testkit-tools` and
 `make testkit-tools-check` after adoption. Common PATH stays
@@ -609,7 +649,7 @@ offline checks. Failure collection keeps local Rust evidence and only its
 referenced shared generations, including failed build output. Testkit's server
 storage remains local and Testkit-owned. See
 [Shared storage](local-setup.md#shared-executable-storage).
-Shared Tooling 0.6.1 corrects failure propagation through common Cargo setup.
+Toko Tooling 0.6.1 corrects failure propagation through common Cargo setup.
 Run explicit Rust/Testkit setup and their separate offline checks after adopting
 this revision: the changed build-policy identity selects new shared generations.
 Lock, receipt and activation failures stop setup with failure evidence retained;
@@ -641,7 +681,7 @@ Copied-workspace experiments must use their own `CARGO_TARGET_DIR`, for example
 Cargo can reuse a copied package's executable when package identity and relative
 source paths match; that executable may contain experimental fixture inputs.
 If outputs were shared accidentally, retain the executable and dependency metadata
-as evidence, run `cargo clean --offline -p ic-auth-qualification` in this workspace,
+as evidence, run `cargo clean --manifest-path qualification/Cargo.toml --offline -p ic-auth-qualification` in this workspace,
 then rerun `make test-qualification`. This clears only the native runner package;
 it does not reset canister storage or repair an incompatible retained ledger.
 
@@ -786,14 +826,14 @@ multi-package, multi-feature and multi-target entries are aggregate suites.
 
 `make ci` is the complete configured CI/release gate. Ordinary development and
 handoff select the relevant checks above; local full-gate execution follows
-[Shared Tooling validation policy](../DRAGGINZGAME.md#validation-and-evidence).
+[Toko Tooling validation policy](../TOKO-TOOLING.md#validation-and-evidence).
 
 Auth's ordered public package inventory is `scripts/release/packages.sh`.
 Publication/retry evidence and publication dry runs select its explicit group
 subset. MSRV package creation/extraction and license checks inspect the whole
 inventory; archive admission reads each group's own versions. Capability-specific consumer harnesses
 retain their explicit package roles and feature selections.
-The generic runner/archive matrices stay at Shared Tooling and remain explicitly
+The generic runner/archive matrices stay at Toko Tooling and remain explicitly
 callable here. Auth retains `test-release-tools` for its actual metadata,
 release/recovery and publication rejection/retry; `test-tools-evidence` and
 `test-testkit-tools` exercise its setup and CI archive callers, including failure
@@ -808,16 +848,17 @@ selects real metadata preparation, interrupted recovery and fresh-clone publicat
 with local Git and mocked upload effects. It skips unchanged setup and registry
 response matrices; the complete CI target still runs the full fixture.
 
-It uses the Shared Tooling 0.6.6 logger and retains failures. CI declares the
-root Cargo manifest/lock, all member manifests, group policy,
+It uses the Toko Tooling 0.6.6 logger and retains failures. CI declares the
+both workspace root manifests/locks, all member manifests, group policy,
 Rust compiler selection, common host/Rust and IC pins,
 and browser package manifest/lock/Node selection as prepared inputs. Their byte
 identities are checked before and after each stage. A change, deletion or read
 failure stops later dispatch, preserves an original stage failure and reports
 which inputs require fresh preparation and the full gate. Nested gates in the
 same checkout retain the checkpoint; disposable checkouts establish their own.
-Member manifests come from Shared's admitted Cargo group plans, including when
-Protocol and Engine versions differ; Auth seals every returned member.
+Product manifests come from Shared's admitted Cargo group plans, including when
+Protocol and Engine versions differ. Locked Cargo metadata discovers private
+qualification members; Auth seals all returned manifests and both root selections.
 This detects drift at stage boundaries, without isolating arbitrary source edits
 inside a running stage. Checks never fetch, reinstall or silently restart.
 The workflow prepares tools and caches first, then calls that same gate. The public remote is
@@ -878,22 +919,30 @@ job's read-only Actions token, refuses digest mismatch and independently verifie
 the extracted payload. Local archive checks do not establish hosted upload
 or macOS qualification before those jobs run.
 
-The snapshot deliberately omits fleet reporters. `make cloc` still reports this
-workspace; the optional shared `cloc-tooling` target explains that fleet reports
-run in Shared Tooling and does not execute another checkout.
+The snapshot deliberately omits fleet reporters. `make cloc` reports the product
+workspace; `bash scripts/dev/cloc.sh --manifest qualification/Cargo.toml` selects the independent
+qualification workspace; the optional shared `cloc-tooling` target explains that fleet reports
+run in Toko Tooling and does not execute another checkout.
 Use `make cloc CLOC_DEPTH=0` for crate rows or `CLOC_DEPTH=2` for two module
 levels below each crate. Direct script calls use `scripts/dev/cloc.sh -d N`;
 these replace the retired `CLOC_SUBCRATES` and `--subcrates` options.
 To inspect one crate or module, run `bash scripts/dev/cloc.sh -d 1 ic-auth` or
 `bash scripts/dev/cloc.sh -d 1 ic-auth::session`. Depth is relative to that
 selection; an unknown crate/module is refused.
-Formatting selects this workspace's explicit Cargo members, including non-default
+Formatting selects both workspaces' explicit Cargo members, including non-default
 members, and refuses unavailable metadata before writing. It does not traverse
 external sibling path dependencies through `cargo fmt --all`.
 The direct Cargo boundary check also loads Shared's
 [hashing inventory](../rules/hashing.md). Auth retains its approved direct SHA-256
 implementation and existing digest/domain bytes; signature and certificate
 capabilities remain owned by Platform.
+
+The [host entropy contract](host-entropy.md) defines nonce/replay scope,
+fresh-versus-buffered draws and restart/restore obligations. Published
+`ic-entropy` is a dev-dependency only of the private backend-conformance package;
+`cargo test --manifest-path qualification/Cargo.toml --locked --offline -p ic-auth-backend-conformance --lib entropy_tests`
+qualifies its real credential/session composition without a simulator, management
+call or production issuer. Entropy acquisition stays host-owned.
 
 Signature tests exercise real cryptography with deterministic fixture trust keys,
 including root/subnet chains, and preserve Canic's signature-domain bytes. They
@@ -933,8 +982,11 @@ delegates group selection and the established release/publication workflow.
 Release-by-release adoption history belongs in the [changelog](../CHANGELOG.md).
 
 `ci/cargo-release-groups.json` owns two groups. Protocol contains
-`ic-auth-protocol-types` and `ic-auth-wire`; Engine contains `ic-auth` and every
-unpublished qualification/tooling member. All member versions are explicit.
+`ic-auth-protocol-types` and `ic-auth-wire`; Engine contains `ic-auth` and
+`ic-auth-tooling`. These four product members have explicit versions. The six
+qualification packages are outside the groups and inherit their private workspace
+version; product release preparation preserves it. Shared prepares the qualification
+requirements and lock together with the selected product group.
 Each group owns `releases/<group>/CHANGELOG.md`; the root changelog indexes these
 ledgers and the retained coordinated history through 0.29.2. The split changes
 no package version. Missing, empty and unknown group selections refuse before
@@ -983,7 +1035,7 @@ or changed selections refuse with the preparation command and original failure
 status. Checks never install or fall back to an older CLI.
 
 `make test-formatting-hooks` selects current Rust files/manifests and tracked
-deletions through Shared Tooling, then checks actual staged formatting, partial-stage and
+deletions through Toko Tooling, then checks actual staged formatting, partial-stage and
 formatter-failure preservation, lockfiles, unrelated edits and hook installation
 in disposable exports. It is included in the complete gate on all three native
 hosts. Failed checker scratch stays under `target/portable-fixtures/`; successful
@@ -1072,7 +1124,7 @@ publication; changing namespaces cannot authorize retry of an uncertain old uplo
 Successful matching registry
 observations skip an identical upload. Registry errors and checksum conflicts
 stop the run. Exact-version transport and metadata admission use the selected
-Shared Tooling helper, requiring curl 8.4.0+ and the prepared jq. It bounds each
+Toko Tooling helper, requiring curl 8.4.0+ and the prepared jq. It bounds each
 response to 1 MiB, rejects incorrect identity/schema and retains each observation
 in a separate private directory beneath the publication log. HTTP 404 means
 absent; all unavailable/invalid observations refuse dispatch. Auth retains the
@@ -1082,7 +1134,7 @@ rerunning observes the exact version/checksum and does not redispatch an absent
 version after an uncertain response. If it never appears, establish the failed
 effect independently before reconciling the retained intent.
 
-Actual upload dispatch uses the adopted Shared Tooling
+Actual upload dispatch uses the adopted Toko Tooling
 `scripts/ci/run-cargo-publication.sh` with one exact `NAME@VERSION` selector after
 Auth writes its private dispatched marker and rechecks source/tag admission.
 Shared owns Cargo arguments, output, exit statuses and interruption evidence;
@@ -1106,7 +1158,7 @@ for credentials, dry-run and index-propagation semantics.
 
 File mechanics use the published `ic-host-file` executable. Auth pins 0.76.1 in
 `ci/host-file.env`, independently of the library versions selected by Cargo.lock.
-`make install-host-file` prepares it through Shared Tooling with
+`make install-host-file` prepares it through Toko Tooling with
 `--features cli`; `make host-file-check` admits that exact selection offline. The
 common aggregates include both. CI cache keys include the executable pin.
 
@@ -1136,7 +1188,8 @@ subprocess uses Host process admission directly. Testkit owns server selection, 
 its process integration; no compatibility shim is retained here. These dependencies
 remain outside all three public library graphs. Run `make install-testkit-tools`
 for explicit preparation, then `make testkit-tools-check` for offline admission.
-Dependency selections live in the root manifest/lock; actual certification,
+Qualification dependencies and Testkit selection live in
+`qualification/Cargo.toml` and its lock; actual certification,
 upgrade and ingress evidence belongs in [the current handoff](status/current.md).
 Earlier dependency adoption observations remain in Git history and the changelog.
 
@@ -1180,7 +1233,7 @@ the separate `ic-auth-wire` codec adapter and generates its TypeScript directly
 through published IC Wire. `make test-types` checks its bounds, canonical frames,
 checked identifier projections and local request/result contracts.
 
-The private Wire controls in `crates/ic-auth-qualification-contracts/` are limited to
+The private Wire controls in `qualification/ic-auth-qualification-contracts/` are limited to
 controller/certificate qualification. Bounded projections preserve checked
 identifiers; there is no Candid selector or intermediate codec. This is not a
 production consumer dependency. The generated

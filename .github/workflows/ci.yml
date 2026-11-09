@@ -133,7 +133,7 @@ jobs:
       - name: Upload the qualified Rust-tool failure evidence
         id: tools-evidence-upload
         env:
-          SHARED_TOOLING_STORE: ${{ steps.tools-evidence.outputs.store }}
+          TOKO_TOOLING_STORE: ${{ steps.tools-evidence.outputs.store }}
         uses: ./.github/actions/retain-failure-evidence
         with:
           name: ic-auth-rust-tools-${{ matrix.os }}-${{ github.run_attempt }}

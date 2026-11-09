@@ -1,0 +1,38 @@
+# Tests and tooling packages
+[package]
+name = "ic-auth-feature-unification"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+description = "Adversarial consumer feature-unification checks for portable Auth"
+
+[package.metadata.toko-tooling.loc]
+category = "tests"
+
+[package.metadata.cargo-machete]
+ignored = ["toko-tooling"]
+
+[features]
+default = ["portable-signature-verification", "sessions"]
+portable-signature-verification = ["ic-auth/portable-signature-verification"]
+sessions = ["ic-auth/sessions"]
+
+[dev-dependencies]
+# Deliberately act as another consumer enabling permissive upstream parsing.
+# This is a feature trigger, not an API import or a production dependency.
+ed25519-dalek = { workspace = true, features = ["legacy_compatibility"] }
+ic-auth.workspace = true
+ic-auth-protocol-types.workspace = true
+ic-platform = { workspace = true, features = ["ed25519"] }
+sha2.workspace = true
+toko-tooling.workspace = true
+
+[[test]]
+name = "portable_signature"
+path = "../../crates/ic-auth/tests/portable_signature.rs"
+
+[lints]
+workspace = true

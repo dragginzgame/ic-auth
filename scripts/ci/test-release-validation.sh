@@ -146,7 +146,7 @@ cp target/roster.saved ci/release-validation.json
 # End roster drift case.
 # Relocated private host/runner source retains Engine ownership. Selecting a
 # plan here exercises the real classifier without replaying stage bodies.
-for path in crates/ic-auth-qualification-canister/src/lib.rs crates/ic-auth-qualification/tests/session_metrics.rs; do
+for path in qualification/ic-auth-qualification-canister/src/lib.rs qualification/ic-auth-qualification/tests/session_metrics.rs; do
     git reset --hard -q "$baseline"
     printf '\n// Relocated Engine-owned source.\n' >> "$path"
     git add "$path"; git commit -qm 'Relocated Engine owner change'

@@ -2,7 +2,9 @@
 set -euo pipefail
 [[ $# == 4 ]] || { echo 'usage: check-backend-package-graph.sh METADATA BUNDLE_MANIFEST ENGINE_VERSION PROTOCOL_VERSION' >&2; exit 2; }
 source "${BASH_SOURCE[0]%/*}/auth-dependency-policy.sh"
+bundle_version="$(yq -p toml -o json '.' "$2" | jq -er '.package.version')"
 jq -e --arg bundle "$2" --arg version "$3" --arg protocol "$4" \
+    --arg bundle_version "$bundle_version" \
     --arg forbidden "$(auth_dependency_pattern backend-conformance)" '
     .packages as $packages
     | .resolve.root as $root
@@ -19,7 +21,7 @@ jq -e --arg bundle "$2" --arg version "$3" --arg protocol "$4" \
             and $selected[0].source == "registry+https://github.com/rust-lang/crates.io-index"))
     and ([ $packages[] | select(.name == "ic-auth-backend-conformance") ] as $selected
         | ($selected | length == 1)
-        and ($selected[0].source == null and $selected[0].version == $version
+        and ($selected[0].source == null and $selected[0].version == $bundle_version
             and $selected[0].manifest_path == $bundle)
         and all($selected[0].dependencies[]; .path == null and
             .source == "registry+https://github.com/rust-lang/crates.io-index"))

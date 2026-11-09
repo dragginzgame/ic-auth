@@ -27,14 +27,15 @@ set -euo pipefail
 [[ $# == 2 && "$1" == plan && ( "$2" == protocol || "$2" == engine ) ]] || exit 2
 cat "$TESTKIT_FIXTURE_PLANS/$2.json"
 SCRIPT
-cat > "$consumer/Cargo.lock" <<'LOCK'
+mkdir -p "$consumer/qualification"
+cat > "$consumer/qualification/Cargo.lock" <<'LOCK'
 version = 4
 [[package]]
 name = "ic-testkit"
 version = "0.25.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 LOCK
-cp "$consumer/Cargo.lock" "$fixture/selected.lock"
+cp "$consumer/qualification/Cargo.lock" "$fixture/selected.lock"
 printf 'retained former bundle\n' > "$consumer/.tools/ic/bin/pocket-ic"
 export TESTKIT_FIXTURE_LOG="$fixture/dispatch.log"
 export TESTKIT_FIXTURE_CLI="$fixture/ic-testkit-server"
@@ -60,14 +61,14 @@ fi
 [[ $# == 12 || $# == 13 ]] || exit 1
 [[ "$1" == --consumer && "$2" == "$TESTKIT_FIXTURE_CONSUMER" &&
    "$3" == --package && "$4" == ic-testkit && "$5" == --lockfile &&
-   "$6" == Cargo.lock && "$7" == --bin && "$8" == ic-testkit-server &&
+   "$6" == qualification/Cargo.lock && "$7" == --bin && "$8" == ic-testkit-server &&
    "$9" == --profile && "${10}" == debug &&
    "${11}" == --features && "${12}" == cli ]] || exit 1
 if [[ $# == 13 ]]; then
     [[ "${13}" == --check ]] || exit 1
     printf 'cli check\n' >> "$TESTKIT_FIXTURE_LOG"
     [[ "${TESTKIT_FIXTURE_CLI_CHECK_STATUS:-0}" == 0 ]] || exit "$TESTKIT_FIXTURE_CLI_CHECK_STATUS"
-    if ! cmp -s "$TESTKIT_FIXTURE_LOCK" "$TESTKIT_FIXTURE_CONSUMER/Cargo.lock"; then
+    if ! cmp -s "$TESTKIT_FIXTURE_LOCK" "$TESTKIT_FIXTURE_CONSUMER/qualification/Cargo.lock"; then
         if [[ "${TESTKIT_FIXTURE_CHANGED_CLI_READY:-0}" == 1 ]]; then
             printf '%s-next\n' "$TESTKIT_FIXTURE_CLI"
             exit 0
@@ -109,8 +110,8 @@ case "$1" in
     *) exit 2 ;;
 esac
 if [[ "${TESTKIT_FIXTURE_CHANGE_SELECTION:-0}" == 1 ]]; then
-    sed 's/0.25.5/0.26.0/' "$TESTKIT_FIXTURE_CONSUMER/Cargo.lock" > "$3/changed.lock"
-    cp "$3/changed.lock" "$TESTKIT_FIXTURE_CONSUMER/Cargo.lock"
+    sed 's/0.25.5/0.26.0/' "$TESTKIT_FIXTURE_CONSUMER/qualification/Cargo.lock" > "$3/changed.lock"
+    cp "$3/changed.lock" "$TESTKIT_FIXTURE_CONSUMER/qualification/Cargo.lock"
 fi
 printf '%s\n' "$TESTKIT_FIXTURE_SERVER"
 SCRIPT
@@ -119,7 +120,7 @@ cat > "$fixture/bin/cargo" <<'SCRIPT'
 set -euo pipefail
 # Read-only workspace discovery is not compiler or simulator dispatch. Keep its
 # real owner while substituting the qualification effects below.
-if [[ "$*" == 'metadata --locked --offline --no-deps --format-version 1' ]]; then
+if [[ "${1:-}" == metadata ]]; then
     exec "$TESTKIT_FIXTURE_CARGO" "$@"
 fi
 printf 'cargo dispatch %s\n' "$*" >> "$TESTKIT_FIXTURE_CONSUMER/cargo-dispatch.log"
@@ -129,7 +130,7 @@ printf 'cargo dispatch %s\n' "$*" >> "$TESTKIT_FIXTURE_CONSUMER/cargo-dispatch.l
 [[ "$IC_AUTH_QUALIFICATION_STATE_ROOT" == "$TESTKIT_FIXTURE_CONSUMER/target/portable-fixtures/qualification."* ]] || exit 1
 [[ "$(cat "$IC_AUTH_QUALIFICATION_STATE_ROOT/socket-scratch")" == "$TMPDIR" ]] || exit 1
 printf '%s\n' "$IC_AUTH_QUALIFICATION_STATE_ROOT" > "$TESTKIT_FIXTURE_LOG.state"
-[[ "$*" == 'test --locked --offline -p ic-auth-qualification --test signatures -- --nocapture' ]] || exit 1
+[[ "$*" == 'test --manifest-path qualification/Cargo.toml --locked --offline -p ic-auth-qualification --test signatures -- --nocapture' ]] || exit 1
 printf 'qualified admitted server\n' >> "$TESTKIT_FIXTURE_LOG"
 exit "${TESTKIT_FIXTURE_NATIVE_STATUS:-0}"
 SCRIPT
@@ -199,7 +200,7 @@ SCRIPT
 # Inject drift only at the latter boundary; intact tooling is qualified separately.
 source "$root/scripts/ci/auth-fixture-tooling.sh"
 auth_fixture_tooling_check "$consumer"
-cat >> "$consumer/scripts/dev/shared-tooling.sh" <<'SCRIPT'
+cat >> "$consumer/scripts/dev/toko-tooling.sh" <<'SCRIPT'
 if [[ "${VALIDATION_INPUT_ROOT:-}" != "$PWD" ]]; then
     printf 'tooling admission\n' >> "$TESTKIT_FIXTURE_LOG"
     exit 0
@@ -307,16 +308,18 @@ mkdir "$fixture/lint-bin"
 cat > "$fixture/lint-bin/cargo" <<'SCRIPT'
 #!/usr/bin/env bash
 set -euo pipefail
-if [[ "$*" == 'metadata --locked --offline --no-deps --format-version 1' ]]; then
+if [[ "${1:-}" == metadata ]]; then
     exec "$TESTKIT_FIXTURE_CARGO" "$@"
 fi
 [[ "${1:-}" == clippy ]] || exit 99
 case " $* " in
     *' --target wasm32-unknown-unknown '*) phase=wasm ;;
+    *' --manifest-path qualification/Cargo.toml '*) phase=qualification ;;
     *) phase=native ;;
 esac
 printf 'clippy %s\n' "$phase" >> "$TESTKIT_FIXTURE_LOG"
 if [[ "$phase" == native ]]; then exit "${TESTKIT_FIXTURE_NATIVE_LINT_STATUS:-0}"; fi
+if [[ "$phase" == qualification ]]; then exit "${TESTKIT_FIXTURE_QUALIFICATION_LINT_STATUS:-0}"; fi
 exit "${TESTKIT_FIXTURE_WASM_LINT_STATUS:-0}"
 SCRIPT
 chmod +x "$fixture/lint-bin/cargo"
@@ -326,17 +329,19 @@ set -euo pipefail
 printf 'post-lint gate\n' >> "$TESTKIT_FIXTURE_LOG"
 exit 41
 SCRIPT
-for scenario in native wasm success; do
+for scenario in native qualification wasm success; do
     : > "$TESTKIT_FIXTURE_LOG"
-    native_status=0; wasm_status=0
+    native_status=0; qualification_status=0; wasm_status=0
     case "$scenario" in
         native) native_status=37 ;;
+        qualification) qualification_status=39 ;;
         wasm) wasm_status=38 ;;
     esac
     status=0
     (cd "$lint_consumer"; PATH="$fixture/lint-bin:$PATH" \
         TESTKIT_FIXTURE_CONSUMER="$lint_consumer" \
         TESTKIT_FIXTURE_NATIVE_LINT_STATUS="$native_status" \
+        TESTKIT_FIXTURE_QUALIFICATION_LINT_STATUS="$qualification_status" \
         TESTKIT_FIXTURE_WASM_LINT_STATUS="$wasm_status" \
         make --no-print-directory -j4 ci) > "$fixture/lint-$scenario.log" 2>&1 || status=$?
     [[ "$status" == 2 ]]
@@ -344,13 +349,20 @@ for scenario in native wasm success; do
     cat "$fixture/expected-check.log" >> "$fixture/expected-lint-$scenario.log"
     printf 'clippy native\n' >> "$fixture/expected-lint-$scenario.log"
     if [[ "$scenario" != native ]]; then
+        printf 'clippy qualification\n' >> "$fixture/expected-lint-$scenario.log"
+    fi
+    if [[ "$scenario" != native && "$scenario" != qualification ]]; then
         printf 'clippy wasm\n' >> "$fixture/expected-lint-$scenario.log"
     fi
     if [[ "$scenario" == success ]]; then
         printf 'post-lint gate\n' >> "$fixture/expected-lint-$scenario.log"
         rg -F 'Error 41' "$fixture/lint-$scenario.log" > /dev/null
     else
-        if [[ "$scenario" == native ]]; then expected_status=37; else expected_status=38; fi
+        case "$scenario" in
+            native) expected_status=37 ;;
+            qualification) expected_status=39 ;;
+            wasm) expected_status=38 ;;
+        esac
         rg -F "Error $expected_status" "$fixture/lint-$scenario.log" > /dev/null
         rg -F 'VALIDATION FAILED: clippy' "$fixture/lint-$scenario.log" > /dev/null
     fi
@@ -408,7 +420,7 @@ for phase in install check; do
             rg -q 'locked Testkit selection changed' "$fixture/changed-$phase-$ready.stderr"
         fi
         [[ -f "$consumer/.tools/testkit-server/admitted" ]] || exit 1
-        cp "$fixture/selected.lock" "$consumer/Cargo.lock"
+        cp "$fixture/selected.lock" "$consumer/qualification/Cargo.lock"
     done
 done
 
@@ -428,19 +440,19 @@ mkdir -m 700 "$fixture/canonical-store" "$fixture/canonical-store/cargo-cache"
 # CLI, without invoking any server or Cargo installation effect.
 cp "$TESTKIT_FIXTURE_LOG" "$fixture/before-canonical-check.log"
 status=0
-SHARED_TOOLING_STORE="$fixture/canonical-store" "$BASH" "$consumer/scripts/dev/testkit-tools.sh" check \
+TOKO_TOOLING_STORE="$fixture/canonical-store" "$BASH" "$consumer/scripts/dev/testkit-tools.sh" check \
     > "$fixture/canonical-missing.stdout" 2> "$fixture/canonical-missing.stderr" || status=$?
 [[ "$status" == 1 && ! -s "$fixture/canonical-missing.stdout" ]] || exit 1
 rg -F 'missing or invalid shared Cargo tool: ic-testkit 0.25.5 (bin:ic-testkit-server, debug)' "$fixture/canonical-missing.stderr" > /dev/null
 rg -F 'make install-testkit-tools' "$fixture/canonical-missing.stderr" > /dev/null
 cmp "$TESTKIT_FIXTURE_LOG" "$fixture/before-canonical-check.log"
 for kind in duplicate nonregistry; do
-    cp "$fixture/selected.lock" "$consumer/Cargo.lock"
+    cp "$fixture/selected.lock" "$consumer/qualification/Cargo.lock"
     if [[ "$kind" == duplicate ]]; then
-        sed '1d' "$fixture/selected.lock" >> "$consumer/Cargo.lock"
+        sed '1d' "$fixture/selected.lock" >> "$consumer/qualification/Cargo.lock"
     else
         sed 's|registry+https://github.com/rust-lang/crates.io-index|git+https://example.invalid/testkit|' \
-            "$fixture/selected.lock" > "$consumer/Cargo.lock"
+            "$fixture/selected.lock" > "$consumer/qualification/Cargo.lock"
     fi
     cp "$TESTKIT_FIXTURE_LOG" "$fixture/before-$kind.log"
     status=0
@@ -449,7 +461,7 @@ for kind in duplicate nonregistry; do
     [[ "$status" != 0 && ! -s "$fixture/$kind.stdout" ]] || exit 1
     cmp "$TESTKIT_FIXTURE_LOG" "$fixture/before-$kind.log"
 done
-cp "$fixture/selected.lock" "$consumer/Cargo.lock"
+cp "$fixture/selected.lock" "$consumer/qualification/Cargo.lock"
 cp "$fixture/mock-installer.sh" "$consumer/scripts/dev/install-rust-tools.sh"
 
 # The real qualification caller consumes only Testkit's check-returned path.

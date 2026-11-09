@@ -3,6 +3,21 @@
 Covers `ic-auth-protocol-types` and `ic-auth-wire`, released together.
 The independent series starts after the [last coordinated release, 0.29.2](../history.md).
 
+## [0.37.0] - Unreleased
+
+### ⚠️ Breaking
+
+- Select canonical Platform Types 0.19 and IC Wire 0.19. Rust consumers exchanging
+  Principal, transport containers, limits, errors or schema traits must align
+  these dependency identities. Method identities, budgets, encoded bytes and
+  stored formats are unchanged.
+
+### ⬆️ Dependencies
+
+- Regenerate and review all five browser files with Wire 0.19's generator. The
+  four Auth contracts are unchanged; the shared runtime adds upstream finite
+  packed-float support, which Auth's schemas do not select.
+
 ## [0.36.0] - 2026-11-09
 
 ### ⚠️ Breaking

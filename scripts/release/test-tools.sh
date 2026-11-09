@@ -28,12 +28,21 @@ mkdir -p "$root/target/portable-fixtures"
 fixture="$(mktemp -d "$root/target/portable-fixtures/release-tools.XXXXXX")"
 echo "Release/publication fixture evidence: $fixture"
 check_release_commands() {
-    # The checker exercises an ordinary release shell, including outer batch
-    # dispatch. Keep the enclosing CI target local to CI, as in auth_batch_make.
-    TMPDIR="$fixture" env -u CARGO_TARGET_DIR bash "$root/scripts/ci/check-release-commands.sh" "$1" \
-        ci/tool-versions.env make/consumer.mk make/tools.mk make/release.mk make/rust-format.mk \
-        make/execution.mk scripts/ci/check-make-execution.sh \
+    # Dispatch has no real Cargo graph. Substitute Auth's additional admission
+    # in a disposable input tree; --tooling qualifies its real fail-closed path.
+    local input_root="$fixture/release-command-inputs"
+    local inputs=(ci/tool-versions.env make/consumer.mk make/tools.mk make/release.mk make/rust-format.mk
+        make/execution.mk scripts/ci/check-make-execution.sh
         scripts/ci/check-release-delivery.sh ci/release-delivery.txt
+        scripts/ci/check-qualification-workspace.sh)
+    mkdir "$input_root"
+    bash "$root/scripts/ci/prepare-script-fixture.sh" "$1" "$input_root" Makefile "${inputs[@]}"
+    cat > "$input_root/scripts/ci/check-qualification-workspace.sh" <<'SCRIPT'
+#!/usr/bin/env bash
+set -euo pipefail
+SCRIPT
+    TMPDIR="$fixture" env -u CARGO_TARGET_DIR bash "$root/scripts/ci/check-release-commands.sh" \
+        "$input_root" "${inputs[@]}"
 }
 check_tooling_admission() {
     local mode
@@ -42,6 +51,9 @@ check_tooling_admission() {
     cp "$fixture/tooling-consumer/Cargo.toml" "$fixture/tooling-root.toml"
     cp "$fixture/tooling-consumer/Cargo.lock" "$fixture/tooling-cargo.lock"
     cp "$fixture/tooling-consumer/crates/ic-auth-tooling/Cargo.toml" "$fixture/tooling-member.toml"
+    cp "$fixture/tooling-consumer/qualification/Cargo.toml" "$fixture/qualification-root.toml"
+    cp "$fixture/tooling-consumer/qualification/Cargo.lock" "$fixture/qualification-cargo.lock"
+    cp "$fixture/tooling-consumer/qualification/ic-auth-qualification-fixtures/Cargo.toml" "$fixture/qualification-member.toml"
     export AUTH_TOOLING_METADATA_CARGO="$(command -v cargo)"
     export AUTH_PUBLICATION_EVENTS="$fixture/publication-events"
     for executable in git cargo curl; do
@@ -56,13 +68,27 @@ exit 73
 SH
         chmod +x "$fixture/tooling-bin/$executable"
     done
-    for mode in admitted missing-lock checksum-drift declaration-drift missing-member retired-selection; do
+    for mode in admitted missing-lock checksum-drift declaration-drift missing-member retired-selection \
+        qualification-missing-lock qualification-checksum-drift qualification-declaration-drift qualification-missing-member; do
         cp "$fixture/tooling-root.toml" "$fixture/tooling-consumer/Cargo.toml"
         cp "$fixture/tooling-cargo.lock" "$fixture/tooling-consumer/Cargo.lock"
         cp "$fixture/tooling-member.toml" "$fixture/tooling-consumer/crates/ic-auth-tooling/Cargo.toml"
+        cp "$fixture/qualification-root.toml" "$fixture/tooling-consumer/qualification/Cargo.toml"
+        cp "$fixture/qualification-cargo.lock" "$fixture/tooling-consumer/qualification/Cargo.lock"
+        cp "$fixture/qualification-member.toml" "$fixture/tooling-consumer/qualification/ic-auth-qualification-fixtures/Cargo.toml"
         rm -f "$fixture/tooling-consumer/toko-tooling.lock"
         case "$mode" in
             missing-lock) rm "$fixture/tooling-consumer/Cargo.lock" ;;
+            qualification-missing-lock) rm "$fixture/tooling-consumer/qualification/Cargo.lock" ;;
+            qualification-checksum-drift)
+                perl -0pi -e 's/(name = "toko-tooling"\nversion = "[^"\n]+"\nsource = "[^"\n]+"\nchecksum = ")[^"]+/${1}.("0" x 64)/e or die "missing tooling checksum\n"' \
+                    "$fixture/tooling-consumer/qualification/Cargo.lock" ;;
+            qualification-declaration-drift)
+                perl -0pi -e 's/^toko-tooling = "=([0-9]+)\.([0-9]+)\.([0-9]+)"$/"toko-tooling = \"=$1.$2.".($3+1)."\""/me or die "missing tooling pin\n"' \
+                    "$fixture/tooling-consumer/qualification/Cargo.toml" ;;
+            qualification-missing-member)
+                perl -ni -e 'print unless /^toko-tooling\.workspace = true$/' \
+                    "$fixture/tooling-consumer/qualification/ic-auth-qualification-fixtures/Cargo.toml" ;;
             checksum-drift)
                 perl -0pi -e 's/(name = "toko-tooling"\nversion = "[^"\n]+"\nsource = "[^"\n]+"\nchecksum = ")[^"]+/${1}.("0" x 64)/e or die "missing tooling checksum\n"' \
                     "$fixture/tooling-consumer/Cargo.lock" ;;
@@ -175,7 +201,7 @@ rg -F 'invalid release editor features' "$fixture/invalid-editor-features.log" >
 fi
 mkdir "$fixture/repo"
 # Qualify one coherent working source, including uncommitted additions/deletions.
-bash "$root/scripts/ci/verify-shared-tooling-snapshot.sh"
+bash "$root/scripts/ci/verify-toko-tooling-snapshot.sh"
 if [[ "$mode" == all ]]; then bash "$root/scripts/ci/test-release-fixture-source.sh"; fi
 bash "$root/scripts/release/export-fixture-source.sh" "$root" "$fixture/repo"
 # Exercise the actual shared Make entrypoints before substituting the larger
@@ -197,7 +223,7 @@ fi
 # Keep an inherited search path throughout release and publication flows.
 # Machine-readable metadata and digest output must not acquire a cd banner.
 export CDPATH=".:$fixture"
-printf '%s\0' Cargo.toml Cargo.lock releases/protocol/CHANGELOG.md crates/ic-auth-protocol-types/Cargo.toml crates/ic-auth-wire/Cargo.toml release-validation.json > "$fixture/expected-files.nul"
+printf '%s\0' Cargo.toml Cargo.lock releases/protocol/CHANGELOG.md crates/ic-auth-protocol-types/Cargo.toml crates/ic-auth-wire/Cargo.toml release-validation.json qualification/Cargo.toml qualification/Cargo.lock > "$fixture/expected-files.nul"
 bash scripts/release/metadata.sh files > "$fixture/observed-files.nul"
 cmp "$fixture/expected-files.nul" "$fixture/observed-files.nul"
 if RELEASE_DELIVERY="pr" bash scripts/release/metadata.sh files \
@@ -224,6 +250,10 @@ for selected_group in engine protocol; do
     while IFS= read -r package; do local_packages+=("$package"); done < <(jq -r '.members[]' "$fixture/synthetic-plan.json")
     "$editor" --max-input-bytes 8388608 lock Cargo.lock "$initial" "$selected_version" "${local_packages[@]}" > "$fixture/lock"
     cp "$fixture/lock" Cargo.lock
+    qualification_packages=()
+    while IFS= read -r package; do qualification_packages+=("$package"); done < <(jq -r '.qualification.members[]' "$fixture/synthetic-plan.json")
+    "$editor" --max-input-bytes 8388608 lock qualification/Cargo.lock "$initial" "$selected_version" "${qualification_packages[@]}" > "$fixture/qualification-lock"
+    cp "$fixture/qualification-lock" qualification/Cargo.lock
 done
 printf '# Changelog\n\n## [0.1.1]\n\n- Fixture release.\n' > releases/protocol/CHANGELOG.md
 if [[ "$mode" == batch ]]; then

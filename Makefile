@@ -6,7 +6,8 @@ LOCAL_TOOL_INSTALL_TARGETS := install-testkit-tools install-host-file
 LOCAL_TOOL_CHECK_TARGETS := msrv-tools-check testkit-tools-check host-file-check
 RELEASE_DELIVERY_POLICY := $(CURDIR)/ci/release-delivery.txt
 RELEASE_SETUP_TARGET := release-candidate-setup
-override SHARED_TOOLING_ROOT := $(CURDIR)
+FORMAT_RUST_ARGS := --extra-workspace qualification
+override TOKO_TOOLING_ROOT := $(CURDIR)
 include make/consumer.mk
 
 # The controller rejects inherited Cargo context. Only candidate hooks and
@@ -35,6 +36,24 @@ export RELEASE_REMOTE RELEASE_BRANCH RELEASE_GROUP
         release-version release-preflight release-verify release-prepare-version \
         release-prepared-check release-files release-commit-check \
         release-committed-check release-tagged-check release-push-check
+
+# Auth's executing recipes retain strict Make admission under the scoped
+# upstream guard. Harmless help/catalog targets remain available to dry runs.
+fetch metadata install-testkit-tools testkit-tools-check install-release-tools \
+install-host-file host-file-check release-tools-check install-msrv msrv-tools-check \
+test-formatting-hooks test-testkit-tools test-compiler-policy test-validation-inputs \
+check-msrv test-types test-protocol test-portable-signatures test-chain-key-signatures \
+test-signatures test-signature-store test-certified-proofs test-sessions check-wasm \
+clippy build-qualification-canister test-qualification check-boundaries \
+client-tools-check install-client-dependencies generate-client-contracts \
+check-client-contracts check-client-boundary test-client pack-client test-client-package \
+test-client-package-browser test-client-browser test-client-tools check-dependency-pins \
+ci test-release-validation publish-dry-run check-package-builds publish test-release-tools \
+test-host-tooling test-backend-conformance pack-backend-conformance test-backend-package \
+profile-canonical-allocations test-release-runner test-tools-evidence test-make-jobserver \
+test-evidence-archive release-candidate-setup release-preflight release-prepare-version \
+release-prepared-check release-files release-commit-check release-committed-check \
+release-tagged-check release-push-check release-verify: | toko-execution-check
 
 help:
 	@echo 'Setup: install-tools, tools-check, install-hooks, fetch; minimum compiler: install-msrv, msrv-tools-check'
@@ -82,7 +101,7 @@ test-formatting-hooks:
 	@mkdir -p target/portable-fixtures
 	+@set -e; fixture="$$(mktemp "$(CURDIR)/target/portable-fixtures/unsorted-manifest.XXXXXX")"; \
 		trap 'rm -f "$$fixture"' EXIT; \
-		perl -0777 -pe 's/^(serde_bytes = [^\n]*\n)(sha2 = [^\n]*\n)/$$2$$1/m or die "missing selected dependency pair"' Cargo.toml > "$$fixture"; \
+		perl -0777 -pe 's/^(serde_bytes = [^\n]*\n)(serde_json = [^\n]*\n)/$$2$$1/m or die "missing selected dependency pair"' Cargo.toml > "$$fixture"; \
 		TMPDIR="$(CURDIR)/target/portable-fixtures" bash scripts/ci/check-formatting-hooks.sh \
 		"$(CURDIR)" crates/ic-auth/src/lib.rs Cargo.toml "$$fixture" --rust-sources \
 		make/consumer.mk
@@ -110,19 +129,22 @@ tasks:
 # Explicit selected-cache preparation; ordinary Rust checks remain offline.
 fetch:
 	+cargo fetch --locked
+	+cargo fetch --manifest-path qualification/Cargo.toml --locked
 
 metadata:
 	+cargo metadata --locked --offline --format-version 1 > /dev/null
+	+cargo metadata --manifest-path qualification/Cargo.toml --locked --offline --format-version 1 > /dev/null
 
 test-types:
-	+cargo test --locked --offline -p ic-auth-protocol-types -p ic-auth-wire -p ic-auth-qualification-contracts
+	+cargo test --locked --offline -p ic-auth-protocol-types -p ic-auth-wire
+	+cargo test --manifest-path qualification/Cargo.toml --locked --offline -p ic-auth-qualification-contracts
 
 test-protocol:
 	+cargo test --locked --offline -p ic-auth
 
 test-portable-signatures:
 	+cargo test --locked --offline -p ic-auth --features portable-signature-verification --test portable_signature --test portable_revocation
-	+cargo test --locked --offline -p ic-auth-feature-unification --all-features --test portable_signature
+	+cargo test --manifest-path qualification/Cargo.toml --locked --offline -p ic-auth-feature-unification --all-features --test portable_signature
 	+cargo test --locked --offline -p ic-auth --features portable-signature-verification,certified-proof-verification --test certified portable_certified::
 
 test-chain-key-signatures:
@@ -148,29 +170,36 @@ check-wasm:
 	+bash scripts/dev/check-wasm.sh
 
 clippy:
-	+cargo clippy --locked --offline -p ic-auth-protocol-types -p ic-auth -p ic-auth-wire -p ic-auth-tooling -p ic-auth-qualification -p ic-auth-qualification-contracts -p ic-auth-qualification-fixtures -p ic-auth-backend-conformance -p ic-auth-feature-unification --all-targets --all-features -- -D warnings
-	+cargo clippy --locked --offline -p ic-auth-qualification-canister --target wasm32-unknown-unknown -- -D warnings
+	+cargo clippy --locked --offline -p ic-auth-protocol-types -p ic-auth -p ic-auth-wire -p ic-auth-tooling --all-targets --all-features -- -D warnings
+	+cargo clippy --manifest-path qualification/Cargo.toml --locked --offline -p ic-auth-qualification -p ic-auth-qualification-contracts -p ic-auth-qualification-fixtures -p ic-auth-backend-conformance -p ic-auth-feature-unification --all-targets --all-features -- -D warnings
+	+cargo clippy --manifest-path qualification/Cargo.toml --locked --offline -p ic-auth-qualification-canister --target wasm32-unknown-unknown -- -D warnings
 
 build-qualification-canister:
-	+cargo build --locked --offline -p ic-auth-qualification-canister --target wasm32-unknown-unknown --release
+	+cargo build --manifest-path qualification/Cargo.toml --locked --offline -p ic-auth-qualification-canister --target wasm32-unknown-unknown --release
 
 test-qualification: testkit-tools-check client-tools-check
-	+cargo test --locked --offline -p ic-auth-qualification-fixtures --lib
-	+cargo test --locked --offline -p ic-auth-qualification-canister --lib
-	+cargo test --locked --offline -p ic-auth-qualification --test session_metrics
+	+cargo test --manifest-path qualification/Cargo.toml --locked --offline -p ic-auth-qualification-fixtures --lib
+	+cargo test --manifest-path qualification/Cargo.toml --locked --offline -p ic-auth-qualification-canister --lib
+	+cargo test --manifest-path qualification/Cargo.toml --locked --offline -p ic-auth-qualification --test session_metrics
 	+$(MAKE) --no-print-directory test-backend-conformance
 	+$(MAKE) --no-print-directory build-qualification-canister
 	+bash scripts/dev/test-qualification.sh
 
 check-candid-boundary:
-	perl scripts/ci/check-candid-boundary.pl --cbor "$(CURDIR)" ci/candid-boundary.json crates
+	perl scripts/ci/check-candid-boundary.pl --cbor "$(CURDIR)" ci/candid-boundary.json crates qualification
 
 check-boundaries: check-candid-boundary
 	+bash scripts/ci/check-cargo-dependency-boundaries.sh --consumer "$(CURDIR)" --external-ic
+	+bash scripts/ci/check-cargo-dependency-boundaries.sh --consumer "$(CURDIR)/qualification" --external-ic
 	+bash scripts/ci/test-auth-boundaries.sh
 	+bash scripts/ci/check-auth-boundaries.sh
 
-check-snapshot: shared-tooling-check
+check-snapshot: toko-tooling-check
+
+.PHONY: check-qualification-workspace
+toko-tooling-check: check-qualification-workspace
+check-qualification-workspace: | toko-execution-check
+	+bash scripts/ci/check-qualification-workspace.sh
 
 client-tools-check:
 	bash scripts/dev/client-tools.sh check
@@ -218,7 +247,7 @@ check-doc-links:
 # the complete existing lint gate before product tests, builds or packaging.
 ci:
 	+bash scripts/ci/run-auth-ci.sh \
-	  --input Cargo.toml --input Cargo.lock --input rust-toolchain.toml --input scripts/dev/msrv-tools.sh \
+	  --input Cargo.toml --input Cargo.lock --input qualification/Cargo.toml --input qualification/Cargo.lock --input rust-toolchain.toml --input scripts/dev/msrv-tools.sh \
 	  --input ci/tool-versions.env --input ci/ic-tools.tsv --input ci/release-delivery.txt \
 	  --input ci/cargo-dependency-boundaries.json --input ci/external-ic-dependencies.txt \
 	  --input ci/cargo-release-groups.json \
@@ -230,7 +259,7 @@ ci:
 .PHONY: release-stage-force test-release-validation
 release-stage-force:
 
-release-stage-%: release-stage-force
+release-stage-%: release-stage-force | toko-execution-check
 	+bash scripts/release/validation-stage.sh "$*"
 
 test-release-validation:
@@ -270,12 +299,12 @@ test-host-tooling: host-file-check
 	+cargo test --locked --offline -p ic-auth-tooling
 
 test-backend-conformance:
-	+cargo test --locked --offline -p ic-auth-backend-conformance
+	+cargo test --manifest-path qualification/Cargo.toml --locked --offline -p ic-auth-backend-conformance
 
 # Source distribution only, with Cargo-owned manifest normalization. Publish
 # the matching Auth libraries before packing; this never uploads the harness.
 pack-backend-conformance:
-	+cargo package --locked --offline --allow-dirty --no-verify -p ic-auth-backend-conformance
+	+cargo package --manifest-path qualification/Cargo.toml --locked --offline --allow-dirty --no-verify -p ic-auth-backend-conformance
 
 # Opt-in delivery check: requires cached registry packages for the current Auth
 # cohort. It runs the exact packaged scenarios against a separate consumer graph.

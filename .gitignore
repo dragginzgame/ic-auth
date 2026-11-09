@@ -3,6 +3,7 @@
 /node_modules/
 **/node_modules/
 /.shared-tooling-refresh.*/
+/.toko-tooling-refresh.*/
 .DS_Store
 
 /packages/client/dist/

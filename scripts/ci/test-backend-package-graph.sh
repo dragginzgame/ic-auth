@@ -6,6 +6,10 @@ metadata="$1" bundle="$2" version="$3" protocol_version="$4" evidence="$5"
 mkdir -m 700 "$evidence"
 checker="${BASH_SOURCE[0]%/*}/check-backend-package-graph.sh"
 bash "$checker" "$metadata" "$bundle" "$version" "$protocol_version"
+# The source bundle's private version is independent of the selected Engine.
+# This is an admission-policy probe, not another resolved/compiled cohort.
+jq '(.packages[] | select(.name == "ic-auth")).version = "0.0.2"' "$metadata" > "$evidence/independent-version.json"
+bash "$checker" "$evidence/independent-version.json" "$bundle" 0.0.2 "$protocol_version"
 reject() {
     local name="$1" filter="$2" status=0
     jq "$filter" "$metadata" > "$evidence/$name.json"
@@ -15,6 +19,7 @@ reject() {
 reject local-auth '(.packages[] | select(.name == "ic-auth")).source = null'
 reject wrong-cohort '(.packages[] | select(.name == "ic-auth")).version = "0.0.1"'
 reject wrong-protocol '(.packages[] | select(.name == "ic-auth-protocol-types")).version = "0.0.1"'
+reject wrong-bundle '(.packages[] | select(.name == "ic-auth-backend-conformance")).version = "999.0.0"'
 reject duplicate-auth '.packages += [.packages[] | select(.name == "ic-auth")]'
 reject workspace-bundle '.workspace_members += [.packages[] | select(.name == "ic-auth-backend-conformance") | .id]'
 reject live-bundle '(.packages[] | select(.name == "ic-auth-backend-conformance")).manifest_path = "/live/Cargo.toml"'

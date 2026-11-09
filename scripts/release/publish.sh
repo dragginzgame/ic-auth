@@ -5,7 +5,7 @@ set -euo pipefail
 script_path="${BASH_SOURCE[0]}"
 [[ "$script_path" == /* ]] || script_path="$PWD/$script_path"
 cd -P "${script_path%/*}/../.."
-make --no-print-directory shared-tooling-check
+make --no-print-directory toko-tooling-check
 fail() { echo "publication refused: $*" >&2; exit 1; }
 source scripts/release/retention.sh
 auth_release_retention || fail 'retained state requires review before publication'
