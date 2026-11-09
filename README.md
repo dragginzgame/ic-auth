@@ -41,7 +41,7 @@ volatile state, with a separate fixture checkpoint for upgrade qualification.
 The [IC Testkit fixture](docs/ic-testkit-qualification.md) exercises actual
 certification, portable sessions, upgrades and signed ingress; it is not a
 production wallet service or evidence of completed consumer adoption.
-The unpublished native utility in `apps/tooling/` delegates file operations to
+The unpublished native utility in `crates/ic-auth-tooling/` delegates file operations to
 IC Host and package-lock subset admission to IC Build; release identity and
 publication/retry policy remain here.
 
@@ -119,8 +119,9 @@ records keep their formats. The unpublished finite-Wire checkpoint is retired;
 no implicit browser or production storage reset is permitted. See the
 [consumer transport contract](docs/canic-adoption.md#wire-transport).
 
-The future wallet service belongs in `apps/wallet-auth/`. No accepting wallet
-endpoint is created before its complete proof verification and service contracts.
+A future wallet service would be a Rust package under `crates/`. No accepting
+wallet endpoint is created before its complete proof verification and service
+contracts; this repository contains no Canic fleet.
 
 With the [declared tools](docs/development.md) prepared, run the focused checks:
 

@@ -344,7 +344,11 @@ caller, issuer, generation, clock, destination inventory, attempts,
 acknowledgements and conservative unknown-issuance state. Opening and strict transaction lifecycle now live directly with the sole journal
 owner. One bounded exact credential frame is stored under a separate key and
 loaded only by issuance/admission operations. Ordinary guards and status load only
-metadata. Evidence and metadata commit atomically in the same strict transaction.
+metadata. `transact` exposes metadata only; `transactCredential` exposes completed
+issuance with its required exact frame. Both use one strict transaction owner;
+evidence and metadata commit atomically. The frozen profile is unchanged.
+Unknown issuance remains authoritative even without a recoverable sequence;
+the typed state forbids an issuance record with `issuanceUnknown = false`.
 The maintainer confirmed no retained local-logout journals on 2026-11-08. The
 `ic-auth-local-logout-journal-v1` profile is retired: per-target admission deadlines
 are removed because they do not govern cleanup or establish remote revocation.

@@ -4,6 +4,57 @@ Covers public `ic-auth` and the unpublished backend conformance, qualification a
 native tooling packages. The independent series starts after the
 [last coordinated release, 0.29.2](../history.md).
 
+## [0.36.0] - Unreleased
+
+### ⚠️ Breaking
+
+- Align the next combined delivery with Protocol's Wire 0.18 minor identity;
+  consumers exchanging exposed Auth/Protocol values must select matching
+  versions. Cryptographic checks, signed bytes and stored record profiles are
+  unchanged.
+
+### ⬆️ Dependencies
+
+- Adopt Wire/derive 0.18 and matching Storage 0.70 for the private host. Keep one
+  Wire identity in both native qualification and Wasm; Testkit 0.95 removes the
+  temporary Wire 0.17 dev-dependency and all four budget projections.
+- Preserve and qualify incoming Runtime/macros/guard 0.20.3; their upstream
+  tooling adoption leaves executor behavior and generated code unchanged.
+
+### 🛠️ Tooling
+
+- Adopt Build 0.81 and Host FS/Process 0.76.1 for private tooling, including the
+  prepared release editor and file CLI. Preserve application dependency selections,
+  generated contracts and release requirements.
+- Adopt Testkit 0.95 and its concrete managed instance, retaining the admitted
+  PocketIC 16.1 pairing and one native Platform 0.27 / Host 0.76 identity.
+  Public Auth APIs and protocol bytes are unchanged.
+- Adopt Toko Tooling 0.36 through one exact Cargo pin and inherited dev-dependencies
+  in every real package. Remove the metadata/dedicated-lock scheme, preserve real
+  tools and qualify CI/publication refusal and Cargo input sealing.
+- Move all seven private tooling/qualification packages into `crates/` under their
+  existing package names, preserving versions, features and publication roles.
+  Update scripts, input seals, release ownership and active guides together;
+  remove the future non-fleet `apps/` reservation
+  ([#129](https://github.com/dragginzgame/ic-auth/issues/129)).
+
+### 🧹 Cleanup
+
+- Carry immutable grant-validation evidence into canonical encoding instead of a
+  validation-bypass flag, preserving signed bytes and public refusal behavior.
+- Separate browser journal metadata and credential transaction views, retaining
+  strict atomic commits, the stored profile and unknown issuance without a
+  recoverable sequence.
+
+### 🧪 Testing
+
+- Share deterministic certificate and browser signing-request construction while
+  retaining independent vectors and scenario-specific rejection checks.
+- Narrow permissive-feature qualification to proof verification and a direct
+  session-admission rejection, leaving ledger/storage cases in their normal suite.
+- Give release fixtures explicit scenario dispatch and a common tooling-admission
+  substitute, retaining isolated recovery repositories and real tooling checks.
+
 ## [0.35.10] - 2026-11-08
 
 ### 🧹 Cleanup

@@ -7,7 +7,7 @@ import { ClientError } from './contracts.js';
 import { isU64 } from './u64.js';
 import { credentialFromBytes } from './codec.js';
 import { maximumConfiguredBytes } from './generated/credential.js';
-import { IndexedDbLogoutStore, MAX_ATTEMPTS, MAX_TARGETS, type LogoutJournal, type LogoutTarget } from './logout-store.js';
+import { IndexedDbLogoutStore, MAX_ATTEMPTS, MAX_TARGETS, type LogoutJournal, type CredentialJournal, type LogoutTarget } from './logout-store.js';
 
 const MS = 1_000_000n;
 const MAX_CLEANUP_NS = 300_000n * MS;
@@ -92,23 +92,32 @@ export class PortableLogoutClient {
     const issuerText = issuer.toText();
     const clockId = this.clock.id;
     const now = this.clock.nowNs();
-    await this.store.transact(previous => {
+    await this.store.transactCredential(previous => {
       // Never overwrite cleanup or its uncertainty to make room for another login.
       if (previous) throw new ClientError('storage_conflict');
       return { record: { generation, caller: callerText, issuer: issuerText, clockId,
         observedNs: now, busyUntilNs: 0n, phase: 'active', deadlineNs: 0n, issuanceUnknown: false,
         targets: [{ canister: issuerText, attempts: 0, nextNs: now }] }, value: undefined };
-    }, true);
+    });
   }
 
-  private update<T>(generation: string, operation: (record: LogoutJournal, now: bigint) => { record: LogoutJournal; value: T }, evidence = false): Promise<T> {
-    return this.store.transact(record => {
+  private checkedUpdate<T, Record extends LogoutJournal | CredentialJournal>(generation: string,
+    operation: (record: Record, now: bigint) => { record: Record; value: T }) {
+    return (record: Record | undefined) => {
       if (!record || record.generation !== generation) throw new ClientError('stale_generation');
       const now = this.clock.nowNs();
       if (record.clockId !== this.clock.id || now < record.observedNs) throw new ClientError('configuration');
       record.observedNs = now;
       return operation(record, now);
-    }, evidence);
+    };
+  }
+
+  private update<T>(generation: string, operation: (record: LogoutJournal, now: bigint) => { record: LogoutJournal; value: T }): Promise<T> {
+    return this.store.transact(this.checkedUpdate(generation, operation));
+  }
+
+  private updateCredential<T>(generation: string, operation: (record: CredentialJournal, now: bigint) => { record: CredentialJournal; value: T }): Promise<T> {
+    return this.store.transactCredential(this.checkedUpdate(generation, operation));
   }
 
   /** Commit BEFORE dispatching admission; expiry is a local scheduling hint only. */
@@ -131,12 +140,11 @@ export class PortableLogoutClient {
    * refresh through the sequence used by an expired receiver lease. */
   async claimCredential(generation: string, accountAvailable = true, refreshThrough?: bigint): Promise<CredentialClaim> {
     if (refreshThrough !== undefined && !isU64(refreshThrough)) throw new ClientError('configuration');
-    return this.update<CredentialClaim>(generation, (record, now) => {
+    return this.updateCredential<CredentialClaim>(generation, (record, now) => {
       if (record.phase !== 'active') throw new ClientError('stale_generation');
       const op = record.issuance;
       if (!accountAvailable && (!op || (op.sequence === 0n && !op.bytes))) throw new ClientError('account_required');
       if (op?.untilNs !== undefined) {
-        if (!op.bytes) throw new ClientError('storage_corrupt');
         if (op.untilNs > now && (refreshThrough === undefined || op.sequence > refreshThrough)) return { record, value: {
           kind: 'saved', sequence: op.sequence, bytes: new Uint8Array(op.bytes), until: op.untilNs,
         } };
@@ -146,12 +154,11 @@ export class PortableLogoutClient {
       } };
       const sequence = op ? op.sequence + 1n : 0n;
       if (!isU64(sequence)) throw new ClientError('storage_capacity');
-      record.issuanceUnknown = true;
-      record.issuance = { sequence };
+      record = { ...record, issuanceUnknown: true, issuance: { sequence } };
       return { record, value: sequence === 0n
         ? { kind: 'issue', sequence, signer: 'account' }
         : { kind: 'renew', sequence, signer: 'browser' } };
-    }, true);
+    });
   }
 
   /** Retain exact returned evidence before admission. Conflicting replies never
@@ -160,15 +167,14 @@ export class PortableLogoutClient {
     if (bytes.length < 1 || bytes.length > maximumConfiguredBytes) throw new ClientError('invalid_material');
     const owned = new Uint8Array(bytes);
     credentialFromBytes(owned, maximumConfiguredBytes);
-    await this.update(generation, record => {
+    await this.updateCredential(generation, record => {
       if (record.phase !== 'active') throw new ClientError('stale_generation');
       const op = record.issuance;
       if (!op || op.sequence !== sequence || !isU64(untilNs) || untilNs === 0n) throw new ClientError('retrieval_expired');
       if (op.bytes && (op.untilNs !== untilNs || op.bytes.length !== owned.length
         || op.bytes.some((byte, index) => byte !== owned[index]))) throw new ClientError('storage_conflict');
-      record.issuance = { sequence, bytes: owned, untilNs };
-      return { record, value: undefined };
-    }, true);
+      return { record: { ...record, issuanceUnknown: true, issuance: { sequence, bytes: owned, untilNs } }, value: undefined };
+    });
   }
 
   async status(generation: string): Promise<LogoutJournal> {

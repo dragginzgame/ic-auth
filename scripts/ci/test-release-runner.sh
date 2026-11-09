@@ -273,6 +273,37 @@ expect_failure() {
     fi
 }
 
+# Focused qualification of the runner's shared journal-parser boundary.
+if [[ "${1:-}" == journal ]]; then
+    for saved_phase in preflight validate prepare complete; do
+        new_fixture "journal-$saved_phase"
+        if [[ "$saved_phase" == complete ]]; then
+            bash "$ROOT/scripts/ci/run-release.sh" patch origin main > output
+            cp events saved-events
+            cp .release-state/0.1.1.plan saved-plan
+            bash "$ROOT/scripts/ci/run-release.sh" resume 0.1.1 origin main > output
+            cmp saved-plan .release-state/0.1.1.plan
+            [[ "$(count_event commit)" == 1 && "$(count_event push)" == 1 ]]
+        else
+            early_plan patch "$saved_phase"
+            bash "$ROOT/scripts/ci/run-release.sh" resume 0.1.1 origin main > output
+            [[ "$(count_event push)" == 1 ]]
+        fi
+    done
+    new_fixture journal-invalid
+    early_plan patch validate
+    printf 'extra\n' >> .release-state/0.1.1.plan
+    cp .release-state/0.1.1.plan saved-plan
+    expect_failure resume 0.1.1 origin main
+    cmp saved-plan .release-state/0.1.1.plan
+    [[ ! -e events && ! -e .release-state/lock ]]
+    [[ ! -s "$RELEASE_FIXTURE_GIT_REFUSALS" ]]
+    echo 'Shared journal parser preserves early, completed and rejected runner resumes'
+    fixture_complete=true
+    exit 0
+fi
+[[ $# == 0 ]] || { echo 'usage: test-release-runner.sh [journal]' >&2; exit 2; }
+
 # Retention refuses existing bulk before adapters, and new bulk before commit.
 new_fixture retention-preflight
 mkdir .release-state

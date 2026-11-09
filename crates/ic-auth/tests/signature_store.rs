@@ -5,9 +5,10 @@ use ic_auth::signature_store::{
     SignatureLimits, SignatureSibling, SignatureStore, SignatureStoreError as Error,
 };
 use ic_auth_protocol_types::Principal;
+pub mod certificates;
 use ic_platform::bls::PrivateKey;
 use ic_platform::canister_sig_creation::{CanisterSigPublicKey, hash_bytes, hash_with_domain};
-use ic_platform::certification::{Certificate, Hash, HashTree, fork, fork_hash, labeled, leaf};
+use ic_platform::certification::{Hash, HashTree, fork, fork_hash, labeled, leaf};
 
 const NOW: u64 = 10;
 const SEED: &[u8] = b"canic-issuer-delegated-token";
@@ -39,9 +40,7 @@ fn inputs() -> SignatureInputs<'static> {
 }
 
 fn key() -> PrivateKey {
-    let mut bytes = [0; 32];
-    bytes[31] = 1;
-    PrivateKey::deserialize(&bytes).unwrap()
+    certificates::key(1)
 }
 
 fn certificate(canister: Principal, root: Hash) -> Vec<u8> {
@@ -52,14 +51,8 @@ fn certificate(canister: Principal, root: Hash) -> Vec<u8> {
         ),
         labeled(b"time", leaf(vec![NOW as u8])),
     );
-    let mut message = b"\x0Dic-state-root".to_vec();
-    message.extend_from_slice(&tree.digest());
     ic_platform::certification::cbor::encode_certificate(
-        &Certificate {
-            tree,
-            signature: key().sign(&message).serialize().to_vec(),
-            delegation: None,
-        },
+        &certificates::certificate(tree, &key(), None),
         usize::MAX,
     )
     .unwrap()

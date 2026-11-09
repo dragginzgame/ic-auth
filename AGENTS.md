@@ -1,12 +1,13 @@
 # IC Auth Agent Instructions
 
 Apply the installed [baseline](DRAGGINZGAME.md), supplied by crates.io's
-`toko-tooling` 0.34.0, and its task-specific references. Root
-`[workspace.metadata.toko-tooling]` selects the exact release; `toko-tooling.lock`
-records its registry checksum and the [snapshot manifest](.shared-tooling.snapshot)
-records the installed payload. Use `make shared-tooling-update` after changing
-the root selection, or `make shared-tooling-install` to reinstall its existing
-lock. Application Cargo dependencies and Cargo.lock do not select tooling.
+`toko-tooling` 0.36.0, and its task-specific references. Root
+`[workspace.dependencies]` pins it exactly; every real workspace package inherits
+it as a dev-dependency with a cargo-machete exemption. `Cargo.lock` records the
+registry checksum and the [snapshot manifest](.shared-tooling.snapshot) records
+the installed payload. After changing the root pin, update Cargo.lock with Cargo
+and run `make shared-tooling-update`; `make shared-tooling-install` reinstalls the
+existing selection. Cargo builds and ordinary checks never install tooling.
 Read [the current handoff](docs/status/current.md)
 before implementation. Product-specific safeguards and scoped permissions below
 remain binding.
@@ -36,7 +37,8 @@ remain binding.
 
 - Follow [the accepted design](docs/design/extraction.md). Use a virtual root,
   one application Cargo.lock, root-owned dependency selections and reusable packages in `crates/`.
-  Reserve `apps/wallet-auth/` for the future service; no deployed service exists here.
+  Keep every maintained Rust package under `crates/<package-name>/`, including
+  private tooling and qualification. No service or Canic fleet is deployed here.
 - Keep protocol/type dependencies independent of CDK and storage. Make platform
   signing and wallet functionality explicit capabilities. Canic consumers must
   not pull Solana dependencies into their selected graph.
@@ -54,8 +56,9 @@ remain binding.
   executor/guard. Legacy backing is refused without reset or a compatibility reader.
 - Use published `ic-host-*` for applicable local file, artifact and process
   mechanics and `ic-build` for generic Cargo lock admission. Native host tooling
-  belongs in `apps/tooling/` and test infrastructure
-  in unpublished `apps/qualification/`, outside the public library graphs.
+  belongs in `crates/ic-auth-tooling/` and test infrastructure
+  in unpublished qualification/conformance crates under `crates/`, outside the
+  public library graphs.
   Release identity and upload/retry policy stay here.
 - Wallet login must not use SIWS/ic-siws, require a Solana transaction or depend
   on RPC. Use established signature primitives; do not implement cryptography.
@@ -121,6 +124,9 @@ and `ci/cargo-dependency-boundaries.json` for direct-dependency ownership.
   Testkit owns server selection and admission outside the shared five-tool bundle.
   `make install-testkit-tools` explicitly prepares it, and
   `make testkit-tools-check` returns its admitted server path offline.
+  Auth and Testkit 0.95 share one Wire 0.18 identity. Pass canonical method
+  budgets directly through Testkit's typed transport, retaining method IDs and
+  all four allowances; no older codec dependency or budget projection is needed.
   Qualification also requires the explicitly prepared browser client dependencies
   for real SDK logout transport; see [client setup](docs/development.md#browser-client-setup).
   Changing that pairing requires successful certification, upgrade and ingress

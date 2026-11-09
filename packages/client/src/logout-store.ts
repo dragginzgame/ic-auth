@@ -11,9 +11,9 @@ export interface LogoutTarget {
 }
 /** A retained intent has no expiry or evidence. Completed metadata always has
  * its original expiry; evidence transactions also load the separate frame. */
-type Issuance =
+type Issuance<Evidence extends boolean> =
   | { sequence: bigint; untilNs?: never; bytes?: never }
-  | { sequence: bigint; untilNs: bigint; bytes?: Uint8Array };
+  | ({ sequence: bigint; untilNs: bigint } & (Evidence extends true ? { bytes: Uint8Array } : { bytes?: never }));
 
 interface JournalCommon {
   generation: string;
@@ -21,20 +21,29 @@ interface JournalCommon {
   issuer: string;
   clockId: string;
   observedNs: bigint;
-  issuanceUnknown: boolean;
-  issuance?: Issuance;
   targets: LogoutTarget[];
 }
+
+// Unknown issuance remains authoritative even if no recoverable sequence exists.
+// The frozen profile permits that state; it must never be derived away.
+type IssuanceState<Evidence extends boolean> =
+  | { issuanceUnknown: false; issuance?: never }
+  | { issuanceUnknown: true; issuance?: Issuance<Evidence> };
 
 /** Active logins have neither a cleanup deadline nor a dispatch lease. The
  * flat record shape is also the existing persisted profile; no conversion or
  * migration is performed when narrowing its phase in memory.
  */
-export type LogoutJournal = JournalCommon & (
+type Journal<Evidence extends boolean> = JournalCommon & IssuanceState<Evidence> & (
   | { phase: 'active'; deadlineNs: 0n; busyUntilNs: 0n }
   | { phase: 'cleanup'; deadlineNs: bigint; busyUntilNs: bigint }
   | { phase: 'finished'; deadlineNs: bigint; busyUntilNs: bigint }
 );
+
+export type LogoutJournal = Journal<false>;
+export type CredentialJournal = Journal<true>;
+type Change<Record, Value> = { record: Record; value: Value };
+type Operation<Record, Value> = (record: Record | undefined) => Change<Record, Value> | undefined;
 
 const FORMAT = 'ic-auth-login-cleanup-journal-v1';
 export const MAX_TARGETS = 64;
@@ -43,7 +52,7 @@ const object = (x: unknown): x is Record<string, unknown> => typeof x === 'objec
 const fields = (x: Record<string, unknown>, names: string[]) => Object.keys(x).length === names.length && names.every(name => Object.hasOwn(x, name));
 const text = (x: unknown): x is string => typeof x === 'string' && x.length > 0 && x.length <= 128;
 
-function validate(value: unknown, evidence = false): asserts value is LogoutJournal {
+function validate<Evidence extends boolean>(value: unknown, evidence: Evidence): asserts value is Journal<Evidence> {
   if (!object(value) || !fields(value, ['generation', 'caller', 'issuer', 'clockId', 'observedNs', 'busyUntilNs', 'phase', 'deadlineNs', 'issuanceUnknown', 'targets', ...(value.issuance === undefined ? [] : ['issuance'])]) || !text(value.generation) || !text(value.caller) || !text(value.issuer)
     || !text(value.clockId) || !time(value.observedNs) || !time(value.busyUntilNs) || !time(value.deadlineNs)
     || !['active', 'cleanup', 'finished'].includes(String(value.phase))
@@ -55,7 +64,7 @@ function validate(value: unknown, evidence = false): asserts value is LogoutJour
       || !fields(op, ['sequence', ...(op.untilNs === undefined ? [] : ['untilNs']), ...(op.bytes === undefined ? [] : ['bytes'])])
       || (op.untilNs !== undefined && (!time(op.untilNs) || op.untilNs === 0n || (evidence && op.bytes === undefined)))
       || (value.phase !== 'active' && op.untilNs !== undefined)
-      || (op.bytes !== undefined && (!(op.bytes instanceof Uint8Array) || op.bytes.length < 1
+      || (op.bytes !== undefined && (!evidence || !(op.bytes instanceof Uint8Array) || op.bytes.length < 1
         || op.bytes.length > maximumConfiguredBytes || !time(op.untilNs) || op.untilNs === 0n))) throw new ClientError('storage_corrupt');
   }
   const seen = new Set<string>();
@@ -118,9 +127,20 @@ export class IndexedDbLogoutStore {
   close(): void { this.db.close(); }
 
   /** Synchronous mutation, isolated across tabs; resolves only after strict commit. */
-  transact<T>(operation: (record: LogoutJournal | undefined) => { record: LogoutJournal; value: T }, evidence?: boolean): Promise<T>;
-  transact<T>(operation: (record: LogoutJournal | undefined) => { record: LogoutJournal; value: T } | undefined, evidence?: boolean): Promise<T | undefined>;
-  transact<T>(operation: (record: LogoutJournal | undefined) => { record: LogoutJournal; value: T } | undefined, evidence = false): Promise<T | undefined> {
+  transact<T>(operation: (record: LogoutJournal | undefined) => Change<LogoutJournal, T>): Promise<T>;
+  transact<T>(operation: Operation<LogoutJournal, T>): Promise<T | undefined>;
+  transact<T>(operation: Operation<LogoutJournal, T>): Promise<T | undefined> {
+    return this.transaction(operation, false);
+  }
+
+  /** Load and commit exact credential evidence together with its metadata. */
+  transactCredential<T>(operation: (record: CredentialJournal | undefined) => Change<CredentialJournal, T>): Promise<T>;
+  transactCredential<T>(operation: Operation<CredentialJournal, T>): Promise<T | undefined>;
+  transactCredential<T>(operation: Operation<CredentialJournal, T>): Promise<T | undefined> {
+    return this.transaction(operation, true);
+  }
+
+  private transaction<T, Evidence extends boolean>(operation: Operation<Journal<Evidence>, T>, evidence: Evidence): Promise<T | undefined> {
     return new Promise((resolve, reject) => {
       let tx: IDBTransaction;
       try { tx = this.db.transaction('journal', 'readwrite', { durability: 'strict' }); }
@@ -155,16 +175,15 @@ export class IndexedDbLogoutStore {
             if (outcome.phase === 'failed') return;
             const apply = (bytes?: unknown) => {
               try {
-                const record: unknown = request.result;
+                let record: unknown = request.result;
                 if (record !== undefined) {
-                  validate(record);
-                  if (record.issuance?.bytes !== undefined) throw new ClientError('storage_corrupt');
+                  validate(record, false);
                   if (evidence && record.issuance?.untilNs !== undefined) {
                     if (!(bytes instanceof Uint8Array)) throw new ClientError('storage_corrupt');
-                    record.issuance.bytes = bytes;
+                    record = { ...record, issuance: { ...record.issuance, bytes } };
                   } else if (bytes !== undefined) throw new ClientError('storage_corrupt');
-                  validate(record, evidence);
                 } else if (bytes !== undefined) throw new ClientError('storage_corrupt');
+                if (record !== undefined) validate(record, evidence);
                 const change = operation(record);
                 if (change) {
                   validate(change.record, evidence);

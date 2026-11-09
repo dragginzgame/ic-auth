@@ -502,7 +502,7 @@ The rest of the host cut must be propagated together:
 ### Backend conformance scenarios
 
 The dedicated unpublished
-[`ic-auth-backend-conformance`](../apps/qualification/backend-conformance/README.md)
+[`ic-auth-backend-conformance`](../crates/ic-auth-backend-conformance/README.md)
 package exposes `Backend` and `assert_backend_contract`. It depends only on public
 Auth/protocol APIs and Platform Ed25519, without private fixture DTOs, Metrics,
 certified verification or simulator/runtime dependencies. Adapt its test-driver
@@ -536,7 +536,7 @@ prepared registry dependencies and does not run as part of ordinary CI.
 ## Executable host integration references
 
 Use the qualification receiver's
-[`establish_portable_session` and `portable_session_read`](../apps/qualification/canister/src/sessions.rs)
+[`establish_portable_session` and `portable_session_read`](../crates/ic-auth-qualification-canister/src/sessions.rs)
 as the endpoint wiring reference: runtime caller/time, retained ledger and budgets,
 protected enrollment, and engine-owned complete verification.
 Its controller-installed configuration is a test boundary; production Canic must
@@ -552,7 +552,7 @@ not deployed cross-subnet or Canic endpoint qualification. Run `make test-sessio
 
 ### Host-owned admission diagnostics
 
-The tested [admission recorder](../apps/qualification/fixtures/src/metrics.rs) uses
+The tested [admission recorder](../crates/ic-auth-qualification-fixtures/src/metrics.rs) uses
 IC Metrics 0.17 `MeasurementCounter` fields in the unpublished qualification
 host. Public Auth libraries have no Metrics dependency. The receiver calls
 `host.metrics.observe(&result)` once, immediately after `establish_session` and

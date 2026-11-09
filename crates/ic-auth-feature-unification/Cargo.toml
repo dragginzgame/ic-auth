@@ -12,10 +12,13 @@ description = "Adversarial consumer feature-unification checks for portable Auth
 [package.metadata.shared-tooling.loc]
 category = "tests"
 
+[package.metadata.cargo-machete]
+ignored = ["toko-tooling"]
+
 [features]
-default = ["portable-signature-verification"]
+default = ["portable-signature-verification", "sessions"]
 portable-signature-verification = ["ic-auth/portable-signature-verification"]
-session-restore = ["ic-auth/session-restore"]
+sessions = ["ic-auth/sessions"]
 
 [dev-dependencies]
 # Deliberately act as another consumer enabling permissive upstream parsing.
@@ -24,18 +27,12 @@ ed25519-dalek = { workspace = true, features = ["legacy_compatibility"] }
 ic-auth.workspace = true
 ic-auth-protocol-types.workspace = true
 ic-platform = { workspace = true, features = ["ed25519"] }
-ic-wire.workspace = true
-serde.workspace = true
-serde_bytes.workspace = true
 sha2.workspace = true
+toko-tooling.workspace = true
 
 [[test]]
 name = "portable_signature"
-path = "../../../crates/ic-auth/tests/portable_signature.rs"
-
-[[test]]
-name = "portable_revocation"
-path = "../../../crates/ic-auth/tests/portable_revocation.rs"
+path = "../ic-auth/tests/portable_signature.rs"
 
 [lints]
 workspace = true

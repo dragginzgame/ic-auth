@@ -12,6 +12,9 @@ description = "Internal canister host for IC Auth qualification"
 [package.metadata.shared-tooling.loc]
 category = "tests"
 
+[package.metadata.cargo-machete]
+ignored = ["toko-tooling"]
+
 [lib]
 crate-type = ["cdylib"]
 
@@ -27,6 +30,9 @@ ic-platform-runtime = { workspace = true, features = ["cdk"] }
 ic-storage = { workspace = true, features = ["test-support"] }
 ic-wire.workspace = true
 serde.workspace = true
+
+[dev-dependencies]
+toko-tooling.workspace = true
 
 [lints]
 workspace = true

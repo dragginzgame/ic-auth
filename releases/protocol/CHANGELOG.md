@@ -3,6 +3,21 @@
 Covers `ic-auth-protocol-types` and `ic-auth-wire`, released together.
 The independent series starts after the [last coordinated release, 0.29.2](../history.md).
 
+## [0.36.0] - Unreleased
+
+### ⚠️ Breaking
+
+- Select IC Wire 0.18 for exposed transport containers, limits and codec errors.
+  Rust consumers exchanging Wire values must align that dependency identity.
+  Method identities, budgets, encoded bytes and generated browser contracts
+  remain unchanged; retained records require no format migration.
+
+### 🛠️ Tooling
+
+- Inherit the workspace's exact Toko Tooling 0.36 dev-dependency and source-bundle
+  cargo-machete exemption. Production dependency graphs and protocol bytes are
+  unchanged.
+
 ## [0.35.1] - 2026-11-08
 
 ### ⬆️ Dependencies

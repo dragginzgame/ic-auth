@@ -136,7 +136,7 @@ archive SHA-256 and receipt are in the
 [clean delivery record](status/current.md#clean-backend-helper-delivery).
 Retain that archive and receipt in Canic custody, preserve its normalized package
 metadata, and run the existing complete conformance entrypoint against the actual
-driver after relocation. See the [consumer refresh instructions](../apps/qualification/backend-conformance/README.md#refreshing-an-existing-consumer).
+driver after relocation. See the [consumer refresh instructions](../crates/ic-auth-backend-conformance/README.md#refreshing-an-existing-consumer).
 This is ready Auth-side support; it does not claim Canic adopted or passed the
 new helper.
 
@@ -218,7 +218,7 @@ local timestamp floors and fresh enrollment alone cannot reopen it. Bounded
 cleanup reclaims expired rows without evicting live replay/denial state.
 See [storage and transaction details](sessions.md#custom-host-transaction-contract).
 
-The released-source [backend conformance bundle](../apps/qualification/backend-conformance/README.md)
+The released-source [backend conformance bundle](../crates/ic-auth-backend-conformance/README.md)
 now includes cleanup rollback/work-count bounds and clock/generation reopening
 scenarios, in addition to admission/logout checks. Consumer test drivers supply
 the new maintenance/clock hooks and fallible generation update. This is Auth-side
@@ -294,7 +294,7 @@ unresolved, never replacement issuance or extended deadlines. Local durable
 logout invalidation precedes fan-out; only authenticated committed acknowledgements
 resolve receiver logout. Unknown effects and journal records must survive reopen.
 
-The [backend conformance package](../apps/qualification/backend-conformance/README.md)
+The [backend conformance package](../crates/ic-auth-backend-conformance/README.md)
 can be packed as a self-contained native source archive using registry Auth types.
 Run its scenarios against the actual host adapter, then qualify installed endpoint
 behavior: both mechanisms, two receivers/devices, allowed scoped updates, issuer

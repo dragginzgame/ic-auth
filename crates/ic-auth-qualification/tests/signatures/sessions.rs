@@ -216,7 +216,7 @@ async fn sdk_preserves_typed_refusals_and_retries_the_original_future_credential
     command
         .arg(concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/../../../packages/client/dist/test/qualification/admission-refusals.js"
+            "/../../packages/client/dist/test/qualification/admission-refusals.js"
         ))
         .arg(&url)
         .arg(f.signer.to_text())
@@ -643,7 +643,7 @@ async fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ing
     command
         .arg(concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/../../../packages/client/dist/test/qualification/logout.js"
+            "/../../packages/client/dist/test/qualification/logout.js"
         ))
         .arg(&url)
         .arg(f.signer.to_text())
@@ -903,7 +903,7 @@ pub(super) async fn qualify_certified(
     command
         .arg(concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/../../../packages/client/dist/test/qualification/credential.js"
+            "/../../packages/client/dist/test/qualification/credential.js"
         ))
         .arg(&hex);
     assert_eq!(

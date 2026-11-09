@@ -49,7 +49,7 @@ mod profile_composition;
 mod sessions;
 
 struct Fixture {
-    pic: PocketIcInstance<PocketIc>,
+    pic: PocketIcInstance,
     signer: Principal,
     resource: Principal,
     controller: Principal,

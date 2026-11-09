@@ -9,7 +9,7 @@ see the [Auth #113 experiment record](https://github.com/dragginzgame/ic-auth/is
 ## Reproduction and scope
 
 Run `make profile-canonical-allocations` after ordinary explicit dependency/tool
-preparation. The harness-free benchmark under `apps/tooling/benches/` uses
+preparation. The harness-free benchmark under `crates/ic-auth-tooling/benches/` uses
 DHAT 0.3.3 in Cargo's optimized bench profile. DHAT is a dev
 dependency of unpublished tooling only; its allocator never enters production
 Auth or the canister fixture. The benchmark refuses debug mode, accepts a nonzero
@@ -155,3 +155,71 @@ stored/checkpoint formats remain unchanged. Final artifact SHA-256:
 `94aa95c3d28fdc3cdd023320574cd726c26e6b1f593191f5a5327ee87ffda44d`.
 Raw inputs, alternative sources, measurements and checks are retained under
 `target/evidence/prepared-state-20261108/`. Runtime speed was not measured.
+
+## Grant evidence and rejected expiry queue — 2026-11-08
+
+Matched reference-canister builds use `6989a91` plus the pending private
+Build 0.80 / Host 0.76 / Testkit 0.94 adoption, with Platform 0.27 and Storage 0.69.
+Rust is `1.99.1 (58cf8f9c3)`. Each build uses the unchanged Cargo release profile,
+`wasm32-unknown-unknown` and `.cargo/config.toml`'s `cpubits="32"`; there is no
+post-link optimizer. Command:
+`cargo build --locked --offline -p ic-auth-qualification-canister --target wasm32-unknown-unknown --release`.
+The baseline lock and modules, build logs, measurement script and retained patch
+are under `target/complexity-cleanup/`. The only lock change during the experiment
+removes three unused direct dependencies from the private feature-unification
+harness; selected dependency versions and the canister graph are unchanged.
+
+| Candidate | Total module bytes | Code-section payload bytes | Total delta | Code delta |
+| --- | ---: | ---: | ---: | ---: |
+| Baseline | 1,869,714 | 1,438,143 | — | — |
+| Single typed session/replay expiry queue, rejected | 1,881,623 | 1,448,144 | +11,909 | +10,001 |
+| Retained grant-validation evidence | 1,869,146 | 1,437,689 | -568 | -454 |
+
+Code size is the unsigned-LEB128 payload length of section 10 in the complete
+uncompressed module. The rejected queue was reverted; the two original indexes
+retain their pruning merge and atomic commit behavior. Grant encoding instead
+uses a borrowed checked value, one field writer and the existing standalone
+canonical checks. Independent signed-byte vectors and proof/session rejection
+suites pass. No runtime speedup or production Canic footprint is inferred.
+
+The proposed state-specific login retention record was also left unchanged:
+preserving its frozen stored representation would require another codec model,
+adding machinery for a small internal redundancy. Browser unknown issuance was
+narrowed through types rather than derived from sequence presence, because the
+current profile permits durable uncertainty without a recoverable sequence.
+
+## Wire 0.18 and Storage 0.70 adoption — 2026-11-08
+
+Matched builds use `6989a91` plus the pending cleanup, private-package relocation
+and upstream/tooling adoptions. Both use Rust 1.99.1, the unchanged Cargo release
+profile, `wasm32-unknown-unknown` and repository `cpubits="32"`; there is no
+post-link optimizer. Command:
+`cargo build --locked --offline -p ic-auth-qualification-canister --target wasm32-unknown-unknown --release`.
+The compared dependency change is Wire/derive 0.17.14 to 0.18.0 together with
+Storage 0.69.1 to 0.70.0. Other selected versions and Auth Wasm source are fixed.
+The native-only Testkit budget projection is absent from both Wasm graphs.
+
+| Reference fixture | Total module bytes | Code-section payload bytes |
+| --- | ---: | ---: |
+| Before Wire/Storage adoption | 1,869,187 | 1,437,689 |
+| Wire 0.18.0 and Storage 0.70.0 | 1,870,184 | 1,437,987 |
+| Change | +997 | +298 |
+
+Code size is the unsigned-LEB128 payload length of section 10 in the complete
+uncompressed module. Before SHA-256:
+`c9f0e2e97a8f100580f6323e9e114f72652457bd8cd9c3e08d4d06fc95ac8624`;
+after SHA-256:
+`10ee087b8f84482d7be8fc3d82ffe143c273eb324ab6c223d35aa6b11addd384`.
+Manifests, locks, modules, build logs and measurements are retained under
+`target/wire-adoption/`. This is a combined dependency-adoption measurement,
+not attribution to either upstream alone, a runtime performance result or
+Canic's deployed footprint. Generated browser bytes and stored profiles remain
+unchanged; focused Rust/client and installed certification/session/ingress
+qualification pass.
+
+The later incoming Runtime/macros/guard 0.20.3 selection is recorded separately:
+1,869,903 total bytes and the same 1,437,987 code bytes, SHA-256
+`47fa1806e4531efa0465c835d4291c0b020e86e059e8542cc2dcf93afd4cfe20`.
+Its lock, module and measurements have the `incoming-runtime` prefix in the same
+evidence directory. Both sides of the matched table above use Runtime 0.20.2;
+this later selection is not mixed into that comparison.

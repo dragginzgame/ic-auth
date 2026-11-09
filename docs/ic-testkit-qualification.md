@@ -1,8 +1,8 @@
 # IC Testkit proof, session and ingress qualification
 
 `make test-qualification` admits the prepared Testkit server and browser tools,
-runs the native fixture tests and [backend conformance scenarios](sessions.md#backend-conformance-scenarios), builds `apps/qualification/canister/` and executes
-`apps/qualification/runner/` against that server. These unpublished applications
+runs the native fixture tests and [backend conformance scenarios](sessions.md#backend-conformance-scenarios), builds `crates/ic-auth-qualification-canister/` and executes
+`crates/ic-auth-qualification/` against that server. These unpublished applications
 qualify Auth's reference host, not a production wallet/issuer or durable backend.
 Earlier pairings and benchmark narratives remain in Git history; they do not
 qualify the current dependency graph.
@@ -99,7 +99,7 @@ The caller cannot install trusted issuer/network/Root state through a credential
 
 The host exposes bounded Wire controller/certificate and application calls.
 `ic-auth-wire` owns application layouts and generated TypeScript;
-`apps/qualification/contracts/` owns only bounded native private controls, diagnostics,
+`crates/ic-auth-qualification-contracts/` owns only bounded native private controls, diagnostics,
 init/upgrade arguments and their explicit method identities. Controllers still
 authorize state changes after structural decoding. No Candid fallback, projection
 wrapper, generated Candid service or parallel codec remains in this fixture.
@@ -176,7 +176,7 @@ mutation; no proof, claimed identity or client-selected required scope is accept
 This one fixture asset has deliberately simple scope policy. Application account
 mapping and resource ownership remain separate consumer responsibilities.
 
-The [installed case](../apps/qualification/runner/tests/signatures/sessions/application.rs)
+The [installed case](../crates/ic-auth-qualification/tests/signatures/sessions/application.rs)
 checks that a credential granting read/write can be narrowed to a read-only
 session, and that real signed writes then refuse without changing the asset.
 An independently admitted writer succeeds after its short admission proof expires.
@@ -218,7 +218,7 @@ production store and issuer/reconciliation contract. See [Canic adoption](canic-
 ## Real-browser qualification
 
 The opt-in `make test-client-browser` command runs
-[the native browser case](../apps/qualification/runner/tests/signatures/sessions/browser.rs)
+[the native browser case](../crates/ic-auth-qualification/tests/signatures/sessions/browser.rs)
 with [the Chromium runner](../packages/client/test/browser/run.mjs) and
 [browser scenarios](../packages/client/test/browser/qualification.ts).
 Testkit keeps the client and managed server together in `PocketIcInstance`;

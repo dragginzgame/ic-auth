@@ -1,15 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
-validation_only=false
-batch_only=false
-commands_only=false
-tooling_only=false
+mode=all
 case "${1:-}" in
     '') [[ $# == 0 ]] ;;
-    --validation) [[ $# == 1 ]]; validation_only=true ;;
-    --batch) [[ $# == 1 ]]; validation_only=true; batch_only=true ;;
-    --commands) [[ $# == 1 ]]; commands_only=true; validation_only=true ;;
-    --tooling) [[ $# == 1 ]]; tooling_only=true; validation_only=true ;;
+    --validation|--batch|--commands|--tooling) [[ $# == 1 ]]; mode="${1#--}" ;;
     --retention) [[ $# == 1 ]]; exec bash "${BASH_SOURCE[0]%/*}/test-retention.sh" ;;
     *) echo 'usage: test-tools.sh [--validation|--batch|--commands|--tooling|--retention]' >&2; exit 2 ;;
 esac
@@ -27,7 +21,6 @@ script_path="${BASH_SOURCE[0]}"
 [[ "$script_path" == /* ]] || script_path="$PWD/$script_path"
 cd -P "${script_path%/*}/../.."
 root="$PWD"
-if [[ "$validation_only" == false ]]; then bash scripts/release/test-retention.sh; fi
 export PATH="$root/.tools/host/bin:$root/.tools/rust/common/bin:$PATH"
 auth_fixture_path="$PATH"
 export CARGO_NET_OFFLINE=true RUSTUP_AUTO_INSTALL=0
@@ -42,34 +35,47 @@ check_release_commands() {
         make/execution.mk scripts/ci/check-make-execution.sh \
         scripts/ci/check-release-delivery.sh ci/release-delivery.txt
 }
-if [[ "$commands_only" == true ]]; then
-    check_release_commands "$root"
-    exit
-fi
-if [[ "$validation_only" == false || "$tooling_only" == true ]]; then
+check_tooling_admission() {
+    local mode
     mkdir "$fixture/tooling-consumer" "$fixture/tooling-bin"
     bash scripts/release/export-fixture-source.sh "$root" "$fixture/tooling-consumer"
     cp "$fixture/tooling-consumer/Cargo.toml" "$fixture/tooling-root.toml"
-    cp "$fixture/tooling-consumer/toko-tooling.lock" "$fixture/tooling.lock"
+    cp "$fixture/tooling-consumer/Cargo.lock" "$fixture/tooling-cargo.lock"
+    cp "$fixture/tooling-consumer/crates/ic-auth-tooling/Cargo.toml" "$fixture/tooling-member.toml"
+    export AUTH_TOOLING_METADATA_CARGO="$(command -v cargo)"
     export AUTH_PUBLICATION_EVENTS="$fixture/publication-events"
     for executable in git cargo curl; do
         cat > "$fixture/tooling-bin/$executable" <<'SH'
 #!/usr/bin/env bash
+# Cargo inventory is read-only admission; all later Git/Cargo/network effects stop.
+if [[ "${0##*/}" == cargo && "${1:-}" == metadata ]]; then
+    exec "$AUTH_TOOLING_METADATA_CARGO" "$@"
+fi
 printf '%s\n' "${0##*/}" >> "$AUTH_PUBLICATION_EVENTS"
 exit 73
 SH
         chmod +x "$fixture/tooling-bin/$executable"
     done
-    for mode in admitted missing-lock checksum-drift declaration-drift; do
+    for mode in admitted missing-lock checksum-drift declaration-drift missing-member retired-selection; do
         cp "$fixture/tooling-root.toml" "$fixture/tooling-consumer/Cargo.toml"
-        cp "$fixture/tooling.lock" "$fixture/tooling-consumer/toko-tooling.lock"
+        cp "$fixture/tooling-cargo.lock" "$fixture/tooling-consumer/Cargo.lock"
+        cp "$fixture/tooling-member.toml" "$fixture/tooling-consumer/crates/ic-auth-tooling/Cargo.toml"
+        rm -f "$fixture/tooling-consumer/toko-tooling.lock"
         case "$mode" in
-            missing-lock) rm "$fixture/tooling-consumer/toko-tooling.lock" ;;
+            missing-lock) rm "$fixture/tooling-consumer/Cargo.lock" ;;
             checksum-drift)
-                jq '.checksum = ("0" * 64)' "$fixture/tooling.lock" > "$fixture/tooling-consumer/toko-tooling.lock" ;;
+                perl -0pi -e 's/(name = "toko-tooling"\nversion = "[^"\n]+"\nsource = "[^"\n]+"\nchecksum = ")[^"]+/${1}.("0" x 64)/e or die "missing tooling checksum\n"' \
+                    "$fixture/tooling-consumer/Cargo.lock" ;;
             declaration-drift)
-                perl -0pi -e 's/(\[workspace\.metadata\.toko-tooling\]\nversion = )"[^"]+"/${1}"0.34.1"/ or die "missing tooling metadata\n"' \
+                perl -pi -e 's/^toko-tooling = "=0\.36\.0"/toko-tooling = "=0.36.1"/ or !/^toko-tooling = / or die "missing tooling pin\n"' \
                     "$fixture/tooling-consumer/Cargo.toml" ;;
+            missing-member)
+                perl -ni -e 'print unless /^toko-tooling\.workspace = true$/' \
+                    "$fixture/tooling-consumer/crates/ic-auth-tooling/Cargo.toml" ;;
+            retired-selection)
+                printf '\n[workspace.metadata.toko-tooling]\nversion = "0.34.0"\n' >> "$fixture/tooling-consumer/Cargo.toml"
+                printf '{}\n' > "$fixture/tooling-consumer/toko-tooling.lock" ;;
+
         esac
         : > "$AUTH_PUBLICATION_EVENTS"
         status=0
@@ -77,7 +83,7 @@ SH
             > "$fixture/tooling-$mode.log" 2>&1 || status=$?
         [[ "$status" != 0 ]]
         if [[ "$mode" == admitted ]]; then
-            rg -F 'Root tooling declaration, lock and installed snapshot agree.' "$fixture/tooling-$mode.log" > /dev/null
+            rg -F 'Every package declaration, Cargo.lock and installed snapshot agree.' "$fixture/tooling-$mode.log" > /dev/null
             [[ "$(cat "$AUTH_PUBLICATION_EVENTS")" == git ]]
         else
             [[ ! -s "$AUTH_PUBLICATION_EVENTS" ]]
@@ -88,10 +94,11 @@ SH
             [[ "$status" != 0 && ! -s "$AUTH_PUBLICATION_EVENTS" ]]
         fi
     done
-    unset AUTH_PUBLICATION_EVENTS
-    echo 'Direct publication admits root tooling; CI/publication refuse missing/drifted selections before effects'
-fi
-if [[ "$tooling_only" == true ]]; then exit; fi
+    unset AUTH_PUBLICATION_EVENTS AUTH_TOOLING_METADATA_CARGO
+    echo 'Direct publication admits every package; CI/publication refuse missing/drifted/retired selections before effects'
+}
+
+prepare_release_fixture() {
 # The published owner renders candidates; this suite qualifies Auth's actual
 # saved-source selection, coordinated requirements and recovery below.
 # Run the normal entrypoints in a fresh shell: a pre-export used to mask a
@@ -115,7 +122,7 @@ chmod +x "$IC_AUTH_FIXTURE_HOST_FILE"
 unset CARGO_RELEASE_METADATA_EDITOR CARGO_RELEASE_METADATA_MAX_BYTES
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR
 export GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null
-if [[ "$validation_only" == false ]]; then
+if [[ "$mode" == all ]]; then
 # Qualify both current feature admission and saved pre-CLI selections without
 # installing another executable or depending on today's Cargo metadata.
 mkdir -p "$fixture/editor-selection/scripts/dev"
@@ -169,25 +176,21 @@ fi
 mkdir "$fixture/repo"
 # Qualify one coherent working source, including uncommitted additions/deletions.
 bash "$root/scripts/ci/verify-shared-tooling-snapshot.sh"
-if [[ "$validation_only" == false ]]; then bash "$root/scripts/ci/test-release-fixture-source.sh"; fi
+if [[ "$mode" == all ]]; then bash "$root/scripts/ci/test-release-fixture-source.sh"; fi
 bash "$root/scripts/release/export-fixture-source.sh" "$root" "$fixture/repo"
 # Exercise the actual shared Make entrypoints before substituting the larger
 # gate below. The opt-in includes and execution probe are explicit inputs.
-if [[ "$validation_only" == false ]]; then
+if [[ "$mode" == all ]]; then
 check_release_commands "$fixture/repo"
 fi
 cd "$fixture/repo"
 # The larger recovery fixture substitutes snapshot-owned installers and runners
 # below. Tooling admission is qualified against intact payloads by --tooling;
 # retain that boundary explicitly rather than accepting edited snapshot bytes.
-cat > scripts/dev/shared-tooling.sh <<'SCRIPT'
-#!/usr/bin/env bash
-set -euo pipefail
-[[ "${1:-}" == check ]]
-echo 'Tooling admission substituted for release/recovery qualification.'
-SCRIPT
+source "$root/scripts/ci/auth-fixture-tooling.sh"
+auth_fixture_tooling_check "$PWD"
 export RELEASE_GROUP=protocol
-if [[ "$batch_only" == true ]]; then
+if [[ "$mode" == batch ]]; then
     source scripts/release/test-batch.sh
     auth_batch_native
 fi
@@ -223,7 +226,7 @@ for selected_group in engine protocol; do
     cp "$fixture/lock" Cargo.lock
 done
 printf '# Changelog\n\n## [0.1.1]\n\n- Fixture release.\n' > releases/protocol/CHANGELOG.md
-if [[ "$batch_only" == true ]]; then
+if [[ "$mode" == batch ]]; then
     printf '# Changelog\n\n## [0.9.1]\n\n- Frozen Engine fixture.\n' > releases/engine/CHANGELOG.md
 fi
 RELEASE_VERSION=0.9.1 bash "$PWD/scripts/ci/cargo-release-group.sh" plan engine > "$fixture/engine-before.json"
@@ -366,7 +369,7 @@ case "$1" in
     *) exit 2 ;;
 esac
 SCRIPT
-if [[ "$batch_only" == true ]]; then
+if [[ "$mode" == batch ]]; then
 cat > scripts/dev/client-tools.sh <<'SCRIPT'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -509,11 +512,10 @@ mkdir -p target
 printf 'retained artifact\n' > target/keep
 before="$(git rev-parse HEAD)"
 cp releases/protocol/CHANGELOG.md "$fixture/pending-notes"
-if [[ "$batch_only" == true ]]; then
-    auth_batch_contract
-    exit 0
-fi
-if [[ "$validation_only" == false ]]; then
+}
+
+check_ordinary_release() {
+if [[ "$mode" == all ]]; then
 # Missing/empty/unknown selections refuse through the actual public entrypoints,
 # before setup, the gate, package creation or any Git release effect.
 for selected_group in '' unknown; do
@@ -627,7 +629,7 @@ cmp "$fixture/external-before.json" "$fixture/external-after.json"
 make --no-print-directory release-resume VERSION=0.1.1 > "$fixture/resume.log" 2>&1
 [[ "$(git rev-parse HEAD)" == "$commit" ]] || exit 1
 
-if [[ "$validation_only" == false ]]; then
+if [[ "$mode" == all ]]; then
 export FIXTURE_MODE=package-failure
 # Group-qualified intents cannot evade an uncertain coordinated upload of the
 # same crate version. Refuse before even the substituted package operation.
@@ -651,11 +653,11 @@ export FIXTURE_MODE=conflict
 if bash scripts/release/publish.sh > "$fixture/conflict.log" 2>&1; then exit 1; fi
 [[ ! -f "$fixture/uploads" ]] || exit 1
 grep -F 'registry checksum conflict' "$fixture/conflict.log" > /dev/null
-for mode in wrong-crate wrong-version invalid-checksum invalid-yanked multiple-json malformed oversized transport old-curl; do
-    export FIXTURE_MODE="$mode"
-    if bash scripts/release/publish.sh > "$fixture/$mode.log" 2>&1; then exit 1; fi
+for registry_case in wrong-crate wrong-version invalid-checksum invalid-yanked multiple-json malformed oversized transport old-curl; do
+    export FIXTURE_MODE="$registry_case"
+    if bash scripts/release/publish.sh > "$fixture/$registry_case.log" 2>&1; then exit 1; fi
     [[ ! -f "$fixture/uploads" && ! -e .git/publication-state/protocol-0.1.1-ic-auth-protocol-types.dispatched ]] || exit 1
-    grep -F 'cannot establish registry state' "$fixture/$mode.log" > /dev/null
+    grep -F 'cannot establish registry state' "$fixture/$registry_case.log" > /dev/null
 done
 export FIXTURE_MODE=marker-source-change
 if bash scripts/release/publish.sh > "$fixture/marker-source-change.log" 2>&1; then exit 1; fi
@@ -845,7 +847,7 @@ bash scripts/ci/check-release-tag.sh "$(git rev-parse HEAD)" "$candidate" "$RELE
 # Qualify the consumer's actual local metadata/receipt owner when a maintainer
 # commits the disposition of interrupted preparation. Shared 0.26.18 starts
 # afresh from that metadata without reading or replaying the historical journal.
-if [[ "$validation_only" == false ]]; then
+if [[ "$mode" == all ]]; then
 for disposition in restored prepared; do
     base="$(make -s release-version)"
     saved_candidate="$(bash scripts/ci/next-release-version.sh "$base" patch)"
@@ -972,6 +974,26 @@ jq -e '.group == "engine" and [.packages[].name] == ["ic-auth"]' .git/publicatio
 if RELEASE_GROUP=protocol bash scripts/release/publish.sh > "$fixture/wrong-group-publication.log" 2>&1; then exit 1; fi
 [[ "$(wc -l < "$fixture/uploads")" -eq 3 ]]
 echo 'Both release groups, unselected identities/notes, failure admission, exact tags/push, resume and publication reconciliation passed (local/mocked effects)'
-if [[ "$validation_only" == false ]]; then
-    PATH="$auth_fixture_path" bash "$root/scripts/release/test-tools.sh" --batch
-fi
+}
+
+run_release_scenarios() (
+    # Each invocation owns fresh repositories; ordinary and frozen scenarios
+    # cannot reuse one another's tags, mutated metadata or recovery state.
+    prepare_release_fixture
+    case "$mode" in
+        batch) auth_batch_contract ;;
+        all|validation) check_ordinary_release ;;
+    esac
+)
+
+case "$mode" in
+    commands) check_release_commands "$root" ;;
+    tooling) check_tooling_admission ;;
+    validation|batch) run_release_scenarios ;;
+    all)
+        bash scripts/release/test-retention.sh
+        check_tooling_admission
+        run_release_scenarios
+        PATH="$auth_fixture_path" bash "$root/scripts/release/test-tools.sh" --batch
+        ;;
+esac

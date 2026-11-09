@@ -2,8 +2,8 @@ Cargo.toml
 Cargo.lock
 .cargo/config.toml
 rust-toolchain.toml
-apps/tooling/Cargo.toml
-apps/tooling/src
+crates/ic-auth-tooling/Cargo.toml
+crates/ic-auth-tooling/src
 crates/ic-auth-protocol-types/Cargo.toml
 crates/ic-auth-protocol-types/src
 crates/ic-auth-wire/Cargo.toml

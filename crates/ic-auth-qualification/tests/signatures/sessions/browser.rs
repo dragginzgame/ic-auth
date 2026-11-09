@@ -80,7 +80,7 @@ async fn actual_browser_storage_signing_and_receiver_transport() {
     command
         .arg(concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/../../../packages/client/test/browser/run.mjs"
+            "/../../packages/client/test/browser/run.mjs"
         ))
         .arg(url)
         .arg(f.signer.to_text())

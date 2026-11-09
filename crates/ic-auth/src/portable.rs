@@ -27,8 +27,8 @@ pub use rules::{
 };
 pub use verified::VerifiedPortableClaims;
 
-use crate::canonical::{CanonicalAuthError, encode_principal, encode_role_grants};
-use crate::certificate_issuance::{GrantValidationError, validate_grants};
+use crate::canonical::{CanonicalAuthError, CheckedGrants, encode_principal};
+use crate::certificate_issuance::GrantValidationError;
 use crate::limits::{MAX_GRANTS, MAX_LABEL_BYTES, MAX_SCOPES_PER_GRANT};
 use ic_auth_protocol_types::{
     AudienceId, CanonicalId, DelegatedRoleGrant, PortableClaims, PortableMechanism, Principal,
@@ -75,7 +75,7 @@ fn encode_claims_into(
     claims: &PortableClaims,
     sink: &mut crate::canonical::Sink<'_>,
 ) -> Result<(), PortableEncodingError> {
-    validate_shape(claims)?;
+    let grants = validate_shape(claims)?;
     // The same bounded field traversal produces bytes or feeds SHA-256.
     let mut length = 0usize;
     let mut out = |bytes: &[u8]| {
@@ -103,7 +103,7 @@ fn encode_claims_into(
         out(&time.to_be_bytes());
     }
     out(&claims.nonce);
-    encode_role_grants(&mut out, &claims.grants, true)?;
+    grants.encode(&mut out)?;
     if length > MAX_CLAIMS_BYTES {
         return Err(PortableEncodingError::TooLarge);
     }
@@ -207,12 +207,15 @@ pub(crate) fn is_login_caller(caller: Principal) -> bool {
     bytes.len() == 29 && bytes.last() == Some(&2)
 }
 
-fn validate_shape(claims: &PortableClaims) -> Result<(), PortableEncodingError> {
+fn validate_shape(claims: &PortableClaims) -> Result<CheckedGrants<'_>, PortableEncodingError> {
     if claims.account_subject == Principal::anonymous() {
         return Err(PortableEncodingError::AnonymousSubject);
     }
-    validate_grants(&claims.grants, MAX_GRANTS, MAX_SCOPES_PER_GRANT)?;
-    Ok(())
+    Ok(CheckedGrants::bounded(
+        &claims.grants,
+        MAX_GRANTS,
+        MAX_SCOPES_PER_GRANT,
+    )?)
 }
 
 struct Reader<'a>(&'a [u8]);

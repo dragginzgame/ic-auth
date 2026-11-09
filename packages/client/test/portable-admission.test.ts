@@ -1,8 +1,9 @@
+import { signingRequest } from './support/requests.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { IDBFactory } from 'fake-indexeddb';
 import { Principal } from '@tokostudios/ic-platform/principal';
-import { Endpoint, SubmitRequestType, ReadRequestType, Expiry, type Identity } from '@tokostudios/ic-platform/agent';
+import { Endpoint, ReadRequestType, Expiry, type Identity } from '@tokostudios/ic-platform/agent';
 import { Ed25519KeyIdentity } from '@tokostudios/ic-platform/identity';
 import { PortableAdmissionClient, PortableLogoutClient, IndexedDbLogoutStore, ClientError, AdmissionError,
   credentialBytes, type AdmissionReceipt, type AdmissionCredential, type PortableAdmissionTransport } from '../src/index.js';
@@ -22,12 +23,6 @@ function deferred<T>() {
   let resolve!: (value: T) => void;
   const promise = new Promise<T>(done => { resolve = done; });
   return { promise, resolve };
-}
-function signingRequest(signer: Identity, target: Principal): Parameters<Identity['transformRequest']>[0] {
-  return { endpoint: Endpoint.Call, request: { method: 'POST' },
-    body: { request_type: SubmitRequestType.Call, canister_id: target, method_name: 'issue',
-      arg: new Uint8Array(), sender: signer.getPrincipal(),
-      ingress_expiry: Expiry.fromJSON('{"__expiry__":"100000000000"}') } };
 }
 async function fixture() {
   const factory = new IDBFactory();
@@ -184,7 +179,7 @@ test('mutable SDK Principal cannot retarget admission beyond its durable logout 
       // The SDK exposes mutable backing bytes. Transport must not be able to
       // change the signer's permitted target after that target was journaled.
       target.toUint8Array().set(b.toUint8Array());
-      await caller.transformRequest(signingRequest(caller, target));
+      await caller.transformRequest(signingRequest(caller, target, 'issue'));
       return receipt();
     };
     const client = new PortableAdmissionClient(f.journal, 'login', { browser, account }, issuer, f.transport);
@@ -223,8 +218,8 @@ test(`mutable caller Principal cannot retarget ${operation} while issuance is pe
     release.resolve();
     const ready = await pending;
     if (operation === 'ensureSession') {
-      await ready.transformRequest(signingRequest(ready, a));
-      await assert.rejects(ready.transformRequest(signingRequest(ready, b)),
+      await ready.transformRequest(signingRequest(ready, a, 'issue'));
+      await assert.rejects(ready.transformRequest(signingRequest(ready, b, 'issue')),
         (error: unknown) => error instanceof ClientError && error.code === 'configuration');
     }
     assert.equal(target.toText(), b.toText()); // Caller still owns its mutable object.
@@ -248,9 +243,9 @@ test('issuer binding is captured before caller mutation and stays fixed across i
     const issue = f.transport.issue;
     f.transport.issue = async (caller, signal) => {
       // Even after constructor input mutation, only the original issuer may sign.
-      await assert.rejects(caller.transformRequest(signingRequest(caller, mutableIssuer)),
+      await assert.rejects(caller.transformRequest(signingRequest(caller, mutableIssuer, 'issue')),
         (error: ClientError) => error.code === 'configuration');
-      await caller.transformRequest(signingRequest(caller, issuer));
+      await caller.transformRequest(signingRequest(caller, issuer, 'issue'));
       return issue(caller, signal);
     };
     const client = new PortableAdmissionClient(f.journal, 'login', { browser: identity, account: signer }, mutableIssuer, f.transport);
@@ -275,19 +270,19 @@ test('account signing is issuer-bound; receiver admission and returned identity 
     f.transport.issue = async caller => {
       retained = caller;
       assert.equal(caller.getPrincipal().toText(), account.getPrincipal().toText());
-      await assert.rejects(caller.transformRequest(signingRequest(caller, a)), (e: ClientError) => e.code === 'configuration');
+      await assert.rejects(caller.transformRequest(signingRequest(caller, a, 'issue')), (e: ClientError) => e.code === 'configuration');
       assert.equal(accountSignatures, 0);
-      await caller.transformRequest(signingRequest(caller, issuer));
+      await caller.transformRequest(signingRequest(caller, issuer, 'issue'));
       return f.material;
     };
     const client = new PortableAdmissionClient(f.journal, 'login', { browser: identity, account: accountSigner }, issuer, f.transport);
     const browser = await client.establish(a);
     assert.equal(browser.getPrincipal().toText(), identity.getPrincipal().toText());
     assert.notEqual(browser.getPrincipal().toText(), account.getPrincipal().toText());
-    await browser.transformRequest(signingRequest(browser, a));
+    await browser.transformRequest(signingRequest(browser, a, 'issue'));
     assert.equal(accountSignatures, 1);
     assert.ok(retained);
-    await assert.rejects(retained.transformRequest(signingRequest(retained, issuer)), (e: ClientError) => e.code === 'timeout');
+    await assert.rejects(retained.transformRequest(signingRequest(retained, issuer, 'issue')), (e: ClientError) => e.code === 'timeout');
     assert.equal(accountSignatures, 1);
   } finally { f.store.close(); }
 });
@@ -303,7 +298,7 @@ test('durable logout blocks a retained account signer before it can sign issuanc
   try {
     f.transport.issue = async caller => {
       entered.resolve(); await release.promise;
-      await caller.transformRequest(signingRequest(caller, issuer));
+      await caller.transformRequest(signingRequest(caller, issuer, 'issue'));
       return f.material;
     };
     const client = new PortableAdmissionClient(f.journal, 'login', { browser: identity, account: accountSigner }, issuer, f.transport);
@@ -329,7 +324,7 @@ test('account principal changes during signing refuse before receiver admission'
     } };
   try {
     f.transport.issue = async caller => {
-      await caller.transformRequest(signingRequest(caller, issuer));
+      await caller.transformRequest(signingRequest(caller, issuer, 'issue'));
       return f.material;
     };
     const client = new PortableAdmissionClient(f.journal, 'login', { browser: identity, account: accountSigner }, issuer, f.transport);
@@ -534,7 +529,7 @@ test('readiness keeps a live receiver lease after proof expiry without loading e
     await f.journal.begin('login', f.state.now + 10_000n * MS);
     await assert.rejects(client.ensureSession(a, value => value.expires_at_ns),
       (e: ClientError) => e.code === 'stale_generation');
-    await assert.rejects(same.transformRequest(signingRequest(same, a)),
+    await assert.rejects(same.transformRequest(signingRequest(same, a, 'issue')),
       (e: ClientError) => e.code === 'stale_generation');
   } finally { f.store.close(); }
 });
@@ -770,22 +765,22 @@ test('readiness identity renews before signing after suspend and stays receiver-
     };
     const client = new PortableAdmissionClient(f.journal, 'login', { browser, account }, issuer, f.transport);
     const signer = await client.ensureSession(a, value => value.expires_at_ns);
-    await signer.transformRequest(signingRequest(signer, a));
+    await signer.transformRequest(signingRequest(signer, a, 'issue'));
     f.state.now += 5_000n * MS;
     let renewals = 0;
     f.transport.renew = async () => {
       renewals++;
       return { ...f.material, admissionUntilNs: f.state.now + 60_000n * MS };
     };
-    await signer.transformRequest(signingRequest(signer, a));
+    await signer.transformRequest(signingRequest(signer, a, 'issue'));
     assert.equal(signatures, 2);
     assert.equal(renewals, 1);
     assert.equal(f.state.issues, 1);
-    await assert.rejects(signer.transformRequest(signingRequest(signer, b)),
+    await assert.rejects(signer.transformRequest(signingRequest(signer, b, 'issue')),
       (e: ClientError) => e.code === 'configuration');
     assert.equal(signatures, 2);
     await f.journal.begin('login', f.state.now + 70_000n * MS);
-    await assert.rejects(signer.transformRequest(signingRequest(signer, a)),
+    await assert.rejects(signer.transformRequest(signingRequest(signer, a, 'issue')),
       (e: ClientError) => e.code === 'stale_generation');
     assert.equal(signatures, 2);
   } finally { f.store.close(); }

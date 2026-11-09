@@ -122,7 +122,7 @@ test-protocol:
 
 test-portable-signatures:
 	+cargo test --locked --offline -p ic-auth --features portable-signature-verification --test portable_signature --test portable_revocation
-	+cargo test --locked --offline -p ic-auth-feature-unification --all-features --test portable_signature --test portable_revocation
+	+cargo test --locked --offline -p ic-auth-feature-unification --all-features --test portable_signature
 	+cargo test --locked --offline -p ic-auth --features portable-signature-verification,certified-proof-verification --test certified portable_certified::
 
 test-chain-key-signatures:
@@ -163,7 +163,7 @@ test-qualification: testkit-tools-check client-tools-check
 	+bash scripts/dev/test-qualification.sh
 
 check-candid-boundary:
-	perl scripts/ci/check-candid-boundary.pl --cbor "$(CURDIR)" ci/candid-boundary.json crates apps
+	perl scripts/ci/check-candid-boundary.pl --cbor "$(CURDIR)" ci/candid-boundary.json crates
 
 check-boundaries: check-candid-boundary
 	+bash scripts/ci/check-cargo-dependency-boundaries.sh --consumer "$(CURDIR)" --external-ic

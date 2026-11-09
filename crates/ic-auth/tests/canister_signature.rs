@@ -5,9 +5,11 @@ use ic_auth::canister_signature::{
     verify_canister_signature,
 };
 use ic_auth_protocol_types::{IcCanisterSignatureProofV1, Principal};
+pub mod certificates;
+use certificates::{certificate, key, signature_bytes};
 use ic_platform::bls::PrivateKey;
 use ic_platform::canister_sig_creation::{CanisterSigPublicKey, IC_ROOT_PK_DER_PREFIX};
-use ic_platform::certification::{Certificate, Delegation, HashTree, fork, labeled, leaf, pruned};
+use ic_platform::certification::{Certificate, Delegation, fork, labeled, leaf, pruned};
 use sha2::{Digest, Sha256};
 
 const SEED: &[u8] = b"canic-issuer-delegated-token";
@@ -15,12 +17,6 @@ const NOW: u64 = 1_000_000;
 
 fn signer() -> Principal {
     Principal::from_slice(&[1; 10])
-}
-
-fn key(value: u8) -> PrivateKey {
-    let mut bytes = [0; 32];
-    bytes[31] = value;
-    PrivateKey::deserialize(&bytes).unwrap()
 }
 
 fn hash(bytes: &[u8]) -> [u8; 32] {
@@ -31,25 +27,6 @@ fn time_bytes(time: u64) -> Vec<u8> {
     let mut bytes = Vec::new();
     leb128::write::unsigned(&mut bytes, time).unwrap();
     bytes
-}
-
-fn signature_bytes(value: &Envelope) -> Vec<u8> {
-    ic_platform::certification::cbor::encode_canister_signature(
-        &value.certificate,
-        &value.tree,
-        usize::MAX,
-    )
-    .unwrap()
-}
-
-fn certificate(tree: HashTree, key: &PrivateKey, delegation: Option<Delegation>) -> Certificate {
-    let mut message = b"\x0Dic-state-root".to_vec();
-    message.extend_from_slice(&tree.digest());
-    Certificate {
-        tree,
-        signature: key.sign(&message).serialize().to_vec(),
-        delegation,
-    }
 }
 
 use ic_platform::certification::cbor::CanisterSignature as Envelope;

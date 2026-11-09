@@ -130,7 +130,7 @@ fn encode_cert(out: &mut Sink<'_>, cert: &DelegationCert) -> Result<(), Canonica
     encode_u64(out, cert.expires_at_ns);
     encode_u64(out, cert.max_token_ttl_ns);
     encode_audience(out, &cert.aud);
-    encode_role_grants(out, &cert.grants, false)?;
+    encode_role_grants(out, &cert.grants)?;
 
     Ok(())
 }
@@ -156,29 +156,51 @@ fn encode_fleet_key(out: &mut Sink<'_>, fleet: AudienceId) {
     encode_fixed_32(out, *fleet.fleet_id.as_bytes());
 }
 
-// admitted is private same-call shape evidence: portable encoding validates the
-// immutable grants first. Standalone canonical encoders retain their own checks.
-pub(crate) fn encode_role_grants(
+// Same-call structural evidence borrows the exact immutable grants it checked.
+// It never authenticates their source or admits authority.
+pub(crate) struct CheckedGrants<'a>(&'a [DelegatedRoleGrant]);
+impl<'a> CheckedGrants<'a> {
+    pub(crate) fn bounded(
+        grants: &'a [DelegatedRoleGrant],
+        max_grants: usize,
+        max_scopes: usize,
+    ) -> Result<Self, crate::certificate_issuance::GrantValidationError> {
+        crate::certificate_issuance::validate_grants(grants, max_grants, max_scopes)?;
+        Ok(Self(grants))
+    }
+
+    pub(crate) fn encode(&self, out: &mut Sink<'_>) -> Result<(), CanonicalAuthError> {
+        encode_len(out, self.0.len())?;
+        for grant in self.0 {
+            encode_grant(out, grant)?;
+        }
+        Ok(())
+    }
+}
+
+fn encode_role_grants(
     out: &mut Sink<'_>,
     grants: &[DelegatedRoleGrant],
-    admitted: bool,
 ) -> Result<(), CanonicalAuthError> {
     encode_len(out, grants.len())?;
     let mut previous = None;
     for grant in grants {
         let current = grant.target.as_str().as_bytes();
-        if !admitted && previous.is_some_and(|previous| previous >= current) {
+        if previous.is_some_and(|previous| previous >= current) {
             return Err(CanonicalAuthError::NonCanonicalRoles);
         }
         previous = Some(current);
-        encode_role(out, &grant.target)?;
-        if !admitted {
-            validate_scopes(&grant.scopes)?;
-        }
-        encode_len(out, grant.scopes.len())?;
-        for scope in &grant.scopes {
-            encode_bytes(out, scope.as_str().as_bytes())?;
-        }
+        validate_scopes(&grant.scopes)?;
+        encode_grant(out, grant)?;
+    }
+    Ok(())
+}
+
+fn encode_grant(out: &mut Sink<'_>, grant: &DelegatedRoleGrant) -> Result<(), CanonicalAuthError> {
+    encode_role(out, &grant.target)?;
+    encode_len(out, grant.scopes.len())?;
+    for scope in &grant.scopes {
+        encode_bytes(out, scope.as_str().as_bytes())?;
     }
     Ok(())
 }
@@ -234,7 +256,7 @@ fn encode_chain_key_delegation_cert(
     encode_issuer_proof_binding(out, cert.issuer_proof_binding);
     encode_u64(out, cert.max_token_ttl_ns);
     encode_audience(out, &cert.audience);
-    encode_role_grants(out, &cert.grants, false)?;
+    encode_role_grants(out, &cert.grants)?;
     encode_u64(out, cert.not_before_ns);
     encode_u64(out, cert.expires_at_ns);
     encode_u64(out, cert.registry_epoch);

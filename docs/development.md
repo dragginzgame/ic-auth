@@ -1,11 +1,12 @@
 # Development
 
 The virtual root owns the protocol/types, Auth engine and Wire transport libraries,
-unpublished native tooling in `apps/tooling/` and the reference host/runner in
-`apps/qualification/`. The root catalog selects published Types and Platform, the
+unpublished native tooling in `crates/ic-auth-tooling/` and the reference host/runner in
+`crates/ic-auth-qualification-canister/` and `crates/ic-auth-qualification/`.
+The root catalog selects published Types and Platform, the
 Host FS/Process, Build and Testkit packages from
 [IC Tooling](https://github.com/dragginzgame/ic-tooling), allocation/collections from
-[IC Storage](https://github.com/dragginzgame/ic-storage) and the Wire 0.15
+[IC Storage](https://github.com/dragginzgame/ic-storage) and the Wire 0.18
 codec/TypeScript generator. The lock and [handoff](status/current.md) record exact selections and evidence;
 [session contracts](sessions.md) distinguish supported behavior from pending hosts.
 Rust `1.99.1` is both the pinned development/release compiler and the common
@@ -168,7 +169,7 @@ The repository's Wasm target flags select upstream RustCrypto's qualified
 `cpubits="32"` backend. Other canister build owners must select it themselves;
 dependency Cargo configuration is not inherited, and explicit `RUSTFLAGS` or
 `CARGO_ENCODED_RUSTFLAGS` overrides must preserve this selection.
-Testkit 0.93 owns native clients and DTOs in `ic_testkit::pocket_ic`, together with
+Testkit 0.95 owns native clients and DTOs in `ic_testkit::pocket_ic`, together with
 bounded server startup, lifecycle extensions and typed Wire calls;
 only the native runner selects these capabilities. Its client requires an
 explicit server endpoint and positive finite request budget. Auth constructs its
@@ -176,26 +177,26 @@ builder with `Duration::from_secs(30)`; the managed `build_instance` supplies th
 endpoint and retains the admitted server handle. Its separate startup timeout
 also remains 30 seconds.
 
-Native file and process callers select Host FS/Process 0.75.0 with defaults
+Native file and process callers select Host FS/Process 0.76.1 with defaults
 disabled. Library use does not enable Host's optional CLI, certificate decoder
-or Wasm text/encoding backends. Host stays outside the production library graph.
-The locked Build 0.79.0 and Testkit 0.93.1 share Auth's Host 0.75 identities. The
-independently pinned file CLI is selected at 0.75.0.
+or Wasm text backends. Host stays outside the production library graph.
+Build 0.81.0 and Testkit 0.95.0 share Host 0.76.1 identities in native tooling.
+The independently pinned file CLI is selected at 0.76.1.
 Build and Testkit libraries keep `cli` disabled; only the prepared executable
 selections request it. Testkit has no Metrics dependency; Auth's diagnostics
 select Metrics directly.
 No caller enables optional native
 metadata; the old Host 0.73 and Metrics 0.25 providers are removed.
 
-Auth selects Platform 0.27; Testkit 0.93.2 retains Platform 0.26 only in native
-qualification. Both use canonical Types 0.18.2. The Wasm host selects only
+Auth and Testkit 0.95 select Platform 0.27 for native external adapters.
+Both use canonical Types 0.18.3. The Wasm host selects only
 Platform 0.27 and one Runtime executor/generator/guard.
 Testkit classifies native CBOR failures with its own `CborErrorKind`, retaining
 the original typed source without requiring a Platform-error downcast.
 Native Testkit and its Candid/management DTOs remain outside the public library
 and Wasm host graphs.
-The host selects Runtime 0.20.2 directly, matching Storage 0.69.0's Wasm dependency.
-Wire 0.17.13 provides the matching canonical Principal schema implementation;
+The host selects Runtime 0.20.3 directly, matching Storage 0.70.0's Wasm dependency.
+Wire 0.18.0 provides the matching canonical Principal schema implementation;
 Auth does not select its opt-in packed 16-byte ID fields.
 Native calls retain explicit external Principal conversions; native SDK packages
 remain outside public Auth and the reference Wasm graph.
@@ -213,12 +214,19 @@ commands. Generic file operations now use the separately prepared published
 implementation or fallback. See [release and file-tool mechanics](#releases-and-publication)
 for the existing byte/path limits and release-recovery boundary.
 
+Auth, native Testkit 0.95 and the Storage 0.70 host share Wire 0.18. The
+qualification runner passes canonical method budgets directly, with no older
+codec dependency or allowance projection. Testkit's concrete `PocketIcInstance`
+retains managed-server custody and awaited teardown.
+
 ## Dependency roles and deployment admission
 
-Shared Tooling comes from crates.io's `toko-tooling` 0.34.0, selected exactly by
-root `[workspace.metadata.toko-tooling]`. The separate `toko-tooling.lock` records
-its registry checksum; installation authenticates that archive and records its
-exported payload in `.shared-tooling.snapshot`. It is not a Cargo dependency.
+Shared Tooling comes from crates.io's `toko-tooling` 0.36.0. Root
+`[workspace.dependencies]` owns the exact `=0.36.0` pin and every real package
+inherits it in `[dev-dependencies]`, with the cargo-machete exemption for its
+source-bundle role. `Cargo.lock` owns the registry checksum; explicit installation
+authenticates that archive and records the payload in `.shared-tooling.snapshot`.
+No separate tooling lock, metadata version or selection-only package is used.
 The real `ic-auth-tooling` package retains contract generation, external-lock
 admission and allocation benchmarks. Auth retains Cargo-owned product versions, its
 Protocol/Engine release groups and their exhaustive source-bound release plans.
@@ -287,8 +295,8 @@ longer than 63 bytes is now refused before normalization. See the
 or replacement cryptography is introduced.
 
 Private controls and diagnostics now use bounded Wire contracts under
-`apps/qualification/contracts/`. Shared checked configuration and the admission
-recorder have one unpublished library owner in `apps/qualification/fixtures/`;
+`crates/ic-auth-qualification-contracts/`. Shared checked configuration and the admission
+recorder have one unpublished library owner in `crates/ic-auth-qualification-fixtures/`;
 both host and native runner import it through Cargo. The shared fixture's unit
 test runs under `test-qualification`, Clippy and MSRV alongside those consumers.
 Application methods remain in `ic-auth-wire`.
@@ -424,7 +432,7 @@ consumer deployment admission and native macOS qualification remain separate.
 ### Why Candid appears in Cargo.lock
 
 The one workspace lockfile includes native qualification dependencies as well as
-the deployed packages. The runner in `apps/qualification/runner/` selects
+the deployed packages. The runner in `crates/ic-auth-qualification/` selects
 Platform's `agent` feature for real signed ingress, and Testkit's `wire` feature
 for application calls. Candid arrives through three paths:
 
@@ -508,33 +516,16 @@ No native package installer or browser download runs inside an ordinary check.
 The Makefile includes reviewed [`make/consumer.mk`](make-interface.md), which owns
 common setup, formatting, hooks, snapshot verification and release routing.
 `check-snapshot` retains its public name and depends on `shared-tooling-check`.
-Change the exact root tooling version intentionally, then run
-`make shared-tooling-update` to resolve `toko-tooling.lock` and install it.
-`make shared-tooling-install` reinstalls the existing lock without resolving.
-Application Cargo updates do not select tooling. Installation preserves recorded entrypoints
-and local edits, then prepares and admits tools through `install-tools` and
-`tools-check`. `make shared-tooling-status` reports the installed and locked
-identities offline; `make shared-tooling-check` verifies payload integrity and
-agreement between root metadata, `toko-tooling.lock` and the installed snapshot,
-refusing drift without repair. CI, release capture/preflight and Auth's direct
-publication adapter require this check before effects. See
-[Cargo selection and installation](consuming-snapshots.md#cargo-selection-and-installation).
-The one-time Git migration used `/home/adam/projects/toko-tooling` only to prove
-historical ownership. Future registry updates need no sibling checkout.
-The canonical verifier also supports `--read-manifest FILE`: it validates the
-complete captured syntax before emitting records, rejects NUL/extra fields, and
-performs no payload/ownership admission in this mode. Normal snapshot checks
-still verify bytes/modes. See [reader semantics](consuming-snapshots.md).
-Shared 0.9.10 rejects non-boolean Cargo `net.offline` values before tool dispatch.
-Its changed build policy selects fresh tool receipts: explicitly run
-`make install-rust-tools` and `make install-testkit-tools`, then `make tools-check`.
-Existing installations and evidence are retained. CI uses the canonical Cargo
-build cache identity, restores shared builds before setup and saves admitted
-builds on main pushes before tests. Pull requests only restore; cache availability
-never bypasses full setup, offline admission or the three-host validation matrix.
-The [change-reporting rules](../rules/change-reporting.md) govern final maintainer
-handoffs, including scoped zero counts and separate symbol deletion/move/rename
-classification.
+Change the exact root tooling dependency pin intentionally, run
+`cargo update -p toko-tooling`, then `make shared-tooling-update` to install the
+selected crate. `make shared-tooling-install` reinstalls the current Cargo.lock
+selection. Installation preserves recorded entrypoints and local edits, then
+prepares and admits tools through `install-tools` and `tools-check`.
+`make shared-tooling-status` reports the installed and locked identities offline;
+`make shared-tooling-check` verifies every member's inherited declaration, the
+root pin, Cargo.lock checksum and installed snapshot, refusing drift without
+repair. Common CI/release entrypoints and direct publication admit tooling before
+effects. Cargo builds and ordinary checks do not install it.
 
 The new [Cargo-tool freshness task](../tasks/cargo-tool-versions.md) is included
 with the catalog; its online checker runs from Shared Tooling and is separate
@@ -756,7 +747,7 @@ multi-package, multi-feature and multi-target entries are aggregate suites.
 | `make generate-client-contracts` | Explicitly regenerate Auth DTO bindings and the locked Wire TypeScript runtime |
 | `make test-types` | Public types, bounded Wire codecs and private fixture projections |
 | `make test-protocol` | Canonical encoding, signed vectors, ordering and size rejection |
-| `make test-portable-signatures` | Portable Ed25519 issuer proofs with protected audience/issuer/key binding, independent signature vectors and strict malformed/weak-key refusal, including an unpublished consumer enabling permissive Dalek parsing through feature unification; this does not admit sessions |
+| `make test-portable-signatures` | Portable Ed25519 issuer proofs with protected audience/issuer/key binding, independent signature vectors and strict malformed/weak-key refusal, including an unpublished consumer enabling permissive Dalek parsing through feature unification and a focused session-admission rejection case |
 | `make test-chain-key-signatures` | Isolated SEC1 admission, explicit producer normalization and exact prehash verification, including malformed material and strict high-S refusal |
 | `make test-signatures` | Real BLS-signed IC fixtures, signer/seed/root rejection, certificate freshness and bounded decoding |
 | `make test-signature-store` | Bounded preparation/retrieval, unchanged retry deadlines, pruning and real BLS verification with host-composed branches |
@@ -808,7 +799,7 @@ release/recovery and publication rejection/retry; `test-tools-evidence` and
 `test-testkit-tools` exercise its setup and CI archive callers, including failure
 and retained evidence. Snapshot integrity still qualifies adopted bytes. No
 product, native-host or release-adapter coverage is removed by this roster change.
-`bash scripts/release/test-tools.sh --tooling` checks actual root tooling admission
+`bash scripts/release/test-tools.sh --tooling` checks actual per-package tooling admission
 before direct publication, including missing-lock and declaration/checksum drift
 refusals without upload effects. `make test-validation-inputs` also checks that
 tooling-lock drift stops later validation stages.
@@ -818,7 +809,7 @@ with local Git and mocked upload effects. It skips unchanged setup and registry
 response matrices; the complete CI target still runs the full fixture.
 
 It uses the Shared Tooling 0.6.6 logger and retains failures. CI declares the
-root Cargo manifest/lock, `toko-tooling.lock`, all member manifests, group policy,
+root Cargo manifest/lock, all member manifests, group policy,
 Rust compiler selection, common host/Rust and IC pins,
 and browser package manifest/lock/Node selection as prepared inputs. Their byte
 identities are checked before and after each stage. A change, deletion or read
@@ -1113,7 +1104,7 @@ in publication state; no cleanup, GitHub Release object or deployment is
 implicit. See [Cargo publication](https://doc.rust-lang.org/cargo/commands/cargo-publish.html)
 for credentials, dry-run and index-propagation semantics.
 
-File mechanics use the published `ic-host-file` executable. Auth pins 0.75.0 in
+File mechanics use the published `ic-host-file` executable. Auth pins 0.76.1 in
 `ci/host-file.env`, independently of the library versions selected by Cargo.lock.
 `make install-host-file` prepares it through Shared Tooling with
 `--features cli`; `make host-file-check` admits that exact selection offline. The
@@ -1189,7 +1180,7 @@ the separate `ic-auth-wire` codec adapter and generates its TypeScript directly
 through published IC Wire. `make test-types` checks its bounds, canonical frames,
 checked identifier projections and local request/result contracts.
 
-The private Wire controls in `apps/qualification/contracts/` are limited to
+The private Wire controls in `crates/ic-auth-qualification-contracts/` are limited to
 controller/certificate qualification. Bounded projections preserve checked
 identifiers; there is no Candid selector or intermediate codec. This is not a
 production consumer dependency. The generated

@@ -10,9 +10,10 @@ use ic_auth::{
     portable_certified::CertifiedProofLimits,
 };
 use ic_auth_protocol_types::*;
-use ic_platform::bls::PrivateKey;
+pub mod certificates;
+use certificates::{certificate, key as bls_key, signature_bytes};
 use ic_platform::canister_sig_creation::CanisterSigPublicKey;
-use ic_platform::certification::{Certificate, fork, labeled, leaf};
+use ic_platform::certification::{fork, labeled, leaf};
 use ic_platform::ecdsa::{PrehashSigner, Signature, SigningKey};
 use sha2::{Digest, Sha256};
 
@@ -44,21 +45,8 @@ fn grant(scopes: &[&str]) -> DelegatedRoleGrant {
 fn root_signing_key() -> SigningKey {
     SigningKey::from_slice(&[7; 32]).unwrap()
 }
-fn bls_key(value: u8) -> PrivateKey {
-    let mut bytes = [0; 32];
-    bytes[31] = value;
-    PrivateKey::deserialize(&bytes).unwrap()
-}
 fn hash(bytes: &[u8]) -> [u8; 32] {
     Sha256::digest(bytes).into()
-}
-fn signature_bytes(value: &Envelope) -> Vec<u8> {
-    ic_platform::certification::cbor::encode_canister_signature(
-        &value.certificate,
-        &value.tree,
-        usize::MAX,
-    )
-    .unwrap()
 }
 use ic_platform::certification::cbor::CanisterSignature as Envelope;
 
@@ -84,13 +72,7 @@ fn issuer_proof_message(
         ),
         labeled(b"time".to_vec(), leaf(time_bytes)),
     );
-    let mut message = b"\x0Dic-state-root".to_vec();
-    message.extend_from_slice(&certificate_tree.digest());
-    let certificate = Certificate {
-        tree: certificate_tree,
-        signature: bls_key(1).sign(&message).serialize().to_vec(),
-        delegation: None,
-    };
+    let certificate = certificate(certificate_tree, &bls_key(1), None);
     IcCanisterSignatureProofV1 {
         signature_cbor: signature_bytes(&Envelope {
             certificate: ic_platform::certification::cbor::encode_certificate(

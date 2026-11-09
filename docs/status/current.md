@@ -1,4 +1,4 @@
-# Current handoff — 2026-11-08
+# Current handoff — 2026-11-09
 
 ## Published state
 
@@ -52,16 +52,107 @@ receipt remain retained. Earlier detail is preserved in Git and `target/delivery
 
 ## Selected tooling, dependencies and footprint
 
-Root metadata selects **toko-tooling 0.34.0** independently of application Cargo
-packages. `toko-tooling.lock` and the installed 172-file snapshot agree on SHA-256
-`5ca8ad09ad9359bc4945a4afdaafce301dd5a4b4955cd5c9f5058d7a54ffcf10`.
-All 84 entrypoints remain. No tooling Cargo dependency or selection-only package
-remains; the real Auth tooling commands and benchmarks stay in `apps/tooling/`.
-Edit the exact root version, then run `make shared-tooling-update`; install reuses
-its existing lock. CI/publication admission and mid-run tooling-lock seals are
-qualified. Migration evidence: `target/tooling-034-migration/`.
+The latest local private-tooling adoption selects **Build 0.81.0**, **Host
+FS/Process/Artifacts 0.76.1**, the separately pinned **Host file CLI 0.76.1** and
+**Testkit 0.95.0** with PocketIC 16.1.0. Wire/derive remains at the latest
+published 0.18.0. Testkit now shares that identity: the temporary
+`ic-wire-testkit` dependency and budget projection are removed, and the runner
+passes canonical method budgets directly. Its managed instance uses Testkit's
+concrete `PocketIcInstance`; awaited deletion and server custody are retained.
+Host HTTP 0.76.1 is added only through native Testkit. The application Wasm
+normal/build graph is unchanged and excludes Build, Host and Testkit. Other
+locked package versions are preserved; no public Auth API, signed bytes or
+stored profile changes. Evidence is under `target/upstream-20261109/`.
 
-The release selects Platform 0.27.0, Types 0.18.2, Runtime/macros/guard 0.20.2,
+Platform 0.27.1, crypto-bigint 0.7.11, syn 3.0.10, itoa 1.0.19 and Host 0.76.1
+were already in the incoming lock before this batch. They are retained separately
+from the targeted Build/Testkit changes in `incoming-selections.json`. The host
+is rebuilt against this current cohort rather than reusing the earlier Wasm.
+Its reference module is **1,870,456 uncompressed bytes**, with a 1,438,017-byte
+code-section payload; SHA-256
+`53abb17ffa5ebdcacf2c76705f82033e198fa93d837e7e0eb72668a40961aaea`.
+No size change is attributed to native Build, Host or Testkit from that different
+cohort. The previous matched Wire/Storage measurements remain separate below.
+
+Native/Wasm Clippy, five tooling tests, ten frozen ECDSA cases and 96 client
+tests pass. All five regenerated browser files are unchanged. The three selected
+CLIs admit offline; real metadata rendering/admission passes for both release
+groups, as does the Testkit setup/CI caller fixture. Installed SDK session/logout,
+upgrade/signed ingress and live-authority certification pass against the rebuilt
+module (`matched-*` logs); ingress deadline/cancellation also passes. The first
+tooling run stopped at the unprepared newly pinned Host CLI; that case passes
+after explicit setup. Earlier installed runs used the prior reference module
+and are retained separately. Cargo.lock stayed unchanged through final checks.
+Snapshot admission, local links, formatting and the diff check pass. No full CI,
+Chromium or release gate ran. Changes remain local, uncommitted and unpublished.
+
+The earlier private-tooling adoption selected **Build 0.80.0** and direct **Host
+FS/Process 0.76.0**, including the separately pinned file CLI, plus **Testkit
+0.94.0**. Native Platform 0.27 and Host 0.76 providers now have single identities;
+the older Testkit-only copies are removed. Other package identities and root
+Tooling selection are preserved; public normal/build graphs exclude native tools.
+Affected native Clippy, five tooling tests, generated-contract freshness and
+both groups' real metadata rendering/admission pass. Both new CLIs were explicitly
+prepared and admitted. Evidence: `target/build-host-adoption/`. Changes remain
+uncommitted; package versions remain 0.35.10 and 0.35.1. The subsequent Wire
+adoption below advances the pending combined-delivery notes to 0.36.0.
+Testkit's locked CLI/server setup and offline admission pass with PocketIC 16.1.0.
+Native runner Clippy, its setup/CI caller fixture and three installed cases pass:
+certification/upgrade, real ingress delegation across upgrade and deadline/abort.
+No Rust API migration was needed. Evidence: `target/testkit-adoption/`; it retains
+an initial evidence-directory collision and the successful isolated ingress rerun.
+No full gate or publication ran for this private adoption.
+
+The working checkout selects **toko-tooling 0.36.0** through one exact root
+workspace dependency, inherited as a dev-dependency by all ten real packages.
+Each package exempts that source-bundle dependency from cargo-machete. Cargo.lock
+and the installed 173-file snapshot agree on SHA-256
+`de0dd05b6437061622a76942baa25d40d2181497e7ba66d9fd809132a3082936`.
+The old metadata selection and dedicated tooling lock are removed. The producer
+installer authenticated registry payloads and preserved all recorded entrypoints;
+no selection-only package or artificial Rust import is introduced. Real Auth
+generators, benchmarks and qualification packages are retained. Cargo introduced only the tooling
+package during this migration; incoming dependency updates are preserved separately. Evidence: `target/tooling-036-adoption/`.
+The published 0.35.10 receipt and historical changelogs retain their truthful old
+selection. No product publication is included in this adoption.
+
+The initial Wire adoption selected published **Wire/derive 0.18.0** and matching
+**Storage 0.70.0**. Platform 0.27.0, Types 0.18.3,
+Metrics 0.29.7 and the private-tool versions above are preserved. Published
+Testkit 0.94.0 then used Wire 0.17: the native runner projected every canonical
+request/response budget through a private `ic-wire-testkit` dev-dependency,
+now removed by the Testkit 0.95 adoption above.
+The Wasm host has one Wire 0.18 identity and one Runtime executor/generator/guard;
+public normal/build graphs exclude Testkit and that older Wire boundary.
+All five regenerated browser contract/runtime files are byte-for-byte unchanged.
+Method IDs, budgets, signed bytes, cryptographic policy and stored profiles are
+preserved. The exposed Wire Rust type identity changes, so the next combined
+Protocol/Engine delivery has pending 0.36.0 notes; package versions are unchanged.
+
+Locked fetch, affected native/Wasm Clippy, protocol/tooling/codec/session/proof
+tests, all three public package archive builds and 96 client tests pass.
+Three installed cases pass for typed refusals/retry, SDK admission/logout across
+receivers/devices and upgrade/signed ingress, and live-authority certification
+after upgrade. Snapshot admission and the single-owner Wasm graph check pass.
+Cargo.lock remained unchanged through those checks. Evidence, registry selections
+and source-bound artifacts are under `target/wire-adoption/`.
+The matched Wire/Storage update adds **997 total / 298 code bytes** to the
+reference Wasm under unchanged build settings; [the measurement](../canonical-allocation-observations.md#wire-018-and-storage-070-adoption--2026-11-08)
+records both artifacts and limits. No runtime speedup or production Canic size is
+inferred. This adoption is local, uncommitted and unpublished; full CI and
+Chromium were not run.
+
+An external lock update then selected Runtime/macros/guard **0.20.3**. Its
+upstream change adopts Tooling 0.36 in dev-dependencies while preserving normal
+dependencies, generated code and executor behavior. The incoming lock is retained
+separately as `incoming-runtime.Cargo.lock`. Native/Wasm Clippy and all three
+installed cases pass again with that lock unchanged; artifacts and logs remain
+under the same evidence directory. At that selection the reference module was
+1,869,903 bytes, with the same 1,437,987-byte code section as the measured Wire/
+Storage adoption. The linked matched table uses Runtime 0.20.2 on both sides;
+the later Runtime selection is not attributed to Wire or mixed into that pair.
+
+The published release selects Platform 0.27.0, Types 0.18.2, Runtime/macros/guard 0.20.2,
 Testkit 0.93.2, Storage 0.69.0, Wire/derive 0.17.14, Build 0.79.1, Host 0.75.1
 and Metrics 0.29.6. Testkit retains Platform 0.26.1 only in native helpers; the
 Wasm host keeps one facade and one Runtime executor/generator/guard. Rust remains
@@ -80,6 +171,70 @@ Earlier matched scope cleanup used Platform 0.26.1 and its own fixed lock/compil
 1,798 total / 992 code bytes saved, evidence `target/evidence/scope-surface-20261108/`.
 [Other allocation observations](../canonical-allocation-observations.md#signature-retention-and-shared-grants--2026-11-08)
 retain their original source/dependency limits and evidence. No speedup is claimed.
+
+## Tooling and package layout — #129
+
+[#129](https://github.com/dragginzgame/ic-auth/issues/129) is closed as locally
+implemented and qualified; its closure note records the delivery state.
+
+Published Toko Tooling 0.36.0 was adopted and checked before relocating packages.
+All seven private packages now live under `crates/<package-name>/`. Names,
+versions, feature declarations, dependencies, targets and publication roles match
+the pre-move Cargo inventory. The move itself left Cargo.lock bytes unchanged.
+Workspace paths, generator/profile inputs, native browser paths, archive callers,
+release ownership and active guides follow the new locations. The obsolete
+non-fleet `apps/` reservation is removed; no compatibility directory, symlink,
+selection-only package or sibling change was introduced.
+
+Incoming Storage 0.69.1 was already selected at the start. Metrics 0.29.7 and
+Types 0.18.3 arrived externally during qualification and are preserved. The final
+lock stayed unchanged through the current Types 0.18.3 checks. Focused protocol/
+proof tests, native/Wasm Clippy and the rebuilt host pass, as do three installed
+SDK/session/certification cases covering the relocated Node callers, logout,
+upgrade and real ingress. Backend archive/consumer/scenario qualification also
+passes with the same registry identities. Its scenarios use a separate generated
+workspace so test-only dependencies resolve without modifying the extracted
+package or adding it to the real consumer's workspace.
+
+Metadata/membership comparison, formatting, source boundaries, generated-contract
+freshness, client/jobserver callers, release-plan ownership (including relocated
+host/runner cases), CI input sealing and publication admission pass. Common CI/
+release entrypoints and the direct publisher retain tooling admission before
+effects. Evidence is under `target/tooling-036-adoption/` and `target/layout-129/`;
+`incoming-types-*` records the final cohort. Earlier failures remain retained with
+their fixes/reruns. Full CI, the complete frozen archive matrix and Chromium were
+not run. Changes remain uncommitted, unpushed and unpublished.
+
+Remaining old selection/path mentions are deliberate retired-input rejection
+fixtures, the dated Canic source review, shipped changelogs/publication evidence
+and immutable producer-owned fleet snapshots. They are not active Auth callers;
+no snapshot-owned file or historical receipt was hand-edited.
+
+## Local complexity cleanup
+
+The current batch keeps grant-validation evidence tied to immutable input,
+separates metadata/credential journal transactions, shares deterministic test
+construction, narrows permissive-feature qualification and gives release fixtures
+explicit scenario dispatch with one admission substitute. The browser unknown
+state is typed while preserving uncertainty without a recoverable sequence.
+Public Rust APIs, signed bytes, crypto/trust policy and stored profiles remain
+unchanged. The original session/replay expiry indexes are retained: their proposed
+replacement increased the reference module by 11,909 total / 10,001 code bytes.
+State-specific login retention was not introduced because preserving its codec
+would add a parallel representation.
+
+The retained grant change saves **568 total / 454 code bytes** in matched builds;
+[the comparison](../canonical-allocation-observations.md#grant-evidence-and-rejected-expiry-queue--2026-11-08)
+records absolute sizes, source/dependency limits and the rejected experiment.
+Evidence is under `target/complexity-cleanup/`. Focused native Clippy, 147 regular
+Rust cases, 12 permissive-feature cases, 96 client cases, the reference Wasm build,
+jobserver/Testkit callers and release `--commands`, `--tooling` and `--validation`
+cases pass. The final release/recovery run is
+`release-validation-stable.log`, using an unchanged driver checksum; the earlier
+run's final shell-read failure is retained separately. Snapshot admission, local
+links and the diff check pass. No complete CI gate or native frozen-batch archive
+matrix was run for this cleanup. Changes remain local and pending; no product
+release/version preparation or publication is part of this batch.
 
 ## Storage and consumer boundaries
 

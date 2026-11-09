@@ -27,9 +27,13 @@ Toko NFTs remain in Toko. Auth requires no Solana RPC, minting or asset custody.
 | `ic-auth` | Canonical signed bytes, certificate/proof verification and issuance rules, signature preparation and transaction-based local sessions. Verification/host effects are explicit capabilities; the crate installs no endpoints or trust. |
 | `ic-auth-wire` | Bounded Auth method/data layouts and structural domain projections over IC Wire. Generated browser codecs come from that dependency's generator. |
 | `packages/client` | Private portable admission coordinator, guarded SDK identity and durable logout journal/transport. Identity, issuer/admission operations and storage are injected. |
-| `apps/tooling` | Native file operations through IC Host and generic lock admission through IC Build. Auth owns release identity, exact package policy and upload/retry decisions. |
-| `apps/qualification` | Private CDK/Testkit hosts, bounded Wire controls and an IC Memory fixture checkpoint. Reference integration evidence, not production service or storage. |
-| `apps/wallet-auth` (planned) | Future wallet endpoints, protected configuration, identity mappings, nonce state, storage, certification and lifecycle. No service exists yet. |
+| `crates/ic-auth-tooling` | Native file operations through IC Host and generic lock admission through IC Build. Auth owns release identity, exact package policy and upload/retry decisions. |
+| Private qualification/conformance crates under `crates/` | CDK/Testkit host and runner, bounded Wire controls, reusable fixtures, feature-unification and backend checks. Reference integration evidence with Storage-owned fixture backing, not a production service or storage adapter. |
+
+Every maintained Rust package uses `crates/<package-name>/`, regardless of
+publication eligibility. `apps/` is reserved for Canic fleets, which this repository
+does not contain. The future standalone wallet service remains unimplemented;
+no directory or package is reserved for it.
 
 The Rust public entry points are the library modules under `crates/`; the private
 browser export is `packages/client/src/index.ts`. Auth Wire methods carry layouts

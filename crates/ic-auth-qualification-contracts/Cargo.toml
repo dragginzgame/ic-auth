@@ -12,6 +12,9 @@ description = "Internal bounded Wire contracts for Auth qualification"
 [package.metadata.shared-tooling.loc]
 category = "tests"
 
+[package.metadata.cargo-machete]
+ignored = ["toko-tooling"]
+
 # These controls are unpublished; application methods remain in ic-auth-wire.
 [dependencies]
 ic-auth-protocol-types.workspace = true
@@ -19,6 +22,9 @@ ic-auth-wire.workspace = true
 ic-wire.workspace = true
 
 serde.workspace = true
+
+[dev-dependencies]
+toko-tooling.workspace = true
 
 [lints]
 workspace = true

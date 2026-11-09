@@ -197,10 +197,9 @@ SCRIPT
 # Substitute the current Make admission boundary. Ordinary CI checks tooling
 # before its runner seals inputs, then check-snapshot runs inside that seal.
 # Inject drift only at the latter boundary; intact tooling is qualified separately.
-cat > "$consumer/scripts/dev/shared-tooling.sh" <<'SCRIPT'
-#!/usr/bin/env bash
-set -euo pipefail
-[[ "${1:-}" == check ]]
+source "$root/scripts/ci/auth-fixture-tooling.sh"
+auth_fixture_tooling_check "$consumer"
+cat >> "$consumer/scripts/dev/shared-tooling.sh" <<'SCRIPT'
 if [[ "${VALIDATION_INPUT_ROOT:-}" != "$PWD" ]]; then
     printf 'tooling admission\n' >> "$TESTKIT_FIXTURE_LOG"
     exit 0

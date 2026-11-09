@@ -144,4 +144,16 @@ rg -F 'Cargo and validation groups differ' "$evidence/roster-drift.log" > /dev/n
 cp target/roster.saved ci/release-validation.json
 [[ -z $(git status --porcelain=v1 --untracked-files=all) ]]
 # End roster drift case.
+# Relocated private host/runner source retains Engine ownership. Selecting a
+# plan here exercises the real classifier without replaying stage bodies.
+for path in crates/ic-auth-qualification-canister/src/lib.rs crates/ic-auth-qualification/tests/session_metrics.rs; do
+    git reset --hard -q "$baseline"
+    printf '\n// Relocated Engine-owned source.\n' >> "$path"
+    git add "$path"; git commit -qm 'Relocated Engine owner change'
+    selected=$(git rev-parse HEAD)
+    directory="target/relocated-${path#crates/}"
+    mkdir -p "$directory"
+    perl scripts/release/validation-plan.pl "$selected" engine "$RELEASE_PREVIOUS" "$directory"
+    jq -e '.group == "engine" and .scope == "group" and any(.stages[]; .required == false)' "$directory/plan.json" >/dev/null
+done
 printf 'Both groups, shared expansion, required/excluded failures, stale selection, retained evidence and complete CI dispatch passed (substituted stage bodies)\n'

@@ -13,10 +13,16 @@ description = "Portable Auth backend contract scenarios for native qualification
 [package.metadata.shared-tooling.loc]
 category = "tests"
 
+[package.metadata.cargo-machete]
+ignored = ["toko-tooling"]
+
 [dependencies]
 ic-auth = { workspace = true, features = ["session-restore", "portable-signature-verification"] }
 ic-auth-protocol-types.workspace = true
 ic-platform = { workspace = true, features = ["ed25519"] }
+
+[dev-dependencies]
+toko-tooling.workspace = true
 
 [lints]
 workspace = true

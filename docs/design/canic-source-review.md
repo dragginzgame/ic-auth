@@ -193,7 +193,8 @@ version is `0.1.6`; canonical Canic consumer adoption remains separately scoped.
 
 ## Subsequent canister/PocketIC qualification
 
-The internal host/runner under `apps/qualification/` exercises the published
+At the time of this review, the internal host/runner under `apps/qualification/`
+exercised the published
 library against an actual canister runtime. The host owns clock/caller acquisition,
 controller signing guards, stable metadata and composed root publication; no
 effect moved into the pure libraries. It resets pending signatures on upgrade

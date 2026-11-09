@@ -85,7 +85,7 @@ for my $path (@changed) {
     next if $path eq $owner->{changelog} || $path eq 'docs/status/current.md';
     my $owned = $group eq 'protocol'
         ? $path =~ m{\Acrates/ic-auth-(?:protocol-types|wire)/(?:src|tests)/[^\r\n]*\.rs\z}
-        : $path =~ m{\A(?:crates/ic-auth|apps/qualification/[^/]+)/(?:src|tests)/[^\r\n]*\.rs\z};
+        : $path =~ m{\Acrates/ic-auth(?:-(?:qualification(?:-[^/]+)?|backend-conformance|feature-unification))?/(?:src|tests)/[^\r\n]*\.rs\z};
     $narrow = 0 unless $owned;
 }
 my @files = map { decode('UTF-8', $_, FB_CROAK) } split /\0/, command('git', 'ls-tree', '-r', '--name-only', '-z', $source);

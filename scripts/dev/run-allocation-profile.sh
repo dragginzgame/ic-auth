@@ -18,8 +18,8 @@ printf '%s allocation evidence retained: %s\n' "$label" "$evidence"
 tool="$(bash scripts/dev/host-file-tools.sh check)"
 {
     rg --files crates/ic-auth/src crates/ic-auth-protocol-types/src -0
-    printf '%s\0' Cargo.toml Cargo.lock rust-toolchain.toml apps/tooling/Cargo.toml \
-        "apps/tooling/benches/${profile}_allocations.rs" apps/tooling/benches/allocation_profile/mod.rs \
+    printf '%s\0' Cargo.toml Cargo.lock rust-toolchain.toml crates/ic-auth-tooling/Cargo.toml \
+        "crates/ic-auth-tooling/benches/${profile}_allocations.rs" crates/ic-auth-tooling/benches/allocation_profile/mod.rs \
         "scripts/dev/profile-$profile-allocations.sh" "${BASH_SOURCE[0]}"
 } > "$evidence/inputs.nul"
 "$tool" hash-files0 8388608 4194304 4096 < "$evidence/inputs.nul" > "$evidence/before.hashes"

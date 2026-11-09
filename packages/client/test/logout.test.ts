@@ -1,4 +1,5 @@
-import { Endpoint, SubmitRequestType, ReadRequestType, Expiry } from '@tokostudios/ic-platform/agent';
+import { signingRequest } from './support/requests.js';
+import { Endpoint, ReadRequestType, Expiry } from '@tokostudios/ic-platform/agent';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { IDBFactory } from 'fake-indexeddb';
@@ -173,7 +174,7 @@ test('missing handle and lost replies remain unknown, never implicit success', a
 test('journal transaction failure cannot publish logout or partially add a target', async () => {
   const f = await fixture(async () => { assert.fail('must not dispatch'); });
   try {
-    await assert.rejects(f.store.transact(record => {
+    await assert.rejects(f.store.transactCredential(record => {
       assert.ok(record); record.phase = 'cleanup'; throw new Error('abort');
     }));
     assert.equal((await f.client.status('login-a')).phase, 'active');
@@ -246,26 +247,32 @@ test('durable target capacity is shared across connections and does not evict ev
 test('journal rejects incompatible stored shape without overwriting retained state', async () => {
   const f = await fixture(async () => revoked);
   try {
-    await assert.rejects(f.store.transact(record => {
+    await assert.rejects(f.store.transactCredential(record => {
       assert.ok(record);
       return { record: { ...record, unknownFutureField: true }, value: undefined };
     }), (error: unknown) => error instanceof ClientError && error.code === 'storage_corrupt');
     assert.equal((await f.client.status('login-a')).phase, 'active');
-    await assert.rejects(f.store.transact(record => {
+    await assert.rejects(f.store.transactCredential(record => {
       assert.ok(record);
       // @ts-expect-error Active records cannot carry a cleanup deadline.
-      const invalid: import('../src/index.js').LogoutJournal = { ...record, phase: 'active', deadlineNs: 1n };
+      const invalid: import('../src/logout-store.js').CredentialJournal = { ...record, phase: 'active', deadlineNs: 1n };
       return { record: invalid, value: undefined };
     }), (error: unknown) => error instanceof ClientError && error.code === 'storage_corrupt');
     const retained = await f.client.status('login-a');
     assert.equal(retained.phase, 'active');
     assert.equal(retained.deadlineNs, 0n);
-    await assert.rejects(f.store.transact(record => {
+    await assert.rejects(f.store.transactCredential(record => {
       assert.ok(record);
       // @ts-expect-error Pending issuance cannot contain a frame without its original expiry.
-      const invalid: import('../src/index.js').LogoutJournal = { ...record, issuanceUnknown: true, issuance: { sequence: 0n, bytes: new Uint8Array([1]) } };
+      const invalid: import('../src/logout-store.js').CredentialJournal = { ...record, issuanceUnknown: true, issuance: { sequence: 0n, bytes: new Uint8Array([1]) } };
       return { record: invalid, value: undefined };
-    }, true), (error: unknown) => error instanceof ClientError && error.code === 'storage_corrupt');
+    }), (error: unknown) => error instanceof ClientError && error.code === 'storage_corrupt');
+    await assert.rejects(f.store.transact(record => {
+      assert.ok(record);
+      // @ts-expect-error Metadata writes cannot introduce credential frames.
+      const invalid: import('../src/index.js').LogoutJournal = { ...record, issuanceUnknown: true, issuance: { sequence: 0n, untilNs: 1n, bytes: new Uint8Array([1]) } };
+      return { record: invalid, value: undefined };
+    }), (error: unknown) => error instanceof ClientError && error.code === 'storage_corrupt');
     assert.equal((await f.client.status('login-a')).issuance, undefined);
     const wrongClock = new PortableLogoutClient(f.store, { ...f.clock, id: 'different-domain' }, f.transport);
     await assert.rejects(wrongClock.begin('login-a', f.state.now + 10_000n * MS), ClientError);
@@ -301,11 +308,11 @@ test('guarded SDK identity signs unchanged requests only for active, inventoried
   try {
     const guarded = f.client.guardedIdentity('login-a', identity);
     assert.equal(guarded.getPrincipal().toText(), identity.getPrincipal().toText());
-    const request = signingRequest(issuer);
+    const request = signingRequest(identity, issuer, 'read');
     assert.deepEqual(await guarded.transformRequest(request), await identity.transformRequest(request));
-    await assert.rejects(guarded.transformRequest(signingRequest(receiver)), ClientError);
+    await assert.rejects(guarded.transformRequest(signingRequest(identity, receiver, 'read')), ClientError);
     await f.client.destination('login-a', receiver, f.state.now + MS);
-    assert.deepEqual(await guarded.transformRequest(signingRequest(receiver)), await identity.transformRequest(signingRequest(receiver)));
+    assert.deepEqual(await guarded.transformRequest(signingRequest(identity, receiver, 'read')), await identity.transformRequest(signingRequest(identity, receiver, 'read')));
     await f.client.begin('login-a', f.state.now + 10_000n * MS);
     await assert.rejects(guarded.transformRequest(request), (error: unknown) => error instanceof ClientError && error.code === 'stale_generation');
   } finally { f.store.close(); }
@@ -325,7 +332,7 @@ test('logout in another tab rejects a signature that completes asynchronously af
         return identity.transformRequest(request);
       },
     };
-    const signature = f.client.guardedIdentity('login-a', slow).transformRequest(signingRequest(issuer));
+    const signature = f.client.guardedIdentity('login-a', slow).transformRequest(signingRequest(identity, issuer, 'read'));
     const refused = assert.rejects(signature, (error: unknown) => error instanceof ClientError && error.code === 'stale_generation');
     await begun;
     await new PortableLogoutClient(store, f.clock, f.transport).begin('login-a', f.state.now + 10_000n * MS);
@@ -340,24 +347,17 @@ test('guard rejects a wrong generation, replaced identity and unavailable storag
   let principal = identity.getPrincipal();
   const tracked = { getPrincipal: () => principal, transformRequest: async () => { signatures++; return {}; } };
   try {
-    await assert.rejects(f.client.guardedIdentity('wrong', tracked).transformRequest(signingRequest(issuer)), ClientError);
+    await assert.rejects(f.client.guardedIdentity('wrong', tracked).transformRequest(signingRequest(identity, issuer, 'read')), ClientError);
     const guarded = f.client.guardedIdentity('login-a', tracked);
     principal = other.getPrincipal();
-    await assert.rejects(guarded.transformRequest(signingRequest(issuer)), ClientError);
+    await assert.rejects(guarded.transformRequest(signingRequest(identity, issuer, 'read')), ClientError);
     principal = identity.getPrincipal();
     f.store.close();
-    await assert.rejects(guarded.transformRequest(signingRequest(issuer)), ClientError);
+    await assert.rejects(guarded.transformRequest(signingRequest(identity, issuer, 'read')), ClientError);
     assert.equal(signatures, 0);
   } finally { f.store.close(); }
 });
 
-function signingRequest(target: Principal): Parameters<typeof identity.transformRequest>[0] {
-  return {
-    endpoint: Endpoint.Call, request: { method: 'POST' },
-    body: { request_type: SubmitRequestType.Call, canister_id: target, method_name: 'read',
-      arg: new Uint8Array(), sender: identity.getPrincipal(), ingress_expiry: Expiry.fromJSON('{"__expiry__":"100000000000"}') },
-  };
-}
 
 test('cleanup signing cannot escape its selected destination or survive completion in another tab', async () => {
   let release!: () => void;
@@ -372,8 +372,8 @@ test('cleanup signing cannot escape its selected destination or survive completi
   };
   let handedBack = false;
   const f = await fixture(async (_target, guarded) => {
-    await assert.rejects(guarded.transformRequest(signingRequest(receiver)), ClientError);
-    await guarded.transformRequest(signingRequest(issuer));
+    await assert.rejects(guarded.transformRequest(signingRequest(identity, receiver, 'read')), ClientError);
+    await guarded.transformRequest(signingRequest(identity, issuer, 'read'));
     handedBack = true;
     return revoked;
   });
@@ -413,9 +413,9 @@ for (const outcome of ['confirmed', 'lost'] as const) {
         if (!retained) {
           retained = guarded;
           firstSignal = signal;
-          await guarded.transformRequest(signingRequest(issuer));
+          await guarded.transformRequest(signingRequest(identity, issuer, 'read'));
           pauseSigning = true;
-          late = Promise.allSettled([guarded.transformRequest(signingRequest(issuer))]);
+          late = Promise.allSettled([guarded.transformRequest(signingRequest(identity, issuer, 'read'))]);
           await started; // This signing operation began during the first attempt.
           if (outcome === 'lost') throw new Error('lost first reply');
         }
@@ -431,7 +431,7 @@ for (const outcome of ['confirmed', 'lost'] as const) {
           ingress_expiry: Expiry.fromJSON('{"__expiry__":"100000000000"}') },
       };
       refused = await Promise.allSettled([
-        retained!.transformRequest(signingRequest(issuer)),
+        retained!.transformRequest(signingRequest(identity, issuer, 'read')),
         retained!.transformRequest(readState),
       ]);
       return revoked;
@@ -568,7 +568,7 @@ test('guarded identity returns detached Principals while preserving signing auth
     guarded.getPrincipal().toUint8Array().fill(0);
     assert.equal(caller.toText(), identity.getPrincipal().toText());
     assert.equal(guarded.getPrincipal().toText(), identity.getPrincipal().toText());
-    assert.deepEqual(await guarded.transformRequest(signingRequest(issuer)), await identity.transformRequest(signingRequest(issuer)));
+    assert.deepEqual(await guarded.transformRequest(signingRequest(identity, issuer, 'read')), await identity.transformRequest(signingRequest(identity, issuer, 'read')));
   } finally { f.store.close(); }
 });
 
@@ -609,4 +609,26 @@ test('an aborted cleanup decision cannot consume a lease or dispatch a receiver 
     assert.equal((await f.client.cleanup('login-a', identity)).phase, 'finished');
     assert.equal(calls, 1);
   } finally { f.store.close(); }
+});
+
+test('retained unknown issuance survives reopen and cleanup without a recoverable sequence', async () => {
+  const f = await fixture(async () => revoked);
+  let reopened: IndexedDbLogoutStore | undefined;
+  try {
+    await f.store.transact(record => {
+      assert.ok(record);
+      return { record: { ...record, issuanceUnknown: true }, value: undefined };
+    });
+    f.store.close();
+    reopened = await IndexedDbLogoutStore.open(f.factory, 'logout');
+    const client = new PortableLogoutClient(reopened, f.clock, f.transport);
+    const retained = await client.status('login-a');
+    assert.equal(retained.issuanceUnknown, true);
+    assert.equal(retained.issuance, undefined);
+    await client.begin('login-a', f.state.now + 10_000n * MS);
+    const finished = await client.cleanup('login-a', identity);
+    assert.equal(finished.phase, 'finished');
+    assert.equal(finished.issuanceUnknown, true);
+    assert.equal(finished.issuance, undefined);
+  } finally { reopened?.close(); f.store.close(); }
 });

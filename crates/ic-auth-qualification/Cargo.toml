@@ -12,6 +12,9 @@ description = "Internal IC Testkit and ingress-delegation qualification"
 [package.metadata.shared-tooling.loc]
 category = "tests"
 
+[package.metadata.cargo-machete]
+ignored = ["toko-tooling"]
+
 [dev-dependencies]
 ic-auth = { workspace = true, features = ["sessions", "certified-proof-verification", "portable-signature-verification"] }
 ic-auth-protocol-types.workspace = true
@@ -28,6 +31,7 @@ ic-wire.workspace = true
 serde.workspace = true
 sha2.workspace = true
 tokio = { workspace = true, features = ["macros"] }
+toko-tooling.workspace = true
 
 [lints]
 workspace = true

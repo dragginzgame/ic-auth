@@ -21,8 +21,10 @@ receipt describes a candidate, not a delivered revision.
 
 `make test-backend-package` qualifies a fresh archive in a separate consumer
 workspace, using the exact registry Engine and Protocol versions and the source bundle
-only as a dev dependency. It compiles a trait/error identity witness, runs all
-packaged scenarios, checks invalid source/dependency graph variants and seals source,
+only as a dev dependency. It compiles a trait/error identity witness, then runs
+packaged scenarios in a separate generated workspace using the unchanged normalized
+manifest, so the bundle's test-only dependencies resolve independently. It checks invalid source/dependency graph
+variants and seals source,
 archive and consumer inputs. The printed evidence directory retains logs,
 metadata and `delivery.json` with source/dirty state, separate Engine/Protocol
 versions and archive SHA-256. The bundle follows Engine's version; Protocol can
@@ -37,7 +39,7 @@ The latest clean delivered bundle targets published Engine **0.35.8** and Protoc
 **0.35.1**, with Platform 0.26 and Types 0.18.2. Keep the single-Platform/Types
 admission intact across consumer and source bundle. Earlier archives retain their
 original graphs. Use the
-[current delivery receipt](../../../docs/status/current.md#clean-backend-helper-delivery)
+[0.35.8 delivery receipt](https://github.com/dragginzgame/ic-auth/blob/291fbf192c7dd69df7292cb062c5fc0a312f4a7f/docs/status/current.md#clean-backend-helper-delivery)
 for the exact clean source, archive and checksum.
 
 Extract this source archive into the consumer's test-support directory and add

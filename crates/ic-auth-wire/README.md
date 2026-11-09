@@ -39,7 +39,7 @@ trap so local effects roll back. Never retry an unknown issuance as new work.
 `typescript` enables Wire's host generator and its `platform-types` metadata for
 Platform's owned Principal. Canister dependencies
 should leave it disabled. Generated TypeScript and Rust use the same layouts and
-IC Wire's bounded codec with strict primitive parsing. Wire 0.7 does not
+IC Wire's bounded codec with strict primitive parsing. The native codec does not
 reserialize decoded values: maps, sets and custom Serde visitors may normalize
 input. Auth transport uses order-preserving lists and opaque signed bytes;
 semantic scope/grant validation remains in Auth. Retain original bytes for exact
@@ -52,7 +52,7 @@ used that old format. There is no Candid fallback. Current portable logout
 journals retain unknown issuance and durable invalidation; this migration does
 not authorize discarding them.
 
-The `wire` re-export uses the root-selected IC Wire supplier and canonical
+The `wire` re-export uses root-selected IC Wire 0.18 and canonical
 Platform Types Principal schemas. Align direct Wire and Types dependencies when
 exchanging Rust identities; preserve bytes, limits and method IDs. Release history
 records earlier supplier combinations. Invalid primitive encodings return

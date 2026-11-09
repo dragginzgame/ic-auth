@@ -16,10 +16,11 @@ floor="$(bash scripts/dev/msrv-tools.sh floor)"
 name="ic-auth-backend-conformance-$version"
 consumer="$evidence/consumer"
 bundle="$consumer/test-support/$name"
+scenarios="$consumer/test-support"
 export CARGO_TARGET_DIR="$evidence/target"
 mkdir -p "$consumer/src" "$consumer/test-support"
 {
-    rg --files apps/qualification/backend-conformance -0
+    rg --files crates/ic-auth-backend-conformance -0
     printf '%s\0' Cargo.toml Cargo.lock crates/ic-auth/Cargo.toml crates/ic-auth-protocol-types/Cargo.toml rust-toolchain.toml ci/host-file.env \
         scripts/dev/test-backend-package.sh scripts/ci/check-backend-package-graph.sh \
         scripts/ci/test-backend-package-graph.sh scripts/ci/auth-dependency-policy.sh
@@ -58,6 +59,14 @@ ic-auth-protocol-types = "=$protocol_version"
 [dev-dependencies]
 ic-auth-backend-conformance = { path = "test-support/$name" }
 TOML
+# Keep the delivered package excluded from the real consumer. A separate
+# generated workspace can exercise its own dev-dependencies without changing
+# any extracted source or inheriting Auth's surrounding development workspace.
+cat > "$scenarios/Cargo.toml" <<TOML
+[workspace]
+members = ["$name"]
+resolver = "3"
+TOML
 cat > "$consumer/src/lib.rs" <<'RUST'
 #[cfg(test)]
 pub mod identity {
@@ -76,13 +85,26 @@ cp "$evidence/metadata.stdout.log" "$evidence/metadata.json"
 bash scripts/ci/check-backend-package-graph.sh "$evidence/metadata.json" "$bundle/Cargo.toml" "$version" "$protocol_version"
 run graph-refusals bash scripts/ci/test-backend-package-graph.sh "$evidence/metadata.json" \
     "$bundle/Cargo.toml" "$version" "$protocol_version" "$evidence/graph-refusals"
+cp "$consumer/Cargo.lock" "$scenarios/Cargo.lock"
+run scenario-metadata cargo metadata --offline --format-version 1 --manifest-path "$scenarios/Cargo.toml"
+jq -e --slurpfile consumer "$evidence/metadata.json" '
+    . as $scenario
+    | ([.packages[] | select(.name == "ic-auth-backend-conformance") | .id] == .workspace_members)
+    and all(["ic-auth", "ic-auth-protocol-types", "ic-platform", "ic-platform-types"][];
+        . as $name
+        | [$scenario.packages[] | select(.name == $name) | {name,version,source}]
+          == [$consumer[0].packages[] | select(.name == $name) | {name,version,source}])
+' "$evidence/scenario-metadata.stdout.log" > /dev/null
+
 {
     find "$bundle" ! -type d -print0
-    printf '%s\0' "$consumer/Cargo.toml" "$consumer/Cargo.lock" "$consumer/src/lib.rs" "$evidence/metadata.json"
+    printf '%s\0' "$consumer/Cargo.toml" "$consumer/Cargo.lock" "$consumer/src/lib.rs" "$evidence/metadata.json" \
+        "$scenarios/Cargo.toml" "$scenarios/Cargo.lock" "$evidence/scenario-metadata.stdout.log"
 } > "$evidence/consumer-inputs.nul"
 "$tool" hash-files0 8388608 4194304 4096 < "$evidence/consumer-inputs.nul" > "$evidence/consumer-before.hashes"
 run consumer cargo test --locked --offline --manifest-path "$consumer/Cargo.toml"
-run scenarios cargo test --locked --offline --manifest-path "$consumer/Cargo.toml" -p ic-auth-backend-conformance
+# The package's own dev-dependencies belong only to its isolated test graph.
+run scenarios cargo test --locked --offline --manifest-path "$scenarios/Cargo.toml"
 "$tool" hash-files0 8388608 4194304 4096 < "$evidence/consumer-inputs.nul" > "$evidence/consumer-after.hashes"
 cmp "$evidence/consumer-before.hashes" "$evidence/consumer-after.hashes"
 inputs > "$evidence/after.hashes"

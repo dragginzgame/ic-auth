@@ -199,6 +199,17 @@ fn signed_claim_changes_fail_and_success_does_not_imply_admission() {
     );
 }
 
+fn noncanonical_scalar(mut bad: [u8; 64]) -> [u8; 64] {
+    let order: [u8; 32] = hex("edd3f55c1a631258d69cf7a2def9de1400000000000000000000000000000010");
+    let mut carry = 0u16;
+    for (byte, add) in bad[32..].iter_mut().zip(order) {
+        let sum = u16::from(*byte) + u16::from(add) + carry;
+        *byte = sum as u8;
+        carry = sum >> 8;
+    }
+    bad
+}
+
 #[test]
 fn strict_signature_lengths_scalars_and_small_order_points() {
     for len in [0, 1, 32, 63, 65, 128] {
@@ -214,14 +225,7 @@ fn strict_signature_lengths_scalars_and_small_order_points() {
     }
     // S + the group order encodes the same scalar modulo l, but must fail even
     // when another consumer enables Dalek's legacy_compatibility feature.
-    let mut bad = signature();
-    let order: [u8; 32] = hex("edd3f55c1a631258d69cf7a2def9de1400000000000000000000000000000010");
-    let mut carry = 0u16;
-    for (byte, add) in bad[32..].iter_mut().zip(order) {
-        let sum = u16::from(*byte) + u16::from(add) + carry;
-        *byte = sum as u8;
-        carry = sum >> 8;
-    }
+    let mut bad = noncanonical_scalar(signature());
     assert_eq!(verify(&claims(), &bad), Err(Error::InvalidSignature));
     bad = signature();
     bad[32..].fill(255);
@@ -568,4 +572,75 @@ fn prepared_issuer_key_retains_original_identity_and_refuses_weak_material() {
         PreparedIssuerKey::new(supplied),
         Err(Error::InvalidPublicKey)
     );
+}
+
+// This entrypoint is also exercised by the private feature-unification consumer.
+// Ledger maintenance/restore tests remain in their normal suite, not this graph.
+#[cfg(feature = "sessions")]
+#[test]
+fn session_admission_refuses_noncanonical_scalar_before_installing_state() {
+    use ic_auth::{
+        portable::MemoryLoginRevocations,
+        portable_credential::{PortableCredentialError, PortableVerificationContext},
+        session::{
+            MemorySessionStore, SessionAdmissionContext, SessionError, SessionLimits,
+            SessionPolicy, SessionReader, establish_session,
+        },
+        session_request::{SessionRequest, SessionTtlPolicy},
+    };
+    use ic_auth_protocol_types::{PortableCredential, PortableProof};
+    let c = claims();
+    let grants = ValidatedGrants::new(c.grants.clone()).unwrap();
+    let ctx = context(&c, &grants);
+    let key = ic_auth::portable_signature::PreparedIssuerKey::new(public_key()).unwrap();
+    let admission = SessionAdmissionContext {
+        verification: PortableVerificationContext::Ed25519 {
+            claims: &ctx,
+            public_key: &key,
+        },
+        role: &c.grants[0].target,
+        ttl: SessionTtlPolicy::new(1, 1).unwrap(),
+    };
+    let mut store = MemorySessionStore::new(0, SessionLimits::new(1, 1, 1, 4096).unwrap());
+    let mut ledger = MemoryLoginRevocations::new(c.audience, 1, 1, 100, 0).unwrap();
+    let mut credit = budget();
+    for (proof, accepted) in [
+        (noncanonical_scalar(signature()), false),
+        (signature(), true),
+    ] {
+        let credential = PortableCredential {
+            claims: encode_claims(&c).unwrap(),
+            proof: PortableProof::Ed25519 {
+                signature: proof.to_vec(),
+            },
+        };
+        let result = establish_session(
+            &mut store,
+            &mut ledger,
+            &mut credit,
+            &credential,
+            SessionRequest::new(vec!["read".into()], None).unwrap(),
+            &admission,
+            SessionPolicy {
+                generation: 0,
+                enabled: true,
+                subject_admissible: true,
+            },
+        );
+        if accepted {
+            assert!(result.is_ok());
+            assert_eq!(ledger.occupancy(), (1, 0));
+            assert!(store.session(ctx.authority.caller).unwrap().is_some());
+        } else {
+            assert_eq!(
+                result,
+                Err(SessionError::Credential(PortableCredentialError::Ed25519(
+                    Error::InvalidSignature
+                )))
+            );
+            assert_eq!(ledger.occupancy(), (0, 0));
+            assert_eq!(store.encoded_bytes(), 0);
+            assert!(store.session(ctx.authority.caller).unwrap().is_none());
+        }
+    }
 }
