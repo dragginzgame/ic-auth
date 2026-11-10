@@ -96,7 +96,9 @@ pub(super) async fn qualify(
             browser_public_key: SigningKey::from_bytes(&[device; 32])
                 .verifying_key()
                 .to_bytes(),
-            account_subject: f.owner,
+            device_slot: 0,
+            device_generation: 1,
+            account_subject: Principal::from_slice(&[device]),
             login_started_at_ns: f.now().await,
             login_deadline_ns: f.now().await + 60 * SECOND,
             issued_at_ns: f.now().await,
@@ -210,7 +212,7 @@ pub(super) async fn qualify(
                 (
                     caller.as_slice(),
                     config.issuer.as_slice(),
-                    f.owner.as_slice()
+                    claims.account_subject.as_slice()
                 )
             );
             assert!(admitted.expires_at_ns <= claims.login_deadline_ns);
@@ -395,7 +397,9 @@ async fn qualify_wide_grants(f: &Fixture, base: &ReceiverConfig, key: &SigningKe
             browser_public_key: SigningKey::from_bytes(&[device; 32])
                 .verifying_key()
                 .to_bytes(),
-            account_subject: f.owner,
+            device_slot: 0,
+            device_generation: 1,
+            account_subject: Principal::from_slice(&[device]),
             login_started_at_ns: f.now().await,
             login_deadline_ns: f.now().await + 60 * SECOND,
             issued_at_ns: f.now().await,

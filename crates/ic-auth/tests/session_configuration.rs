@@ -60,7 +60,7 @@ fn limits_refuse_each_invalid_dimension_before_store_construction() {
             [
                 limits.max_sessions(),
                 limits.max_replays(),
-                limits.max_replays_per_caller(),
+                limits.max_replays_per_account(),
                 limits.max_encoded_bytes()
             ],
             values
@@ -78,7 +78,7 @@ fn host_selected_capacity_refuses_each_exhausted_dimension_and_preserves_replace
     let available = SessionOccupancy {
         sessions: 99_999,
         replays: 199_999,
-        replays_for_caller: 1023,
+        replays_for_account: 1023,
     };
     assert_eq!(limits.check_capacity(available, false), Ok(()));
     let sessions_full = SessionOccupancy {
@@ -96,7 +96,7 @@ fn host_selected_capacity_refuses_each_exhausted_dimension_and_preserves_replace
             ..available
         },
         SessionOccupancy {
-            replays_for_caller: 1024,
+            replays_for_account: 1024,
             ..available
         },
     ] {
@@ -113,7 +113,7 @@ fn host_selected_capacity_refuses_each_exhausted_dimension_and_preserves_replace
             SessionOccupancy {
                 sessions: usize::MAX - 1,
                 replays: usize::MAX - 1,
-                replays_for_caller: usize::MAX - 1
+                replays_for_account: usize::MAX - 1
             },
             false
         ),
@@ -124,7 +124,7 @@ fn host_selected_capacity_refuses_each_exhausted_dimension_and_preserves_replace
             SessionOccupancy {
                 sessions: usize::MAX,
                 replays: usize::MAX,
-                replays_for_caller: usize::MAX
+                replays_for_account: usize::MAX
             },
             true
         ),

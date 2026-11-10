@@ -270,7 +270,7 @@ struct CheckpointData {
     asset_version: u64,
     receiver: sessions::Snapshot,
 }
-const CHECKPOINT_ID: u64 = 0x41555449f101;
+const CHECKPOINT_ID: u64 = 0x41555449f102;
 const CHECKPOINT_LIMITS: Limits = Limits {
     bytes: 2097152,
     allocation: 8388608,

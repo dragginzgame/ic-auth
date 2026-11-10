@@ -68,7 +68,7 @@ strict declarations and a browser bundle, with injected issuer/receiver calls
 and fake IndexedDB. The opt-in Chromium proof adds real browser storage; neither
 establishes an older compiler floor, Canic endpoint integration, production
 issuer behavior or TEE custody.
-The full maintained contract is in `docs/browser-client.md` in the source
+The full maintained contract is in `docs/protocol/browser-client.md` in the source
 repository; Canic production acceptance remains #491/#507 there.
 
 The remembered-login journal retains one bounded exact credential separately from

@@ -20,6 +20,259 @@ const NOW: u64 = 10 * SECOND;
 
 #[cfg(feature = "session-restore")]
 #[test]
+fn eight_account_slots_bound_key_churn_and_maximum_generation_cannot_wrap() {
+    let first = Fixture::new(1);
+    let mut receiver = Receiver::new(&first);
+    receiver.store = MemorySessionStore::new(0, SessionLimits::new(16, 64, 32, 65_536).unwrap());
+    receiver.ledger =
+        MemoryLoginRevocations::new(first.claims.audience, 16, 4, 90 * 86_400_000_000_000, 0)
+            .unwrap();
+    for slot in 0..ic_auth_protocol_types::limits::MAX_DEVICE_SLOTS {
+        let mut f = Fixture::new(slot + 1);
+        f.claims.account_subject = first.claims.account_subject;
+        f.claims.device_slot = slot;
+        f.admit(&mut receiver, NOW).unwrap();
+        assert!(receiver.auth(&f, NOW).is_ok());
+    }
+    for generation in 2..=8 {
+        let mut f = Fixture::new(10 + generation as u8);
+        f.claims.account_subject = first.claims.account_subject;
+        f.claims.device_generation = generation;
+        f.admit(&mut receiver, NOW).unwrap();
+        assert_eq!(receiver.ledger.occupancy().0, 8);
+        assert_eq!(receiver.store.session_records().len(), 8);
+    }
+    let mut terminal = Fixture::new(30);
+    terminal.claims.account_subject = first.claims.account_subject;
+    terminal.claims.device_generation = u64::MAX;
+    terminal.admit(&mut receiver, NOW).unwrap();
+    receiver.logout(terminal.caller(), NOW).unwrap();
+    let mut wrapped = Fixture::new(31);
+    wrapped.claims.account_subject = first.claims.account_subject;
+    for generation in [1, u64::MAX] {
+        wrapped.claims.device_generation = generation;
+        assert!(wrapped.admit(&mut receiver, NOW).is_err());
+    }
+    Fixture::new(40).admit(&mut receiver, NOW).unwrap();
+    assert_eq!(receiver.ledger.occupancy().0, 9);
+}
+
+#[cfg(feature = "session-restore")]
+#[test]
+fn multiple_devices_replace_one_slot_atomically_without_resurrecting_old_keys() {
+    let first = Fixture::new(1);
+    let mut peer = Fixture::new(2);
+    peer.claims.account_subject = first.claims.account_subject;
+    peer.claims.device_slot = 1;
+    let mut replacement = Fixture::new(3);
+    replacement.claims.account_subject = first.claims.account_subject;
+    replacement.claims.device_generation = 2;
+    let mut receiver = Receiver::new(&first);
+    first.admit(&mut receiver, NOW).unwrap();
+    peer.admit(&mut receiver, NOW).unwrap();
+    assert!(receiver.auth(&first, NOW).is_ok());
+    assert!(receiver.auth(&peer, NOW).is_ok());
+
+    // A forged higher fence must not remove the authenticated original binding.
+    let mut forged = replacement.credential();
+    if let PortableProof::Ed25519 { signature } = &mut forged.proof {
+        signature[0] ^= 1;
+    }
+    assert!(
+        replacement
+            .admit_as(&mut receiver, NOW, replacement.caller(), &forged)
+            .is_err()
+    );
+    assert!(receiver.auth(&first, NOW).is_ok());
+
+    let original = receiver
+        .store
+        .session_records()
+        .find(|s| s.caller() == first.caller())
+        .unwrap()
+        .clone();
+    // Exercise the real verified ledger transition with a failed durable callback.
+    let context = replacement.claims_context(NOW);
+    let checked = verify_ed25519_claims(
+        &mut receiver.budget,
+        &replacement.credential().claims,
+        &support::signature(&replacement.claims, &replacement.key),
+        &context,
+        &replacement.key.verifying_key().to_bytes(),
+    )
+    .unwrap();
+    assert_eq!(
+        receiver
+            .ledger
+            .with_reservation::<(), LoginRevocationError>(
+                replacement.caller(),
+                &checked,
+                NOW,
+                |change| {
+                    assert_eq!(change.displaced_caller(), Some(first.caller()));
+                    Err(LoginRevocationError::Storage)
+                }
+            ),
+        Err(LoginRevocationError::Storage)
+    );
+    assert_eq!(receiver.auth(&first, NOW).unwrap(), original);
+    assert!(matches!(
+        replacement.admit(&mut receiver, NOW),
+        Ok(SessionEstablished::Replaced(_))
+    ));
+    assert!(receiver.auth(&first, NOW).is_err());
+    assert!(receiver.auth(&replacement, NOW).is_ok());
+    assert!(receiver.auth(&peer, NOW).is_ok());
+    assert_eq!(receiver.ledger.occupancy(), (2, 0));
+    assert_eq!(receiver.store.session_records().len(), 2);
+
+    // A late logout by the displaced key cannot revoke its replacement or peer.
+    assert!(matches!(
+        receiver.logout(first.caller(), NOW),
+        Err(LogoutResult::Unconfirmed { .. })
+    ));
+    assert!(receiver.auth(&replacement, NOW).is_ok());
+    assert!(receiver.auth(&peer, NOW).is_ok());
+    receiver.logout(replacement.caller(), NOW).unwrap();
+    assert!(receiver.auth(&peer, NOW).is_ok());
+    assert!(replacement.admit(&mut receiver, NOW).is_err());
+    let mut fresh = Fixture::new(4);
+    fresh.claims.account_subject = first.claims.account_subject;
+    fresh.claims.device_generation = 3;
+    fresh.admit(&mut receiver, NOW).unwrap();
+    receiver.store = restored_store(&receiver.store);
+    receiver.ledger =
+        MemoryLoginRevocations::new(first.claims.audience, 4, 4, 90 * 86_400_000_000_000, NOW)
+            .unwrap()
+            .restore_records(
+                receiver.ledger.observed_at_ns(),
+                receiver.ledger.occupancy(),
+                receiver.ledger.records(),
+            )
+            .unwrap();
+    assert!(receiver.auth(&fresh, NOW).is_ok());
+    assert!(replacement.admit(&mut receiver, NOW).is_err());
+    assert_eq!(
+        receiver.ledger.prune(first.claims.login_deadline_ns, 128),
+        Ok(0)
+    );
+    assert_eq!(
+        receiver.ledger.occupancy().0,
+        2,
+        "expiry must retain both slot fences"
+    );
+}
+
+#[cfg(feature = "session-restore")]
+#[test]
+fn account_replay_budget_survives_device_changes_logout_restore_and_failed_pruning() {
+    let first = Fixture::new(1);
+    let account = (first.claims.issuer, first.claims.account_subject);
+    // Produce genuine verified records from distinct keys. No session is needed
+    // to recover their account ownership after logout or checkpoint restoration.
+    let mut replays = Vec::new();
+    for device in [1, 2] {
+        let mut f = Fixture::new(device);
+        f.claims.account_subject = account.1;
+        let mut source = Receiver::new(&f);
+        f.admit(&mut source, NOW).unwrap();
+        source.logout(f.caller(), NOW).unwrap();
+        assert_eq!(source.store.session_records().len(), 0);
+        replays.push(source.store.replay_records().next().unwrap().clone());
+    }
+    assert_ne!(replays[0].caller(), replays[1].caller());
+    assert!(replays.iter().all(|r| r.account() == account));
+    let bytes = replays.iter().map(|r| r.encode().unwrap().len()).sum();
+    assert!(matches!(
+        MemorySessionStore::new(0, SessionLimits::new(4, 8, 1, 32_768).unwrap()).restore_records(
+            (0, 2),
+            bytes,
+            [],
+            replays.clone()
+        ),
+        Err(SessionError::Capacity)
+    ));
+    let mut receiver = Receiver::new(&first);
+    receiver.store = MemorySessionStore::new(0, SessionLimits::new(4, 8, 2, 32_768).unwrap())
+        .restore_records((0, 2), bytes, [], replays)
+        .unwrap();
+    let mut fresh = Fixture::new(3);
+    fresh.claims.account_subject = account.1;
+    assert_eq!(fresh.admit(&mut receiver, NOW), Err(SessionError::Capacity));
+    assert_eq!(receiver.ledger.occupancy(), (0, 0));
+    // A saturated account cannot consume another account's replay allowance.
+    let other = Fixture::new(4);
+    other.admit(&mut receiver, NOW).unwrap();
+    assert_eq!(
+        receiver
+            .store
+            .prune_with_commit(NOW + 2 * SECOND, 1, |_| Err(SessionError::StorageFailure)),
+        Err(SessionError::StorageFailure)
+    );
+    assert_eq!(
+        receiver
+            .store
+            .occupancy(account)
+            .unwrap()
+            .replays_for_account,
+        2
+    );
+    let pruned = receiver.store.prune(NOW + 2 * SECOND, 128);
+    assert_eq!(pruned.replays, 3);
+    assert_eq!(
+        receiver
+            .store
+            .occupancy(account)
+            .unwrap()
+            .replays_for_account,
+        0
+    );
+    fresh.claims.issued_at_ns = NOW + 2 * SECOND;
+    fresh.claims.admission_expires_at_ns = NOW + 4 * SECOND;
+    fresh.admit(&mut receiver, NOW + 2 * SECOND).unwrap();
+}
+
+#[cfg(feature = "session-restore")]
+#[test]
+fn replay_owner_corruption_refuses_pairing_and_restore() {
+    let f = Fixture::new(1);
+    let mut receiver = Receiver::new(&f);
+    let session = created(f.admit(&mut receiver, NOW).unwrap(), &mut receiver.store);
+    let login = receiver.ledger.records().next().unwrap();
+    let original = receiver.store.replay_records().next().unwrap();
+    let mut data: ReplayRecord =
+        ic_wire::native::decode_request(REPLAY_ID, &original.encode().unwrap(), REPLAY_LIMITS)
+            .unwrap();
+    data.subject = Principal::from_slice(&[99]);
+    let replay =
+        Replay::decode(&ic_wire::native::encode_request(REPLAY_ID, &data, REPLAY_LIMITS).unwrap())
+            .unwrap();
+    assert_eq!(
+        session.check_admission_pair(&replay, &login, 0),
+        Err(SessionError::InvalidPolicyOrRecord)
+    );
+    let bytes = session.encode().unwrap().len() + replay.encode().unwrap().len();
+    assert!(matches!(
+        MemorySessionStore::new(0, limits()).restore_records((1, 1), bytes, [session], [replay],),
+        Err(SessionError::InvalidPolicyOrRecord)
+    ));
+    for anonymous_issuer in [false, true] {
+        let mut invalid = data.clone();
+        if anonymous_issuer {
+            invalid.issuer = Principal::anonymous();
+        } else {
+            invalid.subject = Principal::anonymous();
+        }
+        let encoded = ic_wire::native::encode_request(REPLAY_ID, &invalid, REPLAY_LIMITS).unwrap();
+        assert_eq!(
+            Replay::decode(&encoded),
+            Err(SessionError::InvalidPolicyOrRecord)
+        );
+    }
+}
+
+#[cfg(feature = "session-restore")]
+#[test]
 fn storage_record_domains_and_capacity_errors_remain_distinct() {
     use ic_auth::portable::LoginRevocationChange;
     let f = Fixture::new(1);
@@ -142,13 +395,12 @@ fn shared_backend_preflight_rejects_mismatched_pairs_and_wrong_generation() {
 
 #[cfg(feature = "session-restore")]
 #[test]
-fn platform_02_signed_claims_survive_and_retired_storage_is_refused() {
+fn platform_02_signed_claims_and_retired_storage_are_refused() {
     use ic_auth::portable::LoginRevocationChange;
     // Frozen Auth 0.10.7 / Platform 0.2.1 vector: 0x02 is subject identity data.
-    let f = Fixture::new(1);
-    assert_eq!(
-        encode_claims(&f.claims).unwrap(),
-        include_bytes!("fixtures/platform-02/claims.bin")
+    assert!(
+        ic_auth::portable::decode_claims(include_bytes!("fixtures/platform-02/claims.bin"))
+            .is_err()
     );
     assert!(Session::decode(include_bytes!("fixtures/platform-02/session.bin")).is_err());
     assert!(Replay::decode(include_bytes!("fixtures/platform-02/replay.bin")).is_err());
@@ -163,6 +415,8 @@ fn platform_02_signed_claims_survive_and_retired_storage_is_refused() {
 struct ReplayRecord {
     fingerprint: [u8; 32],
     caller: Principal,
+    issuer: Principal,
+    subject: Principal,
     generation: u64,
     remove_at_ns: u64,
 }
@@ -179,6 +433,8 @@ struct SessionRecord {
     role: AuthRole,
     scopes: Vec<String>,
     generation: u64,
+    device_slot: u8,
+    device_generation: u64,
     login_started_at_ns: u64,
     login_deadline_ns: u64,
     established_at_ns: u64,
@@ -187,7 +443,7 @@ struct SessionRecord {
     request_hash: [u8; 32],
 }
 #[cfg(feature = "session-restore")]
-const REPLAY_ID: u64 = 0x415554485302;
+const REPLAY_ID: u64 = 0x415554485342;
 #[cfg(feature = "session-restore")]
 const REPLAY_LIMITS: ic_wire::Limits = ic_wire::Limits {
     bytes: 512,
@@ -217,6 +473,9 @@ impl Fixture {
                 .verifying_key()
                 .to_bytes(),
         );
+        if device != 1 {
+            claims.account_subject = Principal::from_slice(&[device, 0]);
+        }
         claims.login_started_at_ns = NOW - SECOND;
         claims.login_deadline_ns = NOW + 60 * SECOND;
         claims.issued_at_ns = NOW;
@@ -496,9 +755,112 @@ fn future_start_retry_keeps_original_credential_and_verifies_only_once() {
 }
 
 #[test]
+fn fresh_browser_keys_cannot_multiply_one_accounts_sessions_or_logout_reservations() {
+    let first = Fixture::new(1);
+    let mut r = Receiver::new(&first);
+    first.admit(&mut r, NOW).unwrap();
+    let bytes = r.store.encoded_bytes();
+    // Exhaust crypto credit too: duplicate-account refusal must precede crypto.
+    r.budget = SessionAdmissionBudget::new(1, SECOND, NOW).unwrap();
+    for device in 2..=65 {
+        let mut another = Fixture::new(device);
+        another.claims.account_subject = first.claims.account_subject;
+        assert_eq!(
+            another.admit(&mut r, NOW),
+            Err(SessionError::Revocation(LoginRevocationError::Revoked))
+        );
+    }
+    assert_eq!(r.ledger.occupancy(), (1, 0));
+    assert_eq!(r.store.encoded_bytes(), bytes);
+    assert!(r.auth(&first, NOW).is_ok());
+    let mut another = Fixture::new(2);
+    another.claims.account_subject = first.claims.account_subject;
+    r.logout(first.caller(), NOW).unwrap();
+    assert_eq!(
+        another.admit(&mut r, NOW),
+        Err(SessionError::Revocation(LoginRevocationError::Revoked))
+    );
+    // Another receiver has its own account slot.
+    let mut independent = Receiver::new(&another);
+    assert!(another.admit(&mut independent, NOW).is_ok());
+    let deadline = first.claims.login_deadline_ns;
+    another.claims.login_started_at_ns = deadline;
+    another.claims.login_deadline_ns = deadline + 60 * SECOND;
+    another.claims.issued_at_ns = deadline;
+    another.claims.admission_expires_at_ns = deadline + SECOND;
+    assert_eq!(r.ledger.prune(deadline, 128), Ok(0));
+    another.claims.device_generation = 2;
+    r.store.prune(deadline, 128);
+    assert!(matches!(
+        another.admit(&mut r, deadline),
+        Ok(SessionEstablished::Created(_))
+    ));
+}
+
+#[cfg(feature = "session-restore")]
+#[test]
+fn store_slot_uniqueness_survives_commit_failure_restore_and_pruning() {
+    let first = Fixture::new(1);
+    let mut second = Fixture::new(2);
+    second.claims.account_subject = first.claims.account_subject;
+    let mut a = Receiver::new(&first);
+    let mut b = Receiver::new(&second);
+    let one = created(first.admit(&mut a, NOW).unwrap(), &mut a.store);
+    let two = created(second.admit(&mut b, NOW).unwrap(), &mut b.store);
+    let replay_one = a.store.replay_records().next().unwrap().clone();
+    let replay_two = b.store.replay_records().next().unwrap().clone();
+    let login_one = a.ledger.records().next().unwrap();
+    let login_two = b.ledger.records().next().unwrap();
+    let mut store = MemorySessionStore::new(0, limits());
+    assert_eq!(
+        store.admit_with_commit(one.clone(), replay_one.clone(), &login_one, |_| {
+            Err(SessionError::StorageFailure)
+        }),
+        Err(SessionError::StorageFailure)
+    );
+    assert!(
+        !store
+            .admit(two.clone(), replay_two.clone(), &login_two)
+            .unwrap()
+    );
+    assert_eq!(
+        store.admit_with_commit(one.clone(), replay_one.clone(), &login_one, |_| {
+            panic!("duplicate account must refuse before persistence")
+        }),
+        Err(SessionError::InvalidPolicyOrRecord)
+    );
+    let total_bytes = a.store.encoded_bytes() + b.store.encoded_bytes();
+    for sessions in [vec![one.clone(), two.clone()], vec![two, one.clone()]] {
+        assert!(matches!(
+            MemorySessionStore::new(0, limits()).restore_records(
+                (2, 2),
+                total_bytes,
+                sessions,
+                [replay_one.clone(), replay_two.clone()]
+            ),
+            Err(SessionError::InvalidPolicyOrRecord)
+        ));
+    }
+    let mut restored = restored_store(&store);
+    assert_eq!(
+        restored.admit(one.clone(), replay_one.clone(), &login_one),
+        Err(SessionError::InvalidPolicyOrRecord)
+    );
+    assert_eq!(
+        restored.prune(first.claims.login_deadline_ns, 128),
+        SessionPruned {
+            sessions: 1,
+            replays: 1
+        }
+    );
+    assert!(!restored.admit(one, replay_one, &login_one).unwrap());
+}
+
+#[test]
 fn equal_subjects_from_different_issuers_keep_distinct_sessions_and_logouts() {
     let first = Fixture::new(1);
     let mut second = Fixture::with_issuer_key(2, SigningKey::from_bytes(&[43; 32]));
+    second.claims.account_subject = first.claims.account_subject;
     second.claims.issuer = Principal::from_slice(&[3]);
     let mut r = Receiver::new(&first);
     let a = created(first.admit(&mut r, NOW).unwrap(), &mut r.store);
@@ -540,7 +902,7 @@ fn equal_subjects_from_different_issuers_keep_distinct_sessions_and_logouts() {
 }
 
 #[test]
-fn two_receivers_two_devices_retry_after_proof_expiry_and_local_logout() {
+fn two_receivers_two_accounts_retry_after_proof_expiry_and_local_logout() {
     let f = Fixture::new(1);
     let other = Fixture::new(2);
     let mut a = Receiver::new(&f);
@@ -815,10 +1177,11 @@ fn live_authority_scope_generation_expiry_and_lost_ledger_are_enforced() {
         r.auth(&f, session.expires_at_ns()),
         Err(SessionError::MissingOrExpired)
     );
-    assert!(matches!(
+    assert_eq!(
         r.logout(f.caller(), NOW + 200 * SECOND),
-        Err(LogoutResult::Unconfirmed { .. })
-    )); // expired login: temporary denial only
+        Ok(f.claims.login_deadline_ns)
+    );
+    // Retained slot ownership still authenticates the expired original login.
     let mut r = Receiver::new(&f);
     f.admit(&mut r, NOW).unwrap();
     let mut p = policy();
@@ -1027,7 +1390,7 @@ fn framed_session_records_still_require_valid_identity_scopes_and_windows() {
     let bytes = created(f.admit(&mut r, NOW).unwrap(), &mut r.store)
         .encode()
         .unwrap();
-    let identity = 0x415554485311;
+    let identity = 0x415554485341;
     let limits = ic_wire::Limits {
         bytes: 2048,
         ..REPLAY_LIMITS
@@ -1038,6 +1401,14 @@ fn framed_session_records_still_require_valid_identity_scopes_and_windows() {
         |record: &SessionRecord| ic_wire::native::encode_request(identity, record, limits).unwrap();
     assert_eq!(encode(&original), bytes);
     for invalid in [
+        SessionRecord {
+            device_slot: 8,
+            ..original.clone()
+        },
+        SessionRecord {
+            device_generation: 0,
+            ..original.clone()
+        },
         SessionRecord {
             caller: Principal::anonymous(),
             ..original.clone()
@@ -1071,6 +1442,8 @@ fn framed_session_records_still_require_valid_identity_scopes_and_windows() {
             ..original.clone()
         },
         SessionRecord {
+            device_slot: 0,
+            device_generation: 1,
             login_started_at_ns: NOW + 1,
             ..original.clone()
         },
@@ -1239,7 +1612,10 @@ fn bounded_pruning_releases_exact_bytes_and_caller_replay_capacity() {
     assert_eq!(r.store.encoded_bytes(), 0);
     r.store
         .read(|tx| {
-            assert_eq!(tx.occupancy(f.caller())?, SessionOccupancy::default());
+            assert_eq!(
+                tx.occupancy((f.claims.issuer, f.claims.account_subject))?,
+                SessionOccupancy::default()
+            );
             Ok(())
         })
         .unwrap();
@@ -1344,11 +1720,11 @@ fn byte_capacity_failure_preserves_previous_session_and_login_reservation() {
     r.store
         .read(|tx| {
             assert_eq!(
-                tx.occupancy(f.caller())?,
+                tx.occupancy((f.claims.issuer, f.claims.account_subject))?,
                 SessionOccupancy {
                     sessions: 1,
                     replays: 1,
-                    replays_for_caller: 1,
+                    replays_for_account: 1,
                 }
             );
             assert!(!tx.replay_exists(claims_hash(&f.claims).unwrap())?);
@@ -2236,7 +2612,11 @@ fn restored_store_replacement_removes_old_expiry_and_rebuilds_replay_counts() {
     ));
     r.store
         .read(|tx| {
-            assert_eq!(tx.occupancy(f.caller())?.replays_for_caller, 1);
+            assert_eq!(
+                tx.occupancy((f.claims.issuer, f.claims.account_subject))?
+                    .replays_for_account,
+                1
+            );
             Ok(())
         })
         .unwrap();
@@ -2367,24 +2747,13 @@ fn unknown_logout_saturation_and_expired_reservations_preserve_legitimate_recove
     next.claims.issued_at_ns = reclaim;
     next.claims.admission_expires_at_ns = reclaim + SECOND;
     r.store.prune(reclaim, 128);
-    assert_eq!(
-        r.ledger
-            .prune_with_commit(reclaim, 1, |_, _| Err(LoginRevocationError::Storage)),
-        Err(LoginRevocationError::Storage)
-    );
-    assert_eq!(r.ledger.occupancy(), (1, 2));
+    assert_eq!(r.ledger.prune(reclaim, 128), Ok(0));
     assert_eq!(
         next.admit(&mut r, reclaim).unwrap_err().admission_refusal(),
         AdmissionRefusal::Capacity
     );
-    assert_eq!(
-        r.ledger.prune_with_commit(reclaim, 1, |callers, counts| {
-            assert_eq!(callers, &[first.caller()]);
-            assert_eq!(counts, (0, 2));
-            Ok(())
-        }),
-        Ok(1)
-    );
+    next.claims.account_subject = first.claims.account_subject;
+    next.claims.device_generation = 2;
     assert!(next.admit(&mut r, reclaim).is_ok());
     assert_eq!(r.ledger.occupancy(), (1, 2));
     assert!(

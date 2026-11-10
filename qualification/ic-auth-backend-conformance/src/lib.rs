@@ -62,6 +62,81 @@ pub fn assert_backend_contract<B: Backend>() {
     assert_maximum_shape::<B>();
     assert_pruning::<B>();
     assert_metadata_reopen::<B>();
+    assert_device_replacement::<B>();
+}
+
+/// Concurrent devices and fenced replacement survive failure and durable reopen.
+///
+/// # Panics
+/// Panics if replacement loses another device, replay history or a slot fence.
+pub fn assert_device_replacement<B: Backend>() {
+    let first = Fixture::new(1);
+    let mut peer = Fixture::new(2);
+    peer.claims.account_subject = first.claims.account_subject;
+    peer.claims.device_slot = 1;
+    let mut next = Fixture::new(3);
+    next.claims.account_subject = first.claims.account_subject;
+    next.claims.device_generation = 2;
+    let mut store = B::fresh(0, limits(2, 65_536));
+    let mut ledger = first.ledger();
+    let mut budget = SessionAdmissionBudget::new(32, 1, 0).unwrap();
+    first
+        .admit(&mut store, &mut ledger, &mut budget, NOW)
+        .unwrap();
+    peer.admit(&mut store, &mut ledger, &mut budget, NOW)
+        .unwrap();
+    store.fail_next_commit();
+    assert_eq!(
+        next.admit(&mut store, &mut ledger, &mut budget, NOW),
+        Err(SessionError::StorageFailure)
+    );
+    store = store.reopen();
+    assert!(first.authorize(&mut store, &mut ledger, NOW, 0).is_ok());
+    assert!(peer.authorize(&mut store, &mut ledger, NOW, 0).is_ok());
+    assert!(matches!(
+        next.admit(&mut store, &mut ledger, &mut budget, NOW),
+        Ok(SessionEstablished::Replaced(_))
+    ));
+    store = store.reopen();
+    ledger = first
+        .ledger_at(NOW)
+        .restore_records(
+            ledger.observed_at_ns(),
+            ledger.occupancy(),
+            store.retained_logins(),
+        )
+        .unwrap();
+    assert!(next.authorize(&mut store, &mut ledger, NOW, 0).is_ok());
+    assert!(peer.authorize(&mut store, &mut ledger, NOW, 0).is_ok());
+    assert!(
+        first
+            .admit(&mut store, &mut ledger, &mut budget, NOW)
+            .is_err()
+    );
+    let mut logout_budget = SessionAdmissionBudget::new(8, 1, 0).unwrap();
+    assert!(matches!(
+        logout_session(
+            &mut store,
+            &mut ledger,
+            &mut logout_budget,
+            first.caller(),
+            NOW
+        ),
+        LogoutResult::Unconfirmed { .. }
+    ));
+    assert!(next.authorize(&mut store, &mut ledger, NOW, 0).is_ok());
+    assert!(peer.authorize(&mut store, &mut ledger, NOW, 0).is_ok());
+    store
+        .read(|r| {
+            assert!(r.replay_exists(claims_hash(&first.claims).unwrap())?);
+            assert_eq!(
+                r.occupancy((first.claims.issuer, first.claims.account_subject))?
+                    .replays_for_account,
+                3
+            );
+            Ok(())
+        })
+        .unwrap();
 }
 
 /// Unknown logout commits temporary denial without confirming an authenticated
@@ -716,11 +791,81 @@ pub fn assert_ninety_day_renewal<B: Backend>() {
     }
 }
 
-/// Session, global/per-caller replay and encoded-byte exhaustion refuse without
+/// Session, global/per-account replay and encoded-byte exhaustion refuse without
 /// changing records or ledger. Replacement must still respect replay capacity.
 pub fn assert_capacity<B: Backend>() {
     let f = Fixture::new(1);
     let other = Fixture::new(2);
+    let mut duplicate = Fixture::new(3);
+    duplicate.claims.account_subject = f.claims.account_subject;
+    {
+        let mut store = B::fresh(0, SessionLimits::new(4, 8, 1, 65_536).unwrap());
+        let mut ledger = f.ledger();
+        let mut budget = SessionAdmissionBudget::new(8, SECOND, 0).unwrap();
+        f.admit(&mut store, &mut ledger, &mut budget, NOW).unwrap();
+        let mut logout_budget = SessionAdmissionBudget::new(8, SECOND, 0).unwrap();
+        assert!(matches!(
+            logout_session(&mut store, &mut ledger, &mut logout_budget, f.caller(), NOW),
+            LogoutResult::Revoked { .. }
+        ));
+        store = store.reopen();
+        // No session remains: the durable replay itself must retain ownership.
+        store
+            .read(|reader| {
+                assert!(reader.session(f.caller())?.is_none());
+                assert_eq!(
+                    reader
+                        .occupancy((f.claims.issuer, f.claims.account_subject))?
+                        .replays_for_account,
+                    1
+                );
+                Ok(())
+            })
+            .unwrap();
+        let before = snapshot(&mut store, &f, &duplicate);
+        assert_eq!(
+            duplicate.admit(&mut store, &mut ledger, &mut budget, NOW),
+            Err(SessionError::Capacity)
+        );
+        assert_eq!(snapshot(&mut store, &f, &duplicate), before);
+        other
+            .admit(&mut store, &mut ledger, &mut budget, NOW)
+            .unwrap();
+    }
+    let mut store = B::fresh(0, limits(4, 65_536));
+    let mut ledger = f.ledger();
+    let mut budget = SessionAdmissionBudget::new(8, SECOND, 0).unwrap();
+    f.admit(&mut store, &mut ledger, &mut budget, NOW).unwrap();
+    let mut logout_budget = SessionAdmissionBudget::new(8, SECOND, 0).unwrap();
+    for revoked in [false, true] {
+        if revoked {
+            assert!(matches!(
+                logout_session(&mut store, &mut ledger, &mut logout_budget, f.caller(), NOW),
+                LogoutResult::Revoked { .. }
+            ));
+        }
+        store = store.reopen();
+        ledger = f
+            .ledger_at(NOW)
+            .restore_records(
+                ledger.observed_at_ns(),
+                ledger.occupancy(),
+                store.retained_logins(),
+            )
+            .unwrap();
+        let before = snapshot(&mut store, &f, &duplicate);
+        assert_eq!(
+            duplicate.admit(&mut store, &mut ledger, &mut budget, NOW),
+            Err(SessionError::Revocation(
+                ic_auth::portable::LoginRevocationError::Revoked
+            ))
+        );
+        assert_eq!(snapshot(&mut store, &f, &duplicate), before);
+        assert_eq!(ledger.occupancy(), (1, 0));
+    }
+    other
+        .admit(&mut store, &mut ledger, &mut budget, NOW)
+        .unwrap();
     for (bounds, expected) in [
         (limits(1, 65_536), SessionError::Capacity),
         (limits(4, 1), SessionError::ByteCapacity),
@@ -747,7 +892,7 @@ pub fn assert_capacity<B: Backend>() {
             2,
         ),
         (
-            "caller replay",
+            "account replay",
             SessionLimits::new(4, 8, 1, 65_536).unwrap(),
             1,
         ),
@@ -775,7 +920,7 @@ pub fn assert_capacity<B: Backend>() {
             "a full replay pool must still allow the original exact retry"
         );
         if device == 1 {
-            // Per-caller saturation does not exhaust the receiver-wide pool.
+            // Per-account saturation does not exhaust the receiver-wide pool.
             assert!(matches!(
                 other.admit(&mut store, &mut ledger, &mut budget, NOW),
                 Ok(SessionEstablished::Created(_))
@@ -971,8 +1116,8 @@ fn snapshot(store: &mut impl Backend, f: &Fixture, other: &Fixture) -> Snapshot 
                 sessions: [f.caller(), other.caller()]
                     .map(|caller| reader.session(caller).unwrap().map(|s| s.encode().unwrap())),
                 occupancy: [
-                    reader.occupancy(f.caller())?,
-                    reader.occupancy(other.caller())?,
+                    reader.occupancy((f.claims.issuer, f.claims.account_subject))?,
+                    reader.occupancy((other.claims.issuer, other.claims.account_subject))?,
                 ],
                 replays: [
                     reader.replay_exists(claims_hash(&f.claims).unwrap())?,
@@ -1013,7 +1158,9 @@ impl Fixture {
             },
             mechanism: PortableMechanism::Ed25519,
             issuer: Principal::from_slice(&[1]),
-            account_subject: Principal::from_slice(&[2]),
+            device_slot: 0,
+            device_generation: 1,
+            account_subject: Principal::from_slice(&[device, 0]),
             key_binding_id: prepared.binding(),
             browser_public_key: SigningKey::from_bytes(&[device; 32])
                 .verifying_key()

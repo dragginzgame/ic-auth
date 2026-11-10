@@ -11,3 +11,5 @@ pub const MAX_SESSION_SCOPES: usize = 16;
 pub const MAX_LABEL_BYTES: usize = 64;
 /// Hard cap on signed claims, independent of outer transport limits.
 pub const MAX_CLAIMS_BYTES: usize = 65_536;
+/// Maximum retained device slots per issuer-qualified account. Slots are 0..8.
+pub const MAX_DEVICE_SLOTS: u8 = 8;

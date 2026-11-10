@@ -7,6 +7,17 @@ fn load() -> Vec<u8> {
 }
 
 #[test]
+fn auth_037_checkpoint_is_refused_without_clearing() {
+    bootstrap(DefaultMemoryImpl::default(), false);
+    for payload in [b"".as_slice(), b"retained session/replay/login records"] {
+        let old = [b"AUTHCLK1".as_slice(), payload].concat();
+        CELL.with(|state| state.borrow_mut().as_mut().unwrap().set(old.clone()));
+        assert!(std::panic::catch_unwind(load).is_err());
+        CELL.with(|state| assert_eq!(*state.borrow().as_ref().unwrap().get(), old));
+    }
+}
+
+#[test]
 fn retired_allocation_headers_refuse_without_clearing_application_backing() {
     let old_manager: Vec<u8> = include_str!("../../fixtures/memory-063/manager-header.hex")
         .trim()

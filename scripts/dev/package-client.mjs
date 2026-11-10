@@ -30,12 +30,15 @@ function command(file, args, cwd = root, input) {
 // Seal tracked/new inputs plus the actual compiler source trees, including
 // ignored source files. Build outputs and moving sibling inputs are excluded.
 const generatorPaths = readFileSync(resolve(root, 'ci/client-generator-inputs.txt'), 'utf8').trimEnd().split('\n');
-const paths = [...generatorPaths, 'Makefile', 'LICENSE', 'packages/client', 'scripts/dev/client-tools.sh', 'scripts/dev/client-toolchain.sh',
+const paths = [...generatorPaths, 'Makefile', 'LICENSE.md', 'README.md', 'packages/client', 'scripts/dev/client-tools.sh', 'scripts/dev/client-toolchain.sh',
   'scripts/dev/package-client.sh', 'scripts/dev/package-client.mjs', 'scripts/dev/test-client.sh',
   'scripts/ci/check-client-package.mjs', 'scripts/ci/check-ic-sdk-boundary.mjs'];
 function inputPaths() {
   const observed = command('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard', '--', ...paths])
-    .split('\0').filter(Boolean);
+    .split('\0').filter(Boolean).filter(path => {
+      try { lstatSync(resolve(root, path)); return true; }
+      catch (error) { if (error.code === 'ENOENT') return false; throw error; }
+    });
   function sources(path) {
     for (const entry of readdirSync(resolve(root, path), { withFileTypes: true })) {
       const child = `${path}/${entry.name}`;
@@ -47,7 +50,7 @@ function inputPaths() {
     if (lstatSync(resolve(root, path)).isDirectory()) sources(path);
     else observed.push(path);
   }
-  for (const name of ['package.json', 'package-lock.json', 'README.md', 'LICENSE', 'tsconfig.json', 'tsconfig.package.json', '.nvmrc']) {
+  for (const name of ['package.json', 'package-lock.json', 'README.md', 'tsconfig.json', 'tsconfig.package.json', '.nvmrc']) {
     observed.push(`packages/client/${name}`);
   }
   return [...new Set(observed)].sort().join('\0') + '\0';
@@ -76,21 +79,24 @@ async function packClient() {
   assert.equal(inputPaths(), selected, 'Source input roster changed before package build');
   assert.equal(seal(), before, 'Source inputs changed during contract preparation');
   command('npm', ['--prefix', source, 'run', 'check:sdk']);
-  assert.equal(readFileSync(resolve(source, 'LICENSE'), 'utf8'), readFileSync(resolve(root, 'LICENSE'), 'utf8'));
   const staging = resolve(directory, 'staging');
   mkdirSync(staging);
   // Compile to a fresh staging tree: removed modules or stale incremental output
   // from source tests must never leak into a consumer archive.
   command('npm', ['--prefix', source, 'run', 'build:package', '--', '--outDir', resolve(staging, 'dist')]);
-  for (const name of ['package.json', 'README.md', 'LICENSE']) copyFileSync(resolve(source, name), resolve(staging, name));
+  for (const name of ['package.json', 'README.md']) copyFileSync(resolve(source, name), resolve(staging, name));
+  copyFileSync(resolve(root, 'LICENSE.md'), resolve(staging, 'LICENSE.md'));
+  const notice = readFileSync(resolve(root, 'README.md'), 'utf8').split('## Source origin notice\n')[1];
+  assert(notice?.includes('Copyright (c) 2024 Canic contributors'), 'Missing required source notice');
+  writeFileSync(resolve(staging, 'NOTICE.md'), notice);
   const manifest = JSON.parse(readFileSync(resolve(source, 'package.json'), 'utf8'));
   const report = JSON.parse(command('npm', ['pack', '--offline', '--ignore-scripts', '--json', '--pack-destination', directory], staging));
   const packed = report[manifest.name];
   assert(packed && packed.name === manifest.name && packed.version === manifest.version);
   assert.equal(manifest.private, true, 'Local delivery must remain private');
-  assert(packed.files.every(({ path }) => /^(dist\/src\/.+\.(js|d\.ts)|package\.json|README\.md|LICENSE)$/.test(path)),
+  assert(packed.files.every(({ path }) => /^(dist\/src\/.+\.(js|d\.ts)|package\.json|README\.md|LICENSE\.md|NOTICE\.md)$/.test(path)),
     'Unexpected archive payload');
-  for (const path of ['dist/src/index.js', 'dist/src/index.d.ts', 'dist/src/generated/wire-runtime.js', 'README.md', 'LICENSE']) {
+  for (const path of ['dist/src/index.js', 'dist/src/index.d.ts', 'dist/src/generated/wire-runtime.js', 'README.md', 'LICENSE.md', 'NOTICE.md']) {
     assert(packed.files.some(file => file.path === path), `Missing archive entry: ${path}`);
   }
   writeFileSync(resolve(directory, 'npm-pack.json'), JSON.stringify(report, null, 2) + '\n');

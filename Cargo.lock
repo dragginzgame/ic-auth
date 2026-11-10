@@ -321,9 +321,9 @@ dependencies = [
 
 [[package]]
 name = "crc32fast"
-version = "1.5.4"
+version = "1.5.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5f97d3416d5337d15c4b0d78c8c91df922ca143f57ec20e2d1c188333047ef04"
+checksum = "2b929dd2a135771f40afabd1073f85eed59c800b7c61901e5c254270497dad64"
 dependencies = [
  "cfg-if",
 ]
@@ -793,9 +793,9 @@ dependencies = [
 
 [[package]]
 name = "ic-platform"
-version = "0.29.1"
+version = "0.29.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "161d78dfbe8ae905828da482c5045e25c31bdb1a4b6575be4573ef8ad6e12e6a"
+checksum = "a391440c441bebbabcce38251ff61473de37cdca09050fe6c3f71cd10ca7be42"
 dependencies = [
  "crypto-bigint",
  "curve25519-dalek",
@@ -1512,9 +1512,9 @@ checksum = "3bf63baf9f5039dadc247375c29eb13706706cfde997d0330d05aa63a77d8820"
 
 [[package]]
 name = "toko-tooling"
-version = "0.38.2"
+version = "0.39.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "45c12cc2aa598d14e137dd7db50f12e943470b4ce351dfcaffeccde6821c1876"
+checksum = "fd795f6ef878496ac27a990a9208b87fa786a9148c18580338ef8ac79df501d7"
 
 [[package]]
 name = "toml"

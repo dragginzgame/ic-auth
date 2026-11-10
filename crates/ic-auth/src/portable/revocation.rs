@@ -74,6 +74,8 @@ impl Record {
 pub struct LoginBinding {
     pub issuer: Principal,
     pub subject: Principal,
+    pub device_slot: u8,
+    pub device_generation: u64,
     pub started_at_ns: u64,
     pub deadline_ns: u64,
 }
@@ -81,7 +83,7 @@ pub struct LoginBinding {
 /// Proposed ledger record from a serialized commit callback or trusted storage.
 /// A durable host must persist this with its session/replay changes before
 /// returning success. This is not a credential or reusable authorization result.
-pub struct LoginRevocationChange(LoginData);
+pub struct LoginRevocationChange(LoginData, Option<Principal>);
 
 #[cfg_attr(feature = "sessions", derive(serde::Serialize))]
 #[cfg_attr(feature = "session-restore", derive(serde::Deserialize))]
@@ -94,10 +96,10 @@ struct LoginData {
 }
 
 impl LoginRevocationChange {
-    /// Check replacement of a trusted retained record for this same storage key.
-    /// Live records keep their login binding/pool, denial and retention deadline.
-    /// After expiry a new login/pool may replace them; domain and caller must
-    /// still match. This does not authenticate storage, admit a proposed record,
+    /// Check replacement of a trusted retained slot. An equal generation keeps
+    /// its caller, binding and denial even after expiry. A greater generation
+    /// requires a reservation with a different browser key in the same slot.
+    /// Unknown denials remain caller-bound until expiry. This does not authenticate storage, admit a proposed record,
     /// observe the clock, charge a budget or commit anything. Hosts retain those
     /// checks and exact pool accounting under their atomic transaction boundary.
     pub fn check_replacement(
@@ -105,11 +107,35 @@ impl LoginRevocationChange {
         previous: &Self,
         now_ns: u64,
     ) -> Result<(), LoginRevocationError> {
-        if self.0.audience != previous.0.audience
-            || self.0.caller != previous.0.caller
-            || (previous.until_ns() > now_ns
-                && (self.0.record.login() != previous.0.record.login()
+        if self.0.audience != previous.0.audience {
+            return Err(LoginRevocationError::InvalidPolicy);
+        }
+        if let Some(old) = previous.0.record.login() {
+            let new = self
+                .0
+                .record
+                .login()
+                .ok_or(LoginRevocationError::InvalidPolicy)?;
+            if slot(old) != slot(new) || new.device_generation < old.device_generation {
+                return Err(LoginRevocationError::InvalidPolicy);
+            }
+            if new.device_generation == old.device_generation {
+                if new != old
+                    || self.caller() != previous.caller()
                     || (previous.0.record.revoked() && !self.0.record.revoked())
+                    || self.until_ns() < previous.until_ns()
+                {
+                    return Err(LoginRevocationError::InvalidPolicy);
+                }
+            } else if !matches!(self.state(), LoginRecordState::Reserved(_))
+                || self.caller() == previous.caller()
+            {
+                return Err(LoginRevocationError::InvalidPolicy);
+            }
+        } else if self.caller() != previous.caller()
+            || (previous.until_ns() > now_ns
+                && (self.0.record.login().is_some()
+                    || !self.0.record.revoked()
                     || self.until_ns() < previous.until_ns()))
         {
             return Err(LoginRevocationError::InvalidPolicy);
@@ -141,12 +167,14 @@ impl LoginRevocationChange {
         if let Some(login) = data.record.login()
             && (login.issuer == Principal::anonymous()
                 || login.subject == Principal::anonymous()
+                || login.device_slot >= ic_auth_protocol_types::limits::MAX_DEVICE_SLOTS
+                || login.device_generation == 0
                 || login.started_at_ns >= login.deadline_ns
                 || login.deadline_ns - login.started_at_ns > crate::limits::MAX_LOGIN_NS)
         {
             return Err(LoginRevocationError::InvalidPolicy);
         }
-        Ok(Self(data))
+        Ok(Self(data, None))
     }
 
     /// Protected trust domain owning the record.
@@ -156,6 +184,11 @@ impl LoginRevocationChange {
     /// Authenticated runtime caller whose record changes.
     pub fn caller(&self) -> Principal {
         self.0.caller
+    }
+    /// Previous browser binding removed in this same atomic admission transaction.
+    /// This is a transaction delta, not retained checkpoint data.
+    pub fn displaced_caller(&self) -> Option<Principal> {
+        self.1
     }
     /// Exclusive receiver-local retention deadline.
     pub fn until_ns(&self) -> u64 {
@@ -170,7 +203,10 @@ impl LoginRevocationChange {
 
 /// Bounded reference ledger for one host-installed trust domain. Callers are
 /// runtime principals, never request fields; this ledger cannot authenticate them.
-/// One admitted slot survives lease expiry until the authenticated login deadline.
+/// Each issuer-qualified account has at most eight retained device slots.
+/// Their generation fences survive lease/login expiry and logout. Only a fully
+/// verified newer generation may replace a slot; clock-based pruning never
+/// deletes it. Global admitted capacity bounds retained slots across accounts.
 /// Unknown callers have a separate pool and cannot consume admitted capacity.
 ///
 /// The host MUST serialize these operations with proof/session/replay state and
@@ -190,8 +226,12 @@ impl LoginRevocationChange {
 pub struct MemoryLoginRevocations {
     audience: AudienceId,
     records: BTreeMap<Principal, Record>,
+    // One physical record per issuer-qualified account slot. Replacement removes
+    // the displaced caller in the same transaction; history does not accumulate.
+    accounts: BTreeMap<(Principal, Principal, u8), Principal>,
     expiry: BTreeSet<(u64, Principal)>,
     max_admitted: usize,
+    max_device_slots: u8,
     max_unknown: usize,
     admitted: usize,
     unknown: usize,
@@ -202,15 +242,18 @@ pub struct MemoryLoginRevocations {
 impl MemoryLoginRevocations {
     /// Stream the complete physical ledger under a serialized host checkpoint.
     /// Persist these records with occupancy, clock and session/replay/authority
-    /// state atomically; expired entries count until explicit pruning.
+    /// state atomically; known slot fences remain after expiry.
     #[cfg(feature = "session-restore")]
     pub fn records(&self) -> impl ExactSizeIterator<Item = LoginRevocationChange> + '_ {
         self.records.iter().map(|(&caller, &record)| {
-            LoginRevocationChange(LoginData {
-                audience: self.audience,
-                caller,
-                record,
-            })
+            LoginRevocationChange(
+                LoginData {
+                    audience: self.audience,
+                    caller,
+                    record,
+                },
+                None,
+            )
         })
     }
 
@@ -248,9 +291,11 @@ impl MemoryLoginRevocations {
             if let Some(login) = record.login() {
                 let minimum = login.deadline_ns;
                 if login.deadline_ns - login.started_at_ns > self.max_login_ttl_ns
+                    || login.device_slot >= self.max_device_slots
                     || login.started_at_ns > observed_ns
                     || record.until_ns < minimum
                     || (!record.revoked() && record.until_ns != minimum)
+                    || self.accounts.contains_key(&slot(login))
                 {
                     return Err(LoginRevocationError::InvalidPolicy);
                 }
@@ -293,8 +338,10 @@ impl MemoryLoginRevocations {
         Ok(Self {
             audience,
             records: BTreeMap::new(),
+            accounts: BTreeMap::new(),
             expiry: BTreeSet::new(),
             max_admitted,
+            max_device_slots: ic_auth_protocol_types::limits::MAX_DEVICE_SLOTS,
             max_unknown,
             admitted: 0,
             unknown: 0,
@@ -303,9 +350,36 @@ impl MemoryLoginRevocations {
         })
     }
 
+    /// Tighten the protocol's eight-slot account ceiling before admission or
+    /// restore. Persist this host policy with the checkpoint; shrinking it must
+    /// not silently discard retained fences. A populated ledger cannot change it.
+    pub fn with_device_limit(mut self, maximum: u8) -> Result<Self, LoginRevocationError> {
+        if maximum == 0
+            || maximum > ic_auth_protocol_types::limits::MAX_DEVICE_SLOTS
+            || !self.records.is_empty()
+        {
+            return Err(LoginRevocationError::InvalidPolicy);
+        }
+        self.max_device_slots = maximum;
+        Ok(self)
+    }
+
     #[cfg(feature = "sessions")]
     pub(crate) fn audience(&self) -> AudienceId {
         self.audience
+    }
+
+    #[cfg(all(
+        feature = "sessions",
+        any(
+            feature = "portable-signature-verification",
+            feature = "certified-proof-verification"
+        )
+    ))]
+    pub(crate) fn slot_caller(&self, claims: &PortableClaims) -> Option<Principal> {
+        self.accounts
+            .get(&(claims.issuer, claims.account_subject, claims.device_slot))
+            .copied()
     }
 
     // One observation for a serialized session operation. Missing reservation is
@@ -325,7 +399,7 @@ impl MemoryLoginRevocations {
         Ok(record.and_then(|r| r.login()))
     }
 
-    /// Physical pool occupancy, including expired entries until bounded pruning.
+    /// Physical pool occupancy, including retained known slot fences.
     pub fn occupancy(&self) -> (usize, usize) {
         (self.admitted, self.unknown)
     }
@@ -423,7 +497,10 @@ impl MemoryLoginRevocations {
         commit: impl FnOnce(&LoginRevocationChange) -> Result<(), E>,
     ) -> Result<u64, E> {
         self.observe(caller, now_ns)?;
-        let old = self.records.get(&caller).filter(|r| r.until_ns > now_ns);
+        let old = self
+            .records
+            .get(&caller)
+            .filter(|r| r.admitted_pool() || r.until_ns > now_ns);
         let record = if let Some(old) = old {
             Record {
                 until_ns: old.until_ns,
@@ -458,22 +535,36 @@ impl MemoryLoginRevocations {
         record: Record,
         commit: impl FnOnce(&LoginRevocationChange) -> Result<T, E>,
     ) -> Result<T, E> {
-        let change = LoginRevocationChange(LoginData {
-            audience: self.audience,
-            caller,
-            record,
-        });
-        if let Some(previous) = self.records.get(&caller) {
+        let displaced = record
+            .login()
+            .and_then(|login| self.accounts.get(&slot(login)).copied())
+            .filter(|old| *old != caller);
+        let change = LoginRevocationChange(
+            LoginData {
+                audience: self.audience,
+                caller,
+                record,
+            },
+            displaced,
+        );
+        let previous_caller = displaced.unwrap_or(caller);
+        if let Some(previous) = self.records.get(&previous_caller) {
             change.check_replacement(
-                &LoginRevocationChange(LoginData {
-                    audience: self.audience,
-                    caller,
-                    record: *previous,
-                }),
+                &LoginRevocationChange(
+                    LoginData {
+                        audience: self.audience,
+                        caller: previous_caller,
+                        record: *previous,
+                    },
+                    None,
+                ),
                 self.observed_ns,
             )?;
         }
         let value = commit(&change)?;
+        if let Some(old) = displaced {
+            self.remove(old);
+        }
         self.install(caller, record);
         Ok(value)
     }
@@ -492,7 +583,8 @@ impl MemoryLoginRevocations {
             .is_some_and(|r| r.revoked() && r.until_ns > now_ns))
     }
 
-    /// Explicit maintenance, at most 128 expired entries; never evict live state.
+    /// Explicit maintenance, at most 128 expired unknown denials. Known slot
+    /// fences are never time-pruned; account retirement requires host recovery policy.
     /// The host clock must be monotonic, including across failed operations.
     pub fn prune(&mut self, now_ns: u64, budget: usize) -> Result<usize, LoginRevocationError> {
         self.prune_with_commit(now_ns, budget, |_, _| Ok(()))
@@ -560,6 +652,7 @@ impl MemoryLoginRevocations {
     ) -> Result<Record, LoginRevocationError> {
         let login_deadline_ns = claims.login_deadline_ns;
         if claims.audience != self.audience
+            || claims.device_slot >= self.max_device_slots
             || browser_caller != caller
             || claims
                 .login_deadline_ns
@@ -572,10 +665,16 @@ impl MemoryLoginRevocations {
         let login = LoginBinding {
             issuer: claims.issuer,
             subject: claims.account_subject,
+            device_slot: claims.device_slot,
+            device_generation: claims.device_generation,
             started_at_ns: claims.login_started_at_ns,
             deadline_ns: claims.login_deadline_ns,
         };
-        if let Some(old) = self.records.get(&caller).filter(|r| r.until_ns > now_ns) {
+        if let Some(old) = self
+            .records
+            .get(&caller)
+            .filter(|r| r.admitted_pool() || r.until_ns > now_ns)
+        {
             if old.revoked() {
                 return Err(LoginRevocationError::Revoked);
             }
@@ -583,11 +682,28 @@ impl MemoryLoginRevocations {
                 return Err(LoginRevocationError::InvalidPolicy);
             }
         }
+        // A different browser key must advance this slot's signed fence.
+        // Preflight never changes state; installation still needs verified claims.
+        let owner = self.accounts.get(&slot(login));
+        if let Some(owner) = owner {
+            let old = self.records[owner];
+            let binding = old.login().expect("slot index has authenticated binding");
+            if login.device_generation < binding.device_generation {
+                return Err(LoginRevocationError::Revoked);
+            }
+            if login.device_generation == binding.device_generation
+                && (*owner != caller || binding != login || old.revoked())
+            {
+                return Err(LoginRevocationError::Revoked);
+            }
+        }
         let record = Record {
             until_ns,
             state: LoginRecordState::Reserved(login),
         };
-        self.capacity(caller, record.admitted_pool())?;
+        if owner.is_none() {
+            self.capacity(caller, record.admitted_pool())?;
+        }
         Ok(record)
     }
 
@@ -630,6 +746,9 @@ impl MemoryLoginRevocations {
 
     fn unindex(&mut self, caller: Principal, old: Record) {
         self.expiry.remove(&(old.until_ns, caller));
+        if let Some(login) = old.login() {
+            self.accounts.remove(&slot(login));
+        }
         if old.admitted_pool() {
             self.admitted -= 1;
         } else {
@@ -641,13 +760,24 @@ impl MemoryLoginRevocations {
         if let Some(old) = self.records.insert(caller, record) {
             self.unindex(caller, old);
         }
+        if let Some(login) = record.login() {
+            self.accounts.insert(slot(login), caller);
+        }
         if record.admitted_pool() {
             self.admitted += 1;
         } else {
             self.unknown += 1;
         }
-        self.expiry.insert((record.until_ns, caller));
+        // Known slot fences survive expiry and logout. Only proofless unknown
+        // denial is time-prunable; deleting a fence could resurrect old proofs.
+        if !record.admitted_pool() {
+            self.expiry.insert((record.until_ns, caller));
+        }
     }
+}
+
+fn slot(login: LoginBinding) -> (Principal, Principal, u8) {
+    (login.issuer, login.subject, login.device_slot)
 }
 
 fn retention(now_ns: u64, max_login_ttl_ns: u64) -> Result<u64, LoginRevocationError> {

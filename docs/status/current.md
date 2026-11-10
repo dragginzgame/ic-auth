@@ -1,4 +1,115 @@
-# Current handoff — 2026-11-09
+# Current handoff — 2026-11-10
+
+## Toko Tooling 0.39.7 and documentation layout
+
+Both workspace pins and Cargo locks now select published `toko-tooling` 0.39.7
+(`fd795f6ef878496ac27a990a9208b87fa786a9148c18580338ef8ac79df501d7`).
+Auth-owned docs now live under protocol, development, integration and performance
+topics, alongside the existing design/status directories. [The index](../README.md)
+links the entrypoints. Relative links and consumer-owned command references were
+updated. The canonical root [LICENSE.md](../../LICENSE.md) and
+[CONTRIBUTING.md](../../CONTRIBUTING.md) match the selected producer byte-for-byte;
+both workspace catalogs inherit the root `license-file`. Required source notices
+remain in the packaged READMEs and generated private client archive.
+Only that package changed relative to the incoming lock selections; pending Auth
+device-slot work and the incoming Platform selection are preserved. Payloads came
+from authenticated crates.io archives located through Cargo metadata, installed by
+the new producer helper. The canonical exporter retired managed reference docs,
+rules, audits and task catalogs under the maintainer's explicit no-docs selection.
+Unused maintenance runner/schedule templates were also retired; no schedule was
+enabled. Auth's required `scripts/ci/release-receipts.sh` is now an explicit root,
+since its former documentation root no longer selects it. No snapshot-owned files
+were edited manually. Auth-owned documentation is retained.
+
+Auth explicitly opts into the maintained release surface with
+`TOKO_TOOLING_RELEASE := 1` before `make/consumer.mk`. Consumer links use upstream
+URLs pinned to reviewed source revisions. The task catalog now selects
+`fcbbcd147678fdfe5ab22c36710e017fb2c018e4`; Auth's forwarding `make tasks` target
+was removed because that command belongs only to the producer. Do not create `docs/toko-tooling/`;
+0.39.5 replaces that earlier policy with online references. Existing Protocol/Engine
+release requirements remain. Current tooling evidence is under `target/tooling-adoption-0397/`;
+the previous package/client and documentation-move evidence stays under 0396;
+the prior documentation-retirement evidence stays under its original 0395 directory.
+The preceding 0.39.3 release-plan regression remains under its original evidence
+directory; it is not relabeled as a new execution. No sibling edits or delivery.
+Installer/tool admission and the final `make toko-tooling-check` passed: 108
+installed files, with no managed `docs/`, `rules/`, `audits/` or `tasks/` payloads.
+The 0396 canonical-license/archive checks and 97 client tests retain their original
+evidence identity. This adoption preserves those files and package mechanics.
+The earlier Make jobserver regression passed after marking the metadata recipe as a
+recursive Cargo caller and extending its substituted metadata response. All 247
+local documentation references resolved in that batch. Saved release-validation records retain
+their original paths and evidence; they are not rewritten for these source moves.
+For 0397, installer/tool admission, snapshot and both-workspace metadata checks,
+canonical-file byte comparisons, all 247 documentation links, release dry-run and
+the final Make jobserver/frozen-routing fixture passed. The fixture now asserts
+the producer-only `tasks` target is absent. No reference docs were reinstalled;
+no unrelated package selections changed.
+Only Tooling changed in either lock relative to the incoming selections.
+
+## Pending bounded multi-device contract
+
+Local Protocol/Engine **0.38.0** work replaces the rejected one-device restriction.
+Nothing in this batch is committed, pushed or published. Canic remains unchanged.
+Do not claim downstream adoption or a release gate from focused qualification.
+
+- Portable claims use canonical schema 2 with signed `device_slot` (0–7) and
+  nonzero `device_generation`. Schema 1 refuses. Issuers allocate slots under
+  account authentication, preserve the original binding/window on renewal, and
+  advance generations with fresh browser keys for replacement. Auth does not
+  implement Canic issuance, asynchronous callback fencing or fleet orchestration.
+- Receivers retain one known record/session per `(issuer, subject, device_slot)`.
+  Eight is the protocol ceiling; `MemoryLoginRevocations::with_device_limit`
+  admits a tighter host limit before admission/restore. Persist that policy.
+  Higher generations require complete verification before atomic replacement;
+  lower/equal-generation rebinding and generation wrap refuse. Failed commits
+  preserve the original device. A late logout by a displaced key cannot remove
+  the replacement or another device.
+- Known slot fences survive logout and expiry. Pruning removes bounded expired
+  session/replay records and unknown denials, never known slot fences. Global
+  retained-slot capacity bounds accounts; safe account retirement/reset remains
+  explicit host policy. There are no hidden timers or new inter-canister calls.
+- Durable admission must delete `login.displaced_caller()` from old session/login
+  rows in the same commit as new records/indexes/totals, retaining replay history.
+  That accessor is transaction-only and is absent from encoded checkpoint data.
+  Both reference and independent encoded backend qualification implement it.
+- Replay rows retain `(issuer, subject)` independently of sessions. Account-wide
+  replay quotas survive logout/key changes/restore. `SessionReader::occupancy`
+  accepts the account tuple; projections are `max_replays_per_account` and
+  `replays_for_account`. Corrupt session/replay ownership refuses restore.
+- The maintainer authorized retiring the old Auth format on 2026-11-10. Session,
+  replay and login identities are now `0x415554485341`, `0x415554485342` and
+  `0x415554485343`; the fixture checkpoint is `AUTHSLOT` / `0x41555449f102`.
+  Old records/checkpoints refuse without deletion or a fallback reader. This
+  does not authorize deleting Canic data. Public Wire envelopes and upstream
+  cryptographic algorithms/validation remain unchanged; signed claims change.
+
+Qualification evidence is under `target/device-contract-*`. The original
+installed run passed four cases and failed the newly extended upgrade scenario
+because the second receiver had not enabled checkpointing. After explicit setup,
+that case passed, including replacement/old-key refusal across upgrade. The final
+rebuilt artifact then passed all five installed cases together (34.38 seconds).
+Actual Chromium remains unprepared/ignored. The browser suite passed 97 tests; all five
+regenerated browser contract files remain byte-identical because claims are an
+opaque blob. Final focused native checks passed 152 Auth cases, 21 backend cases
+and 12 adversarial feature-unification cases. Native/Wasm Auth Clippy, all-target
+qualification Clippy, tooling bench compilation, documentation links and diff
+checks passed. Both Cargo locks stayed unchanged. Full CI/release was not run.
+
+The retained pre-change fixture is 1,859,049 bytes. The first device-slot artifact
+was 1,886,557 bytes; the final artifact is 1,886,577 (+27,528 / 1.48%), SHA-256
+`6ee1f0cafc5efca36f09105fa8c0213a171c90f1bfeac829220f61f4ac222b7a`.
+Installed authorization measured 4,676
+instructions, stored session decode 21,768, record size 267 bytes. These are
+fixture observations, not production fees or a matched published-release comparison.
+The change includes account-aware replay records. Preserve failed logs as evidence.
+
+Canic read-only inspection found Engine 0.36.1 / Protocol 0.36 and caller-based
+replay accounting. Its local issuer ceiling increased to 4,096 logins / 2,048
+issuances, but admission remains globally bounded by caller+epoch+login ID, without
+account slot allocation. Adoption needs coordinated supplier identities, issuer
+slot/generation custody with retry/callback fences, receiver adapter changes,
+explicit retained-state disposition and installed consumer qualification.
 
 ## Published state
 
@@ -53,10 +164,12 @@ private host-entropy conformance work. Crypto remains upstream-owned.
 ## Deferred normal-checkout update
 
 The normal checkout retains an **uncommitted product Cargo.lock update to
-Platform 0.29.2**, made outside the captured batch. It was preserved on local
+Platform 0.29.2**, made outside the captured batch, plus incoming CRC32fast 1.5.5.
+The Platform update was preserved on local
 branch `deferred/auth-0370-platform-0292` at `3a7e24f`, then reapplied after
 reconciliation without altering the released package versions. It is **not**
-part of 0.37.0 and has no qualification claim. The qualification lock remains
+part of 0.37.0; the focused pending-code checks do not establish complete supplier
+adoption or release qualification. The qualification lock remains
 on delivered Platform 0.29.1. Do not discard this deferred work.
 
 ## Persistence and consumer boundaries

@@ -3,6 +3,16 @@
 Covers `ic-auth-protocol-types` and `ic-auth-wire`, released together.
 The independent series starts after the [last coordinated release, 0.29.2](../history.md).
 
+## [0.38.0] - Unreleased
+
+### ⚠️ Breaking
+
+- Add signed device slot (0–7) and nonzero generation to portable claims. The
+  canonical credential schema advances to 2; schema 1 is rejected. Issuers must
+  allocate slots under account authentication, preserve generations on renewal,
+  and advance them with fresh browser keys for replacement. Wire envelopes are
+  unchanged; coordinated Engine/issuer adoption is required.
+
 ## [0.37.0] - 2026-11-09
 
 ### ⚠️ Breaking

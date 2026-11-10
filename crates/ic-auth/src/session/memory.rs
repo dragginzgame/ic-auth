@@ -16,12 +16,15 @@ struct Stored<T> {
 /// safety-state loss pending trusted complete recovery; local time and fresh
 /// enrollment alone cannot exclude old signed logins.
 /// Persistent hosts retain sessions, replay and revocation state atomically.
+/// Each issuer-qualified device slot owns at most one physical session. A
+/// verified higher-generation replacement removes its old caller atomically.
 pub struct MemorySessionStore {
     generation: u64,
     limits: SessionLimits,
     sessions: BTreeMap<Principal, Stored<Session>>,
+    accounts: BTreeMap<(Principal, Principal, u8), Principal>,
     replays: BTreeMap<[u8; 32], Stored<Replay>>,
-    replay_counts: BTreeMap<Principal, usize>,
+    replay_counts: BTreeMap<(Principal, Principal), usize>,
     session_expiry: BTreeSet<(u64, Principal)>,
     replay_expiry: BTreeSet<(u64, [u8; 32])>,
     encoded_bytes: usize,
@@ -115,6 +118,11 @@ impl MemorySessionStore {
             }
             if session.generation() > self.generation
                 || self.sessions.contains_key(&session.caller())
+                || self.accounts.contains_key(&(
+                    session.issuer(),
+                    session.subject(),
+                    session.device_slot(),
+                ))
             {
                 return Err(SessionError::InvalidPolicyOrRecord);
             }
@@ -135,10 +143,10 @@ impl MemorySessionStore {
             }
             let count = self
                 .replay_counts
-                .get(&replay.caller())
+                .get(&replay.account())
                 .copied()
                 .unwrap_or(0);
-            if count >= self.limits.max_replays_per_caller() {
+            if count >= self.limits.max_replays_per_account() {
                 return Err(SessionError::Capacity);
             }
             if replay.generation() > self.generation
@@ -167,6 +175,7 @@ impl MemorySessionStore {
             // session remains live. If retained, the pair must still agree.
             if let Some(replay) = self.replays.get(&stored.value.fingerprint())
                 && (replay.value.caller() != stored.value.caller()
+                    || replay.value.account() != (stored.value.issuer(), stored.value.subject())
                     || replay.value.generation() != stored.value.generation())
             {
                 return Err(SessionError::InvalidPolicyOrRecord);
@@ -179,21 +188,32 @@ impl MemorySessionStore {
     // admission invokes them only after commit; restore admits each record first.
     fn install_session(&mut self, session: Stored<Session>) {
         let caller = session.value.caller();
+        let account = (
+            session.value.issuer(),
+            session.value.subject(),
+            session.value.device_slot(),
+        );
         let expires_at_ns = session.value.expires_at_ns();
         if let Some(old) = self.sessions.insert(caller, session) {
+            self.accounts.remove(&(
+                old.value.issuer(),
+                old.value.subject(),
+                old.value.device_slot(),
+            ));
             self.session_expiry
                 .remove(&(old.value.expires_at_ns(), caller));
         }
+        self.accounts.insert(account, caller);
         self.session_expiry.insert((expires_at_ns, caller));
     }
 
     fn install_replay(&mut self, replay: Stored<Replay>) {
-        let caller = replay.value.caller();
+        let account = replay.value.account();
         let fingerprint = replay.value.fingerprint();
         self.replay_expiry
             .insert((replay.value.remove_at_ns(), fingerprint));
         self.replays.insert(fingerprint, replay);
-        *self.replay_counts.entry(caller).or_default() += 1;
+        *self.replay_counts.entry(account).or_default() += 1;
     }
 
     /// Construct an empty store from already-admitted limits.
@@ -202,6 +222,7 @@ impl MemorySessionStore {
             generation,
             limits,
             sessions: BTreeMap::new(),
+            accounts: BTreeMap::new(),
             replays: BTreeMap::new(),
             replay_counts: BTreeMap::new(),
             session_expiry: BTreeSet::new(),
@@ -237,6 +258,11 @@ impl MemorySessionStore {
     /// Logout removes only this caller's session, preserving consumed proofs.
     fn clear(&mut self, caller: Principal) {
         if let Some(old) = self.sessions.remove(&caller) {
+            self.accounts.remove(&(
+                old.value.issuer(),
+                old.value.subject(),
+                old.value.device_slot(),
+            ));
             self.session_expiry
                 .remove(&(old.value.expires_at_ns(), caller));
             self.encoded_bytes -= old.bytes;
@@ -304,14 +330,14 @@ impl MemorySessionStore {
             self.replay_expiry
                 .remove(&(old.value.remove_at_ns(), fingerprint));
             self.encoded_bytes -= old.bytes;
-            let caller = old.value.caller();
+            let account = old.value.account();
             let count = self
                 .replay_counts
-                .get_mut(&caller)
+                .get_mut(&account)
                 .expect("owned replay count");
             *count -= 1;
             if *count == 0 {
-                self.replay_counts.remove(&caller);
+                self.replay_counts.remove(&account);
             }
         }
         Ok(result)
@@ -337,11 +363,11 @@ impl SessionReader for MemorySessionStore {
     fn replay_exists(&self, fingerprint: [u8; 32]) -> Result<bool, SessionError> {
         Ok(self.replays.contains_key(&fingerprint))
     }
-    fn occupancy(&self, caller: Principal) -> Result<SessionOccupancy, SessionError> {
+    fn occupancy(&self, account: (Principal, Principal)) -> Result<SessionOccupancy, SessionError> {
         Ok(SessionOccupancy {
             sessions: self.sessions.len(),
             replays: self.replays.len(),
-            replays_for_caller: self.replay_counts.get(&caller).copied().unwrap_or(0),
+            replays_for_account: self.replay_counts.get(&account).copied().unwrap_or(0),
         })
     }
 }
@@ -381,13 +407,29 @@ impl MemorySessionStore {
         commit: impl FnOnce(SessionCommit<'_>) -> Result<(), SessionError>,
     ) -> Result<bool, SessionError> {
         session.check_admission_pair(&replay, login, self.generation)?;
+        let slot_owner = self
+            .accounts
+            .get(&(session.issuer(), session.subject(), session.device_slot()))
+            .copied();
+        if let Some(owner) = slot_owner.filter(|owner| *owner != session.caller())
+            && (login.displaced_caller() != Some(owner)
+                || self.sessions[&owner].value.device_generation() >= session.device_generation())
+        {
+            return Err(SessionError::InvalidPolicyOrRecord);
+        }
         if self.replay_exists(replay.fingerprint())? {
             return Err(SessionError::ReplayConflict);
         }
-        let old = self.sessions.get(&session.caller());
+        let removed = login.displaced_caller().unwrap_or(session.caller());
+        let old = self.sessions.get(&removed);
+        if removed != session.caller() && self.sessions.contains_key(&session.caller()) {
+            return Err(SessionError::InvalidPolicyOrRecord);
+        }
         let replacing = old.is_some();
-        self.limits
-            .check_capacity(self.occupancy(session.caller())?, replacing)?;
+        self.limits.check_capacity(
+            self.occupancy((session.issuer(), session.subject()))?,
+            replacing,
+        )?;
         let session_bytes = session.encoded_len()?;
         let replay_bytes = replay.encoded_len()?;
         let total = (self.encoded_bytes - old.map_or(0, |s| s.bytes))
@@ -415,6 +457,9 @@ impl MemorySessionStore {
             replay_count: self.replays.len() + 1,
             encoded_bytes: total,
         })?;
+        if removed != session.value.caller() {
+            self.clear(removed);
+        }
         self.install_session(session);
         self.install_replay(replay);
         self.encoded_bytes = total;

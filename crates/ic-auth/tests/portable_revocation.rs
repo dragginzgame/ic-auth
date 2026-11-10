@@ -24,6 +24,7 @@ fn browser_key(n: u64) -> [u8; 32] {
 }
 fn claims(n: u64, deadline: u64, now: u64) -> PortableClaims {
     let mut claims = support::claims(browser_key(n));
+    claims.account_subject = Principal::from_slice(&n.to_be_bytes());
     claims.login_started_at_ns = deadline.saturating_sub(1000);
     claims.login_deadline_ns = deadline;
     claims.issued_at_ns = now;
@@ -64,6 +65,167 @@ fn caller(n: u64) -> Principal {
 }
 fn ledger(admitted: usize, unknown: usize) -> MemoryLoginRevocations {
     MemoryLoginRevocations::new(audience(), admitted, unknown, MAX_LOGIN_TTL, 0).unwrap()
+}
+
+#[cfg(feature = "session-restore")]
+#[test]
+fn protected_device_limit_refuses_invalid_policy_and_incompatible_restore() {
+    assert!(ledger(8, 1).with_device_limit(0).is_err());
+    assert!(ledger(8, 1).with_device_limit(9).is_err());
+    let mut limited = ledger(8, 1).with_device_limit(2).unwrap();
+    let mut value = claims(1, 100, 1);
+    value.device_slot = 2;
+    assert_eq!(
+        limited.check_reservation(caller(1), &value, 1),
+        Err(Error::InvalidPolicy)
+    );
+    value.device_slot = 1;
+    limited
+        .with_reservation::<(), Error>(caller(1), &verify(&value, 1), 1, |_| Ok(()))
+        .unwrap();
+    let bytes = limited.records().next().unwrap().encode().unwrap();
+    assert!(
+        limited.with_device_limit(1).is_err(),
+        "populated policy cannot change"
+    );
+    let restore = |limit| {
+        MemoryLoginRevocations::new(audience(), 8, 1, MAX_LOGIN_TTL, 1)
+            .unwrap()
+            .with_device_limit(limit)
+            .unwrap()
+            .restore_records(
+                1,
+                (1, 0),
+                [ic_auth::portable::LoginRevocationChange::decode(&bytes).unwrap()],
+            )
+    };
+    assert!(restore(1).is_err());
+    assert_eq!(restore(2).unwrap().occupancy(), (1, 0));
+}
+
+#[test]
+fn one_slot_retains_its_fence_across_keys_logout_and_expiry() {
+    let mut store = ledger(2, 1);
+    let first = claims(1, 100, 1);
+    store
+        .with_reservation::<(), Error>(caller(1), &verify(&first, 1), 1, |_| Ok(()))
+        .unwrap();
+    for n in 2..=65 {
+        let mut another = claims(n, 100, 1);
+        another.account_subject = first.account_subject;
+        assert_eq!(
+            store.check_reservation(caller(n), &another, 1),
+            Err(Error::Revoked)
+        );
+        assert_eq!(
+            store.with_reservation::<(), Error>(caller(n), &verify(&another, 1), 1, |_| {
+                panic!("same-generation rebinding must refuse")
+            }),
+            Err(Error::Revoked)
+        );
+    }
+    assert_eq!(store.occupancy(), (1, 0));
+    // Another authenticated account remains admissible.
+    store
+        .with_reservation::<(), Error>(caller(66), &verified(66, 200, 1), 1, |_| Ok(()))
+        .unwrap();
+    store
+        .with_revocation::<Error>(&mut budget(), caller(1), 2, |_| Ok(()))
+        .unwrap();
+    let mut next = claims(2, 200, 2);
+    next.account_subject = first.account_subject;
+    assert_eq!(
+        store.check_reservation(caller(2), &next, 2),
+        Err(Error::Revoked)
+    );
+    next.issued_at_ns = 100;
+    next.admission_expires_at_ns = 101;
+    // Expired physical records still own their account until explicit pruning.
+    assert_eq!(
+        store.check_reservation(caller(2), &next, 100),
+        Err(Error::Revoked)
+    );
+    assert_eq!(store.prune(100, 1), Ok(0));
+    next.device_generation = 2;
+    store
+        .with_reservation::<(), Error>(caller(2), &verify(&next, 100), 100, |_| Ok(()))
+        .unwrap();
+    assert_eq!(store.occupancy(), (2, 0));
+}
+
+#[test]
+fn failed_account_reservation_leaves_another_key_free_to_admit() {
+    let mut store = ledger(2, 1);
+    let first = claims(1, 100, 1);
+    assert_eq!(
+        store.with_reservation::<(), Error>(caller(1), &verify(&first, 1), 1, |_| Err(
+            Error::Storage
+        )),
+        Err(Error::Storage)
+    );
+    let mut second = claims(2, 100, 1);
+    second.account_subject = first.account_subject;
+    store
+        .with_reservation::<(), Error>(caller(2), &verify(&second, 1), 1, |_| Ok(()))
+        .unwrap();
+    assert_eq!(
+        store.check_reservation(caller(1), &first, 1),
+        Err(Error::Revoked)
+    );
+    assert_eq!(store.occupancy(), (1, 0));
+}
+
+#[cfg(feature = "session-restore")]
+#[test]
+fn restoration_rejects_duplicate_slots_and_keeps_known_logout_ownership() {
+    use ic_auth::portable::LoginRevocationChange;
+    let first = claims(1, 100, 1);
+    let mut second = claims(2, 100, 1);
+    second.account_subject = first.account_subject;
+    let mut saved = Vec::new();
+    for claims in [&first, &second] {
+        let mut source = ledger(2, 1);
+        source
+            .with_reservation::<(), Error>(
+                browser_principal(&claims.browser_public_key),
+                &verify(claims, 1),
+                1,
+                |_| Ok(()),
+            )
+            .unwrap();
+        if claims.browser_public_key == first.browser_public_key {
+            source
+                .with_revocation::<Error>(&mut budget(), caller(1), 1, |_| Ok(()))
+                .unwrap();
+        }
+        saved.push(source.records().next().unwrap().encode().unwrap());
+    }
+    for rows in [vec![0, 1], vec![1, 0]] {
+        assert!(matches!(
+            MemoryLoginRevocations::new(audience(), 2, 1, MAX_LOGIN_TTL, 1)
+                .unwrap()
+                .restore_records(
+                    1,
+                    (2, 0),
+                    rows.into_iter()
+                        .map(|index| { LoginRevocationChange::decode(&saved[index]).unwrap() })
+                ),
+            Err(Error::InvalidPolicy)
+        ));
+    }
+    let mut restored = MemoryLoginRevocations::new(audience(), 2, 1, MAX_LOGIN_TTL, 1)
+        .unwrap()
+        .restore_records(
+            1,
+            (1, 0),
+            [LoginRevocationChange::decode(&saved[0]).unwrap()],
+        )
+        .unwrap();
+    assert_eq!(
+        restored.check_reservation(caller(2), &second, 1),
+        Err(Error::Revoked)
+    );
+    assert!(restored.is_revoked(caller(1), 1).unwrap());
 }
 
 #[test]
@@ -282,8 +444,8 @@ fn unknown_flood_cannot_steal_admitted_logout_capacity() {
         Err(Error::Capacity)
     );
     assert_eq!(store.prune(99, 128), Ok(0));
-    assert_eq!(store.prune(100, 128), Ok(1));
-    assert_eq!(store.occupancy(), (0, 1));
+    assert_eq!(store.prune(100, 128), Ok(0));
+    assert_eq!(store.occupancy(), (1, 1));
     assert!(store.is_revoked(caller(2), 100).unwrap());
 }
 
@@ -364,8 +526,8 @@ fn storage_failure_never_commits_reservation_or_revocation() {
         Ok(until)
     );
     assert_eq!(store.prune(until - 1, 128), Ok(0));
-    assert_eq!(store.prune(until, 128), Ok(1));
-    assert_eq!(store.occupancy(), (0, 0));
+    assert_eq!(store.prune(until, 128), Ok(0));
+    assert_eq!(store.occupancy(), (1, 0));
 }
 
 #[cfg(feature = "session-restore")]
@@ -445,12 +607,13 @@ fn reservation_retention_and_renewal_deadline_are_exact() {
     }
     assert_eq!(store.prune(99, 128), Ok(0));
     assert_eq!(store.occupancy(), (1, 0));
-    assert_eq!(store.prune(100, 128), Ok(1));
-    // A distinct device has independent capacity and denial state.
-    store
-        .with_reservation::<(), Error>(caller(2), &verified(2, 200, 110), 110, |_| Ok(()))
-        .unwrap();
-    assert!(!store.is_revoked(caller(2), 110).unwrap());
+    assert_eq!(store.prune(100, 128), Ok(0));
+    assert_eq!(
+        store.with_reservation::<(), Error>(caller(2), &verified(2, 200, 110), 110, |_| panic!(
+            "retained fence still uses capacity"
+        )),
+        Err(Error::Capacity)
+    );
 }
 
 #[test]
@@ -491,8 +654,8 @@ fn idempotent_retention_never_slides_and_expired_pool_transfer_is_atomic() {
     let mut other_domain = ledger(1, 1);
     assert!(!other_domain.is_revoked(caller(2), until).unwrap());
     assert_eq!(store.prune(until + 99, 128), Ok(0));
-    assert_eq!(store.prune(until + 100, 128), Ok(1));
-    assert_eq!(store.occupancy(), (0, 1));
+    assert_eq!(store.prune(until + 100, 128), Ok(0));
+    assert_eq!(store.occupancy(), (1, 1));
     assert!(store.is_revoked(caller(2), until + 100).unwrap());
 }
 
@@ -520,15 +683,13 @@ fn expired_pool_transfer_refuses_when_destination_pool_is_full() {
         .with_revocation::<Error>(&mut budget(), caller(3), 1001, |_| Ok(()))
         .unwrap();
     assert_eq!(
-        store.with_revocation::<Error>(&mut budget(), caller(2), 1500, |_| panic!(
-            "unknown pool is full"
-        )),
-        Err(Error::Capacity)
+        store.with_revocation::<Error>(&mut budget(), caller(2), 1500, |_| Ok(())),
+        Ok(1500)
     );
     assert_eq!(store.occupancy(), (1, 1));
     assert!(store.is_revoked(caller(3), 1500).unwrap());
-    assert_eq!(store.prune(1500, 1), Ok(1));
-    assert_eq!(store.occupancy(), (0, 1));
+    assert_eq!(store.prune(1500, 1), Ok(0));
+    assert_eq!(store.occupancy(), (1, 1));
 }
 
 #[test]
@@ -943,6 +1104,8 @@ fn commit_receives_complete_login_change_before_any_ledger_installation() {
     let checked = verified(1, 100, 1);
     let c = checked.claims();
     let binding = ic_auth::portable::LoginBinding {
+        device_slot: 0,
+        device_generation: 1,
         issuer: c.issuer,
         subject: c.account_subject,
         started_at_ns: 0,
@@ -1045,8 +1208,8 @@ fn restore_retains_reservations_tombstones_and_clock_without_partial_results() {
     // Expired physical records still count; bounded pruning reclaims them.
     let mut expired = restore(vec![reservation], (1, 0), 2, 111).unwrap();
     assert_eq!(expired.occupancy(), (1, 0));
-    assert_eq!(expired.prune(111, 1).unwrap(), 1);
-    assert_eq!(expired.occupancy(), (0, 0));
+    assert_eq!(expired.prune(111, 1).unwrap(), 0);
+    assert_eq!(expired.occupancy(), (1, 0));
     let mut wrong_domain = audience();
     wrong_domain.fleet_id = CanonicalId::from_bytes([99; 32]);
     assert!(
@@ -1087,7 +1250,7 @@ struct LoginRecord {
     state: ic_auth::portable::LoginRecordState,
 }
 #[cfg(feature = "session-restore")]
-const LOGIN_ID: u64 = 0x415554485323;
+const LOGIN_ID: u64 = 0x415554485343;
 #[cfg(feature = "session-restore")]
 const LOGIN_LIMITS: ic_wire::Limits = ic_wire::Limits {
     bytes: 1024,
@@ -1101,6 +1264,8 @@ const LOGIN_LIMITS: ic_wire::Limits = ic_wire::Limits {
 fn stored_login_state_has_exactly_three_valid_projections() {
     use ic_auth::portable::{LoginBinding, LoginRecordState, LoginRevocationChange};
     let login = LoginBinding {
+        device_slot: 0,
+        device_generation: 1,
         issuer: Principal::from_slice(&[1]),
         subject: Principal::from_slice(&[2]),
         started_at_ns: 1,
@@ -1171,6 +1336,8 @@ fn login_record_decoder_and_restoration_reject_corruption_and_retention_changes(
                 until_ns: 100,
                 state: ic_auth::portable::LoginRecordState::Reserved(
                     ic_auth::portable::LoginBinding {
+                        device_slot: 0,
+                        device_generation: 1,
                         issuer: proof.claims().issuer,
                         subject: proof.claims().account_subject,
                         started_at_ns: 0,
@@ -1214,6 +1381,16 @@ fn login_record_decoder_and_restoration_reject_corruption_and_retention_changes(
     };
     for invalid in [
         LoginBinding {
+            device_slot: 8,
+            ..login
+        },
+        LoginBinding {
+            device_generation: 0,
+            ..login
+        },
+        LoginBinding {
+            device_slot: 0,
+            device_generation: 1,
             issuer: Principal::anonymous(),
             ..login
         },
@@ -1276,8 +1453,8 @@ fn durable_ledger_pruning_retains_denials_and_clock_on_commit_failure() {
     let now = MAX_LOGIN_TTL + 22;
     assert_eq!(
         ledger.prune_with_commit(now, 128, |callers, counts| {
-            assert_eq!(callers, &[admitted, unknown]);
-            assert_eq!(counts, (0, 0));
+            assert_eq!(callers, &[unknown]);
+            assert_eq!(counts, (1, 0));
             Err(Error::Storage)
         }),
         Err(Error::Storage)
@@ -1297,25 +1474,21 @@ fn durable_ledger_pruning_retains_denials_and_clock_on_commit_failure() {
     assert_eq!(
         ledger
             .prune_with_commit(now, 1, |callers, counts| {
-                assert_eq!(callers, &[admitted]);
-                assert_eq!(counts, (0, 1));
+                assert_eq!(callers, &[unknown]);
+                assert_eq!(counts, (1, 0));
                 Ok(())
             })
             .unwrap(),
         1
     );
-    assert_eq!(ledger.occupancy(), (0, 1));
+    assert_eq!(ledger.occupancy(), (1, 0));
     assert_eq!(
         ledger
-            .prune_with_commit(now, 128, |callers, counts| {
-                assert_eq!(callers, &[unknown]);
-                assert_eq!(counts, (0, 0));
-                Ok(())
-            })
+            .prune_with_commit(now, 128, |_, _| panic!("known fence is not prunable"))
             .unwrap(),
-        1
+        0
     );
-    assert_eq!(ledger.occupancy(), (0, 0));
+    assert_eq!(ledger.occupancy(), (1, 0));
     assert_eq!(
         ledger
             .prune_with_commit(now, 128, |_, _| panic!("empty commit"))

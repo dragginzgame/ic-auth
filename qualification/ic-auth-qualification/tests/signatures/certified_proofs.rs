@@ -168,6 +168,8 @@ async fn portable_proof_rechecks_live_authority_and_real_certification_after_upg
         issuer: fixture.signer,
         key_binding_id: ic_auth::canonical::cert_hash(&proof.cert).unwrap(),
         browser_public_key: browser_key,
+        device_slot: 0,
+        device_generation: 1,
         account_subject: fixture.owner,
         login_started_at_ns: started,
         login_deadline_ns: started + 120 * SECOND,

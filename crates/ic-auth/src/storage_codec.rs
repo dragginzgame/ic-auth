@@ -2,11 +2,13 @@
 //!
 //! These identities are storage discriminators, never mounted RPC methods.
 //! The old domain-prefixed CBOR records are retired, with no fallback reader.
+//! Auth 0.37's session/replay/login identities are also retired together. Hosts
+//! must explicitly initialize coherent new state; decode never resets old state.
 use ic_wire::{Error, Limits, native};
 
-pub(crate) const SESSION: u64 = 0x415554485311;
-pub(crate) const REPLAY: u64 = 0x415554485302;
-pub(crate) const LOGIN: u64 = 0x415554485323;
+pub(crate) const SESSION: u64 = 0x415554485341;
+pub(crate) const REPLAY: u64 = 0x415554485342;
+pub(crate) const LOGIN: u64 = 0x415554485343;
 
 fn limits(maximum: usize) -> Limits {
     Limits {

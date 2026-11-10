@@ -37,6 +37,9 @@ impl SessionStore for Reference {
             if fail {
                 return Err(SessionError::StorageFailure);
             }
+            if let Some(old) = login.displaced_caller() {
+                self.logins.remove(&old);
+            }
             self.logins.insert(login.caller(), bytes);
             Ok(())
         })
@@ -167,14 +170,14 @@ impl SessionReader for Encoded {
     fn replay_exists(&self, fingerprint: [u8; 32]) -> Result<bool, SessionError> {
         Ok(self.replays.contains_key(&fingerprint))
     }
-    fn occupancy(&self, caller: Principal) -> Result<SessionOccupancy, SessionError> {
-        let replays_for_caller = self.replays.values().try_fold(0, |count, bytes| {
-            Replay::decode(bytes).map(|replay| count + usize::from(replay.caller() == caller))
+    fn occupancy(&self, account: (Principal, Principal)) -> Result<SessionOccupancy, SessionError> {
+        let replays_for_account = self.replays.values().try_fold(0, |count, bytes| {
+            Replay::decode(bytes).map(|replay| count + usize::from(replay.account() == account))
         })?;
         Ok(SessionOccupancy {
             sessions: self.sessions.len(),
             replays: self.replays.len(),
-            replays_for_caller,
+            replays_for_account,
         })
     }
 }
@@ -195,13 +198,16 @@ impl SessionStore for Encoded {
         if self.replay_exists(replay.fingerprint())? {
             return Err(SessionError::ReplayConflict);
         }
-        let replacing = self.sessions.contains_key(&session.caller());
-        self.limits
-            .check_capacity(self.occupancy(session.caller())?, replacing)?;
+        let removed = login.displaced_caller().unwrap_or(session.caller());
+        let replacing = self.sessions.contains_key(&removed);
+        self.limits.check_capacity(
+            self.occupancy((session.issuer(), session.subject()))?,
+            replacing,
+        )?;
         let session_bytes = session.encode()?;
         let replay_bytes = replay.encode()?;
         let login_bytes = login.encode().unwrap();
-        let old = self.sessions.get(&session.caller()).map_or(0, Vec::len);
+        let old = self.sessions.get(&removed).map_or(0, Vec::len);
         let total = self
             .bytes()
             .checked_sub(old)
@@ -212,6 +218,10 @@ impl SessionStore for Encoded {
             return Err(SessionError::ByteCapacity);
         }
         self.commit()?;
+        if let Some(old) = login.displaced_caller() {
+            self.sessions.remove(&old);
+            self.logins.remove(&old);
+        }
         self.sessions.insert(session.caller(), session_bytes);
         self.replays.insert(replay.fingerprint(), replay_bytes);
         self.logins.insert(login.caller(), login_bytes);
@@ -346,6 +356,10 @@ fn independent_ninety_day_renewal_conforms() {
 #[test]
 fn independent_capacity_conforms() {
     assert_capacity::<Encoded>();
+}
+#[test]
+fn independent_device_replacement_conforms() {
+    ic_auth_backend_conformance::assert_device_replacement::<Encoded>();
 }
 #[test]
 fn independent_authorization_conforms() {

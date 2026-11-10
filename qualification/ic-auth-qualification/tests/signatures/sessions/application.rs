@@ -42,6 +42,8 @@ async fn scoped_application_updates_use_only_the_live_caller_session() {
         issuer: config.issuer,
         key_binding_id: config.authority.binding(),
         browser_public_key: SigningKey::from_bytes(&[72; 32]).verifying_key().to_bytes(),
+        device_slot: 0,
+        device_generation: 1,
         account_subject: Principal::from_slice(&[99]),
         login_started_at_ns: now,
         login_deadline_ns: now + 90 * SECOND,
@@ -51,6 +53,9 @@ async fn scoped_application_updates_use_only_the_live_caller_session() {
         grants: config.grants.as_slice().to_vec(),
     };
     let writer_claims = PortableClaims {
+        device_slot: 0,
+        device_generation: 1,
+        account_subject: Principal::from_slice(&[100]),
         browser_public_key: SigningKey::from_bytes(&[73; 32]).verifying_key().to_bytes(),
         nonce: [73; 16],
         ..reader_claims.clone()

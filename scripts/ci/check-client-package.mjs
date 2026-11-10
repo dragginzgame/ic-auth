@@ -34,7 +34,8 @@ export async function qualifyClientPackage({ root, source, directory, packed, co
   }
   command('npm', ['ci', '--offline', '--ignore-scripts', '--no-audit', '--no-fund'], consumer);
   const installed = resolve(consumer, 'node_modules', manifest.name);
-  assert.equal(readFileSync(resolve(installed, 'LICENSE'), 'utf8'), readFileSync(resolve(source, 'LICENSE'), 'utf8'));
+  assert.equal(readFileSync(resolve(installed, 'LICENSE.md'), 'utf8'), readFileSync(resolve(root, 'LICENSE.md'), 'utf8'));
+  assert.equal(readFileSync(resolve(installed, 'NOTICE.md'), 'utf8'), readFileSync(resolve(root, 'README.md'), 'utf8').split('## Source origin notice\n')[1]);
   copyFileSync(resolve(source, 'fixtures/consumer.ts'), resolve(consumer, 'consumer.ts'));
   writeFileSync(resolve(consumer, 'tsconfig.json'), JSON.stringify({ compilerOptions: {
     target: 'ES2022', module: 'NodeNext', moduleResolution: 'NodeNext', strict: true,

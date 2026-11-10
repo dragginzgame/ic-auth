@@ -123,7 +123,7 @@ try {
 
   const live = await page();
   const result = await live.evaluate(input => authFixture.sdk(input), { issuer, receiver, root, now, credential, peerCredential, subject, until });
-  console.log('PASS actual browser SDK: pinned IC root; distinct account/browser signers; original issuance recovery; two receivers/devices; retry lease unchanged; lost logout reply; authenticated acknowledgements; retained-key refusal', JSON.stringify(result));
+  console.log('PASS actual browser SDK: pinned IC root; distinct account/browser signers; original issuance recovery; two receivers/accounts; retry lease unchanged; lost logout reply; authenticated acknowledgements; retained-key refusal', JSON.stringify(result));
   console.log(JSON.stringify({ browser: browser.version(), platform: process.platform,
     executablePath, browserTemporaryRoot,
     executableSha256: createHash('sha256').update(await readFile(executablePath)).digest('hex'),

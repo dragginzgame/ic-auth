@@ -3,8 +3,8 @@
 set -euo pipefail
 selection=all
 if [[ $# != 0 ]]; then
-    [[ $# == 2 && $1 == --case && ($2 == native-client || $2 == cbor || $2 == hashing || $2 == wire-oracle) ]] || {
-        echo 'usage: test-cargo-dependency-boundaries.sh [--case native-client|cbor|hashing|wire-oracle]' >&2; exit 2;
+    [[ $# == 2 && $1 == --case && ($2 == upstream-client || $2 == native-client || $2 == cbor || $2 == hashing || $2 == wire-oracle || $2 == runtime-ic0) ]] || {
+        echo 'usage: test-cargo-dependency-boundaries.sh [--case upstream-client|native-client|cbor|hashing|wire-oracle|runtime-ic0]' >&2; exit 2;
     }
     selection="$2"
 fi
@@ -36,6 +36,72 @@ chmod +x "$FIXTURE/bin/cargo"
 export PATH="$FIXTURE/bin:$PATH"
 perl -MJSON::PP -e 'print encode_json({version => 1, workspace_root => $ARGV[0], workspace_members => ["consumer"], packages => [{id => "consumer", name => "consumer", dependencies => [{name => "substrate", rename => "hidden", kind => "dev", target => "cfg(windows)"}]}]})' "$FIXTURE" > "$FIXTURE/metadata.json"
 cp "$FIXTURE/metadata.json" "$FIXTURE/valid-metadata.json"
+# The direct upstream client is admitted only for its reviewed native owners.
+if [[ $selection == all || $selection == upstream-client ]]; then
+    for mode in native renamed private-driver dev build portable wasm other-owner other-sdk published-driver tightened driver-portable driver-dev; do
+        perl -MJSON::PP -e '
+          my ($root,$mode)=@ARGV;
+          my $dependency={name=>"pocket-ic",kind=>undef,target=>q{cfg(not(target_family = "wasm"))}};
+          my $package={id=>"member",name=>"ic-testkit",dependencies=>[$dependency]};
+          $dependency->{rename}="simulator" if $mode eq "renamed";
+          $dependency->{kind}=$mode if $mode eq "dev" || $mode eq "build";
+          $dependency->{target}=undef if $mode eq "portable" || $mode eq "driver-portable";
+          $dependency->{target}=q{cfg(target_family = "wasm")} if $mode eq "wasm";
+          $dependency->{name}="ic-agent" if $mode eq "other-sdk";
+          $package->{name}="consumer" if $mode eq "other-owner";
+          if ($mode =~ /driver/) {
+              $package->{name}="ic-testkit-dev";
+              $package->{publish}=[];
+          }
+          $package->{publish}=["crates-io"] if $mode eq "published-driver";
+          $dependency->{kind}="dev" if $mode eq "driver-dev";
+          print encode_json({version=>1,workspace_root=>$root,workspace_members=>["member"],packages=>[$package]});
+        ' "$FIXTURE" "$mode" > "$FIXTURE/metadata.json"
+        printf '[{"dependency":"pocket-ic","allowed_packages":["ic-testkit","ic-testkit-dev","consumer"]}]\n' > "$FIXTURE/ci/cargo-dependency-boundaries.json"
+        if [[ $mode == tightened ]]; then
+            printf '[{"dependency":"pocket-ic","allowed_packages":[]}]\n' > "$FIXTURE/ci/cargo-dependency-boundaries.json"
+        fi
+        if (cd "$FIXTURE" && bash "$root/scripts/ci/check-cargo-dependency-boundaries.sh" --consumer "$FIXTURE" --external-ic) > "$FIXTURE/upstream-$mode.log" 2>&1; then
+            [[ $mode == native || $mode == renamed || $mode == private-driver ]] || { echo "unexpected upstream client admission: $mode" >&2; exit 1; }
+        else
+            [[ $mode != native && $mode != renamed && $mode != private-driver ]] || { cat "$FIXTURE/upstream-$mode.log" >&2; exit 1; }
+            grep -q 'Forbidden direct Cargo dependencies' "$FIXTURE/upstream-$mode.log"
+        fi
+    done
+    cp "$FIXTURE/valid-metadata.json" "$FIXTURE/metadata.json"
+    echo 'Upstream PocketIC: native owners admitted; aliases, kinds, targets, private custody and tightened policies checked'
+    if [[ $selection == upstream-client ]]; then fixture_complete=true; exit 0; fi
+fi
+# Runtime owns optional, portable raw IC0; the exception adds no SDK/executor owner.
+if [[ $selection == all || $selection == runtime-ic0 ]]; then
+    for mode in valid renamed dev build target unconditional other-owner other-sdk tightened; do
+        perl -MJSON::PP -e '
+          my ($root,$mode)=@ARGV;
+          my $dependency={name=>"ic0",kind=>undef,target=>undef,optional=>JSON::PP::true};
+          my $package={id=>"member",name=>"ic-platform-runtime",dependencies=>[$dependency]};
+          $dependency->{rename}="system_api" if $mode eq "renamed";
+          $dependency->{kind}=$mode if $mode eq "dev" || $mode eq "build";
+          $dependency->{target}="cfg(windows)" if $mode eq "target";
+          $dependency->{optional}=JSON::PP::false if $mode eq "unconditional";
+          $dependency->{name}="ic-cdk-executor" if $mode eq "other-sdk";
+          $package->{name}="consumer" if $mode eq "other-owner";
+          print encode_json({version=>1,workspace_root=>$root,workspace_members=>["member"],packages=>[$package]});
+        ' "$FIXTURE" "$mode" > "$FIXTURE/metadata.json"
+        printf '[{"dependency":"ic0","allowed_packages":["ic-platform-runtime","consumer"]}]\n' > "$FIXTURE/ci/cargo-dependency-boundaries.json"
+        if [[ $mode == tightened ]]; then
+            printf '[{"dependency":"ic0","allowed_packages":[]}]\n' > "$FIXTURE/ci/cargo-dependency-boundaries.json"
+        fi
+        if (cd "$FIXTURE" && bash "$root/scripts/ci/check-cargo-dependency-boundaries.sh" --consumer "$FIXTURE" --external-ic) > "$FIXTURE/runtime-$mode.log" 2>&1; then
+            [[ $mode == valid || $mode == renamed ]] || { echo "unexpected runtime admission: $mode" >&2; exit 1; }
+        else
+            [[ $mode != valid && $mode != renamed ]] || { cat "$FIXTURE/runtime-$mode.log" >&2; exit 1; }
+            grep -q 'Forbidden direct Cargo dependencies' "$FIXTURE/runtime-$mode.log"
+        fi
+    done
+    cp "$FIXTURE/valid-metadata.json" "$FIXTURE/metadata.json"
+    echo 'Runtime IC0 admission: optional registry-facing owner, aliases and refusal cases passed'
+    if [[ $selection == runtime-ic0 ]]; then fixture_complete=true; exit 0; fi
+fi
 # Only the named private, unconditional development oracle is admitted.
 if [[ $selection == all || $selection == wire-oracle ]]; then
     for mode in valid normal build target published other-owner other-sdk tightened; do

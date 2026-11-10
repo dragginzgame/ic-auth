@@ -4,6 +4,39 @@ Covers `ic-auth`, maintained `ic-auth-tooling`, and associated private
 qualification changes. Only the first two are Engine release-group members. The independent series starts after the
 [last coordinated release, 0.29.2](../history.md).
 
+## [0.38.0] - Unreleased
+
+### 🛠️ Tooling
+
+- Adopt published Toko Tooling 0.39.7 in both workspaces; keep shared references
+  upstream and retain explicit shared release opt-in and Auth's receipt helper.
+- Group Auth documentation into protocol, development, integration and performance
+  topics with a documentation index and updated links.
+  Preserve the Protocol/Engine release plans and unrelated dependency selections.
+
+The bounded multi-device contract replaces the earlier one-device proposal.
+Coordinate Protocol/issuer adoption; see the
+[account/device audit](../../docs/design/account-device-capacity-audit.md).
+
+### ⚠️ Breaking
+
+- Charge replay capacity to `(issuer, subject)` across browser keys. Replay records
+  retain authenticated account ownership after session removal; restore rebuilds
+  aggregate counts and rejects mismatched session/replay owners. Rename the limit
+  and occupancy projection to `max_replays_per_account` and `replays_for_account`;
+  `SessionReader::occupancy` now takes the issuer-qualified account.
+- Retire Auth 0.37 session, replay and login record identities together, and
+  reject the old private qualification checkpoint envelope even when empty.
+  No fallback reader or automatic reset is provided. This approved format cut
+  accompanies the multi-device contract.
+- Support eight signed device slots per issuer-qualified account, with an optional
+  tighter host limit. Verified higher generations atomically replace a slot using
+  a fresh browser key; renewal preserves its binding/window. Logout and expiry
+  retain slot fences. Time-based pruning never removes known fences.
+- Expose `LoginRevocationChange::displaced_caller()` for atomic removal of old
+  session/login rows. Preserve replay history and other devices. Restore rejects
+  duplicate slots and incompatible host limits; old keys cannot resurrect them.
+
 ## [0.37.0] - 2026-11-09
 
 ### ⚠️ Breaking

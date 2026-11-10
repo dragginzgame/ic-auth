@@ -18,6 +18,8 @@ pub fn claims(browser_public_key: [u8; 32]) -> PortableClaims {
         },
         mechanism: PortableMechanism::Ed25519,
         issuer: Principal::from_slice(&[1]),
+        device_slot: 0,
+        device_generation: 1,
         account_subject: Principal::from_slice(&[2]),
         key_binding_id: Sha256::digest(issuer_key().verifying_key().to_bytes()).into(),
         browser_public_key,

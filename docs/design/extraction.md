@@ -81,8 +81,8 @@ atomic production storage. Toko owns account linking and resource permission.
 Auth must not discover trusted authority from client claims or depend on either
 product. Root proof verification, signature-store prepare/retrieve and certificate
 rules remain reusable primitives; they do not restore the retired token lifecycle.
-See [current Canic integration](../canic-adoption.md) and
-[session storage/reset contracts](../sessions.md).
+See [current Canic integration](../integration/canic-adoption.md) and
+[session storage/reset contracts](../protocol/sessions.md).
 
 ## Historical extraction input and retained owner boundary
 
@@ -131,7 +131,10 @@ an IC ingress delegation. Fleet admission does not confer NFT ownership.
 In the 0.6 application profile, account authentication from paths 1/2 may authorize
 an issuer binding, but application calls in path 3 use the fresh browser key's
 own principal. Fresh delegation keys under one stable account principal do not
-provide independent per-device sessions in the caller-keyed session store.
+provide independent per-device sessions unless the issuer assigns distinct device
+slots. The receiver keeps caller lookup for ingress authorization and bounds each
+issuer-qualified account to eight retained slots. A new key replaces an occupied
+slot only through a verified higher signed generation.
 
 ## Embedded session engine
 
@@ -154,7 +157,7 @@ consumer depends on Canic configuration. Memory mode omits `session-restore`,
 loses sessions on upgrades and applies protected signed login-start and proof
 issuance floors after each loss of replay history. Newly issued renewal of an old
 login must still refuse. Persistent mode enables checked restoration and
-retains replay/authority state atomically. The [storage and reset contract](../sessions.md)
+retains replay/authority state atomically. The [storage and reset contract](../protocol/sessions.md)
 defines the clock, cutoff, client recovery and mode-switch requirements. A local
 generation increment alone cannot invalidate an old token for fresh admission.
 

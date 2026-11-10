@@ -172,6 +172,8 @@ async fn sdk_preserves_typed_refusals_and_retries_the_original_future_credential
         issuer: config.issuer,
         key_binding_id: config.authority.binding(),
         browser_public_key: SigningKey::from_bytes(&[71; 32]).verifying_key().to_bytes(),
+        device_slot: 0,
+        device_generation: 1,
         account_subject: Principal::from_slice(&[99]),
         login_started_at_ns: now,
         login_deadline_ns: now + 90 * SECOND,
@@ -298,6 +300,8 @@ async fn issuer_scoped_accounts_survive_wire_projection_and_independent_logout()
         issuer: first.issuer,
         key_binding_id: first.authority.binding(),
         browser_public_key: SigningKey::from_bytes(&[1; 32]).verifying_key().to_bytes(),
+        device_slot: 0,
+        device_generation: 1,
         account_subject: Principal::from_slice(&[99]),
         login_started_at_ns: f.now().await,
         login_deadline_ns: f.now().await + 60 * SECOND,
@@ -424,6 +428,8 @@ async fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ing
         issuer: config.issuer,
         key_binding_id: config.authority.binding(),
         browser_public_key: SigningKey::from_bytes(&[1; 32]).verifying_key().to_bytes(),
+        device_slot: 0,
+        device_generation: 1,
         account_subject: Principal::from_slice(&[99]),
         login_started_at_ns: f.now().await,
         login_deadline_ns: f.now().await + 60 * SECOND,
@@ -453,6 +459,11 @@ async fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ing
     let mut other = claims.clone();
     other.browser_public_key = SigningKey::from_bytes(&[2; 32]).verifying_key().to_bytes();
     let other_caller = browser_principal(&other.browser_public_key);
+    assert_eq!(
+        admission(&f, f.signer, other_caller, &input(&other, &key)).await,
+        Err(AdmissionRefusal::Revoked)
+    );
+    other.device_slot = 1;
     let other_input = input(&other, &key);
     let mut forged = other_input.clone();
     let ic_auth_wire::model::PortableProof::Ed25519(signature) = &mut forged.credential.proof
@@ -557,6 +568,7 @@ async fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ing
     .await;
     enabled.unwrap();
     claims.browser_public_key = SigningKey::from_bytes(&[4; 32]).verifying_key().to_bytes();
+    claims.device_generation = 2;
     claims.login_started_at_ns = f.now().await;
     claims.login_deadline_ns = claims.login_started_at_ns + 90 * SECOND;
     claims.issued_at_ns = claims.login_started_at_ns;
@@ -631,6 +643,8 @@ async fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ing
     let mut sdk_peer_claims = sdk_claims.clone();
     sdk_peer_claims.browser_public_key =
         SigningKey::from_bytes(&[10; 32]).verifying_key().to_bytes();
+    sdk_peer_claims.account_subject =
+        browser_principal(&SigningKey::from_bytes(&[82; 32]).verifying_key().to_bytes());
     sdk_peer_claims.nonce = [10; 16];
     let sdk_peer_caller = browser_principal(&sdk_peer_claims.browser_public_key);
     let sdk_peer_credential =
@@ -825,6 +839,8 @@ pub(super) async fn qualify_certified(
         issuer: cert.issuer_pid,
         key_binding_id: ic_auth::canonical::cert_hash(cert).unwrap(),
         browser_public_key: SigningKey::from_bytes(&[8; 32]).verifying_key().to_bytes(),
+        device_slot: 0,
+        device_generation: 1,
         account_subject: f.owner,
         login_started_at_ns: now,
         login_deadline_ns: now + 30 * SECOND,
@@ -1018,6 +1034,8 @@ async fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_author
         issuer: config.issuer,
         key_binding_id: config.authority.binding(),
         browser_public_key: SigningKey::from_bytes(&[1; 32]).verifying_key().to_bytes(),
+        device_slot: 0,
+        device_generation: 1,
         account_subject: Principal::from_slice(&[99]),
         login_started_at_ns: f.now().await,
         login_deadline_ns: f.now().await + 60 * SECOND,
@@ -1031,6 +1049,7 @@ async fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_author
     let session = admission(&f, f.resource, live, &original).await.unwrap();
     let peer_session = admission(&f, f.signer, live, &original).await.unwrap();
     claims.browser_public_key = SigningKey::from_bytes(&[2; 32]).verifying_key().to_bytes();
+    claims.device_slot = 1;
     let revoked = browser_principal(&claims.browser_public_key);
     admission(&f, f.resource, revoked, &input(&claims, &key))
         .await
@@ -1144,7 +1163,7 @@ async fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_author
     assert!(admission(&f, f.resource, revoked, &renewed).await.is_err());
     let renewed_peer = admission(&f, f.signer, revoked, &renewed).await.unwrap();
     assert_eq!(renewed_peer.caller.as_slice(), revoked.as_slice());
-    assert_eq!(renewed_peer.subject, session.subject);
+    assert_eq!(renewed_peer.subject, claims.account_subject);
     claims.browser_public_key = unknown_key;
     assert!(
         admission(&f, f.resource, unknown, &input(&claims, &key))
@@ -1176,7 +1195,7 @@ async fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_author
             f.resource,
             f.controller,
             spec!(controls::ConfirmAuthority),
-            (config).try_into().unwrap(),
+            (config.clone()).try_into().unwrap(),
         )
         .await;
     confirmed.unwrap();
@@ -1188,6 +1207,59 @@ async fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_author
     assert!(read(&f, f.signer, revoked).await.is_err());
     assert_eq!(read(&f, f.signer, live).await.unwrap(), peer_session);
     assert_eq!(logout(&f, f.resource, revoked).await.unwrap(), denied_until);
+    // Fresh authentication reuses the revoked device's slot without waiting out
+    // its login window. The new generation and old-key refusal survive upgrade.
+    claims.browser_public_key = SigningKey::from_bytes(&[4; 32]).verifying_key().to_bytes();
+    claims.device_generation = 2;
+    claims.issued_at_ns = f.now().await;
+    claims.admission_expires_at_ns = claims.issued_at_ns + 2 * SECOND;
+    let replacement = browser_principal(&claims.browser_public_key);
+    let replacement_session = admission(&f, f.signer, replacement, &input(&claims, &key))
+        .await
+        .unwrap();
+    assert_eq!(read(&f, f.signer, live).await.unwrap(), peer_session);
+    let enabled: Result<(), controls::Refusal> = update_control::<(), ()>(
+        f.pic.instance(),
+        f.signer,
+        f.controller,
+        spec!(controls::EnableCheckpoint),
+        (),
+    )
+    .await;
+    enabled.unwrap();
+    f.pic
+        .instance()
+        .upgrade_canister(
+            f.signer,
+            f.wasm.clone(),
+            controls::Upgrade::encode_request(&()).unwrap(),
+            Some(f.controller),
+        )
+        .await
+        .unwrap();
+    let confirmed: Result<(), controls::Refusal> =
+        update_control::<controls::model::ReceiverConfig, ()>(
+            f.pic.instance(),
+            f.signer,
+            f.controller,
+            spec!(controls::ConfirmAuthority),
+            config.try_into().unwrap(),
+        )
+        .await;
+    confirmed.unwrap();
+    assert_eq!(
+        read(&f, f.signer, replacement).await.unwrap(),
+        replacement_session
+    );
+    assert!(read(&f, f.signer, revoked).await.is_err());
+    assert!(matches!(
+        logout(&f, f.signer, revoked).await,
+        Err(LogoutResult::Unconfirmed { .. })
+    ));
+    assert_eq!(
+        read(&f, f.signer, replacement).await.unwrap(),
+        replacement_session
+    );
     f.pic
         .close()
         .await

@@ -4,20 +4,25 @@ use ic_auth_protocol_types::CanonicalId;
 #[test]
 fn live_replacement_preserves_binding_pool_denial_and_retention() {
     let binding = LoginBinding {
+        device_slot: 0,
+        device_generation: 1,
         issuer: Principal::from_slice(&[1]),
         subject: Principal::from_slice(&[2]),
         started_at_ns: 1,
         deadline_ns: 10,
     };
     let change = |state, until_ns| {
-        LoginRevocationChange(LoginData {
-            audience: AudienceId {
-                canonical_network_id: CanonicalId::from_bytes([1; 32]),
-                fleet_id: CanonicalId::from_bytes([2; 32]),
+        LoginRevocationChange(
+            LoginData {
+                audience: AudienceId {
+                    canonical_network_id: CanonicalId::from_bytes([1; 32]),
+                    fleet_id: CanonicalId::from_bytes([2; 32]),
+                },
+                caller: Principal::from_slice(&[3]),
+                record: Record { state, until_ns },
             },
-            caller: Principal::from_slice(&[3]),
-            record: Record { state, until_ns },
-        })
+            None,
+        )
     };
     let reserved = change(LoginRecordState::Reserved(binding), 11);
     let revoked = change(LoginRecordState::Revoked(Some(binding)), 12);
@@ -41,8 +46,8 @@ fn live_replacement_preserves_binding_pool_denial_and_retention() {
         );
         assert_eq!(
             proposed.check_replacement(&revoked, 12),
-            Ok(()),
-            "exclusive expiry permits a new association or pool"
+            Err(LoginRevocationError::InvalidPolicy),
+            "expiry never erases a retained slot fence"
         );
     }
     let unknown = change(LoginRecordState::Revoked(None), 12);

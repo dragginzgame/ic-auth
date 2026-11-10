@@ -27,6 +27,8 @@ pub struct SessionPolicy {
 
 /// Host storage bounds, never selected by submitted tokens. Physical records
 /// and their encoded bytes count until pruning; bytes exclude allocator/index overhead.
+/// Replay capacity is shared by all browser keys of an issuer-qualified account,
+/// including retained records whose session has been removed.
 /// Configuration cannot bypass range admission:
 /// ```compile_fail
 /// use ic_auth::session::SessionLimits;
@@ -38,7 +40,7 @@ pub struct SessionPolicy {
 pub struct SessionLimits {
     max_sessions: usize,
     max_replays: usize,
-    max_replays_per_caller: usize,
+    max_replays_per_account: usize,
     max_encoded_bytes: usize,
 }
 impl SessionLimits {
@@ -50,12 +52,12 @@ impl SessionLimits {
     pub const fn new(
         max_sessions: usize,
         max_replays: usize,
-        max_replays_per_caller: usize,
+        max_replays_per_account: usize,
         max_encoded_bytes: usize,
     ) -> Result<Self, SessionError> {
         if max_sessions == 0
             || max_replays == 0
-            || max_replays_per_caller == 0
+            || max_replays_per_account == 0
             || max_encoded_bytes == 0
         {
             return Err(SessionError::InvalidPolicyOrRecord);
@@ -63,7 +65,7 @@ impl SessionLimits {
         Ok(Self {
             max_sessions,
             max_replays,
-            max_replays_per_caller,
+            max_replays_per_account,
             max_encoded_bytes,
         })
     }
@@ -74,8 +76,8 @@ impl SessionLimits {
     pub const fn max_replays(self) -> usize {
         self.max_replays
     }
-    pub const fn max_replays_per_caller(self) -> usize {
-        self.max_replays_per_caller
+    pub const fn max_replays_per_account(self) -> usize {
+        self.max_replays_per_account
     }
     pub const fn max_encoded_bytes(self) -> usize {
         self.max_encoded_bytes
@@ -91,7 +93,7 @@ impl SessionLimits {
     ) -> Result<(), SessionError> {
         if (!replacing && occupancy.sessions >= self.max_sessions)
             || occupancy.replays >= self.max_replays
-            || occupancy.replays_for_caller >= self.max_replays_per_caller
+            || occupancy.replays_for_account >= self.max_replays_per_account
         {
             return Err(SessionError::Capacity);
         }
@@ -119,6 +121,8 @@ struct SessionData {
     // than a later Canonical diagnostic. Accepted records and bytes are unchanged.
     scopes: Vec<ScopeLabel>,
     generation: u64,
+    device_slot: u8,
+    device_generation: u64,
     login_started_at_ns: u64,
     login_deadline_ns: u64,
     established_at_ns: u64,
@@ -157,6 +161,7 @@ impl Session {
             || self.caller() != replay.caller()
             || self.fingerprint() != replay.fingerprint()
             || self.generation() != replay.generation()
+            || (self.issuer(), self.subject()) != replay.account()
             || replay.remove_at_ns() == 0
         {
             return Err(SessionError::InvalidPolicyOrRecord);
@@ -200,6 +205,12 @@ impl Session {
     }
     pub fn issuer(&self) -> Principal {
         self.0.issuer
+    }
+    pub fn device_slot(&self) -> u8 {
+        self.0.device_slot
+    }
+    pub fn device_generation(&self) -> u64 {
+        self.0.device_generation
     }
     /// Proof mechanism retained at admission, for selecting protected enrollment.
     /// This selector does not establish freshness or authorize session use.
@@ -255,6 +266,8 @@ impl Session {
         if !is_login_caller(data.caller)
             || data.subject == Principal::anonymous()
             || data.issuer == Principal::anonymous()
+            || data.device_slot >= ic_auth_protocol_types::limits::MAX_DEVICE_SLOTS
+            || data.device_generation == 0
             || data.login_started_at_ns > data.established_at_ns
             || data.login_started_at_ns >= data.login_deadline_ns
             || data.login_deadline_ns - data.login_started_at_ns > crate::limits::MAX_LOGIN_NS
@@ -295,6 +308,8 @@ impl Session {
             role: ctx.role.clone(),
             scopes: request.into_scopes(),
             generation: policy.generation,
+            device_slot: claims.device_slot,
+            device_generation: claims.device_generation,
             login_started_at_ns: claims.login_started_at_ns,
             login_deadline_ns: claims.login_deadline_ns,
             established_at_ns: ctx.authority.now_ns,
@@ -314,6 +329,8 @@ impl Session {
         LoginBinding {
             issuer: self.0.issuer,
             subject: self.0.subject,
+            device_slot: self.0.device_slot,
+            device_generation: self.0.device_generation,
             started_at_ns: self.0.login_started_at_ns,
             deadline_ns: self.0.login_deadline_ns,
         }
@@ -362,6 +379,8 @@ impl Session {
 struct ReplayData {
     fingerprint: [u8; 32],
     caller: Principal,
+    issuer: Principal,
+    subject: Principal,
     generation: u64,
     remove_at_ns: u64,
 }
@@ -383,7 +402,11 @@ impl Replay {
     }
 
     fn validate(&self) -> Result<(), SessionError> {
-        if !is_login_caller(self.0.caller) || self.0.remove_at_ns == 0 {
+        if !is_login_caller(self.0.caller)
+            || self.0.issuer == Principal::anonymous()
+            || self.0.subject == Principal::anonymous()
+            || self.0.remove_at_ns == 0
+        {
             return Err(SessionError::InvalidPolicyOrRecord);
         }
         Ok(())
@@ -412,6 +435,8 @@ impl Replay {
         Self(ReplayData {
             fingerprint: session.fingerprint(),
             caller: session.caller(),
+            issuer: session.issuer(),
+            subject: session.subject(),
             generation: session.generation(),
             remove_at_ns,
         })
@@ -427,6 +452,10 @@ impl Replay {
     }
     pub fn remove_at_ns(&self) -> u64 {
         self.0.remove_at_ns
+    }
+    /// Authenticated issuer-qualified owner, retained even after session removal.
+    pub fn account(&self) -> (Principal, Principal) {
+        (self.0.issuer, self.0.subject)
     }
     pub(super) fn encoded_len(&self) -> Result<usize, SessionError> {
         self.validate()?;

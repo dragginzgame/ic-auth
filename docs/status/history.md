@@ -129,7 +129,7 @@ Matched reference modules decrease from 1,831,907 total / 1,411,604 code bytes t
 1,822,844 total / 1,404,357 code bytes: **9,063 total / 7,247 code bytes saved**.
 Both sides use Storage 0.71 and the same sealed lock, Rust 1.99.1 and build recipe;
 the baseline store source matches `e22cebd`. The
-[observation](../canonical-allocation-observations.md#reference-store-replacement--2026-11-09)
+[observation](../performance/canonical-allocation-observations.md#reference-store-replacement--2026-11-09)
 records identities, measurement method and limits. Evidence is retained under
 `target/store-cleanup/`. No runtime speedup, Canic footprint or complete CI pass
 is inferred. The earlier Storage/adoption documentation work remains intact;
@@ -151,7 +151,7 @@ composition/upgrade case. No complete CI or broad installed suite was run.
 This saves another **360 total / 221 code bytes** against the retained store
 cleanup above: 1,822,844 total / 1,404,357 code bytes becomes 1,822,484 total /
 1,404,136 code bytes with the identical lock and build recipe. The
-[measurement](../canonical-allocation-observations.md#signature-store-seed-lookup--2026-11-09)
+[measurement](../performance/canonical-allocation-observations.md#signature-store-seed-lookup--2026-11-09)
 records absolute sizes, identities and limits. A simultaneous borrowed-leaf trial
 grew Wasm and was rejected; the qualification host's original source bytes are
 restored. Evidence is under `target/signature-cleanup/`. No runtime speedup or
@@ -175,7 +175,7 @@ logout/upgrade/signed-ingress case also pass. No complete CI was run.
 The matched reference module decreases from 1,822,484 total / 1,404,136 code bytes
 to 1,820,985 total / 1,402,758 code bytes: **1,499 total / 1,378 code bytes saved**.
 Both sides use the same sealed Storage 0.71 lock and build recipe. The
-[measurement](../canonical-allocation-observations.md#borrowed-login-predicates--2026-11-09)
+[measurement](../performance/canonical-allocation-observations.md#borrowed-login-predicates--2026-11-09)
 records identities and limits; evidence remains under `target/record-cleanup/`.
 No runtime speedup or Canic footprint is inferred. Earlier pending changes remain
 intact; all changes are local, uncommitted and unpublished.
@@ -188,7 +188,7 @@ conformance cases, native/Wasm Clippy and one installed SDK session/logout/
 upgrade/signed-ingress case pass. The matched module is 1,821,026 total /
 1,402,675 code bytes: **+41 total / -83 code bytes** against the prior step.
 This is a clarity cleanup with a small mixed size effect. The
-[measurement](../canonical-allocation-observations.md#narrow-pool-capacity-inputs--2026-11-09)
+[measurement](../performance/canonical-allocation-observations.md#narrow-pool-capacity-inputs--2026-11-09)
 and `target/pool-cleanup/` retain its exact inputs and evidence. The lock remains
 unchanged. No full CI or publication was performed.
 
@@ -204,7 +204,7 @@ All 41 session cases and 20 backend conformance cases pass, as do focused native
 Wasm Clippy, formatting and the release Wasm. Every non-custom Wasm section is
 byte-identical to the prior narrow-capacity module; only symbol names differ.
 Totals are 1,821,027 module / 1,402,675 code bytes (+1 total / 0 code bytes).
-The [observation](../canonical-allocation-observations.md#borrowed-pruning-candidates--2026-11-09)
+The [observation](../performance/canonical-allocation-observations.md#borrowed-pruning-candidates--2026-11-09)
 records exact identities and `target/prune-cleanup/` retains evidence. A replay-
 counter entry trial grew Wasm and was reverted before the final rebuild.
 No new installed run, runtime speedup, full CI or publication is claimed.
@@ -292,7 +292,7 @@ complete 0.36.1 release gate above; the changes are now committed and delivered.
 
 ## Canic adoption documentation and review — 2026-11-09
 
-The [adoption guide](../canic-adoption.md#current-integration-cohort) now names
+The [adoption guide](../integration/canic-adoption.md#current-integration-cohort) now names
 released Engine 0.36.1 / Protocol 0.36.0 and the qualified Wire 0.18 family.
 It distinguishes the public Rust identity cut from unchanged method budgets,
 encoded bytes, generated browser files, signed bytes and stored profiles.
@@ -498,7 +498,7 @@ after upgrade. Snapshot admission and the single-owner Wasm graph check pass.
 Cargo.lock remained unchanged through those checks. Evidence, registry selections
 and source-bound artifacts are under `target/wire-adoption/`.
 The matched Wire/Storage update adds **997 total / 298 code bytes** to the
-reference Wasm under unchanged build settings; [the measurement](../canonical-allocation-observations.md#wire-018-and-storage-070-adoption--2026-11-08)
+reference Wasm under unchanged build settings; [the measurement](../performance/canonical-allocation-observations.md#wire-018-and-storage-070-adoption--2026-11-08)
 records both artifacts and limits. No runtime speedup or production Canic size is
 inferred. This adoption is local, uncommitted and unpublished; full CI and
 Chromium were not run.
@@ -530,7 +530,7 @@ or matched implementation saving is inferred from it.
 
 Earlier matched scope cleanup used Platform 0.26.1 and its own fixed lock/compiler:
 1,798 total / 992 code bytes saved, evidence `target/evidence/scope-surface-20261108/`.
-[Other allocation observations](../canonical-allocation-observations.md#signature-retention-and-shared-grants--2026-11-08)
+[Other allocation observations](../performance/canonical-allocation-observations.md#signature-retention-and-shared-grants--2026-11-08)
 retain their original source/dependency limits and evidence. No speedup is claimed.
 
 ## Tooling and package layout — #129
@@ -585,7 +585,7 @@ State-specific login retention was not introduced because preserving its codec
 would add a parallel representation.
 
 The retained grant change saves **568 total / 454 code bytes** in matched builds;
-[the comparison](../canonical-allocation-observations.md#grant-evidence-and-rejected-expiry-queue--2026-11-08)
+[the comparison](../performance/canonical-allocation-observations.md#grant-evidence-and-rejected-expiry-queue--2026-11-08)
 records absolute sizes, source/dependency limits and the rejected experiment.
 Evidence is under `target/complexity-cleanup/`. Focused native Clippy, 147 regular
 Rust cases, 12 permissive-feature cases, 96 client cases, the reference Wasm build,
@@ -602,17 +602,17 @@ release/version preparation or publication is part of this batch.
 The private client uses `ic-auth-login-cleanup-journal-v1`. The maintainer confirmed
 no retained journals on 2026-11-08; retired `ic-auth-local-logout-journal-v1` records
 are refused without clearing. Credential expiry, renewal sequences and unknown
-issuance remain durable. See [storage and retirement](../browser-client.md#durable-logout-and-guarded-identities).
+issuance remain durable. See [storage and retirement](../protocol/browser-client.md#durable-logout-and-guarded-identities).
 That approval does not authorize erasing Canic or other protected safety state.
 
-The [Canic contract](../canic-adoption.md) and
+The [Canic contract](../integration/canic-adoption.md) and
 [clock-independent design](../design/portable-clock-audit.md) retain 90-day login
 windows, short proofs, 30-minute receiver leases, bounded unknown denial and
 lookup-only uncertain issuance. Renewal never extends the original login window;
 ordinary authorization stays local. Lost protected safety state stays closed
 pending trusted recovery. Complete durable restore plus fresh authority is supported.
 
-The last [read-only Canic review](../canic-adoption.md#read-only-canic-review--2026-11-09)
+The last [read-only Canic review](../integration/canic-adoption.md#read-only-canic-review--2026-11-09)
 found no Auth implementation gap. Canic composition and installed adoption belong
 to [Canic #491](https://github.com/dragginzgame/canic/issues/491). No sibling source,
 release or deployment changed here; no standalone Auth service is deployed.
@@ -701,7 +701,7 @@ Tooling 0.37.4. Its checksum, source and limits remain in
 The matched SHA-2 update grew reference Wasm from 1,821,027 total / 1,402,675
 code-section bytes to 1,823,778 / 1,405,535 (+2,751 / +2,860 bytes) under unchanged
 Rust 1.99.1 release settings and `cpubits="32"`, without an external optimizer.
-See [the measured scope](../canonical-allocation-observations.md#direct-sha-2-011-adoption--2026-11-09).
+See [the measured scope](../performance/canonical-allocation-observations.md#direct-sha-2-011-adoption--2026-11-09).
 No new Wasm measurement, runtime speedup or Canic footprint claim is made.
 
 ### Host entropy contract — #130
@@ -709,7 +709,7 @@ No new Wasm measurement, runtime speedup or Canic footprint claim is made.
 Published `ic-entropy` 0.1.0 (SHA-256
 `d5a7386a4f8a63fc339bd18b773c49c078427a0273f66b708466852336045297`)
 is selected only as a private backend-conformance dev-dependency. The
-[host contract](../host-entropy.md) distinguishes portable nonces, fresh Canic
+[host contract](../integration/host-entropy.md) distinguishes portable nonces, fresh Canic
 challenges, seeds and proofs; it preserves existing signed/replay/lifetime rules
 and documents fail-closed acquisition, restart/restore and TEE/non-TEE limits.
 Five conformance cases exercise real signing/session admission, exact retry,
@@ -769,12 +769,12 @@ installed qualification will be recorded by the new complete release gate.
 The browser journal is `ic-auth-login-cleanup-journal-v1`; the maintainer approved
 retiring old journals on 2026-11-08. Unknown issuance, renewal sequence and expiry
 remain durable. That approval never permits erasing Canic's protected safety state.
-The [browser contract](../browser-client.md#durable-logout-and-guarded-identities)
+The [browser contract](../protocol/browser-client.md#durable-logout-and-guarded-identities)
 and [clock-independent design](../design/portable-clock-audit.md) retain 90-day
 login windows, short proofs and 30-minute receiver leases. Renewal cannot extend
 the login window; lost protected state remains closed pending trusted recovery.
 
-The last [read-only Canic review](../canic-adoption.md#read-only-canic-review--2026-11-09)
+The last [read-only Canic review](../integration/canic-adoption.md#read-only-canic-review--2026-11-09)
 covered HEAD `3700c6e1bf78cb04a60dcfaf0f789d4dd992c9e0` plus dirty inputs and found
 no Auth API gap. Canic's deployment hold, Engine 0.36.1 adoption and final installed
 qualification remain consumer-owned under [Canic #491](https://github.com/dragginzgame/canic/issues/491).

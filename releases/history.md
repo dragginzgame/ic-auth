@@ -134,7 +134,7 @@ Protocol and Engine continue independently in their group ledgers.
   parse-error identities, and Wire 0.13 for public limits, errors and generated
   contracts. Rust consumers exchanging these types must align their suppliers.
   Signed bytes, method IDs, schema shapes and retained Auth record formats stay
-  unchanged. See the [migration](../docs/canic-adoption.md#platform-015-migration).
+  unchanged. See the [migration](../docs/integration/canic-adoption.md#platform-015-migration).
 
 ### ⬆️ Dependencies
 
@@ -218,7 +218,7 @@ Protocol and Engine continue independently in their group ledgers.
   record identities. Replay records and public identifier/signing encodings are
   unchanged. The maintainer confirmed no retained current records; older records
   are refused without fallback or clearing. The qualification checkpoint is now
-  `AUTHNAT3`. See [record adoption](../docs/sessions.md) and
+  `AUTHNAT3`. See [record adoption](../docs/protocol/sessions.md) and
   [#118](https://github.com/dragginzgame/ic-auth/issues/118).
 
 ### 🐛 Fixed
@@ -582,13 +582,13 @@ Protocol and Engine continue independently in their group ledgers.
   commits, replacing mutable staging transactions. Match typed login state and
   named binding fields instead of correlated flags and a tuple. Custom backends
   must migrate to the new interface; see the
-  [migration](../docs/sessions.md#session-commit-write-migration).
+  [migration](../docs/protocol/sessions.md#session-commit-write-migration).
 - Durable session callbacks now match `SessionCommit::write` as
   `SessionWrite::Admission { login, session, replay }` or
   `SessionWrite::Logout { login }`, replacing the separate login field and
   optional admission pair. Persist the selected records atomically with the
   existing post-commit totals. Signed and stored formats are unchanged; no reset
-  is required. See the [migration](../docs/sessions.md#session-commit-write-migration).
+  is required. See the [migration](../docs/protocol/sessions.md#session-commit-write-migration).
 
 ### 🧹 Cleanup
 
@@ -613,7 +613,7 @@ Protocol and Engine continue independently in their group ledgers.
   canister-signature key identities. Consumers exchanging these Rust types must
   align their direct Platform dependency to 0.7. Signed claims, Wire frames,
   stored records and browser journal formats remain unchanged; no data reset is
-  required. See the [migration](../docs/canic-adoption.md#platform-07-migration).
+  required. See the [migration](../docs/integration/canic-adoption.md#platform-07-migration).
 
 ### 🔧 Changed
 
@@ -1376,7 +1376,7 @@ Protocol and Engine continue independently in their group ledgers.
 
 - Qualify complete certified and Ed25519 admission in the same receiver fixture,
   including measured costs, cross-caller throttling after invalid proofs and
-  independent logout credit. See [matched receiver evidence](../docs/ic-testkit-qualification.md#matched-portable-receiver-costs-and-failed-proof-throttling)
+  independent logout credit. See [matched receiver evidence](../docs/development/testkit-qualification.md#matched-portable-receiver-costs-and-failed-proof-throttling)
   and [#59 — Bound expensive invalid-proof admission](https://github.com/dragginzgame/ic-auth/issues/59).
 - Expose retained session mechanism and key-binding selectors so hosts can choose
   exact protected enrollment after restoration. Live authorization is still
@@ -1476,7 +1476,7 @@ Protocol and Engine continue independently in their group ledgers.
   old session records rather than reinterpret them. Bind each login to a fresh
   browser principal and retain account identity as `(issuer, subject)`. Renewals
   cannot change the account, browser key or original login window.
-  See [protocol](../docs/design/0.6-auth-protocol.md) and [sessions](../docs/sessions.md).
+  See [protocol](../docs/design/0.6-auth-protocol.md) and [sessions](../docs/protocol/sessions.md).
 - Require `session-restore` for `Session::decode`; volatile consumers exclude the
   decoder. Protected `PortableClaimsContext` owns login/proof reset floors.
   After volatile state loss, advance them with checked boot time and qualified
@@ -1520,7 +1520,7 @@ Protocol and Engine continue independently in their group ledgers.
   reserve the final post-admission attempt and preserve unknown remote outcomes.
   Missing local keys cannot prematurely finish another worker's cleanup.
   HTTP acceptance is not revocation confirmation. Existing token-store issuance
-  intents are untouched. See [browser contracts](../docs/browser-client.md) and
+  intents are untouched. See [browser contracts](../docs/protocol/browser-client.md) and
   [#3](https://github.com/dragginzgame/ic-auth/issues/3).
 
 ### Changed and fixed

@@ -34,6 +34,12 @@ perl -e '
 if [[ "${1:-}" == --consumer ]]; then
     [[ $# == 3 && ( "$2" == "$PWD" || "$2" == "$PWD/qualification" ) && "$3" == --external-ic ]]
 fi
+if [[ "${1:-}" == metadata ]]; then
+    # The license caller now queries metadata. This fixture checks descriptor
+    # inheritance only; real package/license admission has its own focused check.
+    printf '%s\n' '{"packages":[{"name":"fixture","manifest_path":"Cargo.toml","license_file":"LICENSE.md","license":null}]}'
+    exit 0
+fi
 if [[ "${1:-}" == publish ]]; then
     [[ "$2" == --dry-run && "$3" == --locked &&
        "$4" == --registry && "$5" == crates-io && "$6" == --allow-dirty &&
@@ -183,10 +189,12 @@ while IFS= read -r staging; do [[ -f "$staging/dispatched" ]]; done < "$AUTH_JOB
 [[ "$(cat "$consumer/target/package/keep")" == 'retained staging cache' ]]
 
 # Harmless discovery remains usable without executing admission probes.
-for target in help tasks; do
-    (cd "$consumer"; make -n --no-print-directory "$target" MAKEFLAGS=) \
-        > "$fixture/discovery-$target.log" 2>&1
-done
+(cd "$consumer"; make -np --no-print-directory help MAKEFLAGS=) \
+    > "$fixture/discovery-help.log" 2>&1
+if rg -q '^tasks:' "$fixture/discovery-help.log"; then
+    echo 'Producer-only tasks target must not be installed in Auth' >&2
+    exit 1
+fi
 
 # Recursive marking must never make unsafe modes execute these effects, even
 # when callers erase MAKEFLAGS. The shared independent guard stays authoritative.

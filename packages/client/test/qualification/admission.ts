@@ -62,8 +62,8 @@ export async function qualifyAdmission(host: string, issuer: Principal, receiver
       dispose: async generation => { assert.equal(generation, 'sdk-admission'); disposed++; } }), () => 0);
     let journal = reopenJournal();
     await journal.start('sdk-admission', identity, issuer);
-    const probeAccount = async (caller: Identity, signal: AbortSignal) => {
-      assert.equal(caller.getPrincipal().toText(), account.getPrincipal().toText());
+    const probeAccount = async (caller: Identity, signal: AbortSignal, expected: Identity = account) => {
+      assert.equal(caller.getPrincipal().toText(), expected.getPrincipal().toText());
       const result = await update(issuer, 'portable_session_read', sessionRead.encodeRequest(null), caller, signal);
       assert.ok('err' in result, 'account identity has no browser session');
       accountProbes++;
@@ -138,17 +138,18 @@ export async function qualifyAdmission(host: string, issuer: Principal, receiver
     assert.equal(accountProbes, 4);
     assert.equal(submissions.filter(method => method === 'establish_portable_session').length, 4);
     assert.equal(submissions.filter(method => method === 'portable_session_read').length, 5 + accountProbes);
-    // A second device authenticates the same account at the issuer but owns its
+    // A second device authenticates another account at the issuer and owns its
     // own browser caller, journal and receiver sessions. Issuance is injected.
     let peerIssued = 0;
     let peerDisposed = 0;
+    const peerAccount = Ed25519KeyIdentity.generate(new Uint8Array(32).fill(82));
     const peerJournal = new PortableLogoutClient(peerStore, clock, httpLogoutTransport({ host,
       methodName: 'logout_portable_session', rootKey,
       dispose: async generation => { assert.equal(generation, 'sdk-admission-peer'); peerDisposed++; } }), () => 0);
     await peerJournal.start('sdk-admission-peer', peerIdentity, issuer);
-    const peerClient = new PortableAdmissionClient(peerJournal, 'sdk-admission-peer', { browser: peerIdentity, account }, issuer, {
+    const peerClient = new PortableAdmissionClient(peerJournal, 'sdk-admission-peer', { browser: peerIdentity, account: peerAccount }, issuer, {
       issue: async (caller, signal) => {
-        await probeAccount(caller, signal);
+        await probeAccount(caller, signal, peerAccount);
         peerIssued++;
         return { credential: peerCredential, admissionUntilNs };
       },
@@ -165,7 +166,7 @@ export async function qualifyAdmission(host: string, issuer: Principal, receiver
       assert.ok('ok' in peerRead);
       assert.equal(Principal.fromUint8Array(peerRead.ok.caller).toText(), peerIdentity.getPrincipal().toText());
       assert.equal(Principal.fromUint8Array(peerRead.ok.issuer).toText(), issuer.toText());
-      assert.equal(Principal.fromUint8Array(peerRead.ok.subject).toText(), subject.toText());
+      assert.equal(Principal.fromUint8Array(peerRead.ok.subject).toText(), peerAccount.getPrincipal().toText());
       assert.ok(peerRead.ok.expires_at_ns > clock.nowNs());
       peerSessions.set(target.toText(), peerRead.ok);
       const firstRead = await update(target, 'portable_session_read', sessionRead.encodeRequest(null), guarded, signal);
@@ -203,6 +204,6 @@ export async function qualifyAdmission(host: string, issuer: Principal, receiver
     const afterPeerLogout = submissions.length;
     await assert.rejects(update(receiver, 'portable_session_read', sessionRead.encodeRequest(null), peerGuarded, signal));
     assert.equal(submissions.length, afterPeerLogout);
-    console.log('SDK admission qualified: distinct account/browser signers over authenticated reads; injected issuer lost reply; reopened journal; unresolved lookup retained; original proof recovered without reissuance; two receivers and two devices for one account; no session overwrite; independent durable logout; retained-key refusal');
+    console.log('SDK admission qualified: distinct account/browser signers over authenticated reads; injected issuer lost reply; reopened journal; unresolved lookup retained; original proof recovered without reissuance; two receivers and two accounts; no session overwrite; independent durable logout; retained-key refusal');
   } finally { peerStore.close(); store.close(); }
 }

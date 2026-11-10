@@ -13,20 +13,20 @@ No Auth library or future service may depend on either project.
 
 Release history is in the [changelog](CHANGELOG.md). The libraries implement
 portable certified and enrolled Ed25519 verification, one local session engine,
-replay/revocation bookkeeping and explicit protected authority/work budgets. See the [session contract](docs/sessions.md)
+replay/revocation bookkeeping and explicit protected authority/work budgets. See the [session contract](docs/protocol/sessions.md)
 and [current handoff](docs/status/current.md) for implementation and validation.
 
 Protocol types and Wire release together as **Protocol**; `ic-auth` releases
 independently as **Engine**. Engine-only changes preserve Protocol's Rust package
-identity. See [release selection](docs/development.md#releases-and-publication).
+identity. See [release selection](docs/development/setup.md#releases-and-publication).
 
-The existing [signature](docs/signatures.md), [delegation](docs/delegation.md),
-[signature preparation](docs/signature-preparation.md),
-[certificate issuance](docs/certificate-issuance.md) and
-[chain-key](docs/chain-key-signatures.md) helpers remain reusable primitives.
+The existing [signature](docs/protocol/signatures.md), [delegation](docs/protocol/delegation.md),
+[signature preparation](docs/performance/signature-preparation.md),
+[certificate issuance](docs/protocol/certificate-issuance.md) and
+[chain-key](docs/protocol/chain-key-signatures.md) helpers remain reusable primitives.
 Application resource permissions and IC ingress delegation remain separate.
 
-The private [browser client](docs/browser-client.md) supplies one portable
+The private [browser client](docs/protocol/browser-client.md) supplies one portable
 admission coordinator, a durable logout journal, guarded SDK identity and HTTP
 logout transport. Its Rust-owned IC Wire contracts are in `crates/ic-auth-wire/`.
 The former token prepare/retrieve client and stores are retired: the maintainer
@@ -38,7 +38,7 @@ integration remain pending; reference qualification is separate from adoption.
 **Production issuer/enrollment lifecycle, wallet login and Canic's per-operation
 persistent session adapter remain unimplemented.** The reference receiver uses
 volatile state, with a separate fixture checkpoint for upgrade qualification.
-The [IC Testkit fixture](docs/ic-testkit-qualification.md) exercises actual
+The [IC Testkit fixture](docs/development/testkit-qualification.md) exercises actual
 certification, portable sessions, upgrades and signed ingress; it is not a
 production wallet service or evidence of completed consumer adoption.
 The unpublished native utility in `crates/ic-auth-tooling/` delegates file operations to
@@ -47,16 +47,16 @@ publication/retry policy remain here.
 
 Canic is adopting the shared libraries; its complete runtime verifier and durable
 host integration remain consumer work. The
-[Canic adoption contract](docs/canic-adoption.md) maps the published libraries
+[Canic adoption contract](docs/integration/canic-adoption.md) maps the published libraries
 to its feature, authority, storage and certification boundaries; implementation
 and acceptance belong in [Canic #491](https://github.com/dragginzgame/canic/issues/491).
 
 - [Architecture and ownership](docs/design/extraction.md)
 - [Current handoff](docs/status/current.md)
-- [Developer setup and commands](docs/development.md)
-- [Portable browser client and consumer boundary](docs/browser-client.md)
-- [Minimum Rust compiler and package qualification](docs/msrv.md)
-- [Shared maintenance task catalog](tasks/README.md)
+- [Developer setup and commands](docs/development/setup.md)
+- [Portable browser client and consumer boundary](docs/protocol/browser-client.md)
+- [Minimum Rust compiler and package qualification](docs/development/msrv.md)
+- [Shared maintenance task catalog](https://github.com/dragginzgame/toko-tooling/blob/12459b6029115b830b8477879d3bea2f030b6e63/tasks/README.md)
 - [Canic source review and incorporation boundary](docs/design/canic-source-review.md)
 - [Extraction and Canic adoption tracker](https://github.com/dragginzgame/canic/issues/491)
 - [Agent instructions](AGENTS.md)
@@ -72,7 +72,7 @@ Application resource permissions and IC ingress signatures remain distinct.
 
 This is the coordinated portable consumer contract, not a claim that Canic/Toko have
 completed the cut. Their guards, Wire endpoints and frontend calls must change
-together under the [adoption contract](docs/canic-adoption.md).
+together under the [adoption contract](docs/integration/canic-adoption.md).
 
 ## Workspace
 
@@ -105,8 +105,8 @@ Wasm admit Platform's upstream certificate dependencies under a scoped
 exception; native Agent/Testkit also retain their required Candid dependencies.
 Platform supplies signature creation/verification; `ic-platform-runtime` supplies
 the Candid-free runtime. Auth retains admission limits, protected authority and session policy. See the
-[Platform migration](docs/canic-adoption.md#platform-015-migration) and
-[dependency boundary](docs/development.md#ic-platform-boundary).
+[Platform migration](docs/integration/canic-adoption.md#platform-015-migration) and
+[dependency boundary](docs/development/setup.md#ic-platform-boundary).
 
 Application endpoints, generated TypeScript, private fixture controls and upgrade
 checkpoints use bounded native Serde IC Wire contracts. The root dependency
@@ -117,13 +117,13 @@ The Auth 0.15 admission cut uses a new method identity; update its receiver and 
 together. Credential/read/logout frames, signed material and retained production
 records keep their formats. The unpublished finite-Wire checkpoint is retired;
 no implicit browser or production storage reset is permitted. See the
-[consumer transport contract](docs/canic-adoption.md#wire-transport).
+[consumer transport contract](docs/integration/canic-adoption.md#wire-transport).
 
 A future wallet service would be a Rust package under `crates/`. No accepting
 wallet endpoint is created before its complete proof verification and service
 contracts; this repository contains no Canic fleet.
 
-With the [declared tools](docs/development.md) prepared, run the focused checks:
+With the [declared tools](docs/development/setup.md) prepared, run the focused checks:
 
 ```sh
 make test-types
@@ -164,3 +164,35 @@ and durable host acceptance remain explicit unfinished work, not alternative
 authentication flows. The [current handoff](docs/status/current.md) records
 current qualification; the [accepted design](docs/design/extraction.md) owns the
 extraction boundaries. Superseded handoff journals remain in Git history.
+
+## License and contributions
+
+See the canonical [Toko Studios Network Licence](LICENSE.md) and
+[contribution policy](CONTRIBUTING.md).
+
+## Source origin notice
+
+The Canic-derived source is identified in the
+[source review](docs/design/canic-source-review.md). Its required notice follows.
+
+MIT License
+
+Copyright (c) 2024 Canic contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

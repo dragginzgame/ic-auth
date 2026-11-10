@@ -126,6 +126,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             audience: *audience,
             mechanism: PortableMechanism::Ed25519,
             issuer: proof.cert.issuer_pid,
+            device_slot: 0,
+            device_generation: 1,
             account_subject: Principal::from_slice(&[9]),
             key_binding_id: [5; 32],
             browser_public_key: [6; 32],

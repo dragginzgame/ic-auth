@@ -8,6 +8,7 @@ RELEASE_DELIVERY_POLICY := $(CURDIR)/ci/release-delivery.txt
 RELEASE_SETUP_TARGET := release-candidate-setup
 FORMAT_RUST_ARGS := --extra-workspace qualification
 override TOKO_TOOLING_ROOT := $(CURDIR)
+TOKO_TOOLING_RELEASE := 1
 include make/consumer.mk
 
 # The controller rejects inherited Cargo context. Only candidate hooks and
@@ -29,7 +30,7 @@ export RELEASE_REMOTE RELEASE_BRANCH RELEASE_GROUP
 .PHONY: help install-hooks fetch metadata test-formatting-hooks \
         install-testkit-tools testkit-tools-check test-testkit-tools install-release-tools release-tools-check \
         test-types test-protocol test-portable-signatures test-chain-key-signatures test-signatures test-signature-store test-certified-proofs test-sessions check-wasm clippy check-boundaries check-candid-boundary \
-        check-snapshot check-dependency-pins check-doc-links check-msrv install-msrv msrv-tools-check tasks ci \
+        check-snapshot check-dependency-pins check-doc-links check-msrv install-msrv msrv-tools-check ci \
         client-tools-check install-client-dependencies generate-client-contracts check-client-contracts check-client-boundary test-client test-client-tools pack-client test-client-package test-client-package-browser \
         publish publish-dry-run check-package-builds check-package-licenses test-release-tools pack-backend-conformance test-backend-conformance test-backend-package profile-canonical-allocations \
         test-host-tooling test-qualification build-qualification-canister test-release-runner test-evidence-archive test-tools-evidence test-make-jobserver \
@@ -62,14 +63,14 @@ help:
 	@echo 'Testkit server: install-testkit-tools (explicit setup), testkit-tools-check (offline admission)'
 	@echo 'Select by changed contract: test-types, test-protocol, test-portable-signatures, test-chain-key-signatures, test-signatures, test-signature-store, test-certified-proofs, test-sessions, test-host-tooling, metadata'
 	@echo 'Aggregate qualification: clippy, check-wasm, check-msrv; live fixture: test-qualification'
-	@echo 'Named Cargo package/test selections: see docs/development.md#validation'
+	@echo 'Named Cargo package/test selections: see docs/development/setup.md#validation'
 	@echo 'Browser client: install-client-dependencies, client-tools-check, generate-client-contracts, check-client-contracts, check-client-boundary, test-client'
 	@echo 'Local browser archives: pack-client, test-client-package (offline; no publication)'
 	@echo 'Native backend scenarios: test-backend-conformance; source archive after cohort publication: pack-backend-conformance'
 	@echo 'Delivery qualification after cohort publication: test-backend-package; native allocation observation: profile-canonical-allocations'
 	@echo 'Opt-in Chromium qualification: test-client-browser, test-client-package-browser (IC_AUTH_BROWSER_EXECUTABLE required)'
 	@echo 'Formatting: fmt, fmt-check, test-formatting-hooks'
-	@echo 'Governance: check-snapshot, check-dependency-pins, check-doc-links, check-candid-boundary, check-boundaries, check-msrv; maintenance catalog: tasks'
+	@echo 'Governance: check-snapshot, check-dependency-pins, check-doc-links, check-candid-boundary, check-boundaries, check-msrv'
 	@echo 'Complete CI gate (explicit only): ci'
 	@echo 'Frozen releases: release-patch/minor/major RELEASE_GROUP=protocol|engine; roster: RELEASE_GROUPS=protocol,engine'
 	@echo 'Optional publication: RELEASE_PUBLISH_TARGET=publish; shared recovery/status: release-batch-resume/status BATCH=batch-...'
@@ -122,9 +123,6 @@ test-validation-inputs:
 
 check-msrv:
 	+bash scripts/dev/check-msrv.sh
-
-tasks:
-	@cat tasks/README.md
 
 # Explicit selected-cache preparation; ordinary Rust checks remain offline.
 fetch:
@@ -265,9 +263,12 @@ release-stage-%: release-stage-force | toko-execution-check
 test-release-validation:
 	+bash scripts/ci/test-release-validation.sh
 
-check-package-licenses:
-	@bash -eu -c 'source scripts/release/packages.sh all; \
-	  for package in "$${packages[@]}"; do cmp LICENSE "crates/$$package/LICENSE"; done'
+check-package-licenses: toko-tooling-check
+	perl scripts/ci/check-license.pl --file LICENSE.md
+	+@set -eu; for manifest in Cargo.toml qualification/Cargo.toml; do \
+	  cargo metadata --manifest-path "$$manifest" --locked --offline --no-deps --format-version 1 | \
+	  perl -MJSON::PP -MCwd=realpath -MFile::Basename=dirname -MFile::Spec -0777 -ne 'my $$j = decode_json($$_); for (@{$$j->{packages}}) { die "Noncanonical package license: $$_->{name}\n" if defined $$_->{license} || !defined $$_->{license_file} || realpath(File::Spec->rel2abs($$_->{license_file}, dirname($$_->{manifest_path}))) ne realpath("LICENSE.md"); }'; \
+	done
 
 # A reused temporary-registry path can retain extracted same-version source
 # across edits. Give each dry run a new registry identity and retain its evidence.

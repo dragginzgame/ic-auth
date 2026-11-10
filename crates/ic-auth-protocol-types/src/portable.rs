@@ -1,4 +1,4 @@
-//! Unauthenticated semantic claims for the 0.6 portable credential domain.
+//! Unauthenticated semantic claims for the schema-2 portable credential domain.
 //! The canonical codec lives in `ic-auth`; these are not a second wire encoding.
 
 use crate::{AudienceId, DelegatedRoleGrant, Principal};
@@ -21,6 +21,10 @@ pub struct PortableClaims {
     pub key_binding_id: [u8; 32],
     pub browser_public_key: [u8; 32],
     pub account_subject: Principal,
+    /// Issuer-assigned bounded device slot, scoped by audience/issuer/account.
+    pub device_slot: u8,
+    /// Nonzero issuer-owned fence. Renewal retains it; replacement advances it.
+    pub device_generation: u64,
     pub login_started_at_ns: u64,
     pub login_deadline_ns: u64,
     pub issued_at_ns: u64,

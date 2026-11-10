@@ -47,6 +47,8 @@ fn profile(name: &str, roles: usize, scopes: usize, iterations: u16) -> Value {
         },
         mechanism: PortableMechanism::Ed25519,
         issuer: Principal::from_slice(&[1]),
+        device_slot: 0,
+        device_generation: 1,
         account_subject: Principal::from_slice(&[2]),
         key_binding_id: prepared.binding(),
         browser_public_key: SigningKey::from_bytes(&[1; 32]).verifying_key().to_bytes(),

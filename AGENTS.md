@@ -1,17 +1,14 @@
 # IC Auth Agent Instructions
 
-Apply the installed [baseline](TOKO-TOOLING.md), supplied by crates.io's
-`toko-tooling` 0.38.2, and its task-specific references. Both workspace roots
-(`Cargo.toml` and `qualification/Cargo.toml`) pin it exactly in
-`[workspace.dependencies]`; every real workspace package inherits
-it as a dev-dependency with a cargo-machete exemption. Each workspace
-`Cargo.lock` records the registry checksum and the [snapshot manifest](.toko-tooling.snapshot) records
-the installed payload. After changing both pins, refresh both locks with Cargo
-and run `make toko-tooling-update`; `make toko-tooling-install` reinstalls the
-existing selection. Cargo builds and ordinary checks never install tooling.
-Read [the current handoff](docs/status/current.md)
-before implementation. Product-specific safeguards and scoped permissions below
-remain binding.
+Apply the installed [Toko Tooling baseline](TOKO-TOOLING.md) and its
+revision-bound references. [.toko-tooling.snapshot](.toko-tooling.snapshot)
+records the adopted payload; do not edit it or follow a moving sibling baseline.
+This overlay owns product safeguards, local commands and approved exceptions.
+The baseline owns common action authority, validation, compiler and reporting rules,
+including scoped `git add -N` when validation requires new task-owned paths.
+
+Read [the current handoff](docs/status/current.md) before implementation.
+Tool setup and both-workspace admission follow [developer setup](docs/development/setup.md).
 
 ## Ownership
 
@@ -133,24 +130,24 @@ and `ci/cargo-dependency-boundaries.json` for direct-dependency ownership.
   allowances. Do not add an older codec alias or allowance projection to bypass
   a supplier mismatch; record the qualification blocker in the handoff.
   Qualification also requires the explicitly prepared browser client dependencies
-  for real SDK logout transport; see [client setup](docs/development.md#browser-client-setup).
+  for real SDK logout transport; see [client setup](docs/development/setup.md#browser-client-setup).
   Changing that pairing requires successful certification, upgrade and ingress
   qualification. Testkit and native host dependencies stay outside all public libraries.
 
 ## Validation and delivery
 
-- See [developer setup](docs/development.md) for the implemented command surface.
+- See [developer setup](docs/development/setup.md) for the implemented command surface.
   Rust 1.99.1 is both the common package minimum and pinned development/release
   compiler. `make check-msrv` checks isolated Cargo package payloads for every
   supported library feature on native/Wasm; native and canister Wasm Clippy cover
   the internal applications using the same compiler.
   Setup explicitly prepares the declared compiler; checks never
-  download one. See [minimum compiler qualification](docs/msrv.md).
+  download one. See [minimum compiler qualification](docs/development/msrv.md).
   Choose the package, test and capability affected by the completed batch;
-  [developer setup](docs/development.md#validation) distinguishes narrow commands
+  [developer setup](docs/development/setup.md#validation) distinguishes narrow commands
   from aggregate suites. `make ci` remains the complete repository gate. Releases
   select the exhaustive source-bound Protocol/Engine plans described in
-  [Auth release validation](docs/auth-release-validation.md), with full coverage
+  [Auth release validation](docs/development/release-validation.md), with full coverage
   for shared or uncertain changes and retained per-stage recovery evidence.
   Local validation cadence follows
   [the shared baseline](TOKO-TOOLING.md#validation-and-evidence). The validation
@@ -169,7 +166,7 @@ and `ci/cargo-dependency-boundaries.json` for direct-dependency ownership.
   authority changes.
 - The private browser client is in `packages/client/`, with Rust-owned generated
   IC Wire contracts and injected SDK identity/issuer/storage boundaries.
-  See [client contracts](docs/browser-client.md). `make install-client-dependencies`
+  See [client contracts](docs/protocol/browser-client.md). `make install-client-dependencies`
   explicitly prepares its selected Node/npm dependencies; `make test-client`
   checks lifecycle behavior and Rust/TypeScript Wire interoperability offline. Do not claim a
   production issuer adapter, npm publication or consumer adoption from transport
@@ -213,7 +210,7 @@ and `ci/cargo-dependency-boundaries.json` for direct-dependency ownership.
   contracts; use PocketIC for real canister lifecycle and ingress delegation.
 - Check for active builds before compilation or source mutation. Keep build
   output in this repository and preserve other work.
-- Make routine changes directly in the [normal checkout](docs/development.md#normal-checkout-workflow).
+- Make routine changes directly in the [normal checkout](docs/development/setup.md#normal-checkout-workflow).
   Use topic branches and PRs when requested or required by the repository workflow;
   a coding or dependency-adoption request does not itself require a PR.
   Do not create contribution directories, clones or worktrees for ordinary work

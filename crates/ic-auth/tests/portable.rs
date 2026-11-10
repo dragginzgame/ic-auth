@@ -10,13 +10,14 @@ use ic_auth_protocol_types::{
 // and hashlib, rather than the Rust encoder. Deliberately asymmetric timestamps
 // exercise byte order; shape codecs do not enforce time/authority validity.
 const VECTOR: &str = concat!(
-    "49432d415554482d504f525441424c452d43524544454e5449414c00000101",
+    "49432d415554482d504f525441424c452d43524544454e5449414c00000201",
     "1111111111111111111111111111111111111111111111111111111111111111",
     "2222222222222222222222222222222222222222222222222222222222222222",
     "0000000101",
     "3333333333333333333333333333333333333333333333333333333333333333",
     "4444444444444444444444444444444444444444444444444444444444444444",
     "0000000102",
+    "000000000000000001",
     "0102030405060708111213141516171821222324252627283132333435363738",
     "55555555555555555555555555555555",
     "000000010000000475736572000000010000000472656164",
@@ -42,6 +43,8 @@ fn claims() -> PortableClaims {
         issuer: Principal::from_slice(&[1]),
         key_binding_id: [0x33; 32],
         browser_public_key: [0x44; 32],
+        device_slot: 0,
+        device_generation: 1,
         account_subject: Principal::from_slice(&[2]),
         login_started_at_ns: 0x0102030405060708,
         login_deadline_ns: 0x1112131415161718,
@@ -56,6 +59,21 @@ fn claims() -> PortableClaims {
 }
 
 #[test]
+fn device_fence_bounds_and_retired_schema_are_explicit() {
+    let mut value = claims();
+    value.device_generation = 0;
+    assert_eq!(encode_claims(&value), Err(Error::InvalidShape));
+    value.device_generation = u64::MAX;
+    value.device_slot = 8;
+    assert_eq!(encode_claims(&value), Err(Error::InvalidShape));
+    value.device_slot = 7;
+    let mut bytes = encode_claims(&value).unwrap();
+    assert_eq!(decode_claims(&bytes).unwrap(), value);
+    bytes[29] = 1;
+    assert_eq!(decode_claims(&bytes), Err(Error::WrongDomain));
+}
+
+#[test]
 fn frozen_bytes_digest_and_direct_browser_principal() {
     let value = claims();
     let bytes = hex(VECTOR);
@@ -63,7 +81,7 @@ fn frozen_bytes_digest_and_direct_browser_principal() {
     assert_eq!(decode_claims(&bytes).unwrap(), value);
     assert_eq!(
         claims_hash(&value).unwrap().as_slice(),
-        hex("3b70b4402a7318590764ab5cd2a9a2d62e4ae754cc62e2a897d67850ab1f7b76")
+        hex("e0d179c866e21b8009fa5dba6bcf85ccc99065f83f141d9e9c2aeb2bc61a2e9d")
     );
     assert_eq!(
         browser_principal(&value.browser_public_key).as_slice(),
@@ -118,6 +136,8 @@ fn every_semantic_field_is_bound_and_mechanisms_have_distinct_bytes() {
         |c| c.key_binding_id[0] ^= 1,
         |c| c.browser_public_key[0] ^= 1,
         |c| c.account_subject = Principal::from_slice(&[3]),
+        |c| c.device_slot = 1,
+        |c| c.device_generation = 2,
         |c| c.login_started_at_ns += 1,
         |c| c.login_deadline_ns += 1,
         |c| c.issued_at_ns += 1,
@@ -155,12 +175,12 @@ fn malformed_lengths_domains_and_trailing_data_refuse() {
         assert_eq!(decode_claims(&invalid), Err(Error::WrongDomain));
     }
     // Principal lengths, grant count, role length, scope count and scope length.
-    for offset in [95, 164, 217, 221, 229, 233] {
+    for offset in [95, 164, 226, 230, 238, 242] {
         let mut invalid = bytes.clone();
         invalid[offset..offset + 4].copy_from_slice(&u32::MAX.to_be_bytes());
         assert_eq!(decode_claims(&invalid), Err(Error::InvalidShape));
     }
-    for offset in [217, 221, 229, 233] {
+    for offset in [226, 230, 238, 242] {
         let mut invalid = bytes.clone();
         invalid[offset..offset + 4].fill(0);
         assert_eq!(decode_claims(&invalid), Err(Error::InvalidShape));
@@ -175,7 +195,7 @@ fn malformed_lengths_domains_and_trailing_data_refuse() {
     let mut anonymous = bytes.clone();
     anonymous[168] = 4;
     assert_eq!(decode_claims(&anonymous), Err(Error::AnonymousSubject));
-    for offset in [225, 237] {
+    for offset in [234, 246] {
         let mut invalid = bytes.clone();
         invalid[offset] = 0xff;
         assert_eq!(decode_claims(&invalid), Err(Error::InvalidShape));

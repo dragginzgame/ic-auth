@@ -46,7 +46,13 @@ async fn actual_browser_storage_signing_and_receiver_transport() {
                 audience: config.audience,
                 issuer: config.issuer,
                 key_binding_id: config.authority.binding(),
-                account_subject: subject,
+                device_slot: 0,
+                device_generation: 1,
+                account_subject: browser_principal(
+                    &SigningKey::from_bytes(&[device + 72; 32])
+                        .verifying_key()
+                        .to_bytes(),
+                ),
                 browser_public_key: SigningKey::from_bytes(&[device; 32])
                     .verifying_key()
                     .to_bytes(),

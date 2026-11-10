@@ -16,6 +16,8 @@ fn claims() -> PortableClaims {
         issuer: Principal::from_slice(&[1]),
         key_binding_id: [3; 32],
         browser_public_key: [4; 32],
+        device_slot: 0,
+        device_generation: 1,
         account_subject: Principal::from_slice(&[2]),
         login_started_at_ns: 10,
         login_deadline_ns: 110,

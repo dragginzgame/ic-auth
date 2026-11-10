@@ -28,8 +28,8 @@ fn public_key() -> [u8; 32] {
 
 fn signature() -> [u8; 64] {
     hex(concat!(
-        "57a539eb2192681c7f5818a806fc587a543cb260aad31b5340ce37554c4a9d41b9",
-        "18d066091f791d29edb7fdc666400009d022a68178233dae4d36198320d60e",
+        "c8e4c35496f1397a54faa16f8c438d3e7f238edea6bb289314fdbf32c33e1722",
+        "e4ae146258e6abd7bcff480ba69567fb584149e38dbf0571d2ab80f9ebccf403",
     ))
 }
 
@@ -43,6 +43,8 @@ fn claims() -> PortableClaims {
         issuer: Principal::from_slice(&[1]),
         key_binding_id: Sha256::digest(public_key()).into(),
         browser_public_key: [0x44; 32],
+        device_slot: 0,
+        device_generation: 1,
         account_subject: Principal::from_slice(&[2]),
         login_started_at_ns: 10,
         login_deadline_ns: 100,
@@ -97,13 +99,13 @@ fn verify(value: &PortableClaims, proof: &[u8]) -> Result<PortableClaims, Error>
 
 #[test]
 fn independent_signature_vector_and_exact_signed_message() {
-    // Python cryptography/OpenSSL signed a separately struct.pack-encoded blob's
+    // Perl pack and OpenSSL independently encoded and signed the schema-2 blob's
     // SHA-256 digest, using the test-only secret bytes 00..1f. No Rust signer or
     // encoder produced this frozen signature/hash vector.
     let value = claims();
     assert_eq!(
         claims_hash(&value).unwrap(),
-        hex("e4bec845537b0068a5c711c4e916189479b9564a8a1c15d9295c2a0120207990")
+        hex("55d41ea4b6d7f9ee02726c30241be325048c560a90261ebb8822c3745a0af057")
     );
     assert_eq!(verify(&value, &signature()).unwrap(), value);
 

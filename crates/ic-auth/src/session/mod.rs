@@ -61,7 +61,7 @@ impl SessionContext<'_> {
 pub struct SessionOccupancy {
     pub sessions: usize,
     pub replays: usize,
-    pub replays_for_caller: usize,
+    pub replays_for_account: usize,
 }
 
 /// One host-isolated read snapshot. No writes or whole-store clones are permitted.
@@ -80,13 +80,17 @@ pub trait SessionReader {
     /// The value cannot escape the host's read snapshot without copying it.
     fn session(&self, caller: Principal) -> Result<Option<Cow<'_, Session>>, SessionError>;
     fn replay_exists(&self, fingerprint: [u8; 32]) -> Result<bool, SessionError>;
-    fn occupancy(&self, caller: Principal) -> Result<SessionOccupancy, SessionError>;
+    /// Account-wide replay occupancy, independent of device keys and sessions.
+    fn occupancy(&self, account: (Principal, Principal)) -> Result<SessionOccupancy, SessionError>;
 }
 
 /// Host-owned atomic storage boundary. No await/reentrancy may split an engine
 /// operation or change authority. Refusals and commit errors preserve prior state.
 /// Admission validates generation, pair association, replay, login reservation,
 /// record sizes and capacity before atomically persisting the pair and login.
+/// Retain at most one session per `(issuer, subject, device_slot)` and per caller.
+/// Admission atomically removes `login.displaced_caller()` and its old login row,
+/// retaining replay history. Only a verified higher generation can displace it.
 /// Logout validates a revocation, removes only its caller's session and retains
 /// replay history, atomically with the login tombstone.
 pub trait SessionStore {
@@ -253,12 +257,18 @@ pub fn establish_session(
     let fingerprint = decoded.fingerprint;
     let login = ledger.observe_login(authority.caller, authority.now_ns)?;
     let admission_expires_at_ns = claims.admission_expires_at_ns;
+    let slot_caller = ledger.slot_caller(claims);
     let checked = store.read(|tx| {
         if tx.generation() != policy.generation {
             return Err(SessionError::StaleAuthority);
         }
         let previous = tx.session(authority.caller)?;
-        let replacing = previous.is_some();
+        let replacing = previous.is_some()
+            || slot_caller
+                .map(|caller| tx.session(caller))
+                .transpose()?
+                .flatten()
+                .is_some();
         if let Some(session) = previous
             && session.fingerprint() == fingerprint
         {
@@ -280,7 +290,13 @@ pub fn establish_session(
             admission.ttl,
         )?;
         let limits = tx.limits();
-        limits.check_capacity(tx.occupancy(authority.caller)?, replacing)?;
+        limits.check_capacity(
+            tx.occupancy((
+                prepared.decoded().claims.issuer,
+                prepared.decoded().claims.account_subject,
+            ))?,
+            replacing,
+        )?;
         ledger.check_prepared_reservation(
             authority.caller,
             prepared.contextual(),

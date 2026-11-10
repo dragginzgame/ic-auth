@@ -37,7 +37,7 @@ use sha2::{Digest, Sha256};
 use thiserror::Error;
 
 const DOMAIN: &[u8] = b"IC-AUTH-PORTABLE-CREDENTIAL\0";
-const SCHEMA: u16 = 1;
+const SCHEMA: u16 = 2;
 
 /// Hard cap on the signed claims blob, independent of outer transport limits.
 pub use ic_auth_protocol_types::limits::MAX_CLAIMS_BYTES;
@@ -63,7 +63,7 @@ pub enum PortableEncodingError {
     Canonical(#[from] CanonicalAuthError),
 }
 
-/// Encode exactly the frozen 0.6 claims domain. Never sort or normalize input.
+/// Encode the schema-2 device-fenced claims domain. Never sort or normalize input.
 /// Time relationships and protected authority are verification responsibilities.
 pub fn encode_claims(claims: &PortableClaims) -> Result<Vec<u8>, PortableEncodingError> {
     let mut bytes = Vec::new();
@@ -94,6 +94,8 @@ fn encode_claims_into(
     out(&claims.key_binding_id);
     out(&claims.browser_public_key);
     encode_principal(&mut out, claims.account_subject)?;
+    out(&[claims.device_slot]);
+    out(&claims.device_generation.to_be_bytes());
     for time in [
         claims.login_started_at_ns,
         claims.login_deadline_ns,
@@ -134,6 +136,8 @@ pub fn decode_claims(bytes: &[u8]) -> Result<PortableClaims, PortableEncodingErr
     let key_binding_id = input.array()?;
     let browser_public_key = input.array()?;
     let account_subject = input.principal()?;
+    let [device_slot] = input.array()?;
+    let device_generation = u64::from_be_bytes(input.array()?);
     let login_started_at_ns = u64::from_be_bytes(input.array()?);
     let login_deadline_ns = u64::from_be_bytes(input.array()?);
     let issued_at_ns = u64::from_be_bytes(input.array()?);
@@ -168,6 +172,8 @@ pub fn decode_claims(bytes: &[u8]) -> Result<PortableClaims, PortableEncodingErr
         key_binding_id,
         browser_public_key,
         account_subject,
+        device_slot,
+        device_generation,
         login_started_at_ns,
         login_deadline_ns,
         issued_at_ns,
@@ -208,6 +214,11 @@ pub(crate) fn is_login_caller(caller: Principal) -> bool {
 }
 
 fn validate_shape(claims: &PortableClaims) -> Result<CheckedGrants<'_>, PortableEncodingError> {
+    if claims.device_slot >= ic_auth_protocol_types::limits::MAX_DEVICE_SLOTS
+        || claims.device_generation == 0
+    {
+        return Err(PortableEncodingError::InvalidShape);
+    }
     if claims.account_subject == Principal::anonymous() {
         return Err(PortableEncodingError::AnonymousSubject);
     }

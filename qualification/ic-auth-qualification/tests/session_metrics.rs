@@ -69,6 +69,8 @@ impl Host {
             },
             mechanism: PortableMechanism::Ed25519,
             issuer: Principal::from_slice(&[1]),
+            device_slot: 0,
+            device_generation: 1,
             account_subject: Principal::from_slice(&[2]),
             key_binding_id: ic_auth::portable_signature::PreparedIssuerKey::new(
                 key.verifying_key().to_bytes(),
@@ -278,11 +280,13 @@ fn diagnostic_reset_preserves_budget_replay_generation_and_revocation() {
     host.metrics = AdmissionMetrics::default();
     assert!(host.admit(&credential).is_err());
     assert_eq!(
-        host.store.read(|r| r.occupancy(caller)).unwrap(),
+        host.store
+            .read(|r| r.occupancy((host.claims.issuer, host.claims.account_subject)))
+            .unwrap(),
         SessionOccupancy {
             sessions: 0,
             replays: 1,
-            replays_for_caller: 1,
+            replays_for_account: 1,
         }
     );
     assert_eq!(host.store.read(|r| Ok(r.generation())).unwrap(), 0);
@@ -356,9 +360,12 @@ fn diagnostic_overflow_preserves_committed_admission_and_exact_retry() {
         host.metrics.created.exact_total(),
         Err(MeasurementCounterError::TotalOverflow)
     );
-    let caller = browser_principal(&host.claims.browser_public_key);
+
     assert_eq!(
-        host.store.read(|r| r.occupancy(caller)).unwrap().sessions,
+        host.store
+            .read(|r| r.occupancy((host.claims.issuer, host.claims.account_subject)))
+            .unwrap()
+            .sessions,
         1
     );
     // Overflow is diagnostic state, so the exhausted verification budget still
@@ -374,7 +381,10 @@ fn diagnostic_overflow_preserves_committed_admission_and_exact_retry() {
     );
     assert_eq!(host.metrics.other_refused.exact_total(), Ok(0));
     assert_eq!(
-        host.store.read(|r| r.occupancy(caller)).unwrap().sessions,
+        host.store
+            .read(|r| r.occupancy((host.claims.issuer, host.claims.account_subject)))
+            .unwrap()
+            .sessions,
         1
     );
 }

@@ -3,7 +3,8 @@
 Source: clean Canic checkout at
 `e286b3fd98460c98670336853f80658a920966e0`, inspected read-only. This supersedes the
 older source reference in the accepted design for this implementation batch.
-The imported source retains the Canic MIT notice in the root [license](../../LICENSE).
+The imported source retains its required Canic notice in the
+[root source-origin notice](../../README.md#source-origin-notice).
 The [accepted design](extraction.md) remains authoritative;
 [Canic #491](https://github.com/dragginzgame/canic/issues/491) tracks the larger
 extraction and adoption. This is a source/contract record, not another task queue.
@@ -90,7 +91,7 @@ explicit signer/seed checks inform the new reusable verifier. Canic's fixed seed
 fleet trust policy, metrics, thread-local signature maps and direct
 `certified_data_set` calls were not copied.
 
-The [signature API](../signatures.md) uses the upstream public-key type and IC
+The [signature API](../protocol/signatures.md) uses the upstream public-key type and IC
 signature verifier, adds a bounded DER admission check and exact re-encoding,
 and receives protected signer, seed hash, root key, clock and limits explicitly.
 There is no custom DER field parser or cryptographic primitive. Certificate
@@ -114,7 +115,7 @@ The token review also used committed Canic
 hash in `domain/auth.rs` and the verified-authority invariants in
 `model/auth/application_authorization/authority.rs`. No sibling files were edited.
 
-The [token verifier](../delegation.md) incorporates validity, issuer/certificate
+The [token verifier](../protocol/delegation.md) incorporates validity, issuer/certificate
 binding, exact audience, grant narrowing, Merkle witness and protected root-key
 checks. The derivation-path hash preserves the existing domain and ordered
 length-prefixed bytes. SEC1/scalar parsing, high-s detection and prehash signature
@@ -144,7 +145,7 @@ The session review used the same committed Canic
 `domain/policy/pure/auth/application_authorization.rs`,
 `model/auth/application_authorization/{authority,scope,mod}.rs` and
 `ops/storage/auth/application_sessions.rs`. Dirty sibling code was excluded.
-The [session contract](../sessions.md) incorporates strict proof eligibility,
+The [session contract](../protocol/sessions.md) incorporates strict proof eligibility,
 scope narrowing, one active caller record, exact request hashes, independent
 session expiry and replay-preserving retry/logout/replacement.
 
@@ -169,7 +170,7 @@ remain open in the existing extraction tracker and require separate scope.
 The preparation review read the same committed Canic root/issuer helpers and
 DFINITY's selected `ic-canister-sig-creation` 1.3.1 source. Canic's one-minute
 retrieval window and exact certified `/sig` paths inform the new optional
-[preparation API](../signature-preparation.md). Caller/operation eligibility,
+[preparation API](../performance/signature-preparation.md). Caller/operation eligibility,
 metrics, pending root-attestation records and renewal orchestration remain with
 Canic; no sibling files were edited.
 
@@ -200,7 +201,7 @@ controller signing guards, stable metadata and composed root publication; no
 effect moved into the pure libraries. It resets pending signatures on upgrade
 while preserving protected owner/branch metadata and other certified owners.
 
-The [qualification contract](../ic-testkit-qualification.md) records real query
+The [qualification contract](../development/testkit-qualification.md) records real query
 certificates, subnet/network verification, composed branches and authenticated
 ingress. The IC agent owns standard delegation request-ID encoding and session-key
 signing; the replica checks expiration, targets and signed bytes. New session

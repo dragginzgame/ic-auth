@@ -4,7 +4,7 @@ name = "ic-auth-tooling"
 version = "0.37.0"
 edition.workspace = true
 rust-version.workspace = true
-license.workspace = true
+license-file.workspace = true
 repository.workspace = true
 description = "IC Auth client-contract generation and external Cargo-lock admission"
 publish = false
@@ -39,6 +39,10 @@ harness = false
 
 [[bench]]
 name = "retry_allocations"
+harness = false
+
+[[bench]]
+name = "device_slots"
 harness = false
 
 [lints]

@@ -8,12 +8,24 @@ certificate verifier or storage dependencies.
 Its own dev-only `ic-entropy` tests qualify nonce input composition with real
 credential/session admission and fail-closed provider refusal. They do not add an
 entropy provider to the exported backend assertions or qualify Canic's adapter.
-See [the host entropy contract](../../docs/host-entropy.md) in the source workspace.
+See [the host entropy contract](../../docs/integration/host-entropy.md) in the source workspace.
 
 Run `make test-backend-conformance` from the Auth workspace. The same assertions
 exercise reference commit callbacks and an independent encoded-record adapter,
 and detect a deliberately broken write-then-error implementation. The examples
 are qualification mechanics, not production stores.
+
+The pending source scenarios support concurrent slots for one account, reject
+same-generation rebinding, and replace one slot with a verified higher generation.
+Failed commits and durable reopen preserve other devices and old-key refusal.
+Adapters must atomically remove the displaced session/login rows reported by
+`LoginRevocationChange::displaced_caller()`. Existing delivered archives retain
+their earlier contract; this source has not been delivered as a consumer bundle.
+
+Replay capacity is now account-wide. Both reference and independent encoded
+adapters retain replay ownership after logout/reopen and refuse another browser
+key when its account allowance is full, without affecting another account.
+These checks qualify adapter mechanics, not issuer allocation or Canic adoption.
 
 ## Consumer use
 
@@ -147,3 +159,27 @@ snapshot rollback protection, real clock provenance, atomic authority-configurat
 changes or installed endpoint acceptance. A driver that scans all rows can still
 pass the deletion-count contract; hosts must separately measure and bound lookup,
 decode and transaction work with their actual backing. The host owns those proofs.
+
+## Required source notice
+
+MIT License
+
+Copyright (c) 2024 Canic contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

@@ -1,5 +1,30 @@
 use super::*;
 
+#[cfg(feature = "session-restore")]
+#[test]
+fn auth_037_record_identities_are_retired_without_a_fallback_reader() {
+    // Even an otherwise valid payload cannot cross the explicit format cut.
+    // Empty checkpoints are rejected separately by the host envelope identity.
+    let value = [42_u8; 32];
+    for (retired, current) in [
+        (0x415554485311, SESSION),
+        (0x415554485302, REPLAY),
+        (0x415554485323, LOGIN),
+    ] {
+        let old = encode(&value, retired, 2048).unwrap();
+        assert_eq!(
+            decode::<[u8; 32]>(&old, current, 2048),
+            Err(Error::Identity)
+        );
+        let new = encode(&value, current, 2048).unwrap();
+        assert_eq!(decode::<[u8; 32]>(&new, current, 2048), Ok(value));
+        assert_eq!(
+            decode::<[u8; 32]>(&new, retired, 2048),
+            Err(Error::Identity)
+        );
+    }
+}
+
 #[test]
 fn framed_counting_matches_emission_and_enforces_exact_capacity() {
     for length in [0, 1, 23, 24, 255, 256, 512, 2048] {

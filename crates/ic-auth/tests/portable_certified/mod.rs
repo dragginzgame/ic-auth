@@ -14,6 +14,8 @@ fn claims(f: &Fixture) -> PortableClaims {
         issuer: f.proof.cert.issuer_pid,
         key_binding_id: cert_hash(&f.proof.cert).unwrap(),
         browser_public_key: [6; 32],
+        device_slot: 0,
+        device_generation: 1,
         account_subject: p(8),
         login_started_at_ns: 100,
         login_deadline_ns: 1000,
