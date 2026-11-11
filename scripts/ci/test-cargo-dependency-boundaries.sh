@@ -36,9 +36,9 @@ chmod +x "$FIXTURE/bin/cargo"
 export PATH="$FIXTURE/bin:$PATH"
 perl -MJSON::PP -e 'print encode_json({version => 1, workspace_root => $ARGV[0], workspace_members => ["consumer"], packages => [{id => "consumer", name => "consumer", dependencies => [{name => "substrate", rename => "hidden", kind => "dev", target => "cfg(windows)"}]}]})' "$FIXTURE" > "$FIXTURE/metadata.json"
 cp "$FIXTURE/metadata.json" "$FIXTURE/valid-metadata.json"
-# The direct upstream client is admitted only for its reviewed native owners.
+# Native dev clients are admitted; normal clients retain their reviewed owners.
 if [[ $selection == all || $selection == upstream-client ]]; then
-    for mode in native renamed private-driver dev build portable wasm other-owner other-sdk published-driver tightened driver-portable driver-dev; do
+    for mode in native renamed private-driver dev build portable wasm other-owner other-sdk published-driver tightened driver-portable driver-dev consumer-dev consumer-renamed consumer-build consumer-portable-dev consumer-wasm-dev consumer-other-sdk-dev consumer-tightened-dev; do
         perl -MJSON::PP -e '
           my ($root,$mode)=@ARGV;
           my $dependency={name=>"pocket-ic",kind=>undef,target=>q{cfg(not(target_family = "wasm"))}};
@@ -55,21 +55,33 @@ if [[ $selection == all || $selection == upstream-client ]]; then
           }
           $package->{publish}=["crates-io"] if $mode eq "published-driver";
           $dependency->{kind}="dev" if $mode eq "driver-dev";
+          if ($mode =~ /\Aconsumer-/) {
+              $package->{name}="consumer";
+              $dependency->{kind}="dev";
+              $dependency->{rename}="simulator" if $mode eq "consumer-renamed";
+              $dependency->{kind}="build" if $mode eq "consumer-build";
+              $dependency->{target}=undef if $mode eq "consumer-portable-dev";
+              $dependency->{target}=q{cfg(target_family = "wasm")} if $mode eq "consumer-wasm-dev";
+              $dependency->{name}="ic-agent" if $mode eq "consumer-other-sdk-dev";
+          }
           print encode_json({version=>1,workspace_root=>$root,workspace_members=>["member"],packages=>[$package]});
         ' "$FIXTURE" "$mode" > "$FIXTURE/metadata.json"
         printf '[{"dependency":"pocket-ic","allowed_packages":["ic-testkit","ic-testkit-dev","consumer"]}]\n' > "$FIXTURE/ci/cargo-dependency-boundaries.json"
-        if [[ $mode == tightened ]]; then
+        if [[ $mode == tightened || $mode == consumer-tightened-dev ]]; then
             printf '[{"dependency":"pocket-ic","allowed_packages":[]}]\n' > "$FIXTURE/ci/cargo-dependency-boundaries.json"
         fi
+        expected=reject
+        case "$mode" in native|renamed|private-driver|dev|driver-dev|consumer-dev|consumer-renamed) expected=pass ;; esac
+        actual=reject
         if (cd "$FIXTURE" && bash "$root/scripts/ci/check-cargo-dependency-boundaries.sh" --consumer "$FIXTURE" --external-ic) > "$FIXTURE/upstream-$mode.log" 2>&1; then
-            [[ $mode == native || $mode == renamed || $mode == private-driver ]] || { echo "unexpected upstream client admission: $mode" >&2; exit 1; }
+            actual=pass
         else
-            [[ $mode != native && $mode != renamed && $mode != private-driver ]] || { cat "$FIXTURE/upstream-$mode.log" >&2; exit 1; }
             grep -q 'Forbidden direct Cargo dependencies' "$FIXTURE/upstream-$mode.log"
         fi
+        [[ $actual == "$expected" ]] || { cat "$FIXTURE/upstream-$mode.log" >&2; echo "unexpected upstream client admission: $mode ($actual, expected $expected)" >&2; exit 1; }
     done
     cp "$FIXTURE/valid-metadata.json" "$FIXTURE/metadata.json"
-    echo 'Upstream PocketIC: native owners admitted; aliases, kinds, targets, private custody and tightened policies checked'
+    echo 'Upstream PocketIC: native dev clients and normal owners admitted; aliases, SDK refusals, targets, private custody and tightened policies checked'
     if [[ $selection == upstream-client ]]; then fixture_complete=true; exit 0; fi
 fi
 # Runtime owns optional, portable raw IC0; the exception adds no SDK/executor owner.
@@ -146,6 +158,40 @@ if [[ $selection == all || $selection == hashing ]]; then
             [[ $actual == "$expected" ]] || { cat "$FIXTURE/hashing.log" >&2; exit 1; }
         done
     done
+    # The reviewed adapter grants no generic crypto or build/dev allowance.
+    cp "$FIXTURE/metadata.json" "$FIXTURE/hash-refusal.json"
+    for mode in valid renamed other-owner version dev build target unconditional defaults features missing-fields malformed-bool other-dependency tightened; do
+        perl -MJSON::PP -e '
+          my ($root,$mode)=@ARGV;
+          my $dependency={name=>"digest",req=>"^0.10.7",kind=>undef,target=>undef,
+            optional=>JSON::PP::true,uses_default_features=>JSON::PP::false,features=>[]};
+          my $package={id=>"member",name=>"ic-platform",dependencies=>[$dependency]};
+          $dependency->{rename}="digest_10" if $mode eq "renamed";
+          $package->{name}="consumer" if $mode eq "other-owner";
+          $dependency->{req}="^0.11.0" if $mode eq "version";
+          $dependency->{kind}=$mode if $mode eq "dev" || $mode eq "build";
+          $dependency->{target}="cfg(windows)" if $mode eq "target";
+          $dependency->{optional}=JSON::PP::false if $mode eq "unconditional";
+          $dependency->{uses_default_features}=JSON::PP::true if $mode eq "defaults";
+          $dependency->{features}=["core-api"] if $mode eq "features";
+          delete $dependency->{uses_default_features} if $mode eq "missing-fields";
+          $dependency->{optional}="true" if $mode eq "malformed-bool";
+          $dependency->{name}="sha3" if $mode eq "other-dependency";
+          print encode_json({version=>1,workspace_root=>$root,workspace_members=>["member"],packages=>[$package]});
+        ' "$FIXTURE" "$mode" > "$FIXTURE/metadata.json"
+        printf '[{"dependency":"digest","allowed_packages":["ic-platform","consumer"]}]\n' > "$FIXTURE/ci/cargo-dependency-boundaries.json"
+        if [[ $mode == tightened ]]; then
+            printf '[{"dependency":"digest","allowed_packages":[]}]\n' > "$FIXTURE/ci/cargo-dependency-boundaries.json"
+        fi
+        if bash "$root/scripts/ci/check-cargo-dependency-boundaries.sh" --consumer "$FIXTURE" --external-ic > "$FIXTURE/adapter-$mode.log" 2>&1; then
+            [[ $mode == valid || $mode == renamed ]] || { echo "unexpected hash adapter admission: $mode" >&2; exit 1; }
+        else
+            [[ $mode != valid && $mode != renamed ]] || { cat "$FIXTURE/adapter-$mode.log" >&2; exit 1; }
+            grep -q 'Forbidden direct Cargo dependencies' "$FIXTURE/adapter-$mode.log"
+        fi
+    done
+    cp "$FIXTURE/hash-refusal.json" "$FIXTURE/metadata.json"
+    printf '[{"dependency":"ring","allowed_packages":["consumer"]}]\n' > "$FIXTURE/ci/cargo-dependency-boundaries.json"
     # The fixture/export closure must carry the common inventory too.
     mkdir "$FIXTURE/export"
     bash "$root/scripts/ci/prepare-script-fixture.sh" "$root" "$FIXTURE/export" scripts/ci/check-cargo-dependency-boundaries.sh
@@ -157,7 +203,7 @@ if [[ $selection == all || $selection == hashing ]]; then
     cp "$FIXTURE/valid-metadata.json" "$FIXTURE/metadata.json"
     if [[ $selection == hashing ]]; then
         fixture_complete=true
-        echo 'Hash ownership: 33 alias/optional/target/kind cases, transitive allowance and exported inventory checks passed'
+        echo 'Hash ownership: 33 alias/optional/target/kind cases, reviewed adapter refusals, transitive allowance and exported inventory checks passed'
         exit 0
     fi
 fi

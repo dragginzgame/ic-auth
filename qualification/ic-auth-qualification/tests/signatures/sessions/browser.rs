@@ -31,11 +31,7 @@ async fn actual_browser_storage_signing_and_receiver_transport() {
     for receiver in [f.signer, f.resource] {
         install(&f, receiver, &config).await;
     }
-    f.pic
-        .instance()
-        .advance_time(Duration::from_secs(1))
-        .await
-        .unwrap();
+    f.pic.instance().advance_time(Duration::from_secs(1)).await;
     let subject = browser_principal(&SigningKey::from_bytes(&[81; 32]).verifying_key().to_bytes());
     let now = f.now().await;
     let credentials: Vec<_> = [9, 10]
@@ -67,13 +63,7 @@ async fn actual_browser_storage_signing_and_receiver_transport() {
                 .unwrap()
         })
         .collect();
-    let url = f
-        .pic
-        .instance_mut()
-        .make_live(None)
-        .await
-        .unwrap()
-        .to_string();
+    let url = f.pic.instance_mut().make_live(None).await.to_string();
     let hex = |bytes: &[u8]| {
         bytes
             .iter()
@@ -114,8 +104,5 @@ async fn actual_browser_storage_signing_and_receiver_transport() {
             );
         }
     }
-    f.pic
-        .close()
-        .await
-        .expect("delete qualification instance before stopping its server");
+    f.pic.close().await;
 }

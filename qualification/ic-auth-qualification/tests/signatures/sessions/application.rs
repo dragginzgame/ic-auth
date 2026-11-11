@@ -30,11 +30,7 @@ async fn scoped_application_updates_use_only_the_live_caller_session() {
     };
     install(&f, f.signer, &config).await;
     install(&f, f.resource, &config).await;
-    f.pic
-        .instance()
-        .advance_time(Duration::from_secs(1))
-        .await
-        .unwrap();
+    f.pic.instance().advance_time(Duration::from_secs(1)).await;
     let now = f.now().await;
     let reader_claims = PortableClaims {
         mechanism: PortableMechanism::Ed25519,
@@ -65,8 +61,8 @@ async fn scoped_application_updates_use_only_the_live_caller_session() {
     let version = async |f: &Fixture, target: Principal| {
         ic_testkit::pic::query_wire::<(), u64>(
             f.pic.instance(),
-            target,
-            Principal::anonymous(),
+            PocketPrincipal::from_slice(target.as_slice()),
+            PocketPrincipal::from_slice(Principal::anonymous().as_slice()),
             spec!(controls::AssetVersion),
             &(),
         )
@@ -109,19 +105,9 @@ async fn scoped_application_updates_use_only_the_live_caller_session() {
         .await
         .unwrap();
 
-    f.pic
-        .instance()
-        .advance_time(Duration::from_secs(11))
-        .await
-        .unwrap();
+    f.pic.instance().advance_time(Duration::from_secs(11)).await;
     assert!(f.now().await > writer_claims.admission_expires_at_ns);
-    let url = f
-        .pic
-        .instance_mut()
-        .make_live(None)
-        .await
-        .unwrap()
-        .to_string();
+    let url = f.pic.instance_mut().make_live(None).await.to_string();
     let network = f.root_key().await;
     let receiver = f.resource;
     let signed_write = async |device: u8, value: u64| {
@@ -180,8 +166,5 @@ async fn scoped_application_updates_use_only_the_live_caller_session() {
     .unwrap();
     assert!(write(&f, f.signer, writer, 9).await.is_err());
     assert_eq!(version(&f, f.signer).await, 3);
-    f.pic
-        .close()
-        .await
-        .expect("delete qualification instance before stopping its server");
+    f.pic.close().await;
 }

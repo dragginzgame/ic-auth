@@ -102,8 +102,7 @@ async fn portable_proof_rechecks_live_authority_and_real_certification_after_upg
         .pic
         .instance()
         .set_time((std::time::UNIX_EPOCH + Duration::from_secs(1_800_000_000)).into())
-        .await
-        .unwrap();
+        .await;
     let started = fixture.now().await;
     let key = SigningKey::from_slice(&[7; 32]).unwrap();
     let policy = RootKeyPolicy {
@@ -312,8 +311,7 @@ async fn portable_proof_rechecks_live_authority_and_real_certification_after_upg
         .pic
         .instance()
         .advance_time(Duration::from_secs(30))
-        .await
-        .unwrap();
+        .await;
     context.claims.authority.now_ns = fixture.now().await;
     assert_eq!(
         verify(&signature, &context).unwrap_err(),
@@ -340,9 +338,5 @@ async fn portable_proof_rechecks_live_authority_and_real_certification_after_upg
     assert_eq!(verify(&signature, &context).unwrap().fingerprint(), payload);
     assert_eq!(encode_claims(&claims).unwrap(), encoded);
     super::sessions::qualify_certified(&fixture, &proof, &context, &role).await;
-    fixture
-        .pic
-        .close()
-        .await
-        .expect("delete qualification instance before stopping its server");
+    fixture.pic.close().await;
 }

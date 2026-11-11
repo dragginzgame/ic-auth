@@ -9,55 +9,44 @@ qualify the current dependency graph.
 
 ## Setup and ownership
 
-The root manifest retains a Testkit 0.93 minimum; the lock selects published
-Testkit 0.93.1 from
-[IC Tooling](https://github.com/dragginzgame/ic-tooling), its maintained PocketIC
-client and server 16.1.0. The released lock shares Wire 0.17.13 types directly.
-The complete Protocol 0.35.1 and Engine 0.35.8 gates qualify this Testkit pairing,
-as recorded in the
-[current handoff](../status/current.md).
-`WireCallSpec` takes the canonical
-contract limits without conversion; responses require only `DeserializeOwned`.
-The temporary Wire 0.6 alias and limit bridge are removed following
-[Tooling #248](https://github.com/dragginzgame/ic-tooling/issues/248).
-Application identities use owned Principal; direct Testkit/Agent calls convert
-explicitly to their external type. Auth now selects Platform 0.26.0; Testkit 0.93
-retains Platform 0.25.1 only in native qualification. Both use canonical Types
-0.18.2; the Storage host selects Runtime 0.20.1 directly. No alias or dependency
-override is used. The Wasm host retains one Platform facade and one Runtime
-executor/generator/guard.
-Native CBOR errors use Testkit's `CborErrorKind` and retain the typed source;
-Auth does not match the retired Platform-error tuple variant.
-Native Agent/client dependencies stay outside public Auth library and
-deployed-Wasm graphs; the certificate-only dependency exception is separate.
-Testkit no longer supplies
-Candid call helpers; its native management fixtures select Platform's `candid`
-feature, and native Agent/PocketIC retain their Candid dependencies.
+The qualification catalog/lock selects published Testkit 0.100 from
+[IC Tooling](https://github.com/dragginzgame/ic-tooling), upstream PocketIC 16.1
+and the explicitly admitted server 16.1.0. Auth and Testkit share Wire 0.21;
+`WireCallSpec` takes canonical method limits without an alias or projection.
+Application identities use canonical Platform Types 0.19.3. Native PocketIC/Agent
+calls copy those bytes explicitly into the upstream Principal type. Platform
+0.31.0 supplies crypto and Agent capabilities; the host selects one Runtime 0.21.1
+executor/generator/guard. Native client dependencies stay outside public Auth
+libraries and the Wasm host; the certificate-only exception is separate.
 See [the native Candid paths](setup.md#why-candid-appears-in-cargolock) for
 the Agent, Testkit and PocketIC dependencies retained in the workspace lockfile.
 Platform owns native Agent/delegated identity imports. Agent remains transitive
 with its native PEM feature; caller/root-key and request policy remain with the
-fixture. There is no direct Agent declaration or local facade. Testkit supplies
-typed Wire query/update calls and bounded startup. The native runner imports
-`PocketIc`, `PocketIcBuilder` and `Time` from `ic_testkit::pocket_ic` in Testkit
-0.93. Clients require an explicit server endpoint and positive finite request
-budget. Auth selects `PocketIcBuilder::new(Duration::from_secs(30))`; its managed
-`build_instance(builder).await` supplies the endpoint through the admitted
-`PocketIcStartupConfig::Spawn`. Testkit applies one request deadline through
-dispatch, response-body reads and accepted-operation polling; the startup
-deadline remains separate.
-The separate Platform client dependency is removed. The fixture retains the
-managed `PocketIcInstance` owner throughout setup and live calls. It borrows the
-client through `instance()` or `instance_mut()`. Each live test owns one two-worker
-Tokio runtime, awaits network/lifecycle/Wire calls and explicitly awaits
-`close()` before stopping its managed server; deletion failures fail the test.
-Managed-server Drop still stops/reaps its process group on setup/test panic.
-There is no blocking facade or nested runtime. Only the native runner
-enables Testkit's `wire` feature; IC Wire owns the
-native Serde codec; Auth owns method identities and explicit traversal limits.
-Deliberately malformed inputs and byte-level
-evidence continue to use raw calls. Testkit owns server selection, authenticated
-asset preparation and bounded startup.
+fixture. No direct Agent declaration or local client facade is added.
+
+The native runner imports `pocket_ic::nonblocking::PocketIc`, `PocketIcBuilder`
+and `Time` through a non-Wasm development dependency. Testkit supplies typed Wire
+calls, lifecycle helpers and managed server custody. Auth selects
+`PocketIcBuilder::new().with_max_request_time_ms(Some(30_000))`; managed
+`build_instance(builder).await` supplies the admitted server endpoint. That
+upstream polling limit is not an absolute HTTP/body deadline. Startup separately
+remains bounded to 30 seconds. Upstream transport/parsing panics propagate; returned
+call rejections remain distinct from codec errors and application refusals.
+
+Each test owns its Tokio runtime and retains `PocketIcInstance` through live calls.
+It explicitly awaits `close()` before server shutdown. Upstream deletion is
+best-effort and logs failures rather than returning them; close does not establish
+deletion acknowledgement. The managed server guard still stops/reaps its process
+on test/setup panic. State and server output remain retained for diagnosis.
+There is no blocking facade, compatibility re-export or nested runtime.
+Only the native runner selects Testkit's `wire` capability. IC Wire owns native
+Serde framing and budgets; Auth owns method identities, traversal allowances and
+trust assertions. Deliberately malformed inputs and exact-frame evidence use raw
+calls. Wire 0.21 retains Postcard primitive acceptance, including redundant varints;
+signed claims stay opaque and retain their original bytes. The
+[current handoff](../status/current.md) distinguishes focused adoption evidence
+from the previously delivered release gates.
+
 `make install-testkit-tools` explicitly prepares the selected CLI/server with
 the required `cli` feature; library consumers keep it disabled;
 `make testkit-tools-check` admits it offline. Tests do not install or select an
@@ -131,8 +120,8 @@ protect different integration/trust boundaries; neither replaces the other.
 
 ## Portable session restoration across independent receivers
 
-The checkpoint host uses Storage 0.64's `ic_storage::adapter::StableCell` with one
-host-owned runtime and checked allocation. Auth owns its `AUTHNAT3` native-Wire
+The checkpoint host uses Storage 0.71.1's `ic_storage::adapter::StableCell` with one
+host-owned runtime and checked allocation. Auth owns its `AUTHSLOT` native-Wire
 payload identity, 128 KiB ceiling and metadata/session contents. Storage admits
 namespace grants, exclusive leases, bounded loading and collection checksums.
 Init requires an empty allocation; post-upgrade loads retained state with the

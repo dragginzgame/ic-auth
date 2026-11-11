@@ -10,6 +10,12 @@ retains the signed claim bytes and validates checked identifier syntax. It does
 not authenticate any proof. Admission still requires the complete Auth session
 engine against protected host authority, caller, clock and atomic storage.
 
+Wire 0.20 follows Postcard's acceptance of redundant outer length varints.
+Decoded values can therefore re-encode to a different frame; retain original
+frames for exact byte identity. Opaque signed claim and proof bytes are preserved,
+and Auth's independent canonical claim parser and verification checks still apply.
+Method identities, encoded output and traversal budgets are unchanged.
+
 Auth 0.22 boxes `model::PortableProof::Certified` to keep the transport
 enum compact. Direct Rust constructors use `Box::new`; domain conversions,
 generated browser types, encoded bytes and transport limits are unchanged.

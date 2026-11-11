@@ -3,6 +3,19 @@
 Covers `ic-auth-protocol-types` and `ic-auth-wire`, released together.
 The independent series starts after the [last coordinated release, 0.29.2](../history.md).
 
+## [0.39.0] - Unreleased
+
+### ⚠️ Breaking
+
+- Select IC Wire 0.21.1 for public transport containers, limits and codec traits.
+  Align consumers exchanging those Rust values. Wire now follows Postcard's
+  acceptance of redundant outer length varints; encoding, method identities,
+  traversal budgets and the original opaque signed claims/proofs stay unchanged.
+  Retain original transport bytes when exact frame identity matters.
+- Regenerate and review all five browser files. Auth's explicit Request/Response
+  names preserve its four bindings across Wire's readable-name migration; the
+  shared runtime updates alias-cycle detection without changing valid frames.
+
 ## [0.38.0] - 2026-11-10
 
 ### ⚠️ Breaking

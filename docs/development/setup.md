@@ -197,34 +197,34 @@ The repository's Wasm target flags select upstream RustCrypto's qualified
 `cpubits="32"` backend. Other canister build owners must select it themselves;
 dependency Cargo configuration is not inherited, and explicit `RUSTFLAGS` or
 `CARGO_ENCODED_RUSTFLAGS` overrides must preserve this selection.
-Testkit 0.97 owns native clients and DTOs in `ic_testkit::pocket_ic`, together with
-bounded server startup, lifecycle extensions and typed Wire calls;
-only the native runner selects these capabilities. Its client requires an
-explicit server endpoint and positive finite request budget. Auth constructs its
-builder with `Duration::from_secs(30)`; the managed `build_instance` supplies the
-endpoint and retains the admitted server handle. Its separate startup timeout
-also remains 30 seconds.
+Testkit 0.100 owns bounded server startup, lifecycle helpers and typed Wire calls.
+The native runner imports the upstream async client and DTOs from `pocket_ic`
+16.1 through a non-Wasm development dependency. Its builder selects a 30,000 ms
+polling limit; this is not an absolute HTTP/body deadline. Managed `build_instance`
+supplies the admitted server endpoint and retains its handle. The separate startup
+timeout remains 30 seconds. Tests await close before server shutdown; upstream
+deletion is best-effort and logs failures rather than returning them.
 
-Native file and process callers select Host FS/Process 0.76.2 with defaults
+Native file and process callers select Host FS/Process 0.76.4 with defaults
 disabled. Library use does not enable Host's optional CLI, certificate decoder
 or Wasm text backends. Host stays outside the production library graph.
-Build 0.81.0 and Testkit 0.97.0 share Host 0.76.2 identities in native tooling.
-The independently pinned file CLI is selected at 0.76.1.
+Build 0.83.0 and Testkit 0.100.0 share Host 0.76.4 identities in native tooling.
+The independently pinned file CLI is selected at 0.76.4.
 Build and Testkit libraries keep `cli` disabled; only the prepared executable
 selections request it. Testkit has no Metrics dependency; Auth's diagnostics
 select Metrics directly.
 No caller enables optional native
 metadata; the old Host 0.73 and Metrics 0.25 providers are removed.
 
-Auth and native Testkit 0.97 share Platform 0.29 and canonical Types 0.19.
-Testkit selects the owned external Candid codec only in its native profile. The Wasm host selects one coordinated Runtime
-0.21 executor/generator/guard.
-Testkit classifies native CBOR failures with its own `CborErrorKind`, retaining
-the original typed source without requiring a Platform-error downcast.
+Auth and its native runner select Platform 0.31.0 and canonical Types 0.19.3.
+The selected Testkit Wire transport has no Platform dependency; upstream PocketIC
+and Agent retain native Candid dependencies. The Wasm host selects one coordinated Runtime
+0.21.1 executor/generator/guard. Upstream PocketIC owns its transport and parsing
+failure behavior; its panics propagate rather than using the retired typed client errors.
 Native Testkit and its Candid/management DTOs remain outside the public library
 and Wasm host graphs.
 The host and Storage 0.71.1 now share Runtime 0.21, clearing the former
-singleton conflict. Wire 0.19 provides the matching canonical Principal schema implementation;
+singleton conflict. Wire 0.21 provides the matching canonical Principal schema implementation;
 Auth does not select its opt-in packed 16-byte ID fields.
 Native calls retain explicit external Principal conversions; native SDK packages
 remain outside public Auth and the reference Wasm graph.
@@ -242,16 +242,15 @@ commands. Generic file operations now use the separately prepared published
 implementation or fallback. See [release and file-tool mechanics](#releases-and-publication)
 for the existing byte/path limits and release-recovery boundary.
 
-Auth and Testkit 0.97 share Wire 0.19. The native runner passes canonical method
-limits directly through its typed transport. PocketIC operations use the same
-canonical Principal without identity conversions; Agent and delegation supplier
-boundaries still copy validated bytes explicitly. Testkit's concrete
+Auth and Testkit 0.100 share Wire 0.21. The native runner passes canonical method
+limits directly through its typed transport. PocketIC, Agent and delegation supplier
+boundaries copy canonical Principal bytes explicitly into upstream identities. Testkit's concrete
 `PocketIcInstance` retains managed-server custody and awaited teardown.
 
 ## Dependency roles and deployment admission
 
-Toko Tooling comes from crates.io's `toko-tooling` 0.39.7. Each workspace
-`[workspace.dependencies]` owns the same exact `=0.39.7` pin and every real package
+Toko Tooling comes from crates.io's `toko-tooling` 0.39.10. Each workspace
+`[workspace.dependencies]` owns the same exact `=0.39.10` pin and every real package
 inherits it in `[dev-dependencies]`, with the cargo-machete exemption for its
 source-bundle role. Each `Cargo.lock` owns the registry checksum; explicit installation
 authenticates that archive and records the payload in `.toko-tooling.snapshot`.
@@ -319,7 +318,7 @@ canonical Principal and parse-error identities, without a facade, external
 Principal, SHA-2, Candid or runtime edge. The Auth engine selects Types'
 `principal-self-authenticating` for browser-key hashing. Its Platform dependency
 is optional: only crypto capabilities select it, while default and session-only
-graphs exclude the facade. Consumers must align on Types 0.19 and Wire 0.19.
+graphs exclude the facade. Consumers must align on Types 0.19 and Wire 0.21.
 Serialized bytes are unchanged.
 Direct dependency and resolved graph policies enforce the owner boundaries. Native Agent APIs retain supplier Principal identities. Copy the already
 validated bytes with inferred `TryFrom<&[u8]>` at those private boundaries; the
@@ -386,12 +385,13 @@ application sentinel bytes on refusal. Current-format reopen, occupied creation,
 detached-lease custody, size bounds and framing corruption also have explicit
 tests. This adoption performs no reset or data retirement.
 
-Storage adoption keeps the Auth payload and signed bytes unchanged. The earlier
+This dependency adoption keeps Auth's payload and signed bytes unchanged. The earlier
 #127 hard cut retired `AUTHNAT3` for `AUTHCLK1` and retired the old login-record/
-logout identities; those bytes remain refused. Its no-retained-record approval
-does not authorize clearing other backing. No production Auth store is migrated
+logout identities. Auth 0.38 subsequently retired that profile for `AUTHSLOT`;
+both earlier profiles remain refused. The no-retained-record approvals
+do not authorize clearing other backing. No production Auth store is migrated
 and no retained backing is reset here. The internal codec, Auth's contracts and
-the host share Wire 0.19; core Storage no longer requires Wire. No Wire values
+the host share Wire 0.21; core Storage no longer requires Wire. No Wire values
 cross Auth's Storage adapter boundary. The boundary check admits the aligned
 Runtime 0.21 generator and guard. Public library graphs still forbid runtime
 capabilities and Storage. The host selects Metrics 0.29 (exact patch in the
@@ -1162,7 +1162,7 @@ in publication state; no cleanup, GitHub Release object or deployment is
 implicit. See [Cargo publication](https://doc.rust-lang.org/cargo/commands/cargo-publish.html)
 for credentials, dry-run and index-propagation semantics.
 
-File mechanics use the published `ic-host-file` executable. Auth pins 0.76.1 in
+File mechanics use the published `ic-host-file` executable. Auth pins 0.76.4 in
 `ci/host-file.env`, independently of the library versions selected by Cargo.lock.
 `make install-host-file` prepares it through Toko Tooling with
 `--features cli`; `make host-file-check` admits that exact selection offline. The

@@ -15,8 +15,8 @@ use ic_platform::{
 use ic_testkit::pic::{
     PocketIcInstance, PocketIcStartupConfig, WireCallError, WireCallSpec, query_wire, update_wire,
 };
-use ic_testkit::pocket_ic::{PocketIc, PocketIcBuilder, Time};
 use ic_wire::Bytes;
+use pocket_ic::{CanisterId as PocketPrincipal, PocketIcBuilder, Time, nonblocking::PocketIc};
 use std::{
     path::{Path, PathBuf},
     sync::atomic::{AtomicUsize, Ordering},
@@ -77,7 +77,8 @@ impl Fixture {
         );
         let instance = format!("instance-{}", NEXT_INSTANCE.fetch_add(1, Ordering::Relaxed));
         let state_path = state_root.join(&instance);
-        let mut builder = PocketIcBuilder::new(Duration::from_secs(30))
+        let mut builder = PocketIcBuilder::new()
+            .with_max_request_time_ms(Some(30_000))
             .with_state_dir(state_path)
             .with_nns_subnet()
             .with_application_subnet();
@@ -100,28 +101,32 @@ impl Fixture {
         // Keep the managed server alive through setup and explicit async close.
         // On panic, its Drop still stops/reaps the process and all its instances.
         let pic = owned.instance();
-        pic.set_time(SystemTime::now().into()).await.unwrap();
+        pic.set_time(SystemTime::now().into()).await;
         let controller = Principal::self_authenticating(b"qualification controller");
-        let subnets = pic.topology().await.unwrap().get_app_subnets();
+        let subnets = pic.topology().await.get_app_subnets();
         assert_eq!(subnets.len(), count);
         let signer = pic
-            .create_canister_on_subnet(Some(controller), None, subnets[0])
-            .await
-            .unwrap();
+            .create_canister_on_subnet(
+                Some(PocketPrincipal::from_slice(controller.as_slice())),
+                None,
+                subnets[0],
+            )
+            .await;
         let resource = pic
-            .create_canister_on_subnet(Some(controller), None, subnets[count - 1])
-            .await
-            .unwrap();
-        assert_eq!(pic.get_subnet(signer).await.unwrap(), Some(subnets[0]));
-        assert_eq!(
-            pic.get_subnet(resource).await.unwrap(),
-            Some(subnets[count - 1])
-        );
+            .create_canister_on_subnet(
+                Some(PocketPrincipal::from_slice(controller.as_slice())),
+                None,
+                subnets[count - 1],
+            )
+            .await;
+        assert_eq!(pic.get_subnet(signer).await, Some(subnets[0]));
+        assert_eq!(pic.get_subnet(resource).await, Some(subnets[count - 1]));
         let owner = Principal::self_authenticating(
-            CanisterSigPublicKey::new(signer, SEED.to_vec()).to_der(),
+            CanisterSigPublicKey::new(Principal::from_slice(signer.as_slice()), SEED.to_vec())
+                .to_der(),
         );
         for canister in [signer, resource] {
-            pic.add_cycles(canister, 2_000_000_000_000).await.unwrap();
+            pic.add_cycles(canister, 2_000_000_000_000).await;
             pic.install_canister(
                 canister,
                 wasm.clone(),
@@ -129,15 +134,14 @@ impl Fixture {
                     &Bytes::new(owner.as_slice().to_vec()).unwrap(),
                 )
                 .unwrap(),
-                Some(controller),
+                Some(PocketPrincipal::from_slice(controller.as_slice())),
             )
-            .await
-            .unwrap();
+            .await;
         }
         Self {
             pic: owned,
-            signer,
-            resource,
+            signer: Principal::from_slice(signer.as_slice()),
+            resource: Principal::from_slice(resource.as_slice()),
             controller,
             owner,
             wasm,
@@ -149,7 +153,6 @@ impl Fixture {
             .instance()
             .get_time()
             .await
-            .unwrap()
             .as_nanos_since_unix_epoch()
     }
 
@@ -158,7 +161,6 @@ impl Fixture {
             .instance()
             .root_key()
             .await
-            .expect("PocketIC root key response")
             .expect("fixture NNS root key")
     }
 
@@ -210,7 +212,7 @@ impl Fixture {
         message: &[u8],
     ) -> Result<IcCanisterSignatureProofV1, controls::Refusal> {
         // Certificates become available after the update's state is certified.
-        self.pic.instance().tick().await.unwrap();
+        self.pic.instance().tick().await;
         let proof: Result<ic_auth_wire::model::IcCanisterSignatureProofV1, controls::Refusal> =
             query_control::<
                 controls::SignatureInput,
@@ -278,8 +280,8 @@ impl Fixture {
     async fn asset_version(&self) -> u64 {
         query_wire::<(), u64>(
             self.pic.instance(),
-            self.signer,
-            Principal::anonymous(),
+            PocketPrincipal::from_slice(self.signer.as_slice()),
+            PocketPrincipal::from_slice(Principal::anonymous().as_slice()),
             spec!(controls::AssetVersion),
             &(),
         )
@@ -292,10 +294,10 @@ impl Fixture {
             self.pic
                 .instance()
                 .upgrade_canister(
-                    canister,
+                    PocketPrincipal::from_slice(canister.as_slice()),
                     self.wasm.clone(),
                     controls::Upgrade::encode_request(&()).unwrap(),
-                    Some(self.controller),
+                    Some(PocketPrincipal::from_slice(self.controller.as_slice())),
                 )
                 .await
                 .unwrap();
@@ -365,8 +367,8 @@ async fn real_certificates_composition_cleanup_and_upgrade_obey_the_host_contrac
                 .pic
                 .instance()
                 .update_call(
-                    fixture.signer,
-                    fixture.controller,
+                    PocketPrincipal::from_slice(fixture.signer.as_slice()),
+                    PocketPrincipal::from_slice(fixture.controller.as_slice()),
                     controls::SetAsset::NAME,
                     bytes
                 )
@@ -379,21 +381,21 @@ async fn real_certificates_composition_cleanup_and_upgrade_obey_the_host_contrac
     // distinct from an encoded application refusal returned by a valid update.
     let refused = query_wire::<u64, Result<(), controls::Refusal>>(
         fixture.pic.instance(),
-        fixture.signer,
-        fixture.controller,
+        PocketPrincipal::from_slice(fixture.signer.as_slice()),
+        PocketPrincipal::from_slice(fixture.controller.as_slice()),
         spec!(controls::SetAsset),
         &99,
     )
     .await;
     assert!(matches!(refused, Err(WireCallError::Call { context, .. })
-        if context.canister_id == fixture.signer
-            && context.caller == fixture.controller
+        if context.canister_id == PocketPrincipal::from_slice(fixture.signer.as_slice())
+            && context.caller == PocketPrincipal::from_slice(fixture.controller.as_slice())
             && context.method == controls::SetAsset::NAME));
     assert_eq!(fixture.asset_version().await, 1);
     let unauthorized = update_wire::<controls::PrepareInput, Result<u64, controls::Refusal>>(
         fixture.pic.instance(),
-        fixture.signer,
-        fixture.owner,
+        PocketPrincipal::from_slice(fixture.signer.as_slice()),
+        PocketPrincipal::from_slice(fixture.owner.as_slice()),
         spec!(controls::Prepare),
         &controls::PrepareInput {
             input: controls::SignatureInput {
@@ -430,10 +432,10 @@ async fn real_certificates_composition_cleanup_and_upgrade_obey_the_host_contrac
             .pic
             .instance()
             .upgrade_canister(
-                fixture.signer,
+                PocketPrincipal::from_slice(fixture.signer.as_slice()),
                 fixture.wasm.clone(),
                 controls::AssetVersion::encode_request(&()).unwrap(),
-                Some(fixture.controller)
+                Some(PocketPrincipal::from_slice(fixture.controller.as_slice()))
             )
             .await
             .is_err(),
@@ -448,8 +450,7 @@ async fn real_certificates_composition_cleanup_and_upgrade_obey_the_host_contrac
         .pic
         .instance()
         .set_time(Time::from_nanos_since_unix_epoch(fixture.now().await + 10))
-        .await
-        .unwrap();
+        .await;
     assert!(fixture.retrieve(DOMAIN, &payload).await.is_err());
     let removed: Result<u32, controls::Refusal> = update_control::<u32, u32>(
         fixture.pic.instance(),
@@ -468,11 +469,7 @@ async fn real_certificates_composition_cleanup_and_upgrade_obey_the_host_contrac
     assert_eq!(proof.public_key_der, restored.public_key_der);
     fixture.verify(DOMAIN, payload, &restored).await;
     assert_eq!(fixture.asset_version().await, 9);
-    fixture
-        .pic
-        .close()
-        .await
-        .expect("delete qualification instance before stopping its server");
+    fixture.pic.close().await;
 }
 
 async fn update_control<Request, T>(
@@ -486,9 +483,15 @@ where
     Request: serde::Serialize,
     T: serde::de::DeserializeOwned,
 {
-    update_wire::<Request, Result<T, controls::Refusal>>(pic, target, caller, spec, &request)
-        .await
-        .expect("qualified Wire update")
+    update_wire::<Request, Result<T, controls::Refusal>>(
+        pic,
+        PocketPrincipal::from_slice(target.as_slice()),
+        PocketPrincipal::from_slice(caller.as_slice()),
+        spec,
+        &request,
+    )
+    .await
+    .expect("qualified Wire update")
 }
 async fn query_control<Request, T>(
     pic: &PocketIc,
@@ -501,7 +504,13 @@ where
     Request: serde::Serialize,
     T: serde::de::DeserializeOwned,
 {
-    query_wire::<Request, Result<T, controls::Refusal>>(pic, target, caller, spec, &request)
-        .await
-        .expect("qualified Wire query")
+    query_wire::<Request, Result<T, controls::Refusal>>(
+        pic,
+        PocketPrincipal::from_slice(target.as_slice()),
+        PocketPrincipal::from_slice(caller.as_slice()),
+        spec,
+        &request,
+    )
+    .await
+    .expect("qualified Wire query")
 }

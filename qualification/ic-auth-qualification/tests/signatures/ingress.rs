@@ -160,13 +160,7 @@ async fn ingress_deadline_and_abort_release_pending_transport() {
 async fn replica_checks_real_ingress_delegations_and_fresh_browser_keys_keep_identity_after_upgrade()
  {
     let mut fixture = Fixture::new().await;
-    let url = fixture
-        .pic
-        .instance_mut()
-        .make_live(None)
-        .await
-        .unwrap()
-        .to_string();
+    let url = fixture.pic.instance_mut().make_live(None).await.to_string();
     let network = fixture.root_key().await;
     let mut wrong_root = network.clone();
     *wrong_root.last_mut().unwrap() ^= 1;
@@ -291,9 +285,5 @@ async fn replica_checks_real_ingress_delegations_and_fresh_browser_keys_keep_ide
         ingress(&url, &network, identity, fixture.resource).await,
         "expired",
     );
-    fixture
-        .pic
-        .close()
-        .await
-        .expect("delete qualification instance before stopping its server");
+    fixture.pic.close().await;
 }

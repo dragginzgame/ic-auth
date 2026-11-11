@@ -2,7 +2,7 @@
 mod application;
 mod browser;
 mod costs;
-use super::{Agent, BasicIdentity, Fixture, Principal};
+use super::{Agent, BasicIdentity, Fixture, PocketPrincipal, Principal};
 use super::{controls, query_control, update_control};
 use contract::*;
 use ic_auth::{
@@ -30,10 +30,19 @@ async fn measured<T>(
     label: &str,
     operation: impl AsyncFnOnce() -> T,
 ) -> T {
-    let before = f.pic.instance().cycle_balance(target).await.unwrap();
+    let before = f
+        .pic
+        .instance()
+        .cycle_balance(PocketPrincipal::from_slice(target.as_slice()))
+        .await;
     let result = operation().await;
     let spent = before
-        .checked_sub(f.pic.instance().cycle_balance(target).await.unwrap())
+        .checked_sub(
+            f.pic
+                .instance()
+                .cycle_balance(PocketPrincipal::from_slice(target.as_slice()))
+                .await,
+        )
         .unwrap();
     assert!(spent > 0, "an update must consume cycles");
     eprintln!("portable receiver cycles: {label}={spent}");
@@ -63,8 +72,8 @@ async fn admission(
         Result<ic_auth_wire::SessionView, ic_auth_wire::model::AdmissionRefusal>,
     >(
         f.pic.instance(),
-        target,
-        caller,
+        PocketPrincipal::from_slice(target.as_slice()),
+        PocketPrincipal::from_slice(caller.as_slice()),
         spec!(ic_auth_wire::EstablishSession),
         input,
     )
@@ -78,8 +87,8 @@ async fn read(
 ) -> Result<SessionView, SessionReadRefusal> {
     update_wire::<(), Result<ic_auth_wire::SessionView, ic_auth_wire::model::SessionReadRefusal>>(
         f.pic.instance(),
-        target,
-        caller,
+        PocketPrincipal::from_slice(target.as_slice()),
+        PocketPrincipal::from_slice(caller.as_slice()),
         spec!(ic_auth_wire::ReadSession),
         &(),
     )
@@ -91,8 +100,8 @@ async fn logout(f: &Fixture, target: Principal, caller: Principal) -> Result<u64
     use ic_auth_wire::model as m;
     match update_wire::<(), ic_auth_wire::model::LogoutResult>(
         f.pic.instance(),
-        target,
-        caller,
+        PocketPrincipal::from_slice(target.as_slice()),
+        PocketPrincipal::from_slice(caller.as_slice()),
         spec!(ic_auth_wire::Logout),
         &(),
     )
@@ -160,11 +169,7 @@ async fn sdk_preserves_typed_refusals_and_retries_the_original_future_credential
         },
     )
     .await;
-    f.pic
-        .instance()
-        .advance_time(Duration::from_secs(1))
-        .await
-        .unwrap();
+    f.pic.instance().advance_time(Duration::from_secs(1)).await;
     let now = f.now().await;
     let valid = PortableClaims {
         mechanism: PortableMechanism::Ed25519,
@@ -199,13 +204,7 @@ async fn sdk_preserves_typed_refusals_and_retries_the_original_future_credential
     let mut invalid = input(&valid, &key);
     invalid.credential.proof =
         ic_auth_wire::model::PortableProof::Ed25519(Bytes::new(vec![0; 64]).unwrap());
-    let url = f
-        .pic
-        .instance_mut()
-        .make_live(None)
-        .await
-        .unwrap()
-        .to_string();
+    let url = f.pic.instance_mut().make_live(None).await.to_string();
     let hex = |bytes: &[u8]| {
         bytes
             .iter()
@@ -242,10 +241,7 @@ async fn sdk_preserves_typed_refusals_and_retries_the_original_future_credential
             .await
             .is_err()
     );
-    f.pic
-        .close()
-        .await
-        .expect("delete qualification instance before stopping its server");
+    f.pic.close().await;
 }
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn issuer_scoped_accounts_survive_wire_projection_and_independent_logout() {
@@ -289,11 +285,7 @@ async fn issuer_scoped_accounts_survive_wire_projection_and_independent_logout()
     };
     install(&f, f.signer, &first).await;
     install(&f, f.resource, &second).await;
-    f.pic
-        .instance()
-        .advance_time(Duration::from_secs(1))
-        .await
-        .unwrap();
+    f.pic.instance().advance_time(Duration::from_secs(1)).await;
     let first_claims = PortableClaims {
         mechanism: PortableMechanism::Ed25519,
         audience: first.audience,
@@ -354,18 +346,23 @@ async fn issuer_scoped_accounts_survive_wire_projection_and_independent_logout()
     logout(&f, f.signer, first_caller).await.unwrap();
     assert!(read(&f, f.signer, first_caller).await.is_err());
     assert_eq!(read(&f, f.resource, second_caller).await.unwrap(), b);
-    f.pic
-        .close()
-        .await
-        .expect("delete qualification instance before stopping its server");
+    f.pic.close().await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ingress() {
     let mut f = Fixture::with_application_subnets(2).await;
     assert_ne!(
-        f.pic.instance().get_subnet(f.signer).await.unwrap(),
-        f.pic.instance().get_subnet(f.resource).await.unwrap()
+        f.pic
+            .instance()
+            .get_subnet(PocketPrincipal::from_slice(f.signer.as_slice()))
+            .await
+            .unwrap(),
+        f.pic
+            .instance()
+            .get_subnet(PocketPrincipal::from_slice(f.resource.as_slice()))
+            .await
+            .unwrap()
     );
     eprintln!(
         "portable receiver artifact: bytes={}, sha256={}; two Testkit application subnets; volatile storage; issuer signing excluded",
@@ -407,8 +404,8 @@ async fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ing
             f.pic
                 .instance()
                 .update_call(
-                    f.resource,
-                    f.owner,
+                    PocketPrincipal::from_slice(f.resource.as_slice()),
+                    PocketPrincipal::from_slice(f.owner.as_slice()),
                     ic_auth_wire::EstablishSession::NAME,
                     malformed
                 )
@@ -417,11 +414,7 @@ async fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ing
         );
         assert!(read(&f, f.resource, f.owner).await.is_err());
     }
-    f.pic
-        .instance()
-        .advance_time(Duration::from_secs(1))
-        .await
-        .unwrap();
+    f.pic.instance().advance_time(Duration::from_secs(1)).await;
     let mut claims = PortableClaims {
         mechanism: PortableMechanism::Ed25519,
         audience: config.audience,
@@ -486,11 +479,7 @@ async fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ing
     })
     .await
     .unwrap();
-    f.pic
-        .instance()
-        .advance_time(Duration::from_secs(3))
-        .await
-        .unwrap();
+    f.pic.instance().advance_time(Duration::from_secs(3)).await;
     let mut retry = first.clone();
     retry.credential.proof =
         ic_auth_wire::model::PortableProof::Ed25519(Bytes::new(vec![]).unwrap());
@@ -583,13 +572,7 @@ async fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ing
         .await
         .unwrap();
     let peer_session = admission(&f, f.signer, fresh, &fresh_input).await.unwrap();
-    let url = f
-        .pic
-        .instance_mut()
-        .make_live(None)
-        .await
-        .unwrap()
-        .to_string();
+    let url = f.pic.instance_mut().make_live(None).await.to_string();
     let network = f.root_key().await;
     for device in [4, 5] {
         let result = async {
@@ -732,10 +715,10 @@ async fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ing
     f.pic
         .instance()
         .upgrade_canister(
-            f.resource,
+            PocketPrincipal::from_slice(f.resource.as_slice()),
             f.wasm.clone(),
             controls::Upgrade::encode_request(&()).unwrap(),
-            Some(f.controller),
+            Some(PocketPrincipal::from_slice(f.controller.as_slice())),
         )
         .await
         .unwrap();
@@ -776,10 +759,10 @@ async fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ing
     f.pic
         .instance()
         .upgrade_canister(
-            f.resource,
+            PocketPrincipal::from_slice(f.resource.as_slice()),
             f.wasm.clone(),
             controls::Upgrade::encode_request(&()).unwrap(),
-            Some(f.controller),
+            Some(PocketPrincipal::from_slice(f.controller.as_slice())),
         )
         .await
         .unwrap();
@@ -793,10 +776,7 @@ async fn portable_sessions_cover_receivers_devices_logout_upgrade_and_signed_ing
         )
         .await;
     assert_eq!(reinstall, Err(controls::Refusal::ReceiverUnavailable));
-    f.pic
-        .close()
-        .await
-        .expect("delete qualification instance before stopping its server");
+    f.pic.close().await;
 }
 
 fn run_node(command: &mut std::process::Command, label: &str) -> Vec<u8> {
@@ -946,11 +926,7 @@ pub(super) async fn qualify_certified(
         p,
     )
     .unwrap();
-    f.pic
-        .instance()
-        .advance_time(Duration::from_secs(3))
-        .await
-        .unwrap();
+    f.pic.instance().advance_time(Duration::from_secs(3)).await;
     ctx.authority.now_ns = f.now().await;
     proof_context.claims.authority.now_ns = ctx.authority.now_ns;
     assert!(matches!(
@@ -1023,11 +999,7 @@ async fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_author
     )
     .await;
     enabled.unwrap();
-    f.pic
-        .instance()
-        .advance_time(Duration::from_secs(1))
-        .await
-        .unwrap();
+    f.pic.instance().advance_time(Duration::from_secs(1)).await;
     let mut claims = PortableClaims {
         mechanism: PortableMechanism::Ed25519,
         audience: config.audience,
@@ -1067,26 +1039,30 @@ async fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_author
     else {
         panic!("unseen login must remain unconfirmed")
     };
-    f.pic
-        .instance()
-        .advance_time(Duration::from_secs(3))
-        .await
-        .unwrap();
+    f.pic.instance().advance_time(Duration::from_secs(3)).await;
     assert!(f.now().await >= claims.admission_expires_at_ns);
-    let before_upgrade = f.pic.instance().cycle_balance(f.resource).await.unwrap();
+    let before_upgrade = f
+        .pic
+        .instance()
+        .cycle_balance(PocketPrincipal::from_slice(f.resource.as_slice()))
+        .await;
     f.pic
         .instance()
         .upgrade_canister(
-            f.resource,
+            PocketPrincipal::from_slice(f.resource.as_slice()),
             f.wasm.clone(),
             controls::Upgrade::encode_request(&()).unwrap(),
-            Some(f.controller),
+            Some(PocketPrincipal::from_slice(f.controller.as_slice())),
         )
         .await
         .unwrap();
     eprintln!(
         "checkpoint upgrade cycles: {}",
-        before_upgrade - f.pic.instance().cycle_balance(f.resource).await.unwrap()
+        before_upgrade
+            - f.pic
+                .instance()
+                .cycle_balance(PocketPrincipal::from_slice(f.resource.as_slice()))
+                .await
     );
     assert_eq!(
         read(&f, f.resource, live).await.unwrap_err(),
@@ -1182,10 +1158,10 @@ async fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_author
     f.pic
         .instance()
         .upgrade_canister(
-            f.resource,
+            PocketPrincipal::from_slice(f.resource.as_slice()),
             f.wasm.clone(),
             controls::Upgrade::encode_request(&()).unwrap(),
-            Some(f.controller),
+            Some(PocketPrincipal::from_slice(f.controller.as_slice())),
         )
         .await
         .unwrap();
@@ -1230,10 +1206,10 @@ async fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_author
     f.pic
         .instance()
         .upgrade_canister(
-            f.signer,
+            PocketPrincipal::from_slice(f.signer.as_slice()),
             f.wasm.clone(),
             controls::Upgrade::encode_request(&()).unwrap(),
-            Some(f.controller),
+            Some(PocketPrincipal::from_slice(f.controller.as_slice())),
         )
         .await
         .unwrap();
@@ -1260,8 +1236,5 @@ async fn checkpoint_upgrade_preserves_sessions_denials_and_requires_fresh_author
         read(&f, f.signer, replacement).await.unwrap(),
         replacement_session
     );
-    f.pic
-        .close()
-        .await
-        .expect("delete qualification instance before stopping its server");
+    f.pic.close().await;
 }

@@ -95,8 +95,7 @@ async fn root_and_issuer_profiles_share_one_composed_store_without_crossing_auth
         .pic
         .instance()
         .set_time(Time::from_nanos_since_unix_epoch(root_deadline))
-        .await
-        .unwrap();
+        .await;
     assert!(
         fixture
             .retrieve_with_seed(ROOT_PROFILE, ROOT_PROFILE, &payload)
@@ -153,9 +152,5 @@ async fn root_and_issuer_profiles_share_one_composed_store_without_crossing_auth
             Ok(())
         );
     }
-    fixture
-        .pic
-        .close()
-        .await
-        .expect("delete qualification instance before stopping its server");
+    fixture.pic.close().await;
 }

@@ -4,6 +4,29 @@ Covers `ic-auth`, maintained `ic-auth-tooling`, and associated private
 qualification changes. Only the first two are Engine release-group members. The independent series starts after the
 [last coordinated release, 0.29.2](../history.md).
 
+## [0.39.0] - Unreleased
+
+### ⬆️ Dependencies
+
+- Adopt Build 0.83, Host libraries/file CLI 0.76.4 and Platform 0.31 with
+  Types 0.19.3 and Runtime/macros/guard 0.21.1. Keep the bounded external-lock
+  admission and host-owned execution/verification boundaries.
+  Platform's textual DID retirement affects no Auth endpoint or tooling caller;
+  self-authenticating Principal bytes retain their existing SHA-224 framing.
+- Select Wire 0.21.1 with the coordinated Protocol Rust identity cut. Qualify
+  redundant transport lengths without changing opaque signed bytes or the
+  separate canonical Auth claim encoding. Regenerate the browser runtime;
+  all four explicitly named Auth bindings remain unchanged.
+- Adopt Platform's BLS wrapper/error identity and retain checked certificate,
+  delegation and signed-byte verification through its maintained boundary.
+- Align native qualification on Testkit 0.100 and upstream PocketIC 16.1 through
+  a non-Wasm development dependency. Copy canonical Principal bytes at its
+  boundaries, retain managed server custody and await best-effort close. Upstream
+  transport panics propagate; the retired client deadline/error contract is removed.
+- Adopt Toko Tooling 0.39.10's authenticated snapshot, native qualification
+  dependency admission and scoped Platform Digest adapter admission while
+  retaining Auth's Protocol/Engine release gates.
+
 ## [0.38.0] - 2026-11-10
 
 ### 🛠️ Tooling

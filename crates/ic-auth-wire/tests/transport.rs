@@ -65,17 +65,25 @@ fn signed_bytes_roundtrip_without_intermediate_encoding_or_authority() {
 }
 
 #[test]
-fn single_pass_decode_preserves_scope_order_and_rejects_nonminimal_lengths() {
+fn postcard_decode_preserves_signed_bytes_and_scope_order() {
     let value: model::PortableCredential = credential().try_into().unwrap();
     let frame = CredentialEnvelope::encode_request(&value).unwrap();
     assert_eq!(frame[11], 3); // Opaque claims byte length, after the frame header.
     let mut overlong = frame[..11].to_vec();
     overlong.extend_from_slice(&[0x83, 0]);
     overlong.extend_from_slice(&frame[12..]);
-    assert_eq!(
-        CredentialEnvelope::decode_request(&overlong),
-        Err(wire::Error::Malformed)
-    );
+    // Wire 0.20 follows Postcard's redundant-varint admission. This outer
+    // length is not signed; the opaque claims and proof bytes must stay exact.
+    let decoded = CredentialEnvelope::decode_request(&overlong).unwrap();
+    assert_eq!(decoded, value);
+    assert_eq!(CredentialEnvelope::encode_request(&decoded).unwrap(), frame);
+    assert_ne!(overlong, frame);
+    for length in [vec![0x80; 10], vec![0xff; 10], vec![0x81, 0x80, 0x04]] {
+        let mut refused = frame[..11].to_vec();
+        refused.extend(length);
+        refused.extend_from_slice(&frame[12..]);
+        assert!(CredentialEnvelope::decode_request(&refused).is_err());
+    }
 
     // Transport must not sort or deduplicate scopes. The session engine owns
     // semantic normalization/rejection and request identity after this boundary.

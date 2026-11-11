@@ -116,12 +116,15 @@ and `ci/cargo-dependency-boundaries.json` for direct-dependency ownership.
 ## Qualification tooling
 
 - Native canister qualification uses published `ic-testkit` for typed Wire calls,
-  deliberate raw-call evidence and bounded startup. Import simulator clients and
-  DTOs from `ic_testkit::pocket_ic` in the native runner only. Testkit owns that
-  async client and its lifecycle helpers. Tests own the runtime and await
-  explicit instance close before server shutdown; retain teardown failures.
-  Do not add a blocking facade, separate Platform client or registry `pocket-ic`
-  dependency. The Testkit package locked in `qualification/Cargo.lock` selects the setup/check CLI;
+  deliberate raw-call evidence and bounded startup. Import the upstream async
+  simulator client and DTOs directly from `pocket_ic` through a native-only
+  development dependency in the qualification runner. Testkit owns lifecycle
+  helpers and managed server custody. Tests own the runtime and await
+  explicit instance close before server shutdown and retain teardown output.
+  Upstream deletion is best-effort; awaited close is not a deletion acknowledgement.
+  Do not add a blocking facade or separate Platform client. Copy canonical
+  Principal bytes explicitly at the upstream client boundary. The Testkit package
+  locked in `qualification/Cargo.lock` selects the setup/check CLI;
   Testkit owns server selection and admission outside the shared five-tool bundle.
   `make install-testkit-tools` explicitly prepares it, and
   `make testkit-tools-check` returns its admitted server path offline.

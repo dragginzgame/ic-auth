@@ -443,7 +443,7 @@ Protocol and Engine continue independently in their group ledgers.
 ### ➕ Added
 
 - Prepare local browser-client archives with compiled ESM, public declarations,
-  generated Wire codecs, license and source/integrity receipts. Qualify an offline
+  generated Wire codecs and source/integrity receipts. Qualify an offline
   consumer through strict type checking, browser bundling and injected admission/
   logout; `make test-client` now includes this package proof. The package remains
   private and unpublished; Canic endpoints and issuer policy remain consumer work.
@@ -597,7 +597,7 @@ Protocol and Engine continue independently in their group ledgers.
   cleanup scheduling, strict transaction outcomes and fixture lifecycle states
   explicit, and simplify checked fixture authority projection.
 - Use one public package inventory for release, minimum-compiler packaging and
-  license/dry-run checks. Generate browser codec policy alongside each binding.
+  dry-run checks. Generate browser codec policy alongside each binding.
   [#90 — Consolidate admission policy and simplify client and qualification state](https://github.com/dragginzgame/ic-auth/issues/90).
 - Adopt Shared Tooling 0.26.23's Rust formatting driver with visible per-pass
   progress and timing, retaining Auth's grouped ordering and staged-file checks.

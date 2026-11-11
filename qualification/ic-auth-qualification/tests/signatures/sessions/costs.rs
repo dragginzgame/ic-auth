@@ -8,11 +8,11 @@ async fn reinstall_receiver(f: &Fixture, target: Principal, config: &ReceiverCon
     f.pic
         .instance()
         .reinstall_canister(
-            target,
+            PocketPrincipal::from_slice(target.as_slice()),
             f.wasm.clone(),
             controls::Initialize::encode_request(&Bytes::new(f.owner.as_slice().to_vec()).unwrap())
                 .unwrap(),
-            Some(f.controller),
+            Some(PocketPrincipal::from_slice(f.controller.as_slice())),
         )
         .await
         .unwrap();
@@ -29,8 +29,8 @@ async fn profile(
     let report: AdmissionProfile = measured(f, target, label, async || {
         update_wire::<ic_auth_wire::SessionInput, controls::model::AdmissionProfile>(
             f.pic.instance(),
-            target,
-            caller,
+            PocketPrincipal::from_slice(target.as_slice()),
+            PocketPrincipal::from_slice(caller.as_slice()),
             spec!(controls::ProfileAdmission),
             input,
         )
@@ -140,11 +140,7 @@ pub(super) async fn qualify(
             assert_ne!(network_key, old.ic_root_public_key_raw);
         }
         reinstall_receiver(f, f.resource, &rejecting).await;
-        f.pic
-            .instance()
-            .advance_time(Duration::from_secs(1))
-            .await
-            .unwrap();
+        f.pic.instance().advance_time(Duration::from_secs(1)).await;
         let rejected_claims = make_claims(19).await;
         let rejected_caller = browser_principal(&rejected_claims.browser_public_key);
         let mut rejected = make_input(&rejected_claims).await;
@@ -184,11 +180,7 @@ pub(super) async fn qualify(
         // This is an explicit test reset, never production enrollment refresh.
         reinstall_receiver(f, f.resource, &config).await;
         reinstall_receiver(f, f.signer, &config).await;
-        f.pic
-            .instance()
-            .advance_time(Duration::from_secs(1))
-            .await
-            .unwrap();
+        f.pic.instance().advance_time(Duration::from_secs(1)).await;
         let mut first = None;
         for device in 20..23 {
             let claims = make_claims(device).await;
@@ -235,11 +227,7 @@ pub(super) async fn qualify(
             }
         }
         let (caller, input, mut admitted, original_claims) = first.unwrap();
-        f.pic
-            .instance()
-            .advance_time(Duration::from_secs(3))
-            .await
-            .unwrap();
+        f.pic.instance().advance_time(Duration::from_secs(3)).await;
         assert_eq!(
             profile(
                 f,
@@ -322,7 +310,7 @@ async fn components(f: &Fixture, caller: Principal, input: &SessionInput) {
             Result<controls::model::CertifiedProfile, controls::model::CertifiedProfileFailure>,
         >(
             f.pic.instance(),
-            f.resource,
+            PocketPrincipal::from_slice(f.resource.as_slice()),
             caller,
             spec!(controls::ProfileCertified),
             input,
@@ -331,7 +319,9 @@ async fn components(f: &Fixture, caller: Principal, input: &SessionInput) {
         .expect("bounded certified component probe")
     };
     for sample in 0..3 {
-        let report = call(caller, input).await.unwrap();
+        let report = call(PocketPrincipal::from_slice(caller.as_slice()), input)
+            .await
+            .unwrap();
         assert!(report.credential_instructions > 0);
         assert!(report.root_delegation_instructions > 0);
         assert!(report.issuer_instructions > 0);
@@ -346,7 +336,11 @@ async fn components(f: &Fixture, caller: Principal, input: &SessionInput) {
     }
     assert!(
         matches!(
-            call(Principal::anonymous(), input).await,
+            call(
+                PocketPrincipal::from_slice(Principal::anonymous().as_slice()),
+                input
+            )
+            .await,
             Err(controls::model::CertifiedProfileFailure::Verification(_))
         ),
         "caller binding precedes component results"
@@ -358,7 +352,7 @@ async fn components(f: &Fixture, caller: Principal, input: &SessionInput) {
     proof.issuer_signature.signature_cbor = Bytes::new(vec![0]).unwrap();
     assert!(
         matches!(
-            call(caller, &invalid).await,
+            call(PocketPrincipal::from_slice(caller.as_slice()), &invalid).await,
             Err(controls::model::CertifiedProfileFailure::Verification(_))
         ),
         "complete verification precedes component results"
@@ -383,11 +377,7 @@ async fn qualify_wide_grants(f: &Fixture, base: &ReceiverConfig, key: &SigningKe
     .unwrap();
     config.role = config.grants.as_slice().last().unwrap().target.clone();
     reinstall_receiver(f, f.resource, &config).await;
-    f.pic
-        .instance()
-        .advance_time(Duration::from_secs(1))
-        .await
-        .unwrap();
+    f.pic.instance().advance_time(Duration::from_secs(1)).await;
     for device in 30..33 {
         let claims = PortableClaims {
             mechanism: config.authority.mechanism(),

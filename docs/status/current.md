@@ -1,4 +1,4 @@
-# Current handoff — 2026-11-10
+# Current handoff — 2026-11-11
 
 ## Delivered state
 
@@ -48,12 +48,6 @@ See [the session contract](../protocol/sessions.md) and
   claims change; public Wire envelopes remain unchanged. No hidden inter-canister
   call, timer or certification-root publication was introduced.
 
-The pre-release fixture grew 27,528 bytes (1.48%) to 1,886,577; ordinary installed
-session authorization measured 4,676 instructions. These retained observations
-under `target/device-contract-*` are not production fees or a matched published
-release comparison. Both memory and independent encoded backends, plus the
-Storage-backed fixture upgrade, were qualified.
-
 ## Canic boundary and next work
 
 Canic was inspected read-only and remains unchanged. The observed checkout selected
@@ -69,21 +63,42 @@ renewal cannot extend the original window and lost protected state stays closed.
 
 ## Tooling and dependencies
 
-Both catalogs/locks select Toko Tooling **0.39.7**; the authenticated snapshot has
-108 managed files and no managed reference-doc/rule/task copies. Required
-release helpers remain installed; `TOKO_TOOLING_RELEASE := 1` retains the release
-surface. Consumer `make tasks` forwarding is retired. Canonical root license and
-contribution files match the selected package; required source notices remain in
-packaged READMEs and private client archives. [Developer setup](../development/setup.md)
-and [the docs index](../README.md) own current command and documentation entrypoints.
+Pending Protocol/Engine **0.39.0** delivery selects Tooling 0.39.10, Wire 0.21.1,
+Build 0.83.0, Host libraries/file CLI 0.76.4 and Platform 0.31.0. Both locks share
+Types 0.19.3; the private host retains one Runtime/macros/guard 0.21.1. Required
+Testkit 0.100 clears the prior Wire pairing blocker. Storage 0.71.1 and Metrics 0.29.9
+are unchanged. Incoming dependency work and the earlier changelog cleanup remain.
+Six qualification packages retain their independent workspace/versions; four
+product packages remain under `crates/`. No sibling files or releases changed.
+An incoming product-lock `ar_archive_writer` 0.5.5 selection is preserved for
+the complete frozen release gate; the focused adoption checks used 0.5.3.
 
-Delivered product Platform is 0.29.2; qualification retains 0.29.1 with Runtime
-0.21.0, Testkit 0.97.0, Storage 0.71.1 and Metrics 0.29.9. Both use Types/Wire 0.19.0,
-Host 0.76.2 and the explicit SHA-2 0.11.1 selection; product Build is 0.81.1.
-The previously deferred product Platform/CRC selections are now included and
-qualified. Six private qualification packages retain independent versions/lock;
-four product packages remain under `crates/`. No pending source update is deferred
-from this delivery. No sibling source or dependency selection was changed.
+The maintainer approved native-only upstream PocketIC 16.1 for qualification and
+removed the former prohibition from AGENTS.md. Testkit retains managed startup,
+lifecycle and typed Wire helpers. Principal boundaries copy validated bytes.
+Upstream transport panics propagate; its 30,000 ms polling setting is not an
+absolute HTTP/body deadline, and awaited deletion is best-effort with retained logs.
+Wire retains Postcard redundant-varint acceptance and canonical method budgets.
+All five generated browser files were reviewed: Auth's four explicitly named
+bindings are unchanged; the shared runtime updates alias-cycle detection.
+Platform's BLS wrapper/errors now have Platform identity; Auth retains its signed
+bytes, verification policy and trust inputs. Tooling admits the supplier's scoped
+Digest adapter; Auth adds no direct Digest dependency or cryptographic code.
+
+Both locked fetches and Tooling setup/admission passed. Protocol tests, Engine
+all-feature tests, 12 adversarial signature cases, 98 browser tests, four tooling
+caller tests, native/Wasm lint and graph checks passed. Actual installed
+qualification passed 11 cases; optional Chromium remains ignored. Both-group Build
+editor probes preserved unselected metadata/external selections and the 8 MiB
+input bound. Package metadata, pins, links and diff checks passed. These are
+focused checks, not a new release gate. Evidence: `target/upstream-followup-20261111/`.
+The combined cohort's fixture is 1,760,067 bytes (code payload 1,361,483), versus
+retained 1,766,564 / 1,368,974 under the same fixture/build profile. This is an
+aggregate dependency observation, not a production size or isolated supplier gain.
+Keep prior observations under `target/device-contract-*`, `target/upstream-20261111/`,
+`target/platform-0300-adoption/`, `target/wire-0210-adoption/` and
+`target/tooling-adoption-0398/`. [Developer setup](../development/setup.md) and
+[the docs index](../README.md) own the current commands and topic entrypoints.
 
 ## Evidence and recovery custody
 

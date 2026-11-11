@@ -49,6 +49,19 @@ test('wire rejects truncation, trailing bytes, wrong method/direction and unsafe
   assert.throws(() => credentialFromBytes(bytes, bytes.length - 1), ClientError);
   assert.throws(() => credentialBytes(value, bytes.length - 1), ClientError);
 });
+test('Postcard redundant lengths preserve signed blobs and retain bounds', () => {
+  const bytes = credentialBytes(value, 131_072);
+  assert.equal(bytes[11], value.claims.length);
+  const redundant = new Uint8Array([...bytes.subarray(0, 11), 0x82, 0, ...bytes.subarray(12)]);
+  const decoded = credentialFromBytes(redundant, 131_072);
+  assert.deepEqual({ ...decoded }, value);
+  assert.deepEqual(credentialBytes(decoded, 131_072), bytes);
+  assert.notDeepEqual(redundant, bytes);
+  for (const length of [new Array(10).fill(0x80), new Array(10).fill(0xff), [0x81, 0x80, 0x04]]) {
+    const refused = new Uint8Array([...bytes.subarray(0, 11), ...length, ...bytes.subarray(12)]);
+    assert.throws(() => credentialFromBytes(refused, 131_072), ClientError);
+  }
+});
 test('subarray and Buffer views own exactly the admitted bytes', () => {
   const bytes = credentialBytes(value, 131_072);
   const outer = new Uint8Array(bytes.length + 9); outer.set(bytes, 5);
