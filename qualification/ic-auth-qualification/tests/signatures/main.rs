@@ -15,8 +15,10 @@ use ic_platform::{
 use ic_testkit::pic::{
     PocketIcInstance, PocketIcStartupConfig, WireCallError, WireCallSpec, query_wire, update_wire,
 };
+use ic_testkit::pocket_ic::{
+    CanisterId as PocketPrincipal, PocketIcBuilder, Time, nonblocking::PocketIc,
+};
 use ic_wire::Bytes;
-use pocket_ic::{CanisterId as PocketPrincipal, PocketIcBuilder, Time, nonblocking::PocketIc};
 use std::{
     path::{Path, PathBuf},
     sync::atomic::{AtomicUsize, Ordering},

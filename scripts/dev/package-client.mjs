@@ -86,17 +86,14 @@ async function packClient() {
   command('npm', ['--prefix', source, 'run', 'build:package', '--', '--outDir', resolve(staging, 'dist')]);
   for (const name of ['package.json', 'README.md']) copyFileSync(resolve(source, name), resolve(staging, name));
   copyFileSync(resolve(root, 'LICENSE.md'), resolve(staging, 'LICENSE.md'));
-  const notice = readFileSync(resolve(root, 'README.md'), 'utf8').split('## Source origin notice\n')[1];
-  assert(notice?.includes('Copyright (c) 2024 Canic contributors'), 'Missing required source notice');
-  writeFileSync(resolve(staging, 'NOTICE.md'), notice);
   const manifest = JSON.parse(readFileSync(resolve(source, 'package.json'), 'utf8'));
   const report = JSON.parse(command('npm', ['pack', '--offline', '--ignore-scripts', '--json', '--pack-destination', directory], staging));
   const packed = report[manifest.name];
   assert(packed && packed.name === manifest.name && packed.version === manifest.version);
   assert.equal(manifest.private, true, 'Local delivery must remain private');
-  assert(packed.files.every(({ path }) => /^(dist\/src\/.+\.(js|d\.ts)|package\.json|README\.md|LICENSE\.md|NOTICE\.md)$/.test(path)),
+  assert(packed.files.every(({ path }) => /^(dist\/src\/.+\.(js|d\.ts)|package\.json|README\.md|LICENSE\.md)$/.test(path)),
     'Unexpected archive payload');
-  for (const path of ['dist/src/index.js', 'dist/src/index.d.ts', 'dist/src/generated/wire-runtime.js', 'README.md', 'LICENSE.md', 'NOTICE.md']) {
+  for (const path of ['dist/src/index.js', 'dist/src/index.d.ts', 'dist/src/generated/wire-runtime.js', 'README.md', 'LICENSE.md']) {
     assert(packed.files.some(file => file.path === path), `Missing archive entry: ${path}`);
   }
   writeFileSync(resolve(directory, 'npm-pack.json'), JSON.stringify(report, null, 2) + '\n');

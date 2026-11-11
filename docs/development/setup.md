@@ -197,9 +197,9 @@ The repository's Wasm target flags select upstream RustCrypto's qualified
 `cpubits="32"` backend. Other canister build owners must select it themselves;
 dependency Cargo configuration is not inherited, and explicit `RUSTFLAGS` or
 `CARGO_ENCODED_RUSTFLAGS` overrides must preserve this selection.
-Testkit 0.100 owns bounded server startup, lifecycle helpers and typed Wire calls.
-The native runner imports the upstream async client and DTOs from `pocket_ic`
-16.1 through a non-Wasm development dependency. Its builder selects a 30,000 ms
+Testkit 0.100.2 owns bounded server startup, lifecycle helpers and typed Wire calls.
+The native runner imports the upstream async client and DTOs through Testkit's
+native-only `ic_testkit::pocket_ic` re-export of PocketIC 16.1. Its builder selects a 30,000 ms
 polling limit; this is not an absolute HTTP/body deadline. Managed `build_instance`
 supplies the admitted server endpoint and retains its handle. The separate startup
 timeout remains 30 seconds. Tests await close before server shutdown; upstream
@@ -208,7 +208,7 @@ deletion is best-effort and logs failures rather than returning them.
 Native file and process callers select Host FS/Process 0.76.4 with defaults
 disabled. Library use does not enable Host's optional CLI, certificate decoder
 or Wasm text backends. Host stays outside the production library graph.
-Build 0.83.0 and Testkit 0.100.0 share Host 0.76.4 identities in native tooling.
+Build 0.83.0 and Testkit 0.100.2 share Host 0.76.4 identities in native tooling.
 The independently pinned file CLI is selected at 0.76.4.
 Build and Testkit libraries keep `cli` disabled; only the prepared executable
 selections request it. Testkit has no Metrics dependency; Auth's diagnostics
@@ -216,7 +216,8 @@ select Metrics directly.
 No caller enables optional native
 metadata; the old Host 0.73 and Metrics 0.25 providers are removed.
 
-Auth and its native runner select Platform 0.31.0 and canonical Types 0.19.3.
+Auth's product lock selects Platform 0.31.1; the independent native runner retains
+Platform 0.31.0. Both select canonical Types 0.19.3.
 The selected Testkit Wire transport has no Platform dependency; upstream PocketIC
 and Agent retain native Candid dependencies. The Wasm host selects one coordinated Runtime
 0.21.1 executor/generator/guard. Upstream PocketIC owns its transport and parsing
@@ -1117,8 +1118,7 @@ targets crates.io. It requires a clean worktree, the exact annotated group
 tag at HEAD, a validated release receipt and the same tag object on the selected
 remote. Cargo builds the distributable archives before dispatch. Each package
 includes the canonical root license through Cargo's inherited `license-file`.
-The imported source notice remains in the packaged README. The private client
-archive copies the root license and required notice into its staging tree.
+The private client archive also copies the root license into its staging tree.
 Authenticate using Cargo's normal credential provider/login before an authorized
 publication; the script never prints or reads credential files itself.
 

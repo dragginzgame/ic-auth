@@ -20,6 +20,21 @@ caller fixtures. Actual Chromium remains unprepared/ignored; do not claim it ran
 Hosted CI runs asynchronously and is separate from these completed local gates.
 No standalone Auth service or Canic deployment occurred.
 
+## Pending Testkit qualification
+
+Published Testkit **0.100.2** is selected in the qualification catalog/lock.
+The native runner uses its `ic_testkit::pocket_ic` re-export; Auth's direct client
+declarations are removed. This implements
+[#131 — Use Testkit's PocketIC re-export](https://github.com/dragginzgame/ic-auth/issues/131)
+locally, without changing upstream client identity or transport/teardown behavior.
+Both locked metadata graphs, dependency boundaries, runner Clippy, formatting and
+installed qualification passed (11 tests; optional Chromium ignored). Evidence:
+`target/testkit-0101-adoption/`. The lock-selected CLI/server is prepared.
+Protocol and Engine 0.39.1 delivery is authorized. The incoming product-lock
+Platform 0.31.1 selection is preserved for full release qualification; the
+independent qualification lock retains Platform 0.31.0. The new prepared-root API
+is not selected by Auth.
+
 ## Bounded multi-device contract
 
 Schema 2, introduced in 0.38, signs `device_slot` (0–7) and nonzero `device_generation`; schema 1
@@ -73,8 +88,8 @@ product packages remain under `crates/`. No sibling files or releases changed.
 The incoming product-lock `ar_archive_writer` 0.5.5 selection passed both complete
 release gates. No source or lock updates remain deferred from this delivery.
 
-The maintainer approved native-only upstream PocketIC 16.1 for qualification and
-removed the former prohibition from AGENTS.md. Testkit retains managed startup,
+The native runner now uses upstream PocketIC 16.1 through Testkit's native-only
+re-export. Testkit retains managed startup,
 lifecycle and typed Wire helpers. Principal boundaries copy validated bytes.
 Upstream transport panics propagate; its 30,000 ms polling setting is not an
 absolute HTTP/body deadline, and awaited deletion is best-effort with retained logs.

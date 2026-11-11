@@ -1407,7 +1407,6 @@ dependencies = [
  "ic-platform",
  "ic-testkit",
  "ic-wire",
- "pocket-ic",
  "serde",
  "sha2 0.11.1",
  "tokio",
@@ -1636,9 +1635,9 @@ dependencies = [
 
 [[package]]
 name = "ic-testkit"
-version = "0.100.0"
+version = "0.100.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a438e4e14e89416d663cb71b0655437d1639406ae983f5dd1c87d0b8b3f645ab"
+checksum = "3a48cc6270053eec22a3d6a8cd5dbc622589153c66b405bf9cfbfd53f379f0a3"
 dependencies = [
  "ic-host-artifacts",
  "ic-host-fs",

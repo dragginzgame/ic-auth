@@ -4,6 +4,22 @@ Covers `ic-auth`, maintained `ic-auth-tooling`, and associated private
 qualification changes. Only the first two are Engine release-group members. The independent series starts after the
 [last coordinated release, 0.29.2](../history.md).
 
+## [0.39.1] - Unreleased
+
+### ⬆️ Dependencies
+
+- Select Platform 0.31.1 in the product lock without changing Auth's verification
+  policy or enabling the new prepared-root API. The independent qualification
+  lock retains Platform 0.31.0.
+
+### 🧪 Testing
+
+- Adopt Testkit 0.100.2 and import its native-only upstream PocketIC re-export,
+  removing Auth's redundant direct client dependency. Keep upstream type identity,
+  managed server custody and transport behavior unchanged.
+  [#131 — Use Testkit's PocketIC re-export and remove direct client declarations](https://github.com/dragginzgame/ic-auth/issues/131).
+  Reprepare the lock-selected CLI with `make install-testkit-tools`.
+
 ## [0.39.0] - 2026-11-11
 
 ### ⬆️ Dependencies

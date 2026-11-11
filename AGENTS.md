@@ -117,8 +117,8 @@ and `ci/cargo-dependency-boundaries.json` for direct-dependency ownership.
 
 - Native canister qualification uses published `ic-testkit` for typed Wire calls,
   deliberate raw-call evidence and bounded startup. Import the upstream async
-  simulator client and DTOs directly from `pocket_ic` through a native-only
-  development dependency in the qualification runner. Testkit owns lifecycle
+  simulator client and DTOs through Testkit's native-only `ic_testkit::pocket_ic`
+  re-export in the qualification runner. Testkit owns lifecycle
   helpers and managed server custody. Tests own the runtime and await
   explicit instance close before server shutdown and retain teardown output.
   Upstream deletion is best-effort; awaited close is not a deletion acknowledgement.

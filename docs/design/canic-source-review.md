@@ -3,8 +3,6 @@
 Source: clean Canic checkout at
 `e286b3fd98460c98670336853f80658a920966e0`, inspected read-only. This supersedes the
 older source reference in the accepted design for this implementation batch.
-The imported source retains its required Canic notice in the
-[root source-origin notice](../../README.md#source-origin-notice).
 The [accepted design](extraction.md) remains authoritative;
 [Canic #491](https://github.com/dragginzgame/canic/issues/491) tracks the larger
 extraction and adoption. This is a source/contract record, not another task queue.

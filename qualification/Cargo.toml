@@ -40,9 +40,8 @@ ic-metrics = { version = "0.29.0", default-features = false }
 ic-platform = { version = "0.31.0", default-features = false }
 ic-platform-runtime = { version = "0.21.0", default-features = false }
 ic-storage = "0.71.0"
-ic-testkit = { version = "0.100.0", default-features = false }
+ic-testkit = { version = "0.100.2", default-features = false }
 ic-wire = "0.21.0"
-pocket-ic = "16.1.0"
 serde = { version = "1", features = ["derive"] }
 sha2 = "0.11.1"
 tokio = { version = "1", features = ["rt-multi-thread", "sync", "time"] }

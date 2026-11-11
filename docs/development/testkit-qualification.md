@@ -9,7 +9,7 @@ qualify the current dependency graph.
 
 ## Setup and ownership
 
-The qualification catalog/lock selects published Testkit 0.100 from
+The qualification catalog/lock selects published Testkit 0.100.2 from
 [IC Tooling](https://github.com/dragginzgame/ic-tooling), upstream PocketIC 16.1
 and the explicitly admitted server 16.1.0. Auth and Testkit share Wire 0.21;
 `WireCallSpec` takes canonical method limits without an alias or projection.
@@ -24,8 +24,9 @@ Platform owns native Agent/delegated identity imports. Agent remains transitive
 with its native PEM feature; caller/root-key and request policy remain with the
 fixture. No direct Agent declaration or local client facade is added.
 
-The native runner imports `pocket_ic::nonblocking::PocketIc`, `PocketIcBuilder`
-and `Time` through a non-Wasm development dependency. Testkit supplies typed Wire
+The native runner imports `ic_testkit::pocket_ic::nonblocking::PocketIc`,
+`PocketIcBuilder` and `Time` through Testkit's native-only upstream re-export.
+There is no direct PocketIC dependency declaration. Testkit supplies typed Wire
 calls, lifecycle helpers and managed server custody. Auth selects
 `PocketIcBuilder::new().with_max_request_time_ms(Some(30_000))`; managed
 `build_instance(builder).await` supplies the admitted server endpoint. That
@@ -38,7 +39,7 @@ It explicitly awaits `close()` before server shutdown. Upstream deletion is
 best-effort and logs failures rather than returning them; close does not establish
 deletion acknowledgement. The managed server guard still stops/reaps its process
 on test/setup panic. State and server output remain retained for diagnosis.
-There is no blocking facade, compatibility re-export or nested runtime.
+There is no blocking facade, local compatibility wrapper or nested runtime.
 Only the native runner selects Testkit's `wire` capability. IC Wire owns native
 Serde framing and budgets; Auth owns method identities, traversal allowances and
 trust assertions. Deliberately malformed inputs and exact-frame evidence use raw
