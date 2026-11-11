@@ -2,16 +2,16 @@
 
 ## Delivered state
 
-Protocol and Engine **0.39.0** are published on crates.io: `ic-auth-protocol-types`,
+Protocol and Engine **0.39.1** are published on crates.io: `ic-auth-protocol-types`,
 `ic-auth-wire` and `ic-auth` are non-yanked, with registry checksums matching the
 exact locally retained Cargo archives and schema-2 publication receipts.
 Both annotated tags and release commits are on `origin/main`; Shared's batch
 reconciliation fast-forwarded the normal checkout without discarding other work.
 
-- Protocol: `44fcdd86f3db07c0499349e83e14f6b8d4dc9b15`, `protocol-v0.39.0`.
-- Engine: `c701eb6864306c9f8a4d9d5cab33bbebca19ece8`, `engine-v0.39.0`.
-- Completed batch: `batch-t5q4t2DE`, source `ceb3b96ff00535eb9e8bfb0a91945db5a56883b8`.
-- Registry readback: `target/auth-release-0390/registry/verified-receipts.json`.
+- Protocol: `fe978d58840ed97ae6e5937932e5f8b9bf227986`, `protocol-v0.39.1`.
+- Engine: `f825be33b99cc9a326fb3bd256c053a5ebfcc8cd`, `engine-v0.39.1`.
+- Completed batch: `batch-BiswIN7d`, source `b0de07f468ca8362ea6430f72295e8a98e5522a3`.
+- Registry readback: `target/auth-release-0391/registry/verified-receipts.json`.
 
 Both exhaustive 30-stage source-bound gates passed, including native/Wasm lint,
 compiler/package admission, crypto/session/browser checks, installed canister
@@ -20,23 +20,22 @@ caller fixtures. Actual Chromium remains unprepared/ignored; do not claim it ran
 Hosted CI runs asynchronously and is separate from these completed local gates.
 No standalone Auth service or Canic deployment occurred.
 
-## Pending Testkit qualification
+## Delivered Testkit qualification
 
 Published Testkit **0.100.2** is selected in the qualification catalog/lock.
 The native runner uses its `ic_testkit::pocket_ic` re-export; Auth's direct client
-declarations are removed. This implements
+declarations are removed. Delivered and closed:
 [#131 — Use Testkit's PocketIC re-export](https://github.com/dragginzgame/ic-auth/issues/131)
-locally, without changing upstream client identity or transport/teardown behavior.
+without changing upstream client identity or transport/teardown behavior.
 Both locked metadata graphs, dependency boundaries, runner Clippy, formatting and
 installed qualification passed (11 tests; optional Chromium ignored). Evidence:
 `target/testkit-0101-adoption/`. The lock-selected CLI/server is prepared.
-Protocol and Engine 0.39.1 delivery is authorized. The incoming product-lock
-Platform 0.31.1 selection is preserved for full release qualification; the
+The incoming product-lock Platform 0.31.1 selection passed full release qualification; the
 independent qualification lock retains Platform 0.31.0. The new prepared-root API
 is not selected by Auth.
 Initial batch `batch-1JDi3jNF` stopped in preflight on the missing Protocol pending
 heading, before validation, version preparation or delivery. Its recovery records
-and checkout remain retained; corrected committed source needs a new batch.
+and checkout remain retained; the corrected source shipped through `batch-BiswIN7d`.
 
 ## Bounded multi-device contract
 
@@ -81,11 +80,12 @@ renewal cannot extend the original window and lost protected state stays closed.
 
 ## Tooling and dependencies
 
-Delivered Protocol/Engine **0.39.0** selects Tooling 0.39.10, Wire 0.21.1,
-Build 0.83.0, Host libraries/file CLI 0.76.4 and Platform 0.31.0. Both locks share
+Delivered Protocol/Engine **0.39.1** selects Tooling 0.39.10, Wire 0.21.1,
+Build 0.83.0, Host libraries/file CLI 0.76.4 and product Platform 0.31.1
+(qualification 0.31.0). Both locks share
 Types 0.19.3; the private host retains one Runtime/macros/guard 0.21.1. Required
-Testkit 0.100 clears the prior Wire pairing blocker. Storage 0.71.1 and Metrics 0.29.9
-are unchanged. The dependency batch and earlier changelog cleanup are delivered.
+Testkit 0.100.2 retains the Wire pairing and re-exports upstream PocketIC 16.1.0.
+Storage 0.71.1 and Metrics 0.29.9 are unchanged.
 Six qualification packages retain their independent workspace/versions; four
 product packages remain under `crates/`. No sibling files or releases changed.
 The incoming product-lock `ar_archive_writer` 0.5.5 selection passed both complete
@@ -99,13 +99,13 @@ absolute HTTP/body deadline, and awaited deletion is best-effort with retained l
 Wire retains Postcard redundant-varint acceptance and canonical method budgets.
 All five generated browser files were reviewed: Auth's four explicitly named
 bindings are unchanged; the shared runtime updates alias-cycle detection.
-Platform's BLS wrapper/errors now have Platform identity; Auth retains its signed
+Platform's BLS wrapper/errors have Platform identity; Auth retains its signed
 bytes, verification policy and trust inputs. Tooling admits the supplier's scoped
 Digest adapter; Auth adds no direct Digest dependency or cryptographic code.
 
 Focused adoption evidence remains under `target/upstream-followup-20261111/`;
 the complete release evidence below supersedes it for delivery. Each installed
-gate passed 11 cases, with optional Chromium ignored. The pre-release normal-checkout
+gate passed 11 cases, with optional Chromium ignored. The 0.39.0 pre-release normal-checkout
 fixture was 1,760,067 bytes (code payload 1,361,483), versus retained
 1,766,564 / 1,368,974 under the same fixture/build profile. This aggregate
 dependency observation is not an isolated supplier gain or published artifact size.
@@ -116,16 +116,17 @@ Keep prior observations under `target/device-contract-*`, `target/upstream-20261
 
 ## Evidence and recovery custody
 
-Keep `target/release-frozen/batch-t5q4t2DE/` and durable
-`.git/release-state/frozen/batch-t5q4t2DE/`, including `repository.git/publication-state/`.
-Gate roots beneath that checkout are `target/release-validation/protocol-gate.1PIBBY/`
-and `target/release-validation/engine-gate.HlyTG7/`. Delivery log:
-`target/auth-release-0390/delivery.log`. Both gates passed all 30 stages.
+Keep `target/release-frozen/batch-BiswIN7d/` and durable
+`.git/release-state/frozen/batch-BiswIN7d/`, including `repository.git/publication-state/`.
+Gate roots beneath that checkout are `target/release-validation/protocol-gate.pe0whn/`
+and `target/release-validation/engine-gate.APrYjl/`. Delivery log:
+`target/auth-release-0391/delivery.log`. Both gates passed all 30 stages.
 
-No batch or recovery evidence was retired. Keep older `batch-sat4DSEt`, failed
+No batch or recovery evidence was retired. Keep prior `batch-t5q4t2DE`, preflight-only
+`batch-1JDi3jNF`, older `batch-sat4DSEt`, failed
 `batch-4hebGSFP` and `batch-yiX0dEoV` custody and
 `target/publication-recovery/`. An earlier external cleanup deleted old raw evidence;
 historical measurements cannot replace those bytes. Do not resume earlier failed
 batches against already delivered versions. The previous detailed handoff and
-cleanup account are retained in Git at `c701eb6864306c9f8a4d9d5cab33bbebca19ece8`;
+cleanup account are retained in Git at `f825be33b99cc9a326fb3bd256c053a5ebfcc8cd`;
 [history](history.md) retains older observations with their original scope.
