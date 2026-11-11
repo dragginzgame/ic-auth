@@ -34,6 +34,9 @@ Protocol and Engine 0.39.1 delivery is authorized. The incoming product-lock
 Platform 0.31.1 selection is preserved for full release qualification; the
 independent qualification lock retains Platform 0.31.0. The new prepared-root API
 is not selected by Auth.
+Initial batch `batch-1JDi3jNF` stopped in preflight on the missing Protocol pending
+heading, before validation, version preparation or delivery. Its recovery records
+and checkout remain retained; corrected committed source needs a new batch.
 
 ## Bounded multi-device contract
 
