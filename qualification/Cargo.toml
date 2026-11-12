@@ -49,3 +49,9 @@ toko-tooling = "=0.39.17"
 
 [workspace.lints.rust]
 unsafe_code = "forbid"
+
+# The installed scaling fixture verifies 100,000 distinct signed seed records.
+# Optimize curve arithmetic only; retain the test profile's debug/overflow checks
+# and leave the measured canister's release profile unchanged.
+[profile.test.package.curve25519-dalek]
+opt-level = 3
