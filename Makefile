@@ -1,5 +1,5 @@
 .DEFAULT_GOAL := help
-
+# Shared companions: make/cargo-dependencies.mk
 include ci/tool-versions.env
 # Extend the shared ordered aggregates after common host and Rust admission.
 LOCAL_TOOL_INSTALL_TARGETS := install-testkit-tools install-host-file

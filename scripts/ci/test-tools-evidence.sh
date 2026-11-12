@@ -15,16 +15,15 @@ consumer="$fixture/consumer with spaces"
 mkdir -p "$consumer/scripts/dev" "$consumer/scripts/ci" "$consumer/make" "$consumer/ci" "$fixture/bin" "$fixture/runner"
 # Copy every include loaded by the actual Makefile so injected failures reach
 # the selected tool targets rather than stopping during Makefile parsing.
-for input in Makefile make/consumer.mk make/tools.mk make/release.mk make/rust-format.mk make/execution.mk \
+bash scripts/ci/prepare-script-fixture.sh "$root" "$consumer" \
+    Makefile make/consumer.mk make/tools.mk make/release.mk make/rust-format.mk make/execution.mk \
     scripts/ci/check-release-delivery.sh ci/release-delivery.txt \
     scripts/ci/check-make-execution.sh scripts/ci/run-formatting.sh ci/tool-versions.env \
     scripts/dev/ci-tools.sh scripts/dev/install-rust-tools.sh \
     scripts/dev/cargo-tool-build.sh scripts/dev/tool-store.sh \
     scripts/dev/native-package-inputs.pl scripts/dev/tool-store-maintenance.pl scripts/dev/OwnedTree.pm \
     scripts/ci/verify-file-checksum.sh scripts/ci/tool-catalog-records.pl \
-    scripts/ci/StableVersion.pm scripts/ci/ic-tool-pins.awk; do
-    cp -p "$input" "$consumer/$input"
-done
+    scripts/ci/StableVersion.pm scripts/ci/ic-tool-pins.awk
 # Retain the actual ordered aggregate and Rust preflight/installer. Earlier
 # common sets are inert; a later Rust refusal must never dispatch product tools.
 for script in install-host-tools install-ic-tools; do

@@ -49,6 +49,9 @@ qualification changes. Only the first two are Engine release-group members. The 
   including qualification tests. Preserve public module paths and remove an
   empty session-test directory, retaining the existing standalone test target.
   Adopt the upstream dependency-update companion fix in release fixtures.
+- Declare Auth's dependency-update Make companion and use Shared's fixture
+  copier for tool-evidence tests, so partial fixtures include every declared
+  helper before exercising setup failures.
 - Expose Shared's `deps-update` command across the product and qualification
   workspaces. It runs sequential Cargo updates with normal output, preserves
   manifest requirements and retains the Make execution guard. Updates run only

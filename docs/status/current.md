@@ -195,6 +195,14 @@ guard/macros; its focused identity/isolation/lock cases pass. Preserve the faile
 candidate and `target/auth-release-0392/delivery.log`; corrected source needs a
 fresh candidate, not mutation of that captured source.
 
+The second candidate `batch-5x63tbsF` passed package/MSRV admission and release
+validation, then stopped at a partial tool-evidence fixture missing the new
+dependency-update Make include. Auth now declares that companion in its Makefile
+and uses Shared's closure copier for the fixture. Actual tool-failure evidence
+and release-command callers pass focused checks; no policy or product check was
+removed. Preserve `target/auth-release-0392/delivery-retry.log` and both failed
+candidates. Neither reached publication.
+
 Keep `target/release-frozen/batch-BiswIN7d/` and durable
 `.git/release-state/frozen/batch-BiswIN7d/`, including `repository.git/publication-state/`.
 Its gate roots are `target/release-validation/protocol-gate.pe0whn/` and
