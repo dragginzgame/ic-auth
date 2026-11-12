@@ -4,7 +4,7 @@ Covers `ic-auth`, maintained `ic-auth-tooling`, and associated private
 qualification changes. Only the first two are Engine release-group members. The independent series starts after the
 [last coordinated release, 0.29.2](../history.md).
 
-## [0.40.0] - Unreleased
+## [0.40.0] - 2026-11-12
 
 ### ⚠️ Breaking
 
