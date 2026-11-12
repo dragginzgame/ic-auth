@@ -24,6 +24,9 @@ See the [claims contract](../design/0.6-auth-protocol.md#frozen-credential-shape
 Focused codec, Ed25519, certified-bound, issuer/reopen, receiver and maximum-shape
 checks plus strict Clippy pass; logs: `target/auth-grant-budget-*.log` and
 `target/auth-scope-guarantee-*.log`.
+Release attempt `batch-HL6ZrkFz` exposed an old 512-entry installed fixture;
+the corrected 32-entry case passes (`target/auth-release-0400/focused-installed-final.log`).
+Preserve the stopped batch and its download/setup and failed gate evidence.
 No performance gain, publication or Canic adoption is claimed. Canic's old maximum
 credential fixture must become a refusal case or use a grant list within budget.
 

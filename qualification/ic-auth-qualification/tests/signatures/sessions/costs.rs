@@ -359,8 +359,9 @@ async fn components(f: &Fixture, caller: Principal, input: &SessionInput) {
     );
 }
 
-// Same executable and endpoints as the one-scope sample, with the maximum
-// grant/scope cardinalities and 16 requested scopes. Native signing is excluded.
+// Same executable and endpoints as the one-scope sample, with the credential's
+// maximum 32 aggregate scope entries across 16 grants and 16 requested
+// scopes. Protected enrollment stays broader. Native signing is excluded.
 async fn qualify_wide_grants(f: &Fixture, base: &ReceiverConfig, key: &SigningKey) {
     let mut config = base.clone();
     let scopes: Vec<String> = std::iter::once("read".into())
@@ -379,7 +380,7 @@ async fn qualify_wide_grants(f: &Fixture, base: &ReceiverConfig, key: &SigningKe
     reinstall_receiver(f, f.resource, &config).await;
     f.pic.instance().advance_time(Duration::from_secs(1)).await;
     for device in 30..33 {
-        let claims = PortableClaims {
+        let mut claims = PortableClaims {
             mechanism: config.authority.mechanism(),
             audience: config.audience,
             issuer: config.issuer,
@@ -397,12 +398,24 @@ async fn qualify_wide_grants(f: &Fixture, base: &ReceiverConfig, key: &SigningKe
             nonce: [device; 16],
             grants: config.grants.as_slice().to_vec(),
         };
+        assert_eq!(
+            encode_claims(&claims),
+            Err(
+                ic_auth::portable::PortableEncodingError::TooManyScopeEntries {
+                    found: 512,
+                    max: 32,
+                }
+            )
+        );
+        for (index, grant) in claims.grants.iter_mut().enumerate() {
+            grant.scopes.truncate(if index == 15 { 17 } else { 1 });
+        }
         let caller = browser_principal(&claims.browser_public_key);
         let mut input = input(&claims, key);
         input.scopes = List::new(
-            std::iter::once("read")
-                .chain(scopes[17..].iter().map(String::as_str))
-                .map(|scope| Text::new(scope.to_owned()).unwrap())
+            claims.grants.last().unwrap().scopes[..16]
+                .iter()
+                .map(|scope| Text::new(scope.to_string()).unwrap())
                 .collect(),
         )
         .unwrap();
