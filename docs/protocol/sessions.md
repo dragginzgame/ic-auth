@@ -581,7 +581,7 @@ prepared registry dependencies and does not run as part of ordinary CI.
 ## Executable host integration references
 
 Use the qualification receiver's
-[`establish_portable_session` and `portable_session_read`](../../qualification/ic-auth-qualification-canister/src/sessions.rs)
+[`establish_portable_session` and `portable_session_read`](../../qualification/ic-auth-qualification-canister/src/sessions/mod.rs)
 as the endpoint wiring reference: runtime caller/time, retained ledger and budgets,
 protected enrollment, and engine-owned complete verification.
 Its controller-installed configuration is a test boundary; production Canic must

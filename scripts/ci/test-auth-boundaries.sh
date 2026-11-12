@@ -149,6 +149,10 @@ fi
 if [[ "$BOUNDARY_MODE" == control-storage && "$package" == ic-auth-qualification-contracts ]]; then
     printf 'ic-storage v0.53.0\n'
 fi
+if [[ "$package" == ic-auth ]]; then
+    if [[ "$BOUNDARY_MODE" == persistent-storage && ( "$features" == persistent || "$all_features" == yes ) ]]; then printf 'ic-storage v0.73.4\n'; fi
+    if [[ "$BOUNDARY_MODE" == wallet-storage && "$features" == portable-signature-verification ]]; then printf 'ic-storage v0.73.4\n'; fi
+fi
 if [[ "$BOUNDARY_MODE" == principal-storage && "$package" == ic-auth-protocol-types ]]; then
     printf 'ic-storage v0.53.0\n'
 fi
@@ -189,12 +193,12 @@ STUB
 chmod +x "$fixture/bin/"*
 export PATH="$fixture/bin:$root/.tools/host/bin:$PATH"
 export BOUNDARY_EVENTS="$fixture/events"
-for mode in accepted crypto-generations crypto-generations-third crypto-algorithm-duplicate principal-facade wire-facade control-facade engine-facade session-facade session-runtime principal-runtime-owner conformance-metrics conformance-private conformance-certified conformance-profiler library-profiler host-profiler library-entropy conformance-entropy host-entropy principal-external wire-hashing control-external principal-candid principal-executor principal-owned-executor principal-runtime-guard principal-bls principal-storage control-candid control-storage control-platform-feature wasm-default wasm-combined wasm-capability wasm-portable-bls wasm-portable-ic0 wasm-session-candid wasm-session-ic0 wasm-unknown-candid wasm-certified-owned-ic0 wasm-certified-candid wasm-certified-ic0 wasm-certified-runtime wasm-certified-creation wasm-certified-verifier host-candid host-candid-derive host-registry-ic0 parser executor executor-source generator generator-source runtime-guard-missing runtime-guard-source host-cdk host-cdk-macros host-platform-feature host-runtime-missing host-runtime-duplicate host-facade-ic0 host-facade-executor host-facade-runtime host-wire-duplicate host-storage-missing host-storage-duplicate host-retired-memory host-legacy-stable-structures host-native-client; do
+for mode in accepted persistent-storage wallet-storage crypto-generations crypto-generations-third crypto-algorithm-duplicate principal-facade wire-facade control-facade engine-facade session-facade session-runtime principal-runtime-owner conformance-metrics conformance-private conformance-certified conformance-profiler library-profiler host-profiler library-entropy conformance-entropy host-entropy principal-external wire-hashing control-external principal-candid principal-executor principal-owned-executor principal-runtime-guard principal-bls principal-storage control-candid control-storage control-platform-feature wasm-default wasm-combined wasm-capability wasm-portable-bls wasm-portable-ic0 wasm-session-candid wasm-session-ic0 wasm-unknown-candid wasm-certified-owned-ic0 wasm-certified-candid wasm-certified-ic0 wasm-certified-runtime wasm-certified-creation wasm-certified-verifier host-candid host-candid-derive host-registry-ic0 parser executor executor-source generator generator-source runtime-guard-missing runtime-guard-source host-cdk host-cdk-macros host-platform-feature host-runtime-missing host-runtime-duplicate host-facade-ic0 host-facade-executor host-facade-runtime host-wire-duplicate host-storage-missing host-storage-duplicate host-retired-memory host-legacy-stable-structures host-native-client; do
     export BOUNDARY_MODE="$mode"
     : > "$BOUNDARY_EVENTS"
     status=0
     bash "$fixture/repo/scripts/ci/check-auth-boundaries.sh" > "$fixture/$mode.log" 2>&1 || status=$?
-    if [[ "$mode" == accepted || "$mode" == crypto-generations ||
+    if [[ "$mode" == accepted || "$mode" == persistent-storage || "$mode" == crypto-generations ||
           "$mode" == wasm-certified-candid || "$mode" == wasm-certified-ic0 ||
           "$mode" == wasm-certified-creation || "$mode" == wasm-certified-verifier ||
           "$mode" == host-candid || "$mode" == host-candid-derive || "$mode" == host-registry-ic0 ]]; then

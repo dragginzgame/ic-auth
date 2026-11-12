@@ -26,6 +26,7 @@ canister-signature-preparation = [
 ]
 sessions = ["dep:serde", "dep:serde_bytes", "dep:ic-wire"]
 session-restore = ["sessions"]
+persistent = ["session-restore", "dep:ic-storage"]
 certified-proof-verification = ["canister-signature-verification", "chain-key-verification"]
 canister-signature-verification = [
     "dep:ic-platform",
@@ -38,6 +39,7 @@ canister-signature-verification = [
 ic-auth-protocol-types.workspace = true
 ic-platform = { workspace = true, optional = true }
 ic-platform-types = { workspace = true, features = ["principal-self-authenticating"] }
+ic-storage = { workspace = true, optional = true }
 ic-wire = { workspace = true, optional = true }
 serde = { workspace = true, optional = true }
 serde_bytes = { workspace = true, optional = true }
@@ -46,6 +48,7 @@ thiserror.workspace = true
 
 [dev-dependencies]
 ic-platform = { workspace = true, features = ["bls", "ecdsa", "ed25519", "ic-protocol-fixtures"] }
+ic-storage = { workspace = true, features = ["test-support"] }
 ic-wire.workspace = true
 leb128.workspace = true
 serde.workspace = true

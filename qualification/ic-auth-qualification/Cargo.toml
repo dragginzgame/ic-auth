@@ -17,6 +17,7 @@ ignored = ["toko-tooling"]
 
 [dev-dependencies]
 ic-auth = { workspace = true, features = ["sessions", "certified-proof-verification", "portable-signature-verification"] }
+ic-auth-backend-conformance.workspace = true
 ic-auth-protocol-types.workspace = true
 # Unpublished Wire controls for the qualification host.
 ic-auth-qualification-contracts.workspace = true

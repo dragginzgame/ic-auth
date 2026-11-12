@@ -206,6 +206,10 @@ impl Session {
     pub fn issuer(&self) -> Principal {
         self.0.issuer
     }
+    #[cfg(feature = "persistent")]
+    pub(crate) fn audience(&self) -> AudienceId {
+        self.0.audience
+    }
     pub fn device_slot(&self) -> u8 {
         self.0.device_slot
     }
@@ -325,7 +329,7 @@ impl Session {
         Ok(())
     }
 
-    fn login_binding(&self) -> LoginBinding {
+    pub(crate) fn login_binding(&self) -> LoginBinding {
         LoginBinding {
             issuer: self.0.issuer,
             subject: self.0.subject,

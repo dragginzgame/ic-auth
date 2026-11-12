@@ -27,9 +27,9 @@ fn retired_allocation_headers_refuse_without_clearing_application_backing() {
         .iter()
         .map(|pair| u8::from_str_radix(std::str::from_utf8(pair).unwrap(), 16).unwrap())
         .collect();
-    // Storage 0.70's published snapshot-root discriminator, alongside the older
+    // Storage 0.70's snapshot root and 0.71's bucket backing, alongside the older
     // Memory header. These are foreign-header rejection fixtures, not readers.
-    for old_header in [old_manager, b"ICROOTR1".to_vec()] {
+    for old_header in [old_manager, b"ICROOTR1".to_vec(), b"ICBUCK01".to_vec()] {
         let backing = DefaultMemoryImpl::default();
         assert_eq!(backing.grow(2), 0);
         backing.write(0, &old_header);
@@ -240,27 +240,38 @@ fn checkpoint_framing_refusal_preserves_backing() {
 
 #[test]
 fn retired_storage_cell_framing_is_refused_without_clearing() {
-    let backing = DefaultMemoryImpl::default();
-    bootstrap(backing.clone(), false);
-    CELL.with(|state| state.borrow_mut().take());
-    let memory = checkpoint_allocation(backing.clone());
-    // Published Storage 0.67.1 used this eight-byte cell marker. Exercise that
-    // retired framing through a checked lease, not a fallback reader or reset.
-    memory.write(0, b"ICCELL01");
-    drop(memory);
-    let before = backing.borrow().clone();
-    assert!(matches!(
-        StableCell::<Vec<u8>, _>::load(
-            checkpoint_allocation(backing.clone()),
-            MAX_BYTES + MAGIC.len()
-        ),
-        Err(CollectionError::Cell(StableCellPayloadError::NotStableCell))
-    ));
-    assert!(
-        std::panic::catch_unwind(AssertUnwindSafe(|| bootstrap(backing.clone(), true))).is_err()
-    );
-    assert_eq!(*backing.borrow(), before);
-    CELL.with(|state| assert!(state.borrow().is_none()));
+    let payload = [MAGIC.as_slice(), b"retained checkpoint"].concat();
+    // Storage 0.71's complete Cell frame: SCL, version 1, u32 length, raw Vec bytes.
+    let previous_cell = [
+        b"SCL\x01".as_slice(),
+        &u32::try_from(payload.len()).unwrap().to_le_bytes(),
+        &payload,
+    ]
+    .concat();
+    // Also retain the published Storage 0.67.1 marker refusal. Exercise both
+    // through a checked lease, never a fallback reader or reset.
+    for old in [b"ICCELL01".to_vec(), previous_cell] {
+        let backing = DefaultMemoryImpl::default();
+        bootstrap(backing.clone(), false);
+        CELL.with(|state| state.borrow_mut().take());
+        let memory = checkpoint_allocation(backing.clone());
+        memory.write(0, &old);
+        drop(memory);
+        let before = backing.borrow().clone();
+        assert!(matches!(
+            StableCell::<Vec<u8>, _>::load(
+                checkpoint_allocation(backing.clone()),
+                MAX_BYTES + MAGIC.len()
+            ),
+            Err(CollectionError::Cell(StableCellPayloadError::NotStableCell))
+        ));
+        assert!(
+            std::panic::catch_unwind(AssertUnwindSafe(|| bootstrap(backing.clone(), true)))
+                .is_err()
+        );
+        assert_eq!(*backing.borrow(), before);
+        CELL.with(|state| assert!(state.borrow().is_none()));
+    }
 }
 
 #[test]

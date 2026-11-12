@@ -33,7 +33,7 @@
   },
   {
     "dependency": "ic-storage",
-    "allowed_packages": []
+    "allowed_packages": ["ic-auth"]
   },
   {
     "dependency": "ic-platform",

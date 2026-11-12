@@ -63,3 +63,4 @@ bind!(
     (),
     ic_auth_wire::model::LogoutResult
 );
+bind!(PersistentIssuer, controls::PersistentIssuer, controls::persistent::Command, Result<controls::persistent::Report, Refusal>);

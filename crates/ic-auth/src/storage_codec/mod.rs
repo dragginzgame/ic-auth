@@ -66,3 +66,23 @@ pub(crate) mod audience {
         })
     }
 }
+
+#[cfg(feature = "persistent")]
+pub(crate) mod optional_bytes {
+    use serde::{Deserialize, Serialize};
+    pub fn serialize<S: serde::Serializer>(
+        value: &Option<Vec<u8>>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
+        value
+            .as_ref()
+            .map(|bytes| serde_bytes::Bytes::new(bytes))
+            .serialize(serializer)
+    }
+    pub fn deserialize<'de, D: serde::Deserializer<'de>>(
+        deserializer: D,
+    ) -> Result<Option<Vec<u8>>, D::Error> {
+        Option::<serde_bytes::ByteBuf>::deserialize(deserializer)
+            .map(|value| value.map(serde_bytes::ByteBuf::into_vec))
+    }
+}

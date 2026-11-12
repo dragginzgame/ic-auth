@@ -50,6 +50,8 @@ mod profile_composition;
 
 mod sessions;
 
+mod persistence;
+
 struct Fixture {
     pic: PocketIcInstance,
     signer: Principal,

@@ -46,6 +46,41 @@ pub enum LoginRecordState {
 }
 
 impl Record {
+    #[cfg(feature = "session-restore")]
+    fn check_stored(
+        &self,
+        observed_ns: u64,
+        max_until: u64,
+        maximum_ttl: u64,
+        devices: u8,
+    ) -> Result<(), LoginRevocationError> {
+        if self.until_ns == 0 || self.until_ns > max_until {
+            return Err(LoginRevocationError::InvalidPolicy);
+        }
+        if let Some(login) = self.login()
+            && (login
+                .deadline_ns
+                .checked_sub(login.started_at_ns)
+                .is_none_or(|ttl| ttl == 0 || ttl > maximum_ttl)
+                || login.device_slot >= devices
+                || login.started_at_ns > observed_ns
+                || self.until_ns < login.deadline_ns
+                || (!self.revoked() && self.until_ns != login.deadline_ns))
+        {
+            return Err(LoginRevocationError::InvalidPolicy);
+        }
+        Ok(())
+    }
+    #[cfg(feature = "sessions")]
+    fn live_binding(&self, now_ns: u64) -> Result<Option<LoginBinding>, LoginRevocationError> {
+        if self.until_ns <= now_ns {
+            return Ok(None);
+        }
+        if self.revoked() {
+            return Err(LoginRevocationError::Revoked);
+        }
+        Ok(self.login())
+    }
     fn login(&self) -> Option<LoginBinding> {
         match &self.state {
             LoginRecordState::Reserved(login) => Some(*login),
@@ -96,6 +131,44 @@ struct LoginData {
 }
 
 impl LoginRevocationChange {
+    // A retained active session already contains its exact reserved binding.
+    // This reconstructs trusted backing only, never verifies client material.
+    #[cfg(feature = "persistent")]
+    pub(crate) fn from_session(session: &crate::session::Session) -> Self {
+        let binding = session.login_binding();
+        Self(
+            LoginData {
+                audience: session.audience(),
+                caller: session.caller(),
+                record: Record {
+                    until_ns: binding.deadline_ns,
+                    state: LoginRecordState::Reserved(binding),
+                },
+            },
+            None,
+        )
+    }
+    #[cfg(feature = "persistent")]
+    pub(crate) fn check_stored(
+        &self,
+        observed_ns: u64,
+        maximum_ttl: u64,
+        devices: u8,
+    ) -> Result<(), LoginRevocationError> {
+        self.0.record.check_stored(
+            observed_ns,
+            retention(observed_ns, maximum_ttl)?,
+            maximum_ttl,
+            devices,
+        )
+    }
+    #[cfg(feature = "persistent")]
+    pub(crate) fn live_binding(
+        &self,
+        now_ns: u64,
+    ) -> Result<Option<LoginBinding>, LoginRevocationError> {
+        self.0.record.live_binding(now_ns)
+    }
     /// Check replacement of a trusted retained slot. An equal generation keeps
     /// its caller, binding and denial even after expiry. A greater generation
     /// requires a reservation with a different browser key in the same slot.
@@ -240,6 +313,35 @@ pub struct MemoryLoginRevocations {
 }
 
 impl MemoryLoginRevocations {
+    // Reuse the canonical ledger checks over only the touched persistent rows.
+    // Physical global counts remain authoritative even though the read snapshot
+    // contains at most the caller and displaced device. Never export or prune it.
+    #[cfg(feature = "persistent")]
+    pub(crate) fn selected(
+        audience: AudienceId,
+        limits: (usize, usize, u64, u8),
+        now_ns: u64,
+        counts: (usize, usize),
+        records: Vec<LoginRevocationChange>,
+    ) -> Result<Self, LoginRevocationError> {
+        if counts.0 > limits.0 || counts.1 > limits.1 || records.len() > 2 {
+            return Err(LoginRevocationError::InvalidPolicy);
+        }
+        let admitted = records
+            .iter()
+            .filter(|row| row.0.record.admitted_pool())
+            .count();
+        let unknown = records.len() - admitted;
+        if admitted > counts.0 || unknown > counts.1 {
+            return Err(LoginRevocationError::InvalidPolicy);
+        }
+        let mut snapshot = Self::new(audience, limits.0, limits.1, limits.2, now_ns)?
+            .with_device_limit(limits.3)?
+            .restore_records(now_ns, (admitted, unknown), records)?;
+        snapshot.admitted = counts.0;
+        snapshot.unknown = counts.1;
+        Ok(snapshot)
+    }
     /// Stream the complete physical ledger under a serialized host checkpoint.
     /// Persist these records with occupancy, clock and session/replay/authority
     /// state atomically; known slot fences remain after expiry.
@@ -285,20 +387,16 @@ impl MemoryLoginRevocations {
                 return Err(LoginRevocationError::InvalidPolicy);
             }
             let record = change.0.record;
-            if record.until_ns == 0 || record.until_ns > max_until {
+            record.check_stored(
+                observed_ns,
+                max_until,
+                self.max_login_ttl_ns,
+                self.max_device_slots,
+            )?;
+            if let Some(login) = record.login()
+                && self.accounts.contains_key(&slot(login))
+            {
                 return Err(LoginRevocationError::InvalidPolicy);
-            }
-            if let Some(login) = record.login() {
-                let minimum = login.deadline_ns;
-                if login.deadline_ns - login.started_at_ns > self.max_login_ttl_ns
-                    || login.device_slot >= self.max_device_slots
-                    || login.started_at_ns > observed_ns
-                    || record.until_ns < minimum
-                    || (!record.revoked() && record.until_ns != minimum)
-                    || self.accounts.contains_key(&slot(login))
-                {
-                    return Err(LoginRevocationError::InvalidPolicy);
-                }
             }
             // Stop at the persisted counts, even for an unbounded input iterator.
             let (used, expected) = if record.admitted_pool() {
@@ -392,11 +490,10 @@ impl MemoryLoginRevocations {
         now_ns: u64,
     ) -> Result<Option<LoginBinding>, LoginRevocationError> {
         self.observe(caller, now_ns)?;
-        let record = self.records.get(&caller).filter(|r| r.until_ns > now_ns);
-        if record.is_some_and(|r| r.revoked()) {
-            return Err(LoginRevocationError::Revoked);
-        }
-        Ok(record.and_then(|r| r.login()))
+        self.records
+            .get(&caller)
+            .map(|record| record.live_binding(now_ns))
+            .unwrap_or(Ok(None))
     }
 
     /// Physical pool occupancy, including retained known slot fences.

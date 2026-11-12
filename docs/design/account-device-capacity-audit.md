@@ -49,7 +49,7 @@ bytes are bounded per account and committed atomically.
 
 Sources: [session limits/records](../../crates/ic-auth/src/session/model.rs),
 [reference backend](../../crates/ic-auth/src/session/memory.rs),
-[login ledger](../../crates/ic-auth/src/portable/revocation.rs),
+[login ledger](../../crates/ic-auth/src/portable/revocation/mod.rs),
 [signed claims](../../crates/ic-auth-protocol-types/src/portable.rs), and
 [browser journal](../../packages/client/src/logout-store.ts).
 Read-only issuer evidence is in Canic's

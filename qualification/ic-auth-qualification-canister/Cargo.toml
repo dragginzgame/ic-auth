@@ -19,7 +19,7 @@ ignored = ["toko-tooling"]
 crate-type = ["cdylib"]
 
 [dependencies]
-ic-auth = { workspace = true, features = ["canister-signature-preparation", "session-restore", "portable-signature-verification", "certified-proof-verification"] }
+ic-auth = { workspace = true, features = ["canister-signature-preparation", "persistent", "portable-signature-verification", "certified-proof-verification"] }
 ic-auth-protocol-types.workspace = true
 # Private Wire controls are never part of the public Auth contract.
 ic-auth-qualification-contracts.workspace = true

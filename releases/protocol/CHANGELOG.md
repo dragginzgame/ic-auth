@@ -3,6 +3,17 @@
 Covers `ic-auth-protocol-types` and `ic-auth-wire`, released together.
 The independent series starts after the [last coordinated release, 0.29.2](../history.md).
 
+## [0.39.2] - Unreleased
+
+### 🛠️ Tooling
+
+- Adopt Toko Tooling 0.39.17 and its directory-module layout. Move identifier
+  and scope module roots into their existing directories without changing
+  public Rust module paths, validation or encoded protocol bytes.
+- Preserve incoming compatible Types 0.19.5 and Wire 0.21.4 lock selections.
+  Regenerate the browser runtime's length/packed-boolean decoding optimizations;
+  the four Auth contract bindings are unchanged.
+
 ## [0.39.1] - 2026-11-11
 
 ## [0.39.0] - 2026-11-11

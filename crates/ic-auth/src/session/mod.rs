@@ -40,16 +40,15 @@ pub struct SessionContext<'a> {
     pub required_scopes: &'a RequiredScopes,
 }
 impl SessionContext<'_> {
-    fn validate(
+    pub(crate) fn validate(
         &self,
         policy: SessionPolicy,
-        ledger: &MemoryLoginRevocations,
+        audience: ic_auth_protocol_types::AudienceId,
     ) -> Result<(), SessionError> {
         if !policy.enabled || !policy.subject_admissible {
             return Err(SessionError::Disabled);
         }
-        if ledger.audience() != *self.authority.audience || !self.authority.authority_shape_valid()
-        {
+        if audience != *self.authority.audience || !self.authority.authority_shape_valid() {
             return Err(SessionError::InvalidPolicyOrRecord);
         }
         Ok(())
@@ -244,15 +243,53 @@ pub fn establish_session(
     policy: SessionPolicy,
 ) -> Result<SessionEstablished, SessionError> {
     let claims_context = admission.verification.claims();
+    SessionContext {
+        authority: claims_context.authority,
+        max_ttl: admission.ttl.maximum(),
+        role: admission.role,
+        required_scopes: RequiredScopes::NONE,
+    }
+    .validate(policy, ledger.audience())?;
+    let decoded = crate::portable::DecodedPortableClaims::decode(&credential.claims)?;
+    establish_decoded_session(
+        store,
+        ledger,
+        budget,
+        (decoded, &credential.proof),
+        request,
+        admission,
+        policy,
+    )
+}
+
+// Persistent receivers use the same owned decode to select their bounded login
+// snapshot. All protected-context, replay and cryptographic checks stay here.
+#[cfg(any(
+    feature = "portable-signature-verification",
+    feature = "certified-proof-verification"
+))]
+pub(crate) fn establish_decoded_session(
+    store: &mut impl SessionStore,
+    ledger: &mut MemoryLoginRevocations,
+    budget: &mut SessionAdmissionBudget,
+    credential: (
+        crate::portable::DecodedPortableClaims,
+        &ic_auth_protocol_types::PortableProof,
+    ),
+    request: crate::session_request::SessionRequest,
+    admission: &SessionAdmissionContext<'_>,
+    policy: SessionPolicy,
+) -> Result<SessionEstablished, SessionError> {
+    let claims_context = admission.verification.claims();
     let context = SessionContext {
         authority: claims_context.authority,
         max_ttl: admission.ttl.maximum(),
         role: admission.role,
         required_scopes: RequiredScopes::NONE,
     };
-    context.validate(policy, ledger)?;
+    context.validate(policy, ledger.audience())?;
     let authority = &context.authority;
-    let decoded = crate::portable::DecodedPortableClaims::decode(&credential.claims)?;
+    let (decoded, proof) = credential;
     let claims = &decoded.claims;
     let fingerprint = decoded.fingerprint;
     let login = ledger.observe_login(authority.caller, authority.now_ns)?;
@@ -308,7 +345,7 @@ pub fn establish_session(
         ControlFlow::Break(session) => return Ok(SessionEstablished::ExactRetry(session)),
         ControlFlow::Continue(fresh) => fresh,
     };
-    let verified = prepared.verify(budget, &credential.proof)?;
+    let verified = prepared.verify(budget, proof)?;
     let session = Session::from_admission(&verified, request, &context, policy, requested_expiry);
     let replay = Replay::new(&session, admission_expires_at_ns);
     let receipt = SessionReceipt::from(&session);
@@ -334,25 +371,35 @@ pub fn authorize_session<T>(
     policy: SessionPolicy,
     operation: impl FnOnce(&Session) -> T,
 ) -> Result<T, SessionError> {
-    context.validate(policy, ledger)?;
+    context.validate(policy, ledger.audience())?;
     let login = ledger.observe_login(context.authority.caller, context.authority.now_ns)?;
-    store.read(|tx| {
-        if tx.generation() != policy.generation {
-            return Err(SessionError::StaleAuthority);
-        }
-        let session = tx
-            .session(context.authority.caller)?
-            .ok_or(SessionError::MissingOrExpired)?;
-        session.check_live(context, policy)?;
-        session.check_revocation(login)?;
-        if !crate::certificate_issuance::scopes_are_subset(
-            context.required_scopes.as_slice(),
-            session.scopes(),
-        ) {
-            return Err(SessionError::ScopeRejected);
-        }
-        Ok(operation(&session))
-    })
+    store.read(|tx| authorize_snapshot(tx, login, context, policy, operation))
+}
+
+// One common post-storage authorization path for volatile and persistent stores.
+// Callers first validate protected context and observe the current login/clock.
+pub(crate) fn authorize_snapshot<T>(
+    tx: &dyn SessionReader,
+    login: Option<crate::portable::LoginBinding>,
+    context: &SessionContext<'_>,
+    policy: SessionPolicy,
+    operation: impl FnOnce(&Session) -> T,
+) -> Result<T, SessionError> {
+    if tx.generation() != policy.generation {
+        return Err(SessionError::StaleAuthority);
+    }
+    let session = tx
+        .session(context.authority.caller)?
+        .ok_or(SessionError::MissingOrExpired)?;
+    session.check_live(context, policy)?;
+    session.check_revocation(login)?;
+    if !crate::certificate_issuance::scopes_are_subset(
+        context.required_scopes.as_slice(),
+        session.scopes(),
+    ) {
+        return Err(SessionError::ScopeRejected);
+    }
+    Ok(operation(&session))
 }
 
 /// Authenticate logout with the runtime caller even if proof/enrollment expired

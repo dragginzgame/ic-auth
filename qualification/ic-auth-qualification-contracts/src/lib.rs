@@ -143,3 +143,6 @@ method!(EnableCheckpoint, 0x41555449f00d, "enable_session_checkpoint", (), Resul
 method!(ConfirmAuthority, 0x41555449f00e, "confirm_restored_session_authority", ReceiverConfig, Result<(), Refusal>, REPLY_LIMITS);
 method!(SetSessionAsset, 0x41555449f00f, "session_set_asset", u64, Result<(), Refusal>, REPLY_LIMITS);
 method!(ProfileCertified, 0x41555449f010, "profile_certified_proof", ic_auth_wire::SessionInput, Result<model::CertifiedProfile, model::CertifiedProfileFailure>, ic_auth_wire::EstablishSession::REQUEST_LIMITS, PROFILE_LIMITS);
+
+pub mod persistent;
+method!(PersistentIssuer, 0x41555449f020, "persistent_issuer", persistent::Command, Result<persistent::Report, Refusal>, PROFILE_LIMITS);

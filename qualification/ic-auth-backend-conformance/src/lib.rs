@@ -1288,3 +1288,67 @@ impl Fixture {
         )
     }
 }
+
+/// Produce one current trusted-storage fixture through real Ed25519 admission.
+/// Protected authority is synthetic test configuration supplied by the fixture;
+/// this helper is not an authentication API for untrusted credentials.
+///
+/// # Panics
+/// Panics if the fixture fails any normal engine verification or record bound.
+pub fn admitted_records(
+    claims: &PortableClaims,
+    credential: &PortableCredential,
+    issuer_key: [u8; 32],
+    now_ns: u64,
+) -> (Vec<u8>, Vec<u8>, Vec<u8>) {
+    let mut store = MemorySessionStore::new(0, SessionLimits::new(1, 1, 1, 65_536).unwrap());
+    let mut ledger =
+        MemoryLoginRevocations::new(claims.audience, 1, 1, 90 * 86_400_000_000_000, now_ns - 1)
+            .unwrap();
+    let mut budget = SessionAdmissionBudget::new(1, 1, now_ns - 1).unwrap();
+    let grants = ValidatedGrants::new(claims.grants.clone()).unwrap();
+    let context = PortableClaimsContext {
+        authority: PortableAuthority {
+            audience: &claims.audience,
+            issuer: claims.issuer,
+            mechanism: claims.mechanism,
+            key_binding_id: claims.key_binding_id,
+            grants: &grants,
+            caller: browser_principal(&claims.browser_public_key),
+            now_ns,
+            authority_not_before_ns: 0,
+            authority_expires_at_ns: u64::MAX,
+            enrollment_expires_at_ns: u64::MAX,
+            min_login_started_at_ns: 0,
+        },
+        min_proof_issued_at_ns: 0,
+        max_login_ttl_ns: 90 * 86_400_000_000_000,
+        max_proof_ttl_ns: 60_000_000_000,
+    };
+    establish_session(
+        &mut store,
+        &mut ledger,
+        &mut budget,
+        credential,
+        SessionRequest::new(vec!["read".into()], None).unwrap(),
+        &SessionAdmissionContext {
+            verification: PortableVerificationContext::Ed25519 {
+                claims: &context,
+                public_key: &PreparedIssuerKey::new(issuer_key).unwrap(),
+            },
+            role: &"user".parse().unwrap(),
+            ttl: SessionTtlPolicy::new(30, 60).unwrap(),
+        },
+        SessionPolicy {
+            generation: 0,
+            enabled: true,
+            subject_admissible: true,
+        },
+    )
+    .unwrap();
+    (
+        store.session_records().next().unwrap().encode().unwrap(),
+        store.replay_records().next().unwrap().encode().unwrap(),
+        ledger.records().next().unwrap().encode().unwrap(),
+    )
+}

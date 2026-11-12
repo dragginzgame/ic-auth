@@ -14,6 +14,9 @@ pub mod chain_key_batch;
 mod limits;
 pub mod portable;
 
+#[cfg(feature = "persistent")]
+pub mod persistent;
+
 #[cfg(any(
     feature = "portable-signature-verification",
     feature = "certified-proof-verification"

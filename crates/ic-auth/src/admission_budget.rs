@@ -18,7 +18,8 @@ pub enum AdmissionBudgetError {
 /// session transactions. Failed attempts consume credit too. This bounds
 /// attempts, not total instructions, ingress traffic or fairness between users.
 /// There is no implicit clock, allocation, persistence or per-principal map.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
+#[cfg_attr(feature = "persistent", derive(serde::Serialize, serde::Deserialize))]
 pub struct SessionAdmissionBudget {
     burst: u32,
     available: u32,
@@ -28,6 +29,16 @@ pub struct SessionAdmissionBudget {
 }
 
 impl SessionAdmissionBudget {
+    #[cfg(feature = "persistent")]
+    pub(crate) fn stored_policy_valid(&self, burst: u32, interval: u64, observed: u64) -> bool {
+        self.burst == burst
+            && self.refill_interval_ns == interval
+            && burst > 0
+            && interval > 0
+            && self.available <= burst
+            && self.refill_at_ns <= self.observed_at_ns
+            && self.observed_at_ns <= observed
+    }
     /// Configure a burst ceiling and one new attempt per nonzero interval.
     /// Starts empty: after creation/reset, wait one interval before admission.
     /// Hosts supply trusted time and must not recreate this for each request.

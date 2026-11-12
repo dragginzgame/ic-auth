@@ -197,7 +197,7 @@ The repository's Wasm target flags select upstream RustCrypto's qualified
 `cpubits="32"` backend. Other canister build owners must select it themselves;
 dependency Cargo configuration is not inherited, and explicit `RUSTFLAGS` or
 `CARGO_ENCODED_RUSTFLAGS` overrides must preserve this selection.
-Testkit 0.100.2 owns bounded server startup, lifecycle helpers and typed Wire calls.
+Testkit 0.101 owns bounded server startup, lifecycle helpers and typed Wire calls.
 The native runner imports the upstream async client and DTOs through Testkit's
 native-only `ic_testkit::pocket_ic` re-export of PocketIC 16.1. Its builder selects a 30,000 ms
 polling limit; this is not an absolute HTTP/body deadline. Managed `build_instance`
@@ -208,7 +208,7 @@ deletion is best-effort and logs failures rather than returning them.
 Native file and process callers select Host FS/Process 0.76.4 with defaults
 disabled. Library use does not enable Host's optional CLI, certificate decoder
 or Wasm text backends. Host stays outside the production library graph.
-Build 0.83.0 and Testkit 0.100.2 share Host 0.76.4 identities in native tooling.
+Build 0.83.0 and Testkit 0.101 share Host 0.76.4 identities in native tooling.
 The independently pinned file CLI is selected at 0.76.4.
 Build and Testkit libraries keep `cli` disabled; only the prepared executable
 selections request it. Testkit has no Metrics dependency; Auth's diagnostics
@@ -216,16 +216,15 @@ select Metrics directly.
 No caller enables optional native
 metadata; the old Host 0.73 and Metrics 0.25 providers are removed.
 
-Auth's product lock selects Platform 0.31.1; the independent native runner retains
-Platform 0.31.0. Both select canonical Types 0.19.3.
-The selected Testkit Wire transport has no Platform dependency; upstream PocketIC
+Auth and its independent native runner select Platform 0.31.2 and canonical Types
+0.19.4. Native Testkit selects Platform's owned management codec; upstream PocketIC
 and Agent retain native Candid dependencies. The Wasm host selects one coordinated Runtime
-0.21.1 executor/generator/guard. Upstream PocketIC owns its transport and parsing
+0.21.2 executor/generator/guard. Upstream PocketIC owns its transport and parsing
 failure behavior; its panics propagate rather than using the retired typed client errors.
 Native Testkit and its Candid/management DTOs remain outside the public library
 and Wasm host graphs.
-The host and Storage 0.71.1 now share Runtime 0.21, clearing the former
-singleton conflict. Wire 0.21 provides the matching canonical Principal schema implementation;
+The host and Storage 0.73.4 share one Runtime 0.21 executor and guard.
+Wire 0.21 provides the matching canonical Principal schema implementation;
 Auth does not select its opt-in packed 16-byte ID fields.
 Native calls retain explicit external Principal conversions; native SDK packages
 remain outside public Auth and the reference Wasm graph.
@@ -243,7 +242,7 @@ commands. Generic file operations now use the separately prepared published
 implementation or fallback. See [release and file-tool mechanics](#releases-and-publication)
 for the existing byte/path limits and release-recovery boundary.
 
-Auth and Testkit 0.100 share Wire 0.21. The native runner passes canonical method
+Auth and Testkit 0.101 share Wire 0.21. The native runner passes canonical method
 limits directly through its typed transport. PocketIC, Agent and delegation supplier
 boundaries copy canonical Principal bytes explicitly into upstream identities. Testkit's concrete
 `PocketIcInstance` retains managed-server custody and awaited teardown.
@@ -363,25 +362,24 @@ are refused without migration or reset. The maintainer confirmed no retained Aut
 records require preservation. The later Storage consolidation also changes
 backing formats; start with a coherent new fixture checkpoint for this hard cut.
 Checkpoint restores remain closed until matching controller authority is confirmed.
-The unpublished qualification host declares Storage 0.71 for both allocation
+The unpublished qualification host declares Storage 0.73.4 for both allocation
 and collections; `ic-memory` and `ic-stable-structures` are absent from the lock.
 Storage owns `StableKey`, `StorageConfig`, namespace grants, backing and exclusive
 leases. Its `StableCell::create` requires empty memory; `load(memory, maximum)`
 admits Auth's 128 KiB payload plus magic before allocation and validates cell
-framing. Storage 0.71 preserves collection images but replaces the whole-store
-snapshot directory with bucket backing. The host's existing default configuration
-reserves 15 control pages and uses eight-page buckets; no retired `wire` override
-is selected. Auth checks its `AUTHCLK1` payload identity and bounded Wire records.
+framing. Storage 0.73 replaces the previous backing and cell formats with
+`STORNAM1` and `STORCELL` version 1. The default configuration reserves 18 control
+pages. Auth checks its `AUTHSLOT` payload identity and bounded Wire records.
 Constructors retain typed errors; ordinary cell writes return the replaced value
 directly. Codec failures trap, preserving IC rollback semantics. No combined
 initialization or reset path is selected.
 
-Storage 0.70 and earlier snapshot backing cannot be reopened by 0.71. Use fresh
+Earlier Storage backing and cell images cannot be reopened by 0.73. Use fresh
 backing for the private fixture; an existing installation requires a separately
 reviewed whole-backing transition. Same-version checkpoint upgrades retain their
 normal load path. Old manager/ledger images are refused without fallback,
 initialization or clearing. Native foreign-header fixtures cover the published
-Memory 0.63 header and Storage 0.70's `ICROOTR1` discriminator, preserving separate
+Memory 0.63 header, Storage 0.70's `ICROOTR1` and 0.71's `ICBUCK01` discriminators, preserving separate
 application sentinel bytes on refusal. Current-format reopen, occupied creation,
 detached-lease custody, size bounds and framing corruption also have explicit
 tests. This adoption performs no reset or data retirement.
@@ -924,6 +922,14 @@ job's read-only Actions token, refuses digest mismatch and independently verifie
 the extracted payload. Local archive checks do not establish hosted upload
 or macOS qualification before those jobs run.
 
+`make deps-update` runs `cargo update -v` sequentially in the product and
+qualification workspaces. Bound a requested supplier update with
+`DEPENDENCY_PACKAGE=name DEPENDENCY_PRECISE=x.y.z`; Cargo applies these selectors
+to both workspaces and rejects absent or ambiguous packages. Requirements stay
+unchanged. A later failure preserves any earlier lock changes and reports the
+attempted workspaces. This command performs updates; supplier freshness review
+and qualification remain separate work.
+
 The snapshot deliberately omits fleet reporters. `make cloc` reports the product
 workspace; `bash scripts/dev/cloc.sh --manifest qualification/Cargo.toml` selects the independent
 qualification workspace; the optional shared `cloc-tooling` target explains that fleet reports
@@ -931,6 +937,8 @@ run in Toko Tooling and does not execute another checkout.
 Use `make cloc CLOC_DEPTH=0` for crate rows or `CLOC_DEPTH=2` for two module
 levels below each crate. Direct script calls use `scripts/dev/cloc.sh -d N`;
 these replace the retired `CLOC_SUBCRATES` and `--subcrates` options.
+Table labels are bounded to the terminal width and at most 44 columns. Use
+`bash scripts/dev/cloc.sh --wide` for full labels; JSON always retains full names.
 To inspect one crate or module, run `bash scripts/dev/cloc.sh -d 1 ic-auth` or
 `bash scripts/dev/cloc.sh -d 1 ic-auth::session`. Depth is relative to that
 selection; an unknown crate/module is refused.

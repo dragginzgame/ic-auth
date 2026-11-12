@@ -33,6 +33,7 @@ ic-build = { version = "0.83.0", default-features = false }
 ic-host-fs = { version = "0.76.1", default-features = false }
 ic-platform = { version = "0.31.0", default-features = false }
 ic-platform-types = { version = "0.19.0", default-features = false }
+ic-storage = "0.73.4"
 ic-wire = "0.21.0"
 leb128 = "0.2"
 serde = { version = "1", features = ["derive"] }
@@ -40,7 +41,7 @@ serde_bytes = "0.11"
 serde_json = "1"
 sha2 = "0.11.1"
 thiserror = "2"
-toko-tooling = "=0.39.10"
+toko-tooling = "=0.39.17"
 
 [workspace.metadata.ic-auth]
 # Executable features are source-owned recovery inputs, not library features.

@@ -19,7 +19,7 @@ Tool setup and both-workspace admission follow [developer setup](docs/developmen
 - Keep authentication, IC ingress identity delegation, application authorization
   and application resource ownership distinct. A wallet proof is not a resource
   grant. An application token is not an IC ingress delegation.
-- Canic owns fleet topology, member/role authority, issuer approval and renewal
+- Canic owns fleet topology, member/role authority, issuer approval policy and renewal
   orchestration, endpoint guards and deployment configuration. Toko owns its user
   records, account-linking policy and NFT ledger semantics.
 - Keep one canonical owner during extraction; consumer adoption belongs to its
@@ -51,9 +51,13 @@ Tool setup and both-workspace admission follow [developer setup](docs/developmen
 - The requested Storage consolidation moves allocation governance and
   checked leases from retired `ic-memory` into `ic-storage`. Use Storage-owned
   keys, namespace grants, backing and collection APIs; preserve the older Shared
-  snapshot's governance invariants under that new owner. Only the private host
-  selects Storage; its direct Wasm Runtime dependency resolves to the host's one
-  executor/guard. Legacy backing is refused without reset or a compatibility reader.
+  snapshot's governance invariants under that new owner. Auth #132 selects an
+  optional Auth-owned `persistent` backend using Storage collections;
+  the host supplies exclusive checked leases and the transaction boundary. Passive
+  packages and default/session-only graphs exclude Storage. Storage transitively
+  selects Runtime IC0 for its Wasm backing; Auth selects no executor/guard or CDK.
+  Only the actual host selects its one executor/guard. Legacy backing is refused
+  without reset or a compatibility reader.
 - Use published `ic-host-*` for applicable local file, artifact and process
   mechanics and `ic-build` for generic Cargo lock admission. Native host tooling
   belongs in `crates/ic-auth-tooling/` and test infrastructure
@@ -91,7 +95,9 @@ feature-unification harness alone has a direct Dalek dev dependency
 to enable permissive parsing adversarially, never in a deployed graph. Forward only the features required by each Auth
 capability; BLS fixture signing is a dev dependency. Preserve imported crypto provenance; do not implement replacement cryptography.
 Runtime-only consumers select the published independent Runtime owner directly;
-public Auth libraries and passive contracts exclude it. The mixed crypto/runtime
+default/session-only libraries and passive contracts exclude it. The optional
+persistent backend admits Storage's transitive Runtime IC0 backing, with no
+executor or CDK. The mixed crypto/runtime
 host selects Runtime's `cdk` capability directly for runtime calls,
 certificate acquisition/publication and entrypoint generation (Platform #21).
 Keep explicit Wire codecs and the upstream controller/runtime semantics; the

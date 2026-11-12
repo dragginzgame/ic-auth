@@ -31,10 +31,14 @@ for target in "$native_target" wasm32-unknown-unknown; do
         [[ "$feature" != all ]] || selected=(--all-features)
         policy=capability
         case "$feature" in
-            all|canister-signature-preparation|canister-signature-verification|certified-proof-verification)
+            all) policy=persistent-certified ;;
+            persistent) policy=persistent ;;
+            canister-signature-preparation|canister-signature-verification|certified-proof-verification)
                 policy=certified ;;
         esac
         rules=(--forbid-pattern "$(auth_dependency_pattern "$policy")"
+               --forbid ic-platform-runtime-guard --forbid ic-platform-macros
+               --forbid-feature ic-platform-runtime/executor --forbid-feature ic-platform-runtime/cdk
                --forbid-feature ic-platform/candid
                --forbid-feature ic-platform/ic0 --forbid-feature ic-platform/executor
                --forbid-feature ic-platform/runtime)
@@ -72,9 +76,8 @@ for package in block-buffer crypto-common digest ff group rand_core sha2; do
     rules+=(--max-count "$package=2")
 done
 "${checker[@]}" --package ic-auth --target wasm32-unknown-unknown --all-features "${rules[@]}"
-# Storage 0.65 selects Runtime directly on Wasm.
-# It resolves to the host's one maintained owner; keep its singleton guard
-# and generator checks, while public library graphs still forbid those features.
+# Storage's Wasm backing selects Runtime IC0. Only the actual qualification host
+# selects its maintained executor/guard; optional Auth persistence cannot add one.
 perl scripts/ci/check-cargo-graph.pl --consumer "$PWD/qualification" --package ic-auth-qualification-canister --target wasm32-unknown-unknown \
     --forbid-pattern "$(auth_dependency_pattern profiling)" \
     --forbid-pattern '^(candid_parser|ic-host|ic-build|ic-agent|ic-testkit|ic-entropy|pocket-ic|tokio)([- ]|$)' \

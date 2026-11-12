@@ -1,7 +1,8 @@
 # Independent authentication ownership
 
 Accepted extraction direction: 2026-10-08; current boundary reconciled on
-2026-11-09. [Canic #491 — Extract reusable authentication, token and session machinery](https://github.com/dragginzgame/canic/issues/491)
+2026-11-12 through [Auth #132](https://github.com/dragginzgame/ic-auth/issues/132).
+[Canic #491 — Extract reusable authentication, token and session machinery](https://github.com/dragginzgame/canic/issues/491)
 owns consumer implementation and acceptance. Earlier source checkpoints are
 historical evidence, not alternate current APIs.
 
@@ -148,8 +149,11 @@ Session admission and replay consumption need one atomic commit boundary. A
 failed capacity or authority check must not leave partial replay/session state.
 Specify exact-retry behavior, expiry pruning, per-subject/global quotas and byte
 limits. Use bounded record operations rather than cloning/encoding the entire
-store for each login. IC Auth owns the storage contract and engine; an embedded
-host owns stable-memory registration and supplies its backend.
+store for each login. IC Auth owns the storage contract, implementation and
+engine; an embedded host owns stable-memory registration and supplies checked
+leases and its transaction boundary. See the optional
+[persistent stores](../integration/persistent-auth.md). Canic must delete the
+displaced generic implementation when it adopts the qualified owner APIs.
 
 The host selects memory or persistent storage at build time per canister
 role. Both use that same engine and trait; neither IC Auth nor a standalone

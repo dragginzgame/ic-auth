@@ -12,6 +12,7 @@ use ic_wire::{Bytes, Limits};
 use std::cell::RefCell;
 
 mod control;
+mod persistent;
 mod sessions;
 mod storage;
 
@@ -88,7 +89,7 @@ fn controller() -> Result<(), Refusal> {
 fn init(owner: Bytes<29>) {
     let owner = Principal::try_from_slice(owner.as_slice()).expect("owner principal");
     assert_ne!(owner, Principal::anonymous());
-    storage::bootstrap(Default::default(), false);
+    persistent::bootstrap(storage::bootstrap(Default::default(), false), false);
     STATE.with(|state| {
         *state.borrow_mut() = Some(State::new(Metadata {
             owner,
@@ -117,7 +118,7 @@ fn pre_upgrade() {
 
 #[ic_platform_runtime::cdk::post_upgrade(decode_with = "control::Upgrade::decode")]
 fn post_upgrade() {
-    storage::bootstrap(Default::default(), true);
+    persistent::bootstrap(storage::bootstrap(Default::default(), true), true);
     let CheckpointData {
         owner,
         asset_version,

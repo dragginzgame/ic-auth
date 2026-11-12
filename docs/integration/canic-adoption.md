@@ -6,7 +6,37 @@ issuer approval/renewal, fleet/member/role policy, endpoint guards and deploymen
 integration; this guide supplies the contract, not evidence of deployment.
 Superseded migration journals remain in Git history; use the current contracts below.
 
-## Current integration cohort
+## Pending Auth-owned persistent store adoption
+
+[Auth #132](https://github.com/dragginzgame/ic-auth/issues/132) moves reusable
+issuer/session storage into Auth. [Canic #764](https://github.com/dragginzgame/canic/issues/764)
+owns adoption and deletion of the displaced consumer engine. The implementation
+is currently local and unpublished; a Git push alone does not supply it to
+Canic's registry dependency. It needs an Engine publication after applicable
+qualification. No Protocol API change is required by the new store capability.
+
+Select `persistent` plus the required proof-verification capabilities when that
+Engine is available. Follow [persistent authentication](persistent-auth.md) for
+the memory, transaction and stored-format contract:
+
+| Canic integration | Auth owner | Canic retains |
+| --- | --- | --- |
+| Receiver session, replay, revocation and indexes | `ReceiverStore::admit`, `authenticate`, `logout`, `prune` | Trusted caller/time/authority, endpoint mapping and application permissions |
+| Issuer intent, login, renewal and result records | `IssuerStore` prepare/challenge/approve/complete, renew/retrieve and bounded pruning | Fleet/Root approval, trusted signing effects and certification composition |
+| Backing and lifecycle | Auth schemas and bounded `create`/`open`; issuer `restart` | Checked memory leases, atomic transactions and protected authority changes |
+
+The maintainer accepts the measured 1.223M cold ordinary-authentication cost at
+100,000 records provisionally. The regression ceiling is 1.3M; published Storage
+0.73.4 is sufficient for this batch. Canic need not wait for Storage optimization
+or implement a workaround. Full issuer custody convergence and installed
+certified/Ed25519 lifecycle acceptance remain tracked in #132; this handoff does
+not claim that Canic can already delete every issuer component.
+
+The published Auth cohort is Protocol/Engine 0.39.1; exact delivery evidence and
+pending supplier selections are in the [current handoff](../status/current.md).
+The older cohort below records historical qualification, not today's selection.
+
+## Historical 0.37 integration cohort
 
 Published **Protocol 0.37.0** (`ic-auth-protocol-types`, `ic-auth-wire`) and
 **Engine 0.37.0** (`ic-auth`) form the released cohort. Keep both Protocol
@@ -211,13 +241,16 @@ Select capabilities on the receiver's normal dependency edge with defaults disab
 | Volatile Ed25519 sessions | `sessions`, `portable-signature-verification` |
 | Volatile certified sessions | `sessions`, `certified-proof-verification` |
 | Both enrolled proof mechanisms | `sessions`, `portable-signature-verification`, `certified-proof-verification` |
-| Persistent record restoration | Replace `sessions` with `session-restore`; retain the selected verifier features |
+| Custom-backend record restoration | Replace `sessions` with `session-restore`; retain the selected verifier features |
+| Pending Auth-owned persistent stores (#132) | `persistent` plus the selected verifier features; not yet published |
 
 Protected enrollment selects the mechanism, issuer and key. Submitted proof
 variants cannot select trusted authority or enable a capability. Qualify the
 normal native/Wasm graph without dev dependencies; test feature unification can
-hide a missing production capability. Auth libraries do not depend on Canic,
-Toko, runtime, stable memory or Metrics.
+hide a missing production capability. Auth libraries do not depend on Canic or
+Toko. Passive and ordinary session graphs exclude Storage/Runtime; the optional
+`persistent` backend selects Storage and its Wasm Runtime IC0 backing, without
+an executor, guard or CDK. The host retains its single Runtime owner.
 
 ## Session commit contract
 
@@ -237,7 +270,11 @@ Application resource ownership remains separate; account identity is the pair
 `(issuer, subject)`, not a subject alone. Recheck protected authority before effects
 following awaits. Advance generation atomically with authority changes.
 
-A persistent backend implements `SessionReader` and `SessionStore`. Reads expose
+The custom-backend contract below describes the existing trait extension point,
+not a requirement for Canic to retain a second engine after #132 adoption.
+`ReceiverStore` owns these record/index/ledger responsibilities in the new path.
+
+A custom persistent backend implements `SessionReader` and `SessionStore`. Reads expose
 an isolated immutable snapshot. Writes validate before effects and atomically
 persist the session/replay/login change, indexes and protected totals. Returned
 errors preserve prior records; proof-verification charges and trusted clock

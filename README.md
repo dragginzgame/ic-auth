@@ -35,9 +35,13 @@ journals still preserve uncertainty. The separate Rust delegated-token API is
 also retired after explicit confirmation of no deployed users or unresolved issuance. Production issuer/enrollment and consumer
 integration remain pending; reference qualification is separate from adoption.
 
-**Production issuer/enrollment lifecycle, wallet login and Canic's per-operation
-persistent session adapter remain unimplemented.** The reference receiver uses
-volatile state, with a separate fixture checkpoint for upgrade qualification.
+**Production issuer/enrollment lifecycle and wallet login remain pending.** The
+optional [Auth-owned persistent stores](docs/integration/persistent-auth.md) are
+under qualification in [#132](https://github.com/dragginzgame/ic-auth/issues/132),
+with an accepted interim cold-lookup cost of 1.223M instructions at 100,000
+records. Correctness/lifecycle acceptance remains in progress. Canic has
+not adopted this implementation. The earlier reference receiver uses volatile
+state with a separate fixture checkpoint for upgrade qualification.
 The [IC Testkit fixture](docs/development/testkit-qualification.md) exercises actual
 certification, portable sessions, upgrades and signed ingress; it is not a
 production wallet service or evidence of completed consumer adoption.

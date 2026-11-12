@@ -10,6 +10,7 @@ FORMAT_RUST_ARGS := --extra-workspace qualification
 override TOKO_TOOLING_ROOT := $(CURDIR)
 TOKO_TOOLING_RELEASE := 1
 include make/consumer.mk
+include make/cargo-dependencies.mk
 
 # The controller rejects inherited Cargo context. Only candidate hooks and
 # ordinary commands select this checkout's target; never erase a user override.
@@ -58,6 +59,7 @@ release-tagged-check release-push-check release-verify: | toko-execution-check
 
 help:
 	@echo 'Setup: install-tools, tools-check, install-hooks, fetch; minimum compiler: install-msrv, msrv-tools-check'
+	@echo 'Dependency maintenance: deps-update (explicit Cargo lock updates in both workspaces; optional DEPENDENCY_PACKAGE and DEPENDENCY_PRECISE)'
 	@echo 'Release editor: install-release-tools (explicit setup), release-tools-check (offline path admission)'
 	@echo 'File CLI: install-host-file (explicit setup), host-file-check (offline path admission)'
 	@echo 'Testkit server: install-testkit-tools (explicit setup), testkit-tools-check (offline admission)'
@@ -162,7 +164,7 @@ test-sessions:
 	+cargo test --locked --offline -p ic-auth --features sessions,certified-proof-verification,portable-signature-verification --test certified portable_certified::
 	+cargo test --locked --offline -p ic-auth --features sessions,portable-signature-verification --test sessions
 	+cargo test --locked --offline -p ic-auth --features sessions --doc
-	+cargo test --locked --offline -p ic-auth --features session-restore,portable-signature-verification --test sessions --test portable_revocation
+	+cargo test --locked --offline -p ic-auth --features persistent,portable-signature-verification --lib --test sessions --test portable_revocation --test persistent_sessions
 
 check-wasm:
 	+bash scripts/dev/check-wasm.sh

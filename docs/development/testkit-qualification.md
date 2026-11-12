@@ -9,13 +9,13 @@ qualify the current dependency graph.
 
 ## Setup and ownership
 
-The qualification catalog/lock selects published Testkit 0.100.2 from
+The qualification catalog/lock selects published Testkit 0.101.0 from
 [IC Tooling](https://github.com/dragginzgame/ic-tooling), upstream PocketIC 16.1
 and the explicitly admitted server 16.1.0. Auth and Testkit share Wire 0.21;
 `WireCallSpec` takes canonical method limits without an alias or projection.
-Application identities use canonical Platform Types 0.19.3. Native PocketIC/Agent
+Application identities use canonical Platform Types 0.19.4. Native PocketIC/Agent
 calls copy those bytes explicitly into the upstream Principal type. Platform
-0.31.0 supplies crypto and Agent capabilities; the host selects one Runtime 0.21.1
+0.31.2 supplies crypto and Agent capabilities; the host selects one Runtime 0.21.2
 executor/generator/guard. Native client dependencies stay outside public Auth
 libraries and the Wasm host; the certificate-only exception is separate.
 See [the native Candid paths](setup.md#why-candid-appears-in-cargolock) for
@@ -61,10 +61,10 @@ success or failure. The canister selects independent Runtime and its generated e
 macros with explicit Wire codec hooks; the direct CDK exception is removed
 ([Platform #21](https://github.com/dragginzgame/ic-platform/issues/21)).
 Root-selected [IC Storage](https://github.com/dragginzgame/ic-storage)
-supplies allocation and checksummed checkpoint cells, and Platform supplies raw length
-admission before CDK copying, counter-zero measurements, certified-tree types
-and canister-signature key/hash operations. Its `cdk` capability now supplies
-certificate read/publish helpers and the original runtime/controller semantics.
+supplies allocation and framed checkpoint cells. Runtime supplies raw length
+admission before CDK copying and counter-zero measurements; Platform supplies
+certified-tree types and canister-signature key/hash operations. Runtime's `cdk`
+capability supplies certificate read/publish helpers and runtime/controller semantics.
 The selected Runtime remains Candid-free. Platform's upstream certificate
 helpers bring transitive Candid/raw IC0 into the reference Wasm under the
 maintainer-approved certificate exception; native Agent/Testkit also bring Candid.
@@ -121,12 +121,14 @@ protect different integration/trust boundaries; neither replaces the other.
 
 ## Portable session restoration across independent receivers
 
-The checkpoint host uses Storage 0.71.1's `ic_storage::adapter::StableCell` with one
+The checkpoint host uses Storage 0.73.4's `ic_storage::adapter::StableCell` with one
 host-owned runtime and checked allocation. Auth owns its `AUTHSLOT` native-Wire
 payload identity, 128 KiB ceiling and metadata/session contents. Storage admits
-namespace grants, exclusive leases, bounded loading and collection checksums.
+namespace grants, exclusive leases, bounded loading and cell framing. Storage
+does not checksum the application payload; valid-looking byte changes may pass decoding.
 Init requires an empty allocation; post-upgrade loads retained state with the
-explicit payload ceiling. Creation and writes return checked errors. Missing,
+explicit payload ceiling. Creation/loading return checked errors; writes return
+the replaced value, and backing failures trap. Missing,
 corrupt or unexpectedly occupied state refuses. The
 raw `AUTHQCP1`, `AUTHCELL` Candid, finite-Wire `AUTHWIR2` and older CBOR-record
 `AUTHNAT1` layouts, plus the text-ID `AUTHNAT2` checkpoint, are retired
@@ -137,11 +139,11 @@ on refusal; this grants no permission to erase backing or its allocation metadat
 Qualification starts fresh and tests repeated current-format upgrades; it does
 not prove historical ledger/image compatibility.
 
-Storage 0.64 replaces the old manager/ledger and collection layouts with its
-owned formats. Fresh backing is required, even if an older image contains an
-`AUTHNAT3` payload. A frozen Memory 0.63 manager-header test preserves a separate
-application sentinel on refusal; no legacy decoder or automatic reset exists.
-Native tests also verify read-only checksum-corruption and size refusals.
+Storage 0.73 replaces earlier backing and cell layouts with `STORNAM1` and
+`STORCELL` version 1. Fresh whole backing is required even when an older image
+contains a current Auth payload. Foreign-header tests cover Memory 0.63,
+Storage 0.70 and 0.71, preserving application sentinels on refusal; no legacy
+decoder or automatic reset exists. Native tests also verify framing and size refusals.
 Installed tests use fresh backing and current-format upgrades. A real retained
 installation requires a separately reviewed whole-image transition; this
 qualification authorizes no reinstall or data loss.

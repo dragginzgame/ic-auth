@@ -4,6 +4,53 @@ Covers `ic-auth`, maintained `ic-auth-tooling`, and associated private
 qualification changes. Only the first two are Engine release-group members. The independent series starts after the
 [last coordinated release, 0.29.2](../history.md).
 
+## [0.39.2] - Unreleased
+
+### ✨ Features
+
+- Implement optional Auth-owned persistent issuer and receiver stores for #132.
+  Index selected logins/operations, reserve readable completion capacity, enforce
+  account/device quotas and use reference-counted, bounded expiry cleanup. Keep
+  caller sessions separate from maintenance indexes and retain one copy of each
+  active binding. Host memory governance, clocks, transactions and certification
+  publication remain explicit. Signed claims and verification policy are unchanged.
+  The issue remains open for full issuer key/enrollment custody and qualification;
+  these changes do not establish Canic adoption or complete #132 acceptance.
+
+### 🧪 Testing
+
+- Add native 100,000-login and installed issuer/ordinary-authentication scaling
+  probes, with cold stable-memory access charged to authentication before any
+  diagnostic read. Keep bookkeeping separate from initial proof cryptography.
+  Accept the measured 1.223M ordinary-call cost provisionally with a 1.3M
+  regression ceiling, including after upgrade, on published Storage 0.73.4.
+  Further Storage optimization is not a prerequisite for this Auth batch.
+- Preserve incoming Platform 0.31.3, Runtime 0.21.3, Types 0.19.5, Host 0.76.5
+  and Wire 0.21.4 in both locks. Regenerate all five browser files: the four Auth
+  bindings are unchanged; Wire's runtime optimizes length and packed-boolean
+  decoding. Retain client/interoperability qualification in the release gate.
+
+- Adopt qualification Storage 0.73.4 and Testkit 0.101, plus current compatible
+  Entropy, Metrics, Platform, Runtime and Wire selections. Keep one host executor/
+  guard and the native PocketIC re-export. The private fixture uses fresh Storage
+  backing; previous backing/cell images refuse without clearing retained bytes.
+  Auth's signed claims, session records and checkpoint payload identity are unchanged.
+
+### 🛠️ Tooling
+
+- Adopt Toko Tooling 0.39.17 in both workspaces. Bound LOC table labels to the
+  terminal width and provide `--wide` for full names; numeric counts and complete
+  JSON labels are unchanged. Adopt explicit supplier-freshness review and
+  disposition requirements for product, native-tool and qualification selections.
+- Move modules with child directories to `mod.rs` under the new layout rule,
+  including qualification tests. Preserve public module paths and remove an
+  empty session-test directory, retaining the existing standalone test target.
+  Adopt the upstream dependency-update companion fix in release fixtures.
+- Expose Shared's `deps-update` command across the product and qualification
+  workspaces. It runs sequential Cargo updates with normal output, preserves
+  manifest requirements and retains the Make execution guard. Updates run only
+  when invoked explicitly; a later failure does not roll back an earlier lock.
+
 ## [0.39.1] - 2026-11-11
 
 ### ⬆️ Dependencies
