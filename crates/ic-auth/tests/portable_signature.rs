@@ -261,9 +261,12 @@ fn malformed_claims_never_reach_signature_verification() {
     let valid = encode_claims(&value).unwrap();
     let mut trailing = valid.clone();
     trailing.push(0);
+    let mut excess_grants = valid.clone();
+    excess_grants.extend(vec![0; ic_auth::portable::MAX_CREDENTIAL_GRANT_BYTES]);
     for bytes in [
         &valid[..valid.len() - 1],
         &trailing,
+        &excess_grants,
         &vec![0; MAX_CLAIMS_BYTES + 1],
     ] {
         assert!(matches!(

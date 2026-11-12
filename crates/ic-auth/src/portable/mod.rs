@@ -42,11 +42,64 @@ const SCHEMA: u16 = 2;
 /// Hard cap on the signed claims blob, independent of outer transport limits.
 pub use ic_auth_protocol_types::limits::MAX_CLAIMS_BYTES;
 
+/// Aggregate canonical grant-list budget for portable credentials, including
+/// counts, role labels and scope labels. Protected enrollment may be broader;
+/// issuers must select a bounded subset rather than truncate permissions.
+pub const MAX_CREDENTIAL_GRANT_BYTES: usize = 4096;
+
+/// Maximum role-scope entries across a portable credential. The same scope
+/// under two roles counts twice; protected enrollment may be broader.
+pub const MAX_CREDENTIAL_SCOPE_ENTRIES: usize = 32;
+
+// Every valid combination must fit, including all canonical length prefixes.
+// Keep this guarantee coupled to the actual role and label ceilings.
+const _: () = assert!(
+    4 + MAX_GRANTS * (8 + MAX_LABEL_BYTES) + MAX_CREDENTIAL_SCOPE_ENTRIES * (4 + MAX_LABEL_BYTES)
+        <= MAX_CREDENTIAL_GRANT_BYTES
+);
+
+/// Check grants for new portable issuance before reserving work or signing.
+/// At most 32 scope entries across 16 roles guarantees the canonical grant list
+/// fits the byte budget even when every label uses its full 64-byte allowance.
+/// This does not authenticate authority or change the existing signed encoding.
+pub fn validate_credential_grants(
+    grants: &[DelegatedRoleGrant],
+) -> Result<(), PortableEncodingError> {
+    credential_grants(grants).map(|_| ())
+}
+
+fn credential_grants(
+    grants: &[DelegatedRoleGrant],
+) -> Result<CheckedGrants<'_>, PortableEncodingError> {
+    let checked = CheckedGrants::bounded(grants, MAX_GRANTS, MAX_SCOPES_PER_GRANT)?;
+    check_scope_entries(grants.iter().map(|grant| grant.scopes.len()).sum())?;
+    // Count with the canonical encoder: no second size formula, allocation or
+    // change to signed bytes. Cardinality and label bounds already cap this sum.
+    let mut length = 0;
+    checked.encode(&mut |part| length += part.len())?;
+    if length > MAX_CREDENTIAL_GRANT_BYTES {
+        return Err(PortableEncodingError::TooLarge);
+    }
+    Ok(checked)
+}
+
+fn check_scope_entries(found: usize) -> Result<(), PortableEncodingError> {
+    if found > MAX_CREDENTIAL_SCOPE_ENTRIES {
+        return Err(PortableEncodingError::TooManyScopeEntries {
+            found,
+            max: MAX_CREDENTIAL_SCOPE_ENTRIES,
+        });
+    }
+    Ok(())
+}
+
 /// Structural codec errors, never proof-verification outcomes.
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum PortableEncodingError {
     #[error("portable claims exceed their byte bound")]
     TooLarge,
+    #[error("credential has {found} scope entries; maximum is {max}")]
+    TooManyScopeEntries { found: usize, max: usize },
     #[error("truncated portable claims")]
     Truncated,
     #[error("wrong portable domain, schema or mechanism")]
@@ -76,6 +129,27 @@ fn encode_claims_into(
     sink: &mut crate::canonical::Sink<'_>,
 ) -> Result<(), PortableEncodingError> {
     let grants = validate_shape(claims)?;
+    encode_claims_fields(claims, grants, sink)
+}
+
+// Integrity checking of already-completed issuer results keeps the historical
+// structural ceiling. This is not available to new issuance or verification.
+#[cfg(feature = "persistent")]
+pub(crate) fn encode_retained_claims(
+    claims: &PortableClaims,
+) -> Result<Vec<u8>, PortableEncodingError> {
+    validate_identity(claims)?;
+    let grants = CheckedGrants::bounded(&claims.grants, MAX_GRANTS, MAX_SCOPES_PER_GRANT)?;
+    let mut bytes = Vec::new();
+    encode_claims_fields(claims, grants, &mut |part| bytes.extend_from_slice(part))?;
+    Ok(bytes)
+}
+
+fn encode_claims_fields(
+    claims: &PortableClaims,
+    grants: CheckedGrants<'_>,
+    sink: &mut crate::canonical::Sink<'_>,
+) -> Result<(), PortableEncodingError> {
     // The same bounded field traversal produces bytes or feeds SHA-256.
     let mut length = 0usize;
     let mut out = |bytes: &[u8]| {
@@ -143,14 +217,22 @@ pub fn decode_claims(bytes: &[u8]) -> Result<PortableClaims, PortableEncodingErr
     let issued_at_ns = u64::from_be_bytes(input.array()?);
     let admission_expires_at_ns = u64::from_be_bytes(input.array()?);
     let nonce = input.array()?;
+    // The grant list is the remaining signed payload. Reject excess bytes before
+    // allocating labels or verifying a signature, even for malformed input.
+    if input.0.len() > MAX_CREDENTIAL_GRANT_BYTES {
+        return Err(PortableEncodingError::TooLarge);
+    }
     let count = input.count(MAX_GRANTS)?;
     let mut grants = Vec::with_capacity(count);
+    let mut scope_entries = 0;
     for _ in 0..count {
         let target = input
             .label()?
             .parse()
             .map_err(|_| PortableEncodingError::InvalidShape)?;
         let count = input.count(MAX_SCOPES_PER_GRANT)?;
+        scope_entries += count;
+        check_scope_entries(scope_entries)?;
         let mut scopes = Vec::with_capacity(count);
         for _ in 0..count {
             scopes.push(
@@ -214,6 +296,11 @@ pub(crate) fn is_login_caller(caller: Principal) -> bool {
 }
 
 fn validate_shape(claims: &PortableClaims) -> Result<CheckedGrants<'_>, PortableEncodingError> {
+    validate_identity(claims)?;
+    credential_grants(&claims.grants)
+}
+
+fn validate_identity(claims: &PortableClaims) -> Result<(), PortableEncodingError> {
     if claims.device_slot >= ic_auth_protocol_types::limits::MAX_DEVICE_SLOTS
         || claims.device_generation == 0
     {
@@ -222,11 +309,7 @@ fn validate_shape(claims: &PortableClaims) -> Result<CheckedGrants<'_>, Portable
     if claims.account_subject == Principal::anonymous() {
         return Err(PortableEncodingError::AnonymousSubject);
     }
-    Ok(CheckedGrants::bounded(
-        &claims.grants,
-        MAX_GRANTS,
-        MAX_SCOPES_PER_GRANT,
-    )?)
+    Ok(())
 }
 
 struct Reader<'a>(&'a [u8]);

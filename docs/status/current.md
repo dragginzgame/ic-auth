@@ -15,6 +15,18 @@ sibling deployment changed. Canic can now adopt the three missing APIs below.
 
 ## Delivered changes and measurement follow-up
 
+Local pending Engine 0.40.0 limits credentials to **32 scope entries total across
+up to 16 roles**, guaranteeing at most **3,332 canonical grant-list bytes** with
+64-byte labels. A 4,096-byte defensive cap remains; accepted signed bytes are unchanged.
+Completed oversized results remain recoverable; new admission and pending signing
+refuse them. Protected enrollment and stored sessions retain their old bounds.
+See the [claims contract](../design/0.6-auth-protocol.md#frozen-credential-shape-and-signed-bytes).
+Focused codec, Ed25519, certified-bound, issuer/reopen, receiver and maximum-shape
+checks plus strict Clippy pass; logs: `target/auth-grant-budget-*.log` and
+`target/auth-scope-guarantee-*.log`.
+No performance gain, publication or Canic adoption is claimed. Canic's old maximum
+credential fixture must become a refusal case or use a grant list within budget.
+
 The #134 source delivery adds optional `persistent` conformance in private
 bundle **0.36.2**, at `e9e831598d2b02db5e8f7fea883616953c7950ee`.
 Its `ReceiverHost` uses checked leases,
@@ -29,14 +41,8 @@ Canic #764 owns adoption; no sibling files or production code changed. This is
 Git/source-bundle delivery only: no publishable product changed, so no Engine
 bump, crates.io upload or frozen product gate was needed. #133 remains pending.
 
-Engine 0.39.4 preserves the incoming Storage **0.73.6** locks and requires its discard
-APIs. Prepared Auth commits avoid materializing unused old values. Eighteen native
-tests, strict focused Clippy, the two 100,000-record installed probes and both real
-certified/Ed25519 lifecycle tests pass. Formats and trust checks are unchanged.
-Matched evidence: `target/auth-132-discard/` (before/after Wasm, locks and logs).
-The qualification Wasm is 420 bytes smaller; lookup locality remains unchanged.
-Detailed matched timings and the initial failed sandbox bind are retained in the
-evidence above and the delivered handoff at `4938916`.
+Engine 0.39.4's matched discard-mutation evidence remains under
+`target/auth-132-discard/`; details are retained in the handoff at `20384f9`.
 
 [Release selection](../development/release-validation.md#deployment-path-observations--2026-11-12)
 now excludes only the unchanged selector regression for reviewed product/data
@@ -72,29 +78,15 @@ do not require Storage locality work or a sub-1M result for Canic adoption.
 This changes no verification checks or trust assumptions. No verification cache,
 inter-canister call or cryptographic replacement was added.
 
-The 0.39.4 gate measured cold authentication **1,223,850**, post-upgrade
-**1,223,195**, renewal preflight **507,729** and recovery **643,861** instructions
-at 100,000 records. Issuer prepare was **3,712,362** and renewal **2,503,057**.
-Evidence: `target/auth-release-0394/delivery-corrected.log`, gate `engine-gate.mXTSu4`
-in the captured checkout's `target/release-validation/`.
-Bookkeeping probes exclude initial proof verification, Root approval, signing
-and endpoint overhead. The 100,001st issuer login refuses without changing occupancy.
-Keep the earlier `target/auth-132-installed/accepted-cost/` evidence. Warm samples in
-`target/auth-132-installed/scaling.log` are not cold-call acceptance.
+Keep installed measurements in `target/auth-release-0394/delivery-corrected.log`
+and `target/auth-132-installed/accepted-cost/`. The detailed handoff at `20384f9`
+separates cold authentication from issuer bookkeeping and proof verification.
 
 ### Delivered #132 APIs and consumer handoff
 
-`IssuerStore::retrieve_renewal` now provides browser-authenticated lookup-only
-recovery, including expired/interrupted originals. `preflight_renewal` projects
-the authenticated account, exact request and original policy before application
-authorization. Both share the private renewal index/binding checks with `renew`;
-neither reserves work or advances time. `ReceiverStore::inspect_sessions` returns
-passive expired/stale metadata in caller order, with an exclusive cursor and a
-bounded scan across fences. Empty pages can have continuations. See the
-[consumer contract](../integration/persistent-auth.md). Stored formats, signed
-bytes and verification/trust rules are unchanged. Canic retains host keys,
-Root enrollment/approval and application policy; no additional Auth key store
-or consumer renewal index/session mirror is required.
+Engine 0.39.3 supplies browser-authenticated renewal recovery, preflight and bounded
+session inspection. The [consumer contract](../integration/persistent-auth.md)
+defines the Auth/host ownership split, empty-page continuations and retained custody.
 
 Keep focused evidence and input identities in `target/auth-132-apis/`;
 the complete release gate qualifies the incoming Wire 0.21.5.

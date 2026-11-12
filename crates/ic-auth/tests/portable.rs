@@ -214,18 +214,16 @@ fn no_normalization_or_unbounded_grants() {
     value = claims();
     value.grants.push(value.grants[0].clone());
     assert!(encode_claims(&value).is_err());
-    // Maximum legal shape, including principal lengths and label/count limits.
+    // One role can use all 32 scope entries.
     value = claims();
     value.issuer = Principal::from_slice(&[1; 29]);
     value.account_subject = Principal::from_slice(&[2; 29]);
-    value.grants = (0..16)
-        .map(|i| DelegatedRoleGrant {
-            target: format!("r{i:02}{}", "a".repeat(61)).parse().unwrap(),
-            scopes: (0..32)
-                .map(|j| format!("s{j:02}{}", "a".repeat(61)).parse().unwrap())
-                .collect(),
-        })
-        .collect();
+    value.grants = vec![DelegatedRoleGrant {
+        target: format!("r00{}", "a".repeat(61)).parse().unwrap(),
+        scopes: (0..32)
+            .map(|j| format!("s{j:02}{}", "a".repeat(61)).parse().unwrap())
+            .collect(),
+    }];
     let bytes = encode_claims(&value).unwrap();
     assert!(bytes.len() < MAX_CLAIMS_BYTES);
     assert_eq!(decode_claims(&bytes).unwrap(), value);
@@ -265,6 +263,70 @@ fn no_normalization_or_unbounded_grants() {
 }
 
 #[test]
+fn aggregate_scope_limit_fits_all_role_counts_with_maximum_labels() {
+    use ic_auth::portable::{
+        MAX_CREDENTIAL_GRANT_BYTES, MAX_CREDENTIAL_SCOPE_ENTRIES, validate_credential_grants,
+    };
+    use ic_auth_protocol_types::limits::{MAX_GRANTS, MAX_LABEL_BYTES};
+    for roles in 1..=MAX_GRANTS {
+        let mut value = claims();
+        value.grants = (0..roles)
+            .map(|role| DelegatedRoleGrant {
+                target: format!("r{role:02}{}", "a".repeat(MAX_LABEL_BYTES - 3))
+                    .parse()
+                    .unwrap(),
+                scopes: (0..(MAX_CREDENTIAL_SCOPE_ENTRIES / roles
+                    + usize::from(role < MAX_CREDENTIAL_SCOPE_ENTRIES % roles)))
+                    .map(|scope| {
+                        format!("s{scope:02}{}", "a".repeat(MAX_LABEL_BYTES - 3))
+                            .parse()
+                            .unwrap()
+                    })
+                    .collect(),
+            })
+            .collect();
+        let bytes = encode_claims(&value).unwrap();
+        let expected = 4
+            + roles * (8 + MAX_LABEL_BYTES)
+            + MAX_CREDENTIAL_SCOPE_ENTRIES * (4 + MAX_LABEL_BYTES);
+        assert_eq!(bytes.len() - 226, expected);
+        assert!(expected <= MAX_CREDENTIAL_GRANT_BYTES);
+        assert_eq!(decode_claims(&bytes), Ok(value.clone()));
+        assert_eq!(validate_credential_grants(&value.grants), Ok(()));
+        if roles == MAX_GRANTS {
+            assert_eq!(expected, 3332);
+            let error = Error::TooManyScopeEntries { found: 33, max: 32 };
+            let mut excess = bytes.clone();
+            // Last role has two full-width scopes; increase its count and append
+            // a third canonical scope. Bytes still fit; total entries do not.
+            let count = excess.len() - 2 * (4 + MAX_LABEL_BYTES) - 4;
+            excess[count..count + 4].copy_from_slice(&3u32.to_be_bytes());
+            excess.extend(1u32.to_be_bytes());
+            excess.push(b'z');
+            assert_eq!(decode_claims(&excess), Err(error));
+            value
+                .grants
+                .last_mut()
+                .unwrap()
+                .scopes
+                .push("z".parse().unwrap());
+            assert_eq!(
+                validate_credential_grants(&value.grants),
+                Err(Error::TooManyScopeEntries { found: 33, max: 32 })
+            );
+            assert_eq!(
+                encode_claims(&value),
+                Err(Error::TooManyScopeEntries { found: 33, max: 32 })
+            );
+            assert_eq!(
+                claims_hash(&value),
+                Err(Error::TooManyScopeEntries { found: 33, max: 32 })
+            );
+        }
+    }
+}
+
+#[test]
 fn wire_order_duplicates_and_invalid_grammar_refuse_without_normalization() {
     let mut value = claims();
     value.grants[0].scopes = vec!["read".parse().unwrap(), "wear".parse().unwrap()];
@@ -289,7 +351,7 @@ fn accepted_claim_bytes_are_the_unique_encoding_used_for_fingerprints() {
     wide.grants = (0..16)
         .map(|role| DelegatedRoleGrant {
             target: format!("role{role:02}").parse().unwrap(),
-            scopes: (0..32)
+            scopes: (0..2)
                 .map(|scope| {
                     format!("scope{scope:02}{}", "x".repeat(57))
                         .parse()

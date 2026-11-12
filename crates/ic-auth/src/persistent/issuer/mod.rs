@@ -255,7 +255,8 @@ impl<M: Memory> IssuerStore<M> {
         if row.result.is_some() {
             return Err(StoreError::Conflict);
         }
-        Self::claims(&self.header.config, &row)
+        crate::portable::encode_claims(&Self::claims(&self.header.config, &row)?)
+            .map_err(|_| StoreError::Invalid)
     }
 
     /// Retain an original local signing result. Ed25519 supplies exactly 64 bytes;
@@ -300,7 +301,8 @@ impl<M: Memory> IssuerStore<M> {
             return Err(StoreError::Invalid);
         }
         let result = IssuedCredential {
-            claims: Self::claims(&self.header.config, &row)?,
+            claims: crate::portable::encode_claims(&Self::claims(&self.header.config, &row)?)
+                .map_err(|_| StoreError::Invalid)?,
             signature,
             admission_deadline_ns: row.admission_ns,
         };
@@ -429,7 +431,9 @@ impl<M: Memory> IssuerStore<M> {
     }
     fn status(&self, row: &Operation) -> Result<IssuerStatus, StoreError> {
         if let Some(result) = &row.result {
-            if result.claims != Self::claims(&self.header.config, row)?
+            if result.claims
+                != crate::portable::encode_retained_claims(&Self::claims(&self.header.config, row)?)
+                    .map_err(|_| StoreError::Corrupt)?
                 || result.admission_deadline_ns != row.admission_ns
                 || !matches!(
                     (row.ticket.authority.mechanism, &result.signature),
@@ -443,8 +447,8 @@ impl<M: Memory> IssuerStore<M> {
             Ok(IssuerStatus::Pending(row.ticket.clone()))
         }
     }
-    fn claims(config: &IssuerConfig, row: &Operation) -> Result<Vec<u8>, StoreError> {
-        let claims = PortableClaims {
+    fn claims(config: &IssuerConfig, row: &Operation) -> Result<PortableClaims, StoreError> {
+        Ok(PortableClaims {
             mechanism: row.ticket.authority.mechanism,
             audience: config.audience,
             issuer: config.issuer,
@@ -459,8 +463,7 @@ impl<M: Memory> IssuerStore<M> {
             admission_expires_at_ns: row.admission_ns,
             nonce: row.nonce.ok_or(StoreError::Pending)?,
             grants: row.request.grants.clone(),
-        };
-        crate::portable::encode_claims(&claims).map_err(|_| StoreError::Invalid)
+        })
     }
     fn write_operation(&mut self, row: &Operation) -> Result<(), StoreError> {
         if size(row)? > row.reserved_bytes {

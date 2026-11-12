@@ -40,6 +40,10 @@ impl<M: Memory> IssuerStore<M> {
             }
             return self.status(&row);
         }
+        // Preserve retained exact-result recovery, but reject oversized new
+        // work before reserving capacity, nonce acquisition or signing.
+        crate::portable::validate_credential_grants(&request.grants)
+            .map_err(|_| StoreError::Invalid)?;
         if request.epoch != self.header.epoch {
             return Err(StoreError::EpochClosed);
         }
@@ -174,7 +178,8 @@ impl<M: Memory> IssuerStore<M> {
         completion.nonce = Some([u8::MAX; 16]);
         completion.approval = Some([u8::MAX; 32]);
         completion.result = Some(IssuedCredential {
-            claims: Self::claims(&header.config, &completion)?,
+            claims: crate::portable::encode_claims(&Self::claims(&header.config, &completion)?)
+                .map_err(|_| StoreError::Invalid)?,
             signature: Some(vec![0; 64]),
             admission_deadline_ns: admission_ns,
         });

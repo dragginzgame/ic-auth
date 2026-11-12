@@ -299,6 +299,14 @@ fn aggregate_and_individual_bounds_precede_proof_work() {
     let sig = proof(&c, CERTIFIED_SIGNATURE_DOMAIN, SEED, NOW);
     let checked_grants = ValidatedGrants::new(f.proof.cert.grants.clone()).unwrap();
     let mut ctx = context(&f, &c, &checked_grants);
+    let mut excess_grants = bytes.clone();
+    excess_grants.extend(vec![0; ic_auth::portable::MAX_CREDENTIAL_GRANT_BYTES]);
+    assert_eq!(
+        verify_certified_claims(&mut budget(), &excess_grants, &f.proof, &sig, &ctx),
+        Err(PortableCertifiedError::Encoding(
+            ic_auth::portable::PortableEncodingError::TooLarge
+        ))
+    );
     ctx.limits.max_variable_bytes = bytes.len();
     assert_eq!(
         verify_certified_claims(&mut budget(), &bytes, &f.proof, &sig, &ctx),

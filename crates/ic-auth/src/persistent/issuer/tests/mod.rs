@@ -460,3 +460,97 @@ fn completion_reservation_covers_longest_nonce_and_approval_encodings() {
 }
 
 mod renewal;
+
+#[test]
+fn oversized_new_grants_refuse_before_reserving_work_and_reopen_cleanly() {
+    let backing = Backing::new(VectorMemory::default());
+    let mut store = IssuerStore::create(memory(backing.clone()), config(), 1).unwrap();
+    let mut req = request(1, 1);
+    req.grants = (0..2)
+        .map(|role| DelegatedRoleGrant {
+            target: format!("r{role:02}").parse().unwrap(),
+            scopes: (0..16 + role)
+                .map(|scope| format!("s{scope:02}").parse().unwrap())
+                .collect(),
+        })
+        .collect();
+    // Broader protected enrollment and historical request hashing retain their
+    // structural contract; only new credential issuance has the smaller budget.
+    assert!(crate::portable::ValidatedGrants::new(req.grants.clone()).is_ok());
+    assert_eq!(
+        crate::portable::validate_credential_grants(&req.grants),
+        Err(crate::portable::PortableEncodingError::TooManyScopeEntries { found: 33, max: 32 })
+    );
+    let before = store.occupancy();
+    assert_eq!(
+        store.prepare(account(1), req, policy(), authority(), 1),
+        Err(StoreError::Invalid)
+    );
+    assert_eq!(store.occupancy(), before);
+    drop(store);
+    let mut store = IssuerStore::open(memory(backing), &config(), 1).unwrap();
+    assert_eq!(store.occupancy(), before);
+    assert!(
+        store
+            .prepare(account(1), request(1, 1), policy(), authority(), 1)
+            .is_ok()
+    );
+}
+
+#[test]
+fn retained_oversized_completion_remains_retrievable_but_not_newly_admissible() {
+    let backing = Backing::new(VectorMemory::default());
+    let mut store = IssuerStore::create(memory(backing.clone()), config(), 1).unwrap();
+    let req = request(1, 1);
+    let ticket = pending(
+        store
+            .prepare(account(1), req, policy(), authority(), 1)
+            .unwrap(),
+    );
+    finish(&mut store, &ticket, 2);
+    // Construct a historical completed row using the unchanged storage/canonical
+    // codecs. No production API bypass or older-format reader is introduced.
+    let mut row = store
+        .operation(account(1), 1, &ticket.operation_id)
+        .unwrap()
+        .unwrap();
+    let old_reservation = row.reserved_bytes;
+    row.request.grants = (0..16)
+        .map(|role| DelegatedRoleGrant {
+            target: format!("r{role:02}").parse().unwrap(),
+            scopes: (0..32)
+                .map(|scope| format!("s{scope:02}{}", "a".repeat(61)).parse().unwrap())
+                .collect(),
+        })
+        .collect();
+    let bytes = crate::portable::encode_retained_claims(
+        &IssuerStore::<Backing>::claims(&config(), &row).unwrap(),
+    )
+    .unwrap();
+    row.result.as_mut().unwrap().claims = bytes.clone();
+    row.reserved_bytes = size(&row).unwrap() + 32;
+    let mut login = store.login(&row.login).unwrap().unwrap();
+    login.grants_hash = prepare::grants_hash(&row.request.grants).unwrap();
+    let mut header = store.header.clone();
+    header.occupancy.reserved_bytes += row.reserved_bytes - old_reservation;
+    let mut writes = Writes::new();
+    writes.put(keys::ticket(&ticket), &row).unwrap();
+    writes.put(keys::login(&row.login), &login).unwrap();
+    store.publish(header, writes).unwrap();
+    drop(store);
+    let mut store = IssuerStore::open(memory(backing), &config(), 3).unwrap();
+    assert_eq!(
+        store.prepare(account(1), row.request.clone(), policy(), authority(), 3),
+        Ok(IssuerStatus::Completed(row.result.clone().unwrap()))
+    );
+    assert_eq!(
+        crate::portable::decode_claims(&bytes),
+        Err(crate::portable::PortableEncodingError::TooLarge)
+    );
+    let mut fresh = row.request;
+    fresh.operation_id[31] ^= 1;
+    assert_eq!(
+        store.prepare(account(1), fresh, policy(), authority(), 3),
+        Err(StoreError::Invalid)
+    );
+}

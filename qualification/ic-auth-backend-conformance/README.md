@@ -179,8 +179,10 @@ known-login logout with an empty unknown budget. Reopening must preserve the
 known/unknown distinction, other callers and consumed-proof evidence. The driver
 trait is unchanged; the complete entrypoint inherits this additional scenario.
 Refusals never invoke the application callback or mutate
-stored records. The maximum-shape scenario admits 16 grants with 32 scopes
-each, 64-byte role/scope labels and 16 requested session scopes, then reopens
+stored records. The current maximum-shape scenario admits 16 grants with 32 scope
+entries total: one role offers 17 scopes, other roles offer one each. All labels
+are 64 bytes, yielding a 3,332-byte canonical grant list. It requests 16
+session scopes, then reopens
 the backend and authorizes all requested scopes without record changes.
 Cleanup scenarios exercise zero/empty work, failed commits, a 129-expired-replay
 backlog, the 128-record work cap, live-row retention and reopening. Metadata

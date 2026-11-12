@@ -4,7 +4,15 @@ Covers `ic-auth`, maintained `ic-auth-tooling`, and associated private
 qualification changes. Only the first two are Engine release-group members. The independent series starts after the
 [last coordinated release, 0.29.2](../history.md).
 
-## [0.39.5] - Unreleased
+## [0.40.0] - Unreleased
+
+### ⚠️ Breaking
+
+- Limit new portable credentials to 32 role–scope entries total across up to
+  16 roles. Every valid combination fits within 3,332 canonical grant-list bytes;
+  retain a defensive 4 KiB cap and unchanged signed encoding. Reject excess before signature
+  verification or new issuer reservations; preserve completed-result recovery,
+  protected enrollment bounds and existing stored session formats.
 
 ### 🧪 Qualification
 

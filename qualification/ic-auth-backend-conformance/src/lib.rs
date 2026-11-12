@@ -291,7 +291,8 @@ pub fn assert_unknown_logout_reopen<B: Backend>() {
     assert_eq!(snapshot(&mut store, &unknown, &known), revoked);
 }
 
-/// Maximum grant/scopes/label bounds survive admission, record restoration and
+/// Individual grant/scopes/label maxima within the aggregate byte budget survive
+/// admission, record restoration and
 /// scoped authorization. This is a shape contract, not a host cost measurement.
 pub fn assert_maximum_shape<B: Backend>() {
     let mut f = Fixture::new(1);
@@ -300,7 +301,11 @@ pub fn assert_maximum_shape<B: Backend>() {
             target: format!("r{role:02}{}", "r".repeat(limits::MAX_LABEL_BYTES - 3))
                 .parse()
                 .unwrap(),
-            scopes: (0..limits::MAX_SCOPES_PER_GRANT)
+            scopes: (0..if role == limits::MAX_GRANTS - 1 {
+                ic_auth::portable::MAX_CREDENTIAL_SCOPE_ENTRIES - (limits::MAX_GRANTS - 1)
+            } else {
+                1
+            })
                 .map(|scope| {
                     format!("s{scope:02}{}", "s".repeat(limits::MAX_LABEL_BYTES - 3))
                         .parse()
