@@ -158,8 +158,10 @@ Auth fixture as completed Canic adoption or production key-custody qualification
 The maintainer accepts the measured 1,223,140-instruction cold authentication at
 100,000 receiver records as an interim cost. The installed regression ceiling is
 1,300,000 instructions, including the post-upgrade lookup. Auth remains on
-published Storage 0.73.5 in the 0.39.3 release gate; Storage locality optimization is a follow-up, not a
-dependency of this batch. This is ordinary protected-call overhead, not a
+published Storage 0.73.5 in the 0.39.3 release gate. The pending Engine change
+requires Storage 0.73.6 for discard-value prepared commits, preserving the same
+format and old-state validation. Storage locality optimization remains a follow-up,
+not an adoption dependency. This is ordinary protected-call overhead, not a
 one-time login cost. It does not waive correctness or lifecycle acceptance.
 
 The focused native tests exercise 100,000 retained issuer logins, selected-record

@@ -52,14 +52,27 @@ scope from an unchanged package version.
 Only Rust source/tests in Protocol's two public packages can select the Protocol
 mapping. Engine's mapping admits Rust source/tests in `ic-auth` and its private
 qualification packages. The selected release ledger and current handoff may
-accompany those changes. Every other path selects the full roster: manifests,
-locks, features, generators, browser files, tooling, scripts, Shared snapshots,
-other owners and unknown inputs. Changes spanning both groups are full scope.
+accompany those changes. Manifests, features, generators, tooling, scripts,
+Shared snapshots, other owners and unknown inputs select the full roster.
+Changes spanning both groups are full scope.
+
+A separate, narrower exemption applies only to `test-release-validation`:
+the above owner source plus either Cargo lock, README, product integration/protocol
+Markdown and generated browser TypeScript do not execute in that fixture's
+substituted leaf bodies. These data changes retain **all other stages**, including
+real release-tool recovery tests, native archives and prepared-tool admission.
+The fixture exercises shell/Perl selection, checkpointing and receipts; it does
+not execute lock-selected product code or Rust tooling. Changing its executable
+inputs, manifests, recipes, compiler/catalog selection or an unknown path requires
+the complete roster. Missing baselines and explicit `--workspace` do too.
+Selection prints its scope and broadening reason; exclusions remain recorded in
+the source-bound plan. This is applicability selection, not reuse of a prior PASS.
 
 | Source-only group | Excluded obligations | Retained obligations |
 | --- | --- | --- |
-| Protocol (29 stages) | Unchanged release/publication caller fixtures. | Complete Clippy, MSRV, graph, browser, native tooling, crypto/session, installed canister/ingress and all local archive checks. |
-| Engine (27 stages) | The above release fixtures, plus passive Protocol type/transport unit tests that have no engine dependency. | Complete Clippy, MSRV, graph, browser, native tooling, crypto/session, installed canister/ingress and all local archive checks. |
+| Protocol (28 stages) | Unchanged release/publication and selector regression fixtures. | Complete Clippy, MSRV, graph, browser, native tooling, crypto/session, installed canister/ingress and all local archive checks. |
+| Engine (27 stages) | The above release fixtures, plus passive type tests that have no engine dependency. `test-protocol` remains required because it also tests Engine defaults. | Complete Clippy, MSRV, graph, browser, native tooling, crypto/session, installed canister/ingress and all local archive checks. |
+| Owner source plus the named data inputs (29 stages) | Unchanged selector regression only. | Every other ordinary CI stage, including the complete release-tool fixture. |
 | Shared or uncertain | None. | Every ordinary CI stage, in the same order. |
 
 `ci/release-validation-coverage.json` records a reason for each exclusion. Unknown
@@ -157,3 +170,39 @@ Qualification observations belong in the [current handoff](../status/current.md)
 Substituted dispatch tests are not actual Rust/canister or native-host proof.
 The first adoption batch changes shared inputs and therefore selects full scope.
 Matched same-source stage timings are recorded in the handoff.
+
+## Deployment-path observations — 2026-11-12
+
+The authorized Engine 0.39.3 delivery (`batch-IAAjfLaF`, source `3899226`) ran
+all 30 stages, with no reuse. Lock changes, README/integration documentation and
+generated browser source broadened the old source-only mapping. Its retained
+`timings.tsv` totals **1,443 seconds of stage execution**, including **547 seconds**
+for `test-release-tools` and **170 seconds** for `test-release-validation`.
+These are local deployment-gate observations, not hosted CI or total request-to-live
+time. Evidence is under that captured checkout's
+`target/release-validation/engine-gate.VnOTT4/logs/validation.Y6lVW8/`.
+
+`target/auth-release-0393/delivery.log` traces candidate/tool preparation, the
+selected gate, metadata preparation, Git delivery, archive verification, upload
+and verified registry availability. Final publication re-admits the source and
+receipt rather than rerunning the gate. The retained log does not provide reliable
+wall-clock boundaries for every non-gate phase; those durations are not inferred
+from stage sums or archive compilation times.
+
+The bounded investigation in `target/auth-133-release/` measured the existing
+fixture modes separately: commands **0.81s**, tooling admission **20.84s**,
+retention **8.97s**, ordinary validation/recovery **169.50s**, and frozen batch
+with real native archives **144.07s**. The ordinary caller passed again after the
+selector edit in **170.80s**. These modes are not an additive reconstruction of
+`all`: that mode also owns additional rejection matrices. Host contention and
+fresh-fixture setup differ from the earlier delivery. Plan creation/check probes
+took **0.12/0.11s**, so their before/after-stage guards remain intact.
+
+The new mapping omits only the unchanged selector regression for the named data
+changes; it does not remove the 547-second release-tool obligation for lock
+updates. Caller qualification covers both groups, dispatch, input drift, unknown
+inputs, required/excluded failures, retained evidence and recovery. Full CI and
+the opt-in manual group comparison are unchanged. This mapping change itself
+requires a full release gate. Keep [#133](https://github.com/dragginzgame/ic-auth/issues/133)
+open for end-to-end before/after observations from the next eligible authorized delivery;
+no measured deployment speed-up or extra benchmark release is claimed here.

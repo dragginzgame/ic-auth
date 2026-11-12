@@ -12,12 +12,31 @@ are beside it. Fifteen installed cases passed; Chromium remains unprepared/ignor
 Hosted CI is asynchronous. No Auth service, Canic source, production backing or
 sibling deployment changed. Canic can now adopt the three missing APIs below.
 
-Keep prior Protocol/Engine 0.39.2 evidence and completed `batch-6Eztyvd6`:
-`target/auth-release-0392/registry/verified-receipts.json` and
-`target/auth-release-0392/delivery-optimized.log`. Protocol's release commit is
-`c083d8b6bfb11c250494317de38d2cb2351e5171`.
+Keep prior 0.39.2 evidence and completed `batch-6Eztyvd6` under
+`target/auth-release-0392/`; its release history is retained in Git.
 
-## Indexed persistence — #132 remains open
+## Pending local changes
+
+Engine 0.39.4 delivery is authorized and being prepared. The incoming
+Storage **0.73.6** locks are preserved and both catalogs now require its discard
+APIs. Prepared Auth commits avoid materializing unused old values. Eighteen native
+tests, strict focused Clippy, the two 100,000-record installed probes and both real
+certified/Ed25519 lifecycle tests pass. Formats and trust checks are unchanged.
+Matched evidence: `target/auth-132-discard/` (before/after Wasm, locks and logs).
+At 100,000 logins, prepare is 3,717,209 → 3,712,440 instructions and renewal
+2,506,027 → 2,503,135. Cold authentication is 1,223,946; after upgrade 1,223,195.
+The same qualification Wasm is 420 bytes smaller. These are small improvements,
+not a solution to cold lookup locality. The first sandboxed probe could not bind
+loopback; the admitted before/after runs pass and retain that failed evidence.
+
+[Release selection](../development/release-validation.md#deployment-path-observations--2026-11-12)
+now excludes only the unchanged selector regression for reviewed product/data
+changes. Mapping/refusal, ordinary publication/recovery and frozen two-group/native
+archive callers pass; snapshot integrity passes. Evidence: `target/auth-133-release/`.
+[#133](https://github.com/dragginzgame/ic-auth/issues/133) retains the next eligible authorized
+deployment's end-to-end timing acceptance. No deployment saving is claimed yet.
+
+## Indexed persistence — Auth implementation complete
 
 The optional `persistent` capability owns receiver session/replay/fence records
 and issuer intent/login/renewal/result bookkeeping. Hosts retain checked memory
@@ -36,8 +55,8 @@ Wasm Runtime IC0, never an executor/guard/CDK; the host owns its one runtime.
 
 The maintainer accepts roughly **1.223M** instructions for cold ordinary
 receiver authentication at 100,000 records for now. The regression ceiling is
-**1.3M**, including after same-release upgrade. Published Storage **0.73.4**
-is sufficient; neither its locality experiment nor a sub-1M result blocks Auth.
+**1.3M**, including after same-release upgrade. The published Auth 0.39.3 APIs
+do not require Storage locality work or a sub-1M result for Canic adoption.
 This changes no verification checks or trust assumptions. No verification cache,
 inter-canister call or cryptographic replacement was added.
 
@@ -65,30 +84,23 @@ bytes and verification/trust rules are unchanged. Canic retains host keys,
 Root enrollment/approval and application policy; no additional Auth key store
 or consumer renewal index/session mirror is required.
 
-Focused evidence: `target/auth-132-apis/`. Eighteen native tests pass, including
-100,000 logins, corrupt index/record refusal and zero-write read APIs. Seven
-installed session cases pass; Chromium remains unprepared/ignored. Both real
-certified and Ed25519 durable lifecycles cover device capacity/overflow, retry,
-renewal, upgrade, unexpired late-callback refusal, logout, authority invalidation
-and bounded cleanup. The fixture's existing certification owner commits certified
-completion/leaf publication in one transaction. Strict native/Wasm Clippy,
-dependency boundaries, snapshot/membership, formatting and doc links pass.
+Keep focused evidence and input identities in `target/auth-132-apis/`.
+Those checks used Wire 0.21.4; the complete release gate qualifies Wire 0.21.5.
+The real certified/Ed25519 proofs include capacity, retries, renewal, recovery,
+logout, authority fences and pruning; certificate publication stays host-atomic.
 
-Keep focused `installed-scaling.log`, `installed-sessions-final.log`,
-`installed-issuer-final.log`, native logs and `inputs.sha256` there. Those checks
-used Wire 0.21.4; the complete release gate above qualifies Wire 0.21.5.
-
-[Auth #132](https://github.com/dragginzgame/ic-auth/issues/132) remains open for
-consumer acceptance. [Canic #764](https://github.com/dragginzgame/canic/issues/764)
+[Auth #132](https://github.com/dragginzgame/ic-auth/issues/132) owns the completed
+Auth implementation and locally qualified discard follow-through.
+[Canic #764](https://github.com/dragginzgame/canic/issues/764)
 owns adoption, duplicate-engine deletion and actual endpoint qualification.
 The APIs are published in Engine 0.39.3; this does not establish Canic adoption.
 
 ## Tooling and suppliers
 
-Both workspaces select Toko Tooling **0.39.17**, with a verified 110-file snapshot,
-scoped `deps-update` forwarding and child-bearing `mod.rs` placement. Adoption
-checks passed; retain `target/auth-release-0392/tooling/` and
-`target/tooling-adoption-20261112/`.
+Both workspaces select Toko Tooling **0.39.18**, with a verified 110-file snapshot.
+Adoption evidence is under `target/auth-release-0394/`; product release evidence
+below still describes the published 0.39.3 selection until delivery completes.
+Keep `target/auth-release-0392/tooling/` and `target/tooling-adoption-20261112/`.
 
 The release preserves incoming Storage **0.73.5**, qualification Metrics
 **0.29.12**, Entropy **0.1.10**, and Wire **0.21.5** in both locks. All five browser
@@ -110,21 +122,10 @@ Keep completed `batch-IAAjfLaF` and `batch-6Eztyvd6` checkouts/durable state,
 including publication receipts. Current logs: `target/auth-release-0393/`;
 prior logs: `target/auth-release-0392/`.
 
-- `batch-XoEWGnOX` stopped at an obsolete all-feature package fixture refusal
-  of optional Storage. Corrected fixtures retain passive/runtime-guard refusals;
-  focused checks passed. Keep `target/auth-release-0392/delivery.log`.
-- `batch-5x63tbsF` stopped at a partial Make fixture missing the new dependency
-  include. Auth now declares the companion and uses Shared's closure copier.
-  Evidence and command callers pass; keep `delivery-retry.log` in that directory.
-- `batch-H6iT55MB` passed the first 27 stages plus installed issuer scaling.
-  Receiver checks passed through 10,000 records; native debug generation of
-  100,000 signed records was too slow. The owned test/server were stopped before
-  publication. Keep `delivery-final.log` and all candidate/recovery state.
-  Qualification now optimizes only curve arithmetic in the test profile,
-  retaining debug/overflow checks, all records/assertions and the canister's
-  release profile. The focused proof uses that candidate's exact Wasm;
-  it passed in 202.31 seconds at 100,000 records: 1,222,906 instructions,
-  then 1,222,307 after upgrade. See `target/auth-release-0392/optimized-seeding.log`.
+- Preserve stopped `batch-XoEWGnOX`, `batch-5x63tbsF` and `batch-H6iT55MB`;
+  their package-boundary, fixture-closure and debug seeding limitations were
+  corrected before 0.39.2 delivery. Logs and exact-candidate seeding proof remain
+  under `target/auth-release-0392/`. Details are retained at `fc1ee1e8`.
 
 Preserve every candidate under `target/release-frozen/` and durable
 `.git/release-state/frozen/`, including publication-state. Preserve prior

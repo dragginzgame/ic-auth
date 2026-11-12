@@ -81,12 +81,23 @@ if ($baseline_ref eq $source) {
     }
 }
 my $narrow = !$workspace && $baseline ne '';
+my $selector_unchanged = $narrow;
+my @broadening;
 for my $path (@changed) {
     next if $path eq $owner->{changelog} || $path eq 'docs/status/current.md';
     my $owned = $group eq 'protocol'
         ? $path =~ m{\Acrates/ic-auth-(?:protocol-types|wire)/(?:src|tests)/[^\r\n]*\.rs\z}
         : $path =~ m{\A(?:crates/ic-auth|qualification/ic-auth-(?:qualification(?:-[^/]+)?|backend-conformance|feature-unification))/(?:src|tests)/[^\r\n]*\.rs\z};
     $narrow = 0 unless $owned;
+    # This fixture executes shell/Perl selection and receipt admission with
+    # substituted leaf bodies, never product code or a lock-selected Rust tool.
+    # Lock changes still require every product/tool/archive obligation. Only
+    # this synthetic regression is unaffected by these reviewed data inputs.
+    my $selector_data = $owned || $path =~ m{\A(?:Cargo\.lock|qualification/Cargo\.lock|README\.md|docs/(?:integration|protocol)/[^/]+\.md|packages/client/src/generated/[^/]+\.ts)\z};
+    unless ($selector_data) {
+        $selector_unchanged = 0;
+        push @broadening, $path;
+    }
 }
 my @files = map { decode('UTF-8', $_, FB_CROAK) } split /\0/, command('git', 'ls-tree', '-r', '--name-only', '-z', $source);
 my %inputs;
@@ -125,7 +136,7 @@ if ($record) {
     }
 }
 my $context_path = "$directory/context.json";
-my $plan = {schema=>1,source=>$source,group=>$group,scope=>$narrow ? 'group' : 'workspace',
+my $plan = {schema=>1,source=>$source,group=>$group,scope=>($narrow || $selector_unchanged) ? 'group' : 'workspace',
     policy=>$policy_path,inputs=>[$context_path, 'Makefile', 'Cargo.toml', 'Cargo.lock', $owner->{changelog},
         'ci/cargo-release-groups.json', 'ci/release-validation-coverage.json',
         'scripts/release/validation-plan.pl', 'scripts/release/validation.sh', 'scripts/release/validation-stage.sh',
@@ -133,10 +144,19 @@ my $plan = {schema=>1,source=>$source,group=>$group,scope=>$narrow ? 'group' : '
         'scripts/ci/validation-input-checkpoint.pl', 'scripts/ci/release-receipts.sh'], stages=>[
     map {
         my $stage = $_; (my $target = $stage) =~ s/^release-stage-//;
-        my $excluded = $narrow && exists $coverage->{$group}{$target};
+        my $excluded = exists $coverage->{$group}{$target} &&
+            ($narrow || ($selector_unchanged && $target eq 'test-release-validation'));
         {target=>$stage, required=>$excluded ? JSON::PP::false : JSON::PP::true,
             reason=>$excluded ? $coverage->{$group}{$target} : 'Required common or affected Auth consumer obligation'}
     } @{$policy->{stages}}]};
+unless ($check) {
+    my $why = $workspace ? 'explicit complete-roster qualification'
+        : $baseline eq '' ? 'no admitted previous release baseline'
+        : @broadening ? 'changed infrastructure or unknown inputs: '.join(', ', @broadening)
+        : $narrow ? 'owner source only; unchanged infrastructure fixtures excluded'
+        : 'product/data changes; all obligations except unchanged selector regression required';
+    warn "Auth validation selection: $plan->{scope}: $why\n";
+}
 for my $entry (['context.json',$context], ['plan.json',$plan]) {
     my $path = "$directory/$entry->[0]";
     if ($check) {

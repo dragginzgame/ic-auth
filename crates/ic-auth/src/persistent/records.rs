@@ -263,6 +263,8 @@ impl<M: Memory> Records<M> {
                 .map_or(0, |(_, table)| table.len())
     }
     pub fn commit(&mut self, writes: Writes) {
+        // The prepared operation has already admitted its required old state.
+        // Keep Storage's structural checks without materializing unused payloads.
         for (key, value) in writes.0 {
             if key.0 == [0] {
                 self.metadata
@@ -271,14 +273,14 @@ impl<M: Memory> Records<M> {
                 && key.0.first() == Some(kind)
             {
                 if let Some(value) = value {
-                    table.insert(key, value);
+                    table.insert_discard(key, value);
                 } else {
-                    table.remove(&key);
+                    table.remove_discard(&key);
                 }
             } else if let Some(value) = value {
-                self.rows.insert(key, value);
+                self.rows.insert_discard(key, value);
             } else {
-                self.rows.remove(&key);
+                self.rows.remove_discard(&key);
             }
         }
     }

@@ -4,6 +4,25 @@ Covers `ic-auth`, maintained `ic-auth-tooling`, and associated private
 qualification changes. Only the first two are Engine release-group members. The independent series starts after the
 [last coordinated release, 0.29.2](../history.md).
 
+## [0.39.4] - Unreleased
+
+### ⬆️ Dependencies
+
+- Adopt published Toko Tooling 0.39.18 in both workspaces and refresh the
+  recorded snapshot, preserving Auth's product qualification and frozen delivery.
+
+### ⚡ Performance
+
+- Use Storage 0.73.6's discard-value mutations for Auth's already-prepared
+  record commits, preserving old-state admission, full Principal keys, synchronous
+  host rollback and stored bytes. Follow-through for
+  [#132](https://github.com/dragginzgame/ic-auth/issues/132).
+- Omit the unchanged synthetic release-selector regression for reviewed
+  product/data-only changes while retaining product, native archive, tooling
+  and release/recovery obligations. Unknown or infrastructure changes still
+  require the full roster; report the selection reason explicitly
+  ([#133](https://github.com/dragginzgame/ic-auth/issues/133)).
+
 ## [0.39.3] - 2026-11-12
 
 ### ✨ Features

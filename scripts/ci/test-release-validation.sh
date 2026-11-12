@@ -87,6 +87,7 @@ if FAIL_TARGET=test-protocol run engine-default-failure; then exit 1; fi
 if FAIL_TARGET=test-sessions run required-failure; then exit 1; fi
 [[ ! -e target/required-failure/evidence.json ]]
 FAIL_TARGET=test-release-tools run excluded-failure
+FAIL_TARGET=test-release-validation run excluded-selector-failure
 if DRIFT_INPUT=true run input-drift; then exit 1; fi
 [[ ! -e target/input-drift/evidence.json ]]
 git checkout -- Cargo.toml
@@ -124,7 +125,7 @@ perl scripts/release/validation-plan.pl "$original" engine "$RELEASE_PREVIOUS" t
     --check --source-root "$PWD/target/original-engine" > /dev/null
 perl scripts/release/validation-record.pl check-retained target/engine > /dev/null
 if perl scripts/release/validation-record.pl check target/engine > "$evidence/changed-live-inputs.log" 2>&1; then exit 1; fi
-jq -e '.scope == "workspace" and all(.stages[]; .required)' target/shared/plan.json >/dev/null
+jq -e '.scope == "group" and all(.stages[]; .required == (.target != "release-stage-test-release-validation"))' target/shared/plan.json >/dev/null
 if perl scripts/release/validation-plan.pl "$RELEASE_SOURCE" engine "$RELEASE_PREVIOUS" target/engine --check > "$evidence/stale.log" 2>&1; then exit 1; fi
 if RELEASE_GROUP=unknown bash scripts/release/validation.sh target/unknown > "$evidence/unknown.log" 2>&1; then exit 1; fi
 # Every ordinary CI obligation executes; no release exclusions leak into CI.
@@ -155,5 +156,38 @@ for path in qualification/ic-auth-qualification-canister/src/lib.rs qualificatio
     mkdir -p "$directory"
     perl scripts/release/validation-plan.pl "$selected" engine "$RELEASE_PREVIOUS" "$directory"
     jq -e '.group == "engine" and .scope == "group" and any(.stages[]; .required == false)' "$directory/plan.json" >/dev/null
+done
+# Data-only changes retain the complete product/tool/native/archive roster;
+# only the substituted selector regression is unrelated. Actual infrastructure,
+# manifests, unknown paths and explicit full qualification retain every stage.
+for path in Cargo.lock qualification/Cargo.lock README.md docs/integration/persistent-auth.md packages/client/src/generated/wire-runtime.ts \
+    Cargo.toml qualification/Cargo.toml scripts/release/validation-stage.sh ci/release-validation-coverage.json unknown-input; do
+    git reset --hard -q "$baseline"
+    case "$path" in
+        *.json) printf '\n' >> "$path" ;;
+        *) printf '\n# Selector applicability fixture\n' >> "$path" ;;
+    esac
+    git add "$path"; git commit -qm 'Selector applicability change'
+    selected=$(git rev-parse HEAD)
+    directory="target/applicability-$path"
+    mkdir -p "$directory"
+    # Coverage JSON is itself canonical input; invalid bytes must refuse.
+    if [[ "$path" == ci/release-validation-coverage.json ]]; then
+        if perl scripts/release/validation-plan.pl "$selected" engine "$RELEASE_PREVIOUS" "$directory" > "$evidence/invalid-coverage.log" 2>&1; then exit 1; fi
+        continue
+    fi
+    perl scripts/release/validation-plan.pl "$selected" engine "$RELEASE_PREVIOUS" "$directory"
+    case "$path" in
+        Cargo.lock|qualification/Cargo.lock|README.md|docs/*|packages/*)
+            jq -e '.scope == "group" and all(.stages[]; .required == (.target != "release-stage-test-release-validation"))' "$directory/plan.json" >/dev/null ;;
+        *) jq -e '.scope == "workspace" and all(.stages[]; .required)' "$directory/plan.json" >/dev/null ;;
+    esac
+done
+git reset --hard -q "$baseline"
+mkdir target/forced-full target/missing-baseline
+perl scripts/release/validation-plan.pl "$baseline" engine "$RELEASE_PREVIOUS" target/forced-full --workspace
+perl scripts/release/validation-plan.pl "$baseline" engine 99.99.99 target/missing-baseline
+for directory in target/forced-full target/missing-baseline; do
+    jq -e '.scope == "workspace" and all(.stages[]; .required)' "$directory/plan.json" >/dev/null
 done
 printf 'Both groups, shared expansion, required/excluded failures, stale selection, retained evidence and complete CI dispatch passed (substituted stage bodies)\n'
