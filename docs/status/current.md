@@ -2,23 +2,23 @@
 
 ## Delivery
 
-Engine **0.39.3** is published; Protocol remains **0.39.2**. The registry checksum
-matches the retained archive/schema-2 receipt. Engine tag `engine-v0.39.3` and
-commit `4a358d33f02061837d710c0c48fc86e9986a40a0` are pushed. Source:
-`3899226264726fb32c3186442409187ba6b0dd4b`. Batch `batch-IAAjfLaF` passed all
-30 release stages and reconciled into the normal checkout. Readback:
-`target/auth-release-0393/registry-readback.json`; delivery/reconciliation logs
-are beside it. Fifteen installed cases passed; Chromium remains unprepared/ignored.
+Engine **0.39.4** is published; Protocol remains **0.39.2**. The downloaded
+registry archive matches the retained archive/schema-2 receipt. Engine tag
+`engine-v0.39.4` and commit `8495375964647d00306b067abfaee0cde41d4604` are
+pushed. Source: `39aa37b660cd941dc73fdf075e096a18586e20dd`.
+Batch `batch-kCAsAk34` passed all 30 stages and reconciled into the normal checkout.
+Evidence: `target/auth-release-0394/`, including timestamped delivery output,
+registry archive/readback and reconciliation. Fifteen installed cases passed;
+Chromium remains unprepared/ignored.
 Hosted CI is asynchronous. No Auth service, Canic source, production backing or
 sibling deployment changed. Canic can now adopt the three missing APIs below.
 
 Keep prior 0.39.2 evidence and completed `batch-6Eztyvd6` under
 `target/auth-release-0392/`; its release history is retained in Git.
 
-## Pending local changes
+## Delivered changes and measurement follow-up
 
-Engine 0.39.4 delivery is authorized and being prepared. The incoming
-Storage **0.73.6** locks are preserved and both catalogs now require its discard
+Engine 0.39.4 preserves the incoming Storage **0.73.6** locks and requires its discard
 APIs. Prepared Auth commits avoid materializing unused old values. Eighteen native
 tests, strict focused Clippy, the two 100,000-record installed probes and both real
 certified/Ed25519 lifecycle tests pass. Formats and trust checks are unchanged.
@@ -33,8 +33,11 @@ loopback; the admitted before/after runs pass and retain that failed evidence.
 now excludes only the unchanged selector regression for reviewed product/data
 changes. Mapping/refusal, ordinary publication/recovery and frozen two-group/native
 archive callers pass; snapshot integrity passes. Evidence: `target/auth-133-release/`.
-[#133](https://github.com/dragginzgame/ic-auth/issues/133) retains the next eligible authorized
-deployment's end-to-end timing acceptance. No deployment saving is claimed yet.
+The corrected release command took **25m52s** to verified registry availability:
+about 87s preparation, 1,367s validation, 67s metadata/Git delivery and 30s
+publication. All stages executed; infrastructure changes required full scope.
+[#133](https://github.com/dragginzgame/ic-auth/issues/133) remains open for an
+eligible deployment exercising the omission; no deployment saving is claimed.
 
 ## Indexed persistence — Auth implementation complete
 
@@ -60,11 +63,11 @@ do not require Storage locality work or a sub-1M result for Canic adoption.
 This changes no verification checks or trust assumptions. No verification cache,
 inter-canister call or cryptographic replacement was added.
 
-The 0.39.3 gate measured cold authentication **1,224,145**, post-upgrade
-**1,223,195**, renewal preflight **508,966**, recovery **644,923**, and two-row
-inspection **2,104,759** instructions at 100,000 records. Issuer prepare was
-**3,716,073** and renewal **2,504,565**. Evidence: `target/auth-release-0393/delivery.log`,
-gate `engine-gate.VnOTT4` in the captured checkout's `target/release-validation/`.
+The 0.39.4 gate measured cold authentication **1,223,850**, post-upgrade
+**1,223,195**, renewal preflight **507,729** and recovery **643,861** instructions
+at 100,000 records. Issuer prepare was **3,712,362** and renewal **2,503,057**.
+Evidence: `target/auth-release-0394/delivery-corrected.log`, gate `engine-gate.mXTSu4`
+in the captured checkout's `target/release-validation/`.
 Bookkeeping probes exclude initial proof verification, Root approval, signing
 and endpoint overhead. The 100,001st issuer login refuses without changing occupancy.
 Keep the earlier `target/auth-132-installed/accepted-cost/` evidence. Warm samples in
@@ -90,7 +93,7 @@ The real certified/Ed25519 proofs include capacity, retries, renewal, recovery,
 logout, authority fences and pruning; certificate publication stays host-atomic.
 
 [Auth #132](https://github.com/dragginzgame/ic-auth/issues/132) owns the completed
-Auth implementation and locally qualified discard follow-through.
+Auth implementation and published discard follow-through.
 [Canic #764](https://github.com/dragginzgame/canic/issues/764)
 owns adoption, duplicate-engine deletion and actual endpoint qualification.
 The APIs are published in Engine 0.39.3; this does not establish Canic adoption.
@@ -98,18 +101,17 @@ The APIs are published in Engine 0.39.3; this does not establish Canic adoption.
 ## Tooling and suppliers
 
 Both workspaces select Toko Tooling **0.39.18**, with a verified 110-file snapshot.
-Adoption evidence is under `target/auth-release-0394/`; product release evidence
-below still describes the published 0.39.3 selection until delivery completes.
+Adoption and delivery evidence is under `target/auth-release-0394/`.
 Keep `target/auth-release-0392/tooling/` and `target/tooling-adoption-20261112/`.
 
-The release preserves incoming Storage **0.73.5**, qualification Metrics
+The release preserves incoming Storage **0.73.6**, qualification Metrics
 **0.29.12**, Entropy **0.1.10**, and Wire **0.21.5** in both locks. All five browser
 artifacts were regenerated; four Auth bindings are unchanged and Wire's runtime
 reduces varint/record allocation work. All 98 client cases passed. Other selections
 remain Build 0.83.0, Host FS/Process 0.76.5, Platform 0.31.3,
 Runtime/macros/guard 0.21.3, Types 0.19.5 and Testkit 0.101.0. The independent
 file CLI pin stays 0.76.4. Keep earlier supplier observations under
-`target/auth-release-0392/tooling/`; they are not the 0.39.3 lock identity.
+`target/auth-release-0392/tooling/`; they are not the current release lock identity.
 
 Testkit retains managed startup and its native PocketIC 16.1.0 re-export; one
 Wire identity is required. Principal boundaries copy validated bytes. Awaited
@@ -120,12 +122,11 @@ and default/session graphs exclude native tooling and persistent Storage.
 
 `batch-qaK3IdsJ` stopped before delivery because the exact-pin exception still
 named Tooling 0.39.17. Snapshot/tool admission and Clippy passed. The correction
-updates both exception values to 0.39.18; keep its failed gate and
-`target/auth-release-0394/delivery.log` when starting the corrected source.
+updates both exception values to 0.39.18 and shipped in the corrected batch.
+Keep its failed gate and `target/auth-release-0394/delivery.log`; do not resume it.
 
-Keep completed `batch-IAAjfLaF` and `batch-6Eztyvd6` checkouts/durable state,
-including publication receipts. Current logs: `target/auth-release-0393/`;
-prior logs: `target/auth-release-0392/`.
+Keep completed `batch-kCAsAk34`, `batch-IAAjfLaF` and `batch-6Eztyvd6`
+checkouts/durable state, publication receipts and their release evidence.
 
 - Preserve stopped `batch-XoEWGnOX`, `batch-5x63tbsF` and `batch-H6iT55MB`;
   their package-boundary, fixture-closure and debug seeding limitations were

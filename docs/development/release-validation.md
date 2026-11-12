@@ -176,7 +176,7 @@ Matched same-source stage timings are recorded in the handoff.
 The authorized Engine 0.39.3 delivery (`batch-IAAjfLaF`, source `3899226`) ran
 all 30 stages, with no reuse. Lock changes, README/integration documentation and
 generated browser source broadened the old source-only mapping. Its retained
-`timings.tsv` totals **1,443 seconds of stage execution**, including **547 seconds**
+`timings.tsv` totals **1,343 seconds of stage execution**, including **547 seconds**
 for `test-release-tools` and **170 seconds** for `test-release-validation`.
 These are local deployment-gate observations, not hosted CI or total request-to-live
 time. Evidence is under that captured checkout's
