@@ -187,6 +187,14 @@ policy is unchanged. Build remains 0.83.0 and the file CLI remains 0.76.4.
 
 ## Evidence and recovery custody
 
+The first 0.39.2 candidate `batch-XoEWGnOX` stopped before publication at the
+package-admission fixture's obsolete all-features Storage refusal. Native/Wasm
+Clippy, actual dependency graphs and the first ten gate stages passed. The
+fixture now admits the optional backend while explicitly refusing executor
+guard/macros; its focused identity/isolation/lock cases pass. Preserve the failed
+candidate and `target/auth-release-0392/delivery.log`; corrected source needs a
+fresh candidate, not mutation of that captured source.
+
 Keep `target/release-frozen/batch-BiswIN7d/` and durable
 `.git/release-state/frozen/batch-BiswIN7d/`, including `repository.git/publication-state/`.
 Its gate roots are `target/release-validation/protocol-gate.pe0whn/` and

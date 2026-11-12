@@ -62,12 +62,16 @@ reject_graph unresolved-auth '.resolve.nodes |= map(select(.id != "auth"))'
 reject_graph wrong-root '.resolve.root = "auth"'
 reject_graph live-root '.packages[0].manifest_path = "/live-workspace/Cargo.toml"'
 reject_graph extra-local '.packages += [{id: "extra", name: "extra", source: null}] | .resolve.nodes += [{id: "extra"}]'
-for forbidden in canic-core toko solana-sdk ic-siws ic-host-fs ic-build ic-auth-qualification-contracts ic-auth-tooling ic-testkit ic-agent tokio pocket-ic ic-platform-pocket-ic ic-cdk ic-stable-structures ic-memory ic-storage ic-timers; do
+for forbidden in canic-core toko solana-sdk ic-siws ic-host-fs ic-build ic-auth-qualification-contracts ic-auth-tooling ic-testkit ic-agent tokio pocket-ic ic-platform-pocket-ic ic-cdk ic-stable-structures ic-memory ic-platform-runtime-guard ic-platform-macros ic-timers; do
     reject_graph "$forbidden" ".packages[4].name = \"$forbidden\""
 done
-cp "$fixture/base.lock" "$fixture/Cargo.lock"
-jq '.packages[4].name = "ic-platform"' "$fixture/base-metadata.json" > "$fixture/metadata.json"
-"$BASH" scripts/ci/check-package-consumer.sh "$fixture/original.lock" "$fixture" "$version" "$protocol_version" > "$fixture/admitted-platform.log"
+# The isolated archive consumer enables every capability, including persistent.
+# Storage's IC0 backing is admitted there; executor/guard/macros remain refused.
+for admitted in ic-platform ic-storage ic-platform-runtime; do
+    cp "$fixture/base.lock" "$fixture/Cargo.lock"
+    jq --arg package "$admitted" '.packages[4].name = $package' "$fixture/base-metadata.json" > "$fixture/metadata.json"
+    "$BASH" scripts/ci/check-package-consumer.sh "$fixture/original.lock" "$fixture" "$version" "$protocol_version" > "$fixture/admitted-$admitted.log"
+done
 cp "$fixture/base-metadata.json" "$fixture/metadata.json"
 for field in name version source checksum; do
     TEST_LOCK_FIELD="$field" perl -pe 's/^\Q$ENV{TEST_LOCK_FIELD}\E = ".*"$/$ENV{TEST_LOCK_FIELD} = "unselected"/' \
@@ -171,7 +175,16 @@ certified ic-agent yes
 packaged-certified candid no
 packaged-certified ic0 no
 packaged-certified ic-host-fs yes
-packaged-certified ic-platform-runtime yes
+packaged-certified ic-platform-runtime no
+packaged-certified ic-storage no
+packaged-certified ic-platform-runtime-guard yes
+packaged-certified ic-platform-macros yes
+default ic-storage yes
+passive ic-storage yes
+capability ic-storage yes
+persistent ic-storage no
+persistent ic-platform-runtime no
+persistent ic-platform-runtime-guard yes
 default dhat yes
 capability dhat yes
 packaged dhat yes

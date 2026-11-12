@@ -25,6 +25,9 @@ qualification changes. Only the first two are Engine release-group members. The 
   Accept the measured 1.223M ordinary-call cost provisionally with a 1.3M
   regression ceiling, including after upgrade, on published Storage 0.73.4.
   Further Storage optimization is not a prerequisite for this Auth batch.
+- Update isolated all-feature package admission fixtures for optional Storage
+  and its IC0 backing; retain default/passive exclusions and executor/guard
+  refusal checks.
 - Preserve incoming Platform 0.31.3, Runtime 0.21.3, Types 0.19.5, Host 0.76.5
   and Wire 0.21.4 in both locks. Regenerate all five browser files: the four Auth
   bindings are unchanged; Wire's runtime optimizes length and packed-boolean
