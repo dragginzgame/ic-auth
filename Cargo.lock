@@ -657,7 +657,7 @@ dependencies = [
 
 [[package]]
 name = "ic-auth"
-version = "0.39.3"
+version = "0.39.4"
 dependencies = [
  "ic-auth-protocol-types",
  "ic-platform",
@@ -684,7 +684,7 @@ dependencies = [
 
 [[package]]
 name = "ic-auth-tooling"
-version = "0.39.3"
+version = "0.39.4"
 dependencies = [
  "clap",
  "dhat",
