@@ -1,7 +1,7 @@
 # Tests and tooling packages
 [package]
 name = "ic-auth-tooling"
-version = "0.39.2"
+version = "0.39.3"
 edition.workspace = true
 rust-version.workspace = true
 license-file.workspace = true
