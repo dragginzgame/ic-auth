@@ -1363,18 +1363,19 @@ dependencies = [
 
 [[package]]
 name = "ic-auth-backend-conformance"
-version = "0.36.1"
+version = "0.36.2"
 dependencies = [
  "ic-auth",
  "ic-auth-protocol-types",
  "ic-entropy",
  "ic-platform",
+ "ic-storage",
  "toko-tooling",
 ]
 
 [[package]]
 name = "ic-auth-feature-unification"
-version = "0.36.1"
+version = "0.36.2"
 dependencies = [
  "ed25519-dalek 3.0.0",
  "ic-auth",
@@ -1395,7 +1396,7 @@ dependencies = [
 
 [[package]]
 name = "ic-auth-qualification"
-version = "0.36.1"
+version = "0.36.2"
 dependencies = [
  "ic-auth",
  "ic-auth-backend-conformance",
@@ -1417,7 +1418,7 @@ dependencies = [
 
 [[package]]
 name = "ic-auth-qualification-canister"
-version = "0.36.1"
+version = "0.36.2"
 dependencies = [
  "ic-auth",
  "ic-auth-protocol-types",
@@ -1434,7 +1435,7 @@ dependencies = [
 
 [[package]]
 name = "ic-auth-qualification-contracts"
-version = "0.36.1"
+version = "0.36.2"
 dependencies = [
  "ic-auth-protocol-types",
  "ic-auth-wire",
@@ -1445,7 +1446,7 @@ dependencies = [
 
 [[package]]
 name = "ic-auth-qualification-fixtures"
-version = "0.36.1"
+version = "0.36.2"
 dependencies = [
  "ic-auth",
  "ic-auth-protocol-types",

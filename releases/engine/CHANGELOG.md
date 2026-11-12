@@ -4,6 +4,15 @@ Covers `ic-auth`, maintained `ic-auth-tooling`, and associated private
 qualification changes. Only the first two are Engine release-group members. The independent series starts after the
 [last coordinated release, 0.29.2](../history.md).
 
+## [0.39.5] - Unreleased
+
+### 🧪 Qualification
+
+- Add optional complete `ReceiverStore` conformance scenarios in private bundle
+  0.36.2, using host checked backing, durable reopen and transaction rejection
+  hooks without exporting or reconstructing the private login ledger
+  ([#134](https://github.com/dragginzgame/ic-auth/issues/134)).
+
 ## [0.39.4] - 2026-11-12
 
 ### ⬆️ Dependencies

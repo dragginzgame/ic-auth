@@ -302,7 +302,7 @@ test-host-tooling: host-file-check
 	+cargo test --locked --offline -p ic-auth-tooling
 
 test-backend-conformance:
-	+cargo test --manifest-path qualification/Cargo.toml --locked --offline -p ic-auth-backend-conformance
+	+cargo test --manifest-path qualification/Cargo.toml --locked --offline -p ic-auth-backend-conformance --features persistent
 
 # Source distribution only, with Cargo-owned manifest normalization. Publish
 # the matching Auth libraries before packing; this never uploads the harness.

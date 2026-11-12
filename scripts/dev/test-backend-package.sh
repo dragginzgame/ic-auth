@@ -54,6 +54,8 @@ version = "0.0.0"
 edition = "2024"
 rust-version = "$floor"
 publish = false
+[features]
+persistent = ["ic-auth-backend-conformance/persistent"]
 [dependencies]
 ic-auth = { version = "=$version", default-features = false, features = ["session-restore", "portable-signature-verification"] }
 ic-auth-protocol-types = "=$protocol_version"
@@ -77,6 +79,12 @@ pub mod identity {
     // Auth trait and error identities as the consumer's direct dependency.
     pub fn read<B: Backend>(backend: &mut B) -> Result<(), SessionError> {
         SessionStore::read(backend, |_| Ok(()))
+    }
+    #[cfg(feature = "persistent")]
+    pub fn receiver<H: ic_auth_backend_conformance::receiver_tests::ReceiverHost>(
+        host: &mut H,
+    ) -> &mut ic_auth::persistent::receiver::ReceiverStore<H::Memory> {
+        host.store()
     }
 }
 RUST
@@ -104,8 +112,11 @@ jq -e --slurpfile consumer "$evidence/metadata.json" '
 } > "$evidence/consumer-inputs.nul"
 "$tool" hash-files0 8388608 4194304 4096 < "$evidence/consumer-inputs.nul" > "$evidence/consumer-before.hashes"
 run consumer cargo test --locked --offline --manifest-path "$consumer/Cargo.toml"
+run receiver-consumer cargo test --locked --offline --manifest-path "$consumer/Cargo.toml" --features persistent
 # The package's own dev-dependencies belong only to its isolated test graph.
 run scenarios cargo test --locked --offline --manifest-path "$scenarios/Cargo.toml"
+run receiver-scenarios cargo test --locked --offline --manifest-path "$scenarios/Cargo.toml" \
+    --features ic-auth-backend-conformance/persistent --test receiver
 "$tool" hash-files0 8388608 4194304 4096 < "$evidence/consumer-inputs.nul" > "$evidence/consumer-after.hashes"
 cmp "$evidence/consumer-before.hashes" "$evidence/consumer-after.hashes"
 inputs > "$evidence/after.hashes"

@@ -16,10 +16,14 @@ category = "tests"
 [package.metadata.cargo-machete]
 ignored = ["toko-tooling"]
 
+[features]
+persistent = ["ic-auth/persistent", "dep:ic-storage", "ic-storage/test-support"]
+
 [dependencies]
 ic-auth = { workspace = true, features = ["session-restore", "portable-signature-verification"] }
 ic-auth-protocol-types.workspace = true
 ic-platform = { workspace = true, features = ["ed25519"] }
+ic-storage = { workspace = true, optional = true }
 
 [dev-dependencies]
 ic-entropy.workspace = true

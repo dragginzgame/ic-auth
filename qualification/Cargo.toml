@@ -10,7 +10,7 @@ members = [
 resolver = "3"
 
 [workspace.package]
-version = "0.36.1"
+version = "0.36.2"
 edition = "2024"
 rust-version = "1.99.1"
 license-file = "../LICENSE.md"
@@ -24,12 +24,12 @@ ic-auth-protocol-types = { version = "0.39.2", path = "../crates/ic-auth-protoco
 ic-auth-wire = { version = "0.39.2", path = "../crates/ic-auth-wire" }
 
 # Qualification-only packages; private versions do not follow product releases.
-ic-auth-backend-conformance = { version = "0.36.1", path = "ic-auth-backend-conformance" }
-ic-auth-feature-unification = { version = "0.36.1", path = "ic-auth-feature-unification" }
-ic-auth-qualification = { version = "0.36.1", path = "ic-auth-qualification" }
-ic-auth-qualification-canister = { version = "0.36.1", path = "ic-auth-qualification-canister" }
-ic-auth-qualification-contracts = { version = "0.36.1", path = "ic-auth-qualification-contracts" }
-ic-auth-qualification-fixtures = { version = "0.36.1", path = "ic-auth-qualification-fixtures" }
+ic-auth-backend-conformance = { version = "0.36.2", path = "ic-auth-backend-conformance" }
+ic-auth-feature-unification = { version = "0.36.2", path = "ic-auth-feature-unification" }
+ic-auth-qualification = { version = "0.36.2", path = "ic-auth-qualification" }
+ic-auth-qualification-canister = { version = "0.36.2", path = "ic-auth-qualification-canister" }
+ic-auth-qualification-contracts = { version = "0.36.2", path = "ic-auth-qualification-contracts" }
+ic-auth-qualification-fixtures = { version = "0.36.2", path = "ic-auth-qualification-fixtures" }
 
 # External qualification dependencies
 ed25519-dalek = { version = "3.0", default-features = false }

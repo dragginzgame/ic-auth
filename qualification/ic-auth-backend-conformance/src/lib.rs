@@ -5,6 +5,9 @@
 #[cfg(test)]
 mod entropy_tests;
 
+#[cfg(feature = "persistent")]
+pub mod receiver_tests;
+
 use ic_auth::{
     admission_budget::SessionAdmissionBudget,
     portable::{

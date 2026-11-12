@@ -41,7 +41,8 @@
   {
     "dependency": "ic-storage",
     "allowed_packages": [
-      "ic-auth-qualification-canister"
+      "ic-auth-qualification-canister",
+      "ic-auth-backend-conformance"
     ]
   },
   {

@@ -1,9 +1,43 @@
 # Auth backend conformance
 
 Unpublished native qualification support for custom `ic_auth::session::SessionStore`
-adapters. This package depends only on public Auth/protocol APIs and Platform's
+adapters and the complete persistent receiver. By default this package depends only on public Auth/protocol APIs and Platform's
 Ed25519 capability. It has no private endpoint DTOs, metrics, simulator, runtime,
 certificate verifier or storage dependencies.
+
+## Persistent receiver (source bundle 0.36.2)
+
+Enable the optional `persistent` feature and implement
+`receiver_tests::ReceiverHost` for disposable host backing. Call
+`receiver_tests::assert_receiver_contract::<YourHost>()` to run all three named
+scenarios: `assert_receiver_lifecycle`, `assert_receiver_ninety_day_renewal` and
+`assert_receiver_authority_and_devices`. This replaces the old `Backend` adapter
+for `ReceiverStore`; do not implement `retained_logins`, decode private records,
+or reconstruct a parallel `MemoryLoginRevocations` ledger.
+
+The host supplies checked exclusive leases on fresh backing, returns its complete
+`ReceiverStore`, reopens the same actual backing, and provides a transaction hook.
+Failure injection executes the operation then rejects host commit, rolling back
+every backing write and discarding/reopening runtime state. Auth operation errors
+remain ordinary values: they can consume verification budgets. Never run these
+destructive scenarios on production backing. The reference host snapshots raw
+VectorMemory bytes, without interpreting Auth records; a consumer must exercise
+its own transaction and reopen implementation.
+
+Coverage includes admission and exact retry after proof expiry, durable known
+and unknown logout, denied application callbacks, independent devices and fenced
+replacement, generation invalidation, ninety-day renewal capped at the original
+deadline, expiry and pruning. Failed admission/logout/replacement/renewal/prune/
+generation transactions preserve durable outcomes. Negative reference drivers
+prove committed failures are detected. The feature adds Storage/test-support
+only to this private qualification graph, never to passive product libraries.
+It does not establish crash atomicity, clock provenance or installed endpoints.
+
+The versioned archive and `delivery.json` from `make test-backend-package` retain
+source revision/dirty status and SHA-256. That command also executes the new
+feature's tests against registry Auth. A dirty candidate is not a clean released
+bundle. Consumer adoption remains Canic #764; this repository does not modify
+its driver. Existing archives and the default custom-backend contract are unchanged.
 
 Its own dev-only `ic-entropy` tests qualify nonce input composition with real
 credential/session admission and fail-closed provider refusal. They do not add an

@@ -13,21 +13,24 @@ Chromium remains unprepared/ignored.
 Hosted CI is asynchronous. No Auth service, Canic source, production backing or
 sibling deployment changed. Canic can now adopt the three missing APIs below.
 
-Keep prior 0.39.2 evidence and completed `batch-6Eztyvd6` under
-`target/auth-release-0392/`; its release history is retained in Git.
-
 ## Delivered changes and measurement follow-up
+
+Local uncommitted #134 adds the optional `persistent` conformance feature in
+private qualification bundle **0.36.2**. Its `ReceiverHost` uses checked leases,
+actual backing reopen and host pre-commit rejection; no private ledger export.
+Six persistent cases (including five deliberate broken-commit drivers), strict
+Clippy and the archived registry consumer pass. The existing 26 bundle tests
+also pass. Candidate archive/receipt: `target/portable-fixtures/backend-package.FfqMwE/`.
+Canic #764 owns adoption; no sibling files or production code changed.
 
 Engine 0.39.4 preserves the incoming Storage **0.73.6** locks and requires its discard
 APIs. Prepared Auth commits avoid materializing unused old values. Eighteen native
 tests, strict focused Clippy, the two 100,000-record installed probes and both real
 certified/Ed25519 lifecycle tests pass. Formats and trust checks are unchanged.
 Matched evidence: `target/auth-132-discard/` (before/after Wasm, locks and logs).
-At 100,000 logins, prepare is 3,717,209 → 3,712,440 instructions and renewal
-2,506,027 → 2,503,135. Cold authentication is 1,223,946; after upgrade 1,223,195.
-The same qualification Wasm is 420 bytes smaller. These are small improvements,
-not a solution to cold lookup locality. The first sandboxed probe could not bind
-loopback; the admitted before/after runs pass and retain that failed evidence.
+The qualification Wasm is 420 bytes smaller; lookup locality remains unchanged.
+Detailed matched timings and the initial failed sandbox bind are retained in the
+evidence above and the delivered handoff at `4938916`.
 
 [Release selection](../development/release-validation.md#deployment-path-observations--2026-11-12)
 now excludes only the unchanged selector regression for reviewed product/data
@@ -87,10 +90,8 @@ bytes and verification/trust rules are unchanged. Canic retains host keys,
 Root enrollment/approval and application policy; no additional Auth key store
 or consumer renewal index/session mirror is required.
 
-Keep focused evidence and input identities in `target/auth-132-apis/`.
-Those checks used Wire 0.21.4; the complete release gate qualifies Wire 0.21.5.
-The real certified/Ed25519 proofs include capacity, retries, renewal, recovery,
-logout, authority fences and pruning; certificate publication stays host-atomic.
+Keep focused evidence and input identities in `target/auth-132-apis/`;
+the complete release gate qualifies the incoming Wire 0.21.5.
 
 [Auth #132](https://github.com/dragginzgame/ic-auth/issues/132) owns the completed
 Auth implementation and published discard follow-through.
