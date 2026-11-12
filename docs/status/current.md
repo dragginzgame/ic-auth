@@ -2,17 +2,19 @@
 
 ## Delivery
 
-Protocol and Engine **0.39.1** remain published. All three registry checksums
+Protocol and Engine **0.39.2** are published. All three registry checksums
 match retained archives/schema-2 receipts; tags and release commits are pushed.
-Batch `batch-BiswIN7d` passed both complete 30-stage gates and reconciled into
-the normal checkout. Readback: `target/auth-release-0391/registry/verified-receipts.json`.
+Batch `batch-6Eztyvd6` passed both complete 30-stage gates and reconciled into
+the normal checkout. Readback: `target/auth-release-0392/registry/verified-receipts.json`.
+Protocol commit: `c083d8b6bfb11c250494317de38d2cb2351e5171`;
+Engine commit: `ba07b723e50284645e058257b7aa9e2c3527eb76`.
+Source: `905b2995ca54735efa28f6f533ce05cd58e41cfc`.
 
-Protocol/Engine **0.39.2** publication is authorized for Auth only. Its source
-adds optional indexed persistence and adopts Toko Tooling 0.39.17. The failed
-and interrupted candidates below published nothing. A fresh captured candidate
-must qualify the corrected source; never mutate captured inputs. Hosted CI is
-asynchronous. Actual Chromium is unprepared/ignored. No Auth service, Canic
-source change or sibling delivery is included.
+This Auth-only delivery adds optional indexed persistence and Toko Tooling
+0.39.17. Hosted CI remains asynchronous. Both installed suites passed 13 cases;
+actual Chromium is unprepared/ignored. No Auth service, Canic source change,
+production-storage mutation or sibling deployment occurred. Canic remains blocked
+on the APIs and acceptance below; this is a foundation release.
 
 ## Indexed persistence — #132 remains open
 
@@ -38,22 +40,26 @@ is sufficient; neither its locality experiment nor a sub-1M result blocks Auth.
 This changes no verification checks or trust assumptions. No verification cache,
 inter-canister call or cryptographic replacement was added.
 
-The earlier matched accepted-cost run passed both installed 100,000-record cases:
-receiver 1,223,407; after upgrade 1,222,307; issuer prepare 3,704,176, renewal
-2,570,094 and maximum individual fill prepare 6,779,989 instructions. Evidence:
-`target/auth-132-installed/accepted-cost/`. These timings predate the incoming
-supplier patches below. The newest captured run passed issuer scaling and
-receiver through 10,000 records before deliberate interruption for native test
-preparation performance. Bookkeeping probes exclude initial proof verification,
-Root approval, signing and endpoint overhead. Earlier warm samples in
+Both delivered gates passed installed scaling at 100,000 records. Protocol's
+receiver measured 1,223,207 instructions; Engine's measured 1,223,407. Both
+measured 1,222,307 after upgrade. Issuer prepare was 3,704,202, renewal 2,570,120
+and maximum individual fill prepare 6,780,015. Evidence:
+`target/auth-release-0392/delivery-optimized.log`, with gate roots under the
+captured checkout's `target/release-validation/`. Bookkeeping probes exclude
+initial proof verification, Root approval, signing and endpoint overhead.
+Keep the earlier `target/auth-132-installed/accepted-cost/` evidence. Warm samples in
 `target/auth-132-installed/scaling.log` are not cold-call acceptance.
 
 Full issuer key/enrollment/effect custody convergence and installed
 certified/Ed25519 production-adapter lifecycle, corruption/interruption and
 handoff acceptance remain in [Auth #132](https://github.com/dragginzgame/ic-auth/issues/132).
 [Canic #764](https://github.com/dragginzgame/canic/issues/764) owns later adoption
-and deletion. This release must not claim either is complete. Current Canic
-adoption has not been inspected for this delivery; older observations are history.
+and deletion. The consumer reported three confirmed missing Auth APIs on #132:
+browser-authenticated lookup-only renewal recovery, renewal preflight before
+application authorization, and bounded caller-ordered session inspection
+(including a scan budget across retained fences). They are not in 0.39.2.
+Canic retains endpoint authorization/DTO conversion, not duplicate renewal indexes
+or a session mirror. Production integration and deployment remain blocked.
 
 ## Tooling and suppliers
 
@@ -75,12 +81,21 @@ runtime improves u32 lengths and packed booleans. The independent file CLI pin
 stays 0.76.4; its optional update is deferred to Host/tool maintenance. Evidence:
 `target/auth-release-0392/tooling/freshness.json` and retained indexes.
 
+An external updater selected Storage **0.73.5** in both normal-checkout locks
+during delivery. Those exact changes were preserved and reapplied after Shared
+reconciliation; they remain uncommitted and unqualified. The released gates used
+**0.73.4**. Do not project their evidence onto the incoming selection.
+
 Testkit retains managed startup and its native PocketIC 16.1.0 re-export; one
 Wire identity is required. Principal boundaries copy validated bytes. Awaited
 instance deletion remains best-effort, with teardown logs retained. Protocol
 and default/session graphs exclude native tooling and persistent Storage.
 
 ## Qualification and recovery custody
+
+Successful delivery log: `target/auth-release-0392/delivery-optimized.log`;
+reconciliation: `target/auth-release-0392/reconcile.log`. Keep the completed
+`batch-6Eztyvd6` checkout and durable state, including publication receipts.
 
 - `batch-XoEWGnOX` stopped at an obsolete all-feature package fixture refusal
   of optional Storage. Corrected fixtures retain passive/runtime-guard refusals;

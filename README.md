@@ -37,10 +37,11 @@ integration remain pending; reference qualification is separate from adoption.
 
 **Production issuer/enrollment lifecycle and wallet login remain pending.** The
 optional [Auth-owned persistent stores](docs/integration/persistent-auth.md) are
-under qualification in [#132](https://github.com/dragginzgame/ic-auth/issues/132),
+published as a foundation in Engine **0.39.2**,
 with an accepted interim cold-lookup cost of 1.223M instructions at 100,000
-records. Correctness/lifecycle acceptance remains in progress. Canic has
-not adopted this implementation. The earlier reference receiver uses volatile
+records. Renewal recovery/preflight, bounded inspection and full lifecycle
+acceptance remain in [#132](https://github.com/dragginzgame/ic-auth/issues/132).
+Canic production adoption remains blocked. The earlier reference receiver uses volatile
 state with a separate fixture checkpoint for upgrade qualification.
 The [IC Testkit fixture](docs/development/testkit-qualification.md) exercises actual
 certification, portable sessions, upgrades and signed ingress; it is not a

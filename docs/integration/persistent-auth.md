@@ -1,10 +1,13 @@
 # Auth-owned persistent authentication
 
-The optional Engine `persistent` capability provides `IssuerStore` and
-`ReceiverStore` over published Storage collections. This is the implementation
+The optional Engine `persistent` capability, published in **0.39.2**, provides
+`IssuerStore` and `ReceiverStore` over published Storage collections. This is the implementation
 boundary selected by [Auth #132](https://github.com/dragginzgame/ic-auth/issues/132).
 Consumer adoption and deletion remain tracked by
 [Canic #764](https://github.com/dragginzgame/canic/issues/764).
+The [adoption guide](canic-adoption.md#pending-auth-owned-persistent-store-adoption)
+records missing renewal recovery/preflight and bounded inspection APIs; this
+foundation does not complete Canic integration or its deployment acceptance.
 
 These stores do not install endpoints, allocate a stable-memory manager, obtain a
 clock, select trusted authority or publish a certification root. The host supplies

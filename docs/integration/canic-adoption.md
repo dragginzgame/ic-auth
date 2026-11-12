@@ -10,13 +10,12 @@ Superseded migration journals remain in Git history; use the current contracts b
 
 [Auth #132](https://github.com/dragginzgame/ic-auth/issues/132) moves reusable
 issuer/session storage into Auth. [Canic #764](https://github.com/dragginzgame/canic/issues/764)
-owns adoption and deletion of the displaced consumer engine. The implementation
-is currently local and unpublished; a Git push alone does not supply it to
-Canic's registry dependency. It needs an Engine publication after applicable
-qualification. No Protocol API change is required by the new store capability.
+owns adoption and deletion of the displaced consumer engine. The indexed-store
+foundation is published in Engine **0.39.2**. It does not complete #132 or make
+Canic production-ready. No Protocol API change is required by the store capability.
 
-Select `persistent` plus the required proof-verification capabilities when that
-Engine is available. Follow [persistent authentication](persistent-auth.md) for
+Select `persistent` plus the required proof-verification capabilities. Follow
+[persistent authentication](persistent-auth.md) for
 the memory, transaction and stored-format contract:
 
 | Canic integration | Auth owner | Canic retains |
@@ -32,7 +31,21 @@ or implement a workaround. Full issuer custody convergence and installed
 certified/Ed25519 lifecycle acceptance remain tracked in #132; this handoff does
 not claim that Canic can already delete every issuer component.
 
-The published Auth cohort is Protocol/Engine 0.39.1; exact delivery evidence and
+The consumer audit on #132 identifies three APIs still missing in 0.39.2:
+
+- Browser-authenticated, lookup-only renewal recovery by the retained login and
+  sequence, preserving original results after expiry without new issuance.
+- Read-only renewal preflight exposing authenticated account, exact request and
+  original policy before application permission checks or intent reservation.
+- Bounded caller-ordered session inspection, including expired/stale rows,
+  exclusive cursor pagination and bounded scanning across retained fences.
+
+Canic owns endpoint authorization and DTO conversion. Auth must own browser
+binding, renewal index semantics and record traversal. Do not retain duplicate
+indexes or session mirrors as the final integration. These gaps block Canic
+deployment; its production storage remains unchanged.
+
+The published Auth cohort is Protocol/Engine 0.39.2; exact delivery evidence and
 pending supplier selections are in the [current handoff](../status/current.md).
 The older cohort below records historical qualification, not today's selection.
 
@@ -242,7 +255,7 @@ Select capabilities on the receiver's normal dependency edge with defaults disab
 | Volatile certified sessions | `sessions`, `certified-proof-verification` |
 | Both enrolled proof mechanisms | `sessions`, `portable-signature-verification`, `certified-proof-verification` |
 | Custom-backend record restoration | Replace `sessions` with `session-restore`; retain the selected verifier features |
-| Pending Auth-owned persistent stores (#132) | `persistent` plus the selected verifier features; not yet published |
+| Auth-owned persistent store foundation (Engine 0.39.2; #132 remains open) | `persistent` plus the selected verifier features |
 
 Protected enrollment selects the mechanism, issuer and key. Submitted proof
 variants cannot select trusted authority or enable a capability. Qualify the
