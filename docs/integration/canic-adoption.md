@@ -11,8 +11,9 @@ Superseded migration journals remain in Git history; use the current contracts b
 [Auth #132](https://github.com/dragginzgame/ic-auth/issues/132) moves reusable
 issuer/session storage into Auth. [Canic #764](https://github.com/dragginzgame/canic/issues/764)
 owns adoption and deletion of the displaced consumer engine. The indexed-store
-foundation is published in Engine **0.39.2**. It does not complete #132 or make
-Canic production-ready. No Protocol API change is required by the store capability.
+foundation was published in Engine **0.39.2**; **0.39.3** supplies the missing
+renewal/inspection APIs and installed lifecycle qualification. Consumer acceptance
+still belongs to Canic. Protocol remains 0.39.2.
 
 Select `persistent` plus the required proof-verification capabilities. Follow
 [persistent authentication](persistent-auth.md) for
@@ -27,11 +28,11 @@ the memory, transaction and stored-format contract:
 The maintainer accepts the measured 1.223M cold ordinary-authentication cost at
 100,000 records provisionally. The regression ceiling is 1.3M; published Storage
 0.73.4 is sufficient for this batch. Canic need not wait for Storage optimization
-or implement a workaround. Local installed certified/Ed25519 lifecycle tests now
-cover both durable stores. Canic still needs the new Auth release and must qualify
+or implement a workaround. Installed certified/Ed25519 lifecycle tests in the
+0.39.3 release gate cover both durable stores. Canic must adopt that release and qualify
 its own authority, memory, transaction and endpoint integration before deletion.
 
-The three APIs reported missing in 0.39.2 are now implemented locally:
+The three APIs reported missing in 0.39.2 are published in Engine 0.39.3:
 
 - `IssuerStore::retrieve_renewal`: browser-authenticated, lookup-only recovery by the retained login and
   sequence, preserving original results after expiry without new issuance.
@@ -49,8 +50,8 @@ one endpoint. A preflight is not permission to sign after an intervening await.
 Private key custody, Root enrollment/approval and application permissions remain
 Canic responsibilities. No consumer source or production storage changed here.
 
-The published Auth cohort is Protocol/Engine 0.39.2; exact delivery evidence and
-pending supplier selections are in the [current handoff](../status/current.md).
+The published Auth cohort is Protocol 0.39.2 / Engine 0.39.3; exact delivery
+evidence and supplier selections are in the [current handoff](../status/current.md).
 The older cohort below records historical qualification, not today's selection.
 
 ## Historical 0.37 integration cohort

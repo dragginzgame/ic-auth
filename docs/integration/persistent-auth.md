@@ -6,8 +6,8 @@ boundary selected by [Auth #132](https://github.com/dragginzgame/ic-auth/issues/
 Consumer adoption and deletion remain tracked by
 [Canic #764](https://github.com/dragginzgame/canic/issues/764).
 The [adoption guide](canic-adoption.md#pending-auth-owned-persistent-store-adoption)
-distinguishes published 0.39.2 from the new local renewal recovery/preflight and
-bounded inspection APIs. Consumer integration and deployment need their own gate.
+records the renewal recovery/preflight and bounded inspection APIs added in
+Engine **0.39.3**. Consumer integration and deployment need their own gate.
 
 These stores do not install endpoints, allocate a stable-memory manager, obtain a
 clock, select trusted authority or publish a certification root. The host supplies
@@ -74,7 +74,7 @@ and existing receiver leases have their own enforcement boundary.
 
 ### Renewal application authorization and recovery
 
-The following APIs are implemented locally after 0.39.2:
+The following APIs are published in Engine 0.39.3:
 
 1. Call `preflight_renewal(actual_browser, &request)` before application effects.
    It returns `RenewalSelection`: the authenticated original account, exact
@@ -158,7 +158,7 @@ Auth fixture as completed Canic adoption or production key-custody qualification
 The maintainer accepts the measured 1,223,140-instruction cold authentication at
 100,000 receiver records as an interim cost. The installed regression ceiling is
 1,300,000 instructions, including the post-upgrade lookup. Auth remains on
-published Storage 0.73.5 in the current local checks; Storage locality optimization is a follow-up, not a
+published Storage 0.73.5 in the 0.39.3 release gate; Storage locality optimization is a follow-up, not a
 dependency of this batch. This is ordinary protected-call overhead, not a
 one-time login cost. It does not waive correctness or lifecycle acceptance.
 
