@@ -15,13 +15,19 @@ sibling deployment changed. Canic can now adopt the three missing APIs below.
 
 ## Delivered changes and measurement follow-up
 
-Local uncommitted #134 adds the optional `persistent` conformance feature in
-private qualification bundle **0.36.2**. Its `ReceiverHost` uses checked leases,
+The #134 source delivery adds optional `persistent` conformance in private
+bundle **0.36.2**, at `e9e831598d2b02db5e8f7fea883616953c7950ee`.
+Its `ReceiverHost` uses checked leases,
 actual backing reopen and host pre-commit rejection; no private ledger export.
 Six persistent cases (including five deliberate broken-commit drivers), strict
 Clippy and the archived registry consumer pass. The existing 26 bundle tests
-also pass. Candidate archive/receipt: `target/portable-fixtures/backend-package.FfqMwE/`.
-Canic #764 owns adoption; no sibling files or production code changed.
+also pass against registry Engine 0.39.4 and Protocol 0.39.2. Clean archive and
+`delivery.json`: `target/portable-fixtures/backend-package.u5EztD/`; the archive
+is under `target/package/ic-auth-backend-conformance-0.36.2.crate` there.
+SHA-256: `764d3708796384d789413baf3c910f79f6f48026157646d2495744fa635d31f6`.
+Canic #764 owns adoption; no sibling files or production code changed. This is
+Git/source-bundle delivery only: no publishable product changed, so no Engine
+bump, crates.io upload or frozen product gate was needed. #133 remains pending.
 
 Engine 0.39.4 preserves the incoming Storage **0.73.6** locks and requires its discard
 APIs. Prepared Auth commits avoid materializing unused old values. Eighteen native
