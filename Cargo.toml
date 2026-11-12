@@ -18,8 +18,8 @@ repository = "https://github.com/dragginzgame/ic-auth"
 [workspace.dependencies]
 # Engine
 # Changelog : releases/engine/CHANGELOG.md
-ic-auth = { version = "0.39.1", path = "crates/ic-auth" }
-ic-auth-tooling = { version = "0.39.1", path = "crates/ic-auth-tooling" }
+ic-auth = { version = "0.39.2", path = "crates/ic-auth" }
+ic-auth-tooling = { version = "0.39.2", path = "crates/ic-auth-tooling" }
 
 # Protocol
 # Changelog : releases/protocol/CHANGELOG.md
