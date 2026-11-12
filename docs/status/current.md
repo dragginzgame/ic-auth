@@ -2,20 +2,20 @@
 
 ## Delivery
 
-Engine **0.39.4** is published; Protocol remains **0.39.2**. The downloaded
-registry archive matches the retained archive/schema-2 receipt. Engine tag
-`engine-v0.39.4` and commit `8495375964647d00306b067abfaee0cde41d4604` are
-pushed. Source: `39aa37b660cd941dc73fdf075e096a18586e20dd`.
-Batch `batch-kCAsAk34` passed all 30 stages and reconciled into the normal checkout.
-Evidence: `target/auth-release-0394/`, including timestamped delivery output,
-registry archive/readback and reconciliation. Fifteen installed cases passed;
-Chromium remains unprepared/ignored.
+Engine **0.40.0** is published; Protocol remains **0.39.2**. Registry checksum
+admission passed. Tag `engine-v0.40.0`, commit `b64ed1b2202c10df7da6f84288b4c7495fde9259`,
+source `2eb95a0a229a457c78d80f7099e606d06a8d3519`; batch `batch-eACQwpmU` is reconciled.
+All 30 stages passed, including 15 installed cases; Chromium remains unprepared/ignored.
+Evidence: `target/auth-release-0400/corrected-timestamped.log` and the retained batch.
+Successful release elapsed 27m15s; earlier download/setup and stale-fixture failures
+are retained separately. The maintainer explicitly authorized a second deployment
+for #133 timing: pending 0.40.1 changes no Engine Rust code or external selections.
 Hosted CI is asynchronous. No Auth service, Canic source, production backing or
 sibling deployment changed. Canic can now adopt the three missing APIs below.
 
 ## Delivered changes and measurement follow-up
 
-Local pending Engine 0.40.0 limits credentials to **32 scope entries total across
+Engine 0.40.0 limits credentials to **32 scope entries total across
 up to 16 roles**, guaranteeing at most **3,332 canonical grant-list bytes** with
 64-byte labels. A 4,096-byte defensive cap remains; accepted signed bytes are unchanged.
 Completed oversized results remain recoverable; new admission and pending signing
@@ -27,7 +27,7 @@ checks plus strict Clippy pass; logs: `target/auth-grant-budget-*.log` and
 Release attempt `batch-HL6ZrkFz` exposed an old 512-entry installed fixture;
 the corrected 32-entry case passes (`target/auth-release-0400/focused-installed-final.log`).
 Preserve the stopped batch and its download/setup and failed gate evidence.
-No performance gain, publication or Canic adoption is claimed. Canic's old maximum
+No admission performance gain or Canic adoption is claimed. Canic's old maximum
 credential fixture must become a refusal case or use a grant list within budget.
 
 The #134 source delivery adds optional `persistent` conformance in private
