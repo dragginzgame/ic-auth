@@ -118,6 +118,11 @@ and default/session graphs exclude native tooling and persistent Storage.
 
 ## Qualification and recovery custody
 
+`batch-qaK3IdsJ` stopped before delivery because the exact-pin exception still
+named Tooling 0.39.17. Snapshot/tool admission and Clippy passed. The correction
+updates both exception values to 0.39.18; keep its failed gate and
+`target/auth-release-0394/delivery.log` when starting the corrected source.
+
 Keep completed `batch-IAAjfLaF` and `batch-6Eztyvd6` checkouts/durable state,
 including publication receipts. Current logs: `target/auth-release-0393/`;
 prior logs: `target/auth-release-0392/`.
