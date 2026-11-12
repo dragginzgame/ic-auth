@@ -2,14 +2,14 @@
 
 ## Delivery
 
-Engine **0.40.0** is published; Protocol remains **0.39.2**. Registry checksum
-admission passed. Tag `engine-v0.40.0`, commit `b64ed1b2202c10df7da6f84288b4c7495fde9259`,
-source `2eb95a0a229a457c78d80f7099e606d06a8d3519`; batch `batch-eACQwpmU` is reconciled.
-All 30 stages passed, including 15 installed cases; Chromium remains unprepared/ignored.
-Evidence: `target/auth-release-0400/corrected-timestamped.log` and the retained batch.
-Successful release elapsed 27m15s; earlier download/setup and stale-fixture failures
-are retained separately. The maintainer explicitly authorized a second deployment
-for #133 timing: pending 0.40.1 changes no Engine Rust code or external selections.
+Engine **0.40.1** is published; Protocol remains **0.39.2**. Tag `engine-v0.40.1`,
+commit `3ef463c11995e816fb69f25466e5cd6eb6fe8666`, batch `batch-jJwnO2R3` is reconciled.
+Its 27-stage reduced gate passed; the preceding 0.40.0 full 30-stage gate also passed.
+Both installed suites passed 15 cases; Chromium remains unprepared/ignored.
+Registry checksums and independently downloaded archives match both receipts.
+The authorized timing-only 0.40.1 release changes no Engine Rust code or external
+selections. Evidence: `target/auth-release-0400/`, `target/auth-release-0401/` and both batches.
+Measured successful delivery: 27m15s full versus 13m17s reduced; #133 is complete.
 Hosted CI is asynchronous. No Auth service, Canic source, production backing or
 sibling deployment changed. Canic can now adopt the three missing APIs below.
 
@@ -42,7 +42,7 @@ is under `target/package/ic-auth-backend-conformance-0.36.2.crate` there.
 SHA-256: `764d3708796384d789413baf3c910f79f6f48026157646d2495744fa635d31f6`.
 Canic #764 owns adoption; no sibling files or production code changed. This is
 Git/source-bundle delivery only: no publishable product changed, so no Engine
-bump, crates.io upload or frozen product gate was needed. #133 remains pending.
+bump, crates.io upload or frozen product gate was needed for that earlier delivery.
 
 Engine 0.39.4's matched discard-mutation evidence remains under
 `target/auth-132-discard/`; details are retained in the handoff at `20384f9`.
@@ -54,8 +54,8 @@ archive callers pass; snapshot integrity passes. Evidence: `target/auth-133-rele
 The corrected release command took **25m52s** to verified registry availability:
 about 87s preparation, 1,367s validation, 67s metadata/Git delivery and 30s
 publication. All stages executed; infrastructure changes required full scope.
-[#133](https://github.com/dragginzgame/ic-auth/issues/133) remains open for an
-eligible deployment exercising the omission; no deployment saving is claimed.
+The [full/reduced comparison](../development/release-validation.md#full-and-reduced-delivery-comparison)
+now completes [#133](https://github.com/dragginzgame/ic-auth/issues/133): 13m58s less elapsed time.
 
 ## Indexed persistence — Auth implementation complete
 

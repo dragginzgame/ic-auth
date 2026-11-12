@@ -204,5 +204,50 @@ updates. Caller qualification covers both groups, dispatch, input drift, unknown
 inputs, required/excluded failures, retained evidence and recovery. Full CI and
 the opt-in manual group comparison are unchanged. This mapping change itself
 requires a full release gate. Keep [#133](https://github.com/dragginzgame/ic-auth/issues/133)
-open for end-to-end before/after observations from the next eligible authorized delivery;
-no measured deployment speed-up or extra benchmark release is claimed here.
+open at that delivery for end-to-end observations from an eligible release.
+The subsequent authorized comparison below completes that acceptance.
+
+### Full and reduced delivery comparison
+
+The maintainer explicitly authorized a second deployment for timing, overriding
+the issue's earlier no-extra-benchmark-release restriction for this comparison.
+Engine 0.40.0 delivered the full pending batch; 0.40.1 re-released unchanged
+Engine code. All Rust source is identical between tags, and both lock diffs
+contain only local Engine version changes. No external dependency changed.
+
+| Observed phase | 0.40.0 full | 0.40.1 reduced |
+| --- | ---: | ---: |
+| Preparation | 84.442s | 83.822s |
+| Validation | 1,431.944s | 615.850s |
+| Metadata preparation and Git delivery | 86.790s | 67.786s |
+| Publication, packaging and registry verification | 32.118s | 29.914s |
+| Successful command to verified registry | **1,635.295s (27m15s)** | **797.372s (13m17s)** |
+
+The full run executed all 30 stages because manifests, Make recipes and package
+scripts changed. The reduced run executed 27 stages and recorded three exclusions:
+`test-release-validation` (192s in the full run), `test-release-tools` (583s) and
+`test-types` (7s). No prior PASS was reused; source/receipt checks and every required
+product, native, archive and installed proof ran. Both installed suites passed
+15 cases with the unprepared Chromium case explicitly ignored.
+
+Observed end-to-end reduction was **837.922s (13m58s, about 51%)**. The excluded
+stages account for 782s of full-run stage time; other duration differences include
+host contention/build variation. These are adjacent local deployment observations,
+not a guaranteed speed-up or hosted CI timings. Phase boundaries use timestamped
+command output, not precision subprocess instrumentation. Packaging begins within
+publication; upload-to-availability was 3.595s and 3.014s respectively.
+
+Full release: source `2eb95a0`, commit `b64ed1b`, tag `engine-v0.40.0`,
+batch `batch-eACQwpmU`, gate `engine-gate.U5DINp`. Reduced: source `39e6a81`,
+commit `3ef463c`, tag `engine-v0.40.1`, batch `batch-jJwnO2R3`, gate
+`engine-gate.NVQF2i`. Both Git refs and registry checksums are verified; independently
+downloaded archives match publication receipts. Logs and comparison JSON are under
+`target/auth-release-0400/` and `target/auth-release-0401/`; retain both batches.
+
+Earlier `batch-HL6ZrkFz` stopped on an HTTP 500 during setup, then exposed a stale
+512-entry installed fixture. Its correction passed focused and complete installed
+checks. Keep all failed evidence. From the first invocation through 0.40.0 registry
+verification took 44m14s including failures/recovery; through both releases took
+58m12s including intervening work. Those totals are excluded from the successful
+command comparison above. This completes #133's real-path measurement; it adds no
+recurring benchmark gate and does not weaken infrastructure-change fallback.
