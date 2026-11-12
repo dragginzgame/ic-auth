@@ -54,6 +54,24 @@ pub struct RenewRequest {
     pub grants: Vec<DelegatedRoleGrant>,
 }
 
+/// Browser-bound original inputs for the host's application-permission check.
+/// A projection reserves nothing and grants no permission to sign. `renew`
+/// rechecks the live binding, sequence, authority and time after host effects.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RenewalSelection {
+    pub account: Principal,
+    pub request: IssueRequest,
+    pub policy: IssuerPolicy,
+}
+
+/// Exact retained reconciliation evidence, including expired or interrupted work.
+/// This does not reauthorize issuance or prove that a credential is still live.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RetainedRenewal {
+    pub intent: IssuerIntent,
+    pub status: IssuerStatus,
+}
+
 /// Opaque callback binding. Reconstructed tickets are checked against the exact
 /// retained intent; possession alone is not signing authority.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]

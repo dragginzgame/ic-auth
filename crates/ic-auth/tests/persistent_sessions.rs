@@ -299,3 +299,45 @@ fn invalid_signature_and_byte_refusals_leave_no_session_replay_or_login() {
         Default::default()
     );
 }
+
+#[test]
+fn inspection_pages_preserve_expired_stale_sessions_and_skip_fences_after_reopen() {
+    let backing = Backing::new(VectorMemory::default());
+    let mut claims = [claims(1, 0, 1), claims(2, 1, 2), claims(3, 2, 3)];
+    let caller =
+        |claims: &PortableClaims| ic_auth::portable::browser_principal(&claims.browser_public_key);
+    claims.sort_by_key(caller);
+    let config = configuration(claims[0].audience, 4, 65_536);
+    let mut store =
+        ReceiverStore::create(memory(backing.clone()), config.clone(), 0, NOW - 100).unwrap();
+    for claims in &claims {
+        admit(&mut store, claims, NOW).unwrap();
+    }
+    backing.reset();
+    let page = store.inspect_sessions(None, 1, 1, NOW).unwrap();
+    assert_eq!(page.sessions.len(), 1);
+    assert_eq!(page.sessions[0].caller(), caller(&claims[0]));
+    assert_eq!(page.next_after, Some(caller(&claims[0])));
+    assert_eq!(backing.counts().writes, 0);
+    store.logout(caller(&claims[1]), NOW);
+    store.advance_generation().unwrap();
+    drop(store);
+    let store = ReceiverStore::open(memory(backing.clone()), &config, NOW).unwrap();
+    backing.reset();
+    let expired_at = NOW + 61_000_000_000;
+    let empty = store
+        .inspect_sessions(page.next_after, 1, 1, expired_at)
+        .unwrap();
+    assert!(empty.sessions.is_empty());
+    assert_eq!(empty.next_after, Some(caller(&claims[1])));
+    let last = store
+        .inspect_sessions(empty.next_after, 1, 1, expired_at)
+        .unwrap();
+    assert_eq!(last.sessions.len(), 1);
+    assert_eq!(last.sessions[0].caller(), caller(&claims[2]));
+    assert!(last.sessions[0].expires_at_ns() <= last.observed_at_ns);
+    assert_ne!(last.sessions[0].generation(), last.generation);
+    assert_eq!(last.next_after, None);
+    assert_eq!(store.observed_at_ns(), NOW);
+    assert_eq!((backing.counts().writes, backing.counts().grows), (0, 0));
+}

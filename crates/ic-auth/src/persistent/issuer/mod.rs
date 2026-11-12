@@ -9,6 +9,7 @@
 mod keys;
 mod model;
 mod prepare;
+mod renewal;
 mod retention;
 
 use super::StoreMemory;
@@ -21,7 +22,8 @@ use ic_storage::Memory;
 use model::{Header, Login, LoginId, Operation};
 pub use model::{
     IssueRequest, IssuedCredential, IssuerAuthority, IssuerConfig, IssuerIntent, IssuerOccupancy,
-    IssuerPolicy, IssuerPruned, IssuerStatus, IssuerTicket, RenewRequest,
+    IssuerPolicy, IssuerPruned, IssuerStatus, IssuerTicket, RenewRequest, RenewalSelection,
+    RetainedRenewal,
 };
 
 const SCHEMA: u64 = 0x41555448495301;
@@ -137,7 +139,11 @@ impl<M: Memory> IssuerStore<M> {
         if &row.ticket != ticket {
             return Err(StoreError::Denied);
         }
-        Ok(IssuerIntent {
+        Ok(Self::project_intent(row))
+    }
+
+    fn project_intent(row: Operation) -> IssuerIntent {
+        IssuerIntent {
             ticket: row.ticket,
             request: row.request,
             policy: row.policy,
@@ -145,7 +151,7 @@ impl<M: Memory> IssuerStore<M> {
             approval: row.approval,
             admission_deadline_ns: row.admission_ns,
             receipt_deadline_ns: row.receipt_ns,
-        })
+        }
     }
 
     /// Explicit lifecycle fence. Old completed results stay readable; callbacks

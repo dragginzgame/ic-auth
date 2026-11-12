@@ -75,6 +75,30 @@ async fn indexed_issuer_cost_stays_bounded_through_one_hundred_thousand_logins()
             );
         }
     }
+    if maximum == 100_000 {
+        let before = command(&f, Command::Prune { budget: 0 }).await;
+        let overflow: Result<Report, controls::Refusal> = update_control(
+            f.pic.instance(),
+            f.resource,
+            f.controller,
+            spec!(controls::PersistentIssuer),
+            Command::Fill {
+                start: maximum + 1,
+                count: 1,
+                certified: true,
+            },
+        )
+        .await;
+        assert!(
+            overflow.is_err(),
+            "global retained-login capacity must refuse"
+        );
+        let after = command(&f, Command::Prune { budget: 0 }).await;
+        assert_eq!(
+            (before.logins, before.operations),
+            (after.logins, after.operations)
+        );
+    }
     f.pic
         .instance()
         .upgrade_canister(
@@ -199,6 +223,43 @@ async fn ordinary_persistent_authentication_is_a_point_operation_at_scale() {
         );
         if report.samples[0].1 >= ORDINARY_AUTHENTICATION_INSTRUCTION_LIMIT {
             overruns.push((target, report.samples[0].1));
+        }
+        let report = command(
+            &f,
+            Command::InspectReceiver {
+                after: None,
+                limit: 2,
+                scan_budget: 2,
+            },
+        )
+        .await;
+        let page = report.inspection.unwrap();
+        assert_eq!(page.callers.len(), usize::try_from(target.min(2)).unwrap());
+        assert!(page.callers.is_sorted());
+        assert!(page.scanned <= 2);
+        assert_eq!(page.next_after.is_some(), target > 2);
+        assert!(
+            report.samples[0].1 < 5_000_000,
+            "bounded inspection at {target}: {:?}",
+            report.samples
+        );
+        eprintln!(
+            "Auth persistent inspection: retained={target}, samples={:?}",
+            report.samples
+        );
+        if let Some(after) = page.next_after {
+            let next = command(
+                &f,
+                Command::InspectReceiver {
+                    after: Some(after),
+                    limit: 2,
+                    scan_budget: 2,
+                },
+            )
+            .await
+            .inspection
+            .unwrap();
+            assert!(next.callers.iter().all(|caller| *caller > after));
         }
     }
     f.pic

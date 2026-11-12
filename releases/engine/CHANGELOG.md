@@ -4,6 +4,30 @@ Covers `ic-auth`, maintained `ic-auth-tooling`, and associated private
 qualification changes. Only the first two are Engine release-group members. The independent series starts after the
 [last coordinated release, 0.29.2](../history.md).
 
+## [0.39.3] - Unreleased
+
+### ✨ Features
+
+- Complete #132's missing renewal and inspection APIs: browser-authenticated
+  lookup-only renewal recovery, original-request/policy preflight before host
+  application authorization, and caller-ordered session inspection with an
+  exclusive cursor and a scan budget across retained fences. Recovery preserves
+  expired/interrupted originals without reserving work or advancing time.
+  Signed claims, stored formats, verification and host trust boundaries are unchanged.
+
+### 🧪 Testing
+
+- Qualify durable issuer-to-receiver lifecycles with real certified and Ed25519
+  proofs, device capacity/overflow, retries, renewal, logout, authority invalidation,
+  same-release upgrade, interrupted callbacks and bounded cleanup. Extend the
+  100,000-record probes to preflight, recovery and bounded inspection. Retain the
+  1.3M ordinary-authentication instruction ceiling.
+- Preserve incoming Storage 0.73.5 and qualification Metrics 0.29.12/Entropy
+  0.1.10; keep focused evidence separate from the published 0.39.2 release gates.
+- Adopt incoming Wire 0.21.5 in both locks and regenerate all five browser
+  artifacts. Auth bindings are unchanged; Wire's runtime reduces varint and
+  record-field allocation work while preserving byte and input-admission rules.
+
 ## [0.39.2] - 2026-11-12
 
 ### ✨ Features

@@ -4,6 +4,7 @@
 //! expiry indexes, slot fences and replay evidence remain durable and Auth-owned.
 //! No whole-store heap mirror or upgrade-time reconstruction is required.
 
+mod inspection;
 mod keys;
 mod model;
 mod retention;
@@ -24,6 +25,7 @@ use crate::{
 };
 use ic_auth_protocol_types::{LogoutResult, LogoutUnavailable, Principal};
 use ic_storage::Memory;
+pub use inspection::{MAX_INSPECTION_PAGE, MAX_INSPECTION_SCAN, SessionPage};
 pub use model::{BudgetPolicy, LoginLimits, ReceiverConfig, ReceiverOccupancy, ReceiverPruned};
 use model::{CallerRecord, Header};
 use std::borrow::Cow;

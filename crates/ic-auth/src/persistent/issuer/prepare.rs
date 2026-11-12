@@ -1,5 +1,5 @@
 use super::*;
-use crate::portable::{ValidatedGrants, browser_principal};
+use crate::portable::ValidatedGrants;
 use sha2::{Digest, Sha256};
 
 impl<M: Memory> IssuerStore<M> {
@@ -20,82 +20,7 @@ impl<M: Memory> IssuerStore<M> {
         self.prepare_selected(account, request, policy, authority, None, now_ns)
     }
 
-    /// Authenticate the browser against its retained login and reserve exactly
-    /// the next renewal sequence. Neither renewal nor an exact retry extends the
-    /// original login window. Sequence lookup is a point index, not history search.
-    /// # Panics
-    /// Collection/IO faults require host transaction rollback; native hosts must
-    /// discard the runtime after a mutation panic.
-    pub fn renew(
-        &mut self,
-        browser: Principal,
-        input: RenewRequest,
-        authority: IssuerAuthority,
-        now_ns: u64,
-    ) -> Result<IssuerStatus, StoreError> {
-        self.observe(now_ns)?;
-        if input.sequence == 0 {
-            return Err(StoreError::Invalid);
-        }
-        let id = LoginId {
-            account: input.account,
-            epoch: input.login_epoch,
-            id: input.login_id,
-        };
-        let login = self.login(&id)?.ok_or(StoreError::Denied)?;
-        if browser_principal(&login.browser_public_key) != browser
-            || browser == Principal::anonymous()
-            || grants_hash(&input.grants)? != login.grants_hash
-            || login.revoked
-        {
-            return Err(StoreError::Denied);
-        }
-        let retained: Option<IssuerTicket> =
-            self.records.get(&keys::renewal(&id, input.sequence))?;
-        if let Some(ticket) = retained {
-            let row = self
-                .operation(ticket.account, ticket.epoch, &ticket.operation_id)?
-                .ok_or(StoreError::Corrupt)?;
-            if row.login != id
-                || row.renewal != Some(input.sequence)
-                || row.request.grants != input.grants
-            {
-                return Err(StoreError::Corrupt);
-            }
-            if row.result.is_none() {
-                self.check_pending(&row, authority, now_ns)?;
-            }
-            return self.status(&row);
-        }
-        if now_ns >= login.deadline_ns {
-            return Err(StoreError::Expired);
-        }
-        if input.sequence <= login.sequence {
-            return Err(StoreError::EpochClosed);
-        }
-        if !login.completed || login.sequence.checked_add(1) != Some(input.sequence) {
-            return Err(StoreError::Conflict);
-        }
-        let operation_id = hash(&input)?;
-        let request = IssueRequest {
-            epoch: self.header.epoch,
-            operation_id,
-            login_epoch: id.epoch,
-            login_id: id.id,
-            browser_public_key: login.browser_public_key,
-            grants: input.grants,
-        };
-        self.prepare_selected(
-            input.account,
-            request,
-            login.policy,
-            authority,
-            Some(input.sequence),
-            now_ns,
-        )
-    }
-
-    fn prepare_selected(
+    pub(super) fn prepare_selected(
         &mut self,
         account: Principal,
         request: IssueRequest,
@@ -334,13 +259,13 @@ fn validate(
     ValidatedGrants::new(request.grants.clone()).map_err(|_| StoreError::Invalid)?;
     Ok(())
 }
-fn grants_hash(
+pub(super) fn grants_hash(
     grants: &[ic_auth_protocol_types::DelegatedRoleGrant],
 ) -> Result<[u8; 32], StoreError> {
     ValidatedGrants::new(grants.to_vec()).map_err(|_| StoreError::Invalid)?;
     hash(&grants)
 }
-fn hash<T: serde::Serialize>(value: &T) -> Result<[u8; 32], StoreError> {
+pub(super) fn hash<T: serde::Serialize>(value: &T) -> Result<[u8; 32], StoreError> {
     let bytes = ic_wire::native::encode_request(
         0x41555448495201,
         value,

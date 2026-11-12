@@ -60,6 +60,20 @@ impl Key {
         self.0.extend_from_slice(bytes);
         self
     }
+    pub fn principal_value(
+        &self,
+        kind: u8,
+    ) -> Result<ic_auth_protocol_types::Principal, StoreError> {
+        if self.0.len() != 31 || self.0[0] != kind || self.0[1] > 29 {
+            return Err(StoreError::Corrupt);
+        }
+        let principal =
+            ic_auth_protocol_types::Principal::from_slice(&self.0[2..2 + usize::from(self.0[1])]);
+        if Self::new(kind).principal(principal) != *self {
+            return Err(StoreError::Corrupt);
+        }
+        Ok(principal)
+    }
     pub fn time(&self) -> Result<u64, StoreError> {
         Ok(u64::from_be_bytes(
             self.0
@@ -206,6 +220,25 @@ impl<M: Memory> Records<M> {
     }
     pub fn contains(&self, key: &Key) -> bool {
         self.table(key).contains_key(key)
+    }
+    pub fn range<T: DeserializeOwned>(
+        &self,
+        kind: u8,
+        after: Option<Key>,
+    ) -> impl Iterator<Item = Result<(Key, T), StoreError>> {
+        use std::ops::Bound::{Excluded, Included};
+        let first = Key::new(kind);
+        self.table(&first)
+            .range((
+                after.map_or(Included(first), Excluded),
+                Excluded(Key::new(kind + 1)),
+            ))
+            .map(|entry| {
+                let (key, blob) = entry.into_pair();
+                ic_wire::native::decode_request(RECORD, &blob.0, LIMITS)
+                    .map(|row| (key, row))
+                    .map_err(|_| StoreError::Corrupt)
+            })
     }
     pub fn expired(&self, kind: u8, now_ns: u64, budget: usize) -> Result<Vec<Key>, StoreError> {
         let mut selected = Vec::new();

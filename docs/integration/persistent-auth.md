@@ -6,8 +6,8 @@ boundary selected by [Auth #132](https://github.com/dragginzgame/ic-auth/issues/
 Consumer adoption and deletion remain tracked by
 [Canic #764](https://github.com/dragginzgame/canic/issues/764).
 The [adoption guide](canic-adoption.md#pending-auth-owned-persistent-store-adoption)
-records missing renewal recovery/preflight and bounded inspection APIs; this
-foundation does not complete Canic integration or its deployment acceptance.
+distinguishes published 0.39.2 from the new local renewal recovery/preflight and
+bounded inspection APIs. Consumer integration and deployment need their own gate.
 
 These stores do not install endpoints, allocate a stable-memory manager, obtain a
 clock, select trusted authority or publish a certification root. The host supplies
@@ -72,6 +72,32 @@ expired results; it never extends a credential or authenticates an application
 operation. Issuer revocation stops further signing/renewal; receiver revocation
 and existing receiver leases have their own enforcement boundary.
 
+### Renewal application authorization and recovery
+
+The following APIs are implemented locally after 0.39.2:
+
+1. Call `preflight_renewal(actual_browser, &request)` before application effects.
+   It returns `RenewalSelection`: the authenticated original account, exact
+   `IssueRequest` and original `IssuerPolicy`. Compare the application's current
+   grant decision with these values. This projection reserves nothing and does
+   not establish current expiry or signing authority. If authorization awaits,
+   repeat the selection and authorization checks against current host state.
+2. Call `renew(actual_browser, request, protected_authority, now)` synchronously
+   with that decision. It rechecks browser/login/sequence, revocation, deadlines
+   and authority before creating work. Retained work keeps its original identity;
+   pruned consumed sequences cannot be recreated. Use the existing intent,
+   challenge, approval and signing stages with no second consumer journal.
+3. For reconciliation alone, call `retrieve_renewal(actual_browser, &request)`.
+   `RetainedRenewal` contains the original intent and pending ticket or completed
+   bytes, even after expiry, restart or revocation while retained. The lookup
+   neither observes a clock nor reserves, signs or extends anything. Wrong
+   browser/grants or absent login authority refuses; an absent/pruned operation
+   returns `None`. Pending evidence does not authorize a late callback.
+
+Pass the authenticated ingress browser Principal, never a client-declared caller.
+Auth owns the operation hash and renewal index. Canic retains its permission
+callback, endpoint guards and DTO conversion, with no copied hashing algorithm.
+
 Expiry indexes and login reference counts avoid cross-history cleanup scans.
 `prune` removes at most `min(budget, 32)` records. Forgetting current-epoch consumed
 IDs and closing that epoch share one commit. A login with retained operation work
@@ -103,6 +129,17 @@ protected host policy. Bounded pruning removes expired sessions/replays and
 unknown denials. Generation changes must share the host transaction with changes
 to protected authority.
 
+`inspect_sessions(after, limit, scan_budget, now)` is passive inspection, not an
+authentication decision. It returns stored `Session` metadata, including expired
+and stale-generation rows, plus the supplied time and protected store generation.
+The host owns permission to inspect and projects endpoint DTOs from these values.
+Rows follow canonical Principal order and `after` is exclusive. Limits are 32
+returned sessions and 128 visited caller rows, plus one lookahead. Fences consume
+the scan budget and advance `next_after`: follow that cursor even for an empty
+page. Do not loop within one endpoint to fill a page. There is no snapshot across
+calls; concurrent changes may affect later pages. Inspection never advances the
+protected clock, removes rows or requires a consumer-maintained session mirror.
+
 ## Format and adoption
 
 This is a new optional backing layout, not a reader for Canic's issuer journal,
@@ -121,7 +158,7 @@ Auth fixture as completed Canic adoption or production key-custody qualification
 The maintainer accepts the measured 1,223,140-instruction cold authentication at
 100,000 receiver records as an interim cost. The installed regression ceiling is
 1,300,000 instructions, including the post-upgrade lookup. Auth remains on
-published Storage 0.73.4; Storage locality optimization is a follow-up, not a
+published Storage 0.73.5 in the current local checks; Storage locality optimization is a follow-up, not a
 dependency of this batch. This is ordinary protected-call overhead, not a
 one-time login cost. It does not waive correctness or lifecycle acceptance.
 
@@ -133,7 +170,14 @@ invalidation. Installed probes measure individual issuer bookkeeping and ordinar
 receiver authentication separately; their controller-only seeding endpoints are
 qualification code, not production issuer or authentication endpoints.
 
-The issue stays open until the remaining issuer enrollment/key-effect custody,
-full installed certified and Ed25519 lifecycle acceptance, corruption/interruption
-coverage and consumer handoff have been reconciled. Evidence and actual measured
-acceptance belong in the [current handoff](../status/current.md).
+Installed lifecycle tests now run real certified and Ed25519 credentials from
+Auth's durable issuer into its durable receiver: account device capacity/overflow,
+exact retry, original-deadline renewal, restoration, interrupted callback refusal,
+logout, protected authority invalidation and bounded cleanup. Certified completion
+commits the result and signature leaf through the fixture's existing certification
+owner in one IC transaction. Native tests cover selected corrupt records/indexes
+and refusal without writes. These controller-controlled authority fixtures do not
+prove Canic's Root enrollment or secret-key management: those remain host-owned,
+along with its application permission checks. No additional Auth key store is
+required by #132. Evidence and remaining delivery/consumer acceptance belong in
+the [current handoff](../status/current.md).

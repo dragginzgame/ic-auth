@@ -146,3 +146,13 @@ method!(ProfileCertified, 0x41555449f010, "profile_certified_proof", ic_auth_wir
 
 pub mod persistent;
 method!(PersistentIssuer, 0x41555449f020, "persistent_issuer", persistent::Command, Result<persistent::Report, Refusal>, PROFILE_LIMITS);
+method!(PersistentAdmission, 0x41555449f021, "persistent_admission", ic_auth_wire::SessionInput, Result<ic_auth_wire::SessionView, ic_auth_wire::model::AdmissionRefusal>, ic_auth_wire::EstablishSession::REQUEST_LIMITS, REPLY_LIMITS);
+method!(PersistentRead, 0x41555449f022, "persistent_read", (), Result<ic_auth_wire::SessionView, ic_auth_wire::model::SessionReadRefusal>, REPLY_LIMITS);
+method!(
+    PersistentLogout,
+    0x41555449f023,
+    "persistent_logout",
+    (),
+    ic_auth_wire::model::LogoutResult,
+    REPLY_LIMITS
+);

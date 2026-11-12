@@ -1,5 +1,6 @@
 //! Actual volatile receiver lifecycle for qualification, not a production issuer.
 mod checkpoint;
+mod persistent;
 use ic_auth_qualification_fixtures::metrics;
 mod profiling;
 pub(crate) use checkpoint::{Snapshot, capture, restore};
@@ -288,6 +289,13 @@ fn install_session_receiver(config: controls::model::ReceiverConfig) -> Result<(
     encode_with = "crate::control::EstablishSession::encode"
 )]
 fn establish_portable_session(input: SessionInput) -> Result<SessionView, AdmissionRefusal> {
+    establish(input, Backend::Volatile)
+}
+enum Backend {
+    Volatile,
+    Persistent,
+}
+fn establish(input: SessionInput, backend: Backend) -> Result<SessionView, AdmissionRefusal> {
     let credential: PortableCredential = input
         .credential
         .try_into()
@@ -324,19 +332,26 @@ fn establish_portable_session(input: SessionInput) -> Result<SessionView, Admiss
                 PortableVerificationContext::Certified(&certified)
             }
         };
-        let result = establish_session(
-            &mut host.store,
-            &mut host.ledger,
-            &mut host.admission,
-            &credential,
-            request,
-            &SessionAdmissionContext {
-                verification,
-                role: &host.inputs.config.role,
-                ttl: ttl(),
-            },
-            policy,
-        );
+        let admission = SessionAdmissionContext {
+            verification,
+            role: &host.inputs.config.role,
+            ttl: ttl(),
+        };
+        let result = match backend {
+            Backend::Volatile => establish_session(
+                &mut host.store,
+                &mut host.ledger,
+                &mut host.admission,
+                &credential,
+                request,
+                &admission,
+                policy,
+            ),
+            Backend::Persistent => crate::persistent::with_receiver(|store| {
+                store.admit(&credential, request, &admission, policy)
+            })
+            .ok_or(AdmissionRefusal::Unavailable)?,
+        };
         host.metrics.observe(&result);
         result
             .map(|result| view(result.receipt()))
@@ -376,6 +391,12 @@ enum SessionOperation {
 // Runtime caller, clock, authority and required scopes are host inputs. Ordinary
 // operations reuse the retained session; they decode no credential or proof.
 fn authorize(operation: SessionOperation) -> Result<SessionView, SessionReadRefusal> {
+    authorize_with(operation, Backend::Volatile)
+}
+fn authorize_with(
+    operation: SessionOperation,
+    backend: Backend,
+) -> Result<SessionView, SessionReadRefusal> {
     with_receiver(|host| {
         let policy = policy(host);
         let mut ctx = host.inputs.context(
@@ -386,9 +407,16 @@ fn authorize(operation: SessionOperation) -> Result<SessionView, SessionReadRefu
             SessionOperation::Read => &host.read_scopes,
             SessionOperation::Write => &host.write_scopes,
         };
-        authorize_session(&mut host.store, &mut host.ledger, &ctx, policy, |session| {
-            view(session.into())
-        })
+        let project = |session: &Session| view(session.into());
+        match backend {
+            Backend::Volatile => {
+                authorize_session(&mut host.store, &mut host.ledger, &ctx, policy, project)
+            }
+            Backend::Persistent => {
+                crate::persistent::with_receiver(|store| store.authenticate(&ctx, policy, project))
+                    .ok_or(SessionReadRefusal::Unavailable)?
+            }
+        }
         .map_err(|e| e.read_refusal())
     })
 }
@@ -440,6 +468,16 @@ fn invalidate_session_authority(enabled: bool) -> Result<(), Refusal> {
         host.store
             .advance_generation()
             .map_err(|_| Refusal::Session)?;
+        // A trap rolls both stores and protected authority back together. The
+        // two fixture backends share one authority generation, not two policies.
+        if let Some(generation) =
+            crate::persistent::with_receiver(|store| store.advance_generation())
+        {
+            assert_eq!(
+                generation.expect("persistent authority generation"),
+                host.store.generation()
+            );
+        }
         host.enabled = enabled;
         Ok(())
     })

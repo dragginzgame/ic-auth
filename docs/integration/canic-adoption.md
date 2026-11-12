@@ -27,23 +27,27 @@ the memory, transaction and stored-format contract:
 The maintainer accepts the measured 1.223M cold ordinary-authentication cost at
 100,000 records provisionally. The regression ceiling is 1.3M; published Storage
 0.73.4 is sufficient for this batch. Canic need not wait for Storage optimization
-or implement a workaround. Full issuer custody convergence and installed
-certified/Ed25519 lifecycle acceptance remain tracked in #132; this handoff does
-not claim that Canic can already delete every issuer component.
+or implement a workaround. Local installed certified/Ed25519 lifecycle tests now
+cover both durable stores. Canic still needs the new Auth release and must qualify
+its own authority, memory, transaction and endpoint integration before deletion.
 
-The consumer audit on #132 identifies three APIs still missing in 0.39.2:
+The three APIs reported missing in 0.39.2 are now implemented locally:
 
-- Browser-authenticated, lookup-only renewal recovery by the retained login and
+- `IssuerStore::retrieve_renewal`: browser-authenticated, lookup-only recovery by the retained login and
   sequence, preserving original results after expiry without new issuance.
-- Read-only renewal preflight exposing authenticated account, exact request and
+- `IssuerStore::preflight_renewal`: read-only preflight exposing authenticated account, exact request and
   original policy before application permission checks or intent reservation.
-- Bounded caller-ordered session inspection, including expired/stale rows,
+- `ReceiverStore::inspect_sessions`: bounded caller-ordered inspection, including expired/stale rows,
   exclusive cursor pagination and bounded scanning across retained fences.
 
 Canic owns endpoint authorization and DTO conversion. Auth must own browser
 binding, renewal index semantics and record traversal. Do not retain duplicate
-indexes or session mirrors as the final integration. These gaps block Canic
-deployment; its production storage remains unchanged.
+indexes or session mirrors as the final integration. Follow the precise
+[preflight/recovery and pagination contracts](persistent-auth.md). Inspection
+pages can be empty with a continuation across fences; do not scan until full in
+one endpoint. A preflight is not permission to sign after an intervening await.
+Private key custody, Root enrollment/approval and application permissions remain
+Canic responsibilities. No consumer source or production storage changed here.
 
 The published Auth cohort is Protocol/Engine 0.39.2; exact delivery evidence and
 pending supplier selections are in the [current handoff](../status/current.md).

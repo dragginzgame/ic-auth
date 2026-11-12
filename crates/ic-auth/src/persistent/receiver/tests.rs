@@ -80,3 +80,71 @@ fn unknown_denials_budget_clock_reopen_and_bounded_pruning_are_durable() {
     assert_eq!(store.prune(10_000_000_002, 1).unwrap().unknown_denials, 1);
     assert_eq!(store.occupancy(), ReceiverOccupancy::default());
 }
+
+#[test]
+fn inspection_bounds_fence_scans_and_advances_empty_pages_without_writes() {
+    let backing = Backing::new(VectorMemory::default());
+    let mut config = config();
+    config.logins.unknown = 1024;
+    config.logout.burst = 1024;
+    let mut store = ReceiverStore::create(memory(backing.clone()), config, 0, 0).unwrap();
+    let mut callers: Vec<_> = (0u32..512)
+        .map(|n| Principal::self_authenticating(n.to_be_bytes()))
+        .collect();
+    for caller in &callers {
+        let result = store.logout(*caller, 1024);
+        assert!(
+            matches!(result, LogoutResult::Unconfirmed { .. }),
+            "caller {caller}: {result:?}; {:?}",
+            store.occupancy()
+        );
+    }
+    callers.sort();
+    backing.reset();
+    let page = store.inspect_sessions(None, 2, 4, 1025).unwrap();
+    assert!(page.sessions.is_empty());
+    assert_eq!((page.scanned, page.next_after), (4, Some(callers[3])));
+    assert_eq!((page.observed_at_ns, store.observed_at_ns()), (1025, 1024));
+    assert!(
+        backing.counts().read_bytes < 65_536,
+        "bounded scan: {:?}",
+        backing.counts()
+    );
+    assert_eq!((backing.counts().writes, backing.counts().grows), (0, 0));
+    let mut after = page.next_after;
+    let mut scanned = usize::from(page.scanned);
+    while after.is_some() {
+        let page = store.inspect_sessions(after, 2, 4, 1025).unwrap();
+        assert!(page.sessions.is_empty());
+        assert!(page.scanned <= 4);
+        if let Some(next) = page.next_after {
+            assert!(Some(next) > after);
+        }
+        after = page.next_after;
+        scanned += usize::from(page.scanned);
+    }
+    assert_eq!(scanned, callers.len());
+    for (limit, budget) in [(0, 4), (33, 128), (1, 0), (2, 1), (1, 129)] {
+        assert_eq!(
+            store.inspect_sessions(None, limit, budget, 1025),
+            Err(StoreError::Invalid)
+        );
+    }
+    assert_eq!(
+        store.inspect_sessions(None, 1, 1, 0),
+        Err(StoreError::Clock)
+    );
+    assert_eq!(backing.counts().writes, 0);
+
+    let mut writes = Writes::new();
+    writes
+        .put(keys::login(callers[0]), &CallerRecord::Fence(vec![0]))
+        .unwrap();
+    store.records.commit(writes);
+    backing.reset();
+    assert_eq!(
+        store.inspect_sessions(None, 1, 1, 1025),
+        Err(StoreError::Corrupt)
+    );
+    assert_eq!(backing.counts().writes, 0);
+}

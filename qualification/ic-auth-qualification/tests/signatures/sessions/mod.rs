@@ -2,6 +2,7 @@
 mod application;
 mod browser;
 mod costs;
+mod persistent;
 use super::{Agent, BasicIdentity, Fixture, PocketPrincipal, Principal};
 use super::{controls, query_control, update_control};
 use contract::*;

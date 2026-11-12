@@ -50,25 +50,47 @@ initial proof verification, Root approval, signing and endpoint overhead.
 Keep the earlier `target/auth-132-installed/accepted-cost/` evidence. Warm samples in
 `target/auth-132-installed/scaling.log` are not cold-call acceptance.
 
-Full issuer key/enrollment/effect custody convergence and installed
-certified/Ed25519 production-adapter lifecycle, corruption/interruption and
-handoff acceptance remain in [Auth #132](https://github.com/dragginzgame/ic-auth/issues/132).
-[Canic #764](https://github.com/dragginzgame/canic/issues/764) owns later adoption
-and deletion. The consumer reported three confirmed missing Auth APIs on #132:
-browser-authenticated lookup-only renewal recovery, renewal preflight before
-application authorization, and bounded caller-ordered session inspection
-(including a scan budget across retained fences). They are not in 0.39.2.
-Canic retains endpoint authorization/DTO conversion, not duplicate renewal indexes
-or a session mirror. Production integration and deployment remain blocked.
+### Local #132 completion, not yet released
+
+`IssuerStore::retrieve_renewal` now provides browser-authenticated lookup-only
+recovery, including expired/interrupted originals. `preflight_renewal` projects
+the authenticated account, exact request and original policy before application
+authorization. Both share the private renewal index/binding checks with `renew`;
+neither reserves work or advances time. `ReceiverStore::inspect_sessions` returns
+passive expired/stale metadata in caller order, with an exclusive cursor and a
+bounded scan across fences. Empty pages can have continuations. See the
+[consumer contract](../integration/persistent-auth.md). Stored formats, signed
+bytes and verification/trust rules are unchanged. Canic retains host keys,
+Root enrollment/approval and application policy; no additional Auth key store
+or consumer renewal index/session mirror is required.
+
+Focused evidence: `target/auth-132-apis/`. Eighteen native tests pass, including
+100,000 logins, corrupt index/record refusal and zero-write read APIs. Seven
+installed session cases pass; Chromium remains unprepared/ignored. Both real
+certified and Ed25519 durable lifecycles cover device capacity/overflow, retry,
+renewal, upgrade, unexpired late-callback refusal, logout, authority invalidation
+and bounded cleanup. The fixture's existing certification owner commits certified
+completion/leaf publication in one transaction. Strict native/Wasm Clippy,
+dependency boundaries, snapshot/membership, formatting and doc links pass.
+
+Installed scaling also passes through 100,000 records: cold authentication
+**1,224,068**, post-upgrade **1,223,195**, renewal preflight **508,966**, recovery
+**645,001**, and two-row inspection **2,106,025** instructions. Keep
+`installed-scaling.log`, `installed-sessions-final.log`, native logs and
+`inputs.sha256`. `installed-issuer-final.log` also proves refusal of the 100,001st
+login with unchanged occupancy. These are focused checks, not a release gate.
+
+[Auth #132](https://github.com/dragginzgame/ic-auth/issues/132) stays open across
+delivery and consumer acceptance. [Canic #764](https://github.com/dragginzgame/canic/issues/764)
+owns adoption, duplicate-engine deletion and actual endpoint qualification.
+No Canic source, production backing or deployment changed. Engine 0.39.3 notes
+are pending; product versions remain 0.39.2. The new APIs are not published yet.
 
 ## Tooling and suppliers
 
-Both workspaces select published Toko Tooling **0.39.17**. Its authenticated
-110-file snapshot includes scoped sequential `deps-update` forwarding and the
-module-placement rule. Sixteen child-bearing module roots moved to `mod.rs`
-without changing public paths; an empty integration-test directory was removed
-while its standalone test remained. Snapshot, metadata and actual caller checks
-passed. Evidence: `target/auth-release-0392/tooling/` and
+Both workspaces select Toko Tooling **0.39.17**, with a verified 110-file snapshot,
+scoped `deps-update` forwarding and child-bearing `mod.rs` placement. Adoption
+checks passed; retain `target/auth-release-0392/tooling/` and
 `target/tooling-adoption-20261112/`.
 
 Pre-freeze registry review confirmed Build 0.83.0, Entropy 0.1.9, Host FS/Process
@@ -81,10 +103,11 @@ runtime improves u32 lengths and packed booleans. The independent file CLI pin
 stays 0.76.4; its optional update is deferred to Host/tool maintenance. Evidence:
 `target/auth-release-0392/tooling/freshness.json` and retained indexes.
 
-An external updater selected Storage **0.73.5** in both normal-checkout locks
-during delivery. Those exact changes were preserved and reapplied after Shared
-reconciliation; they remain uncommitted and unqualified. The released gates used
-**0.73.4**. Do not project their evidence onto the incoming selection.
+External updates selected Storage **0.73.5**, qualification Metrics **0.29.12**
+and Entropy **0.1.10**; the #132 focused checks use these inputs. The authorized
+Engine 0.39.3 release additionally captures incoming Wire **0.21.5** in both
+locks, with all five browser artifacts regenerated. Its new complete gate is
+pending. Published 0.39.2 used Storage **0.73.4** and Wire **0.21.4**.
 
 Testkit retains managed startup and its native PocketIC 16.1.0 re-export; one
 Wire identity is required. Principal boundaries copy validated bytes. Awaited

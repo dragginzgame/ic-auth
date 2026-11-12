@@ -1497,9 +1497,9 @@ dependencies = [
 
 [[package]]
 name = "ic-entropy"
-version = "0.1.9"
+version = "0.1.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9b951ffb555fcf8cf9136ebec69086726c4a06f10c694ccbd6534f33d68cf204"
+checksum = "7e63af3c869dd49e3b45cb4bd55e9eaccea8e3bc986b064b7a762a037715fbe6"
 dependencies = [
  "rand_chacha 0.10.0",
 ]
@@ -1551,9 +1551,9 @@ dependencies = [
 
 [[package]]
 name = "ic-metrics"
-version = "0.29.11"
+version = "0.29.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "45009e4547025d669c579899d17332fdcd00c34429d43bc1795297978b8eb21d"
+checksum = "94c0bc852016b1a7af5bdef20bfadd18d586842ef6f845ddb96d941ff8070c63"
 
 [[package]]
 name = "ic-platform"
@@ -1627,9 +1627,9 @@ dependencies = [
 
 [[package]]
 name = "ic-storage"
-version = "0.73.4"
+version = "0.73.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b91508b8e1d7cf355fec15a3857596ba26176a977cc951386720c9c9b2304939"
+checksum = "08dced669191b0b7525f9e662e816873bd5194f10273d10ed5bfd3785bad2dfd"
 dependencies = [
  "ic-platform-runtime",
  "serde",
@@ -1690,9 +1690,9 @@ dependencies = [
 
 [[package]]
 name = "ic-wire"
-version = "0.21.4"
+version = "0.21.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cbb0db960c84649d3b3d5159df724839da9c055caa8ca333e075b62c1f58a624"
+checksum = "0a2dc82864886cccf0eb8733d286dd38e46a2649143d80a88eb95787de6ad84f"
 dependencies = [
  "bytemuck",
  "postcard",

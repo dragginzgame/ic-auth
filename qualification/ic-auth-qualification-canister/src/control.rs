@@ -64,3 +64,11 @@ bind!(
     ic_auth_wire::model::LogoutResult
 );
 bind!(PersistentIssuer, controls::PersistentIssuer, controls::persistent::Command, Result<controls::persistent::Report, Refusal>);
+bind!(PersistentAdmission, controls::PersistentAdmission, ic_auth_wire::SessionInput, Result<ic_auth_wire::SessionView, ic_auth_wire::model::AdmissionRefusal>);
+bind!(PersistentRead, controls::PersistentRead, (), Result<ic_auth_wire::SessionView, ic_auth_wire::model::SessionReadRefusal>);
+bind!(
+    PersistentLogout,
+    controls::PersistentLogout,
+    (),
+    ic_auth_wire::model::LogoutResult
+);

@@ -1,5 +1,6 @@
 //! Real stable-memory probes for Auth bookkeeping. Crypto is deliberately outside
 //! these samples; the existing certified/Ed25519 admission suites own proof cost.
+mod lifecycle;
 use ic_auth::persistent::{
     StoreError, StoreMemory,
     issuer::*,
@@ -26,6 +27,11 @@ thread_local! {
     static ISSUER: RefCell<Option<IssuerStore<DefaultMemoryImpl>>> = const { RefCell::new(None) };
     static RECEIVER_MEMORY: RefCell<Option<ReceiverMemory<DefaultMemoryImpl>>> = const { RefCell::new(None) };
     static RECEIVER: RefCell<Option<ReceiverStore<DefaultMemoryImpl>>> = const { RefCell::new(None) };
+}
+pub(crate) fn with_receiver<T>(
+    operation: impl FnOnce(&mut ReceiverStore<DefaultMemoryImpl>) -> T,
+) -> Option<T> {
+    RECEIVER.with(|state| state.borrow_mut().as_mut().map(operation))
 }
 fn config() -> IssuerConfig {
     IssuerConfig {
@@ -181,11 +187,53 @@ fn sample<T>(
 fn persistent_issuer(command: Command) -> Result<Report, Refusal> {
     super::controller()?;
     let now = ic_platform_runtime::cdk::api::time();
+    if let Command::Lifecycle {
+        action,
+        login,
+        browser_public_key,
+        key_binding_id,
+        certified,
+        sequence,
+    } = command
+    {
+        return lifecycle::issuer(
+            action,
+            login,
+            browser_public_key,
+            key_binding_id,
+            certified,
+            sequence,
+            now,
+        );
+    }
+    if let Command::PruneReceiver { budget } = command {
+        return with_receiver(|store| {
+            let before = store.occupancy();
+            let pruned = store.prune(now, budget).map_err(|_| Refusal::Session)?;
+            assert!(pruned.sessions + pruned.replays + pruned.unknown_denials <= budget.min(32));
+            let after = store.occupancy();
+            assert!(after.sessions <= before.sessions && after.replays <= before.replays);
+            Ok(Report {
+                logins: after.admitted_logins as u64,
+                operations: after.sessions as u64,
+                ..Report::default()
+            })
+        })
+        .ok_or(Refusal::ReceiverUnavailable)?;
+    }
     if let Command::FillReceiver { records } = command {
         return fill_receiver(records);
     }
     if let Command::ProfileReceiver { browser_public_key } = command {
         return profile_receiver(browser_public_key, now);
+    }
+    if let Command::InspectReceiver {
+        after,
+        limit,
+        scan_budget,
+    } = command
+    {
+        return inspect_receiver(after, limit, scan_budget, now);
     }
     if matches!(command, Command::Initialize) {
         let memory = MEMORY
@@ -281,19 +329,30 @@ fn persistent_issuer(command: Command) -> Result<Report, Refusal> {
                         sequence: 1,
                         grants: grants(),
                     };
-                    sample(&mut samples, "renew", || {
-                        store.renew(
-                            ic_auth::portable::browser_principal(&original.browser_public_key),
-                            renew,
-                            authority(certified),
-                            now,
-                        )
+                    let browser =
+                        ic_auth::portable::browser_principal(&original.browser_public_key);
+                    let selected = sample(&mut samples, "renewal_preflight", || {
+                        store.preflight_renewal(browser, &renew)
                     })?;
+                    let status = sample(&mut samples, "renew", || {
+                        store.renew(browser, renew.clone(), authority(certified), now)
+                    })?;
+                    let recovered = sample(&mut samples, "renewal_recovery", || {
+                        store.retrieve_renewal(browser, &renew)
+                    })?
+                    .ok_or(StoreError::Corrupt)?;
+                    if recovered.status != status || recovered.intent.request != selected.request {
+                        return Err(StoreError::Corrupt);
+                    }
                 }
                 Command::Prune { budget } => {
                     sample(&mut samples, "prune", || store.prune(now, budget))?;
                 }
-                Command::FillReceiver { .. } | Command::ProfileReceiver { .. } => {
+                Command::FillReceiver { .. }
+                | Command::ProfileReceiver { .. }
+                | Command::InspectReceiver { .. }
+                | Command::Lifecycle { .. }
+                | Command::PruneReceiver { .. } => {
                     unreachable!("receiver commands dispatched above")
                 }
             }
@@ -306,6 +365,7 @@ fn persistent_issuer(command: Command) -> Result<Report, Refusal> {
             operations: counts.operations,
             epoch: store.epoch(),
             samples,
+            ..Report::default()
         })
     })
 }
@@ -338,6 +398,7 @@ fn fill_receiver(
             operations: counts.sessions as u64,
             epoch: store.generation(),
             samples: Vec::new(),
+            ..Report::default()
         })
     })
 }
@@ -388,6 +449,33 @@ fn profile_receiver(browser_public_key: [u8; 32], now_ns: u64) -> Result<Report,
                 ("authenticate".into(), instructions),
                 ("point_read_decode".into(), point),
             ],
+            ..Report::default()
+        })
+    })
+}
+
+fn inspect_receiver(
+    after: Option<Principal>,
+    limit: u16,
+    scan_budget: u16,
+    now: u64,
+) -> Result<Report, Refusal> {
+    RECEIVER.with(|state| {
+        let state = state.borrow();
+        let store = state.as_ref().ok_or(Refusal::ReceiverUnavailable)?;
+        let mut samples = Vec::new();
+        let page = sample(&mut samples, "inspection", || {
+            store.inspect_sessions(after, limit, scan_budget, now)
+        })
+        .map_err(|_| Refusal::Session)?;
+        Ok(Report {
+            samples,
+            inspection: Some(ic_auth_qualification_contracts::persistent::Inspection {
+                callers: page.sessions.iter().map(|s| s.caller()).collect(),
+                next_after: page.next_after,
+                scanned: page.scanned,
+            }),
+            ..Report::default()
         })
     })
 }

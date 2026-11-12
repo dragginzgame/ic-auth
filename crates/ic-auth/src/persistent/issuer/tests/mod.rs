@@ -458,3 +458,5 @@ fn completion_reservation_covers_longest_nonce_and_approval_encodings() {
         Ok(Some(IssuerStatus::Completed(result)))
     );
 }
+
+mod renewal;
