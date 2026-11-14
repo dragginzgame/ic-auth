@@ -15,4 +15,4 @@ source ci/host-file.env
 selection=(--consumer "$PWD" --package ic-host-fs --version "$HOST_FILE_VERSION"
     --bin ic-host-file --profile debug --features cli)
 [[ "$1" != check ]] || selection+=(--check)
-exec bash scripts/dev/install-rust-tools.sh "${selection[@]}"
+exec bash vendor/toko-tooling/scripts/dev/install-rust-tools.sh "${selection[@]}"

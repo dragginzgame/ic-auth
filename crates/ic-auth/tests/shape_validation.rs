@@ -1,3 +1,4 @@
+//! Scope grammar and canonical ordering rejection without cryptographic verification.
 use ic_auth::canonical::{CanonicalAuthError, validate_scope_label, validate_scopes};
 use ic_auth::certificate_issuance::{GrantValidationError, validate_grants};
 use ic_auth_protocol_types::{DelegatedRoleGrant, ScopeLabel, ScopeLabelError};

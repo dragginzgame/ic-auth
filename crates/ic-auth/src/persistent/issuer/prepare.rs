@@ -1,4 +1,7 @@
-use super::*;
+use super::{
+    IssueRequest, IssuedCredential, IssuerAuthority, IssuerPolicy, IssuerStatus, IssuerStore,
+    IssuerTicket, Login, LoginId, Memory, Operation, Principal, StoreError, Writes, keys, size,
+};
 use crate::portable::ValidatedGrants;
 use sha2::{Digest, Sha256};
 
@@ -54,6 +57,18 @@ impl<M: Memory> IssuerStore<M> {
             return Err(StoreError::Denied);
         }
         let mut header = self.header.clone();
+        // One issuer-wide allowance covers every new intent, whether entered
+        // through initial issuance or authenticated renewal. Exact recovery
+        // above is free. Later ordinary refusals do not refund attempted work.
+        let charged = header.issuance_budget.consume(now_ns);
+        if header.issuance_budget != self.header.issuance_budget {
+            self.publish(header.clone(), Writes::new())?;
+        }
+        charged.map_err(|error| match error {
+            crate::admission_budget::AdmissionBudgetError::Exhausted => StoreError::Throttled,
+            crate::admission_budget::AdmissionBudgetError::ClockRollback => StoreError::Clock,
+            crate::admission_budget::AdmissionBudgetError::InvalidPolicy => StoreError::Invalid,
+        })?;
         if header.occupancy.operations >= header.config.max_operations {
             return Err(StoreError::Capacity);
         }

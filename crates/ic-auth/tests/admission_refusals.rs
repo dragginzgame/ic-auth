@@ -1,3 +1,4 @@
+//! Public refusal projections retain the engine's identity, time and budget distinctions.
 #![cfg(feature = "sessions")]
 use ic_auth::{
     portable::{LoginRevocationError, PortableClaimsError},

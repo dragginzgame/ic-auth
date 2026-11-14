@@ -3,36 +3,56 @@ use ic_auth::{delegation::RootKeyPolicy, portable::ValidatedGrants};
 use ic_auth_protocol_types::{AudienceId, AuthRole, Principal};
 pub use ic_auth_qualification_contracts::model::{AdmissionProfile, SessionProfile};
 #[derive(Clone, Debug, Eq, PartialEq)]
+/// Admitted controller fixture enrollment, separate from public credential transport.
 pub struct ReceiverConfig {
+    /// Protected network/fleet audience for this fixture receiver.
     pub audience: AudienceId,
+    /// Protected issuer identity to compare with credential claims.
     pub issuer: Principal,
+    /// Controller-installed verifier and key selection.
     pub authority: ReceiverAuthority,
+    /// Receiver role selected for credential grant narrowing.
     pub role: AuthRole,
+    /// Validated grant shape forming the protected authority ceiling.
     pub grants: ValidatedGrants,
+    /// Inclusive authority start in nanoseconds.
     pub valid_from_ns: u64,
+    /// Exclusive issuer authority deadline in nanoseconds.
     pub valid_until_ns: u64,
+    /// Exclusive enrollment deadline in nanoseconds.
     pub enrollment_until_ns: u64,
+    /// Maximum accumulated verification work units.
     pub verification_burst: u32,
+    /// Trusted nanoseconds per replenished verification work unit.
     pub verification_refill_ns: u64,
 }
 /// Controller-installed test authority; never selected from submitted proofs.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ReceiverAuthority {
+    /// Admitted, non-weak issuer key retained with protected fixture enrollment.
     Ed25519(Box<ic_auth::portable_signature::PreparedIssuerKey>),
+    /// Protected issuer binding, root policy and network anchor for certified proofs.
     Certified {
+        /// Expected key-binding identity in the signed portable claims.
         binding: [u8; 32],
+        /// Independently installed root chain-key policy.
         root: Box<RootKeyPolicy>,
+        /// Raw network BLS trust anchor, admitted at fixture configuration.
         network_key: Vec<u8>,
     },
 }
 
 impl ReceiverAuthority {
+    #[must_use]
+    /// Mechanism selected by installed enrollment, not a submitted proof.
     pub fn mechanism(&self) -> ic_auth_protocol_types::PortableMechanism {
         match self {
             Self::Ed25519(_) => ic_auth_protocol_types::PortableMechanism::Ed25519,
             Self::Certified { .. } => ic_auth_protocol_types::PortableMechanism::Certified,
         }
     }
+    #[must_use]
+    /// Protected issuer key-binding identity used for claims verification.
     pub fn binding(&self) -> [u8; 32] {
         match self {
             Self::Ed25519(key) => key.binding(),

@@ -19,16 +19,22 @@ use thiserror::Error;
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum PortableSignatureError {
     #[error(transparent)]
+    /// The shared verification budget refuses this attempt before cryptography.
     Budget(#[from] AdmissionBudgetError),
     #[error(transparent)]
+    /// Claims cannot be admitted as bounded canonical bytes.
     Encoding(#[from] PortableEncodingError),
     #[error(transparent)]
+    /// Claims fail protected identity, grant or lifetime checks.
     Claims(#[from] PortableClaimsError),
     #[error("invalid or weak Ed25519 public key")]
+    /// The supplied protected issuer key is malformed or weak.
     InvalidPublicKey,
     #[error("Ed25519 signature must contain exactly 64 bytes")]
+    /// Signature length is not the required 64 bytes.
     MalformedSignature,
     #[error("invalid Ed25519 signature")]
+    /// Strict Ed25519 verification or canonical-scalar admission failed.
     InvalidSignature,
 }
 
@@ -79,6 +85,7 @@ pub struct PreparedIssuerKey {
     key: VerifyingKey,
 }
 impl PreparedIssuerKey {
+    /// Parse and reject weak issuer keys, retaining the SHA-256 key binding.
     pub fn new(bytes: [u8; 32]) -> Result<Self, PortableSignatureError> {
         Self::parse(bytes, Sha256::digest(bytes).into())
     }
@@ -90,9 +97,13 @@ impl PreparedIssuerKey {
         }
         Ok(Self { binding, key })
     }
+    #[must_use]
+    /// Borrow the original admitted key bytes without normalization.
     pub fn bytes(&self) -> &[u8; 32] {
         self.key.as_bytes()
     }
+    #[must_use]
+    /// SHA-256 identity of this key, to compare with protected enrollment.
     pub fn binding(&self) -> [u8; 32] {
         self.binding
     }
@@ -149,7 +160,10 @@ pub(crate) fn verify_prepared(
     if bool::from(Scalar::from_canonical_bytes(*signature.s_bytes()).is_none()) {
         return Err(PortableSignatureError::InvalidSignature);
     }
-    budget.consume(context.authority.now_ns)?;
+    budget.consume_verification(
+        context.authority.now_ns,
+        ic_auth_protocol_types::PortableMechanism::Ed25519,
+    )?;
     public_key
         .key
         .verify_strict(&fingerprint, &signature)

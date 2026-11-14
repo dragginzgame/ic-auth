@@ -12,11 +12,17 @@ use ic_metrics::MeasurementCounter;
 /// reporting and window identity. These counters are not checkpointed or DTOs.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct AdmissionMetrics {
+    /// Engine results that committed a new session.
     pub created: MeasurementCounter,
+    /// Engine results that replaced an existing session.
     pub replaced: MeasurementCounter,
+    /// Exact retries returning the unchanged original receipt.
     pub exact_retry: MeasurementCounter,
+    /// Fresh-proof refusals excluding budget exhaustion; cryptography may not have run.
     pub proof_refused: MeasurementCounter,
+    /// Attempts refused because the shared verification budget was exhausted.
     pub budget_refused: MeasurementCounter,
+    /// Other engine refusals, including invalid budget policy or clock rollback.
     pub other_refused: MeasurementCounter,
 }
 

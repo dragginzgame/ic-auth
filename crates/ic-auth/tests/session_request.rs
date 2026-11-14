@@ -1,3 +1,4 @@
+//! Scope narrowing, request hashing and host-selected session lease bounds.
 use ic_auth::canonical::CanonicalAuthError;
 use ic_auth::session_request::{SessionRequest, SessionRequestError};
 

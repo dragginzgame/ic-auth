@@ -10,7 +10,7 @@ auth_release_group() {
         return 1
     }
     [[ "$policy" == - || ( -f "$policy" && ! -L "$policy" ) ]] || return 1
-    selection="$(jq -L "$release_root/scripts/ci" -er --arg group "$RELEASE_GROUP" '
+    selection="$(jq -L "$release_root/vendor/toko-tooling/scripts/ci" -er --arg group "$RELEASE_GROUP" '
         include "cargo-release-groups";
         release_policy | [.groups[] | select(.name == $group)] |
         if length == 1 then .[0] | [.primary,.changelog] | @tsv
@@ -27,14 +27,14 @@ auth_release_version() {
     local release_root="${BASH_SOURCE[0]}" manifest
     [[ "$release_root" == /* ]] || release_root="$PWD/$release_root"
     release_root="$(CDPATH='' cd -P "${release_root%/*}/../.." && pwd -P)" || return
-    manifest="$(yq -p toml -o json '.' Cargo.toml | jq -L "$release_root/scripts/ci" -er --arg primary "$primary" '
+    manifest="$(yq -p toml -o json '.' Cargo.toml | jq -L "$release_root/vendor/toko-tooling/scripts/ci" -er --arg primary "$primary" '
         include "cargo-release-groups";
         .workspace.dependencies[$primary].path |
         if relative then . + "/Cargo.toml" else error("invalid primary manifest path") end')" || return
-    # shellcheck source=scripts/ci/release-metadata-transaction.sh
-    source "$release_root/scripts/ci/release-metadata-transaction.sh"
+    # shellcheck source=vendor/toko-tooling/scripts/ci/release-metadata-transaction.sh
+    source "$release_root/vendor/toko-tooling/scripts/ci/release-metadata-transaction.sh"
     release_metadata_regular . "$manifest" || return 1
-    yq -p toml -o json '.' "$manifest" | jq -L "$release_root/scripts/ci" -er --arg primary "$primary" '
+    yq -p toml -o json '.' "$manifest" | jq -L "$release_root/vendor/toko-tooling/scripts/ci" -er --arg primary "$primary" '
         include "cargo-release-groups";
         if .package.name == $primary and (.package.version | stable)
         then .package.version else error("invalid literal primary version") end'

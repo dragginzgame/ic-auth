@@ -86,6 +86,10 @@ fn controller() -> Result<(), Refusal> {
 }
 
 #[ic_platform_runtime::cdk::init(decode_with = "control::Initialize::decode")]
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "The Runtime entrypoint consumes its decoded Wire argument."
+)]
 fn init(owner: Bytes<29>) {
     let owner = Principal::try_from_slice(owner.as_slice()).expect("owner principal");
     assert_ne!(owner, Principal::anonymous());

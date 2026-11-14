@@ -70,15 +70,23 @@ impl SessionLimits {
         })
     }
 
+    #[must_use]
+    /// Maximum physical session rows, including expired rows awaiting pruning.
     pub const fn max_sessions(self) -> usize {
         self.max_sessions
     }
+    #[must_use]
+    /// Maximum retained replay rows across all accounts.
     pub const fn max_replays(self) -> usize {
         self.max_replays
     }
+    #[must_use]
+    /// Maximum replay rows for one issuer-qualified account across its browser keys.
     pub const fn max_replays_per_account(self) -> usize {
         self.max_replays_per_account
     }
+    #[must_use]
+    /// Encoded session/replay byte ceiling, excluding allocator and index overhead.
     pub const fn max_encoded_bytes(self) -> usize {
         self.max_encoded_bytes
     }
@@ -197,12 +205,18 @@ impl Session {
         }
         Ok(())
     }
+    #[must_use]
+    /// Browser ingress identity bound at admission.
     pub fn caller(&self) -> Principal {
         self.0.caller
     }
+    #[must_use]
+    /// Account subject asserted by this session's issuer.
     pub fn subject(&self) -> Principal {
         self.0.subject
     }
+    #[must_use]
+    /// Issuer that qualifies the account subject and its authority.
     pub fn issuer(&self) -> Principal {
         self.0.issuer
     }
@@ -210,37 +224,55 @@ impl Session {
     pub(crate) fn audience(&self) -> AudienceId {
         self.0.audience
     }
+    #[must_use]
+    /// Issuer-assigned slot within this account's bounded device set.
     pub fn device_slot(&self) -> u8 {
         self.0.device_slot
     }
+    #[must_use]
+    /// Slot generation fencing out credentials from replaced devices.
     pub fn device_generation(&self) -> u64 {
         self.0.device_generation
     }
     /// Proof mechanism retained at admission, for selecting protected enrollment.
     /// This selector does not establish freshness or authorize session use.
+    #[must_use]
     pub fn mechanism(&self) -> PortableMechanism {
         self.0.mechanism
     }
     /// Exact issuer key binding retained at admission. Resolve it in current
     /// protected enrollment and still call `authorize_session` before use.
+    #[must_use]
     pub fn key_binding_id(&self) -> [u8; 32] {
         self.0.key_binding_id
     }
+    #[must_use]
+    /// Narrowed scope labels retained at admission; live authorization is still required.
     pub fn scopes(&self) -> &[ScopeLabel] {
         &self.0.scopes
     }
+    #[must_use]
+    /// Protected receiver authority generation captured at admission.
     pub fn generation(&self) -> u64 {
         self.0.generation
     }
+    #[must_use]
+    /// Trusted receiver time when this lease was established, in nanoseconds.
     pub fn established_at_ns(&self) -> u64 {
         self.0.established_at_ns
     }
+    #[must_use]
+    /// Exclusive session lease deadline, capped by login and authority lifetimes.
     pub fn expires_at_ns(&self) -> u64 {
         self.0.expires_at_ns
     }
+    #[must_use]
+    /// Digest identifying the exact verified credential claims for replay checks.
     pub fn fingerprint(&self) -> [u8; 32] {
         self.0.fingerprint
     }
+    #[must_use]
+    /// Canonical narrowing-request digest used to distinguish exact admission retries.
     pub fn request_hash(&self) -> [u8; 32] {
         self.0.request_hash
     }
@@ -445,19 +477,28 @@ impl Replay {
             remove_at_ns,
         })
     }
+    #[must_use]
+    /// Exact consumed credential digest retained independently of session lifetime.
     pub fn fingerprint(&self) -> [u8; 32] {
         self.0.fingerprint
     }
+    #[must_use]
+    /// Browser caller that consumed this credential.
     pub fn caller(&self) -> Principal {
         self.0.caller
     }
+    #[must_use]
+    /// Receiver authority generation at consumption; old generations still occupy storage.
     pub fn generation(&self) -> u64 {
         self.0.generation
     }
+    #[must_use]
+    /// Earliest trusted time at which this replay tombstone may be pruned.
     pub fn remove_at_ns(&self) -> u64 {
         self.0.remove_at_ns
     }
     /// Authenticated issuer-qualified owner, retained even after session removal.
+    #[must_use]
     pub fn account(&self) -> (Principal, Principal) {
         (self.0.issuer, self.0.subject)
     }

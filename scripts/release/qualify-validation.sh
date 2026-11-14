@@ -3,7 +3,7 @@
 set -euo pipefail
 # Match the root Makefile before recording the context used by its stage recipes.
 export CARGO_TARGET_DIR="$PWD/target" RUSTUP_AUTO_INSTALL=0
-bash scripts/ci/check-release-source.sh
+bash vendor/toko-tooling/scripts/ci/check-release-source.sh
 source=$(git rev-parse HEAD)
 mkdir -p target/release-validation
 directory=$(mktemp -d target/release-validation/qualification.XXXXXX)
@@ -22,7 +22,7 @@ mkdir "$directory/full-ci"
 marker=$(jq -er 'keys | map(select(test("^target/validation-inputs/run\\.[^/]+/ci-source\\.json$"))) |
     if length == 1 then .[0] else error("one sealed CI source record required") end' "${full[0]}/inputs.json")
 jq -e --arg source "$source" '.schema == 1 and .clean == true and .source == $source' "$marker" > /dev/null
-digest=$(bash scripts/ci/verify-file-checksum.sh --print sha256 "$marker")
+digest=$(bash vendor/toko-tooling/scripts/ci/verify-file-checksum.sh --print sha256 "$marker")
 jq -e --arg marker "$marker" --arg digest "$digest" '.[$marker] == $digest' "${full[0]}/inputs.json" > /dev/null
 cp "$marker" "$directory/full-ci/source.json"
 cp "${full[0]}/timings.tsv" "$directory/full-ci/timings.tsv"
@@ -30,13 +30,13 @@ cp "${full[0]}/inputs.json" "$directory/full-ci/inputs.json"
 while IFS=$'\t' read -r target _result _seconds log; do
     [[ "$target" != target ]] || continue
     cp "$log" "$directory/full-ci/$target.log"
-    digest=$(bash scripts/ci/verify-file-checksum.sh --print sha256 "$directory/full-ci/$target.log")
+    digest=$(bash vendor/toko-tooling/scripts/ci/verify-file-checksum.sh --print sha256 "$directory/full-ci/$target.log")
     printf '%s\t%s.log\n' "$digest" "$target" >> "$directory/full-ci/logs.sha256"
 done < "${full[0]}/timings.tsv"
 export RELEASE_SOURCE=$source
 for group in protocol engine; do
     export RELEASE_GROUP=$group
-    RELEASE_PREVIOUS=$(bash scripts/ci/cargo-release-group.sh version "$group")
+    RELEASE_PREVIOUS=$(bash vendor/toko-tooling/scripts/ci/cargo-release-group.sh version "$group")
     export RELEASE_PREVIOUS
     gate="$directory/$group"
     mkdir -p "$gate/logs"
@@ -46,10 +46,10 @@ for group in protocol engine; do
     export AUTH_RELEASE_VALIDATION_DIRECTORY=$gate
     VALIDATION_LOG_DIR="$gate/logs" bash scripts/ci/run-auth-validation.sh --plan "$gate/plan.json"
     perl scripts/release/validation-plan.pl "$source" "$group" "$RELEASE_PREVIOUS" "$gate" --baseline "$source" --check > /dev/null
-    source scripts/ci/release-receipts.sh
+    source vendor/toko-tooling/scripts/ci/release-receipts.sh
     release_receipt_write "$gate/evidence.json" perl scripts/release/validation-record.pl collect "$gate"
 done
 [[ $(git rev-parse HEAD) == "$source" ]]
-bash scripts/ci/check-release-source.sh
+bash vendor/toko-tooling/scripts/ci/check-release-source.sh
 jq -cnS --arg source "$source" --arg full "$directory/full-ci" --arg directory "$directory" \
     '{schema:1,kind:"auth-group-qualification",source:$source,full_ci:$full,protocol:($directory+"/protocol/evidence.json"),engine:($directory+"/engine/evidence.json")}' > "$directory/comparison.json"

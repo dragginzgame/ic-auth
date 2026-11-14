@@ -4,6 +4,85 @@ Covers `ic-auth`, maintained `ic-auth-tooling`, and associated private
 qualification changes. Only the first two are Engine release-group members. The independent series starts after the
 [last coordinated release, 0.29.2](../history.md).
 
+## [0.41.0] - Unreleased
+
+### 🔧 Tooling
+
+- Adopt Toko Tooling 0.43.0 in both workspaces and replace the retired Make LOC
+  interface with the `toko-cloc` launcher and updated setup instructions.
+
+### ⚡ Performance
+
+- Skip unchanged persistent admission-budget writes on exact retries and repeated
+  exhaustion at the same clock. Preserve clock observations, failed-attempt charges,
+  durable budget exhaustion across reopen.
+- Reject browser-caller mismatch before persistent caller/slot/session reads,
+  reusing the computed Principal in full verification. Preserve clock fences and
+  expired-proof exact retries.
+
+### ⚠️ Breaking
+
+- Hard-cut receiver/issuer headers for protected verification weights and a
+  durable issuer-wide fresh-issuance/renewal budget. Require explicit receiver weights
+  and issuer issuance burst/refill policy; expose `StoreError::Throttled`.
+  Remove ambiguous budget `new`; operation buckets refuse proof verification.
+  Initial issuer creation admits its configured burst; reopen/restart retain credit.
+  Refuse retired backing without implicit migration/reset. Preserve signed bytes,
+  verification checks, original deadlines and exact-result recovery.
+
+- Require Rust 1.100.0 in product and qualification workspaces. Adopt Toko
+  Tooling 0.41.1's common lint policy with strict native/Wasm Clippy and Rustdoc
+  checks and real unsafe/must-use/documentation rejection
+  fixtures ([#135](https://github.com/dragginzgame/ic-auth/issues/135)). Preserve
+  public command ownership, signed bytes and session/storage behavior.
+
+### 🧪 Qualification
+
+- Adopt Platform 0.32.2, Runtime 0.22.2, Storage 0.74.0 and Wire 0.22.1.
+  Move native typed calls to `ic-testkit-wire` 0.1.0 with Testkit 0.104.0;
+  retain canonical method identities, all directional limits and upstream
+  client lifecycle ownership. Retire the Testkit `wire` feature without a bridge.
+
+- Adopt Entropy 0.3.0 in private backend-conformance tests. Preserve nonce
+  exhaustion, single-use seed, exact-retry and replay checks; no product
+  dependency or entropy-provider API changes.
+
+- Adopt IC Build 0.84.1 for native external-lock admission and the release
+  metadata editor. Select its required Host 0.77.1 graph, removing older Host
+  copies without changing product runtime dependencies or qualification's lock.
+
+- Clear missing-public-documentation diagnostics across product, integration tests
+  and private qualification APIs. Remove every Clippy missing-doc allowance and
+  retire all six debt baselines and their use of the shared parser. Enforce strict
+  Rustdoc directly, with fresh/warm missing-doc and broken-link rejection fixtures.
+  Link generated Wire projections to canonical domain semantics; formats and
+  verification behavior are unchanged.
+
+- Add offline `make deps-list` across both workspaces. Remove unused display-only
+  dependency declarations while retaining all real packages and release members.
+  Deny unused Cargo declarations, missing lint inheritance, unknown Cargo lints
+  and invalid Rustdoc tables; cover unused-catalog refusal and the Rustdoc stage
+  in local caller fixtures. Clarify that optional supplier upgrades do not block
+  release of an unchanged qualified selection; required integration checks remain.
+
+- Audit admission cycle-drain exposure with two-receiver invalid-proof,
+  exhausted-budget, rotating-caller and exact-retry probes, plus persistent
+  budget/reopen and rejection-I/O evidence. Document mechanism-dependent costs
+  and remaining host-policy limits without changing production verification.
+- Qualify weighted failed-verification charges, durable cross-account renewal
+  exhaustion/refill, pending/completed recovery, later-error charging, retired
+  schema rejection and installed Ed25519/certified persistence lifecycles.
+- Require explicit verification policy in migrated consumers; test operation-budget
+  rejection, shared initial-issuance/renewal exhaustion across reopen/restart and
+  zero backing I/O for wrong-browser rejection at 1,024 retained sessions.
+
+- Adopt Entropy 0.2.0 and direct Host FS/Process 0.77.0 for native tooling and
+  qualification, including the Host file CLI. Retain Build/Testkit's own Host
+  dependency identities; deployed Auth graphs are unchanged.
+- Adopt Metrics 0.30.0 for admission diagnostics in private qualification code,
+  matching Rust 1.100. Preserve outcome, overflow and reset behavior; product
+  libraries remain independent of Metrics.
+
 ## [0.40.1] - 2026-11-12
 
 ### 🧪 Qualification

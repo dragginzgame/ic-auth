@@ -4,7 +4,7 @@
 # Scenario-specific sealed-input fault injection is appended by its own fixture.
 auth_fixture_tooling_check() {
     [[ $# == 1 && -d "$1/scripts/dev" ]] || return 2
-    cat > "$1/scripts/dev/toko-tooling.sh" <<'SCRIPT'
+    cat > "$1/vendor/toko-tooling/scripts/dev/toko-tooling.sh" <<'SCRIPT'
 #!/usr/bin/env bash
 set -euo pipefail
 [[ "${1:-}" == check ]]

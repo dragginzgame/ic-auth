@@ -18,6 +18,7 @@ pub struct RootKeyPolicy {
     pub root_canister_id: Principal,
     /// Enrolled chain-key algorithm and network-approved key identifier.
     pub algorithm: ChainKeyAlgorithm,
+    /// Network-approved key name, independently selected by the host.
     pub key_id: ChainKeyKeyId,
     /// Canonical hash of the enrolled derivation path, including its domain.
     pub derivation_path_hash: [u8; 32],
@@ -27,7 +28,9 @@ pub struct RootKeyPolicy {
     pub key_version: u64,
     /// Current lower bounds for authority invalidation, applied on every call.
     pub min_accepted_key_version: u64,
+    /// Inclusive lower bound on proof epochs, advanced with authority invalidation.
     pub min_accepted_proof_epoch: u64,
+    /// Inclusive lower bound on accepted registry generations.
     pub min_accepted_registry_epoch: u64,
     /// Enrollment start, subject to the host's explicit future-skew allowance.
     pub valid_from_ns: u64,
@@ -42,40 +45,80 @@ pub struct RootKeyPolicy {
 #[derive(Debug, Error, Eq, PartialEq)]
 pub enum DelegationProofError {
     #[error("delegation proof material exceeds host limits")]
+    /// Variable proof material or witness length exceeds host limits before verification.
     InputTooLarge,
     #[error("anonymous {field} is not permitted")]
-    AnonymousPrincipal { field: DelegationField },
+    /// A required authority Principal is anonymous.
+    AnonymousPrincipal {
+        /// Identity field rejected by the authority check.
+        field: DelegationField,
+    },
     #[error("proof binding mismatch: {field}")]
-    BindingMismatch { field: DelegationField },
+    /// Certificate, issuer leaf or expected host identity does not agree.
+    BindingMismatch {
+        /// Binding whose compared values differ.
+        field: DelegationField,
+    },
     /// Submitted signature metadata does not match its submitted batch header.
     #[error("root signature binding mismatch: {field}")]
-    RootSignatureBindingMismatch { field: DelegationField },
+    RootSignatureBindingMismatch {
+        /// Submitted signature field differing from the signed header.
+        field: DelegationField,
+    },
     /// The batch header does not match independently enrolled root-key policy.
     #[error("root key policy binding mismatch: {field}")]
-    RootKeyPolicyBindingMismatch { field: DelegationField },
+    RootKeyPolicyBindingMismatch {
+        /// Header field differing from protected root-key enrollment.
+        field: DelegationField,
+    },
     #[error("invalid {target} validity window")]
-    InvalidWindow { target: DelegationTarget },
-    #[error("{target} is not yet valid")]
-    NotYetValid { target: DelegationTarget },
-    #[error("{target} has expired")]
-    Expired { target: DelegationTarget },
-    #[error("{target} TTL {ttl_ns} exceeds {max_ttl_ns}")]
-    TtlExceeded {
+    /// A validity window is empty, reversed or internally inconsistent.
+    InvalidWindow {
+        /// Certificate, batch, leaf or policy whose window is invalid.
         target: DelegationTarget,
+    },
+    #[error("{target} is not yet valid")]
+    /// Validity starts beyond the host's permitted future-skew allowance.
+    NotYetValid {
+        /// Object with a future validity start.
+        target: DelegationTarget,
+    },
+    #[error("{target} has expired")]
+    /// A required authority or proof window has expired.
+    Expired {
+        /// Object whose exclusive validity deadline was reached.
+        target: DelegationTarget,
+    },
+    #[error("{target} TTL {ttl_ns} exceeds {max_ttl_ns}")]
+    /// A delegated or proof duration exceeds protected policy.
+    TtlExceeded {
+        /// Object whose lifetime exceeded its bound.
+        target: DelegationTarget,
+        /// Submitted duration in nanoseconds.
         ttl_ns: u64,
+        /// Host maximum duration in nanoseconds.
         max_ttl_ns: u64,
     },
     #[error("grants must be nonempty, with at most 16 roles and 32 scopes per role")]
+    /// Delegated grants are empty, over cardinality limits or inconsistent with the leaf.
     InvalidGrants,
     #[error("root proof signature or public key encoding is invalid")]
+    /// Root key/signature parsing or cryptographic verification failed.
     RootSignatureInvalid,
     #[error("root proof signature has high-s encoding")]
+    /// Root ECDSA signature is high-S; verification does not normalize it.
     HighSSignature,
     #[error("root proof Merkle witness is invalid")]
+    /// Issuer leaf and sibling path do not reproduce the signed tree root.
     InvalidMerkleWitness,
     #[error("root proof {field} is below the protected epoch/version floor")]
-    StaleAuthority { field: DelegationField },
+    /// Authority epoch or version falls below a protected acceptance floor.
+    StaleAuthority {
+        /// Epoch or version that is no longer admitted.
+        field: DelegationField,
+    },
     #[error(transparent)]
+    /// Delegation material violates canonical encoding or ordering rules.
     Canonical(#[from] CanonicalAuthError),
 }
 
@@ -103,6 +146,7 @@ pub struct DelegationProofVerificationContext<'a> {
     pub root_key: &'a RootKeyPolicy,
     /// Actual host clock in nanoseconds.
     pub now_ns: u64,
+    /// Host-selected proof size, lifetime and skew limits.
     pub limits: DelegationProofVerificationLimits,
 }
 
@@ -119,17 +163,21 @@ pub struct VerifiedDelegationProof<'a> {
 }
 
 impl<'a> VerifiedDelegationProof<'a> {
+    #[must_use]
+    /// Borrow the checked certificate; later use still requires current authority checks.
     pub fn certificate(&self) -> &'a DelegationCert {
         self.certificate
     }
 
     /// Canonical hash of the validated certificate, including its checked but
     /// root-unsigned issue time. This hash is not separately signed by the root.
+    #[must_use]
     pub const fn certificate_hash(&self) -> [u8; 32] {
         self.certificate_hash
     }
 
     /// Exclusive certificate deadline capped by the current root-key policy.
+    #[must_use]
     pub const fn expires_at_ns(&self) -> u64 {
         self.expires_at_ns
     }

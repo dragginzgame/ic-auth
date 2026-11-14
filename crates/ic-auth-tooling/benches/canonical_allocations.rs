@@ -7,7 +7,13 @@ use ic_auth::canonical::{
     chain_key_derivation_path_hash, issuer_proof_binding_hash, proof_hash,
 };
 use ic_auth::portable::claims_hash;
-use ic_auth_protocol_types::*;
+use ic_auth_protocol_types::{
+    AudienceId, CanonicalId, ChainKeyAlgorithm, ChainKeyBatchHeaderV1, ChainKeyBatchWitnessStepV1,
+    ChainKeyBatchWitnessV1, ChainKeyDelegationCertV1, ChainKeyKeyId, ChainKeyRootSignatureV1,
+    DelegatedRoleGrant, DelegationAudience, DelegationCert, DelegationProof,
+    IcChainKeyBatchSignatureProofV1, IssuerProofAlgorithm, IssuerProofBinding, PortableClaims,
+    PortableMechanism, Principal, RootProof,
+};
 use serde_json::{Value, json};
 use std::{hint::black_box, num::NonZeroU16};
 

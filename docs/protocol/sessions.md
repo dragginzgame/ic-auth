@@ -305,6 +305,99 @@ or Sybil protection. Hosts and issuers must qualify their own ingress, enrollmen
 credential-issuance and workload admission policy; per-principal quotas alone do
 not establish that policy.
 
+#### Cycle-drain audit (2026-11-13)
+
+The focused installed admission probe exercises two independent receivers on one
+application subnet, with one verification credit each and one-second refill.
+Malformed, caller-mismatched and expired claims leave the credit available;
+invalid cryptography consumes it. Eight rotating caller/account identities cannot
+bypass exhaustion. A legitimate admission is also throttled until refill, while
+four exact retries return the unchanged admitted receipt without verification.
+The second receiver has its own allowance, not a fleet-wide shared allowance.
+
+Observed samples below use the same qualification Wasm and volatile receiver.
+Instructions cover the admission body, excluding outer Wire decoding and response
+encoding. Cycles are PocketIC canister balance deltas around the entire diagnostic
+update, including transport/fixture overhead; they are not production tariffs or
+an established maximum. The late certified failure starts with a fixture-issued
+credential bound to the test caller, preserves its witness/delegation and substitutes
+a valid-point BLS signature for another message. No existing receiver session is
+required; this does not prove that an attacker without any issued credential can
+reach the same late failure.
+
+| Request | Admission instructions | Whole diagnostic update cycles |
+| --- | ---: | ---: |
+| Invalid Ed25519 proof (largest observed) | 2,362,369 | 10,215,163 |
+| Late invalid certified proof | 453,165,022 | 465,605,280–465,605,351 |
+| Exhausted Ed25519 allowance, rotating identities | 58,168–58,200 | 7,910,921–7,910,932 |
+| Exhausted certified allowance, rotating identities | 97,190 | 12,537,096–12,537,136 |
+| Exact Ed25519 retry | 59,439 | 7,917,138 |
+| Exact certified retry | 72,638 | 12,517,733 |
+
+A 524,289-byte raw request, one byte over the declared transport limit, is refused
+before decoding but costs 1,055,542,433 cycles in this diagnostic fixture. It has
+no `inspect_message` filter. This is a transport-charging observation, not expensive
+cryptography or a Canic production measurement. Canic's inspected working tree
+(`fa92d886e`, dirty, read-only) already filters declared payload lengths and cheap
+caller predicates during ingress inspection; that is an additional host defense,
+not a replacement for replicated endpoint validation. ICP's
+[DoS guidance](https://docs.internetcomputer.org/guides/security/dos-prevention/)
+explains the reverse-gas exposure and inspection's non-security-critical role.
+
+The persistent native probe independently exhausts eight credits, reopens backing,
+and verifies that rotating callers remain throttled without creating retained
+records. On an empty store, each same-clock exhausted request still writes one
+144-byte header. Malformed claims write nothing at the same clock but write that
+header when advancing the protected observation. Exact retry writes one 145-byte
+header in this sample. These are Storage I/O observations, not installed persistent
+instruction/cycle measurements. Clock/budget safety must survive any future
+redundant-write optimization.
+
+The subsequent Auth hardening removes the duplicate admission-header publication
+when the verification budget is unchanged. Same-clock exhausted admission and
+exact retry now perform zero backing writes; advancing the protected clock still
+writes, and failed cryptographic attempts still persist their charge. This keeps
+the stored representation and reopen behavior unchanged. Five persistent receiver
+tests pass, including the measured zero-write cases and retained exhaustion:
+`target/auth-budget-hardening/persistent.log`. The table above records the earlier
+audit; it is not a new installed performance measurement of this optimization.
+
+The audit identifies three residual operational risks:
+
+- The shared bucket counts attempts equally despite very different mechanism
+  costs. With burst `B`, interval `I` and elapsed `T`, committed charged attempts
+  are bounded conservatively by `B + ceil(T / I)` per receiver. Fleet allowances
+  add together. Pre-verification work, rejected ingress and exact retries are
+  outside this bound, so it is not a total cycle ceiling or a fairness guarantee.
+- Issuer renewal has browser-bound preflight, exact-result recovery, immutable
+  login deadlines and per-account/global retained-operation quotas, but no
+  equivalent time-based renewal bucket. Host permission/signing orchestration
+  needs its own workload policy; retained quotas are not a renewal-rate policy.
+- Ordinary errors retain verification charges; a trapping host transaction can
+  roll them back. This audit found no demonstrated attacker-triggerable trap
+  bypass, but a host must return ordinary refusals rather than trap on them.
+
+Receiver and issuer pruning use indexed, bounded batches (at most 32 selected
+entries), not a scan of every login. Scheduling and repeated maintenance admission
+remain host-owned. The audit does not qualify maximum-sized certificate trees,
+populated persistent failure costs, production ingress inspection, fleet traffic,
+or issuer signing/permission-call costs. Those prevent claiming a universal
+worst-case invalid-request cost. Ordinary authenticated reads remain a separate
+path and must not be compared with certified admission.
+
+Evidence: `target/auth-cycle-audit/installed-final.log`, `persistent-final.log`,
+`persistent-suite.log`, `renewal.log` and `clippy-focused.log`. Qualification Wasm
+SHA-256: `f0f47d89f590f265b232eabdc7b2f388c359e4fce9d3de693f5ac444b10eda9c`.
+The probes change no production verification, persistence or trust behavior.
+
+The subsequent unpublished hardening now supplies explicit verification weights
+and durable fresh-issuance/renewal admission. See the
+[current work-budget contract](../integration/persistent-auth.md#pre-10-work-budget-hard-cut-unpublished).
+For weighted verification the refill formula bounds work units; divide by the
+selected mechanism's charge to estimate its permitted attempts. The audit's
+equal-credit policy and timings above remain historical measurements, not a
+configured production policy or a new cost ceiling.
+
 Only completely verified admission can reserve or replace an admitted device slot.
 An account has eight slot identities (0–7); generations are nonzero u64 values.
 Cheap refusals and failed commits cannot install a reservation or advance a fence.
@@ -450,7 +543,7 @@ collections; it does not supply Auth's record schema or transaction. The interna
 checkpoint uses `ic_storage::DefaultMemoryImpl` and bounded
 `adapter::StableCell` loading. Its allocator/collection formats require fresh
 backing; older Memory images are refused without reset. All workspace packages
-share Rust 1.99.1; see [minimum compiler qualification](../development/msrv.md).
+share Rust 1.100.0; see [minimum compiler qualification](../development/msrv.md).
 Keep this dependency in a separately selected durable adapter, outside the pure
 engine and volatile receiver graph. It must not persist the local issuer key.
 

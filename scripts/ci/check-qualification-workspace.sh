@@ -5,8 +5,8 @@ script_path="${BASH_SOURCE[0]}"
 [[ "$script_path" == /* ]] || script_path="$PWD/$script_path"
 cd -P "${script_path%/*}/../.."
 export PATH="$PWD/.tools/host/bin:$PATH" RUSTUP_AUTO_INSTALL=0
-product=$(perl scripts/dev/tooling-lock.pl "$PWD")
-qualification=$(perl scripts/dev/tooling-lock.pl "$PWD/qualification")
+product=$(perl vendor/toko-tooling/scripts/dev/tooling-lock.pl "$PWD")
+qualification=$(perl vendor/toko-tooling/scripts/dev/tooling-lock.pl "$PWD/qualification")
 jq -en --argjson product "$product" --argjson qualification "$qualification" '
     $product.version == $qualification.version and
     $product.checksum == $qualification.checksum' > /dev/null || {
@@ -14,5 +14,5 @@ jq -en --argjson product "$product" --argjson qualification "$qualification" '
     exit 1
 }
 # Includes private publication, path/catalog, reverse-edge and both-lock checks.
-bash scripts/ci/cargo-release-group.sh check-graph engine > /dev/null
+bash vendor/toko-tooling/scripts/ci/cargo-release-group.sh check-graph engine > /dev/null
 echo 'Product and independent qualification workspace admission passed.'

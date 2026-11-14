@@ -77,22 +77,27 @@ export PATH="$fixture/bin:$PATH"
 for script in dev/testkit-tools.sh dev/msrv-tools.sh dev/host-file-tools.sh dev/check-msrv.sh dev/check-wasm.sh \
     dev/test-qualification.sh dev/client-contracts.sh dev/test-client.sh dev/test-client-browser.sh dev/package-client.sh dev/release-tools.sh \
     dev/profile-canonical-allocations.sh dev/test-backend-package.sh \
-    ci/check-cargo-dependency-boundaries.sh ci/test-auth-boundaries.sh \
+    ci/check-cargo-dependency-boundaries.sh ci/test-auth-boundaries.sh ci/check-auth-docs.sh ci/test-lint-policy.sh ci/test-compiler-policy.sh \
     ci/check-auth-boundaries.sh ci/test-client-tools.sh ci/check-dependency-pins.sh ci/test-auth-validation.sh ci/test-release-validation.sh \
     release/publish.sh release/metadata.sh release/candidate-setup.sh release/test-tools.sh release/validation-stage.sh; do
-    cat > "$consumer/scripts/$script" <<'SCRIPT'
+    case "$script" in
+        ci/check-cargo-dependency-boundaries.sh|ci/check-dependency-pins.sh)
+            destination="$consumer/vendor/toko-tooling/scripts/$script" ;;
+        *) destination="$consumer/scripts/$script" ;;
+    esac
+    cat > "$destination" <<'SCRIPT'
 #!/usr/bin/env bash
 set -euo pipefail
 exec cargo "$@"
 SCRIPT
 done
-printf '#!/usr/bin/env bash\nexit 0\n' > "$consumer/scripts/dev/install-host-tools.sh"
+printf '#!/usr/bin/env bash\nexit 0\n' > "$consumer/vendor/toko-tooling/scripts/dev/install-host-tools.sh"
 # This fixture substitutes snapshot-owned installers and release effects. Root
 # tooling admission has its own intact-payload proof in test-tools.sh --tooling;
 # source cleanup cannot run against this synthetic non-Git fixture.
 source "$root/scripts/ci/auth-fixture-tooling.sh"
 auth_fixture_tooling_check "$consumer"
-cat > "$consumer/scripts/dev/clean-empty-source-dirs.pl" <<'SCRIPT'
+cat > "$consumer/vendor/toko-tooling/scripts/dev/clean-empty-source-dirs.pl" <<'SCRIPT'
 print "Source cleanup substituted for jobserver qualification.\n";
 SCRIPT
 # Admission does not invoke Cargo; its ordinary recipe need not inherit the
@@ -215,7 +220,7 @@ done
 # Exercise Auth's actual includes and context policy with the frozen controller
 # substituted at its process boundary. No release source or remote is touched.
 export AUTH_FROZEN_ROUTING_LOG="$fixture/frozen-routing.jsonl"
-cat > "$consumer/scripts/ci/run-release-batch.pl" <<'PERL'
+cat > "$consumer/vendor/toko-tooling/scripts/ci/run-release-batch.pl" <<'PERL'
 use strict;
 use warnings;
 use JSON::PP;
@@ -225,7 +230,7 @@ print {$log} JSON::PP->new->encode(\@ARGV), "\n";
 close $log or die $!;
 exit($ENV{AUTH_FROZEN_ROUTING_STATUS} // 0);
 PERL
-cat > "$consumer/scripts/ci/run-release.sh" <<'SCRIPT'
+cat > "$consumer/vendor/toko-tooling/scripts/ci/run-release.sh" <<'SCRIPT'
 #!/usr/bin/env bash
 echo 'selected group escaped frozen capture' >&2
 exit 97

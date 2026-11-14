@@ -1,3 +1,4 @@
+//! Certified credential verification through root delegation and IC signature evidence.
 #![cfg(feature = "certified-proof-verification")]
 
 use ic_auth::{
@@ -219,6 +220,10 @@ impl Fixture {
             },
         }
     }
+    #[expect(
+        clippy::needless_pass_by_value,
+        reason = "Test assertions accept owned expected errors constructed at each call site."
+    )]
     fn assert_error(&self, expected: Error) {
         assert_eq!(
             verify_delegation_proof(&self.proof, &self.context()).unwrap_err(),

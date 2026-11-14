@@ -26,11 +26,11 @@ pub use model::{
     RetainedRenewal,
 };
 
-const SCHEMA: u64 = 0x41555448495301;
+const SCHEMA: u64 = 0x41555448495303;
 
 /// Auth owns the schema/algorithms; the host supplies one exclusive checked lease
 /// and the transaction boundary. All returned errors preserve records and totals,
-/// except monotonic trusted-clock observations. Collection faults trap.
+/// except trusted-clock observations and fresh intent work charges. Collection faults trap.
 pub struct IssuerStore<M: Memory> {
     records: Records<M>,
     header: Header,
@@ -46,6 +46,12 @@ impl<M: Memory> IssuerStore<M> {
     ) -> Result<Self, StoreError> {
         Self::check_config(&config)?;
         let header = Header {
+            issuance_budget: crate::admission_budget::SessionAdmissionBudget::for_issuance(
+                config.issuance_burst,
+                config.issuance_refill_interval_ns,
+                now_ns,
+            )
+            .map_err(|_| StoreError::Invalid)?,
             schema: SCHEMA,
             config,
             epoch: 1,
@@ -80,6 +86,12 @@ impl<M: Memory> IssuerStore<M> {
             .get(&Key::new(keys::HEADER))?
             .ok_or(StoreError::Corrupt)?;
         if header.schema != SCHEMA
+            || !header.issuance_budget.is_operations()
+            || !header.issuance_budget.stored_policy_valid(
+                expected.issuance_burst,
+                expected.issuance_refill_interval_ns,
+                header.observed_ns,
+            )
             || &header.config != expected
             || header.epoch == 0
             || header.boot == 0
@@ -104,7 +116,9 @@ impl<M: Memory> IssuerStore<M> {
     }
 
     fn check_config(config: &IssuerConfig) -> Result<(), StoreError> {
-        if config.issuer == Principal::anonymous()
+        if config.issuance_burst == 0
+            || config.issuance_refill_interval_ns == 0
+            || config.issuer == Principal::anonymous()
             || config.max_logins == 0
             || config.max_operations == 0
             || config.max_logins > u32::MAX as u64
@@ -120,12 +134,18 @@ impl<M: Memory> IssuerStore<M> {
         Ok(())
     }
 
+    #[must_use]
+    /// Current operation epoch, fencing new work from closed epochs.
     pub fn epoch(&self) -> u64 {
         self.header.epoch
     }
+    #[must_use]
+    /// Read retained counters without scanning logins or operations.
     pub fn occupancy(&self) -> IssuerOccupancy {
         self.header.occupancy
     }
+    #[must_use]
+    /// Durable trusted-clock fence preserved across reopen and restart.
     pub fn observed_at_ns(&self) -> u64 {
         self.header.observed_ns
     }

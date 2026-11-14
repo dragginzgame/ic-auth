@@ -22,6 +22,10 @@
     "allowed_packages": []
   },
   {
+    "dependency": "ic-testkit-wire",
+    "allowed_packages": ["ic-auth-qualification"]
+  },
+  {
     "dependency": "ic-entropy",
     "allowed_packages": [
       "ic-auth-backend-conformance"

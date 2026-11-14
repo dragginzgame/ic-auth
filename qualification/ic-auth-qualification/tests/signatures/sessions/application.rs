@@ -59,7 +59,7 @@ async fn scoped_application_updates_use_only_the_live_caller_session() {
     let reader = browser_principal(&reader_claims.browser_public_key);
     let writer = browser_principal(&writer_claims.browser_public_key);
     let version = async |f: &Fixture, target: Principal| {
-        ic_testkit::pic::query_wire::<(), u64>(
+        ic_testkit_wire::query_wire::<(), u64>(
             f.pic.instance(),
             PocketPrincipal::from_slice(target.as_slice()),
             PocketPrincipal::from_slice(Principal::anonymous().as_slice()),

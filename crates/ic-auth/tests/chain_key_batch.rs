@@ -1,3 +1,4 @@
+//! Merkle batch construction against frozen roots, witness directions and host capacity bounds.
 use ic_auth::chain_key_batch::{ChainKeyBatchError, merkle_root_and_witnesses};
 use ic_auth_protocol_types::{ChainKeyBatchWitnessStepV1, ChainKeyBatchWitnessV1};
 use sha2::{Digest, Sha256};

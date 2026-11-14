@@ -97,22 +97,36 @@ fn check_scope_entries(found: usize) -> Result<(), PortableEncodingError> {
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum PortableEncodingError {
     #[error("portable claims exceed their byte bound")]
+    /// Claims or canonical grant-list bytes exceed the admitted bound.
     TooLarge,
     #[error("credential has {found} scope entries; maximum is {max}")]
-    TooManyScopeEntries { found: usize, max: usize },
+    /// Total scope entries across all roles exceed the credential's aggregate bound.
+    TooManyScopeEntries {
+        /// Submitted entries, counting a scope once for each role containing it.
+        found: usize,
+        /// Inclusive aggregate scope-entry ceiling.
+        max: usize,
+    },
     #[error("truncated portable claims")]
+    /// Input ended before a complete canonical field was available.
     Truncated,
     #[error("wrong portable domain, schema or mechanism")]
+    /// Domain, schema or mechanism discriminator is not supported.
     WrongDomain,
     #[error("portable claims contain trailing bytes")]
+    /// Extra input follows the complete canonical claims record.
     TrailingBytes,
     #[error("invalid portable principal, label or count")]
+    /// An identity, label or count violates the claims structure.
     InvalidShape,
     #[error("anonymous account subject")]
+    /// The account subject is anonymous.
     AnonymousSubject,
     #[error(transparent)]
+    /// Grant shape or cardinality violates the portable contract.
     Grants(#[from] GrantValidationError),
     #[error(transparent)]
+    /// Labels or ordered grants fail canonical admission.
     Canonical(#[from] CanonicalAuthError),
 }
 
@@ -129,7 +143,7 @@ fn encode_claims_into(
     sink: &mut crate::canonical::Sink<'_>,
 ) -> Result<(), PortableEncodingError> {
     let grants = validate_shape(claims)?;
-    encode_claims_fields(claims, grants, sink)
+    encode_claims_fields(claims, &grants, sink)
 }
 
 // Integrity checking of already-completed issuer results keeps the historical
@@ -141,13 +155,13 @@ pub(crate) fn encode_retained_claims(
     validate_identity(claims)?;
     let grants = CheckedGrants::bounded(&claims.grants, MAX_GRANTS, MAX_SCOPES_PER_GRANT)?;
     let mut bytes = Vec::new();
-    encode_claims_fields(claims, grants, &mut |part| bytes.extend_from_slice(part))?;
+    encode_claims_fields(claims, &grants, &mut |part| bytes.extend_from_slice(part))?;
     Ok(bytes)
 }
 
 fn encode_claims_fields(
     claims: &PortableClaims,
-    grants: CheckedGrants<'_>,
+    grants: &CheckedGrants<'_>,
     sink: &mut crate::canonical::Sink<'_>,
 ) -> Result<(), PortableEncodingError> {
     // The same bounded field traversal produces bytes or feeds SHA-256.
@@ -278,6 +292,7 @@ pub fn claims_hash(claims: &PortableClaims) -> Result<[u8; 32], PortableEncoding
 /// Derive the IC sender for a directly authenticated Ed25519 browser key.
 /// Hosts must compare this with the actual ingress caller, not a client field.
 /// This does not validate curve membership or possession of the key.
+#[must_use]
 pub fn browser_principal(public_key: &[u8; 32]) -> Principal {
     // RFC 8410 Ed25519 SubjectPublicKeyInfo: SEQUENCE(algorithm OID, BIT STRING).
     let mut der = [0; 44];

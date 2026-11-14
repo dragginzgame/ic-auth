@@ -176,6 +176,11 @@ pub(super) async fn qualify(
             Err(LogoutResult::Unconfirmed { .. })
         ));
 
+        let mut audit_claims = make_claims(45).await;
+        audit_claims.admission_expires_at_ns = audit_claims.issued_at_ns + 30 * SECOND;
+        let audit_input = make_input(&audit_claims).await;
+        audit_rejections(f, &config, &audit_claims, &audit_input, mechanism).await;
+
         // Reinstall into fresh fixture state for identical valid-admission occupancy.
         // This is an explicit test reset, never production enrollment refresh.
         reinstall_receiver(f, f.resource, &config).await;
@@ -300,6 +305,173 @@ pub(super) async fn qualify(
         if !certified {
             qualify_wide_grants(f, &config, &key).await;
         }
+    }
+}
+
+// Two independent receivers, one credit each, no per-principal allowance. These
+// are measured adversarial samples, not a proof of the maximum possible cost.
+async fn audit_rejections(
+    f: &Fixture,
+    base: &ReceiverConfig,
+    claims: &PortableClaims,
+    good: &SessionInput,
+    mechanism: &str,
+) {
+    let mut config = base.clone();
+    config.verification_burst = 1;
+    config.verification_refill_ns = SECOND;
+    reinstall_receiver(f, f.resource, &config).await;
+    reinstall_receiver(f, f.signer, &config).await;
+    f.pic.instance().advance_time(Duration::from_secs(1)).await;
+    let caller = browser_principal(&claims.browser_public_key);
+    let mut malformed = good.clone();
+    malformed.credential.claims = Bytes::new(vec![]).unwrap();
+    let mut expired = good.clone();
+    let mut expired_claims = claims.clone();
+    expired_claims.admission_expires_at_ns = claims.issued_at_ns + 1;
+    expired.credential.claims = Bytes::new(encode_claims(&expired_claims).unwrap()).unwrap();
+    for (label, who, input) in [
+        ("malformed_claims", caller, &malformed),
+        (
+            "wrong_caller",
+            Principal::self_authenticating([99; 32]),
+            good,
+        ),
+        ("expired_claims", caller, &expired),
+    ] {
+        assert!(
+            profile(
+                f,
+                f.resource,
+                who,
+                input,
+                &format!("abuse_{mechanism}_{label}")
+            )
+            .await
+            .is_err()
+        );
+    }
+    let raw = vec![0; controls::ProfileAdmission::REQUEST_LIMITS.bytes + 1];
+    let oversized = measured(
+        f,
+        f.resource,
+        &format!("abuse_{mechanism}_oversized_raw"),
+        async || {
+            f.pic
+                .instance()
+                .update_call(
+                    PocketPrincipal::from_slice(f.resource.as_slice()),
+                    PocketPrincipal::from_slice(caller.as_slice()),
+                    controls::ProfileAdmission::NAME,
+                    raw,
+                )
+                .await
+        },
+    )
+    .await;
+    assert!(oversized.is_err(), "raw guard must refuse before decoding");
+
+    let mut bad = good.clone();
+    match &mut bad.credential.proof {
+        ic_auth_wire::model::PortableProof::Ed25519(signature) => {
+            let mut bytes = signature.as_slice().to_vec();
+            bytes[0] ^= 1;
+            *signature = Bytes::new(bytes).unwrap();
+        }
+        ic_auth_wire::model::PortableProof::Certified(proof) => {
+            use ic_platform::certification::cbor::{
+                decode_canister_signature, decode_certificate, encode_canister_signature,
+                encode_certificate,
+            };
+            let maximum = 65536;
+            let envelope = decode_canister_signature(
+                proof.issuer_signature.signature_cbor.as_slice(),
+                maximum,
+            )
+            .unwrap();
+            let mut certificate = decode_certificate(&envelope.certificate, maximum).unwrap();
+            let authority = decode_certificate(
+                &certificate.delegation.as_ref().unwrap().certificate,
+                maximum,
+            )
+            .unwrap();
+            // A real valid-point BLS signature for a different message: preserves
+            // witness/root/subnet checks and reaches the final certificate BLS.
+            certificate.signature = authority.signature;
+            let encoded = encode_certificate(&certificate, maximum).unwrap();
+            proof.issuer_signature.signature_cbor =
+                Bytes::new(encode_canister_signature(&encoded, &envelope.tree, maximum).unwrap())
+                    .unwrap();
+        }
+    }
+    for (receiver, target) in [("first", f.resource), ("second", f.signer)] {
+        assert_eq!(
+            profile(
+                f,
+                target,
+                caller,
+                &bad,
+                &format!("abuse_{mechanism}_{receiver}_invalid_crypto")
+            )
+            .await,
+            Err(AdmissionRefusal::InvalidCredential)
+        );
+        for attempt in 0..8u8 {
+            let mut rotating = claims.clone();
+            rotating.browser_public_key = SigningKey::from_bytes(&[60 + attempt; 32])
+                .verifying_key()
+                .to_bytes();
+            rotating.account_subject = Principal::from_slice(&[60 + attempt]);
+            rotating.nonce = [60 + attempt; 16];
+            let mut input = bad.clone();
+            input.credential.claims = Bytes::new(encode_claims(&rotating).unwrap()).unwrap();
+            assert_eq!(
+                profile(
+                    f,
+                    target,
+                    browser_principal(&rotating.browser_public_key),
+                    &input,
+                    &format!("abuse_{mechanism}_{receiver}_rotating_throttled_{attempt}")
+                )
+                .await,
+                Err(AdmissionRefusal::Throttled)
+            );
+        }
+        assert_eq!(
+            profile(
+                f,
+                target,
+                caller,
+                good,
+                &format!("abuse_{mechanism}_{receiver}_legitimate_starved")
+            )
+            .await,
+            Err(AdmissionRefusal::Throttled)
+        );
+    }
+    f.pic.instance().advance_time(Duration::from_secs(1)).await;
+    let admitted = profile(
+        f,
+        f.resource,
+        caller,
+        good,
+        &format!("abuse_{mechanism}_refill_valid"),
+    )
+    .await
+    .unwrap();
+    for attempt in 0..4 {
+        assert_eq!(
+            profile(
+                f,
+                f.resource,
+                caller,
+                good,
+                &format!("abuse_{mechanism}_exact_retry_{attempt}")
+            )
+            .await
+            .unwrap(),
+            admitted
+        );
     }
 }
 

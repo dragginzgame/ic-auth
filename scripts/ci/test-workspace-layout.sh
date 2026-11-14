@@ -45,8 +45,8 @@ export RELEASE_DELIVERY=direct RELEASE_DATE=2026-11-09
 for RELEASE_GROUP in protocol engine; do
     export RELEASE_GROUP
     git reset --hard -q "$baseline"
-    RELEASE_PREVIOUS=$(bash scripts/ci/cargo-release-group.sh version "$RELEASE_GROUP")
-    RELEASE_VERSION=$(bash scripts/ci/next-release-version.sh "$RELEASE_PREVIOUS" patch)
+    RELEASE_PREVIOUS=$(bash vendor/toko-tooling/scripts/ci/cargo-release-group.sh version "$RELEASE_GROUP")
+    RELEASE_VERSION=$(bash vendor/toko-tooling/scripts/ci/next-release-version.sh "$RELEASE_PREVIOUS" patch)
     export RELEASE_PREVIOUS RELEASE_VERSION
     ledger=$(jq -r --arg group "$RELEASE_GROUP" '.groups[] | select(.name == $group) | .changelog' ci/cargo-release-groups.json)
     primary=$(jq -r --arg group "$RELEASE_GROUP" '.groups[] | select(.name == $group) | .primary' ci/cargo-release-groups.json)
@@ -63,8 +63,8 @@ for RELEASE_GROUP in protocol engine; do
     done
     ! rg '^qualification/.+/Cargo.toml$' "$evidence/$RELEASE_GROUP-files"
     cargo metadata --locked --offline --format-version 1 --manifest-path qualification/Cargo.toml > "$evidence/$RELEASE_GROUP-before.json"
-    bash scripts/ci/cargo-release-group.sh prepare "$RELEASE_GROUP" > "$evidence/$RELEASE_GROUP-prepare.log" 2>&1
-    bash scripts/ci/cargo-release-group.sh check "$RELEASE_GROUP" > "$evidence/$RELEASE_GROUP-check.log" 2>&1
+    bash vendor/toko-tooling/scripts/ci/cargo-release-group.sh prepare "$RELEASE_GROUP" > "$evidence/$RELEASE_GROUP-prepare.log" 2>&1
+    bash vendor/toko-tooling/scripts/ci/cargo-release-group.sh check "$RELEASE_GROUP" > "$evidence/$RELEASE_GROUP-check.log" 2>&1
     cargo metadata --locked --offline --format-version 1 --manifest-path qualification/Cargo.toml > "$evidence/$RELEASE_GROUP-after.json"
     jq -en --slurpfile before "$evidence/$RELEASE_GROUP-before.json" --slurpfile after "$evidence/$RELEASE_GROUP-after.json" \
         --arg primary "$primary" --arg version "$RELEASE_VERSION" '
@@ -75,7 +75,7 @@ for RELEASE_GROUP in protocol engine; do
     # Auth's selected plan, including both locks and the qualification catalog.
     git reset --hard -q "$candidate_source"
     status=0
-    AUTH_WORKSPACE_FAIL=true bash scripts/ci/cargo-release-group.sh prepare "$RELEASE_GROUP" \
+    AUTH_WORKSPACE_FAIL=true bash vendor/toko-tooling/scripts/ci/cargo-release-group.sh prepare "$RELEASE_GROUP" \
         > "$evidence/$RELEASE_GROUP-rollback.log" 2>&1 || status=$?
     [[ "$status" != 0 ]]
     rg -F 'Injected Auth qualification graph failure' "$evidence/$RELEASE_GROUP-rollback.log" > /dev/null

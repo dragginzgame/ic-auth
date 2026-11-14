@@ -1,7 +1,7 @@
 # Minimum Rust compiler qualification
 
-Rust **1.99.1** is both the supported minimum and the pinned development/release
-compiler, as approved in [Auth #124](https://github.com/dragginzgame/ic-auth/issues/124).
+Rust **1.100.0** is both the supported minimum and the pinned development/release
+compiler, as adopted in [Auth #135](https://github.com/dragginzgame/ic-auth/issues/135).
 Every workspace package inherits the root `rust-version`; the independent archive
 and backend consumers declare that same floor. `rust-toolchain.toml` selects the
 exact version, Rustfmt, Clippy and `wasm32-unknown-unknown`. Moving `stable` and a
@@ -21,11 +21,14 @@ match it. It prints actual Cargo/rustc identities, verifies both versions, check
 that active invocations report those same identities, and requires the installed
 Wasm target. Ordinary checks disable Rustup auto-installation and never provision
 missing tools. `make test-compiler-policy` tests pin/version/active-selection/Wasm
-refusals and explicit setup with substituted compiler effects.
+refusals and explicit setup with substituted compiler effects. It also verifies
+every member's lint inheritance and compiles disposable consumers with each
+actual workspace lint table: unsafe declarations and ignored `Result` values
+must fail with their specific compiler diagnostics.
 
 ## Retained compilation coverage
 
-`make check-msrv` selects `cargo +1.99.1` from the admitted floor. Cargo normalizes
+`make check-msrv` selects `cargo +1.100.0` from the admitted floor. Cargo normalizes
 all three public packages without uploading, retains their bounded digests and
 unpacks them into a unique `target/portable-fixtures/msrv.*` fixture. An independent
 consumer compiles those exact normalized packages outside the workspace, so

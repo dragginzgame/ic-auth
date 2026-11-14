@@ -2,7 +2,7 @@
 use strict;
 use warnings;
 use FindBin qw($RealBin);
-use lib "$RealBin/../ci";
+use lib "$RealBin/../../vendor/toko-tooling/scripts/ci";
 use ValidationPlan qw(bytes document policy);
 use Cwd qw(getcwd abs_path);
 use Encode qw(decode FB_CROAK);
@@ -68,13 +68,13 @@ if ($baseline_ref eq $source) {
     # Explicit zero-delta qualification only; release callers never supply this.
     $baseline = $source;
 } else {
-    my $observed = $json->decode(command($^X, 'scripts/ci/validation-evidence.pl',
+    my $observed = $json->decode(command($^X, 'vendor/toko-tooling/scripts/ci/validation-evidence.pl',
         'baseline', $root, $source, $baseline_ref));
     if ($observed->{available}) {
         $baseline = $observed->{baseline};
         $baseline_tag = $observed->{object};
         @changed = @{$observed->{changes}};
-        system('bash', 'scripts/ci/check-release-tag.sh', $baseline, $previous, $group) == 0
+        system('bash', 'vendor/toko-tooling/scripts/ci/check-release-tag.sh', $baseline, $previous, $group) == 0
             or die "baseline must be the exact annotated group release\n";
     } elsif (exists $observed->{object}) {
         die "untrusted Auth baseline: $observed->{reason}\n";
@@ -140,8 +140,8 @@ my $plan = {schema=>1,source=>$source,group=>$group,scope=>($narrow || $selector
     policy=>$policy_path,inputs=>[$context_path, 'Makefile', 'Cargo.toml', 'Cargo.lock', $owner->{changelog},
         'ci/cargo-release-groups.json', 'ci/release-validation-coverage.json',
         'scripts/release/validation-plan.pl', 'scripts/release/validation.sh', 'scripts/release/validation-stage.sh',
-        'scripts/release/validation-record.pl', 'scripts/ci/validation-evidence.pl', 'scripts/ci/ValidationPlan.pm',
-        'scripts/ci/validation-input-checkpoint.pl', 'scripts/ci/release-receipts.sh'], stages=>[
+        'scripts/release/validation-record.pl', 'vendor/toko-tooling/scripts/ci/validation-evidence.pl', 'vendor/toko-tooling/scripts/ci/ValidationPlan.pm',
+        'vendor/toko-tooling/scripts/ci/validation-input-checkpoint.pl', 'vendor/toko-tooling/scripts/ci/release-receipts.sh'], stages=>[
     map {
         my $stage = $_; (my $target = $stage) =~ s/^release-stage-//;
         my $excluded = exists $coverage->{$group}{$target} &&

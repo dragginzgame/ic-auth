@@ -34,9 +34,13 @@ use thiserror::Error;
 /// Enrollment, caller and clock are host-authenticated inputs. Advance generation
 /// atomically with authority changes; never derive them from submitted claims.
 pub struct SessionContext<'a> {
+    /// Current protected issuer enrollment, authenticated caller and host clock.
     pub authority: PortableAuthority<'a>,
+    /// Current maximum lease duration, rechecked on ordinary authorization.
     pub max_ttl: SessionTtlLimit,
+    /// Protected receiver role against which grants are narrowed.
     pub role: &'a AuthRole,
+    /// Scopes required by the current operation, not selected by the caller.
     pub required_scopes: &'a RequiredScopes,
 }
 impl SessionContext<'_> {
@@ -58,8 +62,11 @@ impl SessionContext<'_> {
 /// Physical occupancy: expired records count until explicit bounded pruning.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct SessionOccupancy {
+    /// Physical session rows, including expired rows not yet pruned.
     pub sessions: usize,
+    /// Physical replay rows across all accounts.
     pub replays: usize,
+    /// Physical replay rows for the selected issuer-qualified account.
     pub replays_for_account: usize,
 }
 
@@ -73,11 +80,14 @@ pub struct SessionOccupancy {
 /// }
 /// ```
 pub trait SessionReader {
+    /// Protected authority generation from this same isolated snapshot.
     fn generation(&self) -> u64;
+    /// Admitted capacity limits for this store.
     fn limits(&self) -> SessionLimits;
     /// Borrow in-memory records; storage adapters may return an owned decode.
     /// The value cannot escape the host's read snapshot without copying it.
     fn session(&self, caller: Principal) -> Result<Option<Cow<'_, Session>>, SessionError>;
+    /// Whether a credential fingerprint remains retained, even after logout.
     fn replay_exists(&self, fingerprint: [u8; 32]) -> Result<bool, SessionError>;
     /// Account-wide replay occupancy, independent of device keys and sessions.
     fn occupancy(&self, account: (Principal, Principal)) -> Result<SessionOccupancy, SessionError>;
@@ -93,6 +103,7 @@ pub trait SessionReader {
 /// Logout validates a revocation, removes only its caller's session and retains
 /// replay history, atomically with the login tombstone.
 pub trait SessionStore {
+    /// Execute against one isolated read snapshot without reentrancy or writes.
     fn read<T>(
         &mut self,
         operation: impl FnOnce(&dyn SessionReader) -> Result<T, SessionError>,
@@ -105,6 +116,7 @@ pub trait SessionStore {
         replay: Replay,
         login: &LoginRevocationChange,
     ) -> Result<bool, SessionError>;
+    /// Atomically persist the denial and remove its caller's session, retaining replay.
     fn logout(&mut self, login: &LoginRevocationChange) -> Result<(), SessionError>;
 }
 
@@ -129,15 +141,23 @@ impl From<&Session> for SessionReceipt {
     }
 }
 impl SessionReceipt {
+    /// Browser ingress identity bound at admission; not the account subject.
+    #[must_use]
     pub fn caller(&self) -> Principal {
         self.caller
     }
+    /// Issuer qualifying the account identity in this receipt.
+    #[must_use]
     pub fn issuer(&self) -> Principal {
         self.issuer
     }
+    /// Issuer-asserted account subject, not current authorization evidence.
+    #[must_use]
     pub fn subject(&self) -> Principal {
         self.subject
     }
+    /// Original exclusive session lease deadline in nanoseconds.
+    #[must_use]
     pub fn expires_at_ns(&self) -> u64 {
         self.expires_at_ns
     }
@@ -146,12 +166,17 @@ impl SessionReceipt {
 /// Session creation, replacement, or the unchanged receipt of an exact retry.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum SessionEstablished {
+    /// A new session was committed for this browser caller.
     Created(SessionReceipt),
+    /// Admission replaced the browser caller's previous session.
     Replaced(SessionReceipt),
+    /// The original receipt was recovered without extending its lease.
     ExactRetry(SessionReceipt),
 }
 
 impl SessionEstablished {
+    /// Consume the outcome and return its compact, non-authorizing receipt.
+    #[must_use]
     pub fn receipt(self) -> SessionReceipt {
         match self {
             Self::Created(receipt) | Self::Replaced(receipt) | Self::ExactRetry(receipt) => receipt,
@@ -162,38 +187,53 @@ impl SessionEstablished {
 /// Session/replay admission and local authorization failures.
 #[derive(Debug, Error, Eq, PartialEq)]
 pub enum SessionError {
+    /// The protected capability or subject eligibility is disabled.
     #[error("session capability is disabled or subject is inadmissible")]
     Disabled,
+    /// Host policy or a restored record violates admitted invariants.
     #[error("session policy or stored record is invalid")]
     InvalidPolicyOrRecord,
+    /// Retained session authority no longer matches protected live state.
     #[error("session authority is no longer current")]
     StaleAuthority,
+    /// No session exists, or its lease is not live at the supplied clock.
     #[error("session is missing or expired")]
     MissingOrExpired,
+    /// A consumed credential is being reused with a different request or binding.
     #[error("proof was already consumed or retry request differs")]
     ReplayConflict,
+    /// Requested or required scopes are outside the admitted grant.
     #[error("requested or required scope is not granted")]
     ScopeRejected,
+    /// A global or per-account record-count bound would be exceeded.
     #[error("session/replay capacity is exhausted")]
     Capacity,
+    /// The encoded session/replay byte budget would be exceeded.
     #[error("encoded record budget is exhausted")]
     ByteCapacity,
+    /// The authority generation cannot advance without wrapping.
     #[error("authority generation is exhausted")]
     GenerationExhausted,
+    /// The host failed to atomically commit the proposed state change.
     #[error("host transaction could not commit")]
     StorageFailure,
+    /// Canonical labels or grant structure failed validation.
     #[error(transparent)]
     Canonical(#[from] CanonicalAuthError),
+    /// Credential proof verification failed under the selected mechanism.
     #[cfg(any(
         feature = "portable-signature-verification",
         feature = "certified-proof-verification"
     ))]
     #[error(transparent)]
     Credential(#[from] crate::portable_credential::PortableCredentialError),
+    /// Signed claims fail time, identity or authority validation.
     #[error(transparent)]
     Claims(#[from] PortableClaimsError),
+    /// Canonical credential bytes cannot be decoded or encoded within bounds.
     #[error(transparent)]
     Encoding(#[from] PortableEncodingError),
+    /// Login revocation, clock or reservation checks prevent session use.
     #[error(transparent)]
     Revocation(#[from] LoginRevocationError),
 }
@@ -218,8 +258,11 @@ impl From<SessionRequestError> for SessionError {
     feature = "certified-proof-verification"
 ))]
 pub struct SessionAdmissionContext<'a> {
+    /// Protected verifier selection, caller, authority and fresh-proof bounds.
     pub verification: crate::portable_credential::PortableVerificationContext<'a>,
+    /// Host-selected receiver role used to narrow credential grants.
     pub role: &'a AuthRole,
+    /// Host default and maximum lease duration for fresh admission.
     pub ttl: crate::session_request::SessionTtlPolicy,
 }
 

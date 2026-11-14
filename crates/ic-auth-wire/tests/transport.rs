@@ -1,3 +1,4 @@
+//! Bounded Wire round trips, domain projections and transport rejection contracts.
 use ic_auth_protocol_types as domain;
 use ic_auth_wire::{CredentialEnvelope, EstablishSession, Logout, ReadSession, model, wire};
 

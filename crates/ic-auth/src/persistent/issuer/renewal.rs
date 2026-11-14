@@ -1,4 +1,8 @@
-use super::*;
+use super::{
+    IssueRequest, IssuerAuthority, IssuerStatus, IssuerStore, IssuerTicket, Login, LoginId, Memory,
+    Operation, Principal, RenewRequest, RenewalSelection, RetainedRenewal, StoreError, keys,
+    prepare,
+};
 use crate::portable::browser_principal;
 use prepare::{grants_hash, hash};
 
@@ -44,6 +48,10 @@ impl<M: Memory> IssuerStore<M> {
     /// Rechecks live state after preflight; never extends the original window.
     /// # Panics
     /// Storage faults require host rollback; native hosts must discard the runtime.
+    #[expect(
+        clippy::needless_pass_by_value,
+        reason = "Preserve the published owned renewal request API, matching issuance commands."
+    )]
     pub fn renew(
         &mut self,
         browser: Principal,

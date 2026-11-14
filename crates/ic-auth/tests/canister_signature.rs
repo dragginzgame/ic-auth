@@ -1,3 +1,4 @@
+//! IC certificate and canister-signature verification against protected signer and clock policy.
 #![cfg(feature = "canister-signature-verification")]
 
 use ic_auth::canister_signature::{
@@ -360,7 +361,7 @@ fn rejects_modified_message_domain_and_signature_tree() {
 fn rejects_tampered_certificate_and_nonempty_signature_leaf() {
     let root = key(1).public_key().serialize();
     let original = proof(&message(), Some(time_bytes(NOW)), &key(1), None);
-    let mut proof = original.clone();
+    let mut proof = original;
     let mut envelope: Envelope = ic_platform::certification::cbor::decode_canister_signature(
         &proof.signature_cbor,
         proof.signature_cbor.len(),
@@ -435,7 +436,7 @@ fn rejects_every_truncated_key_and_inconsistent_der_without_panicking() {
         verify_canister_signature(&message(), &proof, &policy(&root)),
         Err(Error::InvalidPublicKey)
     );
-    let mut proof = original.clone();
+    let mut proof = original;
     proof.public_key_der.push(0);
     assert_eq!(
         verify_canister_signature(&message(), &proof, &policy(&root)),

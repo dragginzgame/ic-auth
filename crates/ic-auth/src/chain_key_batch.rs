@@ -17,7 +17,12 @@ pub enum ChainKeyBatchError {
     EmptyBatch,
     /// The supplied hashes exceed the host's explicit construction budget.
     #[error("chain-key batch has {found} leaves, exceeding the limit {max}")]
-    TooManyLeaves { found: usize, max: usize },
+    TooManyLeaves {
+        /// Submitted leaf count, including repeated hashes.
+        found: usize,
+        /// Inclusive host-selected leaf ceiling.
+        max: usize,
+    },
 }
 
 /// Build a root and one witness per leaf, preserving the supplied order.

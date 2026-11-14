@@ -9,13 +9,13 @@ qualify the current dependency graph.
 
 ## Setup and ownership
 
-The qualification catalog/lock selects published Testkit 0.101.0 from
+The qualification catalog/lock selects published Testkit 0.104.0 from
 [IC Tooling](https://github.com/dragginzgame/ic-tooling), upstream PocketIC 16.1
-and the explicitly admitted server 16.1.0. Auth and Testkit share Wire 0.21;
+and the explicitly admitted server 16.1.0. Auth and ic-testkit-wire 0.1 share Wire 0.22;
 `WireCallSpec` takes canonical method limits without an alias or projection.
-Application identities use canonical Platform Types 0.19.4. Native PocketIC/Agent
+Application identities use canonical Platform Types 0.20.2. Native PocketIC/Agent
 calls copy those bytes explicitly into the upstream Principal type. Platform
-0.31.2 supplies crypto and Agent capabilities; the host selects one Runtime 0.21.2
+0.32.2 supplies crypto and Agent capabilities; the host selects one Runtime 0.22.2
 executor/generator/guard. Native client dependencies stay outside public Auth
 libraries and the Wasm host; the certificate-only exception is separate.
 See [the native Candid paths](setup.md#why-candid-appears-in-cargolock) for
@@ -26,8 +26,8 @@ fixture. No direct Agent declaration or local client facade is added.
 
 The native runner imports `ic_testkit::pocket_ic::nonblocking::PocketIc`,
 `PocketIcBuilder` and `Time` through Testkit's native-only upstream re-export.
-There is no direct PocketIC dependency declaration. Testkit supplies typed Wire
-calls, lifecycle helpers and managed server custody. Auth selects
+There is no direct PocketIC dependency declaration. Testkit supplies lifecycle
+helpers and managed server custody; `ic-testkit-wire` supplies typed calls. Auth selects
 `PocketIcBuilder::new().with_max_request_time_ms(Some(30_000))`; managed
 `build_instance(builder).await` supplies the admitted server endpoint. That
 upstream polling limit is not an absolute HTTP/body deadline. Startup separately
@@ -40,10 +40,10 @@ best-effort and logs failures rather than returning them; close does not establi
 deletion acknowledgement. The managed server guard still stops/reaps its process
 on test/setup panic. State and server output remain retained for diagnosis.
 There is no blocking facade, local compatibility wrapper or nested runtime.
-Only the native runner selects Testkit's `wire` capability. IC Wire owns native
+Only the native runner selects `ic-testkit-wire`. IC Wire owns native
 Serde framing and budgets; Auth owns method identities, traversal allowances and
 trust assertions. Deliberately malformed inputs and exact-frame evidence use raw
-calls. Wire 0.21 retains Postcard primitive acceptance, including redundant varints;
+calls. Wire 0.22 retains Postcard primitive acceptance, including redundant varints;
 signed claims stay opaque and retain their original bytes. The
 [current handoff](../status/current.md) distinguishes focused adoption evidence
 from the previously delivered release gates.
@@ -121,7 +121,7 @@ protect different integration/trust boundaries; neither replaces the other.
 
 ## Portable session restoration across independent receivers
 
-The checkpoint host uses Storage 0.73.4's `ic_storage::adapter::StableCell` with one
+The checkpoint host uses Storage 0.74.0's `ic_storage::adapter::StableCell` with one
 host-owned runtime and checked allocation. Auth owns its `AUTHSLOT` native-Wire
 payload identity, 128 KiB ceiling and metadata/session contents. Storage admits
 namespace grants, exclusive leases, bounded loading and cell framing. Storage

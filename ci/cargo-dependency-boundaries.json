@@ -20,6 +20,10 @@
     "allowed_packages": []
   },
   {
+    "dependency": "ic-testkit-wire",
+    "allowed_packages": []
+  },
+  {
     "dependency": "ic-entropy",
     "allowed_packages": []
   },

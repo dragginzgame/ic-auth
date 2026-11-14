@@ -24,7 +24,7 @@ git commit -qm 'Current Auth retention caller fixture'
 export RELEASE_GROUP=engine RELEASE_KIND=patch RELEASE_DELIVERY=direct
 source scripts/release/group.sh
 RELEASE_PREVIOUS="$(auth_release_version)"
-RELEASE_VERSION="$(bash scripts/ci/next-release-version.sh "$RELEASE_PREVIOUS" patch)"
+RELEASE_VERSION="$(bash vendor/toko-tooling/scripts/ci/next-release-version.sh "$RELEASE_PREVIOUS" patch)"
 RELEASE_DATE="$(date -u +%F)"
 export RELEASE_PREVIOUS RELEASE_VERSION RELEASE_DATE
 RELEASE_SOURCE="$(git rev-parse HEAD)"
@@ -46,7 +46,7 @@ git remote add origin "$evidence/unused-remote.git"
 mkdir -p .git/publication-state/retained/target
 printf 'runner evidence\n' > .git/publication-state/retained/target/receipt
 status=0
-RELEASE_MAKE="$evidence/bin/make" bash scripts/ci/run-release.sh patch origin \
+RELEASE_MAKE="$evidence/bin/make" bash vendor/toko-tooling/scripts/ci/run-release.sh patch origin \
     "$(git symbolic-ref --short HEAD)" > "$evidence/runner-refused.log" 2>&1 || status=$?
 [[ "$status" == 1 ]]
 rg -F 'retained state requires review before release' "$evidence/runner-refused.log" > /dev/null

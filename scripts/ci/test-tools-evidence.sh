@@ -15,19 +15,19 @@ consumer="$fixture/consumer with spaces"
 mkdir -p "$consumer/scripts/dev" "$consumer/scripts/ci" "$consumer/make" "$consumer/ci" "$fixture/bin" "$fixture/runner"
 # Copy every include loaded by the actual Makefile so injected failures reach
 # the selected tool targets rather than stopping during Makefile parsing.
-bash scripts/ci/prepare-script-fixture.sh "$root" "$consumer" \
-    Makefile make/consumer.mk make/tools.mk make/release.mk make/rust-format.mk make/execution.mk \
-    scripts/ci/check-release-delivery.sh ci/release-delivery.txt \
-    scripts/ci/check-make-execution.sh scripts/ci/run-formatting.sh ci/tool-versions.env \
-    scripts/dev/ci-tools.sh scripts/dev/install-rust-tools.sh \
-    scripts/dev/cargo-tool-build.sh scripts/dev/tool-store.sh \
-    scripts/dev/native-package-inputs.pl scripts/dev/tool-store-maintenance.pl scripts/dev/OwnedTree.pm \
-    scripts/ci/verify-file-checksum.sh scripts/ci/tool-catalog-records.pl \
-    scripts/ci/StableVersion.pm scripts/ci/ic-tool-pins.awk
+bash vendor/toko-tooling/scripts/ci/prepare-script-fixture.sh "$root" "$consumer" \
+    Makefile vendor/toko-tooling/make/consumer.mk vendor/toko-tooling/make/tools.mk vendor/toko-tooling/make/release.mk vendor/toko-tooling/make/rust-format.mk vendor/toko-tooling/make/execution.mk \
+    vendor/toko-tooling/scripts/ci/check-release-delivery.sh ci/release-delivery.txt \
+    vendor/toko-tooling/scripts/ci/check-make-execution.sh vendor/toko-tooling/scripts/ci/run-formatting.sh vendor/toko-tooling/ci/tool-versions.env \
+    scripts/dev/ci-tools.sh vendor/toko-tooling/scripts/dev/install-rust-tools.sh \
+    vendor/toko-tooling/scripts/dev/cargo-tool-build.sh vendor/toko-tooling/scripts/dev/tool-store.sh \
+    vendor/toko-tooling/scripts/dev/native-package-inputs.pl vendor/toko-tooling/scripts/dev/tool-store-maintenance.pl vendor/toko-tooling/scripts/dev/OwnedTree.pm \
+    vendor/toko-tooling/scripts/ci/verify-file-checksum.sh vendor/toko-tooling/scripts/ci/tool-catalog-records.pl \
+    vendor/toko-tooling/scripts/ci/StableVersion.pm vendor/toko-tooling/scripts/ci/ic-tool-pins.awk
 # Retain the actual ordered aggregate and Rust preflight/installer. Earlier
 # common sets are inert; a later Rust refusal must never dispatch product tools.
 for script in install-host-tools install-ic-tools; do
-    printf '#!/usr/bin/env bash\nexit 0\n' > "$consumer/scripts/dev/$script.sh"
+    printf '#!/usr/bin/env bash\nexit 0\n' > "$consumer/vendor/toko-tooling/scripts/dev/$script.sh"
 done
 for script in msrv-tools testkit-tools host-file-tools; do
     cat > "$consumer/scripts/dev/$script.sh" <<'SCRIPT'
@@ -39,7 +39,7 @@ SCRIPT
 done
 # The canonical substitute provides a compiler-local Cargo boundary compatible
 # with the standard cleared build environment. It never contacts a registry.
-bash scripts/ci/prepare-cargo-failure-fixture.sh "$fixture/compiler"
+bash vendor/toko-tooling/scripts/ci/prepare-cargo-failure-fixture.sh "$fixture/compiler"
 export TOKO_TOOLING_STORE="$fixture/store"
 ln -s "$BASH" "$fixture/bin/bash"
 for phase in install check; do
@@ -100,30 +100,30 @@ mkdir -p "$TOKO_TOOLING_STORE/rust-unrelated/set.unrelated"
 printf 'must not upload\n' > "$TOKO_TOOLING_STORE/rust-unrelated/set.unrelated/private"
 
 # Execute the adopted collector block; never maintain another selection.
-yq -p yaml -o json '.' .github/actions/retain-failure-evidence/action.yml | \
+yq -p yaml -o json '.' vendor/toko-tooling/.github/actions/retain-failure-evidence/action.yml | \
     jq -er '.runs.steps[] | select(.id == "archive") | .run' > "$fixture/collector.sh"
 EVIDENCE_TEMP_ROOT="$consumer/target" EVIDENCE_REPOSITORY_ROOT="$consumer" \
-EVIDENCE_ACTION_ROOT="$root/.github/actions/retain-failure-evidence" EVIDENCE_COMPACT=false \
+EVIDENCE_ACTION_ROOT="$root/vendor/toko-tooling/.github/actions/retain-failure-evidence" EVIDENCE_COMPACT=false \
 EVIDENCE_HOST_VERSIONS='' EVIDENCE_IC_PINS='' RUNNER_TEMP="$fixture/runner" \
 GITHUB_OUTPUT="$fixture/collector.outputs" "$BASH" "$fixture/collector.sh" > "$fixture/collector.log" 2>&1
 archive="$(sed -n 's/^path=//p' "$fixture/collector.outputs")"
 [[ -f "$archive" ]]
 {
     for path in rust-tools-install.log rust-tools-check.log; do
-        digest="$(bash scripts/ci/verify-file-checksum.sh --print sha256 "$consumer/target/$path")"
+        digest="$(bash vendor/toko-tooling/scripts/ci/verify-file-checksum.sh --print sha256 "$consumer/target/$path")"
         printf '%s  %s\n' "$digest" "$path"
     done
     for path in build/failed-build.txt install.log inputs.json Cargo.lock source.crate native-environment.txt; do
         relative="$attempt/$path"
-        digest="$(bash scripts/ci/verify-file-checksum.sh --print sha256 "$TOKO_TOOLING_STORE/$relative")"
+        digest="$(bash vendor/toko-tooling/scripts/ci/verify-file-checksum.sh --print sha256 "$TOKO_TOOLING_STORE/$relative")"
         printf '%s  %s\n' "$digest" "$relative"
     done
-    digest="$(bash scripts/ci/verify-file-checksum.sh --print sha256 "$consumer/$slot_evidence")"
+    digest="$(bash vendor/toko-tooling/scripts/ci/verify-file-checksum.sh --print sha256 "$consumer/$slot_evidence")"
     printf '%s  %s\n' "$digest" "$slot_evidence"
 } > "$fixture/expected.sha256"
 mkdir "$fixture/unpacked"
 tar -xzf "$archive" -C "$fixture/unpacked"
-(cd "$fixture/unpacked"; bash "$root/scripts/ci/verify-evidence-checksums.sh" "$fixture/expected.sha256")
+(cd "$fixture/unpacked"; bash "$root/vendor/toko-tooling/scripts/ci/verify-evidence-checksums.sh" "$fixture/expected.sha256")
 [[ -L "$fixture/unpacked/.tools/rust/redirected-slot" &&
     "$(readlink "$fixture/unpacked/.tools/rust/redirected-slot")" == "$fixture/outside" ]] || exit 1
 [[ ! -e "$fixture/unpacked/outside" ]] || exit 1

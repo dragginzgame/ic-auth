@@ -1,3 +1,4 @@
+//! Installed certification, ingress delegation and session lifecycle qualification.
 use ic_auth::canister_signature::{
     CanisterSignatureError, CanisterSignaturePolicy, domain_separated_message,
     verify_canister_signature,
@@ -12,12 +13,11 @@ use ic_platform::{
     Principal,
     agent::{Agent, BasicIdentity, Delegation, Identity, SignedDelegation},
 };
-use ic_testkit::pic::{
-    PocketIcInstance, PocketIcStartupConfig, WireCallError, WireCallSpec, query_wire, update_wire,
-};
+use ic_testkit::pic::{PocketIcInstance, PocketIcStartupConfig};
 use ic_testkit::pocket_ic::{
     CanisterId as PocketPrincipal, PocketIcBuilder, Time, nonblocking::PocketIc,
 };
+use ic_testkit_wire::{WireCallError, WireCallSpec, query_wire, update_wire};
 use ic_wire::Bytes;
 use std::{
     path::{Path, PathBuf},
@@ -28,7 +28,7 @@ use std::{
 // Select the upstream transport spec from the canonical contract constants.
 macro_rules! spec {
     ($method:path) => {
-        ic_testkit::pic::WireCallSpec {
+        ic_testkit_wire::WireCallSpec {
             method: <$method>::NAME,
             method_id: <$method>::ID,
             request_limits: <$method>::REQUEST_LIMITS,

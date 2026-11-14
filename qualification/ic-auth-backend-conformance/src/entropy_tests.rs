@@ -56,7 +56,16 @@ fn generated_nonces_preserve_admission_exact_retry_and_replay_refusal() {
     let first_nonce = issuer.claims.nonce;
     let mut store = MemorySessionStore::new(0, limits(4, 65_536));
     let mut ledger = issuer.ledger();
-    let mut budget = SessionAdmissionBudget::new(4, SECOND, 0).unwrap();
+    let mut budget = SessionAdmissionBudget::for_verification(
+        4,
+        SECOND,
+        ic_auth::admission_budget::VerificationCosts {
+            ed25519: 1,
+            certified: 1,
+        },
+        0,
+    )
+    .unwrap();
     let created = admit(&issuer, &first, &mut store, &mut ledger, &mut budget).unwrap();
     assert!(matches!(created, SessionEstablished::Created(_)));
     assert_eq!(
@@ -125,7 +134,16 @@ fn buffered_seeds_are_single_use_and_restarting_the_old_seed_replays_output() {
     assert!(pool.take().is_none());
     let mut store = MemorySessionStore::new(0, limits(4, 65_536));
     let mut ledger = issuer.ledger();
-    let mut budget = SessionAdmissionBudget::new(4, SECOND, 0).unwrap();
+    let mut budget = SessionAdmissionBudget::for_verification(
+        4,
+        SECOND,
+        ic_auth::admission_budget::VerificationCosts {
+            ed25519: 1,
+            certified: 1,
+        },
+        0,
+    )
+    .unwrap();
     admit(&issuer, &first, &mut store, &mut ledger, &mut budget).unwrap();
 
     // Public deterministic test seeds establish stream identity, not entropy
@@ -171,7 +189,16 @@ fn all_zero_nonce_is_valid_signed_material_not_an_unseeded_provider() {
     let credential = issuer.credential();
     let mut store = MemorySessionStore::new(0, limits(4, 65_536));
     let mut ledger = issuer.ledger();
-    let mut budget = SessionAdmissionBudget::new(1, SECOND, NOW - SECOND).unwrap();
+    let mut budget = SessionAdmissionBudget::for_verification(
+        1,
+        SECOND,
+        ic_auth::admission_budget::VerificationCosts {
+            ed25519: 1,
+            certified: 1,
+        },
+        NOW - SECOND,
+    )
+    .unwrap();
     assert!(matches!(
         admit(&issuer, &credential, &mut store, &mut ledger, &mut budget),
         Ok(SessionEstablished::Created(_))

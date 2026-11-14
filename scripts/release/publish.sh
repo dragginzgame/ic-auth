@@ -10,10 +10,10 @@ fail() { echo "publication refused: $*" >&2; exit 1; }
 source scripts/release/retention.sh
 auth_release_retention || fail 'retained state requires review before publication'
 source scripts/release/packages.sh selected
-version="$(bash "$PWD/scripts/ci/cargo-release-group.sh" version "$RELEASE_GROUP")"
+version="$(bash "$PWD/vendor/toko-tooling/scripts/ci/cargo-release-group.sh" version "$RELEASE_GROUP")"
 source="$(git rev-parse --verify HEAD)"
 [[ -z "$(git status --porcelain --untracked-files=all)" ]] || fail 'commit the complete publication source first'
-bash scripts/ci/check-release-tag.sh "$source" "$version" "$RELEASE_GROUP"
+bash vendor/toko-tooling/scripts/ci/check-release-tag.sh "$source" "$version" "$RELEASE_GROUP"
 [[ -f release-validation.json ]] || fail 'the tagged release has no validation receipt'
 # Bind the release metadata to its original validated source, including retries
 # from a fresh clone. The shared adapter checks the selected commit, not HEAD.
@@ -95,7 +95,7 @@ fi
 observe() {
     local package="$1" checksum="$2" evidence observed
     evidence="$(mktemp -d "$logs/$package-observation.XXXXXX")" || return 2
-    observed="$(bash scripts/ci/check-crates-io-version.sh \
+    observed="$(bash vendor/toko-tooling/scripts/ci/check-crates-io-version.sh \
         --metadata "$evidence/registry" "$package" "$version")" || return $?
     # Shared owns transport and admitted metadata; Auth owns payload acceptance.
     # Yanked matching bytes still reconcile an earlier upload, as before.
@@ -124,7 +124,7 @@ for index in "${!packages[@]}"; do
     bash scripts/dev/run-host-file.sh create-private "$marker" "$dispatched" 1024
     assert_source
     status=0
-    step bash scripts/ci/run-cargo-publication.sh publish "$attempt" "$source" crates-io \
+    step bash vendor/toko-tooling/scripts/ci/run-cargo-publication.sh publish "$attempt" "$source" crates-io \
         --package "$package@$version" || status=$?
     # A lost reply or Cargo index-propagation timeout does not prove failure.
     # Reconcile the exact bytes even when the upload command reports failure.

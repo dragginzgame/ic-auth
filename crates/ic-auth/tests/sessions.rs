@@ -1,3 +1,4 @@
+//! Session admission, exact retries, authority invalidation and transactional storage behavior.
 #![cfg(all(feature = "sessions", feature = "portable-signature-verification"))]
 mod support;
 use support::claims_context;
@@ -569,8 +570,17 @@ impl Receiver {
                 0,
             )
             .unwrap(),
-            budget: SessionAdmissionBudget::new(32, 1, 0).unwrap(),
-            logout: SessionAdmissionBudget::new(32, 1, 0).unwrap(),
+            budget: SessionAdmissionBudget::for_verification(
+                32,
+                1,
+                ic_auth::admission_budget::VerificationCosts {
+                    ed25519: 1,
+                    certified: 1,
+                },
+                0,
+            )
+            .unwrap(),
+            logout: SessionAdmissionBudget::for_operations(32, 1, 0).unwrap(),
         }
     }
     fn auth(&mut self, f: &Fixture, now: u64) -> Result<Session, SessionError> {
@@ -698,7 +708,16 @@ fn future_start_retry_keeps_original_credential_and_verifies_only_once() {
             .to_vec(),
     };
     let mut r = Receiver::new(&f);
-    r.budget = SessionAdmissionBudget::new(1, SECOND, NOW).unwrap();
+    r.budget = SessionAdmissionBudget::for_verification(
+        1,
+        SECOND,
+        ic_auth::admission_budget::VerificationCosts {
+            ed25519: 1,
+            certified: 1,
+        },
+        NOW,
+    )
+    .unwrap();
     let admit = |r: &mut Receiver, now| {
         let context = f.context(now);
         establish_session(
@@ -761,7 +780,16 @@ fn fresh_browser_keys_cannot_multiply_one_accounts_sessions_or_logout_reservatio
     first.admit(&mut r, NOW).unwrap();
     let bytes = r.store.encoded_bytes();
     // Exhaust crypto credit too: duplicate-account refusal must precede crypto.
-    r.budget = SessionAdmissionBudget::new(1, SECOND, NOW).unwrap();
+    r.budget = SessionAdmissionBudget::for_verification(
+        1,
+        SECOND,
+        ic_auth::admission_budget::VerificationCosts {
+            ed25519: 1,
+            certified: 1,
+        },
+        NOW,
+    )
+    .unwrap();
     for device in 2..=65 {
         let mut another = Fixture::new(device);
         another.claims.account_subject = first.claims.account_subject;
@@ -923,7 +951,7 @@ fn two_receivers_two_accounts_retry_after_proof_expiry_and_local_logout() {
             &mut a.ledger,
             &mut a.budget,
             &PortableCredential {
-                claims: bytes.clone(),
+                claims: bytes,
                 proof: PortableProof::Ed25519 { signature: vec![] }
             },
             request(),
@@ -1029,7 +1057,16 @@ fn failed_commit_is_atomic_for_session_replay_reservation_and_logout() {
     let ctx = f.context(NOW);
     let bytes = encode_claims(&f.claims).unwrap();
     let signature = f.key.sign(&claims_hash(&f.claims).unwrap()).to_bytes();
-    let mut budget = SessionAdmissionBudget::new(1, SECOND, NOW - SECOND).unwrap();
+    let mut budget = SessionAdmissionBudget::for_verification(
+        1,
+        SECOND,
+        ic_auth::admission_budget::VerificationCosts {
+            ed25519: 1,
+            certified: 1,
+        },
+        NOW - SECOND,
+    )
+    .unwrap();
     assert_eq!(
         establish_session(
             &mut FailingStore(&mut r.store, || SessionError::ByteCapacity),
@@ -1213,7 +1250,7 @@ fn replay_capacity_narrowing_and_reset_refuse_before_verification() {
                 claims: bytes.clone(),
                 proof: PortableProof::Ed25519 { signature: vec![] }
             },
-            excessive.clone(),
+            excessive,
             &SessionAdmissionContext {
                 verification: PortableVerificationContext::Ed25519 {
                     claims: &claims_context(f.context(NOW).authority),
@@ -1234,10 +1271,10 @@ fn replay_capacity_narrowing_and_reset_refuse_before_verification() {
             &mut r.ledger,
             &mut r.budget,
             &PortableCredential {
-                claims: bytes.clone(),
+                claims: bytes,
                 proof: PortableProof::Ed25519 { signature: vec![] }
             },
-            changed.clone(),
+            changed,
             &SessionAdmissionContext {
                 verification: PortableVerificationContext::Ed25519 {
                     claims: &claims_context(f.context(NOW).authority),
@@ -1285,7 +1322,7 @@ fn replay_capacity_narrowing_and_reset_refuse_before_verification() {
             &mut reset.ledger,
             &mut reset.budget,
             &PortableCredential {
-                claims: bytes.clone(),
+                claims: bytes,
                 proof: PortableProof::Ed25519 { signature: vec![] }
             },
             request(),
@@ -1530,7 +1567,16 @@ fn invalid_signature_cannot_reserve_state_and_spends_verification_credit() {
     let mut r = Receiver::new(&f);
     let ctx = f.context(NOW);
     let bytes = encode_claims(&f.claims).unwrap();
-    let mut budget = SessionAdmissionBudget::new(1, SECOND, NOW - SECOND).unwrap();
+    let mut budget = SessionAdmissionBudget::for_verification(
+        1,
+        SECOND,
+        ic_auth::admission_budget::VerificationCosts {
+            ed25519: 1,
+            certified: 1,
+        },
+        NOW - SECOND,
+    )
+    .unwrap();
     let result = establish_session(
         &mut r.store,
         &mut r.ledger,
@@ -1688,7 +1734,16 @@ fn byte_capacity_failure_preserves_previous_session_and_login_reservation() {
     let mut sizing = Receiver::new(&f);
     f.admit(&mut sizing, NOW).unwrap();
     let mut r = Receiver::new(&f);
-    r.budget = SessionAdmissionBudget::new(2, SECOND, 0).unwrap();
+    r.budget = SessionAdmissionBudget::for_verification(
+        2,
+        SECOND,
+        ic_auth::admission_budget::VerificationCosts {
+            ed25519: 1,
+            certified: 1,
+        },
+        0,
+    )
+    .unwrap();
     r.store = MemorySessionStore::new(
         0,
         SessionLimits::new(4, 8, 4, sizing.store.encoded_bytes()).unwrap(),
@@ -2636,7 +2691,16 @@ fn anonymous_and_cheap_refusal_floods_leave_another_clients_verification_credit(
     let attacker = Fixture::new(1);
     let victim = Fixture::new(2);
     let mut r = Receiver::new(&victim);
-    r.budget = SessionAdmissionBudget::new(1, SECOND, NOW - SECOND).unwrap();
+    r.budget = SessionAdmissionBudget::for_verification(
+        1,
+        SECOND,
+        ic_auth::admission_budget::VerificationCosts {
+            ed25519: 1,
+            certified: 1,
+        },
+        NOW - SECOND,
+    )
+    .unwrap();
     let valid = attacker.credential();
     let mut malformed = valid.clone();
     malformed.claims = vec![0];
@@ -2677,7 +2741,16 @@ fn forged_proofs_can_spend_shared_crypto_credit_but_cannot_pin_login_capacity() 
     let attacker = Fixture::new(1);
     let victim = Fixture::new(2);
     let mut r = Receiver::new(&victim);
-    r.budget = SessionAdmissionBudget::new(2, SECOND, NOW - 2 * SECOND).unwrap();
+    r.budget = SessionAdmissionBudget::for_verification(
+        2,
+        SECOND,
+        ic_auth::admission_budget::VerificationCosts {
+            ed25519: 1,
+            certified: 1,
+        },
+        NOW - 2 * SECOND,
+    )
+    .unwrap();
     let mut forged = attacker.credential();
     forged.proof = PortableProof::Ed25519 {
         signature: vec![0; 64],

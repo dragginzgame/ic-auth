@@ -39,6 +39,68 @@ Finish any pre-0.31 batch with its original tooling before adoption; never relab
 its journal. Auth has no active pre-0.31 batch. The `release-frozen`/`frozen`
 storage paths and source pins remain stable identifiers.
 
+## Deployment sequencing and failed-phase recovery
+
+### Dependency selection under Toko Tooling 0.41
+
+Release the selected, qualified product and required qualification graphs; do not
+wait for a fleet-wide dependency generation. A failed optional Testkit, Platform
+or other test-supplier upgrade blocks that upgrade, not the unchanged qualified
+selection. Older native suppliers may coexist with newer product dependencies
+when their actual typed APIs, Wire transport and executor boundaries are valid.
+Duplicate package names in a complete lockfile are not by themselves a blocker.
+Do not force transitive versions outside supplier requirements to remove duplicates.
+
+A real blocker must identify the selected package, target/features, conflicting
+identities and introducing paths. Auth still requires its native Testkit transport
+to use the admitted Wire contract, and its deployed fixture to have one Runtime
+executor/guard. Required installed integration tests and source/lock drift checks
+remain release requirements. A pending optional upgrade is not permission to omit
+those tests or reuse evidence from different inputs. Review native qualification
+and deployed Wasm graphs separately using the existing boundary checks.
+
+`make deps-list` reports local package versions and release groups offline across
+both workspaces. Display-only dependency aliases are removed from manifests and
+group dependency rosters; package membership and independent release versions are
+unchanged. The updated shared group checker supports this representation.
+
+The 0.41 installer relies on Cargo 1.100's packaged lock by default rather than
+the now-no-op `cargo install --locked`. Exact version, checksum, source-lock and
+receipt admission remain intact. Its changed build-policy receipt required one
+explicit local tool preparation during adoption, including Testkit and the release
+editor. Normal builds/tests/publication retain `--locked`; frozen recovery still
+admits only its saved source's prepared selection and never installs implicitly.
+
+### Validation and recovery
+
+Following Toko Tooling 0.40.1, inspect the selected plan and nested commands
+before starting delivery. Run changed release-adapter fixtures before expensive
+product qualification. Each selected source-bound group plan owns its validation
+pass; metadata preparation and publication admit that evidence rather than invoke
+another full `make ci`. Hosted CI remains asynchronous and does not replace the
+required local release proof.
+
+Announce scope and retained timing evidence before starting or restarting.
+The [measured deliveries](#full-and-reduced-delivery-comparison) took about
+27 minutes for the full Engine plan and 13 minutes for its source-only reduced
+plan. These are observations, not estimates for a two-group compiler/tooling
+release; that cost is unknown. Manifest, compiler and tooling changes select full
+scope. Keep optional supplier/tooling upgrades outside an active delivery.
+
+On failure, identify the phase and invalidated inputs first. A completed receipt
+is re-admitted by metadata recovery and publication, with fresh source, artifact
+and remote/registry checks. A metadata/upload failure alone does not invalidate
+its runtime proof. Preserve original execution identities and failed evidence.
+
+Auth currently has **no qualified collector-only or partial-stage resume**:
+`scripts/release/validation.sh` collects evidence after execution, and a failed
+verify retry creates a fresh gate. If collection/evidence publication fails after
+successful execution, retain the successful raw run, report this missing recovery
+admission and disclose the required fresh-plan scope before retrying. Never infer
+a receipt from PASS log text or silently restart the complete gate. Implementing
+collector recovery requires its own failure/recovery qualification; the new
+guidance does not itself add that capability or waive existing admission.
+
 ## Selection
 
 The baseline is the selected group's exact previous annotated release tag.

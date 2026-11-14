@@ -5,12 +5,17 @@ use ic_platform::{
     certification::{Certificate, Delegation, HashTree},
 };
 
+#[must_use]
+/// # Panics
+/// Panics if Platform rejects the deterministic scalar bytes.
 pub fn key(value: u8) -> PrivateKey {
     let mut bytes = [0; 32];
     bytes[31] = value;
     PrivateKey::deserialize(&bytes).unwrap()
 }
 
+#[must_use]
+/// Sign the supplied tree root under the deterministic fixture key and delegation.
 pub fn certificate(
     tree: HashTree,
     key: &PrivateKey,
@@ -25,6 +30,9 @@ pub fn certificate(
     }
 }
 
+#[must_use]
+/// # Panics
+/// Panics if Platform cannot encode the supplied certificate and tree.
 pub fn signature_bytes(value: &ic_platform::certification::cbor::CanisterSignature) -> Vec<u8> {
     ic_platform::certification::cbor::encode_canister_signature(
         &value.certificate,

@@ -9,6 +9,7 @@ use sha2::{Digest, Sha256};
 pub(crate) struct DecodedPortableClaims {
     pub(crate) claims: PortableClaims,
     pub(crate) fingerprint: [u8; 32],
+    pub(crate) browser_caller: Principal,
     #[cfg(all(feature = "sessions", feature = "certified-proof-verification"))]
     pub(crate) encoded_len: usize,
 }
@@ -16,6 +17,7 @@ impl DecodedPortableClaims {
     pub(crate) fn decode(bytes: &[u8]) -> Result<Self, PortableEncodingError> {
         let claims = decode_claims(bytes)?;
         Ok(Self {
+            browser_caller: super::browser_principal(&claims.browser_public_key),
             claims,
             fingerprint: Sha256::digest(bytes).into(),
             #[cfg(all(feature = "sessions", feature = "certified-proof-verification"))]
@@ -37,7 +39,7 @@ impl DecodedPortableClaims {
         self,
         context: &'a super::PortableClaimsContext<'ctx>,
     ) -> Result<ContextualClaims<'a, 'ctx>, super::PortableClaimsError> {
-        let browser_caller = super::browser_principal(&self.claims.browser_public_key);
+        let browser_caller = self.browser_caller;
         super::rules::validate_decoded_context(&self.claims, browser_caller, context)?;
         Ok(ContextualClaims {
             decoded: self,

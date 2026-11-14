@@ -28,8 +28,7 @@
       ],
       "changelog": "releases/engine/CHANGELOG.md",
       "dependencies": [
-        "ic-auth",
-        "ic-auth-tooling"
+        "ic-auth"
       ]
     }
   ],

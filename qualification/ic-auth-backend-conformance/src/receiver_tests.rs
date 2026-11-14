@@ -1,5 +1,10 @@
 //! Complete-owner scenarios: no private ledger export or reconstruction.
-use super::*;
+use super::{
+    Fixture, LogoutResult, NOW, PortableAuthority, PortableClaimsContext,
+    PortableVerificationContext, RequiredScopes, SECOND, Session, SessionAdmissionContext,
+    SessionContext, SessionError, SessionEstablished, SessionLimits, SessionRequest,
+    SessionTtlPolicy, policy,
+};
 use ic_auth::persistent::receiver::{BudgetPolicy, LoginLimits, ReceiverConfig, ReceiverStore};
 use ic_storage::Memory;
 
@@ -16,11 +21,17 @@ pub struct CommitRejected;
 /// Auth errors are values, not a request to roll back their consumed budgets.
 /// This test interface is not a production transaction abstraction.
 pub trait ReceiverHost: Sized {
+    /// Memory implementation backing the disposable persistent receiver.
     type Memory: Memory;
+    /// Create isolated checked leases and initialize a fresh receiver with trusted inputs.
     fn fresh(config: ReceiverConfig, generation: u64, now_ns: u64) -> Self;
+    /// Access the live complete Auth owner without extracting its private ledger.
     fn store(&mut self) -> &mut ReceiverStore<Self::Memory>;
+    /// Drop runtime state and reopen the same backing at the supplied test clock.
     fn reopen(self, now_ns: u64) -> Self;
+    /// Arrange rollback of every write made by the next host transaction.
     fn fail_next_commit(&mut self);
+    /// Run once under the test host transaction, rolling back all writes on injected failure.
     fn transaction<T>(
         &mut self,
         operation: impl FnOnce(&mut ReceiverStore<Self::Memory>) -> T,
@@ -46,6 +57,10 @@ fn fresh<H: ReceiverHost>(f: &Fixture) -> H {
             BudgetPolicy {
                 burst: 32,
                 refill_interval_ns: 1,
+            },
+            ic_auth::admission_budget::VerificationCosts {
+                ed25519: 1,
+                certified: 1,
             },
         )
         .unwrap(),

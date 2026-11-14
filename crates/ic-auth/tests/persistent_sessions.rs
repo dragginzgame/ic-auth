@@ -1,3 +1,4 @@
+//! Persistent session admission, replay, bounded cleanup and reopen behavior.
 #![cfg(all(feature = "persistent", feature = "portable-signature-verification"))]
 mod support;
 use ic_auth::{
@@ -46,6 +47,22 @@ fn memory(backing: Backing) -> ic_auth::persistent::receiver::ReceiverMemory<Bac
     }
 }
 fn configuration(audience: AudienceId, sessions: usize, bytes: usize) -> ReceiverConfig {
+    configuration_with_costs(
+        audience,
+        sessions,
+        bytes,
+        ic_auth::admission_budget::VerificationCosts {
+            ed25519: 1,
+            certified: 1,
+        },
+    )
+}
+fn configuration_with_costs(
+    audience: AudienceId,
+    sessions: usize,
+    bytes: usize,
+    costs: ic_auth::admission_budget::VerificationCosts,
+) -> ReceiverConfig {
     ReceiverConfig::new(
         audience,
         SessionLimits::new(sessions, 64, 32, bytes).unwrap(),
@@ -63,6 +80,7 @@ fn configuration(audience: AudienceId, sessions: usize, bytes: usize) -> Receive
             burst: 8,
             refill_interval_ns: 1,
         },
+        costs,
     )
     .unwrap()
 }
@@ -103,10 +121,18 @@ fn admit(
     claims: &PortableClaims,
     now: u64,
 ) -> Result<SessionEstablished, SessionError> {
+    admit_credential(store, claims, &credential(claims), now)
+}
+fn admit_credential(
+    store: &mut ReceiverStore<Backing>,
+    claims: &PortableClaims,
+    credential: &PortableCredential,
+    now: u64,
+) -> Result<SessionEstablished, SessionError> {
     let grants = ValidatedGrants::new(claims.grants.clone()).unwrap();
     let context = support::claims_context(support::authority(claims, &grants, now));
     store.admit(
-        &credential(claims),
+        credential,
         SessionRequest::new(vec!["read".into()], None).unwrap(),
         &SessionAdmissionContext {
             verification: PortableVerificationContext::Ed25519 {
@@ -121,6 +147,173 @@ fn admit(
         },
         policy(store.generation()),
     )
+}
+
+#[test]
+fn admission_abuse_budget_survives_reopen_and_rejections_have_measured_io() {
+    let first = claims(1, 0, 1);
+    let backing = Backing::new(VectorMemory::default());
+    let config = configuration(first.audience, 2, 65_536);
+    let mut store =
+        ReceiverStore::create(memory(backing.clone()), config.clone(), 0, NOW - 100).unwrap();
+    let mut bad = credential(&first);
+    let PortableProof::Ed25519 { signature } = &mut bad.proof else {
+        unreachable!()
+    };
+    signature[0] ^= 1;
+    for attempt in 0..8 {
+        backing.reset();
+        assert_eq!(
+            admit_credential(&mut store, &first, &bad, NOW)
+                .unwrap_err()
+                .admission_refusal(),
+            AdmissionRefusal::InvalidCredential
+        );
+        eprintln!("persistent abuse invalid {attempt}: {:?}", backing.counts());
+    }
+    drop(store);
+    let mut store = ReceiverStore::open(memory(backing.clone()), &config, NOW).unwrap();
+    for device in 2..10 {
+        let rotating = claims(device, 0, 1);
+        backing.reset();
+        let result = admit(&mut store, &rotating, NOW);
+        assert_eq!(
+            result.as_ref().err().map(SessionError::admission_refusal),
+            Some(AdmissionRefusal::Throttled)
+        );
+        eprintln!(
+            "persistent abuse throttled {device}: {:?}",
+            backing.counts()
+        );
+        assert_eq!(backing.counts().writes, 0);
+    }
+    assert_eq!(store.occupancy(), Default::default());
+    let mut malformed = credential(&first);
+    malformed.claims.clear();
+    for (label, now) in [("same_clock", NOW), ("advanced_clock", NOW + 1)] {
+        backing.reset();
+        assert!(admit_credential(&mut store, &first, &malformed, now).is_err());
+        eprintln!("persistent abuse malformed {label}: {:?}", backing.counts());
+        assert_eq!(backing.counts().writes > 0, now > NOW);
+    }
+    let admitted = admit(&mut store, &first, NOW + 1).unwrap();
+    backing.reset();
+    let retry = admit(&mut store, &first, NOW + 1).unwrap();
+    assert!(matches!(admitted, SessionEstablished::Created(_)));
+    assert!(matches!(retry, SessionEstablished::ExactRetry(_)));
+    eprintln!("persistent abuse exact retry: {:?}", backing.counts());
+    assert_eq!(backing.counts().writes, 0);
+}
+
+#[test]
+fn weighted_failed_verification_persists_cost_and_rejects_changed_policy() {
+    let first = claims(1, 0, 1);
+    let backing = Backing::new(VectorMemory::default());
+    let config = configuration_with_costs(
+        first.audience,
+        2,
+        65_536,
+        ic_auth::admission_budget::VerificationCosts {
+            ed25519: 4,
+            certified: 8,
+        },
+    );
+    let mut store =
+        ReceiverStore::create(memory(backing.clone()), config.clone(), 0, NOW - 100).unwrap();
+    let mut bad = credential(&first);
+    let PortableProof::Ed25519 { signature } = &mut bad.proof else {
+        unreachable!()
+    };
+    signature[0] ^= 1;
+    for _ in 0..2 {
+        assert_eq!(
+            admit_credential(&mut store, &first, &bad, NOW)
+                .unwrap_err()
+                .admission_refusal(),
+            AdmissionRefusal::InvalidCredential
+        );
+    }
+    drop(store);
+    assert!(matches!(
+        ReceiverStore::open(
+            memory(backing.clone()),
+            &configuration(first.audience, 2, 65_536),
+            NOW
+        ),
+        Err(StoreError::Corrupt)
+    ));
+    let mut store = ReceiverStore::open(memory(backing), &config, NOW).unwrap();
+    assert_eq!(
+        admit(&mut store, &first, NOW + 3)
+            .unwrap_err()
+            .admission_refusal(),
+        AdmissionRefusal::Throttled
+    );
+    assert!(admit(&mut store, &first, NOW + 4).is_ok());
+}
+
+#[test]
+fn wrong_browser_skips_populated_indexes_without_breaking_expired_proof_retry() {
+    let backing = Backing::new(VectorMemory::default());
+    let first = claims(1, 0, 1);
+    let config = ReceiverConfig::new(
+        first.audience,
+        SessionLimits::new(1024, 2048, 8, 16 * 1024 * 1024).unwrap(),
+        LoginLimits {
+            admitted: 1024,
+            unknown: 4,
+            maximum_ttl_ns: 90 * 86_400_000_000_000,
+            devices_per_account: 8,
+        },
+        BudgetPolicy {
+            burst: 2048,
+            refill_interval_ns: 1,
+        },
+        BudgetPolicy {
+            burst: 8,
+            refill_interval_ns: 1,
+        },
+        ic_auth::admission_budget::VerificationCosts {
+            ed25519: 1,
+            certified: 1,
+        },
+    )
+    .unwrap();
+    let mut store =
+        ReceiverStore::create(memory(backing.clone()), config.clone(), 0, NOW - 4096).unwrap();
+    let mut retained = first.clone();
+    for n in 1..=1024u16 {
+        let mut c = first.clone();
+        let mut seed = [0; 32];
+        seed[..2].copy_from_slice(&n.to_be_bytes());
+        c.browser_public_key = SigningKey::from_bytes(&seed).verifying_key().to_bytes();
+        c.account_subject = Principal::from_slice(&n.to_be_bytes());
+        admit(&mut store, &c, NOW).unwrap();
+        retained = c;
+    }
+    assert_eq!(store.occupancy().sessions, 1024);
+    drop(store);
+    let mut store = ReceiverStore::open(memory(backing.clone()), &config, NOW).unwrap();
+    backing.reset();
+    assert_eq!(
+        admit_credential(&mut store, &first, &credential(&retained), NOW)
+            .unwrap_err()
+            .admission_refusal(),
+        AdmissionRefusal::InvalidCredential
+    );
+    eprintln!("wrong browser at 1024 sessions: {:?}", backing.counts());
+    assert_eq!((backing.counts().reads, backing.counts().writes), (0, 0));
+    let later = retained.admission_expires_at_ns + 1;
+    assert!(matches!(
+        admit(&mut store, &retained, later).unwrap(),
+        SessionEstablished::ExactRetry(_)
+    ));
+    drop(store);
+    let mut store = ReceiverStore::open(memory(backing), &config, later).unwrap();
+    assert!(
+        admit_credential(&mut store, &first, &credential(&retained), NOW).is_err(),
+        "cheap refusal never erases the clock fence"
+    );
 }
 fn authenticate(
     store: &mut ReceiverStore<Backing>,

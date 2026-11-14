@@ -1,3 +1,4 @@
+//! Certificate issuance shape, lifetime and grant bounds before signing or authority admission.
 use ic_auth::{canonical::*, certificate_issuance::*};
 use ic_auth_protocol_types::*;
 

@@ -8,33 +8,56 @@ use model::{AdmissionProfile, ReceiverConfig, SessionProfile};
 /// owners; these bounded codes never grant authority or acknowledge a failed write.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum Refusal {
+    /// Runtime caller is not an admitted controller for this control.
     ControllerRequired,
+    /// Runtime caller is not the installed fixture resource owner.
     OwnerRequired,
+    /// Controller input violates the fixture configuration contract.
     InvalidConfiguration,
+    /// Submitted enrollment key or authority material is invalid.
     InvalidAuthority,
+    /// Authority has not yet been installed or restored.
     AwaitingAuthority,
+    /// Configured and retained authority identities do not agree.
     AuthorityMismatch,
+    /// Installed authority is outside its accepted lifetime.
     AuthorityExpired,
+    /// The receiver fixture is not available.
     ReceiverUnavailable,
+    /// Signature preparation or verification failed.
     Signature,
+    /// A bounded Wire or storage codec rejected its input.
     Codec,
+    /// The session engine refused the requested operation.
     Session,
+    /// No session exists for the selected caller.
     MissingSession,
+    /// Restored protected metadata differs from the expected checkpoint.
     RestorationMismatch,
+    /// The fixture could not admit the requested verification budget.
     AdmissionBudget,
+    /// Trusted fixture time violates the required clock fence.
     Clock,
 }
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+/// Bounded seed, domain and payload for controller-authorized signature probes.
 pub struct SignatureInput {
+    /// Submitted seed bytes, further bounded by Auth's signature-key rules.
     pub seed: Bytes<1024>,
+    /// IC signature domain, separate from the payload.
     pub domain: Bytes<255>,
+    /// Exact payload selected by the controller probe.
     pub message: Bytes<1024>,
 }
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+/// Signature preparation request for the disposable certification fixture.
 pub struct PrepareInput {
+    /// Exact seed/domain/message tuple to prepare.
     pub input: SignatureInput,
+    /// Requested retrieval retention subject to Auth's maximum.
     pub retention_ns: u64,
 }
+/// Complete shared controller-request budgets; endpoint authority remains separate.
 pub const CONTROL_LIMITS: Limits = Limits {
     bytes: 65536,
     allocation: 1048576,
@@ -70,21 +93,30 @@ macro_rules! method {
         );
     };
     ($name:ident, $id:literal, $entry:literal, $request:ty, $response:ty, $request_limits:expr, $limits:expr) => {
+        #[doc = concat!("Private Wire contract for the fixture's `", $entry, "` control. It installs no endpoint or authority by itself.")]
         pub struct $name;
         impl $name {
+            /// Exact method identity checked by both request and response codecs.
             pub const ID: u64 = $id;
+            /// Entrypoint name implemented by the private qualification canister.
             pub const NAME: &'static str = $entry;
+            /// Complete request byte, allocation, node and depth allowances.
             pub const REQUEST_LIMITS: Limits = $request_limits;
+            /// Complete response byte, allocation, node and depth allowances.
             pub const RESPONSE_LIMITS: Limits = $limits;
+            /// Encode a request under this method identity and its full budget.
             pub fn encode_request(value: &$request) -> Result<Vec<u8>, ic_wire::Error> {
                 ic_wire::native::encode_request(Self::ID, value, Self::REQUEST_LIMITS)
             }
+            /// Decode a request, rejecting foreign identity and exceeded budgets.
             pub fn decode_request(bytes: &[u8]) -> Result<$request, ic_wire::Error> {
                 ic_wire::native::decode_request(Self::ID, bytes, Self::REQUEST_LIMITS)
             }
+            /// Encode the typed response under this method identity and response budget.
             pub fn encode_response(value: &$response) -> Result<Vec<u8>, ic_wire::Error> {
                 ic_wire::native::encode_response(Self::ID, value, Self::RESPONSE_LIMITS)
             }
+            /// Decode a response without bypassing any method budget or identity check.
             pub fn decode_response(bytes: &[u8]) -> Result<$response, ic_wire::Error> {
                 ic_wire::native::decode_response(Self::ID, bytes, Self::RESPONSE_LIMITS)
             }

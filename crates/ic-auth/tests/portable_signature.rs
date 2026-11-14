@@ -1,3 +1,4 @@
+//! Strict Ed25519 issuer verification, protected key binding and failed-attempt budgeting.
 #![cfg(feature = "portable-signature-verification")]
 
 use ic_auth::portable::{
@@ -355,7 +356,16 @@ fn portable_lease_uses_login_and_captured_authority_not_proof_expiry() {
 
 // Crypto fixtures prepare credit; budget behavior tests retain a single instance.
 fn budget() -> ic_auth::admission_budget::SessionAdmissionBudget {
-    ic_auth::admission_budget::SessionAdmissionBudget::new(4096, 1, 0).unwrap()
+    ic_auth::admission_budget::SessionAdmissionBudget::for_verification(
+        4096,
+        1,
+        ic_auth::admission_budget::VerificationCosts {
+            ed25519: 1,
+            certified: 1,
+        },
+        0,
+    )
+    .unwrap()
 }
 
 #[test]
@@ -365,7 +375,16 @@ fn failed_signatures_consume_shared_credit_and_cheap_refusals_do_not() {
     let bytes = encode_claims(&c).unwrap();
     let checked_grants = ValidatedGrants::new(c.grants.clone()).unwrap();
     let mut host = context(&c, &checked_grants);
-    let mut budget = SessionAdmissionBudget::new(1, 5, 20).unwrap();
+    let mut budget = SessionAdmissionBudget::for_verification(
+        1,
+        5,
+        ic_auth::admission_budget::VerificationCosts {
+            ed25519: 1,
+            certified: 1,
+        },
+        20,
+    )
+    .unwrap();
     // A caller mismatch is rejected without spending the available attempt.
     host.authority.caller = Principal::anonymous();
     assert_eq!(
@@ -410,7 +429,16 @@ fn successful_verification_and_failed_storage_do_not_refund_credit() {
     let bytes = encode_claims(&c).unwrap();
     let checked_grants = ValidatedGrants::new(c.grants.clone()).unwrap();
     let host = context(&c, &checked_grants);
-    let mut budget = SessionAdmissionBudget::new(1, 5, 20).unwrap();
+    let mut budget = SessionAdmissionBudget::for_verification(
+        1,
+        5,
+        ic_auth::admission_budget::VerificationCosts {
+            ed25519: 1,
+            certified: 1,
+        },
+        20,
+    )
+    .unwrap();
     let checked =
         verify_ed25519_claims(&mut budget, &bytes, &signature(), &host, &public_key()).unwrap();
     let mut ledger = MemoryLoginRevocations::new(c.audience, 1, 1, 86_400_000_000_000, 0).unwrap();
@@ -429,7 +457,16 @@ fn successful_verification_and_failed_storage_do_not_refund_credit() {
         Err(Error::Budget(AdmissionBudgetError::Exhausted))
     );
     // Reconstructing at current time never grants a fresh initial burst.
-    let mut reset = SessionAdmissionBudget::new(100, 5, host.authority.now_ns).unwrap();
+    let mut reset = SessionAdmissionBudget::for_verification(
+        100,
+        5,
+        ic_auth::admission_budget::VerificationCosts {
+            ed25519: 1,
+            certified: 1,
+        },
+        host.authority.now_ns,
+    )
+    .unwrap();
     assert_eq!(
         verify_ed25519_claims(&mut reset, &bytes, &signature(), &host, &public_key()),
         Err(Error::Budget(AdmissionBudgetError::Exhausted))

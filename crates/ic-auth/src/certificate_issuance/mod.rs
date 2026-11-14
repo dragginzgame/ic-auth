@@ -11,9 +11,13 @@ use thiserror::Error;
 /// Explicit host-selected issuance bounds; no Fleet or grant defaults are inferred.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct CertificateIssuanceLimits {
+    /// Maximum positive certificate validity duration in nanoseconds.
     pub max_cert_ttl_ns: u64,
+    /// Maximum credential lifetime the certificate may delegate, in nanoseconds.
     pub max_token_ttl_ns: u64,
+    /// Maximum nonempty role grants accepted by this host.
     pub max_grants: usize,
+    /// Maximum nonempty scopes per role grant accepted by this host.
     pub max_scopes_per_grant: usize,
 }
 
@@ -23,17 +27,24 @@ pub struct CertificateIssuanceLimits {
 #[derive(Debug, Eq, Error, PartialEq)]
 pub enum CertificateIssuanceError {
     #[error("certificate Root mismatch (expected {expected}, found {found})")]
+    /// Certificate names a different root than protected host configuration.
     RootPidMismatch {
+        /// Root identity supplied by trusted host configuration.
         expected: Principal,
+        /// Root identity carried in the submitted certificate.
         found: Principal,
     },
     #[error(transparent)]
+    /// Certificate validity or delegated token lifetime violates host bounds.
     Lifetime(#[from] CertificateLifetimeError),
     #[error(transparent)]
+    /// Grants violate the canonical shape or host cardinality bounds.
     Grants(#[from] GrantValidationError),
     #[error("issuer proof binding hash mismatch")]
+    /// Submitted binding hash does not match the canonical issuer binding.
     IssuerProofBindingHashMismatch,
     #[error(transparent)]
+    /// Certificate material cannot be encoded under the canonical contract.
     Canonical(#[from] CanonicalAuthError),
 }
 
@@ -65,17 +76,38 @@ pub fn validate_certificate_issuance(
 #[derive(Debug, Eq, Error, PartialEq)]
 pub enum CertificateLifetimeError {
     #[error("certificate was issued after its validity start")]
+    /// Issue-time metadata is later than the certificate validity start.
     IssuedAfterStart,
     #[error("certificate validity must have positive duration")]
+    /// Expiry is not strictly later than validity start.
     InvalidWindow,
     #[error("certificate TTL {ttl_ns} exceeds host maximum {max_ttl_ns}")]
-    CertTtlExceeded { ttl_ns: u64, max_ttl_ns: u64 },
+    /// Certificate validity exceeds the configured duration ceiling.
+    CertTtlExceeded {
+        /// Submitted certificate duration in nanoseconds.
+        ttl_ns: u64,
+        /// Host-admitted duration ceiling in nanoseconds.
+        max_ttl_ns: u64,
+    },
     #[error("delegated token TTL must be greater than zero")]
+    /// Delegation permits a zero token lifetime, which is not a valid policy.
     TokenTtlZero,
     #[error("delegated token TTL {ttl_ns} exceeds host maximum {max_ttl_ns}")]
-    TokenTtlExceeded { ttl_ns: u64, max_ttl_ns: u64 },
+    /// Delegated token lifetime exceeds the host's maximum.
+    TokenTtlExceeded {
+        /// Delegated token lifetime in nanoseconds.
+        ttl_ns: u64,
+        /// Host-admitted token lifetime ceiling in nanoseconds.
+        max_ttl_ns: u64,
+    },
     #[error("delegated token TTL {token_ttl_ns} exceeds certificate duration {cert_ttl_ns}")]
-    TokenTtlOutlivesCert { token_ttl_ns: u64, cert_ttl_ns: u64 },
+    /// Delegated token lifetime is longer than the certificate's entire window.
+    TokenTtlOutlivesCert {
+        /// Delegated token lifetime in nanoseconds.
+        token_ttl_ns: u64,
+        /// Certificate validity duration in nanoseconds.
+        cert_ttl_ns: u64,
+    },
 }
 
 pub(crate) fn positive_duration(start: u64, end: u64) -> Option<u64> {
@@ -121,18 +153,34 @@ pub(crate) fn validate_certificate_lifetime(
 #[derive(Debug, Eq, Error, PartialEq)]
 pub enum GrantValidationError {
     #[error("grants are empty")]
+    /// No role grants were supplied.
     Empty,
     #[error("{found} grants exceed maximum {max}")]
-    TooMany { found: usize, max: usize },
-    #[error("grant for {role:?} has no scopes")]
-    EmptyScopes { role: AuthRole },
-    #[error("grant for {role:?} has {found} scopes; maximum is {max}")]
-    TooManyScopes {
-        role: AuthRole,
+    /// The grant list exceeds the configured role count.
+    TooMany {
+        /// Number of submitted grants.
         found: usize,
+        /// Inclusive host grant-count ceiling.
+        max: usize,
+    },
+    #[error("grant for {role:?} has no scopes")]
+    /// A role grant contains no scopes.
+    EmptyScopes {
+        /// Role with the empty scope list.
+        role: AuthRole,
+    },
+    #[error("grant for {role:?} has {found} scopes; maximum is {max}")]
+    /// One role's scope list exceeds the configured count.
+    TooManyScopes {
+        /// Role whose scope list exceeds the bound.
+        role: AuthRole,
+        /// Submitted scope count for that role.
+        found: usize,
+        /// Inclusive per-role scope ceiling.
         max: usize,
     },
     #[error(transparent)]
+    /// Role or scope ordering/encoding is noncanonical; inputs are never sorted here.
     Canonical(CanonicalAuthError),
 }
 

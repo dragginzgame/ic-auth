@@ -1,3 +1,4 @@
+//! Bounded signature preparation, retrieval, expiry and composed certification roots.
 #![cfg(feature = "canister-signature-preparation")]
 
 use ic_auth::signature_store::{

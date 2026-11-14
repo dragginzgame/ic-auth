@@ -1,3 +1,4 @@
+//! Canonical portable-claims round trips and structural allocation bounds.
 use ic_auth::portable::{
     MAX_CLAIMS_BYTES, PortableEncodingError as Error, browser_principal, claims_hash,
     decode_claims, encode_claims,
@@ -296,7 +297,7 @@ fn aggregate_scope_limit_fits_all_role_counts_with_maximum_labels() {
         if roles == MAX_GRANTS {
             assert_eq!(expected, 3332);
             let error = Error::TooManyScopeEntries { found: 33, max: 32 };
-            let mut excess = bytes.clone();
+            let mut excess = bytes;
             // Last role has two full-width scopes; increase its count and append
             // a third canonical scope. Bytes still fit; total entries do not.
             let count = excess.len() - 2 * (4 + MAX_LABEL_BYTES) - 4;

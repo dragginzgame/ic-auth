@@ -19,9 +19,9 @@ mkdir -p "$consumer/.tools/ic/bin"
 export TESTKIT_FIXTURE_PLANS="$fixture/plans"
 mkdir "$TESTKIT_FIXTURE_PLANS"
 for group in protocol engine; do
-    bash scripts/ci/cargo-release-group.sh plan "$group" > "$TESTKIT_FIXTURE_PLANS/$group.json"
+    bash vendor/toko-tooling/scripts/ci/cargo-release-group.sh plan "$group" > "$TESTKIT_FIXTURE_PLANS/$group.json"
 done
-cat > "$consumer/scripts/ci/cargo-release-group.sh" <<'SCRIPT'
+cat > "$consumer/vendor/toko-tooling/scripts/ci/cargo-release-group.sh" <<'SCRIPT'
 #!/usr/bin/env bash
 set -euo pipefail
 [[ $# == 2 && "$1" == plan && ( "$2" == protocol || "$2" == engine ) ]] || exit 2
@@ -45,7 +45,7 @@ export TESTKIT_FIXTURE_CONSUMER="$consumer"
 export TESTKIT_FIXTURE_LOCK="$fixture/selected.lock"
 export PATH="$root/.tools/host/bin:$fixture/bin:$PATH"
 printf 'synthetic server bytes\n' > "$TESTKIT_FIXTURE_SERVER"
-cat > "$consumer/scripts/dev/install-rust-tools.sh" <<'SCRIPT'
+cat > "$consumer/vendor/toko-tooling/scripts/dev/install-rust-tools.sh" <<'SCRIPT'
 #!/usr/bin/env bash
 set -euo pipefail
 if [[ $# == 4 || ( $# == 5 && "${5:-}" == --check ) ]]; then
@@ -54,7 +54,7 @@ if [[ $# == 4 || ( $# == 5 && "${5:-}" == --check ) ]]; then
     exit 0
 fi
 if [[ $# == 5 && "$1" == --consumer && "$2" == "$TESTKIT_FIXTURE_CONSUMER" &&
-      "$3" == --versions && "$4" == "$TESTKIT_FIXTURE_CONSUMER/ci/tool-versions.env" && "$5" == --preflight ]]; then
+      "$3" == --versions && "$4" == "$TESTKIT_FIXTURE_CONSUMER/vendor/toko-tooling/ci/tool-versions.env" && "$5" == --preflight ]]; then
     printf 'rust preflight\n' >> "$TESTKIT_FIXTURE_LOG"
     exit "${TESTKIT_FIXTURE_RUST_PREFLIGHT_STATUS:-0}"
 fi
@@ -87,7 +87,7 @@ else
 fi
 printf '%s\n' "$TESTKIT_FIXTURE_CLI"
 SCRIPT
-cat > "$consumer/scripts/dev/install-ic-tools.sh" <<'SCRIPT'
+cat > "$consumer/vendor/toko-tooling/scripts/dev/install-ic-tools.sh" <<'SCRIPT'
 #!/usr/bin/env bash
 printf 'unexpected unselected IC tool dispatch\n' >> "$TESTKIT_FIXTURE_LOG"
 exit 99
@@ -158,7 +158,7 @@ printf 'client build\n' >> "$TESTKIT_FIXTURE_LOG"
 exit "${TESTKIT_FIXTURE_CLIENT_BUILD_STATUS:-0}"
 SCRIPT
 chmod +x "$TESTKIT_FIXTURE_CLI" "$fixture/bin/cargo" "$fixture/bin/npm"
-cp "$consumer/scripts/dev/install-rust-tools.sh" "$fixture/mock-installer.sh"
+cp "$consumer/vendor/toko-tooling/scripts/dev/install-rust-tools.sh" "$fixture/mock-installer.sh"
 ln -s "$BASH" "$fixture/bin/bash"
 
 # Missing selected CLI refuses even when an old shared executable is retained.
@@ -172,7 +172,7 @@ rg -F 'make install-testkit-tools' "$fixture/missing.stderr" > /dev/null
 # Actual Make entry points refuse before Wasm compilation or any later CI lane,
 # including parallel Make. Substitute the already-prepared common bundle only;
 # Testkit admission and the validation runner remain their actual callers.
-cat > "$consumer/scripts/dev/install-host-tools.sh" <<'SCRIPT'
+cat > "$consumer/vendor/toko-tooling/scripts/dev/install-host-tools.sh" <<'SCRIPT'
 #!/usr/bin/env bash
 set -euo pipefail
 if [[ "${*: -1}" == --check ]]; then target=host-tools-check; else target=install-host-tools; fi
@@ -200,7 +200,7 @@ SCRIPT
 # Inject drift only at the latter boundary; intact tooling is qualified separately.
 source "$root/scripts/ci/auth-fixture-tooling.sh"
 auth_fixture_tooling_check "$consumer"
-cat >> "$consumer/scripts/dev/toko-tooling.sh" <<'SCRIPT'
+cat >> "$consumer/vendor/toko-tooling/scripts/dev/toko-tooling.sh" <<'SCRIPT'
 if [[ "${VALIDATION_INPUT_ROOT:-}" != "$PWD" ]]; then
     printf 'tooling admission\n' >> "$TESTKIT_FIXTURE_LOG"
     exit 0
@@ -248,7 +248,7 @@ for scenario in rust compiler-selector frontend delivery boundaries external-bou
         frontend) input=packages/client/package-lock.json ;;
         delivery) input=ci/release-delivery.txt ;;
         boundaries) input=ci/cargo-dependency-boundaries.json ;;
-        external-boundaries) input=ci/external-ic-dependencies.txt ;;
+        external-boundaries) input=vendor/toko-tooling/ci/external-ic-dependencies.txt ;;
         file-pin) input=ci/host-file.env ;;
         file-selector) input=scripts/dev/host-file-tools.sh ;;
         file-runner) input=scripts/dev/run-host-file.sh ;;
@@ -323,19 +323,28 @@ if [[ "$phase" == qualification ]]; then exit "${TESTKIT_FIXTURE_QUALIFICATION_L
 exit "${TESTKIT_FIXTURE_WASM_LINT_STATUS:-0}"
 SCRIPT
 chmod +x "$fixture/lint-bin/cargo"
-cat > "$lint_consumer/scripts/ci/check-dependency-pins.sh" <<'SCRIPT'
+# Rustdoc has its own strict check; this fixture qualifies its place in the
+# actual CI recipe, including refusal before later stages.
+cat > "$lint_consumer/scripts/ci/check-auth-docs.sh" <<'SCRIPT'
+#!/usr/bin/env bash
+set -euo pipefail
+printf 'rustdoc admission\n' >> "$TESTKIT_FIXTURE_LOG"
+exit "${TESTKIT_FIXTURE_DOC_STATUS:-0}"
+SCRIPT
+cat > "$lint_consumer/vendor/toko-tooling/scripts/ci/check-dependency-pins.sh" <<'SCRIPT'
 #!/usr/bin/env bash
 set -euo pipefail
 printf 'post-lint gate\n' >> "$TESTKIT_FIXTURE_LOG"
 exit 41
 SCRIPT
-for scenario in native qualification wasm success; do
+for scenario in native qualification wasm docs success; do
     : > "$TESTKIT_FIXTURE_LOG"
-    native_status=0; qualification_status=0; wasm_status=0
+    native_status=0; qualification_status=0; wasm_status=0; docs_status=0
     case "$scenario" in
         native) native_status=37 ;;
         qualification) qualification_status=39 ;;
         wasm) wasm_status=38 ;;
+        docs) docs_status=40 ;;
     esac
     status=0
     (cd "$lint_consumer"; PATH="$fixture/lint-bin:$PATH" \
@@ -343,6 +352,7 @@ for scenario in native qualification wasm success; do
         TESTKIT_FIXTURE_NATIVE_LINT_STATUS="$native_status" \
         TESTKIT_FIXTURE_QUALIFICATION_LINT_STATUS="$qualification_status" \
         TESTKIT_FIXTURE_WASM_LINT_STATUS="$wasm_status" \
+        TESTKIT_FIXTURE_DOC_STATUS="$docs_status" \
         make --no-print-directory -j4 ci) > "$fixture/lint-$scenario.log" 2>&1 || status=$?
     [[ "$status" == 2 ]]
     printf 'tooling admission\nsnapshot check\n' > "$fixture/expected-lint-$scenario.log"
@@ -354,6 +364,9 @@ for scenario in native qualification wasm success; do
     if [[ "$scenario" != native && "$scenario" != qualification ]]; then
         printf 'clippy wasm\n' >> "$fixture/expected-lint-$scenario.log"
     fi
+    if [[ "$scenario" == docs || "$scenario" == success ]]; then
+        printf 'rustdoc admission\n' >> "$fixture/expected-lint-$scenario.log"
+    fi
     if [[ "$scenario" == success ]]; then
         printf 'post-lint gate\n' >> "$fixture/expected-lint-$scenario.log"
         rg -F 'Error 41' "$fixture/lint-$scenario.log" > /dev/null
@@ -362,6 +375,7 @@ for scenario in native qualification wasm success; do
             native) expected_status=37 ;;
             qualification) expected_status=39 ;;
             wasm) expected_status=38 ;;
+            docs) expected_status=40 ;;
         esac
         rg -F "Error $expected_status" "$fixture/lint-$scenario.log" > /dev/null
         rg -F 'VALIDATION FAILED: clippy' "$fixture/lint-$scenario.log" > /dev/null
@@ -426,13 +440,13 @@ done
 
 # Ambiguous or non-registry CLI identity refuses before any tool effect.
 # Exercise the canonical reader, rather than teaching the substitute to parse.
-cp scripts/dev/install-rust-tools.sh "$consumer/scripts/dev/install-rust-tools.sh"
-for input in scripts/dev/cargo-tool-build.sh scripts/dev/tool-store.sh scripts/ci/verify-file-checksum.sh; do
+cp vendor/toko-tooling/scripts/dev/install-rust-tools.sh "$consumer/vendor/toko-tooling/scripts/dev/install-rust-tools.sh"
+for input in vendor/toko-tooling/scripts/dev/cargo-tool-build.sh vendor/toko-tooling/scripts/dev/tool-store.sh vendor/toko-tooling/scripts/ci/verify-file-checksum.sh; do
     cp -p "$input" "$consumer/$input"
 done
 # Prepare substituted registry source without installing any executable. The
 # offline check must reach missing selection admission, not an absent cache.
-bash scripts/ci/prepare-cargo-failure-fixture.sh "$fixture/source-compiler"
+bash vendor/toko-tooling/scripts/ci/prepare-cargo-failure-fixture.sh "$fixture/source-compiler"
 mkdir -m 700 "$fixture/canonical-store" "$fixture/canonical-store/cargo-cache"
 (umask 077; CARGO_HOME="$fixture/canonical-store/cargo-cache" "$fixture/source-compiler/bin/cargo" \
     info ic-testkit@0.25.5 --registry crates-io)
@@ -462,7 +476,7 @@ for kind in duplicate nonregistry; do
     cmp "$TESTKIT_FIXTURE_LOG" "$fixture/before-$kind.log"
 done
 cp "$fixture/selected.lock" "$consumer/qualification/Cargo.lock"
-cp "$fixture/mock-installer.sh" "$consumer/scripts/dev/install-rust-tools.sh"
+cp "$fixture/mock-installer.sh" "$consumer/vendor/toko-tooling/scripts/dev/install-rust-tools.sh"
 
 # The real qualification caller consumes only Testkit's check-returned path.
 POCKET_IC_BIN=/unadmitted/override "$BASH" "$consumer/scripts/dev/test-qualification.sh" \
@@ -518,7 +532,7 @@ done
 # Execute the actual CI extension of the shared collector, with opaque owner
 # failure bytes. The shared archiver preserves that evidence without new policy.
 mkdir -p "$consumer/scripts/ci"
-cp scripts/ci/archive-evidence.sh "$consumer/scripts/ci/"
+cp vendor/toko-tooling/scripts/ci/archive-evidence.sh "$consumer/vendor/toko-tooling/scripts/ci/"
 printf 'retained Testkit failure bytes\000\377\n' > "$consumer/.tools/testkit-server/setup.log"
 yq -p yaml -o json '.' .github/workflows/ci.yml | jq -er '
     .jobs.rust.steps[] | select(.name == "Archive retained Testkit setup evidence") | .run

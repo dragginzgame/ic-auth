@@ -8,6 +8,22 @@ Superseded migration journals remain in Git history; use the current contracts b
 
 ## Pending Auth-owned persistent store adoption
 
+The unpublished cycle-drain hardening requires a coordinated pre-1.0 hard cut:
+pass explicit verification weights to `ReceiverConfig::new`, configure
+`IssuerConfig::issuance_burst` and `issuance_refill_interval_ns`, and map
+`StoreError::Throttled` to an ordinary retryable endpoint refusal without trapping.
+Retire the old receiver/issuer backing explicitly; `open` refuses it. Preserve
+one receiver budget across proof mechanisms and one issuance/renewal budget across
+accounts. Volatile hosts must select `for_verification` explicitly; `new` is removed
+and `for_operations` cannot verify proofs. A newly created issuer admits its configured
+burst immediately; reopening or restarting does not reset it.
+See the [work-budget contract](persistent-auth.md#pre-10-work-budget-hard-cut-unpublished).
+This batch changes Auth only; Canic's production policy and adoption remain
+unqualified here. Completed recovery and retained pending retries remain available
+without fresh issuance credit. Host adapters must separately make approval/signing
+resumption idempotent or limit repeated effects; free Auth recovery does not itself
+bound repeated external work for one retained pending operation.
+
 [Auth #132](https://github.com/dragginzgame/ic-auth/issues/132) moves reusable
 issuer/session storage into Auth. [Canic #764](https://github.com/dragginzgame/canic/issues/764)
 owns adoption and deletion of the displaced consumer engine. The indexed-store
@@ -63,7 +79,7 @@ release independently. The delivered locks select Platform 0.29.1, Types 0.19,
 Wire 0.19, Testkit 0.97, Runtime/macros/guard 0.21, Storage 0.71.1, Metrics 0.29.9,
 Host 0.76.2, Build 0.81.1 and Toko Tooling 0.38.2. The host has one Runtime
 executor/generator/guard. Both complete release gates and exact registry
-checksums are recorded in the [handoff](../status/current.md). Rust 1.99.1 remains
+checksums are recorded in the [handoff](../status/current.md). Rust 1.100.0 remains
 the minimum. The normal product lock's deferred Platform 0.29.2 update is outside
 this delivered cohort and remains unqualified.
 

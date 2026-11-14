@@ -93,42 +93,61 @@ pub struct PreparedSignature {
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum SignatureStoreError {
     #[error("invalid signature-store limits")]
+    /// Configured capacities or byte bounds fall outside supported limits.
     InvalidLimits,
     #[error("anonymous signing canister is invalid")]
+    /// An anonymous canister cannot own a signature tree.
     AnonymousSigner,
     #[error("signature seed exceeds 32 bytes")]
+    /// Seed exceeds the canister-signature key encoding bound.
     SeedTooLong,
     #[error("signature domain exceeds 255 bytes")]
+    /// Signature domain does not fit the IC one-byte length prefix.
     DomainTooLong,
     #[error("message exceeds the host's byte limit")]
+    /// Message exceeds the host-selected byte ceiling.
     MessageTooLarge,
     #[error("retention must be positive and at most 60 seconds")]
+    /// Requested retrieval retention is zero or exceeds 60 seconds.
     InvalidRetention,
     #[error("retrieval deadline overflows the host clock")]
+    /// The retrieval deadline cannot be represented in u64 nanoseconds.
     DeadlineOverflow,
     #[error("host clock precedes the last accepted mutation")]
+    /// Supplied trusted time precedes the last accepted mutation.
     ClockRegressed,
     #[error("signature capacity exhausted; prune expired records explicitly")]
+    /// No signature slot is available; expired entries still require explicit pruning.
     Capacity,
     #[error("signature was not prepared")]
+    /// No signature entry exists for this exact seed/domain/message.
     NotPrepared,
     #[error("signature retrieval window expired")]
+    /// The retained signature's exclusive retrieval deadline has passed.
     Expired,
     #[error("cleanup budget exceeds 128 records")]
+    /// Cleanup exceeds the supported 128-record work bound.
     InvalidPruneBudget,
     #[error("composition path exceeds 16 sibling branches")]
+    /// The supplied composition exceeds 16 sibling branches.
     CompositionTooDeep,
     #[error("query data certificate is absent")]
+    /// The host supplied no query IC certificate.
     NoCertificate,
     #[error("certificate exceeds the host's byte limit")]
+    /// Certificate bytes exceed the configured parsing bound.
     CertificateTooLarge,
     #[error("query certificate is malformed")]
+    /// Certificate decoding or required structure is invalid.
     InvalidCertificate,
     #[error("certificate does not cover this canister's composed witness root")]
+    /// Certified-data does not match this canister's composed signature root.
     CertificateRootMismatch,
     #[error("signature exceeds the host's output byte limit")]
+    /// Encoded signature proof exceeds the output byte ceiling.
     SignatureTooLarge,
     #[error("signature CBOR encoding failed")]
+    /// The maintained CBOR codec could not encode the signature proof.
     Encoding,
 }
 
@@ -177,16 +196,19 @@ impl SignatureStore {
     }
 
     /// Physical records, including expired leaves not yet explicitly pruned.
+    #[must_use]
     pub fn len(&self) -> usize {
         self.expirations.len()
     }
 
     /// Whether there are no physical records.
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.expirations.is_empty()
     }
 
     /// Digest of the labeled `/sig` subtree; compose with other owners' roots.
+    #[must_use]
     pub fn root_hash(&self) -> Hash {
         labeled_hash(LABEL_SIG, &self.tree.root_hash())
     }

@@ -1,4 +1,4 @@
-use super::*;
+use super::{CallerRecord, Memory, Principal, ReceiverStore, Session, StoreError, keys};
 
 /// Maximum returned sessions per inspection call.
 pub const MAX_INSPECTION_PAGE: u16 = 32;
@@ -10,8 +10,11 @@ pub const MAX_INSPECTION_SCAN: u16 = 128;
 /// from each session's expiry/generation and this page's supplied time/generation.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SessionPage {
+    /// Durable clock observation accompanying this page.
     pub observed_at_ns: u64,
+    /// Protected receiver generation observed with this inspection page.
     pub generation: u64,
+    /// Bounded physical session rows selected by the cursor; not authorization results.
     pub sessions: Vec<Session>,
     /// Exclusive cursor over visited caller rows, including fences. A page can
     /// be empty and still have a continuation. No snapshot across calls is held.

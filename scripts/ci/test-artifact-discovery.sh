@@ -36,7 +36,7 @@ jq -er '.[] | select(.id == "tools-evidence-download") | .run' "$fixture/steps.j
 mkdir "$fixture/bin" "$fixture/payload"
 printf 'qualified failure bytes\n' > "$fixture/payload/evidence.tar.gz"
 (cd "$fixture/payload" && zip -q "$fixture/artifact.zip" evidence.tar.gz)
-digest="$(bash scripts/ci/verify-file-checksum.sh --print sha256 "$fixture/artifact.zip")"
+digest="$(bash vendor/toko-tooling/scripts/ci/verify-file-checksum.sh --print sha256 "$fixture/artifact.zip")"
 cat > "$fixture/bin/gh" <<'SCRIPT'
 #!/usr/bin/env bash
 set -euo pipefail

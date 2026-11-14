@@ -19,22 +19,34 @@ const RECORD: u64 = 0x41555448504401;
 /// trap so the host cannot commit a partial operation.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, thiserror::Error)]
 pub enum StoreError {
+    /// Backing is foreign, missing or internally inconsistent; no reset is implied.
     #[error("foreign, missing or inconsistent Auth storage")]
     Corrupt,
+    /// Supplied policy or input violates the store contract.
     #[error("Auth storage configuration or input is invalid")]
     Invalid,
+    /// A bounded record or byte reservation cannot be admitted.
     #[error("Auth storage capacity exhausted")]
     Capacity,
+    /// The issuer-wide fresh intent allowance is exhausted; no new intent exists.
+    #[error("fresh issuance budget exhausted")]
+    Throttled,
+    /// Trusted time is earlier than the durable observation fence.
     #[error("Auth storage clock moved backwards")]
     Clock,
+    /// A retry or callback differs from the retained original operation.
     #[error("operation conflicts with its original intent")]
     Conflict,
+    /// The selected operation or login deadline has passed.
     #[error("operation or login is expired")]
     Expired,
+    /// The request addresses an operation epoch no longer open for new work.
     #[error("operation epoch is closed")]
     EpochClosed,
+    /// The live identity binding or protected authority does not authorize the work.
     #[error("authentication binding or authority is no longer current")]
     Denied,
+    /// A required earlier stage has not completed.
     #[error("operation has not reached the required stage")]
     Pending,
 }

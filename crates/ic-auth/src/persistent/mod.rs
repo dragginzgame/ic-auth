@@ -3,7 +3,8 @@
 //! No allocator, clock, endpoint, executor or certification root is installed.
 //! Mutations require a synchronous host transaction: on IC, message rollback;
 //! native hosts must supply equivalent atomicity and discard poisoned runtimes.
-//! Returned refusals happen before record writes. Storage faults trap, never
+//! Returned refusals may persist protected clock and work-budget observations,
+//! but never partially publish session/issuance records. Storage faults trap, never
 //! acknowledge a partial transaction. Opening reads metadata, not all records.
 
 pub mod issuer;
@@ -16,6 +17,8 @@ pub use records::StoreError;
 /// cell. Metadata reads/writes never traverse the growing record index. There
 /// are no per-user allocations and Auth never registers its own allocator.
 pub struct StoreMemory<M: ic_storage::Memory> {
+    /// Exclusive checked backing for Auth's ordered records and indexes.
     pub records: ic_storage::RuntimeMemory<M>,
+    /// Separate exclusive checked backing for protected Auth metadata.
     pub metadata: ic_storage::RuntimeMemory<M>,
 }

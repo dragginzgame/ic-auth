@@ -10,42 +10,61 @@ resolver = "3"
 
 [workspace.package]
 edition = "2024"
-rust-version = "1.99.1"
+rust-version = "1.100.0"
 license-file = "LICENSE.md"
 readme = "README.md"
 repository = "https://github.com/dragginzgame/ic-auth"
 
 [workspace.dependencies]
-# Engine
-# Changelog : releases/engine/CHANGELOG.md
 ic-auth = { version = "0.40.1", path = "crates/ic-auth" }
-ic-auth-tooling = { version = "0.40.1", path = "crates/ic-auth-tooling" }
-
-# Protocol
-# Changelog : releases/protocol/CHANGELOG.md
 ic-auth-protocol-types = { version = "0.39.2", path = "crates/ic-auth-protocol-types" }
 ic-auth-wire = { version = "0.39.2", path = "crates/ic-auth-wire" }
 
-# External product and local test/tooling dependencies
 clap = { version = "4", default-features = false, features = ["derive", "error-context", "help", "std", "usage"] }
 dhat = "0.3.3"
-ic-build = { version = "0.83.0", default-features = false }
-ic-host-fs = { version = "0.76.1", default-features = false }
-ic-platform = { version = "0.31.0", default-features = false }
-ic-platform-types = { version = "0.19.0", default-features = false }
-ic-storage = "0.73.6"
-ic-wire = "0.21.0"
+ic-build = { version = "0.84.1", default-features = false }
+ic-host-fs = { version = "0.77.0", default-features = false }
+ic-platform = { version = "0.32.2", default-features = false }
+ic-platform-types = { version = "0.20.2", default-features = false }
+ic-storage = "0.74.0"
+ic-wire = "0.22.1"
 leb128 = "0.2"
 serde = { version = "1", features = ["derive"] }
 serde_bytes = "0.11"
 serde_json = "1"
 sha2 = "0.11.1"
 thiserror = "2"
-toko-tooling = "=0.39.18"
+toko-tooling = "=0.43.0"
 
 [workspace.metadata.ic-auth]
 # Executable features are source-owned recovery inputs, not library features.
 release-editor-features = ["cli"]
 
+[workspace.lints.cargo]
+unused_dependencies = "deny"
+unused_workspace_dependencies = "deny"
+unused_workspace_package_fields = "deny"
+missing_lints_inheritance = "deny"
+unknown_lints = "deny"
+
 [workspace.lints.rust]
+dead_code = "deny"
+unused_must_use = "deny"
+unfulfilled_lint_expectations = "deny"
 unsafe_code = "forbid"
+unsafe_op_in_unsafe_fn = "deny"
+missing_docs = "warn"
+
+[workspace.lints.rustdoc]
+broken_intra_doc_links = "deny"
+invalid_markdown_table = "deny"
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -2 }
+correctness = { level = "deny", priority = -1 }
+redundant_clone = "warn"
+needless_pass_by_value = "warn"
+wildcard_imports = "warn"
+missing_panics_doc = "warn"
+must_use_candidate = "warn"
+too_many_lines = "allow"

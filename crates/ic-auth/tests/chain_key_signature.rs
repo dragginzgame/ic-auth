@@ -1,3 +1,4 @@
+//! Strict compact ECDSA verification, explicit normalization and malformed-key rejection.
 #![cfg(feature = "chain-key-verification")]
 
 use ic_auth::chain_key_signature::{

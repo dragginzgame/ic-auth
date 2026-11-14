@@ -5,11 +5,11 @@ cd "$(dirname "${BASH_SOURCE[0]}")/../.."
 source scripts/ci/auth-dependency-policy.sh
 native_target="$(rustc -vV | sed -n 's/^host: //p')"
 [[ -n "$native_target" ]] || { echo 'missing compiler host target' >&2; exit 1; }
-perl scripts/ci/check-cargo-graph.pl --consumer "$PWD/qualification" \
+perl vendor/toko-tooling/scripts/ci/check-cargo-graph.pl --consumer "$PWD/qualification" \
     --package ic-auth-backend-conformance --target "$native_target" \
     --forbid-pattern "$(auth_dependency_pattern backend-conformance)"
 selections="$(bash scripts/ci/auth-feature-selections.sh)"
-checker=(perl scripts/ci/check-cargo-graph.pl --consumer "$PWD")
+checker=(perl vendor/toko-tooling/scripts/ci/check-cargo-graph.pl --consumer "$PWD")
 for target in "$native_target" wasm32-unknown-unknown; do
     for package in ic-auth-protocol-types ic-auth ic-auth-wire; do
         rules=(--forbid-pattern "$(auth_dependency_pattern deployment)"
@@ -55,7 +55,7 @@ for target in "$native_target" wasm32-unknown-unknown; do
     done <<< "$selections"
     # Private fixture schemas must stay Wire-only even though the actual host's
     # runtime selects an executor, but neither path requires Candid.
-    perl scripts/ci/check-cargo-graph.pl --consumer "$PWD/qualification" --package ic-auth-qualification-contracts --target "$target" \
+    perl vendor/toko-tooling/scripts/ci/check-cargo-graph.pl --consumer "$PWD/qualification" --package ic-auth-qualification-contracts --target "$target" \
         --forbid-pattern "$(auth_dependency_pattern passive)" \
         --forbid-pattern '^(candid|candid_derive|candid_parser|ic-cdk|ic0|ic-memory|ic-storage|ic-agent|ic-host|ic-build|ic-testkit|pocket-ic|tokio)([- ]|$)' \
         --forbid-feature ic-platform/candid \
@@ -78,7 +78,7 @@ done
 "${checker[@]}" --package ic-auth --target wasm32-unknown-unknown --all-features "${rules[@]}"
 # Storage's Wasm backing selects Runtime IC0. Only the actual qualification host
 # selects its maintained executor/guard; optional Auth persistence cannot add one.
-perl scripts/ci/check-cargo-graph.pl --consumer "$PWD/qualification" --package ic-auth-qualification-canister --target wasm32-unknown-unknown \
+perl vendor/toko-tooling/scripts/ci/check-cargo-graph.pl --consumer "$PWD/qualification" --package ic-auth-qualification-canister --target wasm32-unknown-unknown \
     --forbid-pattern "$(auth_dependency_pattern profiling)" \
     --forbid-pattern '^(candid_parser|ic-host|ic-build|ic-agent|ic-testkit|ic-entropy|pocket-ic|tokio)([- ]|$)' \
     --forbid ic-cdk --forbid ic-cdk-macros --forbid ic-cdk-executor \

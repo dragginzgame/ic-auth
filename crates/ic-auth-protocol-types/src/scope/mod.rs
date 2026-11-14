@@ -6,16 +6,32 @@ use thiserror::Error;
 /// A scope label's grammar failure. Offsets and lengths count UTF-8 bytes.
 #[derive(Clone, Copy, Debug, Eq, Error, PartialEq)]
 pub enum ScopeLabelError {
+    /// No bytes were supplied.
     #[error("scope is empty")]
     Empty,
+    /// The encoded label exceeds the protocol's byte bound.
     #[error("scope has {bytes} bytes; maximum is {max}")]
-    TooLong { bytes: usize, max: usize },
+    TooLong {
+        /// Actual encoded byte length.
+        bytes: usize,
+        /// Inclusive byte limit.
+        max: usize,
+    },
+    /// A leading, trailing or repeated colon creates an empty segment.
     #[error("scope contains an empty segment")]
     EmptySegment,
+    /// A segment starts with something other than a lowercase letter or digit.
     #[error("invalid scope segment start at byte {offset}")]
-    InvalidSegmentStart { offset: usize },
+    InvalidSegmentStart {
+        /// Zero-based byte offset of the rejected segment start.
+        offset: usize,
+    },
+    /// A segment contains a byte outside the admitted ASCII grammar.
     #[error("invalid scope byte at offset {offset}")]
-    InvalidByte { offset: usize },
+    InvalidByte {
+        /// Zero-based offset of the rejected byte.
+        offset: usize,
+    },
 }
 
 /// Immutable 1..=64-byte scope label. Shape grants no authority.
@@ -30,9 +46,13 @@ pub enum ScopeLabelError {
 pub struct ScopeLabel(String);
 
 impl ScopeLabel {
+    /// Borrow the validated label without allocating or changing its spelling.
+    #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
     }
+    /// Recover the owned validated text without copying its allocation.
+    #[must_use]
     pub fn into_string(self) -> String {
         self.0
     }

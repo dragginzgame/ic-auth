@@ -13,16 +13,22 @@ const MAX_RECORD_BYTES: usize = 1024;
 #[derive(Clone, Copy, Debug, Error, Eq, PartialEq)]
 pub enum LoginRevocationError {
     #[error("logout requires an authenticated self-authenticating caller")]
+    /// The caller is not an admissible self-authenticating browser identity.
     InvalidCaller,
     #[error("invalid revocation limits or authenticated login deadline")]
+    /// Login binding or protected revocation policy violates invariants.
     InvalidPolicy,
     #[error("login is locally revoked")]
+    /// A retained denial currently covers this login.
     Revoked,
     #[error("revocation capacity is exhausted")]
+    /// No ledger slot is available for the required reservation or denial.
     Capacity,
     #[error("revocation clock rolled back or retention arithmetic overflowed")]
+    /// Trusted time or deadline arithmetic violates the ledger clock contract.
     Clock,
     #[error("host session/replay transaction failed")]
+    /// The host could not persist the required atomic ledger change.
     Storage,
 }
 
@@ -41,7 +47,9 @@ struct Record {
 #[cfg_attr(feature = "sessions", derive(serde::Serialize))]
 #[cfg_attr(feature = "session-restore", derive(serde::Deserialize))]
 pub enum LoginRecordState {
+    /// Authenticated login binding reserved before admission commits.
     Reserved(LoginBinding),
+    /// Denial, optionally retaining an authenticated original login lifetime.
     Revoked(Option<LoginBinding>),
 }
 
@@ -107,11 +115,17 @@ impl Record {
 /// Authenticated login association retained by a reservation or known tombstone.
 /// This value alone is not authentication or admission evidence.
 pub struct LoginBinding {
+    /// Issuer qualifying the account identity.
     pub issuer: Principal,
+    /// Account subject asserted by the issuer, distinct from browser caller.
     pub subject: Principal,
+    /// Issuer-assigned slot within the bounded per-account device set.
     pub device_slot: u8,
+    /// Generation fencing credentials from earlier occupants of this slot.
     pub device_generation: u64,
+    /// Original login start retained across renewal.
     pub started_at_ns: u64,
+    /// Original absolute login deadline; renewal cannot extend it.
     pub deadline_ns: u64,
 }
 
@@ -251,24 +265,29 @@ impl LoginRevocationChange {
     }
 
     /// Protected trust domain owning the record.
+    #[must_use]
     pub fn audience(&self) -> AudienceId {
         self.0.audience
     }
     /// Authenticated runtime caller whose record changes.
+    #[must_use]
     pub fn caller(&self) -> Principal {
         self.0.caller
     }
     /// Previous browser binding removed in this same atomic admission transaction.
     /// This is a transaction delta, not retained checkpoint data.
+    #[must_use]
     pub fn displaced_caller(&self) -> Option<Principal> {
         self.1
     }
     /// Exclusive receiver-local retention deadline.
+    #[must_use]
     pub fn until_ns(&self) -> u64 {
         self.0.record.until_ns
     }
     /// Typed state from this checked ledger record. Storage codecs retain their
     /// existing frozen representation independently of this Rust projection.
+    #[must_use]
     pub fn state(&self) -> LoginRecordState {
         self.0.record.state
     }
@@ -497,12 +516,14 @@ impl MemoryLoginRevocations {
     }
 
     /// Physical pool occupancy, including retained known slot fences.
+    #[must_use]
     pub fn occupancy(&self) -> (usize, usize) {
         (self.admitted, self.unknown)
     }
 
     /// Clock high-water mark for an atomic host checkpoint, including refusals.
     /// Durable hosts retain this with pool counts and the complete record set.
+    #[must_use]
     pub fn observed_at_ns(&self) -> u64 {
         self.observed_ns
     }

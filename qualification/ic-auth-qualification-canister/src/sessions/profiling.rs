@@ -1,7 +1,10 @@
 //! Private diagnostic probes, never an alternate verifier or admission path.
 //! Complete verification must succeed before independently repeating components.
 //! Their timings overlap; only the complete-verifier timing is end-to-end work.
-use super::*;
+use super::{
+    CERTIFIED_LIMITS, PortableCredential, Receiver, ReceiverAuthority, ReceiverUnavailable,
+    SessionInput, controls, with_receiver,
+};
 use controls::model::CertifiedProfileFailure as Failure;
 use ic_auth::{
     canister_signature::{

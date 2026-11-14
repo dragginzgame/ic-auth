@@ -2,7 +2,13 @@
 //! Domains and tags are protocol identities, not package branding.
 //! This module does not verify signatures, authority, validity or caller binding.
 
-use ic_auth_protocol_types::*;
+use ic_auth_protocol_types::{
+    AudienceId, AuthRole, ChainKeyAlgorithm, ChainKeyBatchHeaderV1, ChainKeyBatchWitnessStepV1,
+    ChainKeyBatchWitnessV1, ChainKeyDelegationCertV1, ChainKeyKeyId, ChainKeyRootSignatureV1,
+    DelegatedRoleGrant, DelegationAudience, DelegationCert, DelegationProof,
+    IcChainKeyBatchSignatureProofV1, IssuerProofAlgorithm, IssuerProofBinding, Principal,
+    RootProof, ScopeLabel, ScopeLabelError,
+};
 use sha2::{Digest, Sha256};
 use thiserror::Error;
 
@@ -34,12 +40,16 @@ enum CanonicalDomain {
 #[derive(Debug, Eq, Error, PartialEq)]
 pub enum CanonicalAuthError {
     #[error("canonical vector length exceeds u32")]
+    /// A canonical vector length cannot fit its u32 length prefix.
     LengthOverflow,
     #[error(transparent)]
+    /// A scope label fails the protocol grammar.
     Scope(#[from] ScopeLabelError),
     #[error("delegated auth scopes must be strictly sorted and unique")]
+    /// Scopes are not strictly sorted and unique.
     NonCanonicalScopes,
     #[error("delegated auth role grants must be strictly sorted and unique")]
+    /// Role grants are not strictly sorted and unique.
     NonCanonicalRoles,
 }
 

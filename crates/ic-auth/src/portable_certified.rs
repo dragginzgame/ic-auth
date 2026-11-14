@@ -62,8 +62,11 @@ impl From<CertifiedProofLimits> for DelegationProofVerificationLimits {
 /// Protected portable, Root and network authority for a single proof check.
 /// All fields must come from runtime/configuration, never the submitted proof.
 pub struct PortableCertifiedContext<'a> {
+    /// Protected caller, issuer enrollment, time and admission bounds.
     pub claims: PortableClaimsContext<'a>,
+    /// Independently enrolled root authority for delegation verification.
     pub root_key: &'a RootKeyPolicy,
+    /// Protected raw IC network BLS trust anchor, not proof-supplied key material.
     pub ic_root_public_key_raw: &'a [u8],
     /// Bounded proof policy. This profile always refuses future validity starts.
     pub limits: CertifiedProofLimits,
@@ -73,18 +76,25 @@ pub struct PortableCertifiedContext<'a> {
 #[derive(Debug, Error, Eq, PartialEq)]
 pub enum PortableCertifiedError {
     #[error(transparent)]
+    /// The shared work budget refuses this verification attempt.
     Budget(#[from] AdmissionBudgetError),
     #[error("portable certified context or delegation binding mismatch")]
+    /// Delegation or mechanism does not match the protected portable authority.
     BindingMismatch,
     #[error(transparent)]
+    /// Claims fail protected identity, grant or lifetime checks.
     Claims(#[from] PortableClaimsError),
     #[error(transparent)]
+    /// Claims fail bounded canonical encoding admission.
     Encoding(#[from] PortableEncodingError),
     #[error(transparent)]
+    /// Delegation labels or canonical field encoding are invalid.
     Canonical(#[from] CanonicalAuthError),
     #[error(transparent)]
+    /// Root delegation verification failed under the enrolled authority.
     Delegation(#[from] DelegationProofError),
     #[error(transparent)]
+    /// Issuer canister signature or certificate verification failed.
     Signature(#[from] CanisterSignatureError),
 }
 
@@ -191,7 +201,10 @@ pub(crate) fn verify_prepared(
     {
         return Err(PortableCertifiedError::BindingMismatch);
     }
-    budget.consume(claims_context.authority.now_ns)?;
+    budget.consume_verification(
+        claims_context.authority.now_ns,
+        ic_auth_protocol_types::PortableMechanism::Certified,
+    )?;
     prepared.verify(&DelegationProofVerificationContext {
         expected_issuer: claims_context.authority.issuer,
         root_key: context.root_key,

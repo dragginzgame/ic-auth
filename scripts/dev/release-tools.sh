@@ -23,4 +23,4 @@ case "$1" in
     check-wait) selection+=(--check --wait-seconds 60) ;;
     *) echo 'usage: release-tools.sh install|check|check-wait [LOCKFILE [SOURCE_MANIFEST]]' >&2; exit 2 ;;
 esac
-exec bash scripts/dev/install-rust-tools.sh "${selection[@]}"
+exec bash vendor/toko-tooling/scripts/dev/install-rust-tools.sh "${selection[@]}"

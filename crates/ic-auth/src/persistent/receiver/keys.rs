@@ -1,4 +1,4 @@
-use super::*;
+use super::{Key, LoginRevocationChange, Principal, Replay, Session};
 pub(super) const HEADER: u8 = 0;
 pub(super) const REPLAY: u8 = 2;
 pub(super) const LOGIN: u8 = 3;

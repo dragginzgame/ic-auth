@@ -11,17 +11,25 @@ use thiserror::Error;
 /// session-engine obligations; this context cannot attest its own provenance.
 #[derive(Clone, Copy, Debug)]
 pub struct PortableAuthority<'a> {
+    /// Protected intended audience, obtained independently of the credential.
     pub audience: &'a AudienceId,
+    /// Issuer selected by current protected enrollment.
     pub issuer: Principal,
+    /// Proof mechanism authorized by that enrollment.
     pub mechanism: PortableMechanism,
+    /// Exact enrolled issuer key binding, compared with signed claims.
     pub key_binding_id: [u8; 32],
     /// Immutable checked grant shape from the current protected enrollment.
     pub grants: &'a ValidatedGrants,
     /// Actual authenticated ingress sender, not an account subject or request field.
     pub caller: Principal,
+    /// Authenticated host clock in nanoseconds.
     pub now_ns: u64,
+    /// Inclusive start of the current issuer authority window.
     pub authority_not_before_ns: u64,
+    /// Exclusive issuer authority deadline in nanoseconds.
     pub authority_expires_at_ns: u64,
+    /// Exclusive host enrollment deadline, independently bounding the session.
     pub enrollment_expires_at_ns: u64,
     /// Protected policy floor; a local timestamp alone cannot fence lost state.
     pub min_login_started_at_ns: u64,
@@ -31,10 +39,13 @@ pub struct PortableAuthority<'a> {
 /// authorization uses `PortableAuthority` without proof TTL or issuance inputs.
 #[derive(Clone, Copy, Debug)]
 pub struct PortableClaimsContext<'a> {
+    /// Current protected enrollment, runtime caller and clock.
     pub authority: PortableAuthority<'a>,
+    /// Protected issuance floor; timestamps alone do not recover lost revocation state.
     pub min_proof_issued_at_ns: u64,
     /// Positive host limits, capped at 90 days and 60 seconds respectively.
     pub max_login_ttl_ns: u64,
+    /// Maximum admission-proof lifetime in nanoseconds, capped at 60 seconds.
     pub max_proof_ttl_ns: u64,
 }
 
@@ -51,30 +62,43 @@ impl PortableAuthority<'_> {
 #[derive(Debug, Error, Eq, PartialEq)]
 pub enum PortableClaimsError {
     #[error("invalid protected portable claims context")]
+    /// Protected authority or configured time bounds are internally invalid.
     InvalidContext,
     #[error("portable audience does not match protected authority")]
+    /// Signed audience differs from the protected receiver audience.
     AudienceMismatch,
     #[error("portable issuer does not match protected authority")]
+    /// Signed issuer differs from the enrolled issuer.
     IssuerMismatch,
     #[error("portable mechanism does not match protected authority")]
+    /// Signed proof mechanism differs from the enrolled mechanism.
     MechanismMismatch,
     #[error("portable key binding does not match protected authority")]
+    /// Signed key binding differs from the enrolled binding.
     KeyMismatch,
     #[error("browser key does not identify the authenticated caller")]
+    /// The browser key does not identify the authenticated ingress caller.
     CallerMismatch,
     #[error("portable grants exceed protected authority")]
+    /// Credential grants exceed current protected issuer authority.
     GrantsExceeded,
     #[error("portable login or proof window is invalid")]
+    /// Login or proof time windows are inconsistent or exceed host bounds.
     InvalidWindow,
     #[error("portable proof is not yet valid")]
+    /// The proof starts after the current host time; authenticity is not implied.
     NotYetValid,
     #[error("portable proof has expired")]
+    /// The proof admission window has ended.
     Expired,
     #[error("portable login or issuance predates the protected reset floor")]
+    /// Login start or issuance precedes a protected acceptance floor.
     BeforeReset,
     #[error("portable authority or enrollment is not current")]
+    /// Issuer authority or enrollment is outside its live window.
     StaleAuthority,
     #[error(transparent)]
+    /// Claims fail canonical structural admission.
     Encoding(#[from] PortableEncodingError),
 }
 

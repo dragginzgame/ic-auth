@@ -3,6 +3,26 @@
 Covers `ic-auth-protocol-types` and `ic-auth-wire`, released together.
 The independent series starts after the [last coordinated release, 0.29.2](../history.md).
 
+## [0.40.0] - Unreleased
+
+### 📚 Documentation
+
+- Document all previously undocumented Protocol Types public items, including
+  issuer/root proof bindings, authority boundaries, validity windows and public
+  refusal meanings. Remove their resolved documentation-debt entries without
+  changing transport formats or verification behavior.
+
+### ⚠️ Breaking
+
+- Select canonical Principal from Platform Types 0.20.2 and IC Wire 0.22.1.
+  This advances the public Rust dependency identities. Regenerate the five
+  browser contract files; their bytes remain unchanged.
+
+- Require Rust 1.100.0. Adopt Toko Tooling 0.41.1 and its common Cargo/Rust/Clippy
+  policy, retaining the unsafe-code prohibition. Deny missing public documentation
+  and Rustdoc warnings without debt baselines in the CI/release Clippy gate
+  ([#135](https://github.com/dragginzgame/ic-auth/issues/135)).
+
 ## [0.39.2] - 2026-11-12
 
 ### 🛠️ Tooling

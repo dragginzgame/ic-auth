@@ -7,6 +7,20 @@ use ic_storage::{
 };
 
 type Backing = MeteredMemory<VectorMemory>;
+
+#[test]
+fn retired_receiver_schema_is_not_reinterpreted() {
+    let backing = Backing::new(VectorMemory::default());
+    let mut store = ReceiverStore::create(memory(backing.clone()), config(), 0, 0).unwrap();
+    let mut header = store.header.clone();
+    header.schema = 0x41555448525302;
+    store.publish(header, Writes::new()).unwrap();
+    drop(store);
+    assert!(matches!(
+        ReceiverStore::open(memory(backing), &config(), 0),
+        Err(StoreError::Corrupt)
+    ));
+}
 fn config() -> ReceiverConfig {
     ReceiverConfig::new(
         AudienceId {
@@ -27,6 +41,10 @@ fn config() -> ReceiverConfig {
         BudgetPolicy {
             burst: 10,
             refill_interval_ns: 1,
+        },
+        crate::admission_budget::VerificationCosts {
+            ed25519: 1,
+            certified: 1,
         },
     )
     .unwrap()

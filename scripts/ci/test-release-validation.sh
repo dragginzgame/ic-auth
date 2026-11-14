@@ -102,7 +102,7 @@ cp "$log" target/log.saved; echo drift >> "$log"
 if perl scripts/release/validation-record.pl check target/engine > "$evidence/corrupt-log.log" 2>&1; then exit 1; fi
 if perl scripts/release/validation-record.pl check-retained target/engine > "$evidence/corrupt-retained.log" 2>&1; then exit 1; fi
 cp target/engine/evidence.json target/record.saved
-source scripts/ci/release-receipts.sh
+source vendor/toko-tooling/scripts/ci/release-receipts.sh
 # A changed log is a different valid observation when freshly collected. An
 # invalid execution must fail collection and preserve the previous receipt.
 printf 'foreign\tPASS\t0\tmissing.log\n' >> "${run_path[0]}/timings.tsv"

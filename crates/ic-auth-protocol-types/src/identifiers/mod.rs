@@ -8,8 +8,10 @@ use thiserror::Error;
 /// Invalid protocol identifier syntax. This says nothing about authorization.
 #[derive(Clone, Debug, Eq, Error, PartialEq)]
 pub enum IdentifierError {
+    /// The input is not exactly 64 lowercase hexadecimal characters.
     #[error("identifier must contain exactly 64 lowercase hexadecimal characters")]
     NonCanonicalId,
+    /// The role is empty, exceeds 64 bytes or contains a forbidden byte.
     #[error("role must contain 1..=64 bytes using only a-z, 0-9, underscore, colon or hyphen")]
     InvalidRole,
 }
@@ -22,11 +24,13 @@ pub struct CanonicalId([u8; 32]);
 
 impl CanonicalId {
     /// Project an already resolved host identity without changing its bytes.
+    #[must_use]
     pub const fn from_bytes(bytes: [u8; 32]) -> Self {
         Self(bytes)
     }
 
     /// Exact bytes used in canonical signed encoding.
+    #[must_use]
     pub const fn as_bytes(&self) -> &[u8; 32] {
         &self.0
     }
@@ -81,7 +85,9 @@ impl<'de> Deserialize<'de> for CanonicalId {
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct AudienceId {
+    /// Host-defined canonical network identity, compared without normalization.
     pub canonical_network_id: CanonicalId,
+    /// Host-defined fleet identity within that network.
     pub fleet_id: CanonicalId,
 }
 
@@ -93,11 +99,14 @@ pub struct AudienceId {
 pub struct AuthRole(String);
 
 impl AuthRole {
+    /// Borrow the validated label without allocation or normalization.
+    #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
     }
 
     /// Recover the validated label without copying its allocation.
+    #[must_use]
     pub fn into_string(self) -> String {
         self.0
     }

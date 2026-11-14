@@ -7,6 +7,7 @@
 //! Admission uses one explicit host transaction for verification and replay
 //! consumption. Standalone proof verification establishes no session or resource grant.
 
+/// Host-owned verification work budgets shared across unauthenticated callers.
 pub mod admission_budget;
 pub mod canonical;
 pub mod certificate_issuance;

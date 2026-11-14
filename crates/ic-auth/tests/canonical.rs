@@ -1,3 +1,4 @@
+//! Canonical signed-byte compatibility, domain separation and malformed-input rejection.
 use ic_auth::canonical::*;
 use ic_auth_protocol_types::*;
 

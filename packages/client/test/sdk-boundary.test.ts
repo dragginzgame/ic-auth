@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 test('the client SDK gate rejects aliased dependencies and nested direct imports', async () => {
   const { checkIcSdkBoundary } = await import(
-    new URL('../../../../scripts/ci/check-ic-sdk-boundary.mjs', import.meta.url).href);
+    new URL('../../../../vendor/toko-tooling/scripts/ci/check-ic-sdk-boundary.mjs', import.meta.url).href);
   const evidence = new URL('../../../../target/browser-client/', import.meta.url);
   const root = mkdtempSync(fileURLToPath(new URL('sdk-boundary.', evidence)));
   const client = `${root}/packages/client`;

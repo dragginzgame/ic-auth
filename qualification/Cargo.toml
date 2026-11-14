@@ -12,43 +12,63 @@ resolver = "3"
 [workspace.package]
 version = "0.36.2"
 edition = "2024"
-rust-version = "1.99.1"
+rust-version = "1.100.0"
 license-file = "../LICENSE.md"
-readme = "../README.md"
 repository = "https://github.com/dragginzgame/ic-auth"
 
 [workspace.dependencies]
-# Product packages, consumed through the normal source owners.
 ic-auth = { version = "0.40.1", path = "../crates/ic-auth" }
 ic-auth-protocol-types = { version = "0.39.2", path = "../crates/ic-auth-protocol-types" }
 ic-auth-wire = { version = "0.39.2", path = "../crates/ic-auth-wire" }
 
-# Qualification-only packages; private versions do not follow product releases.
 ic-auth-backend-conformance = { version = "0.36.2", path = "ic-auth-backend-conformance" }
-ic-auth-feature-unification = { version = "0.36.2", path = "ic-auth-feature-unification" }
-ic-auth-qualification = { version = "0.36.2", path = "ic-auth-qualification" }
-ic-auth-qualification-canister = { version = "0.36.2", path = "ic-auth-qualification-canister" }
 ic-auth-qualification-contracts = { version = "0.36.2", path = "ic-auth-qualification-contracts" }
 ic-auth-qualification-fixtures = { version = "0.36.2", path = "ic-auth-qualification-fixtures" }
 
-# External qualification dependencies
 ed25519-dalek = { version = "3.0", default-features = false }
-ic-entropy = "0.1.0"
-ic-host-fs = { version = "0.76.1", default-features = false }
-ic-host-process = { version = "0.76.1", default-features = false }
-ic-metrics = { version = "0.29.0", default-features = false }
-ic-platform = { version = "0.31.0", default-features = false }
-ic-platform-runtime = { version = "0.21.0", default-features = false }
-ic-storage = "0.73.6"
-ic-testkit = { version = "0.101.0", default-features = false }
-ic-wire = "0.21.0"
+ic-entropy = "0.3.0"
+ic-host-fs = { version = "0.77.0", default-features = false }
+ic-host-process = { version = "0.77.0", default-features = false }
+ic-metrics = { version = "0.30.0", default-features = false }
+ic-platform = { version = "0.32.2", default-features = false }
+ic-platform-runtime = { version = "0.22.2", default-features = false }
+ic-storage = "0.74.0"
+ic-testkit = { version = "0.104.0", default-features = false }
+ic-testkit-wire = "0.1.0"
+ic-wire = "0.22.1"
 serde = { version = "1", features = ["derive"] }
 sha2 = "0.11.1"
 tokio = { version = "1", features = ["rt-multi-thread", "sync", "time"] }
-toko-tooling = "=0.39.18"
+toko-tooling = "=0.43.0"
+
+[workspace.lints.cargo]
+unused_dependencies = "deny"
+unused_workspace_dependencies = "deny"
+unused_workspace_package_fields = "deny"
+missing_lints_inheritance = "deny"
+unknown_lints = "deny"
 
 [workspace.lints.rust]
+dead_code = "deny"
+unused_must_use = "deny"
+unfulfilled_lint_expectations = "deny"
 unsafe_code = "forbid"
+unsafe_op_in_unsafe_fn = "deny"
+missing_docs = "warn"
+
+[workspace.lints.rustdoc]
+broken_intra_doc_links = "deny"
+invalid_markdown_table = "deny"
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -2 }
+correctness = { level = "deny", priority = -1 }
+redundant_clone = "warn"
+needless_pass_by_value = "warn"
+wildcard_imports = "warn"
+missing_panics_doc = "warn"
+must_use_candidate = "warn"
+too_many_lines = "allow"
 
 # The installed scaling fixture verifies 100,000 distinct signed seed records.
 # Optimize curve arithmetic only; retain the test profile's debug/overflow checks

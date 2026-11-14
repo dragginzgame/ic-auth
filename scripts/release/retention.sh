@@ -10,5 +10,5 @@ auth_release_retention() {
         roots+=(--root "$root/release-state" --root "$root/publication-state"
             --root "$root/retired-checkouts")
     done
-    perl scripts/ci/check-retained-state.pl "${roots[@]}"
+    perl vendor/toko-tooling/scripts/ci/check-retained-state.pl "${roots[@]}"
 }

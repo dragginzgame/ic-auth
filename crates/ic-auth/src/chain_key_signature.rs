@@ -12,12 +12,16 @@ use thiserror::Error;
 #[derive(Clone, Copy, Debug, Eq, Error, PartialEq)]
 pub enum ChainKeySignatureError {
     #[error("malformed secp256k1 public key")]
+    /// SEC1 key parsing failed under the maintained secp256k1 implementation.
     MalformedPublicKey,
     #[error("malformed compact secp256k1 signature")]
+    /// Compact signature length or scalar encoding is invalid.
     MalformedSignature,
     #[error("high-S secp256k1 signature")]
+    /// Signature has high-S form; verification does not normalize it.
     HighSSignature,
     #[error("invalid secp256k1 signature")]
+    /// The compact signature does not verify over the supplied prehash.
     InvalidSignature,
 }
 

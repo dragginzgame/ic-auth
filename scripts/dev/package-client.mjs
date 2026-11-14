@@ -32,7 +32,7 @@ function command(file, args, cwd = root, input) {
 const generatorPaths = readFileSync(resolve(root, 'ci/client-generator-inputs.txt'), 'utf8').trimEnd().split('\n');
 const paths = [...generatorPaths, 'Makefile', 'LICENSE.md', 'README.md', 'packages/client', 'scripts/dev/client-tools.sh', 'scripts/dev/client-toolchain.sh',
   'scripts/dev/package-client.sh', 'scripts/dev/package-client.mjs', 'scripts/dev/test-client.sh',
-  'scripts/ci/check-client-package.mjs', 'scripts/ci/check-ic-sdk-boundary.mjs'];
+  'scripts/ci/check-client-package.mjs', 'vendor/toko-tooling/scripts/ci/check-ic-sdk-boundary.mjs'];
 function inputPaths() {
   const observed = command('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard', '--', ...paths])
     .split('\0').filter(Boolean).filter(path => {

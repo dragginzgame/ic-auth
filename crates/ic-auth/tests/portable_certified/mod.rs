@@ -89,6 +89,38 @@ fn complete_portable_chain_authenticates_distinct_account_and_browser() {
 }
 
 #[test]
+fn certified_failure_charges_protected_weight_before_verification() {
+    use ic_auth::admission_budget::{
+        AdmissionBudgetError, SessionAdmissionBudget, VerificationCosts,
+    };
+    let f = Fixture::new();
+    let c = claims(&f);
+    let valid = proof(&c, CERTIFIED_SIGNATURE_DOMAIN, SEED, NOW);
+    let mut invalid = valid.clone();
+    invalid.signature_cbor = vec![0];
+    let grants = ValidatedGrants::new(f.proof.cert.grants.clone()).unwrap();
+    let context = context(&f, &c, &grants);
+    let encoded = encode_claims(&c).unwrap();
+    let mut bucket = SessionAdmissionBudget::for_verification(
+        150,
+        1,
+        VerificationCosts {
+            ed25519: 1,
+            certified: 100,
+        },
+        0,
+    )
+    .unwrap();
+    assert!(verify_certified_claims(&mut bucket, &encoded, &f.proof, &invalid, &context).is_err());
+    assert_eq!(
+        verify_certified_claims(&mut bucket, &encoded, &f.proof, &valid, &context),
+        Err(PortableCertifiedError::Budget(
+            AdmissionBudgetError::Exhausted
+        ))
+    );
+}
+
+#[test]
 fn certified_profile_refuses_future_root_authority_without_a_skew_option() {
     let mut f = Fixture::new();
     // Standalone root verification permits its explicit ten-unit allowance.
@@ -393,7 +425,16 @@ fn bounds_and_claim_binding_refuse_before_charging_but_root_refusal_consumes_cre
     let c = claims(&f);
     let bytes = encode_claims(&c).unwrap();
     let sig = proof(&c, CERTIFIED_SIGNATURE_DOMAIN, SEED, NOW);
-    let mut credit = SessionAdmissionBudget::new(1, 1, NOW - 1).unwrap();
+    let mut credit = SessionAdmissionBudget::for_verification(
+        1,
+        1,
+        ic_auth::admission_budget::VerificationCosts {
+            ed25519: 1,
+            certified: 1,
+        },
+        NOW - 1,
+    )
+    .unwrap();
     let checked_grants = ValidatedGrants::new(f.proof.cert.grants.clone()).unwrap();
     let mut ctx = context(&f, &c, &checked_grants);
     ctx.limits.max_variable_bytes = 0;
@@ -529,7 +570,16 @@ fn certified_lease_uses_the_same_deadline_caps() {
 
 // Crypto fixtures prepare credit; budget behavior tests retain a single instance.
 fn budget() -> ic_auth::admission_budget::SessionAdmissionBudget {
-    ic_auth::admission_budget::SessionAdmissionBudget::new(4096, 1, 0).unwrap()
+    ic_auth::admission_budget::SessionAdmissionBudget::for_verification(
+        4096,
+        1,
+        ic_auth::admission_budget::VerificationCosts {
+            ed25519: 1,
+            certified: 1,
+        },
+        0,
+    )
+    .unwrap()
 }
 
 #[test]
@@ -541,7 +591,16 @@ fn certified_signature_failure_spends_credit_after_cheap_checks() {
     let checked_grants = ValidatedGrants::new(f.proof.cert.grants.clone()).unwrap();
     let mut host = context(&f, &c, &checked_grants);
     let wrong = proof(&c, b"wrong-domain", SEED, NOW);
-    let mut budget = SessionAdmissionBudget::new(1, 1, NOW - 1).unwrap();
+    let mut budget = SessionAdmissionBudget::for_verification(
+        1,
+        1,
+        ic_auth::admission_budget::VerificationCosts {
+            ed25519: 1,
+            certified: 1,
+        },
+        NOW - 1,
+    )
+    .unwrap();
     host.claims.authority.caller = Principal::anonymous();
     assert!(matches!(
         verify_certified_claims(&mut budget, &bytes, &f.proof, &wrong, &host),
@@ -597,7 +656,16 @@ fn switching_proof_mechanisms_cannot_obtain_another_allowance() {
         .sign(&ic_auth::portable::claims_hash(&ed).unwrap())
         .to_bytes();
     for ed_first in [true, false] {
-        let mut budget = SessionAdmissionBudget::new(1, 1, NOW - 1).unwrap();
+        let mut budget = SessionAdmissionBudget::for_verification(
+            1,
+            1,
+            ic_auth::admission_budget::VerificationCosts {
+                ed25519: 1,
+                certified: 1,
+            },
+            NOW - 1,
+        )
+        .unwrap();
         if ed_first {
             verify_ed25519_claims(&mut budget, &ed_bytes, &ed_signature, &ed_host, &public)
                 .unwrap();
@@ -641,7 +709,7 @@ fn certified_proof_uses_the_shared_session_lifecycle() {
     let encoded = encode_claims(&c).unwrap();
     let signature = proof(&c, CERTIFIED_SIGNATURE_DOMAIN, SEED, NOW);
     let credential = PortableCredential {
-        claims: encoded.clone(),
+        claims: encoded,
         proof: PortableProof::Certified {
             delegation: Box::new(f.proof.clone()),
             issuer_signature: signature,
@@ -694,8 +762,16 @@ fn certified_proof_uses_the_shared_session_lifecycle() {
     );
     let mut second_ledger =
         MemoryLoginRevocations::new(c.audience, 2, 2, 86_400_000_000_000, 0).unwrap();
-    let mut second_budget =
-        ic_auth::admission_budget::SessionAdmissionBudget::new(1, 1, NOW - 1).unwrap();
+    let mut second_budget = ic_auth::admission_budget::SessionAdmissionBudget::for_verification(
+        1,
+        1,
+        ic_auth::admission_budget::VerificationCosts {
+            ed25519: 1,
+            certified: 1,
+        },
+        NOW - 1,
+    )
+    .unwrap();
     let second_session = establish_session(
         &mut second,
         &mut second_ledger,
@@ -762,7 +838,7 @@ fn certified_proof_uses_the_shared_session_lifecycle() {
             &mut ledger,
             &mut budget,
             &credential,
-            request.clone(),
+            request,
             &SessionAdmissionContext {
                 verification: ic_auth::portable_credential::PortableVerificationContext::Certified(
                     &host
@@ -795,7 +871,16 @@ fn credential_variant_cannot_select_authority_or_spend_mismatched_budget() {
             signature: vec![0; 64],
         },
     };
-    let mut credit = SessionAdmissionBudget::new(1, 1, NOW - 1).unwrap();
+    let mut credit = SessionAdmissionBudget::for_verification(
+        1,
+        1,
+        ic_auth::admission_budget::VerificationCosts {
+            ed25519: 1,
+            certified: 1,
+        },
+        NOW - 1,
+    )
+    .unwrap();
     assert_eq!(
         verify_credential(&mut credit, &credential, &selected),
         Err(PortableCredentialError::MechanismMismatch)

@@ -1,3 +1,4 @@
+//! Session capacity configuration and feature-gated public contracts.
 #![cfg(feature = "sessions")]
 use ic_auth::{
     canonical::CanonicalAuthError,

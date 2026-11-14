@@ -11,12 +11,16 @@ use thiserror::Error;
 /// Request shape, narrowing and lifetime rejection; no cryptographic verification.
 #[derive(Debug, Error, Eq, PartialEq)]
 pub enum SessionRequestError {
+    /// Scope bounds, uniqueness or a nonzero requested lifetime were violated.
     #[error("session request has invalid scope bounds, duplicate scopes or zero TTL")]
     InvalidRequest,
+    /// Host TTL policy, requested lifetime or deadline arithmetic is invalid.
     #[error("invalid session TTL policy, requested lifetime or expiry overflow")]
     InvalidLifetime,
+    /// The request exceeds the grant for the protected receiver role.
     #[error("requested scopes are not granted for the protected receiver role")]
     ScopeRejected,
+    /// A scope label or grant cannot be represented canonically.
     #[error(transparent)]
     Canonical(#[from] CanonicalAuthError),
 }
@@ -31,12 +35,15 @@ pub enum SessionRequestError {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct SessionTtlLimit(u64);
 impl SessionTtlLimit {
+    /// Admit a positive maximum no greater than the protocol session ceiling.
     pub fn new(seconds: u64) -> Result<Self, SessionRequestError> {
         if seconds == 0 || seconds > crate::limits::MAX_SESSION_SECS {
             return Err(SessionRequestError::InvalidLifetime);
         }
         Ok(Self(seconds))
     }
+    #[must_use]
+    /// Return the admitted maximum in seconds.
     pub const fn seconds(self) -> u64 {
         self.0
     }
@@ -50,6 +57,7 @@ pub struct SessionTtlPolicy {
     maximum: SessionTtlLimit,
 }
 impl SessionTtlPolicy {
+    /// Admit positive default/maximum lifetimes with default no greater than maximum.
     pub fn new(default_secs: u64, maximum_secs: u64) -> Result<Self, SessionRequestError> {
         let maximum = SessionTtlLimit::new(maximum_secs)?;
         if default_secs == 0 || default_secs > maximum_secs {
@@ -60,9 +68,13 @@ impl SessionTtlPolicy {
             maximum,
         })
     }
+    #[must_use]
+    /// Lifetime used when a request does not specify one, in seconds.
     pub const fn default_secs(self) -> u64 {
         self.default_secs
     }
+    #[must_use]
+    /// Maximum admitted lifetime for both fresh admission and later authorization.
     pub const fn maximum(self) -> SessionTtlLimit {
         self.maximum
     }
@@ -76,6 +88,8 @@ pub struct SessionRequest {
     ttl_secs: Option<u64>,
 }
 impl SessionRequest {
+    /// Validate scope bounds and grammar, sort scopes, and reject duplicates or zero TTL.
+    /// This does not grant permissions or admit the TTL against host policy.
     pub fn new(scopes: Vec<String>, ttl_secs: Option<u64>) -> Result<Self, SessionRequestError> {
         check_scope_count(scopes.len())?;
         let mut scopes = ScopeLabel::from_strings(scopes).map_err(CanonicalAuthError::from)?;
@@ -86,9 +100,12 @@ impl SessionRequest {
         Ok(Self { scopes, ttl_secs })
     }
     /// Exact requested TTL in seconds; None leaves selection to protected host policy.
+    #[must_use]
     pub const fn ttl_secs(&self) -> Option<u64> {
         self.ttl_secs
     }
+    #[must_use]
+    /// Borrow the sorted, unique requested scopes.
     pub fn scopes(&self) -> &[ScopeLabel] {
         &self.scopes
     }
@@ -136,6 +153,7 @@ impl SessionRequest {
         self.expires_at_ns(now_ns, policy)
     }
     /// Exact Canic V1 request hash; None and an explicit default TTL differ.
+    #[must_use]
     pub fn hash(&self) -> [u8; 32] {
         let mut hash = Sha256::new();
         hash.update(b"canic-application-session-request-v1");

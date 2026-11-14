@@ -1,6 +1,11 @@
 //! Fixture-only upgrade checkpoint using the host-owned IC Memory allocation.
 //! This is not a production stable backend or a Root enrollment implementation.
-use super::*;
+use super::{
+    MAX_ADMITTED_LOGINS, MAX_ENCODED_BYTES, MAX_LOGIN_RECORDS, MAX_REPLAYS, MAX_SESSIONS,
+    MAX_SMALL_RECORD_BYTES, MAX_UNKNOWN_LOGINS, MemorySessionStore, RECEIVER, Receiver,
+    ReceiverConfig, ReceiverInputs, ReceiverLifecycle, ReceiverState, Session, limits,
+    login_ledger, with_receiver,
+};
 use ic_auth::{portable::LoginRevocationChange, session::Replay};
 use ic_auth_qualification_contracts::{self as controls, Refusal};
 use ic_wire::{Bytes, List};

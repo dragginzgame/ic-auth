@@ -18,6 +18,8 @@ fn config() -> IssuerConfig {
         max_operations_per_account: 64,
         max_reserved_bytes: 512 * 1024 * 1024,
         max_devices_per_account: 8,
+        issuance_burst: 200_001,
+        issuance_refill_interval_ns: 1,
     }
 }
 fn memory(backing: Backing) -> crate::persistent::StoreMemory<Backing> {
@@ -124,7 +126,7 @@ fn original_intent_results_and_windows_survive_retries_and_reopen() {
     );
     let occupancy = store.occupancy();
     drop(store);
-    let mut store = IssuerStore::open(memory(backing.clone()), &config(), 4).unwrap();
+    let mut store = IssuerStore::open(memory(backing), &config(), 4).unwrap();
     assert_eq!(store.occupancy(), occupancy);
     assert_eq!(
         store.retrieve(account(1), 1, req.operation_id),
@@ -409,7 +411,7 @@ fn one_account_cannot_fill_the_operation_table_with_one_login() {
 #[test]
 fn malformed_selected_records_refuse_before_publication() {
     let backing = Backing::new(VectorMemory::default());
-    let mut store = IssuerStore::create(memory(backing.clone()), config(), 1).unwrap();
+    let mut store = IssuerStore::create(memory(backing), config(), 1).unwrap();
     let request = request(1, 1);
     let ticket = pending(
         store

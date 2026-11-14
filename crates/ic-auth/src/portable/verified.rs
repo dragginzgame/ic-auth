@@ -75,11 +75,14 @@ impl VerifiedPortableClaims {
             .min(self.enrollment_expires_at_ns)
     }
 
+    #[must_use]
+    /// Borrow verified claims; admission and current authority checks remain separate.
     pub fn claims(&self) -> &PortableClaims {
         &self.claims
     }
 
     /// Canonical claims digest, independent of alternate proof/signature bytes.
+    #[must_use]
     pub fn fingerprint(&self) -> [u8; 32] {
         self.fingerprint
     }
@@ -88,6 +91,8 @@ impl VerifiedPortableClaims {
         self.browser_caller
     }
 
+    #[must_use]
+    /// Host time captured during verification, not a reusable freshness guarantee.
     pub fn verified_at_ns(&self) -> u64 {
         self.verified_at_ns
     }

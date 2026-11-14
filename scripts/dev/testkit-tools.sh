@@ -17,7 +17,7 @@ esac
 selection=(--consumer "$PWD" --package ic-testkit --lockfile qualification/Cargo.lock
     --bin ic-testkit-server --profile debug --features cli)
 [[ "$phase" != check ]] || selection+=(--check)
-cli="$(bash scripts/dev/install-rust-tools.sh "${selection[@]}")" || {
+cli="$(bash vendor/toko-tooling/scripts/dev/install-rust-tools.sh "${selection[@]}")" || {
     status=$?
     printf 'Testkit CLI ic-testkit-server selected by qualification/Cargo.lock %s failed (exit %s).\n' "$phase" "$status" >&2
     if [[ "$status" == 75 ]]; then
@@ -34,7 +34,7 @@ esac
 # The server operation is a separate effect boundary. Re-admit through the
 # canonical owner offline, then compare identities before reporting its path.
 [[ "$phase" != install ]] || selection+=(--check)
-observed_cli="$(bash scripts/dev/install-rust-tools.sh "${selection[@]}")" || {
+observed_cli="$(bash vendor/toko-tooling/scripts/dev/install-rust-tools.sh "${selection[@]}")" || {
     status=$?
     if [[ "$status" == 75 ]]; then
         echo 'Selected Testkit tool store is busy; retry the check after its owner finishes.' >&2

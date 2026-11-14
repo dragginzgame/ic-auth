@@ -1,7 +1,10 @@
 //! Controller-bound host effects around the real durable issuer. Signing is
 //! supplied by the test's native key or this fixture's existing certification
 //! owner. No shadow journal, copied renewal hash or private-key store is added.
-use super::*;
+use super::{
+    ISSUER, IssuerAuthority, IssuerPolicy, IssuerStatus, Refusal, RenewRequest, Report, StoreError,
+    account, authority, grants, policy, request,
+};
 use ic_auth_qualification_contracts::persistent::{IssuerAction, StoredCredential};
 
 pub(super) fn issuer(

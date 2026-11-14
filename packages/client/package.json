@@ -30,7 +30,7 @@
   "scripts": {
     "build": "tsc -b tsconfig.json",
     "build:package": "tsc -p tsconfig.package.json",
-    "check:sdk": "node ../../scripts/ci/check-ic-sdk-boundary.mjs .",
+    "check:sdk": "node ../../vendor/toko-tooling/scripts/ci/check-ic-sdk-boundary.mjs .",
     "test": "npm run check:sdk && npm run build && node --test --test-isolation=none --test-reporter=tap dist/test/*.test.js"
   },
   "dependencies": {

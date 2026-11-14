@@ -12,8 +12,10 @@ printf 'Auth validation input evidence retained: %s\n' "$evidence"
 export VALIDATION_LOG_DIR="$evidence/logs" VALIDATION_FAILURE_LOG_DIR="$evidence/failure-logs"
 consumer="$evidence/consumer with spaces"
 mkdir -p "$consumer/scripts/ci" "$consumer/first/src" "$consumer/added member/src" "$evidence/bin"
-for helper in run-auth-validation.sh run-validation-targets.sh check-make-execution.sh verify-file-checksum.sh validation-input-checkpoint.pl release-validation-plan.pl ValidationPlan.pm cargo-release-group.sh cargo-release-groups.jq cargo-qualification-release.sh cargo-qualification-release.jq release-metadata-transaction.sh compare-stable-versions.pl; do
-    cp "scripts/ci/$helper" "$consumer/scripts/ci/"
+cp scripts/ci/run-auth-validation.sh "$consumer/scripts/ci/"
+mkdir -p "$consumer/vendor/toko-tooling/scripts/ci"
+for helper in run-validation-targets.sh check-make-execution.sh verify-file-checksum.sh validation-input-checkpoint.pl release-validation-plan.pl ValidationPlan.pm cargo-release-group.sh cargo-release-groups.jq cargo-qualification-release.sh cargo-qualification-release.jq release-metadata-transaction.sh compare-stable-versions.pl; do
+    cp "vendor/toko-tooling/scripts/ci/$helper" "$consumer/vendor/toko-tooling/scripts/ci/"
 done
 cat > "$consumer/Cargo.toml" <<'TOML'
 [workspace]

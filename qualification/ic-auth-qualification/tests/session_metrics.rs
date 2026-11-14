@@ -101,7 +101,16 @@ impl Host {
             ledger: MemoryLoginRevocations::new(claims.audience, 4, 4, 86_400_000_000_000, 0)
                 .unwrap(),
             claims,
-            budget: SessionAdmissionBudget::new(1, SECOND, NOW - SECOND).unwrap(),
+            budget: SessionAdmissionBudget::for_verification(
+                1,
+                SECOND,
+                ic_auth::admission_budget::VerificationCosts {
+                    ed25519: 1,
+                    certified: 1,
+                },
+                NOW - SECOND,
+            )
+            .unwrap(),
             metrics: Default::default(),
         }
     }
@@ -190,7 +199,16 @@ fn committed_outcomes_and_retry_fast_path_stay_distinct() {
     assert_eq!(host.metrics.budget_refused.exact_total(), Ok(1));
 
     let mut host = Host::new();
-    host.budget = SessionAdmissionBudget::new(2, 1, 0).unwrap();
+    host.budget = SessionAdmissionBudget::for_verification(
+        2,
+        1,
+        ic_auth::admission_budget::VerificationCosts {
+            ed25519: 1,
+            certified: 1,
+        },
+        0,
+    )
+    .unwrap();
     host.admit(&host.credential()).unwrap();
     host.claims.nonce[0] += 1;
     assert!(matches!(
@@ -233,7 +251,16 @@ fn proof_and_store_failures_keep_charges_and_never_count_a_commit() {
     assert_eq!(host.metrics.budget_refused.exact_total(), Ok(1));
 
     let mut host = Host::new();
-    host.budget = SessionAdmissionBudget::new(2, 1, 0).unwrap();
+    host.budget = SessionAdmissionBudget::for_verification(
+        2,
+        1,
+        ic_auth::admission_budget::VerificationCosts {
+            ed25519: 1,
+            certified: 1,
+        },
+        0,
+    )
+    .unwrap();
     let original = host.credential();
     host.admit(&original).unwrap();
     host.claims.nonce[0] += 1;
@@ -264,7 +291,7 @@ fn diagnostic_reset_preserves_budget_replay_generation_and_revocation() {
     host.admit(&host.credential()).unwrap_err();
     assert_eq!(host.metrics.budget_refused.exact_total(), Ok(1));
     let caller = browser_principal(&host.claims.browser_public_key);
-    let mut logout_budget = SessionAdmissionBudget::new(1, 1, 0).unwrap();
+    let mut logout_budget = SessionAdmissionBudget::for_operations(1, 1, 0).unwrap();
     assert!(matches!(
         logout_session(
             &mut host.store,

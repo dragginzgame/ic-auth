@@ -18,7 +18,7 @@ use ic_auth_wire::{
     wire::{Bytes, List, Text},
 };
 use ic_platform::ed25519::{Signer, SigningKey};
-use ic_testkit::pic::update_wire;
+use ic_testkit_wire::update_wire;
 use sha2::{Digest, Sha256};
 use std::time::Duration;
 const SECOND: u64 = 1_000_000_000;
@@ -883,7 +883,16 @@ pub(super) async fn qualify_certified(
     let mut ledger =
         MemoryLoginRevocations::new(*old.claims.authority.audience, 1, 1, 86_400_000_000_000, 0)
             .unwrap();
-    let mut budget = SessionAdmissionBudget::new(8, 1, 0).unwrap();
+    let mut budget = SessionAdmissionBudget::for_verification(
+        8,
+        1,
+        ic_auth::admission_budget::VerificationCosts {
+            ed25519: 1,
+            certified: 1,
+        },
+        0,
+    )
+    .unwrap();
     let bytes = encode_claims(&claims).unwrap();
     let credential = PortableCredential {
         claims: bytes.clone(),

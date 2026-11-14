@@ -38,26 +38,37 @@ pub struct CanisterSignaturePolicy<'a> {
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum CanisterSignatureError {
     #[error("signature exceeds the host's byte limit")]
+    /// CBOR signature bytes exceed the host limit before parsing.
     SignatureTooLarge,
     #[error("message exceeds the host's byte limit")]
+    /// Signed message bytes exceed the host limit before hashing.
     MessageTooLarge,
     #[error("invalid or unsupported canister signature public key DER")]
+    /// The DER key is malformed or outside the supported canister-key framing.
     InvalidPublicKey,
     #[error("signing canister does not match protected authority")]
+    /// The key names a different canister from protected signer policy.
     CanisterMismatch,
     #[error("signature seed does not match protected authority")]
+    /// The key seed hash differs from the protected issuer binding.
     SeedMismatch,
     #[error("network root public key must contain 96 raw bytes")]
+    /// The protected IC trust anchor is not a raw 96-byte BLS key.
     InvalidRootKeyLength,
     #[error("invalid canister signature or certificate: {0}")]
+    /// Maintained certificate/signature verification failed; text is diagnostic only.
     InvalidSignature(String),
     #[error("certificate time is absent or not a complete u64 LEB128 value")]
+    /// Authenticated certificate time is absent or not a complete u64 LEB128 value.
     InvalidCertificateTime,
     #[error("signing certificate is too old")]
+    /// Certificate age exceeds the host's inclusive age allowance.
     CertificateTooOld,
     #[error("signing certificate is too far in the future")]
+    /// Certificate time exceeds the host's inclusive future-skew allowance.
     CertificateInFuture,
     #[error("signature domain exceeds the IC's one-byte length prefix")]
+    /// The IC signature domain cannot fit its one-byte length prefix.
     DomainTooLong,
 }
 

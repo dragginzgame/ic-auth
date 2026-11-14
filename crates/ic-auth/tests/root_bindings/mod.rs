@@ -5,6 +5,10 @@ use ic_auth::delegation::{DelegationField, DelegationTarget};
 use ic_auth::delegation::{DelegationProofVerificationContext, verify_delegation_proof};
 use ic_platform::ecdsa::PrehashVerifier;
 
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "Test assertions accept owned expected errors constructed at each call site."
+)]
 fn assert_rejected(f: &Fixture, expected: Error) {
     let unchanged = f.proof.clone();
     let standalone = verify_delegation_proof(

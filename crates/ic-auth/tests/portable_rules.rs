@@ -1,3 +1,4 @@
+//! Protected claims policy rejects incorrect identities, grants and lifetime windows.
 use ic_auth::portable::{
     PortableClaimsContext, PortableClaimsError as Error, ValidatedGrants, browser_principal,
     validate_claims_context,
@@ -332,7 +333,7 @@ fn impossible_or_overlong_windows_and_policy_are_refused_without_wrapping() {
             Err(Error::InvalidContext)
         );
     }
-    let mut boundary = trusted.clone();
+    let mut boundary = trusted;
     boundary.login_started_at_ns = u64::MAX - 100;
     boundary.login_deadline_ns = u64::MAX;
     boundary.issued_at_ns = u64::MAX - 60;

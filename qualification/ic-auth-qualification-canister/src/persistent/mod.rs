@@ -3,7 +3,10 @@
 mod lifecycle;
 use ic_auth::persistent::{
     StoreError, StoreMemory,
-    issuer::*,
+    issuer::{
+        IssueRequest, IssuerAuthority, IssuerConfig, IssuerPolicy, IssuerStatus, IssuerStore,
+        RenewRequest,
+    },
     receiver::{BudgetPolicy, LoginLimits, ReceiverConfig, ReceiverMemory, ReceiverStore},
 };
 use ic_auth::{
@@ -45,6 +48,8 @@ fn config() -> IssuerConfig {
         max_operations_per_account: 64,
         max_reserved_bytes: 512 * 1024 * 1024,
         max_devices_per_account: 8,
+        issuance_burst: 200_001,
+        issuance_refill_interval_ns: 1,
     }
 }
 pub(crate) fn bootstrap(
@@ -93,6 +98,10 @@ fn receiver_config() -> ReceiverConfig {
         BudgetPolicy {
             burst: 16,
             refill_interval_ns: 1,
+        },
+        ic_auth::admission_budget::VerificationCosts {
+            ed25519: 1,
+            certified: 1,
         },
     )
     .expect("receiver configuration")

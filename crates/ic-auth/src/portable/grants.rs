@@ -32,12 +32,15 @@ impl ValidatedGrants {
         Ok(Self(grants))
     }
 
+    #[must_use]
+    /// Borrow immutable admitted grants without revalidation or copying.
     pub fn as_slice(&self) -> &[DelegatedRoleGrant] {
         &self.0
     }
 
     /// Consume structural evidence before editing or projecting the raw grants.
     /// Reconstruct through `new` before using edited grants as authority again.
+    #[must_use]
     pub fn into_vec(self) -> Vec<DelegatedRoleGrant> {
         self.0
     }

@@ -1,3 +1,4 @@
+//! Persistent receiver conformance with transaction rollback and durable reopen.
 #![cfg(feature = "persistent")]
 use ic_auth::persistent::{
     StoreMemory,

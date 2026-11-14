@@ -31,15 +31,15 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - name: Restore pinned tool downloads
-        uses: ./.github/actions/cache-tool-downloads
+        uses: ./vendor/toko-tooling/.github/actions/cache-tool-downloads
       - name: Install pinned secret scanner
         shell: bash
         run: |
-          scanner="$(bash scripts/ci/install-ci-tool.sh gitleaks \
+          scanner="$(bash vendor/toko-tooling/scripts/ci/install-ci-tool.sh gitleaks \
             --install-dir "$RUNNER_TEMP/ic-auth-security-bin")"
           echo "GITLEAKS_BIN=$scanner" >> "$GITHUB_ENV"
       - name: Save pinned tool downloads
-        uses: ./.github/actions/cache-tool-downloads
+        uses: ./vendor/toko-tooling/.github/actions/cache-tool-downloads
         with:
           mode: save
       - name: Scan complete repository history
@@ -72,7 +72,7 @@ jobs:
       - name: Prepare retained evidence directories
         run: mkdir -p target/portable-fixtures target/browser-client
       - name: Restore pinned tool downloads
-        uses: ./.github/actions/cache-tool-downloads
+        uses: ./vendor/toko-tooling/.github/actions/cache-tool-downloads
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version-file: packages/client/.nvmrc
@@ -90,7 +90,7 @@ jobs:
           make --no-print-directory install-host-tools
           make --no-print-directory host-tools-check
           export PATH="$GITHUB_WORKSPACE/.tools/host/bin:$PATH"
-          bash scripts/ci/cargo-tool-cache-key.sh ci/tool-versions.env >> "$GITHUB_OUTPUT"
+          bash vendor/toko-tooling/scripts/ci/cargo-tool-cache-key.sh vendor/toko-tooling/ci/tool-versions.env >> "$GITHUB_OUTPUT"
       - name: Restore Cargo tool builds
         id: tool-cache
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -112,7 +112,7 @@ jobs:
             "$GITHUB_WORKSPACE/.tools/rust/common/bin" >> "$GITHUB_PATH"
           make fetch
       - name: Save pinned tool downloads
-        uses: ./.github/actions/cache-tool-downloads
+        uses: ./vendor/toko-tooling/.github/actions/cache-tool-downloads
         with:
           mode: save
       # Save after setup and admission, before longer tests can be cancelled.
@@ -134,7 +134,7 @@ jobs:
         id: tools-evidence-upload
         env:
           TOKO_TOOLING_STORE: ${{ steps.tools-evidence.outputs.store }}
-        uses: ./.github/actions/retain-failure-evidence
+        uses: ./vendor/toko-tooling/.github/actions/retain-failure-evidence
         with:
           name: ic-auth-rust-tools-${{ matrix.os }}-${{ github.run_attempt }}
           temp-root: ${{ steps.tools-evidence.outputs.temp }}
@@ -149,7 +149,7 @@ jobs:
           EVIDENCE_RUN: ${{ github.run_id }}
           EVIDENCE_ARTIFACT: ${{ steps.tools-evidence-upload.outputs.artifact-id }}
           EVIDENCE_DIGEST: ${{ steps.tools-evidence-upload.outputs.artifact-digest }}
-        run: bash scripts/ci/download-evidence.sh "$EVIDENCE_REPOSITORY" "$EVIDENCE_RUN" "$EVIDENCE_ARTIFACT" "$EVIDENCE_DIGEST" "$GITHUB_WORKSPACE/target/tools-evidence-downloaded"
+        run: bash vendor/toko-tooling/scripts/ci/download-evidence.sh "$EVIDENCE_REPOSITORY" "$EVIDENCE_RUN" "$EVIDENCE_ARTIFACT" "$EVIDENCE_DIGEST" "$GITHUB_WORKSPACE/target/tools-evidence-downloaded"
       - name: Verify uploaded Rust-tool failure bytes
         env:
           EXPECTED_EVIDENCE: ${{ steps.tools-evidence.outputs.expected }}
@@ -158,7 +158,7 @@ jobs:
           mkdir payload
           tar -xzf evidence.tar.gz -C payload
           cd payload
-          bash "$GITHUB_WORKSPACE/scripts/ci/verify-evidence-checksums.sh" "$EXPECTED_EVIDENCE"
+          bash "$GITHUB_WORKSPACE/vendor/toko-tooling/scripts/ci/verify-evidence-checksums.sh" "$EXPECTED_EVIDENCE"
           test ! -e .tools/rust/unrelated-cache
           test ! -e rust-unrelated
       - name: Validate
@@ -178,12 +178,12 @@ jobs:
         run: |
           if [[ -e .tools/testkit-server || -L .tools/testkit-server ]]; then
             evidence_dir="$(mktemp -d target/portable-fixtures/testkit-setup.XXXXXX)"
-            bash scripts/ci/archive-evidence.sh "$PWD/$evidence_dir/server-evidence.tar.gz" \
+            bash vendor/toko-tooling/scripts/ci/archive-evidence.sh "$PWD/$evidence_dir/server-evidence.tar.gz" \
               "$PWD" .tools/testkit-server
           fi
       - name: Retain failed validation evidence
         if: ${{ failure() && !cancelled() }}
-        uses: ./.github/actions/retain-failure-evidence
+        uses: ./vendor/toko-tooling/.github/actions/retain-failure-evidence
         with:
           name: ic-auth-failure-${{ matrix.os }}-${{ github.run_attempt }}
           temp-root: ${{ github.workspace }}/target

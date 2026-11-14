@@ -1,3 +1,4 @@
+//! Filesystem adapter contracts for bounded reads, atomic publication and cleanup.
 use std::{
     fs,
     path::{Path, PathBuf},

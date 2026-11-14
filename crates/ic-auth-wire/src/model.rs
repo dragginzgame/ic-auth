@@ -78,7 +78,11 @@ macro_rules! record {
     ($name:ident { $($field:ident: $ty:ty),* $(,)? }) => {
         #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 #[cfg_attr(feature = "typescript", derive(ic_wire::Wire))]
-        pub struct $name { $(pub $field: $ty),* }
+        #[doc = concat!("Bounded transport projection of [`ic_auth_protocol_types::", stringify!($name), "`]. Conversion checks representation, not proof validity or authority.")]
+        pub struct $name { $(
+            #[doc = concat!("Bounded representation of [`ic_auth_protocol_types::", stringify!($name), "::", stringify!($field), "`]; the domain contract defines its meaning.")]
+            pub $field: $ty
+        ),* }
         impl TryFrom<domain::$name> for $name {
             type Error = Error;
             fn try_from(value: domain::$name) -> Result<Self, Error> {
@@ -101,7 +105,11 @@ macro_rules! unit_enum {
     ($name:ident { $($variant:ident),* $(,)? }) => {
         #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 #[cfg_attr(feature = "typescript", derive(ic_wire::Wire))]
-        pub enum $name { $($variant),* }
+        #[doc = concat!("Wire representation of [`ic_auth_protocol_types::", stringify!($name), "`], preserving its domain meanings.")]
+        pub enum $name { $(
+            #[doc = concat!("Transport tag for [`ic_auth_protocol_types::", stringify!($name), "::", stringify!($variant), "`].")]
+            $variant
+        ),* }
         impl Field<domain::$name> for $name {
             fn from_domain(value: domain::$name) -> Result<Self, Error> {
                 Ok(value.into())
@@ -126,7 +134,11 @@ macro_rules! tuple_enum {
     ($name:ident { $($variant:ident($ty:ty)),* $(,)? }) => {
         #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 #[cfg_attr(feature = "typescript", derive(ic_wire::Wire))]
-        pub enum $name { $($variant($ty)),* }
+        #[doc = concat!("Bounded transport projection of [`ic_auth_protocol_types::", stringify!($name), "`]; decoding does not establish trust.")]
+        pub enum $name { $(
+            #[doc = concat!("Bounded payload for [`ic_auth_protocol_types::", stringify!($name), "::", stringify!($variant), "`].")]
+            $variant($ty)
+        ),* }
         impl Field<domain::$name> for $name {
             fn from_domain(value: domain::$name) -> Result<Self, Error> {
                 Ok(match value { $(domain::$name::$variant(v) => Self::$variant(Field::from_domain(v)?)),* })
@@ -152,7 +164,9 @@ unit_enum!(IssuerProofAlgorithm {
 });
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 #[cfg_attr(feature = "typescript", derive(ic_wire::Wire))]
+/// Transport binding for the delegated issuer key, never an independent trust anchor.
 pub enum IssuerProofBinding {
+    /// SHA-256 seed hash required of the issuer's canister-signature public key.
     IcCanisterSignatureV1([u8; 32]),
 }
 impl Field<domain::IssuerProofBinding> for IssuerProofBinding {
@@ -218,14 +232,20 @@ record!(DelegationProof {
 });
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 #[cfg_attr(feature = "typescript", derive(ic_wire::Wire))]
+/// Bounded root delegation and issuer signature for a certified portable credential.
 pub struct CertifiedProof {
+    /// Root authority proof for the issuer's delegated grants.
     pub delegation: DelegationProof,
+    /// Issuer canister signature covering the canonical claims digest and domain.
     pub issuer_signature: IcCanisterSignatureProofV1,
 }
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 #[cfg_attr(feature = "typescript", derive(ic_wire::Wire))]
+/// Bounded proof transport; the selected mechanism must match protected enrollment.
 pub enum PortableProof {
+    /// Root-delegated IC canister signature material, still requiring verification.
     Certified(Box<CertifiedProof>),
+    /// Up to 64 raw signature bytes; strict verification requires exactly 64.
     Ed25519(Bytes<64>),
 }
 impl Field<domain::PortableProof> for PortableProof {
@@ -276,10 +296,15 @@ unit_enum!(LogoutUnavailable {
 });
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 #[cfg_attr(feature = "typescript", derive(ic_wire::Wire))]
+/// Local logout response; it never acknowledges revocation at other receivers.
 pub enum LogoutResult {
+    /// Committed denial through the authenticated login deadline in nanoseconds.
     Revoked(u64),
+    /// Local denial deadline in nanoseconds without confirmation of all outstanding issuance.
     Unconfirmed(u64),
+    /// The authenticated caller cannot select a logout identity.
     InvalidCaller,
+    /// Local revocation could not be acknowledged; retain unknown issuance state.
     Unavailable(LogoutUnavailable),
 }
 impl From<domain::LogoutResult> for LogoutResult {

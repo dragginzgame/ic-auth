@@ -31,17 +31,17 @@ check_release_commands() {
     # Dispatch has no real Cargo graph. Substitute Auth's additional admission
     # in a disposable input tree; --tooling qualifies its real fail-closed path.
     local input_root="$fixture/release-command-inputs"
-    local inputs=(ci/tool-versions.env make/consumer.mk make/tools.mk make/release.mk make/rust-format.mk
-        make/execution.mk scripts/ci/check-make-execution.sh
-        scripts/ci/check-release-delivery.sh ci/release-delivery.txt
+    local inputs=(vendor/toko-tooling/ci/tool-versions.env vendor/toko-tooling/make/consumer.mk vendor/toko-tooling/make/tools.mk vendor/toko-tooling/make/release.mk vendor/toko-tooling/make/rust-format.mk
+        vendor/toko-tooling/make/execution.mk vendor/toko-tooling/scripts/ci/check-make-execution.sh
+        vendor/toko-tooling/scripts/ci/check-release-delivery.sh ci/release-delivery.txt
         scripts/ci/check-qualification-workspace.sh)
     mkdir "$input_root"
-    bash "$root/scripts/ci/prepare-script-fixture.sh" "$1" "$input_root" Makefile "${inputs[@]}"
+    bash "$root/vendor/toko-tooling/scripts/ci/prepare-script-fixture.sh" "$1" "$input_root" Makefile "${inputs[@]}"
     cat > "$input_root/scripts/ci/check-qualification-workspace.sh" <<'SCRIPT'
 #!/usr/bin/env bash
 set -euo pipefail
 SCRIPT
-    TMPDIR="$fixture" env -u CARGO_TARGET_DIR bash "$root/scripts/ci/check-release-commands.sh" \
+    TMPDIR="$fixture" env -u CARGO_TARGET_DIR bash "$root/vendor/toko-tooling/scripts/ci/check-release-commands.sh" \
         "$input_root" "${inputs[@]}"
 }
 check_tooling_admission() {
@@ -151,11 +151,11 @@ export GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null
 if [[ "$mode" == all ]]; then
 # Qualify both current feature admission and saved pre-CLI selections without
 # installing another executable or depending on today's Cargo metadata.
-mkdir -p "$fixture/editor-selection/scripts/dev"
+mkdir -p "$fixture/editor-selection/scripts/dev" "$fixture/editor-selection/vendor/toko-tooling/scripts/dev"
 cp "$root/scripts/dev/release-tools.sh" "$fixture/editor-selection/scripts/dev/"
 cp "$root/Cargo.toml" "$fixture/editor-selection/Cargo.toml"
 printf '[workspace]\n' > "$fixture/pre-cli.toml"
-cat > "$fixture/editor-selection/scripts/dev/install-rust-tools.sh" <<'SCRIPT'
+cat > "$fixture/editor-selection/vendor/toko-tooling/scripts/dev/install-rust-tools.sh" <<'SCRIPT'
 #!/usr/bin/env bash
 set -euo pipefail
 [[ "$*" == *' --lockfile saved.lock --bin ic-build-release-metadata --profile debug'* ]]
@@ -201,7 +201,7 @@ rg -F 'invalid release editor features' "$fixture/invalid-editor-features.log" >
 fi
 mkdir "$fixture/repo"
 # Qualify one coherent working source, including uncommitted additions/deletions.
-bash "$root/scripts/ci/verify-toko-tooling-snapshot.sh"
+bash "$root/vendor/toko-tooling/scripts/ci/verify-toko-tooling-snapshot.sh"
 if [[ "$mode" == all ]]; then bash "$root/scripts/ci/test-release-fixture-source.sh"; fi
 bash "$root/scripts/release/export-fixture-source.sh" "$root" "$fixture/repo"
 # Exercise the actual shared Make entrypoints before substituting the larger
@@ -237,7 +237,7 @@ rg -F 'release delivery refused' "$fixture/refused-delivery.stderr" > /dev/null
 # workspace advances. Do not make future CI depend on today's version.
 for selected_group in engine protocol; do
     if [[ "$selected_group" == engine ]]; then selected_version=0.9.0; else selected_version=0.1.0; fi
-    RELEASE_VERSION="$selected_version" bash "$PWD/scripts/ci/cargo-release-group.sh" plan "$selected_group" > "$fixture/synthetic-plan.json"
+    RELEASE_VERSION="$selected_version" bash "$PWD/vendor/toko-tooling/scripts/ci/cargo-release-group.sh" plan "$selected_group" > "$fixture/synthetic-plan.json"
     initial="$(jq -r .previous "$fixture/synthetic-plan.json")"
     while IFS= read -r manifest; do
         jq --arg path "$manifest" '.manifests[] | select(.path == $path) | {version,dependencies}' \
@@ -259,14 +259,14 @@ printf '# Changelog\n\n## [0.1.1]\n\n- Fixture release.\n' > releases/protocol/C
 if [[ "$mode" == batch ]]; then
     printf '# Changelog\n\n## [0.9.1]\n\n- Frozen Engine fixture.\n' > releases/engine/CHANGELOG.md
 fi
-RELEASE_VERSION=0.9.1 bash "$PWD/scripts/ci/cargo-release-group.sh" plan engine > "$fixture/engine-before.json"
+RELEASE_VERSION=0.9.1 bash "$PWD/vendor/toko-tooling/scripts/ci/cargo-release-group.sh" plan engine > "$fixture/engine-before.json"
 while IFS= read -r path; do
     mkdir -p "$fixture/unselected-engine/${path%/*}"
     cp "$path" "$fixture/unselected-engine/$path"
 done < <(jq -r '.manifests[] | select(.version == "package") | .path' "$fixture/engine-before.json"; printf '%s\n' releases/engine/CHANGELOG.md)
 # Substitute external effects at script boundaries; retain the actual Make
 # recipes, ordered common/product admission and release routing without overrides.
-cat > scripts/ci/run-validation-targets.sh <<'SCRIPT'
+cat > vendor/toko-tooling/scripts/ci/run-validation-targets.sh <<'SCRIPT'
 #!/usr/bin/env bash
 set -euo pipefail
 [[ -f target/common-tools-ready && -f target/testkit-ready && -f target/host-file-ready && -f target/release-editor-ready ]] || exit 1
@@ -295,16 +295,16 @@ logs="$VALIDATION_LOG_DIR/validation.fixture"
 mkdir -p "$logs"
 # Keep Shared's actual plan parser and checkpoint format. Substitute only the
 # underlying stage bodies, so the canonical verifier admits the same protocol.
-perl scripts/ci/validation-input-checkpoint.pl "$PWD" '' "$logs/inputs.json" \
-    scripts/ci/verify-file-checksum.sh "${base_inputs[@]}" "$plan"
-perl scripts/ci/release-validation-plan.pl "$PWD" "$plan" "$RELEASE_SOURCE" "$RELEASE_GROUP" \
+perl vendor/toko-tooling/scripts/ci/validation-input-checkpoint.pl "$PWD" '' "$logs/inputs.json" \
+    vendor/toko-tooling/scripts/ci/verify-file-checksum.sh "${base_inputs[@]}" "$plan"
+perl vendor/toko-tooling/scripts/ci/release-validation-plan.pl "$PWD" "$plan" "$RELEASE_SOURCE" "$RELEASE_GROUP" \
     "$logs/inputs.json" "$logs/parsed-inputs.json" > "$logs/plan-selection.tsv"
 inputs=()
 while IFS=$'\t' read -r decision value _reason; do
     [[ "$decision" != input ]] || inputs+=("$value")
 done < "$logs/plan-selection.tsv"
-perl scripts/ci/validation-input-checkpoint.pl "$PWD" "$logs/parsed-inputs.json" \
-    "$logs/plan-inputs.json" scripts/ci/verify-file-checksum.sh "${inputs[@]}"
+perl vendor/toko-tooling/scripts/ci/validation-input-checkpoint.pl "$PWD" "$logs/parsed-inputs.json" \
+    "$logs/plan-inputs.json" vendor/toko-tooling/scripts/ci/verify-file-checksum.sh "${inputs[@]}"
 printf 'target\tstate\treason\n' > "$logs/plan-events.tsv"
 printf 'target\tresult\tseconds\tlog\n' > "$logs/timings.tsv"
 while IFS=$'\t' read -r decision target reason; do
@@ -325,7 +325,7 @@ while IFS=$'\t' read -r decision target _reason; do
     index=$((index+1))
 done < "$logs/plan-selection.tsv"
 SCRIPT
-cat > scripts/dev/install-host-tools.sh <<'SCRIPT'
+cat > vendor/toko-tooling/scripts/dev/install-host-tools.sh <<'SCRIPT'
 #!/usr/bin/env bash
 set -euo pipefail
 mkdir -p target
@@ -338,10 +338,9 @@ else
     touch target/common-tools-ready
 fi
 SCRIPT
-for script in install-ic-tools msrv-tools; do
-    printf '#!/usr/bin/env bash\nexit 0\n' > "scripts/dev/$script.sh"
-done
-cat > scripts/dev/install-rust-tools.sh <<'SCRIPT'
+printf '#!/usr/bin/env bash\nexit 0\n' > vendor/toko-tooling/scripts/dev/install-ic-tools.sh
+printf '#!/usr/bin/env bash\nexit 0\n' > scripts/dev/msrv-tools.sh
+cat > vendor/toko-tooling/scripts/dev/install-rust-tools.sh <<'SCRIPT'
 #!/usr/bin/env bash
 set -euo pipefail
 # Common Rust effects are already substituted above. Editor selection must use
@@ -649,7 +648,7 @@ make --no-print-directory release-patch > "$fixture/patch.log" 2>&1
 [[ "$(make -s release-version)" == 0.1.1 ]] || exit 1
 [[ "$(awk '/^## / { print; exit }' releases/protocol/CHANGELOG.md)" == "## [0.1.1] - $(jq -r .date release-validation.json)" ]] || exit 1
 commit="$(git rev-parse HEAD)"
-bash scripts/ci/check-release-tag.sh "$commit" 0.1.1 "$RELEASE_GROUP"
+bash vendor/toko-tooling/scripts/ci/check-release-tag.sh "$commit" 0.1.1 "$RELEASE_GROUP"
 [[ "$(git --git-dir="$fixture/remote.git" rev-parse main)" == "$commit" ]] || exit 1
 [[ "$(git --git-dir="$fixture/remote.git" rev-parse protocol-v0.1.1)" == "$(git rev-parse protocol-v0.1.1)" ]] || exit 1
 [[ -f target/keep ]] || exit 1
@@ -715,7 +714,7 @@ grep -F 'Registry observation evidence retained:' "$fixture/lost-reply.log" | \
 [[ "$(wc -l < "$fixture/lost-reply-evidence.paths")" -eq 2 ]] || exit 1
 while IFS= read -r observation; do
     [[ "$(cat "$observation/http-status")" == 404 && "$(cat "$observation/curl-exit")" == 0 ]] || exit 1
-    bash scripts/ci/verify-file-checksum.sh --print sha256 "$observation/http-status" >> "$fixture/lost-reply-status.hashes"
+    bash vendor/toko-tooling/scripts/ci/verify-file-checksum.sh --print sha256 "$observation/http-status" >> "$fixture/lost-reply-status.hashes"
 done < "$fixture/lost-reply-evidence.paths"
 if bash scripts/release/publish.sh > "$fixture/unresolved.log" 2>&1; then exit 1; fi
 [[ "$(wc -l < "$fixture/uploads")" -eq 1 ]] || exit 1
@@ -739,7 +738,7 @@ bash scripts/release/publish.sh > "$fixture/published-with-retained-lock.log" 2>
 [[ -d .git/publication-state/.cargo-publication.lock && "$(wc -l < "$fixture/uploads")" -eq 2 ]] || exit 1
 mv .git/publication-state/.cargo-publication.lock "$fixture/reconciled-helper-lock"
 while IFS= read -r observation; do
-    bash scripts/ci/verify-file-checksum.sh --print sha256 "$observation/http-status" >> "$fixture/lost-reply-status-after.hashes"
+    bash vendor/toko-tooling/scripts/ci/verify-file-checksum.sh --print sha256 "$observation/http-status" >> "$fixture/lost-reply-status-after.hashes"
 done < "$fixture/lost-reply-evidence.paths"
 cmp "$fixture/lost-reply-status.hashes" "$fixture/lost-reply-status-after.hashes"
 
@@ -872,7 +871,7 @@ make --no-print-directory release-resume VERSION="$candidate" > "$fixture/minor.
 cmp target/preparation-dispatch.log "$fixture/interrupted-dispatch.log"
 [[ "$(awk '/^install$/ { n++ } END { print n+0 }' target/editor-events.log)" == "$editor_installs" ]] || exit 1
 [[ "$(make -s release-version)" == "$candidate" ]] || exit 1
-bash scripts/ci/check-release-tag.sh "$(git rev-parse HEAD)" "$candidate" "$RELEASE_GROUP"
+bash vendor/toko-tooling/scripts/ci/check-release-tag.sh "$(git rev-parse HEAD)" "$candidate" "$RELEASE_GROUP"
 [[ -f target/keep ]] || exit 1
 # Qualify the consumer's actual local metadata/receipt owner when a maintainer
 # commits the disposition of interrupted preparation. Shared 0.26.18 starts
@@ -880,7 +879,7 @@ bash scripts/ci/check-release-tag.sh "$(git rev-parse HEAD)" "$candidate" "$RELE
 if [[ "$mode" == all ]]; then
 for disposition in restored prepared; do
     base="$(make -s release-version)"
-    saved_candidate="$(bash scripts/ci/next-release-version.sh "$base" patch)"
+    saved_candidate="$(bash vendor/toko-tooling/scripts/ci/next-release-version.sh "$base" patch)"
     printf '# Changelog\n\n## [%s]\n\n- Interrupted preparation fixture.\n' "$saved_candidate" > releases/protocol/CHANGELOG.md
     git add releases/protocol/CHANGELOG.md
     git commit -qm 'Prepare interrupted fixture notes'
@@ -910,7 +909,7 @@ for disposition in restored prepared; do
         kind='patch'
     fi
     base="$(make -s release-version)"
-    candidate="$(bash scripts/ci/next-release-version.sh "$base" "$kind")"
+    candidate="$(bash vendor/toko-tooling/scripts/ci/next-release-version.sh "$base" "$kind")"
     printf '# Changelog\n\n## [%s]\n\n- Committed preparation disposition fixture.\n\n## [%s] - 2026-10-05\n\n- Earlier fixture metadata.\n' "$candidate" "$base" > releases/protocol/CHANGELOG.md
     git add -- Cargo.toml Cargo.lock releases/protocol/CHANGELOG.md crates/ic-auth-protocol-types/Cargo.toml crates/ic-auth-wire/Cargo.toml release-validation.json qualification/Cargo.toml qualification/Cargo.lock
     git commit -qm 'Commit fixture metadata disposition'
@@ -987,7 +986,7 @@ git commit -qm 'Prepare Engine fixture notes'
 export RELEASE_GROUP=engine
 make --no-print-directory release-minor > "$fixture/engine-minor.log" 2>&1
 [[ "$(make -s release-version)" == 0.10.0 ]]
-bash scripts/ci/check-release-tag.sh "$(git rev-parse HEAD)" 0.10.0 engine
+bash vendor/toko-tooling/scripts/ci/check-release-tag.sh "$(git rev-parse HEAD)" 0.10.0 engine
 for path in crates/ic-auth-protocol-types/Cargo.toml crates/ic-auth-wire/Cargo.toml releases/protocol/CHANGELOG.md; do
     cmp "$path" "$fixture/unselected-protocol/$path"
 done

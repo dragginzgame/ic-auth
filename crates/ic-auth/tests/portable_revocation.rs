@@ -1,3 +1,4 @@
+//! Login reservations, revocation and session atomicity across browser/device identities.
 #![cfg(feature = "portable-signature-verification")]
 
 mod support;
@@ -548,7 +549,7 @@ fn host_commit_errors_propagate_without_installing_state_or_refunding_logout_cre
         .with_reservation::<_, SessionError>(caller(1), &checked, 1, |_| Ok(()))
         .unwrap();
 
-    let mut unknown_budget = SessionAdmissionBudget::new(1, 1, 0).unwrap();
+    let mut unknown_budget = SessionAdmissionBudget::for_operations(1, 1, 0).unwrap();
     assert_eq!(
         store.with_revocation::<SessionError>(&mut unknown_budget, caller(1), 2, |_| Err(
             SessionError::ScopeRejected
@@ -852,7 +853,16 @@ fn domain_mismatch_and_failed_commit_do_not_pin_a_login() {
 
 // Crypto fixtures prepare credit; budget behavior tests retain a single instance.
 fn budget() -> ic_auth::admission_budget::SessionAdmissionBudget {
-    ic_auth::admission_budget::SessionAdmissionBudget::new(4096, 1, 0).unwrap()
+    ic_auth::admission_budget::SessionAdmissionBudget::for_verification(
+        4096,
+        1,
+        ic_auth::admission_budget::VerificationCosts {
+            ed25519: 1,
+            certified: 1,
+        },
+        0,
+    )
+    .unwrap()
 }
 
 #[test]
@@ -924,7 +934,16 @@ fn host_ordering_refuses_revoked_and_full_before_spending_crypto_credit() {
     store
         .with_revocation::<Error>(&mut budget(), caller(1), 1, |_| Ok(()))
         .unwrap();
-    let mut budget = SessionAdmissionBudget::new(1, 1, 0).unwrap();
+    let mut budget = SessionAdmissionBudget::for_verification(
+        1,
+        1,
+        ic_auth::admission_budget::VerificationCosts {
+            ed25519: 1,
+            certified: 1,
+        },
+        0,
+    )
+    .unwrap();
     assert_eq!(
         attempt(&mut store, &mut budget, &claims(1, 100, 1)),
         Err(Error::Revoked)
@@ -987,7 +1006,7 @@ fn unknown_logout_flood_cannot_throttle_admitted_users_or_live_retries() {
     store
         .with_reservation::<_, Error>(caller(1), &verified(1, 100, 1), 1, |_| Ok(()))
         .unwrap();
-    let mut unknown = SessionAdmissionBudget::new(2, 5, 0).unwrap();
+    let mut unknown = SessionAdmissionBudget::for_operations(2, 5, 0).unwrap();
     let first = store
         .with_revocation::<Error>(&mut unknown, caller(2), 10, |_| Ok(()))
         .unwrap();
@@ -1027,7 +1046,7 @@ fn unknown_logout_flood_cannot_throttle_admitted_users_or_live_retries() {
 fn unknown_logout_failure_spends_credit_without_installing_denial() {
     use ic_auth::admission_budget::SessionAdmissionBudget;
     let mut store = ledger(1, 2);
-    let mut unknown = SessionAdmissionBudget::new(1, 10, 0).unwrap();
+    let mut unknown = SessionAdmissionBudget::for_operations(1, 10, 0).unwrap();
     assert_eq!(
         store.with_revocation::<Error>(&mut unknown, caller(1), 10, |_| Err(Error::Storage)),
         Err(Error::Storage)
@@ -1046,12 +1065,12 @@ fn unknown_logout_failure_spends_credit_without_installing_denial() {
         .with_revocation::<Error>(&mut unknown, caller(1), 20, |_| Ok(()))
         .unwrap();
     assert_eq!(store.occupancy(), (0, 1));
-    let mut reset = SessionAdmissionBudget::new(100, 1, 20).unwrap();
+    let mut reset = SessionAdmissionBudget::for_operations(100, 1, 20).unwrap();
     assert_eq!(
         store.with_revocation::<Error>(&mut reset, caller(2), 20, |_| panic!("empty reset")),
         Err(Error::Capacity)
     );
-    let mut future = SessionAdmissionBudget::new(1, 1, 30).unwrap();
+    let mut future = SessionAdmissionBudget::for_operations(1, 1, 30).unwrap();
     assert_eq!(
         store.with_revocation::<Error>(&mut future, caller(2), 20, |_| panic!(
             "budget clock rollback"
@@ -1064,7 +1083,7 @@ fn unknown_logout_failure_spends_credit_without_installing_denial() {
 fn cheap_logout_refusals_preserve_credit_and_expired_retries_need_new_credit() {
     use ic_auth::admission_budget::SessionAdmissionBudget;
     let mut store = ledger(1, 1);
-    let mut unknown = SessionAdmissionBudget::new(1, 1, 0).unwrap();
+    let mut unknown = SessionAdmissionBudget::for_operations(1, 1, 0).unwrap();
     assert_eq!(
         store.with_revocation::<Error>(&mut unknown, Principal::anonymous(), 1, |_| panic!(
             "invalid caller"
@@ -1082,7 +1101,7 @@ fn cheap_logout_refusals_preserve_credit_and_expired_retries_need_new_credit() {
     ledger(1, 1)
         .with_revocation::<Error>(&mut unknown, caller(2), 2, |_| Ok(()))
         .unwrap();
-    let mut empty = SessionAdmissionBudget::new(1, 1, until).unwrap();
+    let mut empty = SessionAdmissionBudget::for_operations(1, 1, until).unwrap();
     assert_eq!(
         store.with_revocation::<Error>(&mut empty, caller(1), until, |_| panic!(
             "expired tombstone is not a live retry"

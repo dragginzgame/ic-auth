@@ -17,7 +17,10 @@ use ic_auth::{
     },
     session_request::{SessionRequest, SessionTtlPolicy},
 };
-use ic_auth_protocol_types::*;
+use ic_auth_protocol_types::{
+    AudienceId, AuthRole, CanonicalId, DelegatedRoleGrant, PortableClaims, PortableCredential,
+    PortableMechanism, PortableProof, Principal,
+};
 use ic_platform::ed25519::{Signer, SigningKey};
 use serde_json::{Value, json};
 use std::{hint::black_box, num::NonZeroU16};
@@ -94,7 +97,16 @@ fn profile(name: &str, roles: usize, scopes: usize, iterations: u16) -> Value {
     let mut store = MemorySessionStore::new(0, SessionLimits::new(4, 8, 4, 65_536).unwrap());
     let mut ledger =
         MemoryLoginRevocations::new(claims.audience, 4, 4, 86_400_000_000_000, NOW).unwrap();
-    let mut budget = SessionAdmissionBudget::new(1, NOW, 0).unwrap();
+    let mut budget = SessionAdmissionBudget::for_verification(
+        1,
+        NOW,
+        ic_auth::admission_budget::VerificationCosts {
+            ed25519: 1,
+            certified: 1,
+        },
+        0,
+    )
+    .unwrap();
     let policy = SessionPolicy {
         generation: 0,
         enabled: true,

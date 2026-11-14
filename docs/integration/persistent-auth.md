@@ -44,6 +44,56 @@ provide a general native filesystem transaction journal.
 
 ## Issuer custody
 
+### Pre-1.0 work-budget hard cut (unpublished)
+
+Receiver schema `0x41555448525304` and issuer schema `0x41555448495303`
+retire the previous headers. Old backing is refused, never migrated or reset
+implicitly. The maintainer selects hard cuts before 1.0; the host must explicitly
+retire old backing before adopting these schemas. Session/credential signed bytes
+and verification rules are unchanged.
+
+`ReceiverConfig::new` now requires `VerificationCosts { ed25519, certified }`
+after the logout budget. Both costs are positive protected work-unit weights,
+each no larger than the admission burst. One shared bucket spans callers and
+mechanisms; its interval replenishes one work unit, not one proof. The verifier
+selects the charge from the actual mechanism before cryptographic work, including
+invalid proofs. Insufficient units refuse without a partial charge. Reopen checks
+the exact weights and policy. For volatile hosts use
+`SessionAdmissionBudget::for_verification`. The ambiguous `new` is removed;
+`for_operations` creates an initially empty unit-cost bucket for unknown logout
+and refuses proof verification with `InvalidPolicy`, without changing credit.
+Qualification fixtures explicitly use unit
+weights where they compare equal attempt counts, not as deployment defaults.
+
+Choose weights, burst and refill together from the enabled verifier's measured
+costs. The audit's roughly 200:1 certified/Ed25519 sample ratio is an example, not
+a worst-case bound or automatic production policy. The library installs no global
+clock, fleet coordinator or per-identity rate map.
+
+`IssuerConfig` now requires positive `issuance_burst` and
+`issuance_refill_interval_ns`. One issuer-wide bucket covers both `prepare` and
+`renew`, charging a unit for every new intent after initial shape/authority checks
+and before capacity reservation or host signing effects. Creating a new issuer
+starts with the configured burst available; reopen and restart never refill or
+reset it implicitly. Browser binding and sequence checks still precede renewal.
+Exhaustion returns `StoreError::Throttled`. Charges survive later ordinary capacity
+or preparation refusals and reopen; a trap still requires transaction rollback.
+Retained pending/completed retries and `retrieve_renewal` do not charge again and
+do not extend deadlines. `preflight_renewal` stays read-only and reserves no credit;
+`renew` is the authoritative post-preflight check.
+
+This bounds fresh issuance and renewal attempts, not transport, preflight,
+recovery reads or repeated host effects while resuming pending work. Hosts retain
+their ingress/permission/signing workload policy and must not trap on ordinary
+throttling. Budget exhaustion never evicts records or resets safety evidence.
+
+Persistent admission now compares the decoded browser key's Principal with the
+trusted runtime caller before reading caller, slot or session indexes. It reuses
+that computed Principal during full verification. Clock observation still precedes
+refusal. Expiry, authority and replay checks remain in their existing retry-aware
+order; matching retained sessions can still accept an expired-proof exact retry.
+Caller mismatch is rejection only, never proof authentication.
+
 `prepare` accepts the runtime-authenticated account and exact requested intent,
 protected lifetime policy and signing-authority selection. It reserves a readable
 completed result before randomness, authority approval or signing. The host must

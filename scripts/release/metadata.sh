@@ -9,11 +9,11 @@ cd -P "${script_path%/*}/../.."
 auth_release_root="$PWD"
 operation="${1:?operation required}"
 fail() { echo "release metadata refused: $*" >&2; exit 1; }
-bash scripts/ci/check-release-delivery.sh ci/release-delivery.txt "${RELEASE_DELIVERY:-direct}" || fail 'this repository qualifies direct delivery only'
+bash vendor/toko-tooling/scripts/ci/check-release-delivery.sh ci/release-delivery.txt "${RELEASE_DELIVERY:-direct}" || fail 'this repository qualifies direct delivery only'
 source scripts/release/group.sh
 if [[ "$operation" == files ]]; then
     auth_release_group
-    exec bash "$PWD/scripts/ci/cargo-release-group.sh" files "$RELEASE_GROUP"
+    exec bash "$PWD/vendor/toko-tooling/scripts/ci/cargo-release-group.sh" files "$RELEASE_GROUP"
 fi
 [[ -n "${RELEASE_GROUP:-}" ]] || fail 'explicit RELEASE_GROUP required'
 for value in "${RELEASE_PREVIOUS:?}" "${RELEASE_VERSION:?}"; do
@@ -45,14 +45,14 @@ git archive --format=tar "$RELEASE_SOURCE" | tar -xf - -C "$auth_scratch/source"
 # Pre-group attempts must resume with their original source and adapter in their
 # dedicated release checkout. Do not reinterpret or discard historical custody.
 auth_release_group "$auth_scratch/source/ci/cargo-release-groups.json" || fail 'saved source has no matching release group; use its original release checkout for legacy recovery'
-policy_digest="$(bash scripts/ci/verify-file-checksum.sh --print sha256 "$auth_scratch/source/ci/cargo-release-groups.json")"
+policy_digest="$(bash vendor/toko-tooling/scripts/ci/verify-file-checksum.sh --print sha256 "$auth_scratch/source/ci/cargo-release-groups.json")"
 receipt="$state/validation-$RELEASE_GROUP-$RELEASE_SOURCE-$RELEASE_VERSION.json"
 cp "$auth_scratch/source/Cargo.lock" "$auth_scratch/base.lock"
 cp "$auth_scratch/source/Cargo.toml" "$auth_scratch/base.toml"
 (
     unset RELEASE_COMMIT
     cd "$auth_scratch/source"
-    bash "$auth_release_root/scripts/ci/cargo-release-group.sh" plan "$RELEASE_GROUP"
+    bash "$auth_release_root/vendor/toko-tooling/scripts/ci/cargo-release-group.sh" plan "$RELEASE_GROUP"
 ) > "$auth_scratch/plan.json"
 [[ "$(jq -r .previous "$auth_scratch/plan.json")" == "$RELEASE_PREVIOUS" ]] || fail 'source version mismatch'
 files=() allow_changes=() metadata_files=()
@@ -68,7 +68,7 @@ jq -e --arg path "$primary_manifest" '.manifests | any(.path == $path and .versi
 prepare_files=()
 for path in "${files[@]}"; do [[ "$path" == "$primary_manifest" ]] || prepare_files+=("$path"); done
 prepare_files+=("$primary_manifest")
-admit_changes() { bash scripts/ci/check-release-source.sh "${allow_changes[@]}"; }
+admit_changes() { bash vendor/toko-tooling/scripts/ci/check-release-source.sh "${allow_changes[@]}"; }
 read_receipt() {
     [[ -f "$1" && ! -L "$1" ]] || fail 'missing validation receipt; run the release through the shared runner'
     jq -e --arg source "$RELEASE_SOURCE" --arg previous "$RELEASE_PREVIOUS" --arg candidate "$RELEASE_VERSION" \
@@ -78,7 +78,7 @@ read_receipt() {
         and .kind == $kind and .date == $date and (.changelog | type == "string")
         and (.lock_sha256 | test("^[a-f0-9]{64}$"))
     ' "$1" > /dev/null || fail 'validation receipt does not match the selected group/source/release; historical schema-2/3 attempts require their original release checkout'
-    [[ "$(bash scripts/ci/verify-file-checksum.sh --print sha256 "$auth_scratch/base.lock")" == "$(jq -r .lock_sha256 "$1")" ]] || fail 'validated lockfile mismatch'
+    [[ "$(bash vendor/toko-tooling/scripts/ci/verify-file-checksum.sh --print sha256 "$auth_scratch/base.lock")" == "$(jq -r .lock_sha256 "$1")" ]] || fail 'validated lockfile mismatch'
     local gate record_path
     # Shared's bounded reader admits checkout-relative paths only. Scratch paths
     # are absolute for filesystem operations but stay inside this checkout.
@@ -117,11 +117,11 @@ render() {
         unset RELEASE_COMMIT
         cd "$auth_scratch/source"
         CARGO_RELEASE_METADATA_EDITOR="$editor" CARGO_RELEASE_METADATA_MAX_BYTES="$limit" \
-            bash "$auth_release_root/scripts/ci/cargo-release-group.sh" prepare "$RELEASE_GROUP"
+            bash "$auth_release_root/vendor/toko-tooling/scripts/ci/cargo-release-group.sh" prepare "$RELEASE_GROUP"
     )
     cp "$auth_scratch/receipt.json" "$auth_scratch/source/release-validation.json"
 }
-source scripts/ci/release-metadata-transaction.sh
+source vendor/toko-tooling/scripts/ci/release-metadata-transaction.sh
 check_payload() {
     local path
     for path in "${files[@]}"; do
@@ -137,7 +137,7 @@ install_candidate() {
 # shellcheck disable=SC2329 # Transaction callback.
 check_candidate() {
     check_payload . || return
-    bash scripts/ci/cargo-release-metadata.sh check "$primary" --manifest-order-grouped
+    bash vendor/toko-tooling/scripts/ci/cargo-release-metadata.sh check "$primary" --manifest-order-grouped
 }
 case "$operation" in
     preflight)
@@ -155,14 +155,14 @@ case "$operation" in
                 fail "conflicting interrupted metadata: $path"
             done
         else
-            bash scripts/ci/check-release-source.sh --allow "$changelog"
+            bash vendor/toko-tooling/scripts/ci/check-release-source.sh --allow "$changelog"
             heading="$(awk '{ sub(/[ \t]+$/, ""); gsub(/[ \t]+/, " "); if (/^## /) { print; exit } }' "$changelog")"
             case "$heading" in
                 "## [$RELEASE_VERSION]"|"## [$RELEASE_VERSION] - Unreleased") ;;
                 *) fail "expected pending heading '## [$RELEASE_VERSION]' or '## [$RELEASE_VERSION] - Unreleased' for selected $RELEASE_KIND; found '$heading'. Release preparation adds the date." ;;
             esac
             awk -v version="$RELEASE_VERSION" -v previous="$RELEASE_PREVIOUS" -v date="$RELEASE_DATE" \
-                -f scripts/ci/finalize-release-changelog.awk "$changelog" > /dev/null
+                -f vendor/toko-tooling/scripts/ci/finalize-release-changelog.awk "$changelog" > /dev/null
             cargo sort --workspace --grouped --check
             make --no-print-directory fetch
             make --no-print-directory install-tools
@@ -222,14 +222,14 @@ case "$operation" in
         cp "$auth_scratch/committed/release-validation.json" "$auth_scratch/receipt.json"
         render
         check_payload "$auth_scratch/committed"
-        RELEASE_COMMIT="$selected_commit" bash scripts/ci/cargo-release-metadata.sh check "$primary" --manifest-order-grouped
+        RELEASE_COMMIT="$selected_commit" bash vendor/toko-tooling/scripts/ci/cargo-release-metadata.sh check "$primary" --manifest-order-grouped
         git diff --name-only -z "$RELEASE_SOURCE" "$selected_commit" -- > "$auth_scratch/changed"
         while IFS= read -r -d '' path; do
             found=false
             for allowed in "${files[@]}"; do [[ "$path" != "$allowed" ]] || found=true; done
             [[ "$found" == true ]] || fail "release changed unvalidated source: $path"
         done < "$auth_scratch/changed"
-        if [[ "$operation" != committed-check ]]; then bash scripts/ci/check-release-tag.sh "$selected_commit" "$RELEASE_VERSION" "$RELEASE_GROUP"; fi
+        if [[ "$operation" != committed-check ]]; then bash vendor/toko-tooling/scripts/ci/check-release-tag.sh "$selected_commit" "$RELEASE_VERSION" "$RELEASE_GROUP"; fi
         ;;
     *) fail "unknown adapter operation: $operation" ;;
 esac

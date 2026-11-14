@@ -33,6 +33,12 @@ Tool setup and both-workspace admission follow [developer setup](docs/developmen
 
 ## Implementation boundaries
 
+- Before 1.0, the maintainer selects hard cuts for retired Auth APIs and stored
+  formats by default. Do not add compatibility readers or request this decision
+  again unless a later instruction requires preservation. Refuse old backing;
+  never silently reinterpret or reset it. This does not authorize deleting live
+  host storage, changing sibling repositories, or publishing a release.
+
 - Follow [the accepted design](docs/design/extraction.md). Product packages use
   the virtual root and `crates/`; qualification-only packages follow Shared's
   independent `qualification/` workspace standard. Each root owns its catalog
@@ -121,8 +127,9 @@ and `ci/cargo-dependency-boundaries.json` for direct-dependency ownership.
 
 ## Qualification tooling
 
-- Native canister qualification uses published `ic-testkit` for typed Wire calls,
-  deliberate raw-call evidence and bounded startup. Import the upstream async
+- Native canister qualification uses published `ic-testkit` for deliberate
+  raw-call evidence and bounded startup, and `ic-testkit-wire` for typed Wire calls.
+  Import the upstream async
   simulator client and DTOs through Testkit's native-only `ic_testkit::pocket_ic`
   re-export in the qualification runner. Testkit owns lifecycle
   helpers and managed server custody. Tests own the runtime and await
@@ -134,7 +141,7 @@ and `ci/cargo-dependency-boundaries.json` for direct-dependency ownership.
   Testkit owns server selection and admission outside the shared five-tool bundle.
   `make install-testkit-tools` explicitly prepares it, and
   `make testkit-tools-check` returns its admitted server path offline.
-  Auth and the selected native Testkit transport must share one Wire identity.
+  Auth and the selected native `ic-testkit-wire` adapter must share one Wire identity.
   Pass canonical method budgets directly, retaining method IDs and all four
   allowances. Do not add an older codec alias or allowance projection to bypass
   a supplier mismatch; record the qualification blocker in the handoff.
@@ -145,8 +152,17 @@ and `ci/cargo-dependency-boundaries.json` for direct-dependency ownership.
 
 ## Validation and delivery
 
+- Qualify the selected product and required qualification graphs independently.
+  An optional Testkit/Platform/Wire upgrade that fails does not block release of
+  the unchanged qualified selection. Older native suppliers may coexist when
+  real type/protocol boundaries remain valid; preserve the required shared Wire
+  identity and deployed executor/guard checks. Record a blocker with its selected
+  package, target/features, conflicting identities and dependency paths, never
+  from duplicate names in an entire lockfile. `make deps-list` owns the offline
+  package/version/group inventory; manifests retain only used dependencies.
+
 - See [developer setup](docs/development/setup.md) for the implemented command surface.
-  Rust 1.99.1 is both the common package minimum and pinned development/release
+  Rust 1.100.0 is both the common package minimum and pinned development/release
   compiler. `make check-msrv` checks isolated Cargo package payloads for every
   supported library feature on native/Wasm; native and canister Wasm Clippy cover
   the internal applications using the same compiler.

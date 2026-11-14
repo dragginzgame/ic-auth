@@ -30,12 +30,14 @@ pub use model::{BudgetPolicy, LoginLimits, ReceiverConfig, ReceiverOccupancy, Re
 use model::{CallerRecord, Header};
 use std::borrow::Cow;
 
-const SCHEMA: u64 = 0x41555448525302;
+const SCHEMA: u64 = 0x41555448525304;
 
 /// Three fixed checked leases. Caller records have their own ordered table so
 /// frequent authentication does not traverse maintenance/replay index pages.
 pub struct ReceiverMemory<M: Memory> {
+    /// Exclusive checked leases for records and protected metadata.
     pub state: StoreMemory<M>,
+    /// Separate exclusive checked lease for the caller point-lookup index.
     pub callers: ic_storage::RuntimeMemory<M>,
 }
 
@@ -56,13 +58,14 @@ impl<M: Memory> ReceiverStore<M> {
         now_ns: u64,
     ) -> Result<Self, StoreError> {
         config.validate()?;
-        let admission = SessionAdmissionBudget::new(
+        let admission = SessionAdmissionBudget::for_verification(
             config.admission.burst,
             config.admission.refill_interval_ns,
+            config.verification_costs,
             now_ns,
         )
         .map_err(|_| StoreError::Invalid)?;
-        let logout = SessionAdmissionBudget::new(
+        let logout = SessionAdmissionBudget::for_operations(
             config.logout.burst,
             config.logout.refill_interval_ns,
             now_ns,
@@ -114,6 +117,8 @@ impl<M: Memory> ReceiverStore<M> {
             .and_then(|n| n.checked_add(header.replay_accounts as u64))
             .ok_or(StoreError::Corrupt)?;
         if header.schema != SCHEMA
+            || !header.logout.is_operations()
+            || !header.admission.has_costs(expected.verification_costs)
             || &header.config != expected
             || counts.sessions > expected.sessions[0]
             || counts.replays > expected.sessions[1]
@@ -139,12 +144,18 @@ impl<M: Memory> ReceiverStore<M> {
         store.observe(now_ns)?;
         Ok(store)
     }
+    #[must_use]
+    /// Read retained counters and byte accounting without scanning sessions.
     pub fn occupancy(&self) -> ReceiverOccupancy {
         self.header.counts
     }
+    #[must_use]
+    /// Current protected receiver authority generation.
     pub fn generation(&self) -> u64 {
         self.header.generation
     }
+    #[must_use]
+    /// Durable trusted-clock fence used to reject rollback.
     pub fn observed_at_ns(&self) -> u64 {
         self.header.observed_ns
     }
@@ -184,6 +195,12 @@ impl<M: Memory> ReceiverStore<M> {
         let authority = admission.verification.claims().authority;
         self.observe(authority.now_ns).map_err(session_error)?;
         let decoded = crate::portable::DecodedPortableClaims::decode(&credential.claims)?;
+        // Caller identity is immutable for this exact signed payload, including
+        // retries. Refuse mismatches before touching caller/slot/session indexes.
+        // Proof expiry stays in the engine so expired-proof retries still work.
+        if decoded.browser_caller != authority.caller {
+            return Err(crate::portable::PortableClaimsError::CallerMismatch.into());
+        }
         let claims = &decoded.claims;
         let mut ledger = self
             .ledger(
@@ -201,9 +218,14 @@ impl<M: Memory> ReceiverStore<M> {
             admission,
             policy,
         );
-        let mut header = self.header.clone();
-        header.admission = budget;
-        self.publish(header, Writes::new()).map_err(session_error)?;
+        // Observation above persists clock progress independently. Preserve every
+        // changed budget (including failed verification), but exact retries and
+        // repeated exhaustion at the same clock need no duplicate header write.
+        if self.header.admission != budget {
+            let mut header = self.header.clone();
+            header.admission = budget;
+            self.publish(header, Writes::new()).map_err(session_error)?;
+        }
         result
     }
 

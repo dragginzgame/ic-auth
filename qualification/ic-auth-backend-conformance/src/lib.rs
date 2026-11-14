@@ -16,10 +16,17 @@ use ic_auth::{
     },
     portable_credential::PortableVerificationContext,
     portable_signature::PreparedIssuerKey,
-    session::*,
+    session::{
+        MemorySessionStore, RequiredScopes, Session, SessionAdmissionContext, SessionContext,
+        SessionError, SessionEstablished, SessionLimits, SessionOccupancy, SessionPolicy,
+        SessionPruned, SessionStore, authorize_session, establish_session, logout_session,
+    },
     session_request::{SessionRequest, SessionTtlPolicy},
 };
-use ic_auth_protocol_types::*;
+use ic_auth_protocol_types::{
+    AudienceId, AuthRole, CanonicalId, DelegatedRoleGrant, LogoutResult, LogoutUnavailable,
+    PortableClaims, PortableCredential, PortableMechanism, PortableProof, Principal, limits,
+};
 use ic_platform::ed25519::{Signer, SigningKey};
 
 const SECOND: u64 = 1_000_000_000;
@@ -32,9 +39,13 @@ const NOW: u64 = 10 * SECOND;
 /// before any mutation. Clock hooks project the host's protected high-water mark;
 /// supplied timestamps are fixture inputs, not a production clock implementation.
 pub trait Backend: SessionStore + Sized {
+    /// Allocate isolated disposable backing under the requested generation and limits.
     fn fresh(generation: u64, limits: SessionLimits) -> Self;
+    /// Inject rejection before the next nonempty mutation commits.
     fn fail_next_commit(&mut self);
+    /// Reconstruct the adapter from its complete persisted test state.
     fn reopen(self) -> Self;
+    /// Atomically advance protected authority generation without wrapping.
     fn advance_generation(&mut self) -> Result<u64, SessionError>;
     /// Atomically remove at most min(budget, 128) expired session/replay records.
     /// Smaller positive host batch caps are accepted. Nonempty expired work must
@@ -43,6 +54,7 @@ pub trait Backend: SessionStore + Sized {
     /// Persist a monotonic trusted-clock observation, refusing rollback with
     /// SessionError::Revocation(LoginRevocationError::Clock).
     fn observe_clock(&mut self, now_ns: u64) -> Result<(), SessionError>;
+    /// Return the adapter's retained monotonic clock observation.
     fn observed_at_ns(&self) -> u64;
     /// Complete physical login records, from the same serialized checkpoint.
     fn retained_logins(&self) -> Vec<LoginRevocationChange>;
@@ -82,7 +94,16 @@ pub fn assert_device_replacement<B: Backend>() {
     next.claims.device_generation = 2;
     let mut store = B::fresh(0, limits(2, 65_536));
     let mut ledger = first.ledger();
-    let mut budget = SessionAdmissionBudget::new(32, 1, 0).unwrap();
+    let mut budget = SessionAdmissionBudget::for_verification(
+        32,
+        1,
+        ic_auth::admission_budget::VerificationCosts {
+            ed25519: 1,
+            certified: 1,
+        },
+        0,
+    )
+    .unwrap();
     first
         .admit(&mut store, &mut ledger, &mut budget, NOW)
         .unwrap();
@@ -116,7 +137,7 @@ pub fn assert_device_replacement<B: Backend>() {
             .admit(&mut store, &mut ledger, &mut budget, NOW)
             .is_err()
     );
-    let mut logout_budget = SessionAdmissionBudget::new(8, 1, 0).unwrap();
+    let mut logout_budget = SessionAdmissionBudget::for_operations(8, 1, 0).unwrap();
     assert!(matches!(
         logout_session(
             &mut store,
@@ -154,12 +175,30 @@ pub fn assert_unknown_logout_reopen<B: Backend>() {
     let known = Fixture::new(2);
     let mut store = B::fresh(0, limits(4, 65_536));
     let mut ledger = unknown.ledger();
-    let mut admission = SessionAdmissionBudget::new(1, NOW, 0).unwrap();
+    let mut admission = SessionAdmissionBudget::for_verification(
+        1,
+        NOW,
+        ic_auth::admission_budget::VerificationCosts {
+            ed25519: 1,
+            certified: 1,
+        },
+        0,
+    )
+    .unwrap();
     known
         .admit(&mut store, &mut ledger, &mut admission, NOW)
         .unwrap();
     let before = snapshot(&mut store, &unknown, &known);
-    let mut budget = SessionAdmissionBudget::new(1, SECOND, NOW - SECOND).unwrap();
+    let mut budget = SessionAdmissionBudget::for_verification(
+        1,
+        SECOND,
+        ic_auth::admission_budget::VerificationCosts {
+            ed25519: 1,
+            certified: 1,
+        },
+        NOW - SECOND,
+    )
+    .unwrap();
     store.fail_next_commit();
     assert_eq!(
         logout_session(&mut store, &mut ledger, &mut budget, unknown.caller(), NOW),
@@ -204,7 +243,16 @@ pub fn assert_unknown_logout_reopen<B: Backend>() {
     assert_eq!(snapshot(&mut store, &unknown, &known), denied);
 
     // Live retries require another successful commit, but no new unknown credit.
-    let mut empty = SessionAdmissionBudget::new(1, SECOND, NOW + 2 * SECOND).unwrap();
+    let mut empty = SessionAdmissionBudget::for_verification(
+        1,
+        SECOND,
+        ic_auth::admission_budget::VerificationCosts {
+            ed25519: 1,
+            certified: 1,
+        },
+        NOW + 2 * SECOND,
+    )
+    .unwrap();
     store.fail_next_commit();
     assert_eq!(
         logout_session(
@@ -294,6 +342,9 @@ pub fn assert_unknown_logout_reopen<B: Backend>() {
 /// Individual grant/scopes/label maxima within the aggregate byte budget survive
 /// admission, record restoration and
 /// scoped authorization. This is a shape contract, not a host cost measurement.
+///
+/// # Panics
+/// Panics if the backend violates the scenario assertions or fixture admission fails.
 pub fn assert_maximum_shape<B: Backend>() {
     let mut f = Fixture::new(1);
     f.claims.grants = (0..limits::MAX_GRANTS)
@@ -322,7 +373,16 @@ pub fn assert_maximum_shape<B: Backend>() {
         RequiredScopes::new(requested.iter().map(ToString::to_string).collect()).unwrap();
     let mut store = B::fresh(0, limits(4, 65_536));
     let mut ledger = f.ledger();
-    let mut budget = SessionAdmissionBudget::new(1, NOW, 0).unwrap();
+    let mut budget = SessionAdmissionBudget::for_verification(
+        1,
+        NOW,
+        ic_auth::admission_budget::VerificationCosts {
+            ed25519: 1,
+            certified: 1,
+        },
+        0,
+    )
+    .unwrap();
     let admitted = f
         .admit_request(
             &mut store,
@@ -366,6 +426,9 @@ pub fn assert_maximum_shape<B: Backend>() {
 /// may invoke the operation. Changed key/mechanism, withdrawn grants and expired
 /// or shortened authority refuse without invoking it. Refresh and exact expiry
 /// preserve records, including after reopening the host's persisted records.
+///
+/// # Panics
+/// Panics if the backend violates the scenario assertions or fixture admission fails.
 pub fn assert_authorization<B: Backend>() {
     let f = Fixture::new(1);
     let other = Fixture::new(2);
@@ -375,7 +438,16 @@ pub fn assert_authorization<B: Backend>() {
     for reopen in [false, true] {
         let mut store = B::fresh(0, limits(4, 65_536));
         let mut ledger = f.ledger();
-        let mut budget = SessionAdmissionBudget::new(1, NOW, 0).unwrap();
+        let mut budget = SessionAdmissionBudget::for_verification(
+            1,
+            NOW,
+            ic_auth::admission_budget::VerificationCosts {
+                ed25519: 1,
+                certified: 1,
+            },
+            0,
+        )
+        .unwrap();
         let expires = f
             .admit(&mut store, &mut ledger, &mut budget, NOW)
             .unwrap()
@@ -528,12 +600,24 @@ pub fn assert_authorization<B: Backend>() {
 
 /// Failed admission is atomic, consumes proof credit, and exact retry preserves
 /// the original lease after proof expiry. Uses fresh disposable backing.
+///
+/// # Panics
+/// Panics if the backend violates the scenario assertions or fixture admission fails.
 pub fn assert_admission_retry<B: Backend>() {
     let f = Fixture::new(1);
     let other = Fixture::new(2);
     let mut store = B::fresh(0, limits(4, 65_536));
     let mut ledger = f.ledger();
-    let mut budget = SessionAdmissionBudget::new(1, NOW, 0).unwrap();
+    let mut budget = SessionAdmissionBudget::for_verification(
+        1,
+        NOW,
+        ic_auth::admission_budget::VerificationCosts {
+            ed25519: 1,
+            certified: 1,
+        },
+        0,
+    )
+    .unwrap();
     let before = snapshot(&mut store, &f, &other);
     store.fail_next_commit();
     assert_eq!(
@@ -557,7 +641,16 @@ pub fn assert_admission_retry<B: Backend>() {
             )
         ))
     );
-    let mut budget = SessionAdmissionBudget::new(1, NOW, 0).unwrap();
+    let mut budget = SessionAdmissionBudget::for_verification(
+        1,
+        NOW,
+        ic_auth::admission_budget::VerificationCosts {
+            ed25519: 1,
+            certified: 1,
+        },
+        0,
+    )
+    .unwrap();
     let created = f.admit(&mut store, &mut ledger, &mut budget, NOW).unwrap();
     assert!(matches!(created, SessionEstablished::Created(_)));
     let after = snapshot(&mut store, &f, &other);
@@ -574,12 +667,24 @@ pub fn assert_admission_retry<B: Backend>() {
 
 /// Reopening retains authorization; failed logout preserves it; committed logout
 /// survives another reopen while retaining consumed-proof evidence.
+///
+/// # Panics
+/// Panics if the backend violates the scenario assertions or fixture admission fails.
 pub fn assert_logout_reopen<B: Backend>() {
     let f = Fixture::new(1);
     let other = Fixture::new(2);
     let mut store = B::fresh(0, limits(4, 65_536));
     let mut ledger = f.ledger();
-    let mut budget = SessionAdmissionBudget::new(1, NOW, 0).unwrap();
+    let mut budget = SessionAdmissionBudget::for_verification(
+        1,
+        NOW,
+        ic_auth::admission_budget::VerificationCosts {
+            ed25519: 1,
+            certified: 1,
+        },
+        0,
+    )
+    .unwrap();
     f.admit(&mut store, &mut ledger, &mut budget, NOW).unwrap();
     let after = snapshot(&mut store, &f, &other);
     let mut store = store.reopen();
@@ -593,7 +698,7 @@ pub fn assert_logout_reopen<B: Backend>() {
             .is_ok()
     );
     assert_eq!(snapshot(&mut store, &f, &other), after);
-    let mut logout_budget = SessionAdmissionBudget::new(2, SECOND, 0).unwrap();
+    let mut logout_budget = SessionAdmissionBudget::for_operations(2, SECOND, 0).unwrap();
     store.fail_next_commit();
     assert_eq!(
         logout_session(
@@ -649,13 +754,25 @@ pub fn assert_logout_reopen<B: Backend>() {
 }
 
 /// Replacement retains replay history; generation invalidation survives reopen.
+///
+/// # Panics
+/// Panics if the backend violates the scenario assertions or fixture admission fails.
 pub fn assert_replacement_generation<B: Backend>() {
     let f = Fixture::new(1);
     let other = Fixture::new(2);
     // A fresh proof for the same login replaces the lease, retaining both replays.
     let mut store = B::fresh(0, limits(4, 65_536));
     let mut ledger = f.ledger();
-    let mut budget = SessionAdmissionBudget::new(8, SECOND, 0).unwrap();
+    let mut budget = SessionAdmissionBudget::for_verification(
+        8,
+        SECOND,
+        ic_auth::admission_budget::VerificationCosts {
+            ed25519: 1,
+            certified: 1,
+        },
+        0,
+    )
+    .unwrap();
     f.admit(&mut store, &mut ledger, &mut budget, NOW).unwrap();
     let mut renewal = Fixture::new(1);
     renewal.claims.nonce = [2; 16];
@@ -695,7 +812,16 @@ pub fn assert_ninety_day_renewal<B: Backend>() {
     let deadline = f.claims.login_deadline_ns;
     let mut store = B::fresh(0, limits(4, 65_536));
     let mut ledger = f.ledger();
-    let mut budget = SessionAdmissionBudget::new(2, SECOND, 0).unwrap();
+    let mut budget = SessionAdmissionBudget::for_verification(
+        2,
+        SECOND,
+        ic_auth::admission_budget::VerificationCosts {
+            ed25519: 1,
+            certified: 1,
+        },
+        0,
+    )
+    .unwrap();
     store.observe_clock(NOW).unwrap();
     let initial = f.admit(&mut store, &mut ledger, &mut budget, NOW).unwrap();
     assert_eq!(initial.receipt().expires_at_ns(), NOW + 5 * SECOND);
@@ -801,6 +927,9 @@ pub fn assert_ninety_day_renewal<B: Backend>() {
 
 /// Session, global/per-account replay and encoded-byte exhaustion refuse without
 /// changing records or ledger. Replacement must still respect replay capacity.
+///
+/// # Panics
+/// Panics if the backend violates the scenario assertions or fixture admission fails.
 pub fn assert_capacity<B: Backend>() {
     let f = Fixture::new(1);
     let other = Fixture::new(2);
@@ -809,9 +938,18 @@ pub fn assert_capacity<B: Backend>() {
     {
         let mut store = B::fresh(0, SessionLimits::new(4, 8, 1, 65_536).unwrap());
         let mut ledger = f.ledger();
-        let mut budget = SessionAdmissionBudget::new(8, SECOND, 0).unwrap();
+        let mut budget = SessionAdmissionBudget::for_verification(
+            8,
+            SECOND,
+            ic_auth::admission_budget::VerificationCosts {
+                ed25519: 1,
+                certified: 1,
+            },
+            0,
+        )
+        .unwrap();
         f.admit(&mut store, &mut ledger, &mut budget, NOW).unwrap();
-        let mut logout_budget = SessionAdmissionBudget::new(8, SECOND, 0).unwrap();
+        let mut logout_budget = SessionAdmissionBudget::for_operations(8, SECOND, 0).unwrap();
         assert!(matches!(
             logout_session(&mut store, &mut ledger, &mut logout_budget, f.caller(), NOW),
             LogoutResult::Revoked { .. }
@@ -842,9 +980,18 @@ pub fn assert_capacity<B: Backend>() {
     }
     let mut store = B::fresh(0, limits(4, 65_536));
     let mut ledger = f.ledger();
-    let mut budget = SessionAdmissionBudget::new(8, SECOND, 0).unwrap();
+    let mut budget = SessionAdmissionBudget::for_verification(
+        8,
+        SECOND,
+        ic_auth::admission_budget::VerificationCosts {
+            ed25519: 1,
+            certified: 1,
+        },
+        0,
+    )
+    .unwrap();
     f.admit(&mut store, &mut ledger, &mut budget, NOW).unwrap();
-    let mut logout_budget = SessionAdmissionBudget::new(8, SECOND, 0).unwrap();
+    let mut logout_budget = SessionAdmissionBudget::for_operations(8, SECOND, 0).unwrap();
     for revoked in [false, true] {
         if revoked {
             assert!(matches!(
@@ -880,7 +1027,16 @@ pub fn assert_capacity<B: Backend>() {
     ] {
         let mut store = B::fresh(0, bounds);
         let mut ledger = f.ledger();
-        let mut budget = SessionAdmissionBudget::new(8, SECOND, 0).unwrap();
+        let mut budget = SessionAdmissionBudget::for_verification(
+            8,
+            SECOND,
+            ic_auth::admission_budget::VerificationCosts {
+                ed25519: 1,
+                certified: 1,
+            },
+            0,
+        )
+        .unwrap();
         if bounds.max_encoded_bytes() > 1 {
             f.admit(&mut store, &mut ledger, &mut budget, NOW).unwrap();
         }
@@ -907,7 +1063,16 @@ pub fn assert_capacity<B: Backend>() {
     ] {
         let mut store = B::fresh(0, bounds);
         let mut ledger = f.ledger();
-        let mut budget = SessionAdmissionBudget::new(8, SECOND, 0).unwrap();
+        let mut budget = SessionAdmissionBudget::for_verification(
+            8,
+            SECOND,
+            ic_auth::admission_budget::VerificationCosts {
+                ed25519: 1,
+                certified: 1,
+            },
+            0,
+        )
+        .unwrap();
         let created = f.admit(&mut store, &mut ledger, &mut budget, NOW).unwrap();
         let mut candidate = Fixture::new(device);
         candidate.claims.nonce = [2; 16];
@@ -948,7 +1113,16 @@ pub fn assert_pruning<B: Backend>() {
     let mut other = Fixture::new(2);
     let mut store = B::fresh(0, SessionLimits::new(4, 132, 132, 65_536).unwrap());
     let mut ledger = f.ledger();
-    let mut budget = SessionAdmissionBudget::new(256, 1, 0).unwrap();
+    let mut budget = SessionAdmissionBudget::for_verification(
+        256,
+        1,
+        ic_auth::admission_budget::VerificationCosts {
+            ed25519: 1,
+            certified: 1,
+        },
+        0,
+    )
+    .unwrap();
     for nonce in 0..129 {
         f.claims.nonce = [nonce; 16];
         f.admit(&mut store, &mut ledger, &mut budget, NOW).unwrap();
@@ -1044,7 +1218,16 @@ pub fn assert_metadata_reopen<B: Backend>() {
     let other = Fixture::new(2);
     let mut store = B::fresh(0, limits(4, 65_536));
     let mut ledger = f.ledger();
-    let mut budget = SessionAdmissionBudget::new(8, SECOND, 0).unwrap();
+    let mut budget = SessionAdmissionBudget::for_verification(
+        8,
+        SECOND,
+        ic_auth::admission_budget::VerificationCosts {
+            ed25519: 1,
+            certified: 1,
+        },
+        0,
+    )
+    .unwrap();
     f.admit(&mut store, &mut ledger, &mut budget, NOW).unwrap();
     store.observe_clock(NOW).unwrap();
     let before = snapshot(&mut store, &f, &other);
@@ -1303,6 +1486,7 @@ impl Fixture {
 ///
 /// # Panics
 /// Panics if the fixture fails any normal engine verification or record bound.
+#[must_use]
 pub fn admitted_records(
     claims: &PortableClaims,
     credential: &PortableCredential,
@@ -1313,7 +1497,16 @@ pub fn admitted_records(
     let mut ledger =
         MemoryLoginRevocations::new(claims.audience, 1, 1, 90 * 86_400_000_000_000, now_ns - 1)
             .unwrap();
-    let mut budget = SessionAdmissionBudget::new(1, 1, now_ns - 1).unwrap();
+    let mut budget = SessionAdmissionBudget::for_verification(
+        1,
+        1,
+        ic_auth::admission_budget::VerificationCosts {
+            ed25519: 1,
+            certified: 1,
+        },
+        now_ns - 1,
+    )
+    .unwrap();
     let grants = ValidatedGrants::new(claims.grants.clone()).unwrap();
     let context = PortableClaimsContext {
         authority: PortableAuthority {

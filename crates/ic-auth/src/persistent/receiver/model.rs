@@ -4,16 +4,24 @@ use crate::{
 use ic_auth_protocol_types::AudienceId;
 use serde::{Deserialize, Serialize};
 
+/// Bounds on retained login fences and device slots, separate from session rows.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct LoginLimits {
+    /// Maximum authenticated login records retained by this receiver.
     pub admitted: usize,
+    /// Maximum denial records whose login lifetime is not authenticated.
     pub unknown: usize,
+    /// Maximum accepted absolute login lifetime in nanoseconds.
     pub maximum_ttl_ns: u64,
+    /// Maximum device slots per issuer-qualified account.
     pub devices_per_account: u8,
 }
+/// Protected token-bucket policy; the persistent store retains its current credit.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct BudgetPolicy {
+    /// Maximum accumulated work units, not necessarily a count of requests.
     pub burst: u32,
+    /// Trusted nanoseconds required to replenish one work unit.
     pub refill_interval_ns: u64,
 }
 
@@ -27,14 +35,18 @@ pub struct ReceiverConfig {
     pub(super) logins: LoginLimits,
     pub(super) admission: BudgetPolicy,
     pub(super) logout: BudgetPolicy,
+    pub(super) verification_costs: crate::admission_budget::VerificationCosts,
 }
 impl ReceiverConfig {
+    /// Validate session/login limits and explicit verification/logout budgets.
+    /// Returns `StoreError::Invalid` for zero, inconsistent or unsupported limits.
     pub fn new(
         audience: AudienceId,
         sessions: SessionLimits,
         logins: LoginLimits,
         admission: BudgetPolicy,
         logout: BudgetPolicy,
+        verification_costs: crate::admission_budget::VerificationCosts,
     ) -> Result<Self, StoreError> {
         let config = Self {
             audience,
@@ -47,6 +59,7 @@ impl ReceiverConfig {
             logins,
             admission,
             logout,
+            verification_costs,
         };
         config.validate()?;
         Ok(config)
@@ -61,6 +74,13 @@ impl ReceiverConfig {
         .map_err(|_| StoreError::Invalid)
     }
     pub(super) fn validate(&self) -> Result<(), StoreError> {
+        SessionAdmissionBudget::for_verification(
+            self.admission.burst,
+            self.admission.refill_interval_ns,
+            self.verification_costs,
+            0,
+        )
+        .map_err(|_| StoreError::Invalid)?;
         self.limits()?;
         let login = self.logins;
         if login.admitted == 0
@@ -80,18 +100,28 @@ impl ReceiverConfig {
     }
 }
 
+/// Retained receiver counts and encoded payload accounting, excluding index overhead.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 pub struct ReceiverOccupancy {
+    /// Active retained session rows, including any not yet pruned after expiry.
     pub sessions: usize,
+    /// Retained credential replay records.
     pub replays: usize,
+    /// Retained authenticated login bindings and fences.
     pub admitted_logins: usize,
+    /// Retained logout denials without an authenticated login lifetime.
     pub unknown_denials: usize,
+    /// Encoded session/replay bytes charged against configured capacity.
     pub encoded_bytes: usize,
 }
+/// Counts removed by one bounded receiver cleanup operation.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct ReceiverPruned {
+    /// Expired session rows removed, preserving required login fences.
     pub sessions: u32,
+    /// Expired replay records removed.
     pub replays: u32,
+    /// Expired unknown-lifetime denial records removed.
     pub unknown_denials: u32,
 }
 

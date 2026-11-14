@@ -4,7 +4,7 @@ mod persistent;
 use ic_auth_qualification_fixtures::metrics;
 mod profiling;
 pub(crate) use checkpoint::{Snapshot, capture, restore};
-use contract::*;
+use contract::{AdmissionProfile, ReceiverAuthority, ReceiverConfig, SessionProfile};
 use ic_auth::{
     admission_budget::SessionAdmissionBudget,
     portable::{MemoryLoginRevocations, PortableClaimsContext},
@@ -156,13 +156,19 @@ fn budgets(
     now: u64,
 ) -> Result<(SessionAdmissionBudget, SessionAdmissionBudget), Refusal> {
     Ok((
-        SessionAdmissionBudget::new(
+        SessionAdmissionBudget::for_verification(
             config.verification_burst,
             config.verification_refill_ns,
+            // This matched-attempt fixture intentionally gives both mechanisms
+            // one credit. Production hosts select measured work-unit weights.
+            ic_auth::admission_budget::VerificationCosts {
+                ed25519: 1,
+                certified: 1,
+            },
             now,
         )
         .map_err(|_| Refusal::AdmissionBudget)?,
-        SessionAdmissionBudget::new(16, 1, now).map_err(|_| Refusal::AdmissionBudget)?,
+        SessionAdmissionBudget::for_operations(16, 1, now).map_err(|_| Refusal::AdmissionBudget)?,
     ))
 }
 
@@ -291,6 +297,7 @@ fn install_session_receiver(config: controls::model::ReceiverConfig) -> Result<(
 fn establish_portable_session(input: SessionInput) -> Result<SessionView, AdmissionRefusal> {
     establish(input, Backend::Volatile)
 }
+#[derive(Clone, Copy)]
 enum Backend {
     Volatile,
     Persistent,
@@ -383,6 +390,7 @@ fn portable_session_read() -> Result<SessionView, SessionReadRefusal> {
     authorize(SessionOperation::Read)
 }
 
+#[derive(Clone, Copy)]
 enum SessionOperation {
     Read,
     Write,

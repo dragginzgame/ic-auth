@@ -3,7 +3,7 @@
 use strict;
 use warnings;
 use FindBin qw($RealBin);
-use lib "$RealBin/../ci";
+use lib "$RealBin/../../vendor/toko-tooling/scripts/ci";
 use ValidationPlan qw(json bytes digest document relative_path keys_are);
 use JSON::PP;
 use Digest::SHA qw(sha256_hex);
@@ -20,7 +20,7 @@ sub directory_ok {
 }
 sub shared_proof {
     my ($directory, $context, $run) = @_;
-    open my $in, '-|', $^X, 'scripts/ci/validation-evidence.pl', 'verify', $root,
+    open my $in, '-|', $^X, 'vendor/toko-tooling/scripts/ci/validation-evidence.pl', 'verify', $root,
         "$directory/plan.json", $context->{source}, $context->{group}, $run,
         "$directory/context.json" or die "start Shared evidence admission: $!\n";
     binmode $in;

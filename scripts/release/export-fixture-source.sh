@@ -30,5 +30,5 @@ while IFS= read -r -d '' path; do
     [[ -e "$source_root/$path" || -L "$source_root/$path" ]] || continue
     files+=("$path")
 done < "$selection"
-bash "${script_path%/*}/../ci/prepare-script-fixture.sh" \
+bash "${script_path%/*}/../../vendor/toko-tooling/scripts/ci/prepare-script-fixture.sh" \
     "$source_root" "$fixture_root" ${files[@]+"${files[@]}"}

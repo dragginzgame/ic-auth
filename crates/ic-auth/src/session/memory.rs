@@ -33,7 +33,9 @@ pub struct MemorySessionStore {
 /// Bounded maintenance result. Expiry is exclusive for both record kinds.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct SessionPruned {
+    /// Expired session rows removed by this bounded maintenance call.
     pub sessions: usize,
+    /// Expired replay tombstones removed by this bounded maintenance call.
     pub replays: usize,
 }
 
@@ -43,9 +45,13 @@ pub struct SessionPruned {
 /// This is not a credential or a complete checkpoint. The host persists this
 /// delta and protected metadata atomically before reporting success.
 pub struct SessionCommit<'a> {
+    /// Exact validated record delta that the host must persist atomically.
     pub write: SessionWrite<'a>,
+    /// Physical session count after applying the delta.
     pub session_count: usize,
+    /// Physical replay count after applying the delta.
     pub replay_count: usize,
+    /// Encoded session/replay bytes after commit, excluding allocation overhead.
     pub encoded_bytes: usize,
 }
 
@@ -54,12 +60,18 @@ pub struct SessionCommit<'a> {
 /// includes the exact session/replay pair to persist in the same transaction.
 #[derive(Clone, Copy)]
 pub enum SessionWrite<'a> {
+    /// Commit a session, replay tombstone and associated login reservation together.
     Admission {
+        /// Matching login reservation, including any displaced caller.
         login: &'a crate::portable::LoginRevocationChange,
+        /// Checked replacement or new session row.
         session: &'a Session,
+        /// Credential replay tombstone retained independently of the session.
         replay: &'a Replay,
     },
+    /// Commit a login denial and remove its caller's session without deleting replay.
     Logout {
+        /// Checked denial identifying the caller whose session must be removed.
         login: &'a crate::portable::LoginRevocationChange,
     },
 }
@@ -67,10 +79,15 @@ pub enum SessionWrite<'a> {
 /// Bounded expired-record deletion and resulting physical store totals.
 /// Hosts delete these keys and persist the totals atomically before success.
 pub struct SessionPrune<'a> {
+    /// Session keys selected for deletion by the bounded expiry index walk.
     pub callers: &'a [Principal],
+    /// Replay keys selected for deletion by the bounded expiry index walk.
     pub fingerprints: &'a [[u8; 32]],
+    /// Physical session count after the deletion set is committed.
     pub session_count: usize,
+    /// Physical replay count after the deletion set is committed.
     pub replay_count: usize,
+    /// Remaining encoded session/replay bytes, excluding allocation overhead.
     pub encoded_bytes: usize,
 }
 
@@ -217,6 +234,7 @@ impl MemorySessionStore {
     }
 
     /// Construct an empty store from already-admitted limits.
+    #[must_use]
     pub fn new(generation: u64, limits: SessionLimits) -> Self {
         Self {
             generation,
@@ -230,6 +248,8 @@ impl MemorySessionStore {
             encoded_bytes: 0,
         }
     }
+    #[must_use]
+    /// Current protected authority generation retained by this store.
     pub fn generation(&self) -> u64 {
         self.generation
     }
@@ -252,6 +272,8 @@ impl MemorySessionStore {
         self.generation = next;
         Ok(next)
     }
+    #[must_use]
+    /// Retained encoded session/replay bytes, including expired unpruned records.
     pub fn encoded_bytes(&self) -> usize {
         self.encoded_bytes
     }
@@ -270,6 +292,8 @@ impl MemorySessionStore {
     }
     /// Remove at most min(budget,128) expired records through ordered indexes.
     /// No implicit cleanup occurs during failed admission or authorization.
+    /// # Panics
+    /// Panics if the internal expiry index is inconsistent or volatile maintenance fails.
     pub fn prune(&mut self, now_ns: u64, budget: usize) -> SessionPruned {
         self.prune_with_commit(now_ns, budget, |_| Ok(()))
             .expect("volatile maintenance cannot fail")
@@ -277,6 +301,8 @@ impl MemorySessionStore {
     /// Stage at most 128 expired records, then atomically persist their deletion.
     /// The callback is skipped for empty work. On returned error all heap records,
     /// indexes and accounting remain unchanged. No await/reentrancy is permitted.
+    /// # Panics
+    /// Panics if the internal expiry index refers to a missing replay record.
     pub fn prune_with_commit(
         &mut self,
         now_ns: u64,

@@ -227,7 +227,16 @@ async fn portable_proof_rechecks_live_authority_and_real_certification_after_upg
     let verify = |signature: &IcCanisterSignatureProofV1,
                   context: &PortableCertifiedContext<'_>| {
         verify_certified_claims(
-            &mut SessionAdmissionBudget::new(64, 1, 0).unwrap(),
+            &mut SessionAdmissionBudget::for_verification(
+                64,
+                1,
+                ic_auth::admission_budget::VerificationCosts {
+                    ed25519: 1,
+                    certified: 1,
+                },
+                0,
+            )
+            .unwrap(),
             &encoded,
             &proof,
             signature,

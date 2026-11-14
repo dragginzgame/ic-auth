@@ -3,7 +3,7 @@ import { accessSync, constants, copyFileSync, mkdirSync, mkdtempSync, readFileSy
 import { isAbsolute, resolve } from 'node:path';
 import { createServer } from 'node:http';
 import { pathToFileURL } from 'node:url';
-import { checkIcSdkBoundary } from './check-ic-sdk-boundary.mjs';
+import { checkIcSdkBoundary } from '../../vendor/toko-tooling/scripts/ci/check-ic-sdk-boundary.mjs';
 
 /** Install only the packed artifact; no source-relative imports or linked client. */
 export async function qualifyClientPackage({ root, source, directory, packed, command, browser = false }) {

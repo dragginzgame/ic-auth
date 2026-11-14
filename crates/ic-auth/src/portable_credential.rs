@@ -9,11 +9,15 @@ use thiserror::Error;
 /// selected; the request cannot choose a key or enable a different mechanism.
 pub enum PortableVerificationContext<'a> {
     #[cfg(feature = "portable-signature-verification")]
+    /// Strict Ed25519 verification under a protected, already parsed issuer key.
     Ed25519 {
+        /// Host-authenticated claims context, including caller, clock and grants.
         claims: &'a crate::portable::PortableClaimsContext<'a>,
+        /// Admitted key selected from protected enrollment, never the proof.
         public_key: &'a crate::portable_signature::PreparedIssuerKey,
     },
     #[cfg(feature = "certified-proof-verification")]
+    /// Complete root-delegation and IC certificate verification under protected policy.
     Certified(&'a crate::portable_certified::PortableCertifiedContext<'a>),
 }
 impl<'ctx> PortableVerificationContext<'ctx> {
@@ -33,12 +37,15 @@ impl<'ctx> PortableVerificationContext<'ctx> {
 #[derive(Debug, Error, Eq, PartialEq)]
 pub enum PortableCredentialError {
     #[error("credential proof does not match the protected enrolled mechanism")]
+    /// Envelope proof variant differs from the protected enrolled mechanism.
     MechanismMismatch,
     #[cfg(feature = "portable-signature-verification")]
     #[error(transparent)]
+    /// Ed25519 claims or signature verification failed.
     Ed25519(#[from] crate::portable_signature::PortableSignatureError),
     #[cfg(feature = "certified-proof-verification")]
     #[error(transparent)]
+    /// Certified claims, delegation or issuer signature verification failed.
     Certified(#[from] crate::portable_certified::PortableCertifiedError),
 }
 
@@ -46,6 +53,7 @@ impl PortableCredentialError {
     /// Inspect a fresh-proof verification budget refusal without parsing text or
     /// rediscovering mechanism wrappers. This is diagnostic information, not a
     /// retry decision or evidence that cryptography ran or credit was consumed.
+    #[must_use]
     pub fn budget_error(&self) -> Option<crate::admission_budget::AdmissionBudgetError> {
         match self {
             #[cfg(feature = "portable-signature-verification")]

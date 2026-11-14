@@ -1,16 +1,16 @@
 .DEFAULT_GOAL := help
-# Shared companions: make/cargo-dependencies.mk
-include ci/tool-versions.env
+# Shared companions: vendor/toko-tooling/make/consumer.mk vendor/toko-tooling/make/release.mk vendor/toko-tooling/make/cargo-dependencies.mk
+include vendor/toko-tooling/ci/tool-versions.env
 # Extend the shared ordered aggregates after common host and Rust admission.
 LOCAL_TOOL_INSTALL_TARGETS := install-testkit-tools install-host-file
 LOCAL_TOOL_CHECK_TARGETS := msrv-tools-check testkit-tools-check host-file-check
 RELEASE_DELIVERY_POLICY := $(CURDIR)/ci/release-delivery.txt
 RELEASE_SETUP_TARGET := release-candidate-setup
 FORMAT_RUST_ARGS := --extra-workspace qualification
-override TOKO_TOOLING_ROOT := $(CURDIR)
+TOKO_TOOLING_ROOT := $(CURDIR)/vendor/toko-tooling
 TOKO_TOOLING_RELEASE := 1
-include make/consumer.mk
-include make/cargo-dependencies.mk
+include vendor/toko-tooling/make/consumer.mk
+include vendor/toko-tooling/make/cargo-dependencies.mk
 
 # The controller rejects inherited Cargo context. Only candidate hooks and
 # ordinary commands select this checkout's target; never erase a user override.
@@ -34,7 +34,7 @@ export RELEASE_REMOTE RELEASE_BRANCH RELEASE_GROUP
         check-snapshot check-dependency-pins check-doc-links check-msrv install-msrv msrv-tools-check ci \
         client-tools-check install-client-dependencies generate-client-contracts check-client-contracts check-client-boundary test-client test-client-tools pack-client test-client-package test-client-package-browser \
         publish publish-dry-run check-package-builds check-package-licenses test-release-tools pack-backend-conformance test-backend-conformance test-backend-package profile-canonical-allocations \
-        test-host-tooling test-qualification build-qualification-canister test-release-runner test-evidence-archive test-tools-evidence test-make-jobserver \
+        test-host-tooling test-qualification build-qualification-canister test-tools-evidence test-make-jobserver \
         release-version release-preflight release-verify release-prepare-version \
         release-prepared-check release-files release-commit-check \
         release-committed-check release-tagged-check release-push-check
@@ -52,8 +52,8 @@ check-client-contracts check-client-boundary test-client pack-client test-client
 test-client-package-browser test-client-browser test-client-tools check-dependency-pins \
 ci test-release-validation publish-dry-run check-package-builds publish test-release-tools \
 test-host-tooling test-backend-conformance pack-backend-conformance test-backend-package \
-profile-canonical-allocations test-release-runner test-tools-evidence test-make-jobserver \
-test-evidence-archive release-candidate-setup release-preflight release-prepare-version \
+profile-canonical-allocations test-tools-evidence test-make-jobserver \
+release-candidate-setup release-preflight release-prepare-version \
 release-prepared-check release-files release-commit-check release-committed-check \
 release-tagged-check release-push-check release-verify: | toko-execution-check
 
@@ -65,6 +65,7 @@ help:
 	@echo 'Testkit server: install-testkit-tools (explicit setup), testkit-tools-check (offline admission)'
 	@echo 'Select by changed contract: test-types, test-protocol, test-portable-signatures, test-chain-key-signatures, test-signatures, test-signature-store, test-certified-proofs, test-sessions, test-host-tooling, metadata'
 	@echo 'Aggregate qualification: clippy, check-wasm, check-msrv; live fixture: test-qualification'
+	@echo 'Local package versions and release groups: deps-list (offline, both workspaces)'
 	@echo 'Named Cargo package/test selections: see docs/development/setup.md#validation'
 	@echo 'Browser client: install-client-dependencies, client-tools-check, generate-client-contracts, check-client-contracts, check-client-boundary, test-client'
 	@echo 'Local browser archives: pack-client, test-client-package (offline; no publication)'
@@ -105,9 +106,9 @@ test-formatting-hooks:
 	+@set -e; fixture="$$(mktemp "$(CURDIR)/target/portable-fixtures/unsorted-manifest.XXXXXX")"; \
 		trap 'rm -f "$$fixture"' EXIT; \
 		perl -0777 -pe 's/^(serde_bytes = [^\n]*\n)(serde_json = [^\n]*\n)/$$2$$1/m or die "missing selected dependency pair"' Cargo.toml > "$$fixture"; \
-		TMPDIR="$(CURDIR)/target/portable-fixtures" bash scripts/ci/check-formatting-hooks.sh \
+		TMPDIR="$(CURDIR)/target/portable-fixtures" bash vendor/toko-tooling/scripts/ci/check-formatting-hooks.sh \
 		"$(CURDIR)" crates/ic-auth/src/lib.rs Cargo.toml "$$fixture" --rust-sources \
-		make/consumer.mk
+		vendor/toko-tooling/make/consumer.mk
 
 install-msrv: install-host-tools
 	bash scripts/dev/msrv-tools.sh install
@@ -117,7 +118,8 @@ msrv-tools-check:
 
 .PHONY: test-compiler-policy
 test-compiler-policy:
-	bash scripts/ci/test-compiler-policy.sh
+	+bash scripts/ci/test-compiler-policy.sh
+	+bash scripts/ci/test-lint-policy.sh
 
 .PHONY: test-validation-inputs
 test-validation-inputs:
@@ -170,9 +172,15 @@ check-wasm:
 	+bash scripts/dev/check-wasm.sh
 
 clippy:
+	# Every selected target denies all warnings, including missing public documentation.
 	+cargo clippy --locked --offline -p ic-auth-protocol-types -p ic-auth -p ic-auth-wire -p ic-auth-tooling --all-targets --all-features -- -D warnings
 	+cargo clippy --manifest-path qualification/Cargo.toml --locked --offline -p ic-auth-qualification -p ic-auth-qualification-contracts -p ic-auth-qualification-fixtures -p ic-auth-backend-conformance -p ic-auth-feature-unification --all-targets --all-features -- -D warnings
 	+cargo clippy --manifest-path qualification/Cargo.toml --locked --offline -p ic-auth-qualification-canister --target wasm32-unknown-unknown -- -D warnings
+	+bash scripts/ci/check-auth-docs.sh
+
+.PHONY: check-public-docs
+check-public-docs:
+	+bash scripts/ci/check-auth-docs.sh
 
 build-qualification-canister:
 	+cargo build --manifest-path qualification/Cargo.toml --locked --offline -p ic-auth-qualification-canister --target wasm32-unknown-unknown --release
@@ -186,11 +194,11 @@ test-qualification: testkit-tools-check client-tools-check
 	+bash scripts/dev/test-qualification.sh
 
 check-candid-boundary:
-	perl scripts/ci/check-candid-boundary.pl --cbor "$(CURDIR)" ci/candid-boundary.json crates qualification
+	perl vendor/toko-tooling/scripts/ci/check-candid-boundary.pl --cbor "$(CURDIR)" ci/candid-boundary.json crates qualification
 
 check-boundaries: check-candid-boundary
-	+bash scripts/ci/check-cargo-dependency-boundaries.sh --consumer "$(CURDIR)" --external-ic
-	+bash scripts/ci/check-cargo-dependency-boundaries.sh --consumer "$(CURDIR)/qualification" --external-ic
+	+bash vendor/toko-tooling/scripts/ci/check-cargo-dependency-boundaries.sh --consumer "$(CURDIR)" --external-ic
+	+bash vendor/toko-tooling/scripts/ci/check-cargo-dependency-boundaries.sh --consumer "$(CURDIR)/qualification" --external-ic
 	+bash scripts/ci/test-auth-boundaries.sh
 	+bash scripts/ci/check-auth-boundaries.sh
 
@@ -236,20 +244,20 @@ test-client-tools:
 	+bash scripts/ci/test-client-tools.sh
 
 check-dependency-pins:
-	+bash scripts/ci/check-dependency-pins.sh --cargo-inheritance --npm-root packages/client \
+	+bash vendor/toko-tooling/scripts/ci/check-dependency-pins.sh --cargo-inheritance --npm-root packages/client \
 	  --node-version "$$(cat packages/client/.nvmrc)" \
 	  --npm-version "$$(jq -er '.packageManager | sub("^npm@"; "")' packages/client/package.json)"
 
 check-doc-links:
-	@rg --files -g '*.md' -0 | xargs -0 perl scripts/ci/check-documentation-links.pl --root "$(CURDIR)"
+	@rg --files -g '*.md' -0 | xargs -0 perl vendor/toko-tooling/scripts/ci/check-documentation-links.pl --root "$(CURDIR)"
 
 # Sequential validation also holds under parallel Make: admit tools, then run
 # the complete existing lint gate before product tests, builds or packaging.
 ci:
 	+bash scripts/ci/run-auth-ci.sh \
 	  --input Cargo.toml --input Cargo.lock --input qualification/Cargo.toml --input qualification/Cargo.lock --input rust-toolchain.toml --input scripts/dev/msrv-tools.sh \
-	  --input ci/tool-versions.env --input ci/ic-tools.tsv --input ci/release-delivery.txt \
-	  --input ci/cargo-dependency-boundaries.json --input ci/external-ic-dependencies.txt \
+	  --input vendor/toko-tooling/ci/tool-versions.env --input vendor/toko-tooling/ci/ic-tools.tsv --input ci/release-delivery.txt \
+	  --input ci/cargo-dependency-boundaries.json --input vendor/toko-tooling/ci/external-ic-dependencies.txt \
 	  --input ci/cargo-release-groups.json \
 	  --input ci/host-file.env --input scripts/dev/host-file-tools.sh --input scripts/dev/run-host-file.sh \
 	  --input packages/client/package.json --input packages/client/package-lock.json \
@@ -266,7 +274,7 @@ test-release-validation:
 	+bash scripts/ci/test-release-validation.sh
 
 check-package-licenses: toko-tooling-check
-	perl scripts/ci/check-license.pl --file LICENSE.md
+	perl vendor/toko-tooling/scripts/ci/check-license.pl --file LICENSE.md
 	+@set -eu; for manifest in Cargo.toml qualification/Cargo.toml; do \
 	  cargo metadata --manifest-path "$$manifest" --locked --offline --no-deps --format-version 1 | \
 	  perl -MJSON::PP -MCwd=realpath -MFile::Basename=dirname -MFile::Spec -0777 -ne 'my $$j = decode_json($$_); for (@{$$j->{packages}}) { die "Noncanonical package license: $$_->{name}\n" if defined $$_->{license} || !defined $$_->{license_file} || realpath(File::Spec->rel2abs($$_->{license_file}, dirname($$_->{manifest_path}))) ne realpath("LICENSE.md"); }'; \
@@ -318,19 +326,11 @@ test-backend-package:
 profile-canonical-allocations:
 	+bash scripts/dev/profile-canonical-allocations.sh
 
-# Generic producer matrices remain opt-in; CI keeps Auth adapter/caller proofs.
-test-release-runner:
-	bash scripts/ci/test-release-runner.sh
-
 test-tools-evidence:
 	bash scripts/ci/test-tools-evidence.sh
 
 test-make-jobserver:
 	bash scripts/ci/test-make-jobserver.sh
-
-test-evidence-archive:
-	@mkdir -p "$(CURDIR)/target/portable-fixtures"
-	TMPDIR="$(CURDIR)/target/portable-fixtures" bash scripts/ci/test-evidence-archive.sh
 
 release-version:
 	@bash -eu -c 'source scripts/release/group.sh; auth_release_version'

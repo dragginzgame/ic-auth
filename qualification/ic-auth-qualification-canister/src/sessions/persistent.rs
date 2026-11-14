@@ -1,6 +1,9 @@
 //! Explicit persistent fixture endpoints. Missing backing never falls back to
 //! the volatile backend. Both use the same protected authority and verifier.
-use super::*;
+use super::{
+    AdmissionRefusal, Backend, LogoutResult, LogoutUnavailable, Refusal, SessionInput,
+    SessionOperation, SessionView, authorize_with, establish, with_receiver,
+};
 
 #[ic_platform_runtime::cdk::update(
     guard = "crate::control::PersistentAdmission::guard",

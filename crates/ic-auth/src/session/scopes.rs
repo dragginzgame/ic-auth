@@ -20,6 +20,7 @@ impl RequiredScopes {
     /// No operation-specific scopes; all other authorization checks still apply.
     pub const NONE: &'static Self = &Self(Vec::new());
 
+    /// Validate scope count and grammar, preserving order and duplicate requirements.
     pub fn new(scopes: Vec<String>) -> Result<Self, SessionError> {
         if scopes.len() > crate::limits::MAX_SESSION_SCOPES {
             return Err(SessionError::InvalidPolicyOrRecord);
@@ -29,6 +30,8 @@ impl RequiredScopes {
         Ok(Self(scopes))
     }
 
+    #[must_use]
+    /// Borrow the required scopes in their original host-selected order.
     pub fn as_slice(&self) -> &[ScopeLabel] {
         &self.0
     }
