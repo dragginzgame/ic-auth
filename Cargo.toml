@@ -16,7 +16,7 @@ readme = "README.md"
 repository = "https://github.com/dragginzgame/ic-auth"
 
 [workspace.dependencies]
-ic-auth = { version = "0.40.1", path = "crates/ic-auth" }
+ic-auth = { version = "0.41.0", path = "crates/ic-auth" }
 ic-auth-protocol-types = { version = "0.40.0", path = "crates/ic-auth-protocol-types" }
 ic-auth-wire = { version = "0.40.0", path = "crates/ic-auth-wire" }
 
