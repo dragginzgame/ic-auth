@@ -1,39 +1,37 @@
 # Current status
 
-Version 0.1.0 is the initial GitHub-only source milestone. Both crates remain
-unpublished with `publish = false`; no complete Auth replacement is claimed.
+[0.2.0](https://github.com/dragginzgame/ic-auth-new/releases/tag/v0.2.0) is the
+GitHub source milestone for Wire and Ed25519 verification. Every crate remains
+unpublished. No complete Auth replacement or consumer cutover is claimed.
 
-The protocol foundation is implemented in two unpublished product crates:
-passive claim fields/labels in `ic-auth-protocol-types`, and canonical schema-2
-claims encode/decode/hash plus unsigned request identity/TTL bounds in `ic-auth`.
-See the [request evidence](../development/request-boundary.md) and
-[claims evidence](../development/claims-boundary.md).
-`qualification/` remains reserved for actual independent qualification packages;
-ordinary contract tests live beside the product packages.
+Product crates supply passive claims/labels, canonical schema-2 claims and request
+identity/TTL, all four Wire contracts with generated browser codecs, and optional
+Ed25519 proof verification against protected host inputs. See the
+[request](../development/request-boundary.md), [claims](../development/claims-boundary.md),
+[Wire](../development/wire-boundary.md) and
+[verification](../development/verification-boundary.md) evidence.
 
-The [architecture](../design/DESIGN.md) selects a full Auth reimplementation,
-with shared bounded receiver decisions and separate issuer/browser ownership.
-Published `ic-storage` is interim; `ic-storage-new` orthogonal persistence is the
-intended durable destination. Its native persistence design is not yet a
-qualified supplier contract. The first receiver slice still covers memory and
-actual stable collections; OP integration has separate lifecycle/rollback gates.
+The verifier uses published Platform 0.33.7, checks current caller/audience/key/
+grant/time bindings, retains weighted attempt charges and returns immutable proof
+evidence. Eight integration tests, a shared-budget sequence and four compile-fail
+cases pass. The reference OpenSSL vector is independently reproduced. A separate
+qualification package proves canonical-scalar refusal even when an activated
+upstream legacy feature accepts the noncanonical control.
 
-Toko Tooling 0.44.4 is installed from its authenticated registry archive.
-Cargo.lock and all member declarations agree with the installed snapshot.
-The root selects published `sha2` 0.11.1 for existing SHA-256 protocol domains and
-`ic-platform-types` 0.20.4 (defaults disabled) for canonical principal identity. See
-[tooling setup](../development/tooling.md) for the focused commands.
+Wire retains 14 integration cases and 37 fixed frames compared across reference/
+current native and generated browser codecs. Its independent qualification
+package compares all four resource boundaries and aggregate allocation refusal.
+Node codec evidence is separate from actual browser/SDK lifecycle qualification.
 
-Validated on Rust 1.100.0: 17 integration tests and one compile-fail doctest;
-retained request and claims vectors independently checked with Perl SHA-256;
-Clippy and Rustdoc with warnings denied; wasm32 library compilation. Formatting
-and Cargo tooling admission pass. The runtime graph contains Platform Types and
-SHA-256, with no Storage, Canic, issuer, runtime executor or native tooling edge.
+Rust 1.100.0 and authenticated Toko Tooling 0.44.4 remain selected. Product and
+qualification workspaces have separate locks. Reference Wire and the adversarial
+legacy-scalar activator stay outside product dependencies. Focused tests, lint,
+docs, formatting and Wasm library compilation pass for implemented capabilities.
 
-Exact Wire/browser codecs, complete verifiers, receiver/storage, issuer and
-browser lifecycle replacement are not implemented. Continue the protocol boundary
-with exact Wire vectors and cross-decoding/generated browser qualification
-under the [compatibility contract](../design/compatibility.md). The full consumer
-API inventory remains open; no API removal or cutover is qualified. The original
-repository remains production owner; no crates.io publication or deployment is
-authorized by this milestone.
+Certified proof verification is next, including complete root/delegation/issuer
+checks and bounded proof work. Receiver policy, storage, issuer and browser
+lifecycle remain unimplemented. Published `ic-storage` is interim; `ic-storage-new`
+orthogonal persistence remains the durable destination subject to its own gates.
+The original repository remains production owner. Consumer API inventory and full
+replacement qualification remain open; no crates.io publication, deployment or
+live storage migration is authorized by this work.

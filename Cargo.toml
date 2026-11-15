@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/ic-auth", "crates/ic-auth-protocol-types"]
+members = ["crates/ic-auth", "crates/ic-auth-protocol-types", "crates/ic-auth-wire"]
 exclude = ["qualification"]
 resolver = "3"
 
@@ -10,7 +10,10 @@ license-file = "LICENSE.md"
 
 [workspace.dependencies]
 ic-auth-protocol-types = { path = "crates/ic-auth-protocol-types" }
+ic-platform = { version = "0.33.7", default-features = false, features = ["ed25519"] }
 ic-platform-types = { version = "0.20.4", default-features = false }
+ic-wire = "0.24.1"
+serde = { version = "1.0.229", features = ["derive"] }
 sha2 = "0.11.1"
 toko-tooling = "=0.44.4"
 

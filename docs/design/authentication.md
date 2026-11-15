@@ -41,6 +41,11 @@ The future package split should preserve passive protocol and Wire boundaries.
 A module earns its own abstraction only when an actual caller or independent
 invariant requires it. Do not reproduce the old module tree automatically.
 
+Canic owns application endpoint installation and dispatch using IC Wire. Auth's
+Wire package supplies contract schemas, fixed identities and resource allowances;
+it installs no endpoints. Canic supplies authenticated host inputs and transaction
+boundaries without becoming a dependency of the Auth crates.
+
 ## Storage
 
 Volatile authentication and durable authentication are first-class requirements.

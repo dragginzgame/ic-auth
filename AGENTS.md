@@ -23,6 +23,8 @@ Read README.md, docs/design/DESIGN.md, docs/design/authentication.md,
 - Auth must not depend on Canic or Toko. Use published Platform/Types, Storage,
   Wire, Host, Build and Testkit at their established ownership boundaries. Do not
   implement cryptography or introduce a replacement runtime executor.
+- Canic owns application endpoint wiring using IC Wire. Auth owns its contract
+  schemas and decisions; do not add endpoint installation to `ic-auth-wire`.
 - Build only required capabilities. No speculative wallet service, placeholder
   accepting endpoints, generic storage framework or legacy format readers.
 - Keep product packages in a virtual root under crates/ and qualification-only

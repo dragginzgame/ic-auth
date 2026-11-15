@@ -1,5 +1,44 @@
 # Changelog
 
+## [0.2.0] - 2026-11-15
+
+GitHub-only source milestone for Wire contracts and Ed25519 verification.
+All product crates are 0.2.0 in this tag and remain `publish = false`.
+Registry-aligned versions begin with the following development increment.
+
+### ✨ Added
+
+- Implement all four Wire contracts, including nested certified/Ed25519 proof
+  layouts and every reply variant, through published `ic-wire` 0.24.1. Preserve
+  routing identities, opaque claims, unnormalized scope text and all four resource
+  allowances. Transport supplies no verifier, session engine or callable endpoint.
+- Generate browser codecs from Rust schemas using an optional native feature.
+  Thirty-seven fixed frames agree across reference/current Rust and generated
+  browser codecs, with optional TTLs, u64 extremes and detached buffer decoding.
+- Add the independent `ic-auth-wire-conformance` qualification workspace package
+  for reference/current codec comparison, including separate byte/allocation/node/
+  depth boundaries and aggregate allocation refusal. The old supplier stays out
+  of product dependencies. Add focused native/browser checks and extend protocol
+  lint/docs/Wasm checks. All product package versions now start at 0.2.0.
+- Add optional Ed25519 proof verification through published Platform 0.33.7,
+  with protected caller/audience/key/grant/time checks, immutable proof results
+  and retained receiver-wide work charging. Preserve preflight refusal order,
+  strict signatures over exact claims digests, exclusive deadlines and no scope
+  union across roles. Certified verification and session admission remain open.
+- Retain and independently reproduce the reference OpenSSL acceptance vector.
+  Add malformed-proof, context and failed-attempt tests plus a qualification-only
+  legacy-scalar feature test whose upstream negative control accepts `S + L`
+  while Auth refuses it without charging. Default codec consumers gain no
+  verification dependency.
+
+### ▶️ Try it
+
+Run `make test-wire test-verification qualify-wire qualify-ed25519` after the
+setup described in [developer tooling](docs/development/tooling.md).
+`make qualify-wire-browser` additionally needs Node and the pinned reference
+checkout. Certified verification, receiver/storage and browser lifecycle are
+still unimplemented. Canic owns endpoint wiring; Auth installs no endpoints.
+
 ## [0.1.0] - 2026-11-15
 
 Initial GitHub source milestone for the replacement protocol foundation.

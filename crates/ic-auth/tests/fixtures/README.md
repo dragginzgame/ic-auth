@@ -45,3 +45,32 @@ at mechanism offset 30, where the signed tag is 0.
 The deliberately inconsistent time window is accepted by the structural codec;
 it cannot pass time validation. These fixtures do not establish proof validity,
 browser caller binding, installed Wasm behavior or complete old/new interoperability.
+
+## Ed25519 verification
+
+`ed25519.tsv` retains the accepted public key, digest and signature from
+`crates/ic-auth/tests/portable_signature.rs` at the same reference commit.
+That source records independent Perl packing and OpenSSL signing, using the
+public test-only seed `00..1f`. The exact source hash is in `reference.sha256`.
+
+`../verify-ed25519-fixture.mjs` independently packs the schema-2 bytes and
+reproduces the reference signature with Node/OpenSSL. It also computes the
+SHA-256 key binding, standard SHA-224 self-authenticating browser caller and
+wrong-message/noncanonical-scalar fixtures. Run:
+
+```sh
+node crates/ic-auth/tests/verify-ed25519-fixture.mjs
+```
+
+This vector uses the reference's raw browser bytes `44` repeated 32 times,
+issuer/subject `01`/`02`, login window 10–100 ns, issuance/admission expiry 20–30
+ns and `user` → `read`. The issuer signature is valid; the browser bytes serve
+only the reference's caller-derivation contract and do not demonstrate an actual
+SDK-generated login. No private production key or replacement Rust signer is used.
+The extra all-zero-seed public key is another public test-only key, used to prove
+that a different valid key cannot replace the enrolled key.
+
+The `--print` mode emits independently computed candidate TSV bytes for deliberate
+fixture review. Ordinary tests only read fixed expected bytes. This establishes
+Ed25519/context acceptance, not session admission, issuer custody or certified/BLS
+verification. Original provenance and licensing remain at the repository root.

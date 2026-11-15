@@ -111,14 +111,20 @@ fn validate(claims: &PortableClaims) -> Result<(), ClaimsError> {
     if claims.account_subject == Principal::anonymous() {
         return Err(ClaimsError::AnonymousSubject);
     }
-    if !(1..=MAX_ROLES).contains(&claims.grants.len()) {
+    validate_grants(&claims.grants)?;
+    check_entries(claims.grants.iter().map(|grant| grant.scopes.len()).sum())
+}
+
+// Protected authority may contain 32 scopes for each of 16 roles. Fresh
+// credentials separately enforce the narrower aggregate 32-entry ceiling.
+pub(crate) fn validate_grants(grants: &[DelegatedRoleGrant]) -> Result<(), ClaimsError> {
+    if !(1..=MAX_ROLES).contains(&grants.len()) {
         return Err(ClaimsError::InvalidGrantCount {
-            found: claims.grants.len(),
+            found: grants.len(),
         });
     }
-    let mut entries = 0;
-    for (index, grant) in claims.grants.iter().enumerate() {
-        if index > 0 && claims.grants[index - 1].target >= grant.target {
+    for (index, grant) in grants.iter().enumerate() {
+        if index > 0 && grants[index - 1].target >= grant.target {
             return Err(ClaimsError::NonCanonicalRoles);
         }
         if !(1..=MAX_SCOPES_PER_ROLE).contains(&grant.scopes.len()) {
@@ -129,9 +135,8 @@ fn validate(claims: &PortableClaims) -> Result<(), ClaimsError> {
         if grant.scopes.windows(2).any(|pair| pair[0] >= pair[1]) {
             return Err(ClaimsError::NonCanonicalScopes);
         }
-        entries += grant.scopes.len();
     }
-    check_entries(entries)
+    Ok(())
 }
 
 /// Encode current canonical claims after checking all structural invariants.

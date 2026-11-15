@@ -54,8 +54,15 @@ unique guarantees and explain redundant coverage removal. The initial
 [request-boundary slice](../development/request-boundary.md) has focused scope,
 request-hash and TTL evidence; the [claims codec](../development/claims-boundary.md)
 has independent signed-byte/digest and bounded rejection evidence. Neither
-completes a replacement gate above: full cross-decoding, Wire, cryptographic
-verification and backend qualification remain outstanding.
+completes a replacement gate above. The first
+[Wire boundary](../development/wire-boundary.md) covers all four contracts with
+37 independent reference frames, generated-browser interoperability and separate
+reference/current native resource thresholds. This is corpus-based codec
+evidence. The [Ed25519 verifier](../development/verification-boundary.md) now has
+an independent signature vector, protected context/refusal cases and a deliberately
+legacy-enabled scalar negative control. Certified verification, complete
+adversarial acceptance, actual SDK/browser lifecycle and backend qualification
+remain outstanding.
 
 Reference entrypoints:
 
