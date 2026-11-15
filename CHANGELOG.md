@@ -1,8 +1,25 @@
 # Changelog
 
-## [0.42.0] - Unreleased
+## [0.43.0] - Unreleased
 
-Pending package versions: `ic-auth` 0.42.0, `ic-auth-protocol-types` 0.41.0 and
+Development versions: `ic-auth` 0.43.0, protocol-types/Wire 0.42.0.
+All packages remain `publish = false`.
+
+### ✨ Added
+
+- Share proof-free session assessment and exact-retry decisions over bounded
+  retained facts. Preserve original leases, request conflicts, single-role scope
+  checks and current authority/login/device fences. These are policy helpers;
+  receiver storage, clock observation and atomic mutations remain unimplemented.
+- Evaluate requested scopes against one protected role without combining grants
+  or repairing signed order. Both proof mechanisms capture login/key/enrollment
+  lease ceilings; later refresh cannot extend a previously calculated lease.
+  These helpers establish no session, replay decision or storage transaction.
+
+## [0.42.0] - Source checkpoint 2026-11-15
+
+Pushed as [03d1a53](https://github.com/dragginzgame/ic-auth-new/commit/03d1a53).
+Package versions: `ic-auth` 0.42.0, `ic-auth-protocol-types` 0.41.0 and
 `ic-auth-wire` 0.41.0. Each is the next minor after its highest existing crates.io
 version checked on 2026-11-15 (0.41.1, 0.40.1 and 0.40.1 respectively).
 The earlier 0.1.0/0.2.0 tags are GitHub-only rewrite milestones. All packages

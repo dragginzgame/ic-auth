@@ -38,6 +38,8 @@ Git hook selection and refuses to replace other hooks. Routine checks are offlin
 ```sh
 make toko-tooling-check
 make test-request
+make test-session-policy
+make test-receiver-policy
 make test-claims
 make test-delegation-encoding
 make test-wire
@@ -61,6 +63,10 @@ make fmt-check
 
 These are focused on the implemented protocol boundary. `test-request` includes
 the scope/request integration files and the immutable-scope compile-fail doctest;
+`test-session-policy` selects role narrowing and captured lease cases, including
+both proof mechanisms using independent qualification signatures;
+`test-receiver-policy` selects seven retained-fact read/retry scenarios and a
+driver projecting independently verified proofs into the same policy;
 `test-claims` covers roles and canonical signed-claims bytes/refusals; `test-wire`
 covers all four contracts, nested proofs and bounded refusal. `qualify-wire`
 checks current Wire against fixed reference frames and thresholds; `lint-wire-qualification` checks that private

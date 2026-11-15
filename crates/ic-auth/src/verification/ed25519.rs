@@ -126,10 +126,10 @@ pub fn verify_ed25519(
     key.key
         .verify_strict(&fingerprint, &signature)
         .map_err(|_| E::InvalidSignature)?;
-    Ok(VerifiedClaims {
+    Ok(VerifiedClaims::from_verification(
         claims,
         fingerprint,
         caller,
-        verified_at_ns: host.now_ns,
-    })
+        host,
+    ))
 }

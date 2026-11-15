@@ -43,3 +43,7 @@ a46f08cba879cb933b516115e6928210e122716fab85f4b098506b67bea3335a  crates/ic-auth
 e83e8b0a116f30ab13746f17daeb7f63ca2496091e5c089f9422e009a83b8aa5  crates/ic-auth/src/delegation/rules.rs
 bac02e548c81dcfe5c1890a6ab2d03d22be3f41acc5245cce35c3b5794297f3a  crates/ic-auth/src/chain_key_signature.rs
 907a4d3c3fc24a82f1b9c81efbf47e0bddb11e454031e3033756dab6c125d787  crates/ic-auth/src/chain_key_batch.rs
+9f1f026e9468292aee425debfcd2fca9fc28398acdbf615cbe9547ff83a2331e  crates/ic-auth/src/portable/verified.rs
+cfe84e3dfcba932cfdc9e70565326c776e8669cb998463c09692630c57376819  crates/ic-auth/src/session/mod.rs
+4d1bd20a6b9495c387eeda80c795b602a989ce2b44ecb5b3d923bd10d6b2a11a  crates/ic-auth/src/session/model.rs
+db537350c8b16642a91efceb9dcb24eb3acb70518f96425e652dbe112d3c534c  crates/ic-auth/src/portable/revocation/mod.rs

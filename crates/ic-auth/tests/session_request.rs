@@ -114,3 +114,87 @@ fn protected_policy_admits_bounds_before_deadline_arithmetic() {
         Err(InvalidLifetime)
     );
 }
+
+fn grant(role: &str, scopes: &[&str]) -> ic_auth_protocol_types::DelegatedRoleGrant {
+    ic_auth_protocol_types::DelegatedRoleGrant {
+        target: role.parse().unwrap(),
+        scopes: scopes.iter().map(|s| s.parse().unwrap()).collect(),
+    }
+}
+
+#[test]
+fn narrowing_uses_one_protected_role_and_preserves_the_request() {
+    let grants = [grant("reader", &["read"]), grant("writer", &["write"])];
+    let ttl = SessionTtlPolicy::new(30, 60).unwrap();
+    let selected = "reader".parse().unwrap();
+    let read = request(&["read"], None);
+    assert_eq!(
+        read.evaluate_grants(&grants, &selected, 7, ttl),
+        Ok(30_000_000_007)
+    );
+    for (scopes, role) in [
+        (vec!["write"], "reader"),
+        (vec!["read", "write"], "reader"),
+        (vec!["read", "write"], "writer"),
+        (vec!["read"], "missing"),
+    ] {
+        assert_eq!(
+            request(&scopes, None).evaluate_grants(&grants, &role.parse().unwrap(), 7, ttl),
+            Err(SessionRequestError::ScopeRejected),
+        );
+    }
+    let all = [grant("app", &["read", "write"])];
+    let reordered = request(&["write", "read"], Some(60));
+    let before = reordered.clone();
+    assert_eq!(
+        reordered.evaluate_grants(&all, &"app".parse().unwrap(), 7, ttl),
+        Ok(60_000_000_007),
+    );
+    assert_eq!(reordered, before);
+}
+
+#[test]
+fn narrowing_rejects_malformed_grants_before_membership_and_ttl() {
+    use SessionRequestError as E;
+    use ic_auth::claims::ClaimsError as C;
+    let req = request(&["read"], Some(u64::MAX));
+    let role = "app".parse().unwrap();
+    let ttl = SessionTtlPolicy::new(1, 1).unwrap();
+    for (grants, expected) in [
+        (vec![], C::InvalidGrantCount { found: 0 }),
+        (
+            vec![grant("app", &["read"]); 17],
+            C::InvalidGrantCount { found: 17 },
+        ),
+        (vec![grant("app", &[])], C::InvalidScopeCount { found: 0 }),
+        (
+            vec![grant("app", &["read"; 33])],
+            C::InvalidScopeCount { found: 33 },
+        ),
+        (
+            vec![grant("app", &["write", "read"])],
+            C::NonCanonicalScopes,
+        ),
+        (vec![grant("app", &["read", "read"])], C::NonCanonicalScopes),
+        (
+            vec![grant("b", &["read"]), grant("app", &["read"])],
+            C::NonCanonicalRoles,
+        ),
+        (vec![grant("app", &["read"]); 2], C::NonCanonicalRoles),
+    ] {
+        let original = grants.clone();
+        assert_eq!(
+            req.evaluate_grants(&grants, &role, 0, ttl),
+            Err(E::Grants(expected))
+        );
+        assert_eq!(grants, original, "signed input must never be repaired");
+    }
+    assert_eq!(
+        req.evaluate_grants(&[grant("app", &["write"])], &role, 0, ttl),
+        Err(E::ScopeRejected),
+    );
+    assert_eq!(
+        req.evaluate_grants(&[grant("app", &["read"])], &role, 0, ttl),
+        Err(E::InvalidLifetime),
+    );
+}

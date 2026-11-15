@@ -3,7 +3,8 @@
 //! Sorting here is specific to unsigned requests. Signed grant lists must retain
 //! their separate strict-order admission; they must never be sorted into validity.
 
-use ic_auth_protocol_types::{ScopeLabel, ScopeLabelError};
+use crate::claims::{ClaimsError, validate_grants};
+use ic_auth_protocol_types::{AuthRole, DelegatedRoleGrant, ScopeLabel, ScopeLabelError};
 use sha2::{Digest, Sha256};
 use std::{error::Error, fmt};
 
@@ -19,6 +20,10 @@ pub enum SessionRequestError {
     InvalidRequest,
     /// A label violates the canonical scope grammar.
     Scope(ScopeLabelError),
+    /// Submitted grants failed bounded canonical shape/order admission.
+    Grants(ClaimsError),
+    /// The protected role is absent or does not contain every requested scope.
+    ScopeRejected,
     /// Host policy, requested TTL or deadline arithmetic is invalid.
     InvalidLifetime,
 }
@@ -30,6 +35,8 @@ impl fmt::Display for SessionRequestError {
                 "session request has invalid scope bounds, duplicate scopes or zero TTL",
             ),
             Self::Scope(error) => error.fmt(f),
+            Self::Grants(error) => error.fmt(f),
+            Self::ScopeRejected => f.write_str("requested scopes exceed the selected role"),
             Self::InvalidLifetime => {
                 f.write_str("invalid session TTL policy, requested lifetime or expiry overflow")
             }
@@ -41,6 +48,7 @@ impl Error for SessionRequestError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
             Self::Scope(error) => Some(error),
+            Self::Grants(error) => Some(error),
             _ => None,
         }
     }
@@ -163,5 +171,28 @@ impl SessionRequest {
         now_ns
             .checked_add(seconds * NANOS_PER_SECOND)
             .ok_or(SessionRequestError::InvalidLifetime)
+    }
+
+    /// Check narrowing to one protected role, then calculate the requested deadline.
+    ///
+    /// This is cheap request preflight, not proof verification or session admission.
+    /// Grants must be bounded, strictly ordered and unique; they are never sorted.
+    /// Other roles cannot supply missing scopes. The host owns `role`, time and
+    /// TTL policy. Signature, fresh-claims aggregate bounds, current authority,
+    /// replay/revocation and login/key/enrollment lease caps remain separate.
+    pub fn evaluate_grants(
+        &self,
+        grants: &[DelegatedRoleGrant],
+        role: &AuthRole,
+        now_ns: u64,
+        policy: SessionTtlPolicy,
+    ) -> Result<u64, SessionRequestError> {
+        validate_grants(grants).map_err(SessionRequestError::Grants)?;
+        let selected = crate::grant_policy::for_role(grants, role)
+            .ok_or(SessionRequestError::ScopeRejected)?;
+        if !crate::grant_policy::scopes_subset(&self.scopes, &selected.scopes) {
+            return Err(SessionRequestError::ScopeRejected);
+        }
+        self.expires_at_ns(now_ns, policy)
     }
 }

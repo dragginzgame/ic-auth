@@ -490,3 +490,74 @@ fn empty_budget_refill_exhaustion_and_rollback_are_retained_across_calls() {
         );
     }
 }
+
+#[test]
+fn session_deadline_captures_login_key_and_enrollment_without_proof_expiry() {
+    use ic_auth::session_request::{SessionRequest, SessionRequestError, SessionTtlPolicy};
+    let a = audience();
+    let g = grants();
+    let k = key();
+    let role = "user".parse().unwrap();
+    let request = SessionRequest::new(vec!["read".into()], None).unwrap();
+    let ttl = SessionTtlPolicy::new(30, 60).unwrap();
+    // Literal reference claims: proof expires at 30, original login at 100.
+    // Each independently chosen protected deadline becomes the limiting bound.
+    for (key_end, enrollment_end, expected) in [
+        (200, 150, 100),
+        (60, 150, 60),
+        (200, 55, 55),
+        (60, 55, 55),
+        (200, 26, 26),
+    ] {
+        let mut h = host(&a, &g);
+        h.authority_expires_at_ns = key_end;
+        h.enrollment_expires_at_ns = enrollment_end;
+        let mut b = budget();
+        let verified =
+            verify_ed25519(&fixture("claims"), &fixture("signature"), &h, &k, &mut b).unwrap();
+        let after_proof = (b.available(), b.observed_at_ns());
+        assert_eq!(
+            verified.session_deadline(&request, &role, ttl),
+            Ok(expected)
+        );
+        h.now_ns = 29;
+        h.authority_expires_at_ns = 1000;
+        h.enrollment_expires_at_ns = 1000;
+        assert_eq!(
+            verified.session_deadline(&request, &role, ttl),
+            Ok(expected)
+        );
+        let refreshed = verify_ed25519(
+            &fixture("claims"),
+            &fixture("signature"),
+            &h,
+            &k,
+            &mut budget(),
+        )
+        .unwrap();
+        assert_eq!(refreshed.session_deadline(&request, &role, ttl), Ok(100));
+        assert_eq!(
+            (b.available(), b.observed_at_ns()),
+            after_proof,
+            "request evaluation performs no cryptographic work"
+        );
+        for bad in [
+            SessionRequest::new(vec!["read".into()], Some(61)).unwrap(),
+            SessionRequest::new(vec!["read".into()], Some(u64::MAX)).unwrap(),
+        ] {
+            assert_eq!(
+                verified.session_deadline(&bad, &role, ttl),
+                Err(SessionRequestError::InvalidLifetime)
+            );
+        }
+        let wrong = SessionRequest::new(vec!["write".into()], None).unwrap();
+        assert_eq!(
+            verified.session_deadline(&wrong, &role, ttl),
+            Err(SessionRequestError::ScopeRejected)
+        );
+        assert_eq!(
+            verified.session_deadline(&request, &"admin".parse().unwrap(), ttl),
+            Err(SessionRequestError::ScopeRejected)
+        );
+    }
+}

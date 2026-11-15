@@ -1,8 +1,10 @@
 # Current status
 
 [0.2.0](https://github.com/dragginzgame/ic-auth-new/releases/tag/v0.2.0) remains the
-GitHub source milestone. Current development is `ic-auth` 0.42.0 and
-protocol-types/Wire 0.41.0, the selected next registry minors. Every crate remains
+tagged GitHub source milestone. Certified verification and Wire/domain admission
+were pushed in [03d1a53](https://github.com/dragginzgame/ic-auth-new/commit/03d1a53)
+at 0.42.0/0.41.0. Current development is `ic-auth` 0.43.0 and
+protocol-types/Wire 0.42.0. Every crate remains
 unpublished; no complete Auth replacement or consumer cutover is claimed.
 
 Product crates supply passive claims/labels, canonical schema-2 claims and request
@@ -18,6 +20,18 @@ binds claims to root-authorized grants and the issuer's BLS-backed IC signature,
 with aggregate proof bounds and one charge retained across root/issuer failures.
 The legacy cryptographic schemes, signing domains and canonical bytes are retained;
 Platform 0.33.7 owns cryptographic primitives and IC certificate verification.
+
+The next increment adds shared request narrowing to one protected role and
+captures login/key/enrollment lease ceilings in proof evidence. Refreshed
+enrollment cannot extend that captured result. Independent request cases and
+both real proof mechanisms exercise the rules; they create no stored session.
+
+Shared receiver policy now checks proof-free reads and exact retries against
+current authority, retained login/device association and request identity. Seven
+independent fact scenarios and a real two-mechanism fixture driver pass, including
+retry after proof expiry with the original lease. See the
+[receiver policy boundary](../development/receiver-policy-boundary.md).
+These helpers neither observe clocks nor authenticate snapshots or commit state.
 
 Evidence includes seven complete certified-proof cases and one real Ed25519/
 certified shared-budget case, eight root cases, eight issuer cases, six delegation
@@ -38,8 +52,8 @@ qualification workspaces have separate locks. Codec-only, certified-only and
 Ed25519-only graphs preserve their capability boundaries. Focused tests, lint,
 docs, formatting and Wasm library compilation pass for implemented capabilities.
 
-Next is receiver/session policy with replay,
-revocation and atomic storage. Volatile/stable backends, issuer state and browser
+Next are fresh-admission/replacement decisions and atomic receiver storage.
+Volatile/stable backends, issuer state and browser
 lifecycle remain unimplemented. Published `ic-storage` is interim; `ic-storage-new`
 orthogonal persistence remains the durable destination subject to its own gates.
 The original repository remains production owner. Consumer inventory and full

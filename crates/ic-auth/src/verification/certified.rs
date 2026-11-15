@@ -170,10 +170,10 @@ pub fn verify_certified(
         },
     )
     .map_err(E::Issuer)?;
-    Ok(VerifiedClaims {
+    Ok(VerifiedClaims::from_verification(
         claims,
         fingerprint,
         caller,
-        verified_at_ns: context.now_ns,
-    })
+        context,
+    ))
 }

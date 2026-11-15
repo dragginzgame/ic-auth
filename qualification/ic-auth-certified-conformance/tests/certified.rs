@@ -710,3 +710,177 @@ fn wire_ed25519_projection_preserves_independent_signature_and_preflight_refusal
         }
     }
 }
+
+#[test]
+fn session_deadline_is_shared_by_complete_proofs_and_captures_enrollment() {
+    use ic_auth::session_request::{SessionRequest, SessionRequestError, SessionTtlPolicy};
+    let f = Fixture::new();
+    let g = grants(&f);
+    let role = "app".parse().unwrap();
+    let request = SessionRequest::new(vec!["write".into(), "read".into()], None).unwrap();
+    let ttl = SessionTtlPolicy::new(30, 60).unwrap();
+    // Independent fixture: original login ends at 190; proof ends at 180.
+    for (key_end, enrollment_end, expected) in [(200, 210, 190), (185, 210, 185), (200, 175, 175)] {
+        let mut h = host(&f, &g);
+        h.claims.authority_expires_at_ns = key_end;
+        h.claims.enrollment_expires_at_ns = enrollment_end;
+        let verified = verify_certified(&f.claims, f.proof(), &h, &mut budget(3)).unwrap();
+        assert_eq!(
+            verified.session_deadline(&request, &role, ttl),
+            Ok(expected)
+        );
+        assert_eq!(
+            verified.session_deadline(&request, &"other".parse().unwrap(), ttl),
+            Err(SessionRequestError::ScopeRejected),
+        );
+        #[cfg(feature = "ed25519-comparison")]
+        {
+            use ic_auth::verification::{Ed25519Key, verify_ed25519};
+            let mut ed = h.claims;
+            ed.mechanism = PortableMechanism::Ed25519;
+            ed.key_binding_id = hash("ed_key_binding");
+            let key = Ed25519Key::new(hash("ed_public_key")).unwrap();
+            let verified_ed = verify_ed25519(
+                &bytes("ed_claims"),
+                &bytes("ed_signature"),
+                &ed,
+                &key,
+                &mut budget(3),
+            )
+            .unwrap();
+            assert_eq!(
+                verified_ed.session_deadline(&request, &role, ttl),
+                Ok(expected)
+            );
+        }
+    }
+}
+
+#[test]
+fn receiver_retry_uses_retained_proof_evidence_after_admission_expiry() {
+    use ic_auth::{
+        receiver_policy::{
+            DeviceFacts, LoginBinding, LoginFacts, ReceiverSnapshot, RetryDecision,
+            SessionAuthority, SessionFacts, SessionPolicyError, assess_retry, assess_session,
+        },
+        session_request::{SessionRequest, SessionTtlPolicy},
+    };
+    let f = Fixture::new();
+    let g = grants(&f);
+    let h = host(&f, &g);
+    let role = "app".parse().unwrap();
+    let request = SessionRequest::new(vec!["read".into()], None).unwrap();
+    let verified = verify_certified(&f.claims, f.proof(), &h, &mut budget(3)).unwrap();
+    // This driver projects independently authenticated fixture evidence, not
+    // a storage implementation or a production session-admission constructor.
+    fn check(
+        verified: &ic_auth::verification::VerifiedClaims,
+        h: &VerificationContext<'_>,
+        role: &ic_auth_protocol_types::AuthRole,
+        request: &SessionRequest,
+    ) {
+        let c = verified.claims();
+        let binding = LoginBinding {
+            issuer: c.issuer,
+            subject: c.account_subject,
+            device_slot: c.device_slot,
+            device_generation: c.device_generation,
+            started_at_ns: c.login_started_at_ns,
+            deadline_ns: c.login_deadline_ns,
+        };
+        let session = SessionFacts {
+            caller: verified.caller(),
+            audience: c.audience,
+            login: binding,
+            mechanism: c.mechanism,
+            key_binding_id: c.key_binding_id,
+            role,
+            scopes: request.scopes(),
+            authority_generation: 1,
+            established_at_ns: verified.verified_at_ns(),
+            expires_at_ns: verified
+                .session_deadline(request, role, SessionTtlPolicy::new(30, 60).unwrap())
+                .unwrap(),
+            fingerprint: verified.fingerprint(),
+            request_hash: request.hash(),
+        };
+        let login = LoginFacts {
+            caller: verified.caller(),
+            audience: c.audience,
+            binding: Some(binding),
+            until_ns: c.login_deadline_ns,
+            denied: false,
+        };
+        let device = DeviceFacts {
+            issuer: c.issuer,
+            subject: c.account_subject,
+            slot: c.device_slot,
+            generation: c.device_generation,
+            caller: verified.caller(),
+        };
+        let snapshot = ReceiverSnapshot {
+            audience: c.audience,
+            authority_generation: 1,
+            observed_at_ns: 150,
+            session: Some(&session),
+            login: Some(&login),
+            device: Some(&device),
+        };
+        let mut authority = SessionAuthority {
+            caller: h.caller,
+            now_ns: 185,
+            audience: *h.audience,
+            issuer: h.issuer,
+            mechanism: h.mechanism,
+            key_binding_id: h.key_binding_id,
+            role,
+            grants: h.grants.as_slice(),
+            generation: 1,
+            not_before_ns: h.authority_not_before_ns,
+            expires_at_ns: h.authority_expires_at_ns,
+            enrollment_expires_at_ns: h.enrollment_expires_at_ns,
+            min_login_started_at_ns: h.min_login_started_at_ns,
+            max_session_ttl_secs: 60,
+            enabled: true,
+            subject_admissible: true,
+        };
+        assert_eq!(c.admission_expires_at_ns, 180);
+        assert_eq!(
+            assess_retry(&snapshot, &authority, verified.fingerprint(), request, true),
+            Ok(RetryDecision::ExactRetry { expires_at_ns: 190 })
+        );
+        assert_eq!(
+            assess_session(&snapshot, &authority, request.scopes()),
+            Ok(())
+        );
+        authority.now_ns = 190;
+        assert_eq!(
+            assess_retry(&snapshot, &authority, verified.fingerprint(), request, true),
+            Err(SessionPolicyError::MissingOrExpired)
+        );
+    }
+    check(&verified, &h.claims, &role, &request);
+    let mut expired = h;
+    expired.claims.now_ns = 185;
+    assert_eq!(
+        result(&f, &expired, &mut budget(3)),
+        Err(E::Context(C::Expired))
+    );
+    #[cfg(feature = "ed25519-comparison")]
+    {
+        use ic_auth::verification::{Ed25519Key, verify_ed25519};
+        let mut ed = h.claims;
+        ed.mechanism = PortableMechanism::Ed25519;
+        ed.key_binding_id = hash("ed_key_binding");
+        let key = Ed25519Key::new(hash("ed_public_key")).unwrap();
+        let verified_ed = verify_ed25519(
+            &bytes("ed_claims"),
+            &bytes("ed_signature"),
+            &ed,
+            &key,
+            &mut budget(3),
+        )
+        .unwrap();
+        check(&verified_ed, &ed, &role, &request);
+    }
+}

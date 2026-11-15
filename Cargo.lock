@@ -365,7 +365,7 @@ dependencies = [
 
 [[package]]
 name = "ic-auth"
-version = "0.42.0"
+version = "0.43.0"
 dependencies = [
  "ic-auth-protocol-types",
  "ic-platform",
@@ -375,7 +375,7 @@ dependencies = [
 
 [[package]]
 name = "ic-auth-protocol-types"
-version = "0.41.0"
+version = "0.42.0"
 dependencies = [
  "ic-platform-types",
  "toko-tooling",
@@ -383,7 +383,7 @@ dependencies = [
 
 [[package]]
 name = "ic-auth-wire"
-version = "0.41.0"
+version = "0.42.0"
 dependencies = [
  "ic-auth-protocol-types",
  "ic-wire",

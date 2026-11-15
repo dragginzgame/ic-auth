@@ -72,6 +72,8 @@ fixtures sign the retained claims digest and literal domain without calling Auth
 encoder or message builder. Cases cover exact aggregate boundaries, separate caps,
 preflight no-mutation, certificate narrowing, root-before-issuer order, charged
 refusals, digest mutation, freshness and budget exhaustion/rollback.
+It also checks captured session lease policy and a retained-fact retry driver;
+neither constructs or commits a production session.
 
 `make qualify-shared-verification` enables the qualification package's optional
 Ed25519 comparison and passes independently signed Ed25519 and certified proofs

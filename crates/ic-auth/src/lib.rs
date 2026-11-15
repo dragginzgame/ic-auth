@@ -6,6 +6,8 @@
 
 pub mod claims;
 pub mod delegation_encoding;
+mod grant_policy;
+pub mod receiver_policy;
 pub mod session_request;
 
 #[cfg(feature = "certified-issuer-verification")]

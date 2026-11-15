@@ -68,6 +68,12 @@ have independent byte/hash evidence; the [root verifier](../development/root-del
 has independent OpenSSL evidence for enrolled authority, grant binding and proof bounds.
 The [complete certified verifier](../development/certified-verification-boundary.md)
 now has independent root/issuer composition and shared-budget evidence.
+The [request policy](../development/request-boundary.md#shared-narrowing-and-lease-calculation)
+also checks single-role narrowing and captured lease ceilings through both proof
+mechanisms, without claiming session or replay admission.
+The [receiver policy boundary](../development/receiver-policy-boundary.md) checks
+retained-state read/retry decisions and proof-expired retries. Its fact drivers
+are not evidence of backend admission, retention, rollback or host integration.
 Complete adversarial acceptance, actual SDK/browser lifecycle and backend qualification
 remain outstanding.
 

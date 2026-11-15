@@ -17,6 +17,8 @@ help:
 	  'snapshot-check  Verify the installed tooling bytes (offline)' \
 	  'toko-tooling-check  Verify Cargo selection, lock and installed tooling' \
 	  'test-request    Scope/request contracts and immutable-scope compile-fail case' \
+	  'test-session-policy  Single-role narrowing and captured lease ceilings' \
+	  'test-receiver-policy  Proof-free reads, exact retries and retained fences' \
 	  'test-claims     Signed-claims bytes, bounds, ordering and role grammar' \
 	  'test-delegation-encoding  Root-delegation signing commitments and bounds' \
 	  'test-verification  Ed25519 proof/context, work charging and immutable results' \
@@ -63,6 +65,17 @@ test-request: toko-tooling-check
 test-claims: toko-tooling-check
 	cargo test --offline --locked -p ic-auth-protocol-types --test role
 	cargo test --offline --locked -p ic-auth --test claims
+
+.PHONY: test-session-policy
+test-session-policy: toko-tooling-check
+	cargo test --offline --locked -p ic-auth --test session_request narrowing_
+	cargo test --offline --locked -p ic-auth --features ed25519-verification --test verification session_deadline
+	cargo test --offline --locked --manifest-path qualification/Cargo.toml -p ic-auth-certified-conformance --features ed25519-comparison --test certified session_deadline
+
+.PHONY: test-receiver-policy
+test-receiver-policy: toko-tooling-check
+	cargo test --offline --locked -p ic-auth --test receiver_policy
+	cargo test --offline --locked --manifest-path qualification/Cargo.toml -p ic-auth-certified-conformance --features ed25519-comparison --test certified receiver_retry
 
 .PHONY: test-delegation-encoding
 test-delegation-encoding: toko-tooling-check

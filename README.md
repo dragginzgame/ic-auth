@@ -12,10 +12,12 @@ schema-2 canonical claims encoding/decoding/hashing, unsigned session-request
 identity, host-supplied TTL bounds and optional Ed25519/certified proof verification.
 Version 0.2.0 adds `ic-auth-wire`
 with all four Wire contracts and generated browser codecs. All packages are
-unpublished. The current development increment adds the certified issuer-signature
+unpublished. The pushed 0.42.0/0.41.0 checkpoint adds the certified issuer-signature
 component, root-delegation signing commitments and standalone root authorization.
 Complete certified verification now combines both components with shared claims
-policy and work charging. Receiver/storage, issuer state and browser lifecycle
+policy and work charging. Current development adds shared role narrowing and
+captured session lease ceilings, plus shared retry/read policy over retained facts.
+Receiver/storage, issuer state and browser lifecycle
 replacement remain unimplemented. The existing
 `ic-auth` repository remains the implemented reference and canonical production
 owner until the replacement is qualified and adoption is explicitly approved.
@@ -25,10 +27,10 @@ crates.io publication is deferred until the replacement is complete. It does not
 claim a working authentication engine or authorize a consumer cutover.
 Canic owns endpoint wiring using IC Wire; the Auth crates supply contract schemas
 and authentication decisions without installing endpoints.
-Current development uses registry-aligned versions: `ic-auth` 0.42.0 and
-`ic-auth-protocol-types` / `ic-auth-wire` 0.41.0. These are the next minor
-versions after the existing registry releases; version selection reserves no
-registry slot and does not publish a crate.
+Current development uses `ic-auth` 0.43.0 and
+`ic-auth-protocol-types` / `ic-auth-wire` 0.42.0, following the pushed
+0.42.0/0.41.0 source checkpoint. Version selection reserves no registry slot
+and does not publish a crate.
 
 - [Architecture and qualification plan](docs/design/DESIGN.md)
 - [Design and ownership overview](docs/design/authentication.md)
@@ -63,6 +65,10 @@ records the combined path and legacy cryptographic compatibility; run
 `make qualify-certified qualify-shared-verification`.
 `make test-wire-projection qualify-wire-admission` covers consuming Wire/domain
 projection and real proofs through the verifier; Canic still owns endpoint wiring.
+`make test-session-policy` checks role-specific narrowing and captured lease
+ceilings shared by both verifiers; see the [request boundary](docs/development/request-boundary.md).
+`make test-receiver-policy` covers [proof-free read and retry decisions](docs/development/receiver-policy-boundary.md)
+over bounded facts, including independent proof fixtures after admission expiry.
 
 The objective is less maintained state and clearer ownership, not a promised
 zero-debt result or a line-count quota. Keep rejection, atomicity and recovery

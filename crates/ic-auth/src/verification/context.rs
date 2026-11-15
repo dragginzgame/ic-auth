@@ -208,13 +208,8 @@ pub(super) fn grants_subset(
     allowed: &[DelegatedRoleGrant],
 ) -> bool {
     requested.iter().all(|grant| {
-        allowed
-            .binary_search_by(|candidate| candidate.target.cmp(&grant.target))
-            .is_ok_and(|index| {
-                grant
-                    .scopes
-                    .iter()
-                    .all(|scope| allowed[index].scopes.binary_search(scope).is_ok())
-            })
+        crate::grant_policy::for_role(allowed, &grant.target).is_some_and(|allowed| {
+            crate::grant_policy::scopes_subset(&grant.scopes, &allowed.scopes)
+        })
     })
 }

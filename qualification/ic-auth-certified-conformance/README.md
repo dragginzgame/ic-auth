@@ -109,6 +109,13 @@ installed-host replacement qualification remain outstanding.
 
 ## Wire/domain integration
 
+`make test-receiver-policy` additionally selects the `receiver_retry` driver:
+independently verified certified/Ed25519 evidence is projected into borrowed
+retained facts, then assessed after proof expiry and at lease expiry. This is
+native policy integration, not a backend admission/commit or lifecycle test.
+The [receiver boundary](../../docs/development/receiver-policy-boundary.md)
+records the host and storage obligations that remain.
+
 `make qualify-wire-admission` selects three `wire_` cases in `tests/certified.rs`.
 These qualification-only host drivers build Wire records from the independent
 crypto fixtures, decode with the existing contracts, consume them into passive
