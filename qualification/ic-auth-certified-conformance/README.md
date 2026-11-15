@@ -138,6 +138,8 @@ or receiver state is part of these drivers.
 
 With `--features receiver-memory`, the `memory_certified` case drives actual
 volatile admission, root/issuer failure charging, proof-expired exact retry and
-known-login revocation. `make test-memory` runs it in a certified-only graph along
+known-login logout. It also checks exact unchanged logout reply frames for known
+and unknown results, retries, capacity, invalid caller, clock and closed state.
+`make test-memory` runs it in a certified-only graph along
 with the separate Ed25519 memory sequences. This is native receiver evidence;
-boot/recovery, unknown-login denial and installed-host rollback remain unqualified.
+boot/recovery and installed-host rollback remain unqualified.

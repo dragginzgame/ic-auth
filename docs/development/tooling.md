@@ -16,9 +16,10 @@ The release source is
 [`8bcece573511a6ce6ee8879443a8d19b6e43e7ad`](https://github.com/dragginzgame/toko-tooling/tree/8bcece573511a6ce6ee8879443a8d19b6e43e7ad).
 Do not hand-edit the receipt or installed vendor files.
 
-The executable selections are `make/consumer.mk`, `make/cargo-dependencies.mk`
-and the formatting hook, with their required companions. No release or
-publication interface is selected. Local checks are owned by the root Makefile.
+The executable selections are `make/consumer.mk`, `make/cargo-dependencies.mk`,
+the formatting hook, the common-tools and failure-evidence composite actions,
+and the pinned CI-tool installer, with their required companions. No release or
+publication interface is selected. Product checks are owned by the root Makefile.
 
 ## Setup and focused checks
 
@@ -76,7 +77,8 @@ and the qualification package's `--test certified login_replacement` case;
 `test-credential-profile` checks single-mechanism protected dispatch, while
 `qualify-wire-admission` covers the combined graph through Wire/domain projection;
 `test-memory` checks independent signed memory admission sequences and certified-only
-retention, including failed proofs and exact retry after proof expiry;
+retention, including failed proofs, proof-expired retries, unknown logout and
+exact logout Wire result projections;
 `test-claims` covers roles and canonical signed-claims bytes/refusals; `test-wire`
 covers all four contracts, nested proofs and bounded refusal. `qualify-wire`
 checks current Wire against fixed reference frames and thresholds; `lint-wire-qualification` checks that private
@@ -111,6 +113,30 @@ gate is implied. `make fmt` writes the same Rust/manifest selection checked by
 Its local qualification prerequisite uses the same shared declaration/lock
 checker and compares its result with the installed receipt. `snapshot-check` is the narrower byte-integrity check retained
 from bootstrap, without Cargo selection admission.
+
+## Hosted CI
+
+[Auth CI](../../.github/workflows/ci.yml) runs on main pushes, pull requests and
+manual dispatch. Native contract tests run on Ubuntu 24.04 and macOS 15, including
+both Apple Silicon and Intel. Rustup prepares the tracked toolchain and components;
+the authenticated common-tools action restores caches, installs and admits the
+pinned tools, then saves prepared caches before product checks. Node 24.21.0
+independently verifies the retained signing fixtures.
+
+The CI aggregates `make test-product test-qualification verify-fixtures` select
+each implemented product and qualification package once, enabling both complete
+verifiers and the memory receiver. They do not replace focused development checks.
+Linux additionally runs `make fmt-check lint-protocol doc-protocol check-protocol-wasm`.
+Both workspaces fetch their locked dependencies before offline checks. Snapshot and
+Cargo pin admission precede the test aggregates; strict compiler warnings apply
+throughout the native matrix.
+
+A separate Linux job installs pinned Actionlint, ShellCheck and Gitleaks, validates
+the workflow, and scans complete Git history once with secrets fully redacted.
+Actions are commit-pinned, repository permissions are read-only, and newer work
+cancels the same workflow/ref. Shared failure evidence retains native logs for
+14 days. Generated browser codec checks and installed host/SDK lifecycle
+qualification remain separate gates; Wasm coverage here proves compilation only.
 
 ## Dependency maintenance and LOC
 

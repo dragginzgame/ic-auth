@@ -2,7 +2,10 @@
 #![cfg(all(feature = "receiver-memory", feature = "ed25519-verification"))]
 use ic_auth::{
     receiver_memory::{AdmissionHost, MemoryConfig, MemoryError as E, MemoryReceiver},
-    receiver_policy::{LoginLimits, SessionAuthority, SessionCapacity, SessionPolicyError as P},
+    receiver_policy::{
+        LoginLimits, LogoutError, LogoutReceipt, SessionAuthority, SessionCapacity,
+        SessionPolicyError as P, UnknownLogoutLimits,
+    },
     session_request::{SessionRequest, SessionTtlPolicy},
     verification::{
         AuthorityGrants, CredentialError, Ed25519Key, VerificationContext, VerificationCosts,
@@ -115,6 +118,11 @@ impl Host {
     }
     fn config(&self) -> MemoryConfig {
         MemoryConfig {
+            unknown_logout: UnknownLogoutLimits {
+                max_denials: 2,
+                capacity: 2,
+                refill_interval_ns: 1,
+            },
             audience: self.audience,
             login: LoginLimits {
                 max_device_slots: 8,
@@ -284,7 +292,10 @@ fn memory_logout_pruning_and_device_fences_survive_expiry() {
     let c = h.context("initial", 25);
     r.admit(&credential("initial"), request(), h.admission(&c))
         .unwrap();
-    assert!(r.revoke_known(c.caller, 25).unwrap());
+    assert_eq!(
+        r.logout(c.caller, 25),
+        Ok(LogoutReceipt::Revoked { deny_until_ns: 100 })
+    );
     assert_eq!(r.usage(account()).sessions, 0);
     assert_eq!(r.usage(account()).replays, 1);
     assert_eq!(
@@ -306,8 +317,14 @@ fn memory_logout_pruning_and_device_fences_survive_expiry() {
     assert_eq!(r.prune(100, 1).unwrap().replays, 1);
     assert_eq!(r.usage(account()).encoded_bytes, 0);
     assert_eq!(r.known_logins(), 1);
-    assert!(r.revoke_known(replacement.caller, 100).unwrap());
-    assert!(!r.revoke_known(c.caller, 100).unwrap());
+    assert_eq!(
+        r.logout(replacement.caller, 100),
+        Ok(LogoutReceipt::Revoked { deny_until_ns: 100 })
+    );
+    assert_eq!(
+        r.logout(c.caller, 100),
+        Ok(LogoutReceipt::Unconfirmed { deny_until_ns: 200 })
+    );
 }
 
 #[test]
@@ -473,4 +490,256 @@ fn memory_uncharged_refusals_and_empty_budget_cannot_publish() {
     ));
     assert_eq!(r.observed_at_ns(), 25);
     assert_eq!(r.known_logins(), 0);
+}
+
+fn unknown_caller(byte: u8) -> Principal {
+    let mut bytes = [byte; 29];
+    bytes[28] = 2;
+    Principal::from_slice(&bytes)
+}
+
+#[test]
+fn logout_unknown_retries_remain_unconfirmed_without_sliding_or_charging() {
+    let h = Host::new();
+    let mut r = h.receiver();
+    let caller = unknown_caller(1);
+    assert_eq!(r.logout(caller, 0), Err(LogoutError::Capacity)); // starts empty
+    assert_eq!(r.unknown_logins(), 0);
+    let original = LogoutReceipt::Unconfirmed { deny_until_ns: 101 };
+    assert_eq!(r.logout(caller, 1), Ok(original));
+    assert_eq!(r.unknown_logout_credit(), 0);
+    assert_eq!(r.logout(caller, 100), Ok(original));
+    assert_eq!(r.unknown_logout_credit(), 0); // retry does not even refill
+    assert_eq!(r.unknown_logins(), 1);
+    assert_eq!(r.known_logins(), 0);
+    assert_eq!(r.verification_budget().observed_at_ns(), 0);
+    assert_eq!(
+        r.logout(unknown_caller(2), 100),
+        Ok(LogoutReceipt::Unconfirmed { deny_until_ns: 200 })
+    );
+    assert_eq!(r.unknown_logout_credit(), 1);
+    assert_eq!(r.logout(unknown_caller(3), 100), Err(LogoutError::Capacity));
+    assert_eq!(r.unknown_logout_credit(), 1); // pool refusal precedes a charge
+    assert_eq!(r.logout(caller, 100), Ok(original));
+    assert_eq!(r.unknown_logins(), 2);
+}
+
+#[test]
+fn logout_unknown_flood_cannot_spend_known_capacity_or_proof_credit() {
+    let h = Host::new();
+    let mut r = h.receiver();
+    let c = h.context("initial", 25);
+    r.admit(&credential("initial"), request(), h.admission(&c))
+        .unwrap();
+    for caller in [unknown_caller(10), unknown_caller(11)] {
+        r.logout(caller, 26).unwrap();
+    }
+    assert_eq!(r.logout(unknown_caller(12), 26), Err(LogoutError::Capacity));
+    assert_eq!(r.unknown_logout_credit(), 0);
+    assert_eq!(r.verification_budget().available(), 8);
+    assert_eq!(r.known_logins(), 1);
+    assert_eq!(r.unknown_logins(), 2);
+    assert_eq!(
+        r.logout(c.caller, 26),
+        Ok(LogoutReceipt::Revoked { deny_until_ns: 100 })
+    );
+    assert_eq!(
+        r.logout(c.caller, 101),
+        Ok(LogoutReceipt::Revoked { deny_until_ns: 100 })
+    );
+    assert_eq!(r.unknown_logins(), 2);
+    assert_eq!(r.known_logins(), 1);
+    assert_eq!(r.usage(account()).sessions, 0);
+    assert_eq!(r.usage(account()).replays, 1);
+    assert_eq!(r.unknown_logout_credit(), 0);
+    assert_eq!(r.verification_budget().available(), 8);
+}
+
+#[test]
+fn logout_expired_unknown_reuses_its_slot_and_replaces_only_its_expiry() {
+    let h = Host::new();
+    let mut config = h.config();
+    config.unknown_logout.max_denials = 1;
+    let mut r = MemoryReceiver::new_fresh(config, 0).unwrap();
+    r.activate_fresh(7).unwrap();
+    let caller = unknown_caller(4);
+    assert_eq!(
+        r.logout(caller, 1),
+        Ok(LogoutReceipt::Unconfirmed { deny_until_ns: 101 })
+    );
+    assert_eq!(r.logout(unknown_caller(5), 101), Err(LogoutError::Capacity)); // expired physical row still counts
+    assert_eq!(
+        r.logout(caller, 101),
+        Ok(LogoutReceipt::Unconfirmed { deny_until_ns: 201 })
+    );
+    assert_eq!(r.unknown_logins(), 1);
+    assert_eq!(r.prune(101, 128).unwrap().unknown_denials, 0); // old expiry removed
+    assert_eq!(r.prune(201, 1).unwrap().unknown_denials, 1);
+    assert_eq!(r.unknown_logins(), 0);
+    assert_eq!(r.known_logins(), 0);
+}
+
+#[test]
+fn logout_unconfirmed_cannot_exclude_unseen_future_credentials() {
+    let h = Host::new();
+    for prune_first in [false, true] {
+        let mut r = h.receiver();
+        let future = h.context("future", 125);
+        assert_eq!(
+            r.logout(future.caller, 1),
+            Ok(LogoutReceipt::Unconfirmed { deny_until_ns: 101 })
+        );
+        let early = h.context("future", 100);
+        assert_eq!(
+            r.admit(&credential("future"), request(), h.admission(&early)),
+            Err(E::Policy(P::Revoked))
+        );
+        if prune_first {
+            assert_eq!(r.prune(101, 1).unwrap().unknown_denials, 1);
+        }
+        let mut invalid = credential("future");
+        if let CredentialProof::Ed25519(sig) = &mut invalid.proof {
+            sig[0] ^= 1;
+        }
+        assert!(r.admit(&invalid, request(), h.admission(&future)).is_err());
+        assert_eq!(r.known_logins(), 0);
+        assert_eq!(r.unknown_logins(), usize::from(!prune_first));
+        // Same independently signed future credential becomes admissible after
+        // the temporary denial. No caller-selected time or fabricated verifier.
+        let result = r
+            .admit(&credential("future"), request(), h.admission(&future))
+            .unwrap();
+        assert_eq!(result.receipt.subject, Principal::from_slice(&[3]));
+        assert_eq!(r.known_logins(), 1);
+        assert_eq!(r.unknown_logins(), 0);
+        assert_eq!(r.verification_budget().available(), 6);
+        assert_eq!(r.prune(125, 128).unwrap().unknown_denials, 0);
+        r.logout(unknown_caller(6), 125).unwrap();
+        assert_eq!(r.unknown_logins(), 1);
+    }
+}
+
+#[test]
+fn logout_expired_unknown_transfer_refuses_without_freeing_either_pool() {
+    let h = Host::new();
+    let mut r = h.receiver();
+    let initial = h.context("initial", 25);
+    r.admit(&credential("initial"), request(), h.admission(&initial))
+        .unwrap();
+    let future = h.context("future", 125);
+    r.logout(future.caller, 25).unwrap();
+    assert_eq!(
+        r.admit(&credential("future"), request(), h.admission(&future)),
+        Err(E::Policy(P::Capacity))
+    );
+    assert_eq!(r.known_logins(), 1);
+    assert_eq!(r.unknown_logins(), 1);
+    assert_eq!(r.verification_budget().available(), 8);
+    let pruned = r.prune(125, 128).unwrap();
+    assert_eq!(pruned.unknown_denials, 1);
+    assert_eq!(r.known_logins(), 1);
+    assert_eq!(r.unknown_logins(), 0);
+    assert_eq!(
+        r.logout(initial.caller, 125),
+        Ok(LogoutReceipt::Revoked { deny_until_ns: 100 })
+    );
+}
+
+#[test]
+fn logout_invalid_clock_overflow_and_closed_state_never_acknowledge() {
+    let h = Host::new();
+    let mut r = h.receiver();
+    let c = h.context("initial", 25);
+    r.admit(&credential("initial"), request(), h.admission(&c))
+        .unwrap();
+    for caller in [
+        Principal::anonymous(),
+        Principal::management_canister(),
+        Principal::from_slice(&[2]),
+    ] {
+        assert_eq!(r.logout(caller, 26), Err(LogoutError::InvalidCaller));
+    }
+    assert_eq!(r.observed_at_ns(), 25);
+    assert_eq!(r.logout(c.caller, 24), Err(LogoutError::Clock));
+    assert_eq!(
+        r.logout(unknown_caller(7), u64::MAX),
+        Err(LogoutError::Clock)
+    );
+    assert_eq!(r.observed_at_ns(), u64::MAX);
+    assert_eq!(r.unknown_logins(), 0);
+    assert_eq!(r.unknown_logout_credit(), 0);
+    // Known expiry is retained even when computing a new temporary lease would overflow.
+    assert_eq!(
+        r.logout(c.caller, u64::MAX),
+        Ok(LogoutReceipt::Revoked { deny_until_ns: 100 })
+    );
+    r.close();
+    assert_eq!(r.logout(c.caller, u64::MAX), Err(LogoutError::Closed));
+    let mut fresh = MemoryReceiver::new_fresh(h.config(), 0).unwrap();
+    assert_eq!(fresh.logout(c.caller, 1), Err(LogoutError::Closed));
+}
+
+#[test]
+fn logout_operation_budget_is_separate_and_retains_refill_remainder() {
+    let h = Host::new();
+    let mut config = h.config();
+    config.unknown_logout = UnknownLogoutLimits {
+        max_denials: 4,
+        capacity: 2,
+        refill_interval_ns: 3,
+    };
+    let mut r = MemoryReceiver::new_fresh(config, 0).unwrap();
+    r.activate_fresh(7).unwrap();
+    assert_eq!(r.logout(unknown_caller(1), 2), Err(LogoutError::Capacity));
+    assert_eq!(
+        r.logout(unknown_caller(1), 5),
+        Ok(LogoutReceipt::Unconfirmed { deny_until_ns: 105 })
+    );
+    assert_eq!(r.logout(unknown_caller(2), 5), Err(LogoutError::Capacity));
+    assert_eq!(
+        r.logout(unknown_caller(2), 6),
+        Ok(LogoutReceipt::Unconfirmed { deny_until_ns: 106 })
+    );
+    assert_eq!(r.unknown_logout_credit(), 0);
+    assert_eq!(r.verification_budget().observed_at_ns(), 0);
+    let c = h.context("initial", 25);
+    r.admit(&credential("initial"), request(), h.admission(&c))
+        .unwrap();
+    assert_eq!(r.verification_budget().available(), 8);
+    assert_eq!(r.unknown_logout_credit(), 0);
+    r.logout(c.caller, 25).unwrap();
+    assert_eq!(r.unknown_logout_credit(), 0);
+    assert_eq!(r.verification_budget().available(), 8);
+}
+
+#[test]
+fn logout_admission_orderings_deny_without_cross_receiver_effects() {
+    let h = Host::new();
+    let c = h.context("initial", 25);
+    let mut before = h.receiver();
+    let mut after = h.receiver();
+    assert_eq!(
+        before.logout(c.caller, 25),
+        Ok(LogoutReceipt::Unconfirmed { deny_until_ns: 125 })
+    );
+    assert_eq!(
+        before.admit(&credential("initial"), request(), h.admission(&c)),
+        Err(E::Policy(P::Revoked))
+    );
+    assert_eq!(before.verification_budget().available(), 0);
+    after
+        .admit(&credential("initial"), request(), h.admission(&c))
+        .unwrap();
+    assert_eq!(
+        after.logout(c.caller, 25),
+        Ok(LogoutReceipt::Revoked { deny_until_ns: 100 })
+    );
+    assert_eq!(
+        after.admit(&credential("initial"), request(), h.admission(&c)),
+        Err(E::Policy(P::Revoked))
+    );
+    assert_eq!(before.unknown_logins(), 1);
+    assert_eq!(after.unknown_logins(), 0);
+    assert_eq!(before.known_logins(), 0);
+    assert_eq!(after.known_logins(), 1);
 }

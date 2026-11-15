@@ -95,6 +95,10 @@ Reference entrypoints:
 The first [memory receiver](../development/memory-receiver-boundary.md) now adds
 real retained-state admission/read/revocation cases for both proof mechanisms,
 plus renewal/replacement and independently calculated logical record-byte bounds.
-This supplies focused volatile-backend evidence only. Stable admission, complete
-unknown-login logout, boot/recovery, installed host rollback and browser acceptance
+This supplies focused volatile-backend evidence only. Stable admission,
+boot/recovery, installed host rollback and browser acceptance
 remain required before replacement claims.
+
+Auth 0.44.0 adds native known/unknown logout sequences, independently signed future
+credential acceptance after temporary denial, separate pool/credit accounting and
+exact existing Wire result frames. These do not qualify host readiness or recovery.

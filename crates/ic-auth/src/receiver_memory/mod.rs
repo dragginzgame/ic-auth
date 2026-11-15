@@ -10,14 +10,15 @@ use crate::{
     claims::ClaimsError,
     receiver_policy::{
         self as policy, AdmissionFootprint, LoginBinding, LoginDecision, LoginLimits,
-        LoginSnapshot, RetryDecision, SessionAuthority, SessionCapacity, SessionPolicyError,
-        SessionUsage,
+        LoginSnapshot, LogoutError, LogoutReceipt, RetryDecision, SessionAuthority,
+        SessionCapacity, SessionPolicyError, SessionUsage, UnknownLogoutLimits,
     },
     session_request::{SessionRequest, SessionRequestError, SessionTtlPolicy},
     verification::{
         self, BudgetError, ContextError, CredentialError, DecodedClaims, VerificationBudget,
         VerificationCosts, VerificationProfile,
     },
+    work_budget::WorkBucket,
 };
 use ic_auth_protocol_types::{AudienceId, AuthRole, Credential, Principal, ScopeLabel};
 use records::{CallerRecord, Replay, Session};
@@ -45,6 +46,8 @@ pub struct MemoryConfig {
     pub refill_interval_ns: u64,
     /// Relative costs of each complete verification mechanism.
     pub verification_costs: VerificationCosts,
+    /// Separate unknown-login denial pool and operation budget.
+    pub unknown_logout: UnknownLogoutLimits,
 }
 
 /// Current protected admission inputs, supplied synchronously by the host.
@@ -158,6 +161,9 @@ pub struct MemoryReceiver {
     generation: u64,
     observed_at_ns: u64,
     budget: VerificationBudget,
+    unknown_budget: WorkBucket,
+    unknown: usize,
+    unknown_expiry: BTreeSet<(u64, Principal)>,
     callers: BTreeMap<Principal, CallerRecord>,
     slots: BTreeMap<Slot, Principal>,
     replays: BTreeMap<[u8; 32], Replay>,
@@ -174,6 +180,12 @@ impl MemoryReceiver {
     pub fn new_fresh(config: MemoryConfig, now_ns: u64) -> Result<Self, MemoryError> {
         config.login.validate()?;
         config.capacity.validate()?;
+        if config.unknown_logout.max_denials == 0 {
+            return Err(SessionPolicyError::InvalidContext.into());
+        }
+        now_ns
+            .checked_add(config.login.max_login_ttl_ns)
+            .ok_or(SessionPolicyError::InvalidContext)?;
         Ok(Self {
             config,
             lifecycle: Lifecycle::Fresh,
@@ -186,6 +198,14 @@ impl MemoryReceiver {
                 now_ns,
             )
             .map_err(MemoryError::Budget)?,
+            unknown_budget: WorkBucket::new(
+                config.unknown_logout.capacity,
+                config.unknown_logout.refill_interval_ns,
+                now_ns,
+            )
+            .map_err(MemoryError::Budget)?,
+            unknown: 0,
+            unknown_expiry: BTreeSet::new(),
             callers: BTreeMap::new(),
             slots: BTreeMap::new(),
             replays: BTreeMap::new(),
@@ -241,7 +261,19 @@ impl MemoryReceiver {
     /// Physical retained known logins, including denied/expired generation fences.
     #[must_use]
     pub fn known_logins(&self) -> usize {
-        self.callers.len()
+        self.callers.len() - self.unknown
+    }
+
+    /// Physical unknown denials, including expired rows awaiting explicit pruning.
+    #[must_use]
+    pub const fn unknown_logins(&self) -> usize {
+        self.unknown
+    }
+
+    /// Retained unknown-logout credit; this getter does not observe time or refill.
+    #[must_use]
+    pub const fn unknown_logout_credit(&self) -> u32 {
+        self.unknown_budget.available()
     }
 
     /// Read-only work accounting; callers cannot reset or refill it.
@@ -309,7 +341,7 @@ impl MemoryReceiver {
             .slots
             .get(&slot)
             .and_then(|caller| self.callers.get(caller));
-        let device = owner.map(CallerRecord::device);
+        let device = owner.and_then(CallerRecord::device);
         let login = policy::assess_login(
             &LoginSnapshot {
                 audience: self.config.audience,
@@ -318,7 +350,7 @@ impl MemoryReceiver {
                 caller_login: selected.login.as_ref(),
                 device: device.as_ref(),
                 slot_owner: owner.map(|row| &row.login),
-                admitted_logins: self.callers.len(),
+                admitted_logins: self.known_logins(),
             },
             binding,
             authority.now_ns,
@@ -378,6 +410,7 @@ impl MemoryReceiver {
         if displaced != authority.caller {
             self.callers.remove(&displaced);
         }
+        self.remove_unknown(authority.caller);
         self.callers.insert(authority.caller, record);
         self.slots.insert(slot, authority.caller);
         self.session_expiry
@@ -413,29 +446,54 @@ impl MemoryReceiver {
             .ok_or_else(|| SessionPolicyError::InvalidFacts.into())
     }
 
-    /// Revoke a known authenticated caller without requiring live enrollment.
-    /// True means its session was removed and retained login denied. False means
-    /// unknown: no denial is installed and no logout acknowledgement is implied.
-    /// The separate unknown-login denial protocol is not implemented by this API.
-    pub fn revoke_known(&mut self, caller: Principal, now_ns: u64) -> Result<bool, MemoryError> {
-        self.ready()?;
+    /// Commit local denial for the authenticated caller without requiring current
+    /// enrollment or accepting a caller-selected target/deadline. Known login
+    /// deadlines and live unknown retries never slide. Unknown denials remain
+    /// unconfirmed, use a separate pool/bucket and cannot consume proof credit.
+    pub fn logout(&mut self, caller: Principal, now_ns: u64) -> Result<LogoutReceipt, LogoutError> {
+        self.ready().map_err(|_| LogoutError::Closed)?;
         if !policy::login_caller(caller) {
-            return Err(SessionPolicyError::InvalidContext.into());
+            return Err(LogoutError::InvalidCaller);
         }
-        self.observe(now_ns)?;
-        if !self.callers.contains_key(&caller) {
-            return Ok(false);
+        self.observe(now_ns).map_err(|_| LogoutError::Clock)?;
+        let plan = policy::plan_logout(
+            caller,
+            self.config.audience,
+            self.callers.get(&caller).map(|row| &row.login),
+            now_ns,
+            self.config.login.max_login_ttl_ns,
+            (self.unknown, self.config.unknown_logout.max_denials),
+        )?;
+        if plan.charge_unknown {
+            self.unknown_budget.charge(now_ns, 1).map_err(|e| match e {
+                BudgetError::Exhausted => LogoutError::Capacity,
+                BudgetError::ClockRollback => LogoutError::Clock,
+                BudgetError::InvalidPolicy => LogoutError::InvalidFacts,
+            })?;
         }
-        self.lifecycle = Lifecycle::Closed;
-        self.remove_session(caller);
-        if let Some(row) = self.callers.get_mut(&caller) {
-            row.login.denied = true;
+        match plan.receipt {
+            LogoutReceipt::Revoked { .. } => {
+                self.lifecycle = Lifecycle::Closed;
+                self.remove_session(caller);
+                if let Some(row) = self.callers.get_mut(&caller) {
+                    row.login.denied = true;
+                }
+            }
+            LogoutReceipt::Unconfirmed { deny_until_ns } if plan.charge_unknown => {
+                let row = CallerRecord::unknown(caller, self.config.audience, deny_until_ns);
+                self.lifecycle = Lifecycle::Closed;
+                self.remove_unknown(caller);
+                self.callers.insert(caller, row);
+                self.unknown_expiry.insert((deny_until_ns, caller));
+                self.unknown += 1;
+            }
+            LogoutReceipt::Unconfirmed { .. } => {} // already committed; deadline and credit unchanged
         }
         self.lifecycle = Lifecycle::Ready;
-        Ok(true)
+        Ok(plan.receipt)
     }
 
-    /// Remove at most `limit` expired session/replay rows in total (1–128).
+    /// Remove at most `limit` expired session/replay/unknown-denial rows in total (1–128).
     /// Visits indexed deadlines only; known login/device fences are never pruned.
     pub fn prune(&mut self, now_ns: u64, limit: usize) -> Result<PruneReport, MemoryError> {
         self.ready()?;
@@ -445,7 +503,7 @@ impl MemoryReceiver {
         self.observe(now_ns)?;
         let mut report = PruneReport::default();
         self.lifecycle = Lifecycle::Closed;
-        while report.sessions + report.replays < limit {
+        while report.sessions + report.replays + report.unknown_denials < limit {
             if let Some(&(deadline, caller)) = self.session_expiry.first()
                 && deadline <= now_ns
             {
@@ -465,6 +523,11 @@ impl MemoryReceiver {
                     }
                 }
                 report.replays += 1;
+            } else if let Some(&(deadline, caller)) = self.unknown_expiry.first()
+                && deadline <= now_ns
+            {
+                self.remove_unknown(caller);
+                report.unknown_denials += 1;
             } else {
                 break;
             }
@@ -496,13 +559,23 @@ impl MemoryReceiver {
             self.encoded_bytes -= session.bytes;
         }
     }
+    fn remove_unknown(&mut self, caller: Principal) {
+        if let Some(row) = self.callers.get(&caller)
+            && row.login.binding.is_none()
+        {
+            self.unknown_expiry.remove(&(row.login.until_ns, caller));
+            self.callers.remove(&caller);
+            self.unknown -= 1;
+        }
+    }
     fn selected(&self, caller: Principal) -> records::Selected<'_> {
         let row = self.callers.get(&caller);
         let session = row.and_then(CallerRecord::session_facts);
         let device = row
-            .and_then(|r| self.slots.get(&r.slot()))
+            .and_then(CallerRecord::slot)
+            .and_then(|slot| self.slots.get(&slot))
             .and_then(|owner| self.callers.get(owner))
-            .map(CallerRecord::device);
+            .and_then(CallerRecord::device);
         records::Selected {
             session,
             login: row.map(|r| r.login),
@@ -518,4 +591,6 @@ pub struct PruneReport {
     pub sessions: usize,
     /// Expired replay rows removed.
     pub replays: usize,
+    /// Expired unknown denials removed; known login fences remain retained.
+    pub unknown_denials: usize,
 }

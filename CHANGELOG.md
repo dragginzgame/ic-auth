@@ -1,7 +1,31 @@
 # Changelog
 
+## [0.44.0] - Unreleased
+
+Development version: `ic-auth` 0.44.0. Unchanged protocol-types/Wire remain 0.42.0.
+All packages remain `publish = false`.
+
+### ✨ Added
+
+- Add hosted CI for Linux and both macOS architectures, pinned tool preparation,
+  snapshot/pin admission, native contracts and independent signing fixtures.
+  Linux also checks formatting, strict lint, Rustdoc and Wasm compilation; one
+  separate job validates the workflow and scans full history with redacted output.
+  Reuse authenticated Toko 0.44.4 setup/cache/evidence helpers for
+  [issue #1](https://github.com/dragginzgame/ic-auth-new/issues/1).
+- Replace known-only revocation with caller-authenticated local logout. Unknown
+  callers use a separate bounded denial pool and initially empty operation budget;
+  retries retain their deadline and remain unconfirmed. Unknown traffic cannot
+  consume known-login capacity or proof credit. Expired denials transfer to known
+  logins only after successful proof verification, or are explicitly pruned.
+- Share retained refill arithmetic between independently owned proof and logout
+  budgets. Add signed future-credential and admission/logout ordering cases,
+  clock/overflow refusal, pool isolation and exact Wire result projection evidence.
+  Canic still owns endpoint wiring; host boot/recovery and stable storage remain open.
+
 ## [0.43.0] - Source checkpoint 2026-11-15
 
+Pushed as [285ac17](https://github.com/dragginzgame/ic-auth-new/commit/285ac178cf8df9f10467368d51c117aa7853d5a3).
 Package versions: `ic-auth` 0.43.0, protocol-types/Wire 0.42.0.
 All packages remain `publish = false`.
 

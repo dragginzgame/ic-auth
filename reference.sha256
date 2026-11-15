@@ -49,3 +49,4 @@ cfe84e3dfcba932cfdc9e70565326c776e8669cb998463c09692630c57376819  crates/ic-auth
 db537350c8b16642a91efceb9dcb24eb3acb70518f96425e652dbe112d3c534c  crates/ic-auth/src/portable/revocation/mod.rs
 5370ce5a9204b4d20d269b11929efcfc5e3daa64794126a748eac093a6f874d9  crates/ic-auth/src/session/memory.rs
 19029807f66ccf1c07b7e0306e793caefe06af93616562ff6b9e31835bb971db  crates/ic-auth/src/storage_codec/mod.rs
+2cd16feca83f416241873651c915786e57de8fe98d762056b65598f5dd42990c  crates/ic-auth/tests/portable_revocation.rs

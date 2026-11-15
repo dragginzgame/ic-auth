@@ -100,24 +100,37 @@ impl CallerRecord {
             session: Some(session),
         }
     }
+    pub(super) fn unknown(caller: Principal, audience: AudienceId, until_ns: u64) -> Self {
+        Self {
+            login: LoginFacts {
+                caller,
+                audience,
+                binding: None,
+                until_ns,
+                denied: true,
+            },
+            session: None,
+        }
+    }
     fn binding(&self) -> LoginBinding {
         self.login
             .binding
-            .expect("memory receiver stores only known bindings")
+            .expect("memory sessions always have a known binding")
     }
-    pub(super) fn slot(&self) -> Slot {
-        let b = self.binding();
-        (b.issuer, b.subject, b.device_slot)
+    pub(super) fn slot(&self) -> Option<Slot> {
+        self.login
+            .binding
+            .map(|b| (b.issuer, b.subject, b.device_slot))
     }
-    pub(super) fn device(&self) -> DeviceFacts {
-        let b = self.binding();
-        DeviceFacts {
+    pub(super) fn device(&self) -> Option<DeviceFacts> {
+        let b = self.login.binding?;
+        Some(DeviceFacts {
             issuer: b.issuer,
             subject: b.subject,
             slot: b.device_slot,
             generation: b.device_generation,
             caller: self.login.caller,
-        }
+        })
     }
     pub(super) fn session_facts(&self) -> Option<SessionFacts<'_>> {
         self.session.as_ref().map(|s| SessionFacts {

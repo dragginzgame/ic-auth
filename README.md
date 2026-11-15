@@ -21,9 +21,10 @@ Login preflight also checks immutable renewal and higher-generation replacement.
 Capacity policy retains physical replay/account quotas and checked byte totals;
 one protected verifier profile dispatches both credential mechanisms.
 The optional memory receiver now commits verified admissions, supports exact retry
-and proof-free reads, retains replay/device state through known-login revocation,
-and prunes expired records with bounded work. Stable storage, unknown-login denial,
-boot/recovery integration, issuer state and browser lifecycle remain open. The existing
+and proof-free reads, retains replay/device state through logout, and prunes expired
+records with bounded work. Unknown callers receive separately bounded temporary
+denials that remain unconfirmed. Stable storage, boot/recovery integration, issuer
+state and browser lifecycle remain open. The existing
 `ic-auth` repository remains the implemented reference and canonical production
 owner until the replacement is qualified and adoption is explicitly approved.
 
@@ -32,9 +33,9 @@ crates.io publication is deferred until the replacement is complete. It does not
 claim a complete replacement authentication engine or authorize a consumer cutover.
 Canic owns endpoint wiring using IC Wire; the Auth crates supply contract schemas
 and authentication decisions without installing endpoints.
-Current development uses `ic-auth` 0.43.0 and
+Current development uses `ic-auth` 0.44.0 and
 `ic-auth-protocol-types` / `ic-auth-wire` 0.42.0, following the pushed
-0.42.0/0.41.0 source checkpoint. Version selection reserves no registry slot
+[0.43.0 memory checkpoint](https://github.com/dragginzgame/ic-auth-new/commit/285ac178cf8df9f10467368d51c117aa7853d5a3). Version selection reserves no registry slot
 and does not publish a crate.
 
 - [Architecture and qualification plan](docs/design/DESIGN.md)

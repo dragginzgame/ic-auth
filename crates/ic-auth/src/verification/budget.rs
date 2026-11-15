@@ -1,7 +1,8 @@
 //! Retained host-owned work allowance; no ambient clock or persistence.
 
+pub use crate::work_budget::BudgetError;
+use crate::work_budget::WorkBucket;
 use ic_auth_protocol_types::PortableMechanism;
-use std::{error::Error, fmt};
 
 /// Relative verification work costs, chosen from protected host measurements.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -46,28 +47,6 @@ mod tests {
     }
 }
 
-/// Failure before expensive proof verification begins.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum BudgetError {
-    /// Capacity, refill interval or mechanism cost is zero or inconsistent.
-    InvalidPolicy,
-    /// Not enough retained work credit for this attempt.
-    Exhausted,
-    /// Trusted time precedes the most recently observed attempt.
-    ClockRollback,
-}
-
-impl fmt::Display for BudgetError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(match self {
-            Self::InvalidPolicy => "invalid verification budget policy",
-            Self::Exhausted => "verification budget exhausted",
-            Self::ClockRollback => "verification clock moved backwards",
-        })
-    }
-}
-impl Error for BudgetError {}
-
 /// One receiver-wide allowance shared across callers and proof mechanisms.
 ///
 /// Starts empty and refills one unit per interval. Keep it across requests;
@@ -76,11 +55,7 @@ impl Error for BudgetError {}
 /// This bounds charged work, not ingress traffic or total instructions.
 #[derive(Debug, Eq, PartialEq)]
 pub struct VerificationBudget {
-    capacity: u32,
-    available: u32,
-    interval_ns: u64,
-    refill_at_ns: u64,
-    observed_at_ns: u64,
+    bucket: WorkBucket,
     costs: VerificationCosts,
 }
 
@@ -92,9 +67,7 @@ impl VerificationBudget {
         costs: VerificationCosts,
         now_ns: u64,
     ) -> Result<Self, BudgetError> {
-        if capacity == 0
-            || interval_ns == 0
-            || costs.ed25519 == 0
+        if costs.ed25519 == 0
             || costs.certified == 0
             || costs.ed25519 > capacity
             || costs.certified > capacity
@@ -102,11 +75,7 @@ impl VerificationBudget {
             return Err(BudgetError::InvalidPolicy);
         }
         Ok(Self {
-            capacity,
-            available: 0,
-            interval_ns,
-            refill_at_ns: now_ns,
-            observed_at_ns: now_ns,
+            bucket: WorkBucket::new(capacity, interval_ns, now_ns)?,
             costs,
         })
     }
@@ -114,13 +83,13 @@ impl VerificationBudget {
     /// Retained units after the last attempt; this does not observe time/refill.
     #[must_use]
     pub const fn available(&self) -> u32 {
-        self.available
+        self.bucket.available()
     }
 
     /// Most recent attempted-charge time, including exhausted attempts.
     #[must_use]
     pub const fn observed_at_ns(&self) -> u64 {
-        self.observed_at_ns
+        self.bucket.observed_at_ns()
     }
 
     pub(super) fn charge(
@@ -128,24 +97,10 @@ impl VerificationBudget {
         now_ns: u64,
         mechanism: PortableMechanism,
     ) -> Result<(), BudgetError> {
-        if now_ns < self.observed_at_ns {
-            return Err(BudgetError::ClockRollback);
-        }
-        let elapsed = now_ns - self.refill_at_ns;
-        let added = elapsed / self.interval_ns;
-        self.available = u64::from(self.available)
-            .saturating_add(added)
-            .min(u64::from(self.capacity)) as u32;
-        self.refill_at_ns = now_ns - elapsed % self.interval_ns;
-        self.observed_at_ns = now_ns;
         let cost = match mechanism {
             PortableMechanism::Ed25519 => self.costs.ed25519,
             PortableMechanism::Certified => self.costs.certified,
         };
-        self.available = self
-            .available
-            .checked_sub(cost)
-            .ok_or(BudgetError::Exhausted)?;
-        Ok(())
+        self.bucket.charge(now_ns, cost)
     }
 }

@@ -22,6 +22,13 @@ pub use login::{LoginDecision, LoginLimits, LoginSnapshot, assess_login};
 mod capacity;
 pub use capacity::{AdmissionFootprint, SessionCapacity, SessionUsage, assess_capacity};
 
+#[cfg(feature = "receiver-memory")]
+mod logout;
+#[cfg(feature = "receiver-memory")]
+pub(crate) use logout::plan_logout;
+#[cfg(feature = "receiver-memory")]
+pub use logout::{LogoutError, LogoutReceipt, UnknownLogoutLimits};
+
 /// Immutable login association retained independently of session lease expiry.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct LoginBinding {

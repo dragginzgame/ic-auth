@@ -182,7 +182,7 @@ pub fn assess_login(
     Ok(LoginDecision::New)
 }
 
-fn check_record(record: &LoginFacts, audience: AudienceId) -> Result<(), E> {
+pub(super) fn check_record(record: &LoginFacts, audience: AudienceId) -> Result<(), E> {
     if record.audience != audience || !login_caller(record.caller) || record.until_ns == 0 {
         return Err(E::InvalidFacts);
     }

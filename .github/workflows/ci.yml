@@ -1,0 +1,94 @@
+name: Auth CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  security:
+    name: Workflow and secret checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: ./vendor/toko-tooling/.github/actions/cache-tool-downloads
+      - name: Prepare pinned CI tools
+        run: |
+          for tool in actionlint shellcheck gitleaks; do
+            bash vendor/toko-tooling/scripts/ci/install-ci-tool.sh "$tool" --install-dir "$RUNNER_TEMP/auth-ci-tools"
+          done
+          echo "$RUNNER_TEMP/auth-ci-tools" >> "$GITHUB_PATH"
+      - uses: ./vendor/toko-tooling/.github/actions/cache-tool-downloads
+        with:
+          mode: save
+      - name: Validate workflow
+        run: actionlint -color .github/workflows/ci.yml
+      - name: Scan complete Git history once
+        run: gitleaks git --redact=100 --no-banner --no-color --log-level error
+
+  native:
+    name: Native contracts (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15, macos-15-intel]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    env:
+      CARGO_TERM_COLOR: always
+      RUSTFLAGS: -D warnings
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          persist-credentials: false
+      - name: Prepare repository Rust toolchain
+        # Rustup installs the channel/components from rust-toolchain.toml before
+        # the common-tools action computes its compiler-specific cache key.
+        run: rustup show active-toolchain
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24.21.0
+      - uses: ./vendor/toko-tooling/.github/actions/prepare-common-tools
+        with:
+          cache: 'true'
+          cache-save: 'true'
+      - name: Prepare locked dependencies
+        run: |
+          cargo fetch --locked
+          cargo fetch --locked --manifest-path qualification/Cargo.toml
+      - name: Admit tooling and run native contracts
+        run: |
+          make test-product test-qualification verify-fixtures 2>&1 | tee "$RUNNER_TEMP/portable-regression.log"
+      - name: Prepare Wasm compiler target
+        if: runner.os == 'Linux'
+        run: rustup target add wasm32-unknown-unknown
+      - name: Check formatting, strict lint, Rustdoc and Wasm libraries
+        if: runner.os == 'Linux'
+        run: |
+          make fmt-check lint-protocol doc-protocol check-protocol-wasm 2>&1 | tee -a "$RUNNER_TEMP/portable-regression.log"
+      - name: Retain failure evidence
+        if: failure()
+        uses: ./vendor/toko-tooling/.github/actions/retain-failure-evidence
+        with:
+          name: auth-ci-${{ matrix.os }}-${{ github.run_attempt }}
+          temp-root: ${{ runner.temp }}
+          repository-root: ${{ github.workspace }}
+          compact-successful-tools: 'true'

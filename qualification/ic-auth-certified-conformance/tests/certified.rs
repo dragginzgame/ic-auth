@@ -1069,6 +1069,11 @@ fn memory_certified_admission_retains_failed_work_and_retries_after_proof_expiry
     let role = "app".parse().unwrap();
     let mut receiver = MemoryReceiver::new_fresh(
         MemoryConfig {
+            unknown_logout: ic_auth::receiver_policy::UnknownLogoutLimits {
+                max_denials: 1,
+                capacity: 1,
+                refill_interval_ns: 1,
+            },
             audience: *h.claims.audience,
             login: LoginLimits {
                 max_device_slots: 8,
@@ -1160,7 +1165,73 @@ fn memory_certified_admission_retains_failed_work_and_retries_after_proof_expiry
         receiver.read(&authority, &["read".parse().unwrap()]),
         Ok(admitted.receipt)
     );
-    assert!(receiver.revoke_known(h.claims.caller, 185).unwrap());
+    // Qualification-only Canic-style result projection; Auth installs no endpoint
+    // and the Wire crate acquires no dependency on the receiver implementation.
+    fn wire_reply(
+        result: Result<
+            ic_auth::receiver_policy::LogoutReceipt,
+            ic_auth::receiver_policy::LogoutError,
+        >,
+    ) -> ic_auth_wire::model::LogoutResult {
+        use ic_auth::receiver_policy::{LogoutError as E, LogoutReceipt as R};
+        use ic_auth_wire::model::{LogoutResult as W, LogoutUnavailable as U};
+        match result {
+            Ok(R::Revoked { deny_until_ns }) => W::Revoked(deny_until_ns),
+            Ok(R::Unconfirmed { deny_until_ns }) => W::Unconfirmed(deny_until_ns),
+            Err(E::InvalidCaller) => W::InvalidCaller,
+            Err(E::Capacity) => W::Unavailable(U::Capacity),
+            Err(E::Clock) => W::Unavailable(U::Clock),
+            Err(E::Closed) => W::Unavailable(U::ResetPending),
+            Err(E::InvalidFacts) => W::Unavailable(U::Storage),
+        }
+    }
+    fn check_wire(
+        result: Result<
+            ic_auth::receiver_policy::LogoutReceipt,
+            ic_auth::receiver_policy::LogoutError,
+        >,
+        payload: &[u8],
+    ) {
+        let reply = wire_reply(result);
+        let frame = ic_auth_wire::Logout::encode_response(&reply).unwrap();
+        // Independent fixed ID/direction and Postcard variant/deadline bytes.
+        let mut expected = vec![b'I', b'W', 0x14, 0, 0x48, 0x54, 0x55, 0x41, 0, 0, 1];
+        expected.extend_from_slice(payload);
+        assert_eq!(frame, expected);
+        assert_eq!(
+            ic_auth_wire::Logout::decode_response(&frame).unwrap(),
+            reply
+        );
+    }
+    check_wire(receiver.logout(h.claims.caller, 185), &[0, 0xbe, 1]); // Revoked(190)
+    let mut unknown_bytes = [6; 29];
+    unknown_bytes[28] = 2;
+    let unknown = Principal::from_slice(&unknown_bytes);
+    check_wire(receiver.logout(unknown, 185), &[1, 0x9d, 2]); // Unconfirmed(285)
+    check_wire(receiver.logout(unknown, 186), &[1, 0x9d, 2]); // same deadline, still unconfirmed
+    check_wire(receiver.logout(Principal::anonymous(), 186), &[2]);
+    check_wire(receiver.logout(unknown, 185), &[3, 2]); // clock rollback
+    unknown_bytes[0] = 7;
+    check_wire(
+        receiver.logout(Principal::from_slice(&unknown_bytes), 186),
+        &[3, 0],
+    ); // capacity
+    assert_eq!(receiver.verification_budget().available(), 1);
+
     assert_eq!(receiver.usage(account).replays, 1);
-    assert!(receiver.admit(&retry, request(), input(&h)).is_err());
+    let revoked_host = CertifiedContext {
+        claims: VerificationContext {
+            now_ns: 186,
+            ..h.claims
+        },
+        ..h
+    };
+    assert_eq!(
+        receiver.admit(&retry, request(), input(&revoked_host)),
+        Err(ic_auth::receiver_memory::MemoryError::Policy(
+            ic_auth::receiver_policy::SessionPolicyError::Revoked
+        ))
+    );
+    receiver.close();
+    check_wire(receiver.logout(unknown, 186), &[3, 3]); // recovery pending
 }

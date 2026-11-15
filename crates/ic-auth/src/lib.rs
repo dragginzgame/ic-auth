@@ -30,3 +30,6 @@ pub mod root_delegation;
 
 #[cfg(any(feature = "ed25519-verification", feature = "certified-verification"))]
 pub mod verification;
+
+#[cfg(any(feature = "ed25519-verification", feature = "certified-verification"))]
+mod work_budget;

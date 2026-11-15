@@ -22,6 +22,9 @@ help:
 	  'test-admission-capacity  Physical replay/account quotas and checked byte totals' \
 	  'test-credential-profile  Protected verifier dispatch and failure charging' \
 	  'test-memory     Real memory admission, retention and both proof mechanisms' \
+	  'test-product    CI aggregate: product packages, complete verifiers and memory' \
+	  'test-qualification  CI aggregate: native proof and Wire conformance packages' \
+	  'verify-fixtures  Independently verify retained signing fixtures with Node' \
 	  'test-claims     Signed-claims bytes, bounds, ordering and role grammar' \
 	  'test-delegation-encoding  Root-delegation signing commitments and bounds' \
 	  'test-verification  Ed25519 proof/context, work charging and immutable results' \
@@ -93,6 +96,22 @@ test-memory: toko-tooling-check
 	node crates/ic-auth/tests/verify-memory-fixtures.mjs
 	cargo test --offline --locked -p ic-auth --features receiver-memory,ed25519-verification --test receiver_memory
 	cargo test --offline --locked --manifest-path qualification/Cargo.toml -p ic-auth-certified-conformance --features receiver-memory --test certified memory_certified
+
+# Hosted aggregates run each selected test binary once. The focused targets
+# above remain the development interface; do not nest them and repeat cases.
+.PHONY: test-product test-qualification verify-fixtures
+test-product: toko-tooling-check
+	cargo test --offline --locked -p ic-auth-protocol-types -p ic-auth -p ic-auth-wire --features ic-auth/receiver-memory,ic-auth/ed25519-verification,ic-auth/certified-verification
+
+test-qualification: toko-tooling-check
+	cargo test --offline --locked --manifest-path qualification/Cargo.toml -p ic-auth-certified-conformance -p ic-auth-ed25519-conformance -p ic-auth-wire-conformance --features ic-auth-certified-conformance/receiver-memory,ic-auth-certified-conformance/ed25519-comparison
+
+verify-fixtures:
+	node crates/ic-auth/tests/verify-ed25519-fixture.mjs
+	node crates/ic-auth/tests/verify-delegation-fixtures.mjs
+	node crates/ic-auth/tests/verify-memory-fixtures.mjs
+	node qualification/ic-auth-certified-conformance/tests/verify-root-fixture.mjs
+	node qualification/ic-auth-certified-conformance/tests/verify-root-fixture.mjs --certified
 
 .PHONY: test-delegation-encoding
 test-delegation-encoding: toko-tooling-check

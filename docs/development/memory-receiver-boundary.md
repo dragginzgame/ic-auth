@@ -37,18 +37,34 @@ this is not evidence of installed IC rollback or native allocator fault injectio
 `read` performs proof-free current-policy checks and returns account facts. The
 host must keep its authority/application transaction isolated and recheck after
 any await. `advance_generation` invalidates old sessions without resetting state
-or credit. `revoke_known` needs authenticated caller/time, not fresh enrollment;
-it removes the session while retaining denial, device fencing and consumed replay.
-Unknown callers return false and receive no acknowledgement or denial. This narrow
-API does **not** implement the complete Wire logout protocol or its separately
-budgeted unknown-login denial pool.
+or credit. `logout` needs authenticated caller/time, not fresh enrollment; it
+removes a known session while retaining denial, device fencing and consumed replay.
+Known-login logout succeeds independently of unknown pool/credit exhaustion and
+retains its original deadline even after expiry.
+
+Unknown logout uses `MemoryConfig::unknown_logout`: a positive physical pool bound,
+operation capacity and refill interval. Temporary retention uses the protected
+maximum login lifetime. Its separate bucket begins empty; proof credit is untouched.
+Live retries retain their original deadline without charging or refilling. Expired
+rows count until explicit pruning, reuse by that caller, or successful verified
+admission into the independently bounded known pool. No automatic eviction occurs.
+An expired-row transfer that fails capacity or proof verification preserves both
+pools. The combined caller map remains the sole record owner; only known rows have
+device indexes, while only unknown rows have a denial-expiry index.
+
+`LogoutReceipt::Unconfirmed` never acknowledges every outstanding credential,
+even when its denial is committed or retried. Independently signed future evidence
+may become valid after that deadline. `Revoked` requires a retained authenticated
+login binding. The qualification host projects results/refusals into the unchanged
+Wire variants and checks exact frames; product crates install no endpoint. Host
+clock, unavailable-time and readiness gates remain the adapter's responsibility.
 
 ## Bounds and accounting
 
 Admission selects only the caller, slot owner, matching replay and account counter.
-Maps and indexes are bounded by protected known-login, session and replay counts;
+Maps and indexes are bounded by protected known-login, session, replay and unknown-denial counts;
 record labels and scopes have their existing bounds. `prune` visits at most 128
-expired session/replay entries per call, within the caller's smaller combined work
+expired session/replay/unknown-denial entries per call, within the caller's smaller combined work
 limit. It never time-prunes known device fences. Actual allocator/index overhead is
 separate from logical byte accounting and still needs deployment-cost qualification.
 
@@ -69,11 +85,14 @@ assertion that authenticated boot enrollment is ready for a genuinely new receiv
 A host must not replace lost replay/revocation state with an empty receiver and
 resume old authority. Recovery and boot challenges remain integration obligations.
 
-Run `make test-memory`. Nine public-API Ed25519 scenarios use six independently
+Run `make test-memory`. Seventeen public-API Ed25519 scenarios use seven independently
 packed and OpenSSL-signed credentials. They cover failed verification without
 reservation, renewal/replacement at capacity, replay quota and generation retention,
 proof-expired retry, exclusive leases, scope checks, clock rollback, generation
-invalidation, byte boundaries, pruning and revocation. The initial signature is
+invalidation, byte boundaries, pruning and logout. Unknown-denial cases cover
+non-sliding retries, separate pools/budgets, successful and failed pool transfer,
+future signed credentials, admission/logout ordering, clock overflow and isolation.
+The initial signature is
 cross-checked against the frozen legacy vector. Logical sizes are independently
 summed from reference Postcard fields, including a ten-byte generation boundary.
 
@@ -84,7 +103,7 @@ material at full capacity. Existing standalone verifier and combined-profile cas
 remain regression coverage. Native lint, docs and Wasm library compilation cover
 the selected feature graphs; compilation is not installed-host qualification.
 
-Stable storage, unknown-login denial, boot/recovery orchestration, host transaction
+Stable storage, boot/recovery orchestration, host transaction
 failure injection, browser lifecycle and deployment cost gates remain open. The
 interim `ic-storage` backend and eventual `ic-storage-new` orthogonal persistence
 must reuse semantic rules while retaining their own corruption and host rollback
