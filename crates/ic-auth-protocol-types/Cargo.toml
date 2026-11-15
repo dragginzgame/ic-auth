@@ -1,0 +1,20 @@
+[package]
+name = "ic-auth-protocol-types"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license-file.workspace = true
+description = "Passive validated authentication protocol values"
+publish = false
+
+[package.metadata.cargo-machete]
+ignored = ["toko-tooling"]
+
+[dependencies]
+ic-platform-types.workspace = true
+
+[dev-dependencies]
+toko-tooling.workspace = true
+
+[lints]
+workspace = true

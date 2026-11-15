@@ -1,0 +1,5 @@
+/target/
+/qualification/target/
+/.tools/
+node_modules/
+.DS_Store
