@@ -17,6 +17,12 @@ ed25519-verification = [
     "ic-auth-protocol-types/principal-self-authenticating",
 ]
 certified-issuer-verification = ["dep:ic-platform", "ic-platform/signature-verification"]
+root-delegation-verification = ["dep:ic-platform", "ic-platform/ecdsa"]
+certified-verification = [
+    "certified-issuer-verification",
+    "root-delegation-verification",
+    "ic-auth-protocol-types/principal-self-authenticating",
+]
 
 [dependencies]
 ic-auth-protocol-types.workspace = true

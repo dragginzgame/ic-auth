@@ -41,10 +41,15 @@ make test-request
 make test-claims
 make test-delegation-encoding
 make test-wire
+make test-wire-projection
+make qualify-wire-admission
 make test-verification
 make qualify-ed25519
 make lint-ed25519-qualification
 make qualify-certified-issuer
+make qualify-root-delegation
+make qualify-certified
+make qualify-shared-verification
 make lint-certified-qualification
 make qualify-wire
 make lint-wire-qualification
@@ -62,13 +67,21 @@ checks current Wire against fixed reference frames and thresholds; `lint-wire-qu
 package. `test-verification` covers optional Ed25519/context/budget behavior and
 immutable-result compile-fail cases. `test-delegation-encoding` checks certificate,
 root-batch and issuer-leaf signing commitments and their bounded inputs.
+`test-wire-projection` checks consuming Wire/domain conversion against retained
+reference fields; `qualify-wire-admission` selects three real Wire-to-verifier
+host-driver cases, including unsigned request policy and failure charging.
 `qualify-ed25519` deliberately enables the
 legacy scalar feature in its separate workspace; its paired lint command is
 `lint-ed25519-qualification`. `qualify-certified-issuer` constructs real BLS
 certificates outside Auth to check protected signer policy and trust-chain
 refusals; its paired lint command is `lint-certified-qualification`.
+`qualify-root-delegation` checks independent OpenSSL-signed root authorization,
+revocation and proof bounds plus immutable-result API cases in that same package.
+`qualify-certified` checks complete root/issuer proofs, common claims policy and
+charging order. `qualify-shared-verification` selects the one real Ed25519/certified
+shared-budget case using the qualification package's optional comparison feature.
 The lint/docs/Wasm targets aggregate the three implemented protocol
-packages with both verification features enabled; lint includes the optional native generator and Wasm proves its metadata
+packages with all implemented verification features enabled; lint includes the optional native generator and Wasm proves its metadata
 remains excluded even with the feature forwarded. For a narrower check,
 use `cargo clippy --offline --locked -p ic-auth-wire --all-targets --features typescript -- -D warnings`,
 `RUSTDOCFLAGS='-D warnings' cargo doc --offline --locked -p ic-auth-wire --no-deps`,
@@ -125,6 +138,9 @@ use Platform through the optional `ed25519-verification` feature, with no direct
 Dalek dependency and no legacy mode selected by the product workspace.
 Certified-only consumers use `certified-issuer-verification` without Ed25519;
 certificate signing/encoding fixtures and range builders stay qualification-only.
+Root-only consumers use `root-delegation-verification` for Platform ECDSA without
+selecting BLS or Ed25519. Complete `certified-verification` composes root/issuer
+checks with shared context and charging, without selecting the Ed25519 verifier.
 
 See the reviewed upstream
 [adoption guide](https://github.com/dragginzgame/toko-tooling/blob/8bcece573511a6ce6ee8879443a8d19b6e43e7ad/docs/adoption/consuming-snapshots.md)

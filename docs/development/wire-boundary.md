@@ -71,6 +71,51 @@ The generated modules also passed TypeScript 7.0.2 with `--strict --noEmit`,
 already-installed compiler in the read-only reference client's `node_modules`.
 The browser Make target itself performs Node codec execution, not static checking;
 no TypeScript installer or frontend package is introduced here.
-Neither check establishes SDK-certified transport or actual browser lifecycle. Certified proof checks,
-domain projections needed by the remaining verifier, consumer API inventory,
-real browser/SDK use and exhaustive/adversarial proof acceptance remain open.
+Neither check establishes SDK-certified transport or actual browser lifecycle.
+Consumer API inventory, real browser/SDK use and exhaustive/adversarial proof
+acceptance remain open. Native proof admission is covered below.
+
+## Consuming domain projection
+
+`ic_auth_protocol_types::Credential::try_from(wire_credential)` consumes a decoded
+`model::PortableCredential` and returns passive owned proof material. Projection
+belongs to `ic-auth-wire`; the shared owned records belong to protocol-types.
+Auth remains independent of Wire. No extra runtime package, verifier dependency
+or endpoint installer is introduced into the transport crate.
+
+The conversion moves claims, signature/CBOR/DER, key/path buffers and label
+strings. Bounded lists become domain containers; container allocation may still
+occur, so this is not a zero-allocation claim. Domain role/scope grammar is checked
+using its existing owners. Signed order, duplicates, empty grants, unsupported
+schema values, separate certificate/leaf commitments and malformed signature
+lengths remain untrusted verifier inputs. No claims are decoded/re-encoded, no
+binding hash is repaired and no submitted key selects trusted enrollment.
+
+The input already has Wire field bounds. Hosts must still decode through the
+contract's aggregate allowances and enforce raw-argument bounds. Projection does
+not replace the complete verifier's stricter 131072-byte aggregate proof limit;
+that admission runs before canonical claims decoding and cryptographic work.
+Native producers may construct passive domain records directly, so verifiers
+continue to check their own bounds independently of transport.
+
+`RootDelegationProof::from(&root_material)` and
+`CertifiedProof::from(&certified_material)` borrow these records without copying
+or establishing authority. The host selects the verifier from protected
+enrollment, rejects mismatched submitted proof variants, and supplies caller,
+clock, keys, budget and transaction snapshot. Canic owns that endpoint wiring.
+Unsigned `SessionInput.scopes` and TTL still go through Auth's existing
+`SessionRequest::new`; signed grant lists are never normalized with that policy.
+
+`make test-wire-projection` runs five cases against retained browser records:
+every certified field, Ed25519/short signatures, grammar refusal in certificate
+and leaf, preservation of duplicate/empty grants, and ownership of large buffers
+and label strings. Expected projection fields are literal values from the existing
+reference frame corpus. The schema and generated browser layouts are unchanged.
+
+`make qualify-wire-admission` runs three qualification host-driver cases. An
+independently signed root/issuer proof passes through `EstablishSession` encoding,
+decoding, consuming projection and complete verification; unsigned request policy
+is evaluated separately. Negative bindings stay uncharged and failed crypto stays
+charged. A real independent Ed25519 signature also passes, while 63-byte material
+refuses before charging. The drivers install no endpoints or sessions and do not
+establish actual Canic/SDK or host transaction behavior.

@@ -11,5 +11,8 @@ pub mod session_request;
 #[cfg(feature = "certified-issuer-verification")]
 pub mod issuer_signature;
 
-#[cfg(feature = "ed25519-verification")]
+#[cfg(feature = "root-delegation-verification")]
+pub mod root_delegation;
+
+#[cfg(any(feature = "ed25519-verification", feature = "certified-verification"))]
 pub mod verification;

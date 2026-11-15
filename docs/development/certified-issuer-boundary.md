@@ -25,8 +25,11 @@ certified credential verification must first bound aggregate variable material
 (claims, issuer proof and Auth delegation), enforce independent witness limits,
 check the common protected claims context and charge the shared budget before
 cryptography. It must also authenticate Auth root authorization of the issuer's
-grants and bind that authorization to the claims. IC subnet delegation alone
-establishes none of those application grants. That full path remains unimplemented.
+grants and bind that authorization to the claims. The separate
+[root verifier](root-delegation-boundary.md) now supplies that authorization
+component. IC subnet delegation alone establishes none of those application grants.
+The [complete certified verifier](certified-verification-boundary.md) now composes
+these checks with common claims policy and aggregate proof/work charging.
 
 `make qualify-certified-issuer` runs eight cases with real BLS-signed certificates
 assembled outside Auth, including two subnet-range layouts and adversarial

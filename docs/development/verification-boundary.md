@@ -82,7 +82,9 @@ normal nor Wasm verification graph selects Canic, Toko runtime, storage, certifi
 verification or another runtime executor.
 
 The separate [certified issuer component](certified-issuer-boundary.md) now
-authenticates canister signatures and certificate time. Complete Auth root
-authorization, common claims context and bounded certified-proof work remain
-unimplemented. Receiver/session policy, both backends, actual Wasm lifecycle and
+authenticates canister signatures and certificate time. The
+[root verifier](root-delegation-boundary.md) authenticates issuer grants under
+protected enrollment. The [complete certified verifier](certified-verification-boundary.md)
+now shares common context, budget and immutable claims evidence with Ed25519.
+Receiver/session policy, both backends, actual Wasm lifecycle and
 consumer cutover remain separate qualification obligations.

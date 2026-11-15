@@ -23,7 +23,12 @@ no product package depends on this feature activator.
 `ic-auth-certified-conformance` builds real BLS certificate fixtures independently
 of Auth to check issuer-signature binding, trust chains and freshness. Use
 `make qualify-certified-issuer` and `make lint-certified-qualification`.
-It does not establish full certified credential admission or Auth root grants.
+It also checks independent OpenSSL-signed root grants with
+`make qualify-root-delegation`. `make qualify-certified` composes both with claims
+policy and work charging; `make qualify-shared-verification` checks real proofs
+sharing a budget across mechanisms. These checks establish no session or storage.
+`make qualify-wire-admission` checks consuming Wire/domain projection into both
+verifiers, unsigned request policy and failure charging with native host drivers.
 
 The shared `make deps-list`, `make deps-update` and `toko-cloc` commands discover
 this workspace automatically. See

@@ -161,19 +161,8 @@ pub(super) fn check(
     if caller != host.caller {
         return Err(E::CallerMismatch);
     }
-    for grant in &claims.grants {
-        let index = host
-            .grants
-            .0
-            .binary_search_by(|candidate| candidate.target.cmp(&grant.target))
-            .map_err(|_| E::GrantsExceeded)?;
-        if grant
-            .scopes
-            .iter()
-            .any(|scope| host.grants.0[index].scopes.binary_search(scope).is_err())
-        {
-            return Err(E::GrantsExceeded);
-        }
+    if !grants_subset(&claims.grants, host.grants.as_slice()) {
+        return Err(E::GrantsExceeded);
     }
     let valid_duration = |start: u64, end: u64, maximum| {
         end.checked_sub(start)
@@ -211,4 +200,21 @@ pub(super) fn check(
         return Err(E::Expired);
     }
     Ok(caller)
+}
+
+// Both lists have passed strict order/shape admission at their owning boundary.
+pub(super) fn grants_subset(
+    requested: &[DelegatedRoleGrant],
+    allowed: &[DelegatedRoleGrant],
+) -> bool {
+    requested.iter().all(|grant| {
+        allowed
+            .binary_search_by(|candidate| candidate.target.cmp(&grant.target))
+            .is_ok_and(|index| {
+                grant
+                    .scopes
+                    .iter()
+                    .all(|scope| allowed[index].scopes.binary_search(scope).is_ok())
+            })
+    })
 }

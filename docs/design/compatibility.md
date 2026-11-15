@@ -63,10 +63,12 @@ an independent signature vector, protected context/refusal cases and a deliberat
 legacy-enabled scalar negative control. The
 [certified issuer component](../development/certified-issuer-boundary.md) has real
 BLS certificate fixtures for issuer/seed/network binding and freshness, including
-subnet-range delegation controls. Complete Auth root authorization and certified
-credential verification remain open; [delegation signing commitments](../development/delegation-encoding-boundary.md)
-now have independent byte/hash evidence. Complete
-adversarial acceptance, actual SDK/browser lifecycle and backend qualification
+subnet-range delegation controls. [Delegation signing commitments](../development/delegation-encoding-boundary.md)
+have independent byte/hash evidence; the [root verifier](../development/root-delegation-boundary.md)
+has independent OpenSSL evidence for enrolled authority, grant binding and proof bounds.
+The [complete certified verifier](../development/certified-verification-boundary.md)
+now has independent root/issuer composition and shared-budget evidence.
+Complete adversarial acceptance, actual SDK/browser lifecycle and backend qualification
 remain outstanding.
 
 Reference entrypoints:

@@ -80,3 +80,12 @@ pub struct RootBatchHeader {
     /// Claimed key version.
     pub key_version: u64,
 }
+
+/// One ordered sibling in the current root batch Merkle proof.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum MerkleStep {
+    /// Sibling preceding the current node.
+    Left([u8; 32]),
+    /// Sibling following the current node.
+    Right([u8; 32]),
+}

@@ -10,15 +10,34 @@ remain unpublished until the replacement is complete and publication is authoriz
 
 ### ✨ Added
 
+- Connect Wire credentials to passive domain proof material through a consuming
+  projection that moves opaque buffers and preserves signed order and distinct
+  commitments. Add borrowed verifier views, five reference-projection cases and
+  three real Wire-to-verifier host-driver cases. Endpoint wiring remains Canic's;
+  transport gains no Auth/crypto dependency and Auth gains no Wire dependency.
+- Compose complete certified proof verification from shared claims context,
+  root authorization and issuer signatures. Admit aggregate proof material
+  before decoding, preserve uncharged binding refusals and charge once before
+  root/issuer work. Seven complete-proof cases and a real Ed25519/certified
+  shared-budget case use independent OpenSSL and BLS fixtures. Successful
+  evidence remains separate from session/replay/storage admission.
+- Separate Ed25519 implementation from common context, budget and proof evidence;
+  certified-only consumers select no Ed25519 verifier. Share grant-subset policy
+  and root material accounting without duplicate certificate hashing.
+- Add optional root-delegation verification using Platform ECDSA, protected
+  enrollment and revocation floors, exact certificate/leaf binding, bounded
+  Merkle inclusion and low-S refusal. Eight independent OpenSSL fixture cases
+  and two immutable-evidence API cases cover the component, now composed by
+  the complete certified credential verifier.
 - Implement bounded root-delegation certificate and signing commitments, with
   shared grant encoding and six independently checked compatibility cases.
   Preserve certificate issue time's exclusion from the root leaf. These APIs
-  encode structure only; complete root authorization remains outstanding.
+  encode structure only; the optional root verifier consumes their commitments.
 - Add optional certified issuer-signature verification through Platform, with
   protected issuer/seed/network binding, bounded input and certificate freshness.
   Eight independent fixture cases cover real BLS certificates, both subnet-range
   layouts and adversarial refusals. This component cannot admit credentials;
-  Auth root authorization and complete certified-proof work bounds remain open.
+  The complete verifier owns claims binding and aggregate proof-work bounds.
 - Keep Ed25519 and certified feature graphs independent; fixture signing and
   certificate construction live in the separate qualification workspace.
 

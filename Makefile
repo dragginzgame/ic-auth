@@ -22,9 +22,14 @@ help:
 	  'test-verification  Ed25519 proof/context, work charging and immutable results' \
 	  'qualify-ed25519  Adversarial legacy-scalar dependency feature graph' \
 	  'qualify-certified-issuer  Real BLS certificates and protected issuer policy' \
+	  'qualify-root-delegation  Root ECDSA authorization, bindings and proof bounds' \
+	  'qualify-certified  Complete root/issuer proofs, claims and charging order' \
+	  'qualify-shared-verification  Real Ed25519/certified proofs share one budget' \
 	  'lint-certified-qualification  Clippy for independent certificate fixtures' \
 	  'lint-ed25519-qualification  Clippy for the adversarial feature check' \
 	  'test-wire       All four Wire contracts, proof layouts and bounded refusal' \
+	  'test-wire-projection  Consuming transport-to-domain projection and exact bytes' \
+	  'qualify-wire-admission  Wire decoding through real proof verification' \
 	  'qualify-wire    Check current Wire against fixed reference frames and budgets' \
 	  'generate-wire   Generate the four browser codecs into qualification/target' \
 	  'qualify-wire-browser  Compare old/new browser codecs (Node and reference checkout)' \
@@ -74,14 +79,34 @@ qualify-ed25519: toko-tooling-check
 qualify-certified-issuer: toko-tooling-check
 	cargo test --offline --locked --manifest-path qualification/Cargo.toml -p ic-auth-certified-conformance --test issuer_signature
 
+.PHONY: qualify-root-delegation
+qualify-root-delegation: toko-tooling-check
+	cargo test --offline --locked --manifest-path qualification/Cargo.toml -p ic-auth-certified-conformance --test root_delegation
+	cargo test --offline --locked -p ic-auth --features root-delegation-verification --doc
+
+.PHONY: qualify-certified qualify-shared-verification
+qualify-certified: toko-tooling-check
+	cargo test --offline --locked --manifest-path qualification/Cargo.toml -p ic-auth-certified-conformance --test certified
+	cargo test --offline --locked -p ic-auth --features certified-verification --doc
+
+qualify-shared-verification: toko-tooling-check
+	cargo test --offline --locked --manifest-path qualification/Cargo.toml -p ic-auth-certified-conformance --features ed25519-comparison --test certified real_ed25519_and_certified_proofs_consume_one_shared_weighted_bucket
+
 lint-certified-qualification: toko-tooling-check
-	cargo clippy --offline --locked --manifest-path qualification/Cargo.toml -p ic-auth-certified-conformance --all-targets -- -D warnings
+	cargo clippy --offline --locked --manifest-path qualification/Cargo.toml -p ic-auth-certified-conformance --all-targets --features ed25519-comparison -- -D warnings
 
 lint-ed25519-qualification: toko-tooling-check
 	cargo clippy --offline --locked --manifest-path qualification/Cargo.toml -p ic-auth-ed25519-conformance --all-targets -- -D warnings
 
 test-wire: toko-tooling-check
 	cargo test --offline --locked -p ic-auth-wire --test caller_contracts --test admission_contracts
+
+.PHONY: test-wire-projection qualify-wire-admission
+test-wire-projection: toko-tooling-check
+	cargo test --offline --locked -p ic-auth-wire --test projection
+
+qualify-wire-admission: toko-tooling-check
+	cargo test --offline --locked --manifest-path qualification/Cargo.toml -p ic-auth-certified-conformance --features ed25519-comparison --test certified wire_
 
 qualify-wire: toko-tooling-check
 	cargo test --offline --locked --manifest-path qualification/Cargo.toml -p ic-auth-wire-conformance --test codecs
@@ -96,10 +121,10 @@ lint-wire-qualification: toko-tooling-check
 	cargo clippy --offline --locked --manifest-path qualification/Cargo.toml -p ic-auth-wire-conformance --all-targets -- -D warnings
 
 lint-protocol: toko-tooling-check
-	cargo clippy --offline --locked -p ic-auth-protocol-types -p ic-auth -p ic-auth-wire --all-targets --features ic-auth-wire/typescript,ic-auth/ed25519-verification,ic-auth/certified-issuer-verification -- -D warnings
+	cargo clippy --offline --locked -p ic-auth-protocol-types -p ic-auth -p ic-auth-wire --all-targets --features ic-auth-wire/typescript,ic-auth/ed25519-verification,ic-auth/certified-verification -- -D warnings
 
 doc-protocol: toko-tooling-check
-	RUSTDOCFLAGS='-D warnings' cargo doc --offline --locked -p ic-auth-protocol-types -p ic-auth -p ic-auth-wire --features ic-auth/ed25519-verification,ic-auth/certified-issuer-verification --no-deps
+	RUSTDOCFLAGS='-D warnings' cargo doc --offline --locked -p ic-auth-protocol-types -p ic-auth -p ic-auth-wire --features ic-auth/ed25519-verification,ic-auth/certified-verification --no-deps
 
 check-protocol-wasm: toko-tooling-check
-	cargo check --offline --locked -p ic-auth-protocol-types -p ic-auth -p ic-auth-wire --lib --features ic-auth-wire/typescript,ic-auth/ed25519-verification,ic-auth/certified-issuer-verification --target wasm32-unknown-unknown
+	cargo check --offline --locked -p ic-auth-protocol-types -p ic-auth -p ic-auth-wire --lib --features ic-auth-wire/typescript,ic-auth/ed25519-verification,ic-auth/certified-verification --target wasm32-unknown-unknown

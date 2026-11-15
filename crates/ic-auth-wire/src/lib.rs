@@ -4,6 +4,7 @@
 //! supplies neither endpoint installation nor session/revocation state.
 
 pub mod model;
+pub mod projection;
 
 pub use ic_wire as wire;
 use ic_wire::{Direction, Encoding, Limits, List, Text};

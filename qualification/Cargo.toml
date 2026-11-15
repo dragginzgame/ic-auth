@@ -14,6 +14,7 @@ license-file = "../LICENSE.md"
 [workspace.dependencies]
 ed25519-dalek = { version = "3.0.0", default-features = false, features = ["legacy_compatibility"] }
 ic-auth = { path = "../crates/ic-auth" }
+ic-auth-protocol-types = { path = "../crates/ic-auth-protocol-types" }
 ic-auth-wire = { path = "../crates/ic-auth-wire" }
 ic-platform = { version = "0.33.7", default-features = false }
 ic-wire = "0.24.1"

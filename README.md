@@ -9,11 +9,13 @@ not redesign targets.
 **Status: protocol foundation implemented.** `ic-auth-protocol-types` owns
 passive claims, labels and Platform principal identity; `ic-auth` implements
 schema-2 canonical claims encoding/decoding/hashing, unsigned session-request
-identity, host-supplied TTL bounds and optional Ed25519 proof verification.
+identity, host-supplied TTL bounds and optional Ed25519/certified proof verification.
 Version 0.2.0 adds `ic-auth-wire`
 with all four Wire contracts and generated browser codecs. All packages are
 unpublished. The current development increment adds the certified issuer-signature
-component and root-delegation signing commitments. Full certified proof verification, receiver/storage, issuer and browser lifecycle
+component, root-delegation signing commitments and standalone root authorization.
+Complete certified verification now combines both components with shared claims
+policy and work charging. Receiver/storage, issuer state and browser lifecycle
 replacement remain unimplemented. The existing
 `ic-auth` repository remains the implemented reference and canonical production
 owner until the replacement is qualified and adoption is explicitly approved.
@@ -50,10 +52,17 @@ The [Ed25519 verification boundary](docs/development/verification-boundary.md)
 records protected inputs, refusal/charging order and independent signatures.
 Run `make test-verification` and `make qualify-ed25519` for its focused checks.
 The [certified issuer boundary](docs/development/certified-issuer-boundary.md)
-records the next component's scope and real certificate fixtures;
+records that component's scope and real certificate fixtures;
 `make qualify-certified-issuer` runs those checks.
 The [delegation encoding boundary](docs/development/delegation-encoding-boundary.md)
 records root signing commitments and fixtures; run `make test-delegation-encoding`.
+The [root verification boundary](docs/development/root-delegation-boundary.md)
+records enrollment, grant binding and proof limits; run `make qualify-root-delegation`.
+The [complete certified boundary](docs/development/certified-verification-boundary.md)
+records the combined path and legacy cryptographic compatibility; run
+`make qualify-certified qualify-shared-verification`.
+`make test-wire-projection qualify-wire-admission` covers consuming Wire/domain
+projection and real proofs through the verifier; Canic still owns endpoint wiring.
 
 The objective is less maintained state and clearer ownership, not a promised
 zero-debt result or a line-count quota. Keep rejection, atomicity and recovery
