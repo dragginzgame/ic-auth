@@ -38,13 +38,14 @@ field tests. Large certified material proves aggregate allocation refusal and
 the separate browser retention policy. Redundant outer Postcard varints retain
 reference acceptance; signed claims have their own strict codec.
 
-`make qualify-wire` runs the independent qualification package. It compares
-published reference Wire 0.22.2 (selected by the pinned reference Cargo.lock)
-with 0.24.1 on every frame, using the replacement DTOs. It independently locates
-the reference encoder and decoder thresholds for each of the four allowances,
-then compares below/at/above acceptance with the current supplier. Large certified
-material is compared for both successful admission and aggregate-allocation
-refusal. This tests codec supplier compatibility for the selected schemas and
+`make qualify-wire` runs the independent qualification package using published
+Wire 0.24.1. Its 296 fixed thresholds were measured from reference Wire 0.22.2
+before removing that dependency, separately for encoding/decoding and all four
+allowances on the 37 frames. It asserts below/at/above acceptance against these
+retained expectations, not a second invocation of the current codec. Large
+certified material also exercises successful admission and aggregate-allocation
+refusal. See [threshold provenance](../../qualification/ic-auth-wire-conformance/tests/fixtures/README.md).
+This tests codec supplier compatibility for the selected schemas and
 corpus, not an exhaustive proof over every possible input or the old Auth engine.
 
 `make qualify-wire-browser` generates all four modules and the matching supplier

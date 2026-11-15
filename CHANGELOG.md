@@ -1,5 +1,35 @@
 # Changelog
 
+## [0.42.0] - Unreleased
+
+Pending package versions: `ic-auth` 0.42.0, `ic-auth-protocol-types` 0.41.0 and
+`ic-auth-wire` 0.41.0. Each is the next minor after its highest existing crates.io
+version checked on 2026-11-15 (0.41.1, 0.40.1 and 0.40.1 respectively).
+The earlier 0.1.0/0.2.0 tags are GitHub-only rewrite milestones. All packages
+remain unpublished until the replacement is complete and publication is authorized.
+
+### ✨ Added
+
+- Implement bounded root-delegation certificate and signing commitments, with
+  shared grant encoding and six independently checked compatibility cases.
+  Preserve certificate issue time's exclusion from the root leaf. These APIs
+  encode structure only; complete root authorization remains outstanding.
+- Add optional certified issuer-signature verification through Platform, with
+  protected issuer/seed/network binding, bounded input and certificate freshness.
+  Eight independent fixture cases cover real BLS certificates, both subnet-range
+  layouts and adversarial refusals. This component cannot admit credentials;
+  Auth root authorization and complete certified-proof work bounds remain open.
+- Keep Ed25519 and certified feature graphs independent; fixture signing and
+  certificate construction live in the separate qualification workspace.
+
+### 🛠️ Tooling
+
+- Adopt IC Wire 0.24.1 in qualification and remove 0.22.2 from its lock.
+  Retain 296 independently measured reference resource thresholds alongside
+  the 37 fixed frames; current code never supplies its own expected thresholds.
+- Align pending crate versions with the existing registry names and add the
+  local protocol-types dependency version needed for eventual packaging.
+
 ## [0.2.0] - 2026-11-15
 
 GitHub-only source milestone for Wire contracts and Ed25519 verification.

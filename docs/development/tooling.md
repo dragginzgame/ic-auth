@@ -3,8 +3,8 @@
 Use Rust 1.100.0, pinned in `rust-toolchain.toml`. The root virtual workspace
 contains three unpublished product packages under `crates/`. Each inherits
 shared package fields, lints and the exact Toko source-tooling dev-dependency.
-`qualification/` is an independent workspace containing the reference/current
-Wire comparison and adversarial Ed25519 feature check. Ordinary integration tests
+`qualification/` is an independent workspace containing Wire reference-vector
+checks, the adversarial Ed25519 feature check and certified issuer fixtures. Ordinary integration tests
 stay in the product crates.
 
 ## Installed selection
@@ -39,10 +39,13 @@ Git hook selection and refuses to replace other hooks. Routine checks are offlin
 make toko-tooling-check
 make test-request
 make test-claims
+make test-delegation-encoding
 make test-wire
 make test-verification
 make qualify-ed25519
 make lint-ed25519-qualification
+make qualify-certified-issuer
+make lint-certified-qualification
 make qualify-wire
 make lint-wire-qualification
 make lint-protocol
@@ -55,12 +58,17 @@ These are focused on the implemented protocol boundary. `test-request` includes
 the scope/request integration files and the immutable-scope compile-fail doctest;
 `test-claims` covers roles and canonical signed-claims bytes/refusals; `test-wire`
 covers all four contracts, nested proofs and bounded refusal. `qualify-wire`
-compares both native suppliers; `lint-wire-qualification` checks that private
+checks current Wire against fixed reference frames and thresholds; `lint-wire-qualification` checks that private
 package. `test-verification` covers optional Ed25519/context/budget behavior and
-immutable-result compile-fail cases. `qualify-ed25519` deliberately enables the
+immutable-result compile-fail cases. `test-delegation-encoding` checks certificate,
+root-batch and issuer-leaf signing commitments and their bounded inputs.
+`qualify-ed25519` deliberately enables the
 legacy scalar feature in its separate workspace; its paired lint command is
-`lint-ed25519-qualification`. The lint/docs/Wasm targets aggregate the three implemented protocol
-packages with the verifier enabled; lint includes the optional native generator and Wasm proves its metadata
+`lint-ed25519-qualification`. `qualify-certified-issuer` constructs real BLS
+certificates outside Auth to check protected signer policy and trust-chain
+refusals; its paired lint command is `lint-certified-qualification`.
+The lint/docs/Wasm targets aggregate the three implemented protocol
+packages with both verification features enabled; lint includes the optional native generator and Wasm proves its metadata
 remains excluded even with the feature forwarded. For a narrower check,
 use `cargo clippy --offline --locked -p ic-auth-wire --all-targets --features typescript -- -D warnings`,
 `RUSTDOCFLAGS='-D warnings' cargo doc --offline --locked -p ic-auth-wire --no-deps`,
@@ -110,10 +118,13 @@ Set `AUTH_REFERENCE_REPO` if the reference Git objects are somewhere other than
 The independent qualification workspace owns its catalog, lock and lints, uses
 `license-file = "../LICENSE.md"`, inherits tooling and remains unpublished. The
 root formatter includes it through `FORMAT_RUST_ARGS`. Product packages never
-depend on qualification packages; the old codec exists only in that workspace.
+depend on qualification packages. Both workspaces now select Wire 0.24.1;
+the old codec survives only as frozen frame/threshold evidence.
 The legacy-scalar activator is likewise qualification-only. Normal Auth consumers
 use Platform through the optional `ed25519-verification` feature, with no direct
 Dalek dependency and no legacy mode selected by the product workspace.
+Certified-only consumers use `certified-issuer-verification` without Ed25519;
+certificate signing/encoding fixtures and range builders stay qualification-only.
 
 See the reviewed upstream
 [adoption guide](https://github.com/dragginzgame/toko-tooling/blob/8bcece573511a6ce6ee8879443a8d19b6e43e7ad/docs/adoption/consuming-snapshots.md)

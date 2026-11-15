@@ -12,7 +12,8 @@ schema-2 canonical claims encoding/decoding/hashing, unsigned session-request
 identity, host-supplied TTL bounds and optional Ed25519 proof verification.
 Version 0.2.0 adds `ic-auth-wire`
 with all four Wire contracts and generated browser codecs. All packages are
-unpublished. Certified proof verification, receiver/storage, issuer and browser lifecycle
+unpublished. The current development increment adds the certified issuer-signature
+component and root-delegation signing commitments. Full certified proof verification, receiver/storage, issuer and browser lifecycle
 replacement remain unimplemented. The existing
 `ic-auth` repository remains the implemented reference and canonical production
 owner until the replacement is qualified and adoption is explicitly approved.
@@ -22,6 +23,10 @@ crates.io publication is deferred until the replacement is complete. It does not
 claim a working authentication engine or authorize a consumer cutover.
 Canic owns endpoint wiring using IC Wire; the Auth crates supply contract schemas
 and authentication decisions without installing endpoints.
+Current development uses registry-aligned versions: `ic-auth` 0.42.0 and
+`ic-auth-protocol-types` / `ic-auth-wire` 0.41.0. These are the next minor
+versions after the existing registry releases; version selection reserves no
+registry slot and does not publish a crate.
 
 - [Architecture and qualification plan](docs/design/DESIGN.md)
 - [Design and ownership overview](docs/design/authentication.md)
@@ -44,6 +49,11 @@ pinned reference Git objects (`AUTH_REFERENCE_REPO` defaults to `../ic-auth`).
 The [Ed25519 verification boundary](docs/development/verification-boundary.md)
 records protected inputs, refusal/charging order and independent signatures.
 Run `make test-verification` and `make qualify-ed25519` for its focused checks.
+The [certified issuer boundary](docs/development/certified-issuer-boundary.md)
+records the next component's scope and real certificate fixtures;
+`make qualify-certified-issuer` runs those checks.
+The [delegation encoding boundary](docs/development/delegation-encoding-boundary.md)
+records root signing commitments and fixtures; run `make test-delegation-encoding`.
 
 The objective is less maintained state and clearer ownership, not a promised
 zero-debt result or a line-count quota. Keep rejection, atomicity and recovery

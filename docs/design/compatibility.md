@@ -60,7 +60,12 @@ completes a replacement gate above. The first
 reference/current native resource thresholds. This is corpus-based codec
 evidence. The [Ed25519 verifier](../development/verification-boundary.md) now has
 an independent signature vector, protected context/refusal cases and a deliberately
-legacy-enabled scalar negative control. Certified verification, complete
+legacy-enabled scalar negative control. The
+[certified issuer component](../development/certified-issuer-boundary.md) has real
+BLS certificate fixtures for issuer/seed/network binding and freshness, including
+subnet-range delegation controls. Complete Auth root authorization and certified
+credential verification remain open; [delegation signing commitments](../development/delegation-encoding-boundary.md)
+now have independent byte/hash evidence. Complete
 adversarial acceptance, actual SDK/browser lifecycle and backend qualification
 remain outstanding.
 

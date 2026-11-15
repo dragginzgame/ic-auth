@@ -12,8 +12,8 @@ ignored = ["toko-tooling"]
 
 [dev-dependencies]
 ed25519-dalek.workspace = true
-ic-auth.workspace = true
-ic-platform.workspace = true
+ic-auth = { workspace = true, features = ["ed25519-verification"] }
+ic-platform = { workspace = true, features = ["ed25519"] }
 toko-tooling.workspace = true
 
 [lints]

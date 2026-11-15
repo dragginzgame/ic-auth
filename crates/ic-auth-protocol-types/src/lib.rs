@@ -4,10 +4,12 @@
 //! to Auth; transport, proof verification, host policy and persistence are separate.
 
 mod claims;
+mod delegation;
 mod role;
 mod scope;
 
 pub use claims::{AudienceId, CanonicalId, DelegatedRoleGrant, PortableClaims, PortableMechanism};
+pub use delegation::{DelegationCertificate, DelegationLeaf, IssuerDelegation, RootBatchHeader};
 pub use ic_platform_types::Principal;
 pub use role::{AuthRole, RoleError};
 pub use scope::{ScopeLabel, ScopeLabelError};

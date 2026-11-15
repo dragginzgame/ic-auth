@@ -1,0 +1,20 @@
+[package]
+name = "ic-auth-certified-conformance"
+version = "0.0.0"
+edition.workspace = true
+rust-version.workspace = true
+license-file.workspace = true
+description = "Independent certificate fixtures for Auth issuer-signature policy"
+publish = false
+
+[package.metadata.cargo-machete]
+ignored = ["toko-tooling"]
+
+[dev-dependencies]
+ic-auth = { workspace = true, features = ["certified-issuer-verification"] }
+ic-platform = { workspace = true, features = ["certification-cbor", "ic-protocol-fixtures"] }
+sha2.workspace = true
+toko-tooling.workspace = true
+
+[lints]
+workspace = true

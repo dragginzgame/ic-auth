@@ -81,7 +81,8 @@ verification feature. The default Auth graph remains codec-only. Neither the
 normal nor Wasm verification graph selects Canic, Toko runtime, storage, certified
 verification or another runtime executor.
 
-Certified verification is the next independent proof mechanism. Complete
-delegation/root/issuer signature checks and bounded certified-proof work remain
+The separate [certified issuer component](certified-issuer-boundary.md) now
+authenticates canister signatures and certificate time. Complete Auth root
+authorization, common claims context and bounded certified-proof work remain
 unimplemented. Receiver/session policy, both backends, actual Wasm lifecycle and
 consumer cutover remain separate qualification obligations.

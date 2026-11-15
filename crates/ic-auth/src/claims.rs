@@ -189,8 +189,14 @@ fn write_fields(claims: &PortableClaims, mut emit: impl FnMut(&[u8])) {
         emit(&value.to_be_bytes());
     }
     emit(&claims.nonce);
-    emit(&(claims.grants.len() as u32).to_be_bytes());
-    for grant in &claims.grants {
+    write_grants(&claims.grants, &mut emit);
+}
+
+// Canonical claims and root delegations share the same admitted grant layout.
+// Both callers validate counts/order before emitting any bytes.
+pub(crate) fn write_grants(grants: &[DelegatedRoleGrant], emit: &mut dyn FnMut(&[u8])) {
+    emit(&(grants.len() as u32).to_be_bytes());
+    for grant in grants {
         emit(&(grant.target.as_str().len() as u32).to_be_bytes());
         emit(grant.target.as_str().as_bytes());
         emit(&(grant.scopes.len() as u32).to_be_bytes());

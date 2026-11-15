@@ -74,3 +74,25 @@ The `--print` mode emits independently computed candidate TSV bytes for delibera
 fixture review. Ordinary tests only read fixed expected bytes. This establishes
 Ed25519/context acceptance, not session admission, issuer custody or certified/BLS
 verification. Original provenance and licensing remain at the repository root.
+
+## Root-delegation signing commitments
+
+`delegation.tsv` retains the batch-header, issuer-leaf and derivation-path hashes
+from `crates/ic-auth/tests/canonical.rs` at the same pinned reference commit.
+The fixture's identities, `test_key_1` name, domains, labels and field values are
+protocol test data, not runtime trust anchors. Reference files are recorded in
+`reference.sha256`.
+
+The certificate bytes, certificate digest and issuer-binding digest are separately
+assembled from that reference fixture using Node buffers and OpenSSL SHA-256 in
+`../verify-delegation-fixtures.mjs`. The script checks all six records and first
+asserts the three retained reference hashes. It imports no replacement code.
+Run `node crates/ic-auth/tests/verify-delegation-fixtures.mjs` from the repository
+root. Rust tests consume the frozen TSV, never the replacement encoder's output
+as their expected bytes.
+
+The new domain records factor the common issuer authorization fields into one
+passive value; their Rust shape is not a Wire-layout change. Certificate issuance
+time contributes to the certificate digest but is absent from the issuer leaf.
+Bounds and strict grant ordering are structural admission only; these vectors
+prove no root signature, grant authority, enrollment or session admission.
