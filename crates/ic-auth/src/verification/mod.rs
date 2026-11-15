@@ -5,9 +5,16 @@
 
 mod budget;
 mod context;
+mod credential;
+mod decoded;
+pub(crate) use decoded::DecodedClaims;
+
+#[cfg(feature = "receiver-memory")]
+pub(crate) use {context::check as check_context, credential::verify_decoded};
 
 pub use budget::{BudgetError, VerificationBudget, VerificationCosts};
 pub use context::{AuthorityGrants, ContextError, VerificationContext, browser_principal};
+pub use credential::{CredentialError, VerificationProfile, verify_credential};
 
 #[cfg(feature = "ed25519-verification")]
 mod ed25519;

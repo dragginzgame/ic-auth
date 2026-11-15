@@ -40,6 +40,9 @@ make toko-tooling-check
 make test-request
 make test-session-policy
 make test-receiver-policy
+make test-admission-capacity
+make test-credential-profile
+make test-memory
 make test-claims
 make test-delegation-encoding
 make test-wire
@@ -65,8 +68,15 @@ These are focused on the implemented protocol boundary. `test-request` includes
 the scope/request integration files and the immutable-scope compile-fail doctest;
 `test-session-policy` selects role narrowing and captured lease cases, including
 both proof mechanisms using independent qualification signatures;
-`test-receiver-policy` selects seven retained-fact read/retry scenarios and a
-driver projecting independently verified proofs into the same policy;
+`test-receiver-policy` aggregates thirteen retained-fact read/retry/login scenarios
+and two drivers projecting independent proofs into the policy. For login-only
+changes, select `cargo test --offline --locked -p ic-auth --test receiver_policy login_`
+and the qualification package's `--test certified login_replacement` case;
+`test-admission-capacity` covers six count/byte accounting scenarios;
+`test-credential-profile` checks single-mechanism protected dispatch, while
+`qualify-wire-admission` covers the combined graph through Wire/domain projection;
+`test-memory` checks independent signed memory admission sequences and certified-only
+retention, including failed proofs and exact retry after proof expiry;
 `test-claims` covers roles and canonical signed-claims bytes/refusals; `test-wire`
 covers all four contracts, nested proofs and bounded refusal. `qualify-wire`
 checks current Wire against fixed reference frames and thresholds; `lint-wire-qualification` checks that private
@@ -87,7 +97,7 @@ revocation and proof bounds plus immutable-result API cases in that same package
 charging order. `qualify-shared-verification` selects the one real Ed25519/certified
 shared-budget case using the qualification package's optional comparison feature.
 The lint/docs/Wasm targets aggregate the three implemented protocol
-packages with all implemented verification features enabled; lint includes the optional native generator and Wasm proves its metadata
+packages with all implemented verification features and the memory receiver enabled; lint includes the optional native generator and Wasm proves its metadata
 remains excluded even with the feature forwarded. For a narrower check,
 use `cargo clippy --offline --locked -p ic-auth-wire --all-targets --features typescript -- -D warnings`,
 `RUSTDOCFLAGS='-D warnings' cargo doc --offline --locked -p ic-auth-wire --no-deps`,

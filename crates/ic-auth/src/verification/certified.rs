@@ -1,10 +1,11 @@
 //! Complete fresh certified-proof verification at one protected host snapshot.
 
+use super::DecodedClaims;
 use super::{
     BudgetError, ContextError, VerificationBudget, VerificationContext, VerifiedClaims, context,
 };
 use crate::{
-    claims::{ClaimsError, decode_claims},
+    claims::ClaimsError,
     delegation_encoding::{DelegationEncodingError, certificate_hash},
     issuer_signature::{IssuerSignatureError, IssuerSignaturePolicy, verify_issuer_signature},
     root_delegation::{
@@ -13,7 +14,6 @@ use crate::{
     },
 };
 use ic_auth_protocol_types::PortableMechanism;
-use sha2::{Digest, Sha256};
 use std::{error::Error, fmt};
 
 /// Borrowed complete certified proof; all fields remain untrusted on input.
@@ -102,6 +102,20 @@ pub fn verify_certified(
     host: &CertifiedContext<'_>,
     budget: &mut VerificationBudget,
 ) -> Result<VerifiedClaims, CertifiedError> {
+    check_bounds(encoded_claims.len(), proof, host)?;
+    verify_decoded(
+        DecodedClaims::new(encoded_claims).map_err(CertifiedError::Encoding)?,
+        proof,
+        host,
+        budget,
+    )
+}
+
+pub(super) fn check_bounds(
+    encoded_len: usize,
+    proof: CertifiedProof<'_>,
+    host: &CertifiedContext<'_>,
+) -> Result<(), CertifiedError> {
     use CertifiedError as E;
     let context = &host.claims;
     if context.mechanism != PortableMechanism::Certified {
@@ -109,7 +123,7 @@ pub fn verify_certified(
     }
     let mut remaining = host.limits.delegation.max_variable_bytes.min(131_072);
     for length in [
-        encoded_claims.len(),
+        encoded_len,
         proof.issuer_signature_cbor.len(),
         proof.issuer_public_key_der.len(),
     ] {
@@ -124,8 +138,19 @@ pub fn verify_certified(
         &mut remaining,
     )
     .map_err(|_| E::InputTooLarge)?;
-    let claims = decode_claims(encoded_claims).map_err(E::Encoding)?;
-    let caller = context::check(&claims, context).map_err(E::Context)?;
+    Ok(())
+}
+
+pub(super) fn verify_decoded(
+    decoded: DecodedClaims<'_>,
+    proof: CertifiedProof<'_>,
+    host: &CertifiedContext<'_>,
+    budget: &mut VerificationBudget,
+) -> Result<VerifiedClaims, CertifiedError> {
+    use CertifiedError as E;
+    let context = &host.claims;
+    let claims = &decoded.claims;
+    let caller = context::check(claims, context).map_err(E::Context)?;
     let certificate = proof.delegation.certificate;
     let delegation = &certificate.delegation;
     let binding = certificate_hash(certificate).map_err(E::DelegationEncoding)?;
@@ -144,7 +169,7 @@ pub fn verify_certified(
     {
         return Err(E::BindingMismatch);
     }
-    let fingerprint: [u8; 32] = Sha256::digest(encoded_claims).into();
+    let fingerprint = decoded.fingerprint();
     budget
         .charge(context.now_ns, PortableMechanism::Certified)
         .map_err(E::Budget)?;
@@ -171,7 +196,7 @@ pub fn verify_certified(
     )
     .map_err(E::Issuer)?;
     Ok(VerifiedClaims::from_verification(
-        claims,
+        decoded.claims,
         fingerprint,
         caller,
         context,

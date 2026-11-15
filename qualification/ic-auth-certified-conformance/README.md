@@ -116,6 +116,12 @@ native policy integration, not a backend admission/commit or lifecycle test.
 The [receiver boundary](../../docs/development/receiver-policy-boundary.md)
 records the host and storage obligations that remain.
 
+The same target selects `login_replacement`: a full known-login pool retains a
+denied generation-six browser while the independently signed fixture proposes
+generation seven. Preflight publishes nothing; invalid root/Ed25519 signatures
+refuse with retained work charges, and valid proofs permit the same structural
+recheck. This driver supplies no storage commit or rollback implementation.
+
 `make qualify-wire-admission` selects three `wire_` cases in `tests/certified.rs`.
 These qualification-only host drivers build Wire records from the independent
 crypto fixtures, decode with the existing contracts, consume them into passive
@@ -129,3 +135,9 @@ literal retained browser-fixture values. Crypto acceptance uses the independent
 signatures described above. The Wire crate gains no Auth/crypto dependency and
 Auth gains no Wire dependency; both share protocol-types. No endpoint installation
 or receiver state is part of these drivers.
+
+With `--features receiver-memory`, the `memory_certified` case drives actual
+volatile admission, root/issuer failure charging, proof-expired exact retry and
+known-login revocation. `make test-memory` runs it in a certified-only graph along
+with the separate Ed25519 memory sequences. This is native receiver evidence;
+boot/recovery, unknown-login denial and installed-host rollback remain unqualified.

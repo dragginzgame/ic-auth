@@ -1,8 +1,9 @@
 //! Strict Ed25519 proof verification through Platform.
+use super::DecodedClaims;
 use super::{
     BudgetError, ContextError, VerificationBudget, VerificationContext, VerifiedClaims, context,
 };
-use crate::claims::{ClaimsError, decode_claims};
+use crate::claims::ClaimsError;
 use ic_auth_protocol_types::PortableMechanism;
 use ic_platform::ed25519::{Scalar, Signature, VerifyingKey};
 use sha2::{Digest, Sha256};
@@ -104,12 +105,28 @@ pub fn verify_ed25519(
     key: &Ed25519Key,
     budget: &mut VerificationBudget,
 ) -> Result<VerifiedClaims, VerificationError> {
+    verify_decoded(
+        DecodedClaims::new(encoded_claims).map_err(VerificationError::Encoding)?,
+        signature,
+        host,
+        key,
+        budget,
+    )
+}
+
+pub(super) fn verify_decoded(
+    decoded: DecodedClaims<'_>,
+    signature: &[u8],
+    host: &VerificationContext<'_>,
+    key: &Ed25519Key,
+    budget: &mut VerificationBudget,
+) -> Result<VerifiedClaims, VerificationError> {
     use VerificationError as E;
-    let claims = decode_claims(encoded_claims).map_err(E::Encoding)?;
+    let claims = &decoded.claims;
     if host.mechanism != PortableMechanism::Ed25519 {
         return Err(E::Context(ContextError::MechanismMismatch));
     }
-    let caller = context::check(&claims, host).map_err(E::Context)?;
+    let caller = context::check(claims, host).map_err(E::Context)?;
     if key.binding != host.key_binding_id {
         return Err(E::Context(ContextError::KeyMismatch));
     }
@@ -119,7 +136,7 @@ pub fn verify_ed25519(
     if bool::from(Scalar::from_canonical_bytes(*signature.s_bytes()).is_none()) {
         return Err(E::InvalidSignature);
     }
-    let fingerprint: [u8; 32] = Sha256::digest(encoded_claims).into();
+    let fingerprint = decoded.fingerprint();
     budget
         .charge(host.now_ns, PortableMechanism::Ed25519)
         .map_err(E::Budget)?;
@@ -127,7 +144,7 @@ pub fn verify_ed25519(
         .verify_strict(&fingerprint, &signature)
         .map_err(|_| E::InvalidSignature)?;
     Ok(VerifiedClaims::from_verification(
-        claims,
+        decoded.claims,
         fingerprint,
         caller,
         host,

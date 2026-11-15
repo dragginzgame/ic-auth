@@ -10,6 +10,18 @@ mod grant_policy;
 pub mod receiver_policy;
 pub mod session_request;
 
+#[cfg(all(
+    feature = "receiver-memory",
+    not(any(feature = "ed25519-verification", feature = "certified-verification"))
+))]
+compile_error!("receiver-memory requires ed25519-verification or certified-verification");
+
+#[cfg(all(
+    feature = "receiver-memory",
+    any(feature = "ed25519-verification", feature = "certified-verification")
+))]
+pub mod receiver_memory;
+
 #[cfg(feature = "certified-issuer-verification")]
 pub mod issuer_signature;
 

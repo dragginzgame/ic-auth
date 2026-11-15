@@ -1,0 +1,49 @@
+// Independent schema-2 packing and OpenSSL signatures for retained-state cases.
+// Public test seed and protocol framing follow the pinned reference described in
+// fixtures/README.md. No replacement Rust codec or cryptography is used.
+import { createHash, createPrivateKey, createPublicKey, sign, verify } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import assert from 'node:assert/strict';
+const hash = b => createHash('sha256').update(b).digest();
+const uint = (n, size) => { const b = Buffer.alloc(size); if (size === 8) b.writeBigUInt64BE(BigInt(n)); else b.writeUIntBE(n, 0, size); return b; };
+const sized = b => Buffer.concat([uint(b.length, 4), b]);
+const text = s => sized(Buffer.from(s));
+const privateKey = createPrivateKey({ key: Buffer.concat([
+  Buffer.from('302e020100300506032b657004220420', 'hex'), Buffer.from(Array.from({ length: 32 }, (_, i) => i)),
+]), format: 'der', type: 'pkcs8' });
+const publicKey = createPublicKey(privateKey);
+const key = publicKey.export({ format: 'der', type: 'spki' }).subarray(12);
+const expected = new Map([['public-key', key], ['key-binding', hash(key)]]);
+for (const [name, browser, generation, issued, nonce, subject] of [
+  ['initial', 0x44, 1, 20, 0x55, 2], ['renewal', 0x44, 1, 21, 0x56, 2],
+  ['replacement', 0x45, 2, 22, 0x57, 2], ['third', 0x46, 3, 23, 0x58, 2],
+  ['rebound', 0x44, 1, 20, 0x59, 3], ['late-old', 0x44, 1, 35, 0x60, 2],
+]) {
+  const browserKey = Buffer.alloc(32, browser);
+  const claims = Buffer.concat([
+    Buffer.from('IC-AUTH-PORTABLE-CREDENTIAL\0'), uint(2, 2), Buffer.of(1),
+    Buffer.alloc(32, 0x11), Buffer.alloc(32, 0x22), sized(Buffer.of(1)), hash(key), browserKey,
+    sized(Buffer.of(subject)), Buffer.of(0), uint(generation, 8), uint(10, 8), uint(100, 8),
+    uint(issued, 8), uint(issued + 10, 8), Buffer.alloc(16, nonce), uint(1, 4), text('user'), uint(1, 4), text('read'),
+  ]);
+  const digest = hash(claims), signature = sign(null, digest, privateKey);
+  assert(verify(null, digest, publicKey, signature));
+  const caller = Buffer.concat([createHash('sha224').update(Buffer.concat([
+    Buffer.from('302a300506032b6570032100', 'hex'), browserKey,
+  ])).digest(), Buffer.of(2)]);
+  expected.set(`${name}-claims`, claims);
+  expected.set(`${name}-signature`, signature);
+  expected.set(`${name}-caller`, caller);
+}
+// Cross-check the initial case against the separately retained reference vector.
+const reference = new Map(readFileSync(new URL('fixtures/ed25519.tsv', import.meta.url), 'utf8').trim().split('\n').map(l => l.split('\t')));
+assert.equal(expected.get('initial-claims').toString('hex'), reference.get('claims'));
+assert.equal(expected.get('initial-signature').toString('hex'), reference.get('signature'));
+if (process.argv[2] === '--print') {
+  for (const [name, bytes] of expected) console.log(`${name}\t${bytes.toString('hex')}`);
+} else {
+  const saved = new Map(readFileSync(new URL('fixtures/memory.tsv', import.meta.url), 'utf8').trim().split('\n').map(l => l.split('\t')));
+  assert.equal(saved.size, expected.size);
+  for (const [name, bytes] of expected) assert.equal(saved.get(name), bytes.toString('hex'), name);
+  console.log('Verified six independent memory admission credentials with Node/OpenSSL');
+}

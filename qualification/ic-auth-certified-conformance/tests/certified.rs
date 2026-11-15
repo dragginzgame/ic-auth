@@ -570,6 +570,7 @@ fn wire_credential(f: &Fixture) -> ic_auth_wire::model::PortableCredential {
 #[test]
 fn wire_admission_projects_into_real_certified_verification_and_unsigned_request_policy() {
     use ic_auth::session_request::SessionRequest;
+    use ic_auth::verification::{VerificationProfile, verify_credential};
     use ic_auth_protocol_types::{Credential, CredentialProof};
     use ic_auth_wire::{
         EstablishSession, SessionInput,
@@ -622,7 +623,8 @@ fn wire_admission_projects_into_real_certified_verification_and_unsigned_request
         material.issuer_signature_cbor.as_ptr()
     );
     let mut b = budget(3);
-    let verified = verify_certified(&credential.claims, view, &h, &mut b).unwrap();
+    let verified =
+        verify_credential(&credential, VerificationProfile::Certified(&h), &mut b).unwrap();
     assert_eq!(verified.fingerprint(), hash("claims_digest"));
     assert_eq!(b.available(), 0);
     // Protected selection, not the projected variant, chooses the verifier.
@@ -638,7 +640,8 @@ fn wire_admission_projects_into_real_certified_verification_and_unsigned_request
 
 #[test]
 fn wire_projection_preserves_binding_and_signature_failures_for_auth_admission() {
-    use ic_auth_protocol_types::{Credential, CredentialProof};
+    use ic_auth::verification::{CredentialError, VerificationProfile, verify_credential};
+    use ic_auth_protocol_types::Credential;
     use ic_auth_wire::CredentialEnvelope;
     let trusted = Fixture::new();
     let g = grants(&trusted);
@@ -658,13 +661,10 @@ fn wire_projection_preserves_binding_and_signature_failures_for_auth_admission()
         let frame = CredentialEnvelope::encode_request(&wire_credential(&f)).unwrap();
         let projected =
             Credential::try_from(CredentialEnvelope::decode_request(&frame).unwrap()).unwrap();
-        let CredentialProof::Certified(material) = &projected.proof else {
-            unreachable!()
-        };
         let mut b = budget(3);
         assert_eq!(
-            verify_certified(&projected.claims, material.as_ref().into(), &h, &mut b),
-            Err(error)
+            verify_credential(&projected, VerificationProfile::Certified(&h), &mut b),
+            Err(CredentialError::Certified(error))
         );
         assert_eq!(b.observed_at_ns(), u64::from(observed));
     }
@@ -673,8 +673,10 @@ fn wire_projection_preserves_binding_and_signature_failures_for_auth_admission()
 #[test]
 #[cfg(feature = "ed25519-comparison")]
 fn wire_ed25519_projection_preserves_independent_signature_and_preflight_refusal() {
-    use ic_auth::verification::{Ed25519Key, VerificationError, verify_ed25519};
-    use ic_auth_protocol_types::{Credential, CredentialProof};
+    use ic_auth::verification::{
+        CredentialError, Ed25519Key, VerificationError, VerificationProfile, verify_credential,
+    };
+    use ic_auth_protocol_types::Credential;
     use ic_auth_wire::{
         CredentialEnvelope,
         model::{PortableCredential, PortableProof},
@@ -696,13 +698,22 @@ fn wire_ed25519_projection_preserves_independent_signature_and_preflight_refusal
         .unwrap();
         let credential =
             Credential::try_from(CredentialEnvelope::decode_request(&frame).unwrap()).unwrap();
-        let CredentialProof::Ed25519(signature) = &credential.proof else {
-            unreachable!()
-        };
         let mut b = budget(3);
-        let result = verify_ed25519(&credential.claims, signature, &h, &key, &mut b);
+        let result = verify_credential(
+            &credential,
+            VerificationProfile::Ed25519 {
+                context: &h,
+                key: &key,
+            },
+            &mut b,
+        );
         if len == 63 {
-            assert_eq!(result, Err(VerificationError::MalformedSignature));
+            assert_eq!(
+                result,
+                Err(CredentialError::Ed25519(
+                    VerificationError::MalformedSignature
+                ))
+            );
             assert_eq!(b, budget(3));
         } else {
             assert!(result.is_ok());
@@ -883,4 +894,273 @@ fn receiver_retry_uses_retained_proof_evidence_after_admission_expiry() {
         .unwrap();
         check(&verified_ed, &ed, &role, &request);
     }
+}
+
+#[test]
+fn login_replacement_preflight_stays_separate_from_both_complete_proof_checks() {
+    use ic_auth::receiver_policy::{
+        DeviceFacts, LoginBinding, LoginDecision, LoginFacts, LoginLimits, LoginSnapshot,
+        assess_login,
+    };
+    let f = Fixture::new();
+    let g = grants(&f);
+    let h = host(&f, &g);
+    let claims = decode_claims(&f.claims).unwrap();
+    let proposed = LoginBinding {
+        issuer: claims.issuer,
+        subject: claims.account_subject,
+        device_slot: claims.device_slot,
+        device_generation: claims.device_generation,
+        started_at_ns: claims.login_started_at_ns,
+        deadline_ns: claims.login_deadline_ns,
+    };
+    // Independently selected retained fence: old browser at generation six,
+    // denied, and the known-login pool is full. Signed fixture proposes seven.
+    let mut old_key = [9; 29];
+    old_key[28] = 2;
+    let old_caller = Principal::from_slice(&old_key);
+    let mut old_binding = proposed;
+    old_binding.device_generation = 6;
+    let old = LoginFacts {
+        caller: old_caller,
+        audience: *h.claims.audience,
+        binding: Some(old_binding),
+        until_ns: 190,
+        denied: true,
+    };
+    let device = DeviceFacts {
+        issuer: old_binding.issuer,
+        subject: old_binding.subject,
+        slot: old_binding.device_slot,
+        generation: 6,
+        caller: old_caller,
+    };
+    let snapshot = LoginSnapshot {
+        audience: *h.claims.audience,
+        caller: h.claims.caller,
+        observed_at_ns: 150,
+        caller_login: None,
+        device: Some(&device),
+        slot_owner: Some(&old),
+        admitted_logins: 1,
+    };
+    let limits = LoginLimits {
+        max_device_slots: 8,
+        max_login_ttl_ns: 100,
+        max_admitted_logins: 1,
+    };
+    let expected = LoginDecision::Replacement {
+        displaced_caller: old_caller,
+    };
+    assert_eq!(proposed.device_generation, 7);
+    assert_eq!(assess_login(&snapshot, proposed, 150, limits), Ok(expected));
+    let mut invalid = Fixture::new();
+    invalid.root.signature.fill(0);
+    let mut allowance = budget(3);
+    assert_eq!(
+        result(&invalid, &h, &mut allowance),
+        Err(E::Root(R::InvalidSignature))
+    );
+    assert_eq!(allowance.available(), 0);
+    assert_eq!(snapshot.slot_owner.unwrap(), &old);
+    assert_eq!(device.generation, 6);
+    let verified = verify_certified(&f.claims, f.proof(), &h, &mut budget(3)).unwrap();
+    assert_eq!(verified.caller(), h.claims.caller);
+    assert_eq!(verified.claims(), &claims);
+    // Rechecking in the same fixture snapshot is still only a policy result.
+    // No store, reservation publication or commit callback is supplied here.
+    assert_eq!(
+        assess_login(&snapshot, proposed, verified.verified_at_ns(), limits),
+        Ok(expected)
+    );
+    #[cfg(feature = "ed25519-comparison")]
+    {
+        use ic_auth::verification::{Ed25519Key, VerificationError, verify_ed25519};
+        let mut ed = h.claims;
+        ed.mechanism = PortableMechanism::Ed25519;
+        ed.key_binding_id = hash("ed_key_binding");
+        let key = Ed25519Key::new(hash("ed_public_key")).unwrap();
+        let mut sig = bytes("ed_signature");
+        sig[0] ^= 1;
+        let mut allowance = budget(3);
+        assert_eq!(
+            verify_ed25519(&bytes("ed_claims"), &sig, &ed, &key, &mut allowance),
+            Err(VerificationError::InvalidSignature)
+        );
+        assert_eq!(allowance.available(), 1);
+        assert_eq!(device.generation, 6);
+        let verified = verify_ed25519(
+            &bytes("ed_claims"),
+            &bytes("ed_signature"),
+            &ed,
+            &key,
+            &mut budget(3),
+        )
+        .unwrap();
+        assert_eq!(verified.claims().device_generation, 7);
+        assert_eq!(verified.caller(), snapshot.caller);
+        assert_eq!(
+            assess_login(&snapshot, proposed, verified.verified_at_ns(), limits),
+            Ok(expected)
+        );
+    }
+}
+
+#[test]
+fn credential_profile_refuses_untrusted_mechanism_switches_before_decoding_or_charging() {
+    use ic_auth::verification::{CredentialError, VerificationProfile, verify_credential};
+    use ic_auth_protocol_types::{Credential, CredentialProof};
+    let f = Fixture::new();
+    let g = grants(&f);
+    let h = host(&f, &g);
+    let wrong = Credential {
+        claims: vec![255],
+        proof: CredentialProof::Ed25519(vec![]),
+    };
+    let mut b = budget(3);
+    assert_eq!(
+        verify_credential(&wrong, VerificationProfile::Certified(&h), &mut b),
+        Err(CredentialError::ProofMismatch)
+    );
+    assert_eq!(b, budget(3));
+    let credential = Credential::try_from(wire_credential(&f)).unwrap();
+    let verified =
+        verify_credential(&credential, VerificationProfile::Certified(&h), &mut b).unwrap();
+    assert_eq!(verified.fingerprint(), hash("claims_digest"));
+    assert_eq!(b.available(), 0);
+    #[cfg(feature = "ed25519-comparison")]
+    {
+        use ic_auth::verification::Ed25519Key;
+        let mut ed = h.claims;
+        ed.mechanism = PortableMechanism::Ed25519;
+        ed.key_binding_id = hash("ed_key_binding");
+        let key = Ed25519Key::new(hash("ed_public_key")).unwrap();
+        let mut credential = credential;
+        credential.claims = vec![255];
+        let mut b = budget(3);
+        assert_eq!(
+            verify_credential(
+                &credential,
+                VerificationProfile::Ed25519 {
+                    context: &ed,
+                    key: &key
+                },
+                &mut b
+            ),
+            Err(CredentialError::ProofMismatch)
+        );
+        assert_eq!(b, budget(3));
+    }
+}
+
+#[cfg(feature = "receiver-memory")]
+#[test]
+fn memory_certified_admission_retains_failed_work_and_retries_after_proof_expiry() {
+    use ic_auth::{
+        receiver_memory::{AdmissionHost, MemoryConfig, MemoryReceiver},
+        receiver_policy::{LoginLimits, SessionAuthority, SessionCapacity},
+        session_request::{SessionRequest, SessionTtlPolicy},
+        verification::VerificationProfile,
+    };
+    use ic_auth_protocol_types::{Credential, CredentialProof};
+    let f = Fixture::new();
+    let g = grants(&f);
+    let h = host(&f, &g);
+    let role = "app".parse().unwrap();
+    let mut receiver = MemoryReceiver::new_fresh(
+        MemoryConfig {
+            audience: *h.claims.audience,
+            login: LoginLimits {
+                max_device_slots: 8,
+                max_login_ttl_ns: 100,
+                max_admitted_logins: 1,
+            },
+            capacity: SessionCapacity {
+                max_sessions: 1,
+                max_replays: 1,
+                max_replays_per_account: 1,
+                max_encoded_bytes: 4096,
+            },
+            verification_capacity: 10,
+            refill_interval_ns: 1,
+            verification_costs: VerificationCosts {
+                ed25519: 2,
+                certified: 3,
+            },
+        },
+        0,
+    )
+    .unwrap();
+    receiver.activate_fresh(9).unwrap();
+    let input = |context| AdmissionHost {
+        verifier: VerificationProfile::Certified(context),
+        role: &role,
+        ttl: SessionTtlPolicy::new(60, 1800).unwrap(),
+        generation: 9,
+        enabled: true,
+        subject_admissible: true,
+    };
+    let request = || SessionRequest::new(vec!["read".into()], None).unwrap();
+    let credential = Credential::try_from(wire_credential(&f)).unwrap();
+    let account = (issuer(), Principal::from_slice(&[5; 10]));
+    for break_root in [true, false] {
+        let mut bad = credential.clone();
+        let CredentialProof::Certified(proof) = &mut bad.proof else {
+            panic!("certified fixture")
+        };
+        if break_root {
+            proof.delegation.signature.signature[0] ^= 1;
+        } else {
+            proof.issuer_signature_cbor[0] ^= 1;
+        }
+        assert!(receiver.admit(&bad, request(), input(&h)).is_err());
+        assert_eq!(receiver.known_logins(), 0);
+        assert_eq!(receiver.usage(account).encoded_bytes, 0);
+    }
+    assert_eq!(receiver.verification_budget().available(), 4);
+    let admitted = receiver.admit(&credential, request(), input(&h)).unwrap();
+    assert!(!admitted.exact_retry);
+    assert_eq!(admitted.receipt.expires_at_ns, 190);
+    assert_eq!(receiver.verification_budget().available(), 1);
+    let usage = receiver.usage(account);
+    assert_eq!(usage.replays_for_account, 1);
+    let h = CertifiedContext {
+        claims: VerificationContext {
+            now_ns: 185,
+            ..h.claims
+        },
+        ..h
+    }; // proof expired at 180
+    let mut retry = credential;
+    retry.proof = CredentialProof::Ed25519(vec![]);
+    let repeated = receiver.admit(&retry, request(), input(&h)).unwrap();
+    assert!(repeated.exact_retry);
+    assert_eq!(repeated.receipt, admitted.receipt);
+    assert_eq!(receiver.usage(account), usage);
+    assert_eq!(receiver.verification_budget().available(), 1);
+    let authority = SessionAuthority {
+        caller: h.claims.caller,
+        now_ns: 185,
+        audience: *h.claims.audience,
+        issuer: h.claims.issuer,
+        mechanism: h.claims.mechanism,
+        key_binding_id: h.claims.key_binding_id,
+        role: &role,
+        grants: g.as_slice(),
+        generation: 9,
+        not_before_ns: 100,
+        expires_at_ns: 200,
+        enrollment_expires_at_ns: 210,
+        min_login_started_at_ns: 100,
+        max_session_ttl_secs: 1800,
+        enabled: true,
+        subject_admissible: true,
+    };
+    assert_eq!(
+        receiver.read(&authority, &["read".parse().unwrap()]),
+        Ok(admitted.receipt)
+    );
+    assert!(receiver.revoke_known(h.claims.caller, 185).unwrap());
+    assert_eq!(receiver.usage(account).replays, 1);
+    assert!(receiver.admit(&retry, request(), input(&h)).is_err());
 }

@@ -130,7 +130,7 @@ pub fn browser_principal(public_key: &[u8; 32]) -> Principal {
 
 // Claims have already passed the canonical decoder. No mutable prepared value
 // or public "context checked" token is needed between decode and verification.
-pub(super) fn check(
+pub(crate) fn check(
     claims: &PortableClaims,
     host: &VerificationContext<'_>,
 ) -> Result<Principal, ContextError> {

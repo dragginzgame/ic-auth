@@ -1,16 +1,33 @@
 # Changelog
 
-## [0.43.0] - Unreleased
+## [0.43.0] - Source checkpoint 2026-11-15
 
-Development versions: `ic-auth` 0.43.0, protocol-types/Wire 0.42.0.
+Package versions: `ic-auth` 0.43.0, protocol-types/Wire 0.42.0.
 All packages remain `publish = false`.
 
 ### ✨ Added
 
+- Add an opt-in bounded memory receiver with complete verified admission, exact
+  retry, proof-free reads, known-login revocation and indexed pruning. Preserve
+  replay quotas, device fences and original leases through renewal/replacement;
+  retain failure charges without publishing authorization records. Both proof
+  mechanisms share one canonical decode and the existing policy. Independent
+  signed sequences and reference byte-size boundaries cover the operations.
+  Stable storage, unknown-login denial and host boot/recovery remain open.
+- Check physical session/replay capacity, issuer-qualified replay quotas and
+  replacement byte accounting with bounded records and checked arithmetic.
+  Projected totals remain separate from reservations or atomic publication.
+- Dispatch credentials through one host-selected verifier profile. Submitted
+  proof tags cannot choose authority; matching proofs preserve existing error
+  and charging behavior through the Wire/domain qualification drivers.
+- Assess login renewal and device replacement without reserving state. Preserve
+  immutable browser bindings and expired/denied slot fences; higher generations
+  need a different browser and complete proof verification before any commit.
+  Renewals and replacements reuse the known-login pool at capacity.
 - Share proof-free session assessment and exact-retry decisions over bounded
   retained facts. Preserve original leases, request conflicts, single-role scope
-  checks and current authority/login/device fences. These are policy helpers;
-  receiver storage, clock observation and atomic mutations remain unimplemented.
+  checks and current authority/login/device fences. These pure helpers
+  are also used by the optional memory receiver.
 - Evaluate requested scopes against one protected role without combining grants
   or repairing signed order. Both proof mechanisms capture login/key/enrollment
   lease ceilings; later refresh cannot extend a previously calculated lease.

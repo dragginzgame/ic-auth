@@ -18,7 +18,10 @@ help:
 	  'toko-tooling-check  Verify Cargo selection, lock and installed tooling' \
 	  'test-request    Scope/request contracts and immutable-scope compile-fail case' \
 	  'test-session-policy  Single-role narrowing and captured lease ceilings' \
-	  'test-receiver-policy  Proof-free reads, exact retries and retained fences' \
+	  'test-receiver-policy  Read/retry, login renewal and replacement policy' \
+	  'test-admission-capacity  Physical replay/account quotas and checked byte totals' \
+	  'test-credential-profile  Protected verifier dispatch and failure charging' \
+	  'test-memory     Real memory admission, retention and both proof mechanisms' \
 	  'test-claims     Signed-claims bytes, bounds, ordering and role grammar' \
 	  'test-delegation-encoding  Root-delegation signing commitments and bounds' \
 	  'test-verification  Ed25519 proof/context, work charging and immutable results' \
@@ -75,7 +78,21 @@ test-session-policy: toko-tooling-check
 .PHONY: test-receiver-policy
 test-receiver-policy: toko-tooling-check
 	cargo test --offline --locked -p ic-auth --test receiver_policy
-	cargo test --offline --locked --manifest-path qualification/Cargo.toml -p ic-auth-certified-conformance --features ed25519-comparison --test certified receiver_retry
+	cargo test --offline --locked --manifest-path qualification/Cargo.toml -p ic-auth-certified-conformance --features ed25519-comparison --test certified -- receiver_retry login_replacement
+
+.PHONY: test-admission-capacity test-credential-profile
+test-admission-capacity: toko-tooling-check
+	cargo test --offline --locked -p ic-auth --test receiver_capacity
+
+test-credential-profile: toko-tooling-check
+	cargo test --offline --locked -p ic-auth --features ed25519-verification --test verification credential_profile
+	cargo test --offline --locked --manifest-path qualification/Cargo.toml -p ic-auth-certified-conformance --test certified credential_profile
+
+.PHONY: test-memory
+test-memory: toko-tooling-check
+	node crates/ic-auth/tests/verify-memory-fixtures.mjs
+	cargo test --offline --locked -p ic-auth --features receiver-memory,ed25519-verification --test receiver_memory
+	cargo test --offline --locked --manifest-path qualification/Cargo.toml -p ic-auth-certified-conformance --features receiver-memory --test certified memory_certified
 
 .PHONY: test-delegation-encoding
 test-delegation-encoding: toko-tooling-check
@@ -134,10 +151,10 @@ lint-wire-qualification: toko-tooling-check
 	cargo clippy --offline --locked --manifest-path qualification/Cargo.toml -p ic-auth-wire-conformance --all-targets -- -D warnings
 
 lint-protocol: toko-tooling-check
-	cargo clippy --offline --locked -p ic-auth-protocol-types -p ic-auth -p ic-auth-wire --all-targets --features ic-auth-wire/typescript,ic-auth/ed25519-verification,ic-auth/certified-verification -- -D warnings
+	cargo clippy --offline --locked -p ic-auth-protocol-types -p ic-auth -p ic-auth-wire --all-targets --features ic-auth-wire/typescript,ic-auth/receiver-memory,ic-auth/ed25519-verification,ic-auth/certified-verification -- -D warnings
 
 doc-protocol: toko-tooling-check
-	RUSTDOCFLAGS='-D warnings' cargo doc --offline --locked -p ic-auth-protocol-types -p ic-auth -p ic-auth-wire --features ic-auth/ed25519-verification,ic-auth/certified-verification --no-deps
+	RUSTDOCFLAGS='-D warnings' cargo doc --offline --locked -p ic-auth-protocol-types -p ic-auth -p ic-auth-wire --features ic-auth/receiver-memory,ic-auth/ed25519-verification,ic-auth/certified-verification --no-deps
 
 check-protocol-wasm: toko-tooling-check
-	cargo check --offline --locked -p ic-auth-protocol-types -p ic-auth -p ic-auth-wire --lib --features ic-auth-wire/typescript,ic-auth/ed25519-verification,ic-auth/certified-verification --target wasm32-unknown-unknown
+	cargo check --offline --locked -p ic-auth-protocol-types -p ic-auth -p ic-auth-wire --lib --features ic-auth-wire/typescript,ic-auth/receiver-memory,ic-auth/ed25519-verification,ic-auth/certified-verification --target wasm32-unknown-unknown

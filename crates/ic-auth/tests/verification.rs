@@ -561,3 +561,45 @@ fn session_deadline_captures_login_key_and_enrollment_without_proof_expiry() {
         );
     }
 }
+
+#[test]
+fn credential_profile_preserves_ed25519_evidence_and_charged_errors() {
+    use ic_auth::verification::{CredentialError, VerificationProfile, verify_credential};
+    use ic_auth_protocol_types::{Credential, CredentialProof};
+    let a = audience();
+    let g = grants();
+    let h = host(&a, &g);
+    let k = key();
+    let profile = VerificationProfile::Ed25519 {
+        context: &h,
+        key: &k,
+    };
+    let mut credential = Credential {
+        claims: fixture("claims"),
+        proof: CredentialProof::Ed25519(fixture("signature")),
+    };
+    let mut b = budget();
+    let verified = verify_credential(&credential, profile, &mut b).unwrap();
+    assert_eq!(verified.fingerprint().as_slice(), fixture("digest"));
+    assert_eq!(b.available(), 8);
+    let CredentialProof::Ed25519(sig) = &mut credential.proof else {
+        unreachable!()
+    };
+    sig[0] ^= 1;
+    let mut b = budget();
+    assert_eq!(
+        verify_credential(&credential, profile, &mut b),
+        Err(CredentialError::Ed25519(E::InvalidSignature))
+    );
+    assert_eq!(b.available(), 8);
+    let CredentialProof::Ed25519(sig) = &mut credential.proof else {
+        unreachable!()
+    };
+    sig.truncate(63);
+    let mut b = budget();
+    assert_eq!(
+        verify_credential(&credential, profile, &mut b),
+        Err(CredentialError::Ed25519(E::MalformedSignature))
+    );
+    assert_eq!(b, budget());
+}

@@ -96,3 +96,16 @@ passive value; their Rust shape is not a Wire-layout change. Certificate issuanc
 time contributes to the certificate digest but is absent from the issuer leaf.
 Bounds and strict grant ordering are structural admission only; these vectors
 prove no root signature, grant authority, enrollment or session admission.
+
+## Volatile receiver sequences
+
+`memory.tsv` extends the public Ed25519 test seed with six independently packed
+schema-2 credentials. `../verify-memory-fixtures.mjs` uses Node/OpenSSL to verify
+all bytes and signatures; its initial case must equal the retained `ed25519.tsv`
+reference. Renewal preserves the browser/account/slot/generation and 10–100 ns
+login window. Replacement uses a different browser and higher slot generation;
+other cases test rebinding refusal and a fresh old-generation credential after
+replay pruning. These are new semantic test sequences, not copied legacy engine
+code or actual SDK browser logins. See the
+[memory receiver boundary](../../../../docs/development/memory-receiver-boundary.md)
+for the qualified operations and remaining host/recovery scope.

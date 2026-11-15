@@ -88,3 +88,24 @@ protected enrollment. The [complete certified verifier](certified-verification-b
 now shares common context, budget and immutable claims evidence with Ed25519.
 Receiver/session policy, both backends, actual Wasm lifecycle and
 consumer cutover remain separate qualification obligations.
+
+## Protected credential dispatch
+
+`verification::verify_credential` accepts the shared passive `Credential` and a
+host-selected `VerificationProfile`. Its Ed25519 variant borrows protected claims
+context and the admitted issuer key; its certified variant borrows the full
+protected root/issuer/network context. The submitted proof tag only has permission
+to agree with that choice. A mismatch returns `CredentialError::ProofMismatch`
+before claims decoding or budget observation, even when claims are malformed.
+
+Matching variants call the existing complete verifier once, borrowing claims and
+proof buffers without re-encoding or copying them. `CredentialError` preserves the
+original typed mechanism error and its preflight/charged stage. The result remains
+`VerifiedClaims`, not a session or write token. There is no verification callback,
+Canic dependency or endpoint installation; the host still owns snapshot provenance.
+
+`make test-credential-profile` checks Ed25519-only and certified-only graphs using
+the existing independent signatures. Combined-feature Wire qualification now
+uses the same entry point for both mechanisms, including malformed signatures,
+certificate-binding refusals and charged root failures. The profile mismatch case
+also checks both directions with malformed claims in the combined graph.

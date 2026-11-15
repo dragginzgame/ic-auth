@@ -482,6 +482,8 @@ version = "0.43.0"
 dependencies = [
  "ic-auth-protocol-types",
  "ic-platform",
+ "ic-wire",
+ "serde",
  "sha2 0.11.1",
 ]
 

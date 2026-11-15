@@ -17,6 +17,11 @@ use ic_auth_protocol_types::{
 };
 use std::{error::Error, fmt};
 
+mod login;
+pub use login::{LoginDecision, LoginLimits, LoginSnapshot, assess_login};
+mod capacity;
+pub use capacity::{AdmissionFootprint, SessionCapacity, SessionUsage, assess_capacity};
+
 /// Immutable login association retained independently of session lease expiry.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct LoginBinding {
@@ -64,7 +69,7 @@ pub struct SessionFacts<'a> {
 }
 
 /// Selected caller's retained login reservation or denial.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct LoginFacts {
     /// Lookup key; must match the authenticated caller.
     pub caller: Principal,
@@ -168,6 +173,12 @@ pub enum SessionPolicyError {
     ScopeRejected,
     /// Consumed claims or changed narrowing request cannot be admitted again.
     ReplayConflict,
+    /// An existing browser's immutable account/device/login association differs.
+    BindingConflict,
+    /// A new known login would exceed its protected physical pool capacity.
+    Capacity,
+    /// Encoded session/replay bytes exceed the protected ceiling or arithmetic range.
+    ByteCapacity,
 }
 impl fmt::Display for SessionPolicyError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -251,22 +262,8 @@ fn check_snapshot(
     s: &ReceiverSnapshot<'_>,
     a: &SessionAuthority<'_>,
 ) -> Result<(), SessionPolicyError> {
+    check_authority(a, s.audience)?;
     use SessionPolicyError as E;
-    if !a.enabled || !a.subject_admissible {
-        return Err(E::Disabled);
-    }
-    let caller = a.caller.as_slice();
-    if caller.len() != 29
-        || caller[28] != 2
-        || a.issuer == Principal::anonymous()
-        || a.audience != s.audience
-        || a.not_before_ns >= a.expires_at_ns
-        || a.enrollment_expires_at_ns == 0
-        || !(1..=1800).contains(&a.max_session_ttl_secs)
-        || validate_grants(a.grants).is_err()
-    {
-        return Err(E::InvalidContext);
-    }
     if a.now_ns < s.observed_at_ns {
         return Err(E::ClockRollback);
     }
@@ -283,6 +280,27 @@ fn check_snapshot(
     }
     Ok(())
 }
+
+pub(crate) fn check_authority(
+    a: &SessionAuthority<'_>,
+    audience: AudienceId,
+) -> Result<(), SessionPolicyError> {
+    use SessionPolicyError as E;
+    if !a.enabled || !a.subject_admissible {
+        return Err(E::Disabled);
+    }
+    if !login_caller(a.caller)
+        || a.issuer == Principal::anonymous()
+        || a.audience != audience
+        || a.not_before_ns >= a.expires_at_ns
+        || a.enrollment_expires_at_ns == 0
+        || !(1..=1800).contains(&a.max_session_ttl_secs)
+        || validate_grants(a.grants).is_err()
+    {
+        return Err(E::InvalidContext);
+    }
+    Ok(())
+}
 fn check_live(
     s: &SessionFacts<'_>,
     facts: &ReceiverSnapshot<'_>,
@@ -292,13 +310,8 @@ fn check_live(
     let b = s.login;
     if !(1..=16).contains(&s.scopes.len())
         || s.scopes.windows(2).any(|pair| pair[0] >= pair[1])
-        || b.issuer == Principal::anonymous()
-        || b.subject == Principal::anonymous()
-        || b.device_slot > 7
-        || b.device_generation == 0
+        || !valid_binding(b)
         || b.started_at_ns > s.established_at_ns
-        || b.started_at_ns >= b.deadline_ns
-        || b.deadline_ns - b.started_at_ns > 90 * 86_400_000_000_000
         || s.established_at_ns >= s.expires_at_ns
         || s.expires_at_ns > b.deadline_ns
         || s.expires_at_ns - s.established_at_ns > 1_800_000_000_000
@@ -344,4 +357,20 @@ fn check_live(
         return Err(E::InvalidFacts);
     }
     Ok(())
+}
+
+pub(crate) fn login_caller(caller: Principal) -> bool {
+    let bytes = caller.as_slice();
+    bytes.len() == 29 && bytes[28] == 2
+}
+
+fn valid_binding(binding: LoginBinding) -> bool {
+    binding.issuer != Principal::anonymous()
+        && binding.subject != Principal::anonymous()
+        && binding.device_slot < 8
+        && binding.device_generation != 0
+        && binding
+            .deadline_ns
+            .checked_sub(binding.started_at_ns)
+            .is_some_and(|ttl| ttl > 0 && ttl <= 90 * 86_400_000_000_000)
 }

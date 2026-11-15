@@ -6,7 +6,7 @@ backend; the intended destination is `ic-storage-new` with orthogonal persistenc
 Existing Wire layouts and signed credential bytes are compatibility constraints,
 not redesign targets.
 
-**Status: protocol foundation implemented.** `ic-auth-protocol-types` owns
+**Status: protocol foundation and first volatile receiver implemented.** `ic-auth-protocol-types` owns
 passive claims, labels and Platform principal identity; `ic-auth` implements
 schema-2 canonical claims encoding/decoding/hashing, unsigned session-request
 identity, host-supplied TTL bounds and optional Ed25519/certified proof verification.
@@ -17,14 +17,19 @@ component, root-delegation signing commitments and standalone root authorization
 Complete certified verification now combines both components with shared claims
 policy and work charging. Current development adds shared role narrowing and
 captured session lease ceilings, plus shared retry/read policy over retained facts.
-Receiver/storage, issuer state and browser lifecycle
-replacement remain unimplemented. The existing
+Login preflight also checks immutable renewal and higher-generation replacement.
+Capacity policy retains physical replay/account quotas and checked byte totals;
+one protected verifier profile dispatches both credential mechanisms.
+The optional memory receiver now commits verified admissions, supports exact retry
+and proof-free reads, retains replay/device state through known-login revocation,
+and prunes expired records with bounded work. Stable storage, unknown-login denial,
+boot/recovery integration, issuer state and browser lifecycle remain open. The existing
 `ic-auth` repository remains the implemented reference and canonical production
 owner until the replacement is qualified and adoption is explicitly approved.
 
 Version 0.2.0 is a GitHub source milestone. All crates retain `publish = false`;
 crates.io publication is deferred until the replacement is complete. It does not
-claim a working authentication engine or authorize a consumer cutover.
+claim a complete replacement authentication engine or authorize a consumer cutover.
 Canic owns endpoint wiring using IC Wire; the Auth crates supply contract schemas
 and authentication decisions without installing endpoints.
 Current development uses `ic-auth` 0.43.0 and
@@ -67,8 +72,13 @@ records the combined path and legacy cryptographic compatibility; run
 projection and real proofs through the verifier; Canic still owns endpoint wiring.
 `make test-session-policy` checks role-specific narrowing and captured lease
 ceilings shared by both verifiers; see the [request boundary](docs/development/request-boundary.md).
-`make test-receiver-policy` covers [proof-free read and retry decisions](docs/development/receiver-policy-boundary.md)
-over bounded facts, including independent proof fixtures after admission expiry.
+`make test-receiver-policy` covers [read/retry and login decisions](docs/development/receiver-policy-boundary.md)
+over bounded facts, including independent proof-expired retry and replacement fixtures.
+`make test-admission-capacity test-credential-profile` checks physical capacity
+accounting and protected proof dispatch. `make test-memory` exercises the
+[memory receiver](docs/development/memory-receiver-boundary.md) with real Ed25519
+and certified proofs. Select `receiver-memory` together with at least one complete
+verification feature. Host inputs and transaction/recovery custody remain explicit.
 
 The objective is less maintained state and clearer ownership, not a promised
 zero-debt result or a line-count quota. Keep rejection, atomicity and recovery

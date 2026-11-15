@@ -393,3 +393,301 @@ fn clock_and_record_bounds_refuse_without_repairing_the_snapshot() {
     assert_eq!(state.observed_at_ns, 130 * SECOND);
     assert_eq!(session.expires_at_ns, 150 * SECOND);
 }
+
+fn login_limits() -> ic_auth::receiver_policy::LoginLimits {
+    ic_auth::receiver_policy::LoginLimits {
+        max_device_slots: 8,
+        max_login_ttl_ns: 300 * SECOND,
+        max_admitted_logins: 2,
+    }
+}
+fn login_snapshot<'a>(
+    caller_login: Option<&'a LoginFacts>,
+    device: Option<&'a DeviceFacts>,
+    slot_owner: Option<&'a LoginFacts>,
+) -> ic_auth::receiver_policy::LoginSnapshot<'a> {
+    ic_auth::receiver_policy::LoginSnapshot {
+        audience: Scenario::audience(),
+        caller: caller(10),
+        observed_at_ns: 130 * SECOND,
+        caller_login,
+        device,
+        slot_owner,
+        admitted_logins: usize::from(slot_owner.is_some()),
+    }
+}
+
+#[test]
+fn login_new_rows_need_capacity_but_exact_binding_renewals_reuse_the_pool() {
+    use ic_auth::receiver_policy::{LoginDecision as D, assess_login};
+    let proposed = Scenario::binding();
+    let mut empty = login_snapshot(None, None, None);
+    assert_eq!(
+        assess_login(&empty, proposed, 140 * SECOND, login_limits()),
+        Ok(D::New)
+    );
+    empty.admitted_logins = 2;
+    assert_eq!(
+        assess_login(&empty, proposed, 140 * SECOND, login_limits()),
+        Err(E::Capacity)
+    );
+    let mut login = Scenario::login();
+    login.until_ns = 350 * SECOND;
+    let device = Scenario::device();
+    let mut retained = login_snapshot(Some(&login), Some(&device), Some(&login));
+    retained.admitted_logins = 2;
+    assert_eq!(
+        assess_login(&retained, proposed, 140 * SECOND, login_limits()),
+        Ok(D::Renewal)
+    );
+    // No pruning, count change or retention shortening occurs during preflight.
+    assert_eq!(retained.admitted_logins, 2);
+    assert_eq!(login.until_ns, 350 * SECOND);
+}
+
+#[test]
+fn login_same_browser_cannot_change_account_slot_generation_or_absolute_window() {
+    use ic_auth::receiver_policy::assess_login;
+    let login = Scenario::login();
+    let device = Scenario::device();
+    let retained = login_snapshot(Some(&login), Some(&device), Some(&login));
+    for change in [
+        (|b: &mut LoginBinding| b.issuer = principal(9)) as fn(&mut LoginBinding),
+        |b| b.subject = principal(9),
+        |b| b.device_slot += 1,
+        |b| b.device_generation += 1,
+        |b| b.started_at_ns += 1,
+        |b| b.deadline_ns += 1,
+        |b| b.deadline_ns -= 1,
+    ] {
+        let mut proposed = Scenario::binding();
+        change(&mut proposed);
+        for now in [140 * SECOND, 400 * SECOND] {
+            assert_eq!(
+                assess_login(&retained, proposed, now, login_limits()),
+                Err(E::BindingConflict)
+            );
+        }
+    }
+}
+
+#[test]
+fn login_replacement_requires_new_browser_and_higher_generation_even_after_logout_or_expiry() {
+    use ic_auth::receiver_policy::{LoginDecision as D, assess_login};
+    for denied in [false, true] {
+        let mut old = Scenario::login();
+        old.caller = caller(11);
+        old.denied = denied;
+        let mut device = Scenario::device();
+        device.caller = caller(11);
+        let mut retained = login_snapshot(None, Some(&device), Some(&old));
+        retained.admitted_logins = 2;
+        let mut proposed = Scenario::binding();
+        for now in [140 * SECOND, 400 * SECOND] {
+            for generation in [6, 7] {
+                proposed.device_generation = generation;
+                assert_eq!(
+                    assess_login(&retained, proposed, now, login_limits()),
+                    Err(E::Revoked)
+                );
+            }
+            proposed.device_generation = 8;
+            assert_eq!(
+                assess_login(&retained, proposed, now, login_limits()),
+                Ok(D::Replacement {
+                    displaced_caller: caller(11)
+                })
+            );
+        }
+        assert_eq!(old.binding.unwrap().device_generation, 7);
+        assert_eq!(device.generation, 7);
+    }
+    let mut denied = Scenario::login();
+    denied.denied = true;
+    let device = Scenario::device();
+    let retained = login_snapshot(Some(&denied), Some(&device), Some(&denied));
+    assert_eq!(
+        assess_login(&retained, Scenario::binding(), 400 * SECOND, login_limits()),
+        Err(E::Revoked)
+    );
+}
+
+#[test]
+fn login_unknown_denial_expires_exclusively_without_freeing_known_pool_capacity() {
+    use ic_auth::receiver_policy::{LoginDecision as D, assess_login};
+    let mut unknown = Scenario::login();
+    unknown.binding = None;
+    unknown.denied = true;
+    unknown.until_ns = 140 * SECOND;
+    let mut retained = login_snapshot(Some(&unknown), None, None);
+    assert_eq!(
+        assess_login(
+            &retained,
+            Scenario::binding(),
+            140 * SECOND - 1,
+            login_limits()
+        ),
+        Err(E::Revoked)
+    );
+    assert_eq!(
+        assess_login(&retained, Scenario::binding(), 140 * SECOND, login_limits()),
+        Ok(D::New)
+    );
+    retained.admitted_logins = 2;
+    assert_eq!(
+        assess_login(&retained, Scenario::binding(), 140 * SECOND, login_limits()),
+        Err(E::Capacity)
+    );
+    assert!(unknown.denied);
+    assert_eq!(unknown.until_ns, 140 * SECOND);
+}
+
+#[test]
+fn login_incomplete_or_cross_account_facts_refuse_without_reconstructing_a_fence() {
+    use ic_auth::receiver_policy::assess_login;
+    let login = Scenario::login();
+    let device = Scenario::device();
+    for retained in [
+        login_snapshot(Some(&login), None, None),
+        login_snapshot(Some(&login), Some(&device), None),
+        login_snapshot(Some(&login), None, Some(&login)),
+        login_snapshot(None, Some(&device), Some(&login)),
+    ] {
+        assert_eq!(
+            assess_login(&retained, Scenario::binding(), 140 * SECOND, login_limits()),
+            Err(E::InvalidFacts)
+        );
+    }
+    for change in [
+        (|d: &mut DeviceFacts| d.issuer = principal(9)) as fn(&mut DeviceFacts),
+        |d| d.subject = principal(9),
+        |d| d.slot += 1,
+        |d| d.generation += 1,
+        |d| d.caller = caller(12),
+    ] {
+        let mut d = device;
+        change(&mut d);
+        let retained = login_snapshot(Some(&login), Some(&d), Some(&login));
+        assert_eq!(
+            assess_login(&retained, Scenario::binding(), 140 * SECOND, login_limits()),
+            Err(E::InvalidFacts)
+        );
+    }
+    let mut inconsistent = login;
+    inconsistent.until_ns += 1;
+    assert_eq!(
+        assess_login(
+            &login_snapshot(Some(&login), Some(&device), Some(&inconsistent)),
+            Scenario::binding(),
+            140 * SECOND,
+            login_limits()
+        ),
+        Err(E::InvalidFacts)
+    );
+    let mut other = login;
+    other.caller = caller(12);
+    let mut other_device = device;
+    other_device.caller = caller(12);
+    assert_eq!(
+        assess_login(
+            &login_snapshot(Some(&login), Some(&other_device), Some(&other)),
+            Scenario::binding(),
+            140 * SECOND,
+            login_limits()
+        ),
+        Err(E::InvalidFacts)
+    );
+    let mut missing_count = login_snapshot(Some(&login), Some(&device), Some(&login));
+    missing_count.admitted_logins = 0;
+    assert_eq!(
+        assess_login(
+            &missing_count,
+            Scenario::binding(),
+            140 * SECOND,
+            login_limits()
+        ),
+        Err(E::InvalidFacts)
+    );
+}
+
+#[test]
+fn login_policy_bounds_and_maximum_generation_never_wrap() {
+    use ic_auth::receiver_policy::{LoginDecision as D, assess_login};
+    let empty = login_snapshot(None, None, None);
+    assert_eq!(
+        assess_login(&empty, Scenario::binding(), 129 * SECOND, login_limits()),
+        Err(E::ClockRollback)
+    );
+    for change in [
+        (|l: &mut ic_auth::receiver_policy::LoginLimits| l.max_device_slots = 0)
+            as fn(&mut ic_auth::receiver_policy::LoginLimits),
+        |l| l.max_device_slots = 9,
+        |l| l.max_login_ttl_ns = 0,
+        |l| l.max_login_ttl_ns = u64::MAX,
+        |l| l.max_admitted_logins = 0,
+    ] {
+        let mut limits = login_limits();
+        change(&mut limits);
+        assert_eq!(
+            assess_login(&empty, Scenario::binding(), 140 * SECOND, limits),
+            Err(E::InvalidContext)
+        );
+    }
+    let mut tight = login_limits();
+    tight.max_device_slots = 2;
+    assert_eq!(
+        assess_login(&empty, Scenario::binding(), 140 * SECOND, tight),
+        Err(E::BindingConflict)
+    );
+    tight = login_limits();
+    tight.max_login_ttl_ns = 200 * SECOND;
+    assert_eq!(
+        assess_login(&empty, Scenario::binding(), 140 * SECOND, tight),
+        Ok(D::New)
+    );
+    tight.max_login_ttl_ns -= 1;
+    assert_eq!(
+        assess_login(&empty, Scenario::binding(), 140 * SECOND, tight),
+        Err(E::BindingConflict)
+    );
+    let mut old = Scenario::login();
+    old.caller = caller(11);
+    old.binding.as_mut().unwrap().device_generation = u64::MAX - 1;
+    let mut device = Scenario::device();
+    device.caller = caller(11);
+    device.generation = u64::MAX - 1;
+    let mut proposed = Scenario::binding();
+    proposed.device_generation = u64::MAX;
+    assert_eq!(
+        assess_login(
+            &login_snapshot(None, Some(&device), Some(&old)),
+            proposed,
+            140 * SECOND,
+            login_limits()
+        ),
+        Ok(D::Replacement {
+            displaced_caller: caller(11)
+        })
+    );
+    old.binding.as_mut().unwrap().device_generation = u64::MAX;
+    device.generation = u64::MAX;
+    assert_eq!(
+        assess_login(
+            &login_snapshot(None, Some(&device), Some(&old)),
+            proposed,
+            140 * SECOND,
+            login_limits()
+        ),
+        Err(E::Revoked)
+    );
+    proposed.device_generation = 0;
+    assert_eq!(
+        assess_login(
+            &login_snapshot(None, Some(&device), Some(&old)),
+            proposed,
+            140 * SECOND,
+            login_limits()
+        ),
+        Err(E::BindingConflict)
+    );
+}

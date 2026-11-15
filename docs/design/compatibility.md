@@ -74,6 +74,11 @@ mechanisms, without claiming session or replay admission.
 The [receiver policy boundary](../development/receiver-policy-boundary.md) checks
 retained-state read/retry decisions and proof-expired retries. Its fact drivers
 are not evidence of backend admission, retention, rollback or host integration.
+Login preflight adds immutable renewal, higher-generation replacement and physical
+known-login capacity cases; successful classification cannot install authority.
+Physical session/replay count and byte arithmetic also have independent boundary
+cases. Protected credential dispatch is exercised through Wire/domain drivers;
+neither establishes atomic admission or a retained-storage format.
 Complete adversarial acceptance, actual SDK/browser lifecycle and backend qualification
 remain outstanding.
 
@@ -86,3 +91,10 @@ Reference entrypoints:
 - `crates/ic-auth-wire/src/`: actual Wire definitions.
 - `crates/ic-auth/tests/` and `qualification/ic-auth-backend-conformance/`:
   behavioral evidence to classify and retain.
+
+The first [memory receiver](../development/memory-receiver-boundary.md) now adds
+real retained-state admission/read/revocation cases for both proof mechanisms,
+plus renewal/replacement and independently calculated logical record-byte bounds.
+This supplies focused volatile-backend evidence only. Stable admission, complete
+unknown-login logout, boot/recovery, installed host rollback and browser acceptance
+remain required before replacement claims.
