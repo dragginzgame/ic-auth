@@ -1,8 +1,52 @@
 # Changelog
 
-## [0.44.0] - Unreleased
+## [0.45.0] - Source checkpoint 2026-11-15
 
-Development version: `ic-auth` 0.44.0. Unchanged protocol-types/Wire remain 0.42.0.
+Source checkpoint: `ic-auth` 0.45.0. Unchanged protocol-types/Wire remain 0.42.0.
+All packages remain `publish = false`.
+
+### ✨ Added
+
+- Add synchronous `MemoryReceiver::authorize` application projection after current
+  session checks, with borrowed receipts that cannot escape the invocation. Keep
+  application results separate from Auth refusal; recheck before effects after an
+  await. Qualify refusal without callback execution and both proof mechanisms.
+- Add independent signed multi-device and second-issuer fixtures. Two receivers
+  demonstrate issuer-qualified quota isolation, replacement with an unaffected
+  second device, proof-expired retry, local logout and original-deadline renewal.
+- Inject test-only interruptions between memory publication mutations for admission,
+  renewal/replacement, unknown-to-known transfer, logout and pruning. Every injected
+  interruption must leave all authentication and mutation entrypoints closed;
+  successful completion restores readiness. No fault controls ship in deployed builds.
+- Make volatile Auth the current milestone and defer stable storage until its
+  supplier contract is ready. Remove the interim `ic-storage` adapter plan;
+  `ic-storage-new` remains the intended future durable destination.
+- Qualify memory operation sequences with an independent fixed-scenario ledger:
+  353 traces and 7,307 operations across two receivers compare admission/retry,
+  renewal/replacement, logout, authority changes, pruning, byte occupancy and
+  retained work charges. A deliberately broken write-then-error adapter is
+  rejected by the model; actual host rollback remains a separate integration gate.
+- Add passive bounded memory-session inspection with exclusive Principal cursors,
+  at most 32 results and 128 scanned caller rows plus one lookahead. Empty pages
+  advance across retained fences; expired/stale sessions remain diagnostic facts.
+  Instrumented work counts and signed receiver cases establish limits, cursor
+  behavior across pruning and absence of clock/budget/storage mutation.
+- Replace bare memory-receiver activation with bound boot/refresh requests and
+  admission of host-authenticated enrollment metadata. Reject mismatched response
+  source, receiver/domain/challenge, late responses, expired/overlong freshness,
+  revision/generation regression and conflicting authority content. Preserve exact
+  response retry and prior accepted state on refusal.
+- Cap session leases at accepted enrollment freshness. Refresh cannot extend an
+  existing lease; generation changes invalidate sessions without resetting safety
+  records or credit. Expired enrollment blocks admission/read while safe logout
+  remains available. Closed/lost instances cannot reopen through enrollment.
+  Full snapshot authentication, entry/revocation validation and atomic installation
+  remain host obligations; installed recovery and stable storage are still open.
+
+## [0.44.0] - Source checkpoint 2026-11-15
+
+Pushed as [1e50f32](https://github.com/dragginzgame/ic-auth-new/commit/1e50f32469bdba8ce1673ea4543cd0b6782720e7).
+Package versions: `ic-auth` 0.44.0, protocol-types/Wire 0.42.0.
 All packages remain `publish = false`.
 
 ### ✨ Added

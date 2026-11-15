@@ -1,7 +1,10 @@
 //! Public receiver operations driven by independent Node/OpenSSL signed bytes.
 #![cfg(all(feature = "receiver-memory", feature = "ed25519-verification"))]
 use ic_auth::{
-    receiver_memory::{AdmissionHost, MemoryConfig, MemoryError as E, MemoryReceiver},
+    receiver_memory::{
+        AdmissionHost, EnrollmentBinding, EnrollmentError as EE, EnrollmentMetadata, MemoryConfig,
+        MemoryError as E, MemoryReceiver,
+    },
     receiver_policy::{
         LoginLimits, LogoutError, LogoutReceipt, SessionAuthority, SessionCapacity,
         SessionPolicyError as P, UnknownLogoutLimits,
@@ -16,138 +19,264 @@ use ic_auth_protocol_types::{
     AudienceId, AuthRole, CanonicalId, Credential, CredentialProof, DelegatedRoleGrant,
     PortableMechanism, Principal,
 };
-fn bytes(name: &str) -> Vec<u8> {
-    let hex = include_str!("fixtures/memory.tsv")
-        .lines()
-        .filter_map(|l| l.split_once('\t'))
-        .find(|(n, _)| *n == name)
-        .unwrap()
-        .1;
-    hex.as_bytes()
-        .as_chunks::<2>()
-        .0
-        .iter()
-        .map(|p| u8::from_str_radix(std::str::from_utf8(p).unwrap(), 16).unwrap())
-        .collect()
+
+#[path = "support/memory_fixture.rs"]
+mod memory_fixture;
+#[path = "support/memory_model.rs"]
+mod memory_model;
+use memory_fixture::*;
+
+#[test]
+fn authorize_invokes_projection_once_only_after_current_policy_succeeds() {
+    use std::cell::Cell;
+    let h = Host::new();
+    let mut r = h.receiver();
+    let context = h.context("initial", 25);
+    r.admit(&credential("initial"), request(), h.admission(&context))
+        .unwrap();
+    let calls = Cell::new(0);
+    let credit = r.verification_budget().available();
+    let value = String::from("owned application input");
+    let result = r.authorize(
+        &h.read("initial", 26),
+        &["read".parse().unwrap()],
+        |receipt| {
+            calls.set(calls.get() + 1);
+            (value, (receipt.issuer, receipt.subject))
+        },
+    );
+    assert_eq!(
+        result,
+        Ok((String::from("owned application input"), account()))
+    );
+    assert_eq!(calls.get(), 1);
+    assert_eq!(r.observed_at_ns(), 26);
+    assert_eq!(r.verification_budget().available(), credit);
+    assert_eq!(
+        r.authorize(&h.read("initial", 26), &["write".parse().unwrap()], |_| {
+            calls.set(calls.get() + 1);
+        }),
+        Err(E::Policy(P::ScopeRejected))
+    );
+    assert_eq!(calls.get(), 1);
+    // Application refusal is inside a successful authentication result; no
+    // implicit rollback, Auth error remapping or callback retry is performed.
+    assert_eq!(
+        r.authorize(&h.read("initial", 26), &[], |_| {
+            calls.set(calls.get() + 1);
+            Err::<(), _>("application refused")
+        }),
+        Ok(Err("application refused"))
+    );
+    assert_eq!(calls.get(), 2);
 }
-fn credential(name: &str) -> Credential {
-    Credential {
-        claims: bytes(&format!("{name}-claims")),
-        proof: CredentialProof::Ed25519(bytes(&format!("{name}-signature"))),
+
+#[test]
+fn authorize_rechecks_changes_between_host_turns_despite_an_earlier_receipt() {
+    use std::cell::Cell;
+    let h = Host::new();
+    for (change, expected) in [
+        (0, P::Revoked),
+        (1, P::StaleAuthority),
+        (2, P::Disabled),
+        (3, P::MissingOrExpired),
+    ] {
+        let mut r = h.receiver();
+        let context = h.context("initial", 25);
+        r.admit(&credential("initial"), request(), h.admission(&context))
+            .unwrap();
+        let earlier = r
+            .authorize(&h.read("initial", 25), &[], |receipt| *receipt)
+            .unwrap();
+        let mut current = h.read("initial", 26);
+        match change {
+            0 => {
+                r.logout(context.caller, 26).unwrap();
+            }
+            1 => {
+                current.generation = r.advance_generation(26).unwrap();
+            }
+            2 => current.subject_admissible = false,
+            3 => current.now_ns = 100,
+            _ => unreachable!(),
+        }
+        let calls = Cell::new(0);
+        assert_eq!(
+            r.authorize(&current, &[], |_| {
+                calls.set(calls.get() + 1);
+            }),
+            Err(E::Policy(expected))
+        );
+        assert_eq!(calls.get(), 0);
+        assert_eq!(earlier.expires_at_ns, 100); // facts survived; permission did not
+        assert_eq!(r.usage(account()).replays, 1);
     }
 }
-fn request() -> SessionRequest {
-    SessionRequest::new(vec!["read".into()], None).unwrap()
-}
-fn account() -> (Principal, Principal) {
-    (Principal::from_slice(&[1]), Principal::from_slice(&[2]))
-}
-struct Host {
-    audience: AudienceId,
-    grants: AuthorityGrants,
-    role: AuthRole,
-    key: Ed25519Key,
-}
-impl Host {
-    fn new() -> Self {
-        Self {
-            audience: AudienceId {
-                canonical_network_id: CanonicalId::from_bytes([0x11; 32]),
-                fleet_id: CanonicalId::from_bytes([0x22; 32]),
-            },
-            grants: AuthorityGrants::new(vec![DelegatedRoleGrant {
-                target: "user".parse().unwrap(),
-                scopes: vec!["read".parse().unwrap()],
-            }])
-            .unwrap(),
-            role: "user".parse().unwrap(),
-            key: Ed25519Key::new(bytes("public-key").try_into().unwrap()).unwrap(),
-        }
-    }
-    fn context(&self, name: &str, now_ns: u64) -> VerificationContext<'_> {
-        VerificationContext {
-            audience: &self.audience,
-            grants: &self.grants,
-            issuer: account().0,
-            mechanism: PortableMechanism::Ed25519,
-            key_binding_id: bytes("key-binding").try_into().unwrap(),
-            caller: Principal::from_slice(&bytes(&format!("{name}-caller"))),
-            now_ns,
-            authority_not_before_ns: 0,
-            authority_expires_at_ns: 200,
-            enrollment_expires_at_ns: 150,
-            min_login_started_at_ns: 0,
-            min_proof_issued_at_ns: 0,
-            max_login_ttl_ns: 100,
-            max_proof_ttl_ns: 60,
-        }
-    }
-    fn admission<'a>(&'a self, context: &'a VerificationContext<'a>) -> AdmissionHost<'a> {
-        AdmissionHost {
-            verifier: VerificationProfile::Ed25519 {
-                context,
-                key: &self.key,
-            },
-            role: &self.role,
-            ttl: SessionTtlPolicy::new(60, 1800).unwrap(),
-            generation: 7,
-            enabled: true,
-            subject_admissible: true,
-        }
-    }
-    fn read(&self, name: &str, now_ns: u64) -> SessionAuthority<'_> {
-        let c = self.context(name, now_ns);
-        SessionAuthority {
-            caller: c.caller,
-            now_ns,
-            audience: self.audience,
-            issuer: c.issuer,
-            mechanism: c.mechanism,
-            key_binding_id: c.key_binding_id,
-            role: &self.role,
-            grants: self.grants.as_slice(),
-            generation: 7,
-            not_before_ns: 0,
-            expires_at_ns: 200,
-            enrollment_expires_at_ns: 150,
-            min_login_started_at_ns: 0,
-            max_session_ttl_secs: 1800,
-            enabled: true,
-            subject_admissible: true,
-        }
-    }
-    fn config(&self) -> MemoryConfig {
-        MemoryConfig {
-            unknown_logout: UnknownLogoutLimits {
-                max_denials: 2,
-                capacity: 2,
-                refill_interval_ns: 1,
-            },
-            audience: self.audience,
-            login: LoginLimits {
-                max_device_slots: 8,
-                max_login_ttl_ns: 100,
-                max_admitted_logins: 1,
-            },
-            capacity: SessionCapacity {
-                max_sessions: 1,
-                max_replays: 2,
-                max_replays_per_account: 2,
-                max_encoded_bytes: 4096,
-            },
-            verification_capacity: 10,
-            refill_interval_ns: 1,
-            verification_costs: VerificationCosts {
-                ed25519: 2,
-                certified: 3,
-            },
-        }
-    }
-    fn receiver(&self) -> MemoryReceiver {
-        let mut r = MemoryReceiver::new_fresh(self.config(), 0).unwrap();
-        r.activate_fresh(7).unwrap();
+
+#[test]
+fn volatile_two_issuer_accounts_devices_and_receivers_remain_independent() {
+    use std::collections::BTreeMap;
+    let h = Host::new();
+    let mut config = h.config();
+    config.login.max_admitted_logins = 3;
+    config.capacity.max_sessions = 3;
+    config.capacity.max_replays = 3;
+    let new_receiver = || {
+        let mut r = MemoryReceiver::new_fresh(config, 0).unwrap();
+        h.enroll(&mut r, 7).unwrap();
         r
+    };
+    let mut first = new_receiver();
+    let mut second = new_receiver();
+    let other_issuer = Principal::from_slice(&[3]);
+    let other_account = (other_issuer, account().1); // equal subject bytes, distinct issuer
+    let initial = h.context("initial", 25);
+    let other_device = h.context("other-device", 25);
+    let replacement = h.context("replacement", 25);
+    let mut other = h.context("other-issuer", 25);
+    other.issuer = other_issuer; // protected enrollment selection, not a request field
+    for r in [&mut first, &mut second] {
+        r.admit(&credential("initial"), request(), h.admission(&initial))
+            .unwrap();
+        r.admit(
+            &credential("other-device"),
+            request(),
+            h.admission(&other_device),
+        )
+        .unwrap();
+        assert_eq!(r.usage(account()).replays_for_account, 2);
+        let credit = r.verification_budget().available();
+        assert_eq!(
+            r.admit(
+                &credential("replacement"),
+                request(),
+                h.admission(&replacement)
+            ),
+            Err(E::Policy(P::Capacity))
+        ); // account quota, before global capacity is full
+        let wrong = h.context("other-issuer", 25);
+        assert_eq!(
+            r.admit(&credential("other-issuer"), request(), h.admission(&wrong)),
+            Err(E::Context(
+                ic_auth::verification::ContextError::IssuerMismatch
+            ))
+        );
+        assert_eq!(r.verification_budget().available(), credit);
+        r.admit(&credential("other-issuer"), request(), h.admission(&other))
+            .unwrap();
+        assert_eq!(r.known_logins(), 3);
+        assert_eq!(r.usage(other_account).replays_for_account, 1);
     }
+    let mut applications = BTreeMap::new();
+    for name in ["initial", "other-device", "other-issuer"] {
+        let mut host = h.read(name, 25);
+        if name == "other-issuer" {
+            host.issuer = other_issuer;
+        }
+        first
+            .authorize(&host, &["read".parse().unwrap()], |receipt| {
+                *applications
+                    .entry((receipt.issuer, receipt.subject))
+                    .or_insert(0) += 1;
+            })
+            .unwrap();
+    }
+    assert_eq!(applications.get(&account()), Some(&2));
+    assert_eq!(applications.get(&other_account), Some(&1));
+    assert_eq!(
+        first.authorize(&h.read("other-issuer", 25), &[], |_| panic!(
+            "wrong issuer authorized"
+        )),
+        Err(E::Policy(P::StaleAuthority))
+    );
+
+    // Physical replay rows count until explicitly pruned; sessions survive proof expiry.
+    assert_eq!(first.prune(30, 128).unwrap().replays, 3);
+    let context = h.context("replacement", 30);
+    let mut bad = credential("replacement");
+    if let CredentialProof::Ed25519(signature) = &mut bad.proof {
+        signature[0] ^= 1;
+    }
+    assert!(first.admit(&bad, request(), h.admission(&context)).is_err());
+    assert_eq!(first.usage(account()).replays, 0);
+    assert!(first.authorize(&h.read("initial", 30), &[], |_| ()).is_ok());
+    assert!(
+        first
+            .authorize(&h.read("other-device", 30), &[], |_| ())
+            .is_ok()
+    );
+    first
+        .admit(&credential("replacement"), request(), h.admission(&context))
+        .unwrap();
+    assert_eq!(first.known_logins(), 3); // reuse a full known-login pool
+    assert_eq!(
+        first.authorize(&h.read("initial", 30), &[], |_| ()),
+        Err(E::Policy(P::MissingOrExpired))
+    );
+    assert!(
+        first
+            .authorize(&h.read("other-device", 30), &[], |_| ())
+            .is_ok()
+    );
+    let mut other_read = h.read("other-issuer", 30);
+    other_read.issuer = other_issuer;
+    assert!(first.authorize(&other_read, &[], |_| ()).is_ok());
+
+    let expired_proof = h.context("initial", 30);
+    let retry = second
+        .admit(
+            &credential("initial"),
+            request(),
+            h.admission(&expired_proof),
+        )
+        .unwrap();
+    assert!(retry.exact_retry);
+    assert_eq!(retry.receipt.expires_at_ns, 100);
+    assert_eq!(second.usage(account()).replays, 3);
+    assert_eq!(second.prune(30, 128).unwrap().replays, 3);
+    let renewal = h.context("renewal", 30);
+    let renewed = second
+        .admit(&credential("renewal"), request(), h.admission(&renewal))
+        .unwrap();
+    assert!(!renewed.exact_retry);
+    assert_eq!(renewed.receipt.expires_at_ns, retry.receipt.expires_at_ns);
+
+    let old_generation = h.context("late-old", 40);
+    let credit = first.verification_budget().available();
+    assert_eq!(
+        first.admit(
+            &credential("late-old"),
+            request(),
+            h.admission(&old_generation)
+        ),
+        Err(E::Policy(P::Revoked))
+    );
+    assert_eq!(first.verification_budget().available(), credit);
+    assert_eq!(
+        first.logout(context.caller, 40),
+        Ok(LogoutReceipt::Revoked { deny_until_ns: 100 })
+    );
+    assert_eq!(first.usage(account()).replays_for_account, 1);
+    assert!(
+        first
+            .authorize(&h.read("other-device", 40), &[], |_| ())
+            .is_ok()
+    );
+    other_read.now_ns = 40;
+    assert!(first.authorize(&other_read, &[], |_| ()).is_ok());
+    assert!(
+        second
+            .authorize(&h.read("initial", 40), &[], |_| ())
+            .is_ok()
+    );
+    assert_eq!(first.prune(100, 128).unwrap().sessions, 2);
+    assert_eq!(first.known_logins(), 3); // neither expiry nor cleanup retires device fences
+    assert_eq!(first.usage(account()).replays_for_account, 0);
+    assert_eq!(first.usage(other_account).replays_for_account, 0);
+    assert_eq!(
+        second.authorize(&h.read("initial", 100), &[], |_| ()),
+        Err(E::Policy(P::MissingOrExpired))
+    );
 }
 
 #[test]
@@ -198,6 +327,547 @@ fn memory_admission_retry_read_and_exclusive_lease() {
         Err(E::Policy(P::ClockRollback))
     );
     assert_eq!(r.usage(account()), usage);
+}
+
+#[test]
+fn boot_requires_bound_current_authenticated_enrollment() {
+    let h = Host::new();
+    type Mutation = fn(&mut EnrollmentMetadata, &mut Principal);
+    let cases: &[(Mutation, EE)] = &[
+        (
+            |_, source| *source = Principal::anonymous(),
+            EE::WrongAuthority,
+        ),
+        (
+            |s, _| s.receiver = Principal::from_slice(&[12]),
+            EE::WrongReceiver,
+        ),
+        (
+            |s, _| s.audience.fleet_id = CanonicalId::from_bytes([0; 32]),
+            EE::WrongReceiver,
+        ),
+        (|s, _| s.challenge = [9; 32], EE::ChallengeMismatch),
+        (|s, _| s.issued_at_ns = 2, EE::InvalidFreshness),
+        (|s, _| s.expires_at_ns = 1, EE::InvalidFreshness),
+        (
+            |s, _| s.expires_at_ns = 3_600_000_000_001,
+            EE::InvalidFreshness,
+        ),
+    ];
+    for (mutate, expected) in cases {
+        let mut r = MemoryReceiver::new_fresh(h.config(), 0).unwrap();
+        r.request_enrollment(0, [1; 32], 10).unwrap();
+        let mut snapshot = h.snapshot(7);
+        let mut source = h.config().enrollment.authority;
+        mutate(&mut snapshot, &mut source);
+        assert_eq!(
+            r.install_enrollment(1, source, snapshot),
+            Err(E::Enrollment(*expected))
+        );
+        assert_eq!(r.enrollment(), None);
+        assert_eq!(r.observed_at_ns(), 1);
+        assert_eq!(r.verification_budget().available(), 0);
+        let context = h.context("initial", 25);
+        assert_eq!(
+            r.admit(&credential("initial"), request(), h.admission(&context)),
+            Err(E::Closed)
+        );
+        assert_eq!(r.logout(context.caller, 25), Err(LogoutError::Closed));
+        // A refusal leaves the real pending request intact for a valid response.
+        r.install_enrollment(1, h.config().enrollment.authority, h.snapshot(7))
+            .unwrap();
+        assert_eq!(r.enrollment(), Some(h.snapshot(7)));
+    }
+}
+
+#[test]
+fn enrollment_request_replacement_fences_late_responses_and_receipt_deadlines() {
+    let h = Host::new();
+    let source = h.config().enrollment.authority;
+    let mut r = MemoryReceiver::new_fresh(h.config(), 0).unwrap();
+    assert_eq!(
+        r.install_enrollment(0, source, h.snapshot(7)),
+        Err(E::Enrollment(EE::ChallengeMismatch))
+    );
+    for (challenge, deadline) in [([0; 32], 10), ([1; 32], 0)] {
+        assert_eq!(
+            r.request_enrollment(0, challenge, deadline),
+            Err(E::Enrollment(EE::InvalidRequest))
+        );
+    }
+    r.request_enrollment(0, [1; 32], 10).unwrap();
+    assert_eq!(
+        r.request_enrollment(1, [1; 32], 11),
+        Err(E::Enrollment(EE::InvalidRequest))
+    );
+    r.request_enrollment(1, [2; 32], 10).unwrap();
+    assert_eq!(
+        r.install_enrollment(1, source, h.snapshot(7)),
+        Err(E::Enrollment(EE::ChallengeMismatch))
+    );
+    let snapshot = EnrollmentMetadata {
+        challenge: [2; 32],
+        ..h.snapshot(7)
+    };
+    assert_eq!(
+        r.install_enrollment(0, source, snapshot),
+        Err(E::Policy(P::ClockRollback))
+    );
+    r.install_enrollment(2, source, snapshot).unwrap();
+    r.install_enrollment(3, source, snapshot).unwrap(); // exact idempotent response
+    assert_eq!(r.verification_budget().available(), 0);
+    assert_eq!(r.unknown_logout_credit(), 0);
+    assert_eq!(
+        r.request_enrollment(3, [2; 32], 12),
+        Err(E::Enrollment(EE::InvalidRequest))
+    );
+    assert_eq!(
+        r.install_enrollment(10, source, snapshot),
+        Err(E::Enrollment(EE::ReceiptExpired))
+    );
+    // Missing a response deadline cannot erase previously accepted enrollment.
+    assert_eq!(r.enrollment(), Some(snapshot));
+    r.request_enrollment(10, [3; 32], 11).unwrap();
+    let refresh = EnrollmentMetadata {
+        challenge: [3; 32],
+        revision: 2,
+        snapshot_digest: [4; 32],
+        ..snapshot
+    };
+    assert_eq!(
+        r.install_enrollment(11, source, refresh),
+        Err(E::Enrollment(EE::ReceiptExpired))
+    );
+    assert_eq!(r.enrollment(), Some(snapshot));
+    let context = h.context("initial", 25);
+    r.admit(&credential("initial"), request(), h.admission(&context))
+        .unwrap();
+}
+
+#[test]
+fn enrollment_rejects_rollback_and_conflicting_content_without_discarding_sessions() {
+    let h = Host::new();
+    type Mutation = fn(&mut EnrollmentMetadata);
+    let cases: &[(Mutation, EE)] = &[
+        (|s| s.revision = 0, EE::Regression),
+        (|s| s.generation = 6, EE::Regression),
+        (|s| s.revision = 1, EE::ConflictingSnapshot),
+        (|s| s.authority_digest = [9; 32], EE::ConflictingSnapshot),
+    ];
+    for (mutate, expected) in cases {
+        let mut r = h.receiver();
+        let context = h.context("initial", 25);
+        let original = r
+            .admit(&credential("initial"), request(), h.admission(&context))
+            .unwrap();
+        let usage = r.usage(account());
+        let credit = r.verification_budget().available();
+        r.request_enrollment(25, [4; 32], 40).unwrap();
+        let mut snapshot = EnrollmentMetadata {
+            challenge: [4; 32],
+            revision: 2,
+            snapshot_digest: [5; 32],
+            ..h.snapshot(7)
+        };
+        mutate(&mut snapshot);
+        assert_eq!(
+            r.install_enrollment(26, h.config().enrollment.authority, snapshot),
+            Err(E::Enrollment(*expected))
+        );
+        assert_eq!(r.enrollment(), Some(h.snapshot(7)));
+        assert_eq!(r.read(&h.read("initial", 26), &[]), Ok(original.receipt));
+        assert_eq!(r.usage(account()), usage);
+        assert_eq!(r.verification_budget().available(), credit);
+    }
+}
+
+#[test]
+fn enrollment_refresh_never_extends_a_captured_session_lease() {
+    let h = Host::new();
+    let source = h.config().enrollment.authority;
+    let mut r = MemoryReceiver::new_fresh(h.config(), 0).unwrap();
+    r.request_enrollment(0, [1; 32], 10).unwrap();
+    r.install_enrollment(
+        0,
+        source,
+        EnrollmentMetadata {
+            expires_at_ns: 60,
+            ..h.snapshot(7)
+        },
+    )
+    .unwrap();
+    // Per-call context claims 150, but accepted metadata independently caps it at 60.
+    let context = h.context("initial", 25);
+    let original = r
+        .admit(&credential("initial"), request(), h.admission(&context))
+        .unwrap();
+    assert_eq!(original.receipt.expires_at_ns, 60);
+    let credit = r.verification_budget().available();
+    r.request_enrollment(26, [2; 32], 40).unwrap();
+    r.install_enrollment(
+        26,
+        source,
+        EnrollmentMetadata {
+            challenge: [2; 32],
+            revision: 2,
+            snapshot_digest: [4; 32],
+            issued_at_ns: 26,
+            ..h.snapshot(7)
+        },
+    )
+    .unwrap();
+    let later = h.context("initial", 50);
+    let retry = r
+        .admit(&credential("initial"), request(), h.admission(&later))
+        .unwrap();
+    assert!(retry.exact_retry);
+    assert_eq!(retry.receipt, original.receipt);
+    assert_eq!(r.verification_budget().available(), credit);
+    assert_eq!(
+        r.read(&h.read("initial", 60), &[]),
+        Err(E::Policy(P::MissingOrExpired))
+    );
+}
+
+#[test]
+fn expired_enrollment_blocks_auth_but_preserves_safe_logout_and_denials() {
+    let h = Host::new();
+    let source = h.config().enrollment.authority;
+    let mut r = MemoryReceiver::new_fresh(h.config(), 0).unwrap();
+    r.request_enrollment(0, [1; 32], 10).unwrap();
+    r.install_enrollment(
+        0,
+        source,
+        EnrollmentMetadata {
+            expires_at_ns: 26,
+            ..h.snapshot(7)
+        },
+    )
+    .unwrap();
+    let context = h.context("initial", 25);
+    r.admit(&credential("initial"), request(), h.admission(&context))
+        .unwrap();
+    let credit = r.verification_budget().available();
+    assert_eq!(
+        r.read(&h.read("initial", 26), &[]),
+        Err(E::Policy(P::StaleAuthority))
+    );
+    let later = h.context("initial", 26);
+    assert_eq!(
+        r.admit(&credential("initial"), request(), h.admission(&later)),
+        Err(E::Policy(P::StaleAuthority))
+    );
+    assert_eq!(
+        r.logout(context.caller, 26),
+        Ok(LogoutReceipt::Revoked { deny_until_ns: 100 })
+    );
+    assert_eq!(
+        r.logout(unknown_caller(9), 26),
+        Ok(LogoutReceipt::Unconfirmed { deny_until_ns: 126 })
+    );
+    assert_eq!(r.verification_budget().available(), credit);
+    assert_eq!(r.usage(account()).replays, 1);
+    r.request_enrollment(27, [2; 32], 40).unwrap();
+    r.install_enrollment(
+        27,
+        source,
+        EnrollmentMetadata {
+            challenge: [2; 32],
+            revision: 2,
+            snapshot_digest: [4; 32],
+            issued_at_ns: 27,
+            ..h.snapshot(7)
+        },
+    )
+    .unwrap();
+    let later = h.context("initial", 27);
+    assert_eq!(
+        r.admit(&credential("initial"), request(), h.admission(&later)),
+        Err(E::Policy(P::Revoked))
+    );
+    assert_eq!(r.usage(account()).sessions, 0);
+    assert_eq!(r.unknown_logins(), 1);
+    assert_eq!(r.verification_budget().available(), credit);
+}
+
+#[test]
+fn authority_generation_change_invalidates_sessions_without_resetting_safety_state() {
+    let h = Host::new();
+    let mut r = h.receiver();
+    let context = h.context("initial", 25);
+    r.admit(&credential("initial"), request(), h.admission(&context))
+        .unwrap();
+    let usage = r.usage(account());
+    r.request_enrollment(26, [2; 32], 40).unwrap();
+    let snapshot = EnrollmentMetadata {
+        challenge: [2; 32],
+        revision: 2,
+        generation: 8,
+        snapshot_digest: [4; 32],
+        authority_digest: [5; 32],
+        ..h.snapshot(7)
+    };
+    r.install_enrollment(26, h.config().enrollment.authority, snapshot)
+        .unwrap();
+    assert_eq!(
+        r.read(&h.read("initial", 26), &[]),
+        Err(E::Policy(P::StaleAuthority))
+    );
+    let mut current = h.read("initial", 26);
+    current.generation = 8;
+    assert_eq!(r.read(&current, &[]), Err(E::Policy(P::StaleAuthority)));
+    assert_eq!(r.usage(account()), usage);
+    assert_eq!(r.verification_budget().available(), 8);
+    r.advance_generation(26).unwrap();
+    assert_eq!(
+        r.install_enrollment(26, h.config().enrollment.authority, snapshot),
+        Err(E::Enrollment(EE::Regression))
+    );
+    r.close(); // loss/fatal failure is terminal; neither challenge nor fresh enrollment repairs it
+    assert_eq!(r.request_enrollment(27, [6; 32], 40), Err(E::Closed));
+    assert_eq!(
+        r.install_enrollment(27, h.config().enrollment.authority, snapshot),
+        Err(E::Closed)
+    );
+    assert_eq!(r.logout(context.caller, 27), Err(LogoutError::Closed));
+    assert_eq!(r.usage(account()), usage);
+}
+
+#[test]
+fn enrollment_freshness_and_clock_arithmetic_are_bounded_without_wrapping() {
+    let h = Host::new();
+    for (now, issued, expires) in [
+        (1, 0, 3_600_000_000_000),
+        (u64::MAX - 98, u64::MAX - 99, u64::MAX),
+    ] {
+        let start = now.saturating_sub(2);
+        let mut r = MemoryReceiver::new_fresh(h.config(), start).unwrap();
+        r.request_enrollment(now, [1; 32], expires).unwrap();
+        let snapshot = EnrollmentMetadata {
+            issued_at_ns: issued,
+            expires_at_ns: expires,
+            ..h.snapshot(7)
+        };
+        r.install_enrollment(now, h.config().enrollment.authority, snapshot)
+            .unwrap();
+        assert_eq!(r.enrollment(), Some(snapshot));
+        assert_eq!(
+            r.request_enrollment(now - 1, [2; 32], expires),
+            Err(E::Policy(P::ClockRollback))
+        );
+        assert_eq!(r.verification_budget().available(), 0);
+    }
+    for principal in [Principal::anonymous(), Principal::management_canister()] {
+        let mut config = h.config();
+        config.enrollment.authority = principal;
+        assert!(matches!(
+            MemoryReceiver::new_fresh(config, 0),
+            Err(E::Enrollment(EE::InvalidRequest))
+        ));
+        config = h.config();
+        config.enrollment.receiver = principal;
+        assert!(matches!(
+            MemoryReceiver::new_fresh(config, 0),
+            Err(E::Enrollment(EE::InvalidRequest))
+        ));
+    }
+}
+
+#[test]
+fn inspection_advances_empty_pages_over_a_large_denial_pool_without_mutation() {
+    let h = Host::new();
+    let mut config = h.config();
+    config.unknown_logout.max_denials = 512;
+    config.unknown_logout.capacity = 512;
+    let mut r = MemoryReceiver::new_fresh(config, 0).unwrap();
+    h.enroll(&mut r, 7).unwrap();
+    let mut callers: Vec<_> = (0u16..512)
+        .map(|i| Principal::self_authenticating(i.to_be_bytes()))
+        .collect();
+    for caller in &callers {
+        assert_eq!(
+            r.logout(*caller, 512),
+            Ok(LogoutReceipt::Unconfirmed { deny_until_ns: 612 })
+        );
+    }
+    callers.sort();
+    let before = (
+        r.usage(account()),
+        r.enrollment(),
+        r.unknown_logout_credit(),
+    );
+    let mut after = None;
+    let mut visited = 0;
+    loop {
+        let page = r.inspect_sessions(after, 2, 4, 513).unwrap();
+        assert!(page.sessions.is_empty());
+        assert_eq!(page.scanned, 4);
+        assert_eq!(page.observed_at_ns, 513);
+        assert_eq!(page.generation, 7);
+        visited += usize::from(page.scanned);
+        let expected = (visited < callers.len()).then(|| callers[visited - 1]);
+        assert_eq!(page.next_after, expected);
+        after = page.next_after;
+        if after.is_none() {
+            break;
+        }
+        assert!(visited < 512);
+    }
+    assert_eq!(visited, 512);
+    assert_eq!(r.unknown_logins(), 512);
+    assert_eq!(r.observed_at_ns(), 512);
+    assert_eq!(r.verification_budget().observed_at_ns(), 0);
+    assert_eq!(r.verification_budget().available(), 0);
+    assert_eq!(
+        (
+            r.usage(account()),
+            r.enrollment(),
+            r.unknown_logout_credit()
+        ),
+        before
+    );
+    let end = r
+        .inspect_sessions(callers.last().copied(), 32, 128, 513)
+        .unwrap();
+    assert_eq!((end.scanned, end.next_after), (0, None));
+    assert!(end.sessions.is_empty());
+}
+
+#[test]
+fn inspection_reports_expired_stale_sessions_among_fences_without_authorizing() {
+    let h = Host::new();
+    let mut config = h.config();
+    config.unknown_logout.max_denials = 4;
+    config.unknown_logout.capacity = 4;
+    let mut r = MemoryReceiver::new_fresh(config, 0).unwrap();
+    h.enroll(&mut r, 7).unwrap();
+    for i in 0..4 {
+        r.logout(unknown_caller(i), 25).unwrap();
+    }
+    let context = h.context("initial", 25);
+    r.admit(&credential("initial"), request(), h.admission(&context))
+        .unwrap();
+    r.advance_generation(26).unwrap();
+    let usage = r.usage(account());
+    let mut after = None;
+    let mut visited = 0;
+    let mut found = Vec::new();
+    loop {
+        // Diagnostic time is deliberately beyond lease and enrollment expiry.
+        let page = r.inspect_sessions(after, 1, 2, u64::MAX).unwrap();
+        assert!(page.scanned <= 2);
+        assert!(page.sessions.len() <= 1);
+        visited += page.scanned;
+        assert_eq!(page.generation, 8);
+        for session in page.sessions {
+            assert_eq!(session.caller, context.caller);
+            assert_eq!((session.login.issuer, session.login.subject), account());
+            assert_eq!(
+                (session.login.device_slot, session.login.device_generation),
+                (0, 1)
+            );
+            assert_eq!(
+                (session.login.started_at_ns, session.login.deadline_ns),
+                (10, 100)
+            );
+            assert_eq!(session.authority_generation, 7);
+            assert_eq!(session.established_at_ns, 25);
+            assert_eq!(session.expires_at_ns, 100);
+            assert_eq!(session.role.as_str(), "user");
+            assert_eq!(session.scopes, &["read".parse().unwrap()]);
+            found.push(session.caller);
+        }
+        if let Some(next) = page.next_after {
+            assert!(after.is_none_or(|previous| next > previous));
+            after = Some(next);
+            assert!(visited < 5);
+        } else {
+            break;
+        }
+    }
+    assert_eq!(visited, 5);
+    assert_eq!(found, [context.caller]);
+    assert_eq!(r.observed_at_ns(), 26);
+    assert_eq!(r.usage(account()), usage);
+    assert_eq!(r.verification_budget().available(), 8);
+    assert_eq!(
+        r.read(&h.read("initial", 26), &[]),
+        Err(E::Policy(P::StaleAuthority))
+    );
+    // The huge diagnostic timestamp neither advances the real clock nor prevents logout.
+    assert_eq!(
+        r.logout(context.caller, 26),
+        Ok(LogoutReceipt::Revoked { deny_until_ns: 100 })
+    );
+    assert_eq!(r.known_logins(), 1);
+    assert_eq!(r.usage(account()).replays, 1);
+    assert!(
+        r.inspect_sessions(None, 32, 128, 26)
+            .unwrap()
+            .sessions
+            .is_empty()
+    );
+}
+
+#[test]
+fn inspection_cursor_remains_exclusive_after_pruning_and_interleaved_insertion() {
+    let h = Host::new();
+    let mut config = h.config();
+    config.unknown_logout.max_denials = 5;
+    config.unknown_logout.capacity = 5;
+    let mut r = MemoryReceiver::new_fresh(config, 0).unwrap();
+    h.enroll(&mut r, 7).unwrap();
+    let mut callers: Vec<_> = (0..5).map(unknown_caller).collect();
+    for caller in &callers {
+        r.logout(*caller, 25).unwrap();
+    }
+    callers.sort();
+    let first = r.inspect_sessions(None, 1, 2, 25).unwrap();
+    assert_eq!((first.scanned, first.next_after), (2, Some(callers[1])));
+    assert!(first.sessions.is_empty());
+    let cursor = first.next_after;
+    assert_eq!(r.prune(125, 2).unwrap().unknown_denials, 2);
+    // Reinsert a caller before the deleted cursor. Pages are not a frozen snapshot.
+    r.logout(callers[0], 125).unwrap();
+    let next = r.inspect_sessions(cursor, 1, 2, 125).unwrap();
+    assert_eq!((next.scanned, next.next_after), (2, Some(callers[3])));
+    let last = r.inspect_sessions(next.next_after, 1, 2, 125).unwrap();
+    assert_eq!((last.scanned, last.next_after), (1, None));
+    assert_eq!(r.unknown_logins(), 4);
+}
+
+#[test]
+fn inspection_refuses_bad_bounds_rollback_and_poison_but_can_observe_pending_boot() {
+    let h = Host::new();
+    let mut r = MemoryReceiver::new_fresh(h.config(), 25).unwrap();
+    r.request_enrollment(25, [1; 32], 30).unwrap();
+    let empty = r.inspect_sessions(None, 32, 128, 26).unwrap();
+    assert_eq!(
+        (empty.scanned, empty.next_after, empty.generation),
+        (0, None, 0)
+    );
+    assert!(empty.sessions.is_empty());
+    for (limit, scan) in [
+        (0, 4),
+        (33, 128),
+        (1, 0),
+        (2, 1),
+        (1, 129),
+        (u16::MAX, u16::MAX),
+    ] {
+        assert!(matches!(
+            r.inspect_sessions(None, limit, scan, 26),
+            Err(E::Policy(P::InvalidContext))
+        ));
+    }
+    assert!(matches!(
+        r.inspect_sessions(None, 1, 1, 24),
+        Err(E::Policy(P::ClockRollback))
+    ));
+    assert_eq!(r.observed_at_ns(), 25);
+    assert_eq!(r.enrollment(), None);
+    r.close();
+    assert!(matches!(r.inspect_sessions(None, 1, 1, 26), Err(E::Closed)));
 }
 
 #[test]
@@ -358,7 +1028,7 @@ fn memory_readiness_generation_and_byte_capacity_are_enforced() {
         fresh.admit(&credential("initial"), request(), h.admission(&c)),
         Err(E::Closed)
     );
-    fresh.activate_fresh(7).unwrap();
+    h.enroll(&mut fresh, 7).unwrap();
     fresh
         .admit(&credential("initial"), request(), h.admission(&c))
         .unwrap();
@@ -371,12 +1041,12 @@ fn memory_readiness_generation_and_byte_capacity_are_enforced() {
     current.generation = 8;
     assert_eq!(fresh.read(&current, &[]), Err(E::Policy(P::StaleAuthority)));
     fresh.close();
-    assert_eq!(fresh.activate_fresh(9), Err(E::Closed));
+    assert_eq!(h.enroll(&mut fresh, 9), Err(E::Closed));
     assert_eq!(fresh.prune(100, 1), Err(E::Closed));
     let mut config = h.config();
     config.capacity.max_encoded_bytes = 1;
     let mut tiny = MemoryReceiver::new_fresh(config, 0).unwrap();
-    tiny.activate_fresh(7).unwrap();
+    h.enroll(&mut tiny, 7).unwrap();
     assert_eq!(
         tiny.admit(&credential("initial"), request(), h.admission(&c)),
         Err(E::Policy(P::ByteCapacity))
@@ -402,7 +1072,7 @@ fn memory_logical_record_bytes_match_reference_field_sizes() {
             let mut config = h.config();
             config.capacity.max_encoded_bytes = ceiling;
             let mut r = MemoryReceiver::new_fresh(config, 0).unwrap();
-            r.activate_fresh(generation).unwrap();
+            h.enroll(&mut r, generation).unwrap();
             let mut host = h.admission(&c);
             host.generation = generation;
             let result = r.admit(&credential("initial"), request(), host);
@@ -473,7 +1143,7 @@ fn memory_uncharged_refusals_and_empty_budget_cannot_publish() {
     );
     // A receiver created at this same trusted time starts with no work credit.
     let mut fresh = MemoryReceiver::new_fresh(h.config(), 25).unwrap();
-    fresh.activate_fresh(7).unwrap();
+    h.enroll(&mut fresh, 7).unwrap();
     assert!(matches!(
         fresh.admit(&credential("initial"), request(), h.admission(&c)),
         Err(E::Proof(CredentialError::Ed25519(
@@ -561,7 +1231,7 @@ fn logout_expired_unknown_reuses_its_slot_and_replaces_only_its_expiry() {
     let mut config = h.config();
     config.unknown_logout.max_denials = 1;
     let mut r = MemoryReceiver::new_fresh(config, 0).unwrap();
-    r.activate_fresh(7).unwrap();
+    h.enroll(&mut r, 7).unwrap();
     let caller = unknown_caller(4);
     assert_eq!(
         r.logout(caller, 1),
@@ -689,7 +1359,7 @@ fn logout_operation_budget_is_separate_and_retains_refill_remainder() {
         refill_interval_ns: 3,
     };
     let mut r = MemoryReceiver::new_fresh(config, 0).unwrap();
-    r.activate_fresh(7).unwrap();
+    h.enroll(&mut r, 7).unwrap();
     assert_eq!(r.logout(unknown_caller(1), 2), Err(LogoutError::Capacity));
     assert_eq!(
         r.logout(unknown_caller(1), 5),

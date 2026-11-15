@@ -28,15 +28,20 @@ change is selected by this initialization. Before a backend cut, explicitly
 choose preserved current records or a hard cut with legacy refusal; never silently
 reinterpret/reset storage or erase a host's data. This repo has no migration authority.
 
-`ic-storage` is the interim implementation dependency; `ic-storage-new` with
-orthogonal persistence is the intended successor. Preserve logical Auth behavior
-across that transition, without promising package/API or stored-format
-compatibility. Reuse independent semantic cases and add retained-state upgrade,
-schema conversion, incompatible-layout refusal and recovery/rollback evidence.
-An interim stable-backend pass is not OP qualification. Selecting this direction
-does not authorize importing, resetting or migrating any consumer's live state.
+Volatile storage is the current milestone; stable storage is deferred until a
+future milestone with a ready supplier contract. No interim `ic-storage` adapter
+is planned. `ic-storage-new` with orthogonal persistence remains the intended
+durable destination. That future milestone must preserve logical Auth behavior
+without assuming package/API or stored-format compatibility, reusing independent
+semantic cases and adding retained-state upgrade, schema conversion, incompatible
+layout refusal and recovery/rollback evidence. This direction authorizes no import,
+reset or migration of a consumer's live state.
 
 ## Evidence required before replacement claims
+
+The current milestone qualifies volatile Auth only. Stable reopen, cross-backend
+equivalence and persistence conversion below belong to the future stable milestone;
+their deferral does not waive volatile loss, host transaction or browser evidence.
 
 | Boundary | Required evidence |
 | --- | --- |
@@ -102,3 +107,35 @@ remain required before replacement claims.
 Auth 0.44.0 adds native known/unknown logout sequences, independently signed future
 credential acceptance after temporary denial, separate pool/credit accounting and
 exact existing Wire result frames. These do not qualify host readiness or recovery.
+
+Auth 0.45.0 checks bound enrollment metadata and native readiness transitions:
+response source/domain/challenge, receipt/freshness deadlines, monotonic revision
+and generation, exact repeats and conflicting content. Real signed admissions
+exercise captured leases, refresh, generation invalidation and safe outage logout.
+This is not qualification of IC response authentication, full enrollment-entry
+installation, terminal key revocation, persistent reopen or lost-state recovery.
+
+Passive memory inspection retains the reference's 32-result/128-row bounds with
+one lookahead, exclusive cursors and empty-page progress. Instrumented consumption,
+512 denial records and real Ed25519/certified sessions check bounded work and no
+clock/budget/record mutation. Stable read/corruption admission remains backend-specific
+and is not qualified by these memory cases.
+
+An independent fixed-scenario ledger now compares 353 generated traces/7,307
+memory operations, including reads, retained quota/fence state and work accounting
+across two receivers. A write-then-error negative control must fail its state
+comparison. This is native semantic evidence for the selected signed fixtures,
+not the complete encoded-backend/host atomicity or recovery matrix.
+
+Native publication tests enumerate injected unwind points across eight memory
+mutation paths, requiring closed-state refusal after partial publication and a
+successful control run. They prove fail-closed custody, not restoration of memory,
+actual allocator failure behavior or installed IC rollback. The hooks are absent
+from deployed builds. Encoded durable-backend qualification is a future milestone.
+
+The native volatile scenario now includes two issuer-qualified accounts (equal
+subject IDs), two devices on one account and two independent receivers. Independent
+signed fixtures test quota separation, replacement isolation, failed proof work,
+proof-expired retry, renewal deadlines and local logout. Synchronous authorization
+projection checks cover both proof mechanisms; callback refusal and borrowed-receipt
+compile-fail cases do not establish installed host isolation or SDK await behavior.

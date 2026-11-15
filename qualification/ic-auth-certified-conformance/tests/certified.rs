@@ -1069,6 +1069,10 @@ fn memory_certified_admission_retains_failed_work_and_retries_after_proof_expiry
     let role = "app".parse().unwrap();
     let mut receiver = MemoryReceiver::new_fresh(
         MemoryConfig {
+            enrollment: ic_auth::receiver_memory::EnrollmentBinding {
+                receiver: Principal::from_slice(&[10]),
+                authority: Principal::from_slice(&[11]),
+            },
             unknown_logout: ic_auth::receiver_policy::UnknownLogoutLimits {
                 max_denials: 1,
                 capacity: 1,
@@ -1096,7 +1100,24 @@ fn memory_certified_admission_retains_failed_work_and_retries_after_proof_expiry
         0,
     )
     .unwrap();
-    receiver.activate_fresh(9).unwrap();
+    receiver.request_enrollment(0, [1; 32], 10).unwrap();
+    receiver
+        .install_enrollment(
+            0,
+            Principal::from_slice(&[11]),
+            ic_auth::receiver_memory::EnrollmentMetadata {
+                receiver: Principal::from_slice(&[10]),
+                audience: *h.claims.audience,
+                challenge: [1; 32],
+                revision: 1,
+                generation: 9,
+                snapshot_digest: [2; 32],
+                authority_digest: [3; 32],
+                issued_at_ns: 0,
+                expires_at_ns: 210,
+            },
+        )
+        .unwrap();
     let input = |context| AdmissionHost {
         verifier: VerificationProfile::Certified(context),
         role: &role,
@@ -1129,6 +1150,16 @@ fn memory_certified_admission_retains_failed_work_and_retries_after_proof_expiry
     assert_eq!(receiver.verification_budget().available(), 1);
     let usage = receiver.usage(account);
     assert_eq!(usage.replays_for_account, 1);
+    let page = receiver.inspect_sessions(None, 1, 1, 185).unwrap();
+    assert_eq!((page.scanned, page.next_after), (1, None));
+    assert_eq!(page.sessions.len(), 1);
+    assert_eq!(page.sessions[0].mechanism, PortableMechanism::Certified);
+    assert_eq!(
+        page.sessions[0].expires_at_ns,
+        admitted.receipt.expires_at_ns
+    );
+    assert_eq!(receiver.observed_at_ns(), 150);
+    assert_eq!(receiver.verification_budget().available(), 1);
     let h = CertifiedContext {
         claims: VerificationContext {
             now_ns: 185,
@@ -1164,6 +1195,12 @@ fn memory_certified_admission_retains_failed_work_and_retries_after_proof_expiry
     assert_eq!(
         receiver.read(&authority, &["read".parse().unwrap()]),
         Ok(admitted.receipt)
+    );
+    assert_eq!(
+        receiver.authorize(&authority, &["read".parse().unwrap()], |receipt| {
+            (receipt.issuer, receipt.subject)
+        }),
+        Ok(account)
     );
     // Qualification-only Canic-style result projection; Auth installs no endpoint
     // and the Wire crate acquires no dependency on the receiver implementation.
@@ -1228,6 +1265,19 @@ fn memory_certified_admission_retains_failed_work_and_retries_after_proof_expiry
     };
     assert_eq!(
         receiver.admit(&retry, request(), input(&revoked_host)),
+        Err(ic_auth::receiver_memory::MemoryError::Policy(
+            ic_auth::receiver_policy::SessionPolicyError::Revoked
+        ))
+    );
+    assert_eq!(
+        receiver.authorize(
+            &SessionAuthority {
+                now_ns: 186,
+                ..authority
+            },
+            &[],
+            |_| { panic!("certified revoked session reached application projection") }
+        ),
         Err(ic_auth::receiver_memory::MemoryError::Policy(
             ic_auth::receiver_policy::SessionPolicyError::Revoked
         ))

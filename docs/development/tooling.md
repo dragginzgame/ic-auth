@@ -77,8 +77,14 @@ and the qualification package's `--test certified login_replacement` case;
 `test-credential-profile` checks single-mechanism protected dispatch, while
 `qualify-wire-admission` covers the combined graph through Wire/domain projection;
 `test-memory` checks independent signed memory admission sequences and certified-only
-retention, including failed proofs, proof-expired retries, unknown logout and
-exact logout Wire result projections;
+retention, including failed proofs, proof-expired retries, unknown logout,
+exact logout Wire result projections and bound enrollment readiness. It also
+measures inspection iterator consumption and checks passive pagination through
+retained sessions and fences, plus independent generated operation sequences and
+a write-then-error negative control. Test-only publication interruptions require
+terminal closure throughout admission, logout and pruning mutations;
+the same target qualifies synchronous authorization projections, borrowed-receipt
+compile failures, and two-issuer/multi-device isolation across two receivers;
 `test-claims` covers roles and canonical signed-claims bytes/refusals; `test-wire`
 covers all four contracts, nested proofs and bounded refusal. `qualify-wire`
 checks current Wire against fixed reference frames and thresholds; `lint-wire-qualification` checks that private

@@ -94,7 +94,10 @@ test-credential-profile: toko-tooling-check
 .PHONY: test-memory
 test-memory: toko-tooling-check
 	node crates/ic-auth/tests/verify-memory-fixtures.mjs
+	cargo test --offline --locked -p ic-auth --features receiver-memory,ed25519-verification --lib inspection_
+	cargo test --offline --locked -p ic-auth --features receiver-memory,ed25519-verification --lib publication_faults
 	cargo test --offline --locked -p ic-auth --features receiver-memory,ed25519-verification --test receiver_memory
+	cargo test --offline --locked -p ic-auth --features receiver-memory,ed25519-verification --doc receiver_memory
 	cargo test --offline --locked --manifest-path qualification/Cargo.toml -p ic-auth-certified-conformance --features receiver-memory --test certified memory_certified
 
 # Hosted aggregates run each selected test binary once. The focused targets

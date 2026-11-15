@@ -13,11 +13,12 @@ Read README.md, docs/design/DESIGN.md, docs/design/authentication.md,
   `../ic-auth` is read-only reference, not an implementation destination.
 - Preserve existing Wire method identities, all four codec allowances, layouts,
   generated browser interoperability and canonical signed bytes.
-- Support volatile and stable authentication storage. Share semantic rules;
-  retain backend-specific corruption admission and host transaction boundaries.
-- Treat published `ic-storage` as interim. The intended durable destination is
-  `ic-storage-new` with orthogonal persistence. Keep interim storage mechanics
-  backend-local; qualify the successor's lifecycle and rollback before adoption.
+- Volatile authentication storage is the current milestone. Stable storage is
+  deferred to a future milestone; do not build an interim `ic-storage` adapter.
+  Keep semantic rules reusable without a speculative storage abstraction.
+- The intended durable destination remains `ic-storage-new` with orthogonal
+  persistence, once its contract is ready. Qualify its lifecycle, corruption
+  admission and host rollback at that future milestone before adoption.
 - Host inputs own caller, time, authority, memory leases, transactions and
   certification-root publication. Untrusted fields never establish authority.
 - Auth must not depend on Canic or Toko. Use published Platform/Types, Storage,

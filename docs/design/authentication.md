@@ -32,7 +32,7 @@ service is implied by these contracts.
 | Auth verification | Canonical bytes, protected verifier selection, proof checks and work budgets |
 | Session engine | One set of authorization, replacement, retry and revocation rules |
 | Volatile backend | Indexed bounded memory state and explicit loss/recovery semantics |
-| Persistence backend | Interim `ic-storage` collections/leases; intended `ic-storage-new` orthogonal persistence, with backend-specific admission |
+| Future persistence backend | Qualified `ic-storage-new` orthogonal persistence, with backend-specific admission and host rollback |
 | Issuer state | Bounded login, issuance/renewal intent, completion and recovery semantics |
 | Host | Authenticated caller, trusted clock, enrollment, atomic transaction and certification root |
 | Application | Users, account linking, role policy and resource ownership |
@@ -48,13 +48,12 @@ boundaries without becoming a dependency of the Auth crates.
 
 ## Storage
 
-Volatile authentication and durable authentication are first-class requirements.
-The first implementation uses volatile memory and published `ic-storage` stable
-collections. `ic-storage` is temporary: the intended durable backend is
-`ic-storage-new` with orthogonal persistence, developed alongside this rewrite.
-Its integration depends on qualified supplier capabilities, not an assumed API.
-Keep interim lease/codec/collection details inside their backend and avoid a
-speculative universal storage abstraction. See the detailed
+Volatile authentication is the current implementation milestone. Stable storage
+is explicitly deferred to a future milestone while Storage is being developed;
+no interim `ic-storage` adapter is planned. The intended durable backend remains
+`ic-storage-new` with orthogonal persistence. Its future integration depends on
+qualified supplier capabilities, not an assumed API. Keep semantic rules reusable
+and avoid a speculative universal storage abstraction. See the detailed
 [storage transition](DESIGN.md#intended-orthogonal-persistence-destination).
 
 Storage mechanism must not select different authentication policy. Share pure decisions where that
@@ -62,7 +61,8 @@ reduces duplicate maintenance; do not force physical reads, indexing or mutation
 through a universal framework. Stable reads validate persisted state; memory
 invariants need not imitate serialized corruption handling.
 
-Session/replay/login mutations commit atomically. Host transactions own rollback.
+Session/replay/login mutations commit atomically. Interrupted memory publication
+must close the receiver; host transactions own rollback.
 An orthogonal-persistence access scope does not itself provide rollback;
 ordinary `Err` must not be treated as undoing earlier writes.
 Clock observations and attempted-work charges preserve the existing refusal

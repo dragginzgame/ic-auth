@@ -5,7 +5,24 @@
 //! a genuinely new receiver; losing this state requires host-controlled recovery,
 //! never constructing an empty replacement and resuming the old authority.
 
+mod enrollment;
+mod inspection;
 mod records;
+
+#[cfg(test)]
+mod publication_faults;
+
+// Fault injection is absent from deployed builds. Keep the same mutation order
+// in tests so every interrupted publication must remain terminally closed.
+macro_rules! publish {
+    ($change:expr) => {{
+        let result = $change;
+        #[cfg(test)]
+        publication_faults::point();
+        result
+    }};
+}
+
 use crate::{
     claims::ClaimsError,
     receiver_policy::{
@@ -20,7 +37,9 @@ use crate::{
     },
     work_budget::WorkBucket,
 };
+pub use enrollment::{EnrollmentBinding, EnrollmentError, EnrollmentMetadata};
 use ic_auth_protocol_types::{AudienceId, AuthRole, Credential, Principal, ScopeLabel};
+pub use inspection::{MAX_INSPECTION_PAGE, MAX_INSPECTION_SCAN, SessionPage};
 use records::{CallerRecord, Replay, Session};
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -36,6 +55,8 @@ type Slot = (Principal, Principal, u8);
 pub struct MemoryConfig {
     /// Receiver domain, fixed for the lifetime of the instance.
     pub audience: AudienceId,
+    /// Installed receiver and enrollment authority identities.
+    pub enrollment: EnrollmentBinding,
     /// Physical known-login pool and original login lifetime bounds.
     pub login: LoginLimits,
     /// Physical session/replay counts and logical encoded-byte limits.
@@ -117,6 +138,8 @@ pub struct AdmissionOutcome {
 pub enum MemoryError {
     /// Fresh receiver has not been activated, or was permanently closed.
     Closed,
+    /// Boot/refresh response did not satisfy protected enrollment admission.
+    Enrollment(EnrollmentError),
     /// Shared receiver policy refused.
     Policy(SessionPolicyError),
     /// Canonical claims could not be decoded.
@@ -159,6 +182,7 @@ pub struct MemoryReceiver {
     config: MemoryConfig,
     lifecycle: Lifecycle,
     generation: u64,
+    enrollment: enrollment::Enrollment,
     observed_at_ns: u64,
     budget: VerificationBudget,
     unknown_budget: WorkBucket,
@@ -190,6 +214,8 @@ impl MemoryReceiver {
             config,
             lifecycle: Lifecycle::Fresh,
             generation: 0,
+            enrollment: enrollment::Enrollment::new(config.enrollment)
+                .map_err(MemoryError::Enrollment)?,
             observed_at_ns: now_ns,
             budget: VerificationBudget::new(
                 config.verification_capacity,
@@ -217,15 +243,58 @@ impl MemoryReceiver {
         })
     }
 
-    /// Host assertion that fresh authenticated boot enrollment is ready for this
-    /// new receiver. Allowed once; it cannot reopen a closed or lost receiver.
-    pub fn activate_fresh(&mut self, generation: u64) -> Result<(), MemoryError> {
-        if self.lifecycle != Lifecycle::Fresh {
+    /// Begin host-administered boot or refresh. The host supplies a fresh,
+    /// unpredictable challenge and owns response scheduling/authentication.
+    /// Replacing a pending request fences its late response. Existing enrollment
+    /// remains usable until its original expiry while refresh is pending.
+    pub fn request_enrollment(
+        &mut self,
+        now_ns: u64,
+        challenge: [u8; 32],
+        receipt_deadline_ns: u64,
+    ) -> Result<(), MemoryError> {
+        if self.lifecycle == Lifecycle::Closed {
             return Err(MemoryError::Closed);
         }
-        self.generation = generation;
+        self.observe(now_ns)?;
+        self.enrollment
+            .request(now_ns, challenge, receipt_deadline_ns)
+            .map_err(MemoryError::Enrollment)
+    }
+
+    /// Install metadata from the exact installed authority's IC-authenticated
+    /// response. The host must validate and install the complete entry/revocation
+    /// snapshot in the same transaction. Neither a browser-supplied principal
+    /// nor a relayed signed document satisfies `authenticated_authority`.
+    /// This cannot reopen a closed instance or recover lost safety state.
+    pub fn install_enrollment(
+        &mut self,
+        now_ns: u64,
+        authenticated_authority: Principal,
+        snapshot: EnrollmentMetadata,
+    ) -> Result<(), MemoryError> {
+        if self.lifecycle == Lifecycle::Closed {
+            return Err(MemoryError::Closed);
+        }
+        self.observe(now_ns)?;
+        self.enrollment
+            .install(
+                self.config.audience,
+                self.generation,
+                now_ns,
+                authenticated_authority,
+                snapshot,
+            )
+            .map_err(MemoryError::Enrollment)?;
+        self.generation = snapshot.generation;
         self.lifecycle = Lifecycle::Ready;
         Ok(())
+    }
+
+    /// Retained accepted metadata, including expired enrollment; not authority.
+    #[must_use]
+    pub fn enrollment(&self) -> Option<EnrollmentMetadata> {
+        self.enrollment.current()
     }
 
     /// Permanently stop admission and authorization without discarding safety state.
@@ -298,7 +367,8 @@ impl MemoryReceiver {
         host: AdmissionHost<'_>,
     ) -> Result<AdmissionOutcome, MemoryError> {
         self.ready()?;
-        let authority = host.authority();
+        let mut authority = host.authority();
+        self.enrolled(&mut authority)?;
         policy::check_authority(&authority, self.config.audience)?;
         let decoded = DecodedClaims::new(&credential.claims).map_err(MemoryError::Claims)?;
         let claims = &decoded.claims;
@@ -405,23 +475,29 @@ impl MemoryReceiver {
         );
         // No fallible return after this point. Poison before any map allocation,
         // so even a caught panic cannot expose a partially published receiver.
-        self.lifecycle = Lifecycle::Closed;
+        publish!(self.lifecycle = Lifecycle::Closed);
         self.remove_session(displaced);
         if displaced != authority.caller {
-            self.callers.remove(&displaced);
+            publish!(self.callers.remove(&displaced));
         }
         self.remove_unknown(authority.caller);
-        self.callers.insert(authority.caller, record);
-        self.slots.insert(slot, authority.caller);
-        self.session_expiry
-            .insert((expires_at_ns, authority.caller));
-        self.replay_expiry
-            .insert((replay.remove_at_ns, fingerprint));
-        self.replays.insert(fingerprint, replay);
-        self.accounts
-            .insert(usage.account, usage.replays_for_account);
-        self.sessions = usage.sessions;
-        self.encoded_bytes = usage.encoded_bytes;
+        publish!(self.callers.insert(authority.caller, record));
+        publish!(self.slots.insert(slot, authority.caller));
+        publish!(
+            self.session_expiry
+                .insert((expires_at_ns, authority.caller))
+        );
+        publish!(
+            self.replay_expiry
+                .insert((replay.remove_at_ns, fingerprint))
+        );
+        publish!(self.replays.insert(fingerprint, replay));
+        publish!(
+            self.accounts
+                .insert(usage.account, usage.replays_for_account)
+        );
+        publish!(self.sessions = usage.sessions);
+        publish!(self.encoded_bytes = usage.encoded_bytes);
         self.lifecycle = Lifecycle::Ready;
         Ok(AdmissionOutcome {
             receipt,
@@ -437,6 +513,9 @@ impl MemoryReceiver {
         required_scopes: &[ScopeLabel],
     ) -> Result<SessionReceipt, MemoryError> {
         self.ready()?;
+        let mut current = *authority;
+        self.enrolled(&mut current)?;
+        let authority = &current;
         policy::check_authority(authority, self.config.audience)?;
         self.observe(authority.now_ns)?;
         let selected = self.selected(authority.caller);
@@ -444,6 +523,41 @@ impl MemoryReceiver {
         selected
             .receipt()
             .ok_or_else(|| SessionPolicyError::InvalidFacts.into())
+    }
+
+    /// Run a synchronous application projection only after current session checks.
+    /// The host owns authenticated inputs and transaction isolation throughout
+    /// this call. An Auth refusal never invokes `project`; application errors can
+    /// be returned as `R` without being confused with an authentication refusal.
+    ///
+    /// The borrowed receipt cannot escape this invocation. Copied account facts
+    /// or a previously returned receipt are not continuing authority: after every
+    /// await, obtain current host inputs and authorize again before a new effect.
+    /// A returned future with copied facts does not carry authentication into its
+    /// execution. This method supplies neither application rollback nor an executor.
+    ///
+    /// ```compile_fail
+    /// use ic_auth::{receiver_memory::{MemoryReceiver, MemoryError, SessionReceipt},
+    ///     receiver_policy::SessionAuthority};
+    /// fn escape<'a>(r: &'a mut MemoryReceiver, host: &SessionAuthority<'_>)
+    ///     -> Result<&'a SessionReceipt, MemoryError> {
+    ///     r.authorize(host, &[], |receipt| receipt)
+    /// }
+    /// ```
+    /// ```compile_fail
+    /// use ic_auth::{receiver_memory::MemoryReceiver, receiver_policy::SessionAuthority};
+    /// fn defer(r: &mut MemoryReceiver, host: &SessionAuthority<'_>) {
+    ///     let _ = r.authorize(host, &[], |receipt| async move { receipt.caller });
+    /// }
+    /// ```
+    pub fn authorize<R>(
+        &mut self,
+        authority: &SessionAuthority<'_>,
+        required_scopes: &[ScopeLabel],
+        project: impl FnOnce(&SessionReceipt) -> R,
+    ) -> Result<R, MemoryError> {
+        let receipt = self.read(authority, required_scopes)?;
+        Ok(project(&receipt))
     }
 
     /// Commit local denial for the authenticated caller without requiring current
@@ -473,19 +587,19 @@ impl MemoryReceiver {
         }
         match plan.receipt {
             LogoutReceipt::Revoked { .. } => {
-                self.lifecycle = Lifecycle::Closed;
+                publish!(self.lifecycle = Lifecycle::Closed);
                 self.remove_session(caller);
                 if let Some(row) = self.callers.get_mut(&caller) {
-                    row.login.denied = true;
+                    publish!(row.login.denied = true);
                 }
             }
             LogoutReceipt::Unconfirmed { deny_until_ns } if plan.charge_unknown => {
                 let row = CallerRecord::unknown(caller, self.config.audience, deny_until_ns);
-                self.lifecycle = Lifecycle::Closed;
+                publish!(self.lifecycle = Lifecycle::Closed);
                 self.remove_unknown(caller);
-                self.callers.insert(caller, row);
-                self.unknown_expiry.insert((deny_until_ns, caller));
-                self.unknown += 1;
+                publish!(self.callers.insert(caller, row));
+                publish!(self.unknown_expiry.insert((deny_until_ns, caller)));
+                publish!(self.unknown += 1);
             }
             LogoutReceipt::Unconfirmed { .. } => {} // already committed; deadline and credit unchanged
         }
@@ -502,7 +616,7 @@ impl MemoryReceiver {
         }
         self.observe(now_ns)?;
         let mut report = PruneReport::default();
-        self.lifecycle = Lifecycle::Closed;
+        publish!(self.lifecycle = Lifecycle::Closed);
         while report.sessions + report.replays + report.unknown_denials < limit {
             if let Some(&(deadline, caller)) = self.session_expiry.first()
                 && deadline <= now_ns
@@ -512,13 +626,13 @@ impl MemoryReceiver {
             } else if let Some(&(deadline, fingerprint)) = self.replay_expiry.first()
                 && deadline <= now_ns
             {
-                self.replay_expiry.remove(&(deadline, fingerprint));
-                if let Some(replay) = self.replays.remove(&fingerprint) {
-                    self.encoded_bytes -= replay.bytes;
+                publish!(self.replay_expiry.remove(&(deadline, fingerprint)));
+                if let Some(replay) = publish!(self.replays.remove(&fingerprint)) {
+                    publish!(self.encoded_bytes -= replay.bytes);
                     if let Some(count) = self.accounts.get_mut(&replay.account) {
-                        *count -= 1;
+                        publish!(*count -= 1);
                         if *count == 0 {
-                            self.accounts.remove(&replay.account);
+                            publish!(self.accounts.remove(&replay.account));
                         }
                     }
                 }
@@ -543,6 +657,20 @@ impl MemoryReceiver {
             Err(MemoryError::Closed)
         }
     }
+    fn enrolled(&self, authority: &mut SessionAuthority<'_>) -> Result<(), MemoryError> {
+        let snapshot = self.enrollment.current().ok_or(MemoryError::Closed)?;
+        if snapshot.generation != self.generation
+            || authority.generation != self.generation
+            || authority.now_ns < snapshot.issued_at_ns
+            || authority.now_ns >= snapshot.expires_at_ns
+        {
+            return Err(SessionPolicyError::StaleAuthority.into());
+        }
+        authority.enrollment_expires_at_ns = authority
+            .enrollment_expires_at_ns
+            .min(snapshot.expires_at_ns);
+        Ok(())
+    }
     fn observe(&mut self, now_ns: u64) -> Result<(), MemoryError> {
         if now_ns < self.observed_at_ns {
             return Err(SessionPolicyError::ClockRollback.into());
@@ -552,20 +680,20 @@ impl MemoryReceiver {
     }
     fn remove_session(&mut self, caller: Principal) {
         if let Some(row) = self.callers.get_mut(&caller)
-            && let Some(session) = row.session.take()
+            && let Some(session) = publish!(row.session.take())
         {
-            self.session_expiry.remove(&(session.expires_at_ns, caller));
-            self.sessions -= 1;
-            self.encoded_bytes -= session.bytes;
+            publish!(self.session_expiry.remove(&(session.expires_at_ns, caller)));
+            publish!(self.sessions -= 1);
+            publish!(self.encoded_bytes -= session.bytes);
         }
     }
     fn remove_unknown(&mut self, caller: Principal) {
         if let Some(row) = self.callers.get(&caller)
             && row.login.binding.is_none()
         {
-            self.unknown_expiry.remove(&(row.login.until_ns, caller));
-            self.callers.remove(&caller);
-            self.unknown -= 1;
+            publish!(self.unknown_expiry.remove(&(row.login.until_ns, caller)));
+            publish!(self.callers.remove(&caller));
+            publish!(self.unknown -= 1);
         }
     }
     fn selected(&self, caller: Principal) -> records::Selected<'_> {

@@ -1,8 +1,9 @@
 # IC Auth — new implementation
 
 A clean restart of IC Auth around its current application-authentication design.
-Volatile and durable storage are required. Published `ic-storage` is an interim
-backend; the intended destination is `ic-storage-new` with orthogonal persistence.
+Volatile authentication storage is the current milestone. Stable storage is a
+future milestone, targeting `ic-storage-new` with orthogonal persistence once its
+contract is ready. No interim `ic-storage` adapter is planned.
 Existing Wire layouts and signed credential bytes are compatibility constraints,
 not redesign targets.
 
@@ -15,15 +16,19 @@ with all four Wire contracts and generated browser codecs. All packages are
 unpublished. The pushed 0.42.0/0.41.0 checkpoint adds the certified issuer-signature
 component, root-delegation signing commitments and standalone root authorization.
 Complete certified verification now combines both components with shared claims
-policy and work charging. Current development adds shared role narrowing and
+policy and work charging. The receiver also implements shared role narrowing and
 captured session lease ceilings, plus shared retry/read policy over retained facts.
 Login preflight also checks immutable renewal and higher-generation replacement.
 Capacity policy retains physical replay/account quotas and checked byte totals;
 one protected verifier profile dispatches both credential mechanisms.
 The optional memory receiver now commits verified admissions, supports exact retry
-and proof-free reads, retains replay/device state through logout, and prunes expired
-records with bounded work. Unknown callers receive separately bounded temporary
-denials that remain unconfirmed. Stable storage, boot/recovery integration, issuer
+and proof-free reads, runs synchronous application projections after current
+authorization checks, retains replay/device state through logout, and prunes expired
+records with bounded work. Administrative inspection uses bounded pages and
+exclusive cursors without changing retained state. Unknown callers receive separately bounded temporary
+denials that remain unconfirmed. Bound enrollment responses now gate memory
+readiness and freshness; host response authentication and lost-state recovery
+remain integration obligations. Stable storage, issuer
 state and browser lifecycle remain open. The existing
 `ic-auth` repository remains the implemented reference and canonical production
 owner until the replacement is qualified and adoption is explicitly approved.
@@ -33,9 +38,9 @@ crates.io publication is deferred until the replacement is complete. It does not
 claim a complete replacement authentication engine or authorize a consumer cutover.
 Canic owns endpoint wiring using IC Wire; the Auth crates supply contract schemas
 and authentication decisions without installing endpoints.
-Current development uses `ic-auth` 0.44.0 and
-`ic-auth-protocol-types` / `ic-auth-wire` 0.42.0, following the pushed
-[0.43.0 memory checkpoint](https://github.com/dragginzgame/ic-auth-new/commit/285ac178cf8df9f10467368d51c117aa7853d5a3). Version selection reserves no registry slot
+The current source checkpoint uses `ic-auth` 0.45.0 and
+`ic-auth-protocol-types` / `ic-auth-wire` 0.42.0, following the
+[0.44.0 logout and CI checkpoint](https://github.com/dragginzgame/ic-auth-new/commit/1e50f32469bdba8ce1673ea4543cd0b6782720e7). Version selection reserves no registry slot
 and does not publish a crate.
 
 - [Architecture and qualification plan](docs/design/DESIGN.md)

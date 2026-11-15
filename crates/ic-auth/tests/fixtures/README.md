@@ -99,7 +99,7 @@ prove no root signature, grant authority, enrollment or session admission.
 
 ## Volatile receiver sequences
 
-`memory.tsv` extends the public Ed25519 test seed with seven independently packed
+`memory.tsv` extends the public Ed25519 test seed with nine independently packed
 schema-2 credentials. `../verify-memory-fixtures.mjs` uses Node/OpenSSL to verify
 all bytes and signatures; its initial case must equal the retained `ed25519.tsv`
 reference. Renewal preserves the browser/account/slot/generation and 10–100 ns
@@ -107,7 +107,12 @@ login window. Replacement uses a different browser and higher slot generation;
 other cases test rebinding refusal and a fresh old-generation credential after
 replay pruning. The future case uses a different subject, login 110–200 ns and
 proof 120–130 ns, demonstrating that temporary unknown denial through 101 ns
-cannot conclusively revoke unseen future credentials. These are new semantic
+cannot conclusively revoke unseen future credentials. `other-device` adds slot 1
+for the original issuer/subject; `other-issuer` keeps subject `02` and slot 0 but
+binds issuer `03`. Their distinct browser keys and nonces test independent device
+fences and issuer-qualified quotas without altering any earlier fixture bytes.
+Both issuers use the public fixture signing key under separate protected enrollment
+identities. These are new semantic
 test sequences, not copied legacy engine
 code or actual SDK browser logins. See the
 [memory receiver boundary](../../../../docs/development/memory-receiver-boundary.md)

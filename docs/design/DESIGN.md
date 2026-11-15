@@ -2,11 +2,13 @@
 
 Status: proposed replacement architecture, 15 November 2026. This selects an implementation direction and acceptance obligations. It does not authorize consumer cutover, data deletion, a new issuer service or a storage-format change. The companion qualification plan below defines the implementation sequence.
 
+Milestone scope: volatile authentication storage first, as approved during implementation. Stable storage is a future milestone while `ic-storage-new` is being developed. No interim `ic-storage` adapter is planned. Persistence-specific requirements below remain future acceptance obligations, not blockers for the volatile milestone or permission to invent the supplier API.
+
 ## 1 Decision
 
-Build a receiver-centered authentication library with one admission and session policy, two independently implemented storage backends, a separate issuer state owner and the private browser admission/logout coordinator.
+Build a receiver-centered authentication library with one admission and session policy, a bounded volatile backend, a separate issuer state owner and the private browser admission/logout coordinator. Add durable storage in its own future milestone.
 
-The storage work is staged alongside the Auth rewrite. Volatile memory and published `ic-storage` supply the initial two backends; `ic-storage` is an interim implementation dependency. The intended durable destination is `ic-storage-new` with orthogonal persistence, once its required capabilities and Auth integration are qualified. The initial stable backend does not freeze the final persistence architecture or require maintaining three production backends indefinitely.
+The storage work is staged alongside the Auth rewrite. The current milestone uses volatile memory only. The intended durable destination remains `ic-storage-new` with orthogonal persistence, once its required capabilities and Auth integration are qualified. Deferring persistence avoids an interim adapter and does not waive future retention, corruption-admission or rollback requirements.
 
 The application flow remains:
 
@@ -52,7 +54,7 @@ These are inspected source contracts. Historical test and performance reports re
 
 Retain three existing public boundaries: ic-auth-protocol-types, ic-auth-wire and ic-auth. Introduce an issuer package only for the real dependency boundary between receiving credentials and signing/issuance custody; proposed name ic-auth-issuer. Its state code may use the signer-free canonical base of ic-auth with receiver/backend features disabled. The receiver must never depend on the issuer package. Qualify the resulting feature-unified graphs.
 
-Keep receiver memory/persistence implementations as modules behind explicit capabilities, not one package per table or operation. Isolate interim `ic-storage` leases, record encodings and collection APIs within their backend; do not expose them through protocol types, shared Auth decisions or mandatory receiver API bounds. Platform supplies cryptographic primitives and canonical Principal identity. Keep metadata generation, Host, Build, Testkit and release tooling out of deployed receiver dependencies.
+Keep receiver implementations as modules behind explicit capabilities, not one package per table or operation. Future persistence mechanics stay backend-local; do not expose them through protocol types, shared Auth decisions or mandatory receiver API bounds. Platform supplies cryptographic primitives and canonical Principal identity. Keep metadata generation, Host, Build, Testkit and release tooling out of deployed receiver dependencies.
 
 Public signatures are proposals until the consumer inventory is complete. Package identity, Rust source compatibility, Wire compatibility and stored-record compatibility are separate decisions.
 
@@ -217,9 +219,9 @@ Custom commit callbacks remain an acceptance surface. Inventory consumers before
 
 ## 9 Backends, budgets and retention
 
-Both volatile and interim stable receivers are required in the first vertical slice. A memory implementation is a real bounded indexed backend, not a full-store clone around every operation. The interim `ic-storage` backend uses host-provided exclusive checked leases and Storage-owned collections. Auth owns neither a memory manager nor an executor. Stable-specific requirements below describe that backend; they do not prescribe the successor's physical representation.
+The first vertical slice requires a real bounded indexed memory backend, not a full-store clone around every operation. Stable storage is deferred to its own milestone; Auth owns neither a memory manager nor an executor. Stable-specific requirements below retain the reference's safety obligations without selecting the future supplier's physical representation.
 
-Keep a separate caller lookup from maintenance/replay indexes where the measured workload justifies it. The reference uses three receiver leases and two issuer leases. A different physical layout needs a measured justification and a separately selected format decision.
+Keep a separate caller lookup from maintenance/replay indexes where the measured workload justifies it. The reference uses three receiver leases and two issuer leases; this is reference evidence, not a required layout for the future backend. Select and qualify its physical representation at the durable milestone.
 
 Open validates schema, protected configuration, counts and required metadata; operations validate selected persisted records and index associations. Do not force memory records through encode/decode to imitate corruption checks. Do not trust stable bytes because a frame decoded structurally.
 
@@ -241,7 +243,7 @@ Storage owns retained allocation custody, representation admission and persisten
 
 Adopting OP requires the same semantic suite plus installed evidence for compatible retained-state upgrades, incompatible-layout refusal, explicit schema conversion, checkpoint recovery and failed publication/rollback. All boot/readiness, replay, device-fence and issuer recovery rules remain in force. Retained bytes never establish fresh enrollment or repair missing revocation evidence; execution handles, guards and pending futures are not durable Auth state.
 
-The interim stable backend is an implementation and comparison step, not a commitment to deploy it or migrate live users through it. Select exact supplier artifacts and the required state-transfer or legacy-refusal disposition at the eventual consumer cut. This design authorizes neither a production migration nor reinterpreting old stable records as retained native objects.
+No interim stable backend is selected for the current milestone. Select exact supplier artifacts and the required state-transfer or legacy-refusal disposition at the future durable milestone and eventual consumer cut. This design authorizes neither a production migration nor reinterpreting old stable records as retained native objects.
 
 ## 10 Issuer intent and recovery
 
@@ -322,7 +324,7 @@ Wire and signed bytes remain fixed. Stable records do not become compatible mere
 
 Do not reuse the current schema identifiers for different records. Do not erase browser journals or issuer pending work to simplify the cut. Old production state remains owned by its existing host until an authorized transition is qualified.
 
-The first deliverable is one complete receiver slice on both backends, with independent proof vectors and failure traces. Expansion follows the qualification gates, not a target line count.
+The first deliverable is one complete volatile receiver slice with independent proof vectors and failure traces. Durable storage and cross-backend comparison follow in a separate milestone. Expansion follows the qualification gates, not a target line count.
 
 # Implementation and qualification
 
@@ -392,7 +394,7 @@ Test protected verifier selection: request-supplied algorithm/key material canno
 
 ## 4 First complete receiver slice
 
-Implement the same narrow application scenario on both memory and actual stable collections:
+Implement this narrow application scenario on memory first; reuse it for the future durable backend:
 
 1. Two issuer-qualified accounts, two browser devices and two independent receivers.
 
@@ -408,13 +410,13 @@ Implement the same narrow application scenario on both memory and actual stable 
 
 7. Fresh renewal clamped to the original absolute login deadline.
 
-8. Stable reopen with fresh authority readiness and preserved replay/device fences.
+8. Volatile loss stays closed; fresh enrollment or a local generation cannot restore missing replay/device fences. In the future durable milestone, separately qualify stable reopen with fresh boot enrollment and complete retained state.
 
 Use a private operation-level storage interface only after implementing the real needs of both backends. Compare facts and transitions directly; do not make the stable implementation emulate a complete memory store.
 
-Exit gate: one admission pipeline, no temporary reconstructed login ledger, no global read/clone, one current authorization rule and equivalent accepted/refused behavior on both backends. A consolidation that increases transformations or materially worsens ordinary lookup costs must be revised.
+Volatile exit gate: one admission pipeline, no temporary reconstructed login ledger, no global read/clone, one current authorization rule and independent accepted/refused behavior evidence. The future durable milestone additionally requires equivalent cross-backend behavior. A consolidation that increases transformations or materially worsens ordinary lookup costs must be revised.
 
-This gate qualifies the interim memory/`ic-storage` slice, not completion of the intended OP transition. Reuse its independent behavioral cases against `ic-storage-new` when that supplier is ready, adding the lifecycle and transaction proofs specified in architecture section 9. Protocol, proof, receiver-policy and issuer/browser work can proceed without inventing the successor's API.
+This gate qualifies the volatile receiver, not durable storage. Reuse its independent behavioral cases against `ic-storage-new` when that supplier is ready, adding the lifecycle and transaction proofs specified in architecture section 9. Protocol, proof, receiver-policy and issuer/browser work proceed without an interim adapter or an invented persistence API.
 
 Then repeat complete receiver scenarios using certified credentials. Neither mechanism is optional for replacement acceptance.
 
@@ -573,8 +575,8 @@ Keep shadow comparison observational: no double signing, double replay consumpti
 
 A hard cut does not mean reinstall by default. No local document authorizes erasing host data. An incompatible backing must refuse; any importer/reset/reinstall needs the consumer's explicit disposition and installed recovery proof. Restoring an old binary alone does not restore compatible data or undo external effects.
 
-Completion requires a consumer contract inventory, independent vectors, both proof mechanisms, both backends, issuer/browser interruption evidence, actual Wasm lifecycle results and accepted costs. Each claimed simplification lists the surviving owner, deleted path and invariant coverage.
+Completion of the volatile milestone requires a consumer contract inventory, independent vectors, both proof mechanisms, bounded memory state and loss refusal, issuer/browser interruption evidence, actual Wasm lifecycle results and accepted costs. Each claimed simplification lists the surviving owner, deleted path and invariant coverage. Stable storage, retained upgrades and cross-backend equivalence remain a separately qualified future milestone.
 
-Report interim Auth qualification and OP adoption separately. Completion of the long-term persistence direction additionally requires qualified `ic-storage-new` integration and the selected consumer state/recovery disposition; successful `ic-storage` qualification alone does not establish that outcome.
+Report volatile Auth qualification and future OP adoption separately. Completion of the durable milestone additionally requires qualified `ic-storage-new` integration and the selected consumer state/recovery disposition; successful volatile qualification does not establish that outcome.
 
 Only after a qualified replacement and consumer decision exist should release/delivery machinery be integrated through the shared owners. Do not reproduce the old release system as an initialization task.
