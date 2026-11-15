@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.46.0] - Source checkpoint 2026-11-16
+
+Source checkpoint: `ic-auth` 0.46.0. Protocol-types/Wire remain 0.42.0;
+all packages remain `publish = false`.
+
+### ✨ Added
+
+- Make receiver policy snapshots, decisions and assessment functions private.
+  Hosts use `receiver_memory` for operation inputs, configuration, errors and
+  inspection/usage results. Move all nineteen policy tests beside their private
+  owner; replace two synthetic proof-to-facts drivers with mapped real receiver
+  coverage, including certified replacement of a denied slot. Compile-fail cases
+  guard the narrower API. This breaks the unpublished Rust policy API only.
+- Extend volatile receiver qualification to two certified issuers, two devices
+  on one account and two independent receivers, using seven independently packed
+  claims and a second OpenSSL-signed root authorization. Exercise account quota
+  isolation, failed root/issuer proofs without displacement, replacement at full
+  login capacity, proof-expired retry, renewal and receiver-local logout.
+- Check certified enrollment refresh without lease extension, generation
+  invalidation with retained fences, logout during an enrollment outage and
+  unknown logout before admission. Five native certified receiver cases now run
+  through `make test-memory`; these do not qualify installed-host recovery.
+- Verify the new fixture bytes through the normal focused and hosted checks.
+  Existing protocol bytes, cryptographic primitives and product behavior are unchanged.
+
 ## [0.45.0] - Source checkpoint 2026-11-15
 
 Source checkpoint: `ic-auth` 0.45.0. Unchanged protocol-types/Wire remain 0.42.0.

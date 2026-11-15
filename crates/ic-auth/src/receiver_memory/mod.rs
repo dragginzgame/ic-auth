@@ -4,6 +4,16 @@
 //! authenticates enrollment nor installs endpoints. Fresh activation is only for
 //! a genuinely new receiver; losing this state requires host-controlled recovery,
 //! never constructing an empty replacement and resuming the old authority.
+//!
+//! Hosts use this module's inputs, limits, receipts and inspection projections.
+//! Policy snapshots and preflight decisions are internal implementation details:
+//!
+//! ```compile_fail,E0603
+//! use ic_auth::receiver_policy::assess_session;
+//! ```
+//! ```compile_fail,E0432
+//! use ic_auth::receiver_memory::ReceiverSnapshot;
+//! ```
 
 mod enrollment;
 mod inspection;
@@ -23,12 +33,14 @@ macro_rules! publish {
     }};
 }
 
+pub use crate::receiver_policy::{
+    LoginBinding, LoginLimits, LogoutError, LogoutReceipt, SessionAuthority, SessionCapacity,
+    SessionFacts, SessionPolicyError, SessionUsage, UnknownLogoutLimits,
+};
 use crate::{
     claims::ClaimsError,
     receiver_policy::{
-        self as policy, AdmissionFootprint, LoginBinding, LoginDecision, LoginLimits,
-        LoginSnapshot, LogoutError, LogoutReceipt, RetryDecision, SessionAuthority,
-        SessionCapacity, SessionPolicyError, SessionUsage, UnknownLogoutLimits,
+        self as policy, AdmissionFootprint, LoginDecision, LoginSnapshot, RetryDecision,
     },
     session_request::{SessionRequest, SessionRequestError, SessionTtlPolicy},
     verification::{
@@ -538,14 +550,14 @@ impl MemoryReceiver {
     ///
     /// ```compile_fail
     /// use ic_auth::{receiver_memory::{MemoryReceiver, MemoryError, SessionReceipt},
-    ///     receiver_policy::SessionAuthority};
+    ///     receiver_memory::SessionAuthority};
     /// fn escape<'a>(r: &'a mut MemoryReceiver, host: &SessionAuthority<'_>)
     ///     -> Result<&'a SessionReceipt, MemoryError> {
     ///     r.authorize(host, &[], |receipt| receipt)
     /// }
     /// ```
     /// ```compile_fail
-    /// use ic_auth::{receiver_memory::MemoryReceiver, receiver_policy::SessionAuthority};
+    /// use ic_auth::receiver_memory::{MemoryReceiver, SessionAuthority};
     /// fn defer(r: &mut MemoryReceiver, host: &SessionAuthority<'_>) {
     ///     let _ = r.authorize(host, &[], |receipt| async move { receipt.caller });
     /// }

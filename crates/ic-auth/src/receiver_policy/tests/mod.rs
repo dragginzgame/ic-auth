@@ -1,6 +1,6 @@
 //! Independent receiver scenarios from the pinned session/revocation contract.
 //! These are trusted-state fact drivers, not proof admission or storage adapters.
-use ic_auth::{
+use crate::{
     receiver_policy::{
         DeviceFacts, LoginBinding, LoginFacts, ReceiverSnapshot, RetryDecision, SessionAuthority,
         SessionFacts, SessionPolicyError as E, assess_retry, assess_session,
@@ -394,8 +394,8 @@ fn clock_and_record_bounds_refuse_without_repairing_the_snapshot() {
     assert_eq!(session.expires_at_ns, 150 * SECOND);
 }
 
-fn login_limits() -> ic_auth::receiver_policy::LoginLimits {
-    ic_auth::receiver_policy::LoginLimits {
+fn login_limits() -> crate::receiver_policy::LoginLimits {
+    crate::receiver_policy::LoginLimits {
         max_device_slots: 8,
         max_login_ttl_ns: 300 * SECOND,
         max_admitted_logins: 2,
@@ -405,8 +405,8 @@ fn login_snapshot<'a>(
     caller_login: Option<&'a LoginFacts>,
     device: Option<&'a DeviceFacts>,
     slot_owner: Option<&'a LoginFacts>,
-) -> ic_auth::receiver_policy::LoginSnapshot<'a> {
-    ic_auth::receiver_policy::LoginSnapshot {
+) -> crate::receiver_policy::LoginSnapshot<'a> {
+    crate::receiver_policy::LoginSnapshot {
         audience: Scenario::audience(),
         caller: caller(10),
         observed_at_ns: 130 * SECOND,
@@ -419,7 +419,7 @@ fn login_snapshot<'a>(
 
 #[test]
 fn login_new_rows_need_capacity_but_exact_binding_renewals_reuse_the_pool() {
-    use ic_auth::receiver_policy::{LoginDecision as D, assess_login};
+    use crate::receiver_policy::{LoginDecision as D, assess_login};
     let proposed = Scenario::binding();
     let mut empty = login_snapshot(None, None, None);
     assert_eq!(
@@ -447,7 +447,7 @@ fn login_new_rows_need_capacity_but_exact_binding_renewals_reuse_the_pool() {
 
 #[test]
 fn login_same_browser_cannot_change_account_slot_generation_or_absolute_window() {
-    use ic_auth::receiver_policy::assess_login;
+    use crate::receiver_policy::assess_login;
     let login = Scenario::login();
     let device = Scenario::device();
     let retained = login_snapshot(Some(&login), Some(&device), Some(&login));
@@ -473,7 +473,7 @@ fn login_same_browser_cannot_change_account_slot_generation_or_absolute_window()
 
 #[test]
 fn login_replacement_requires_new_browser_and_higher_generation_even_after_logout_or_expiry() {
-    use ic_auth::receiver_policy::{LoginDecision as D, assess_login};
+    use crate::receiver_policy::{LoginDecision as D, assess_login};
     for denied in [false, true] {
         let mut old = Scenario::login();
         old.caller = caller(11);
@@ -514,7 +514,7 @@ fn login_replacement_requires_new_browser_and_higher_generation_even_after_logou
 
 #[test]
 fn login_unknown_denial_expires_exclusively_without_freeing_known_pool_capacity() {
-    use ic_auth::receiver_policy::{LoginDecision as D, assess_login};
+    use crate::receiver_policy::{LoginDecision as D, assess_login};
     let mut unknown = Scenario::login();
     unknown.binding = None;
     unknown.denied = true;
@@ -544,7 +544,7 @@ fn login_unknown_denial_expires_exclusively_without_freeing_known_pool_capacity(
 
 #[test]
 fn login_incomplete_or_cross_account_facts_refuse_without_reconstructing_a_fence() {
-    use ic_auth::receiver_policy::assess_login;
+    use crate::receiver_policy::assess_login;
     let login = Scenario::login();
     let device = Scenario::device();
     for retained in [
@@ -612,15 +612,15 @@ fn login_incomplete_or_cross_account_facts_refuse_without_reconstructing_a_fence
 
 #[test]
 fn login_policy_bounds_and_maximum_generation_never_wrap() {
-    use ic_auth::receiver_policy::{LoginDecision as D, assess_login};
+    use crate::receiver_policy::{LoginDecision as D, assess_login};
     let empty = login_snapshot(None, None, None);
     assert_eq!(
         assess_login(&empty, Scenario::binding(), 129 * SECOND, login_limits()),
         Err(E::ClockRollback)
     );
     for change in [
-        (|l: &mut ic_auth::receiver_policy::LoginLimits| l.max_device_slots = 0)
-            as fn(&mut ic_auth::receiver_policy::LoginLimits),
+        (|l: &mut crate::receiver_policy::LoginLimits| l.max_device_slots = 0)
+            as fn(&mut crate::receiver_policy::LoginLimits),
         |l| l.max_device_slots = 9,
         |l| l.max_login_ttl_ns = 0,
         |l| l.max_login_ttl_ns = u64::MAX,
@@ -691,3 +691,5 @@ fn login_policy_bounds_and_maximum_generation_never_wrap() {
         Err(E::BindingConflict)
     );
 }
+
+mod capacity;

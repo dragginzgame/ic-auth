@@ -7,9 +7,11 @@ const u32 = n => { const b=Buffer.alloc(4); b.writeUInt32BE(n); return b; };
 const u64 = n => { const b=Buffer.alloc(8); b.writeBigUInt64BE(BigInt(n)); return b; };
 const bytes = b => cat(u32(b.length),b), sha = b => createHash('sha256').update(b).digest();
 const certified = process.argv.includes('--certified');
+const otherIssuer = process.argv.includes('--other-issuer');
+assert(!otherIssuer || certified, '--other-issuer requires --certified');
 const seedHash = certified ? sha(text('auth-qualification-issuer')) : rep(8);
 const path = cat(text('CANIC_ROOT_DELEGATION_CHAIN_KEY_DERIVATION_PATH_V1'),u32(2),bytes(text('canic')),bytes(text('delegation')));
-const pathHash = sha(path), root = bytes(rep(1,10)), issuer = bytes(rep(2,10));
+const pathHash = sha(path), root = bytes(rep(1,10)), issuer = bytes(rep(otherIssuer ? 3 : 2,10));
 const binding = sha(cat(text('canic-issuer-proof-binding-v1'),issuer,Buffer.from([1,1]),seedHash));
 const authorization = cat(Buffer.from([1]),binding,Buffer.from([1]),seedHash);
 const grants = cat(u32(1),bytes(text('app')),u32(2),bytes(text('read')),bytes(text('write')));
@@ -28,7 +30,7 @@ const privateKey=createPrivateKey({format:'jwk', key:{kty:'EC',crv:'secp256k1',d
 const publicKey=createPublicKey(privateKey);
 const order=BigInt('0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141');
 const scalar = b => BigInt(`0x${b.toString('hex')}`), encoded = n => Buffer.from(n.toString(16).padStart(64,'0'),'hex');
-const target=new URL(certified ? './fixtures/certified.tsv' : './fixtures/root-delegation.tsv',import.meta.url);
+const target=new URL(otherIssuer ? './fixtures/certified-other-issuer.tsv' : certified ? './fixtures/certified.tsv' : './fixtures/root-delegation.tsv',import.meta.url);
 let signature;
 if(process.argv.includes('--generate')) {
     signature=sign('sha256',preimage,{key:privateKey,dsaEncoding:'ieee-p1363'});

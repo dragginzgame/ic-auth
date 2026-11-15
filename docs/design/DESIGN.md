@@ -271,6 +271,41 @@ Renewal sequence watermarks and operation epochs prevent recreation after result
 
 No production wallet issuer, signing service or secret-key store is selected. Existing signature/delegation/batch helper APIs receive an individual consumer/disposition review; a receiver-focused rewrite does not authorize deleting independently used primitives.
 
+### First volatile issuer slice
+
+The next implementation boundary is one bounded issuer operation owner, separate
+from receiver dependencies. The reference `persistent/issuer/model.rs::Operation`
+retains nonce, approval and result as separate optional fields. The replacement
+should encode the permitted progress explicitly in a private phase enum with one
+shared immutable operation/login binding. This removes invalid combinations from
+the in-memory representation; it does not remove the required recovery states.
+Do not expose phase fields or a generic transition engine as a public fact API.
+
+| Private phase | Retained evidence and permitted progress |
+| --- | --- |
+| Reserved | Exact request, original deadlines, protected authority/epoch and capacity for completion; accept the first nonce or an exact retry |
+| Challenged | Original nonce; accept host-authenticated approval for that exact intent, with conflicting callbacks refused |
+| Approved | Original nonce/approval and fixed canonical signing input; recheck current authority before recording external dispatch |
+| Dispatched | Exact effect identity and signing input; a lost response stays unresolved and reconciliation is lookup-only |
+| Completed | Exact retained claims and mechanism-specific completion evidence; repeated completion/retrieval returns the original result without another signing effect |
+
+Capacity reservation, caller/account authentication, immutable device binding,
+renewal watermarks, original deadlines, stale-callback refusal and result retention
+are preserved capabilities. Nonce acquisition, application approval, actual signing
+and certification-root publication remain host effects. Memory publication must
+finish before effects are dispatched; a failed or interrupted response never
+authorizes an additional effect. Closing lost state is containment, not recovery.
+
+Initial issue and authenticated renewal enter the same operation owner after
+their distinct caller/binding checks. They do not create separate pending-result
+stores. Stable codecs, reopen/schema conversion and backing leases are deferred;
+custom consumers and helper APIs still require their own disposition review.
+The first implementation must exercise exact retries, conflicting callbacks,
+capacity refusal before dispatch, authority/epoch changes and response loss using
+independent effect traces. No empty issuer package or accepting endpoint represents
+completion of this slice. These are implementation constraints, not an implemented
+issuer or a claim of LOC savings.
+
 ## 11 Browser lifecycle
 
 Keep one coordinator over one strict journal owner. Inject Platform SDK identities, issuer transport, receiver transport and clock mapping. Do not recreate a second SDK identity facade or implement application retries.
@@ -329,6 +364,32 @@ The first deliverable is one complete volatile receiver slice with independent p
 # Implementation and qualification
 
 Status: implementation sequence, 15 November 2026. Companion to the architecture above. Passing a stage authorizes the next implementation slice, not consumer deployment. The [scope/request slice](../development/request-boundary.md) and [canonical claims codec](../development/claims-boundary.md) have focused evidence; no complete stage or replacement gate is claimed from these slices.
+
+## Simplification constraints before further expansion
+
+The [receiver complexity comparison](../reports/audits/2026/11/15/receiver-complexity/01/report.md)
+establishes narrower volatile state ownership, not a demonstrated whole-product
+LOC saving. Before adding issuer or browser state, record its canonical owner,
+allowed transitions and external-effect/recovery boundaries, and map the relevant
+legacy capabilities to retained, removed or deferred behavior. Name which duplicate
+state or coordination layer disappears. If none disappears, identify the design as
+retained necessary complexity rather than claiming simplification.
+
+Keep one issuer operation owner and one browser journal owner. Reuse Platform
+identities, generated Wire contracts and host transaction boundaries. Introduce
+no public backend framework, compatibility mode or identity facade for hypothetical
+consumers. Internal fact assembly and policy decisions stay internal unless an
+actual external consumer earns that boundary; preserve public host inputs, errors,
+configuration and useful result projections. Audit the current public receiver
+policy surface before first downstream adoption or its next API change.
+
+Custom commit/restore disposition requires actual consumer evidence; absence from
+the new implementation does not establish a removed obligation. Defer durable
+abstractions until the supplier and second implementation demonstrate their needs.
+Track production Rust, Rust tests/qualification and browser TypeScript separately,
+and compare equivalent capabilities. Retain independent safety tests; reduce tests
+only with a concrete mapping showing redundant coverage. Smaller files, renamed
+layers and missing functionality alone do not establish reduced complexity.
 
 ## 1 Freeze the reference and contract inventory
 

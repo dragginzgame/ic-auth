@@ -80,12 +80,11 @@ test-session-policy: toko-tooling-check
 
 .PHONY: test-receiver-policy
 test-receiver-policy: toko-tooling-check
-	cargo test --offline --locked -p ic-auth --test receiver_policy
-	cargo test --offline --locked --manifest-path qualification/Cargo.toml -p ic-auth-certified-conformance --features ed25519-comparison --test certified -- receiver_retry login_replacement
+	cargo test --offline --locked -p ic-auth --lib receiver_policy::tests
 
 .PHONY: test-admission-capacity test-credential-profile
 test-admission-capacity: toko-tooling-check
-	cargo test --offline --locked -p ic-auth --test receiver_capacity
+	cargo test --offline --locked -p ic-auth --lib receiver_policy::tests::capacity
 
 test-credential-profile: toko-tooling-check
 	cargo test --offline --locked -p ic-auth --features ed25519-verification --test verification credential_profile
@@ -94,6 +93,8 @@ test-credential-profile: toko-tooling-check
 .PHONY: test-memory
 test-memory: toko-tooling-check
 	node crates/ic-auth/tests/verify-memory-fixtures.mjs
+	node qualification/ic-auth-certified-conformance/tests/verify-root-fixture.mjs --certified --other-issuer
+	node qualification/ic-auth-certified-conformance/tests/verify-memory-fixture.mjs
 	cargo test --offline --locked -p ic-auth --features receiver-memory,ed25519-verification --lib inspection_
 	cargo test --offline --locked -p ic-auth --features receiver-memory,ed25519-verification --lib publication_faults
 	cargo test --offline --locked -p ic-auth --features receiver-memory,ed25519-verification --test receiver_memory
@@ -115,6 +116,8 @@ verify-fixtures:
 	node crates/ic-auth/tests/verify-memory-fixtures.mjs
 	node qualification/ic-auth-certified-conformance/tests/verify-root-fixture.mjs
 	node qualification/ic-auth-certified-conformance/tests/verify-root-fixture.mjs --certified
+	node qualification/ic-auth-certified-conformance/tests/verify-root-fixture.mjs --certified --other-issuer
+	node qualification/ic-auth-certified-conformance/tests/verify-memory-fixture.mjs
 
 .PHONY: test-delegation-encoding
 test-delegation-encoding: toko-tooling-check

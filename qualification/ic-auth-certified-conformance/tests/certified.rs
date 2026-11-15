@@ -21,6 +21,8 @@ use ic_platform::{
     },
 };
 use sha2::{Digest, Sha256};
+#[cfg(feature = "receiver-memory")]
+mod memory;
 mod support;
 use root_fixture::{Fixture as RootFixture, issuer, limits, policy};
 use support::root as root_fixture;
@@ -41,6 +43,9 @@ fn sha(b: &[u8]) -> [u8; 32] {
     Sha256::digest(b).into()
 }
 fn issuer_cbor(digest: [u8; 32], time: Vec<u8>) -> Vec<u8> {
+    issuer_cbor_for(issuer(), digest, time)
+}
+fn issuer_cbor_for(issuer: Principal, digest: [u8; 32], time: Vec<u8>) -> Vec<u8> {
     // Literal domain and frozen digest: no Auth message or claims builder.
     let message = [b"\x1bic-auth-portable-credential".as_slice(), &digest].concat();
     let witness = labeled(
@@ -51,7 +56,7 @@ fn issuer_cbor(digest: [u8; 32], time: Vec<u8>) -> Vec<u8> {
         labeled(
             b"canister".to_vec(),
             labeled(
-                issuer().as_slice().to_vec(),
+                issuer.as_slice().to_vec(),
                 labeled(b"certified_data".to_vec(), leaf(witness.digest())),
             ),
         ),
@@ -768,245 +773,6 @@ fn session_deadline_is_shared_by_complete_proofs_and_captures_enrollment() {
 }
 
 #[test]
-fn receiver_retry_uses_retained_proof_evidence_after_admission_expiry() {
-    use ic_auth::{
-        receiver_policy::{
-            DeviceFacts, LoginBinding, LoginFacts, ReceiverSnapshot, RetryDecision,
-            SessionAuthority, SessionFacts, SessionPolicyError, assess_retry, assess_session,
-        },
-        session_request::{SessionRequest, SessionTtlPolicy},
-    };
-    let f = Fixture::new();
-    let g = grants(&f);
-    let h = host(&f, &g);
-    let role = "app".parse().unwrap();
-    let request = SessionRequest::new(vec!["read".into()], None).unwrap();
-    let verified = verify_certified(&f.claims, f.proof(), &h, &mut budget(3)).unwrap();
-    // This driver projects independently authenticated fixture evidence, not
-    // a storage implementation or a production session-admission constructor.
-    fn check(
-        verified: &ic_auth::verification::VerifiedClaims,
-        h: &VerificationContext<'_>,
-        role: &ic_auth_protocol_types::AuthRole,
-        request: &SessionRequest,
-    ) {
-        let c = verified.claims();
-        let binding = LoginBinding {
-            issuer: c.issuer,
-            subject: c.account_subject,
-            device_slot: c.device_slot,
-            device_generation: c.device_generation,
-            started_at_ns: c.login_started_at_ns,
-            deadline_ns: c.login_deadline_ns,
-        };
-        let session = SessionFacts {
-            caller: verified.caller(),
-            audience: c.audience,
-            login: binding,
-            mechanism: c.mechanism,
-            key_binding_id: c.key_binding_id,
-            role,
-            scopes: request.scopes(),
-            authority_generation: 1,
-            established_at_ns: verified.verified_at_ns(),
-            expires_at_ns: verified
-                .session_deadline(request, role, SessionTtlPolicy::new(30, 60).unwrap())
-                .unwrap(),
-            fingerprint: verified.fingerprint(),
-            request_hash: request.hash(),
-        };
-        let login = LoginFacts {
-            caller: verified.caller(),
-            audience: c.audience,
-            binding: Some(binding),
-            until_ns: c.login_deadline_ns,
-            denied: false,
-        };
-        let device = DeviceFacts {
-            issuer: c.issuer,
-            subject: c.account_subject,
-            slot: c.device_slot,
-            generation: c.device_generation,
-            caller: verified.caller(),
-        };
-        let snapshot = ReceiverSnapshot {
-            audience: c.audience,
-            authority_generation: 1,
-            observed_at_ns: 150,
-            session: Some(&session),
-            login: Some(&login),
-            device: Some(&device),
-        };
-        let mut authority = SessionAuthority {
-            caller: h.caller,
-            now_ns: 185,
-            audience: *h.audience,
-            issuer: h.issuer,
-            mechanism: h.mechanism,
-            key_binding_id: h.key_binding_id,
-            role,
-            grants: h.grants.as_slice(),
-            generation: 1,
-            not_before_ns: h.authority_not_before_ns,
-            expires_at_ns: h.authority_expires_at_ns,
-            enrollment_expires_at_ns: h.enrollment_expires_at_ns,
-            min_login_started_at_ns: h.min_login_started_at_ns,
-            max_session_ttl_secs: 60,
-            enabled: true,
-            subject_admissible: true,
-        };
-        assert_eq!(c.admission_expires_at_ns, 180);
-        assert_eq!(
-            assess_retry(&snapshot, &authority, verified.fingerprint(), request, true),
-            Ok(RetryDecision::ExactRetry { expires_at_ns: 190 })
-        );
-        assert_eq!(
-            assess_session(&snapshot, &authority, request.scopes()),
-            Ok(())
-        );
-        authority.now_ns = 190;
-        assert_eq!(
-            assess_retry(&snapshot, &authority, verified.fingerprint(), request, true),
-            Err(SessionPolicyError::MissingOrExpired)
-        );
-    }
-    check(&verified, &h.claims, &role, &request);
-    let mut expired = h;
-    expired.claims.now_ns = 185;
-    assert_eq!(
-        result(&f, &expired, &mut budget(3)),
-        Err(E::Context(C::Expired))
-    );
-    #[cfg(feature = "ed25519-comparison")]
-    {
-        use ic_auth::verification::{Ed25519Key, verify_ed25519};
-        let mut ed = h.claims;
-        ed.mechanism = PortableMechanism::Ed25519;
-        ed.key_binding_id = hash("ed_key_binding");
-        let key = Ed25519Key::new(hash("ed_public_key")).unwrap();
-        let verified_ed = verify_ed25519(
-            &bytes("ed_claims"),
-            &bytes("ed_signature"),
-            &ed,
-            &key,
-            &mut budget(3),
-        )
-        .unwrap();
-        check(&verified_ed, &ed, &role, &request);
-    }
-}
-
-#[test]
-fn login_replacement_preflight_stays_separate_from_both_complete_proof_checks() {
-    use ic_auth::receiver_policy::{
-        DeviceFacts, LoginBinding, LoginDecision, LoginFacts, LoginLimits, LoginSnapshot,
-        assess_login,
-    };
-    let f = Fixture::new();
-    let g = grants(&f);
-    let h = host(&f, &g);
-    let claims = decode_claims(&f.claims).unwrap();
-    let proposed = LoginBinding {
-        issuer: claims.issuer,
-        subject: claims.account_subject,
-        device_slot: claims.device_slot,
-        device_generation: claims.device_generation,
-        started_at_ns: claims.login_started_at_ns,
-        deadline_ns: claims.login_deadline_ns,
-    };
-    // Independently selected retained fence: old browser at generation six,
-    // denied, and the known-login pool is full. Signed fixture proposes seven.
-    let mut old_key = [9; 29];
-    old_key[28] = 2;
-    let old_caller = Principal::from_slice(&old_key);
-    let mut old_binding = proposed;
-    old_binding.device_generation = 6;
-    let old = LoginFacts {
-        caller: old_caller,
-        audience: *h.claims.audience,
-        binding: Some(old_binding),
-        until_ns: 190,
-        denied: true,
-    };
-    let device = DeviceFacts {
-        issuer: old_binding.issuer,
-        subject: old_binding.subject,
-        slot: old_binding.device_slot,
-        generation: 6,
-        caller: old_caller,
-    };
-    let snapshot = LoginSnapshot {
-        audience: *h.claims.audience,
-        caller: h.claims.caller,
-        observed_at_ns: 150,
-        caller_login: None,
-        device: Some(&device),
-        slot_owner: Some(&old),
-        admitted_logins: 1,
-    };
-    let limits = LoginLimits {
-        max_device_slots: 8,
-        max_login_ttl_ns: 100,
-        max_admitted_logins: 1,
-    };
-    let expected = LoginDecision::Replacement {
-        displaced_caller: old_caller,
-    };
-    assert_eq!(proposed.device_generation, 7);
-    assert_eq!(assess_login(&snapshot, proposed, 150, limits), Ok(expected));
-    let mut invalid = Fixture::new();
-    invalid.root.signature.fill(0);
-    let mut allowance = budget(3);
-    assert_eq!(
-        result(&invalid, &h, &mut allowance),
-        Err(E::Root(R::InvalidSignature))
-    );
-    assert_eq!(allowance.available(), 0);
-    assert_eq!(snapshot.slot_owner.unwrap(), &old);
-    assert_eq!(device.generation, 6);
-    let verified = verify_certified(&f.claims, f.proof(), &h, &mut budget(3)).unwrap();
-    assert_eq!(verified.caller(), h.claims.caller);
-    assert_eq!(verified.claims(), &claims);
-    // Rechecking in the same fixture snapshot is still only a policy result.
-    // No store, reservation publication or commit callback is supplied here.
-    assert_eq!(
-        assess_login(&snapshot, proposed, verified.verified_at_ns(), limits),
-        Ok(expected)
-    );
-    #[cfg(feature = "ed25519-comparison")]
-    {
-        use ic_auth::verification::{Ed25519Key, VerificationError, verify_ed25519};
-        let mut ed = h.claims;
-        ed.mechanism = PortableMechanism::Ed25519;
-        ed.key_binding_id = hash("ed_key_binding");
-        let key = Ed25519Key::new(hash("ed_public_key")).unwrap();
-        let mut sig = bytes("ed_signature");
-        sig[0] ^= 1;
-        let mut allowance = budget(3);
-        assert_eq!(
-            verify_ed25519(&bytes("ed_claims"), &sig, &ed, &key, &mut allowance),
-            Err(VerificationError::InvalidSignature)
-        );
-        assert_eq!(allowance.available(), 1);
-        assert_eq!(device.generation, 6);
-        let verified = verify_ed25519(
-            &bytes("ed_claims"),
-            &bytes("ed_signature"),
-            &ed,
-            &key,
-            &mut budget(3),
-        )
-        .unwrap();
-        assert_eq!(verified.claims().device_generation, 7);
-        assert_eq!(verified.caller(), snapshot.caller);
-        assert_eq!(
-            assess_login(&snapshot, proposed, verified.verified_at_ns(), limits),
-            Ok(expected)
-        );
-    }
-}
-
-#[test]
 fn credential_profile_refuses_untrusted_mechanism_switches_before_decoding_or_charging() {
     use ic_auth::verification::{CredentialError, VerificationProfile, verify_credential};
     use ic_auth_protocol_types::{Credential, CredentialProof};
@@ -1058,7 +824,7 @@ fn credential_profile_refuses_untrusted_mechanism_switches_before_decoding_or_ch
 fn memory_certified_admission_retains_failed_work_and_retries_after_proof_expiry() {
     use ic_auth::{
         receiver_memory::{AdmissionHost, MemoryConfig, MemoryReceiver},
-        receiver_policy::{LoginLimits, SessionAuthority, SessionCapacity},
+        receiver_memory::{LoginLimits, SessionAuthority, SessionCapacity},
         session_request::{SessionRequest, SessionTtlPolicy},
         verification::VerificationProfile,
     };
@@ -1073,7 +839,7 @@ fn memory_certified_admission_retains_failed_work_and_retries_after_proof_expiry
                 receiver: Principal::from_slice(&[10]),
                 authority: Principal::from_slice(&[11]),
             },
-            unknown_logout: ic_auth::receiver_policy::UnknownLogoutLimits {
+            unknown_logout: ic_auth::receiver_memory::UnknownLogoutLimits {
                 max_denials: 1,
                 capacity: 1,
                 refill_interval_ns: 1,
@@ -1206,11 +972,11 @@ fn memory_certified_admission_retains_failed_work_and_retries_after_proof_expiry
     // and the Wire crate acquires no dependency on the receiver implementation.
     fn wire_reply(
         result: Result<
-            ic_auth::receiver_policy::LogoutReceipt,
-            ic_auth::receiver_policy::LogoutError,
+            ic_auth::receiver_memory::LogoutReceipt,
+            ic_auth::receiver_memory::LogoutError,
         >,
     ) -> ic_auth_wire::model::LogoutResult {
-        use ic_auth::receiver_policy::{LogoutError as E, LogoutReceipt as R};
+        use ic_auth::receiver_memory::{LogoutError as E, LogoutReceipt as R};
         use ic_auth_wire::model::{LogoutResult as W, LogoutUnavailable as U};
         match result {
             Ok(R::Revoked { deny_until_ns }) => W::Revoked(deny_until_ns),
@@ -1224,8 +990,8 @@ fn memory_certified_admission_retains_failed_work_and_retries_after_proof_expiry
     }
     fn check_wire(
         result: Result<
-            ic_auth::receiver_policy::LogoutReceipt,
-            ic_auth::receiver_policy::LogoutError,
+            ic_auth::receiver_memory::LogoutReceipt,
+            ic_auth::receiver_memory::LogoutError,
         >,
         payload: &[u8],
     ) {
@@ -1266,7 +1032,7 @@ fn memory_certified_admission_retains_failed_work_and_retries_after_proof_expiry
     assert_eq!(
         receiver.admit(&retry, request(), input(&revoked_host)),
         Err(ic_auth::receiver_memory::MemoryError::Policy(
-            ic_auth::receiver_policy::SessionPolicyError::Revoked
+            ic_auth::receiver_memory::SessionPolicyError::Revoked
         ))
     );
     assert_eq!(
@@ -1279,7 +1045,7 @@ fn memory_certified_admission_retains_failed_work_and_retries_after_proof_expiry
             |_| { panic!("certified revoked session reached application projection") }
         ),
         Err(ic_auth::receiver_memory::MemoryError::Policy(
-            ic_auth::receiver_policy::SessionPolicyError::Revoked
+            ic_auth::receiver_memory::SessionPolicyError::Revoked
         ))
     );
     receiver.close();

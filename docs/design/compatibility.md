@@ -139,3 +139,10 @@ signed fixtures test quota separation, replacement isolation, failed proof work,
 proof-expired retry, renewal deadlines and local logout. Synchronous authorization
 projection checks cover both proof mechanisms; callback refusal and borrowed-receipt
 compile-fail cases do not establish installed host isolation or SDK await behavior.
+
+Auth 0.46.0 repeats the multi-issuer/device/receiver lifecycle using complete
+certified proofs. Independent claim bytes and a second signed root authorization
+cover quota isolation, root/issuer failure without displacement, replacement,
+proof-expired retry, renewal and local logout. Certified enrollment changes retain
+captured deadlines and fences; pre-admission denial creates no identity. These
+native cases do not qualify actual boot/callback authentication or host recovery.

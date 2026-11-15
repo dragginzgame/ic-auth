@@ -38,9 +38,9 @@ crates.io publication is deferred until the replacement is complete. It does not
 claim a complete replacement authentication engine or authorize a consumer cutover.
 Canic owns endpoint wiring using IC Wire; the Auth crates supply contract schemas
 and authentication decisions without installing endpoints.
-The current source checkpoint uses `ic-auth` 0.45.0 and
+The current source checkpoint uses `ic-auth` 0.46.0 and
 `ic-auth-protocol-types` / `ic-auth-wire` 0.42.0, following the
-[0.44.0 logout and CI checkpoint](https://github.com/dragginzgame/ic-auth-new/commit/1e50f32469bdba8ce1673ea4543cd0b6782720e7). Version selection reserves no registry slot
+[0.45.0 volatile receiver checkpoint](https://github.com/dragginzgame/ic-auth-new/commit/421fb765780c2daed069cbfe1d0aeb009fce34af). Version selection reserves no registry slot
 and does not publish a crate.
 
 - [Architecture and qualification plan](docs/design/DESIGN.md)
@@ -85,6 +85,10 @@ accounting and protected proof dispatch. `make test-memory` exercises the
 [memory receiver](docs/development/memory-receiver-boundary.md) with real Ed25519
 and certified proofs. Select `receiver-memory` together with at least one complete
 verification feature. Host inputs and transaction/recovery custody remain explicit.
+Import receiver host inputs, limits, errors and inspection results from
+`ic_auth::receiver_memory`; policy fact assembly and decisions are private.
+The certified qualification now covers independent issuers/devices/receivers,
+replacement, renewal, logout and enrollment changes using independent signed fixtures.
 
 The objective is less maintained state and clearer ownership, not a promised
 zero-debt result or a line-count quota. Keep rejection, atomicity and recovery

@@ -36,7 +36,7 @@ impl LoginLimits {
 /// bounded canonical decoding and browser/caller binding checks. Absence must be
 /// established by the backend; do not substitute missing/corrupt reads with None.
 #[derive(Clone, Copy, Debug)]
-pub struct LoginSnapshot<'a> {
+pub(crate) struct LoginSnapshot<'a> {
     /// Protected receiver audience, already matched to claims by the operation owner.
     pub audience: AudienceId,
     /// Actual authenticated browser caller.
@@ -55,7 +55,7 @@ pub struct LoginSnapshot<'a> {
 
 /// Pure preflight classification, never a reservation, verified proof or write token.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum LoginDecision {
+pub(crate) enum LoginDecision {
     /// No retained slot owner; a new known-login row needs physical capacity.
     New,
     /// Same browser and exact immutable binding; retain any longer retention.
@@ -84,7 +84,7 @@ pub enum LoginDecision {
 /// a retained slot requires a different browser and a strictly greater generation;
 /// the function compares generations without incrementing or wrapping them.
 /// Clock observation and work charging remain with the operation owner.
-pub fn assess_login(
+pub(crate) fn assess_login(
     snapshot: &LoginSnapshot<'_>,
     proposed: LoginBinding,
     now_ns: u64,

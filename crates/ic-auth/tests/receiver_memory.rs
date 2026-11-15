@@ -2,12 +2,9 @@
 #![cfg(all(feature = "receiver-memory", feature = "ed25519-verification"))]
 use ic_auth::{
     receiver_memory::{
-        AdmissionHost, EnrollmentBinding, EnrollmentError as EE, EnrollmentMetadata, MemoryConfig,
-        MemoryError as E, MemoryReceiver,
-    },
-    receiver_policy::{
-        LoginLimits, LogoutError, LogoutReceipt, SessionAuthority, SessionCapacity,
-        SessionPolicyError as P, UnknownLogoutLimits,
+        AdmissionHost, EnrollmentBinding, EnrollmentError as EE, EnrollmentMetadata, LoginLimits,
+        LogoutError, LogoutReceipt, MemoryConfig, MemoryError as E, MemoryReceiver,
+        SessionAuthority, SessionCapacity, SessionPolicyError as P, UnknownLogoutLimits,
     },
     session_request::{SessionRequest, SessionTtlPolicy},
     verification::{

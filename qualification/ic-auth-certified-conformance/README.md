@@ -109,18 +109,10 @@ installed-host replacement qualification remain outstanding.
 
 ## Wire/domain integration
 
-`make test-receiver-policy` additionally selects the `receiver_retry` driver:
-independently verified certified/Ed25519 evidence is projected into borrowed
-retained facts, then assessed after proof expiry and at lease expiry. This is
-native policy integration, not a backend admission/commit or lifecycle test.
-The [receiver boundary](../../docs/development/receiver-policy-boundary.md)
-records the host and storage obligations that remain.
-
-The same target selects `login_replacement`: a full known-login pool retains a
-denied generation-six browser while the independently signed fixture proposes
-generation seven. Preflight publishes nothing; invalid root/Ed25519 signatures
-refuse with retained work charges, and valid proofs permit the same structural
-recheck. This driver supplies no storage commit or rollback implementation.
+The former proof-to-facts retry and replacement drivers are superseded by actual
+receiver lifecycle qualification. Policy rules now have private unit tests;
+qualification consumes only `ic_auth::receiver_memory`. The [coverage mapping](../../docs/development/receiver-policy-boundary.md#coverage-after-api-narrowing)
+records the retained guarantees and the denied-slot replacement case.
 
 `make qualify-wire-admission` selects three `wire_` cases in `tests/certified.rs`.
 These qualification-only host drivers build Wire records from the independent
@@ -136,10 +128,32 @@ signatures described above. The Wire crate gains no Auth/crypto dependency and
 Auth gains no Wire dependency; both share protocol-types. No endpoint installation
 or receiver state is part of these drivers.
 
-With `--features receiver-memory`, the `memory_certified` case drives actual
+With `--features receiver-memory`, five `memory_certified` cases drive actual
 volatile admission, root/issuer failure charging, proof-expired exact retry and
 known-login logout. It also checks exact unchanged logout reply frames for known
 and unknown results, retries, capacity, invalid caller, clock and closed state.
-`make test-memory` runs it in a certified-only graph along
+`make test-memory` runs them in a certified-only graph along
 with the separate Ed25519 memory sequences. This is native receiver evidence;
 boot/recovery and installed-host rollback remain unqualified.
+
+`tests/memory/mod.rs` adds two issuer-qualified accounts with equal subject IDs,
+two devices on one account and two independent receivers. It exercises per-account
+quota isolation, root/issuer proof failure without displacement, full-capacity
+replacement, stale-device refusal, exact retry after proof/certificate-age expiry,
+renewal to the original login deadline and receiver-local known/unknown logout.
+Additional cases cover non-extending enrollment refresh, generation invalidation,
+outage logout, terminal closure and denial before admission without identity mutation.
+
+`verify-memory-fixture.mjs` independently assembles seven certified claims, digests
+and browser identities in `fixtures/certified-memory.tsv`; its initial case must
+match the previously frozen certified fixture exactly. The second issuer uses
+`fixtures/certified-other-issuer.tsv`, independently signed by the existing root
+fixture builder with `--certified --other-issuer`. Both issuers use the public test
+keys and seed under distinct authenticated issuer identities. Rust reconstructs
+the root structures and BLS-signs the literal claims domain/digest; valid claims
+never come from Auth's encoder. Tests traverse the existing Wire envelope and
+consuming projection without installing an endpoint. These new fixtures and traces
+are authored for this design; no legacy engine code or test implementation is copied.
+Normal `make test-memory` and `make verify-fixtures` verify frozen records without
+regenerating signatures. This is native certified receiver evidence, not an IC
+response-authentication, host transaction, durable-storage or browser SDK result.

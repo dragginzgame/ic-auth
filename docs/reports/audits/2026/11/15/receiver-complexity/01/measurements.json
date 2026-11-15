@@ -1,0 +1,465 @@
+{
+  "measured_at": "2026-11-15",
+  "method": "toko-tooling/audits/complexity-and-technical-debt.md",
+  "method_revision": "626da7cd9626cc2e152594862a2d82ea82ef51da",
+  "new_head": "421fb765780c2daed069cbfe1d0aeb009fce34af",
+  "legacy_commit": "e52a40be75dd9809d0528189d84b43fe96952ad9",
+  "overlay_sha256": "d115fd80920c4273bcc099d5f8d00e9a51f0fe43bc9aa6b81c24f350365b1936",
+  "snapshot_sha256": "7ddd2b9b39ae99b462ea91266c36a903bcd5401a4d4efa7ca71e4240cfae884a",
+  "reporter_sha256": "74c1397fc2d0fc67020ec990a74dfeb601a95ba05264e6390153e7cfde5e8178",
+  "language": "Rust source only, all classified source configurations; not compiled or expanded LOC",
+  "sources": {
+    "new": {
+      "totals": {
+        "benchmarks": 0,
+        "build_tooling": 0,
+        "examples": 91,
+        "library_app": 4241,
+        "tests": 8379,
+        "total": 12711,
+        "unclassified": 0
+      },
+      "crates": [
+        {
+          "crate": "ic-auth",
+          "counts": {
+            "benchmarks": 0,
+            "build_tooling": 0,
+            "examples": 0,
+            "library_app": 3402,
+            "tests": 4663,
+            "total": 8065,
+            "unclassified": 0
+          }
+        },
+        {
+          "crate": "ic-auth-protocol-types",
+          "counts": {
+            "benchmarks": 0,
+            "build_tooling": 0,
+            "examples": 0,
+            "library_app": 278,
+            "tests": 74,
+            "total": 352,
+            "unclassified": 0
+          }
+        },
+        {
+          "crate": "ic-auth-wire",
+          "counts": {
+            "benchmarks": 0,
+            "build_tooling": 0,
+            "examples": 91,
+            "library_app": 561,
+            "tests": 891,
+            "total": 1543,
+            "unclassified": 0
+          }
+        },
+        {
+          "crate": "qualification/ic-auth-certified-conformance",
+          "counts": {
+            "benchmarks": 0,
+            "build_tooling": 0,
+            "examples": 0,
+            "library_app": 0,
+            "tests": 2482,
+            "total": 2482,
+            "unclassified": 0
+          }
+        },
+        {
+          "crate": "qualification/ic-auth-ed25519-conformance",
+          "counts": {
+            "benchmarks": 0,
+            "build_tooling": 0,
+            "examples": 0,
+            "library_app": 0,
+            "tests": 74,
+            "total": 74,
+            "unclassified": 0
+          }
+        },
+        {
+          "crate": "qualification/ic-auth-wire-conformance",
+          "counts": {
+            "benchmarks": 0,
+            "build_tooling": 0,
+            "examples": 0,
+            "library_app": 0,
+            "tests": 195,
+            "total": 195,
+            "unclassified": 0
+          }
+        }
+      ],
+      "receiver_production": 1769,
+      "receiver_files": [
+        {
+          "path": "crates/ic-auth/src/receiver_memory/enrollment.rs",
+          "production": 139,
+          "sha256": "9ab8a3713c370275e136ca2d1e8cb5b2bb2fd52a9ce48510ffd4252ad91decef"
+        },
+        {
+          "path": "crates/ic-auth/src/receiver_memory/inspection.rs",
+          "production": 77,
+          "sha256": "45c771afdb0eda815baac2f80563fad8d484d2dce4dfc88c5c60c0eb4aa38c3c"
+        },
+        {
+          "path": "crates/ic-auth/src/receiver_memory/mod.rs",
+          "production": 579,
+          "sha256": "fca404c99bc5f72eb5a23894815ecb3a9aa6a557e3c7cc8b0e69fd7b7a42f529"
+        },
+        {
+          "path": "crates/ic-auth/src/receiver_memory/records.rs",
+          "production": 273,
+          "sha256": "e3f39f7b771dbac4536c060d131cad5f6ac8d4160239339978b2994721e97078"
+        },
+        {
+          "path": "crates/ic-auth/src/receiver_policy/capacity.rs",
+          "production": 86,
+          "sha256": "40e62f88525bacd2acd27ed4564d58273a5f32fbbe16fdb2be9056c50014be05"
+        },
+        {
+          "path": "crates/ic-auth/src/receiver_policy/login.rs",
+          "production": 142,
+          "sha256": "f2693eb5056c5dd786626b5db6f9d7da00b2b71c5ee2a6762b856d133194f436"
+        },
+        {
+          "path": "crates/ic-auth/src/receiver_policy/logout.rs",
+          "production": 86,
+          "sha256": "45e4153f1ed1764bdf33c6a50e62736bd35f4fd3c529487fcc79cd8176ad7b57"
+        },
+        {
+          "path": "crates/ic-auth/src/receiver_policy/mod.rs",
+          "production": 270,
+          "sha256": "5e3dfe7598688bba5ec43106c5b3409b536b12c11dc28c99d82389f74b89f1ef"
+        },
+        {
+          "path": "crates/ic-auth/src/verification/budget.rs",
+          "production": 52,
+          "sha256": "c00a5a370edb8b3743a67a1c1a2444ef6feb8216a90394228cc385624b3aee15"
+        },
+        {
+          "path": "crates/ic-auth/src/work_budget.rs",
+          "production": 65,
+          "sha256": "757930312dfade5a52a4b9b69a326139667e3bde55d38d306b5dd47b0f320d38"
+        }
+      ],
+      "diagnostics": [
+        {
+          "path": "crates/ic-auth-wire/src/lib.rs",
+          "reason": "conditional attributes require review"
+        },
+        {
+          "path": "crates/ic-auth-wire/src/lib.rs",
+          "reason": "macro body is counted at its source; emitted modules are not expanded"
+        },
+        {
+          "path": "crates/ic-auth/src/receiver_memory/mod.rs",
+          "reason": "macro body is counted at its source; emitted modules are not expanded"
+        },
+        {
+          "path": "crates/ic-auth-wire/src/model.rs",
+          "reason": "conditional attributes require review"
+        },
+        {
+          "path": "crates/ic-auth/src/receiver_memory/publication_faults.rs",
+          "reason": "macro body is counted at its source; emitted modules are not expanded"
+        },
+        {
+          "path": "crates/ic-auth-wire/src/model/credential.rs",
+          "reason": "conditional attributes require review"
+        }
+      ]
+    },
+    "legacy": {
+      "totals": {
+        "benchmarks": 462,
+        "build_tooling": 285,
+        "examples": 0,
+        "library_app": 8653,
+        "tests": 23036,
+        "total": 32436,
+        "unclassified": 0
+      },
+      "crates": [
+        {
+          "crate": "ic-auth",
+          "counts": {
+            "benchmarks": 0,
+            "build_tooling": 0,
+            "examples": 0,
+            "library_app": 7814,
+            "tests": 12204,
+            "total": 20018,
+            "unclassified": 0
+          }
+        },
+        {
+          "crate": "ic-auth-protocol-types",
+          "counts": {
+            "benchmarks": 0,
+            "build_tooling": 0,
+            "examples": 0,
+            "library_app": 442,
+            "tests": 63,
+            "total": 505,
+            "unclassified": 0
+          }
+        },
+        {
+          "crate": "ic-auth-tooling",
+          "counts": {
+            "benchmarks": 462,
+            "build_tooling": 285,
+            "examples": 0,
+            "library_app": 0,
+            "tests": 241,
+            "total": 988,
+            "unclassified": 0
+          }
+        },
+        {
+          "crate": "ic-auth-wire",
+          "counts": {
+            "benchmarks": 0,
+            "build_tooling": 0,
+            "examples": 0,
+            "library_app": 397,
+            "tests": 432,
+            "total": 829,
+            "unclassified": 0
+          }
+        },
+        {
+          "crate": "qualification/ic-auth-backend-conformance",
+          "counts": {
+            "benchmarks": 0,
+            "build_tooling": 0,
+            "examples": 0,
+            "library_app": 0,
+            "tests": 2561,
+            "total": 2561,
+            "unclassified": 0
+          }
+        },
+        {
+          "crate": "qualification/ic-auth-feature-unification",
+          "counts": {
+            "benchmarks": 0,
+            "build_tooling": 0,
+            "examples": 0,
+            "library_app": 0,
+            "tests": 0,
+            "total": 0,
+            "unclassified": 0
+          }
+        },
+        {
+          "crate": "qualification/ic-auth-qualification",
+          "counts": {
+            "benchmarks": 0,
+            "build_tooling": 0,
+            "examples": 0,
+            "library_app": 0,
+            "tests": 4446,
+            "total": 4446,
+            "unclassified": 0
+          }
+        },
+        {
+          "crate": "qualification/ic-auth-qualification-canister",
+          "counts": {
+            "benchmarks": 0,
+            "build_tooling": 0,
+            "examples": 0,
+            "library_app": 0,
+            "tests": 2317,
+            "total": 2317,
+            "unclassified": 0
+          }
+        },
+        {
+          "crate": "qualification/ic-auth-qualification-contracts",
+          "counts": {
+            "benchmarks": 0,
+            "build_tooling": 0,
+            "examples": 0,
+            "library_app": 0,
+            "tests": 452,
+            "total": 452,
+            "unclassified": 0
+          }
+        },
+        {
+          "crate": "qualification/ic-auth-qualification-fixtures",
+          "counts": {
+            "benchmarks": 0,
+            "build_tooling": 0,
+            "examples": 0,
+            "library_app": 0,
+            "tests": 320,
+            "total": 320,
+            "unclassified": 0
+          }
+        }
+      ],
+      "receiver_production": 2278,
+      "receiver_files": [
+        {
+          "path": "crates/ic-auth/src/admission_budget.rs",
+          "production": 131,
+          "sha256": "a30e21a82cb9f23b45686ca736e4d40e3a13ed9595b805c9b778979ac89d9338"
+        },
+        {
+          "path": "crates/ic-auth/src/portable/revocation/mod.rs",
+          "production": 723,
+          "sha256": "db537350c8b16642a91efceb9dcb24eb3acb70518f96425e652dbe112d3c534c"
+        },
+        {
+          "path": "crates/ic-auth/src/session/memory.rs",
+          "production": 427,
+          "sha256": "5370ce5a9204b4d20d269b11929efcfc5e3daa64794126a748eac093a6f874d9"
+        },
+        {
+          "path": "crates/ic-auth/src/session/mod.rs",
+          "production": 370,
+          "sha256": "cfe84e3dfcba932cfdc9e70565326c776e8669cb998463c09692630c57376819"
+        },
+        {
+          "path": "crates/ic-auth/src/session/model.rs",
+          "production": 417,
+          "sha256": "4d1bd20a6b9495c387eeda80c795b602a989ce2b44ecb5b3d923bd10d6b2a11a"
+        },
+        {
+          "path": "crates/ic-auth/src/session/refusal.rs",
+          "production": 118,
+          "sha256": "e7fcf3edc02ab93fb06f416f1eb690ee55a04912570fba370a2f873be48b9a48"
+        },
+        {
+          "path": "crates/ic-auth/src/session/scopes.rs",
+          "production": 19,
+          "sha256": "5d0a57ede694bb6eb5dd74b4f04f0f9b595e23d3a732c25f5268efb9808efa2e"
+        },
+        {
+          "path": "crates/ic-auth/src/storage_codec/mod.rs",
+          "production": 73,
+          "sha256": "19029807f66ccf1c07b7e0306e793caefe06af93616562ff6b9e31835bb971db"
+        }
+      ],
+      "diagnostics": [
+        {
+          "path": "crates/ic-auth-wire/src/lib.rs",
+          "reason": "conditional attributes require review"
+        },
+        {
+          "path": "crates/ic-auth-wire/src/lib.rs",
+          "reason": "macro body is counted at its source; emitted modules are not expanded"
+        },
+        {
+          "path": "crates/ic-auth/src/admission_budget.rs",
+          "reason": "conditional attributes require review"
+        },
+        {
+          "path": "crates/ic-auth-tooling/src/client_contracts/mod.rs",
+          "reason": "macro body is counted at its source; emitted modules are not expanded"
+        },
+        {
+          "path": "crates/ic-auth-wire/src/model.rs",
+          "reason": "macro body is counted at its source; emitted modules are not expanded"
+        },
+        {
+          "path": "crates/ic-auth-wire/src/model.rs",
+          "reason": "conditional attributes require review"
+        },
+        {
+          "path": "crates/ic-auth/src/portable/revocation/mod.rs",
+          "reason": "conditional attributes require review"
+        },
+        {
+          "path": "crates/ic-auth/src/session/model.rs",
+          "reason": "conditional attributes require review"
+        },
+        {
+          "path": "crates/ic-auth/tests/portable_signature.rs",
+          "reason": "source shared across workspaces; counted once with product-workspace attribution"
+        },
+        {
+          "path": "qualification/ic-auth-qualification/tests/signatures/main.rs",
+          "reason": "macro body is counted at its source; emitted modules are not expanded"
+        },
+        {
+          "path": "qualification/ic-auth-qualification-canister/src/lib.rs",
+          "reason": "macro body is counted at its source; emitted modules are not expanded"
+        },
+        {
+          "path": "qualification/ic-auth-qualification-contracts/src/lib.rs",
+          "reason": "macro body is counted at its source; emitted modules are not expanded"
+        },
+        {
+          "path": "qualification/ic-auth-qualification-contracts/tests/wire_contract.rs",
+          "reason": "macro body is counted at its source; emitted modules are not expanded"
+        },
+        {
+          "path": "qualification/ic-auth-qualification-canister/src/control.rs",
+          "reason": "macro body is counted at its source; emitted modules are not expanded"
+        },
+        {
+          "path": "qualification/ic-auth-qualification-canister/src/persistent/mod.rs",
+          "reason": "macro body is counted at its source; emitted modules are not expanded"
+        },
+        {
+          "path": "qualification/ic-auth-qualification-canister/src/sessions/mod.rs",
+          "reason": "macro body is counted at its source; emitted modules are not expanded"
+        },
+        {
+          "path": "qualification/ic-auth-qualification-canister/src/storage/mod.rs",
+          "reason": "macro body is counted at its source; emitted modules are not expanded"
+        },
+        {
+          "path": "qualification/ic-auth-qualification-fixtures/src/sessions/mod.rs",
+          "reason": "macro body is counted at its source; emitted modules are not expanded"
+        }
+      ]
+    }
+  },
+  "preexisting_changes": [
+    " M CHANGELOG.md",
+    " M Cargo.lock",
+    " M Makefile",
+    " M README.md",
+    " M crates/ic-auth/Cargo.toml",
+    " M docs/design/compatibility.md",
+    " M docs/development/memory-receiver-boundary.md",
+    " M docs/development/tooling.md",
+    " M docs/status/current.md",
+    " M qualification/Cargo.lock",
+    " M qualification/ic-auth-certified-conformance/README.md",
+    " M qualification/ic-auth-certified-conformance/tests/certified.rs",
+    " M qualification/ic-auth-certified-conformance/tests/verify-root-fixture.mjs",
+    "?? qualification/ic-auth-certified-conformance/tests/fixtures/certified-memory.tsv",
+    "?? qualification/ic-auth-certified-conformance/tests/fixtures/certified-other-issuer.tsv",
+    "?? qualification/ic-auth-certified-conformance/tests/memory/",
+    "?? qualification/ic-auth-certified-conformance/tests/verify-memory-fixture.mjs"
+  ],
+  "preexisting_tracked_diff_sha256": "b5d3801cb9600ba3ec0aaba06a705d2903de2a60ad8aeeb52b039996ccf4dcc0",
+  "local_qualification_additions": [
+    {
+      "path": "qualification/ic-auth-certified-conformance/tests/fixtures/certified-memory.tsv",
+      "sha256": "d72ec94f37b16a381ade685f18533daf243fec1db8db80a70bcb24d06cf1dd2c"
+    },
+    {
+      "path": "qualification/ic-auth-certified-conformance/tests/fixtures/certified-other-issuer.tsv",
+      "sha256": "1ac2afa059ab65bd5d92fbf580dd9939cfad0f53ba914c6a6f6953c60142cbf7"
+    },
+    {
+      "path": "qualification/ic-auth-certified-conformance/tests/memory/mod.rs",
+      "sha256": "13353a3779fae3c1d541c8d5c4e77f76bac6982c53273f5a628ebbcdbf7f580b"
+    },
+    {
+      "path": "qualification/ic-auth-certified-conformance/tests/verify-memory-fixture.mjs",
+      "sha256": "14b1bdd5445546b624fdc536b7303774ef8743c2d87c882e7b35e37229b7a015"
+    }
+  ]
+}

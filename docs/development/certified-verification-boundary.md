@@ -72,8 +72,9 @@ fixtures sign the retained claims digest and literal domain without calling Auth
 encoder or message builder. Cases cover exact aggregate boundaries, separate caps,
 preflight no-mutation, certificate narrowing, root-before-issuer order, charged
 refusals, digest mutation, freshness and budget exhaustion/rollback.
-It also checks captured session lease policy and retained-fact retry/replacement drivers;
-neither constructs or commits a production session.
+It also checks captured session lease policy. With `receiver-memory`, qualification
+uses actual admission/retry/replacement instead of assembling public policy facts;
+see the [receiver coverage mapping](receiver-policy-boundary.md#coverage-after-api-narrowing).
 
 `make qualify-shared-verification` enables the qualification package's optional
 Ed25519 comparison and passes independently signed Ed25519 and certified proofs

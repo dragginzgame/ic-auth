@@ -184,8 +184,9 @@ checks account quota saturation without blocking the other issuer, failed and
 successful replacement at full known capacity, unaffected other devices/accounts,
 proof-expired retry, renewal with the original deadline, local logout and retained
 fences after cleanup. The two additional fixtures use independent Node/OpenSSL
-packing/signing; previous fixture bytes are unchanged. This is native Ed25519
-multi-account evidence, not the full certified/SDK/installed-host scenario.
+packing/signing; previous fixture bytes are unchanged. These cases establish native
+Ed25519 multi-account behavior. Certified evidence is described below; SDK and
+installed-host qualification remain open.
 
 The same test binary also runs an independent sequence ledger in
 `crates/ic-auth/tests/support/memory_model.rs`. Its fixed scenario has one account,
@@ -215,10 +216,17 @@ The initial signature is
 cross-checked against the frozen legacy vector. Logical sizes are independently
 summed from reference Postcard fields, including a ten-byte generation boundary.
 
-The certified-only qualification case uses independent root signatures and real
+Five certified-only qualification cases use independent root signatures and real
 BLS certificate fixtures. Root and issuer failures retain charges without creating
 state; success creates a session and proof-expired retry ignores alternate proof
-material at full capacity. Existing standalone verifier and combined-profile cases
+material at full capacity. The extended scenario uses seven independently packed
+claims and two independently root-authorized issuer identities, with two devices
+on one account and two receivers. It checks quota isolation, replacement without
+displacing another device, charged root/issuer failures, renewal, local logout and
+retained fences. Additional cases check enrollment refresh without lease extension,
+generation invalidation, outage logout and unknown denial before admission.
+See the [fixture provenance](../../qualification/ic-auth-certified-conformance/README.md)
+for independent construction and scope. Existing standalone verifier and combined-profile cases
 remain regression coverage. Native lint, docs and Wasm library compilation cover
 the selected feature graphs; compilation is not installed-host qualification.
 

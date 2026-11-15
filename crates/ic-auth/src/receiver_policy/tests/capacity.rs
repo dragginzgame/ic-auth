@@ -1,6 +1,6 @@
 //! Literal count/byte scenarios from the pinned session-store contract.
 //! Arithmetic inputs are not an encoded backend or corruption/rollback oracle.
-use ic_auth::receiver_policy::{
+use crate::receiver_policy::{
     AdmissionFootprint, SessionCapacity, SessionPolicyError as E, SessionUsage, assess_capacity,
 };
 use ic_auth_protocol_types::Principal;

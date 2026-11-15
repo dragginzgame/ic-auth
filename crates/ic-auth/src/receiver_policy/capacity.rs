@@ -53,7 +53,7 @@ pub struct SessionUsage {
 /// come from the affected retained caller/slot-owner session in the same snapshot.
 /// A known login fence without a session does not free a session row or bytes.
 #[derive(Clone, Copy, Debug)]
-pub struct AdmissionFootprint {
+pub(crate) struct AdmissionFootprint {
     /// Encoded size of the proposed session, 1 through 2048 bytes.
     pub session_bytes: usize,
     /// Encoded size of the new consumed replay, 1 through 512 bytes.
@@ -75,7 +75,7 @@ pub struct AdmissionFootprint {
 /// The receiver still owns proof/context/replay/login policy and one atomic host
 /// transaction. Login pool, actual backing, index and heap limits remain separate.
 /// No bytes are encoded, allocated, reserved, pruned or written by this function.
-pub fn assess_capacity(
+pub(crate) fn assess_capacity(
     account: (Principal, Principal),
     usage: SessionUsage,
     footprint: AdmissionFootprint,

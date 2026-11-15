@@ -69,10 +69,11 @@ These are focused on the implemented protocol boundary. `test-request` includes
 the scope/request integration files and the immutable-scope compile-fail doctest;
 `test-session-policy` selects role narrowing and captured lease cases, including
 both proof mechanisms using independent qualification signatures;
-`test-receiver-policy` aggregates thirteen retained-fact read/retry/login scenarios
-and two drivers projecting independent proofs into the policy. For login-only
-changes, select `cargo test --offline --locked -p ic-auth --test receiver_policy login_`
-and the qualification package's `--test certified login_replacement` case;
+`test-receiver-policy` runs nineteen private policy tests, including thirteen
+read/retry/login scenarios and six count/byte cases. For login-only changes select
+`cargo test --offline --locked -p ic-auth --lib receiver_policy::tests::login_`;
+real proof-to-receiver integration is owned by `test-memory`, without a public
+fact-assembly API;
 `test-admission-capacity` covers six count/byte accounting scenarios;
 `test-credential-profile` checks single-mechanism protected dispatch, while
 `qualify-wire-admission` covers the combined graph through Wire/domain projection;
@@ -84,7 +85,10 @@ retained sessions and fences, plus independent generated operation sequences and
 a write-then-error negative control. Test-only publication interruptions require
 terminal closure throughout admission, logout and pruning mutations;
 the same target qualifies synchronous authorization projections, borrowed-receipt
-compile failures, and two-issuer/multi-device isolation across two receivers;
+compile failures, and two-issuer/multi-device isolation across two receivers for
+both proof mechanisms. Five certified receiver cases use independently packed
+claims and two OpenSSL-signed root-authorized issuers; Node checks the new frozen
+records here and through the hosted `verify-fixtures` aggregate;
 `test-claims` covers roles and canonical signed-claims bytes/refusals; `test-wire`
 covers all four contracts, nested proofs and bounded refusal. `qualify-wire`
 checks current Wire against fixed reference frames and thresholds; `lint-wire-qualification` checks that private

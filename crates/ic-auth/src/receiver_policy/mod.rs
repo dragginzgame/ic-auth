@@ -1,11 +1,12 @@
-//! Pure decisions over bounded, host-selected receiver facts.
+//! Private decisions over bounded facts selected by the receiver.
 //!
 //! These views are not storage records, credentials or authorization tokens.
 //! A host/backend must supply a complete isolated snapshot from trusted state,
 //! admit persisted corruption before projection, retain clock observations on
 //! normal refusals, and own all transactions. No function here creates a session,
 //! verifies a proof, updates a budget or commits state. Never project request
-//! fields into these facts. Actual receiver orchestration remains separate.
+//! fields into these facts. Only the receiver supplies them to these helpers;
+//! they are not a public backend extension or testing API.
 
 use crate::{
     claims::validate_grants,
@@ -18,9 +19,11 @@ use ic_auth_protocol_types::{
 use std::{error::Error, fmt};
 
 mod login;
-pub use login::{LoginDecision, LoginLimits, LoginSnapshot, assess_login};
+pub use login::LoginLimits;
+pub(crate) use login::{LoginDecision, LoginSnapshot, assess_login};
 mod capacity;
-pub use capacity::{AdmissionFootprint, SessionCapacity, SessionUsage, assess_capacity};
+pub(crate) use capacity::{AdmissionFootprint, assess_capacity};
+pub use capacity::{SessionCapacity, SessionUsage};
 
 #[cfg(feature = "receiver-memory")]
 mod logout;
@@ -77,7 +80,7 @@ pub struct SessionFacts<'a> {
 
 /// Selected caller's retained login reservation or denial.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct LoginFacts {
+pub(crate) struct LoginFacts {
     /// Lookup key; must match the authenticated caller.
     pub caller: Principal,
     /// Retained audience association.
@@ -92,7 +95,7 @@ pub struct LoginFacts {
 
 /// Retained slot index/fence selected for the session's issuer-qualified account.
 #[derive(Clone, Copy, Debug)]
-pub struct DeviceFacts {
+pub(crate) struct DeviceFacts {
     /// Issuer qualifying the slot key.
     pub issuer: Principal,
     /// Account subject qualifying the slot key.
@@ -107,7 +110,7 @@ pub struct DeviceFacts {
 
 /// Bounded facts from one host transaction; not a backend trait or stored format.
 #[derive(Clone, Copy, Debug)]
-pub struct ReceiverSnapshot<'a> {
+pub(crate) struct ReceiverSnapshot<'a> {
     /// Receiver's protected audience.
     pub audience: AudienceId,
     /// Receiver's current authority generation.
@@ -196,7 +199,7 @@ impl Error for SessionPolicyError {}
 
 /// Retry classification only; neither variant is a transferable permission.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum RetryDecision {
+pub(crate) enum RetryDecision {
     /// No exact live retry exists. Every fresh admission check still remains.
     FreshProofRequired,
     /// The retained session passed current checks; return its original receipt.
@@ -213,7 +216,7 @@ pub enum RetryDecision {
 /// validated labels. Snapshot provenance, backend corruption admission, trusted
 /// clock observation and application effects remain the host's responsibility.
 /// Recheck after any await; this result cannot authorize a later transaction.
-pub fn assess_session(
+pub(crate) fn assess_session(
     snapshot: &ReceiverSnapshot<'_>,
     authority: &SessionAuthority<'_>,
     required_scopes: &[ScopeLabel],
@@ -240,7 +243,7 @@ pub fn assess_session(
 /// stored fingerprint/request still needs all live checks. Proof bytes and expiry
 /// are intentionally absent; an exact retry may outlive its admission proof.
 /// A fresh result allows further checking only, never a write or authorization.
-pub fn assess_retry(
+pub(crate) fn assess_retry(
     snapshot: &ReceiverSnapshot<'_>,
     authority: &SessionAuthority<'_>,
     fingerprint: [u8; 32],
@@ -381,3 +384,6 @@ fn valid_binding(binding: LoginBinding) -> bool {
             .checked_sub(binding.started_at_ns)
             .is_some_and(|ttl| ttl > 0 && ttl <= 90 * 86_400_000_000_000)
 }
+
+#[cfg(test)]
+mod tests;
