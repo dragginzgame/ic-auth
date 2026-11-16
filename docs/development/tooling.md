@@ -9,11 +9,11 @@ stay in the product crates.
 
 ## Installed selection
 
-Toko Tooling **0.44.8** is selected by Cargo and installed through its authenticated
+Toko Tooling **0.44.9** is selected by Cargo and installed through its authenticated
 exporter. Cargo.lock and `.toko-tooling.snapshot` identify archive SHA-256
-`f8b6fa5d8012ed15c12eb18727efeb47463c861afd4faa7a2c29ea1d4cec8a40`.
+`bdfd5bc761f55ede02e82f8af36ca82415696209b3ff45e8f080e82cab85c418`.
 The release source is
-[`fa6d85538d84e6cdde7a44efb1f1a4c3852d1e14`](https://github.com/dragginzgame/toko-tooling/tree/fa6d85538d84e6cdde7a44efb1f1a4c3852d1e14).
+[`77222d570f2946acd6bae966efbb891d1072e3ce`](https://github.com/dragginzgame/toko-tooling/tree/77222d570f2946acd6bae966efbb891d1072e3ce).
 Do not hand-edit the receipt or installed vendor files.
 
 The executable selections are `make/consumer.mk`, `make/cargo-dependencies.mk`,
@@ -258,5 +258,5 @@ selecting BLS or Ed25519. Complete `certified-verification` composes root/issuer
 checks with shared context and charging, without selecting the Ed25519 verifier.
 
 See the reviewed upstream
-[adoption guide](https://github.com/dragginzgame/toko-tooling/blob/fa6d85538d84e6cdde7a44efb1f1a4c3852d1e14/docs/adoption/consuming-snapshots.md)
-and [LOC setup](https://github.com/dragginzgame/toko-tooling/blob/fa6d85538d84e6cdde7a44efb1f1a4c3852d1e14/docs/fleet/fleet-tools.md#cargo-workspace-loc-report).
+[adoption guide](https://github.com/dragginzgame/toko-tooling/blob/77222d570f2946acd6bae966efbb891d1072e3ce/docs/adoption/consuming-snapshots.md)
+and [LOC setup](https://github.com/dragginzgame/toko-tooling/blob/77222d570f2946acd6bae966efbb891d1072e3ce/docs/fleet/fleet-tools.md#cargo-workspace-loc-report).

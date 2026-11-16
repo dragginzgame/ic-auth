@@ -50,7 +50,7 @@ export async function installedFlowCases({ check, a }) {
       refreshAt: receipt => receipt.expires_at_ns - 1_000_000_000n });
     globalThis.flow = { coordinator, lostReply: new Error('lost issuer reply'), options, counts, target, browser, account, nowNs, journal,
       // Deliberate raw caller probes test server authorization independently of local journal guards.
-      write: identity => write(target, identity, new Uint8Array(config.write), AbortSignal.timeout(5_000)),
+      write: (identity, signal = AbortSignal.timeout(5_000)) => write(target, identity, new Uint8Array(config.write), signal),
       replay: () => admit(target, browser, flow.admissionRequest, AbortSignal.timeout(5_000)),
       revoke: async (...args) => { counts.logout++; return revoke(...args); },
       lookup: () => credential(target, account, new Uint8Array(config.lookup), AbortSignal.timeout(5_000)),
@@ -92,7 +92,7 @@ export async function installedFlowCases({ check, a }) {
   });
   await check('only the admitted browser commits an application write; exact admission retry retains its lease', async () => {
     assert.deepEqual(await a.evaluate(async () => Array.from(await flow.write(flow.account))), bytes('AUTH_FLOW_WRITE_DENIED'));
-    assert.deepEqual(await a.evaluate(async () => Array.from(await flow.write(flow.browser))), bytes('AUTH_FLOW_WRITE_OK'));
+    assert.deepEqual(await a.evaluate(async () => Array.from(await flow.coordinator.call(flow.target, flow.write))), bytes('AUTH_FLOW_WRITE_OK'));
     assert.equal(await a.evaluate(async () => {
       const before = flow.counts.admit;
       await flow.coordinator.ensureSession(flow.target);

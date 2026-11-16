@@ -438,9 +438,12 @@ The per-login SessionCoordinator shares readiness/admission and credential fligh
 checks ephemeral hints against journal time, and bounds outstanding callers at 64.
 Only typed expiry or completed expired evidence permits its second preparation
 attempt; explicit admission never uses that retry. It returns scheduling metadata,
-not an SDK signer or application authority.
+not an SDK signer or application authority. Its ordinary-call wrapper then invokes
+one application callback with the existing bounded temporary signer. Every signature
+and final result rechecks the captured readiness deadline and durable generation.
+Once the callback starts, expiry refuses without renewal or replay.
 Production Canic integration, complete multi-receiver acceptance,
-guarded ordinary calls, cleanup scheduling, key disposal and renderer interruption
+cleanup scheduling, key disposal and renderer interruption
 remain open. The lifecycle requirements below still apply to that remaining work.
 
 Keep one coordinator over one strict journal owner. Inject Platform SDK identities, issuer transport, receiver transport and clock mapping. Do not recreate a second SDK identity facade or implement application retries.
@@ -453,7 +456,7 @@ Preserve the current private journal profile ic-auth-login-cleanup-journal-v1 un
 
 Logout commits durable local invalidation before waiting for any admission flight or sending cleanup. Fence late signatures, completions and replies; already returned signatures or accepted requests cannot be recalled. A storage failure means durable local logout was not established.
 
-Preserve the reference limits: 64 destinations including issuer, eight attempts per destination, 64 outstanding admission/readiness operations per coordinator, five-second network attempts and a fixed cleanup deadline. This bounds cooperating coordinator work, not all tabs or hostile scripts.
+Preserve the reference limits: 64 destinations including issuer, eight attempts per destination, 64 outstanding admission/readiness/application operations per coordinator, five-second network attempts and a fixed cleanup deadline. This bounds cooperating coordinator work, not all tabs or hostile scripts.
 
 Only authenticated Revoked replies confirm a destination. Unconfirmed, capacity refusal, timeout and HTTP acceptance do not. Expiry of local cleanup is not evidence of remote expiry. Keep unknown issuance and unconfirmed destinations visible.
 

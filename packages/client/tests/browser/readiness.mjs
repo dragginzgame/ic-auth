@@ -198,4 +198,114 @@ export async function readinessCases({ check, a, b }) {
     }), ['cancelled', 0, 'configuration', 'clock_changed']);
   });
 
+  await check('guarded calls share preparation but each callback runs once with a closed-after-use signer', async () => {
+    assert.deepEqual(await a.evaluate(async () => {
+      const s = await readySetup('call-coalesce'); let calls = 0, saved;
+      const results = await Promise.all(Array.from({ length: 4 }, (_, i) => s.coordinator.call(s.target, async (identity, signal) => {
+        calls++; saved = identity;
+        await authTest.signCall(identity, s.target); if (signal.aborted) throw new Error('aborted'); return i;
+      })));
+      const closed = await failure(authTest.signCall(saved, s.target));
+      s.journal.close(); return [results, calls, s.count, closed];
+    }), [[0, 1, 2, 3], 4, { issue: 1, renew: 0, lookup: 0, admit: 1 }, 'closed']);
+  });
+
+  await check('ordinary signing refuses an expired deadline before and after SDK signing without renewal or replay', async () => {
+    assert.deepEqual(await a.evaluate(async () => {
+      const results = [];
+      for (const boundary of ['before', 'during', 'result']) {
+        const s = await readySetup(`call-expiry-${boundary}`); await s.coordinator.ensureSession(s.target);
+        let calls = 0, signatures = 0, escaped = 0;
+        const original = s.options.browser.transformRequest.bind(s.options.browser);
+        s.options.browser.transformRequest = async request => {
+          signatures++; const signed = await original(request); if (boundary === 'during') now = 200n; return signed;
+        };
+        const code = await failure(s.coordinator.call(s.target, async identity => {
+          calls++; if (boundary === 'before') now = 200n;
+          await authTest.signCall(identity, s.target); escaped++;
+          if (boundary === 'result') now = 200n;
+        }));
+        results.push([code, calls, signatures, escaped, s.count.admit, s.count.renew]); s.journal.close();
+      }
+      return results;
+    }), [['lease_expired', 1, 0, 0, 1, 0], ['lease_expired', 1, 1, 0, 1, 0], ['lease_expired', 1, 1, 1, 1, 0]]);
+  });
+
+  await check('ordinary calls capture destinations and refuse substitution before signing', async () => {
+    assert.deepEqual(await a.evaluate(async () => {
+      const s = await readySetup('call-destination');
+      const target = authTest.Principal.fromUint8Array(Uint8Array.of(2));
+      const work = s.coordinator.call(target, identity => authTest.signCall(identity, s.target));
+      target.toUint8Array().fill(3); await work;
+      let signatures = 0;
+      const original = s.options.browser.transformRequest.bind(s.options.browser);
+      s.options.browser.transformRequest = request => { signatures++; return original(request); };
+      const code = await failure(s.coordinator.call(s.target, identity => authTest.signCall(identity, target)));
+      s.journal.close(); return [code, signatures];
+    }), ['wrong_destination', 0]);
+  });
+
+  await check('cross-tab logout during ordinary signing fences the signature and later application calls', async () => {
+    await a.evaluate(async () => {
+      globalThis.cs = await readySetup('call-logout'); await cs.coordinator.ensureSession(cs.target);
+      let entered; const started = new Promise(resolve => { entered = resolve; });
+      const gate = new Promise(resolve => { globalThis.resumeCall = resolve; });
+      const original = cs.options.browser.transformRequest.bind(cs.options.browser);
+      cs.options.browser.transformRequest = async request => { entered(); await gate; return original(request); };
+      globalThis.callEscaped = false;
+      globalThis.callResult = failure(cs.coordinator.call(cs.target, async identity => {
+        await authTest.signCall(identity, cs.target); callEscaped = true;
+      }));
+      await started;
+    });
+    await b.evaluate(async () => { const journal = await open('call-logout'); await journal.beginLogout('login', 1_000n); journal.close(); });
+    assert.deepEqual(await a.evaluate(async () => {
+      resumeCall(); const code = await callResult; let callbacks = 0;
+      const next = await failure(cs.coordinator.call(cs.target, async () => { callbacks++; }));
+      cs.journal.close(); return [code, callEscaped, next, callbacks];
+    }), ['not_current', false, 'not_current', 0]);
+  });
+
+  await check('uncertain application effects and application expiry refusals never replay or readmit', async () => {
+    assert.deepEqual(await a.evaluate(async () => {
+      const s = await readySetup('call-uncertain'); let calls = 0;
+      const lost = new Error('lost response');
+      const same = await s.coordinator.call(s.target, async identity => {
+        calls++; await authTest.signCall(identity, s.target); throw lost;
+      }).then(() => false, error => error === lost);
+      const result = await s.coordinator.call(s.target, async () => { calls++; return 'Expired'; });
+      s.journal.close(); return [same, result, calls, s.count];
+    }), [true, 'Expired', 2, { issue: 1, renew: 0, lookup: 0, admit: 1 }]);
+  });
+
+  await check('ordinary callbacks retain bounded capacity until cancellation and close retained signers', async () => {
+    assert.deepEqual(await a.evaluate(async () => {
+      const controller = new AbortController();
+      const s = await readySetup('call-capacity', { signal: controller.signal });
+      await s.coordinator.ensureSession(s.target);
+      let entered, calls = 0, saved, attemptSignal;
+      const started = new Promise(resolve => { entered = resolve; });
+      const work = Array.from({ length: 64 }, () => failure(s.coordinator.call(s.target, async (identity, signal) => {
+        saved = identity; attemptSignal = signal; if (++calls === 64) entered(); await new Promise(() => {});
+      })));
+      await started;
+      const overflow = await failure(s.coordinator.ensureSession(s.target));
+      controller.abort(); const results = await Promise.all(work);
+      const closed = await failure(authTest.signCall(saved, s.target));
+      const next = await failure(s.coordinator.call(s.target, async () => {}));
+      s.journal.close(); return [overflow, results.every(c => c === 'cancelled'), closed, next, attemptSignal.aborted, calls];
+    }), ['operation_limit', true, 'cancelled', 'cancelled', true, 64]);
+  });
+
+  await check('stalled ordinary calls time out and cannot use their signer after capacity is released', async () => {
+    assert.deepEqual(await a.evaluate(async () => {
+      const s = await readySetup('call-timeout'); let saved, attemptSignal, calls = 0;
+      const code = await failure(s.coordinator.call(s.target, async (identity, signal) => {
+        calls++; saved = identity; attemptSignal = signal; await new Promise(() => {});
+      }));
+      const late = await failure(authTest.signCall(saved, s.target));
+      const next = await s.coordinator.call(s.target, async () => 7);
+      s.journal.close(); return [code, late, attemptSignal.aborted, calls, next, s.count.admit];
+    }), ['timeout', 'timeout', true, 1, 7, 1]);
+  });
 }

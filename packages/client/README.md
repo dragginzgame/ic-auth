@@ -21,6 +21,7 @@ Import from `@dragginzgame/ic-auth-client`:
 | `establishSession(options)` | Retrieve evidence, inventory the receiver and make one guarded Wire admission call |
 | `new SessionCoordinator(options)` | Bind one login, fixed scopes/transports and an explicit receiver-to-journal deadline mapping |
 | `coordinator.ensureSession(target)` | Reuse a checked hint or share bounded readiness/admission work |
+| `coordinator.call(target, operation)` | Prepare readiness, then run one operation with a bounded browser signer |
 | `coordinator.establish(target)` | Force one admission, sharing only an equivalent outstanding attempt |
 | `cleanupOnce(options)` | Resume committed logout with at most one reserved Wire effect |
 | `httpUpdateTransport({ host, rootKey, methodName, fetch? })` | Supply the shared SDK-certified raw update transport for admission or cleanup |
@@ -97,8 +98,10 @@ The coordinator captures identities, issuer, scopes and adapter entrypoints; its
 optional signal cancels the whole coordinator, including shared work.
 
 `ensureSession(target)` returns a detached scheduling receipt, never a signer or
-application authority. Invoke it again before a new application operation; an SDK
-signing-boundary readiness wrapper is not supplied by this slice. A live hint reads
+application authority. Use `call(target, async (identity, signal) => ...)` for an
+ordinary application operation. It prepares readiness and invokes the callback
+once with a temporary browser signer and cancellation signal. The callback owns
+its transport and must pass that signal through. A live hint reads
 only checked journal metadata. Proof expiry alone does not expire a receiver hint.
 Reopening a coordinator has no hint and admits retained exact evidence again.
 
@@ -117,7 +120,13 @@ refusal and network timeout release the slot. This is a per-coordinator bound, n
 cross-tab scheduling. The existing five-second network attempts remain the effect
 owner. Use `journal.beginLogout` directly: local invalidation never waits for an
 admission flight, and late signatures/results cannot install usable readiness.
-The coordinator performs no application operation, retry or private-key disposal.
+The call signer checks the captured readiness deadline and durable login generation
+before and after each SDK signature, including read-state polling, and before
+returning a result. It closes on completion, cancellation or its five-second
+timeout. Expiry after callback invocation refuses without renewal or replay. A
+refusal after submission leaves the remote outcome uncertain; it does not undo
+an application effect. Returned signatures cannot be recalled. Calls occupy the
+same 64-operation budget through callback completion. Key disposal remains separate.
 
 ## Logout and cleanup
 
@@ -164,7 +173,7 @@ write, retained fences and zero remaining sessions. Captured proof replay after
 logout refuses even when a raw caller bypasses the local journal. The fixture uses
 installation-owned enrollment and a local public test signer; production Canic
 wiring, external signing recovery and multi-receiver coordination remain unqualified.
-Guarded ordinary application calls, cleanup scheduling,
+Cleanup scheduling,
 key disposal and renderer-interruption acceptance remain open.
 
 Run `make test-client`, `make test-client-journal` and `make check-client-generated`;

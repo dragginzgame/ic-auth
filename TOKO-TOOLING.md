@@ -373,6 +373,24 @@ type, protocol and executor boundaries remain valid. A failed optional upgrade
 probe blocks that upgrade, not release of an otherwise qualified existing
 selection. Preserve real incompatibility refusals and required integration tests.
 
+An unqualified request to adopt or update a named supplier (for example,
+"adopt new ic-platform crates") covers that supplier's uses throughout the
+current repository: the product workspace, every maintained qualification
+workspace and native/dev/build callers. No separate qualification command or
+permission is needed. Inventory the relevant manifests and locks, update the
+affected declarations and callers, remove superseded dependencies and temporary
+migration adapters, and run focused checks for the changed boundaries. Do not
+expand this into unrelated dependency upgrades, sibling edits or deployment.
+
+Separate workspaces need not select identical versions when their actual
+integration permits independent selections. Report every retained older selection
+with its concrete reason and remaining work; updating only the product workspace
+while an in-scope qualification migration remains is **partial adoption**.
+Explicitly maintained frozen comparison baselines, such as an old-engine
+measurement matrix, stay frozen unless the user includes them. Identify that
+exception in the result; an ordinary qualification lockfile or stale supplier pin
+is not a frozen comparison baseline. Explicit user scope takes precedence.
+
 - Freshness review is separate from pin consistency and passing tests. During
   dependency maintenance, review every direct supplier in the selected scope,
   including native tools, dev/build dependencies and independent qualification

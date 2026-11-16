@@ -153,7 +153,7 @@ This is a combined issuer/receiver on one subnet with a fixed test account/brows
 installation-owned enrollment and local Platform signing. Credential expiry mapping
 conservatively retains an earlier browser deadline across reconciliation. It does
 not qualify external signing, general clock mapping or production endpoints, and
-ordinary-write probes are not a new guarded browser application-call API.
+the successful protected write now uses the guarded browser application-call API.
 
 Twelve additional native Chromium cases qualify the per-login coordinator: duplicate
 admission coalescing, independent receivers sharing issuance/renewal, the 64-operation
@@ -162,10 +162,14 @@ reopening, explicit deadline mapping, metadata-only live hints, cancellation, ti
 capacity release and cross-tab logout fencing. The installed journey now uses this
 coordinator for readiness and forced admission, including no additional admission
 for a live hint. These receipts are scheduling metadata, not an SDK signer or current
-application authority; signing-boundary readiness remains separate work.
+application authority. Seven further native cases check ordinary-call coalescing
+without callback coalescing, deadlines before/after signing and results, fixed
+destinations, retained signer closure, cross-tab logout, uncertain outcomes,
+cancellation, capacity and timeout. The installed successful write uses the same
+guard; raw negative probes still check host refusal independently.
 
 Still required: production Canic endpoint integration, complete multi-receiver acceptance,
-external signer recovery; guarded ordinary calls; cleanup scheduling
+external signer recovery; cleanup scheduling
 and key disposal; renderer-interruption recovery. No application operation may be
 replayed to obtain that evidence. Stable storage and cross-backend acceptance stay
 in the future OP milestone.

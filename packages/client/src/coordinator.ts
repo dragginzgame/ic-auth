@@ -1,6 +1,7 @@
+import type { Identity } from '@tokostudios/ic-platform/agent';
 import { Principal } from '@tokostudios/ic-platform/principal';
 import { AdmissionError, admitCredential, type AdmissionReceipt, type EstablishSessionOptions } from './admission.ts';
-import { AttemptError } from './attempt.ts';
+import { AttemptError, runSigningAttempt } from './attempt.ts';
 import { journalOwner, JournalError } from './journal.ts';
 import { retrieveCredential, type CredentialEvidence } from './issuance.ts';
 
@@ -52,34 +53,54 @@ export class SessionCoordinator {
 
   /** Force one admission; typed expiry is not retried. Concurrent equal requests share it. */
   establish(target: Principal): Promise<AdmissionReceipt> {
-    return this.#operation(target, destination => this.#admit(destination), false);
+    return this.#operation(target, async destination => this.#receipt(await this.#admit(destination), false));
   }
 
   /** Return a checked, detached scheduling receipt. It is never application authority.
    * Invoke readiness again before a new application operation; this method executes no such operation.
    */
   ensureSession(target: Principal): Promise<AdmissionReceipt> {
-    return this.#operation(target, async destination => {
-      let pending = this.#readiness.get(destination);
-      if (!pending) {
-        pending = this.#prepare(destination).finally(() => { this.#readiness.delete(destination); });
-        this.#readiness.set(destination, pending);
-      }
-      return pending;
-    }, true);
+    return this.#operation(target, async destination => this.#receipt(await this.#ready(destination), true));
   }
 
-  async #operation(target: Principal, run: (destination: string) => Promise<Hint>, readiness: boolean): Promise<AdmissionReceipt> {
+  /** Prepare readiness, then invoke one application operation with a temporary browser
+   * signer. Every signature checks the captured deadline and durable logout generation.
+   * Expiry or uncertainty after invocation refuses; it never renews or replays the operation.
+   */
+  call<T>(target: Principal, operation: (identity: Identity, signal: AbortSignal) => Promise<T>): Promise<T> {
+    return this.#operation(target, async destination => {
+      const hint = await this.#ready(destination);
+      return runSigningAttempt({ identity: this.#options.browser, target: Principal.fromText(destination),
+        ...(this.#options.signal ? { signal: this.#options.signal } : {}),
+        assertCurrent: async () => {
+          if (await this.#now() >= hint.refreshAt) throw new ReadinessError('lease_expired');
+        },
+      }, operation);
+    });
+  }
+
+  #ready(destination: string): Promise<Hint> {
+    let pending = this.#readiness.get(destination);
+    if (!pending) {
+      pending = this.#prepare(destination).finally(() => { this.#readiness.delete(destination); });
+      this.#readiness.set(destination, pending);
+    }
+    return pending;
+  }
+
+  async #receipt(result: Hint, readiness: boolean): Promise<AdmissionReceipt> {
+    if (await this.#now() >= result.refreshAt && readiness) throw new ReadinessError('lease_expired');
+    return detached(result.receipt);
+  }
+
+  async #operation<T>(target: Principal, run: (destination: string) => Promise<T>): Promise<T> {
     if (this.#outstanding === 64) throw new ReadinessError('operation_limit');
     if (target.isAnonymous()) throw new JournalError('configuration');
     const destination = target.toText();
     this.#outstanding++;
     try {
       await this.#now();
-      const result = await run(destination);
-      const now = await this.#now();
-      if (readiness && now >= result.refreshAt) throw new ReadinessError('lease_expired');
-      return detached(result.receipt);
+      return await run(destination);
     } catch (error) { throw error instanceof ExpiredEvidence ? error.cause : error;
     } finally { this.#outstanding--; }
   }

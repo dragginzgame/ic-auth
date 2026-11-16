@@ -21,6 +21,11 @@
 
 ### ✨ Added
 
+- Add guarded ordinary browser calls: prepare shared readiness, invoke each
+  application callback once, and recheck its deadline and durable logout generation
+  around every signature. Temporary signers close on completion, cancellation or
+  timeout. Expiry and uncertain application outcomes never trigger replay.
+
 - Add a per-login browser session coordinator with shared admission/credential
   flights, a 64-operation ceiling and explicit host clock mapping for session hints.
   Readiness retries only authenticated expiry or recovered expired evidence once;
