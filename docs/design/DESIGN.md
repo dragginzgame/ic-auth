@@ -2,7 +2,7 @@
 
 Status: proposed replacement architecture, 15 November 2026. This selects an implementation direction and acceptance obligations. It does not authorize consumer cutover, data deletion, a new issuer service or a storage-format change. The companion qualification plan below defines the implementation sequence.
 
-Current compatibility decision (16 November 2026, issue #2): the maintainer
+Current compatibility decision (16 November 2026, Auth #2): the maintainer
 authorized a hard cut from the pre-recode implementation and confirmed no existing
 users/deployments need its Wire/API compatibility. Historical source links below
 retain provenance, not executable-oracle or parity requirements. This repository

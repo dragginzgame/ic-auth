@@ -41,7 +41,7 @@
 
 ### 🧪 Testing
 
-- Complete [#2 — Remove legacy oracle and compatibility qualification](https://github.com/dragginzgame/ic-auth/issues/2).
+- Complete [Auth #2 — Remove legacy oracle and compatibility qualification](https://github.com/dragginzgame/ic-auth/issues/2).
   Browser checks now independently assemble the current fixtures and run only current
   generated codecs, without a legacy checkout. Remove the legacy-scalar feature
   activator and its commands; retain strict verification under the supported graph.
@@ -286,7 +286,7 @@ All packages remain `publish = false`.
   Linux also checks formatting, strict lint, Rustdoc and Wasm compilation; one
   separate job validates the workflow and scans full history with redacted output.
   Reuse authenticated Toko 0.44.4 setup/cache/evidence helpers for
-  [issue #1](https://github.com/dragginzgame/ic-auth/issues/1).
+  [Auth #1](https://github.com/dragginzgame/ic-auth/issues/1).
 - Replace known-only revocation with caller-authenticated local logout. Unknown
   callers use a separate bounded denial pool and initially empty operation budget;
   retries retain their deadline and remain unconfirmed. Unknown traffic cannot

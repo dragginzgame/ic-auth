@@ -9,7 +9,7 @@ Reference commit: `e52a40be75dd9809d0528189d84b43fe96952ad9`.
 The sibling checkout is convenient for reading; resolve reference files from this
 commit, not its moving working tree. `reference.sha256` records selected file bytes.
 The reference is historical provenance only. The maintainer authorized the hard
-cut in [#2](https://github.com/dragginzgame/ic-auth/issues/2): no existing users or
+cut in [Auth #2](https://github.com/dragginzgame/ic-auth/issues/2): no existing users or
 deployments need pre-recode Wire/API compatibility. No check executes that source
 or requires its checkout. Current contracts and independent fixtures own acceptance;
 method identities and layouts may evolve together with their current consumers.

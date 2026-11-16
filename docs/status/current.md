@@ -48,7 +48,7 @@ hosts own authenticated inputs, transactions and certification-root publication.
 passed on Linux and both macOS architectures; that run's history scan failed on
 two type examples in exception comments. The local correction and exact historical
 exceptions pass the scan. Browser and installed gates remain explicit local checks,
-not hosted CI claims. Rust remains 1.100.0; Toko Tooling 0.44.9 is now selected and authenticated.
+not hosted CI claims. Rust remains 1.100.0; Toko Tooling 0.44.11 is now selected and authenticated.
 
 The fixed combined issuer/receiver journey is now exercised on one subnet through
 the supported browser API. Next integration work should use production Canic

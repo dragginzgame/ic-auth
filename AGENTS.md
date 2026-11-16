@@ -1,7 +1,7 @@
 # IC Auth
 
 Read the installed [Toko Tooling baseline](TOKO-TOOLING.md). Its common rules
-apply alongside the product constraints below. Tooling 0.44.9 is authenticated
+apply alongside the product constraints below. Tooling 0.44.11 is authenticated
 by `.toko-tooling.snapshot`; [developer tooling](docs/development/tooling.md)
 describes Cargo-based admission and focused checks.
 
@@ -11,7 +11,7 @@ Read README.md, docs/design/DESIGN.md, docs/design/authentication.md,
 
 - This repository is an explicitly authorized clean restart. The sibling
   `../ic-auth-legacy` is read-only reference, not an implementation destination.
-- The maintainer authorized the pre-recode hard cut in issue #2: no existing
+- The maintainer authorized the pre-recode hard cut in Auth #2: no existing
   users/deployments require compatibility with that implementation. Maintain one
   current Auth contract, independent fixtures and Rust/browser interoperability.
   Historical Wire/API identities and layouts are provenance, not preservation
