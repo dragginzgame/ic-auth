@@ -1,7 +1,7 @@
 import type { Identity } from '@tokostudios/ic-platform/agent';
 import { Principal } from '@tokostudios/ic-platform/principal';
 import { AttemptError, runSigningAttempt } from './attempt.ts';
-import { JournalError, type LoginJournal, type CleanupClaim, type JournalStatus } from './journal.ts';
+import { JournalError, journalOwner, type LoginJournal, type CleanupClaim, type JournalStatus } from './journal.ts';
 import { encodeRequest, decodeResponse, maximumResponseBytes, type Response } from './generated/logout.js';
 
 /** The host owns endpoint wiring and authentication of this exact update reply.
@@ -23,7 +23,8 @@ export type CleanupStep = Exclude<CleanupClaim, { kind: 'attempt' }>
 
 /** Resume already committed logout with at most one effect. No loop or implicit local logout. */
 export async function cleanupOnce(options: CleanupOptions): Promise<CleanupStep> {
-  const { journal, generation, browser, revoke, signal, retryAfterMs = 1_000 } = options;
+  const { generation, browser, revoke, signal, retryAfterMs = 1_000 } = options;
+  const journal = journalOwner(options.journal);
   const caller = browser.getPrincipal().toText();
   if (!Number.isInteger(retryAfterMs) || retryAfterMs < 500 || retryAfterMs >= 1_500)
     throw new JournalError('configuration');

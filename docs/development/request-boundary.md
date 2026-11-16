@@ -13,7 +13,7 @@ crates retain `publish = false`.
 | Exact V1 domain, u64 framing and TTL presence | `SessionRequest::hash` using published SHA-256 | Four fixed reference digests, independently reframed with Perl `Digest::SHA` |
 | Host TTL bounds and overflow refusal | `SessionTtlPolicy` and `expires_at_ns` | Invalid policy pairs, exact ceiling, maximum requested TTL, exact u64 deadline/overflow boundary |
 
-Reference evidence comes from `dragginzgame/ic-auth` at
+Reference evidence comes from `dragginzgame/ic-auth-legacy` at
 `e52a40be75dd9809d0528189d84b43fe96952ad9`; selected file hashes are recorded in
 `reference.sha256`. See the [fixture provenance](../../crates/ic-auth/tests/fixtures/README.md).
 The implementation was written with the pinned source/contracts available;

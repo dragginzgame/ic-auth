@@ -1,8 +1,10 @@
-import { LoginJournal, runSigningAttempt, retrieveCredential, establishSession, cleanupOnce, AdmissionError } from '../../src/index.ts';
-import type { CleanupAttempt } from '../../src/index.ts';
+import { LoginJournal as PublicJournal, retrieveCredential, establishSession, cleanupOnce, httpUpdateTransport, AdmissionError } from '../../src/index.ts';
+import { Journal as LoginJournal, type CleanupAttempt } from '../../src/journal.ts';
+import { runSigningAttempt } from '../../src/attempt.ts';
 import { Principal } from '@tokostudios/ic-platform/principal';
 import { Ed25519KeyIdentity } from '@tokostudios/ic-platform/identity';
-import { Endpoint, SubmitRequestType, Expiry, type Identity } from '@tokostudios/ic-platform/agent';
+import { Endpoint, SubmitRequestType, Expiry, IC_ROOT_KEY, inspectIngress, type Identity } from '@tokostudios/ic-platform/agent';
+import { invalidCertificateFixture, readStateResponseFixture } from '@tokostudios/ic-platform/testing';
 
 // Real SDK signing paused at an explicit boundary while a second tab commits logout.
 async function pauseSigning(journal: LoginJournal, ticket?: CleanupAttempt) {
@@ -49,4 +51,6 @@ function admissionReply(caller: Principal, issuer: Principal, expires = 1n): Uin
   do { const next = Number(expires & 127n); expires >>= 7n; bytes.push(next | (expires ? 128 : 0)); } while (expires);
   return Uint8Array.from(bytes);
 }
-Object.assign(globalThis, { authTest: { LoginJournal, Principal, Ed25519KeyIdentity, pauseSigning, retrieveCredential, establishSession, cleanupOnce, AdmissionError, signCall, admissionReply } });
+Object.assign(globalThis, { authTest: { LoginJournal, PublicJournal, Principal, Ed25519KeyIdentity, pauseSigning, retrieveCredential, establishSession,
+  cleanupOnce, runSigningAttempt, httpUpdateTransport, IC_ROOT_KEY, inspectIngress, invalidCertificateFixture, readStateResponseFixture,
+  AdmissionError, signCall, admissionReply } });

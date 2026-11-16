@@ -1,10 +1,12 @@
 # Reviewed false positives in c0bb215: generated TypeScript field type names,
 # not credential values. Exact historical findings only; keep future scans active.
-# key_version: Wire_u64_4d35d3193e8d66f2
-# max_token_ttl_ns: Wire_u64_4d35d3193e8d66f2
+# Integer type references for key_version and max_token_ttl_ns fields.
 c0bb2158c79ee0d871869f788f113bd54994ff96:packages/client/src/generated/credential.d.ts:generic-api-key:35
 c0bb2158c79ee0d871869f788f113bd54994ff96:packages/client/src/generated/credential.d.ts:generic-api-key:54
 c0bb2158c79ee0d871869f788f113bd54994ff96:packages/client/src/generated/credential.d.ts:generic-api-key:89
 c0bb2158c79ee0d871869f788f113bd54994ff96:packages/client/src/generated/establish.d.ts:generic-api-key:69
 c0bb2158c79ee0d871869f788f113bd54994ff96:packages/client/src/generated/establish.d.ts:generic-api-key:88
 c0bb2158c79ee0d871869f788f113bd54994ff96:packages/client/src/generated/establish.d.ts:generic-api-key:123
+# The same type examples appeared in explanatory comments in this file.
+3839e035507666adbe3631591e54d8f43a729fc7:.gitleaksignore:generic-api-key:3
+3839e035507666adbe3631591e54d8f43a729fc7:.gitleaksignore:generic-api-key:4

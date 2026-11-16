@@ -1025,9 +1025,11 @@ dependencies = [
  "ic-auth",
  "ic-auth-host-fixture",
  "ic-auth-protocol-types",
+ "ic-auth-wire",
  "ic-build",
- "ic-host-artifacts 0.80.1",
- "ic-host-fs 0.80.1",
+ "ic-host-artifacts 0.80.2",
+ "ic-host-fs 0.80.2",
+ "ic-host-process 0.80.2",
  "ic-platform",
  "ic-testkit",
  "ic-wire",
@@ -1042,6 +1044,7 @@ version = "0.0.0"
 dependencies = [
  "ic-auth",
  "ic-auth-protocol-types",
+ "ic-auth-wire",
  "ic-platform",
  "ic-platform-runtime",
  "ic-wire",
@@ -1081,8 +1084,8 @@ version = "0.87.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dfaf7d08e0033e1a245fa84f87098bb1fd7229947183e5a47f6e0f1b957ca433"
 dependencies = [
- "ic-host-artifacts 0.80.1",
- "ic-host-fs 0.80.1",
+ "ic-host-artifacts 0.80.2",
+ "ic-host-fs 0.80.2",
  "ic-host-process 0.80.2",
  "serde_json",
  "tempfile",
@@ -1113,9 +1116,9 @@ dependencies = [
 
 [[package]]
 name = "ic-host-artifacts"
-version = "0.80.1"
+version = "0.80.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b9083e3927eb9649c429a1c8dfeb5b7be844cebf1596e93b077f9908d6289dcc"
+checksum = "f8645c876c9f26469c46e0ec764b639b192d2f2336d71815a2fd11d4c86b6f1e"
 dependencies = [
  "sha2 0.11.1",
  "thiserror 2.0.18",
@@ -1134,11 +1137,11 @@ dependencies = [
 
 [[package]]
 name = "ic-host-fs"
-version = "0.80.1"
+version = "0.80.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6dfb8ed3f645487c12ec0f7a8384bc1750e67649bdf7062bb12f136b3384e461"
+checksum = "81c73a53b929355c2056a2783c0f61676251c0ddba2d6e0109c3ac53841b396b"
 dependencies = [
- "ic-host-artifacts 0.80.1",
+ "ic-host-artifacts 0.80.2",
  "rustix",
  "thiserror 2.0.18",
 ]

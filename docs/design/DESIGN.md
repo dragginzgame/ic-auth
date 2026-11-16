@@ -22,7 +22,7 @@ This is a fresh implementation of selected responsibilities, not a port of the o
 
 ## 2 Verified reference and scope
 
-Reference: [dragginzgame/ic-auth at e52a40be75dd9809d0528189d84b43fe96952ad9](https://github.com/dragginzgame/ic-auth/tree/e52a40be75dd9809d0528189d84b43fe96952ad9). Public main resolved to that same commit during this review. Its commit message is “on hold.”
+Reference: [dragginzgame/ic-auth-legacy at e52a40be75dd9809d0528189d84b43fe96952ad9](https://github.com/dragginzgame/ic-auth-legacy/tree/e52a40be75dd9809d0528189d84b43fe96952ad9). Public main resolved to that same commit during this review. Its commit message is “on hold.”
 
 | Verified source fact | Design consequence |
 | - | - |
@@ -34,7 +34,7 @@ Reference: [dragginzgame/ic-auth at e52a40be75dd9809d0528189d84b43fe96952ad9](ht
 | Browser package is private and includes durable admission/logout coordination | Browser uncertainty handling remains product scope |
 | Custom session-store commit/restore APIs are supported alongside the stable backend | Their removal requires actual consumer review, not an assumption that stable storage displaced them |
 
-Sources: [manifest](https://github.com/dragginzgame/ic-auth/blob/e52a40be75dd9809d0528189d84b43fe96952ad9/Cargo.toml), [engine](https://github.com/dragginzgame/ic-auth/blob/e52a40be75dd9809d0528189d84b43fe96952ad9/crates/ic-auth/src/session/mod.rs), [stable receiver](https://github.com/dragginzgame/ic-auth/blob/e52a40be75dd9809d0528189d84b43fe96952ad9/crates/ic-auth/src/persistent/receiver/mod.rs), [persistent integration](https://github.com/dragginzgame/ic-auth/blob/e52a40be75dd9809d0528189d84b43fe96952ad9/docs/integration/persistent-auth.md), [browser contract](https://github.com/dragginzgame/ic-auth/blob/e52a40be75dd9809d0528189d84b43fe96952ad9/docs/protocol/browser-client.md).
+Sources: [manifest](https://github.com/dragginzgame/ic-auth-legacy/blob/e52a40be75dd9809d0528189d84b43fe96952ad9/Cargo.toml), [engine](https://github.com/dragginzgame/ic-auth-legacy/blob/e52a40be75dd9809d0528189d84b43fe96952ad9/crates/ic-auth/src/session/mod.rs), [stable receiver](https://github.com/dragginzgame/ic-auth-legacy/blob/e52a40be75dd9809d0528189d84b43fe96952ad9/crates/ic-auth/src/persistent/receiver/mod.rs), [persistent integration](https://github.com/dragginzgame/ic-auth-legacy/blob/e52a40be75dd9809d0528189d84b43fe96952ad9/docs/integration/persistent-auth.md), [browser contract](https://github.com/dragginzgame/ic-auth-legacy/blob/e52a40be75dd9809d0528189d84b43fe96952ad9/docs/protocol/browser-client.md).
 
 These are inspected source contracts. Historical test and performance reports remain historical evidence; no replacement implementation or qualification run is established by this design. Some documentation describes older release cohorts. Pinned executable definitions and independently retained cases resolve those details before implementation.
 
@@ -78,7 +78,7 @@ Unsigned session requests are different: their existing constructor sorts unique
 
 The replay fingerprint is SHA-256 of exact claims bytes. Alternate proof bytes do not create another credential identity. Ed25519 verifies that digest using ordinary strict Ed25519, not Ed25519ph. Preserve small-order rejection and canonical scalar checking even under dependency feature unification. Certified verification preserves its separate ic-auth-portable-credential framing, complete delegation/issuer checks, trusted IC root and zero future-skew allowance.
 
-Sources: [signed protocol](https://github.com/dragginzgame/ic-auth/blob/e52a40be75dd9809d0528189d84b43fe96952ad9/docs/design/0.6-auth-protocol.md), [request identity](https://github.com/dragginzgame/ic-auth/blob/e52a40be75dd9809d0528189d84b43fe96952ad9/crates/ic-auth/src/session_request.rs), [strict verifier](https://github.com/dragginzgame/ic-auth/blob/e52a40be75dd9809d0528189d84b43fe96952ad9/crates/ic-auth/src/portable_signature.rs).
+Sources: [signed protocol](https://github.com/dragginzgame/ic-auth-legacy/blob/e52a40be75dd9809d0528189d84b43fe96952ad9/docs/design/0.6-auth-protocol.md), [request identity](https://github.com/dragginzgame/ic-auth-legacy/blob/e52a40be75dd9809d0528189d84b43fe96952ad9/crates/ic-auth/src/session_request.rs), [strict verifier](https://github.com/dragginzgame/ic-auth-legacy/blob/e52a40be75dd9809d0528189d84b43fe96952ad9/crates/ic-auth/src/portable_signature.rs).
 
 ### Limits and time
 
@@ -122,7 +122,7 @@ Credential-envelope replies use the credential limit set. Browser credential ret
 
 Wire bounds, proof-domain bounds and browser retention limits are separate. For example, a bounded 64-byte signature transport field still requires exact signature length at verification. Host raw-argument admission precedes copying/decoding. Every boundary rejects truncation and trailing input according to its own contract.
 
-Generate browser codecs from the Rust-owned schema through Wire. No local runtime fork or handwritten parallel codec. Canonical signed claims are opaque bytes in this transport. [Wire definitions](https://github.com/dragginzgame/ic-auth/blob/e52a40be75dd9809d0528189d84b43fe96952ad9/crates/ic-auth-wire/src/lib.rs), [nested models](https://github.com/dragginzgame/ic-auth/blob/e52a40be75dd9809d0528189d84b43fe96952ad9/crates/ic-auth-wire/src/model.rs).
+Generate browser codecs from the Rust-owned schema through Wire. No local runtime fork or handwritten parallel codec. Canonical signed claims are opaque bytes in this transport. [Wire definitions](https://github.com/dragginzgame/ic-auth-legacy/blob/e52a40be75dd9809d0528189d84b43fe96952ad9/crates/ic-auth-wire/src/lib.rs), [nested models](https://github.com/dragginzgame/ic-auth-legacy/blob/e52a40be75dd9809d0528189d84b43fe96952ad9/crates/ic-auth-wire/src/model.rs).
 
 ## 6 Receiver state and operation model
 
@@ -265,7 +265,7 @@ Exactness has three owners:
 
 - Browser commits the complete credential frame it received as the exact evidence for its sequence.
 
-Do not promise that every reconstructed certified witness is byte-identical. Do not use a changed witness to change claims or credential identity. [Issuer result representation](https://github.com/dragginzgame/ic-auth/blob/e52a40be75dd9809d0528189d84b43fe96952ad9/crates/ic-auth/src/persistent/issuer/model.rs).
+Do not promise that every reconstructed certified witness is byte-identical. Do not use a changed witness to change claims or credential identity. [Issuer result representation](https://github.com/dragginzgame/ic-auth-legacy/blob/e52a40be75dd9809d0528189d84b43fe96952ad9/crates/ic-auth/src/persistent/issuer/model.rs).
 
 Renewal sequence watermarks and operation epochs prevent recreation after result pruning. Bound operations globally and per account, reserve bytes for completion and prevent login reclamation while operations reference it. On binding-state loss, disable old bindings and require new account authentication and a fresh browser key.
 
@@ -394,74 +394,41 @@ revocation, restart or leaf loss. Current witness/certificate bytes can change;
 retained claims and their fingerprint cannot. Host leaf pruning is separate from
 issuer result pruning and cannot authorize re-signing a consumed operation.
 
-Thirty-six public API scenarios, nine private fault/identity/retention tests and
-one full certified issuance fixture exercise the current slice. The latter
-drives actual publication input into a Platform BLS certificate with a composed
-application branch and verifies two fresh witnesses against the frozen claims.
-Stable reopen, installed leaf/root transactions and host recovery remain
-unqualified. The existing independently signed Ed25519 reference fixture proves exact claims and verifier
-interoperability for both issuance and renewal. The former synthetic missing-result
-test is replaced by real pending/completed-result pruning in
-[retention qualification](../../crates/ic-auth/tests/issuer_memory/retention.rs);
-the private overflow case remains. Publication interruption covers reservation,
-completion, pruning and restart. Repeated reclamation checks independently recount
-records, references, indexes and byte reservations. This does not qualify the
-deferred capabilities or external host.
+Native and installed evidence is recorded by boundary in
+[compatibility and acceptance](compatibility.md), including actual leaf/root
+rollback and volatile loss. Stable reopen, external signer recovery and complete
+consumer integration remain separate obligations. Keep those evidence limits out
+of the semantic publication contract above.
 
 ## 11 Browser lifecycle
 
-The first private browser implementation is
-[`runSigningAttempt`](../../packages/client/src/attempt.ts). One owner combines the
-five-second attempt ceiling, cancellation and temporary SDK identity disposal.
-It captures principal/destination before awaiting, checks the injected journal
-owner before/after signing and transport completion, and rejects late results.
-Read-state polling retains those authority checks without requiring a call target.
-No new SDK identity interface, crypto, retry engine or application replay is added.
-Ten controlled Node cases use real Platform SDK signing.
+The implemented package has one strict IndexedDB journal, one internal bounded
+signing-attempt owner, credential retrieval, explicit admission and one-step cleanup.
+The supported surface is a lifecycle-only `LoginJournal` handle and complete
+operations. Claim/guard/settlement stages remain internal. The opening factory
+returns the same state owner without a second store, public mutable-record API
+or generic backend interface.
 
-The private `LoginJournal` now owns strict IndexedDB transactions, generation/caller/
-destination guards, bounded inventory and atomic local logout. Its API exposes
-operations and detached status, not mutable records or generic transactions. The
-frozen private v1 metadata profile remains unchanged. Logout retains uncertainty
-and pending sequence while removing completed metadata and credential bytes in
-one commit. The same owner reserves issuance before dispatch, returns pending work
-as lookup-only, reuses exact completion and reserves sequential renewal only after
-expiry or a refresh watermark. Unknown issuance without a sequence refuses fresh
-issuance; overflow retains previous evidence. Credential access validates the paired
-frame through the Rust-generated IC Wire codec without treating structure as proof.
-`retrieveCredential` now connects those decisions to an injected issuer adapter
-through at most one bounded SDK call. Its journal guard binds the original issuer,
-browser caller and current sequence. It captures reply bytes before postflight
-awaits and commits evidence before returning it. Errors remain lookup-only.
-`establishSession` now retrieves committed evidence, encodes the generated admission
-contract, commits receiver inventory and makes one browser-signed attempt through
-an injected update adapter. Its guard checks proof expiry/current sequence as well
-as login and destination binding. Receipts bind caller/issuer without assuming a
-receiver/browser clock offset. All refusals propagate without automatic retry.
-Thirty native Chromium cases cover two tabs, suspended work, aborted writes,
-recovery, receipt rejection and logout/expiry/sequence races. Four Node codec cases
-and a generation drift gate check adopted output. Actual HTTP reply authentication,
-readiness coordination, remote cleanup and renderer interruption remain to be qualified.
+`retrieveCredential` commits an issuance claim before its single bounded issuer
+call and exact evidence before returning. `establishSession` commits target inventory
+before one browser-signed admission call. `cleanupOnce` commits a lease/count before
+one generated Wire update and settles only a matching authenticated reply.
+The internal signing owner captures principal/destination and rechecks the journal
+around asynchronous signing and reply acceptance; every exit closes that attempt.
+These are retained safety obligations, not a claimed equivalent-feature LOC saving.
 
-Cleanup reservation and settlement now remain inside `LoginJournal`, using the
-same v1 destination counts, lease, acknowledgements and fixed deadline. The only
-persistent transitions are active → cleanup → finished; finished never reactivates.
-Claim commits before dispatch; losing a ticket consumes its persisted attempt.
-Settlement accepts only a live ticket and an adapter-authenticated Revoked result
-as confirmation. Unconfirmed outcomes retain bounded retry eligibility; deadline
-expiry finishes locally with unconfirmed destinations and unknown issuance visible.
-The process-local ticket closes permanently on settlement, including storage failure,
-so another destination reusing its lease timestamp cannot revive suspended signing.
-Seven additional native browser cases qualify these transitions and commit failures.
-This is retained necessary recovery complexity, not a claimed LOC reduction.
-The legacy mutable transaction API is replaced by these journal-owned operations;
-automatic scheduling, HTTP reply authentication and key disposal remain deferred.
-`cleanupOnce` now consumes those journal decisions with one generated Wire update
-through an injected adapter, reusing `runSigningAttempt`. The adapter owns endpoint
-wiring and authenticating its reply. The browser cap is 1,024 bytes; only positive
-Revoked replies confirm, after strict settlement. Transport/malformed/interrupted
-outcomes leave the counted lease for explicit recovery. Seven adapter browser cases
-and two independent codec cases qualify that boundary, not actual HTTP authentication.
+One HTTP adapter serves admission and cleanup directly. Platform owns certificate
+verification/polling; Auth owns captured gateway/root/endpoint configuration,
+single submission, cancellation and fresh journal-guarded signatures. No replacement
+crypto, runtime or automatic application replay is introduced.
+
+[Browser usage](../../packages/client/README.md) defines the supported API;
+[compatibility and acceptance](compatibility.md#browser-evidence-and-remaining-acceptance)
+records native and installed evidence. Raw HTTP reply authentication and a fixed combined issuer/receiver journey are
+qualified on one subnet, including reconciliation, a protected write and logout.
+Production Canic integration, multi-receiver coordination, readiness/coalescing,
+guarded ordinary calls, cleanup scheduling, key disposal and renderer interruption
+remain open. The lifecycle requirements below still apply to that remaining work.
 
 Keep one coordinator over one strict journal owner. Inject Platform SDK identities, issuer transport, receiver transport and clock mapping. Do not recreate a second SDK identity facade or implement application retries.
 
@@ -555,6 +522,13 @@ legacy capabilities to retained, removed or deferred behavior. Name which duplic
 state or coordination layer disappears. If none disappears, identify the design as
 retained necessary complexity rather than claiming simplification.
 
+The browser package exposes lifecycle handles plus retrieval, admission and one-step
+cleanup operations. Claim/guard/settlement stages and the signing-attempt helper
+remain internal; qualification may import their source modules directly. The
+opening factory returns the same journal owner with a narrowed consumer type,
+without a second store or generic facade. This is API ownership, not a security
+boundary against code running in the same JavaScript realm.
+
 Keep one issuer operation owner and one browser journal owner. Reuse Platform
 identities, generated Wire contracts and host transaction boundaries. Introduce
 no public backend framework, compatibility mode or identity facade for hypothetical
@@ -573,7 +547,7 @@ layers and missing functionality alone do not establish reduced complexity.
 
 ## 1 Freeze the reference and contract inventory
 
-Use commit e52a40be75dd9809d0528189d84b43fe96952ad9 of dragginzgame/ic-auth. Resolve files from committed objects, not a sibling working tree. The repository's reference.sha256 records selected reference-file bytes, including the initial request implementation and retained vector source. This is an integrity inventory, not test results or a complete repository archive; retained fixture provenance lives beside the tests.
+Use commit e52a40be75dd9809d0528189d84b43fe96952ad9 of dragginzgame/ic-auth-legacy. Resolve files from committed objects, not a sibling working tree. The repository's reference.sha256 records selected reference-file bytes, including the initial request implementation and retained vector source. This is an integrity inventory, not test results or a complete repository archive; retained fixture provenance lives beside the tests.
 
 Before implementation, retain:
 
@@ -790,7 +764,7 @@ Measure:
 
 - Prune/inspection work and issuer recovery/renewal, including refusal costs.
 
-The reference handoff reports 1,224,808 instructions for authentication at 100,000 receiver records and 1,223,895 after upgrade. Retain the accepted 1,300,000-instruction regression ceiling for the matched installed scenario. These are published source reports, not measurements rerun for this review. [Pinned handoff](https://github.com/dragginzgame/ic-auth/blob/e52a40be75dd9809d0528189d84b43fe96952ad9/docs/status/current.md).
+The reference handoff reports 1,224,808 instructions for authentication at 100,000 receiver records and 1,223,895 after upgrade. Retain the accepted 1,300,000-instruction regression ceiling for the matched installed scenario. These are published source reports, not measurements rerun for this review. [Pinned handoff](https://github.com/dragginzgame/ic-auth-legacy/blob/e52a40be75dd9809d0528189d84b43fe96952ad9/docs/status/current.md).
 
 Extract and retain the other accepted verifier/fixture ceilings before comparison. Historical named-symbol attribution is not removable Wasm size. The handoff explicitly leaves populated persistent failure-cost and production fleet budget qualification incomplete; set and justify those missing operational limits rather than declaring historical success.
 

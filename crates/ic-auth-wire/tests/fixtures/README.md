@@ -1,7 +1,7 @@
 # Independent Wire frames
 
 `caller-frames.tsv` was produced by executing `read.ts`, `logout.ts` and
-`wire-runtime.ts` from `dragginzgame/ic-auth` at
+`wire-runtime.ts` from `dragginzgame/ic-auth-legacy` at
 `e52a40be75dd9809d0528189d84b43fe96952ad9`, under `packages/client/src/generated/`.
 Their SHA-256 values are retained in root `reference.sha256`. The root licence
 applies to retained reference material. No replacement Rust encoder generated
@@ -28,7 +28,7 @@ TypeScript in a disposable directory and leaves the sibling checkout untouched.
 Validated with Node 24.21.0 (including assertion prototype normalization):
 
 ```sh
-node crates/ic-auth-wire/tests/verify-reference.mjs ../ic-auth
+node crates/ic-auth-wire/tests/verify-reference.mjs ../ic-auth-legacy
 make qualify-wire-browser
 ```
 

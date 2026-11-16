@@ -1,7 +1,7 @@
 import type { Identity } from '@tokostudios/ic-platform/agent';
 import { Principal } from '@tokostudios/ic-platform/principal';
 import { AttemptError, runSigningAttempt } from './attempt.ts';
-import { JournalError, type LoginJournal } from './journal.ts';
+import { JournalError, journalOwner, type LoginJournal } from './journal.ts';
 import { defaultMaximumBytes, maximumConfiguredBytes } from './generated/credential.js';
 
 /** Exact generated Wire request frame and original expiry mapped to the journal clock. */
@@ -30,8 +30,9 @@ export interface CredentialRequestOptions {
 
 /** One journal claim and at most one bounded issuer call. No retry or admission. */
 export async function retrieveCredential(options: CredentialRequestOptions): Promise<CredentialEvidence> {
-  const { journal, generation, browser, account, issuer, transport, signal, refreshThrough,
+  const { generation, browser, account, issuer, transport, signal, refreshThrough,
     maximumBytes = defaultMaximumBytes } = options;
+  const journal = journalOwner(options.journal);
   const caller = browser.getPrincipal().toText();
   const accountCaller = account?.getPrincipal().toText();
   const destination = issuer.toText();

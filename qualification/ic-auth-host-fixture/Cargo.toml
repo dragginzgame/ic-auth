@@ -19,7 +19,8 @@ crate-type = ["cdylib", "rlib"]
 [target.'cfg(target_family = "wasm")'.dependencies]
 ic-auth = { workspace = true, features = ["issuer-memory", "receiver-memory", "ed25519-verification"] }
 ic-auth-protocol-types.workspace = true
-ic-platform = { workspace = true, features = ["canister-sig-creation", "certification-cbor"] }
+ic-auth-wire.workspace = true
+ic-platform = { workspace = true, features = ["canister-sig-creation", "certification-cbor", "ed25519"] }
 ic-platform-runtime = { workspace = true, features = ["cdk"] }
 
 [dependencies]

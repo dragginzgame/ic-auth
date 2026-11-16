@@ -170,14 +170,18 @@ qualification remain separate gates; Wasm coverage here proves compilation only.
 
 `npm ci --prefix packages/client --ignore-scripts` prepares the separate locked
 npm graph. `make test-client` runs strict TypeScript checking, ten SDK signing
-cases through the package root and six credential/admission/logout codec cases.
+cases through the internal attempt owner, six credential/admission/logout codec
+cases, eight HTTP adapter cases and two public API boundary cases. Compile-time
+negative checks keep operation stages out of consumer handles. For the HTTP-only check, run
+`node --test --test-isolation=none --test-reporter=tap tests/http.test.ts` from `packages/client/`.
 Node 24.21.0 runs erasable TypeScript directly;
 no product build or registry delivery is introduced.
 The local check uses Node's test runner with isolation disabled so individual
 cases are reported. `IC_AUTH_BROWSER_EXECUTABLE=/absolute/path/to/chromium make
-test-client-journal` runs forty-four native IndexedDB cases in an ephemeral two-tab
-profile. Set `IC_AUTH_CLIENT_SUITE=journal`, `issuance`, `transport`, `admission` or
-`cleanup` or `logout` for a focused group; the default runs all six. Qualification-only esbuild 0.28.2 bundles the fixture in memory;
+test-client-journal` runs forty-six native IndexedDB cases in an ephemeral two-tab
+profile. Set `IC_AUTH_CLIENT_SUITE=journal`, `issuance`, `transport`, `admission`,
+`cleanup`, `logout` or `http` for a focused group; the default runs all seven.
+Qualification-only esbuild 0.28.2 bundles the fixture in memory;
 playwright-core 1.65.1 controls the supplied executable. Neither tool downloads a
 browser. Chromium 141.0.7390.37 was exercised locally. These explicit gates are not
 currently part of hosted CI. `make generate-client` generates the adopted
@@ -198,7 +202,17 @@ run them or provision a server. `HOST_TEST_FILTER=receiver::` selects only the
 receiver cases, including an intact-receiver control for valid proofs;
 `HOST_TEST_FILTER=enrollment::` selects the authority-call/callback case. Node
 24.21.0 regenerates independent host-time vectors before the tests. Host FS and
-Host Artifacts 0.80.1 own held-file access and bounded vector reads. See [evidence and prerequisites](../../qualification/ic-auth-host-conformance/README.md).
+Host Artifacts 0.80.2 own held-file access and bounded vector reads. See [evidence and prerequisites](../../qualification/ic-auth-host-conformance/README.md).
+
+`POCKET_IC_BIN=/absolute/path/to/pocket-ic IC_AUTH_BROWSER_EXECUTABLE=/absolute/path/to/chromium make qualify-client-http`
+selects the separate installed HTTP harness. Five Chromium cases check real SDK
+certificate acceptance, wrong-root/tamper refusal and old-request replay. Four
+additional cases connect issuer reconciliation, durable journal, real admission,
+protected application writes and logout on a single-subnet combined fixture. It uses the prepared client npm graph;
+Host Process owns the bounded Node child, Playwright closes Chromium, and Testkit retains server custody.
+The `installed-http` and `installed-flow` groups are excluded from ordinary browser
+tests and hosted aggregates. `lint-host` checks both native harnesses and the Wasm
+fixture. Shared setup uses ordinary modules beneath explicit test entrypoints.
 
 ## Dependency maintenance and LOC
 
@@ -229,7 +243,7 @@ export PATH="$PWD/.tools/host/bin:$PWD/.tools/rust/common/bin:$PATH"
 `qualification/target/wire-browser`. `make qualify-wire-browser` additionally
 executes the pinned reference and new generated codecs with Node 24.21.0.
 Set `AUTH_REFERENCE_REPO` if the reference Git objects are somewhere other than
-`../ic-auth`; the script only reads that checkout. See the
+`../ic-auth-legacy`; the script only reads that checkout. See the
 [Wire evidence](wire-boundary.md) for exact scope.
 
 The independent qualification workspace owns its catalog, lock and lints, uses

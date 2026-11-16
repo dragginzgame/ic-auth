@@ -1,6 +1,53 @@
 # Changelog
 
-## [0.46.2] - Unreleased
+## [0.46.3] - Unreleased
+
+### ✨ Added
+
+- Start the shared HTTP update adapter for browser admission and logout. Use
+  Platform's SDK certificate verification with explicit gateway/root/endpoint
+  configuration, one update submission and fresh guarded read-state signing.
+  Disable automatic root fetching, clock synchronization and update retries.
+  Eight Node SDK cases and two native browser cases qualify request/trust binding,
+  invalid-certificate refusal and interrupted-effect retention. Successful installed
+  HTTP acceptance is qualified by the separate installed gate below.
+
+### 🔧 Changed
+
+- Narrow the private browser package to lifecycle handles and complete operations.
+  Keep journal claim/guard/settlement stages and the signing helper internal;
+  preserve the same journal owner and all transaction/signing checks. Qualification
+  imports internal stages directly; consumer handles cannot substitute an owner.
+- Consolidate current status, browser usage and compatibility evidence by capability,
+  separating raw HTTP qualification from complete consumer-flow acceptance. Retain
+  the architecture audit as immutable pre-change evidence.
+
+### 🧪 Testing
+
+- Extend installed browser qualification with four complete fixed-fixture journey
+  cases: lost issuer reply and original-result reconciliation, generated Wire
+  admission, caller-bound application write, exact retry, local invalidation, real
+  cleanup and captured credential replay refusal. Independently count host effects
+  and retained fences. Use one combined issuer/receiver with a local public test
+  signer; production Canic wiring and external signer recovery remain separate.
+  Reuse the bounded runner and ordinary shared Rust modules; add no product runtime.
+
+- Add public API type/entrypoint checks and imitation-handle refusal; exercise the
+  supported opening factory through the existing browser cleanup cases.
+
+- Add `make qualify-client-http`: five native Chromium cases against the existing
+  issuer fixture on one live PocketIC subnet. Accept real SDK-certified replies;
+  refuse wrong-root, modified-certificate and old-request replay evidence. Reuse
+  the Build/Testkit setup and bounded Host Process runner without new endpoints.
+  Full production admission/logout integration remains separate.
+- Remove generated-type examples from secret-scan exception comments and suppress
+  their two exact historical false positives. All other findings remain active.
+
+## [0.46.2] - Source checkpoint 2026-11-16
+
+Source checkpoint: browser and qualification changes through `3839e03`.
+Rust package versions remain Auth 0.46.1 and protocol-types/Wire 0.42.0;
+all packages remain unpublished. This is not a registry release.
 
 ### ✨ Added
 
@@ -178,7 +225,7 @@ All packages remain `publish = false`.
 
 ## [0.44.0] - Source checkpoint 2026-11-15
 
-Pushed as [1e50f32](https://github.com/dragginzgame/ic-auth-new/commit/1e50f32469bdba8ce1673ea4543cd0b6782720e7).
+Pushed as [1e50f32](https://github.com/dragginzgame/ic-auth/commit/1e50f32469bdba8ce1673ea4543cd0b6782720e7).
 Package versions: `ic-auth` 0.44.0, protocol-types/Wire 0.42.0.
 All packages remain `publish = false`.
 
@@ -189,7 +236,7 @@ All packages remain `publish = false`.
   Linux also checks formatting, strict lint, Rustdoc and Wasm compilation; one
   separate job validates the workflow and scans full history with redacted output.
   Reuse authenticated Toko 0.44.4 setup/cache/evidence helpers for
-  [issue #1](https://github.com/dragginzgame/ic-auth-new/issues/1).
+  [issue #1](https://github.com/dragginzgame/ic-auth/issues/1).
 - Replace known-only revocation with caller-authenticated local logout. Unknown
   callers use a separate bounded denial pool and initially empty operation budget;
   retries retain their deadline and remain unconfirmed. Unknown traffic cannot
@@ -202,7 +249,7 @@ All packages remain `publish = false`.
 
 ## [0.43.0] - Source checkpoint 2026-11-15
 
-Pushed as [285ac17](https://github.com/dragginzgame/ic-auth-new/commit/285ac178cf8df9f10467368d51c117aa7853d5a3).
+Pushed as [285ac17](https://github.com/dragginzgame/ic-auth/commit/285ac178cf8df9f10467368d51c117aa7853d5a3).
 Package versions: `ic-auth` 0.43.0, protocol-types/Wire 0.42.0.
 All packages remain `publish = false`.
 
@@ -236,7 +283,7 @@ All packages remain `publish = false`.
 
 ## [0.42.0] - Source checkpoint 2026-11-15
 
-Pushed as [03d1a53](https://github.com/dragginzgame/ic-auth-new/commit/03d1a53).
+Pushed as [03d1a53](https://github.com/dragginzgame/ic-auth/commit/03d1a53).
 Package versions: `ic-auth` 0.42.0, `ic-auth-protocol-types` 0.41.0 and
 `ic-auth-wire` 0.41.0. Each is the next minor after its highest existing crates.io
 version checked on 2026-11-15 (0.41.1, 0.40.1 and 0.40.1 respectively).

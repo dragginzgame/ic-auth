@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { Endpoint, SubmitRequestType, ReadRequestType, Expiry, type Identity } from '@tokostudios/ic-platform/agent';
 import { Ed25519KeyIdentity } from '@tokostudios/ic-platform/identity';
 import { Principal } from '@tokostudios/ic-platform/principal';
-import { AttemptError, runSigningAttempt, type AttemptFailure } from '@dragginzgame/ic-auth-client';
+import { AttemptError, runSigningAttempt, type AttemptFailure } from '../src/attempt.ts';
 
 const target = () => Principal.fromUint8Array(Uint8Array.of(1));
 const other = () => Principal.fromUint8Array(Uint8Array.of(2));

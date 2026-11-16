@@ -113,7 +113,7 @@ function validateFrame(bytes: unknown, code: 'invalid_material' | 'storage_corru
 }
 
 /** One dedicated DB, no reset/migration, signing keys or network effects. */
-export class LoginJournal {
+export class Journal {
   readonly #db: IDBDatabase;
   readonly #clock: JournalClock;
   // Tickets are process-local capabilities; persistent counts/leases survive their loss.
@@ -125,7 +125,7 @@ export class LoginJournal {
     db.onversionchange = () => db.close();
   }
 
-  static async open(factory: IDBFactory, name: string, clock: JournalClock): Promise<LoginJournal> {
+  static async open(factory: IDBFactory, name: string, clock: JournalClock): Promise<Journal> {
     if (!text(name) || !text(clock.id)) refuse('configuration');
     const capturedClock = { id: clock.id, nowNs: () => clock.nowNs() };
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
@@ -152,7 +152,7 @@ export class LoginJournal {
         if (abandoned) request.result.close(); else resolve(request.result);
       };
     });
-    const journal = new LoginJournal(db, capturedClock);
+    const journal = new Journal(db, capturedClock);
     try {
       if (db.objectStoreNames.length !== 1 || !db.objectStoreNames.contains('journal')) refuse('storage_corrupt');
       await journal.inspect();
@@ -448,4 +448,17 @@ export class LoginJournal {
       } catch (cause) { fail(cause); }
     });
   }
+}
+
+/** Supported lifecycle handle; operation stages stay inside the package. */
+export type LoginJournal = Pick<Journal, 'start' | 'beginLogout' | 'inspect' | 'close'>;
+/** Open the same journal owner without exposing its internal operation stages. */
+export const LoginJournal: {
+  open(factory: IDBFactory, name: string, clock: JournalClock): Promise<LoginJournal>;
+} = { open: Journal.open };
+
+/** Internal operation access; a caller-supplied structural handle is not a journal. */
+export function journalOwner(handle: LoginJournal): Journal {
+  if (!(handle instanceof Journal)) refuse('configuration');
+  return handle;
 }

@@ -1,4 +1,4 @@
-# IC Auth — new implementation
+# IC Auth
 
 A clean restart of IC Auth around its current application-authentication design.
 Volatile authentication storage is the current milestone. Stable storage is a
@@ -7,47 +7,25 @@ contract is ready. No interim `ic-storage` adapter is planned.
 Existing Wire layouts and signed credential bytes are compatibility constraints,
 not redesign targets.
 
-**Status: protocol foundation and first volatile receiver implemented.** `ic-auth-protocol-types` owns
-passive claims, labels and Platform principal identity; `ic-auth` implements
-schema-2 canonical claims encoding/decoding/hashing, unsigned session-request
-identity, host-supplied TTL bounds and optional Ed25519/certified proof verification.
-Version 0.2.0 adds `ic-auth-wire`
-with all four Wire contracts and generated browser codecs. All packages are
-unpublished. The pushed 0.42.0/0.41.0 checkpoint adds the certified issuer-signature
-component, root-delegation signing commitments and standalone root authorization.
-Complete certified verification now combines both components with shared claims
-policy and work charging. The receiver also implements shared role narrowing and
-captured session lease ceilings, plus shared retry/read policy over retained facts.
-Login preflight also checks immutable renewal and higher-generation replacement.
-Capacity policy retains physical replay/account quotas and checked byte totals;
-one protected verifier profile dispatches both credential mechanisms.
-The optional memory receiver now commits verified admissions, supports exact retry
-and proof-free reads, runs synchronous application projections after current
-authorization checks, retains replay/device state through logout, and prunes expired
-records with bounded work. Administrative inspection uses bounded pages and
-exclusive cursors without changing retained state. Unknown callers receive separately bounded temporary
-denials that remain unconfirmed. Bound enrollment responses now gate memory
-readiness and freshness; host response authentication and lost-state recovery
-remain integration obligations. The optional `issuer-memory` now retains
-Ed25519 and certified issuance with browser-authenticated renewal from intent reservation through
-exact-result reconciliation, without extending the original login window.
-Issuer pruning is bounded to 32 records per call. Certified completion invokes synchronous
-host leaf/root publication. Installed issuer transaction rollback and volatile
-upgrade-loss refusal are now checked, together with receiver/application rollback
-and receiver upgrade-loss closure. Canic enrollment integration, stable storage
-and browser lifecycle remain open. The existing
-`ic-auth` repository remains the implemented reference and canonical production
-owner until the replacement is qualified and adoption is explicitly approved.
+**Status: volatile receiver/issuer libraries and partial browser lifecycle implemented.**
+The three product crates own passive protocol types, exact Wire contracts and Auth
+verification/state transitions. Platform owns cryptographic primitives; Canic owns
+application endpoint wiring. Auth installs no endpoints or replacement executor.
+The receiver retains bounded session/replay/device state; the issuer retains
+issuance/renewal intents and exact-result reconciliation. Both preserve host-owned
+transaction boundaries and refuse recovery by resetting lost volatile state.
 
-Version 0.2.0 is a GitHub source milestone. All crates retain `publish = false`;
-crates.io publication is deferred until the replacement is complete. It does not
-claim a complete replacement authentication engine or authorize a consumer cutover.
-Canic owns endpoint wiring using IC Wire; the Auth crates supply contract schemas
-and authentication decisions without installing endpoints.
-The current source checkpoint uses `ic-auth` 0.46.1 and
-`ic-auth-protocol-types` / `ic-auth-wire` 0.42.0, following the
-[0.45.0 volatile receiver checkpoint](https://github.com/dragginzgame/ic-auth-new/commit/421fb765780c2daed069cbfe1d0aeb009fce34af). Version selection reserves no registry slot
-and does not publish a crate.
+The private browser package implements durable local invalidation, credential
+retrieval, receiver admission and one-step cleanup. Its shared HTTP transport uses
+Platform's certified update path. Complete consumer integration, readiness,
+cleanup scheduling and key disposal remain open. See the
+[current handoff](docs/status/current.md) for present capability and evidence limits.
+
+Source package versions are Auth 0.46.1 and protocol-types/Wire 0.42.0; the current
+unreleased source checkpoint is 0.46.3. All crates retain `publish = false`, and the
+browser package is private. Version 0.2.0 remains the last tagged GitHub milestone.
+The original repository remains production owner until qualification and explicit
+adoption approval. No registry publication or consumer cutover is implied.
 
 - [Architecture and qualification plan](docs/design/DESIGN.md)
 - [Design and ownership overview](docs/design/authentication.md)
@@ -66,7 +44,7 @@ and [claims boundary](docs/development/claims-boundary.md) for evidence and scop
 The [Wire boundary](docs/development/wire-boundary.md) records native budget and
 old/new generated-browser comparisons. `make qualify-wire` runs the independent
 native comparison; `make qualify-wire-browser` also needs Node 24.21.0 and the
-pinned reference Git objects (`AUTH_REFERENCE_REPO` defaults to `../ic-auth`).
+pinned reference Git objects (`AUTH_REFERENCE_REPO` defaults to `../ic-auth-legacy`).
 The [Ed25519 verification boundary](docs/development/verification-boundary.md)
 records protected inputs, refusal/charging order and independent signatures.
 Run `make test-verification` and `make qualify-ed25519` for its focused checks.
@@ -116,32 +94,22 @@ checks remain outstanding for the supported Canic flow.
 Full Canic registry integration and production challenge/refresh handling remain
 unqualified.
 
-The private [browser client](packages/client/README.md) starts with a bounded
-Platform SDK signing attempt: captured caller/destination, checks before and after
-signing, cancellation and permanent disposal. `make test-client` runs its strict
-TypeScript check and ten real SDK cases. A strict IndexedDB journal now owns login
-creation, destination inventory and atomic local invalidation while retaining
-issuance uncertainty. `make test-client-journal` qualifies it in two native Chromium
-tabs. Issuance reservations now remain lookup-only after interruption; completions
-retain exact evidence and original expiry through the Rust-generated Wire codec.
-`make check-client-generated` checks generated-source drift. `retrieveCredential`
-now connects those decisions to an injected issuer adapter through bounded account/
-browser signing, with one call and durable completion before return.
-`establishSession` now commits receiver inventory before one browser-signed Wire
-admission attempt and rejects stale/mismatched receipts. Actual HTTP reply
-authentication, readiness coordination and complete cleanup scheduling remain outstanding.
-The journal now commits cleanup leases/counts before effects and retains per-target
-confirmation or uncertainty through reload and deadline expiry. Seven focused
-browser cases qualify this storage boundary. `cleanupOnce` now dispatches one
-reserved attempt through an injected authenticated-reply adapter with the generated
-Logout contract. Seven more browser cases and two independent codec checks pass;
-actual HTTP authentication and key disposal remain deferred.
+The private [browser client](packages/client/README.md) exposes a lifecycle-only
+`LoginJournal` handle plus `retrieveCredential`, `establishSession`, `cleanupOnce`
+and `httpUpdateTransport`. Journal stages and the bounded signing helper remain
+internal. `make test-client` checks types, SDK signing, codecs, HTTP binding and
+API boundaries; `make test-client-journal` checks native IndexedDB and cross-tab
+behavior. `make check-client-generated` checks adopted Wire output.
+`make qualify-client-http` checks certified replies, wrong-root/tamper/replay
+refusal and a complete fixed-fixture journey from issuance reconciliation through
+admission, a protected write and logout. All run on one subnet. Production Canic
+wiring, multi-receiver coordination and browser lifecycle acceptance remain open.
 
 The objective is less maintained state and clearer ownership, not a promised
 zero-debt result or a line-count quota. Keep rejection, atomicity and recovery
 proofs when replacing implementation. Do not copy the old release system, task
 history or compatibility layers merely because they exist.
 
-Source provenance: `dragginzgame/ic-auth`, commit
+Source provenance: `dragginzgame/ic-auth-legacy`, commit
 `e52a40be75dd9809d0528189d84b43fe96952ad9`. See `reference.sha256` for the selected
 reference files. Licensing is retained in [LICENSE.md](LICENSE.md).

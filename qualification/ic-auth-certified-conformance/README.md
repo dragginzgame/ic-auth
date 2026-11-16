@@ -12,7 +12,7 @@ They never call Auth to obtain the message being signed. Certificate tree paths,
 independent fixture construction, not an independent cryptographic implementation
 or evidence from an installed canister/network.
 
-The retained contract cases come from `dragginzgame/ic-auth` at
+The retained contract cases come from `dragginzgame/ic-auth-legacy` at
 `e52a40be75dd9809d0528189d84b43fe96952ad9`:
 
 - `crates/ic-auth/src/portable_certified.rs`: portable signing domain, fixed

@@ -1,7 +1,7 @@
 .DEFAULT_GOAL := help
 
 FORMAT_RUST_ARGS := --extra-workspace qualification
-AUTH_REFERENCE_REPO ?= ../ic-auth
+AUTH_REFERENCE_REPO ?= ../ic-auth-legacy
 override TOKO_TOOLING_ROOT := $(CURDIR)/vendor/toko-tooling
 include vendor/toko-tooling/make/consumer.mk
 include vendor/toko-tooling/make/cargo-dependencies.mk
@@ -27,6 +27,7 @@ help:
 	  'test-client-journal  Native IndexedDB cases (installed Chromium required)' \
 	  'generate-client / check-client-generated  Rust-owned browser Wire codecs' \
 	  'qualify-host    Installed Auth rollback/loss (requires PocketIC 16.x)' \
+	  'qualify-client-http Installed SDK HTTP certificates and Auth journey' \
 	  'lint-host       Native harness and Wasm fixture lint' \
 	  'test-product    CI aggregate: product packages, complete verifiers and memory' \
 	  'test-qualification  CI aggregate: native proof and Wire conformance packages' \
@@ -132,14 +133,19 @@ check-client-generated: toko-tooling-check
 	node packages/client/scripts/generate.mjs --check
 
 # Explicit installed qualification; no implicit server provisioning or live deployment.
-.PHONY: qualify-host lint-host
+.PHONY: qualify-host qualify-client-http lint-host
+HOST_BUILD_ENV = AUTH_HOST_CARGO="$$(rustup which cargo)" AUTH_HOST_RUSTC="$$(rustup which rustc)" AUTH_HOST_PACKAGE_ID="$$(cargo pkgid --offline --locked --manifest-path qualification/Cargo.toml -p ic-auth-host-fixture)"
 qualify-host: toko-tooling-check
 	mkdir -p qualification/target/host-vectors
 	node crates/ic-auth/tests/verify-memory-fixtures.mjs --host > qualification/target/host-vectors/memory.tsv
-	AUTH_HOST_CARGO="$$(rustup which cargo)" AUTH_HOST_RUSTC="$$(rustup which rustc)" AUTH_HOST_PACKAGE_ID="$$(cargo pkgid --offline --locked --manifest-path qualification/Cargo.toml -p ic-auth-host-fixture)" AUTH_HOST_VECTORS="$(CURDIR)/qualification/target/host-vectors/memory.tsv" cargo test --offline --locked --manifest-path qualification/Cargo.toml -p ic-auth-host-conformance --test installed -- --ignored $(HOST_TEST_FILTER)
+	$(HOST_BUILD_ENV) AUTH_HOST_VECTORS="$(CURDIR)/qualification/target/host-vectors/memory.tsv" cargo test --offline --locked --manifest-path qualification/Cargo.toml -p ic-auth-host-conformance --test installed -- --ignored $(HOST_TEST_FILTER)
+
+qualify-client-http: toko-tooling-check
+	npm --prefix packages/client run check
+	$(HOST_BUILD_ENV) cargo test --offline --locked --manifest-path qualification/Cargo.toml -p ic-auth-host-conformance --test http -- --ignored --nocapture
 
 lint-host: toko-tooling-check
-	cargo clippy --offline --locked --manifest-path qualification/Cargo.toml -p ic-auth-host-conformance --test installed -- -D warnings
+	cargo clippy --offline --locked --manifest-path qualification/Cargo.toml -p ic-auth-host-conformance --test installed --test http -- -D warnings
 	cargo clippy --offline --locked --manifest-path qualification/Cargo.toml -p ic-auth-host-fixture --lib --target wasm32-unknown-unknown -- -D warnings
 
 .PHONY: test-product test-qualification verify-fixtures

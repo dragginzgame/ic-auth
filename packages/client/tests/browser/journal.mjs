@@ -5,6 +5,9 @@ import { transportCases } from './transport.mjs';
 import { admissionCases } from './admission.mjs';
 import { cleanupCases } from './cleanup.mjs';
 import { logoutCases } from './logout.mjs';
+import { httpCases } from './http.mjs';
+import { installedHttpCases } from './installed-http.mjs';
+import { installedFlowCases } from './installed-flow.mjs';
 import { createServer } from 'node:http';
 import { once } from 'node:events';
 import { build } from 'esbuild';
@@ -22,7 +25,7 @@ for (const line of readFileSync(new URL('../../../../crates/ic-auth-wire/tests/f
   if (name.startsWith('logout-')) credentialFrames[name] = Array.from(Buffer.from(hex, 'hex'));
 }
 const suite = process.env.IC_AUTH_CLIENT_SUITE ?? 'all';
-if (!['all', 'journal', 'issuance', 'transport', 'admission', 'cleanup', 'logout'].includes(suite)) throw new Error('Unknown IC_AUTH_CLIENT_SUITE');
+if (!['all', 'journal', 'issuance', 'transport', 'admission', 'cleanup', 'logout', 'http', 'installed-http', 'installed-flow'].includes(suite)) throw new Error('Unknown IC_AUTH_CLIENT_SUITE');
 const executablePath = process.env.IC_AUTH_BROWSER_EXECUTABLE;
 assert(executablePath, 'Set IC_AUTH_BROWSER_EXECUTABLE to an installed Chromium executable; this gate never downloads one.');
 const bundle = await build({ entryPoints: ['tests/browser/entry.ts'], bundle: true,
@@ -275,7 +278,17 @@ try {
   await cleanupCases({ check, a, b, prepare });
   group = 'logout';
   await logoutCases({ check, a, b });
-  console.log(`${cases} native IndexedDB cases passed`);
+  group = 'http';
+  await httpCases({ check, a });
+  if (suite === 'installed-http') {
+    group = 'installed-http';
+    await installedHttpCases({ check, a });
+  }
+  if (suite === 'installed-flow') {
+    group = 'installed-flow';
+    await installedFlowCases({ check, a });
+  }
+  console.log(`${cases} native browser cases passed`);
 } finally {
   await browser?.close();
   await new Promise(resolve => server.close(resolve));

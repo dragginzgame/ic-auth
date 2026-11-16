@@ -5,7 +5,7 @@ export async function logoutCases({ check, a, b }) {
     globalThis.logoutSetup = async (name, deadline = 100_000_000_000n) => {
       now = 100n; clockId = 'clock';
       await seed(name, { ...record(), issuanceUnknown: true, issuance: { sequence: 7n } });
-      const journal = await open(name);
+      const journal = await authTest.PublicJournal.open(indexedDB, name, { id: clockId, nowNs: () => now });
       await journal.beginLogout('login', deadline);
       return { journal, generation: 'login', browser: authTest.Ed25519KeyIdentity.generate(new Uint8Array(32).fill(9)) };
     };

@@ -1,0 +1,2670 @@
+{
+  "date": "2026-11-16",
+  "mode": "source inspection and source counting; no new behavioral execution",
+  "source_commit": "3839e035507666adbe3631591e54d8f43a729fc7",
+  "legacy_commit": "e52a40be75dd9809d0528189d84b43fe96952ad9",
+  "method_revision": "626da7cd9626cc2e152594862a2d82ea82ef51da",
+  "methods": [
+    {
+      "file": "ic-auth-audit-complexity.md",
+      "sha256": "24574fc99a47e318357d6b14484d08cc6f583ed587d71f4ac57f1d22448f7b86"
+    },
+    {
+      "file": "ic-auth-audit-flow-convergence-and-duplication.md",
+      "sha256": "b26dd10ca97d0039f365a0cf4f7c4f19dd820abb72a90045a6288dd7042d3dc2"
+    },
+    {
+      "file": "ic-auth-audit-ic-canister-applications.md",
+      "sha256": "bdfc0d4490700dbd8e1c2be96d580c60b1de6b24f00571dfaf34f6f339131323"
+    },
+    {
+      "file": "ic-auth-audit-readme.md",
+      "sha256": "071aeba1f92b85c59ace0a66cc2fbab0d1d18d230bd4889f094ca7e9432889e8"
+    },
+    {
+      "file": "ic-auth-audit-simplicity-and-maintainability.md",
+      "sha256": "457fd38e0073c91ba470b918d4facd9faac3c5200ebd38c97e9d6b76acdaea55"
+    }
+  ],
+  "authority_hashes": [
+    {
+      "path": "AGENTS.md",
+      "sha256": "d115fd80920c4273bcc099d5f8d00e9a51f0fe43bc9aa6b81c24f350365b1936"
+    },
+    {
+      "path": "TOKO-TOOLING.md",
+      "sha256": "0bfc6e1f0051f95a470974ebb04157c5318bc7241e91fe19ad8036fa554edd69"
+    },
+    {
+      "path": ".toko-tooling.snapshot",
+      "sha256": "7ddd2b9b39ae99b462ea91266c36a903bcd5401a4d4efa7ca71e4240cfae884a"
+    },
+    {
+      "path": "README.md",
+      "sha256": "946d58f6adab0eb6a823387d24d1e3e3087bb0329ee7338329798f6b9ce72a95"
+    },
+    {
+      "path": "docs/design/DESIGN.md",
+      "sha256": "4d0649eea23dcd15e36d6eb4f3d6d3f29107857ec6d9f2ef680b21ba2e157ce6"
+    },
+    {
+      "path": "docs/design/authentication.md",
+      "sha256": "9d7552db5bde3b4ac96601483c1c213608444787d4480992db5161c64d4a1f6d"
+    },
+    {
+      "path": "docs/design/compatibility.md",
+      "sha256": "2da4340973918ae0493837f1ad5e94bdf8d158c58ea8131d718748850f5c225a"
+    },
+    {
+      "path": "docs/status/current.md",
+      "sha256": "70704a436639bb723ad3157a646a1523fdcf5b0b066fabf99bf7a90158c0f53f"
+    }
+  ],
+  "preexisting_dirty": [
+    {
+      "path": "packages/client/src/http.ts",
+      "sha256": "283cb04aad8d8ccf1313f61ad8efe6202562511352e40d1572ead4526dc57995"
+    },
+    {
+      "path": "packages/client/tests/browser/http.mjs",
+      "sha256": "94c0b56fade3d73c68564332b8d709943238fdd10dd492db5bff3c0cf0468596"
+    },
+    {
+      "path": "packages/client/tests/browser/installed-http.mjs",
+      "sha256": "6841be642916998baa36428ce15553c0335e98fb65b30853a6e95da4f5862cdf"
+    },
+    {
+      "path": "packages/client/tests/http.test.ts",
+      "sha256": "2a746858e29c938deff70bdab002587cc6db23d437af24cc3134582cdb5dd17a"
+    },
+    {
+      "path": "qualification/ic-auth-host-conformance/tests/http/main.rs",
+      "sha256": "5b59a4332f91ad60dba15ae0fa7a02a2f840bdf33e62d8ca119e900613a13815"
+    },
+    {
+      "path": "qualification/ic-auth-host-conformance/tests/support/mod.rs",
+      "sha256": "6b1ebf7cd4f61b0efde14e50d27154406bf5953eb5b9d7ca2ece13abe5d4eb75"
+    },
+    {
+      "path": ".gitleaksignore",
+      "sha256": "f2bd124c97c5a5740022b32d647c63cf047ac537ec5c8f92bd170e37428ce1a4"
+    },
+    {
+      "path": "CHANGELOG.md",
+      "sha256": "379e74ed13c6039520b43aebeb71acdbba540473d6546f90121b2dee76386d91"
+    },
+    {
+      "path": "Makefile",
+      "sha256": "88bc1c39ae749f627a34c42ea227c716e8149d533cc140f60392ee7d1820f860"
+    },
+    {
+      "path": "README.md",
+      "sha256": "946d58f6adab0eb6a823387d24d1e3e3087bb0329ee7338329798f6b9ce72a95"
+    },
+    {
+      "path": "docs/design/DESIGN.md",
+      "sha256": "4d0649eea23dcd15e36d6eb4f3d6d3f29107857ec6d9f2ef680b21ba2e157ce6"
+    },
+    {
+      "path": "docs/design/compatibility.md",
+      "sha256": "2da4340973918ae0493837f1ad5e94bdf8d158c58ea8131d718748850f5c225a"
+    },
+    {
+      "path": "docs/development/tooling.md",
+      "sha256": "ae032c2973294bb3a54ce6c419afc7725581f079122cedfa2eac3526a97189be"
+    },
+    {
+      "path": "docs/status/current.md",
+      "sha256": "70704a436639bb723ad3157a646a1523fdcf5b0b066fabf99bf7a90158c0f53f"
+    },
+    {
+      "path": "packages/client/README.md",
+      "sha256": "880c5210164937e395465614d409fda8da821c3d4879bb910cf93208eeec2001"
+    },
+    {
+      "path": "packages/client/src/index.ts",
+      "sha256": "0fa84242b2bec7e5e6daa1c304c873b1f2995449c0cf1644602b2557e86a212b"
+    },
+    {
+      "path": "packages/client/tests/browser/entry.ts",
+      "sha256": "ea97d24a1535b8f484f4f44aa24d182b7545c0d446d54a15779388c14d5ca06d"
+    },
+    {
+      "path": "packages/client/tests/browser/journal.mjs",
+      "sha256": "6dd4e89a154f0b739a9deb3382482c45f47019dc02ae02a3ef39427a40052d22"
+    },
+    {
+      "path": "qualification/Cargo.lock",
+      "sha256": "26c2deb7f9d7f1be5b4355f0addb026faf15627652de754a5ad39a0192a024ca"
+    },
+    {
+      "path": "qualification/Cargo.toml",
+      "sha256": "21f852ee8cdb2e748e53222af0848f5b08676f0e44d40693ee2292210377a92e"
+    },
+    {
+      "path": "qualification/ic-auth-host-conformance/Cargo.toml",
+      "sha256": "b88de351c4d27edf30e99b34d7ed036d83a715417454ba3ea634332abc2ddfa6"
+    },
+    {
+      "path": "qualification/ic-auth-host-conformance/README.md",
+      "sha256": "46e690438005f084c0f4494bcfc56f225b86bcf0f2c031aba08926efca5f4952"
+    },
+    {
+      "path": "qualification/ic-auth-host-conformance/tests/installed/main.rs",
+      "sha256": "82be398058b87bc4feaf81c61a94591d7b2077aea58a49ac4e2946c97855054e"
+    }
+  ],
+  "tracked_diff_sha256": "bc6bbe5643cc4a53b66488c347fa50b02e59fa689bce80e24fd5d94d65898bce",
+  "source_hashes": [
+    {
+      "path": "packages/client/src/http.ts",
+      "sha256": "283cb04aad8d8ccf1313f61ad8efe6202562511352e40d1572ead4526dc57995"
+    },
+    {
+      "path": "packages/client/tests/browser/http.mjs",
+      "sha256": "94c0b56fade3d73c68564332b8d709943238fdd10dd492db5bff3c0cf0468596"
+    },
+    {
+      "path": "packages/client/tests/browser/installed-http.mjs",
+      "sha256": "6841be642916998baa36428ce15553c0335e98fb65b30853a6e95da4f5862cdf"
+    },
+    {
+      "path": "packages/client/tests/http.test.ts",
+      "sha256": "2a746858e29c938deff70bdab002587cc6db23d437af24cc3134582cdb5dd17a"
+    },
+    {
+      "path": "qualification/ic-auth-host-conformance/tests/http/main.rs",
+      "sha256": "5b59a4332f91ad60dba15ae0fa7a02a2f840bdf33e62d8ca119e900613a13815"
+    },
+    {
+      "path": "qualification/ic-auth-host-conformance/tests/support/mod.rs",
+      "sha256": "6b1ebf7cd4f61b0efde14e50d27154406bf5953eb5b9d7ca2ece13abe5d4eb75"
+    },
+    {
+      "path": "crates/ic-auth-protocol-types/Cargo.toml",
+      "sha256": "ccacdfee2cecdcc1dd5567c0fb171f5505bee116abf4f66ad2e7eead92ddbf4d"
+    },
+    {
+      "path": "crates/ic-auth-protocol-types/src/claims.rs",
+      "sha256": "d27b2629157c2c7cc46561a7bb2d1cf408fd0ea4778a9f02d81a6dd844e11385"
+    },
+    {
+      "path": "crates/ic-auth-protocol-types/src/credential.rs",
+      "sha256": "f11ee5d5e41a3ec1c3328428cf2bfd5759e8c030b3bf5cf51af4aae2fe71ecc5"
+    },
+    {
+      "path": "crates/ic-auth-protocol-types/src/delegation.rs",
+      "sha256": "7ee9d4b8367010aff9ab1a1bcf0619842bb2d3e9669cca64d6e61ae785718e8c"
+    },
+    {
+      "path": "crates/ic-auth-protocol-types/src/lib.rs",
+      "sha256": "6a80bd91b98da5d8ede76e57ed7dc6c986514104a70334a1b523b62f5320ff4d"
+    },
+    {
+      "path": "crates/ic-auth-protocol-types/src/role.rs",
+      "sha256": "71d6190d90ed36c2dac5ee661aaf3efe396e201a3e2032657f12d866469d20a8"
+    },
+    {
+      "path": "crates/ic-auth-protocol-types/src/scope.rs",
+      "sha256": "3677d28a38b18635eef05ad247ff14b3e7d8567f05c5b4cd7b54760d9ffac087"
+    },
+    {
+      "path": "crates/ic-auth-protocol-types/tests/role.rs",
+      "sha256": "2ff00cd2cdf03937ba5680d8ff69c791c5c50be7df88a5557551b1a97b79d9bf"
+    },
+    {
+      "path": "crates/ic-auth-protocol-types/tests/scope.rs",
+      "sha256": "e0dafad5b20c477d77c55aea520f4b0b37ed71eaa06a9a34f658d0f4c0a1d71a"
+    },
+    {
+      "path": "crates/ic-auth-wire/Cargo.toml",
+      "sha256": "8cf13171d9cab7ba1572f0c25200cc667357d2ffcb2ed5b213e46b6e3b798597"
+    },
+    {
+      "path": "crates/ic-auth-wire/examples/generate.rs",
+      "sha256": "451121e98ec1893d609f86ad0d66ddab20a015c78deea1fbde8e625e67fd15e8"
+    },
+    {
+      "path": "crates/ic-auth-wire/src/lib.rs",
+      "sha256": "455068e5a1267e7869156f1eb53d840eb6e643429faaebf896c6d3bb1aa939dc"
+    },
+    {
+      "path": "crates/ic-auth-wire/src/model.rs",
+      "sha256": "42e0c6a90edfc5f5b8a6dd8277bdac74f75f813e2ca24545625df2173c276027"
+    },
+    {
+      "path": "crates/ic-auth-wire/src/model/credential.rs",
+      "sha256": "1d34f3e353134732cb3f433d93bc5f79a7df1eb5921e0111553c8e7f6389b70f"
+    },
+    {
+      "path": "crates/ic-auth-wire/src/projection.rs",
+      "sha256": "e5e26f3880e052679badef05bb106bb12694975bfba6e12e2430fc39edbb87f7"
+    },
+    {
+      "path": "crates/ic-auth-wire/tests/admission-cases.mjs",
+      "sha256": "ebae2185a307193367eaf9834b4578c32c3e26fd5164e195dbce1e7846410747"
+    },
+    {
+      "path": "crates/ic-auth-wire/tests/admission_contracts.rs",
+      "sha256": "38f130c579044cd5d639039d2ea775c732dc59e8476cde7c72f43d1cf13a5298"
+    },
+    {
+      "path": "crates/ic-auth-wire/tests/caller_contracts.rs",
+      "sha256": "49f09f8e30d6439a494979154c60ea0a9aea6b41c6b1cdca211464735ed102f0"
+    },
+    {
+      "path": "crates/ic-auth-wire/tests/projection.rs",
+      "sha256": "2204d8b4155a5bc903593acbd6d139fbdd0d69af0ce94bcef02b9a74659e699f"
+    },
+    {
+      "path": "crates/ic-auth-wire/tests/verify-reference.mjs",
+      "sha256": "ba11d124ed29b2aeafc0d48201a7aa18b21084f5baccfadf6f812b2f1663a304"
+    },
+    {
+      "path": "crates/ic-auth/Cargo.toml",
+      "sha256": "2d945bc4a67d73e62ed67ca584588e81872cbe7744ef43f024585fe571b35136"
+    },
+    {
+      "path": "crates/ic-auth/src/browser_identity.rs",
+      "sha256": "5c1c6fe46bbbab0b6ad34d81f1da430daa6afa6495235abeb2bddab84462cdbe"
+    },
+    {
+      "path": "crates/ic-auth/src/certified_message.rs",
+      "sha256": "56fb2c5125bcd709baf21a62813cf107893a55431a180d21cf4e2dd3e8f0c49e"
+    },
+    {
+      "path": "crates/ic-auth/src/claims.rs",
+      "sha256": "1bba15b011b1e65457ad4197f83e8cbab91f8d21c2eb74c6c1e24512b5ba280b"
+    },
+    {
+      "path": "crates/ic-auth/src/delegation_encoding.rs",
+      "sha256": "a223b0c6c8634b0b088b726734788667e08973e43a70c52059b39e8488d02ce5"
+    },
+    {
+      "path": "crates/ic-auth/src/grant_policy.rs",
+      "sha256": "4a004d8eddb9ad0d0026ef7a2d105fa29844ec8170aad1f14e946f39933c4a3d"
+    },
+    {
+      "path": "crates/ic-auth/src/issuer_memory/certified.rs",
+      "sha256": "f5f39b9422f4bb8d5fa3f5e0eaac1ba905301d7f4ff6136f109c2d1853ae7d7a"
+    },
+    {
+      "path": "crates/ic-auth/src/issuer_memory/mod.rs",
+      "sha256": "e66fb0e64951651c7170d8e342899c60605f6925ae787e3fc8e14105e69387f5"
+    },
+    {
+      "path": "crates/ic-auth/src/issuer_memory/renewal.rs",
+      "sha256": "28c2a330aa8a37414860f31aa7e92b855dc7a7b291115489811ec51af79cb840"
+    },
+    {
+      "path": "crates/ic-auth/src/issuer_memory/retention.rs",
+      "sha256": "cc0dc3b33d060b52909a2dae80e4b9a5a40310848bef5415fc5e2f58d3180498"
+    },
+    {
+      "path": "crates/ic-auth/src/issuer_memory/tests.rs",
+      "sha256": "b5c0252d855887ea384c394d9d4408600c4b1913a00b15a9e73a90097b3ada42"
+    },
+    {
+      "path": "crates/ic-auth/src/issuer_memory/tests/retention.rs",
+      "sha256": "9afa8fb10653e85d776ea3e6f46be85dec1b525562b8783df126bce762f20721"
+    },
+    {
+      "path": "crates/ic-auth/src/issuer_memory/types.rs",
+      "sha256": "bc02ac37ef43585d640715f71ee2a3fef6c5159a0df1dbe1395713e750259e06"
+    },
+    {
+      "path": "crates/ic-auth/src/issuer_signature.rs",
+      "sha256": "9d1b600bb900256b3dbd25e709c2bce42af206a5c09249c350b6847365c18c80"
+    },
+    {
+      "path": "crates/ic-auth/src/lib.rs",
+      "sha256": "36aac1bd1e5d9d369b6b6a2529cfa79f5217d7ad5afe7652274b43173a036346"
+    },
+    {
+      "path": "crates/ic-auth/src/receiver_memory/enrollment.rs",
+      "sha256": "9ab8a3713c370275e136ca2d1e8cb5b2bb2fd52a9ce48510ffd4252ad91decef"
+    },
+    {
+      "path": "crates/ic-auth/src/receiver_memory/inspection.rs",
+      "sha256": "45c771afdb0eda815baac2f80563fad8d484d2dce4dfc88c5c60c0eb4aa38c3c"
+    },
+    {
+      "path": "crates/ic-auth/src/receiver_memory/mod.rs",
+      "sha256": "710f25f9a40f6df74a2b16bf818f5d675864e121f09b862e8eea88d4ddb7cef5"
+    },
+    {
+      "path": "crates/ic-auth/src/receiver_memory/publication_faults.rs",
+      "sha256": "c0f3795945b7a6c4dfab0278eff8b7cf2f85b592b330981af4420487f59bdd4a"
+    },
+    {
+      "path": "crates/ic-auth/src/receiver_memory/records.rs",
+      "sha256": "e3f39f7b771dbac4536c060d131cad5f6ac8d4160239339978b2994721e97078"
+    },
+    {
+      "path": "crates/ic-auth/src/receiver_policy/capacity.rs",
+      "sha256": "48636b0fb3ab54ff2d47cb296cb65ab577fe04494bd65bec4c0bffc72849e629"
+    },
+    {
+      "path": "crates/ic-auth/src/receiver_policy/login.rs",
+      "sha256": "7bb0af07c7db94d995dc263fe43e0ca5c58abb3275bf0eb9b1bfa5117623ecda"
+    },
+    {
+      "path": "crates/ic-auth/src/receiver_policy/logout.rs",
+      "sha256": "45e4153f1ed1764bdf33c6a50e62736bd35f4fd3c529487fcc79cd8176ad7b57"
+    },
+    {
+      "path": "crates/ic-auth/src/receiver_policy/mod.rs",
+      "sha256": "9b13115a52629753ff1256f51b746ced264d084ee74fadaf2e7f93f14e646206"
+    },
+    {
+      "path": "crates/ic-auth/src/receiver_policy/tests/capacity.rs",
+      "sha256": "d443fbc7cac1070260d0e3b71eba82a3f9f4d5a5b1d2abbd5a5da5c97ce5daae"
+    },
+    {
+      "path": "crates/ic-auth/src/receiver_policy/tests/mod.rs",
+      "sha256": "7f87c72de98b770682d4365cb2ec05bf54dac1089ffe43d1ed791fcf29fbe700"
+    },
+    {
+      "path": "crates/ic-auth/src/root_delegation.rs",
+      "sha256": "928f0c838d8e98a8027c2af7d8be24411e645b4c9739727d2a555b3053b94d38"
+    },
+    {
+      "path": "crates/ic-auth/src/session_request.rs",
+      "sha256": "629a091fc9542775f39bf0b121715a634bb6dabe6e913a00fe16cb39621a1e45"
+    },
+    {
+      "path": "crates/ic-auth/src/verification/budget.rs",
+      "sha256": "c00a5a370edb8b3743a67a1c1a2444ef6feb8216a90394228cc385624b3aee15"
+    },
+    {
+      "path": "crates/ic-auth/src/verification/certified.rs",
+      "sha256": "bd6a85d85cde2c58a973f65c6f8b15a4edef0e8f1ca3956d06ced5c1b5dfb06d"
+    },
+    {
+      "path": "crates/ic-auth/src/verification/context.rs",
+      "sha256": "c8c3651201305f2c2415dd6683b4a50fdfa95e5ed2edc5fdbc12f5e50a15820e"
+    },
+    {
+      "path": "crates/ic-auth/src/verification/credential.rs",
+      "sha256": "4bd585491ec217d2005a6ad94b14a1869f153292df8c30cd796e584e957f7608"
+    },
+    {
+      "path": "crates/ic-auth/src/verification/decoded.rs",
+      "sha256": "37fa78467d5590e3c0b2535b8572e4d0f3d1ebd784cfa8b2137fa90612e0bc75"
+    },
+    {
+      "path": "crates/ic-auth/src/verification/ed25519.rs",
+      "sha256": "b17c6363ffc4431219227c30c6af3b2f4cb2e3e2e8e08fa2929fdd29979cf9c5"
+    },
+    {
+      "path": "crates/ic-auth/src/verification/mod.rs",
+      "sha256": "dcd5decc88745b8b2dcc48567d3ecf6e1e0ed5cfb4c350efeda2155456c0133d"
+    },
+    {
+      "path": "crates/ic-auth/src/work_budget.rs",
+      "sha256": "24e79d6ebc631d2d83ec27d3c0c7cdf89bcb5ca2b01545314af60317acff5d4a"
+    },
+    {
+      "path": "crates/ic-auth/tests/claims.rs",
+      "sha256": "7c49c638b8d596eb3bb5a6d7270bb15d1ab108a243b62ba29cf6865a24620ed4"
+    },
+    {
+      "path": "crates/ic-auth/tests/delegation_encoding.rs",
+      "sha256": "5c2e0282493d71fd7d2914877c7c4e3da9f74262e008f0c58660cb458d112529"
+    },
+    {
+      "path": "crates/ic-auth/tests/issuer_memory/certified.rs",
+      "sha256": "e1cd0e0dae4c0d8c4a3f332f467cc75f8285733e10c3bfaea4a6deb4c346f8a3"
+    },
+    {
+      "path": "crates/ic-auth/tests/issuer_memory/main.rs",
+      "sha256": "09f5629ffa935637e051cf445d693a062bf2eebaa1f426ea54b21e9ea95c8dac"
+    },
+    {
+      "path": "crates/ic-auth/tests/issuer_memory/renewal.rs",
+      "sha256": "a45eba4bde62650a65d4aaffe06a3ebb6bcd6a89158e69b1ca8180b087c5d260"
+    },
+    {
+      "path": "crates/ic-auth/tests/issuer_memory/retention.rs",
+      "sha256": "27d462f1ad214a2b5fe9418a21395051aa812c31d06607c5085800e6657a681b"
+    },
+    {
+      "path": "crates/ic-auth/tests/receiver_memory.rs",
+      "sha256": "8bfc081e1696814dc8c91916670681e2ebb12fc4f8ad66091d0fc908ad58ab35"
+    },
+    {
+      "path": "crates/ic-auth/tests/session_request.rs",
+      "sha256": "cbeca745c3d83b4966607bef8a890216fe22aa5f4e6d0d54280d029b4479c00a"
+    },
+    {
+      "path": "crates/ic-auth/tests/support/memory_fixture.rs",
+      "sha256": "b14876abad625b416084d743382aed8a07ef075deb960801b11034599503aac6"
+    },
+    {
+      "path": "crates/ic-auth/tests/support/memory_model.rs",
+      "sha256": "9d26d99886d5da02014c4afe9650eb3b64387f12e475a32d2e992a12196af50b"
+    },
+    {
+      "path": "crates/ic-auth/tests/verification.rs",
+      "sha256": "b0b9a1c1c47b2232feeda54287f37971845e69ba268f2affea95e978280d01fd"
+    },
+    {
+      "path": "crates/ic-auth/tests/verify-delegation-fixtures.mjs",
+      "sha256": "6c5cde4f07ad2695617eecda8e58768337307dc513ecfba4aba0b0ece2fba4fc"
+    },
+    {
+      "path": "crates/ic-auth/tests/verify-ed25519-fixture.mjs",
+      "sha256": "7b5b950021d03e4e5b002383af067997d9e2a26cb8db48dc6a4b4bd4ce7e6686"
+    },
+    {
+      "path": "crates/ic-auth/tests/verify-memory-fixtures.mjs",
+      "sha256": "ab166afb991226e500b85c7710a5cb134437aab397e80ed1470b4e67998c237c"
+    },
+    {
+      "path": "crates/ic-auth/tests/verify-renewal-fixtures.mjs",
+      "sha256": "bd01f2a3a3bbda38f126541dd6349fd452f65536e3f6647bebc1e772775c138a"
+    },
+    {
+      "path": "packages/client/src/admission.ts",
+      "sha256": "49ef43ad010b9219f7b9b1188ff8ae4e368340d5a92a7a6bd920a88e9d910698"
+    },
+    {
+      "path": "packages/client/src/attempt.ts",
+      "sha256": "37e16acdfb47aab74eaad12d62a4d2eb3716e800b80b4e9123bf6089b6d14dff"
+    },
+    {
+      "path": "packages/client/src/generated/credential.d.ts",
+      "sha256": "ea71b645746e2b820d2320a4d6e4d2da94892fb66b7e2d51cf06796bbd9382d1"
+    },
+    {
+      "path": "packages/client/src/generated/credential.js",
+      "sha256": "c8df42cc4e0725eb20f5276b0ce5882f0a6c987047eba1fd1f13f23b065f66c1"
+    },
+    {
+      "path": "packages/client/src/generated/establish.d.ts",
+      "sha256": "8928a59efc6fef6d3c3776ccbe59b51471b72495092b8ace13b1040ac82a3e9a"
+    },
+    {
+      "path": "packages/client/src/generated/establish.js",
+      "sha256": "8c3482d6a9c7bf25f71d4a9cf7311c71f09cd395cc59175be59b0aa5c9b5507b"
+    },
+    {
+      "path": "packages/client/src/generated/logout.d.ts",
+      "sha256": "15227874da18b7c8fa8d9bd3b295c615a4bf58589add195cb33ff2083853155f"
+    },
+    {
+      "path": "packages/client/src/generated/logout.js",
+      "sha256": "8d6eca1d5e0a0dc35f1d9cd94d6d6dc5720f93fea7d59782a174dbb44ed39ecf"
+    },
+    {
+      "path": "packages/client/src/generated/wire-runtime.d.ts",
+      "sha256": "c004b4801cde015a3451551e667acb1de1a3e7369c430195ca46c8f9475554cf"
+    },
+    {
+      "path": "packages/client/src/generated/wire-runtime.js",
+      "sha256": "d47da74e9f1f4503a1dee5dced316a04eb2e1c4240c5d6db5642e22a94ef0568"
+    },
+    {
+      "path": "packages/client/src/index.ts",
+      "sha256": "0fa84242b2bec7e5e6daa1c304c873b1f2995449c0cf1644602b2557e86a212b"
+    },
+    {
+      "path": "packages/client/src/issuance.ts",
+      "sha256": "8060d74c3844f105f3f0fe089201bee068416e213a09c9ba55fd893347dc31f6"
+    },
+    {
+      "path": "packages/client/src/journal.ts",
+      "sha256": "d3814dc7b13e1d29fd48d9a16a1ae8e7fdd05c95aa6471c1a6b4364c0906bbda"
+    },
+    {
+      "path": "packages/client/src/logout.ts",
+      "sha256": "7763b4109b7f1de2c86d0edf00a3514ac21818d1146cd84b71db7a81e5ffab4a"
+    },
+    {
+      "path": "packages/client/tests/admission.test.ts",
+      "sha256": "ab5a374e764dfc49cfb2e6b38c8ba49b091ca36fecdc2b8be53c0d501069d482"
+    },
+    {
+      "path": "packages/client/tests/attempt.test.ts",
+      "sha256": "e2d31226970e24672a818d786ecf24f9f1ff3012f8b547755dbe64c03b68fd55"
+    },
+    {
+      "path": "packages/client/tests/browser/admission.mjs",
+      "sha256": "3a9a7b6dfd67ca699301b1704240d45081a571c71b923fb046de28a53404f1ad"
+    },
+    {
+      "path": "packages/client/tests/browser/cleanup.mjs",
+      "sha256": "cb20b250f1ac83751cf1c9cf4132c8de6961bf5875739f7930aaeefe4259c1cc"
+    },
+    {
+      "path": "packages/client/tests/browser/entry.ts",
+      "sha256": "ea97d24a1535b8f484f4f44aa24d182b7545c0d446d54a15779388c14d5ca06d"
+    },
+    {
+      "path": "packages/client/tests/browser/issuance.mjs",
+      "sha256": "5a911d204f79a8b3801c48785a65389d53759af7b833d98f965e72b7081a2c1f"
+    },
+    {
+      "path": "packages/client/tests/browser/journal.mjs",
+      "sha256": "6dd4e89a154f0b739a9deb3382482c45f47019dc02ae02a3ef39427a40052d22"
+    },
+    {
+      "path": "packages/client/tests/browser/logout.mjs",
+      "sha256": "1337912700ea629532917ea9f13ceffc11903a86504ebb2dcc411ced61862158"
+    },
+    {
+      "path": "packages/client/tests/browser/transport.mjs",
+      "sha256": "dffe0e46ac395b02a24b1175b9931e4b908979a28b459670ee3aceb446012008"
+    },
+    {
+      "path": "packages/client/tests/credential.test.ts",
+      "sha256": "2c34e2be0b8e8d670f667b35cde26499653ef224c5d97b660b758b5ed498a404"
+    },
+    {
+      "path": "packages/client/tests/logout.test.ts",
+      "sha256": "611b1c84f82da42e7a378f8b91fb5a6ba550bca72a6b4e9faad3f24ac480a63d"
+    },
+    {
+      "path": "qualification/Cargo.toml",
+      "sha256": "21f852ee8cdb2e748e53222af0848f5b08676f0e44d40693ee2292210377a92e"
+    },
+    {
+      "path": "qualification/ic-auth-certified-conformance/Cargo.toml",
+      "sha256": "14044bd132e75d50b2ebda3a95801862b6715e030913b264912f1efbdebe2473"
+    },
+    {
+      "path": "qualification/ic-auth-certified-conformance/tests/certified.rs",
+      "sha256": "7979c2c4cd4bc0347da780ea225b93cd6366203de0c75b33bc1d43da65919100"
+    },
+    {
+      "path": "qualification/ic-auth-certified-conformance/tests/issuance/mod.rs",
+      "sha256": "a99f3dffbe062cbe417833590062e6382fa661c36ffb23e0cd08ebf86f44c904"
+    },
+    {
+      "path": "qualification/ic-auth-certified-conformance/tests/issuer_signature.rs",
+      "sha256": "f56ce919b88b9e425a3576ec9240f2e9b5c24ba1b8abab7dfc91696c68e23f32"
+    },
+    {
+      "path": "qualification/ic-auth-certified-conformance/tests/memory/mod.rs",
+      "sha256": "3985a19e9d0414c9c3a535a45840b49f41d8129838606e152ca8bebe5bbf3db6"
+    },
+    {
+      "path": "qualification/ic-auth-certified-conformance/tests/root_delegation.rs",
+      "sha256": "d6b96b925f874702033bfe116b0878b75c76dd3c380be5c2f0560725da826a45"
+    },
+    {
+      "path": "qualification/ic-auth-certified-conformance/tests/support/mod.rs",
+      "sha256": "11a900feec1b786a4655c1cd9f15fe9a3719b2592df751136d2ae7deddb171f5"
+    },
+    {
+      "path": "qualification/ic-auth-certified-conformance/tests/support/root.rs",
+      "sha256": "17e9ac0518f6159c178479b659e5f54e20fdbc2959ffa79a770e2c0e9b2c9d7d"
+    },
+    {
+      "path": "qualification/ic-auth-certified-conformance/tests/verify-memory-fixture.mjs",
+      "sha256": "14b1bdd5445546b624fdc536b7303774ef8743c2d87c882e7b35e37229b7a015"
+    },
+    {
+      "path": "qualification/ic-auth-certified-conformance/tests/verify-root-fixture.mjs",
+      "sha256": "7d666646c69fe510e33e18bfdcabb169918fb4e510e4fce110f9b00aecac72c1"
+    },
+    {
+      "path": "qualification/ic-auth-ed25519-conformance/Cargo.toml",
+      "sha256": "8ee74ca9d8283d3f707276c1c46a39c92a4978485085740d8f740c890ca6a26e"
+    },
+    {
+      "path": "qualification/ic-auth-ed25519-conformance/tests/legacy_scalar.rs",
+      "sha256": "44bac7cc9ab38cc6aeeaadf7adbff1c3a03498dac794e38eb8c5cc1726bc2009"
+    },
+    {
+      "path": "qualification/ic-auth-host-conformance/Cargo.toml",
+      "sha256": "b88de351c4d27edf30e99b34d7ed036d83a715417454ba3ea634332abc2ddfa6"
+    },
+    {
+      "path": "qualification/ic-auth-host-conformance/tests/installed/enrollment.rs",
+      "sha256": "8f1a848d13e8aaf51af29d17ae3eb88929cad34d83323efcefdbc72f4ed21d34"
+    },
+    {
+      "path": "qualification/ic-auth-host-conformance/tests/installed/main.rs",
+      "sha256": "82be398058b87bc4feaf81c61a94591d7b2077aea58a49ac4e2946c97855054e"
+    },
+    {
+      "path": "qualification/ic-auth-host-conformance/tests/installed/receiver.rs",
+      "sha256": "975e74cdc7cc24374bd621cf51f0e799f9c96f2176516536d2219be4250f8869"
+    },
+    {
+      "path": "qualification/ic-auth-host-fixture/Cargo.toml",
+      "sha256": "a7734abc2a03def4dcfdbb1c2e3b976d817f98811caab1794947ac829cb46d1c"
+    },
+    {
+      "path": "qualification/ic-auth-host-fixture/src/canister.rs",
+      "sha256": "cd9c5012d611d4138f0070965b27d8e85f6d0d2d83aa527f49628a170d611822"
+    },
+    {
+      "path": "qualification/ic-auth-host-fixture/src/enrollment.rs",
+      "sha256": "81c9d35e125875b4ae4b7c4877170cc8693f27e0f4e9f14e02683a8f70777326"
+    },
+    {
+      "path": "qualification/ic-auth-host-fixture/src/enrollment/canister.rs",
+      "sha256": "49ed9fe83fe1a10bb6726a2452443fd2210fcdde0cfa6e0a9c523ea52736a5ba"
+    },
+    {
+      "path": "qualification/ic-auth-host-fixture/src/lib.rs",
+      "sha256": "461289ca1c5b95ddb991c3384d36624ec84bc97f16202f6f01afef139a988b82"
+    },
+    {
+      "path": "qualification/ic-auth-host-fixture/src/receiver.rs",
+      "sha256": "7f91aca4adfb2ac7b5f5867c56e3d260645816a55588d4a9576556f10c9928d0"
+    },
+    {
+      "path": "qualification/ic-auth-host-fixture/src/receiver/canister.rs",
+      "sha256": "42a32ef43fa53b66cda7a44cc980d81a160b055922f5a050438e5c28dc016c40"
+    },
+    {
+      "path": "qualification/ic-auth-host-fixture/src/receiver/canister/enrollment.rs",
+      "sha256": "1b00f5bdca2fcae7c8c1d8a484b707d8dd3b8430a2a7bd979a79ec8c9b9c8abc"
+    },
+    {
+      "path": "qualification/ic-auth-wire-conformance/Cargo.toml",
+      "sha256": "bec0ff39e796d28aa55153d87179f16136ca371affe309f9906aa92d2c25a408"
+    },
+    {
+      "path": "qualification/ic-auth-wire-conformance/tests/codecs.rs",
+      "sha256": "73f3db6912e576db17b466e2da010e5ee886b8ee80e55da5d601da7addf09144"
+    }
+  ],
+  "rust": {
+    "crates": [
+      {
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 4579,
+          "tests": 7052,
+          "total": 11631,
+          "unclassified": 0
+        },
+        "crate": "ic-auth",
+        "root": "/home/adam/projects/ic-auth-new/crates/ic-auth"
+      },
+      {
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 278,
+          "tests": 74,
+          "total": 352,
+          "unclassified": 0
+        },
+        "crate": "ic-auth-protocol-types",
+        "root": "/home/adam/projects/ic-auth-new/crates/ic-auth-protocol-types"
+      },
+      {
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 91,
+          "library_app": 561,
+          "tests": 891,
+          "total": 1543,
+          "unclassified": 0
+        },
+        "crate": "ic-auth-wire",
+        "root": "/home/adam/projects/ic-auth-new/crates/ic-auth-wire"
+      },
+      {
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 0,
+          "tests": 2463,
+          "total": 2463,
+          "unclassified": 0
+        },
+        "crate": "qualification/ic-auth-certified-conformance",
+        "root": "/home/adam/projects/ic-auth-new/qualification/ic-auth-certified-conformance"
+      },
+      {
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 0,
+          "tests": 74,
+          "total": 74,
+          "unclassified": 0
+        },
+        "crate": "qualification/ic-auth-ed25519-conformance",
+        "root": "/home/adam/projects/ic-auth-new/qualification/ic-auth-ed25519-conformance"
+      },
+      {
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 0,
+          "tests": 896,
+          "total": 896,
+          "unclassified": 0
+        },
+        "crate": "qualification/ic-auth-host-conformance",
+        "root": "/home/adam/projects/ic-auth-new/qualification/ic-auth-host-conformance"
+      },
+      {
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 0,
+          "tests": 975,
+          "total": 975,
+          "unclassified": 0
+        },
+        "crate": "qualification/ic-auth-host-fixture",
+        "root": "/home/adam/projects/ic-auth-new/qualification/ic-auth-host-fixture"
+      },
+      {
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 0,
+          "tests": 195,
+          "total": 195,
+          "unclassified": 0
+        },
+        "crate": "qualification/ic-auth-wire-conformance",
+        "root": "/home/adam/projects/ic-auth-new/qualification/ic-auth-wire-conformance"
+      }
+    ],
+    "diagnostics": [
+      {
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth-wire/src/lib.rs",
+        "reason": "conditional attributes require review"
+      },
+      {
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth-wire/src/lib.rs",
+        "reason": "macro body is counted at its source; emitted modules are not expanded"
+      },
+      {
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth/src/receiver_memory/mod.rs",
+        "reason": "macro body is counted at its source; emitted modules are not expanded"
+      },
+      {
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth-wire/src/model.rs",
+        "reason": "conditional attributes require review"
+      },
+      {
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth/src/issuer_memory/tests.rs",
+        "reason": "macro body is counted at its source; emitted modules are not expanded"
+      },
+      {
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth/src/receiver_memory/publication_faults.rs",
+        "reason": "macro body is counted at its source; emitted modules are not expanded"
+      },
+      {
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth-wire/src/model/credential.rs",
+        "reason": "conditional attributes require review"
+      },
+      {
+        "path": "/home/adam/projects/ic-auth-new/qualification/ic-auth-host-fixture/src/canister.rs",
+        "reason": "macro body is counted at its source; emitted modules are not expanded"
+      },
+      {
+        "path": "/home/adam/projects/ic-auth-new/qualification/ic-auth-host-fixture/src/enrollment/canister.rs",
+        "reason": "macro body is counted at its source; emitted modules are not expanded"
+      },
+      {
+        "path": "/home/adam/projects/ic-auth-new/qualification/ic-auth-host-fixture/src/receiver/canister.rs",
+        "reason": "macro body is counted at its source; emitted modules are not expanded"
+      }
+    ],
+    "files": [
+      {
+        "category": "library_app",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 45,
+          "tests": 0,
+          "total": 45,
+          "unclassified": 0
+        },
+        "crate": "ic-auth-protocol-types",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth-protocol-types/src/claims.rs",
+        "shared": false,
+        "source_sha256": "d27b2629157c2c7cc46561a7bb2d1cf408fd0ea4778a9f02d81a6dd844e11385",
+        "target_categories": [
+          "library_app"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/Cargo.toml"
+      },
+      {
+        "category": "library_app",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 32,
+          "tests": 0,
+          "total": 32,
+          "unclassified": 0
+        },
+        "crate": "ic-auth-protocol-types",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth-protocol-types/src/credential.rs",
+        "shared": false,
+        "source_sha256": "f11ee5d5e41a3ec1c3328428cf2bfd5759e8c030b3bf5cf51af4aae2fe71ecc5",
+        "target_categories": [
+          "library_app"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/Cargo.toml"
+      },
+      {
+        "category": "library_app",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 45,
+          "tests": 0,
+          "total": 45,
+          "unclassified": 0
+        },
+        "crate": "ic-auth-protocol-types",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth-protocol-types/src/delegation.rs",
+        "shared": false,
+        "source_sha256": "7ee9d4b8367010aff9ab1a1bcf0619842bb2d3e9669cca64d6e61ae785718e8c",
+        "target_categories": [
+          "library_app"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/Cargo.toml"
+      },
+      {
+        "category": "library_app",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 15,
+          "tests": 0,
+          "total": 15,
+          "unclassified": 0
+        },
+        "crate": "ic-auth-protocol-types",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth-protocol-types/src/lib.rs",
+        "shared": false,
+        "source_sha256": "6a80bd91b98da5d8ede76e57ed7dc6c986514104a70334a1b523b62f5320ff4d",
+        "target_categories": [
+          "library_app"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/Cargo.toml"
+      },
+      {
+        "category": "library_app",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 43,
+          "tests": 0,
+          "total": 43,
+          "unclassified": 0
+        },
+        "crate": "ic-auth-protocol-types",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth-protocol-types/src/role.rs",
+        "shared": false,
+        "source_sha256": "71d6190d90ed36c2dac5ee661aaf3efe396e201a3e2032657f12d866469d20a8",
+        "target_categories": [
+          "library_app"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/Cargo.toml"
+      },
+      {
+        "category": "library_app",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 98,
+          "tests": 0,
+          "total": 98,
+          "unclassified": 0
+        },
+        "crate": "ic-auth-protocol-types",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth-protocol-types/src/scope.rs",
+        "shared": false,
+        "source_sha256": "3677d28a38b18635eef05ad247ff14b3e7d8567f05c5b4cd7b54760d9ffac087",
+        "target_categories": [
+          "library_app"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/Cargo.toml"
+      },
+      {
+        "category": "tests",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 0,
+          "tests": 20,
+          "total": 20,
+          "unclassified": 0
+        },
+        "crate": "ic-auth-protocol-types",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth-protocol-types/tests/role.rs",
+        "shared": false,
+        "source_sha256": "2ff00cd2cdf03937ba5680d8ff69c791c5c50be7df88a5557551b1a97b79d9bf",
+        "target_categories": [
+          "tests"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/Cargo.toml"
+      },
+      {
+        "category": "tests",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 0,
+          "tests": 54,
+          "total": 54,
+          "unclassified": 0
+        },
+        "crate": "ic-auth-protocol-types",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth-protocol-types/tests/scope.rs",
+        "shared": false,
+        "source_sha256": "e0dafad5b20c477d77c55aea520f4b0b37ed71eaa06a9a34f658d0f4c0a1d71a",
+        "target_categories": [
+          "tests"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/Cargo.toml"
+      },
+      {
+        "category": "examples",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 91,
+          "library_app": 0,
+          "tests": 0,
+          "total": 91,
+          "unclassified": 0
+        },
+        "crate": "ic-auth-wire",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth-wire/examples/generate.rs",
+        "shared": false,
+        "source_sha256": "451121e98ec1893d609f86ad0d66ddab20a015c78deea1fbde8e625e67fd15e8",
+        "target_categories": [
+          "examples"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/Cargo.toml"
+      },
+      {
+        "category": "library_app",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 120,
+          "tests": 0,
+          "total": 120,
+          "unclassified": 0
+        },
+        "crate": "ic-auth-wire",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth-wire/src/lib.rs",
+        "shared": false,
+        "source_sha256": "455068e5a1267e7869156f1eb53d840eb6e643429faaebf896c6d3bb1aa939dc",
+        "target_categories": [
+          "library_app"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/Cargo.toml"
+      },
+      {
+        "category": "library_app",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 73,
+          "tests": 0,
+          "total": 73,
+          "unclassified": 0
+        },
+        "crate": "ic-auth-wire",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth-wire/src/model.rs",
+        "shared": false,
+        "source_sha256": "42e0c6a90edfc5f5b8a6dd8277bdac74f75f813e2ca24545625df2173c276027",
+        "target_categories": [
+          "library_app"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/Cargo.toml"
+      },
+      {
+        "category": "library_app",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 212,
+          "tests": 0,
+          "total": 212,
+          "unclassified": 0
+        },
+        "crate": "ic-auth-wire",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth-wire/src/model/credential.rs",
+        "shared": false,
+        "source_sha256": "1d34f3e353134732cb3f433d93bc5f79a7df1eb5921e0111553c8e7f6389b70f",
+        "target_categories": [
+          "library_app"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/Cargo.toml"
+      },
+      {
+        "category": "library_app",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 156,
+          "tests": 0,
+          "total": 156,
+          "unclassified": 0
+        },
+        "crate": "ic-auth-wire",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth-wire/src/projection.rs",
+        "shared": false,
+        "source_sha256": "e5e26f3880e052679badef05bb106bb12694975bfba6e12e2430fc39edbb87f7",
+        "target_categories": [
+          "library_app"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/Cargo.toml"
+      },
+      {
+        "category": "tests",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 0,
+          "tests": 404,
+          "total": 404,
+          "unclassified": 0
+        },
+        "crate": "ic-auth-wire",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth-wire/tests/admission_contracts.rs",
+        "shared": false,
+        "source_sha256": "38f130c579044cd5d639039d2ea775c732dc59e8476cde7c72f43d1cf13a5298",
+        "target_categories": [
+          "tests"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/Cargo.toml"
+      },
+      {
+        "category": "tests",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 0,
+          "tests": 252,
+          "total": 252,
+          "unclassified": 0
+        },
+        "crate": "ic-auth-wire",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth-wire/tests/caller_contracts.rs",
+        "shared": false,
+        "source_sha256": "49f09f8e30d6439a494979154c60ea0a9aea6b41c6b1cdca211464735ed102f0",
+        "target_categories": [
+          "tests"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/Cargo.toml"
+      },
+      {
+        "category": "tests",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 0,
+          "tests": 235,
+          "total": 235,
+          "unclassified": 0
+        },
+        "crate": "ic-auth-wire",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth-wire/tests/projection.rs",
+        "shared": false,
+        "source_sha256": "2204d8b4155a5bc903593acbd6d139fbdd0d69af0ce94bcef02b9a74659e699f",
+        "target_categories": [
+          "tests"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/Cargo.toml"
+      },
+      {
+        "category": "library_app",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 10,
+          "tests": 0,
+          "total": 10,
+          "unclassified": 0
+        },
+        "crate": "ic-auth",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth/src/browser_identity.rs",
+        "shared": false,
+        "source_sha256": "5c1c6fe46bbbab0b6ad34d81f1da430daa6afa6495235abeb2bddab84462cdbe",
+        "target_categories": [
+          "library_app"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/Cargo.toml"
+      },
+      {
+        "category": "library_app",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 10,
+          "tests": 0,
+          "total": 10,
+          "unclassified": 0
+        },
+        "crate": "ic-auth",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth/src/certified_message.rs",
+        "shared": false,
+        "source_sha256": "56fb2c5125bcd709baf21a62813cf107893a55431a180d21cf4e2dd3e8f0c49e",
+        "target_categories": [
+          "library_app"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/Cargo.toml"
+      },
+      {
+        "category": "library_app",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 260,
+          "tests": 0,
+          "total": 260,
+          "unclassified": 0
+        },
+        "crate": "ic-auth",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth/src/claims.rs",
+        "shared": false,
+        "source_sha256": "1bba15b011b1e65457ad4197f83e8cbab91f8d21c2eb74c6c1e24512b5ba280b",
+        "target_categories": [
+          "library_app"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/Cargo.toml"
+      },
+      {
+        "category": "library_app",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 137,
+          "tests": 0,
+          "total": 137,
+          "unclassified": 0
+        },
+        "crate": "ic-auth",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth/src/delegation_encoding.rs",
+        "shared": false,
+        "source_sha256": "a223b0c6c8634b0b088b726734788667e08973e43a70c52059b39e8488d02ce5",
+        "target_categories": [
+          "library_app"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/Cargo.toml"
+      },
+      {
+        "category": "library_app",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 15,
+          "tests": 0,
+          "total": 15,
+          "unclassified": 0
+        },
+        "crate": "ic-auth",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth/src/grant_policy.rs",
+        "shared": false,
+        "source_sha256": "4a004d8eddb9ad0d0026ef7a2d105fa29844ec8170aad1f14e946f39933c4a3d",
+        "target_categories": [
+          "library_app"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/Cargo.toml"
+      },
+      {
+        "category": "library_app",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 75,
+          "tests": 2,
+          "total": 77,
+          "unclassified": 0
+        },
+        "crate": "ic-auth",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth/src/issuer_memory/certified.rs",
+        "shared": false,
+        "source_sha256": "f5f39b9422f4bb8d5fa3f5e0eaac1ba905301d7f4ff6136f109c2d1853ae7d7a",
+        "target_categories": [
+          "library_app"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/Cargo.toml"
+      },
+      {
+        "category": "library_app",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 652,
+          "tests": 28,
+          "total": 680,
+          "unclassified": 0
+        },
+        "crate": "ic-auth",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth/src/issuer_memory/mod.rs",
+        "shared": false,
+        "source_sha256": "e66fb0e64951651c7170d8e342899c60605f6925ae787e3fc8e14105e69387f5",
+        "target_categories": [
+          "library_app"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/Cargo.toml"
+      },
+      {
+        "category": "library_app",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 163,
+          "tests": 0,
+          "total": 163,
+          "unclassified": 0
+        },
+        "crate": "ic-auth",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth/src/issuer_memory/renewal.rs",
+        "shared": false,
+        "source_sha256": "28c2a330aa8a37414860f31aa7e92b855dc7a7b291115489811ec51af79cb840",
+        "target_categories": [
+          "library_app"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/Cargo.toml"
+      },
+      {
+        "category": "library_app",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 72,
+          "tests": 22,
+          "total": 94,
+          "unclassified": 0
+        },
+        "crate": "ic-auth",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth/src/issuer_memory/retention.rs",
+        "shared": false,
+        "source_sha256": "cc0dc3b33d060b52909a2dae80e4b9a5a40310848bef5415fc5e2f58d3180498",
+        "target_categories": [
+          "library_app"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/Cargo.toml"
+      },
+      {
+        "category": "tests",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 0,
+          "tests": 366,
+          "total": 366,
+          "unclassified": 0
+        },
+        "crate": "ic-auth",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth/src/issuer_memory/tests.rs",
+        "shared": false,
+        "source_sha256": "b5c0252d855887ea384c394d9d4408600c4b1913a00b15a9e73a90097b3ada42",
+        "target_categories": [
+          "tests"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/Cargo.toml"
+      },
+      {
+        "category": "tests",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 0,
+          "tests": 212,
+          "total": 212,
+          "unclassified": 0
+        },
+        "crate": "ic-auth",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth/src/issuer_memory/tests/retention.rs",
+        "shared": false,
+        "source_sha256": "9afa8fb10653e85d776ea3e6f46be85dec1b525562b8783df126bce762f20721",
+        "target_categories": [
+          "tests"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/Cargo.toml"
+      },
+      {
+        "category": "library_app",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 180,
+          "tests": 0,
+          "total": 180,
+          "unclassified": 0
+        },
+        "crate": "ic-auth",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth/src/issuer_memory/types.rs",
+        "shared": false,
+        "source_sha256": "bc02ac37ef43585d640715f71ee2a3fef6c5159a0df1dbe1395713e750259e06",
+        "target_categories": [
+          "library_app"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/Cargo.toml"
+      },
+      {
+        "category": "library_app",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 87,
+          "tests": 0,
+          "total": 87,
+          "unclassified": 0
+        },
+        "crate": "ic-auth",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth/src/issuer_signature.rs",
+        "shared": false,
+        "source_sha256": "9d1b600bb900256b3dbd25e709c2bce42af206a5c09249c350b6847365c18c80",
+        "target_categories": [
+          "library_app"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/Cargo.toml"
+      },
+      {
+        "category": "library_app",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 38,
+          "tests": 0,
+          "total": 38,
+          "unclassified": 0
+        },
+        "crate": "ic-auth",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth/src/lib.rs",
+        "shared": false,
+        "source_sha256": "36aac1bd1e5d9d369b6b6a2529cfa79f5217d7ad5afe7652274b43173a036346",
+        "target_categories": [
+          "library_app"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/Cargo.toml"
+      },
+      {
+        "category": "library_app",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 139,
+          "tests": 0,
+          "total": 139,
+          "unclassified": 0
+        },
+        "crate": "ic-auth",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth/src/receiver_memory/enrollment.rs",
+        "shared": false,
+        "source_sha256": "9ab8a3713c370275e136ca2d1e8cb5b2bb2fd52a9ce48510ffd4252ad91decef",
+        "target_categories": [
+          "library_app"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/Cargo.toml"
+      },
+      {
+        "category": "library_app",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 77,
+          "tests": 72,
+          "total": 149,
+          "unclassified": 0
+        },
+        "crate": "ic-auth",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth/src/receiver_memory/inspection.rs",
+        "shared": false,
+        "source_sha256": "45c771afdb0eda815baac2f80563fad8d484d2dce4dfc88c5c60c0eb4aa38c3c",
+        "target_categories": [
+          "library_app"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/Cargo.toml"
+      },
+      {
+        "category": "library_app",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 581,
+          "tests": 2,
+          "total": 583,
+          "unclassified": 0
+        },
+        "crate": "ic-auth",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth/src/receiver_memory/mod.rs",
+        "shared": false,
+        "source_sha256": "710f25f9a40f6df74a2b16bf818f5d675864e121f09b862e8eea88d4ddb7cef5",
+        "target_categories": [
+          "library_app"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/Cargo.toml"
+      },
+      {
+        "category": "tests",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 0,
+          "tests": 188,
+          "total": 188,
+          "unclassified": 0
+        },
+        "crate": "ic-auth",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth/src/receiver_memory/publication_faults.rs",
+        "shared": false,
+        "source_sha256": "c0f3795945b7a6c4dfab0278eff8b7cf2f85b592b330981af4420487f59bdd4a",
+        "target_categories": [
+          "tests"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/Cargo.toml"
+      },
+      {
+        "category": "library_app",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 273,
+          "tests": 0,
+          "total": 273,
+          "unclassified": 0
+        },
+        "crate": "ic-auth",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth/src/receiver_memory/records.rs",
+        "shared": false,
+        "source_sha256": "e3f39f7b771dbac4536c060d131cad5f6ac8d4160239339978b2994721e97078",
+        "target_categories": [
+          "library_app"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/Cargo.toml"
+      },
+      {
+        "category": "library_app",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 86,
+          "tests": 0,
+          "total": 86,
+          "unclassified": 0
+        },
+        "crate": "ic-auth",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth/src/receiver_policy/capacity.rs",
+        "shared": false,
+        "source_sha256": "48636b0fb3ab54ff2d47cb296cb65ab577fe04494bd65bec4c0bffc72849e629",
+        "target_categories": [
+          "library_app"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/Cargo.toml"
+      },
+      {
+        "category": "library_app",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 142,
+          "tests": 0,
+          "total": 142,
+          "unclassified": 0
+        },
+        "crate": "ic-auth",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth/src/receiver_policy/login.rs",
+        "shared": false,
+        "source_sha256": "7bb0af07c7db94d995dc263fe43e0ca5c58abb3275bf0eb9b1bfa5117623ecda",
+        "target_categories": [
+          "library_app"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/Cargo.toml"
+      },
+      {
+        "category": "library_app",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 86,
+          "tests": 0,
+          "total": 86,
+          "unclassified": 0
+        },
+        "crate": "ic-auth",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth/src/receiver_policy/logout.rs",
+        "shared": false,
+        "source_sha256": "45e4153f1ed1764bdf33c6a50e62736bd35f4fd3c529487fcc79cd8176ad7b57",
+        "target_categories": [
+          "library_app"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/Cargo.toml"
+      },
+      {
+        "category": "library_app",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 272,
+          "tests": 2,
+          "total": 274,
+          "unclassified": 0
+        },
+        "crate": "ic-auth",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth/src/receiver_policy/mod.rs",
+        "shared": false,
+        "source_sha256": "9b13115a52629753ff1256f51b746ced264d084ee74fadaf2e7f93f14e646206",
+        "target_categories": [
+          "library_app"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/Cargo.toml"
+      },
+      {
+        "category": "tests",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 0,
+          "tests": 347,
+          "total": 347,
+          "unclassified": 0
+        },
+        "crate": "ic-auth",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth/src/receiver_policy/tests/capacity.rs",
+        "shared": false,
+        "source_sha256": "d443fbc7cac1070260d0e3b71eba82a3f9f4d5a5b1d2abbd5a5da5c97ce5daae",
+        "target_categories": [
+          "tests"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/Cargo.toml"
+      },
+      {
+        "category": "tests",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 0,
+          "tests": 673,
+          "total": 673,
+          "unclassified": 0
+        },
+        "crate": "ic-auth",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth/src/receiver_policy/tests/mod.rs",
+        "shared": false,
+        "source_sha256": "7f87c72de98b770682d4365cb2ec05bf54dac1089ffe43d1ed791fcf29fbe700",
+        "target_categories": [
+          "tests"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/Cargo.toml"
+      },
+      {
+        "category": "library_app",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 325,
+          "tests": 0,
+          "total": 325,
+          "unclassified": 0
+        },
+        "crate": "ic-auth",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth/src/root_delegation.rs",
+        "shared": false,
+        "source_sha256": "928f0c838d8e98a8027c2af7d8be24411e645b4c9739727d2a555b3053b94d38",
+        "target_categories": [
+          "library_app"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/Cargo.toml"
+      },
+      {
+        "category": "library_app",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 142,
+          "tests": 0,
+          "total": 142,
+          "unclassified": 0
+        },
+        "crate": "ic-auth",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth/src/session_request.rs",
+        "shared": false,
+        "source_sha256": "629a091fc9542775f39bf0b121715a634bb6dabe6e913a00fe16cb39621a1e45",
+        "target_categories": [
+          "library_app"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/Cargo.toml"
+      },
+      {
+        "category": "library_app",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 52,
+          "tests": 32,
+          "total": 84,
+          "unclassified": 0
+        },
+        "crate": "ic-auth",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth/src/verification/budget.rs",
+        "shared": false,
+        "source_sha256": "c00a5a370edb8b3743a67a1c1a2444ef6feb8216a90394228cc385624b3aee15",
+        "target_categories": [
+          "library_app"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/Cargo.toml"
+      },
+      {
+        "category": "library_app",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 162,
+          "tests": 0,
+          "total": 162,
+          "unclassified": 0
+        },
+        "crate": "ic-auth",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth/src/verification/certified.rs",
+        "shared": false,
+        "source_sha256": "bd6a85d85cde2c58a973f65c6f8b15a4edef0e8f1ca3956d06ced5c1b5dfb06d",
+        "target_categories": [
+          "library_app"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/Cargo.toml"
+      },
+      {
+        "category": "library_app",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 152,
+          "tests": 0,
+          "total": 152,
+          "unclassified": 0
+        },
+        "crate": "ic-auth",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth/src/verification/context.rs",
+        "shared": false,
+        "source_sha256": "c8c3651201305f2c2415dd6683b4a50fdfa95e5ed2edc5fdbc12f5e50a15820e",
+        "target_categories": [
+          "library_app"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/Cargo.toml"
+      },
+      {
+        "category": "library_app",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 97,
+          "tests": 0,
+          "total": 97,
+          "unclassified": 0
+        },
+        "crate": "ic-auth",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth/src/verification/credential.rs",
+        "shared": false,
+        "source_sha256": "4bd585491ec217d2005a6ad94b14a1869f153292df8c30cd796e584e957f7608",
+        "target_categories": [
+          "library_app"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/Cargo.toml"
+      },
+      {
+        "category": "library_app",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 27,
+          "tests": 0,
+          "total": 27,
+          "unclassified": 0
+        },
+        "crate": "ic-auth",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth/src/verification/decoded.rs",
+        "shared": false,
+        "source_sha256": "37fa78467d5590e3c0b2535b8572e4d0f3d1ebd784cfa8b2137fa90612e0bc75",
+        "target_categories": [
+          "library_app"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/Cargo.toml"
+      },
+      {
+        "category": "library_app",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 115,
+          "tests": 0,
+          "total": 115,
+          "unclassified": 0
+        },
+        "crate": "ic-auth",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth/src/verification/ed25519.rs",
+        "shared": false,
+        "source_sha256": "b17c6363ffc4431219227c30c6af3b2f4cb2e3e2e8e08fa2929fdd29979cf9c5",
+        "target_categories": [
+          "library_app"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/Cargo.toml"
+      },
+      {
+        "category": "library_app",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 77,
+          "tests": 0,
+          "total": 77,
+          "unclassified": 0
+        },
+        "crate": "ic-auth",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth/src/verification/mod.rs",
+        "shared": false,
+        "source_sha256": "dcd5decc88745b8b2dcc48567d3ecf6e1e0ed5cfb4c350efeda2155456c0133d",
+        "target_categories": [
+          "library_app"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/Cargo.toml"
+      },
+      {
+        "category": "library_app",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 75,
+          "tests": 0,
+          "total": 75,
+          "unclassified": 0
+        },
+        "crate": "ic-auth",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth/src/work_budget.rs",
+        "shared": false,
+        "source_sha256": "24e79d6ebc631d2d83ec27d3c0c7cdf89bcb5ca2b01545314af60317acff5d4a",
+        "target_categories": [
+          "library_app"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/Cargo.toml"
+      },
+      {
+        "category": "tests",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 0,
+          "tests": 279,
+          "total": 279,
+          "unclassified": 0
+        },
+        "crate": "ic-auth",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth/tests/claims.rs",
+        "shared": false,
+        "source_sha256": "7c49c638b8d596eb3bb5a6d7270bb15d1ab108a243b62ba29cf6865a24620ed4",
+        "target_categories": [
+          "tests"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/Cargo.toml"
+      },
+      {
+        "category": "tests",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 0,
+          "tests": 304,
+          "total": 304,
+          "unclassified": 0
+        },
+        "crate": "ic-auth",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth/tests/delegation_encoding.rs",
+        "shared": false,
+        "source_sha256": "5c2e0282493d71fd7d2914877c7c4e3da9f74262e008f0c58660cb458d112529",
+        "target_categories": [
+          "tests"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/Cargo.toml"
+      },
+      {
+        "category": "tests",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 0,
+          "tests": 278,
+          "total": 278,
+          "unclassified": 0
+        },
+        "crate": "ic-auth",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth/tests/issuer_memory/certified.rs",
+        "shared": false,
+        "source_sha256": "e1cd0e0dae4c0d8c4a3f332f467cc75f8285733e10c3bfaea4a6deb4c346f8a3",
+        "target_categories": [
+          "tests"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/Cargo.toml"
+      },
+      {
+        "category": "tests",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 0,
+          "tests": 620,
+          "total": 620,
+          "unclassified": 0
+        },
+        "crate": "ic-auth",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth/tests/issuer_memory/main.rs",
+        "shared": false,
+        "source_sha256": "09f5629ffa935637e051cf445d693a062bf2eebaa1f426ea54b21e9ea95c8dac",
+        "target_categories": [
+          "tests"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/Cargo.toml"
+      },
+      {
+        "category": "tests",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 0,
+          "tests": 481,
+          "total": 481,
+          "unclassified": 0
+        },
+        "crate": "ic-auth",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth/tests/issuer_memory/renewal.rs",
+        "shared": false,
+        "source_sha256": "a45eba4bde62650a65d4aaffe06a3ebb6bcd6a89158e69b1ca8180b087c5d260",
+        "target_categories": [
+          "tests"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/Cargo.toml"
+      },
+      {
+        "category": "tests",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 0,
+          "tests": 380,
+          "total": 380,
+          "unclassified": 0
+        },
+        "crate": "ic-auth",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth/tests/issuer_memory/retention.rs",
+        "shared": false,
+        "source_sha256": "27d462f1ad214a2b5fe9418a21395051aa812c31d06607c5085800e6657a681b",
+        "target_categories": [
+          "tests"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/Cargo.toml"
+      },
+      {
+        "category": "tests",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 0,
+          "tests": 1354,
+          "total": 1354,
+          "unclassified": 0
+        },
+        "crate": "ic-auth",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth/tests/receiver_memory.rs",
+        "shared": false,
+        "source_sha256": "8bfc081e1696814dc8c91916670681e2ebb12fc4f8ad66091d0fc908ad58ab35",
+        "target_categories": [
+          "tests"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/Cargo.toml"
+      },
+      {
+        "category": "tests",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 0,
+          "tests": 190,
+          "total": 190,
+          "unclassified": 0
+        },
+        "crate": "ic-auth",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth/tests/session_request.rs",
+        "shared": false,
+        "source_sha256": "cbeca745c3d83b4966607bef8a890216fe22aa5f4e6d0d54280d029b4479c00a",
+        "target_categories": [
+          "tests"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/Cargo.toml"
+      },
+      {
+        "category": "tests",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 0,
+          "tests": 163,
+          "total": 163,
+          "unclassified": 0
+        },
+        "crate": "ic-auth",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth/tests/support/memory_fixture.rs",
+        "shared": false,
+        "source_sha256": "b14876abad625b416084d743382aed8a07ef075deb960801b11034599503aac6",
+        "target_categories": [
+          "tests"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/Cargo.toml"
+      },
+      {
+        "category": "tests",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 0,
+          "tests": 469,
+          "total": 469,
+          "unclassified": 0
+        },
+        "crate": "ic-auth",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth/tests/support/memory_model.rs",
+        "shared": false,
+        "source_sha256": "9d26d99886d5da02014c4afe9650eb3b64387f12e475a32d2e992a12196af50b",
+        "target_categories": [
+          "tests"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/Cargo.toml"
+      },
+      {
+        "category": "tests",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 0,
+          "tests": 588,
+          "total": 588,
+          "unclassified": 0
+        },
+        "crate": "ic-auth",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/crates/ic-auth/tests/verification.rs",
+        "shared": false,
+        "source_sha256": "b0b9a1c1c47b2232feeda54287f37971845e69ba268f2affea95e978280d01fd",
+        "target_categories": [
+          "tests"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/Cargo.toml"
+      },
+      {
+        "category": "tests",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 0,
+          "tests": 1028,
+          "total": 1028,
+          "unclassified": 0
+        },
+        "crate": "qualification/ic-auth-certified-conformance",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/qualification/ic-auth-certified-conformance/tests/certified.rs",
+        "shared": false,
+        "source_sha256": "7979c2c4cd4bc0347da780ea225b93cd6366203de0c75b33bc1d43da65919100",
+        "target_categories": [
+          "tests"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/qualification/Cargo.toml"
+      },
+      {
+        "category": "tests",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 0,
+          "tests": 154,
+          "total": 154,
+          "unclassified": 0
+        },
+        "crate": "qualification/ic-auth-certified-conformance",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/qualification/ic-auth-certified-conformance/tests/issuance/mod.rs",
+        "shared": false,
+        "source_sha256": "a99f3dffbe062cbe417833590062e6382fa661c36ffb23e0cd08ebf86f44c904",
+        "target_categories": [
+          "tests"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/qualification/Cargo.toml"
+      },
+      {
+        "category": "tests",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 0,
+          "tests": 324,
+          "total": 324,
+          "unclassified": 0
+        },
+        "crate": "qualification/ic-auth-certified-conformance",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/qualification/ic-auth-certified-conformance/tests/issuer_signature.rs",
+        "shared": false,
+        "source_sha256": "f56ce919b88b9e425a3576ec9240f2e9b5c24ba1b8abab7dfc91696c68e23f32",
+        "target_categories": [
+          "tests"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/qualification/Cargo.toml"
+      },
+      {
+        "category": "tests",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 0,
+          "tests": 563,
+          "total": 563,
+          "unclassified": 0
+        },
+        "crate": "qualification/ic-auth-certified-conformance",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/qualification/ic-auth-certified-conformance/tests/memory/mod.rs",
+        "shared": false,
+        "source_sha256": "3985a19e9d0414c9c3a535a45840b49f41d8129838606e152ca8bebe5bbf3db6",
+        "target_categories": [
+          "tests"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/qualification/Cargo.toml"
+      },
+      {
+        "category": "tests",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 0,
+          "tests": 265,
+          "total": 265,
+          "unclassified": 0
+        },
+        "crate": "qualification/ic-auth-certified-conformance",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/qualification/ic-auth-certified-conformance/tests/root_delegation.rs",
+        "shared": false,
+        "source_sha256": "d6b96b925f874702033bfe116b0878b75c76dd3c380be5c2f0560725da826a45",
+        "target_categories": [
+          "tests"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/qualification/Cargo.toml"
+      },
+      {
+        "category": "tests",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 0,
+          "tests": 1,
+          "total": 1,
+          "unclassified": 0
+        },
+        "crate": "qualification/ic-auth-certified-conformance",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/qualification/ic-auth-certified-conformance/tests/support/mod.rs",
+        "shared": false,
+        "source_sha256": "11a900feec1b786a4655c1cd9f15fe9a3719b2592df751136d2ae7deddb171f5",
+        "target_categories": [
+          "tests"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/qualification/Cargo.toml"
+      },
+      {
+        "category": "tests",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 0,
+          "tests": 128,
+          "total": 128,
+          "unclassified": 0
+        },
+        "crate": "qualification/ic-auth-certified-conformance",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/qualification/ic-auth-certified-conformance/tests/support/root.rs",
+        "shared": false,
+        "source_sha256": "17e9ac0518f6159c178479b659e5f54e20fdbc2959ffa79a770e2c0e9b2c9d7d",
+        "target_categories": [
+          "tests"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/qualification/Cargo.toml"
+      },
+      {
+        "category": "tests",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 0,
+          "tests": 74,
+          "total": 74,
+          "unclassified": 0
+        },
+        "crate": "qualification/ic-auth-ed25519-conformance",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/qualification/ic-auth-ed25519-conformance/tests/legacy_scalar.rs",
+        "shared": false,
+        "source_sha256": "44bac7cc9ab38cc6aeeaadf7adbff1c3a03498dac794e38eb8c5cc1726bc2009",
+        "target_categories": [
+          "tests"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/qualification/Cargo.toml"
+      },
+      {
+        "category": "tests",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 0,
+          "tests": 78,
+          "total": 78,
+          "unclassified": 0
+        },
+        "crate": "qualification/ic-auth-host-conformance",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/qualification/ic-auth-host-conformance/tests/http/main.rs",
+        "shared": false,
+        "source_sha256": "5b59a4332f91ad60dba15ae0fa7a02a2f840bdf33e62d8ca119e900613a13815",
+        "target_categories": [
+          "tests"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/qualification/Cargo.toml"
+      },
+      {
+        "category": "tests",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 0,
+          "tests": 211,
+          "total": 211,
+          "unclassified": 0
+        },
+        "crate": "qualification/ic-auth-host-conformance",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/qualification/ic-auth-host-conformance/tests/installed/enrollment.rs",
+        "shared": false,
+        "source_sha256": "8f1a848d13e8aaf51af29d17ae3eb88929cad34d83323efcefdbc72f4ed21d34",
+        "target_categories": [
+          "tests"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/qualification/Cargo.toml"
+      },
+      {
+        "category": "tests",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 0,
+          "tests": 226,
+          "total": 226,
+          "unclassified": 0
+        },
+        "crate": "qualification/ic-auth-host-conformance",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/qualification/ic-auth-host-conformance/tests/installed/main.rs",
+        "shared": false,
+        "source_sha256": "82be398058b87bc4feaf81c61a94591d7b2077aea58a49ac4e2946c97855054e",
+        "target_categories": [
+          "tests"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/qualification/Cargo.toml"
+      },
+      {
+        "category": "tests",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 0,
+          "tests": 299,
+          "total": 299,
+          "unclassified": 0
+        },
+        "crate": "qualification/ic-auth-host-conformance",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/qualification/ic-auth-host-conformance/tests/installed/receiver.rs",
+        "shared": false,
+        "source_sha256": "975e74cdc7cc24374bd621cf51f0e799f9c96f2176516536d2219be4250f8869",
+        "target_categories": [
+          "tests"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/qualification/Cargo.toml"
+      },
+      {
+        "category": "tests",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 0,
+          "tests": 82,
+          "total": 82,
+          "unclassified": 0
+        },
+        "crate": "qualification/ic-auth-host-conformance",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/qualification/ic-auth-host-conformance/tests/support/mod.rs",
+        "shared": false,
+        "source_sha256": "6b1ebf7cd4f61b0efde14e50d27154406bf5953eb5b9d7ca2ece13abe5d4eb75",
+        "target_categories": [
+          "tests"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/qualification/Cargo.toml"
+      },
+      {
+        "category": "tests",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 0,
+          "tests": 286,
+          "total": 286,
+          "unclassified": 0
+        },
+        "crate": "qualification/ic-auth-host-fixture",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/qualification/ic-auth-host-fixture/src/canister.rs",
+        "shared": false,
+        "source_sha256": "cd9c5012d611d4138f0070965b27d8e85f6d0d2d83aa527f49628a170d611822",
+        "target_categories": [
+          "library_app"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/qualification/Cargo.toml"
+      },
+      {
+        "category": "tests",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 0,
+          "tests": 46,
+          "total": 46,
+          "unclassified": 0
+        },
+        "crate": "qualification/ic-auth-host-fixture",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/qualification/ic-auth-host-fixture/src/enrollment.rs",
+        "shared": false,
+        "source_sha256": "81c9d35e125875b4ae4b7c4877170cc8693f27e0f4e9f14e02683a8f70777326",
+        "target_categories": [
+          "library_app"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/qualification/Cargo.toml"
+      },
+      {
+        "category": "tests",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 0,
+          "tests": 126,
+          "total": 126,
+          "unclassified": 0
+        },
+        "crate": "qualification/ic-auth-host-fixture",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/qualification/ic-auth-host-fixture/src/enrollment/canister.rs",
+        "shared": false,
+        "source_sha256": "49ed9fe83fe1a10bb6726a2452443fd2210fcdde0cfa6e0a9c523ea52736a5ba",
+        "target_categories": [
+          "library_app"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/qualification/Cargo.toml"
+      },
+      {
+        "category": "tests",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 0,
+          "tests": 59,
+          "total": 59,
+          "unclassified": 0
+        },
+        "crate": "qualification/ic-auth-host-fixture",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/qualification/ic-auth-host-fixture/src/lib.rs",
+        "shared": false,
+        "source_sha256": "461289ca1c5b95ddb991c3384d36624ec84bc97f16202f6f01afef139a988b82",
+        "target_categories": [
+          "library_app"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/qualification/Cargo.toml"
+      },
+      {
+        "category": "tests",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 0,
+          "tests": 52,
+          "total": 52,
+          "unclassified": 0
+        },
+        "crate": "qualification/ic-auth-host-fixture",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/qualification/ic-auth-host-fixture/src/receiver.rs",
+        "shared": false,
+        "source_sha256": "7f91aca4adfb2ac7b5f5867c56e3d260645816a55588d4a9576556f10c9928d0",
+        "target_categories": [
+          "library_app"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/qualification/Cargo.toml"
+      },
+      {
+        "category": "tests",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 0,
+          "tests": 317,
+          "total": 317,
+          "unclassified": 0
+        },
+        "crate": "qualification/ic-auth-host-fixture",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/qualification/ic-auth-host-fixture/src/receiver/canister.rs",
+        "shared": false,
+        "source_sha256": "42a32ef43fa53b66cda7a44cc980d81a160b055922f5a050438e5c28dc016c40",
+        "target_categories": [
+          "library_app"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/qualification/Cargo.toml"
+      },
+      {
+        "category": "tests",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 0,
+          "tests": 89,
+          "total": 89,
+          "unclassified": 0
+        },
+        "crate": "qualification/ic-auth-host-fixture",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/qualification/ic-auth-host-fixture/src/receiver/canister/enrollment.rs",
+        "shared": false,
+        "source_sha256": "1b00f5bdca2fcae7c8c1d8a484b707d8dd3b8430a2a7bd979a79ec8c9b9c8abc",
+        "target_categories": [
+          "library_app"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/qualification/Cargo.toml"
+      },
+      {
+        "category": "tests",
+        "counts": {
+          "benchmarks": 0,
+          "build_tooling": 0,
+          "examples": 0,
+          "library_app": 0,
+          "tests": 195,
+          "total": 195,
+          "unclassified": 0
+        },
+        "crate": "qualification/ic-auth-wire-conformance",
+        "generated": false,
+        "path": "/home/adam/projects/ic-auth-new/qualification/ic-auth-wire-conformance/tests/codecs.rs",
+        "shared": false,
+        "source_sha256": "73f3db6912e576db17b466e2da010e5ee886b8ee80e55da5d601da7addf09144",
+        "target_categories": [
+          "tests"
+        ],
+        "workspace_manifest": "/home/adam/projects/ic-auth-new/qualification/Cargo.toml"
+      }
+    ],
+    "manifest": "/home/adam/projects/ic-auth-new/Cargo.toml",
+    "manifests": [
+      "/home/adam/projects/ic-auth-new/Cargo.toml",
+      "/home/adam/projects/ic-auth-new/qualification/Cargo.toml"
+    ],
+    "schema": 2,
+    "scope": "repository",
+    "totals": {
+      "benchmarks": 0,
+      "build_tooling": 0,
+      "examples": 91,
+      "library_app": 5418,
+      "tests": 12620,
+      "total": 18129,
+      "unclassified": 0
+    }
+  },
+  "browser_physical_lines": {
+    "note": "Physical lines including comments and blanks; excludes generated code, tests and scripts. Not Toko LOC or capability-equivalent.",
+    "new": [
+      {
+        "path": "packages/client/src/admission.ts",
+        "physical_lines": 73
+      },
+      {
+        "path": "packages/client/src/attempt.ts",
+        "physical_lines": 109
+      },
+      {
+        "path": "packages/client/src/http.ts",
+        "physical_lines": 64
+      },
+      {
+        "path": "packages/client/src/index.ts",
+        "physical_lines": 13
+      },
+      {
+        "path": "packages/client/src/issuance.ts",
+        "physical_lines": 84
+      },
+      {
+        "path": "packages/client/src/journal.ts",
+        "physical_lines": 451
+      },
+      {
+        "path": "packages/client/src/logout.ts",
+        "physical_lines": 64
+      }
+    ],
+    "legacy": [
+      {
+        "path": "packages/client/src/admission-http.ts",
+        "physical_lines": 35
+      },
+      {
+        "path": "packages/client/src/bounded-call.ts",
+        "physical_lines": 18
+      },
+      {
+        "path": "packages/client/src/checked-identity.ts",
+        "physical_lines": 29
+      },
+      {
+        "path": "packages/client/src/codec.ts",
+        "physical_lines": 27
+      },
+      {
+        "path": "packages/client/src/contracts.ts",
+        "physical_lines": 23
+      },
+      {
+        "path": "packages/client/src/index.ts",
+        "physical_lines": 8
+      },
+      {
+        "path": "packages/client/src/logout-http.ts",
+        "physical_lines": 21
+      },
+      {
+        "path": "packages/client/src/logout-store.ts",
+        "physical_lines": 213
+      },
+      {
+        "path": "packages/client/src/logout.ts",
+        "physical_lines": 279
+      },
+      {
+        "path": "packages/client/src/portable-admission.ts",
+        "physical_lines": 261
+      },
+      {
+        "path": "packages/client/src/u64.ts",
+        "physical_lines": 3
+      },
+      {
+        "path": "packages/client/src/update-http.ts",
+        "physical_lines": 67
+      }
+    ]
+  }
+}

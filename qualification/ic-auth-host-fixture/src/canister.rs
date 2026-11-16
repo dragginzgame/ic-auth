@@ -62,6 +62,7 @@ fn decode_install(bytes: Vec<u8>) -> ic_auth_protocol_types::Principal {
 #[cdk::init(decode_with = "decode_install")]
 fn init(authority: ic_auth_protocol_types::Principal) {
     super::receiver::canister::init(authority);
+    super::browser::canister::init();
     // Only a fresh install creates state. Post-upgrade never calls this function.
     let issuer = MemoryIssuer::new_fresh(
         IssuerConfig {

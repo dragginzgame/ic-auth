@@ -1,4 +1,4 @@
-# IC Auth New
+# IC Auth
 
 Read the installed [Toko Tooling baseline](TOKO-TOOLING.md). Its common rules
 apply alongside the product constraints below. Tooling 0.44.5 is authenticated
@@ -10,7 +10,7 @@ Read README.md, docs/design/DESIGN.md, docs/design/authentication.md,
  docs/status/current.md before implementation.
 
 - This repository is an explicitly authorized clean restart. The sibling
-  `../ic-auth` is read-only reference, not an implementation destination.
+  `../ic-auth-legacy` is read-only reference, not an implementation destination.
 - Preserve existing Wire method identities, all four codec allowances, layouts,
   generated browser interoperability and canonical signed bytes.
 - Volatile authentication storage is the current milestone. Stable storage is

@@ -1,6 +1,7 @@
 //! Test-only Wire controls. Never install this canister as an application service.
 use serde::{Deserialize, Serialize};
 
+pub mod browser;
 pub mod enrollment;
 pub mod receiver;
 

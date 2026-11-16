@@ -1,7 +1,7 @@
 import type { Identity } from '@tokostudios/ic-platform/agent';
 import { Principal } from '@tokostudios/ic-platform/principal';
 import { AttemptError, runSigningAttempt } from './attempt.ts';
-import { JournalError } from './journal.ts';
+import { JournalError, journalOwner } from './journal.ts';
 import { retrieveCredential, type CredentialRequestOptions } from './issuance.ts';
 import { decodeRequest } from './generated/credential.js';
 import { encodeRequest, decodeResponse, type Response } from './generated/establish.js';
@@ -32,7 +32,8 @@ export interface EstablishSessionOptions extends CredentialRequestOptions {
 
 /** Explicit admission: acquire exact evidence, inventory the receiver, call once. */
 export async function establishSession(options: EstablishSessionOptions): Promise<AdmissionReceipt> {
-  const { journal, generation, browser, issuer, target, scopes, ttlSecs, admit, signal } = options;
+  const { generation, browser, issuer, target, scopes, ttlSecs, admit, signal } = options;
+  const journal = journalOwner(options.journal);
   const caller = browser.getPrincipal().toText(), issuerText = issuer.toText(), destination = target.toText();
   if (target.isAnonymous() || !Array.isArray(scopes)) throw new JournalError('configuration');
   const requestedScopes = [...scopes];

@@ -3,7 +3,7 @@
 ## Session requests
 
 The four digest values in `session-requests.tsv` are retained unchanged from
-`dragginzgame/ic-auth` commit
+`dragginzgame/ic-auth-legacy` commit
 `e52a40be75dd9809d0528189d84b43fe96952ad9`, file
 `crates/ic-auth/tests/session_request.rs`, tests
 `canonical_request_hash_preserves_exact_ttl_choice_and_scope_order` and

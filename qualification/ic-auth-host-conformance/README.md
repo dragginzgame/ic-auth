@@ -16,13 +16,71 @@ POCKET_IC_BIN=/absolute/path/to/pocket-ic make qualify-host HOST_TEST_FILTER=rec
 POCKET_IC_BIN=/absolute/path/to/pocket-ic make qualify-host HOST_TEST_FILTER=enrollment::
 ```
 
+`make qualify-client-http` is a separate opt-in gate using the same built Auth
+fixture on one live PocketIC subnet. It also requires the prepared client npm
+dependencies and an explicitly selected Chromium executable:
+
+```sh
+POCKET_IC_BIN=/absolute/path/to/pocket-ic \
+IC_AUTH_BROWSER_EXECUTABLE=/absolute/path/to/chromium make qualify-client-http
+```
+
+Testkit retains the server and instance while PocketIC exposes a loopback gateway
+and advances real time. Host Process 0.80.2 owns the direct Node child, with a
+90-second deadline and 64 KiB per output stream. Playwright owns Chromium's
+separate group and closes it in the runner's `finally`; forced descendant cleanup
+after a killed Node process is not claimed. Node reuses the existing
+browser runner; its `installed-http` and `installed-flow` groups are excluded from
+ordinary browser runs. Both harnesses share setup through ordinary Rust modules.
+Gateway/instance closure precedes the final result, including browser-test failure.
+
+Five native Chromium cases exercise the public Auth HTTP adapter and actual SDK
+certificate verification. A signed fixture `Prepare` update returns the exact
+native Wire reply under the simulator's protected root. The wrong root and a
+modified certificate response refuse. Replaying the valid Prepare certificate
+against a distinct Complete request keeps the new request unresolved until the
+bounded attempt times out, with only one update submission. An untampered Complete
+retry then verifies successfully. No certificate verifier or successful reply is
+mocked. These five raw transport cases retain their existing commands.
+
+The second harness test runs four browser journey cases against the same Wasm's
+qualification-only combined issuer/receiver owner. It uses real MemoryIssuer and
+MemoryReceiver operations, generated product Wire codecs, the public browser API
+and SDK-authenticated HTTP replies. A fixed account signs initial issuance; its
+separate browser key signs admission, protected application calls and cleanup.
+
+- A lookup before issuance cannot create an operation; a missing session cannot write.
+- Losing a committed issuer reply leaves sequence zero pending. Reconciliation
+  retrieves its original credential without another signature. Wrong scope refuses;
+  actual admission binds the browser caller and account subject.
+- The account identity cannot use the browser session. One authorized browser write
+  commits; exact admission retry retains its lease without another issuer call.
+- Durable local logout blocks new admission. One real remote cleanup confirms;
+  subsequent writes and captured credential replay refuse at the host even when a
+  raw caller deliberately bypasses the local journal. Repeated cleanup dispatches nothing.
+
+The native harness independently observes one signature, one write, one retained
+issuer operation, one receiver login fence and zero sessions. It aligns installation
+time with the live gateway before creating bounded enrollment. Enrollment is a
+protected installation-local test authority, not an invented IC response. Platform
+signs with the existing public test seed locally; no external signing effect escapes
+before message commit. The fixed proof has 60 seconds and the adapter conservatively
+keeps 30 seconds from before initial dispatch, never refreshing that deadline on lookup.
+This does not establish a general production clock mapping or external signer recovery.
+
+These are qualification endpoints and one combined issuer/receiver, not Canic mounts
+or multi-receiver integration. No product Rust or browser runtime code was added.
+Production Canic wiring, browser readiness/coalescing, guarded ordinary-call API,
+cleanup scheduling, renderer recovery and key disposal remain separate acceptance gates. The separate five rollback/loss cases still
+run through `make qualify-host` without requiring a browser.
+
 The Rust toolchain must include `wasm32-unknown-unknown`; both workspaces' locked
 dependencies must already be fetched. Node 24.21.0 generates the independent
 Ed25519 host vectors before each installed run. The Make target supplies absolute
 Cargo/rustc paths from rustup and the fixture's exact Cargo package identity.
 Build scratch belongs under `qualification/target/host-build/`; Build removes
-its private child before returning success. Host FS 0.80.1 opens the scratch
-parent and vector file through held directories; Host Artifacts 0.80.1 bounds
+its private child before returning success. Host FS 0.80.2 opens the scratch
+parent and vector file through held directories; Host Artifacts 0.80.2 bounds
 the vector read to 32 KiB. Tests are ignored in ordinary Cargo runs because they
 require the explicit build/server setup. They are not yet part of hosted CI.
 
@@ -116,6 +174,9 @@ Local evidence on 2026-11-16: the five single-subnet installed cases
 pass, with strict native/Wasm Clippy, on Linux with Rust 1.100.0, IC Testkit 0.106.0 and PocketIC client 16.1.0.
 After adopting Build 0.87.3 and Host FS/Artifacts 0.80.1, all five installed
 cases and strict native harness Clippy pass again; the Wasm source is unchanged.
+The nine opt-in HTTP/journey browser cases pass on Chromium 141.0.7390.37, with
+strict TypeScript and native/Wasm Clippy. All five rollback/loss/enrollment cases
+pass with the extended fixture and ordinary shared-module setup.
 The existing local server reports 16.0.0, within Testkit's supported 16.x range;
 its observed SHA-256 is
 `69e324bdb68d32d878b7a9504b1379f08f8d1921272bacb065b0fabb3d0f3792`.
