@@ -1,7 +1,7 @@
 # Ed25519 verification boundary
 
 Enable `ic-auth/ed25519-verification` to use `verification::verify_ed25519`.
-Platform 0.34.5 owns the Ed25519 primitives, key parsing, weak-point rejection and
+Platform 0.34.6 owns the Ed25519 primitives, key parsing, weak-point rejection and
 strict signature verification. Platform Types derives the self-authenticating
 Principal from the standard Ed25519 DER key. Auth owns canonical claims, protected
 context policy, the explicit canonical-scalar admission and attempt charging.

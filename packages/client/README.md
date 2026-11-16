@@ -24,6 +24,7 @@ Import from `@dragginzgame/ic-auth-client`:
 | `coordinator.call(target, operation)` | Prepare readiness, then run one operation with a bounded browser signer |
 | `coordinator.establish(target)` | Force one admission, sharing only an equivalent outstanding attempt |
 | `cleanupOnce(options)` | Resume committed logout with at most one reserved Wire effect |
+| `cleanupUntilFinished(options)` | Schedule committed logout through confirmation or its fixed deadline |
 | `httpUpdateTransport({ host, rootKey, methodName, fetch? })` | Supply the shared SDK-certified raw update transport for admission or cleanup |
 
 `LoginJournal` is the lifecycle handle type and its opening factory, not a public
@@ -147,8 +148,17 @@ Its timestamp remains in the receiver clock domain. Other typed replies stay
 unconfirmed; the local retry delay is 500–1,499 ms, defaulting to 1,000. The operation
 starts no retry loop. Finished means all destinations confirmed **or** the fixed
 deadline elapsed: inspect per-destination confirmations and retained uncertainty.
-Exhausted attempts wait for that deadline. Scheduling and key disposal are still
-separate, unimplemented lifecycle work.
+Exhausted attempts wait for that deadline.
+
+Use `cleanupUntilFinished(options)` to schedule these steps and receive the final
+`JournalStatus`. It requires an already committed `beginLogout`, captures the
+browser identity and options, and sleeps for journal-calculated delays of at most
+five seconds. Every
+wake-up claims again, respecting other tabs, the original deadline and attempt
+limits. Cancellation interrupts waits and active signing attempts. Transport,
+certificate, storage and clock errors stop the run; call it again to resume the
+retained progress. It never clears uncertainty or disposes of keys. Key disposal
+and recovery after renderer termination remain separate acceptance work.
 
 ## HTTP trust boundary and evidence
 
@@ -173,8 +183,7 @@ write, retained fences and zero remaining sessions. Captured proof replay after
 logout refuses even when a raw caller bypasses the local journal. The fixture uses
 installation-owned enrollment and a local public test signer; production Canic
 wiring, external signing recovery and multi-receiver coordination remain unqualified.
-Cleanup scheduling,
-key disposal and renderer-interruption acceptance remain open.
+Key disposal and renderer-interruption acceptance remain open.
 
 Run `make test-client`, `make test-client-journal` and `make check-client-generated`;
 `make qualify-client-http` is the separate installed gate. Prepared tools, browser

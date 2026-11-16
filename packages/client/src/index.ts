@@ -7,7 +7,7 @@ export { retrieveCredential } from './issuance.ts';
 export type { CredentialEvidence, IssuedCredential, IssuerTransport, CredentialRequestOptions } from './issuance.ts';
 export { AdmissionError, establishSession } from './admission.ts';
 export type { AdmissionReceipt, AdmissionRefusal, AdmissionTransport, EstablishSessionOptions } from './admission.ts';
-export { cleanupOnce } from './logout.ts';
+export { cleanupOnce, cleanupUntilFinished } from './logout.ts';
 export type { CleanupOptions, CleanupStep, LogoutTransport } from './logout.ts';
 export { httpUpdateTransport } from './http.ts';
 export type { HttpUpdateOptions } from './http.ts';

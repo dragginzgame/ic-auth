@@ -6,7 +6,7 @@ browser lifecycle acceptance remain open. Stable storage is deferred to
 
 The **0.47.0 unreleased** source checkpoint adds browser readiness and admission
 coalescing with explicit clock mapping and a 64-operation ceiling. It also adopts
-Platform 0.34.5, Types 0.21.1, Runtime 0.23.12, Wire 0.24.2 and Testkit 0.107.1.
+Platform 0.34.6, Types 0.21.2, Runtime 0.23.13, Wire 0.24.2 and Testkit 0.107.1.
 The former Types/Wire generator mismatch is resolved. Both Cargo graphs contain
 one Platform/Types cohort and no legacy Platform or Agent. Rust package versions remain Auth
 **0.46.1** and protocol-types/Wire **0.42.0**. The preceding source checkpoint is
@@ -20,11 +20,12 @@ retain their names and paths at the time of inspection.
 | Canonical claims, both proof mechanisms and four Wire contracts | Independent signed vectors, 37 independently assembled frames, 296 resource thresholds and generated browser interoperability | Complete current consumer delivery; no pre-recode compatibility requirement |
 | Bounded memory receiver and issuer | Native lifecycle/model/fault checks; private policy and one operation owner each | Production host integration and accepted installed costs |
 | Installed transactions, volatile loss and enrollment | Five single-subnet Wasm cases: rollback, real certificates, closed upgrade loss, bound authority replies and terminal key revocation | Canic registry integration, production challenge/refresh handling and late/overlapping replies |
-| Browser journal, readiness, admission and one-step cleanup | Strict IndexedDB, nineteen readiness/guarded-call cases, two-tab/logout fencing, real SDK signing and independent Wire frames | Cleanup scheduling, key disposal and renderer interruption |
+| Browser journal, readiness, admission and scheduled cleanup | Strict IndexedDB, nineteen readiness/guarded-call cases, seven scheduler cases, two-tab/logout fencing, real SDK signing and independent Wire frames | Key disposal and renderer interruption |
 | HTTP and installed browser journey | Five raw certificate cases plus four journey cases: lost issuance reply/reconciliation, real Wire admission, protected write, logout and credential replay refusal | Production Canic wiring, multi-receiver coordination and external signer recovery |
 
 The browser package exposes lifecycle handles, a bounded session coordinator and
-complete retrieval/admission/cleanup operations. Readiness receipts remain detached
+complete retrieval/admission/cleanup operations, including cancellable cleanup
+scheduling through journal-owned leases and deadlines. Readiness receipts remain detached
 scheduling hints. Guarded ordinary calls prepare readiness once and recheck the
 deadline and logout generation around each signature without application replay.
 Claim/guard/settlement stages and signing-attempt machinery

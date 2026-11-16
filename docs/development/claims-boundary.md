@@ -3,7 +3,7 @@
 `ic-auth::claims` implements the current schema-2 portable-credential bytes:
 bounded decode, structural encode and streaming SHA-256. Passive claim fields,
 audience bytes and role labels live in `ic-auth-protocol-types`. Principal identity
-comes from published `ic-platform-types` 0.21.1 with default features disabled;
+comes from published `ic-platform-types` 0.21.2 with default features disabled;
 there is no local identity, cryptography, runtime or storage implementation.
 
 This is newly written, source-informed code for the specified boundary. The

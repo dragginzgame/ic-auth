@@ -38,7 +38,7 @@ export interface CleanupAttempt {
 }
 export type CleanupClaim =
   | { readonly kind: 'attempt'; readonly ticket: CleanupAttempt }
-  | { readonly kind: 'wait'; readonly untilNs: bigint; readonly status: JournalStatus }
+  | { readonly kind: 'wait'; readonly untilNs: bigint; readonly delayMs: number; readonly status: JournalStatus }
   | { readonly kind: 'finished'; readonly status: JournalStatus };
 export type CleanupResult =
   | { readonly kind: 'revoked'; readonly untilNs: bigint }
@@ -334,7 +334,10 @@ export class Journal {
       let untilNs = eligible.reduce((next, t) => t.nextNs < next ? t.nextNs : next, current.deadlineNs);
       if (current.busyUntilNs > untilNs) untilNs = current.busyUntilNs;
       if (untilNs > current.deadlineNs) untilNs = current.deadlineNs;
-      return { record: current, value: { kind: 'wait', untilNs, status: status(current) } };
+      // Bound native timer conversion and periodically observe another tab's progress.
+      const delayNs = untilNs - now < ATTEMPT_NS ? untilNs - now : ATTEMPT_NS;
+      return { record: current, value: { kind: 'wait', untilNs,
+        delayMs: Math.max(1, Number((delayNs + 999_999n) / 1_000_000n)), status: status(current) } };
     });
     if (claim.kind === 'attempt') this.#cleanupTickets.set(claim.ticket, { generation, caller: callerText });
     return claim;

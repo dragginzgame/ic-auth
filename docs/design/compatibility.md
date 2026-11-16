@@ -168,9 +168,13 @@ destinations, retained signer closure, cross-tab logout, uncertain outcomes,
 cancellation, capacity and timeout. The installed successful write uses the same
 guard; raw negative probes still check host refusal independently.
 
+Seven scheduler cases cover typed retries across receivers, lost-response resumption,
+cancellation, cross-tab leases, exhaustion/deadline uncertainty, pre-logout/storage
+refusal and identity changes during waits. The installed journey uses scheduled
+cleanup and still independently requires one logout effect and retained denial.
+
 Still required: production Canic endpoint integration, complete multi-receiver acceptance,
-external signer recovery; cleanup scheduling
-and key disposal; renderer-interruption recovery. No application operation may be
+external signer recovery; key disposal; renderer-interruption recovery. No application operation may be
 replayed to obtain that evidence. Stable storage and cross-backend acceptance stay
 in the future OP milestone.
 

@@ -421,6 +421,9 @@ or generic backend interface.
 call and exact evidence before returning. `establishSession` commits target inventory
 before one browser-signed admission call. `cleanupOnce` commits a lease/count before
 one generated Wire update and settles only a matching authenticated reply.
+`cleanupUntilFinished` schedules that operation using journal-derived wait delays;
+it neither changes the fixed deadline nor resets attempts. Cancellation and errors
+stop a run with durable progress retained for explicit resumption.
 The internal signing owner captures principal/destination and rechecks the journal
 around asynchronous signing and reply acceptance; every exit closes that attempt.
 These are retained safety obligations, not a claimed equivalent-feature LOC saving.
@@ -443,7 +446,7 @@ one application callback with the existing bounded temporary signer. Every signa
 and final result rechecks the captured readiness deadline and durable generation.
 Once the callback starts, expiry refuses without renewal or replay.
 Production Canic integration, complete multi-receiver acceptance,
-cleanup scheduling, key disposal and renderer interruption
+key disposal and renderer interruption
 remain open. The lifecycle requirements below still apply to that remaining work.
 
 Keep one coordinator over one strict journal owner. Inject Platform SDK identities, issuer transport, receiver transport and clock mapping. Do not recreate a second SDK identity facade or implement application retries.

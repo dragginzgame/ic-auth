@@ -108,13 +108,11 @@ export async function installedFlowCases({ check, a }) {
       let refused;
       try { await flow.coordinator.ensureSession(flow.target); } catch (error) { refused = error.code; }
       const cleanup = { journal: flow.journal, generation: 'journey', browser: flow.browser, revoke: flow.revoke };
-      const settled = await authTest.cleanupOnce(cleanup);
-      const finished = await authTest.cleanupOnce(cleanup);
-      return { refused, noAdmission: before === flow.counts.admit, kind: settled.kind, response: settled.response.tag,
-        finished: finished.kind, confirmations: finished.status.destinations.map(t => t.confirmedUntilNs !== undefined), counts: flow.counts };
+      const finished = await authTest.cleanupUntilFinished(cleanup);
+      return { refused, noAdmission: before === flow.counts.admit,
+        finished: finished.phase, confirmations: finished.destinations.map(t => t.confirmedUntilNs !== undefined), counts: flow.counts };
     });
     assert.equal(result.refused, 'not_current'); assert.equal(result.noAdmission, true);
-    assert.equal(result.kind, 'settled'); assert.equal(result.response, 'Revoked');
     assert.equal(result.finished, 'finished'); assert.deepEqual(result.confirmations, [true]);
     assert.equal(result.counts.logout, 1);
     assert.deepEqual(await a.evaluate(async () => Array.from(await flow.write(flow.browser))), bytes('AUTH_FLOW_WRITE_DENIED'));

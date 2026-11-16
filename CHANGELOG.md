@@ -14,12 +14,19 @@
 
 ### 🔧 Changed
 
+- Update the product and qualification graphs to Platform 0.34.6, Types 0.21.2
+  and Runtime 0.23.13. Existing Auth callers keep their current feature boundaries.
+
 - Migrate the installed fixtures to explicit Runtime codecs and system APIs,
   with stopped upgrades and Testkit 0.107.1. Installed checks now require a
   prepared `POCKET_IC_SERVER_URL`; the harness owns and deletes its instances,
   while the caller owns the server. No legacy Platform remains in either lock.
 
 ### ✨ Added
+
+- Add cancellable logout cleanup scheduling using journal-owned delays, leases,
+  attempt limits and the original deadline. Interrupted runs preserve progress
+  for resumption; deadline completion preserves unconfirmed destinations.
 
 - Add guarded ordinary browser calls: prepare shared readiness, invoke each
   application callback once, and recheck its deadline and durable logout generation

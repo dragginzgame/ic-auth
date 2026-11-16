@@ -213,6 +213,10 @@ The `installed-http` and `installed-flow` groups are excluded from ordinary brow
 tests and hosted aggregates. `lint-host` checks both native harnesses and the Wasm
 fixture. Shared setup uses ordinary modules beneath explicit test entrypoints.
 
+The `scheduler` browser selector checks cleanup scheduling, cancellation,
+cross-tab leases and resumption; `cleanup` and `logout` retain the journal and
+one-step effect cases.
+
 ## Dependency maintenance and LOC
 
 ```sh
