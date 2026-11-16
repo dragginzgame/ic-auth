@@ -188,14 +188,17 @@ Generated scratch stays under `target/client-wire/`. See
 
 ## Installed Auth qualification
 
-`POCKET_IC_BIN=/absolute/path/to/pocket-ic make qualify-host` builds and captures
-the release Wasm fixture, then runs five installed issuer/receiver/enrollment cases on one simulated subnet with the provided
+`POCKET_IC_BIN=/absolute/path/to/pocket-ic make qualify-host` supplies prepared
+tool paths and the fixture's Cargo identity to IC Build 0.87.3. The harness builds
+release Wasm once through its bounded offline/locked operation, then installs
+the owned bytes in five issuer/receiver/enrollment cases on one simulated subnet with the provided
 PocketIC 16.x server through Testkit. `make lint-host` checks its native harness
 and Wasm fixture. These are explicit local gates; the hosted aggregate does not
 run them or provision a server. `HOST_TEST_FILTER=receiver::` selects only the
 receiver cases, including an intact-receiver control for valid proofs;
 `HOST_TEST_FILTER=enrollment::` selects the authority-call/callback case. Node
-24.21.0 regenerates independent host-time vectors before the tests. See [evidence and prerequisites](../../qualification/ic-auth-host-conformance/README.md).
+24.21.0 regenerates independent host-time vectors before the tests. Host FS and
+Host Artifacts 0.80.1 own held-file access and bounded vector reads. See [evidence and prerequisites](../../qualification/ic-auth-host-conformance/README.md).
 
 ## Dependency maintenance and LOC
 

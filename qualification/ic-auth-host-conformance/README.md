@@ -1,7 +1,10 @@
 # Installed volatile Auth qualification
 
-`make qualify-host` builds the release Wasm fixture, captures that build through
-IC Build, and runs five explicit installed tests through IC Testkit/PocketIC.
+`make qualify-host` runs five explicit installed tests through IC Testkit/PocketIC.
+The harness uses IC Build 0.87.3 to build the release Wasm fixture once per process
+and install its owned, hash-checked bytes in every case. Build owns the bounded
+offline/locked Cargo operation, private target directory and artifact capture;
+there is no prebuilt Wasm path or stale-artifact fallback.
 Provide a prepared PocketIC 16.x executable; the target never downloads a server:
 
 ```sh
@@ -15,8 +18,12 @@ POCKET_IC_BIN=/absolute/path/to/pocket-ic make qualify-host HOST_TEST_FILTER=enr
 
 The Rust toolchain must include `wasm32-unknown-unknown`; both workspaces' locked
 dependencies must already be fetched. Node 24.21.0 generates the independent
-Ed25519 host vectors before each installed run. Scratch artifacts belong to
-`qualification/target/`. Tests are ignored in ordinary Cargo runs because they
+Ed25519 host vectors before each installed run. The Make target supplies absolute
+Cargo/rustc paths from rustup and the fixture's exact Cargo package identity.
+Build scratch belongs under `qualification/target/host-build/`; Build removes
+its private child before returning success. Host FS 0.80.1 opens the scratch
+parent and vector file through held directories; Host Artifacts 0.80.1 bounds
+the vector read to 32 KiB. Tests are ignored in ordinary Cargo runs because they
 require the explicit build/server setup. They are not yet part of hosted CI.
 
 The fixture uses Platform's supported standalone entrypoints and IC Wire 0.24.1.
@@ -107,13 +114,15 @@ storage remain separate acceptance work. Closed loss containment is not recovery
 
 Local evidence on 2026-11-16: the five single-subnet installed cases
 pass, with strict native/Wasm Clippy, on Linux with Rust 1.100.0, IC Testkit 0.106.0 and PocketIC client 16.1.0.
+After adopting Build 0.87.3 and Host FS/Artifacts 0.80.1, all five installed
+cases and strict native harness Clippy pass again; the Wasm source is unchanged.
 The existing local server reports 16.0.0, within Testkit's supported 16.x range;
 its observed SHA-256 is
 `69e324bdb68d32d878b7a9504b1379f08f8d1921272bacb065b0fabb3d0f3792`.
 This records the exercised binary's identity, not independently authenticated
 provisioning. Provisioning remains owned by Testkit/the host environment.
 
-The qualification lock adds the native simulator/build graph. PocketIC pins
-`thiserror = 2.0.18`, replacing qualification's previous 2.0.21 selection;
-no other previously locked package version is removed. The Wasm fixture selects
-one Platform runtime/guard pair, 0.22.5. It does not introduce another executor.
+The qualification lock owns the native simulator/build graph. Testkit 0.106.0
+still selects Host 0.79 transitively; its objects do not cross the new Build/Host
+API boundary. PocketIC pins `thiserror = 2.0.18`. The Wasm fixture selects one
+Platform runtime/guard pair, 0.22.5. It does not introduce another executor.

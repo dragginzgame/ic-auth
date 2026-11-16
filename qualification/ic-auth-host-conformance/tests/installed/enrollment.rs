@@ -66,7 +66,7 @@ fn retained(before: &Observation, after: &Observation) {
 }
 
 #[tokio::test]
-#[ignore = "requires built fixture, independent vectors and PocketIC 16.x"]
+#[ignore = "requires prepared build tools, independent vectors and PocketIC 16.x"]
 async fn installed_authority_binds_replies_and_revocation_commits_with_receiver_metadata() {
     let wasm = wasm();
     let vectors = vectors();

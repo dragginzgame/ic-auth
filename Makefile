@@ -136,8 +136,7 @@ check-client-generated: toko-tooling-check
 qualify-host: toko-tooling-check
 	mkdir -p qualification/target/host-vectors
 	node crates/ic-auth/tests/verify-memory-fixtures.mjs --host > qualification/target/host-vectors/memory.tsv
-	cargo build --offline --locked --manifest-path qualification/Cargo.toml -p ic-auth-host-fixture --lib --release --target wasm32-unknown-unknown --target-dir qualification/target
-	AUTH_HOST_VECTORS="$(CURDIR)/qualification/target/host-vectors/memory.tsv" AUTH_HOST_WASM="$(CURDIR)/qualification/target/wasm32-unknown-unknown/release/ic_auth_host_fixture.wasm" cargo test --offline --locked --manifest-path qualification/Cargo.toml -p ic-auth-host-conformance --test installed -- --ignored $(HOST_TEST_FILTER)
+	AUTH_HOST_CARGO="$$(rustup which cargo)" AUTH_HOST_RUSTC="$$(rustup which rustc)" AUTH_HOST_PACKAGE_ID="$$(cargo pkgid --offline --locked --manifest-path qualification/Cargo.toml -p ic-auth-host-fixture)" AUTH_HOST_VECTORS="$(CURDIR)/qualification/target/host-vectors/memory.tsv" cargo test --offline --locked --manifest-path qualification/Cargo.toml -p ic-auth-host-conformance --test installed -- --ignored $(HOST_TEST_FILTER)
 
 lint-host: toko-tooling-check
 	cargo clippy --offline --locked --manifest-path qualification/Cargo.toml -p ic-auth-host-conformance --test installed -- -D warnings

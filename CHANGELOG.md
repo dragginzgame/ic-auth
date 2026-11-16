@@ -38,6 +38,9 @@
 
 ### 🧪 Testing
 
+- Adopt IC Build 0.87.3 and Host FS/Artifacts 0.80.1 in installed qualification.
+  Build the fixture once through the bounded build operation and install owned
+  Wasm bytes; replace pathname reads with held-file access and bounded capture.
 - Add installed Wasm issuer qualification for transaction rollback, real certified
   signatures, caller/time/revocation refusal and terminal closure after volatile
   upgrade loss. `make qualify-host` uses an explicitly provided PocketIC server;

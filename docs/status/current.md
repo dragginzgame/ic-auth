@@ -65,6 +65,8 @@ new enrollment attempt. An intact companion admits the same valid proof and show
 why expired unknown denial is not conclusive logout. Strict native/Wasm lint and
 the unchanged independent native vectors pass. No Rust product implementation was
 added to obtain this installed evidence.
+The harness now adopts IC Build 0.87.3 and Host FS/Artifacts 0.80.1 for one bounded
+fixture build returning owned Wasm bytes and held-file vector reads.
 
 The receiver now fetches enrollment through a real IC call to its installed
 authority. A separate canister supplies caller-bound replies; mismatched/expired

@@ -10,7 +10,7 @@ use ic_auth_host_fixture::{
     CONTROL, Command, Fault, OBSERVE, Observation, Progress, REQUEST, RESPONSE, Refusal, SEED,
 };
 use ic_auth_protocol_types::Principal;
-use ic_build::artifacts::CapturedArtifact;
+use ic_build::{Artifact, BuildRequest, Limits, build};
 use ic_platform::{
     canister_sig_creation::{CanisterSigPublicKey, IC_ROOT_PK_DER_PREFIX},
     certification::{LookupResult, cbor::decode_certificate},
@@ -20,17 +20,63 @@ use ic_testkit::{
     pocket_ic::{CanisterId, PocketIcBuilder, nonblocking::PocketIc},
 };
 use sha2::{Digest, Sha256};
-use std::{path::PathBuf, time::Duration};
+use std::{
+    path::PathBuf,
+    sync::{OnceLock, atomic::AtomicBool},
+    time::Duration,
+};
 
 fn wasm() -> Vec<u8> {
-    // The Make target builds the selected fixture first. Capture it before any
-    // later build can replace the mutable Cargo output; no stale fallback path.
-    let source = PathBuf::from(std::env::var_os("AUTH_HOST_WASM").expect("run make qualify-host"));
-    let captures = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../target/host-captures");
-    std::fs::create_dir_all(&captures).unwrap();
-    let artifact = CapturedArtifact::capture(&source, &captures, 16 * 1024 * 1024).unwrap();
-    ic_host_fs::read::read_file(artifact.path(), 16 * 1024 * 1024).unwrap()
+    // One build per harness process. Every case installs the same owned bytes;
+    // there is no prebuilt path, stale fallback or retained mutable artifact.
+    static WASM: OnceLock<Artifact> = OnceLock::new();
+    WASM.get_or_init(|| {
+        let workspace = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap()
+            .to_path_buf();
+        let root = ic_host_fs::Directory::open(&workspace, 0).unwrap().unwrap();
+        let _scratch = root
+            .prepare_directories(&["target".as_ref(), "host-build".as_ref()], 0o700, 0)
+            .unwrap();
+        let request = BuildRequest {
+            manifest: workspace.join("ic-auth-host-fixture/Cargo.toml"),
+            package: "ic-auth-host-fixture".into(),
+            package_id: std::env::var("AUTH_HOST_PACKAGE_ID").expect("run make qualify-host"),
+            library: "ic_auth_host_fixture".into(),
+            cargo: PathBuf::from(
+                std::env::var_os("AUTH_HOST_CARGO").expect("run make qualify-host"),
+            ),
+            rustc: PathBuf::from(
+                std::env::var_os("AUTH_HOST_RUSTC").expect("run make qualify-host"),
+            ),
+            scratch_parent: workspace.join("target/host-build"),
+            profile: "release".into(),
+            features: Vec::new(),
+            default_features: true,
+            // Prepared tool/cache locations only; Build owns RUSTC and target-dir.
+            environment: ["HOME", "PATH", "CARGO_HOME", "RUSTUP_HOME", "TMPDIR"]
+                .into_iter()
+                .filter_map(|name| std::env::var_os(name).map(|value| (name.into(), value)))
+                .collect(),
+            limits: Limits {
+                stdout_bytes: 16 * 1024 * 1024,
+                stderr_bytes: 4 * 1024 * 1024,
+                record_bytes: 1024 * 1024,
+                candidates: 4,
+                artifact_bytes: 16 * 1024 * 1024,
+                elapsed: Duration::from_secs(300),
+            },
+        };
+        let artifact = build(&request, &AtomicBool::new(false), &mut std::io::sink())
+            .unwrap_or_else(|failure| panic!("owned fixture build failed: {failure:?}"));
+        assert_eq!(artifact.sha256(), &hash(artifact.bytes()));
+        artifact
+    })
+    .bytes()
+    .to_vec()
 }
+
 async fn start() -> PocketIcInstance {
     PocketIcStartupConfig::from_env(Duration::from_secs(30))
         .unwrap()
@@ -116,7 +162,7 @@ fn hash(bytes: &[u8]) -> [u8; 32] {
 }
 
 #[tokio::test]
-#[ignore = "requires built fixture and an explicitly provided PocketIC 16.x server"]
+#[ignore = "requires prepared build tools and an explicitly provided PocketIC 16.x server"]
 async fn traps_restore_issuer_leaf_and_system_root_then_original_completion_verifies() {
     let wasm = wasm();
     let owned = start().await;

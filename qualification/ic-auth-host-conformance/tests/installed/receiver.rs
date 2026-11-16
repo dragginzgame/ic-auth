@@ -8,8 +8,25 @@ use ic_testkit::pocket_ic::{CanisterId, RejectResponse, Time, nonblocking::Pocke
 use std::{collections::BTreeMap, time::Duration};
 
 pub(super) fn vectors() -> BTreeMap<String, Vec<u8>> {
-    let path = std::env::var_os("AUTH_HOST_VECTORS").expect("run make qualify-host");
-    let bytes = ic_host_fs::read::read_file(std::path::Path::new(&path), 32_768).unwrap();
+    let path = std::path::PathBuf::from(
+        std::env::var_os("AUTH_HOST_VECTORS").expect("run make qualify-host"),
+    );
+    let parent = ic_host_fs::Directory::open(path.parent().unwrap(), 0)
+        .unwrap()
+        .unwrap();
+    let file = parent
+        .open_file(
+            path.file_name().unwrap(),
+            ic_host_fs::Access::Read,
+            ic_host_fs::FilePolicy {
+                forbidden: 0,
+                single_link: true,
+            },
+        )
+        .unwrap()
+        .unwrap();
+    let (bytes, _) =
+        ic_host_artifacts::read(file, ic_host_artifacts::Length::AtMost(32_768)).unwrap();
     std::str::from_utf8(&bytes)
         .unwrap()
         .lines()
@@ -96,7 +113,7 @@ async fn trapped(pic: &PocketIc, id: CanisterId, caller: CanisterId, command: &C
 }
 
 #[tokio::test]
-#[ignore = "requires built fixture, independent vectors and PocketIC 16.x"]
+#[ignore = "requires prepared build tools, independent vectors and PocketIC 16.x"]
 async fn receiver_transactions_restore_auth_and_application_but_normal_refusals_charge() {
     let vectors = vectors();
     let caller = CanisterId::from_slice(&vectors["initial-caller"]);
