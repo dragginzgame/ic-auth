@@ -166,6 +166,37 @@ cancels the same workflow/ref. Shared failure evidence retains native logs for
 14 days. Generated browser codec checks and installed host/SDK lifecycle
 qualification remain separate gates; Wasm coverage here proves compilation only.
 
+## Private browser client
+
+`npm ci --prefix packages/client --ignore-scripts` prepares the separate locked
+npm graph. `make test-client` runs strict TypeScript checking, ten SDK signing
+cases through the package root and four credential/admission codec cases.
+Node 24.21.0 runs erasable TypeScript directly;
+no product build or registry delivery is introduced.
+The local check uses Node's test runner with isolation disabled so individual
+cases are reported. `IC_AUTH_BROWSER_EXECUTABLE=/absolute/path/to/chromium make
+test-client-journal` runs thirty native IndexedDB cases in an ephemeral two-tab
+profile. Set `IC_AUTH_CLIENT_SUITE=journal`, `issuance`, `transport` or `admission`
+for a focused group; the default runs all four. Qualification-only esbuild 0.28.2 bundles the fixture in memory;
+playwright-core 1.65.1 controls the supplied executable. Neither tool downloads a
+browser. Chromium 141.0.7390.37 was exercised locally. These explicit gates are not
+currently part of hosted CI. `make generate-client` generates the adopted
+credential/admission codecs and runtime from Rust schemas as JavaScript plus declarations;
+`make check-client-generated` compares it with fresh generator/compiler output.
+Generated scratch stays under `target/client-wire/`. See
+[scope and setup](../../packages/client/README.md).
+
+## Installed Auth qualification
+
+`POCKET_IC_BIN=/absolute/path/to/pocket-ic make qualify-host` builds and captures
+the release Wasm fixture, then runs five installed issuer/receiver/enrollment cases on one simulated subnet with the provided
+PocketIC 16.x server through Testkit. `make lint-host` checks its native harness
+and Wasm fixture. These are explicit local gates; the hosted aggregate does not
+run them or provision a server. `HOST_TEST_FILTER=receiver::` selects only the
+receiver cases, including an intact-receiver control for valid proofs;
+`HOST_TEST_FILTER=enrollment::` selects the authority-call/callback case. Node
+24.21.0 regenerates independent host-time vectors before the tests. See [evidence and prerequisites](../../qualification/ic-auth-host-conformance/README.md).
+
 ## Dependency maintenance and LOC
 
 ```sh

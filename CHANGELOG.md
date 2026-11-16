@@ -1,5 +1,61 @@
 # Changelog
 
+## [0.46.2] - Unreleased
+
+### ✨ Added
+
+- Start the private browser client with one bounded signing-attempt owner around
+  the published Platform SDK identity. Capture principal/destination, recheck the
+  journal owner before and after signing/completion, and close the capability on
+  every exit. No transport retry or application replay is introduced. Ten real SDK
+  cases cover suspended signing, mutation, cancellation, timeout and read-state
+  polling through `make test-client`.
+- Add a strict IndexedDB login journal with bounded destination inventory and
+  atomic local logout. Preserve the existing private v1 profile, pending sequence
+  and unknown issuance, including when its sequence is missing. Keep mutable
+  records and transactions private. Eight native Chromium cases cover two tabs,
+  suspended SDK signing, aborted writes, strict durability, reopening and corrupt
+  profiles through `make test-client-journal`.
+- Extend the same journal with durable issuance reservation, lookup-only recovery,
+  exact completion and sequential renewal. Preserve missing-sequence uncertainty,
+  reject conflicting/stale replies and retain evidence on corruption or overflow.
+  Adopt the Rust-generated credential codec and supplier runtime; add generation
+  drift checks and independent frame checks. Seven more native browser cases
+  qualify concurrency, recovery and atomic evidence writes.
+- Connect journal decisions to an injected issuer adapter through one bounded SDK
+  attempt. Bind signing to the original issuer, browser login and current sequence;
+  select account/browser roles, retain lost-response uncertainty and commit exact
+  evidence before returning it. Eight native browser cases cover adapter dispatch,
+  cancellation/timeout, late replies/signatures and failed completion recovery.
+  Add focused journal/issuance/transport selections.
+- Add explicit receiver admission through the Rust-generated EstablishSession
+  contract and an injected authenticated-update adapter. Commit destination
+  inventory before dispatch; bind browser signing to current proof expiry/sequence
+  and reject late or mismatched receipts. Preserve every refusal without automatic
+  retry. Seven native browser cases and two independent codec cases qualify this
+  operation; add the focused admission group. Actual HTTP authentication, readiness
+  coordination and remote cleanup remain unimplemented.
+
+### 🧪 Testing
+
+- Add installed Wasm issuer qualification for transaction rollback, real certified
+  signatures, caller/time/revocation refusal and terminal closure after volatile
+  upgrade loss. `make qualify-host` uses an explicitly provided PocketIC server;
+  `make lint-host` checks the native harness and Wasm fixture. Product code and
+  package versions are unchanged. Canic integration remains separate.
+- Extend the same fixture to receiver admission/logout and authorized application
+  transactions. Check ordinary bad-proof charging, proof-expired exact retry,
+  retained revocation and closed upgrade loss with an intact-receiver control.
+  Reuse the independent Node/OpenSSL packer with simulator-scale timestamps;
+  production Canic integration and browser lifecycle remain unqualified.
+- Replace injected receiver enrollment metadata with an installation-bound IC call.
+  Qualify reply binding, freshness/regression refusal, single-key terminal revocation
+  and atomic callback publication with a separate installed authority. Complete
+  production registry validation and challenge/refresh scheduling remain separate.
+- Keep all installed fixtures on one simulated subnet. Late/overlapping-reply
+  integration checks remain outstanding for the supported Canic flow; retain the
+  native semantic checks without cross-subnet timing scaffolding.
+
 ## [0.46.1] - Source checkpoint 2026-11-16
 
 Source checkpoint: `ic-auth` 0.46.1. Protocol-types/Wire remain 0.42.0;

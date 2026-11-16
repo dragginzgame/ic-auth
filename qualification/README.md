@@ -30,6 +30,12 @@ sharing a budget across mechanisms. These checks establish no session or storage
 `make qualify-wire-admission` checks consuming Wire/domain projection into both
 verifiers, unsigned request policy and failure charging with native host drivers.
 
+`ic-auth-host-conformance` installs `ic-auth-host-fixture` as actual Wasm to check
+issuer/receiver transaction rollback, certificates, terminal upgrade-loss refusal
+and installation-bound enrollment calls with atomic key/metadata publication. See
+[setup and evidence](ic-auth-host-conformance/README.md); run `make qualify-host`
+with a prepared PocketIC 16.x server, and `make lint-host`.
+
 The shared `make deps-list`, `make deps-update` and `toko-cloc` commands discover
 this workspace automatically. See
 [tooling setup](../docs/development/tooling.md) for compiler and tooling selection.

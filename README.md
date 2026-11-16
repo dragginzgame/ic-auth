@@ -32,8 +32,10 @@ remain integration obligations. The optional `issuer-memory` now retains
 Ed25519 and certified issuance with browser-authenticated renewal from intent reservation through
 exact-result reconciliation, without extending the original login window.
 Issuer pruning is bounded to 32 records per call. Certified completion invokes synchronous
-host leaf/root publication; installed-host qualification, stable storage and browser lifecycle
-remain open. The existing
+host leaf/root publication. Installed issuer transaction rollback and volatile
+upgrade-loss refusal are now checked, together with receiver/application rollback
+and receiver upgrade-loss closure. Canic enrollment integration, stable storage
+and browser lifecycle remain open. The existing
 `ic-auth` repository remains the implemented reference and canonical production
 owner until the replacement is qualified and adoption is explicitly approved.
 
@@ -103,7 +105,31 @@ host owns account authentication, entropy, approval, signing and transactions.
 Expired rows remain charged until explicit pruning after their captured retention
 deadline. Pruning preserves referenced logins and closes consumed-ID epochs;
 certified witnesses remain host-owned and are refreshed without republishing
-completed claims. Host rollback and installed lifecycle remain unqualified.
+completed claims. `make qualify-host` checks actual installed issuer rollback,
+certificates and upgrade-loss closure with a prepared PocketIC server. See
+[host evidence and limits](qualification/ic-auth-host-conformance/README.md).
+Receiver checks also cover admission/logout/application rollback, normal refusal
+charging and closed upgrade loss. A real installation-bound authority call now
+checks reply binding, terminal single-key revocation and atomic callback publication.
+All installed checks use one simulated subnet. Late/overlapping-reply integration
+checks remain outstanding for the supported Canic flow.
+Full Canic registry integration and production challenge/refresh handling remain
+unqualified.
+
+The private [browser client](packages/client/README.md) starts with a bounded
+Platform SDK signing attempt: captured caller/destination, checks before and after
+signing, cancellation and permanent disposal. `make test-client` runs its strict
+TypeScript check and ten real SDK cases. A strict IndexedDB journal now owns login
+creation, destination inventory and atomic local invalidation while retaining
+issuance uncertainty. `make test-client-journal` qualifies it in two native Chromium
+tabs. Issuance reservations now remain lookup-only after interruption; completions
+retain exact evidence and original expiry through the Rust-generated Wire codec.
+`make check-client-generated` checks generated-source drift. `retrieveCredential`
+now connects those decisions to an injected issuer adapter through bounded account/
+browser signing, with one call and durable completion before return.
+`establishSession` now commits receiver inventory before one browser-signed Wire
+admission attempt and rejects stale/mismatched receipts. Actual HTTP reply
+authentication, readiness coordination and remote cleanup remain outstanding.
 
 The objective is less maintained state and clearer ownership, not a promised
 zero-debt result or a line-count quota. Keep rejection, atomicity and recovery

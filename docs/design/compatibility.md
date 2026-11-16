@@ -84,6 +84,23 @@ known-login capacity cases; successful classification cannot install authority.
 Physical session/replay count and byte arithmetic also have independent boundary
 cases. Protected credential dispatch is exercised through Wire/domain drivers;
 neither establishes atomic admission or a retained-storage format.
+The private browser signing-attempt slice now exercises actual Platform SDK
+identities with injected generation checks. Ten Node cases cover fixed caller/
+destination, suspended-signature invalidation, late completion, cancellation,
+timeout and read-state polling. Thirty native Chromium cases additionally qualify
+strict IndexedDB local invalidation, two-tab ordering and suspended SDK signing,
+lookup-only issuance recovery, exact completion, renewal watermarks, aborted paired
+writes, missing/overflowed sequences and corrupt metadata/evidence. Fixtures
+independently specify the frozen private v1 record. Credential tests use retained
+reference frames; four Node codec cases and a generation drift check cover the
+adopted Rust-generated module/runtime. Issuer adapter cases use actual SDK signing
+and injected replies to check account/browser roles, original issuer/sequence
+binding, uncertain outcomes and durable completion. Admission cases add exact
+generated request bytes, durable receiver inventory, all existing refusal tags,
+caller/issuer receipt binding and logout/expiry/sequence fences. Successful reply
+fixtures are packed independently from the retained Wire layout. This does not establish HTTP
+reply authentication, production endpoint integration, remote cleanup, renderer-
+interruption recovery or a complete coordinator.
 Complete adversarial acceptance, actual SDK/browser lifecycle and backend qualification
 remain outstanding.
 
@@ -175,3 +192,30 @@ are native publication-boundary checks, not installed-host rollback, stable
 custody or host authentication/recovery qualification.
 Result-byte reservations are a new native logical bound,
 not a claim of equivalent legacy serialized-storage or allocator accounting.
+
+Installed issuer evidence now complements those native checks. A Platform/Wire
+fixture traps after leaf mutation, certified-root publication and retained
+completion, and verifies that actual IC rollback restores all three. A host error
+is converted into an enclosing trap; ordinary caller/deadline/revocation refusals
+remain nontrapping. Successful claims verify against an actual query certificate.
+A real upgrade loses volatile state and leaves the fixture closed without a reset
+route. See [setup and scope](../../qualification/ic-auth-host-conformance/README.md).
+The same installed fixture now exercises receiver admission/logout and protected
+application projection rollback, ordinary proof-refusal charging, expired-proof
+exact retry and retained revocation. Real upgrades leave lost known/unknown
+logout state closed even when enrollment is requested again. An intact companion
+accepts the same valid credentials, including an issuer-ahead credential after its
+temporary denial expires. This is containment, not recovery or conclusive logout.
+Receiver enrollment now arrives through a real IC call to an installation-bound
+authority. An installed single-key responder binds the actual caller and challenge;
+malformed bindings, expired replies, substituted keys and revision regression
+refuse. Receiver metadata and host entries commit together in the callback:
+traps undo callback writes but retain the earlier request submission. A committed
+revocation cannot be reversed even by greater revision/generation, and refresh
+cannot extend captured session leases. All installed canisters share one simulated
+subnet. Late/overlapping-reply integration checks remain outstanding for the
+supported single-subnet Canic flow; native semantic checks are retained.
+This remains a test-specific exchange with
+fixed domain/grants and deterministic challenges. Complete Canic registry/endpoint
+integration, production challenge/refresh scheduling, external signer recovery,
+composed application certification and stable storage remain unqualified.

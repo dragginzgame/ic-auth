@@ -1,0 +1,26 @@
+{
+  "name": "@dragginzgame/ic-auth-client",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Private IC Auth browser lifecycle implementation",
+  "license": "SEE LICENSE IN ../../LICENSE.md",
+  "exports": "./src/index.ts",
+  "engines": {
+    "node": ">=24.21.0 <25"
+  },
+  "scripts": {
+    "check": "tsc --noEmit",
+    "test": "npm run check && node --test --test-isolation=none --test-reporter=tap tests/*.test.ts",
+    "test:journal": "npm run check && node tests/browser/journal.mjs"
+  },
+  "dependencies": {
+    "@tokostudios/ic-platform": "0.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "typescript": "7.0.2",
+    "playwright-core": "1.65.1",
+    "esbuild": "0.28.2"
+  }
+}

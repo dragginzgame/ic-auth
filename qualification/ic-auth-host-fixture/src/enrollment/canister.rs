@@ -1,0 +1,129 @@
+//! Actual inter-canister fixture responder; never a production enrollment service.
+use super::{CONFIGURE, KEY, LIMITS, METHOD, Scenario, Snapshot};
+use crate::receiver::TIME_ORIGIN_NS;
+use ic_platform_runtime::{cdk, cdk::api, ic0};
+use std::cell::Cell;
+
+thread_local! { static SCENARIO: Cell<Scenario> = const { Cell::new(Scenario::Initial) }; }
+fn bounded() -> Result<(), String> {
+    if ic0::msg_arg_data_size() > LIMITS.bytes {
+        Err("oversized enrollment frame".into())
+    } else {
+        Ok(())
+    }
+}
+fn controller() -> Result<(), String> {
+    bounded()?;
+    if api::is_controller(&api::msg_caller()) {
+        Ok(())
+    } else {
+        Err("fixture controller required".into())
+    }
+}
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "Platform owns the codec buffer"
+)]
+fn decode_scenario(bytes: Vec<u8>) -> Scenario {
+    ic_wire::decode(
+        &bytes,
+        ic_wire::Encoding::Frame {
+            method: CONFIGURE,
+            direction: ic_wire::Direction::Request,
+        },
+        LIMITS,
+    )
+    .unwrap()
+}
+fn encode_unit() -> Vec<u8> {
+    ic_wire::encode(
+        &(),
+        ic_wire::Encoding::Frame {
+            method: CONFIGURE,
+            direction: ic_wire::Direction::Response,
+        },
+        LIMITS,
+    )
+    .unwrap()
+}
+#[cdk::update(
+    name = "authority_fixture_configure",
+    guard = "controller",
+    decode_with = "decode_scenario",
+    encode_with = "encode_unit"
+)]
+fn configure(scenario: Scenario) {
+    SCENARIO.set(scenario);
+}
+
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "Platform owns the codec buffer"
+)]
+fn decode_request(bytes: Vec<u8>) -> [u8; 32] {
+    ic_wire::decode(
+        &bytes,
+        ic_wire::Encoding::Frame {
+            method: METHOD,
+            direction: ic_wire::Direction::Request,
+        },
+        LIMITS,
+    )
+    .unwrap()
+}
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "Platform owns the handler result"
+)]
+fn encode_snapshot(value: Snapshot) -> Vec<u8> {
+    ic_wire::encode(
+        &value,
+        ic_wire::Encoding::Frame {
+            method: METHOD,
+            direction: ic_wire::Direction::Response,
+        },
+        LIMITS,
+    )
+    .unwrap()
+}
+#[cdk::update(
+    name = "authority_fixture_snapshot",
+    guard = "bounded",
+    decode_with = "decode_request",
+    encode_with = "encode_snapshot"
+)]
+fn snapshot(challenge: [u8; 32]) -> Snapshot {
+    let mut result = Snapshot {
+        receiver: api::msg_caller().as_slice().to_vec(),
+        challenge,
+        revision: 1,
+        generation: 7,
+        issued_at_ns: api::time(),
+        expires_at_ns: TIME_ORIGIN_NS + 150_000_000_000,
+        key: KEY,
+        revoked: false,
+    };
+    match SCENARIO.get() {
+        Scenario::Initial => {}
+        Scenario::Refresh => {
+            result.revision = 2;
+            result.expires_at_ns += 30_000_000_000;
+        }
+        Scenario::WrongReceiver => result.receiver = vec![8],
+        Scenario::WrongChallenge => result.challenge[0] ^= 1,
+        Scenario::Expired => result.expires_at_ns = result.issued_at_ns,
+        Scenario::WrongKey => result.key[0] ^= 1,
+        Scenario::Regression => result.revision = 0,
+        Scenario::Unavailable => api::trap("fixture authority unavailable"),
+        Scenario::Revoke => {
+            result.revision = 3;
+            result.generation = 8;
+            result.revoked = true;
+        }
+        Scenario::Reenable => {
+            result.revision = 4;
+            result.generation = 9;
+        }
+    }
+    result
+}

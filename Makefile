@@ -23,6 +23,11 @@ help:
 	  'test-credential-profile  Protected verifier dispatch and failure charging' \
 	  'test-memory     Real memory admission, retention and both proof mechanisms' \
 	  'test-issuer     Volatile issuance, renewal, certified publication and recovery' \
+	  'test-client     Browser typecheck, SDK signing and Wire codec cases' \
+	  'test-client-journal  Native IndexedDB cases (installed Chromium required)' \
+	  'generate-client / check-client-generated  Rust-owned browser Wire codecs' \
+	  'qualify-host    Installed Auth rollback/loss (requires PocketIC 16.x)' \
+	  'lint-host       Native harness and Wasm fixture lint' \
 	  'test-product    CI aggregate: product packages, complete verifiers and memory' \
 	  'test-qualification  CI aggregate: native proof and Wire conformance packages' \
 	  'verify-fixtures  Independently verify retained signing fixtures with Node' \
@@ -112,6 +117,31 @@ test-issuer: toko-tooling-check
 	cargo test --offline --locked -p ic-auth --features issuer-memory,ed25519-verification --lib issuer_memory::tests
 	cargo test --offline --locked -p ic-auth --features issuer-memory,ed25519-verification --test issuer_memory
 	cargo test --offline --locked --manifest-path qualification/Cargo.toml -p ic-auth-certified-conformance --features issuer-memory --test certified issuance::
+
+.PHONY: test-client test-client-journal generate-client check-client-generated
+test-client: toko-tooling-check
+	npm --prefix packages/client test
+
+test-client-journal: toko-tooling-check
+	npm --prefix packages/client run test:journal
+
+generate-client: toko-tooling-check
+	node packages/client/scripts/generate.mjs
+
+check-client-generated: toko-tooling-check
+	node packages/client/scripts/generate.mjs --check
+
+# Explicit installed qualification; no implicit server provisioning or live deployment.
+.PHONY: qualify-host lint-host
+qualify-host: toko-tooling-check
+	mkdir -p qualification/target/host-vectors
+	node crates/ic-auth/tests/verify-memory-fixtures.mjs --host > qualification/target/host-vectors/memory.tsv
+	cargo build --offline --locked --manifest-path qualification/Cargo.toml -p ic-auth-host-fixture --lib --release --target wasm32-unknown-unknown --target-dir qualification/target
+	AUTH_HOST_VECTORS="$(CURDIR)/qualification/target/host-vectors/memory.tsv" AUTH_HOST_WASM="$(CURDIR)/qualification/target/wasm32-unknown-unknown/release/ic_auth_host_fixture.wasm" cargo test --offline --locked --manifest-path qualification/Cargo.toml -p ic-auth-host-conformance --test installed -- --ignored $(HOST_TEST_FILTER)
+
+lint-host: toko-tooling-check
+	cargo clippy --offline --locked --manifest-path qualification/Cargo.toml -p ic-auth-host-conformance --test installed -- -D warnings
+	cargo clippy --offline --locked --manifest-path qualification/Cargo.toml -p ic-auth-host-fixture --lib --target wasm32-unknown-unknown -- -D warnings
 
 .PHONY: test-product test-qualification verify-fixtures
 test-product: toko-tooling-check

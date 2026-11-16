@@ -410,6 +410,39 @@ deferred capabilities or external host.
 
 ## 11 Browser lifecycle
 
+The first private browser implementation is
+[`runSigningAttempt`](../../packages/client/src/attempt.ts). One owner combines the
+five-second attempt ceiling, cancellation and temporary SDK identity disposal.
+It captures principal/destination before awaiting, checks the injected journal
+owner before/after signing and transport completion, and rejects late results.
+Read-state polling retains those authority checks without requiring a call target.
+No new SDK identity interface, crypto, retry engine or application replay is added.
+Ten controlled Node cases use real Platform SDK signing.
+
+The private `LoginJournal` now owns strict IndexedDB transactions, generation/caller/
+destination guards, bounded inventory and atomic local logout. Its API exposes
+operations and detached status, not mutable records or generic transactions. The
+frozen private v1 metadata profile remains unchanged. Logout retains uncertainty
+and pending sequence while removing completed metadata and credential bytes in
+one commit. The same owner reserves issuance before dispatch, returns pending work
+as lookup-only, reuses exact completion and reserves sequential renewal only after
+expiry or a refresh watermark. Unknown issuance without a sequence refuses fresh
+issuance; overflow retains previous evidence. Credential access validates the paired
+frame through the Rust-generated IC Wire codec without treating structure as proof.
+`retrieveCredential` now connects those decisions to an injected issuer adapter
+through at most one bounded SDK call. Its journal guard binds the original issuer,
+browser caller and current sequence. It captures reply bytes before postflight
+awaits and commits evidence before returning it. Errors remain lookup-only.
+`establishSession` now retrieves committed evidence, encodes the generated admission
+contract, commits receiver inventory and makes one browser-signed attempt through
+an injected update adapter. Its guard checks proof expiry/current sequence as well
+as login and destination binding. Receipts bind caller/issuer without assuming a
+receiver/browser clock offset. All refusals propagate without automatic retry.
+Thirty native Chromium cases cover two tabs, suspended work, aborted writes,
+recovery, receipt rejection and logout/expiry/sequence races. Four Node codec cases
+and a generation drift gate check adopted output. Actual HTTP reply authentication,
+readiness coordination, remote cleanup and renderer interruption remain to be qualified.
+
 Keep one coordinator over one strict journal owner. Inject Platform SDK identities, issuer transport, receiver transport and clock mapping. Do not recreate a second SDK identity facade or implement application retries.
 
 Retain distinct account and browser signer roles. Initial issuance/reconciliation uses the account identity; renewal and subsequent reconciliation use the browser binding. Receiver calls use only the browser identity. Capture destination and principal bytes before asynchronous work and bind temporary signers to their target, generation and attempt.
@@ -428,6 +461,12 @@ Readiness may perform the reference's bounded preparation/retry sequence, at mos
 
 Require real SDK transport and native browser IndexedDB qualification, including two tabs, strict durability, renderer interruption and suspended signing. Fake storage tests are a separate layer.
 
+Installed issuer transaction evidence is available through
+[`make qualify-host`](../../qualification/ic-auth-host-conformance/README.md).
+The standalone Platform/Wire fixture checks real IC rollback at leaf/root/local
+completion boundaries and verifies actual certified claims. This qualifies the
+synchronous transaction contract, not Canic application endpoint integration.
+
 ## 12 Boot, authority and lost state
 
 Every install, upgrade and recovery starts authentication closed. Checked retained safety state and a fresh authenticated enrollment response bound to receiver and boot challenge are both required for readiness.
@@ -439,6 +478,25 @@ Complete persistent reopen is distinct from volatile loss or stale backup restor
 No finite clock-skew assumption makes unknown logout conclusive. An issuer-ahead credential may remain capable of later admission. Preserve the reference's explicit Unconfirmed outcome and lost-state refusal.
 
 Ordinary admission may be disabled while safe self-revocation remains available. Missing safety state must not report successful revocation. Authority refresh scheduling belongs to the host; Auth supplies validity rules, not another timer/executor.
+
+The installed issuer fixture exercises an actual upgrade with no retained heap:
+its post-upgrade hook clears the signature contribution and leaves the issuer
+absent. Completion, preparation and revocation remain closed. This establishes
+volatile issuer loss containment only. The receiver fixture now also checks actual
+upgrade loss after known revocation or unknown denial: enrollment requests cannot
+recreate missing safety state. An intact receiver accepts the same valid credential,
+including an issuer-ahead proof after temporary denial expiry. Receiver/application
+writes roll back together on a trap; ordinary invalid proofs retain their charge.
+The fixture now fetches a single-key enrollment reply from an installation-bound
+IC destination, preserving callback source provenance across the await. It checks
+receiver/challenge/freshness/revision and key identity, retains terminal revocation,
+and commits host entry/receiver metadata in one callback transaction. Callback
+traps do not undo the earlier request submission. All installed Auth checks
+use a single simulated subnet. Late/overlapping-reply integration checks remain
+outstanding for the supported single-subnet Canic flow; the response freshness and
+challenge-fencing requirements remain unchanged. Fixed fixture domain/grants and
+deterministic challenges do not qualify the complete Canic registry, production
+entropy/refresh scheduling, trusted recovery or application endpoint wiring.
 
 ## 13 Deletions, reuse and compatibility policy
 

@@ -4,6 +4,9 @@
 import { createHash, createPrivateKey, createPublicKey, sign, verify } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
+// Installed hosts advance in real nanoseconds; reuse the same independent packer.
+const host = process.argv[2] === '--host';
+const time = n => host ? 2_000_000_000_000_000_000n + BigInt(n) * 1_000_000_000n : BigInt(n);
 const hash = b => createHash('sha256').update(b).digest();
 const uint = (n, size) => { const b = Buffer.alloc(size); if (size === 8) b.writeBigUInt64BE(BigInt(n)); else b.writeUIntBE(n, 0, size); return b; };
 const sized = b => Buffer.concat([uint(b.length, 4), b]);
@@ -26,8 +29,8 @@ for (const [name, browser, generation, issued, nonce, subject, start = 10, deadl
   const claims = Buffer.concat([
     Buffer.from('IC-AUTH-PORTABLE-CREDENTIAL\0'), uint(2, 2), Buffer.of(1),
     Buffer.alloc(32, 0x11), Buffer.alloc(32, 0x22), sized(Buffer.of(issuer)), hash(key), browserKey,
-    sized(Buffer.of(subject)), Buffer.of(slot), uint(generation, 8), uint(start, 8), uint(deadline, 8),
-    uint(issued, 8), uint(issued + 10, 8), Buffer.alloc(16, nonce), uint(1, 4), text('user'), uint(1, 4), text('read'),
+    sized(Buffer.of(subject)), Buffer.of(slot), uint(generation, 8), uint(time(start), 8), uint(time(deadline), 8),
+    uint(time(issued), 8), uint(time(issued + 10), 8), Buffer.alloc(16, nonce), uint(1, 4), text('user'), uint(1, 4), text('read'),
   ]);
   const digest = hash(claims), signature = sign(null, digest, privateKey);
   assert(verify(null, digest, publicKey, signature));
@@ -40,9 +43,11 @@ for (const [name, browser, generation, issued, nonce, subject, start = 10, deadl
 }
 // Cross-check the initial case against the separately retained reference vector.
 const reference = new Map(readFileSync(new URL('fixtures/ed25519.tsv', import.meta.url), 'utf8').trim().split('\n').map(l => l.split('\t')));
-assert.equal(expected.get('initial-claims').toString('hex'), reference.get('claims'));
-assert.equal(expected.get('initial-signature').toString('hex'), reference.get('signature'));
-if (process.argv[2] === '--print') {
+if (!host) {
+  assert.equal(expected.get('initial-claims').toString('hex'), reference.get('claims'));
+  assert.equal(expected.get('initial-signature').toString('hex'), reference.get('signature'));
+}
+if (host || process.argv[2] === '--print') {
   for (const [name, bytes] of expected) console.log(`${name}\t${bytes.toString('hex')}`);
 } else {
   const saved = new Map(readFileSync(new URL('fixtures/memory.tsv', import.meta.url), 'utf8').trim().split('\n').map(l => l.split('\t')));

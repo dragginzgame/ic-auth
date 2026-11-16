@@ -117,3 +117,14 @@ test sequences, not copied legacy engine
 code or actual SDK browser logins. See the
 [memory receiver boundary](../../../../docs/development/memory-receiver-boundary.md)
 for the qualified operations and remaining host/recovery scope.
+
+## Installed receiver time variants
+
+The existing independent memory packer also supports `--host`, used by
+`make qualify-host`. It scales each scenario timestamp from nanoseconds to
+seconds and adds the fixed Unix-nanosecond origin `2000000000000000000`, then
+signs and verifies those bytes through Node/OpenSSL. This accommodates the
+simulator's forward-only clock without using Auth's encoder or signer. Generated
+host vectors live under `qualification/target/host-vectors/`; the default mode
+continues to check the retained native vectors unchanged. See the
+[installed qualification boundary](../../../../qualification/ic-auth-host-conformance/README.md).

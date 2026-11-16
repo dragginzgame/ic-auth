@@ -2,6 +2,8 @@
 members = [
     "ic-auth-certified-conformance",
     "ic-auth-ed25519-conformance",
+    "ic-auth-host-conformance",
+    "ic-auth-host-fixture",
     "ic-auth-wire-conformance",
 ]
 resolver = "3"
@@ -14,12 +16,18 @@ license-file = "../LICENSE.md"
 [workspace.dependencies]
 ed25519-dalek = { version = "3.0.0", default-features = false, features = ["legacy_compatibility"] }
 ic-auth = { path = "../crates/ic-auth" }
+ic-auth-host-fixture = { path = "ic-auth-host-fixture" }
 ic-auth-protocol-types = { path = "../crates/ic-auth-protocol-types" }
 ic-auth-wire = { path = "../crates/ic-auth-wire" }
+ic-build = "0.86.0"
+ic-host-fs = "0.79.0"
 ic-platform = { version = "0.33.7", default-features = false }
+ic-platform-runtime = { version = "0.22.5", default-features = false }
+ic-testkit = "0.106.0"
 ic-wire = "0.24.1"
 serde = "1.0.229"
 sha2 = "0.11.1"
+tokio = "1.54.1"
 toko-tooling = "=0.44.4"
 
 [workspace.lints.cargo]
