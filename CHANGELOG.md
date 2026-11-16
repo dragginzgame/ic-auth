@@ -2,6 +2,9 @@
 
 ## [0.47.0] - Unreleased
 
+Source package versions: Auth 0.47.0, protocol-types/Wire 0.43.0 and private
+browser client 0.1.0. These remain unpublished source versions.
+
 ### ⚠️ Breaking
 
 - Adopt Platform 0.34.5, Types 0.21.1, Runtime 0.23.12 and Wire 0.24.2.
@@ -14,6 +17,10 @@
 
 ### 🔧 Changed
 
+- Adopt Platform 0.34.8, Runtime/macros/guard 0.23.14, Wire 0.24.3 and Testkit
+  0.107.3 across the product and qualification workspaces, retaining the existing
+  Auth feature selections.
+
 - Update the product and qualification graphs to Platform 0.34.6, Types 0.21.2
   and Runtime 0.23.13. Existing Auth callers keep their current feature boundaries.
 
@@ -23,6 +30,16 @@
   while the caller owns the server. No legacy Platform remains in either lock.
 
 ### ✨ Added
+
+- Add host-owned terminal key disposal with exact public binding, idempotent
+  conditional-deletion requirements and retry without a private signer. Preserve
+  unresolved journal evidence and replacement keys. Seven native cases and a
+  renderer-loss case qualify guards, cancellation and lost-reply recovery.
+
+- Add browser-bound issuer revocation for the Canic integration boundary. Verify
+  the retained browser/account/login binding before revocation, fence pending
+  issuance and renewal, preserve results and return the original login deadline.
+  Canic endpoint adoption is tracked in [Canic #16](https://github.com/dragginzgame/canic/issues/16).
 
 - Add cancellable logout cleanup scheduling using journal-owned delays, leases,
   attempt limits and the original deadline. Interrupted runs preserve progress
@@ -40,6 +57,14 @@
   fences late work without waiting for the coordinator. No application calls replay.
 
 ### 🧪 Testing
+
+- Qualify logout recovery after abrupt Chromium renderer loss following local
+  invalidation, signed dispatch and committed confirmation. Reopening retains
+  the fixed deadline, attempt count and issuance uncertainty; live leases prevent
+  immediate redispatch and confirmed destinations are not repeated.
+- Qualify renderer loss during initial issuance and renewal: recovery stays
+  lookup-only for the same sequence and signer, retains failed-lookup uncertainty,
+  reuses committed evidence and refuses reconciliation after local logout.
 
 - Complete [Auth #2 — Remove legacy oracle and compatibility qualification](https://github.com/dragginzgame/ic-auth/issues/2).
   Browser checks now independently assemble the current fixtures and run only current

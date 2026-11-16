@@ -616,7 +616,7 @@ impl MemoryIssuer {
     }
 
     /// Account-authenticated revocation, retaining all fences and result evidence.
-    /// Browser-authenticated logout belongs to a later issuer binding API.
+    /// The host must authenticate `account`; browser callers use `revoke_browser`.
     pub fn revoke(
         &mut self,
         account: Principal,
@@ -625,13 +625,64 @@ impl MemoryIssuer {
         now_ns: u64,
     ) -> Result<(), IssuerError> {
         self.observe(now_ns)?;
+        self.revoke_login(account, (login_epoch, login_id))
+            .map(|_| ())
+    }
+
+    /// Revoke one retained login after authenticating its browser binding.
+    /// The host supplies the actual caller and time; account/epoch/id are only
+    /// selectors. This synchronous operation fences pending completion and future
+    /// renewal without deleting results, uncertainty or other account logins.
+    /// Repeats, expired logins and old epochs retain the original login deadline,
+    /// returned as metadata, not proof of logout at any separate receiver.
+    /// Missing/pruned bindings refuse; volatile state loss cannot confirm logout.
+    ///
+    /// # Errors
+    /// Returns `Denied` for an absent or mismatched browser/login binding, or the
+    /// ordinary closed-owner/clock refusal. The host owns transaction rollback.
+    pub fn revoke_browser(
+        &mut self,
+        browser: Principal,
+        account: Principal,
+        login_epoch: u64,
+        login_id: [u8; 32],
+        now_ns: u64,
+    ) -> Result<u64, IssuerError> {
+        self.observe(now_ns)?;
+        let identity = (login_epoch, login_id);
+        self.browser_login(browser, account, identity)?;
+        self.revoke_login(account, identity)
+    }
+
+    // Called only after the public operation has observed time and authenticated
+    // either the account or its retained browser. No await separates these steps.
+    fn revoke_login(&mut self, account: Principal, identity: Identity) -> Result<u64, IssuerError> {
         let login = self
             .accounts
             .get_mut(&account)
-            .and_then(|a| a.logins.get_mut(&(login_epoch, login_id)))
+            .and_then(|a| a.logins.get_mut(&identity))
             .ok_or(IssuerError::Denied)?;
         login.revoked = true;
-        Ok(())
+        Ok(login.deadline)
+    }
+
+    fn browser_login(
+        &self,
+        browser: Principal,
+        account: Principal,
+        identity: Identity,
+    ) -> Result<&Login, IssuerError> {
+        let login = self
+            .accounts
+            .get(&account)
+            .and_then(|a| a.logins.get(&identity))
+            .ok_or(IssuerError::Denied)?;
+        if browser == Principal::anonymous()
+            || browser != crate::browser_identity::browser_principal(&login.browser)
+        {
+            return Err(IssuerError::Denied);
+        }
+        Ok(login)
     }
 
     /// Fence all old callbacks/new operation IDs without clearing logins, results

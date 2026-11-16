@@ -74,6 +74,37 @@ custom commit-callback API. The authorized hard cut assumes no existing consumer
 need that API. New host boundaries must independently prove atomicity and recovery;
 no legacy implementation or compatibility graph is required for qualification.
 
+## Browser-bound issuer logout
+
+`MemoryIssuer::revoke_browser` verifies a host-authenticated caller against the
+retained browser key for the selected account/login epoch/id. Selection fields
+never establish authority. Revocation and binding verification are synchronous;
+all pending effect stages and renewal admission observe the same revocation flag.
+The operation retains completed/unknown evidence, counts and other logins. It
+returns the original login deadline unchanged on repeats, including retained old
+epochs and expired logins; this is not receiver-wide logout or proof of remote
+expiry. Unknown/pruned binding, closed state and clock regression refuse.
+
+Canic owns transport schemas, authenticated host inputs and mounted handlers:
+[Canic #16](https://github.com/dragginzgame/canic/issues/16) consumes this boundary,
+[Canic #10](https://github.com/dragginzgame/canic/issues/10) owns issuer integration,
+and [Canic #11](https://github.com/dragginzgame/canic/issues/11) owns the real browser
+journey. [Canic #17](https://github.com/dragginzgame/canic/issues/17) owns generated
+issuer codecs and the adapter to Auth's existing browser lifecycle. Receiver logout
+keeps its unit-input Wire contract. An issuer adapter
+must bind its original account/login selectors separately and preserve every
+receiver in the browser cleanup inventory.
+
+## Browser key custody
+
+After terminal cleanup, `disposeLoginKey` verifies the durable generation and public
+caller before invoking host custody. The host must conditionally delete that exact
+binding, tolerate repeated/concurrent calls and preserve replacement keys. No private
+signer is required to retry after a lost deletion reply. Terminal status preserves
+unconfirmed destinations and unknown issuance, allowing the host to refuse deletion.
+Cancellation fences invocation only; an invoked callback reports its actual outcome.
+Auth retains the journal and makes no claim of all-copy key erasure.
+
 ## Deliberate exclusions
 
 No Canic fleet policy, Toko records, Solana RPC, new wallet-login service or custom

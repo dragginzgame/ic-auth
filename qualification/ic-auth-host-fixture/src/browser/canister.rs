@@ -5,8 +5,8 @@ use crate::hash_bytes;
 use crate::{REQUEST, RESPONSE};
 use ic_auth::{
     issuer_memory::{
-        IssueRequest, IssuedProof, IssuerAuthority, IssuerConfig, IssuerPolicy, IssuerSigning,
-        IssuerStatus, MemoryIssuer,
+        IssueRequest, IssuedProof, IssuerAuthority, IssuerConfig, IssuerError, IssuerPolicy,
+        IssuerSigning, IssuerStatus, MemoryIssuer,
     },
     receiver_memory::{
         AdmissionHost, EnrollmentBinding, EnrollmentMetadata, LoginLimits, LogoutReceipt,
@@ -392,11 +392,20 @@ fn logout((): ()) -> LogoutResult {
             return LogoutResult::Unavailable(LogoutUnavailable::ResetPending);
         };
         let caller = api::caller();
-        // Only this fixed authenticated browser can revoke its installation-owned account binding.
-        if caller != principal(9) {
-            return LogoutResult::InvalidCaller;
+        // The installation selects the account/login; Auth authenticates the
+        // actual browser against its retained binding without account impersonation.
+        match s
+            .issuer
+            .revoke_browser(caller, principal(8), 1, OP, api::time())
+        {
+            Ok(_) => {}
+            Err(IssuerError::Denied) => return LogoutResult::InvalidCaller,
+            Err(IssuerError::Clock) => return LogoutResult::Unavailable(LogoutUnavailable::Clock),
+            Err(IssuerError::Closed) => {
+                return LogoutResult::Unavailable(LogoutUnavailable::ResetPending);
+            }
+            Err(_) => api::trap("unexpected issuer logout refusal"),
         }
-        s.issuer.revoke(principal(8), 1, OP, api::time()).unwrap();
         match s.receiver.logout(caller, api::time()).unwrap() {
             LogoutReceipt::Revoked { deny_until_ns } => LogoutResult::Revoked(deny_until_ns),
             LogoutReceipt::Unconfirmed { deny_until_ns } => {

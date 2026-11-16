@@ -97,6 +97,13 @@ fixture verifies the same frozen claims with fresh certificates. Result-byte
 reservations are logical native bounds, not equivalent serialized-store or heap
 accounting.
 
+Browser-bound issuer revocation has four native contract cases covering every
+selector, other-account/login isolation, pending initial/renewal effects, retained
+results/deadlines, clock/closed-state refusal and actual pruning. The installed
+combined issuer/receiver journey uses this public operation and rejects an
+account-signed request to its browser-only logout endpoint. This does not establish
+a mounted Canic issuer-logout contract or external signing rollback.
+
 ## Installed transaction and enrollment evidence
 
 Five single-subnet cases exercise issuer leaf/system-root/completion rollback,
@@ -173,8 +180,27 @@ cancellation, cross-tab leases, exhaustion/deadline uncertainty, pre-logout/stor
 refusal and identity changes during waits. The installed journey uses scheduled
 cleanup and still independently requires one logout effect and retained denial.
 
+Three further cases terminate renderer processes belonging to a dedicated disposable
+Chromium browser, observe its crash event and reopen the same IndexedDB storage.
+They cover committed local invalidation, signed cleanup dispatch with no reply and
+committed confirmation. Deadlines, counts and issuance uncertainty survive; a live
+lease prevents redispatch and confirmed cleanup causes no further call. Identities
+are supplied again by the test host: this does not qualify key persistence, whole
+browser/OS failure, interruption before commit or external signer recovery.
+Four issuance cases use the same abrupt renderer-loss boundary: pending initial
+issuance, pending renewal, committed evidence and logout after reopening. Unknown
+work stays lookup-only even under a stronger refresh request or a failed lookup;
+initial recovery requires the account signer, renewal uses the browser signer,
+committed evidence returns without transport, and logout blocks reconciliation.
+
+Seven disposal cases qualify terminal/binding guards, detached retained evidence,
+deadline uncertainty, conditional deletion/retry, cancellation and storage/clock
+refusal. An eighth renderer-loss case deletes via a host custody test double and
+retries after reopening with only the public binding. Actual host key storage,
+all-copy erasure and whole-browser recovery are not qualified.
+
 Still required: production Canic endpoint integration, complete multi-receiver acceptance,
-external signer recovery; key disposal; renderer-interruption recovery. No application operation may be
+external signer recovery, production key custody and broader renderer-interruption recovery. No application operation may be
 replayed to obtain that evidence. Stable storage and cross-backend acceptance stay
 in the future OP milestone.
 

@@ -987,7 +987,7 @@ dependencies = [
 
 [[package]]
 name = "ic-auth"
-version = "0.46.1"
+version = "0.47.0"
 dependencies = [
  "ic-auth-protocol-types",
  "ic-platform",
@@ -1045,14 +1045,14 @@ dependencies = [
 
 [[package]]
 name = "ic-auth-protocol-types"
-version = "0.42.0"
+version = "0.43.0"
 dependencies = [
  "ic-platform-types",
 ]
 
 [[package]]
 name = "ic-auth-wire"
-version = "0.42.0"
+version = "0.43.0"
 dependencies = [
  "ic-auth-protocol-types",
  "ic-wire",
@@ -1141,9 +1141,9 @@ dependencies = [
 
 [[package]]
 name = "ic-platform"
-version = "0.34.6"
+version = "0.34.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0759aec97b24f85cc16c042c3aa388955e84bd79e11703197fe0c60049db1b25"
+checksum = "33bf34291d82ae3a1735c12aa20f1457c87e36bda3215a0a3e48c4c20efedbb1"
 dependencies = [
  "crypto-bigint",
  "curve25519-dalek",
@@ -1162,9 +1162,9 @@ dependencies = [
 
 [[package]]
 name = "ic-platform-macros"
-version = "0.23.13"
+version = "0.23.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d5afcfb99f22c7153355b387ff56b4d19e78ae1ea0023cf713e25124b2db613e"
+checksum = "0376721a68d30392d7005bfaeca422bb0674cfa3c1778ca69b6661183327792c"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1173,9 +1173,9 @@ dependencies = [
 
 [[package]]
 name = "ic-platform-runtime"
-version = "0.23.13"
+version = "0.23.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9f5f46eebbf414e38b7ad6db694ce05bebeae40ff8df28eba6c1e48a6c308df4"
+checksum = "6f91abeacf7b1602e67b49391ea1e66d1c8f7e45779de79a5835b9c8dac3afb8"
 dependencies = [
  "ic-platform-macros",
  "ic-platform-runtime-guard",
@@ -1184,9 +1184,9 @@ dependencies = [
 
 [[package]]
 name = "ic-platform-runtime-guard"
-version = "0.23.13"
+version = "0.23.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "86a97003ee80dc942a11a313430685929df56c6dc5eeff506239904355ef7aa5"
+checksum = "239aeacc00fa6015ea4656defdfe643cdd6116f180887ea27b8164105c58a2ce"
 
 [[package]]
 name = "ic-platform-types"
@@ -1204,9 +1204,9 @@ dependencies = [
 
 [[package]]
 name = "ic-testkit"
-version = "0.107.1"
+version = "0.107.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a4fe4ea7882118e731ef1ebe8c668fc5dfa5252c1c972b1de68bc444868fae42"
+checksum = "f1abdecdc13e767e8f5f7f83f2c19e48a414d6a7eea2e2ffdbfe95222c56d6c2"
 dependencies = [
  "pocket-ic",
 ]
@@ -1244,9 +1244,9 @@ dependencies = [
 
 [[package]]
 name = "ic-wire"
-version = "0.24.2"
+version = "0.24.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "852a98f3b818bf1e6841c63845d88ded595b659181377e749cf8cf50b12b48c6"
+checksum = "9bb811860c129acbf0de96b16f44cad6b554c0e12e3cc3b67f0e5ad0109292e2"
 dependencies = [
  "bytemuck",
  "postcard",

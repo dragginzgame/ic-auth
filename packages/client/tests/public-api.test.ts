@@ -14,6 +14,8 @@ function consumerSurface(journal: client.LoginJournal, options: client.Credentia
   void journal.claimCleanup;
   // @ts-expect-error callers cannot settle cleanup independently
   void journal.completeCleanup;
+  // @ts-expect-error disposal validation belongs to the public operation
+  void journal.disposalStatus;
   // @ts-expect-error signing guards are internal
   void journal.assertActive;
   // @ts-expect-error the package exports operations, not the signing primitive
@@ -38,6 +40,10 @@ test('an imitation lifecycle handle cannot drive a cleanup effect', async () => 
   await assert.rejects(client.cleanupOnce({ journal, generation: 'login',
     browser: Ed25519KeyIdentity.generate(new Uint8Array(32).fill(9)),
     revoke: async () => { calls++; throw new Error('must not dispatch'); },
+  }), (error: unknown) => error instanceof client.JournalError && error.code === 'configuration');
+  await assert.rejects(client.disposeLoginKey({ journal, generation: 'login',
+    caller: Ed25519KeyIdentity.generate(new Uint8Array(32).fill(9)).getPrincipal(),
+    dispose: async () => { calls++; },
   }), (error: unknown) => error instanceof client.JournalError && error.code === 'configuration');
   assert.equal(calls, 0);
 });

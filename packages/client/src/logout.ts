@@ -21,6 +21,43 @@ export interface CleanupOptions {
 export type CleanupStep = Exclude<CleanupClaim, { kind: 'attempt' }>
   | { readonly kind: 'settled'; readonly canister: string; readonly response: Response; readonly status: JournalStatus };
 
+/** Public identity of the exact host-owned login key; contains no signing material. */
+export interface LoginKeyBinding {
+  readonly generation: string;
+  readonly caller: string;
+}
+export interface DisposeLoginKeyOptions {
+  journal: LoginJournal;
+  generation: string;
+  caller: Principal;
+  /** Atomically delete only this binding, or succeed if already absent. Must never
+   * remove a replacement key. Repeated/concurrent invocation is possible; the host
+   * owns custody and idempotency. Inspect retained uncertainty before choosing to delete.
+   */
+  dispose(binding: LoginKeyBinding, status: JournalStatus): Promise<void>;
+  signal?: AbortSignal;
+}
+
+/** Dispose through the host only after terminal cleanup. No private key is needed
+ * to resume after a lost disposal reply. The journal and uncertainty are retained.
+ * Cancellation fences invocation; once invoked, await the host's actual outcome
+ * rather than claiming its external deletion was cancelled or rolled back.
+ */
+export async function disposeLoginKey(options: DisposeLoginKeyOptions): Promise<JournalStatus> {
+  const { generation, dispose, signal } = options;
+  const caller = options.caller.toText();
+  const journal = journalOwner(options.journal);
+  if (typeof dispose !== 'function') throw new JournalError('configuration');
+  if (signal?.aborted) throw new AttemptError('cancelled');
+  const terminal = await journal.disposalStatus(generation, Principal.fromText(caller));
+  if (signal?.aborted) throw new AttemptError('cancelled');
+  // Callback input is detached from both the journal and our returned evidence.
+  await dispose(Object.freeze({ generation, caller }), {
+    ...terminal, destinations: terminal.destinations.map(destination => ({ ...destination })),
+  });
+  return terminal;
+}
+
 /** Schedule already committed logout until confirmation or the original deadline.
  * Errors stop this run without erasing uncertainty; invoke again to resume retained
  * leases/counts. Completion is not proof that every destination acknowledged logout.

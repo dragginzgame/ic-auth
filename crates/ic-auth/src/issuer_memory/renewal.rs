@@ -4,7 +4,6 @@ use super::{
     IssueRequest, IssuerAuthority, IssuerError, IssuerTicket, Login, MemoryIssuer, Operation,
     RenewRequest, RenewalSelection, RetainedRenewal,
 };
-use crate::browser_identity::browser_principal;
 use ic_auth_protocol_types::Principal;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
@@ -90,18 +89,12 @@ impl MemoryIssuer {
         if input.sequence == 0 {
             return Err(IssuerError::Invalid);
         }
-        let owner = self
-            .accounts
-            .get(&input.account)
-            .ok_or(IssuerError::Denied)?;
         let identity = (input.login_epoch, input.login_id);
-        let login = owner.logins.get(&identity).ok_or(IssuerError::Denied)?;
-        if browser == Principal::anonymous()
-            || browser != browser_principal(&login.browser)
-            || input.grants != login.grants
-        {
+        let login = self.browser_login(browser, input.account, identity)?;
+        if input.grants != login.grants {
             return Err(IssuerError::Denied);
         }
+        let owner = &self.accounts[&input.account];
         let retained = owner
             .renewals
             .get(&(identity, input.sequence))

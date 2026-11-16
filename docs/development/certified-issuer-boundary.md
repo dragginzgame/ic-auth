@@ -5,7 +5,7 @@ Enable `ic-auth/certified-issuer-verification` for
 fixed portable-domain claims digest and returns the certificate's signing time.
 It cannot produce `VerifiedClaims` or admit a credential/session.
 
-Platform 0.34.6 owns DER/CBOR parsing, hash-tree paths, IC root-to-subnet trust-chain
+Platform 0.34.8 owns DER/CBOR parsing, hash-tree paths, IC root-to-subnet trust-chain
 verification and BLS cryptography. Auth owns the fixed domain/digest framing,
 protected issuer and seed commitment, raw network-root length, signature byte
 admission and signing-certificate freshness. Host inputs supply authority and time;

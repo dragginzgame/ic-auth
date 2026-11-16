@@ -217,6 +217,18 @@ The `scheduler` browser selector checks cleanup scheduling, cancellation,
 cross-tab leases and resumption; `cleanup` and `logout` retain the journal and
 one-step effect cases.
 
+The `disposal` selector covers seven terminal key-disposal cases with native
+IndexedDB and host conditional-deletion test doubles. The `interruption` selector
+also covers deletion before a lost callback reply, then retry without a signer.
+Neither qualifies a production key store.
+
+The `interruption` selector uses a dedicated disposable Chromium browser per case.
+It obtains that browser's renderer process IDs through CDP, sends SIGKILL only to
+those processes, observes the crash event and reopens the same context storage.
+Its seven cases cover logout and issuance/renewal recovery, retained evidence and
+logout fencing after reopening. Run with `IC_AUTH_CLIENT_SUITE=interruption` and the existing prepared-browser
+command. This qualifies renderer loss, not whole-browser or operating-system loss.
+
 ## Dependency maintenance and LOC
 
 ```sh

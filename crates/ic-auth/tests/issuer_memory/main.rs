@@ -3,6 +3,7 @@
 #![cfg(feature = "issuer-memory")]
 
 mod certified;
+mod logout;
 mod renewal;
 mod retention;
 

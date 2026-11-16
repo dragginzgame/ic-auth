@@ -1,4 +1,4 @@
-import { LoginJournal as PublicJournal, retrieveCredential, establishSession, cleanupOnce, cleanupUntilFinished, SessionCoordinator, ReadinessError, httpUpdateTransport, AdmissionError } from '../../src/index.ts';
+import { LoginJournal as PublicJournal, retrieveCredential, establishSession, cleanupOnce, cleanupUntilFinished, disposeLoginKey, SessionCoordinator, ReadinessError, httpUpdateTransport, AdmissionError } from '../../src/index.ts';
 import { Journal as LoginJournal, type CleanupAttempt } from '../../src/journal.ts';
 import { runSigningAttempt } from '../../src/attempt.ts';
 import { Principal } from '@tokostudios/ic-platform/principal';
@@ -52,5 +52,5 @@ function admissionReply(caller: Principal, issuer: Principal, expires = 1n): Uin
   return Uint8Array.from(bytes);
 }
 Object.assign(globalThis, { authTest: { LoginJournal, PublicJournal, Principal, Ed25519KeyIdentity, pauseSigning, retrieveCredential, establishSession,
-  cleanupOnce, cleanupUntilFinished, SessionCoordinator, ReadinessError, runSigningAttempt, httpUpdateTransport, IC_ROOT_KEY, inspectIngress, invalidCertificateFixture, readStateResponseFixture,
+  cleanupOnce, cleanupUntilFinished, disposeLoginKey, SessionCoordinator, ReadinessError, runSigningAttempt, httpUpdateTransport, IC_ROOT_KEY, inspectIngress, invalidCertificateFixture, readStateResponseFixture,
   AdmissionError, signCall, admissionReply } });

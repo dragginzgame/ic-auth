@@ -228,6 +228,16 @@ export class Journal {
     });
   }
 
+  /** Terminal cleanup evidence for host-owned conditional key disposal. */
+  disposalStatus(generation: string, caller: Principal): Promise<JournalStatus> {
+    const callerText = caller.toText();
+    return this.#transaction(record => {
+      const current = this.#current(record, generation);
+      if (current.phase !== 'finished' || current.caller !== callerText) refuse('not_current');
+      return { record: current, value: status(current) };
+    });
+  }
+
   /** Recheck the inventoried receiver and completed proof at every signing boundary. */
   assertAdmission(generation: string, caller: Principal, issuer: Principal, target: Principal, sequence: bigint): Promise<void> {
     const callerText = caller.toText(), issuerText = issuer.toText(), targetText = target.toText();

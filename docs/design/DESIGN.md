@@ -445,8 +445,10 @@ not an SDK signer or application authority. Its ordinary-call wrapper then invok
 one application callback with the existing bounded temporary signer. Every signature
 and final result rechecks the captured readiness deadline and durable generation.
 Once the callback starts, expiry refuses without renewal or replay.
-Production Canic integration, complete multi-receiver acceptance,
-key disposal and renderer interruption
+Terminal cleanup now permits retryable host-owned key disposal using the retained
+public binding. The host owns conditional deletion and replacement protection;
+Auth retains the journal and unresolved evidence. Production Canic integration,
+complete multi-receiver acceptance, host key custody and broader renderer recovery
 remain open. The lifecycle requirements below still apply to that remaining work.
 
 Keep one coordinator over one strict journal owner. Inject Platform SDK identities, issuer transport, receiver transport and clock mapping. Do not recreate a second SDK identity facade or implement application retries.

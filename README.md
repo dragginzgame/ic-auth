@@ -17,12 +17,14 @@ issuance/renewal intents and exact-result reconciliation. Both preserve host-own
 transaction boundaries and refuse recovery by resetting lost volatile state.
 
 The private browser package implements durable local invalidation, credential
-retrieval, coalesced receiver readiness/admission and one-step cleanup. Its shared HTTP transport uses
-Platform's certified update path. Complete consumer integration, guarded ordinary calls,
-cleanup scheduling and key disposal remain open. See the
+retrieval, coalesced receiver readiness/admission, guarded ordinary calls, scheduled
+cleanup and host-owned key disposal. Its shared HTTP transport uses Platform's
+certified update path. Complete consumer integration and external signer recovery
+remain open. See the
 [current handoff](docs/status/current.md) for present capability and evidence limits.
 
-Source package versions are Auth 0.46.1 and protocol-types/Wire 0.42.0; the current
+Source package versions are Auth 0.47.0, protocol-types/Wire 0.43.0 and private
+browser client 0.1.0; the current
 unreleased source checkpoint is 0.47.0. All crates retain `publish = false`, and the
 browser package is private. Version 0.2.0 remains the last tagged GitHub milestone.
 The original repository remains production owner until qualification and explicit
@@ -81,6 +83,17 @@ renewal, sequence watermarks, retained results, bounded pruning and certified
 publication failure containment. `issuer-memory` builds
 independently of receiver/verifier features; the
 host owns account authentication, entropy, approval, signing and transactions.
+For browser-authenticated issuer logout, call
+`MemoryIssuer::revoke_browser(caller, account, login_epoch, login_id, now_ns)`.
+The host supplies the actual caller/time; account/login fields only select the
+retained binding. Auth checks the browser key and revokes that login synchronously,
+fencing pending completion and renewal while retaining exact result evidence.
+The returned original login deadline is metadata, not acknowledgement from another
+receiver. Account-authorized revocation remains `revoke`. Missing/pruned bindings
+refuse; constructing fresh volatile state cannot establish logout.
+Canic owns the issuer endpoint, codec and browser adapter in
+[Canic #16](https://github.com/dragginzgame/canic/issues/16); this adds no Canic
+dependency or issuer endpoint to Auth Wire.
 Expired rows remain charged until explicit pruning after their captured retention
 deadline. Pruning preserves referenced logins and closes consumed-ID epochs;
 certified witnesses remain host-owned and are refreshed without republishing

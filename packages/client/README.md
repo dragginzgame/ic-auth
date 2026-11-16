@@ -157,8 +157,36 @@ five seconds. Every
 wake-up claims again, respecting other tabs, the original deadline and attempt
 limits. Cancellation interrupts waits and active signing attempts. Transport,
 certificate, storage and clock errors stop the run; call it again to resume the
-retained progress. It never clears uncertainty or disposes of keys. Key disposal
-and recovery after renderer termination remain separate acceptance work.
+retained progress. It never clears uncertainty or disposes of keys. Three native
+cases now qualify abrupt renderer loss after committed local logout, signed cleanup
+dispatch and committed confirmation. They reopen the same browser storage with a
+host-supplied identity. Four further cases cover pending issuance/renewal, saved
+evidence and logout fencing after reopening. Unknown work reconciles the original
+sequence without reissuance, and unavailable evidence remains unresolved.
+Whole-browser failure, external signer recovery and key recovery are not covered.
+
+### Host-owned key disposal
+
+After cleanup finishes, call `disposeLoginKey({ journal, generation, caller, dispose })`.
+Retain the public caller and generation independently of the private key so a lost
+deletion reply can be retried after reopening. The operation validates terminal
+cleanup and the exact binding, then passes a frozen `{ generation, caller }` and
+detached terminal status to the host callback. It never erases the journal.
+
+The host must conditionally delete only that exact key, succeed when it is already
+absent, and preserve replacement keys. Concurrent and repeated callbacks are
+possible; this is not an exactly-once effect. Inspect unconfirmed destinations and
+issuance uncertainty before choosing to delete; deadline completion is not proof
+of remote logout. A callback may throw to retain custody. Cancellation prevents
+invocation, but once invoked the operation awaits the actual callback outcome
+without a timeout or rollback claim. Host custody owns all key copies and handles;
+this API cannot guarantee erasure of JavaScript or SDK memory.
+
+Seven native cases cover terminal/binding refusal, detached evidence, deadline
+uncertainty, failed-reply retry, replacement protection, cancellation and storage/
+clock failure. An eighth renderer-loss case deletes through a host test double,
+loses the callback reply, then retries with only the public binding. This qualifies
+coordination, not a production key store or whole-browser recovery.
 
 ## HTTP trust boundary and evidence
 
@@ -183,7 +211,7 @@ write, retained fences and zero remaining sessions. Captured proof replay after
 logout refuses even when a raw caller bypasses the local journal. The fixture uses
 installation-owned enrollment and a local public test signer; production Canic
 wiring, external signing recovery and multi-receiver coordination remain unqualified.
-Key disposal and renderer-interruption acceptance remain open.
+Production key custody and broader renderer-interruption acceptance remain open.
 
 Run `make test-client`, `make test-client-journal` and `make check-client-generated`;
 `make qualify-client-http` is the separate installed gate. Prepared tools, browser

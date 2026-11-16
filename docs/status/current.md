@@ -6,11 +6,13 @@ browser lifecycle acceptance remain open. Stable storage is deferred to
 
 The **0.47.0 unreleased** source checkpoint adds browser readiness and admission
 coalescing with explicit clock mapping and a 64-operation ceiling. It also adopts
-Platform 0.34.6, Types 0.21.2, Runtime 0.23.13, Wire 0.24.2 and Testkit 0.107.1.
-The former Types/Wire generator mismatch is resolved. Both Cargo graphs contain
-one Platform/Types cohort and no legacy Platform or Agent. Rust package versions remain Auth
-**0.46.1** and protocol-types/Wire **0.42.0**. The preceding source checkpoint is
-`4054a11`; guarded ordinary calls are included in this source delivery. 0.2.0 remains
+Platform 0.34.8, Types 0.21.2, Runtime 0.23.14, Wire 0.24.3 and Testkit 0.107.3.
+Focused issuer, cryptographic, native/Wasm lint and Wire checks qualify this
+dependency selection. The former Types/Wire generator mismatch is resolved. Both Cargo graphs contain
+one Platform/Types cohort and no legacy Platform or Agent. Source package versions are Auth
+**0.47.0**, protocol-types/Wire **0.43.0** and private browser client **0.1.0**.
+The preceding source checkpoint is `bfe2e54`; browser-bound issuer revocation,
+renderer recovery and terminal key disposal are included in this source checkpoint. 0.2.0 remains
 the last tag. All packages remain unpublished. The repository is now `dragginzgame/ic-auth`;
 historical provenance is retained for `dragginzgame/ic-auth-legacy`. Historical audit identities
 retain their names and paths at the time of inspection.
@@ -20,18 +22,28 @@ retain their names and paths at the time of inspection.
 | Canonical claims, both proof mechanisms and four Wire contracts | Independent signed vectors, 37 independently assembled frames, 296 resource thresholds and generated browser interoperability | Complete current consumer delivery; no pre-recode compatibility requirement |
 | Bounded memory receiver and issuer | Native lifecycle/model/fault checks; private policy and one operation owner each | Production host integration and accepted installed costs |
 | Installed transactions, volatile loss and enrollment | Five single-subnet Wasm cases: rollback, real certificates, closed upgrade loss, bound authority replies and terminal key revocation | Canic registry integration, production challenge/refresh handling and late/overlapping replies |
-| Browser journal, readiness, admission and scheduled cleanup | Strict IndexedDB, nineteen readiness/guarded-call cases, seven scheduler cases, two-tab/logout fencing, real SDK signing and independent Wire frames | Key disposal and renderer interruption |
+| Browser journal, readiness, admission and scheduled cleanup | Strict IndexedDB, nineteen readiness/guarded-call cases, seven scheduler cases, eight actual renderer-loss cases and seven key-disposal cases, two-tab/logout fencing, real SDK signing and independent Wire frames | Production host key custody and broader renderer-interruption recovery |
 | HTTP and installed browser journey | Five raw certificate cases plus four journey cases: lost issuance reply/reconciliation, real Wire admission, protected write, logout and credential replay refusal | Production Canic wiring, multi-receiver coordination and external signer recovery |
+
+The issuer integration slice adds browser-bound revocation with retained
+login authentication, original-deadline return and pending-completion fencing.
+[Canic #16](https://github.com/dragginzgame/canic/issues/16) owns its mounted
+consumer contract; [Canic #10](https://github.com/dragginzgame/canic/issues/10) and
+[Canic #11](https://github.com/dragginzgame/canic/issues/11) retain broader issuer
+and browser journey acceptance. [Canic #17](https://github.com/dragginzgame/canic/issues/17)
+owns generated issuer codecs and the browser adapter. No Canic source was changed.
 
 The browser package exposes lifecycle handles, a bounded session coordinator and
 complete retrieval/admission/cleanup operations, including cancellable cleanup
-scheduling through journal-owned leases and deadlines. Readiness receipts remain detached
+scheduling through journal-owned leases and deadlines, plus retryable host key
+disposal after terminal cleanup. Disposal retains public binding and uncertainty;
+hosts own conditional deletion and replacement-key protection. Readiness receipts remain detached
 scheduling hints. Guarded ordinary calls prepare readiness once and recheck the
 deadline and logout generation around each signature without application replay.
 Claim/guard/settlement stages and signing-attempt machinery
 are internal. The [architecture review](../reports/audits/2026/11/16/auth-architecture/01/report.md)
 found real ownership improvements but no demonstrated equivalent-feature LOC
-saving. Its API and current-status findings are addressed in this working slice;
+saving. Its API and current-status findings are addressed in this source checkpoint;
 the report remains the immutable pre-change evidence.
 
 [Compatibility and acceptance](../design/compatibility.md) owns the evidence

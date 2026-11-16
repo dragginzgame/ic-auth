@@ -72,9 +72,14 @@ keeps 30 seconds from before initial dispatch, never refreshing that deadline on
 This does not establish a general production clock mapping or external signer recovery.
 
 These are qualification endpoints and one combined issuer/receiver, not Canic mounts
-or multi-receiver integration. No product Rust or browser runtime code was added.
-Production Canic wiring, browser readiness/coalescing, guarded ordinary-call API,
-cleanup scheduling, renderer recovery and key disposal remain separate acceptance gates. The separate five rollback/loss cases still
+or multi-receiver integration. The combined logout handler now uses Auth's
+`revoke_browser` to authenticate the retained issuer login, followed by receiver
+logout in the same host message. A raw account-signed logout probe refuses before
+the valid browser write; the final browser cleanup still leaves the receiver denial
+and exactly one issuer operation. Native issuer cases separately cover pending
+initial/renewal completion fencing, selectors, pruning and original-deadline retries.
+Production Canic wiring, key disposal and broader renderer recovery remain separate
+acceptance gates. The separate five rollback/loss cases still
 run through `make qualify-host` without requiring a browser.
 
 The Rust toolchain must include `wasm32-unknown-unknown`; both workspaces' locked

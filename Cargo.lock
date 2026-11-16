@@ -365,7 +365,7 @@ dependencies = [
 
 [[package]]
 name = "ic-auth"
-version = "0.46.1"
+version = "0.47.0"
 dependencies = [
  "ic-auth-protocol-types",
  "ic-platform",
@@ -377,7 +377,7 @@ dependencies = [
 
 [[package]]
 name = "ic-auth-protocol-types"
-version = "0.42.0"
+version = "0.43.0"
 dependencies = [
  "ic-platform-types",
  "toko-tooling",
@@ -385,7 +385,7 @@ dependencies = [
 
 [[package]]
 name = "ic-auth-wire"
-version = "0.42.0"
+version = "0.43.0"
 dependencies = [
  "ic-auth-protocol-types",
  "ic-wire",
@@ -405,9 +405,9 @@ dependencies = [
 
 [[package]]
 name = "ic-platform"
-version = "0.34.6"
+version = "0.34.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0759aec97b24f85cc16c042c3aa388955e84bd79e11703197fe0c60049db1b25"
+checksum = "33bf34291d82ae3a1735c12aa20f1457c87e36bda3215a0a3e48c4c20efedbb1"
 dependencies = [
  "crypto-bigint",
  "curve25519-dalek",
@@ -452,9 +452,9 @@ dependencies = [
 
 [[package]]
 name = "ic-wire"
-version = "0.24.2"
+version = "0.24.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "852a98f3b818bf1e6841c63845d88ded595b659181377e749cf8cf50b12b48c6"
+checksum = "9bb811860c129acbf0de96b16f44cad6b554c0e12e3cc3b67f0e5ad0109292e2"
 dependencies = [
  "bytemuck",
  "ic-platform-types",
@@ -467,9 +467,9 @@ dependencies = [
 
 [[package]]
 name = "ic-wire-derive"
-version = "0.24.2"
+version = "0.24.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b118fc1f498de7b23e7ff283dc93cffd1b76efbf30691f7f64cab066f2afe071"
+checksum = "4768db9672e20371369ca14f99230508b9f1bd17a5f1027ca6f16c1786f13d81"
 dependencies = [
  "proc-macro2",
  "quote",
