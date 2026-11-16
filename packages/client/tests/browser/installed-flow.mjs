@@ -8,7 +8,7 @@ export async function installedFlowCases({ check, a }) {
     return Array.from(Buffer.from(value, 'hex'));
   };
   await a.evaluate(async config => {
-    const { PublicJournal, Ed25519KeyIdentity, Principal, httpUpdateTransport } = authTest;
+    const { PublicJournal, SessionCoordinator, Ed25519KeyIdentity, Principal, httpUpdateTransport } = authTest;
     const browser = Ed25519KeyIdentity.generate(new Uint8Array(32).fill(9));
     const account = Ed25519KeyIdentity.generate(new Uint8Array(32).fill(8));
     const target = Principal.fromText(config.canister);
@@ -45,7 +45,10 @@ export async function installedFlowCases({ check, a }) {
         return admit(destination, identity, request, signal);
       },
     };
-    globalThis.flow = { lostReply: new Error('lost issuer reply'), options, counts, target, browser, account, nowNs, journal,
+    const coordinator = new SessionCoordinator({ ...options,
+      // This fixture explicitly shares Unix nanoseconds with its live host; retain a one-second margin.
+      refreshAt: receipt => receipt.expires_at_ns - 1_000_000_000n });
+    globalThis.flow = { coordinator, lostReply: new Error('lost issuer reply'), options, counts, target, browser, account, nowNs, journal,
       // Deliberate raw caller probes test server authorization independently of local journal guards.
       write: identity => write(target, identity, new Uint8Array(config.write), AbortSignal.timeout(5_000)),
       replay: () => admit(target, browser, flow.admissionRequest, AbortSignal.timeout(5_000)),
@@ -72,7 +75,7 @@ export async function installedFlowCases({ check, a }) {
       const pending = await flow.journal.inspect();
       let wrongScope;
       try { await establishSession({ ...flow.options, scopes: ['read'] }); } catch (error) { wrongScope = error.refusal; }
-      flow.receipt = await establishSession(flow.options);
+      flow.receipt = await flow.coordinator.ensureSession(flow.target);
       const saved = await flow.journal.inspect();
       return { lost, sequence: String(pending.sequence), unknown: pending.issuanceUnknown, wrongScope,
         caller: authTest.Principal.fromUint8Array(flow.receipt.caller).toText(),
@@ -91,7 +94,10 @@ export async function installedFlowCases({ check, a }) {
     assert.deepEqual(await a.evaluate(async () => Array.from(await flow.write(flow.account))), bytes('AUTH_FLOW_WRITE_DENIED'));
     assert.deepEqual(await a.evaluate(async () => Array.from(await flow.write(flow.browser))), bytes('AUTH_FLOW_WRITE_OK'));
     assert.equal(await a.evaluate(async () => {
-      const retried = await authTest.establishSession(flow.options);
+      const before = flow.counts.admit;
+      await flow.coordinator.ensureSession(flow.target);
+      if (flow.counts.admit !== before) throw new Error('live readiness repeated admission');
+      const retried = await flow.coordinator.establish(flow.target);
       return retried.expires_at_ns === flow.receipt.expires_at_ns && flow.counts.issue === 1 && flow.counts.lookup === 1;
     }), true);
   });
@@ -100,7 +106,7 @@ export async function installedFlowCases({ check, a }) {
       await flow.journal.beginLogout('journey', flow.nowNs() + 60_000_000_000n);
       const before = flow.counts.admit;
       let refused;
-      try { await authTest.establishSession(flow.options); } catch (error) { refused = error.code; }
+      try { await flow.coordinator.ensureSession(flow.target); } catch (error) { refused = error.code; }
       const cleanup = { journal: flow.journal, generation: 'journey', browser: flow.browser, revoke: flow.revoke };
       const settled = await authTest.cleanupOnce(cleanup);
       const finished = await authTest.cleanupOnce(cleanup);

@@ -5,15 +5,17 @@ The harness uses IC Build 0.87.3 to build the release Wasm fixture once per proc
 and install its owned, hash-checked bytes in every case. Build owns the bounded
 offline/locked Cargo operation, private target directory and artifact capture;
 there is no prebuilt Wasm path or stale-artifact fallback.
-Provide a prepared PocketIC 16.x executable; the target never downloads a server:
+Start a prepared PocketIC 16.x server and supply its URL; the target never
+downloads or launches a server. For example, run `pocket-ic --port 4943` in a
+separate terminal and use `http://127.0.0.1:4943` in place of the URL below:
 
 ```sh
-POCKET_IC_BIN=/absolute/path/to/pocket-ic make qualify-host
+POCKET_IC_SERVER_URL=http://127.0.0.1:PORT make qualify-host
 make lint-host
 # To select only receiver cases:
-POCKET_IC_BIN=/absolute/path/to/pocket-ic make qualify-host HOST_TEST_FILTER=receiver::
+POCKET_IC_SERVER_URL=http://127.0.0.1:PORT make qualify-host HOST_TEST_FILTER=receiver::
 # To select the authenticated enrollment case:
-POCKET_IC_BIN=/absolute/path/to/pocket-ic make qualify-host HOST_TEST_FILTER=enrollment::
+POCKET_IC_SERVER_URL=http://127.0.0.1:PORT make qualify-host HOST_TEST_FILTER=enrollment::
 ```
 
 `make qualify-client-http` is a separate opt-in gate using the same built Auth
@@ -21,11 +23,12 @@ fixture on one live PocketIC subnet. It also requires the prepared client npm
 dependencies and an explicitly selected Chromium executable:
 
 ```sh
-POCKET_IC_BIN=/absolute/path/to/pocket-ic \
+POCKET_IC_SERVER_URL=http://127.0.0.1:PORT \
 IC_AUTH_BROWSER_EXECUTABLE=/absolute/path/to/chromium make qualify-client-http
 ```
 
-Testkit retains the server and instance while PocketIC exposes a loopback gateway
+The harness owns each Testkit instance and deletes it at completion; the caller
+owns the prepared server. PocketIC exposes a loopback gateway
 and advances real time. Host Process 0.80.2 owns the direct Node child, with a
 90-second deadline and 64 KiB per output stream. Playwright owns Chromium's
 separate group and closes it in the runner's `finally`; forced descendant cleanup
@@ -84,7 +87,7 @@ parent and vector file through held directories; Host Artifacts 0.80.2 bounds
 the vector read to 32 KiB. Tests are ignored in ordinary Cargo runs because they
 require the explicit build/server setup. They are not yet part of hosted CI.
 
-The fixture uses Platform's supported standalone entrypoints and IC Wire 0.24.1.
+The fixture uses Platform's supported standalone entrypoints and IC Wire 0.24.2.
 Its control identities are test-only and do not replace Auth endpoint identities.
 Canic still owns production application wiring; this is not full Canic integration.
 All new source is test code, classified through Toko LOC metadata. Rust product source,
@@ -170,20 +173,15 @@ The fixture has one signature leaf and no application certification tree. Comple
 authenticated receiver boot, browser lifecycle, Canic wiring, composed certification owners and durable
 storage remain separate acceptance work. Closed loss containment is not recovery.
 
-Local evidence on 2026-11-16: the five single-subnet installed cases
-pass, with strict native/Wasm Clippy, on Linux with Rust 1.100.0, IC Testkit 0.106.0 and PocketIC client 16.1.0.
-After adopting Build 0.87.3 and Host FS/Artifacts 0.80.1, all five installed
-cases and strict native harness Clippy pass again; the Wasm source is unchanged.
-The nine opt-in HTTP/journey browser cases pass on Chromium 141.0.7390.37, with
-strict TypeScript and native/Wasm Clippy. All five rollback/loss/enrollment cases
-pass with the extended fixture and ordinary shared-module setup.
-The existing local server reports 16.0.0, within Testkit's supported 16.x range;
-its observed SHA-256 is
-`69e324bdb68d32d878b7a9504b1379f08f8d1921272bacb065b0fabb3d0f3792`.
-This records the exercised binary's identity, not independently authenticated
-provisioning. Provisioning remains owned by Testkit/the host environment.
+The Platform migration was exercised with the prepared PocketIC 16.1.0 server,
+Rust 1.100.0 and Chromium 141.0.7390.37. All five installed tests and both HTTP
+harness tests (five certificate cases and four journey cases) pass.
 
-The qualification lock owns the native simulator/build graph. Testkit 0.106.0
-still selects Host 0.79 transitively; its objects do not cross the new Build/Host
-API boundary. PocketIC pins `thiserror = 2.0.18`. The Wasm fixture selects one
-Platform runtime/guard pair, 0.22.5. It does not introduce another executor.
+The qualification graph selects Testkit 0.107.1 and one Platform 0.34.5 / Types
+0.21.1 cohort. The Wasm fixture selects Runtime/macros/guard 0.23.12 and explicit
+bounded decoder/encoder hooks. Queries are synchronous; updates use the supplied
+executor. Upgrade cases stop the canister before upgrade and restart afterward.
+The qualification unsafe-code lint is `deny` so the Runtime macro can narrowly
+expect its generated Wasm export attribute; no handwritten unsafe code is added.
+PocketIC still owns its thiserror 2.0.18 constraint. No legacy Platform, Agent or
+second Runtime is selected. Simulator/server provisioning remains host-owned.

@@ -4,8 +4,9 @@ Separate conformance, benchmark, fixture and test-support packages belong here,
 with directories matching their Cargo package names. They consume product
 packages; product packages must never depend on them.
 
-`ic-auth-wire-conformance` uses published `ic-wire` 0.24.1 against 37 fixed
-browser frames and 296 resource thresholds retained from reference 0.22.2.
+`ic-auth-wire-conformance` uses the selected published `ic-wire` against 37 fixed
+current frames independently assembled without Auth/Wire and 296 retained resource
+expectations (historical measurement provenance is documented beside the fixtures).
 It owns its own dependency catalog and lock. Its private version is independent
 of product releases. The old codec is no longer a dependency in either workspace.
 
@@ -13,12 +14,9 @@ Run `make qualify-wire` and `make lint-wire-qualification` from the repository
 root. For browser generation and comparison, use `make qualify-wire-browser`;
 generated artifacts live under `qualification/target/wire-browser`.
 
-`ic-auth-ed25519-conformance` deliberately activates Dalek's legacy scalar
-compatibility as a dev-only negative control. It proves that upstream accepts
-the fixture in that graph while Auth retains canonical-scalar refusal and
-accepts the valid signature. Use `make qualify-ed25519` and
-`make lint-ed25519-qualification`. Product verification remains owned by Platform;
-no product package depends on this feature activator.
+Strict Ed25519 verification is covered by `make test-verification` in the product
+workspace, including malformed/noncanonical signatures, weak keys and charging.
+No qualification package activates legacy scalar compatibility.
 
 `ic-auth-certified-conformance` builds real BLS certificate fixtures independently
 of Auth to check issuer-signature binding, trust chains and freshness. Use

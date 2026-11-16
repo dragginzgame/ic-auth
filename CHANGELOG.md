@@ -1,6 +1,44 @@
 # Changelog
 
-## [0.46.3] - Unreleased
+## [0.47.0] - Unreleased
+
+### ⚠️ Breaking
+
+- Adopt Platform 0.34.5, Types 0.21.1, Runtime 0.23.12 and Wire 0.24.2.
+  Consumers exchanging public Principals must use the new Types identity.
+  Certified proofs now require authenticated delegation time and subnet type;
+  signing-certificate age remains inclusive with zero future grace. Wire frames
+  and generated browser output remain unchanged. Resolves the Auth adoption of
+  [Platform #7 — Complete Auth crypto migration](https://github.com/dragginzgame/ic-platform/issues/7)
+  and [Platform #8 — Align Types/Runtime and Wire](https://github.com/dragginzgame/ic-platform/issues/8).
+
+### 🔧 Changed
+
+- Migrate the installed fixtures to explicit Runtime codecs and system APIs,
+  with stopped upgrades and Testkit 0.107.1. Installed checks now require a
+  prepared `POCKET_IC_SERVER_URL`; the harness owns and deletes its instances,
+  while the caller owns the server. No legacy Platform remains in either lock.
+
+### ✨ Added
+
+- Add a per-login browser session coordinator with shared admission/credential
+  flights, a 64-operation ceiling and explicit host clock mapping for session hints.
+  Readiness retries only authenticated expiry or recovered expired evidence once;
+  forced admission and uncertain outcomes never trigger that retry. Local logout
+  fences late work without waiting for the coordinator. No application calls replay.
+
+### 🧪 Testing
+
+- Complete [#2 — Remove legacy oracle and compatibility qualification](https://github.com/dragginzgame/ic-auth/issues/2).
+  Browser checks now independently assemble the current fixtures and run only current
+  generated codecs, without a legacy checkout. Remove the legacy-scalar feature
+  activator and its commands; retain strict verification under the supported graph.
+  Historical fixture provenance remains documented.
+
+## [0.46.3] - Source checkpoint 2026-11-16
+
+Source checkpoint: HTTP/browser qualification and tooling adoption through
+`b78991e`. Rust package versions remain unchanged; all packages are unpublished.
 
 ### ✨ Added
 

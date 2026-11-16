@@ -1,7 +1,6 @@
 [workspace]
 members = [
     "ic-auth-certified-conformance",
-    "ic-auth-ed25519-conformance",
     "ic-auth-host-conformance",
     "ic-auth-host-fixture",
     "ic-auth-wire-conformance",
@@ -14,7 +13,6 @@ rust-version = "1.100.0"
 license-file = "../LICENSE.md"
 
 [workspace.dependencies]
-ed25519-dalek = { version = "3.0.0", default-features = false, features = ["legacy_compatibility"] }
 ic-auth = { path = "../crates/ic-auth" }
 ic-auth-host-fixture = { path = "ic-auth-host-fixture" }
 ic-auth-protocol-types = { path = "../crates/ic-auth-protocol-types" }
@@ -23,14 +21,14 @@ ic-build = "0.87.3"
 ic-host-artifacts = "0.80.1"
 ic-host-fs = "0.80.1"
 ic-host-process = "0.80.2"
-ic-platform = { version = "0.33.7", default-features = false }
-ic-platform-runtime = { version = "0.22.5", default-features = false }
-ic-testkit = "0.106.0"
-ic-wire = "0.24.1"
+ic-platform = { version = "0.34.5", default-features = false }
+ic-platform-runtime = { version = "0.23.12", default-features = false }
+ic-testkit = "0.107.1"
+ic-wire = "0.24.2"
 serde = "1.0.229"
 sha2 = "0.11.1"
 tokio = "1.54.1"
-toko-tooling = "=0.44.5"
+toko-tooling = "=0.44.8"
 
 [workspace.lints.cargo]
 unused_dependencies = "deny"
@@ -43,7 +41,7 @@ unknown_lints = "deny"
 dead_code = "deny"
 unused_must_use = "deny"
 unfulfilled_lint_expectations = "deny"
-unsafe_code = "forbid"
+unsafe_code = "deny"
 unsafe_op_in_unsafe_fn = "deny"
 missing_docs = "warn"
 

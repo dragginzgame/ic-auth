@@ -142,7 +142,7 @@ fn certified() -> PortableCredential {
 }
 
 #[test]
-fn both_proofs_cross_encode_every_nested_field_with_reference_browser() {
+fn both_proofs_cross_encode_every_nested_field_with_current_fixtures() {
     for (name, value) in [("ed25519", ed25519()), ("certified", certified())] {
         let request = fixture(&format!("credential-{name}-request"));
         let response = fixture(&format!("credential-{name}-response"));
@@ -199,7 +199,7 @@ fn admission_preserves_unsigned_scope_text_and_optional_ttl() {
 }
 
 #[test]
-fn every_admission_reply_matches_the_reference() {
+fn every_admission_reply_matches_current_fixtures() {
     let success = Ok(SessionView {
         caller: Principal::from_slice(&[30]),
         issuer: Principal::from_slice(&[31]),

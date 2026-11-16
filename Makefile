@@ -1,7 +1,6 @@
 .DEFAULT_GOAL := help
 
 FORMAT_RUST_ARGS := --extra-workspace qualification
-AUTH_REFERENCE_REPO ?= ../ic-auth-legacy
 override TOKO_TOOLING_ROOT := $(CURDIR)/vendor/toko-tooling
 include vendor/toko-tooling/make/consumer.mk
 include vendor/toko-tooling/make/cargo-dependencies.mk
@@ -35,19 +34,17 @@ help:
 	  'test-claims     Signed-claims bytes, bounds, ordering and role grammar' \
 	  'test-delegation-encoding  Root-delegation signing commitments and bounds' \
 	  'test-verification  Ed25519 proof/context, work charging and immutable results' \
-	  'qualify-ed25519  Adversarial legacy-scalar dependency feature graph' \
 	  'qualify-certified-issuer  Real BLS certificates and protected issuer policy' \
 	  'qualify-root-delegation  Root ECDSA authorization, bindings and proof bounds' \
 	  'qualify-certified  Complete root/issuer proofs, claims and charging order' \
 	  'qualify-shared-verification  Real Ed25519/certified proofs share one budget' \
 	  'lint-certified-qualification  Clippy for independent certificate fixtures' \
-	  'lint-ed25519-qualification  Clippy for the adversarial feature check' \
 	  'test-wire       All four Wire contracts, proof layouts and bounded refusal' \
 	  'test-wire-projection  Consuming transport-to-domain projection and exact bytes' \
 	  'qualify-wire-admission  Wire decoding through real proof verification' \
-	  'qualify-wire    Check current Wire against fixed reference frames and budgets' \
+	  'qualify-wire    Check current Wire against independent frames and budgets' \
 	  'generate-wire   Generate the four browser codecs into qualification/target' \
-	  'qualify-wire-browser  Compare old/new browser codecs (Node and reference checkout)' \
+	  'qualify-wire-browser  Check generated browser codecs against independent current fixtures' \
 	  'lint-wire-qualification  Clippy for the independent codec comparison' \
 	  'lint-protocol   Clippy for the implemented protocol packages and tests' \
 	  'doc-protocol    Rustdoc for the implemented protocol APIs' \
@@ -69,7 +66,7 @@ qualification-tooling-check:
 	  --arg checksum "$$(awk -F '\t' '$$1 == "revision" { print $$2 }' .toko-tooling.snapshot)" \
 	  '.version == $$version and .checksum == $$checksum' >/dev/null
 
-.PHONY: test-request test-claims test-verification qualify-ed25519 lint-ed25519-qualification test-wire qualify-wire generate-wire qualify-wire-browser lint-wire-qualification lint-protocol doc-protocol check-protocol-wasm
+.PHONY: test-request test-claims test-verification test-wire qualify-wire generate-wire qualify-wire-browser lint-wire-qualification lint-protocol doc-protocol check-protocol-wasm
 test-request: toko-tooling-check
 	cargo test --offline --locked -p ic-auth-protocol-types --test scope
 	cargo test --offline --locked -p ic-auth --test session_request
@@ -153,9 +150,10 @@ test-product: toko-tooling-check
 	cargo test --offline --locked -p ic-auth-protocol-types -p ic-auth -p ic-auth-wire --features ic-auth/issuer-memory,ic-auth/receiver-memory,ic-auth/ed25519-verification,ic-auth/certified-verification
 
 test-qualification: toko-tooling-check
-	cargo test --offline --locked --manifest-path qualification/Cargo.toml -p ic-auth-certified-conformance -p ic-auth-ed25519-conformance -p ic-auth-wire-conformance --features ic-auth-certified-conformance/receiver-memory,ic-auth-certified-conformance/issuer-memory,ic-auth-certified-conformance/ed25519-comparison
+	cargo test --offline --locked --manifest-path qualification/Cargo.toml -p ic-auth-certified-conformance -p ic-auth-wire-conformance --features ic-auth-certified-conformance/receiver-memory,ic-auth-certified-conformance/issuer-memory,ic-auth-certified-conformance/ed25519-comparison
 
 verify-fixtures:
+	node crates/ic-auth-wire/tests/verify-fixtures.mjs
 	node crates/ic-auth/tests/verify-ed25519-fixture.mjs
 	node crates/ic-auth/tests/verify-renewal-fixtures.mjs
 	node crates/ic-auth/tests/verify-delegation-fixtures.mjs
@@ -172,9 +170,6 @@ test-delegation-encoding: toko-tooling-check
 test-verification: toko-tooling-check
 	cargo test --offline --locked -p ic-auth --features ed25519-verification --test verification --lib
 	cargo test --offline --locked -p ic-auth --features ed25519-verification --doc
-
-qualify-ed25519: toko-tooling-check
-	cargo test --offline --locked --manifest-path qualification/Cargo.toml -p ic-auth-ed25519-conformance --test legacy_scalar
 
 .PHONY: qualify-certified-issuer lint-certified-qualification
 qualify-certified-issuer: toko-tooling-check
@@ -196,9 +191,6 @@ qualify-shared-verification: toko-tooling-check
 lint-certified-qualification: toko-tooling-check
 	cargo clippy --offline --locked --manifest-path qualification/Cargo.toml -p ic-auth-certified-conformance --all-targets --features ed25519-comparison,issuer-memory -- -D warnings
 
-lint-ed25519-qualification: toko-tooling-check
-	cargo clippy --offline --locked --manifest-path qualification/Cargo.toml -p ic-auth-ed25519-conformance --all-targets -- -D warnings
-
 test-wire: toko-tooling-check
 	cargo test --offline --locked -p ic-auth-wire --test caller_contracts --test admission_contracts
 
@@ -216,7 +208,7 @@ generate-wire: toko-tooling-check
 	cargo run --offline --locked -p ic-auth-wire --features typescript --example generate -- qualification/target/wire-browser
 
 qualify-wire-browser: generate-wire
-	node crates/ic-auth-wire/tests/verify-reference.mjs "$(AUTH_REFERENCE_REPO)" qualification/target/wire-browser
+	node crates/ic-auth-wire/tests/verify-browser.mjs qualification/target/wire-browser
 
 lint-wire-qualification: toko-tooling-check
 	cargo clippy --offline --locked --manifest-path qualification/Cargo.toml -p ic-auth-wire-conformance --all-targets -- -D warnings

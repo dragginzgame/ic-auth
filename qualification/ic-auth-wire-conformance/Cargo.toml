@@ -4,7 +4,7 @@ version = "0.0.0"
 edition.workspace = true
 rust-version.workspace = true
 license-file.workspace = true
-description = "Current Wire codec checks against frozen reference frames and resource thresholds"
+description = "Current Wire codec checks against independent frames and resource expectations"
 publish = false
 
 [package.metadata.cargo-machete]

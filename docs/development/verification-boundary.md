@@ -1,7 +1,7 @@
 # Ed25519 verification boundary
 
 Enable `ic-auth/ed25519-verification` to use `verification::verify_ed25519`.
-Platform 0.33.7 owns the Ed25519 primitives, key parsing, weak-point rejection and
+Platform 0.34.5 owns the Ed25519 primitives, key parsing, weak-point rejection and
 strict signature verification. Platform Types derives the self-authenticating
 Principal from the standard Ed25519 DER key. Auth owns canonical claims, protected
 context policy, the explicit canonical-scalar admission and attempt charging.
@@ -68,13 +68,9 @@ The existing nine claims tests also pass after sharing grant-shape validation.
 See [fixture provenance](../../crates/ic-auth/tests/fixtures/README.md) for the
 repeatable Node/OpenSSL check and its SDK limitations.
 
-`make qualify-ed25519` runs an independent qualification package with Dalek 3.0.0
-`legacy_compatibility` deliberately enabled. Its direct Dalek dev-dependency is
-solely an adversarial feature activator/negative control, outside product graphs.
-Type identity proves it unifies with Platform's exported verifier. Upstream strict
-verification must actually accept the noncanonical `S + L` fixture in that graph;
-Auth must reject it before charging while still accepting the canonical signature.
-This prevents a superficially passing test that never enabled the dangerous mode.
+The retired legacy-feature activator is removed. The supported Platform graph
+still checks the independent noncanonical `S + L` fixture, weak keys, small-order R,
+malformed signatures and exact charging behavior in `make test-verification`.
 
 Clippy/Rustdoc with denied warnings and Wasm library compilation pass with the
 verification feature. The default Auth graph remains codec-only. Neither the

@@ -3,17 +3,17 @@
 Use Rust 1.100.0, pinned in `rust-toolchain.toml`. The root virtual workspace
 contains three unpublished product packages under `crates/`. Each inherits
 shared package fields, lints and the exact Toko source-tooling dev-dependency.
-`qualification/` is an independent workspace containing Wire reference-vector
-checks, the adversarial Ed25519 feature check and certified issuer fixtures. Ordinary integration tests
+`qualification/` is an independent workspace containing current Wire fixture
+checks and certified issuer fixtures. Ordinary integration tests
 stay in the product crates.
 
 ## Installed selection
 
-Toko Tooling **0.44.5** is selected by Cargo and installed through its authenticated
+Toko Tooling **0.44.8** is selected by Cargo and installed through its authenticated
 exporter. Cargo.lock and `.toko-tooling.snapshot` identify archive SHA-256
-`aef8ac5d84866cf4ceb5b9d91ce9d458708069fc0c585345f07054186d267199`.
+`f8b6fa5d8012ed15c12eb18727efeb47463c861afd4faa7a2c29ea1d4cec8a40`.
 The release source is
-[`081753852ae398661fadfd0fe3b3fc631f0a96e6`](https://github.com/dragginzgame/toko-tooling/tree/081753852ae398661fadfd0fe3b3fc631f0a96e6).
+[`fa6d85538d84e6cdde7a44efb1f1a4c3852d1e14`](https://github.com/dragginzgame/toko-tooling/tree/fa6d85538d84e6cdde7a44efb1f1a4c3852d1e14).
 Do not hand-edit the receipt or installed vendor files.
 
 The executable selections are `make/consumer.mk`, `make/cargo-dependencies.mk`,
@@ -51,8 +51,6 @@ make test-wire
 make test-wire-projection
 make qualify-wire-admission
 make test-verification
-make qualify-ed25519
-make lint-ed25519-qualification
 make qualify-certified-issuer
 make qualify-root-delegation
 make qualify-certified
@@ -108,16 +106,14 @@ publication checks refusal ordering, failure containment and changing witnesses
 with fixed claims; installed host transactions and recovery remain unqualified;
 `test-claims` covers roles and canonical signed-claims bytes/refusals; `test-wire`
 covers all four contracts, nested proofs and bounded refusal. `qualify-wire`
-checks current Wire against fixed reference frames and thresholds; `lint-wire-qualification` checks that private
+checks current Wire against independent frames and retained resource expectations; `lint-wire-qualification` checks that private
 package. `test-verification` covers optional Ed25519/context/budget behavior and
 immutable-result compile-fail cases. `test-delegation-encoding` checks certificate,
 root-batch and issuer-leaf signing commitments and their bounded inputs.
 `test-wire-projection` checks consuming Wire/domain conversion against retained
 reference fields; `qualify-wire-admission` selects three real Wire-to-verifier
 host-driver cases, including unsigned request policy and failure charging.
-`qualify-ed25519` deliberately enables the
-legacy scalar feature in its separate workspace; its paired lint command is
-`lint-ed25519-qualification`. `qualify-certified-issuer` constructs real BLS
+`qualify-certified-issuer` constructs real BLS
 certificates outside Auth to check protected signer policy and trust-chain
 refusals; its paired lint command is `lint-certified-qualification`.
 `qualify-root-delegation` checks independent OpenSSL-signed root authorization,
@@ -178,9 +174,12 @@ Node 24.21.0 runs erasable TypeScript directly;
 no product build or registry delivery is introduced.
 The local check uses Node's test runner with isolation disabled so individual
 cases are reported. `IC_AUTH_BROWSER_EXECUTABLE=/absolute/path/to/chromium make
-test-client-journal` runs forty-six native IndexedDB cases in an ephemeral two-tab
+test-client-journal` runs fifty-eight native IndexedDB cases in an ephemeral two-tab
 profile. Set `IC_AUTH_CLIENT_SUITE=journal`, `issuance`, `transport`, `admission`,
-`cleanup`, `logout` or `http` for a focused group; the default runs all seven.
+`cleanup`, `logout`, `http` or `readiness` for a focused group; the default runs all eight.
+The twelve readiness cases cover coalescing, independent receivers, shared renewal,
+64-operation admission, expiry retry bounds, reopening, explicit clock mapping,
+logout fencing, timeout capacity release and captured identity/destination bindings.
 Qualification-only esbuild 0.28.2 bundles the fixture in memory;
 playwright-core 1.65.1 controls the supplied executable. Neither tool downloads a
 browser. Chromium 141.0.7390.37 was exercised locally. These explicit gates are not
@@ -192,7 +191,7 @@ Generated scratch stays under `target/client-wire/`. See
 
 ## Installed Auth qualification
 
-`POCKET_IC_BIN=/absolute/path/to/pocket-ic make qualify-host` supplies prepared
+`POCKET_IC_SERVER_URL=http://127.0.0.1:PORT make qualify-host` supplies prepared
 tool paths and the fixture's Cargo identity to IC Build 0.87.3. The harness builds
 release Wasm once through its bounded offline/locked operation, then installs
 the owned bytes in five issuer/receiver/enrollment cases on one simulated subnet with the provided
@@ -204,12 +203,12 @@ receiver cases, including an intact-receiver control for valid proofs;
 24.21.0 regenerates independent host-time vectors before the tests. Host FS and
 Host Artifacts 0.80.2 own held-file access and bounded vector reads. See [evidence and prerequisites](../../qualification/ic-auth-host-conformance/README.md).
 
-`POCKET_IC_BIN=/absolute/path/to/pocket-ic IC_AUTH_BROWSER_EXECUTABLE=/absolute/path/to/chromium make qualify-client-http`
+`POCKET_IC_SERVER_URL=http://127.0.0.1:PORT IC_AUTH_BROWSER_EXECUTABLE=/absolute/path/to/chromium make qualify-client-http`
 selects the separate installed HTTP harness. Five Chromium cases check real SDK
 certificate acceptance, wrong-root/tamper refusal and old-request replay. Four
 additional cases connect issuer reconciliation, durable journal, real admission,
 protected application writes and logout on a single-subnet combined fixture. It uses the prepared client npm graph;
-Host Process owns the bounded Node child, Playwright closes Chromium, and Testkit retains server custody.
+Host Process owns the bounded Node child, Playwright closes Chromium, and the caller retains server custody.
 The `installed-http` and `installed-flow` groups are excluded from ordinary browser
 tests and hosted aggregates. `lint-host` checks both native harnesses and the Wasm
 fixture. Shared setup uses ordinary modules beneath explicit test entrypoints.
@@ -241,19 +240,17 @@ export PATH="$PWD/.tools/host/bin:$PWD/.tools/rust/common/bin:$PATH"
 
 `make generate-wire` emits codecs and the matching runtime into
 `qualification/target/wire-browser`. `make qualify-wire-browser` additionally
-executes the pinned reference and new generated codecs with Node 24.21.0.
-Set `AUTH_REFERENCE_REPO` if the reference Git objects are somewhere other than
-`../ic-auth-legacy`; the script only reads that checkout. See the
+assembles all 37 fixtures independently and executes only the current generated
+codecs with Node 24.21.0. No legacy checkout or Git objects are required. See the
 [Wire evidence](wire-boundary.md) for exact scope.
 
 The independent qualification workspace owns its catalog, lock and lints, uses
 `license-file = "../LICENSE.md"`, inherits tooling and remains unpublished. The
 root formatter includes it through `FORMAT_RUST_ARGS`. Product packages never
-depend on qualification packages. Both workspaces now select Wire 0.24.1;
-the old codec survives only as frozen frame/threshold evidence.
-The legacy-scalar activator is likewise qualification-only. Normal Auth consumers
-use Platform through the optional `ed25519-verification` feature, with no direct
-Dalek dependency and no legacy mode selected by the product workspace.
+depend on qualification packages. The selected published Wire supplies the codec;
+historical codec captures survive only as frame/threshold provenance.
+Strict Ed25519 cases run through Platform under `test-verification`. Neither
+workspace deliberately enables a legacy scalar mode or directly depends on Dalek.
 Certified-only consumers use `certified-issuer-verification` without Ed25519;
 certificate signing/encoding fixtures and range builders stay qualification-only.
 Root-only consumers use `root-delegation-verification` for Platform ECDSA without
@@ -261,5 +258,5 @@ selecting BLS or Ed25519. Complete `certified-verification` composes root/issuer
 checks with shared context and charging, without selecting the Ed25519 verifier.
 
 See the reviewed upstream
-[adoption guide](https://github.com/dragginzgame/toko-tooling/blob/081753852ae398661fadfd0fe3b3fc631f0a96e6/docs/adoption/consuming-snapshots.md)
-and [LOC setup](https://github.com/dragginzgame/toko-tooling/blob/081753852ae398661fadfd0fe3b3fc631f0a96e6/docs/fleet/fleet-tools.md#cargo-workspace-loc-report).
+[adoption guide](https://github.com/dragginzgame/toko-tooling/blob/fa6d85538d84e6cdde7a44efb1f1a4c3852d1e14/docs/adoption/consuming-snapshots.md)
+and [LOC setup](https://github.com/dragginzgame/toko-tooling/blob/fa6d85538d84e6cdde7a44efb1f1a4c3852d1e14/docs/fleet/fleet-tools.md#cargo-workspace-loc-report).

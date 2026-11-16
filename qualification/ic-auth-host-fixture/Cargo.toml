@@ -20,8 +20,9 @@ crate-type = ["cdylib", "rlib"]
 ic-auth = { workspace = true, features = ["issuer-memory", "receiver-memory", "ed25519-verification"] }
 ic-auth-protocol-types.workspace = true
 ic-auth-wire.workspace = true
-ic-platform = { workspace = true, features = ["canister-sig-creation", "certification-cbor", "ed25519"] }
-ic-platform-runtime = { workspace = true, features = ["cdk"] }
+ic-platform = { workspace = true, features = ["certificate-construction", "ed25519"] }
+ic-platform-runtime = { workspace = true, features = ["entrypoint-macros"] }
+sha2.workspace = true
 
 [dependencies]
 ic-wire.workspace = true

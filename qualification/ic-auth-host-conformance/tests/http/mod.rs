@@ -14,11 +14,11 @@ fn hex(bytes: &[u8]) -> String {
 async fn certified_http_acceptance_and_tamper_refusal() {
     let wasm = support::wasm();
     let mut owned = support::start().await;
-    let pic = owned.instance();
+    let pic = &owned;
     assert_eq!(pic.topology().await.subnet_configs.len(), 1);
     let canister = support::install(pic, &wasm).await;
     let root = pic.root_key().await.unwrap();
-    let gateway = owned.instance_mut().make_live(None).await;
+    let gateway = owned.make_live(None).await;
     let request = |command: Command| {
         ic_wire::encode(
             &command,
@@ -54,7 +54,7 @@ async fn certified_http_acceptance_and_tamper_refusal() {
         )
         .env("AUTH_HTTP_EXPECTED", hex(&expected));
     let result = run_browser(&mut command);
-    owned.close().await;
+    owned.drop().await;
     println!("{}", result.unwrap());
 }
 
@@ -94,10 +94,9 @@ fn run_browser(command: &mut Process) -> Result<String, String> {
 async fn browser_journey_reconciles_admits_authorizes_and_revokes() {
     let wasm = support::wasm();
     let mut owned = support::start().await;
-    assert_eq!(owned.instance().topology().await.subnet_configs.len(), 1);
+    assert_eq!(owned.topology().await.subnet_configs.len(), 1);
     // Installation lifetimes and the live gateway must start in the same clock domain.
     owned
-        .instance()
         .set_time(ic_testkit::pocket_ic::Time::from_nanos_since_unix_epoch(
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
@@ -107,9 +106,9 @@ async fn browser_journey_reconciles_admits_authorizes_and_revokes() {
                 .unwrap(),
         ))
         .await;
-    let canister = support::install(owned.instance(), &wasm).await;
-    let root = owned.instance().root_key().await.unwrap();
-    let gateway = owned.instance_mut().make_live(None).await;
+    let canister = support::install(&owned, &wasm).await;
+    let root = owned.root_key().await.unwrap();
+    let gateway = owned.make_live(None).await;
     let frame = |method, direction| ic_wire::Encoding::Frame { method, direction };
     let mut command = Process::new("node");
     command
@@ -173,7 +172,6 @@ async fn browser_journey_reconciles_admits_authorizes_and_revokes() {
         );
     let result = run_browser(&mut command);
     let observation = owned
-        .instance()
         .query_call(
             canister,
             ic_testkit::pocket_ic::CanisterId::anonymous(),
@@ -187,7 +185,7 @@ async fn browser_journey_reconciles_admits_authorizes_and_revokes() {
         )
         .await;
     // Close the instance before checking either browser or host assertions.
-    owned.close().await;
+    owned.drop().await;
     println!("{}", result.unwrap());
     let observed: browser::Observation = ic_wire::decode(
         &observation.unwrap(),

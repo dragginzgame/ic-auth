@@ -1,4 +1,4 @@
-// Explicit reference-browser values; deliberately unverified cryptographic data.
+// Explicit current-contract values; deliberately unverified cryptographic data.
 // Shared by fixture verification only, never imported by product code.
 const tag = (tag, value = null) => ({ tag, value });
 const bytes = (...values) => Uint8Array.from(values);

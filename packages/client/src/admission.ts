@@ -2,7 +2,7 @@ import type { Identity } from '@tokostudios/ic-platform/agent';
 import { Principal } from '@tokostudios/ic-platform/principal';
 import { AttemptError, runSigningAttempt } from './attempt.ts';
 import { JournalError, journalOwner } from './journal.ts';
-import { retrieveCredential, type CredentialRequestOptions } from './issuance.ts';
+import { retrieveCredential, type CredentialRequestOptions, type CredentialEvidence } from './issuance.ts';
 import { decodeRequest } from './generated/credential.js';
 import { encodeRequest, decodeResponse, type Response } from './generated/establish.js';
 
@@ -32,12 +32,21 @@ export interface EstablishSessionOptions extends CredentialRequestOptions {
 
 /** Explicit admission: acquire exact evidence, inventory the receiver, call once. */
 export async function establishSession(options: EstablishSessionOptions): Promise<AdmissionReceipt> {
+  // Capture narrowing before credential retrieval can suspend.
+  if (!Array.isArray(options.scopes) || options.target.isAnonymous()) throw new JournalError('configuration');
+  const captured = { ...options, issuer: Principal.fromText(options.issuer.toText()),
+    target: Principal.fromText(options.target.toText()), scopes: [...options.scopes] };
+  const credential = await retrieveCredential(captured);
+  return admitCredential(captured, credential);
+}
+
+/** Internal shared admission owner; callers must obtain evidence through the journal. */
+export async function admitCredential(options: EstablishSessionOptions, credential: CredentialEvidence): Promise<AdmissionReceipt> {
   const { generation, browser, issuer, target, scopes, ttlSecs, admit, signal } = options;
   const journal = journalOwner(options.journal);
   const caller = browser.getPrincipal().toText(), issuerText = issuer.toText(), destination = target.toText();
   if (target.isAnonymous() || !Array.isArray(scopes)) throw new JournalError('configuration');
   const requestedScopes = [...scopes];
-  const credential = await retrieveCredential({ ...options, issuer: Principal.fromText(issuerText) });
   let request: Uint8Array;
   try {
     request = encodeRequest({ credential: decodeRequest(credential.bytes), scopes: requestedScopes,

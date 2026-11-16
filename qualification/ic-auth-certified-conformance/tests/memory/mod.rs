@@ -15,7 +15,7 @@ use ic_auth::{
     },
 };
 use ic_auth_protocol_types::{AuthRole, Credential, CredentialProof, Principal};
-use ic_platform::canister_sig_creation::CanisterSigPublicKey;
+use ic_platform::certificate::construction::canister_key_der;
 
 const MEMORY: &str = include_str!("../fixtures/certified-memory.tsv");
 const OTHER: &str = include_str!("../fixtures/certified-other-issuer.tsv");
@@ -55,7 +55,7 @@ impl Case {
                 digest.try_into().unwrap(),
                 vec![time as u8 | 0x80, 1],
             ),
-            der: CanisterSigPublicKey::new(issuer, SEED.to_vec()).to_der(),
+            der: canister_key_der(issuer, SEED).unwrap(),
             network: bls_key().public_key().serialize(),
         };
         // Exercise the maintained Wire envelope and consuming domain projection.

@@ -217,6 +217,17 @@ export class Journal {
     });
   }
 
+  /** Checked journal time for ephemeral session hints; never loads credential bytes. */
+  readinessTime(generation: string, caller: Principal, issuer: Principal): Promise<bigint> {
+    const callerText = caller.toText(), issuerText = issuer.toText();
+    return this.#transaction(record => {
+      const current = this.#current(record, generation);
+      if (current.phase !== 'active' || current.caller !== callerText || current.issuer !== issuerText)
+        refuse('not_current');
+      return { record: current, value: current.observedNs };
+    });
+  }
+
   /** Recheck the inventoried receiver and completed proof at every signing boundary. */
   assertAdmission(generation: string, caller: Principal, issuer: Principal, target: Principal, sequence: bigint): Promise<void> {
     const callerText = caller.toText(), issuerText = issuer.toText(), targetText = target.toText();

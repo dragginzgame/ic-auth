@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { decodeRequest, encodeRequest } from '../src/generated/credential.js';
 
-// Exact reference-browser bytes retained before the replacement encoder existed.
+// Current fixture bytes independently assembled by the Wire fixture check.
 const frames = new Map(readFileSync(new URL('../../../crates/ic-auth-wire/tests/fixtures/admission-frames.tsv', import.meta.url), 'utf8')
   .trim().split('\n').map(line => { const [name, hex] = line.split('\t'); return [name!, Buffer.from(hex!, 'hex')]; }));
 

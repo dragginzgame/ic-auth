@@ -11,3 +11,5 @@ export { cleanupOnce } from './logout.ts';
 export type { CleanupOptions, CleanupStep, LogoutTransport } from './logout.ts';
 export { httpUpdateTransport } from './http.ts';
 export type { HttpUpdateOptions } from './http.ts';
+export { SessionCoordinator, ReadinessError } from './coordinator.ts';
+export type { SessionCoordinatorOptions } from './coordinator.ts';

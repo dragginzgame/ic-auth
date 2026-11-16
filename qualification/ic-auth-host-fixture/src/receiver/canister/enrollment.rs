@@ -1,9 +1,12 @@
 //! Installation-bound call and atomic callback publication for a single test key.
 use super::{Outcome, Refusal, SECOND, STATE, audience};
 use crate::enrollment::{Fault, KEY, LIMITS, METHOD, Snapshot};
+use crate::hash_bytes;
 use ic_auth::receiver_memory::EnrollmentMetadata;
-use ic_platform::canister_sig_creation::hash_bytes;
-use ic_platform_runtime::{cdk::api, cdk::call::Call};
+use ic_platform_runtime::{
+    call::{Call, Outcome as CallOutcome, Wait},
+    system as api,
+};
 
 pub(super) async fn refresh(fault: Fault) -> Result<Outcome, Refusal> {
     let (authority, challenge) = STATE.with_borrow_mut(|s| {
@@ -31,10 +34,19 @@ pub(super) async fn refresh(fault: Fault) -> Result<Outcome, Refusal> {
     .unwrap();
     // The runtime owns callback provenance. Never use ingress caller or a reply
     // field as authenticated_authority. No state borrow survives this await.
-    let response = Call::bounded_wait(authority, "authority_fixture_snapshot")
-        .with_raw_args(&bytes)
-        .await
-        .map_err(|_| Refusal::Unavailable)?;
+    let response = Call::new(
+        authority,
+        "authority_fixture_snapshot",
+        Wait::Bounded { seconds: 300 },
+    )
+    .owned_args(bytes)
+    .execute()
+    .await
+    .map_err(|_| Refusal::Unavailable)?;
+    let (outcome, _) = response.into_parts();
+    let CallOutcome::Reply(response) = outcome else {
+        return Err(Refusal::Unavailable);
+    };
     let snapshot: Snapshot = ic_wire::decode(
         response.as_ref(),
         ic_wire::Encoding::Frame {

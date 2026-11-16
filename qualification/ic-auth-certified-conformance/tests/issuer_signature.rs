@@ -5,15 +5,13 @@ use ic_auth::issuer_signature::{
     IssuerSignatureError as Error, IssuerSignaturePolicy, certified_signature_message,
     verify_issuer_signature,
 };
+use ic_auth_protocol_types::Principal;
 use ic_platform::{
-    bls::PrivateKey,
-    canister_sig_creation::{CanisterSigPublicKey, IC_ROOT_PK_DER_PREFIX},
-    certification::{
-        Certificate, Delegation, HashTree,
-        cbor::{encode_canister_signature, encode_certificate},
-        fork, labeled, leaf,
+    certificate::construction::{
+        Certificate, Delegation, HashTree, encode_canister_signature, encode_certificate, fork,
+        labeled, leaf,
     },
-    principal::Principal,
+    fixture_signing::PrivateKey,
 };
 use sha2::{Digest, Sha256};
 
@@ -84,7 +82,7 @@ impl Fixture {
         Self {
             certificate: certificate(tree, signer, delegation),
             witness,
-            der: CanisterSigPublicKey::new(issuer(), SEED.to_vec()).to_der(),
+            der: ic_platform::certificate::construction::canister_key_der(issuer(), SEED).unwrap(),
         }
     }
     fn bytes(&self) -> Vec<u8> {
@@ -271,16 +269,33 @@ fn identity_bls_points_cannot_authenticate_an_arbitrary_tree() {
     assert_eq!(proof.verify(&policy(&root)), Err(Error::InvalidSignature));
 }
 
-fn delegation(sharded: bool, range: Principal, nested: bool) -> Delegation {
+fn delegation(
+    sharded: bool,
+    range: Principal,
+    nested: bool,
+    time: Option<&[u8]>,
+    subnet_type: bool,
+) -> Delegation {
     let subnet_id = vec![3; 10];
-    let der = [
-        IC_ROOT_PK_DER_PREFIX.as_slice(),
-        &key(2).public_key().serialize(),
-    ]
-    .concat();
-    let ranges =
-        ic_platform::ic_protocol::fixtures::canister_ranges(&[(range, range)], 1024).unwrap();
+    let der = ic_platform::certificate::PreparedRootKey::from_raw(&key(2).public_key().serialize())
+        .unwrap()
+        .as_der()
+        .to_vec();
+    // Independent CBOR: one pair of exact principal byte strings.
+    let mut ranges = vec![0x81, 0x82];
+    for _ in 0..2 {
+        ranges.push(0x40 + u8::try_from(range.as_slice().len()).unwrap());
+        ranges.extend_from_slice(range.as_slice());
+    }
     let public_key = labeled(b"public_key".to_vec(), leaf(der));
+    let public_key = if subnet_type {
+        fork(
+            public_key,
+            labeled(b"type".to_vec(), leaf(b"application".to_vec())),
+        )
+    } else {
+        public_key
+    };
     let tree = if sharded {
         fork(
             labeled(
@@ -304,7 +319,12 @@ fn delegation(sharded: bool, range: Principal, nested: bool) -> Delegation {
             ),
         )
     };
-    // No recent time is required in root-to-subnet trust-chain material.
+    // Auth permits an older delegation; the supplier still requires a valid
+    // authenticated time and explicit certified subnet type.
+    let tree = match time {
+        Some(bytes) => fork(tree, labeled(b"time".to_vec(), leaf(bytes.to_vec()))),
+        None => tree,
+    };
     let cert = certificate(
         tree,
         &key(1),
@@ -336,9 +356,27 @@ fn subnet_range_formats_bind_issuer_and_refuse_nested_delegation() {
                 &message(),
                 Some(vec![100]),
                 &key(2),
-                Some(delegation(sharded, range, nested)),
+                Some(delegation(sharded, range, nested, Some(&[1]), true)),
             );
             assert_eq!(proof.verify(&policy(&root)), expected);
         }
+    }
+}
+
+#[test]
+fn delegation_requires_authenticated_time_and_subnet_type() {
+    let root = key(1).public_key().serialize();
+    for (time, subnet_type, expected) in [
+        (None, true, Error::InvalidCertificateTime),
+        (Some([0x80].as_slice()), true, Error::InvalidCertificateTime),
+        (Some([1].as_slice()), false, Error::InvalidSignature),
+    ] {
+        let proof = Fixture::new(
+            &message(),
+            Some(vec![100]),
+            &key(2),
+            Some(delegation(false, issuer(), false, time, subnet_type)),
+        );
+        assert_eq!(proof.verify(&policy(&root)), Err(expected));
     }
 }

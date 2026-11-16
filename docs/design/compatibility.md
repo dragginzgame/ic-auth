@@ -1,6 +1,6 @@
 # Compatibility and acceptance
 
-## Fixed reference
+## Current contract and historical provenance
 
 Reference repository: https://github.com/dragginzgame/ic-auth-legacy
 (originally named `dragginzgame/ic-auth`).
@@ -8,12 +8,16 @@ Reference repository: https://github.com/dragginzgame/ic-auth-legacy
 Reference commit: `e52a40be75dd9809d0528189d84b43fe96952ad9`.
 The sibling checkout is convenient for reading; resolve reference files from this
 commit, not its moving working tree. `reference.sha256` records selected file bytes.
-The reference is evidence, not a dependency on the old engine in the new product.
+The reference is historical provenance only. The maintainer authorized the hard
+cut in [#2](https://github.com/dragginzgame/ic-auth/issues/2): no existing users or
+deployments need pre-recode Wire/API compatibility. No check executes that source
+or requires its checkout. Current contracts and independent fixtures own acceptance;
+method identities and layouts may evolve together with their current consumers.
 
-## Preserve
+## Current safety and interoperability requirements
 
-- Wire method IDs, request/reply layouts, tags, byte/allocation/node/depth budgets,
-  error projections and Rust/TypeScript interoperability.
+- Explicit current Wire identities/layouts, byte/allocation/node/depth admission,
+  error projections and Rust/TypeScript interoperability; no historical parity gate.
 - Canonical signing domains and bytes, claims schema 2, strict ordering and
   rejection behavior. Never sort untrusted signed inputs into validity.
 - Credential grant bounds, browser-key/caller binding, scope narrowing, device
@@ -46,7 +50,7 @@ their deferral does not waive volatile loss, host transaction or browser evidenc
 
 | Boundary | Required evidence |
 | --- | --- |
-| Encoding | Independent retained golden bytes; old/new cross-decoding and generator output comparison |
+| Encoding | Independently assembled current bytes; Rust/browser decoding and generator output comparison |
 | Verification | Valid and adversarial vectors for each selected mechanism, including wrong authority/caller/time |
 | Backend semantics | Same behavioral contract on volatile and stable implementations; failed commits and exact retries |
 | Lifecycle | Stable reopen/upgrade, corruption refusal, generation changes, replay/logout retention |
@@ -63,8 +67,8 @@ contract cases; do not copy every legacy test or delete tests to meet a size goa
 | Boundary | Evidence and owner | Limit |
 | --- | --- | --- |
 | Request and claims | [Request](../development/request-boundary.md) hash/TTL and scope normalization; [claims](../development/claims-boundary.md) independent signed bytes/digests and bounded rejection | Codec/policy evidence alone installs no session authority |
-| Wire | [Wire comparison](../development/wire-boundary.md): four contracts, 37 reference frames, 296 resource thresholds and old/new generated browser interoperability | Corpus-based compatibility, not production endpoint integration |
-| Ed25519 | [Verification](../development/verification-boundary.md): independent signature, protected context/refusal/charging and legacy-enabled scalar negative control | Platform owns crypto; consumer graph remains an integration responsibility |
+| Wire | [Wire comparison](../development/wire-boundary.md): four contracts, 37 independently assembled frames, 296 retained resource expectations and current generated browser interoperability | Current corpus coverage, not historical parity or production endpoint integration |
+| Ed25519 | [Verification](../development/verification-boundary.md): independent signature and strict context/refusal/charging cases under the supported graph | Platform owns crypto; consumer graph remains an integration responsibility |
 | Certified proof | [Issuer signature](../development/certified-issuer-boundary.md), [delegation bytes](../development/delegation-encoding-boundary.md), [root verification](../development/root-delegation-boundary.md) and [complete verification](../development/certified-verification-boundary.md): real BLS/OpenSSL fixtures, root/issuer composition and shared work budget | Submitted projection fields never establish enrollment provenance |
 | Receiver policy | [Private policy](../development/receiver-policy-boundary.md): exact retry, immutable renewal/replacement, role narrowing, captured leases and physical capacity arithmetic | Fact drivers alone do not establish storage or transaction guarantees |
 | Memory receiver | [Memory boundary](../development/memory-receiver-boundary.md): real proofs for both mechanisms, two issuers/devices/receivers, quota isolation, logout fences and proof-expired retry | Stable admission/reopen and complete consumer lifecycle remain separate |
@@ -151,15 +155,25 @@ conservatively retains an earlier browser deadline across reconciliation. It doe
 not qualify external signing, general clock mapping or production endpoints, and
 ordinary-write probes are not a new guarded browser application-call API.
 
-Still required: production Canic endpoint integration, multi-receiver coordination,
-external signer recovery; readiness/coalescing; guarded ordinary calls; cleanup scheduling
+Twelve additional native Chromium cases qualify the per-login coordinator: duplicate
+admission coalescing, independent receivers sharing issuance/renewal, the 64-operation
+ceiling before journal access, typed-expiry retry bounds, expired-result recovery,
+reopening, explicit deadline mapping, metadata-only live hints, cancellation, timeout
+capacity release and cross-tab logout fencing. The installed journey now uses this
+coordinator for readiness and forced admission, including no additional admission
+for a live hint. These receipts are scheduling metadata, not an SDK signer or current
+application authority; signing-boundary readiness remains separate work.
+
+Still required: production Canic endpoint integration, complete multi-receiver acceptance,
+external signer recovery; guarded ordinary calls; cleanup scheduling
 and key disposal; renderer-interruption recovery. No application operation may be
 replayed to obtain that evidence. Stable storage and cross-backend acceptance stay
 in the future OP milestone.
 
-## Reference entrypoints
+## Historical entrypoints
 
-Read these paths from the pinned reference commit:
+These paths document provenance at the pinned commit; they are not a required
+checkout, executable oracle or compatibility acceptance gate:
 
 - `docs/design/0.6-auth-protocol.md`: signed protocol and trust contract.
 - `docs/protocol/sessions.md`: session, replay, revocation and storage obligations.

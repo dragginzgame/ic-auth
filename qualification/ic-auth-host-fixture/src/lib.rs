@@ -97,3 +97,14 @@ pub struct Observation {
     /// Actual host query time.
     pub now_ns: u64,
 }
+
+#[cfg(target_family = "wasm")]
+fn hash_bytes(bytes: impl AsRef<[u8]>) -> [u8; 32] {
+    use sha2::{Digest, Sha256};
+    Sha256::digest(bytes.as_ref()).into()
+}
+
+#[cfg(target_family = "wasm")]
+fn endpoint_error<E: std::fmt::Debug>(error: E) -> ! {
+    ic_platform_runtime::system::trap(&format!("fixture endpoint refused: {error:?}"))
+}

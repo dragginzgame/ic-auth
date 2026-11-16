@@ -8,10 +8,7 @@ use ic_auth_host_fixture::{
     enrollment::{CONFIGURE, Fault, LIMITS, Scenario},
     receiver::{Command, Observation, Outcome, Refusal, TIME_ORIGIN_NS},
 };
-use ic_testkit::{
-    pic::{InstallSpec, create_and_install},
-    pocket_ic::{CanisterId, RejectResponse, nonblocking::PocketIc},
-};
+use ic_testkit::pocket_ic::{CanisterId, RejectResponse, nonblocking::PocketIc};
 
 async fn configure(
     pic: &PocketIc,
@@ -37,21 +34,16 @@ async fn configure(
     Ok(())
 }
 async fn install_receiver(pic: &PocketIc, wasm: &[u8], authority: CanisterId) -> CanisterId {
-    create_and_install(
-        pic,
-        InstallSpec {
-            wasm: wasm.to_vec(),
-            cycles: 5_000_000_000_000,
-            install_sender: None,
-            init_bytes: ic_wire::encode(
-                &authority.as_slice().to_vec(),
-                ic_wire::Encoding::Payload,
-                LIMITS,
-            )
-            .unwrap(),
-        },
+    let id = pic.create_canister().await;
+    pic.add_cycles(id, 5_000_000_000_000).await;
+    let init = ic_wire::encode(
+        &authority.as_slice().to_vec(),
+        ic_wire::Encoding::Payload,
+        LIMITS,
     )
-    .await
+    .unwrap();
+    pic.install_canister(id, wasm.to_vec(), init, None).await;
+    id
 }
 fn retained(before: &Observation, after: &Observation) {
     assert_eq!(after.enrollment, before.enrollment);
@@ -73,7 +65,7 @@ async fn installed_authority_binds_replies_and_revocation_commits_with_receiver_
     let caller = CanisterId::from_slice(&vectors["initial-caller"]);
     let admin = CanisterId::anonymous();
     let owned = start().await;
-    let pic = owned.instance();
+    let pic = &owned;
     time(pic, 0).await;
     let authority = install(pic, &wasm).await;
     let id = install_receiver(pic, &wasm, authority).await;
@@ -208,11 +200,13 @@ async fn installed_authority_binds_replies_and_revocation_commits_with_receiver_
             .unwrap(),
         Ok(Outcome::Revoked(TIME_ORIGIN_NS + 100_000_000_000))
     );
+    pic.stop_canister(id, None).await.unwrap();
     pic.upgrade_canister(id, wasm, vec![], None).await.unwrap();
+    pic.start_canister(id, None).await.unwrap();
     assert_eq!(
         control(pic, id, caller, &refresh).await.unwrap(),
         Err(Refusal::Closed)
     );
     assert!(!observe(pic, id).await.present);
-    owned.close().await;
+    owned.drop().await;
 }

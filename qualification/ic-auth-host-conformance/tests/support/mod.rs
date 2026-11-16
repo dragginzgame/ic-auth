@@ -1,9 +1,6 @@
 //! Shared installed-fixture setup; Build and Testkit retain their ownership boundaries.
 use ic_build::{Artifact, BuildRequest, Limits, build};
-use ic_testkit::{
-    pic::{InstallSpec, PocketIcInstance, PocketIcStartupConfig, create_and_install},
-    pocket_ic::{CanisterId, PocketIcBuilder, nonblocking::PocketIc},
-};
+use ic_testkit::pocket_ic::{CanisterId, PocketIcBuilder, nonblocking::PocketIc};
 use sha2::{Digest, Sha256};
 use std::{
     path::PathBuf,
@@ -63,27 +60,22 @@ pub(crate) fn wasm() -> Vec<u8> {
     .to_vec()
 }
 
-pub(crate) async fn start() -> PocketIcInstance {
-    PocketIcStartupConfig::from_env(Duration::from_secs(30))
-        .unwrap()
-        .build_instance(
-            PocketIcBuilder::new()
-                .with_max_request_time_ms(Some(30_000))
-                // A single root subnet supplies the certificate trust key too.
-                .with_nns_subnet(),
+pub(crate) async fn start() -> PocketIc {
+    PocketIcBuilder::new()
+        .with_server_url(
+            std::env::var("POCKET_IC_SERVER_URL")
+                .unwrap()
+                .parse()
+                .unwrap(),
         )
+        .with_max_request_time_ms(Some(30_000))
+        .with_nns_subnet()
+        .build_async()
         .await
-        .unwrap()
 }
 pub(crate) async fn install(pic: &PocketIc, wasm: &[u8]) -> CanisterId {
-    create_and_install(
-        pic,
-        InstallSpec {
-            wasm: wasm.to_vec(),
-            init_bytes: vec![],
-            cycles: 5_000_000_000_000,
-            install_sender: None,
-        },
-    )
-    .await
+    let id = pic.create_canister().await;
+    pic.add_cycles(id, 5_000_000_000_000).await;
+    pic.install_canister(id, wasm.to_vec(), vec![], None).await;
+    id
 }

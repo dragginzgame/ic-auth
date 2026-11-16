@@ -3,7 +3,7 @@
 `ic-auth::claims` implements the current schema-2 portable-credential bytes:
 bounded decode, structural encode and streaming SHA-256. Passive claim fields,
 audience bytes and role labels live in `ic-auth-protocol-types`. Principal identity
-comes from published `ic-platform-types` 0.20.4 with default features disabled;
+comes from published `ic-platform-types` 0.21.1 with default features disabled;
 there is no local identity, cryptography, runtime or storage implementation.
 
 This is newly written, source-informed code for the specified boundary. The
@@ -41,5 +41,5 @@ qualified recovery bounds; the fresh codec must not be used to discard them.
 Run `make test-claims` for the new boundary and `make test-request` for the
 existing request contract. `make lint-protocol`, `make doc-protocol` and
 `make check-protocol-wasm` cover the two implemented protocol packages; Wasm
-compilation is not installed execution. Full old/new differential decoding and
-generated browser/Wire interoperability remain acceptance obligations.
+compilation is not installed execution. Current independent fixtures and generated Rust/browser interoperability own
+encoding acceptance; old/new differential decoding is no longer required.

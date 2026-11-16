@@ -19,7 +19,7 @@ ed25519-comparison = ["ic-auth/ed25519-verification"]
 ic-auth = { workspace = true, features = ["certified-verification"] }
 ic-auth-protocol-types.workspace = true
 ic-auth-wire.workspace = true
-ic-platform = { workspace = true, features = ["certification-cbor", "ic-protocol-fixtures"] }
+ic-platform = { workspace = true, features = ["ecdsa", "certificate-construction", "certificate-fixture-signing", "canister-signature-authentication"] }
 sha2.workspace = true
 toko-tooling.workspace = true
 

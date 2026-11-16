@@ -1,6 +1,7 @@
 //! Fixed test account/browser, local test signer and installation-owned enrollment.
 //! No wallet service, external signing/recovery or production Canic mounting is modeled.
 use super::{CREDENTIAL, OBSERVE, Observation, WRITE};
+use crate::hash_bytes;
 use crate::{REQUEST, RESPONSE};
 use ic_auth::{
     issuer_memory::{
@@ -24,11 +25,8 @@ use ic_auth_wire::{
     CredentialEnvelope, EstablishSession, Logout, SessionInput, SessionView,
     model::{AdmissionRefusal, LogoutResult, LogoutUnavailable, PortableCredential, PortableProof},
 };
-use ic_platform::{
-    canister_sig_creation::hash_bytes,
-    ed25519::{Signer, SigningKey},
-};
-use ic_platform_runtime::{cdk, cdk::api, ic0};
+use ic_platform::ed25519::{Signer, SigningKey};
+use ic_platform_runtime::{self as runtime, system as api};
 use std::cell::RefCell;
 
 const SECOND: u64 = 1_000_000_000;
@@ -156,43 +154,33 @@ pub(crate) fn init() {
     });
 }
 fn bounded<const N: usize>() -> Result<(), String> {
-    if ic0::msg_arg_data_size() <= N {
+    if api::argument_size() <= N {
         Ok(())
     } else {
         Err("oversized browser fixture frame".into())
     }
 }
-#[expect(
-    clippy::needless_pass_by_value,
-    reason = "Platform owns the admitted codec buffer"
-)]
-fn decode_lookup(bytes: Vec<u8>) -> bool {
+fn decode_lookup(bytes: &[u8]) -> Result<bool, ic_wire::Error> {
     ic_wire::decode(
-        &bytes,
+        bytes,
         ic_wire::Encoding::Frame {
             method: CREDENTIAL,
             direction: ic_wire::Direction::Request,
         },
         REQUEST,
     )
-    .unwrap()
 }
 #[expect(
     clippy::needless_pass_by_value,
     reason = "Platform owns the reply value"
 )]
-fn encode_credential(value: PortableCredential) -> Vec<u8> {
+fn encode_credential(value: PortableCredential) -> Result<Vec<u8>, ic_wire::Error> {
     // Return exact retained credential REQUEST bytes, the browser journal's artifact format.
-    CredentialEnvelope::encode_request(&value).unwrap()
+    CredentialEnvelope::encode_request(&value)
 }
-#[cdk::update(
-    name = "browser_fixture_credential",
-    guard = "bounded::<256>",
-    decode_with = "decode_lookup",
-    encode_with = "encode_credential"
-)]
+#[runtime::update(runtime = ic_platform_runtime, name = "browser_fixture_credential", guard = bounded::<256>, decode = decode_lookup, encode = encode_credential, max_bytes = 256, on_error = crate::endpoint_error)]
 fn credential(lookup: bool) -> PortableCredential {
-    let caller = api::msg_caller();
+    let caller = api::caller();
     assert_eq!(caller, principal(8), "fixed fixture account required");
     let now = api::time();
     STATE.with_borrow_mut(|state| {
@@ -255,7 +243,7 @@ fn context<'a>(
         issuer: api::canister_self(),
         mechanism: PortableMechanism::Ed25519,
         key_binding_id: authority(expires).key_binding_id,
-        caller: api::msg_caller(),
+        caller: api::caller(),
         now_ns: api::time(),
         authority_not_before_ns: 0,
         authority_expires_at_ns: expires,
@@ -266,26 +254,17 @@ fn context<'a>(
         max_proof_ttl_ns: 60 * SECOND,
     }
 }
-#[expect(
-    clippy::needless_pass_by_value,
-    reason = "Platform owns the admitted codec buffer"
-)]
-fn decode_admit(bytes: Vec<u8>) -> SessionInput {
-    EstablishSession::decode_request(&bytes).unwrap()
+fn decode_admit(bytes: &[u8]) -> Result<SessionInput, ic_wire::Error> {
+    EstablishSession::decode_request(bytes)
 }
 #[expect(
     clippy::needless_pass_by_value,
     reason = "Platform owns the reply value"
 )]
-fn encode_admit(value: Result<SessionView, AdmissionRefusal>) -> Vec<u8> {
-    EstablishSession::encode_response(&value).unwrap()
+fn encode_admit(value: Result<SessionView, AdmissionRefusal>) -> Result<Vec<u8>, ic_wire::Error> {
+    EstablishSession::encode_response(&value)
 }
-#[cdk::update(
-    name = "establish_portable_session",
-    guard = "bounded::<524288>",
-    decode_with = "decode_admit",
-    encode_with = "encode_admit"
-)]
+#[runtime::update(runtime = ic_platform_runtime, name = "establish_portable_session", guard = bounded::<524288>, decode = decode_admit, encode = encode_admit, max_bytes = 524288, on_error = crate::endpoint_error)]
 fn admit(input: SessionInput) -> Result<SessionView, AdmissionRefusal> {
     let proof = input
         .credential
@@ -342,22 +321,17 @@ fn admit(input: SessionInput) -> Result<SessionView, AdmissionRefusal> {
         })
     })
 }
-#[expect(
-    clippy::needless_pass_by_value,
-    reason = "Platform owns the admitted codec buffer"
-)]
-fn decode_write(bytes: Vec<u8>) {
+fn decode_write(bytes: &[u8]) -> Result<(), ic_wire::Error> {
     ic_wire::decode::<()>(
-        &bytes,
+        bytes,
         ic_wire::Encoding::Frame {
             method: WRITE,
             direction: ic_wire::Direction::Request,
         },
         REQUEST,
     )
-    .unwrap();
 }
-fn encode_write(value: Result<u32, ()>) -> Vec<u8> {
+fn encode_write(value: Result<u32, ()>) -> Result<Vec<u8>, ic_wire::Error> {
     ic_wire::encode(
         &value,
         ic_wire::Encoding::Frame {
@@ -366,15 +340,9 @@ fn encode_write(value: Result<u32, ()>) -> Vec<u8> {
         },
         RESPONSE,
     )
-    .unwrap()
 }
-#[cdk::update(
-    name = "browser_fixture_write",
-    guard = "bounded::<256>",
-    decode_with = "decode_write",
-    encode_with = "encode_write"
-)]
-fn write() -> Result<u32, ()> {
+#[runtime::update(runtime = ic_platform_runtime, name = "browser_fixture_write", guard = bounded::<256>, decode = decode_write, encode = encode_write, max_bytes = 256, on_error = crate::endpoint_error)]
+fn write((): ()) -> Result<u32, ()> {
     STATE.with_borrow_mut(|state| {
         let s = state.as_mut().ok_or(())?;
         let audience = audience();
@@ -407,32 +375,23 @@ fn write() -> Result<u32, ()> {
             .map_err(|_| ())
     })
 }
-#[expect(
-    clippy::needless_pass_by_value,
-    reason = "Platform owns the admitted codec buffer"
-)]
-fn decode_logout(bytes: Vec<u8>) {
-    Logout::decode_request(&bytes).unwrap();
+fn decode_logout(bytes: &[u8]) -> Result<(), ic_wire::Error> {
+    Logout::decode_request(bytes)
 }
 #[expect(
     clippy::needless_pass_by_value,
     reason = "Platform owns the reply value"
 )]
-fn encode_logout(value: LogoutResult) -> Vec<u8> {
-    Logout::encode_response(&value).unwrap()
+fn encode_logout(value: LogoutResult) -> Result<Vec<u8>, ic_wire::Error> {
+    Logout::encode_response(&value)
 }
-#[cdk::update(
-    name = "logout_portable_session",
-    guard = "bounded::<11>",
-    decode_with = "decode_logout",
-    encode_with = "encode_logout"
-)]
-fn logout() -> LogoutResult {
+#[runtime::update(runtime = ic_platform_runtime, name = "logout_portable_session", guard = bounded::<11>, decode = decode_logout, encode = encode_logout, max_bytes = 11, on_error = crate::endpoint_error)]
+fn logout((): ()) -> LogoutResult {
     STATE.with_borrow_mut(|state| {
         let Some(s) = state.as_mut() else {
             return LogoutResult::Unavailable(LogoutUnavailable::ResetPending);
         };
-        let caller = api::msg_caller();
+        let caller = api::caller();
         // Only this fixed authenticated browser can revoke its installation-owned account binding.
         if caller != principal(9) {
             return LogoutResult::InvalidCaller;
@@ -446,26 +405,21 @@ fn logout() -> LogoutResult {
         }
     })
 }
-#[expect(
-    clippy::needless_pass_by_value,
-    reason = "Platform owns the admitted codec buffer"
-)]
-fn decode_observe(bytes: Vec<u8>) {
+fn decode_observe(bytes: &[u8]) -> Result<(), ic_wire::Error> {
     ic_wire::decode::<()>(
-        &bytes,
+        bytes,
         ic_wire::Encoding::Frame {
             method: OBSERVE,
             direction: ic_wire::Direction::Request,
         },
         REQUEST,
     )
-    .unwrap();
 }
 #[expect(
     clippy::needless_pass_by_value,
     reason = "Platform owns the reply value"
 )]
-fn encode_observe(value: Observation) -> Vec<u8> {
+fn encode_observe(value: Observation) -> Result<Vec<u8>, ic_wire::Error> {
     ic_wire::encode(
         &value,
         ic_wire::Encoding::Frame {
@@ -474,15 +428,9 @@ fn encode_observe(value: Observation) -> Vec<u8> {
         },
         RESPONSE,
     )
-    .unwrap()
 }
-#[cdk::query(
-    name = "browser_fixture_observe",
-    guard = "bounded::<256>",
-    decode_with = "decode_observe",
-    encode_with = "encode_observe"
-)]
-fn observe() -> Observation {
+#[runtime::query(runtime = ic_platform_runtime, name = "browser_fixture_observe", guard = bounded::<256>, decode = decode_observe, encode = encode_observe, max_bytes = 256, on_error = crate::endpoint_error)]
+fn observe((): ()) -> Observation {
     STATE.with_borrow(|state| {
         let s = state.as_ref().expect("lost browser fixture state");
         Observation {

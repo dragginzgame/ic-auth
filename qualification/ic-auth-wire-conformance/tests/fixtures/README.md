@@ -24,5 +24,6 @@ Captured TSV SHA-256:
 Qualification now uses published IC Wire 0.24.1 through its current API. The old
 crate is absent from the lock and dependency graph. Do not replace these values
 with measurements of the codec under test: intentional accounting changes need
-explicit review of the compatibility requirement and reference evidence.
-This corpus is not an exhaustive compatibility proof or a host cost benchmark.
+explicit review of the current resource contract and independent boundary evidence.
+These retained expectations do not require historical accounting parity forever.
+This corpus is not an exhaustive current-contract proof or a host cost benchmark.

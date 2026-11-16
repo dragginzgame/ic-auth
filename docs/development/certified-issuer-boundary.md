@@ -5,7 +5,7 @@ Enable `ic-auth/certified-issuer-verification` for
 fixed portable-domain claims digest and returns the certificate's signing time.
 It cannot produce `VerifiedClaims` or admit a credential/session.
 
-Platform 0.33.7 owns DER/CBOR parsing, hash-tree paths, IC root-to-subnet trust-chain
+Platform 0.34.5 owns DER/CBOR parsing, hash-tree paths, IC root-to-subnet trust-chain
 verification and BLS cryptography. Auth owns the fixed domain/digest framing,
 protected issuer and seed commitment, raw network-root length, signature byte
 admission and signing-certificate freshness. Host inputs supply authority and time;
@@ -17,8 +17,11 @@ then time policy. The signature ceiling is the smaller of the protected host
 limit and 131072 bytes. Age is inclusive, with no future grace or wrapping
 subtraction. Complete nonminimal LEB128 certificate times remain accepted by the
 supplier; missing, truncated, overflowed and trailing time material refuse.
-An IC root-to-subnet delegation certificate need not itself have a recent time;
-the authenticated signing certificate must satisfy the current age window.
+Both signing and delegation timestamps must authenticate. Delegation may be old
+and uses an explicit full-u64 time window; only signing time is subject to Auth’s
+age/future policy. Delegated authority also requires certified subnet type.
+Platform bounds certificate/delegation bytes at 131072, tree traversal at 16384
+nodes/128 depth and canister ranges at 4096.
 
 The component has no mutable state and performs no work-budget charging. Full
 certified credential verification must first bound aggregate variable material
@@ -31,7 +34,7 @@ component. IC subnet delegation alone establishes none of those application gran
 The [complete certified verifier](certified-verification-boundary.md) now composes
 these checks with common claims policy and aggregate proof/work charging.
 
-`make qualify-certified-issuer` runs eight cases with real BLS-signed certificates
+`make qualify-certified-issuer` runs nine cases with real BLS-signed certificates
 assembled outside Auth, including two subnet-range layouts and adversarial
 controls. See [fixture provenance and scope](../../qualification/ic-auth-certified-conformance/README.md).
 The paired `make lint-certified-qualification` checks the fixture consumer.
@@ -43,3 +46,10 @@ certified-only Auth selects no Ed25519; Ed25519-only Auth selects no BLS. Fixtur
 CBOR encoders and subnet-range builders remain qualification-only. No Canic,
 Toko runtime, storage or executor dependency is introduced. Canic continues to
 own endpoint wiring using IC Wire.
+
+The migration maps directly to Platform’s `certificate` authentication API.
+Its starting consumer adaptation and fixture-construction mapping came from
+[Platform 68b694a](https://github.com/dragginzgame/ic-platform/blob/68b694ae7064ddccb9a3e202352d4bcda41c46e1/qualification/auth-crypto/consumer.patch);
+Auth owns the final admission policy and focused consumer evidence. Fixture
+construction uses Platform’s bounded encoders and native fixture-signing feature,
+with independently authored subnet-range bytes. No legacy implementation is used.

@@ -1,4 +1,4 @@
-//! Fixed frames come from the pinned reference browser codec, not this encoder.
+//! Current frames are independently assembled; historical provenance is retained.
 
 use ic_auth_protocol_types::Principal;
 use ic_auth_wire::{
@@ -86,7 +86,7 @@ fn logout_cases() -> Vec<(&'static str, LogoutResult)> {
 }
 
 #[test]
-fn reference_browser_frames_cross_encode_and_decode() {
+fn current_fixture_frames_cross_encode_and_decode() {
     assert_eq!(
         ReadSession::encode_request(&()).unwrap(),
         fixture("read-request")

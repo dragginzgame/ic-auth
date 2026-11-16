@@ -118,7 +118,7 @@ async fn receiver_transactions_restore_auth_and_application_but_normal_refusals_
     let vectors = vectors();
     let caller = CanisterId::from_slice(&vectors["initial-caller"]);
     let owned = start().await;
-    let pic = owned.instance();
+    let pic = &owned;
     time(pic, 0).await;
     let id = install(pic, &wasm()).await;
     time(pic, 25).await;
@@ -203,7 +203,7 @@ async fn receiver_transactions_restore_auth_and_application_but_normal_refusals_
     assert_eq!((revoked.usage.0, revoked.usage.1), (0, 1));
     assert_eq!(revoked.logins, (1, 0));
     assert_eq!(revoked.application_writes, 2);
-    owned.close().await;
+    owned.drop().await;
 }
 
 #[tokio::test]
@@ -213,7 +213,7 @@ async fn receiver_upgrade_loss_cannot_reenroll_or_confirm_unknown_logout() {
     let wasm = wasm();
     for known in [true, false] {
         let owned = start().await;
-        let pic = owned.instance();
+        let pic = &owned;
         time(pic, 0).await;
         let id = install(pic, &wasm).await;
         let intact = install(pic, &wasm).await;
@@ -276,9 +276,11 @@ async fn receiver_upgrade_loss_cannot_reenroll_or_confirm_unknown_logout() {
         );
         let before = observe(pic, id).await;
         assert_eq!(before.logins, if known { (1, 0) } else { (0, 1) });
+        pic.stop_canister(id, None).await.unwrap();
         pic.upgrade_canister(id, wasm.clone(), vec![], None)
             .await
             .unwrap();
+        pic.start_canister(id, None).await.unwrap();
         let lost = observe(pic, id).await;
         assert!(!lost.present);
         time(pic, if known { 26 } else { 126 }).await;
@@ -302,6 +304,6 @@ async fn receiver_upgrade_loss_cannot_reenroll_or_confirm_unknown_logout() {
             );
         }
         assert_eq!(observe(pic, id).await, lost);
-        owned.close().await;
+        owned.drop().await;
     }
 }

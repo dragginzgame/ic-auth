@@ -2,6 +2,7 @@
 use super::{CONTROL, Command, OBSERVE, Observation, Outcome, REQUEST, Refusal, TIME_ORIGIN_NS};
 use crate::{RESPONSE, enrollment::Snapshot};
 mod enrollment;
+use crate::hash_bytes;
 use ic_auth::{
     receiver_memory::{
         AdmissionHost, EnrollmentBinding, LoginLimits, LogoutError, LogoutReceipt, MemoryConfig,
@@ -17,8 +18,7 @@ use ic_auth_protocol_types::{
     AudienceId, CanonicalId, Credential, CredentialProof, DelegatedRoleGrant, PortableMechanism,
     Principal,
 };
-use ic_platform::canister_sig_creation::hash_bytes;
-use ic_platform_runtime::{cdk, cdk::api, ic0};
+use ic_platform_runtime::{self as runtime, system as api};
 use std::cell::RefCell;
 
 const SECOND: u64 = 1_000_000_000;
@@ -88,28 +88,23 @@ fn refusal(e: MemoryError) -> Refusal {
     }
 }
 fn bounded_request() -> Result<(), String> {
-    if ic0::msg_arg_data_size() > REQUEST.bytes {
+    if api::argument_size() > REQUEST.bytes {
         Err("oversized receiver fixture frame".into())
     } else {
         Ok(())
     }
 }
-#[expect(
-    clippy::needless_pass_by_value,
-    reason = "Platform owns the codec buffer"
-)]
-fn decode_command(bytes: Vec<u8>) -> Command {
+fn decode_command(bytes: &[u8]) -> Result<Command, ic_wire::Error> {
     ic_wire::decode(
-        &bytes,
+        bytes,
         ic_wire::Encoding::Frame {
             method: CONTROL,
             direction: ic_wire::Direction::Request,
         },
         REQUEST,
     )
-    .unwrap()
 }
-fn encode_result(result: Result<Outcome, Refusal>) -> Vec<u8> {
+fn encode_result(result: Result<Outcome, Refusal>) -> Result<Vec<u8>, ic_wire::Error> {
     ic_wire::encode(
         &result,
         ic_wire::Encoding::Frame {
@@ -118,19 +113,13 @@ fn encode_result(result: Result<Outcome, Refusal>) -> Vec<u8> {
         },
         RESPONSE,
     )
-    .unwrap()
 }
-#[cdk::update(
-    name = "receiver_fixture_control",
-    guard = "bounded_request",
-    decode_with = "decode_command",
-    encode_with = "encode_result"
-)]
+#[runtime::update(runtime = ic_platform_runtime, name = "receiver_fixture_control", guard = bounded_request, decode = decode_command, encode = encode_result, max_bytes = 4096, on_error = crate::endpoint_error)]
 async fn control(command: Command) -> Result<Outcome, Refusal> {
     if let Command::Enroll(fault) = command {
         return enrollment::refresh(fault).await;
     }
-    let caller = api::msg_caller();
+    let caller = api::caller();
     let now = api::time();
     STATE.with_borrow_mut(|state| {
         let State {
@@ -246,26 +235,21 @@ async fn control(command: Command) -> Result<Outcome, Refusal> {
         Ok(outcome)
     })
 }
-#[expect(
-    clippy::needless_pass_by_value,
-    reason = "Platform owns the codec buffer"
-)]
-fn decode_unit(bytes: Vec<u8>) {
+fn decode_unit(bytes: &[u8]) -> Result<(), ic_wire::Error> {
     ic_wire::decode::<()>(
-        &bytes,
+        bytes,
         ic_wire::Encoding::Frame {
             method: OBSERVE,
             direction: ic_wire::Direction::Request,
         },
         REQUEST,
     )
-    .unwrap();
 }
 #[expect(
     clippy::needless_pass_by_value,
     reason = "Platform owns the handler result"
 )]
-fn encode_observation(value: Observation) -> Vec<u8> {
+fn encode_observation(value: Observation) -> Result<Vec<u8>, ic_wire::Error> {
     ic_wire::encode(
         &value,
         ic_wire::Encoding::Frame {
@@ -274,15 +258,9 @@ fn encode_observation(value: Observation) -> Vec<u8> {
         },
         RESPONSE,
     )
-    .unwrap()
 }
-#[cdk::query(
-    name = "receiver_fixture_observe",
-    guard = "bounded_request",
-    decode_with = "decode_unit",
-    encode_with = "encode_observation"
-)]
-fn observe() -> Observation {
+#[runtime::query(runtime = ic_platform_runtime, name = "receiver_fixture_observe", guard = bounded_request, decode = decode_unit, encode = encode_observation, max_bytes = 4096, on_error = crate::endpoint_error)]
+fn observe((): ()) -> Observation {
     STATE.with_borrow(|s| {
         let mut result = Observation {
             present: s.receiver.is_some(),

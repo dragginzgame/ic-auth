@@ -12,13 +12,10 @@ use ic_auth::{
 };
 use ic_auth_protocol_types::{MerkleStep, PortableMechanism, Principal};
 use ic_platform::{
-    bls::PrivateKey,
-    canister_sig_creation::CanisterSigPublicKey,
-    certification::{
-        Certificate,
-        cbor::{encode_canister_signature, encode_certificate},
-        fork, labeled, leaf,
+    certificate::construction::{
+        Certificate, encode_canister_signature, encode_certificate, fork, labeled, leaf,
     },
+    fixture_signing::PrivateKey,
 };
 use sha2::{Digest, Sha256};
 #[cfg(feature = "issuer-memory")]
@@ -86,7 +83,7 @@ impl Fixture {
             root: RootFixture::new(RECORDS, hash("seed_hash")),
             claims: bytes("claims"),
             cbor: issuer_cbor(hash("claims_digest"), vec![0x96, 1]),
-            der: CanisterSigPublicKey::new(issuer(), SEED.to_vec()).to_der(),
+            der: ic_platform::certificate::construction::canister_key_der(issuer(), SEED).unwrap(),
             network: bls_key().public_key().serialize(),
         }
     }
@@ -329,7 +326,13 @@ fn issuer_refusals_and_changed_claims_retain_the_same_single_charge() {
     let cases: [(FixtureChange, I); 6] = [
         (|f| f.cbor.clear(), I::InvalidSignature),
         (
-            |f| f.der = CanisterSigPublicKey::new(issuer(), b"wrong seed".to_vec()).to_der(),
+            |f| {
+                f.der = ic_platform::certificate::construction::canister_key_der(
+                    issuer(),
+                    b"wrong seed",
+                )
+                .unwrap()
+            },
             I::SeedMismatch,
         ),
         (

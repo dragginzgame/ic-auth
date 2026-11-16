@@ -2,16 +2,16 @@
 use super::{
     CONTROL, Command, Fault, OBSERVE, Observation, Progress, REQUEST, RESPONSE, Refusal, SEED,
 };
+use crate::hash_bytes;
 use ic_auth::issuer_memory::{
     CertifiedCompletionError, IssueRequest, IssuerAuthority, IssuerConfig, IssuerError,
     IssuerPolicy, IssuerSigning, IssuerStatus, IssuerTicket, MemoryIssuer,
 };
 use ic_auth_protocol_types::{AudienceId, CanonicalId, DelegatedRoleGrant};
-use ic_platform::{
-    canister_sig_creation::hash_bytes,
-    certification::{HashTree, cbor::encode_canister_signature, empty, labeled, leaf},
+use ic_platform::certificate::construction::{
+    HashTree, empty, encode_canister_signature, labeled, leaf,
 };
-use ic_platform_runtime::{cdk, cdk::api, ic0};
+use ic_platform_runtime::{self as runtime, system as api};
 use std::cell::RefCell;
 
 #[derive(Default)]
@@ -43,23 +43,16 @@ fn authority() -> IssuerAuthority {
     }
 }
 
-#[expect(
-    clippy::needless_pass_by_value,
-    reason = "Platform owns the installation buffer"
-)]
-fn decode_install(bytes: Vec<u8>) -> ic_auth_protocol_types::Principal {
+fn decode_install(bytes: &[u8]) -> Result<ic_auth_protocol_types::Principal, ic_wire::Error> {
     if bytes.is_empty() {
-        return api::canister_self();
+        return Ok(api::canister_self());
     }
-    let authority: Vec<u8> = ic_wire::decode(
-        &bytes,
-        ic_wire::Encoding::Payload,
-        crate::enrollment::LIMITS,
-    )
-    .unwrap();
-    ic_auth_protocol_types::Principal::try_from_slice(&authority).unwrap()
+    let authority: Vec<u8> =
+        ic_wire::decode(bytes, ic_wire::Encoding::Payload, crate::enrollment::LIMITS)?;
+    ic_auth_protocol_types::Principal::try_from_slice(&authority)
+        .map_err(|_| ic_wire::Error::Malformed)
 }
-#[cdk::init(decode_with = "decode_install")]
+#[runtime::init(runtime = ic_platform_runtime, guard = bounded_request, decode = decode_install, max_bytes = 256, on_error = crate::endpoint_error)]
 fn init(authority: ic_auth_protocol_types::Principal) {
     super::receiver::canister::init(authority);
     super::browser::canister::init();
@@ -83,39 +76,34 @@ fn init(authority: ic_auth_protocol_types::Principal) {
     )
     .unwrap();
     STATE.with_borrow_mut(|s| s.issuer = Some(issuer));
-    api::certified_data_set(witness(None).digest());
+    api::set_certified_data(&witness(None).digest());
 }
 
-#[cdk::post_upgrade]
-fn lost_volatile_state() {
+#[runtime::post_upgrade(runtime = ic_platform_runtime, guard = bounded_request, decode = decode_upgrade, max_bytes = 0, on_error = crate::endpoint_error)]
+fn lost_volatile_state((): ()) {
     // No stable adapter: heap loss is terminal. Clear the certified contribution,
     // leave the issuer absent, and provide no timestamp/generation reset escape.
-    api::certified_data_set(witness(None).digest());
+    api::set_certified_data(&witness(None).digest());
 }
 
 fn bounded_request() -> Result<(), String> {
-    if ic0::msg_arg_data_size() > REQUEST.bytes {
+    if api::argument_size() > REQUEST.bytes {
         Err("oversized fixture frame".into())
     } else {
         Ok(())
     }
 }
-#[expect(
-    clippy::needless_pass_by_value,
-    reason = "Platform transfers the admitted argument buffer to its codec hook"
-)]
-fn decode_command(bytes: Vec<u8>) -> Command {
+fn decode_command(bytes: &[u8]) -> Result<Command, ic_wire::Error> {
     ic_wire::decode(
-        &bytes,
+        bytes,
         ic_wire::Encoding::Frame {
             method: CONTROL,
             direction: ic_wire::Direction::Request,
         },
         REQUEST,
     )
-    .unwrap()
 }
-fn encode_result(result: Result<(), Refusal>) -> Vec<u8> {
+fn encode_result(result: Result<(), Refusal>) -> Result<Vec<u8>, ic_wire::Error> {
     ic_wire::encode(
         &result,
         ic_wire::Encoding::Frame {
@@ -124,7 +112,6 @@ fn encode_result(result: Result<(), Refusal>) -> Vec<u8> {
         },
         RESPONSE,
     )
-    .unwrap()
 }
 fn refusal(error: IssuerError) -> Refusal {
     match error {
@@ -135,14 +122,9 @@ fn refusal(error: IssuerError) -> Refusal {
     }
 }
 
-#[cdk::update(
-    name = "auth_fixture_control",
-    guard = "bounded_request",
-    decode_with = "decode_command",
-    encode_with = "encode_result"
-)]
+#[runtime::update(runtime = ic_platform_runtime, name = "auth_fixture_control", guard = bounded_request, decode = decode_command, encode = encode_result, max_bytes = 256, on_error = crate::endpoint_error)]
 fn control(command: Command) -> Result<(), Refusal> {
-    let caller = api::msg_caller();
+    let caller = api::caller();
     let now = api::time();
     STATE.with_borrow_mut(|state| {
         let State {
@@ -199,7 +181,7 @@ fn control(command: Command) -> Result<(), Refusal> {
                     if matches!(fault, Fault::Leaf) {
                         api::trap("after leaf mutation");
                     }
-                    api::certified_data_set(witness(*leaf).digest());
+                    api::set_certified_data(&witness(*leaf).digest());
                     if matches!(fault, Fault::Root) {
                         api::trap("after certified root publication");
                     }
@@ -225,26 +207,21 @@ fn control(command: Command) -> Result<(), Refusal> {
     })
 }
 
-#[expect(
-    clippy::needless_pass_by_value,
-    reason = "Platform transfers the admitted argument buffer to its codec hook"
-)]
-fn decode_unit(bytes: Vec<u8>) {
+fn decode_unit(bytes: &[u8]) -> Result<(), ic_wire::Error> {
     ic_wire::decode::<()>(
-        &bytes,
+        bytes,
         ic_wire::Encoding::Frame {
             method: OBSERVE,
             direction: ic_wire::Direction::Request,
         },
         REQUEST,
     )
-    .unwrap();
 }
 #[expect(
     clippy::needless_pass_by_value,
     reason = "Platform transfers the handler result to its encoding hook"
 )]
-fn encode_observation(value: Observation) -> Vec<u8> {
+fn encode_observation(value: Observation) -> Result<Vec<u8>, ic_wire::Error> {
     ic_wire::encode(
         &value,
         ic_wire::Encoding::Frame {
@@ -253,17 +230,11 @@ fn encode_observation(value: Observation) -> Vec<u8> {
         },
         RESPONSE,
     )
-    .unwrap()
 }
-#[cdk::query(
-    name = "auth_fixture_observe",
-    guard = "bounded_request",
-    decode_with = "decode_unit",
-    encode_with = "encode_observation"
-)]
-fn observe() -> Observation {
+#[runtime::query(runtime = ic_platform_runtime, name = "auth_fixture_observe", guard = bounded_request, decode = decode_unit, encode = encode_observation, max_bytes = 256, on_error = crate::endpoint_error)]
+fn observe((): ()) -> Observation {
     STATE.with_borrow(|s| {
-        let certificate = api::data_certificate().unwrap();
+        let certificate = api::data_certificate(RESPONSE.bytes).unwrap().unwrap();
         let tree = witness(s.leaf);
         let mut view = Observation {
             progress: Progress::Closed,
@@ -297,4 +268,12 @@ fn observe() -> Observation {
         }
         view
     })
+}
+
+fn decode_upgrade(bytes: &[u8]) -> Result<(), String> {
+    if bytes.is_empty() {
+        Ok(())
+    } else {
+        Err("unexpected upgrade input".into())
+    }
 }

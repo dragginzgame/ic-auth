@@ -69,10 +69,10 @@ Clock observations and attempted-work charges preserve the existing refusal
 semantics. State loss does not reset replay/revocation evidence into authority.
 Bounded pruning and indexed lookup remain requirements, not optional optimization.
 
-Supporting volatile and stable storage does not itself decide the future public
-custom commit-callback API. Preserve its demonstrated guarantees in the acceptance
-reference; do not promise or remove downstream API compatibility without reviewing
-actual consumers. Rust API simplification may differ from Wire compatibility.
+Supporting volatile and stable storage does not require retaining the pre-recode
+custom commit-callback API. The authorized hard cut assumes no existing consumers
+need that API. New host boundaries must independently prove atomicity and recovery;
+no legacy implementation or compatibility graph is required for qualification.
 
 ## Deliberate exclusions
 

@@ -4,8 +4,9 @@ A clean restart of IC Auth around its current application-authentication design.
 Volatile authentication storage is the current milestone. Stable storage is a
 future milestone, targeting `ic-storage-new` with orthogonal persistence once its
 contract is ready. No interim `ic-storage` adapter is planned.
-Existing Wire layouts and signed credential bytes are compatibility constraints,
-not redesign targets.
+The pre-recode implementation imposes no Wire/API compatibility obligation.
+One current contract is qualified by independent fixtures and Rust/browser checks;
+historical sources remain provenance, not executable test dependencies.
 
 **Status: volatile receiver/issuer libraries and partial browser lifecycle implemented.**
 The three product crates own passive protocol types, exact Wire contracts and Auth
@@ -16,13 +17,13 @@ issuance/renewal intents and exact-result reconciliation. Both preserve host-own
 transaction boundaries and refuse recovery by resetting lost volatile state.
 
 The private browser package implements durable local invalidation, credential
-retrieval, receiver admission and one-step cleanup. Its shared HTTP transport uses
-Platform's certified update path. Complete consumer integration, readiness,
+retrieval, coalesced receiver readiness/admission and one-step cleanup. Its shared HTTP transport uses
+Platform's certified update path. Complete consumer integration, guarded ordinary calls,
 cleanup scheduling and key disposal remain open. See the
 [current handoff](docs/status/current.md) for present capability and evidence limits.
 
 Source package versions are Auth 0.46.1 and protocol-types/Wire 0.42.0; the current
-unreleased source checkpoint is 0.46.3. All crates retain `publish = false`, and the
+unreleased source checkpoint is 0.47.0. All crates retain `publish = false`, and the
 browser package is private. Version 0.2.0 remains the last tagged GitHub milestone.
 The original repository remains production owner until qualification and explicit
 adoption approval. No registry publication or consumer cutover is implied.
@@ -42,12 +43,12 @@ The shared `make deps-update` maintains the lock; `toko-cloc -d 1` reports sourc
 and test counts. See the [request boundary](docs/development/request-boundary.md)
 and [claims boundary](docs/development/claims-boundary.md) for evidence and scope.
 The [Wire boundary](docs/development/wire-boundary.md) records native budget and
-old/new generated-browser comparisons. `make qualify-wire` runs the independent
-native comparison; `make qualify-wire-browser` also needs Node 24.21.0 and the
-pinned reference Git objects (`AUTH_REFERENCE_REPO` defaults to `../ic-auth-legacy`).
+current generated-browser checks. `make qualify-wire` runs native resource checks;
+`make qualify-wire-browser` needs Node 24.21.0 and independently assembles all
+37 current fixtures without a legacy checkout.
 The [Ed25519 verification boundary](docs/development/verification-boundary.md)
 records protected inputs, refusal/charging order and independent signatures.
-Run `make test-verification` and `make qualify-ed25519` for its focused checks.
+Run `make test-verification` for its focused strict-verification checks.
 The [certified issuer boundary](docs/development/certified-issuer-boundary.md)
 records that component's scope and real certificate fixtures;
 `make qualify-certified-issuer` runs those checks.
@@ -56,7 +57,7 @@ records root signing commitments and fixtures; run `make test-delegation-encodin
 The [root verification boundary](docs/development/root-delegation-boundary.md)
 records enrollment, grant binding and proof limits; run `make qualify-root-delegation`.
 The [complete certified boundary](docs/development/certified-verification-boundary.md)
-records the combined path and legacy cryptographic compatibility; run
+records the combined path and independent cryptographic evidence; run
 `make qualify-certified qualify-shared-verification`.
 `make test-wire-projection qualify-wire-admission` covers consuming Wire/domain
 projection and real proofs through the verifier; Canic still owns endpoint wiring.

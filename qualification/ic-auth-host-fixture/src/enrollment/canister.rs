@@ -1,12 +1,12 @@
 //! Actual inter-canister fixture responder; never a production enrollment service.
 use super::{CONFIGURE, KEY, LIMITS, METHOD, Scenario, Snapshot};
 use crate::receiver::TIME_ORIGIN_NS;
-use ic_platform_runtime::{cdk, cdk::api, ic0};
+use ic_platform_runtime::{self as runtime, system as api};
 use std::cell::Cell;
 
 thread_local! { static SCENARIO: Cell<Scenario> = const { Cell::new(Scenario::Initial) }; }
 fn bounded() -> Result<(), String> {
-    if ic0::msg_arg_data_size() > LIMITS.bytes {
+    if api::argument_size() > LIMITS.bytes {
         Err("oversized enrollment frame".into())
     } else {
         Ok(())
@@ -14,28 +14,23 @@ fn bounded() -> Result<(), String> {
 }
 fn controller() -> Result<(), String> {
     bounded()?;
-    if api::is_controller(&api::msg_caller()) {
+    if api::is_controller(&api::caller()) {
         Ok(())
     } else {
         Err("fixture controller required".into())
     }
 }
-#[expect(
-    clippy::needless_pass_by_value,
-    reason = "Platform owns the codec buffer"
-)]
-fn decode_scenario(bytes: Vec<u8>) -> Scenario {
+fn decode_scenario(bytes: &[u8]) -> Result<Scenario, ic_wire::Error> {
     ic_wire::decode(
-        &bytes,
+        bytes,
         ic_wire::Encoding::Frame {
             method: CONFIGURE,
             direction: ic_wire::Direction::Request,
         },
         LIMITS,
     )
-    .unwrap()
 }
-fn encode_unit() -> Vec<u8> {
+fn encode_unit((): ()) -> Result<Vec<u8>, ic_wire::Error> {
     ic_wire::encode(
         &(),
         ic_wire::Encoding::Frame {
@@ -44,38 +39,27 @@ fn encode_unit() -> Vec<u8> {
         },
         LIMITS,
     )
-    .unwrap()
 }
-#[cdk::update(
-    name = "authority_fixture_configure",
-    guard = "controller",
-    decode_with = "decode_scenario",
-    encode_with = "encode_unit"
-)]
+#[runtime::update(runtime = ic_platform_runtime, name = "authority_fixture_configure", guard = controller, decode = decode_scenario, encode = encode_unit, max_bytes = 2048, on_error = crate::endpoint_error)]
 fn configure(scenario: Scenario) {
     SCENARIO.set(scenario);
 }
 
-#[expect(
-    clippy::needless_pass_by_value,
-    reason = "Platform owns the codec buffer"
-)]
-fn decode_request(bytes: Vec<u8>) -> [u8; 32] {
+fn decode_request(bytes: &[u8]) -> Result<[u8; 32], ic_wire::Error> {
     ic_wire::decode(
-        &bytes,
+        bytes,
         ic_wire::Encoding::Frame {
             method: METHOD,
             direction: ic_wire::Direction::Request,
         },
         LIMITS,
     )
-    .unwrap()
 }
 #[expect(
     clippy::needless_pass_by_value,
     reason = "Platform owns the handler result"
 )]
-fn encode_snapshot(value: Snapshot) -> Vec<u8> {
+fn encode_snapshot(value: Snapshot) -> Result<Vec<u8>, ic_wire::Error> {
     ic_wire::encode(
         &value,
         ic_wire::Encoding::Frame {
@@ -84,17 +68,11 @@ fn encode_snapshot(value: Snapshot) -> Vec<u8> {
         },
         LIMITS,
     )
-    .unwrap()
 }
-#[cdk::update(
-    name = "authority_fixture_snapshot",
-    guard = "bounded",
-    decode_with = "decode_request",
-    encode_with = "encode_snapshot"
-)]
+#[runtime::update(runtime = ic_platform_runtime, name = "authority_fixture_snapshot", guard = bounded, decode = decode_request, encode = encode_snapshot, max_bytes = 2048, on_error = crate::endpoint_error)]
 fn snapshot(challenge: [u8; 32]) -> Snapshot {
     let mut result = Snapshot {
-        receiver: api::msg_caller().as_slice().to_vec(),
+        receiver: api::caller().as_slice().to_vec(),
         challenge,
         revision: 1,
         generation: 7,

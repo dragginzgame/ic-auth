@@ -36,27 +36,26 @@ trailing material, invalid tags/principals/u64 and oversize inputs. Claims,
 signatures, requested-scope counts and scope text lengths have below/at/above
 field tests. Large certified material proves aggregate allocation refusal and
 the separate browser retention policy. Redundant outer Postcard varints retain
-reference acceptance; signed claims have their own strict codec.
+the current contract's acceptance; signed claims have their own strict codec.
 
-`make qualify-wire` runs the independent qualification package using published
-Wire 0.24.1. Its 296 fixed thresholds were measured from reference Wire 0.22.2
+`make qualify-wire` runs the independent qualification package using the selected
+published Wire. Its 296 fixed thresholds were measured from reference Wire 0.22.2
 before removing that dependency, separately for encoding/decoding and all four
 allowances on the 37 frames. It asserts below/at/above acceptance against these
 retained expectations, not a second invocation of the current codec. Large
 certified material also exercises successful admission and aggregate-allocation
 refusal. See [threshold provenance](../../qualification/ic-auth-wire-conformance/tests/fixtures/README.md).
-This tests codec supplier compatibility for the selected schemas and
-corpus, not an exhaustive proof over every possible input or the old Auth engine.
+These are retained current resource expectations, not an obligation to match an
+old engine. Intentional current-contract changes update expectations through review.
 
 `make qualify-wire-browser` generates all four modules and the matching supplier
-runtime into `qualification/target/wire-browser`, then compares them with the
-exact reference browser code and 37 retained frames. Node 24.21.0 and the pinned
-Git objects are required; override `AUTH_REFERENCE_REPO` for another reference
-checkout. The script authenticates old sources against `reference.sha256` and
-runs them in disposable directories. Decoded byte fields must remain detached
-after mutation of their input subarrays. Public method names, update-mode
-metadata and retention constants remain compatible. Generated source text may
-differ with the new supplier; bytes, public value shapes and tested behavior agree.
+runtime into `qualification/target/wire-browser`. The independent fixture assembler
+spells all 37 current frames from explicit Postcard primitives and literal fields,
+without any Auth/Wire codec, generated schema or legacy source. It checks the
+retained TSV bytes before executing the current generated codecs in both directions.
+Node 24.21.0 is required; no sibling checkout or Git objects are used. Assertions
+cover current method names, update mode, retention constants, detached decoded
+subarrays, truncated/trailing frames and the current redundant-varint behavior.
 
 The optional `typescript` feature supplies native-only Rust metadata derives.
 The generator adds the existing public convenience exports around supplier output;
@@ -66,14 +65,11 @@ No browser runtime or metadata generator is selected in the default product grap
 Wasm excludes the host metadata even when the feature is forwarded.
 
 See [fixture provenance](../../crates/ic-auth-wire/tests/fixtures/README.md).
-The generated modules also passed TypeScript 7.0.2 with `--strict --noEmit`,
-`--target ES2022 --module NodeNext --moduleResolution NodeNext`, using the
-already-installed compiler in the read-only reference client's `node_modules`.
-The browser Make target itself performs Node codec execution, not static checking;
-no TypeScript installer or frontend package is introduced here.
-Neither check establishes SDK-certified transport or actual browser lifecycle.
-Consumer API inventory, real browser/SDK use and exhaustive/adversarial proof
-acceptance remain open. Native proof admission is covered below.
+Use `make check-client-generated` and `make test-client` for the private client's
+current generator comparison, strict TypeScript checking and SDK/codec cases.
+The browser Make target itself performs Node codec execution. Neither gate alone
+establishes SDK-certified transport or installed lifecycle acceptance; those have
+separate focused checks. Native proof admission is covered below.
 
 ## Consuming domain projection
 

@@ -2,6 +2,14 @@
 
 Status: proposed replacement architecture, 15 November 2026. This selects an implementation direction and acceptance obligations. It does not authorize consumer cutover, data deletion, a new issuer service or a storage-format change. The companion qualification plan below defines the implementation sequence.
 
+Current compatibility decision (16 November 2026, issue #2): the maintainer
+authorized a hard cut from the pre-recode implementation and confirmed no existing
+users/deployments need its Wire/API compatibility. Historical source links below
+retain provenance, not executable-oracle or parity requirements. This repository
+owns one current contract, independently qualified with its Rust/browser consumers.
+The current layout is retained by this cleanup without promising historical
+identities forever. No existing live data is migrated or deleted.
+
 Milestone scope: volatile authentication storage first, as approved during implementation. Stable storage is a future milestone while `ic-storage-new` is being developed. No interim `ic-storage` adapter is planned. Persistence-specific requirements below remain future acceptance obligations, not blockers for the volatile milestone or permission to invent the supplier API.
 
 ## 1 Decision
@@ -20,19 +28,19 @@ The architectural change is to make a complete receiver operation the unit of ow
 
 This is a fresh implementation of selected responsibilities, not a port of the old module tree. The existing engine already shares important checks; a proposed consolidation earns its place by removing a transformation or independent invariant without losing refusal, recovery or cost guarantees.
 
-## 2 Verified reference and scope
+## 2 Historical reference and current scope
 
 Reference: [dragginzgame/ic-auth-legacy at e52a40be75dd9809d0528189d84b43fe96952ad9](https://github.com/dragginzgame/ic-auth-legacy/tree/e52a40be75dd9809d0528189d84b43fe96952ad9). Public main resolved to that same commit during this review. Its commit message is “on hold.”
 
 | Verified source fact | Design consequence |
 | - | - |
-| Workspace selects Engine 0.41.1, Protocol types/Wire 0.40.1 and Rust 1.100.0 | Preserve the reference identities and freeze a replacement supplier graph before qualification |
+| Workspace selects Engine 0.41.1, Protocol types/Wire 0.40.1 and Rust 1.100.0 | Select the current supplier graph and qualify its actual boundaries |
 | Complete Ed25519 and certified verifiers feed one session engine | Keep one admission policy; do not introduce mechanism-specific sessions |
 | Stable receiver reconstructs at most two selected login records into a memory ledger | Replace this translation with bounded receiver facts, subject to differential qualification |
 | Stable caller records already combine an active session or retained fence | Preserve this useful locality; do not create a duplicate session mirror |
 | Persistent issuer owns intents, renewal indexes and completed results | Replace its lifecycle deliberately, not with a stateless signing callback |
 | Browser package is private and includes durable admission/logout coordination | Browser uncertainty handling remains product scope |
-| Custom session-store commit/restore APIs are supported alongside the stable backend | Their removal requires actual consumer review, not an assumption that stable storage displaced them |
+| Custom session-store commit/restore APIs are supported alongside the stable backend | Historical APIs impose no retention requirement under the authorized hard cut |
 
 Sources: [manifest](https://github.com/dragginzgame/ic-auth-legacy/blob/e52a40be75dd9809d0528189d84b43fe96952ad9/Cargo.toml), [engine](https://github.com/dragginzgame/ic-auth-legacy/blob/e52a40be75dd9809d0528189d84b43fe96952ad9/crates/ic-auth/src/session/mod.rs), [stable receiver](https://github.com/dragginzgame/ic-auth-legacy/blob/e52a40be75dd9809d0528189d84b43fe96952ad9/crates/ic-auth/src/persistent/receiver/mod.rs), [persistent integration](https://github.com/dragginzgame/ic-auth-legacy/blob/e52a40be75dd9809d0528189d84b43fe96952ad9/docs/integration/persistent-auth.md), [browser contract](https://github.com/dragginzgame/ic-auth-legacy/blob/e52a40be75dd9809d0528189d84b43fe96952ad9/docs/protocol/browser-client.md).
 
@@ -56,9 +64,9 @@ Retain three existing public boundaries: ic-auth-protocol-types, ic-auth-wire an
 
 Keep receiver implementations as modules behind explicit capabilities, not one package per table or operation. Future persistence mechanics stay backend-local; do not expose them through protocol types, shared Auth decisions or mandatory receiver API bounds. Platform supplies cryptographic primitives and canonical Principal identity. Keep metadata generation, Host, Build, Testkit and release tooling out of deployed receiver dependencies.
 
-Public signatures are proposals until the consumer inventory is complete. Package identity, Rust source compatibility, Wire compatibility and stored-record compatibility are separate decisions.
+Public signatures serve actual current consumers. Pre-recode package/API/Wire parity is not an acceptance gate; live-data custody and future delivery remain separate decisions.
 
-## 4 Frozen protocol contracts
+## 4 Current protocol contracts
 
 ### Identity and authority
 
@@ -101,7 +109,7 @@ Completed issuer evidence retains its original accepted structural recovery rule
 
 ## 5 Exact Wire surface
 
-Preserve these method identities, direction checks, DTO declaration order, nested tags and error projections. Names are reference bindings; consumers own actual exports.
+These are the current method identities, DTO order, tags and error projections, qualified together with the browser codecs. They are not immutable historical bindings. Hosts own actual exports; direction checks and bounded admission remain required.
 
 | Contract | Identity | Request | Response |
 | - | - | - | - |
@@ -215,7 +223,7 @@ Prepare validation, bounded encodings and capacities before publication. Memory 
 
 A projection cannot leak a borrowed guard across await. A copied result does not become later authority. Read-only session access does not imply that a required trusted clock observation is absent; passive inspection, by contrast, must not advance it.
 
-Custom commit callbacks remain an acceptance surface. Inventory consumers before deciding whether to retain an adapter, redesign their API or perform a coordinated Rust cut. Preserve typed callback failures, exact deltas, post-commit counts, no writes on rejected changes and no success before durable completion.
+The pre-recode custom commit-callback API need not be retained. Current host transaction boundaries must independently prove their behavior. Preserve typed callback failures, exact deltas, post-commit counts, no writes on rejected changes and no success before durable completion.
 
 ## 9 Backends, budgets and retention
 
@@ -227,7 +235,7 @@ Open validates schema, protected configuration, counts and required metadata; op
 
 Receiver proof verification uses one persistent weighted bucket across mechanisms, callers and endpoints. Unknown logout has a separate operation bucket. Both begin empty in the reference. Issuer fresh-intent credit begins at the configured burst. Reopen/restart does not refill any bucket. No partial weighted charge occurs when credit is insufficient.
 
-Physical expired rows count until explicit pruning. Replay quota belongs to the issuer-qualified account, not the changing browser key. Preserve deterministic tie ordering and bounded removal. Retain current public maintenance bounds during compatibility qualification: memory session/replay batches up to 128, persistent issuer pruning up to 32, and inspection up to 32 sessions over 128 visited caller rows plus one lookahead. Extract other backend-specific ceilings from the pinned implementations before claiming full equivalence.
+Physical expired rows count until explicit pruning. Replay quota belongs to the issuer-qualified account, not the changing browser key. Preserve deterministic tie ordering and bounded removal. Qualify current public maintenance bounds: memory session/replay batches up to 128, persistent issuer pruning up to 32, and inspection up to 32 sessions over 128 visited caller rows plus one lookahead. Select future backend-specific ceilings from its measured requirements; historical equivalence is not required.
 
 Pruning cannot erase consumed operation watermarks, live replay, unexpired denial or known device generations. Empty inspection pages may still advance their exclusive cursor; callers must not loop internally until a full page appears.
 
@@ -269,7 +277,7 @@ Do not promise that every reconstructed certified witness is byte-identical. Do 
 
 Renewal sequence watermarks and operation epochs prevent recreation after result pruning. Bound operations globally and per account, reserve bytes for completion and prevent login reclamation while operations reference it. On binding-state loss, disable old bindings and require new account authentication and a fresh browser key.
 
-No production wallet issuer, signing service or secret-key store is selected. Existing signature/delegation/batch helper APIs receive an individual consumer/disposition review; a receiver-focused rewrite does not authorize deleting independently used primitives.
+No production wallet issuer, signing service or secret-key store is selected. Retain only signature/delegation/batch helpers needed by the current contract and its consumers.
 
 ### First volatile issuer slice
 
@@ -299,7 +307,7 @@ authorizes an additional effect. Closing lost state is containment, not recovery
 Initial issue and authenticated renewal enter the same operation owner after
 their distinct caller/binding checks. They do not create separate pending-result
 stores. Stable codecs, reopen/schema conversion and backing leases are deferred;
-custom consumers and helper APIs still require their own disposition review.
+current consumers and helper APIs are qualified at their actual boundaries.
 The first implementation must exercise exact retries, conflicting callbacks,
 capacity refusal before dispatch, authority/epoch changes and response loss using
 independent effect traces. No empty issuer package or accepting endpoint represents
@@ -426,7 +434,12 @@ crypto, runtime or automatic application replay is introduced.
 [compatibility and acceptance](compatibility.md#browser-evidence-and-remaining-acceptance)
 records native and installed evidence. Raw HTTP reply authentication and a fixed combined issuer/receiver journey are
 qualified on one subnet, including reconciliation, a protected write and logout.
-Production Canic integration, multi-receiver coordination, readiness/coalescing,
+The per-login SessionCoordinator shares readiness/admission and credential flights,
+checks ephemeral hints against journal time, and bounds outstanding callers at 64.
+Only typed expiry or completed expired evidence permits its second preparation
+attempt; explicit admission never uses that retry. It returns scheduling metadata,
+not an SDK signer or application authority.
+Production Canic integration, complete multi-receiver acceptance,
 guarded ordinary calls, cleanup scheduling, key disposal and renderer interruption
 remain open. The lifecycle requirements below still apply to that remaining work.
 
@@ -495,14 +508,14 @@ entropy/refresh scheduling, trusted recovery or application endpoint wiring.
 | Duplicate canonical bytes, request hashes or browser codecs | One authoritative owner; retain independent vectors |
 | Separate policy for Ed25519/certified or volatile/stable | Prohibited |
 | Retired token/session flows and historical compatibility readers | Do not reintroduce |
-| Existing independently used verifier/signature helpers | Retain or relocate only after consumer inventory |
+| Historical verifier/signature helpers | Retain only capabilities required by current consumers |
 | Custom commit/restore API | Decision pending actual downstream review |
 | Release scripts, npm publication and deployment framework | Do not transplant into the implementation scaffold |
 | Tests for uniquely required guarantees | Retain/re-express independently; delete only redundant coverage with a recorded mapping |
 
 Reuse of a sound primitive is permitted with a named invariant, caller, dependency review and evidence. Copying an existing package is not a completed design milestone.
 
-Wire and signed bytes remain fixed. Stable records do not become compatible merely because wire vectors pass. Before opening existing backing, choose either exact current-record compatibility or a new format that refuses legacy backing. A hard cut requires explicit consumer authority and a recovery/data disposition plan; this design supplies none.
+Current Wire and signed-byte expectations are explicit and independently tested. Historical parity is not required. Passing Wire checks does not establish storage compatibility; any future opening of retained backing requires separate admission and recovery evidence. The source hard cut authorizes no live-data reset or deletion.
 
 Do not reuse the current schema identifiers for different records. Do not erase browser journals or issuer pending work to simplify the cut. Old production state remains owned by its existing host until an authorized transition is qualified.
 
@@ -537,19 +550,19 @@ actual external consumer earns that boundary; preserve public host inputs, error
 configuration and useful result projections. Audit the current public receiver
 policy surface before first downstream adoption or its next API change.
 
-Custom commit/restore disposition requires actual consumer evidence; absence from
-the new implementation does not establish a removed obligation. Defer durable
+The authorized pre-recode cut retires historical custom commit/restore API
+obligations; current host atomicity and recovery requirements remain. Defer durable
 abstractions until the supplier and second implementation demonstrate their needs.
 Track production Rust, Rust tests/qualification and browser TypeScript separately,
 and compare equivalent capabilities. Retain independent safety tests; reduce tests
 only with a concrete mapping showing redundant coverage. Smaller files, renamed
 layers and missing functionality alone do not establish reduced complexity.
 
-## 1 Freeze the reference and contract inventory
+## 1 Maintain the current contract and provenance inventory
 
 Use commit e52a40be75dd9809d0528189d84b43fe96952ad9 of dragginzgame/ic-auth-legacy. Resolve files from committed objects, not a sibling working tree. The repository's reference.sha256 records selected reference-file bytes, including the initial request implementation and retained vector source. This is an integrity inventory, not test results or a complete repository archive; retained fixture provenance lives beside the tests.
 
-Before implementation, retain:
+Maintain independent expectations for the current implementation:
 
 - Canonical claims, signing-domain and session-request hash vectors with independent expected bytes.
 
@@ -559,13 +572,13 @@ Before implementation, retain:
 
 - Browser journal profile, completion identity, refusal codes and recovery traces.
 
-- A named obligation for every unique reference contract test, including negative backend drivers.
+- Safety and refusal cases selected for current behavior, including negative host drivers.
 
-- Actual downstream call sites for custom SessionStore/commit/restore APIs, standalone proof/signature helpers and browser exports.
+- Actual current downstream call sites and browser exports.
 
 The current source's receiver schema is 0x41555448525304; issuer schema is 0x41555448495303. These identifiers are reference facts, not names available for a different replacement encoding.
 
-The source identifies Canic integration and a private browser package, but those documents do not establish all current downstream callers. Do not infer “unused” from an absent local reference. Record each consumer's package/source identity, feature set, API use, retained state, pending issuer work and browser journals. Unavailable consumers leave an API-removal or cutover gate open, not a reason to stop independent implementation.
+The maintainer's hard-cut decision removes pre-recode consumer inventory as an API-removal gate. Record actual current Canic/browser consumers, selected features and recovery obligations when integrating them; do not infer production adoption from library tests.
 
 Produce a disposition table: preserved contract, newly implemented owner, independent acceptance case, proposed API change, required downstream decision. Do not port old engine code merely to make this table green.
 
@@ -581,7 +594,7 @@ Required evidence:
 
 - Unsigned session-scope reordering retains the old request hash; duplicates refuse; None TTL and explicit default differ.
 
-- Old/new cross-decoding and exact bytes for every method, response/error variant and nested proof variant.
+- Independent current bytes and Rust/browser decoding for every method, response/error variant and nested proof variant.
 
 - Separate below/at/above byte, allocation, node and depth cases. A byte-only test does not cover traversal or allocation admission.
 
@@ -591,13 +604,13 @@ Required evidence:
 
 - Retired method identities and token/schema profiles refuse without fallback.
 
-Keep the old implementation only in independent qualification consumers/processes. No product crate may depend on it. A round trip through one new encoder/decoder is not independent evidence.
+Do not execute the old implementation in product or qualification checks. Independently assemble fixtures without the codec under test. A round trip through one encoder/decoder is not independent evidence.
 
 ## 3 Prove complete verification
 
 Qualify both enrolled Ed25519 and certified proofs before calling either a replacement.
 
-Ed25519 cases include valid signatures, wrong digest/key, malformed length, noncanonical S, small-order key/R, cross-domain replay, wrong caller and feature-unified dependencies that otherwise enable compatibility behavior.
+Ed25519 cases include valid signatures, wrong digest/key, malformed length, noncanonical S, small-order key/R, cross-domain replay, wrong caller under the supported dependency graph.
 
 Certified cases include complete Root/delegation and issuer-canister verification, wrong canister/seed/key binding, wrong network root, audience or grants, malformed CBOR/tree/path material, stale/future certificates and independently exhausted proof-work bounds.
 

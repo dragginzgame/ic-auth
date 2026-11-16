@@ -1,4 +1,4 @@
-//! Check current Wire against frozen reference bytes and resource thresholds.
+//! Check current Wire against independent current bytes and resource expectations.
 //! Expectations were retained before removing the historical Wire dependency.
 
 use ic_auth_wire::{
@@ -133,7 +133,7 @@ fn check<T: Serialize + DeserializeOwned + PartialEq + Debug>(
 }
 
 #[test]
-fn fixed_frames_and_each_resource_boundary_match_frozen_reference() {
+fn current_frames_and_each_resource_boundary_match_fixed_expectations() {
     for (name, bytes) in fixtures() {
         if name.starts_with("credential-") {
             check::<PortableCredential>(

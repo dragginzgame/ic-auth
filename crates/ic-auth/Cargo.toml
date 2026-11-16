@@ -22,7 +22,7 @@ ed25519-verification = [
     "ic-platform/ed25519",
     "ic-auth-protocol-types/principal-self-authenticating",
 ]
-certified-issuer-verification = ["dep:ic-platform", "ic-platform/signature-verification"]
+certified-issuer-verification = ["dep:ic-platform", "ic-platform/canister-signature-authentication"]
 root-delegation-verification = ["dep:ic-platform", "ic-platform/ecdsa"]
 certified-verification = [
     "certified-issuer-verification",

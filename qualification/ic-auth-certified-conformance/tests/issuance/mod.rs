@@ -6,10 +6,8 @@ use ic_auth::issuer_memory::{
     IssuerTicket, MemoryIssuer,
 };
 use ic_auth_protocol_types::Principal;
-use ic_platform::certification::{
-    Certificate, HashTree,
-    cbor::{encode_canister_signature, encode_certificate},
-    fork, labeled, leaf,
+use ic_platform::certificate::construction::{
+    Certificate, HashTree, encode_canister_signature, encode_certificate, fork, labeled, leaf,
 };
 
 fn authority() -> IssuerAuthority {

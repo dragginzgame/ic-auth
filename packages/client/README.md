@@ -19,6 +19,9 @@ Import from `@dragginzgame/ic-auth-client`:
 | `journal.close()` | Release this database handle; does not perform logout |
 | `retrieveCredential(options)` | Reuse saved evidence or make one issue/renew/lookup call, then commit exact evidence |
 | `establishSession(options)` | Retrieve evidence, inventory the receiver and make one guarded Wire admission call |
+| `new SessionCoordinator(options)` | Bind one login, fixed scopes/transports and an explicit receiver-to-journal deadline mapping |
+| `coordinator.ensureSession(target)` | Reuse a checked hint or share bounded readiness/admission work |
+| `coordinator.establish(target)` | Force one admission, sharing only an equivalent outstanding attempt |
 | `cleanupOnce(options)` | Resume committed logout with at most one reserved Wire effect |
 | `httpUpdateTransport({ host, rootKey, methodName, fetch? })` | Supply the shared SDK-certified raw update transport for admission or cleanup |
 
@@ -84,6 +87,38 @@ its original tag; transport errors propagate. No refusal automatically renews or
 replays an application operation. Consumer Canic endpoints own wiring and current
 application authorization.
 
+## Readiness and admission coalescing
+
+Create one `SessionCoordinator` per login/tab with the same options as
+`establishSession`, except `target` and `refreshThrough`, plus
+`refreshAt(receipt, target)`. This synchronous host callback returns a conservative
+exclusive deadline in the journal clock. Auth infers no receiver/browser offset.
+The coordinator captures identities, issuer, scopes and adapter entrypoints; its
+optional signal cancels the whole coordinator, including shared work.
+
+`ensureSession(target)` returns a detached scheduling receipt, never a signer or
+application authority. Invoke it again before a new application operation; an SDK
+signing-boundary readiness wrapper is not supplied by this slice. A live hint reads
+only checked journal metadata. Proof expiry alone does not expire a receiver hint.
+Reopening a coordinator has no hint and admits retained exact evidence again.
+
+Concurrent readiness for one receiver shares preparation. Different receivers share
+in-flight credential retrieval while admitting independently. Expired hints refresh
+through the sequence that created the lease; a newer completed sequence can serve
+another receiver without another renewal. There are at most two preparation attempts:
+only an authenticated typed `Expired` refusal or an exactly recovered expired
+credential permits one fresh-proof attempt. Other refusals and uncertain replies
+propagate. A freshly mapped deadline already reached returns `lease_expired`
+without looping. Explicit `establish` still forces one admission without that retry.
+
+The coordinator admits at most 64 outstanding public operations, including duplicate
+waiters. Overflow returns `operation_limit` before journal access; completion,
+refusal and network timeout release the slot. This is a per-coordinator bound, not
+cross-tab scheduling. The existing five-second network attempts remain the effect
+owner. Use `journal.beginLogout` directly: local invalidation never waits for an
+admission flight, and late signatures/results cannot install usable readiness.
+The coordinator performs no application operation, retry or private-key disposal.
+
 ## Logout and cleanup
 
 Call `beginLogout` first. Its successful strict commit establishes local
@@ -129,7 +164,7 @@ write, retained fences and zero remaining sessions. Captured proof replay after
 logout refuses even when a raw caller bypasses the local journal. The fixture uses
 installation-owned enrollment and a local public test signer; production Canic
 wiring, external signing recovery and multi-receiver coordination remain unqualified.
-Readiness/coalescing, guarded ordinary application calls, cleanup scheduling,
+Guarded ordinary application calls, cleanup scheduling,
 key disposal and renderer-interruption acceptance remain open.
 
 Run `make test-client`, `make test-client-journal` and `make check-client-generated`;

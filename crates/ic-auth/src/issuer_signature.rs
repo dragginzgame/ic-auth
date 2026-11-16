@@ -6,9 +6,10 @@
 //! proof bounds and charge the receiver-wide budget once for the whole proof.
 
 use ic_auth_protocol_types::Principal;
-use ic_platform::{
-    canister_sig_creation::CanisterSigPublicKey,
-    signature_verification::{CanisterSigTimeError, verify_canister_sig_with_time},
+use ic_platform::certificate::{
+    CanisterSignatureKey, CanisterSignatureLimits, CanisterSignatureVerifyError,
+    CertificateDecodeLimits, PreparedRootKey, TimePolicy, TimeWindow, VerificationLimits,
+    VerifyError, authenticate_canister_signature, decode_canister_signature,
 };
 use sha2::{Digest, Sha256};
 use std::{error::Error, fmt};
@@ -98,26 +99,60 @@ pub fn verify_issuer_signature(
     if !(20..=129).contains(&public_key_der.len()) {
         return Err(E::InvalidPublicKey);
     }
-    let key = CanisterSigPublicKey::try_from(public_key_der).map_err(|_| E::InvalidPublicKey)?;
-    if key.canister_id != policy.signing_canister {
+    let key = CanisterSignatureKey::from_der(public_key_der).map_err(|_| E::InvalidPublicKey)?;
+    if key.issuer() != policy.signing_canister {
         return Err(E::CanisterMismatch);
     }
-    if <[u8; 32]>::from(Sha256::digest(&key.seed)) != policy.seed_hash {
+    if <[u8; 32]>::from(Sha256::digest(key.seed())) != policy.seed_hash {
         return Err(E::SeedMismatch);
     }
     if policy.ic_root_public_key_raw.len() != 96 {
         return Err(E::InvalidRootKeyLength);
     }
-    let time = verify_canister_sig_with_time(
-        &certified_signature_message(claims_digest),
+    let root = PreparedRootKey::from_raw(policy.ic_root_public_key_raw)
+        .map_err(|_| E::InvalidSignature)?;
+    let decoded = decode_canister_signature(
         signature_cbor,
-        public_key_der,
-        policy.ic_root_public_key_raw,
+        CertificateDecodeLimits {
+            bytes: policy.max_signature_bytes.min(131_072),
+        },
+    )
+    .map_err(|_| E::InvalidSignature)?;
+    // Authenticate both timestamps. Auth's unchanged age policy below applies
+    // only to signing time; an older delegation is not a stale signing proof.
+    let all_time = TimeWindow {
+        reference_ns: 0,
+        max_age_ns: 0,
+        max_future_skew_ns: u64::MAX,
+    };
+    let message = certified_signature_message(claims_digest);
+    let evidence = authenticate_canister_signature(
+        decoded,
+        &message,
+        key,
+        &root,
+        TimePolicy {
+            certificate: all_time,
+            delegation: all_time,
+        },
+        CanisterSignatureLimits {
+            message_bytes: message.len(),
+            certificate_bytes: 131_072,
+            verification: VerificationLimits {
+                tree_nodes: 16_384,
+                tree_depth: 128,
+                delegation_bytes: 131_072,
+                canister_ranges: 4096,
+            },
+        },
     )
     .map_err(|error| match error {
-        CanisterSigTimeError::Verification(_) => E::InvalidSignature,
-        CanisterSigTimeError::InvalidCertificateTime => E::InvalidCertificateTime,
+        CanisterSignatureVerifyError::Verification(VerifyError::InvalidTime) => {
+            E::InvalidCertificateTime
+        }
+        _ => E::InvalidSignature,
     })?;
+    let time = evidence.time_ns();
     let age = policy
         .now_ns
         .checked_sub(time)

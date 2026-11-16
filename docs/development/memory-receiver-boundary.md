@@ -117,7 +117,7 @@ invalid bounds/clock/lifecycle refusal. Both real proof mechanisms supply sessio
 
 Logical session/replay sizes preserve the pinned reference `SessionData` and
 `ReplayData` representations, including the 11-byte frame overhead. The optional
-backend uses published IC Wire 0.24.1 `encoded_len` and private borrowed Serde views;
+backend uses published IC Wire 0.24.2 `encoded_len` and private borrowed Serde views;
 it emits no stored frames, selects no persisted layout and introduces no old-format
 reader. The registry index confirmed 0.24.1 as latest non-yanked on 2026-11-15.
 Wire and Serde are optional backend edges using the existing root selections.
