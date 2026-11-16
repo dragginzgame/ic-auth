@@ -157,3 +157,20 @@ are authored for this design; no legacy engine code or test implementation is co
 Normal `make test-memory` and `make verify-fixtures` verify frozen records without
 regenerating signatures. This is native certified receiver evidence, not an IC
 response-authentication, host transaction, durable-storage or browser SDK result.
+
+## Volatile certified issuance
+
+With `issuer-memory`, `tests/issuance/mod.rs` drives the public issuer API to
+the existing frozen `certified.tsv` claims, including slot 1/generation 7. Its
+expected claims and hash come from the independent Node/OpenSSL fixture above.
+The host callback constructs the standard empty signature leaf from the actual
+publication input and composes an application branch using Platform hash trees.
+Platform BLS signs certificates for that root at two query times. Both complete
+proofs verify under the enrolled root, with different witness/certificate bytes
+and the same original credential fingerprint. No fixture or signature-store
+implementation is copied from legacy.
+
+`make test-issuer` checks this case and the frozen Node fixture; hosted
+`test-qualification` includes it through the optional feature. This supplies
+native boundary evidence, not installed IC transaction rollback, production leaf
+retention or certificate acquisition. The host must supply those capabilities.

@@ -1,5 +1,41 @@
 # Changelog
 
+## [0.46.1] - Source checkpoint 2026-11-16
+
+Source checkpoint: `ic-auth` 0.46.1. Protocol-types/Wire remain 0.42.0;
+all packages remain `publish = false`.
+
+### ✨ Added
+
+- Add optional `issuer-memory` Ed25519/certified issuance and browser-authenticated renewal with one private operation
+  phase enum and one retained login binding per account/login identity. Reserve
+  completed claims/signature bytes before entropy, approval or signing, and retain
+  exact callbacks, original deadlines and full-start fresh-intent budget charges.
+- Record external dispatch before returning signing input. Lost responses remain
+  lookup-only; authority changes, revocation and epoch changes refuse late
+  completion. Completed evidence remains recoverable without new signing authority.
+- Preserve browser binding, sequential renewal watermarks and the original login
+  window. Read-only preflight reserves nothing; preparation rechecks after awaits.
+  One lookup index maps retained renewal sequences to the shared operations.
+  Missing evidence never recreates a consumed sequence, and exact results remain
+  retrievable after expiry, revocation or restart without reissuing.
+- Add indexed issuer pruning, capped at 32 operation/login removals per call.
+  Capture positive reconciliation retention at reservation, keep referenced logins
+  and renewal watermarks, and release exact result-byte reservations only on removal.
+  Close consumed-ID epochs independently of restart fences so unrelated live
+  callbacks survive maintenance. Reclaimed slots receive higher generations.
+- Complete certified issuance through synchronous host leaf/root publication.
+  Retain claims in the same operation model; retries never republish a leaf.
+  Host publication failure closes the issuer and requires enclosing rollback.
+  Installed-host recovery and stable custody remain unqualified.
+
+### 🧪 Testing
+
+- Add independent issuer lifecycle, failure-containment and capacity coverage,
+  with Node/OpenSSL signed bytes and existing renewal operation identities.
+  Real Platform BLS certificates verify actual publication inputs and fresh
+  witnesses with unchanged claims. Wire and cryptographic schemes are preserved.
+
 ## [0.46.0] - Source checkpoint 2026-11-16
 
 Source checkpoint: `ic-auth` 0.46.0. Protocol-types/Wire remain 0.42.0;

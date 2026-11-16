@@ -1,4 +1,4 @@
-//! Shared retained refill arithmetic for separate proof and unknown-logout buckets.
+//! Shared retained refill arithmetic for separately owned operation budgets.
 use std::{error::Error, fmt};
 /// Failure before a charged operation begins.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -45,6 +45,16 @@ impl WorkBucket {
     }
     pub(crate) const fn available(&self) -> u32 {
         self.available
+    }
+    #[cfg(feature = "issuer-memory")]
+    pub(crate) fn new_full(
+        capacity: u32,
+        interval_ns: u64,
+        now_ns: u64,
+    ) -> Result<Self, BudgetError> {
+        let mut bucket = Self::new(capacity, interval_ns, now_ns)?;
+        bucket.available = capacity;
+        Ok(bucket)
     }
     pub(crate) const fn observed_at_ns(&self) -> u64 {
         self.observed_at_ns

@@ -273,10 +273,10 @@ No production wallet issuer, signing service or secret-key store is selected. Ex
 
 ### First volatile issuer slice
 
-The next implementation boundary is one bounded issuer operation owner, separate
+The initial implementation boundary is one bounded issuer operation owner, separate
 from receiver dependencies. The reference `persistent/issuer/model.rs::Operation`
 retains nonce, approval and result as separate optional fields. The replacement
-should encode the permitted progress explicitly in a private phase enum with one
+encodes the permitted progress explicitly in a private phase enum with one
 shared immutable operation/login binding. This removes invalid combinations from
 the in-memory representation; it does not remove the required recovery states.
 Do not expose phase fields or a generic transition engine as a public fact API.
@@ -285,8 +285,8 @@ Do not expose phase fields or a generic transition engine as a public fact API.
 | --- | --- |
 | Reserved | Exact request, original deadlines, protected authority/epoch and capacity for completion; accept the first nonce or an exact retry |
 | Challenged | Original nonce; accept host-authenticated approval for that exact intent, with conflicting callbacks refused |
-| Approved | Original nonce/approval and fixed canonical signing input; recheck current authority before recording external dispatch |
-| Dispatched | Exact effect identity and signing input; a lost response stays unresolved and reconciliation is lookup-only |
+| Approved | Original nonce/approval and fixed canonical signing input; recheck current authority before Ed25519 dispatch or synchronous certified publication |
+| Dispatched | Ed25519 only: exact effect identity and signing input; a lost response stays unresolved and reconciliation is lookup-only |
 | Completed | Exact retained claims and mechanism-specific completion evidence; repeated completion/retrieval returns the original result without another signing effect |
 
 Capacity reservation, caller/account authentication, immutable device binding,
@@ -303,8 +303,110 @@ custom consumers and helper APIs still require their own disposition review.
 The first implementation must exercise exact retries, conflicting callbacks,
 capacity refusal before dispatch, authority/epoch changes and response loss using
 independent effect traces. No empty issuer package or accepting endpoint represents
-completion of this slice. These are implementation constraints, not an implemented
-issuer or a claim of LOC savings.
+completion of this slice. These constraints do not establish a complete issuer or
+a claim of LOC savings.
+
+The local implementation after 0.46.0 supplies Ed25519/certified issuance and renewal through
+`ic_auth::issuer_memory`, independently of receiver/verifier features. It retains
+one account owner with login and operation maps; each account has at most eight
+logins, so slot/browser selection needs no separate indexes. Operations refer to
+the immutable login binding and retain their own original times, authority and
+private progress. No initial/renewal split store or public transition/fact API is
+introduced. Initial issuance may reuse an exact retained login under fresh account
+authentication; this is not browser-authenticated renewal.
+
+Browser-authenticated renewal compares the actual ingress principal with the
+retained browser key using the same Platform-backed derivation as verification.
+Its account/login fields are lookup hints; grants must match the original binding.
+Read-only preflight returns inputs for current application permission without
+observing time, consuming credit or reserving a sequence. Preparation repeats the
+checks after any await. The first renewal requires completed issuance; each later
+sequence requires completed previous renewal. Original start, deadline, browser,
+slot, generation and policy remain unchanged.
+
+One per-account lookup index maps `(login identity, sequence)` to the shared
+operation, including its original epoch. It owns no nonce, approval or result.
+The login retains a private initial/in-flight/completed sequence watermark; an
+old issuance completion cannot complete a newer renewal. Missing result evidence
+does not reset this watermark or authorize recreating consumed work. Retained
+browser-authenticated reconciliation remains readable after expiry, restart or
+revocation; fresh preparation does not bypass revocation.
+
+Renewal IDs preserve SHA-256 of the existing request frame at identity
+`0x41555448495201`, with all four original encoding allowances. A private borrowed
+projection uses published Wire; it is not a persistence codec or endpoint. Three
+independently packed Node frame/hash vectors cover consecutive IDs and wide
+integer/principal/grant fields. The issuer feature selects Wire, Serde and Platform
+Types self-authenticating principal support without enabling either verifier.
+
+Preserved in this slice: account/epoch/operation and account/login identities,
+canonical Ed25519 bytes, immutable binding/grants/policy, device exhaustion,
+monotonic generations, original deadlines, global/per-account bounds, full-start
+attempt credit, stale-callback refusal and exact-result reconciliation. Dispatch
+is now an explicit retained state: only its first transition returns signing input,
+and an unknown result is lookup-only. Completion accepts a host-authenticated
+64-byte signing result; Auth does not treat a remote callback as authenticated.
+
+The byte limit reserves exact canonical claims for every operation, including
+pending work, plus 64 signature bytes for Ed25519. Record counts bound remaining
+memory; this is not the legacy serialized-record quota or a heap/allocator measurement. The host
+must still commit dispatch before the effect and authenticate its outcome. Native
+interruption closes partially published state; it does not roll back writes.
+
+Bounded pruning now uses an operation-expiry index and an idle-login expiry index.
+Each operation captures removal at `max(admission, receipt) + reconciliation_retention`;
+pending/unknown/completed outcomes have the same retention obligation. The host's
+positive retention interval is part of the immutable login policy. A stored exact
+result-byte reservation avoids re-encoding records during maintenance. References
+keep logins alive until every retained operation is gone; adding work to an idle
+login removes its expiry entry before publication completes.
+
+One call selects at most 32 records: operations first, then already-idle expired
+logins with the remaining budget. Newly idle logins wait for the next call. Ties
+preserve reference order: time, principal length/bytes, epoch and identity. No
+account/history scan or full-state clone is used, and empty accounts are reclaimed.
+Expired rows remain charged until explicit pruning. Maintenance observes trusted
+time but neither charges nor refills fresh-intent credit.
+
+Forgetting a current-epoch operation/login advances the operation epoch in the
+same publication. A separate boot fence changes only on restart, so pruning does
+not invalidate unrelated live callbacks. Renewal sequence watermarks survive
+result pruning; expired unreferenced login reclamation is protected by closed
+epochs, and newly authenticated slot reuse receives a higher global generation.
+Neither pruning nor volatile state reconstruction establishes fresh authority.
+
+Certified completion now uses the same operation/login owner and completion
+watermark. Protected authority captures either Ed25519 or a certified seed hash;
+request fields cannot switch the mechanism. Certified work moves directly from
+approved to completed through one synchronous host callback, without an external
+signing dispatch. Auth supplies the exact claims and empty-leaf path
+`/sig/SHA256(seed)/SHA256(domain-framed-claims-digest)`. The existing fixed-domain
+framing is shared with verification, preserving all signed bytes.
+
+The host preflights its leaf capacity, then publishes the leaf and composed root
+in the same transaction as Auth completion. Ordinary Auth refusals invoke no
+callback. A callback error or unwind closes the issuer because host writes may
+already exist; an IC host must trap to roll back, and native hosts must discard
+the failed enclosing state. This boundary adds no signature store, executor or
+rollback framework. It retains necessary coordination rather than claiming a
+removed legacy invariant. Exact completed retries skip the callback after expiry,
+revocation, restart or leaf loss. Current witness/certificate bytes can change;
+retained claims and their fingerprint cannot. Host leaf pruning is separate from
+issuer result pruning and cannot authorize re-signing a consumed operation.
+
+Thirty-six public API scenarios, nine private fault/identity/retention tests and
+one full certified issuance fixture exercise the current slice. The latter
+drives actual publication input into a Platform BLS certificate with a composed
+application branch and verifies two fresh witnesses against the frozen claims.
+Stable reopen, installed leaf/root transactions and host recovery remain
+unqualified. The existing independently signed Ed25519 reference fixture proves exact claims and verifier
+interoperability for both issuance and renewal. The former synthetic missing-result
+test is replaced by real pending/completed-result pruning in
+[retention qualification](../../crates/ic-auth/tests/issuer_memory/retention.rs);
+the private overflow case remains. Publication interruption covers reservation,
+completion, pruning and restart. Repeated reclamation checks independently recount
+records, references, indexes and byte reservations. This does not qualify the
+deferred capabilities or external host.
 
 ## 11 Browser lifecycle
 

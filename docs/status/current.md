@@ -1,8 +1,8 @@
 # Current status
 
-The current source checkpoint is Auth **0.46.0**; protocol-types/Wire remain 0.42.0.
-It follows the [0.45.0 receiver checkpoint](https://github.com/dragginzgame/ic-auth-new/commit/421fb765780c2daed069cbfe1d0aeb009fce34af)
-with certified receiver qualification and a narrower Rust API.
+The current source checkpoint is Auth **0.46.1**; protocol-types/Wire remain
+0.42.0. This adds the volatile issuer, browser renewal, bounded retention and
+synchronous certified publication described below.
 All packages remain unpublished. Version 0.2.0 remains the last tagged milestone.
 The current milestone is volatile Auth. Stable storage is explicitly deferred;
 no interim `ic-storage` adapter is planned.
@@ -71,15 +71,45 @@ All nineteen policy tests moved intact beside their private owner. Two synthetic
 proof-to-facts drivers were replaced with mapped real receiver coverage, including
 certified replacement of a denied slot. No public testing facade was added.
 
-Remaining current work includes host enrollment/loss handling, volatile issuer
-state, browser lifecycle and installed-host qualification. Stable storage and
+`issuer-memory` implements bounded Ed25519/certified issuance and browser renewal:
+exact intent, nonce/approval, one Ed25519 dispatch or certified publication,
+reconciliation and retained completion.
+One account owner holds immutable logins and private operation progress; the module
+requires no receiver, verifier, storage or runtime feature. It reserves completed
+claims and applicable signature bytes before effects and starts credit full.
+Account authentication, authority, effects and transactions stay host-owned.
+Renewal uses the authenticated browser, immutable login window and sequential
+completion watermark. One lookup index points to the shared operation records;
+missing evidence cannot recreate consumed sequences. Read-only preflight does
+not reserve work; preparation rechecks the binding after awaits. Independent
+Wire-frame/hash vectors preserve the existing renewal operation identity.
+Indexed pruning removes at most 32 operations/logins per call after captured
+reconciliation retention. It releases exact result-byte reservations, preserves
+referenced logins and sequence watermarks, and closes consumed-ID epochs without
+invalidating unrelated live callbacks. Slot reuse advances generations. Explicit
+restart has its own callback fence and does not refill credit.
+Certified completion now invokes one synchronous host leaf/root publication
+callback before retaining completion and its shared renewal watermark. Protected
+authority captures the mechanism and seed. Refusals precede the callback; host
+error/unwind or partial local publication closes the instance. Completed retries
+never recreate a leaf, even after expiry/revocation/restart or host leaf loss.
+Thirty-six public scenarios, nine private tests and a full certified issuance
+fixture cover the slice. Independent Node/OpenSSL and Platform BLS proofs check
+unchanged claims and refreshed witnesses with the same credential identity.
+This proves neither installed-host rollback nor recovery. Expired rows remain
+charged until explicit pruning; the host owns leaf retention and witness assembly.
+Focused issuer and issuer-signature checks, strict Clippy, Rustdoc, formatting and
+combined/issuer-only Wasm compilation pass. Hosted CI for 0.46.1 is pending.
+
+Remaining current work includes host enrollment/loss handling, browser lifecycle
+and installed issuer/receiver host qualification. Stable storage and
 cross-backend acceptance are a future milestone. `ic-storage-new` orthogonal
 persistence remains the intended durable destination once its contract is ready,
 subject to its own lifecycle, corruption-admission and rollback qualification.
 The [receiver complexity audit](../reports/audits/2026/11/15/receiver-complexity/01/report.md)
 found real state/index consolidation but no proved equivalent-feature LOC saving.
-Its public-policy finding is addressed by the API narrowing. The design now records
-the first volatile issuer's single operation owner, private progress states and
-preserved/deferred capabilities before implementation; issuer behavior remains open.
+Its public-policy finding is addressed by the API narrowing. The design records
+the issuer's single operation owner, private progress and preserved/deferred
+capabilities; native issuance/renewal do not complete issuer acceptance.
 The original repository remains production owner. No registry publication,
 deployment or live-storage migration is authorized by this work.

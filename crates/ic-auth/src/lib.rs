@@ -4,12 +4,23 @@
 //! The optional verifier authenticates a proof against explicit host inputs;
 //! neither protocol operations nor verification authorize application operations.
 
+#[cfg(any(
+    feature = "issuer-memory",
+    feature = "ed25519-verification",
+    feature = "certified-verification"
+))]
+mod browser_identity;
+#[cfg(any(feature = "issuer-memory", feature = "certified-issuer-verification"))]
+mod certified_message;
 pub mod claims;
 pub mod delegation_encoding;
 mod grant_policy;
 #[cfg(any(feature = "receiver-memory", test))]
 mod receiver_policy;
 pub mod session_request;
+
+#[cfg(feature = "issuer-memory")]
+pub mod issuer_memory;
 
 #[cfg(all(
     feature = "receiver-memory",
@@ -32,5 +43,9 @@ pub mod root_delegation;
 #[cfg(any(feature = "ed25519-verification", feature = "certified-verification"))]
 pub mod verification;
 
-#[cfg(any(feature = "ed25519-verification", feature = "certified-verification"))]
+#[cfg(any(
+    feature = "issuer-memory",
+    feature = "ed25519-verification",
+    feature = "certified-verification"
+))]
 mod work_budget;

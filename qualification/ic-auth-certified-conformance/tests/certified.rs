@@ -21,6 +21,8 @@ use ic_platform::{
     },
 };
 use sha2::{Digest, Sha256};
+#[cfg(feature = "issuer-memory")]
+mod issuance;
 #[cfg(feature = "receiver-memory")]
 mod memory;
 mod support;

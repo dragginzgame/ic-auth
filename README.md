@@ -28,8 +28,12 @@ records with bounded work. Administrative inspection uses bounded pages and
 exclusive cursors without changing retained state. Unknown callers receive separately bounded temporary
 denials that remain unconfirmed. Bound enrollment responses now gate memory
 readiness and freshness; host response authentication and lost-state recovery
-remain integration obligations. Stable storage, issuer
-state and browser lifecycle remain open. The existing
+remain integration obligations. The optional `issuer-memory` now retains
+Ed25519 and certified issuance with browser-authenticated renewal from intent reservation through
+exact-result reconciliation, without extending the original login window.
+Issuer pruning is bounded to 32 records per call. Certified completion invokes synchronous
+host leaf/root publication; installed-host qualification, stable storage and browser lifecycle
+remain open. The existing
 `ic-auth` repository remains the implemented reference and canonical production
 owner until the replacement is qualified and adoption is explicitly approved.
 
@@ -38,7 +42,7 @@ crates.io publication is deferred until the replacement is complete. It does not
 claim a complete replacement authentication engine or authorize a consumer cutover.
 Canic owns endpoint wiring using IC Wire; the Auth crates supply contract schemas
 and authentication decisions without installing endpoints.
-The current source checkpoint uses `ic-auth` 0.46.0 and
+The current source checkpoint uses `ic-auth` 0.46.1 and
 `ic-auth-protocol-types` / `ic-auth-wire` 0.42.0, following the
 [0.45.0 volatile receiver checkpoint](https://github.com/dragginzgame/ic-auth-new/commit/421fb765780c2daed069cbfe1d0aeb009fce34af). Version selection reserves no registry slot
 and does not publish a crate.
@@ -89,6 +93,17 @@ Import receiver host inputs, limits, errors and inspection results from
 `ic_auth::receiver_memory`; policy fact assembly and decisions are private.
 The certified qualification now covers independent issuers/devices/receivers,
 replacement, renewal, logout and enrollment changes using independent signed fixtures.
+
+`make test-issuer` checks the volatile issuer's capacity reservation,
+single dispatch, lost-response reconciliation, stale-callback refusal, browser
+renewal, sequence watermarks, retained results, bounded pruning and certified
+publication failure containment. `issuer-memory` builds
+independently of receiver/verifier features; the
+host owns account authentication, entropy, approval, signing and transactions.
+Expired rows remain charged until explicit pruning after their captured retention
+deadline. Pruning preserves referenced logins and closes consumed-ID epochs;
+certified witnesses remain host-owned and are refreshed without republishing
+completed claims. Host rollback and installed lifecycle remain unqualified.
 
 The objective is less maintained state and clearer ownership, not a promised
 zero-debt result or a line-count quota. Keep rejection, atomicity and recovery

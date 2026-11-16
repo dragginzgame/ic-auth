@@ -44,6 +44,7 @@ make test-receiver-policy
 make test-admission-capacity
 make test-credential-profile
 make test-memory
+make test-issuer
 make test-claims
 make test-delegation-encoding
 make test-wire
@@ -89,6 +90,22 @@ compile failures, and two-issuer/multi-device isolation across two receivers for
 both proof mechanisms. Five certified receiver cases use independently packed
 claims and two OpenSSL-signed root-authorized issuers; Node checks the new frozen
 records here and through the hosted `verify-fixtures` aggregate;
+`test-issuer` runs thirty-six issuance/renewal/retention/publication API scenarios,
+nine private fault/identity tests and one complete certified issuance fixture.
+Independent Node/OpenSSL claims, renewal identity frames and Platform BLS proofs
+check both proof mechanisms without a production signing service.
+For renewal-only runtime checks select
+`cargo test --offline --locked -p ic-auth --features issuer-memory,ed25519-verification --test issuer_memory renewal`.
+For pruning-only API checks select
+`cargo test --offline --locked -p ic-auth --features issuer-memory,ed25519-verification --test issuer_memory retention`.
+For issuer-only feature compilation use
+`cargo check --offline --locked -p ic-auth --features issuer-memory`; it does not
+enable the receiver or either verifier. It selects Wire/Serde for the preserved
+renewal operation hash and Platform Types for browser principal derivation.
+Native pruning checks cover the 32-record bound, reference counts, consumed-ID
+epochs, exact quota release and interruption containment. Native certified
+publication checks refusal ordering, failure containment and changing witnesses
+with fixed claims; installed host transactions and recovery remain unqualified;
 `test-claims` covers roles and canonical signed-claims bytes/refusals; `test-wire`
 covers all four contracts, nested proofs and bounded refusal. `qualify-wire`
 checks current Wire against fixed reference frames and thresholds; `lint-wire-qualification` checks that private
@@ -135,7 +152,8 @@ independently verifies the retained signing fixtures.
 
 The CI aggregates `make test-product test-qualification verify-fixtures` select
 each implemented product and qualification package once, enabling both complete
-verifiers and the memory receiver. They do not replace focused development checks.
+verifiers, the memory receiver and memory issuer. They do not replace
+focused development checks.
 Linux additionally runs `make fmt-check lint-protocol doc-protocol check-protocol-wasm`.
 Both workspaces fetch their locked dependencies before offline checks. Snapshot and
 Cargo pin admission precede the test aggregates; strict compiler warnings apply

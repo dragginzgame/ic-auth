@@ -11,6 +11,7 @@ publish = false
 ignored = ["toko-tooling"]
 
 [features]
+issuer-memory = ["ic-auth/issuer-memory"]
 receiver-memory = ["ic-auth/receiver-memory"]
 ed25519-comparison = ["ic-auth/ed25519-verification"]
 

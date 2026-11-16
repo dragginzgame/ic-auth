@@ -12,8 +12,9 @@ pub(crate) use decoded::DecodedClaims;
 #[cfg(feature = "receiver-memory")]
 pub(crate) use {context::check as check_context, credential::verify_decoded};
 
+pub use crate::browser_identity::browser_principal;
 pub use budget::{BudgetError, VerificationBudget, VerificationCosts};
-pub use context::{AuthorityGrants, ContextError, VerificationContext, browser_principal};
+pub use context::{AuthorityGrants, ContextError, VerificationContext};
 pub use credential::{CredentialError, VerificationProfile, verify_credential};
 
 #[cfg(feature = "ed25519-verification")]

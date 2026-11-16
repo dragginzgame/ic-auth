@@ -146,3 +146,32 @@ cover quota isolation, root/issuer failure without displacement, replacement,
 proof-expired retry, renewal and local logout. Certified enrollment changes retain
 captured deadlines and fences; pre-admission denial creates no identity. These
 native cases do not qualify actual boot/callback authentication or host recovery.
+
+The unreleased initial volatile issuer now checks exact account-scoped intent
+identity, original deadlines and result reservation before effects. Independent
+effect traces exercise pauses, unknown signing responses, lookup-only reconciliation
+and stale callbacks after authority changes, revocation or restart.
+The retained Node/OpenSSL reference vector checks its canonical claims and real
+Ed25519 verifier interoperability. Native fault injection requires terminal closure
+after partial publication. Browser renewal now adds actual caller binding,
+read-only preflight with rechecks, sequential completion watermarks, original-window
+clamping and cross-epoch/expiry/revocation reconciliation. Independent frame/hash
+vectors check the retained Wire-derived operation identity, including wide fields.
+Pruned result evidence cannot recreate consumed work. These cases
+also qualify native indexed pruning: positive captured reconciliation retention,
+the 32-record ceiling, operation-first selection, reference-protected logins,
+deterministic expiry ties, exact quota release and higher-generation slot reuse.
+Real pruning replaces the synthetic missing-result setup. Closed operation epochs
+prevent identity recreation while a separate restart fence preserves unrelated
+live callbacks. Fault injection closes partial pruning/restart publication;
+overflow refuses before deleting evidence. Certified completion now exercises
+synchronous leaf/root publication and terminal closure on a host error/unwind or
+interruption between completion writes. Stale authority (including seed changes),
+wrong mechanism, missing approval and exclusive deadlines refuse before the host
+callback. Exact retries never recreate a leaf. A separate Platform BLS fixture
+certifies the actual publication input under a composed application/signature
+root; two fresh certificates verify the same frozen claims fingerprint. These
+are native publication-boundary checks, not installed-host rollback, stable
+custody or host authentication/recovery qualification.
+Result-byte reservations are a new native logical bound,
+not a claim of equivalent legacy serialized-storage or allocator accounting.

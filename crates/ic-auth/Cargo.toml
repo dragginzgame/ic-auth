@@ -1,16 +1,21 @@
 [package]
 name = "ic-auth"
-version = "0.46.0"
+version = "0.46.1"
 edition.workspace = true
 rust-version.workspace = true
 license-file.workspace = true
-description = "Canonical authentication, proof verification and an optional bounded memory receiver"
+description = "Canonical authentication, proof verification and bounded volatile receiver/issuer state"
 publish = false
 
 [package.metadata.cargo-machete]
 ignored = ["toko-tooling"]
 
 [features]
+issuer-memory = [
+    "dep:ic-wire",
+    "dep:serde",
+    "ic-auth-protocol-types/principal-self-authenticating",
+]
 receiver-memory = ["dep:ic-wire", "dep:serde"]
 ed25519-verification = [
     "dep:ic-platform",
