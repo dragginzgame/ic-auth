@@ -4,6 +4,17 @@
 
 ### ✨ Added
 
+- Add durable browser cleanup reservations and settlement to the existing journal.
+  Serialize attempts across tabs, preserve the eight-attempt/fixed-deadline bounds
+  and retain unconfirmed destinations and issuance uncertainty. Close consumed
+  tickets permanently around SDK signing. Expose detached destination progress.
+  Seven native browser cases qualify recovery, commit failures and late-result refusal.
+- Add `cleanupOnce` for one reserved browser-signed logout call through an injected
+  adapter. Adopt the generated Logout codec and its 1 KiB reply cap; settle only
+  positive Revoked acknowledgements as confirmed. Preserve typed nonconfirmations
+  and interrupted-effect uncertainty without an automatic retry loop. Seven native
+  browser cases and two retained-frame codec cases qualify the boundary; actual
+  HTTP authentication, scheduling and key disposal remain separate work.
 - Start the private browser client with one bounded signing-attempt owner around
   the published Platform SDK identity. Capture principal/destination, recheck the
   journal owner before and after signing/completion, and close the capability on
@@ -38,6 +49,8 @@
 
 ### 🧪 Testing
 
+- Suppress six exact historical Gitleaks false positives for generated TypeScript
+  type names. Keep all other history and future findings subject to the scan.
 - Adopt IC Build 0.87.3 and Host FS/Artifacts 0.80.1 in installed qualification.
   Build the fixture once through the bounded build operation and install owned
   Wasm bytes; replace pathname reads with held-file access and bounded capture.

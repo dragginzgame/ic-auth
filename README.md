@@ -129,7 +129,13 @@ now connects those decisions to an injected issuer adapter through bounded accou
 browser signing, with one call and durable completion before return.
 `establishSession` now commits receiver inventory before one browser-signed Wire
 admission attempt and rejects stale/mismatched receipts. Actual HTTP reply
-authentication, readiness coordination and remote cleanup remain outstanding.
+authentication, readiness coordination and complete cleanup scheduling remain outstanding.
+The journal now commits cleanup leases/counts before effects and retains per-target
+confirmation or uncertainty through reload and deadline expiry. Seven focused
+browser cases qualify this storage boundary. `cleanupOnce` now dispatches one
+reserved attempt through an injected authenticated-reply adapter with the generated
+Logout contract. Seven more browser cases and two independent codec checks pass;
+actual HTTP authentication and key disposal remain deferred.
 
 The objective is less maintained state and clearer ownership, not a promised
 zero-debt result or a line-count quota. Keep rejection, atomicity and recovery

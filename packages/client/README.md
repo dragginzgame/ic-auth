@@ -2,7 +2,8 @@
 
 This private, unpublished package implements bounded SDK signing, a durable login
 journal, credential retrieval and explicit receiver admission through injected
-adapters. Readiness coordination and remote logout dispatch remain unimplemented.
+adapters. Cleanup now dispatches one journal-owned logout attempt through an
+injected adapter. Readiness coordination and actual HTTP transports remain unimplemented.
 Node 24.21.0 can consume its erasable TypeScript directly. Product browser
 delivery/bundling has not been selected.
 
@@ -43,7 +44,8 @@ characters. Clock rebinding or regression refuses an operation.
   from the current clock. Repeated calls retain it, along with destination progress,
   pending sequence and unknown issuance. Unknown issuance without a recoverable
   sequence remains unknown.
-- `inspect()` returns detached, bounded metadata; `close()` releases the handle.
+- `inspect()` returns detached, bounded metadata. Each `destinations` entry exposes
+  `canister`, `attempts` and optional `confirmedUntilNs`; `close()` releases the handle.
 
 All operations resolve only after a native `readwrite` transaction with `strict`
 durability completes. Request success alone is insufficient. Refused durability,
@@ -79,8 +81,8 @@ logout remains available to invalidate and delete it.
 The caller must map credential expiry conservatively into the injected clock; the
 journal infers no clock offset. Structural decoding does not authenticate claims,
 signatures or issuer provenance. The issuer adapter owns response authentication;
-the receiver owns complete verification. This package does not store signing keys,
-send cleanup calls or claim remote revocation.
+the receiver owns complete verification. Credential retrieval stores no signing
+keys and cannot establish remote revocation.
 
 ## Issuer adapter integration
 
@@ -145,6 +147,70 @@ The detached `AdmissionReceipt` is metadata, not an identity or cached authority
 The temporary signer closes when the attempt ends. Readiness, bounded caller
 coordination and guarded ordinary application calls remain separate work.
 
+## Durable cleanup attempts
+
+The same journal owns cleanup progress in the existing private v1 record. These
+operations are the storage boundary used by `cleanupOnce`, not a network
+transport or independent proof of authenticated remote revocation.
+
+- `claimCleanup(generation, caller)` requires committed local logout and the original
+  browser caller. It strictly commits one attempt and a lease before returning an
+  ephemeral ticket, or returns `wait` with a local scheduling time, or `finished`.
+  One live lease serializes cooperating tabs; it lasts at most five seconds and
+  cannot outlive the fixed cleanup deadline. The ticket carries the corresponding
+  network timeout in whole milliseconds (at least one); journal guards enforce
+  the exact nanosecond deadline. Each destination has eight attempts.
+- `assertCleanup(generation, caller, ticket)` checks the live ticket and persisted
+  caller, generation, destination, attempt, lease and deadline. Use it around SDK
+  signing and response acceptance. A ticket belongs to the issuing journal handle;
+  copied tickets, expired leases and consumed tickets refuse. Pair this guard with
+  `runSigningAttempt` to bind the signing destination and close the signer.
+- `completeCleanup(generation, caller, ticket, result)` consumes the ticket even if
+  settlement fails. The trusted adapter may supply `revoked` with a positive u64
+  acknowledgement only after authenticating the matching reply. That timestamp
+  remains in the receiver clock domain. Every other outcome is `unconfirmed` with
+  a local retry delay of 500–1,499 ms. No HTTP acceptance or elapsed time confirms
+  a destination. Settlement after lease/deadline expiry refuses.
+
+A crash or failed settlement retains the committed count and lease. Reload waits
+for the lease and can reserve another attempt within the existing limits. The
+worker must wait/retry explicitly; the journal starts no loop or timer. Cleanup
+finishes when all destinations are confirmed or the fixed deadline expires.
+Exhausting attempts waits for that deadline. Finished status retains unconfirmed
+destinations and historical unknown issuance, including missing sequences.
+Repeated logout cannot extend the deadline or reset progress.
+
+This retains necessary recovery state from the reference in one journal owner.
+There is no second mutable-record API, scheduler, identity facade or key store.
+Automatic scheduling, HTTP reply authentication and key disposal remain deferred.
+
+## One logout dispatch
+
+`cleanupOnce({ journal, generation, browser, revoke, signal?, retryAfterMs? })`
+resumes a previously committed logout. It returns `wait` or `finished` without a
+transport call, or dispatches exactly one reserved attempt. The caller owns when
+to resume; this function starts no retry loop and does not implicitly invalidate
+an active login. Pre-cancellation or invalid retry configuration consumes no attempt.
+
+The injected `LogoutTransport` receives a detached target selected by the journal,
+the temporary browser identity, the generated unit request and an abort signal.
+Canic owns endpoint wiring. The adapter must authenticate the exact update reply
+before returning its raw bytes; HTTP acceptance alone is insufficient. Auth checks
+the Rust-owned 1,024-byte browser cap, generated Wire framing and a positive Revoked
+timestamp. Only Revoked confirms the selected destination. Every typed Unconfirmed,
+InvalidCaller or Unavailable response commits nonconfirmation and a local retry delay
+(default 1,000 ms, configurable from 500–1,499 ms). Receiver timestamps never become
+browser scheduling deadlines.
+
+The result is `settled` with the detached response and committed journal status.
+Success reaches the caller only after strict settlement. Transport errors,
+malformed replies, cancellation and timeout propagate unchanged or as
+`invalid_material`; they leave the committed attempt/lease for later recovery.
+A failed settlement also retains uncertainty. Signing always closes when the
+bounded attempt ends, and late results cannot confirm after its lease/deadline.
+Cancellation after a valid acknowledgement has committed may reject the call while
+retaining that acknowledgement. No signing key is disposed by this operation.
+
 ## Qualification
 
 Run from the repository root:
@@ -160,19 +226,19 @@ The separate lock selects published Platform 0.2.0 and TypeScript 7.0.2. Platfor
 owns SDK Core; Auth imports no SDK Core or cryptographic primitive directly.
 Ten Node cases use real SDK Ed25519 signing with controlled asynchronous guards,
 including destination/principal mutation, late signatures/results, cancellation,
-timeout and read-state polling. Four additional cases check credential/admission
+timeout and read-state polling. Six additional cases check credential/admission/logout
 codecs against retained independent frames, optional TTLs, raw scopes and all
 refusals, plus framing and request-bound rejection.
 
 `make generate-client` uses the existing Rust IC Wire generator and TypeScript
-compiler to produce credential/admission modules and their matching runtime as JavaScript plus
+compiler to produce credential/admission/logout modules and their matching runtime as JavaScript plus
 declarations under `src/generated/`. `make check-client-generated` compares those
 files with fresh output. Change schemas/generation at their Rust owner; do not edit
-generated files. Only the two contract modules used here are adopted. Generated code
+generated files. Only the three contract modules used here are adopted. Generated code
 comes from IC Wire 0.24.1 and this repository's Auth schemas, not the legacy client.
 Build scratch stays under root `target/client-wire/`.
 
-Thirty native IndexedDB cases use playwright-core 1.65.1, esbuild 0.28.2, a loopback
+Forty-four native IndexedDB cases use playwright-core 1.65.1, esbuild 0.28.2, a loopback
 fixture server and an ephemeral two-tab browser profile. The fixture bundle stays
 in memory. No browser is downloaded or user profile opened. Chromium 141.0.7390.37
 passes concurrent creation, cross-tab logout during actual SDK signing, reopening
@@ -190,7 +256,18 @@ Seven admission cases cover durable inventory, exact request bytes, browser-only
 signing, refusal propagation, invalid receipts, aborts and logout/expiry/sequence
 races. Successful replies use independent fixture packing derived from the retained
 Wire frame; no replacement encoder creates those reply fixtures.
-Set `IC_AUTH_CLIENT_SUITE=journal`, `issuance`, `transport` or `admission` to select
+Seven cleanup cases add cross-tab reservation/reload, attempt exhaustion,
+per-destination confirmation, late acknowledgements, aborted writes, u64 bounds
+and suspended real SDK signing after a ticket is consumed. A reused lease timestamp
+cannot revive the old signing capability. Confirmation inputs are injected trusted
+adapter results; these tests do not establish HTTP reply authentication.
+Seven logout adapter cases add exact request bytes and real browser signing,
+all typed replies, malformed/capped/zero acknowledgements, no duplicate cross-tab
+dispatch, lost responses, cancellation/timeout, aborted reservation/settlement and
+late replies. Replies use the independent retained caller-contract frames; no
+replacement encoder produces the acceptance oracle. HTTP authentication is still
+an adapter obligation, not established by these injected responses.
+Set `IC_AUTH_CLIENT_SUITE=journal`, `issuance`, `transport`, `admission`, `cleanup` or `logout` to select
 a focused group; the default runs all groups.
 Renderer interruption, other browsers and complete SDK transport remain unqualified.
 

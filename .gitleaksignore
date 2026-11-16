@@ -1,0 +1,10 @@
+# Reviewed false positives in c0bb215: generated TypeScript field type names,
+# not credential values. Exact historical findings only; keep future scans active.
+# key_version: Wire_u64_4d35d3193e8d66f2
+# max_token_ttl_ns: Wire_u64_4d35d3193e8d66f2
+c0bb2158c79ee0d871869f788f113bd54994ff96:packages/client/src/generated/credential.d.ts:generic-api-key:35
+c0bb2158c79ee0d871869f788f113bd54994ff96:packages/client/src/generated/credential.d.ts:generic-api-key:54
+c0bb2158c79ee0d871869f788f113bd54994ff96:packages/client/src/generated/credential.d.ts:generic-api-key:89
+c0bb2158c79ee0d871869f788f113bd54994ff96:packages/client/src/generated/establish.d.ts:generic-api-key:69
+c0bb2158c79ee0d871869f788f113bd54994ff96:packages/client/src/generated/establish.d.ts:generic-api-key:88
+c0bb2158c79ee0d871869f788f113bd54994ff96:packages/client/src/generated/establish.d.ts:generic-api-key:123

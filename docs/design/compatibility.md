@@ -101,6 +101,16 @@ caller/issuer receipt binding and logout/expiry/sequence fences. Successful repl
 fixtures are packed independently from the retained Wire layout. This does not establish HTTP
 reply authentication, production endpoint integration, remote cleanup, renderer-
 interruption recovery or a complete coordinator.
+Seven further native Chromium cases qualify the cleanup journal: strict attempt
+reservation across tabs, lost-ticket reload, eight-attempt limits, fixed-deadline
+completion without confirmation, retained issuance uncertainty, aborted settlement
+and permanent ticket closure around actual SDK signing. The v1 record is unchanged;
+confirmation inputs remain injected, so authenticated remote cleanup is still open.
+The one-step cleanup adapter adds seven native browser cases for exact Wire dispatch,
+all typed nonconfirmations, malformed/oversized replies, cancellation/timeout, aborted
+settlement and cross-tab exclusion. Two Node cases compare the generated Logout
+codec with retained caller-contract frames. HTTP authentication, automatic scheduling
+and key disposal remain outside this evidence.
 Complete adversarial acceptance, actual SDK/browser lifecycle and backend qualification
 remain outstanding.
 

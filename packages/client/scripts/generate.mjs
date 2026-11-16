@@ -7,7 +7,7 @@ const root = fileURLToPath(new URL('../../../', import.meta.url));
 const source = join(root, 'target/client-wire/typescript');
 const compiled = join(root, 'target/client-wire/javascript');
 const destination = fileURLToPath(new URL('../src/generated/', import.meta.url));
-const modules = ['credential', 'establish', 'wire-runtime'];
+const modules = ['credential', 'establish', 'logout', 'wire-runtime'];
 const check = process.argv[2] === '--check';
 if (process.argv.length > (check ? 3 : 2)) throw new Error('Usage: node scripts/generate.mjs [--check]');
 execFileSync('cargo', ['run', '--offline', '--locked', '-p', 'ic-auth-wire', '--features', 'typescript',

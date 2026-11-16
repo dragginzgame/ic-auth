@@ -3,6 +3,8 @@ import { readFileSync } from 'node:fs';
 import { issuanceCases } from './issuance.mjs';
 import { transportCases } from './transport.mjs';
 import { admissionCases } from './admission.mjs';
+import { cleanupCases } from './cleanup.mjs';
+import { logoutCases } from './logout.mjs';
 import { createServer } from 'node:http';
 import { once } from 'node:events';
 import { build } from 'esbuild';
@@ -15,8 +17,12 @@ const credentialFrames = Object.fromEntries(['ed25519', 'certified'].map(name =>
 for (const [name, hex] of referenceFrames) {
   if (name.startsWith('establish-')) credentialFrames[name] = Array.from(Buffer.from(hex, 'hex'));
 }
+for (const line of readFileSync(new URL('../../../../crates/ic-auth-wire/tests/fixtures/caller-frames.tsv', import.meta.url), 'utf8').trim().split('\n')) {
+  const [name, hex] = line.split('\t');
+  if (name.startsWith('logout-')) credentialFrames[name] = Array.from(Buffer.from(hex, 'hex'));
+}
 const suite = process.env.IC_AUTH_CLIENT_SUITE ?? 'all';
-if (!['all', 'journal', 'issuance', 'transport', 'admission'].includes(suite)) throw new Error('Unknown IC_AUTH_CLIENT_SUITE');
+if (!['all', 'journal', 'issuance', 'transport', 'admission', 'cleanup', 'logout'].includes(suite)) throw new Error('Unknown IC_AUTH_CLIENT_SUITE');
 const executablePath = process.env.IC_AUTH_BROWSER_EXECUTABLE;
 assert(executablePath, 'Set IC_AUTH_BROWSER_EXECUTABLE to an installed Chromium executable; this gate never downloads one.');
 const bundle = await build({ entryPoints: ['tests/browser/entry.ts'], bundle: true,
@@ -265,6 +271,10 @@ try {
   await transportCases({ check, a, b });
   group = 'admission';
   await admissionCases({ check, a, b });
+  group = 'cleanup';
+  await cleanupCases({ check, a, b, prepare });
+  group = 'logout';
+  await logoutCases({ check, a, b });
   console.log(`${cases} native IndexedDB cases passed`);
 } finally {
   await browser?.close();

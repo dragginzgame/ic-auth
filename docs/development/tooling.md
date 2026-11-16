@@ -170,18 +170,18 @@ qualification remain separate gates; Wasm coverage here proves compilation only.
 
 `npm ci --prefix packages/client --ignore-scripts` prepares the separate locked
 npm graph. `make test-client` runs strict TypeScript checking, ten SDK signing
-cases through the package root and four credential/admission codec cases.
+cases through the package root and six credential/admission/logout codec cases.
 Node 24.21.0 runs erasable TypeScript directly;
 no product build or registry delivery is introduced.
 The local check uses Node's test runner with isolation disabled so individual
 cases are reported. `IC_AUTH_BROWSER_EXECUTABLE=/absolute/path/to/chromium make
-test-client-journal` runs thirty native IndexedDB cases in an ephemeral two-tab
-profile. Set `IC_AUTH_CLIENT_SUITE=journal`, `issuance`, `transport` or `admission`
-for a focused group; the default runs all four. Qualification-only esbuild 0.28.2 bundles the fixture in memory;
+test-client-journal` runs forty-four native IndexedDB cases in an ephemeral two-tab
+profile. Set `IC_AUTH_CLIENT_SUITE=journal`, `issuance`, `transport`, `admission` or
+`cleanup` or `logout` for a focused group; the default runs all six. Qualification-only esbuild 0.28.2 bundles the fixture in memory;
 playwright-core 1.65.1 controls the supplied executable. Neither tool downloads a
 browser. Chromium 141.0.7390.37 was exercised locally. These explicit gates are not
 currently part of hosted CI. `make generate-client` generates the adopted
-credential/admission codecs and runtime from Rust schemas as JavaScript plus declarations;
+credential/admission/logout codecs and runtime from Rust schemas as JavaScript plus declarations;
 `make check-client-generated` compares it with fresh generator/compiler output.
 Generated scratch stays under `target/client-wire/`. See
 [scope and setup](../../packages/client/README.md).

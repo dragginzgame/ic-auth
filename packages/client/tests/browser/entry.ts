@@ -1,10 +1,11 @@
-import { LoginJournal, runSigningAttempt, retrieveCredential, establishSession, AdmissionError } from '../../src/index.ts';
+import { LoginJournal, runSigningAttempt, retrieveCredential, establishSession, cleanupOnce, AdmissionError } from '../../src/index.ts';
+import type { CleanupAttempt } from '../../src/index.ts';
 import { Principal } from '@tokostudios/ic-platform/principal';
 import { Ed25519KeyIdentity } from '@tokostudios/ic-platform/identity';
 import { Endpoint, SubmitRequestType, Expiry, type Identity } from '@tokostudios/ic-platform/agent';
 
 // Real SDK signing paused at an explicit boundary while a second tab commits logout.
-async function pauseSigning(journal: LoginJournal) {
+async function pauseSigning(journal: LoginJournal, ticket?: CleanupAttempt) {
   const base = Ed25519KeyIdentity.generate(new Uint8Array(32).fill(9));
   const target = Principal.fromUint8Array(Uint8Array.of(1));
   let resume!: () => void, entered!: () => void;
@@ -16,7 +17,9 @@ async function pauseSigning(journal: LoginJournal) {
     transformRequest: async request => { entered(); await gate; return base.transformRequest(request); },
   };
   const result = runSigningAttempt({ identity: delayed, target,
-    assertCurrent: () => journal.assertActive('login', base.getPrincipal(), target),
+    assertCurrent: () => ticket
+      ? journal.assertCleanup('login', base.getPrincipal(), ticket)
+      : journal.assertActive('login', base.getPrincipal(), target),
   }, async signer => {
     await signer.transformRequest({ endpoint: Endpoint.Call, request: { method: 'POST' }, body: {
       request_type: SubmitRequestType.Call, canister_id: target, method_name: 'auth',
@@ -46,4 +49,4 @@ function admissionReply(caller: Principal, issuer: Principal, expires = 1n): Uin
   do { const next = Number(expires & 127n); expires >>= 7n; bytes.push(next | (expires ? 128 : 0)); } while (expires);
   return Uint8Array.from(bytes);
 }
-Object.assign(globalThis, { authTest: { LoginJournal, Principal, Ed25519KeyIdentity, pauseSigning, retrieveCredential, establishSession, AdmissionError, signCall, admissionReply } });
+Object.assign(globalThis, { authTest: { LoginJournal, Principal, Ed25519KeyIdentity, pauseSigning, retrieveCredential, establishSession, cleanupOnce, AdmissionError, signCall, admissionReply } });

@@ -443,6 +443,26 @@ recovery, receipt rejection and logout/expiry/sequence races. Four Node codec ca
 and a generation drift gate check adopted output. Actual HTTP reply authentication,
 readiness coordination, remote cleanup and renderer interruption remain to be qualified.
 
+Cleanup reservation and settlement now remain inside `LoginJournal`, using the
+same v1 destination counts, lease, acknowledgements and fixed deadline. The only
+persistent transitions are active → cleanup → finished; finished never reactivates.
+Claim commits before dispatch; losing a ticket consumes its persisted attempt.
+Settlement accepts only a live ticket and an adapter-authenticated Revoked result
+as confirmation. Unconfirmed outcomes retain bounded retry eligibility; deadline
+expiry finishes locally with unconfirmed destinations and unknown issuance visible.
+The process-local ticket closes permanently on settlement, including storage failure,
+so another destination reusing its lease timestamp cannot revive suspended signing.
+Seven additional native browser cases qualify these transitions and commit failures.
+This is retained necessary recovery complexity, not a claimed LOC reduction.
+The legacy mutable transaction API is replaced by these journal-owned operations;
+automatic scheduling, HTTP reply authentication and key disposal remain deferred.
+`cleanupOnce` now consumes those journal decisions with one generated Wire update
+through an injected adapter, reusing `runSigningAttempt`. The adapter owns endpoint
+wiring and authenticating its reply. The browser cap is 1,024 bytes; only positive
+Revoked replies confirm, after strict settlement. Transport/malformed/interrupted
+outcomes leave the counted lease for explicit recovery. Seven adapter browser cases
+and two independent codec cases qualify that boundary, not actual HTTP authentication.
+
 Keep one coordinator over one strict journal owner. Inject Platform SDK identities, issuer transport, receiver transport and clock mapping. Do not recreate a second SDK identity facade or implement application retries.
 
 Retain distinct account and browser signer roles. Initial issuance/reconciliation uses the account identity; renewal and subsequent reconciliation use the browser binding. Receiver calls use only the browser identity. Capture destination and principal bytes before asynchronous work and bind temporary signers to their target, generation and attempt.

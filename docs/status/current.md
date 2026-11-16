@@ -2,16 +2,17 @@
 
 Source package versions remain Auth **0.46.1** and protocol-types/Wire **0.42.0**.
 The **0.46.2 unreleased** development checkpoint adds single-subnet installed-host
-qualification and the private browser client, including durable issuance/recovery
-and explicit receiver admission. Rust product sources and package versions are
+qualification and the private browser client, including durable issuance/recovery,
+receiver admission and cleanup attempt tracking. Rust product sources and package versions are
 unchanged. All packages remain unpublished;
 0.2.0 is the last tagged milestone. Volatile Auth is the current milestone.
 Stable storage is deferred; no interim `ic-storage` adapter is planned.
 
-[Hosted CI passed for the preceding 0.46.1 checkpoint](https://github.com/dragginzgame/ic-auth-new/actions/runs/43827801724)
-on Linux, Apple Silicon and Intel macOS, including Linux strict checks/Wasm
-compilation and the redacted history scan. [Issue #1](https://github.com/dragginzgame/ic-auth-new/issues/1)
-is closed. The new installed checks are explicit local gates outside that aggregate.
+[Latest hosted native checks passed](https://github.com/dragginzgame/ic-auth-new/actions/runs/43854575633)
+on Linux and both macOS architectures, including Linux strict checks/Wasm. The
+history scan failed on six generated TypeScript type names; exact historical
+exceptions are included in this checkpoint and pass locally. [Issue #1](https://github.com/dragginzgame/ic-auth-new/issues/1)
+is closed. Installed and browser checks remain explicit local gates.
 
 Product crates implement passive claims/labels, canonical schema-2 claims,
 request identity/TTL, all four Wire contracts with generated codecs, and optional
@@ -90,9 +91,18 @@ adapter, binding signer role, original issuer and sequence before committing evi
 Explicit receiver admission now commits inventory before dispatch and checks active
 proof expiry/sequence around browser signing and receipt acceptance. Thirty native
 Chromium cases cover two tabs, uncertain replies, aborted writes and suspended work.
-Four Node codec cases check adopted credential/admission output against independent
+Six Node codec cases check adopted credential/admission/logout output against independent
 reference frames; generation drift checks pass. Actual HTTP reply authentication,
 readiness coordination, remote cleanup and renderer interruption remain unqualified.
+
+Seven additional browser cases qualify journal-owned cleanup attempts: one durable
+lease across tabs, eight attempts per destination, crash/reload retention, aborted
+settlement and permanent ticket closure during SDK signing. Deadline expiry leaves
+unconfirmed destinations and historical issuance uncertainty visible. Confirmation
+inputs remain injected. `cleanupOnce` now dispatches one reserved Wire request and
+commits only a positive Revoked reply as confirmation; errors retain the counted
+lease. Seven adapter browser cases, strict TypeScript and generation drift checks
+pass. Actual HTTP authentication, cleanup scheduling and key disposal remain deferred.
 
 These remain standalone Platform/Wire fixtures with one fixed test key/domain.
 Complete Canic registry integration, production challenge/refresh scheduling,

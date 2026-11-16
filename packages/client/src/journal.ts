@@ -21,8 +21,28 @@ export interface JournalStatus {
   readonly deadlineNs: bigint;
   readonly issuanceUnknown: boolean;
   readonly sequence?: bigint;
-  readonly destinations: readonly string[];
+  readonly destinations: readonly CleanupDestination[];
 }
+export interface CleanupDestination {
+  readonly canister: string;
+  readonly attempts: number;
+  /** Receiver-domain acknowledgement; never compared with the browser clock. */
+  readonly confirmedUntilNs?: bigint;
+}
+/** Ephemeral ticket issued by this journal handle, valid for one settlement. */
+export interface CleanupAttempt {
+  readonly canister: string;
+  readonly attempt: number;
+  readonly untilNs: bigint;
+  readonly timeoutMs: number;
+}
+export type CleanupClaim =
+  | { readonly kind: 'attempt'; readonly ticket: CleanupAttempt }
+  | { readonly kind: 'wait'; readonly untilNs: bigint; readonly status: JournalStatus }
+  | { readonly kind: 'finished'; readonly status: JournalStatus };
+export type CleanupResult =
+  | { readonly kind: 'revoked'; readonly untilNs: bigint }
+  | { readonly kind: 'unconfirmed'; readonly retryAfterMs: number };
 export interface CredentialClaimOptions { readonly accountAvailable: boolean; readonly refreshThrough?: bigint }
 export type CredentialClaim =
   | { readonly kind: 'saved'; readonly sequence: bigint; readonly bytes: Uint8Array; readonly untilNs: bigint }
@@ -81,7 +101,8 @@ function status(record: RecordState): JournalStatus {
     generation: record.generation, phase: record.phase, deadlineNs: record.deadlineNs,
     issuanceUnknown: record.issuanceUnknown,
     ...(record.issuance === undefined ? {} : { sequence: record.issuance.sequence }),
-    destinations: record.targets.map(t => t.canister),
+    destinations: record.targets.map(t => ({ canister: t.canister, attempts: t.attempts,
+      ...(t.confirmedUntilNs === undefined ? {} : { confirmedUntilNs: t.confirmedUntilNs }) })),
   };
 }
 
@@ -95,6 +116,8 @@ function validateFrame(bytes: unknown, code: 'invalid_material' | 'storage_corru
 export class LoginJournal {
   readonly #db: IDBDatabase;
   readonly #clock: JournalClock;
+  // Tickets are process-local capabilities; persistent counts/leases survive their loss.
+  readonly #cleanupTickets = new WeakMap<CleanupAttempt, { generation: string; caller: string }>();
   private constructor(db: IDBDatabase, clock: JournalClock) {
     this.#db = db;
     // Capture the clock identity; a later caller mutation cannot rebind this handle.
@@ -274,6 +297,83 @@ export class LoginJournal {
       }
       return { record: current, value: status(current), deleteCredential: true };
     });
+  }
+
+  /** Reserve one cleanup effect after local invalidation; a lost ticket consumes its attempt. */
+  async claimCleanup(generation: string, caller: Principal): Promise<CleanupClaim> {
+    const callerText = caller.toText();
+    const claim = await this.#transaction<CleanupClaim>(record => {
+      const current = this.#current(record, generation);
+      if (current.phase === 'active' || current.caller !== callerText) refuse('not_current');
+      const now = current.observedNs;
+      if (now >= current.deadlineNs || current.targets.every(t => t.confirmedUntilNs !== undefined))
+        current.phase = 'finished';
+      if (current.phase === 'finished')
+        return { record: current, value: { kind: 'finished', status: status(current) } };
+      const eligible = current.targets.filter(t => t.confirmedUntilNs === undefined && t.attempts < 8);
+      const target = current.busyUntilNs <= now && eligible.find(t => t.nextNs <= now);
+      if (target) {
+        target.attempts++;
+        const untilNs = now + ATTEMPT_NS < current.deadlineNs ? now + ATTEMPT_NS : current.deadlineNs;
+        target.nextNs = current.busyUntilNs = untilNs;
+        return { record: current, value: { kind: 'attempt',
+          ticket: Object.freeze({ canister: target.canister, attempt: target.attempts, untilNs,
+            timeoutMs: Math.max(1, Number((untilNs - now) / 1_000_000n)) }) } };
+      }
+      let untilNs = eligible.reduce((next, t) => t.nextNs < next ? t.nextNs : next, current.deadlineNs);
+      if (current.busyUntilNs > untilNs) untilNs = current.busyUntilNs;
+      if (untilNs > current.deadlineNs) untilNs = current.deadlineNs;
+      return { record: current, value: { kind: 'wait', untilNs, status: status(current) } };
+    });
+    if (claim.kind === 'attempt') this.#cleanupTickets.set(claim.ticket, { generation, caller: callerText });
+    return claim;
+  }
+
+  /** Recheck immediately around signing and accepting a cleanup response. */
+  assertCleanup(generation: string, caller: Principal, ticket: CleanupAttempt): Promise<void> {
+    const callerText = caller.toText();
+    return this.#transaction(record => {
+      const current = this.#current(record, generation);
+      const owner = this.#cleanupTickets.get(ticket);
+      if (!owner || owner.generation !== generation || owner.caller !== callerText) refuse('not_current');
+      this.#cleanupTarget(current, callerText, ticket);
+      return { record: current, value: undefined };
+    });
+  }
+
+  /** The adapter must authenticate Revoked; acceptance, timeout and Unconfirmed never confirm. */
+  completeCleanup(generation: string, caller: Principal, ticket: CleanupAttempt, result: CleanupResult): Promise<JournalStatus> {
+    const callerText = caller.toText(), owner = this.#cleanupTickets.get(ticket);
+    // Close the live capability even if settlement aborts. Recovery waits for the durable lease.
+    this.#cleanupTickets.delete(ticket);
+    if (!owner || owner.generation !== generation || owner.caller !== callerText)
+      return Promise.reject(new JournalError('not_current'));
+    const confirmation = result.kind === 'revoked' ? result.untilNs : undefined;
+    const delay = result.kind === 'unconfirmed' ? result.retryAfterMs : 0;
+    if (result.kind === 'revoked' ? !u64(confirmation) || confirmation === 0n
+      : result.kind !== 'unconfirmed' || !Number.isInteger(delay) || delay < 500 || delay >= 1_500)
+      return Promise.reject(new JournalError('configuration'));
+    return this.#transaction(record => {
+      const current = this.#current(record, generation);
+      const target = this.#cleanupTarget(current, callerText, ticket);
+      current.busyUntilNs = 0n;
+      if (confirmation !== undefined) target.confirmedUntilNs = confirmation;
+      else {
+        const next = current.observedNs + BigInt(delay) * 1_000_000n;
+        target.nextNs = next < current.deadlineNs ? next : current.deadlineNs;
+      }
+      if (current.targets.every(t => t.confirmedUntilNs !== undefined)) current.phase = 'finished';
+      return { record: current, value: status(current) };
+    });
+  }
+
+  #cleanupTarget(current: RecordState, caller: string, ticket: CleanupAttempt): Target {
+    const target = current.targets.find(t => t.canister === ticket.canister);
+    if (current.phase !== 'cleanup' || current.caller !== caller
+      || current.observedNs >= current.deadlineNs || current.observedNs >= ticket.untilNs
+      || current.busyUntilNs !== ticket.untilNs || !target || target.attempts !== ticket.attempt
+      || target.nextNs !== ticket.untilNs || target.confirmedUntilNs !== undefined) refuse('not_current');
+    return target;
   }
 
   /** Bounded metadata projection; does not read or validate a credential frame. */

@@ -30,7 +30,7 @@ export async function admissionCases({ check, a, b }) {
         dispatches++; signer = identity;
         const expected = frames['establish-none'];
         exactFrame = request.length === expected.length && request.every((v, i) => v === expected[i]);
-        const state = await options.journal.inspect(); inventoried = state.destinations.includes(target.toText());
+        const state = await options.journal.inspect(); inventoried = state.destinations.some(t => t.canister === target.toText());
         committed = await raw('admission-success', b => { const r = b.count('credential'); return () => r.result === 1; });
         const signed = await signCall(identity, target, request, 'contract');
         signedByBrowser = identity.getPrincipal().toText() === caller.toText() && signed.body.sender_sig.length === 64;
