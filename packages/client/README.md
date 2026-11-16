@@ -57,6 +57,31 @@ success, failure, cancellation or timeout. Polling signatures receive fresh guar
 Already returned signatures and accepted requests cannot be recalled. Transport
 failure never proves that the remote effect did not happen.
 
+## External signer recovery
+
+Supply a host-owned Platform `Identity` for the account or browser role. An
+external approval prompt can outlive Auth's five-second attempt or ignore local
+cancellation. Auth cannot cancel that prompt or retract a signature already
+released; its temporary identity rechecks the journal and captured principal after
+signing and refuses late results. The adapter must use the supplied temporary
+identity for dispatch, and must never submit through an unguarded identity.
+
+After rejection, cancellation or timeout, reopen the same journal and call
+`retrieveCredential` with the restored signer and original login binding. Once
+intent was committed, recovery is lookup-only for the retained sequence: account
+for initial issuance, browser for renewal. Even a rejected signing prompt does not
+permit resetting intent or reissuing. Missing evidence preserves uncertainty;
+logout refuses recovery. Hosts still own immutable account/login binding and
+wallet authentication. Switching identity during an attempt refuses.
+
+Ten native Chromium cases delay or reject real SDK signatures for both roles.
+They cover rejection, cancellation, actual timeout, identity change and logout;
+reopening, failed lookup, exact evidence reuse and approval arriving after recovery
+are checked without reissuance. These use a host adapter test double, not a real
+wallet/device connection, cross-process signer or production key store.
+The conservative `issuanceUnknown` inventory remains set after reconciliation;
+saved completion is separate evidence, not permission to erase logout uncertainty.
+
 ## Credential retrieval and admission
 
 `retrieveCredential({ journal, generation, browser, account?, issuer, transport,
@@ -165,6 +190,14 @@ evidence and logout fencing after reopening. Unknown work reconciles the origina
 sequence without reissuance, and unavailable evidence remains unresolved.
 Whole-browser failure, external signer recovery and key recovery are not covered.
 
+Three multi-receiver cases build the cleanup inventory through public admission
+for an issuer and three receivers. They combine confirmed, unconfirmed and lost
+replies, transfer cleanup between tabs, refuse expired late responses, and exhaust
+both a retrying and an unavailable receiver to eight attempts each. Deadline
+completion retains their missing confirmations and issuance uncertainty; confirmed
+destinations are not repeated. These use real SDK signing and native IndexedDB
+with transport test doubles, not a deployed multi-canister application.
+
 ### Host-owned key disposal
 
 After cleanup finishes, call `disposeLoginKey({ journal, generation, caller, dispose })`.
@@ -187,6 +220,15 @@ uncertainty, failed-reply retry, replacement protection, cancellation and storag
 clock failure. An eighth renderer-loss case deletes through a host test double,
 loses the callback reply, then retries with only the public binding. This qualifies
 coordination, not a production key store or whole-browser recovery.
+
+Four further renderer-loss cases qualify admission while signing is suspended,
+after submission, after a successful reply and before logout on reopening. The
+receiver is durably inventoried before any signature can escape. Reopening sends
+nothing automatically; explicit admission reuses the exact stored credential and
+request fields without new issuance. Logout fences admission and cleanup retains
+both issuer and receiver, including an uncertain submission. A host transport test
+double records requests outside the renderer; receiver execution, certificates and
+remote deduplication remain the separate installed qualification boundary.
 
 ## HTTP trust boundary and evidence
 

@@ -1,9 +1,10 @@
 # Changelog
 
-## [0.47.0] - Unreleased
+## [0.47.0] - 2026-11-16
 
 Source package versions: Auth 0.47.0, protocol-types/Wire 0.43.0 and private
-browser client 0.1.0. These remain unpublished source versions.
+browser client 0.1.0. GitHub source milestone only; no crates.io/npm publication
+or production deployment.
 
 ### ⚠️ Breaking
 
@@ -16,6 +17,12 @@ browser client 0.1.0. These remain unpublished source versions.
   and [Platform #8 — Align Types/Runtime and Wire](https://github.com/dragginzgame/ic-platform/issues/8).
 
 ### 🔧 Changed
+
+- Adopt Platform 0.34.10 in product and qualification manifest requirements,
+  retaining Types 0.21.2, Runtime 0.23.14 and existing Auth feature selections.
+  The supplier's ingress/native additions require no Auth API or Wire changes.
+  Qualify Testkit 0.107.4 and Host Process 0.80.3 in the installed fixture and
+  browser harness; product packages retain their existing dependency boundaries.
 
 - Adopt Platform 0.34.8, Runtime/macros/guard 0.23.14, Wire 0.24.3 and Testkit
   0.107.3 across the product and qualification workspaces, retaining the existing
@@ -57,6 +64,42 @@ browser client 0.1.0. These remain unpublished source versions.
   fences late work without waiting for the coordinator. No application calls replay.
 
 ### 🧪 Testing
+
+- Qualify installed replay-capacity refusal using successive credentials for one
+  login and an empty-receiver control. Preserve exact retry after proof expiry,
+  retain replay rows after logout and record refusal cost without implicit pruning.
+
+- Qualify installed known-login capacity refusal against an empty-receiver control.
+  Preserve the original session and work credit, refuse the new caller's writes,
+  and retain capacity-consuming login fences after logout; record refusal cost.
+
+- Qualify installed receiver credit exhaustion and gradual refill, including no
+  partial charge on refusal. Measure revoked pending issuer completion and prove
+  it preserves evidence without entering root publication. Record both refusal costs.
+
+- Extend installed costs to six certified-issuer control operations. Check wrong
+  caller refusal, retained state and completed retries before/after revocation;
+  publication-fault probes prove those retries do not republish the root.
+
+- Add a focused installed receiver cost lane for bad proof, initial admission,
+  exact retry, protected authorization, logout and revoked authorization. Record
+  Runtime instruction-counter deltas, Wasm pages, fixture frame sizes and artifact
+  identity without introducing production budgets or product instrumentation.
+
+- Qualify mixed-outcome logout for an issuer and three receivers through public
+  browser operations: two-tab lease handoff, stale reply refusal, per-destination
+  retry exhaustion and deadline completion retaining unresolved confirmations.
+
+- Qualify four receiver-admission renderer-loss boundaries with native IndexedDB.
+  Preserve cleanup inventory, reuse exact evidence only on explicit admission,
+  prevent post-logout admission and clean both issuer and receiver after an
+  uncertain submission. Transport observations use a host test double.
+
+- Qualify external signer recovery for account issuance and browser renewal with
+  ten native browser cases. Delayed/rejected real SDK signatures exercise refusal,
+  cancellation, timeout, identity changes and logout; reopening remains lookup-only
+  and late approval cannot revive a closed attempt. Real wallet/device integration
+  remains outside this host-adapter qualification.
 
 - Qualify logout recovery after abrupt Chromium renderer loss following local
   invalidation, signed dispatch and committed confirmation. Reopening retains

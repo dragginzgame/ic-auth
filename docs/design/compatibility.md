@@ -120,7 +120,24 @@ the earlier request submission. Refresh cannot extend captured session leases.
 This fixed-domain test exchange does not qualify complete Canic registry wiring,
 production challenge/refresh scheduling or late/overlapping replies. External
 signer recovery, complete application certification composition and accepted
-installed costs also remain open.
+accepted installed cost budgets also remain open. A focused
+[receiver cost baseline](../development/installed-costs.md) now records six installed
+synchronous Ed25519 paths with artifact identity, instruction intervals, total heap
+pages and fixture reply sizes. Six further certified-issuer control observations cover preparation, completion,
+retained retries, caller refusal and revocation. Issuer renewal/witness delivery,
+certified receiver verification, capacity scaling and production overhead remain open.
+An installed limit case additionally exhausts receiver work credit through real
+bad proofs, verifies refusal without state allocation, preserves insufficient
+refilled credit and admits only when the full charge is available. A revoked
+pending issuer operation refuses completion without publication or evidence loss.
+Both refusal costs are recorded in the same baseline. A further installed
+known-login capacity case accepts the same second-device credential on an empty
+receiver, but refuses it on a full receiver without work charge or eviction.
+Original authorization survives, and logout retains the capacity-consuming fence.
+Installed replay-slot saturation also refuses a new valid proof without eviction
+or work charge, while the retained exact retry survives proof expiry and refuses
+after logout. Independent global/per-account replay limits, separate session/byte
+saturation and population scaling remain open.
 
 ## Browser evidence and remaining acceptance
 
@@ -198,6 +215,28 @@ deadline uncertainty, conditional deletion/retry, cancellation and storage/clock
 refusal. An eighth renderer-loss case deletes via a host custody test double and
 retries after reopening with only the public binding. Actual host key storage,
 all-copy erasure and whole-browser recovery are not qualified.
+
+Ten native external-signer cases delay or reject real SDK signing through a host
+adapter for account issuance and browser renewal. Rejection, cancellation, timeout,
+identity change and logout retain the original sequence and prevent stale signature
+release. Reopening stays lookup-only; failed lookup retains uncertainty, successful
+lookup saves exact evidence, and late approval after recovery cannot revive an old
+attempt. These qualify Auth's boundary, not a real wallet/device or cross-process
+signer. Original host account/login binding remains a consumer obligation.
+
+Four admission renderer-loss cases cover suspended signing, submitted/lost reply,
+completed reply and logout on reopening. Cleanup inventory survives every boundary;
+reopening does not submit, explicit admission reuses exact evidence without issuer
+calls, and logout fences admission while cleaning both issuer and receiver. Requests
+are observed outside the renderer by a transport test double; this adds browser
+recovery evidence, not remote execution or certificate authentication evidence.
+
+Three multi-receiver browser cases create an issuer/three-receiver inventory through
+public admission and combine confirmations, unconfirmed replies and transport loss.
+They qualify cross-tab lease handoff, refusal of a superseded response, exact
+per-destination attempt exhaustion and deadline completion retaining unresolved
+receivers. Transport replies are test doubles; deployed multi-canister coordination
+and certificate authentication remain consumer/installed acceptance boundaries.
 
 Still required: production Canic endpoint integration, complete multi-receiver acceptance,
 external signer recovery, production key custody and broader renderer-interruption recovery. No application operation may be

@@ -20,6 +20,8 @@ The executable selections are `make/consumer.mk`, `make/cargo-dependencies.mk`,
 the formatting hook, the common-tools and failure-evidence composite actions,
 and the pinned CI-tool installer, with their required companions. No release or
 publication interface is selected. Product checks are owned by the root Makefile.
+[Future publication scope](publication.md) includes all three product crates and
+keeps qualification packages excluded; publication remains disabled for now.
 
 ## Setup and focused checks
 
@@ -213,9 +215,22 @@ The `installed-http` and `installed-flow` groups are excluded from ordinary brow
 tests and hosted aggregates. `lint-host` checks both native harnesses and the Wasm
 fixture. Shared setup uses ordinary modules beneath explicit test entrypoints.
 
+The `external-signer` selector covers ten account/browser signing recovery cases
+using delayed/rejected real SDK signatures and native IndexedDB. It includes two
+actual five-second timeout cases. Run with `IC_AUTH_CLIENT_SUITE=external-signer`
+and the prepared-browser command. It qualifies Auth's adapter boundary, not a real
+wallet/device protocol or persistent external key custody.
+
 The `scheduler` browser selector checks cleanup scheduling, cancellation,
 cross-tab leases and resumption; `cleanup` and `logout` retain the journal and
 one-step effect cases.
+
+The `multi-logout` selector checks three mixed-outcome cleanup cases across an
+issuer and three receivers, with public admission creating the inventory. It covers
+two-tab handoff, stale reply refusal, exactly eight attempts per unconfirmed/
+unavailable destination, and retained uncertainty at the original deadline.
+It uses an injected host clock and transport test doubles with real SDK signing.
+Run with `IC_AUTH_CLIENT_SUITE=multi-logout` and the prepared browser.
 
 The `disposal` selector covers seven terminal key-disposal cases with native
 IndexedDB and host conditional-deletion test doubles. The `interruption` selector
@@ -225,9 +240,33 @@ Neither qualifies a production key store.
 The `interruption` selector uses a dedicated disposable Chromium browser per case.
 It obtains that browser's renderer process IDs through CDP, sends SIGKILL only to
 those processes, observes the crash event and reopens the same context storage.
-Its seven cases cover logout and issuance/renewal recovery, retained evidence and
+Its eight cases cover key-disposal retry, logout and issuance/renewal recovery, retained evidence and
 logout fencing after reopening. Run with `IC_AUTH_CLIENT_SUITE=interruption` and the existing prepared-browser
 command. This qualifies renderer loss, not whole-browser or operating-system loss.
+
+The `admission-interruption` selector reuses that dedicated-browser crash helper
+for four receiver admission cases: suspended signing, submitted/lost reply,
+completed reply and logout after reopening. It checks exact request reuse, no
+implicit submission, durable cleanup inventory and no post-logout admission.
+Its host transport recorder is a test double; it does not establish remote effects.
+Run with `IC_AUTH_CLIENT_SUITE=admission-interruption` and the prepared browser.
+
+The focused installed receiver measurement lane uses
+`HOST_TEST_FILTER='cost_observations --nocapture' make qualify-host`
+with the prepared `POCKET_IC_SERVER_URL`. It reports six receiver and six issuer
+synchronous operation instruction deltas, heap pages and fixture frame sizes.
+The `receiver_cost_observations` and `issuer_cost_observations` filters select each
+scenario independently. The `limit_cost_observations` filter adds exhausted
+verification credit/refill and revoked pending issuer completion, with retained
+state assertions. It is also selected by the broader `cost_observations` filter.
+The `capacity_cost_observations` filter compares full and empty installed receivers
+with the same valid second-device credential, proving no eviction or verification
+charge at the known-login limit and retained capacity after logout. The
+`replay_capacity_cost_observations` filter fills both replay slots for one login,
+checks valid-proof refusal against an empty control, retained exact retry after
+proof expiry, and replay fences after logout. See
+[installed costs](installed-costs.md) for the exercised command, artifact identity,
+observations and exclusions; these are not accepted production budgets.
 
 ## Dependency maintenance and LOC
 

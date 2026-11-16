@@ -1,69 +1,55 @@
 # Current status
 
-Volatile Auth is implemented in the library; complete consumer integration and
-browser lifecycle acceptance remain open. Stable storage is deferred to
-`ic-storage-new` orthogonal persistence; no interim adapter is planned.
+Auth **0.47.0** is the GitHub source milestone (`v0.47.0`), with protocol-types/Wire
+**0.43.0** and private browser client **0.1.0**. Volatile Auth is implemented in the
+library; production consumer acceptance remains open. Stable storage is deferred
+to `ic-storage-new` orthogonal persistence, with no interim adapter.
 
-The **0.47.0 unreleased** source checkpoint adds browser readiness and admission
-coalescing with explicit clock mapping and a 64-operation ceiling. It also adopts
-Platform 0.34.8, Types 0.21.2, Runtime 0.23.14, Wire 0.24.3 and Testkit 0.107.3.
-Focused issuer, cryptographic, native/Wasm lint and Wire checks qualify this
-dependency selection. The former Types/Wire generator mismatch is resolved. Both Cargo graphs contain
-one Platform/Types cohort and no legacy Platform or Agent. Source package versions are Auth
-**0.47.0**, protocol-types/Wire **0.43.0** and private browser client **0.1.0**.
-The preceding source checkpoint is `bfe2e54`; browser-bound issuer revocation,
-renderer recovery and terminal key disposal are included in this source checkpoint. 0.2.0 remains
-the last tag. All packages remain unpublished. The repository is now `dragginzgame/ic-auth`;
-historical provenance is retained for `dragginzgame/ic-auth-legacy`. Historical audit identities
-retain their names and paths at the time of inspection.
+The selected dependency cohort is Platform 0.34.10, Types 0.21.2, Runtime 0.23.14,
+Wire 0.24.3, Testkit 0.107.4 and qualification-only Host Process 0.80.3. Both Cargo
+graphs have one Platform/Types cohort and no legacy Platform or Agent. Toko Tooling
+0.44.11 remains authenticated; Rust is 1.100.0. Product features and Wire layouts
+are unchanged by the latest supplier adoption.
 
 | Capability | Current evidence | Remaining acceptance boundary |
 | --- | --- | --- |
-| Canonical claims, both proof mechanisms and four Wire contracts | Independent signed vectors, 37 independently assembled frames, 296 resource thresholds and generated browser interoperability | Complete current consumer delivery; no pre-recode compatibility requirement |
-| Bounded memory receiver and issuer | Native lifecycle/model/fault checks; private policy and one operation owner each | Production host integration and accepted installed costs |
-| Installed transactions, volatile loss and enrollment | Five single-subnet Wasm cases: rollback, real certificates, closed upgrade loss, bound authority replies and terminal key revocation | Canic registry integration, production challenge/refresh handling and late/overlapping replies |
-| Browser journal, readiness, admission and scheduled cleanup | Strict IndexedDB, nineteen readiness/guarded-call cases, seven scheduler cases, eight actual renderer-loss cases and seven key-disposal cases, two-tab/logout fencing, real SDK signing and independent Wire frames | Production host key custody and broader renderer-interruption recovery |
-| HTTP and installed browser journey | Five raw certificate cases plus four journey cases: lost issuance reply/reconciliation, real Wire admission, protected write, logout and credential replay refusal | Production Canic wiring, multi-receiver coordination and external signer recovery |
+| Canonical claims, both proof mechanisms and four Wire contracts | Independent signed vectors, 37 independently assembled frames, 296 resource thresholds, generated browser interoperability; 27 focused crypto tests pass with Platform 0.34.10 | Complete current consumer delivery |
+| Bounded memory receiver and issuer | Lifecycle/model/fault checks; browser-bound issuer revocation; private policy and operation owners | Production host integration and agreed resource budgets |
+| Installed transactions, volatile loss and enrollment | Five lifecycle cases qualify rollback, real certificates, closed upgrade loss, bound authority replies and terminal key revocation | Canic enrollment integration and production challenge/refresh handling |
+| Browser lifecycle | Readiness/guarded calls, seven scheduler cases, twelve renderer-loss cases, seven disposal cases, ten external-signer boundary cases and three mixed multi-receiver cleanup cases | Real wallet/device recovery, production key custody and deployed multi-canister coordination |
+| HTTP and installed browser journey | Certified response checks and issuance recovery → admission → protected write → logout → replay refusal | Production Canic wiring and external signer integration |
+| Installed costs | Five measurement scenarios covering sixteen operation/refusal paths; full installed suite passes ten tests | Issuer renewal/witness delivery, certified receiver admission, independent session/byte/per-account limits, scaling and accepted budgets |
 
-The issuer integration slice adds browser-bound revocation with retained
-login authentication, original-deadline return and pending-completion fencing.
-[Canic #16](https://github.com/dragginzgame/canic/issues/16) owns its mounted
-consumer contract; [Canic #10](https://github.com/dragginzgame/canic/issues/10) and
-[Canic #11](https://github.com/dragginzgame/canic/issues/11) retain broader issuer
-and browser journey acceptance. [Canic #17](https://github.com/dragginzgame/canic/issues/17)
-owns generated issuer codecs and the browser adapter. No Canic source was changed.
+Browser recovery uses native IndexedDB, real SDK signing and disposable Chromium
+renderers. External signers and multi-receiver transports use host test doubles;
+those tests do not establish real wallet or remote receiver behavior. Reopening
+preserves issuance sequence, cleanup inventory and uncertainty. Explicit retry
+reuses evidence; application calls never replay automatically. Terminal disposal
+uses the public login binding and delegates conditional deletion to host custody.
 
-The browser package exposes lifecycle handles, a bounded session coordinator and
-complete retrieval/admission/cleanup operations, including cancellable cleanup
-scheduling through journal-owned leases and deadlines, plus retryable host key
-disposal after terminal cleanup. Disposal retains public binding and uncertainty;
-hosts own conditional deletion and replacement-key protection. Readiness receipts remain detached
-scheduling hints. Guarded ordinary calls prepare readiness once and recheck the
-deadline and logout generation around each signature without application replay.
-Claim/guard/settlement stages and signing-attempt machinery
-are internal. The [architecture review](../reports/audits/2026/11/16/auth-architecture/01/report.md)
-found real ownership improvements but no demonstrated equivalent-feature LOC
-saving. Its API and current-status findings are addressed in this source checkpoint;
-the report remains the immutable pre-change evidence.
+[Installed costs](../development/installed-costs.md) records measurement intervals,
+artifact identities and supplier cohorts. The release check reruns all installed
+cases with the selected graph; observations are fixture baselines, not production
+budgets. Refusal preserves work credit/state where appropriate, login/replay fences
+remain charged after logout, and exact retry preserves its retained session lease.
 
-[Compatibility and acceptance](../design/compatibility.md) owns the evidence
-boundaries. [Browser integration](../../packages/client/README.md),
+[Canic #16](https://github.com/dragginzgame/canic/issues/16) owns browser-bound issuer
+logout wiring and [Canic #17](https://github.com/dragginzgame/canic/issues/17) owns
+generated issuer codecs and the browser adapter. Broader integration remains in
+[Canic #10](https://github.com/dragginzgame/canic/issues/10) and
+[Canic #11](https://github.com/dragginzgame/canic/issues/11). No Canic source changed.
+
+[Compatibility and acceptance](../design/compatibility.md),
+[browser integration](../../packages/client/README.md),
 [installed qualification](../../qualification/ic-auth-host-conformance/README.md)
-and [developer tooling](../development/tooling.md) describe usage and focused gates.
-The authorized pre-recode hard cut removes the executable legacy oracle and
-legacy-feature qualification lane; strict security checks and current browser
-interoperability remain. No legacy checkout is required.
-Platform owns crypto/SDK behavior, Canic owns application endpoint wiring, and
-hosts own authenticated inputs, transactions and certification-root publication.
+and [developer tooling](../development/tooling.md) own detailed evidence and commands.
+The [architecture review](../reports/audits/2026/11/16/auth-architecture/01/report.md)
+remains immutable pre-change evidence; it established ownership improvements, not
+an equivalent-feature LOC saving. Hosted CI and local installed checks are separate
+claims. Historical sources retain provenance; no legacy executable oracle is used.
 
-[Hosted native jobs for `3839e03`](https://github.com/dragginzgame/ic-auth/actions/runs/43858613569)
-passed on Linux and both macOS architectures; that run's history scan failed on
-two type examples in exception comments. The local correction and exact historical
-exceptions pass the scan. Browser and installed gates remain explicit local checks,
-not hosted CI claims. Rust remains 1.100.0; Toko Tooling 0.44.11 is now selected and authenticated.
-
-The fixed combined issuer/receiver journey is now exercised on one subnet through
-the supported browser API. Next integration work should use production Canic
-boundaries and complete the remaining browser lifecycle with the same owners. The original
-repository remains production owner. Publication, deployment and live-storage
-migration are not authorized.
+All three product crates are intended for future crates.io delivery under the
+[publication scope](../development/publication.md). Every crate remains
+`publish = false`; the browser package remains private. The original repository
+retains production ownership. This source milestone does not authorize registry
+publication, production deployment, consumer migration or live-storage changes.

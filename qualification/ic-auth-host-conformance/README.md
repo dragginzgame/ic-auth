@@ -190,3 +190,31 @@ The qualification unsafe-code lint is `deny` so the Runtime macro can narrowly
 expect its generated Wasm export attribute; no handwritten unsafe code is added.
 PocketIC still owns its thiserror 2.0.18 constraint. No legacy Platform, Agent or
 second Runtime is selected. Simulator/server provisioning remains host-owned.
+
+## Receiver cost observations
+
+The ignored `receiver_cost_observations` filter measures six synchronous receiver
+paths through a qualification-only endpoint. It checks actual outcomes and reports
+Runtime instruction deltas, total Wasm pages and ordinary fixture reply sizes.
+[Installed costs](../../docs/development/installed-costs.md) records the command,
+artifact identity and baseline. Enrollment, outer codec/runtime overhead, production
+capacity and accepted budgets remain outside this interval.
+
+The `issuer_cost_observations` filter adds six certified-issuer control measurements,
+including wrong-caller refusal and retained completion retries before/after
+revocation. Root-publication fault probes must not run on those retries. Use
+`cost_observations` to select both measurement tests. Neither establishes
+production cost ceilings or measures certificate delivery.
+
+The `limit_cost_observations` filter adds budget exhaustion/refill and revoked
+pending completion. It creates those states through actual operations, checks
+retained state and recovery, and records the refusal instruction intervals.
+
+The `capacity_cost_observations` filter qualifies the one-known-login limit against
+an empty-receiver positive control, preserved authorization and retained fences
+after logout. It does not independently saturate session/replay/byte limits.
+
+The `replay_capacity_cost_observations` filter fills the two replay slots for one
+login, compares refusal against an empty control, and checks exact retry after
+proof expiry plus retained replay fences after logout. Global/per-account replay
+limits are equal in this fixture and are not independently saturated.

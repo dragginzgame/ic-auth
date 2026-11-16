@@ -1,11 +1,14 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { externalSignerCases } from './external-signer.mjs';
 import { issuanceCases } from './issuance.mjs';
 import { transportCases } from './transport.mjs';
+import { admissionInterruptionCases } from './admission-interruption.mjs';
 import { admissionCases } from './admission.mjs';
 import { cleanupCases } from './cleanup.mjs';
 import { disposalCases } from './disposal.mjs';
 import { interruptionCases } from './interruption.mjs';
+import { multiLogoutCases } from './multi-logout.mjs';
 import { schedulerCases } from './scheduler.mjs';
 import { logoutCases } from './logout.mjs';
 import { readinessCases } from './readiness.mjs';
@@ -29,7 +32,7 @@ for (const line of readFileSync(new URL('../../../../crates/ic-auth-wire/tests/f
   if (name.startsWith('logout-')) credentialFrames[name] = Array.from(Buffer.from(hex, 'hex'));
 }
 const suite = process.env.IC_AUTH_CLIENT_SUITE ?? 'all';
-if (!['all', 'journal', 'issuance', 'transport', 'admission', 'cleanup', 'logout', 'http', 'readiness', 'scheduler', 'interruption', 'disposal', 'installed-http', 'installed-flow'].includes(suite)) throw new Error('Unknown IC_AUTH_CLIENT_SUITE');
+if (!['all', 'journal', 'issuance', 'transport', 'admission', 'cleanup', 'logout', 'http', 'readiness', 'scheduler', 'interruption', 'disposal', 'external-signer', 'admission-interruption', 'multi-logout', 'installed-http', 'installed-flow'].includes(suite)) throw new Error('Unknown IC_AUTH_CLIENT_SUITE');
 const executablePath = process.env.IC_AUTH_BROWSER_EXECUTABLE;
 assert(executablePath, 'Set IC_AUTH_BROWSER_EXECUTABLE to an installed Chromium executable; this gate never downloads one.');
 const bundle = await build({ entryPoints: ['tests/browser/entry.ts'], bundle: true,
@@ -274,6 +277,8 @@ try {
   });
   group = 'issuance';
   await issuanceCases({ check, a, b, prepare });
+  group = 'external-signer';
+  await externalSignerCases({ check, a });
   group = 'transport';
   await transportCases({ check, a, b });
   group = 'admission';
@@ -284,10 +289,14 @@ try {
   await logoutCases({ check, a, b });
   group = 'scheduler';
   await schedulerCases({ check, a, b });
+  group = 'multi-logout';
+  await multiLogoutCases({ check, a, b });
   group = 'disposal';
   await disposalCases({ check, a });
   group = 'interruption';
   await interruptionCases({ check, browser, prepare });
+  group = 'admission-interruption';
+  await admissionInterruptionCases({ check, browser, prepare });
   group = 'readiness';
   await readinessCases({ check, a, b });
   group = 'http';

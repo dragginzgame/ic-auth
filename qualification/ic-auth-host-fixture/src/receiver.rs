@@ -93,3 +93,19 @@ pub struct Observation {
     /// Committed protected application projections.
     pub application_writes: u32,
 }
+
+/// Qualification-only synchronous cost observation, outside product Wire contracts.
+pub const MEASURE: u64 = 0x4155_5448_5155_000a;
+
+/// Fixture control execution costs; excludes outer request decoding/reply encoding.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+pub struct Measurement {
+    /// Actual control result, checked independently by the host test.
+    pub result: Result<Outcome, Refusal>,
+    /// IC counter-zero delta around synchronous control execution.
+    pub instructions: u64,
+    /// Wasm linear-memory pages before and after control execution (64 KiB each).
+    pub heap_pages: (u64, u64),
+    /// Encoded ordinary control response size, excluding this measurement envelope.
+    pub response_bytes: u64,
+}

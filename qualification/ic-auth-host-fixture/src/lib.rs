@@ -108,3 +108,18 @@ fn hash_bytes(bytes: impl AsRef<[u8]>) -> [u8; 32] {
 fn endpoint_error<E: std::fmt::Debug>(error: E) -> ! {
     ic_platform_runtime::system::trap(&format!("fixture endpoint refused: {error:?}"))
 }
+
+/// Qualification-only synchronous issuer measurement identity.
+pub const MEASURE: u64 = 0x4155_5448_5155_000b;
+/// Issuer fixture execution interval, excluding outer codecs and executor overhead.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+pub struct Measurement {
+    /// Actual control outcome.
+    pub result: Result<(), Refusal>,
+    /// Runtime counter-zero delta around synchronous control execution.
+    pub instructions: u64,
+    /// Total Wasm linear-memory pages before and after execution.
+    pub heap_pages: (u64, u64),
+    /// Ordinary control reply bytes, excluding measurement metadata.
+    pub response_bytes: u64,
+}

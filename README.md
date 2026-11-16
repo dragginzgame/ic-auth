@@ -24,11 +24,13 @@ remain open. See the
 [current handoff](docs/status/current.md) for present capability and evidence limits.
 
 Source package versions are Auth 0.47.0, protocol-types/Wire 0.43.0 and private
-browser client 0.1.0; the current
-unreleased source checkpoint is 0.47.0. All crates retain `publish = false`, and the
-browser package is private. Version 0.2.0 remains the last tagged GitHub milestone.
+browser client 0.1.0. The GitHub source milestone is `v0.47.0`.
+All crates retain `publish = false`, and the browser package is private.
 The original repository remains production owner until qualification and explicit
 adoption approval. No registry publication or consumer cutover is implied.
+All three product crates are intended for eventual crates.io delivery; the
+[publication scope](docs/development/publication.md) records dependency order,
+qualification-package exclusions and the future activation gate.
 
 - [Architecture and qualification plan](docs/design/DESIGN.md)
 - [Design and ownership overview](docs/design/authentication.md)

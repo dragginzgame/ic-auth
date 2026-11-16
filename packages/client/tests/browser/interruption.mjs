@@ -216,7 +216,7 @@ export async function interruptionCases({ check, browser, prepare }) {
   }
 }
 
-async function crashAndReopen(ownedBrowser, context, page, prepare) {
+export async function crashAndReopen(ownedBrowser, context, page, prepare) {
   const cdp = await ownedBrowser.newBrowserCDPSession();
   const { processInfo } = await cdp.send('SystemInfo.getProcessInfo');
   const renderers = processInfo.filter(p => p.type === 'renderer');

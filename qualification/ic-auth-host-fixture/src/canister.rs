@@ -277,3 +277,39 @@ fn decode_upgrade(bytes: &[u8]) -> Result<(), String> {
         Err("unexpected upgrade input".into())
     }
 }
+
+fn decode_measurement(bytes: &[u8]) -> Result<Command, ic_wire::Error> {
+    ic_wire::decode(
+        bytes,
+        ic_wire::Encoding::Frame {
+            method: super::MEASURE,
+            direction: ic_wire::Direction::Request,
+        },
+        REQUEST,
+    )
+}
+fn encode_measurement(value: super::Measurement) -> Result<Vec<u8>, ic_wire::Error> {
+    ic_wire::encode(
+        &value,
+        ic_wire::Encoding::Frame {
+            method: super::MEASURE,
+            direction: ic_wire::Direction::Response,
+        },
+        RESPONSE,
+    )
+}
+#[runtime::update(runtime = ic_platform_runtime, name = "auth_fixture_measure", guard = bounded_request, decode = decode_measurement, encode = encode_measurement, max_bytes = 256, on_error = crate::endpoint_error)]
+fn measure(command: Command) -> super::Measurement {
+    let before_heap = core::arch::wasm32::memory_size::<0>() as u64;
+    let before = runtime::raw::instruction_counter();
+    let result = control(command);
+    let instructions = runtime::raw::instruction_counter() - before;
+    let after_heap = core::arch::wasm32::memory_size::<0>() as u64;
+    let response_bytes = encode_result(result).unwrap().len() as u64;
+    super::Measurement {
+        result,
+        instructions,
+        heap_pages: (before_heap, after_heap),
+        response_bytes,
+    }
+}

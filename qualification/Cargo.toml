@@ -20,10 +20,10 @@ ic-auth-wire = { path = "../crates/ic-auth-wire" }
 ic-build = "0.87.3"
 ic-host-artifacts = "0.80.1"
 ic-host-fs = "0.80.1"
-ic-host-process = "0.80.2"
-ic-platform = { version = "0.34.8", default-features = false }
+ic-host-process = "0.80.3"
+ic-platform = { version = "0.34.10", default-features = false }
 ic-platform-runtime = { version = "0.23.14", default-features = false }
-ic-testkit = "0.107.3"
+ic-testkit = "0.107.4"
 ic-wire = "0.24.3"
 serde = "1.0.229"
 sha2 = "0.11.1"

@@ -21,7 +21,7 @@ ic-auth = { workspace = true, features = ["issuer-memory", "receiver-memory", "e
 ic-auth-protocol-types.workspace = true
 ic-auth-wire.workspace = true
 ic-platform = { workspace = true, features = ["certificate-construction", "ed25519"] }
-ic-platform-runtime = { workspace = true, features = ["entrypoint-macros"] }
+ic-platform-runtime = { workspace = true, features = ["entrypoint-macros", "system-raw"] }
 sha2.workspace = true
 
 [dependencies]
