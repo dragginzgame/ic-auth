@@ -19,7 +19,7 @@ request identity/TTL, all four Wire contracts with generated codecs, and optiona
 Ed25519 and complete certified verification. Legacy cryptographic schemes and
 canonical bytes remain unchanged; Platform 0.33.7 owns the primitives. Canic owns
 application endpoint wiring. Wire retains 37 reference frames and 296 resource
-thresholds against IC Wire 0.24.1. Rust 1.100.0 and Toko Tooling 0.44.4 are unchanged.
+thresholds against IC Wire 0.24.1. Rust remains 1.100.0; Toko Tooling 0.44.5 is now selected and authenticated.
 
 The [memory receiver](../development/memory-receiver-boundary.md) owns bounded
 caller/device/replay/account/expiry state and separate proof/unknown-logout budgets.

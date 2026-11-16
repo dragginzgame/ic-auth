@@ -1,7 +1,7 @@
 # IC Auth New
 
 Read the installed [Toko Tooling baseline](TOKO-TOOLING.md). Its common rules
-apply alongside the product constraints below. Tooling 0.44.4 is authenticated
+apply alongside the product constraints below. Tooling 0.44.5 is authenticated
 by `.toko-tooling.snapshot`; [developer tooling](docs/development/tooling.md)
 describes Cargo-based admission and focused checks.
 
