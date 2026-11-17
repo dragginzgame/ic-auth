@@ -365,7 +365,7 @@ dependencies = [
 
 [[package]]
 name = "ic-auth"
-version = "0.47.3"
+version = "0.47.4"
 dependencies = [
  "ic-auth-protocol-types",
  "ic-platform",

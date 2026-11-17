@@ -161,8 +161,9 @@ throughout the native matrix.
 A separate Linux job installs pinned Actionlint, ShellCheck and Gitleaks, validates
 the workflow, and scans complete Git history once with secrets fully redacted.
 Actions are commit-pinned, repository permissions are read-only, and newer work
-cancels the same workflow/ref. Shared failure evidence retains native logs for
-14 days. Generated browser codec checks and installed host/SDK lifecycle
+cancels the same workflow/ref. Shared failure evidence retains native logs and
+security-tool setup/check logs for 14 days. Security steps preserve pipeline failure
+status while recording collector-selected logs; Gitleaks output stays fully redacted. Generated browser codec checks and installed host/SDK lifecycle
 qualification remain separate gates; Wasm coverage here proves compilation only.
 
 ## Private browser client

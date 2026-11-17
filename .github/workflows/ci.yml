@@ -30,16 +30,25 @@ jobs:
       - name: Prepare pinned CI tools
         run: |
           for tool in actionlint shellcheck gitleaks; do
-            bash vendor/toko-tooling/scripts/ci/install-ci-tool.sh "$tool" --install-dir "$RUNNER_TEMP/auth-ci-tools"
+            bash vendor/toko-tooling/scripts/ci/install-ci-tool.sh "$tool" --install-dir "$RUNNER_TEMP/auth-ci-tools" \
+              2>&1 | tee "$RUNNER_TEMP/tools-$tool.log"
           done
           echo "$RUNNER_TEMP/auth-ci-tools" >> "$GITHUB_PATH"
       - uses: ./vendor/toko-tooling/.github/actions/cache-tool-downloads
         with:
           mode: save
       - name: Validate workflow
-        run: actionlint -color .github/workflows/ci.yml
+        run: actionlint -color .github/workflows/ci.yml 2>&1 | tee "$RUNNER_TEMP/tools-actionlint-check.log"
       - name: Scan complete Git history once
-        run: gitleaks git --redact=100 --no-banner --no-color --log-level error
+        run: gitleaks git --redact=100 --no-banner --no-color --log-level error 2>&1 | tee "$RUNNER_TEMP/tools-gitleaks-check.log"
+      - name: Retain security failure evidence
+        if: failure()
+        uses: ./vendor/toko-tooling/.github/actions/retain-failure-evidence
+        with:
+          name: auth-security-${{ github.run_attempt }}
+          temp-root: ${{ runner.temp }}
+          repository-root: ${{ github.workspace }}
+          compact-successful-tools: 'true'
 
   native:
     name: Native contracts (${{ matrix.os }})

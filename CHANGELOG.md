@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.47.4] - 2026-11-17
+
+### 🩹 Fixed
+
+- Retain security-tool installation and redacted check logs when the CI security
+  job fails, using the installed shared failure-evidence action.
+
+### 🧹 Cleanup
+
+- Move the remaining inline Rust test modules into ordinary test files while
+  preserving private access, test identities and production behavior.
+
 ## [0.47.3] - 2026-11-17
 
 ### 🔧 Changed

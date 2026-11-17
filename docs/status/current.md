@@ -1,21 +1,21 @@
 # Current status
 
-Auth **0.47.3** is the current release (`v0.47.3`), with protocol-types/Wire
+Auth **0.47.4** is the current release (`v0.47.4`), with protocol-types/Wire
 **0.43.0** and private browser client **0.1.0**. Volatile Auth is implemented in the
 library; production consumer acceptance remains open. Stable storage is deferred
 to `ic-storage-new` orthogonal persistence, with no interim adapter.
 
-The 0.47.3 source locks select Platform 0.34.13 and Types 0.21.2, with
+The 0.47.4 source locks select Platform 0.34.13 and Types 0.21.2, with
 qualification Runtime/macros/guard 0.23.16, Wire 0.24.3, Testkit 0.108.0,
 Host Artifacts/FS 0.80.3 and Host Process 0.80.4. Both Cargo graphs have one
 Platform/Types cohort and no legacy Platform or Agent. Toko Tooling 0.44.11
 remains authenticated; Rust is 1.100.0. Product dependency requirements, features,
 implementation and Wire layouts are unchanged; this release delivers qualification
-handoff updates and receiver test-layout cleanup. The existing lockfile update
+security-job failure evidence and inline-test extraction. The existing lockfile update
 selects zeroize 1.9.2 in both workspaces.
 
 The maintainer authorized crates.io publication of all three product crates.
-Qualification packages and the browser client remain private. Auth 0.47.3 is the
+Qualification packages and the browser client remain private. Auth 0.47.4 is the
 only new crate upload; protocol-types/Wire remain 0.43.0. Historical installed cost observations retain the
 exact dependency cohorts and artifact identities they measured.
 
