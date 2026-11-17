@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.47.3] - Unreleased
+
+### 🩹 Fixed
+
+- Exempt one verified historical audit checksum from secret-scanner findings.
+  Complete-history scanning and detection of future findings remain enabled.
+
 ## [0.47.2] - 2026-11-17
 
 ### 🧪 Testing

@@ -10,3 +10,6 @@ c0bb2158c79ee0d871869f788f113bd54994ff96:packages/client/src/generated/establish
 # The same type examples appeared in explanatory comments in this file.
 3839e035507666adbe3631591e54d8f43a729fc7:.gitleaksignore:generic-api-key:3
 3839e035507666adbe3631591e54d8f43a729fc7:.gitleaksignore:generic-api-key:4
+# Reviewed audit evidence checksum, recomputed from the named design document.
+# Exact historical finding only; this is a SHA-256 digest, not a credential.
+e3ea2c74bbb5fe33f5f07e3aa267699c0ffb6b12:docs/reports/audits/2026/11/17/auth-sediment/01/evidence.json:generic-api-key:15
