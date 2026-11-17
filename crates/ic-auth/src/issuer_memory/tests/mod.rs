@@ -359,7 +359,7 @@ fn renewal_operation_identity_matches_independent_wide_integer_and_grant_frame()
             },
         ],
     };
-    let (_, hex) = include_str!("../../tests/fixtures/issuer-renewal.tsv")
+    let (_, hex) = include_str!("../../../tests/fixtures/issuer-renewal.tsv")
         .lines()
         .map(|l| l.split_once('\t').unwrap())
         .find(|(key, _)| *key == "wide-id")

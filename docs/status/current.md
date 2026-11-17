@@ -1,19 +1,24 @@
 # Current status
 
-Auth **0.47.0** is the GitHub source milestone (`v0.47.0`), with protocol-types/Wire
+Auth **0.47.1** is the current release (`v0.47.1`), with protocol-types/Wire
 **0.43.0** and private browser client **0.1.0**. Volatile Auth is implemented in the
 library; production consumer acceptance remains open. Stable storage is deferred
 to `ic-storage-new` orthogonal persistence, with no interim adapter.
 
-The selected dependency cohort is Platform 0.34.10, Types 0.21.2, Runtime 0.23.14,
+The 0.47.1 dependency cohort is Platform 0.34.11, Types 0.21.2, Runtime 0.23.15,
 Wire 0.24.3, Testkit 0.107.4 and qualification-only Host Process 0.80.3. Both Cargo
 graphs have one Platform/Types cohort and no legacy Platform or Agent. Toko Tooling
 0.44.11 remains authenticated; Rust is 1.100.0. Product features and Wire layouts
 are unchanged by the latest supplier adoption.
 
+The maintainer authorized crates.io publication of all three product crates.
+Qualification packages and the browser client remain private. The release includes
+six module layout corrections. Historical installed cost observations retain the
+exact dependency cohorts and artifact identities they measured.
+
 | Capability | Current evidence | Remaining acceptance boundary |
 | --- | --- | --- |
-| Canonical claims, both proof mechanisms and four Wire contracts | Independent signed vectors, 37 independently assembled frames, 296 resource thresholds, generated browser interoperability; 27 focused crypto tests pass with Platform 0.34.10 | Complete current consumer delivery |
+| Canonical claims, both proof mechanisms and four Wire contracts | Independent signed vectors, 37 independently assembled frames, 296 resource thresholds, generated browser interoperability; 27 focused crypto tests pass with Platform 0.34.11 | Complete current consumer delivery |
 | Bounded memory receiver and issuer | Lifecycle/model/fault checks; browser-bound issuer revocation; private policy and operation owners | Production host integration and agreed resource budgets |
 | Installed transactions, volatile loss and enrollment | Five lifecycle cases qualify rollback, real certificates, closed upgrade loss, bound authority replies and terminal key revocation | Canic enrollment integration and production challenge/refresh handling |
 | Browser lifecycle | Readiness/guarded calls, seven scheduler cases, twelve renderer-loss cases, seven disposal cases, ten external-signer boundary cases and three mixed multi-receiver cleanup cases | Real wallet/device recovery, production key custody and deployed multi-canister coordination |
@@ -48,8 +53,7 @@ remains immutable pre-change evidence; it established ownership improvements, no
 an equivalent-feature LOC saving. Hosted CI and local installed checks are separate
 claims. Historical sources retain provenance; no legacy executable oracle is used.
 
-All three product crates are intended for future crates.io delivery under the
-[publication scope](../development/publication.md). Every crate remains
-`publish = false`; the browser package remains private. The original repository
-retains production ownership. This source milestone does not authorize registry
-publication, production deployment, consumer migration or live-storage changes.
+All three product crates are included in the authorized crates.io release under
+[publication scope](../development/publication.md). Qualification crates remain
+nonpublishable and the browser package remains private. Production ownership,
+consumer migration and live-storage changes remain outside this release.

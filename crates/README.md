@@ -1,17 +1,13 @@
 # Product packages
 
-Product packages belong here, with each directory matching its Cargo package
-name. Register actual member paths explicitly in the repository-root virtual
-workspace. Current packages:
+The virtual root workspace contains three product libraries:
 
-- `ic-auth-protocol-types`: passive claims, validated labels and Platform principals.
-- `ic-auth`: canonical claims codec, unsigned request identity and protected TTL bounds.
+- `ic-auth-protocol-types`: passive validated protocol values and Platform principals.
+- `ic-auth`: proof verification and bounded volatile receiver/issuer decisions.
+- `ic-auth-wire`: credential, admission, read and logout transport contracts.
 
-Both are unpublished partial implementations, not replacement authentication
-engines. See the [request](../docs/development/request-boundary.md) and
-[claims](../docs/development/claims-boundary.md) boundaries.
-
-Add packages only with their first meaningful implementation. Ordinary unit and
-integration tests stay with their product package. Follow the
-[authentication design](../docs/design/authentication.md) and
-[tooling setup](../docs/development/tooling.md) when adding members.
+All three are authorized for crates.io publication. See the
+[publication scope](../docs/development/publication.md) and
+[current status](../docs/status/current.md) for qualification and integration limits.
+Ordinary tests stay with their product package; independent qualification packages
+remain in the separate, nonpublishable `qualification/` workspace.

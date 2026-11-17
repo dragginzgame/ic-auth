@@ -23,14 +23,12 @@ certified update path. Complete consumer integration and external signer recover
 remain open. See the
 [current handoff](docs/status/current.md) for present capability and evidence limits.
 
-Source package versions are Auth 0.47.0, protocol-types/Wire 0.43.0 and private
-browser client 0.1.0. The GitHub source milestone is `v0.47.0`.
-All crates retain `publish = false`, and the browser package is private.
-The original repository remains production owner until qualification and explicit
-adoption approval. No registry publication or consumer cutover is implied.
-All three product crates are intended for eventual crates.io delivery; the
-[publication scope](docs/development/publication.md) records dependency order,
-qualification-package exclusions and the future activation gate.
+Release versions are Auth 0.47.1 and protocol-types/Wire 0.43.0 (`v0.47.1`).
+The three product crates are authorized for crates.io publication. Qualification
+crates retain `publish = false`; the browser client 0.1.0 remains private.
+Production deployment and consumer cutover require separate approval.
+See the [publication scope](docs/development/publication.md) for dependency order
+and package exclusions.
 
 - [Architecture and qualification plan](docs/design/DESIGN.md)
 - [Design and ownership overview](docs/design/authentication.md)

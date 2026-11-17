@@ -44,8 +44,9 @@ Read README.md, docs/design/DESIGN.md, docs/design/authentication.md,
 - Do not import historical release scripts, journals or build trees. Add only
   checks and commands that exist and have been exercised. Keep status short;
   owning GitHub issues are the tracker, not a parallel local backlog.
-- GitHub source milestones for this repository are authorized separately from
-  production delivery. Keep every crate `publish = false`; do not publish to
-  crates.io until the replacement is complete and publication is authorized.
-  Deployment, consumer migration and deletion of the original repository or
-  live storage remain outside the authorized scope.
+- The maintainer authorized crates.io publication of `ic-auth`,
+  `ic-auth-protocol-types` and `ic-auth-wire`. Keep these product crates
+  `publish = true` and qualification crates `publish = false`. Release validation,
+  package provenance and registry verification remain required.
+  Production deployment, consumer migration and deletion of the original
+  repository or live storage remain outside the authorized scope.

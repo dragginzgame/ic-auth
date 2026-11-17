@@ -1,9 +1,8 @@
-# Future crates.io publication scope
+# Crates.io publication scope
 
-All three product crates are intended for future crates.io publication once the
-replacement is complete and publication is explicitly authorized. Their current
-`publish = false` settings are a temporary delivery gate, not an exclusion from
-that future scope. Source version bumps and GitHub pushes do not open this gate.
+The maintainer authorized publication of Auth 0.47.1 and protocol-types/Wire
+0.43.0. All three product crates use `publish = true`; the destination is crates.io.
+Publication covers the implemented volatile libraries, not production deployment.
 
 | Product crate | Published responsibility | In-repository prerequisite |
 | --- | --- | --- |
@@ -27,20 +26,20 @@ crates.io publication candidate; npm delivery requires its own future decision.
 Do not introduce empty crates, endpoint installers or storage adapters to expand
 this inventory.
 
-## Activation boundary
+## Upload authorization boundary
 
 At the authorized publication milestone, review each affected product package's
-actual archive and public feature/dependency surface, select registry-restricted
-publication in its manifest, and qualify registry resolution in dependency order.
+actual archive and public feature/dependency surface, confirm the intended
+crates.io destination, and qualify registry resolution in dependency order.
 Verify package contents, repository/documentation metadata, required source and
 fixtures, and consumer compilation against uploaded supplier versions. Recheck
 crates.io name ownership and existing versions then; this plan does not claim
 that any name or version is currently available. Confirm each upload before
 publishing its dependents.
 
-Adopt any release/publication entrypoints through the authenticated Toko exporter
-at that milestone. No release automation or publication command is installed by
-this plan. Production deployment, consumer migration and live-storage changes
+This release uses Cargo directly with exact package selectors, locked dependencies
+and all features. No local publication automation is installed. Future shared
+entrypoints must be adopted through the authenticated Toko exporter. Production deployment, consumer migration and live-storage changes
 remain separate from crates.io delivery. Stable storage remains a future milestone;
 this scope does not create a storage package or make one a prerequisite for the
 currently implemented volatile crates.

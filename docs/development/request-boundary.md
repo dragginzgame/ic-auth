@@ -3,8 +3,9 @@
 The first implementation covers passive scope labels and unsigned session
 requests. This is an independent slice of architecture stage 2, not a complete
 protocol implementation or authority to admit sessions. The original slice shipped
-in the 0.1.0 source milestone; current versions are in the manifests and all
-crates retain `publish = false`.
+in the 0.1.0 source milestone; current versions are in the manifests. Current
+publication eligibility and authorization are documented in
+[publication scope](publication.md).
 
 | Contract | Owner | Independent evidence |
 | --- | --- | --- |

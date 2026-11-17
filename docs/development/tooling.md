@@ -1,7 +1,7 @@
 # Developer tooling
 
 Use Rust 1.100.0, pinned in `rust-toolchain.toml`. The root virtual workspace
-contains three unpublished product packages under `crates/`. Each inherits
+contains three product packages under `crates/`. Each inherits
 shared package fields, lints and the exact Toko source-tooling dev-dependency.
 `qualification/` is an independent workspace containing current Wire fixture
 checks and certified issuer fixtures. Ordinary integration tests
@@ -20,8 +20,9 @@ The executable selections are `make/consumer.mk`, `make/cargo-dependencies.mk`,
 the formatting hook, the common-tools and failure-evidence composite actions,
 and the pinned CI-tool installer, with their required companions. No release or
 publication interface is selected. Product checks are owned by the root Makefile.
-[Future publication scope](publication.md) includes all three product crates and
-keeps qualification packages excluded; publication remains disabled for now.
+[Publication scope](publication.md) includes all three product crates and
+keeps qualification packages excluded. Product manifests now allow publication;
+the maintainer authorized the current crates.io release.
 
 ## Setup and focused checks
 

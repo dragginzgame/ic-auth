@@ -21,8 +21,8 @@ ic-build = "0.87.3"
 ic-host-artifacts = "0.80.1"
 ic-host-fs = "0.80.1"
 ic-host-process = "0.80.3"
-ic-platform = { version = "0.34.10", default-features = false }
-ic-platform-runtime = { version = "0.23.14", default-features = false }
+ic-platform = { version = "0.34.11", default-features = false }
+ic-platform-runtime = { version = "0.23.15", default-features = false }
 ic-testkit = "0.107.4"
 ic-wire = "0.24.3"
 serde = "1.0.229"

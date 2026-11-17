@@ -5,7 +5,10 @@ edition.workspace = true
 rust-version.workspace = true
 license-file.workspace = true
 description = "Passive validated authentication protocol values"
-publish = false
+repository = "https://github.com/dragginzgame/ic-auth"
+documentation = "https://docs.rs/ic-auth-protocol-types"
+readme = "README.md"
+publish = true
 
 [package.metadata.cargo-machete]
 ignored = ["toko-tooling"]

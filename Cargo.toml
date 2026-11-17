@@ -10,7 +10,7 @@ license-file = "LICENSE.md"
 
 [workspace.dependencies]
 ic-auth-protocol-types = { version = "0.43.0", path = "crates/ic-auth-protocol-types" }
-ic-platform = { version = "0.34.10", default-features = false }
+ic-platform = { version = "0.34.11", default-features = false }
 ic-platform-types = { version = "0.21.2", default-features = false }
 ic-wire = "0.24.3"
 serde = { version = "1.0.229", features = ["derive"] }

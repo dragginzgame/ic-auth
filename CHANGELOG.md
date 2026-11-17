@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.47.1] - 2026-11-17
+
+### 🔧 Changed
+
+- Adopt Platform 0.34.11 and Runtime/macros/guard 0.23.15, retaining Types 0.21.2
+  and existing feature selections. Supplier changes normalize module file layout
+  without changing Auth APIs, cryptographic behavior or Wire contracts.
+
+- Enable registry publication in the three product manifests at maintainer request.
+  Release Auth 0.47.1 and protocol-types/Wire 0.43.0 to crates.io.
+  Qualification crates remain nonpublishable.
+
+- Normalize six Rust module owners to `foo/mod.rs` where sibling directories
+  hold child modules. Preserve public paths, schemas and fixture contents.
+
 ## [0.47.0] - 2026-11-16
 
 Source package versions: Auth 0.47.0, protocol-types/Wire 0.43.0 and private
