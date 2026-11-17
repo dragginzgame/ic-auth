@@ -17,9 +17,7 @@ use ic_auth_protocol_types::{
     PortableMechanism, Principal,
 };
 
-#[path = "support/memory_fixture.rs"]
 mod memory_fixture;
-#[path = "support/memory_model.rs"]
 mod memory_model;
 use memory_fixture::*;
 

@@ -23,7 +23,7 @@ certified update path. Complete consumer integration and external signer recover
 remain open. See the
 [current handoff](docs/status/current.md) for present capability and evidence limits.
 
-Release versions are Auth 0.47.2 and protocol-types/Wire 0.43.0 (`v0.47.2`).
+Release versions are Auth 0.47.3 and protocol-types/Wire 0.43.0 (`v0.47.3`).
 The three product crates are authorized for crates.io publication. Qualification
 crates retain `publish = false`; the browser client 0.1.0 remains private.
 Production deployment and consumer cutover require separate approval.
@@ -103,10 +103,10 @@ certificates and upgrade-loss closure with a prepared PocketIC server. See
 Receiver checks also cover admission/logout/application rollback, normal refusal
 charging and closed upgrade loss. A real installation-bound authority call now
 checks reply binding, terminal single-key revocation and atomic callback publication.
-All installed checks use one simulated subnet. Late/overlapping-reply integration
-checks remain outstanding for the supported Canic flow.
-Full Canic registry integration and production challenge/refresh handling remain
-unqualified.
+Auth's installed checks use one simulated subnet. Canic now documents its own
+Root enrollment, overlapping-refresh and authority-loss qualification; see the
+[pinned consumer handoff](docs/design/compatibility.md#pinned-canic-consumer-evidence).
+Those consumer-reported results do not establish production challenge/refresh policy.
 
 The private [browser client](packages/client/README.md) exposes a lifecycle-only
 `LoginJournal` handle plus `retrieveCredential`, `establishSession`, `cleanupOnce`

@@ -189,7 +189,7 @@ Ed25519 multi-account behavior. Certified evidence is described below; SDK and
 installed-host qualification remain open.
 
 The same test binary also runs an independent sequence ledger in
-`crates/ic-auth/tests/support/memory_model.rs`. Its fixed scenario has one account,
+`crates/ic-auth/tests/receiver_memory/memory_model.rs`. Its fixed scenario has one account,
 one device slot, three browser callers, four signed credentials and two independent
 receivers. It uses no Auth policy, encoding or verification function for expected
 decisions. A small logical ledger and elapsed-time-minus-charges arithmetic compare

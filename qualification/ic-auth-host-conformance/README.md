@@ -158,10 +158,12 @@ certificate verification. No application canister calls across a subnet boundary
 this is not a recommendation to deploy Auth on NNS. The enrollment test asserts
 both canisters share the same subnet and the topology contains exactly one.
 
-Installed late/overlapping-reply checks remain outstanding for the supported
-single-subnet Canic flow. The semantic requirements still apply; native enrollment
-checks remain intact. No alternate topology or request-order instrumentation is
-retained to manufacture timing coverage.
+This Auth fixture does not exercise installed late/overlapping replies. Canic's
+separate Root/receiver qualification now reports overlapping-refresh and expiry
+coverage, including a multiple-subnet setup to isolate await boundaries. See the
+[pinned consumer handoff](../../docs/design/compatibility.md#pinned-canic-consumer-evidence)
+for identities and limits. No alternate topology or request-order instrumentation
+is retained in this fixture to duplicate those consumer checks.
 
 The independent Node/OpenSSL memory-fixture packer has a `--host` mode: original
 scenario timestamps become seconds relative to Unix nanoseconds

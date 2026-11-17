@@ -1,11 +1,27 @@
 # Changelog
 
-## [0.47.3] - Unreleased
+## [0.47.3] - 2026-11-17
+
+### 🔧 Changed
+
+- Release Auth 0.47.3 with unchanged product APIs; protocol-types/Wire remain
+  0.43.0. Retain the pending zeroize 1.9.2 selection in both workspace locks.
 
 ### 🩹 Fixed
 
 - Exempt one verified historical audit checksum from secret-scanner findings.
   Complete-history scanning and detection of future findings remain enabled.
+
+### 🧹 Cleanup
+
+- Give receiver integration tests ordinary module ownership without path overrides;
+  retain the independent ledger and shared signed-fixture driver.
+
+### 📚 Documentation
+
+- Record the pinned Canic consumer adapter and installed Ed25519 profile evidence,
+  distinguish it from Auth-local checks, and retain production custody, certified
+  integration and persistence limits. Refresh completed cost-qualification scope.
 
 ## [0.47.2] - 2026-11-17
 

@@ -251,13 +251,15 @@ real Wire admission, caller-bound application writes, exact retry, local invalid
 and certified remote cleanup. The host independently counts one signature and one
 write, retained fences and zero remaining sessions. Captured proof replay after
 logout refuses even when a raw caller bypasses the local journal. The fixture uses
-installation-owned enrollment and a local public test signer; production Canic
-wiring, external signing recovery and multi-receiver coordination remain unqualified.
-Production key custody and broader renderer-interruption acceptance remain open.
+installation-owned enrollment and a local public test signer. Canic separately
+reports an installed Ed25519 profile journey with its actual issuer adapter and
+two receivers; see the [pinned consumer handoff](../../docs/design/compatibility.md#pinned-canic-consumer-evidence).
+That evidence was not rerun here. Production key custody, external signing recovery,
+certified consumer integration and production cutover remain open.
 
 Run `make test-client`, `make test-client-journal` and `make check-client-generated`;
 `make qualify-client-http` is the separate installed gate. Prepared tools, browser
 selection, suite selectors and ownership limits are documented in
 [developer tooling](../../docs/development/tooling.md). No gate downloads a browser
 or uses a personal profile. Node 24.21.0 consumes the erasable TypeScript directly;
-the package and Rust crates remain unpublished.
+this browser package remains private; the three Rust product crates are published.

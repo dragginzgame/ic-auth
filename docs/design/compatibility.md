@@ -118,26 +118,53 @@ expiry, substituted keys, revision regression and terminal single-key revocation
 Callback traps restore receiver metadata and host entries together while preserving
 the earlier request submission. Refresh cannot extend captured session leases.
 This fixed-domain test exchange does not qualify complete Canic registry wiring,
-production challenge/refresh scheduling or late/overlapping replies. External
-signer recovery, complete application certification composition and accepted
-accepted installed cost budgets also remain open. A focused
-[receiver cost baseline](../development/installed-costs.md) now records six installed
-synchronous Ed25519 paths with artifact identity, instruction intervals, total heap
-pages and fixture reply sizes. Six further certified-issuer control observations cover preparation, completion,
-retained retries, caller refusal and revocation. Issuer renewal/witness delivery,
-certified receiver verification, capacity scaling and production overhead remain open.
-An installed limit case additionally exhausts receiver work credit through real
-bad proofs, verifies refusal without state allocation, preserves insufficient
-refilled credit and admits only when the full charge is available. A revoked
-pending issuer operation refuses completion without publication or evidence loss.
-Both refusal costs are recorded in the same baseline. A further installed
-known-login capacity case accepts the same second-device credential on an empty
-receiver, but refuses it on a full receiver without work charge or eviction.
-Original authorization survives, and logout retains the capacity-consuming fence.
-Installed replay-slot saturation also refuses a new valid proof without eviction
-or work charge, while the retained exact retry survives proof expiry and refuses
-after logout. Independent global/per-account replay limits, separate session/byte
-saturation and population scaling remain open.
+production challenge/refresh scheduling or late/overlapping replies. Consumer
+coverage is recorded separately below; it is not a result of Auth's fixture.
+External signer recovery, complete application certification composition and
+accepted operating budgets remain open.
+
+The [installed cost observations](../development/installed-costs.md) now cover
+issuer renewal/current witnesses, complete certified receiver verification,
+independent session/byte/account/global replay limits, 1/8/32 populations,
+mixed expiry and maximum scope dimensions. Paired controls check refusal without
+identity allocation or inappropriate charging, retained exact-retry leases,
+logout fences and bounded pruning. These are fixture observations with explicit
+artifact identities and intervals, not accepted production budgets or maximum-load
+qualification. Keep the detailed measurements with their existing owner.
+
+## Pinned Canic consumer evidence
+
+Read-only review of Canic **0.219.0**, commit
+`3d2ef2719450e57484638b4f1db6cb6bcc41d64c`, identifies an implemented consumer
+bridge, not a missing Auth API. Its [qualification documentation](https://github.com/dragginzgame/canic/blob/3d2ef2719450e57484638b4f1db6cb6bcc41d64c/qualification/README.md)
+reports installed Root enrollment, issuer operations/browser-bound logout and a
+Chromium profile journey with a separate issuer, two Roots and two receivers.
+Its Rust supplier is registry Auth 0.47.2 with protocol-types/Wire 0.43.0;
+the private browser source remains pinned to Auth 0.47.1 commit
+`a05b5ddd4099a3f64b95deb173a0c16746d98ac5`.
+
+The [Canic adapter](https://github.com/dragginzgame/canic/blob/3d2ef2719450e57484638b4f1db6cb6bcc41d64c/crates/canic/browser/src/issuer.ts)
+consumes generated issuer contracts, captures original selectors and signer roles,
+preserves canonical credential material and explicitly maps deadlines. Missing
+lookup evidence cannot trigger issuance fallback. Issuer revocation translates
+its selectors while receiver logout retains the unit request. Auth still owns
+the journal, signing lifetime, readiness and cleanup; no Canic dependency or
+endpoint installation belongs in this repository.
+
+The [consumer harness](https://github.com/dragginzgame/canic/blob/3d2ef2719450e57484638b4f1db6cb6bcc41d64c/qualification/canic-qualification/tests/auth_browser.rs)
+checks committed signature/profile-write counts and retained application backing
+with closed Auth after upgrade. The documented browser cases cover renderer-loss
+reconciliation, independent logins, owner isolation, renewal, interrupted cleanup,
+Unconfirmed replies, cross-tab logout and late issuance. Enrollment cases separately
+exercise overlapping refresh, expiry across awaits and authority loss.
+
+This is pinned source inspection and consumer-reported qualification, **not a new
+execution of Canic's tests here**. Its profile witness uses local test keys and
+Ed25519 credentials. Production key custody, external signer uncertainty, certified
+issuer integration, managed Auth preservation and default production profile
+cutover are not established. Persistent profile data does not make Auth durable.
+Existing Canic issues retain their acceptance/closure ownership; these observations
+do not close them or authorize migration. No sibling source was changed.
 
 ## Browser evidence and remaining acceptance
 
@@ -238,8 +265,9 @@ per-destination attempt exhaustion and deadline completion retaining unresolved
 receivers. Transport replies are test doubles; deployed multi-canister coordination
 and certificate authentication remain consumer/installed acceptance boundaries.
 
-Still required: production Canic endpoint integration, complete multi-receiver acceptance,
-external signer recovery, production key custody and broader renderer-interruption recovery. No application operation may be
+The pinned Canic witness above supplies a concrete Ed25519 multi-receiver consumer
+path. Still required are production cutover/key custody, external signer recovery,
+certified consumer integration and accepted operating budgets. No application operation may be
 replayed to obtain that evidence. Stable storage and cross-backend acceptance stay
 in the future OP milestone.
 

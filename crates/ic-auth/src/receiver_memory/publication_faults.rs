@@ -41,7 +41,7 @@ mod tests {
     mod fixture {
         include!(concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/tests/support/memory_fixture.rs"
+            "/tests/receiver_memory/memory_fixture.rs"
         ));
     }
     use fixture::*;
