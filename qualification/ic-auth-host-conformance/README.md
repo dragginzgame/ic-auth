@@ -203,7 +203,7 @@ capacity and accepted budgets remain outside this interval.
 The `issuer_cost_observations` filter adds six certified-issuer control measurements,
 including wrong-caller refusal and retained completion retries before/after
 revocation. Root-publication fault probes must not run on those retries. Use
-`cost_observations` to select both measurement tests. Neither establishes
+`cost_observations` to select all measurement tests. Neither establishes
 production cost ceilings or measures certificate delivery.
 
 The `limit_cost_observations` filter adds budget exhaustion/refill and revoked
@@ -218,3 +218,57 @@ The `replay_capacity_cost_observations` filter fills the two replay slots for on
 login, compares refusal against an empty control, and checks exact retry after
 proof expiry plus retained replay fences after logout. Global/per-account replay
 limits are equal in this fixture and are not independently saturated.
+
+
+`renewal_witness_cost_observations` adds browser-bound renewal preparation,
+certified completion/retry, and query-side current certificate/witness assembly.
+It checks unchanged login deadlines, exact result retention and real PocketIC
+signature verification. `certified_receiver_cost_observations` executes complete
+ECDSA/BLS admission in installed Wasm using independently signed frozen claims,
+installation-owned test network trust and native fixture BLS signing. Wrong-message
+proof refusal spends work without installing state; exact retry and authorization
+avoid fresh proof charges, and logout retains its replay fence.
+
+The certified lane reconstructs fixed claims/delegation inside the measured
+interval; its ingress request is not a full product credential. Witness assembly
+excludes replica certificate generation and network latency. See the installed
+cost document for exact boundaries, artifact identity and all observations.
+
+
+The three `independent_capacity` cases select receiver capacity only at
+installation. Each compares a saturated receiver with an empty control and a
+populated control whose selected limit alone is relaxed. Session slots, logical
+encoded bytes and per-account replay slots are saturated separately, leaving
+login/global replay limits spare. Byte admission checks an observed exact-fit
+ceiling and one byte below; account isolation additionally admits a separately
+signed subject. Refusal preserves state/credit and existing authorization. Logout
+frees session/byte space but retains the per-account replay reservation.
+
+
+`global_replay_capacity_cost_observations` saturates the global replay ceiling
+with per-account quota still spare. The same account and a different subject both
+refuse; empty controls and a larger global ceiling admit. Logout retains the full
+replay reservation.
+
+`population_pruning_cost_observations` installs 1, 8 and 32 independently signed
+sessions under identical capacity/budget settings. It measures the final admission,
+authorization of the first/last admitted callers, the first four-row replay/session
+pruning batch, and an empty batch. Every batch's report is checked against observed
+state. Proof-expired sessions still return their exact leases after replay pruning;
+later session pruning removes all charged bytes but retains every known login fence.
+These populations are bounded qualification samples, not production sizing guidance.
+
+
+`mixed_expiry_cost_observations` prunes interleaved session/replay deadlines and
+an unknown-caller denial. It checks future rows remain, live sessions still retry
+and authorize after replay expiry, and known login fences survive all cleanup.
+`wide_scope_cost_observations` uses a 64-byte role, thirty-two 64-byte grant scopes
+and a sixteen-scope session. Its independently summed 1,440-byte session/replay
+footprint admits at the exact ceiling and refuses one byte below without charging.
+A seventeenth granted scope cannot authorize through the narrower session.
+
+The host vector file is now 39,159 bytes and admitted under a 65,536-byte cap.
+Wide frames retain the receiver fixture's 4,096-byte cap and depth eight, with
+524,288 allocation units and 32,768 traversal nodes. The prior allocation and node
+allowances each independently refuse the wide fixture. These are qualification
+transport allowances; product Wire contracts are unchanged.

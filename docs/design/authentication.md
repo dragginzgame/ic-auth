@@ -37,7 +37,7 @@ service is implied by these contracts.
 | Host | Authenticated caller, trusted clock, enrollment, atomic transaction and certification root |
 | Application | Users, account linking, role policy and resource ownership |
 
-The future package split should preserve passive protocol and Wire boundaries.
+The three current product packages preserve passive protocol, Wire and Auth boundaries; issuer and receiver state remain separate optional modules within Auth.
 A module earns its own abstraction only when an actual caller or independent
 invariant requires it. Do not reproduce the old module tree automatically.
 

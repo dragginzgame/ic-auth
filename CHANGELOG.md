@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.47.2] - 2026-11-17
+
+### 🧪 Testing
+
+- Extend installed qualification to issuer renewal, fresh certificate/witness
+  assembly and complete certified receiver admission.
+- Qualify independent session, byte, account/global replay ceilings, populated
+  lookup, mixed expiry and maximum scope dimensions. Preserve live leases,
+  exact retries, refusal accounting and retained login/replay fences.
+- Consolidate receiver measurement plumbing while preserving independent scenario
+  assertions and fixture-specific measurement boundaries.
+
+### 🔧 Changed
+
+- Release Auth 0.47.2 at maintainer request; protocol-types/Wire remain 0.43.0.
+  Product APIs and implementation are unchanged.
+- Select Platform 0.34.13 in both lockfiles. Adopt qualification-only Host
+  Artifacts/FS 0.80.3, Host Process 0.80.4, Testkit 0.108.0 and
+  Runtime/macros/guard 0.23.16; retain Types 0.21.2 and product dependency requirements.
+
+### 📚 Documentation
+
+- Reconcile architecture guidance with the implemented three-package volatile
+  design. Keep future storage abstractions deferred and distinguish historical
+  cost observations from consumer acceptance budgets.
+
 ## [0.47.1] - 2026-11-17
 
 ### 🔧 Changed

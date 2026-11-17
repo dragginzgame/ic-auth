@@ -1,9 +1,8 @@
 //! Narrow installed receiver measurements, not accepted production budgets.
-use super::{frame, install, receiver, start, wasm};
+use super::{install, receiver, receiver_support, start, wasm};
 use ic_auth_host_fixture::{
-    RESPONSE,
     enrollment::Fault,
-    receiver::{Command, MEASURE, Measurement, Outcome, REQUEST, Refusal},
+    receiver::{Command, Outcome, Refusal},
 };
 use ic_testkit::pocket_ic::CanisterId;
 use sha2::{Digest, Sha256};
@@ -65,23 +64,7 @@ async fn receiver_cost_observations() {
             Err(Refusal::Revoked),
         ),
     ] {
-        let bytes = ic_wire::encode(
-            &command,
-            frame(MEASURE, ic_wire::Direction::Request),
-            REQUEST,
-        )
-        .unwrap();
-        let request_bytes = bytes.len();
-        let reply = pic
-            .update_call(id, caller, "receiver_fixture_measure", bytes)
-            .await
-            .unwrap();
-        let sample: Measurement = ic_wire::decode(
-            &reply,
-            frame(MEASURE, ic_wire::Direction::Response),
-            RESPONSE,
-        )
-        .unwrap();
+        let (sample, request_bytes) = receiver_support::measure(pic, id, caller, &command).await;
         if name == "first-admission" {
             let observed = receiver::observe(pic, id).await;
             let until = observed.observed_at_ns + 60_000_000_000;
@@ -92,18 +75,6 @@ async fn receiver_cost_observations() {
             expected = Ok(Outcome::Admitted(true, admitted_until.unwrap()));
         }
         assert_eq!(sample.result, expected, "{name}");
-        assert!(sample.instructions > 0, "{name}");
-        assert!(sample.heap_pages.1 >= sample.heap_pages.0, "{name}");
-        let ordinary = ic_wire::encode(
-            &expected,
-            frame(
-                ic_auth_host_fixture::receiver::CONTROL,
-                ic_wire::Direction::Response,
-            ),
-            RESPONSE,
-        )
-        .unwrap();
-        assert_eq!(sample.response_bytes, ordinary.len() as u64);
         println!(
             "cost {name} instructions={} heap_pages_before={} heap_pages_after={} request_bytes={request_bytes} response_bytes={}",
             sample.instructions, sample.heap_pages.0, sample.heap_pages.1, sample.response_bytes

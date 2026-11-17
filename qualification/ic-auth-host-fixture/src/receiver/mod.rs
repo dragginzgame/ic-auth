@@ -14,8 +14,8 @@ pub const OBSERVE: u64 = 0x4155_5448_5155_0004;
 /// Bounded test credential input, with all four Wire allowances.
 pub const REQUEST: ic_wire::Limits = ic_wire::Limits {
     bytes: 4096,
-    allocation: 131_072,
-    nodes: 8192,
+    allocation: 524_288,
+    nodes: 32768,
     depth: 8,
 };
 
@@ -37,6 +37,10 @@ pub enum Command {
     Authorize(bool),
     /// Actual caller's local logout, optionally trapping afterward.
     Logout(bool),
+    /// Remove a bounded number of expired rows using actual host time.
+    Prune(u32),
+    /// Require an authority-granted scope outside the selected wide session.
+    AuthorizeUnrequested,
 }
 
 /// Fixed observations separate from the product Wire result contract.
@@ -52,6 +56,8 @@ pub enum Outcome {
     Revoked(u64),
     /// Unknown caller remains unconfirmed through a temporary denial.
     Unconfirmed(u64),
+    /// Removed sessions, replays and unknown denials, respectively.
+    Pruned(u32, u32, u32),
 }
 
 /// Test categories retain the distinction between closure and normal refusal.
@@ -82,6 +88,8 @@ pub struct Observation {
     pub usage: (u64, u64, u64),
     /// Known login fences and unknown denials.
     pub logins: (u64, u64),
+    /// Retained replay rows for fixture subjects two and three, respectively.
+    pub account_replays: (u64, u64),
     /// Retained verification and unknown-logout credit.
     pub credit: (u32, u32),
     /// Last retained clock observation, including ordinary refusals.
@@ -108,4 +116,39 @@ pub struct Measurement {
     pub heap_pages: (u64, u64),
     /// Encoded ordinary control response size, excluding this measurement envelope.
     pub response_bytes: u64,
+}
+
+/// Installation-owned capacity overrides for independent saturation tests.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+pub struct Capacity {
+    /// Physical session ceiling.
+    pub sessions: u32,
+    /// Physical global replay ceiling.
+    pub replays: u32,
+    /// Physical per-account replay ceiling.
+    pub account_replays: u32,
+    /// Logical session/replay encoded-byte ceiling.
+    pub bytes: u32,
+    /// Known-login ceiling, including retained fences.
+    pub logins: u32,
+    /// Verification work-credit ceiling.
+    pub verification: u32,
+    /// Nanoseconds per replenished work credit.
+    pub refill_ns: u64,
+    /// Select fixed maximum-width role/grants and a sixteen-scope session.
+    pub wide_scopes: bool,
+}
+impl Default for Capacity {
+    fn default() -> Self {
+        Self {
+            sessions: 1,
+            replays: 2,
+            account_replays: 2,
+            bytes: 4096,
+            logins: 1,
+            verification: 10,
+            refill_ns: 1_000_000_000,
+            wide_scopes: false,
+        }
+    }
 }

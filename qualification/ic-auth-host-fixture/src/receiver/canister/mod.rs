@@ -29,6 +29,7 @@ struct State {
     sequence: u64,
     entry: Option<Snapshot>,
     application_writes: u32,
+    wide_scopes: bool,
 }
 thread_local! {
     static STATE: RefCell<State> = RefCell::new(State::default());
@@ -39,7 +40,7 @@ fn audience() -> AudienceId {
         fleet_id: CanonicalId::from_bytes([0x22; 32]),
     }
 }
-pub(crate) fn init(authority: Principal) {
+pub(crate) fn init(authority: Principal, capacity: super::Capacity) {
     let receiver = MemoryReceiver::new_fresh(
         MemoryConfig {
             audience: audience(),
@@ -50,16 +51,16 @@ pub(crate) fn init(authority: Principal) {
             login: LoginLimits {
                 max_device_slots: 8,
                 max_login_ttl_ns: 100 * SECOND,
-                max_admitted_logins: 1,
+                max_admitted_logins: capacity.logins as usize,
             },
             capacity: SessionCapacity {
-                max_sessions: 1,
-                max_replays: 2,
-                max_replays_per_account: 2,
-                max_encoded_bytes: 4096,
+                max_sessions: capacity.sessions as usize,
+                max_replays: capacity.replays as usize,
+                max_replays_per_account: capacity.account_replays as usize,
+                max_encoded_bytes: capacity.bytes as usize,
             },
-            verification_capacity: 10,
-            refill_interval_ns: SECOND,
+            verification_capacity: capacity.verification,
+            refill_interval_ns: capacity.refill_ns,
             verification_costs: VerificationCosts {
                 ed25519: 2,
                 certified: 3,
@@ -76,6 +77,7 @@ pub(crate) fn init(authority: Principal) {
     STATE.with_borrow_mut(|s| {
         s.receiver = Some(receiver);
         s.authority = Some(authority);
+        s.wide_scopes = capacity.wide_scopes;
     });
 }
 fn refusal(e: MemoryError) -> Refusal {
@@ -122,6 +124,7 @@ async fn control(command: Command) -> Result<Outcome, Refusal> {
     let caller = api::caller();
     let now = api::time();
     STATE.with_borrow_mut(|state| {
+        let wide = state.wide_scopes;
         let State {
             receiver,
             application_writes,
@@ -129,6 +132,14 @@ async fn control(command: Command) -> Result<Outcome, Refusal> {
             ..
         } = state;
         let receiver = receiver.as_mut().ok_or(Refusal::Closed)?;
+        if let Command::Prune(limit) = command {
+            let report = receiver.prune(now, limit as usize).map_err(refusal)?;
+            return Ok(Outcome::Pruned(
+                report.sessions as u32,
+                report.replays as u32,
+                report.unknown_denials as u32,
+            ));
+        }
         // Logout depends on intact safety state, not current authority freshness.
         if let Command::Logout(trap_after) = command {
             let outcome = match receiver.logout(caller, now).map_err(|e| match e {
@@ -145,13 +156,23 @@ async fn control(command: Command) -> Result<Outcome, Refusal> {
         }
         let entry = entry.as_ref().ok_or(Refusal::Closed)?;
         let audience = audience();
-        let role = "user".parse().unwrap();
+        let role: ic_auth_protocol_types::AuthRole =
+            if wide { "r".repeat(64) } else { "user".into() }
+                .parse()
+                .unwrap();
+        let scopes: Vec<ic_auth_protocol_types::ScopeLabel> = if wide {
+            (0..32)
+                .map(|i| format!("s{i:02}{}", "x".repeat(61)).parse().unwrap())
+                .collect()
+        } else {
+            vec!["read".parse().unwrap()]
+        };
+        let requested = &scopes[..scopes.len().min(16)];
         let grants = AuthorityGrants::new(vec![DelegatedRoleGrant {
-            target: role,
-            scopes: vec!["read".parse().unwrap()],
+            target: role.clone(),
+            scopes: scopes.clone(),
         }])
         .unwrap();
-        let role = "user".parse().unwrap();
         let context = VerificationContext {
             audience: &audience,
             grants: &grants,
@@ -182,7 +203,11 @@ async fn control(command: Command) -> Result<Outcome, Refusal> {
                 let admitted = receiver
                     .admit(
                         &credential,
-                        SessionRequest::new(vec!["read".into()], None).unwrap(),
+                        SessionRequest::new(
+                            requested.iter().map(|s| s.as_str().to_owned()).collect(),
+                            None,
+                        )
+                        .unwrap(),
                         AdmissionHost {
                             verifier: VerificationProfile::Ed25519 {
                                 context: &context,
@@ -201,7 +226,14 @@ async fn control(command: Command) -> Result<Outcome, Refusal> {
                     trap_after,
                 )
             }
-            Command::Authorize(trap_after) => {
+            Command::Authorize(_) | Command::AuthorizeUnrequested => {
+                let trap_after = matches!(command, Command::Authorize(true));
+                let required = if matches!(command, Command::AuthorizeUnrequested) {
+                    std::slice::from_ref(scopes.get(16).ok_or(Refusal::Other)?)
+                } else {
+                    requested
+                };
+
                 let authority = SessionAuthority {
                     caller,
                     now_ns: now,
@@ -221,13 +253,13 @@ async fn control(command: Command) -> Result<Outcome, Refusal> {
                     subject_admissible: true,
                 };
                 receiver
-                    .authorize(&authority, &["read".parse().unwrap()], |_| {
+                    .authorize(&authority, required, |_| {
                         *application_writes += 1;
                     })
                     .map_err(refusal)?;
                 (Outcome::Authorized, trap_after)
             }
-            Command::Logout(_) | Command::Enroll(_) => unreachable!(),
+            Command::Logout(_) | Command::Enroll(_) | Command::Prune(_) => unreachable!(),
         };
         if trap_after {
             api::trap("after receiver operation and application projection");
@@ -266,6 +298,7 @@ fn observe((): ()) -> Observation {
             present: s.receiver.is_some(),
             usage: (0, 0, 0),
             logins: (0, 0),
+            account_replays: (0, 0),
             credit: (0, 0),
             observed_at_ns: 0,
             application_writes: s.application_writes,
@@ -278,6 +311,12 @@ fn observe((): ()) -> Observation {
         };
         if let Some(receiver) = &s.receiver {
             let usage = receiver.usage((Principal::from_slice(&[1]), Principal::from_slice(&[2])));
+            result.account_replays = (
+                usage.replays_for_account as u64,
+                receiver
+                    .usage((Principal::from_slice(&[1]), Principal::from_slice(&[3])))
+                    .replays_for_account as u64,
+            );
             result.usage = (
                 usage.sessions as u64,
                 usage.replays as u64,

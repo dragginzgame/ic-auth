@@ -5,7 +5,7 @@ use super::{
 use crate::hash_bytes;
 use ic_auth::issuer_memory::{
     CertifiedCompletionError, IssueRequest, IssuerAuthority, IssuerConfig, IssuerError,
-    IssuerPolicy, IssuerSigning, IssuerStatus, IssuerTicket, MemoryIssuer,
+    IssuerPolicy, IssuerSigning, IssuerStatus, IssuerTicket, MemoryIssuer, RenewRequest,
 };
 use ic_auth_protocol_types::{AudienceId, CanonicalId, DelegatedRoleGrant};
 use ic_platform::certificate::construction::{
@@ -43,18 +43,29 @@ fn authority() -> IssuerAuthority {
     }
 }
 
-fn decode_install(bytes: &[u8]) -> Result<ic_auth_protocol_types::Principal, ic_wire::Error> {
+fn decode_install(bytes: &[u8]) -> Result<crate::Installation, ic_wire::Error> {
     if bytes.is_empty() {
-        return Ok(api::canister_self());
+        return Ok(crate::Installation {
+            authority: Vec::new(),
+            certified_network_key: Vec::new(),
+            receiver_capacity: None,
+        });
     }
-    let authority: Vec<u8> =
-        ic_wire::decode(bytes, ic_wire::Encoding::Payload, crate::enrollment::LIMITS)?;
-    ic_auth_protocol_types::Principal::try_from_slice(&authority)
-        .map_err(|_| ic_wire::Error::Malformed)
+    ic_wire::decode(bytes, ic_wire::Encoding::Payload, crate::enrollment::LIMITS)
 }
+
 #[runtime::init(runtime = ic_platform_runtime, guard = bounded_request, decode = decode_install, max_bytes = 256, on_error = crate::endpoint_error)]
-fn init(authority: ic_auth_protocol_types::Principal) {
-    super::receiver::canister::init(authority);
+fn init(installation: crate::Installation) {
+    let authority = if installation.authority.is_empty() {
+        api::canister_self()
+    } else {
+        ic_auth_protocol_types::Principal::try_from_slice(&installation.authority).unwrap()
+    };
+    super::certified::canister::init(installation.certified_network_key);
+    super::receiver::canister::init(
+        authority,
+        installation.receiver_capacity.unwrap_or_default(),
+    );
     super::browser::canister::init();
     // Only a fresh install creates state. Post-upgrade never calls this function.
     let issuer = MemoryIssuer::new_fresh(
@@ -65,8 +76,8 @@ fn init(authority: ic_auth_protocol_types::Principal) {
             },
             issuer: api::canister_self(),
             max_logins: 1,
-            max_operations: 1,
-            max_operations_per_account: 1,
+            max_operations: 2,
+            max_operations_per_account: 2,
             max_devices_per_account: 1,
             max_result_bytes: 4096,
             issuance_burst: 4,
@@ -134,7 +145,7 @@ fn control(command: Command) -> Result<(), Refusal> {
         } = state;
         let issuer = issuer.as_mut().ok_or(Refusal::Closed)?;
         if caller == ic_auth_protocol_types::Principal::anonymous()
-            || ticket.is_some_and(|t| t.account() != caller)
+            || (!matches!(command, Command::Renew) && ticket.is_some_and(|t| t.account() != caller))
         {
             return Err(Refusal::Denied);
         }
@@ -200,6 +211,33 @@ fn control(command: Command) -> Result<(), Refusal> {
                 if matches!(fault, Fault::Completion) {
                     api::trap("after retained completion");
                 }
+            }
+            Command::Renew => {
+                let account = ticket.ok_or(Refusal::Auth)?.account();
+                let t = issuer
+                    .prepare_renewal(
+                        caller,
+                        &RenewRequest {
+                            account,
+                            login_epoch: 1,
+                            login_id: [2; 32],
+                            sequence: 1,
+                            grants: vec![DelegatedRoleGrant {
+                                target: "app".parse().unwrap(),
+                                scopes: vec!["read".parse().unwrap()],
+                            }],
+                        },
+                        authority(),
+                        now,
+                    )
+                    .map_err(refusal)?;
+                issuer
+                    .record_nonce(t, authority(), [8; 16], now)
+                    .map_err(refusal)?;
+                issuer
+                    .record_approval(t, authority(), [9; 32], now)
+                    .map_err(refusal)?;
+                *ticket = Some(t);
             }
             Command::Revoke => issuer.revoke(caller, 1, [2; 32], now).map_err(refusal)?,
         }
@@ -308,6 +346,46 @@ fn measure(command: Command) -> super::Measurement {
     let response_bytes = encode_result(result).unwrap().len() as u64;
     super::Measurement {
         result,
+        instructions,
+        heap_pages: (before_heap, after_heap),
+        response_bytes,
+    }
+}
+
+fn decode_witness_measurement(bytes: &[u8]) -> Result<(), ic_wire::Error> {
+    ic_wire::decode(
+        bytes,
+        ic_wire::Encoding::Frame {
+            method: super::WITNESS_MEASURE,
+            direction: ic_wire::Direction::Request,
+        },
+        REQUEST,
+    )
+}
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "Platform owns the handler result"
+)]
+fn encode_witness_measurement(value: super::WitnessMeasurement) -> Result<Vec<u8>, ic_wire::Error> {
+    ic_wire::encode(
+        &value,
+        ic_wire::Encoding::Frame {
+            method: super::WITNESS_MEASURE,
+            direction: ic_wire::Direction::Response,
+        },
+        RESPONSE,
+    )
+}
+#[runtime::query(runtime = ic_platform_runtime, name = "auth_fixture_witness_measure", guard = bounded_request, decode = decode_witness_measurement, encode = encode_witness_measurement, max_bytes = 256, on_error = crate::endpoint_error)]
+fn measure_witness((): ()) -> super::WitnessMeasurement {
+    let before_heap = core::arch::wasm32::memory_size::<0>() as u64;
+    let before = runtime::raw::instruction_counter();
+    let observation = observe(());
+    let instructions = runtime::raw::instruction_counter() - before;
+    let after_heap = core::arch::wasm32::memory_size::<0>() as u64;
+    let response_bytes = encode_observation(observation.clone()).unwrap().len() as u64;
+    super::WitnessMeasurement {
+        observation,
         instructions,
         heap_pages: (before_heap, after_heap),
         response_bytes,

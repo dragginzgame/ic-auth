@@ -1,19 +1,21 @@
 # Current status
 
-Auth **0.47.1** is the current release (`v0.47.1`), with protocol-types/Wire
+Auth **0.47.2** is the current release (`v0.47.2`), with protocol-types/Wire
 **0.43.0** and private browser client **0.1.0**. Volatile Auth is implemented in the
 library; production consumer acceptance remains open. Stable storage is deferred
 to `ic-storage-new` orthogonal persistence, with no interim adapter.
 
-The 0.47.1 dependency cohort is Platform 0.34.11, Types 0.21.2, Runtime 0.23.15,
-Wire 0.24.3, Testkit 0.107.4 and qualification-only Host Process 0.80.3. Both Cargo
-graphs have one Platform/Types cohort and no legacy Platform or Agent. Toko Tooling
-0.44.11 remains authenticated; Rust is 1.100.0. Product features and Wire layouts
-are unchanged by the latest supplier adoption.
+The 0.47.2 source locks select Platform 0.34.13 and Types 0.21.2, with
+qualification Runtime/macros/guard 0.23.16, Wire 0.24.3, Testkit 0.108.0,
+Host Artifacts/FS 0.80.3 and Host Process 0.80.4. Both Cargo graphs have one
+Platform/Types cohort and no legacy Platform or Agent. Toko Tooling 0.44.11
+remains authenticated; Rust is 1.100.0. Product dependency requirements, features,
+implementation and Wire layouts are unchanged; this release delivers qualification
+coverage and architecture/harness cleanup.
 
 The maintainer authorized crates.io publication of all three product crates.
-Qualification packages and the browser client remain private. The release includes
-six module layout corrections. Historical installed cost observations retain the
+Qualification packages and the browser client remain private. Auth 0.47.2 is the
+only new crate upload; protocol-types/Wire remain 0.43.0. Historical installed cost observations retain the
 exact dependency cohorts and artifact identities they measured.
 
 | Capability | Current evidence | Remaining acceptance boundary |
@@ -23,7 +25,7 @@ exact dependency cohorts and artifact identities they measured.
 | Installed transactions, volatile loss and enrollment | Five lifecycle cases qualify rollback, real certificates, closed upgrade loss, bound authority replies and terminal key revocation | Canic enrollment integration and production challenge/refresh handling |
 | Browser lifecycle | Readiness/guarded calls, seven scheduler cases, twelve renderer-loss cases, seven disposal cases, ten external-signer boundary cases and three mixed multi-receiver cleanup cases | Real wallet/device recovery, production key custody and deployed multi-canister coordination |
 | HTTP and installed browser journey | Certified response checks and issuance recovery → admission → protected write → logout → replay refusal | Production Canic wiring and external signer integration |
-| Installed costs | Five measurement scenarios covering sixteen operation/refusal paths; full installed suite passes ten tests | Issuer renewal/witness delivery, certified receiver admission, independent session/byte/per-account limits, scaling and accepted budgets |
+| Installed costs | Fourteen measurement scenarios covering sixty-three observations; all nineteen installed tests pass, covering independent capacities, 1/8/32 populations, mixed expiry and maximum scope dimensions | Consumer-selected workloads, production host overhead and accepted budgets |
 
 Browser recovery uses native IndexedDB, real SDK signing and disposable Chromium
 renderers. External signers and multi-receiver transports use host test doubles;
@@ -31,6 +33,11 @@ those tests do not establish real wallet or remote receiver behavior. Reopening
 preserves issuance sequence, cleanup inventory and uncertainty. Explicit retry
 reuses evidence; application calls never replay automatically. Terminal disposal
 uses the public login binding and delegates conditional deletion to host custody.
+
+Next work should close the existing Canic consumer contracts and select operational
+budgets. Expand synthetic populations or record dimensions only when a consumer
+workload or a concrete failure hypothesis requires them; do not add storage or
+issuer abstractions to anticipate that work.
 
 [Installed costs](../development/installed-costs.md) records measurement intervals,
 artifact identities and supplier cohorts. The release check reruns all installed

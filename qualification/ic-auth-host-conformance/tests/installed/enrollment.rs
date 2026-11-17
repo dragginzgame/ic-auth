@@ -37,7 +37,11 @@ async fn install_receiver(pic: &PocketIc, wasm: &[u8], authority: CanisterId) ->
     let id = pic.create_canister().await;
     pic.add_cycles(id, 5_000_000_000_000).await;
     let init = ic_wire::encode(
-        &authority.as_slice().to_vec(),
+        &ic_auth_host_fixture::Installation {
+            authority: authority.as_slice().to_vec(),
+            certified_network_key: Vec::new(),
+            receiver_capacity: None,
+        },
         ic_wire::Encoding::Payload,
         LIMITS,
     )

@@ -1,10 +1,16 @@
 //! Installed synchronous IC transactions, without a native snapshot/undo model.
 mod capacity_costs;
+mod certified_costs;
 mod costs;
 mod enrollment;
+mod independent_capacity;
 mod issuer_costs;
 mod limit_costs;
+mod mixed_costs;
+mod population_costs;
 mod receiver;
+mod receiver_support;
+mod renewal_costs;
 use super::support;
 use support::{install, start, wasm};
 

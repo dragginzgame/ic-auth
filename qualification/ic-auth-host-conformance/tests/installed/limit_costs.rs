@@ -1,5 +1,5 @@
 //! Installed refusal costs with independent state and recovery assertions.
-use super::{control, frame, install, observe, receiver, start, unchanged, wasm};
+use super::{control, frame, install, observe, receiver, receiver_support, start, unchanged, wasm};
 use ic_auth_host_fixture::{
     Command, Fault, MEASURE, Measurement, Progress, REQUEST, RESPONSE, Refusal, enrollment,
     receiver as wire,
@@ -48,38 +48,10 @@ async fn limit_cost_observations() {
     let before = receiver::observe(pic, id).await;
     assert_eq!(before.usage, (0, 0, 0));
     let valid = receiver::credential(&vectors, "initial", false);
-    let bytes = ic_wire::encode(
-        &valid,
-        frame(wire::MEASURE, ic_wire::Direction::Request),
-        wire::REQUEST,
-    )
-    .unwrap();
-    let request_bytes = bytes.len();
-    let reply = pic
-        .update_call(id, caller, "receiver_fixture_measure", bytes)
-        .await
-        .unwrap();
-    let sample: wire::Measurement = ic_wire::decode(
-        &reply,
-        frame(wire::MEASURE, ic_wire::Direction::Response),
-        RESPONSE,
-    )
-    .unwrap();
+    let (sample, request_bytes) = receiver_support::measure(pic, id, caller, &valid).await;
     // The fixture coarsens budget refusal to Proof; exhausted credit and recovery
     // after the fixed refill independently establish the reason for refusal.
     assert_eq!(sample.result, Err(wire::Refusal::Proof));
-    assert!(sample.instructions > 0);
-    assert!(sample.heap_pages.1 >= sample.heap_pages.0);
-    assert_eq!(
-        sample.response_bytes,
-        ic_wire::encode(
-            &Err::<wire::Outcome, _>(wire::Refusal::Proof),
-            frame(wire::CONTROL, ic_wire::Direction::Response),
-            RESPONSE
-        )
-        .unwrap()
-        .len() as u64
-    );
     let refused = receiver::observe(pic, id).await;
     assert_eq!(refused.credit.0, 0);
     assert_eq!(refused.usage, before.usage);

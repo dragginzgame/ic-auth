@@ -17,20 +17,29 @@ const privateKey = createPrivateKey({ key: Buffer.concat([
 const publicKey = createPublicKey(privateKey);
 const key = publicKey.export({ format: 'der', type: 'spki' }).subarray(12);
 const expected = new Map([['public-key', key], ['key-binding', hash(key)]]);
-for (const [name, browser, generation, issued, nonce, subject, start = 10, deadline = 100, slot = 0, issuer = 1] of [
+for (const [name, browser, generation, issued, nonce, subject, start = 10, deadline = 100, slot = 0, issuer = 1, expires = issued + 10, wide = false] of [
   ['initial', 0x44, 1, 20, 0x55, 2], ['renewal', 0x44, 1, 21, 0x56, 2],
   ['replacement', 0x45, 2, 22, 0x57, 2], ['third', 0x46, 3, 23, 0x58, 2],
   ['rebound', 0x44, 1, 20, 0x59, 3], ['late-old', 0x44, 1, 35, 0x60, 2],
   ['future', 0x47, 1, 120, 0x61, 3, 110, 200],
   ['other-device', 0x48, 1, 20, 0x62, 2, 10, 100, 1],
   ['other-issuer', 0x49, 1, 20, 0x63, 2, 10, 100, 0, 3],
+  ...(host ? [['other-account', 0x50, 1, 20, 0x64, 3],
+    ['mixed-early', 0x60, 1, 20, 0x60, 50, 10, 28, 0, 1, 28],
+    ['mixed-middle', 0x61, 1, 20, 0x61, 51, 10, 45, 0, 1, 30],
+    ['mixed-late', 0x62, 1, 20, 0x62, 52, 10, 100, 0, 1, 40],
+    ['wide-scopes', 0x70, 1, 20, 0x70, 53, 10, 100, 0, 1, 30, true],
+    ...Array.from({ length: 32 }, (_, i) => [`population-${i}`, 0x80 + i, 1, 20, 0x80 + i, 10 + i])] : []),
 ]) {
   const browserKey = Buffer.alloc(32, browser);
+  const scopes = wide ? Array.from({ length: 32 }, (_, i) => `s${String(i).padStart(2, '0')}${'x'.repeat(61)}`) : ['read'];
+  const role = wide ? 'r'.repeat(64) : 'user';
+  assert(scopes.every(s => s.length <= 64));
   const claims = Buffer.concat([
     Buffer.from('IC-AUTH-PORTABLE-CREDENTIAL\0'), uint(2, 2), Buffer.of(1),
     Buffer.alloc(32, 0x11), Buffer.alloc(32, 0x22), sized(Buffer.of(issuer)), hash(key), browserKey,
     sized(Buffer.of(subject)), Buffer.of(slot), uint(generation, 8), uint(time(start), 8), uint(time(deadline), 8),
-    uint(time(issued), 8), uint(time(issued + 10), 8), Buffer.alloc(16, nonce), uint(1, 4), text('user'), uint(1, 4), text('read'),
+    uint(time(issued), 8), uint(time(expires), 8), Buffer.alloc(16, nonce), uint(1, 4), text(role), uint(scopes.length, 4), ...scopes.map(text),
   ]);
   const digest = hash(claims), signature = sign(null, digest, privateKey);
   assert(verify(null, digest, publicKey, signature));

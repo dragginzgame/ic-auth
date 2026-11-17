@@ -161,6 +161,7 @@ verify-fixtures:
 	node qualification/ic-auth-certified-conformance/tests/verify-root-fixture.mjs
 	node qualification/ic-auth-certified-conformance/tests/verify-root-fixture.mjs --certified
 	node qualification/ic-auth-certified-conformance/tests/verify-root-fixture.mjs --certified --other-issuer
+	node qualification/ic-auth-certified-conformance/tests/verify-root-fixture.mjs --certified --installed
 	node qualification/ic-auth-certified-conformance/tests/verify-memory-fixture.mjs
 
 .PHONY: test-delegation-encoding

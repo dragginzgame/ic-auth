@@ -26,7 +26,7 @@ pub(super) fn vectors() -> BTreeMap<String, Vec<u8>> {
         .unwrap()
         .unwrap();
     let (bytes, _) =
-        ic_host_artifacts::read(file, ic_host_artifacts::Length::AtMost(32_768)).unwrap();
+        ic_host_artifacts::read(file, ic_host_artifacts::Length::AtMost(65_536)).unwrap();
     std::str::from_utf8(&bytes)
         .unwrap()
         .lines()

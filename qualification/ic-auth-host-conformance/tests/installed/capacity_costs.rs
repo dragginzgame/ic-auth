@@ -1,9 +1,8 @@
 //! Installed known-login capacity: valid control, no eviction and no crypto charge.
-use super::{frame, install, receiver, start, wasm};
+use super::{install, receiver, receiver_support, start, wasm};
 use ic_auth_host_fixture::{
-    RESPONSE,
     enrollment::Fault,
-    receiver::{CONTROL, Command, MEASURE, Measurement, Outcome, REQUEST, Refusal},
+    receiver::{Command, Outcome, Refusal},
 };
 use ic_testkit::pocket_ic::CanisterId;
 use sha2::{Digest, Sha256};
@@ -54,32 +53,8 @@ async fn capacity_cost_observations() {
     let before = receiver::observe(pic, full).await;
     assert_eq!(before.logins, (1, 0));
     assert_eq!((before.usage.0, before.usage.1), (1, 1));
-    let bytes =
-        ic_wire::encode(&other, frame(MEASURE, ic_wire::Direction::Request), REQUEST).unwrap();
-    let request_bytes = bytes.len();
-    let reply = pic
-        .update_call(full, candidate, "receiver_fixture_measure", bytes)
-        .await
-        .unwrap();
-    let sample: Measurement = ic_wire::decode(
-        &reply,
-        frame(MEASURE, ic_wire::Direction::Response),
-        RESPONSE,
-    )
-    .unwrap();
+    let (sample, request_bytes) = receiver_support::measure(pic, full, candidate, &other).await;
     assert_eq!(sample.result, Err(Refusal::Other));
-    assert!(sample.instructions > 0);
-    assert!(sample.heap_pages.1 >= sample.heap_pages.0);
-    assert_eq!(
-        sample.response_bytes,
-        ic_wire::encode(
-            &Err::<Outcome, _>(Refusal::Other),
-            frame(CONTROL, ic_wire::Direction::Response),
-            RESPONSE
-        )
-        .unwrap()
-        .len() as u64
-    );
     let after = receiver::observe(pic, full).await;
     assert_eq!(after.usage, before.usage);
     assert_eq!(after.logins, before.logins);
@@ -190,36 +165,8 @@ async fn replay_capacity_cost_observations() {
             .unwrap(),
         Ok(Outcome::Admitted(false, _))
     ));
-    let bytes = ic_wire::encode(
-        &candidate,
-        frame(MEASURE, ic_wire::Direction::Request),
-        REQUEST,
-    )
-    .unwrap();
-    let request_bytes = bytes.len();
-    let reply = pic
-        .update_call(full, caller, "receiver_fixture_measure", bytes)
-        .await
-        .unwrap();
-    let sample: Measurement = ic_wire::decode(
-        &reply,
-        frame(MEASURE, ic_wire::Direction::Response),
-        RESPONSE,
-    )
-    .unwrap();
+    let (sample, request_bytes) = receiver_support::measure(pic, full, caller, &candidate).await;
     assert_eq!(sample.result, Err(Refusal::Other));
-    assert!(sample.instructions > 0);
-    assert!(sample.heap_pages.1 >= sample.heap_pages.0);
-    assert_eq!(
-        sample.response_bytes,
-        ic_wire::encode(
-            &Err::<Outcome, _>(Refusal::Other),
-            frame(CONTROL, ic_wire::Direction::Response),
-            RESPONSE
-        )
-        .unwrap()
-        .len() as u64
-    );
     let after = receiver::observe(pic, full).await;
     assert_eq!(after.usage, before.usage);
     assert_eq!(after.logins, before.logins);

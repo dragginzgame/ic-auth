@@ -2,6 +2,7 @@
 use serde::{Deserialize, Serialize};
 
 pub mod browser;
+pub mod certified;
 pub mod enrollment;
 pub mod receiver;
 
@@ -52,6 +53,8 @@ pub enum Command {
     Complete(Fault),
     /// Account-authenticated revocation of the retained login.
     Revoke,
+    /// Prepare and approve sequence one using the actual retained browser caller.
+    Renew,
 }
 /// Fixed fixture refusal categories, separate from product Wire error projection.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -122,4 +125,30 @@ pub struct Measurement {
     pub heap_pages: (u64, u64),
     /// Ordinary control reply bytes, excluding measurement metadata.
     pub response_bytes: u64,
+}
+
+/// Qualification-only query measurement identity.
+pub const WITNESS_MEASURE: u64 = 0x4155_5448_5155_000c;
+/// Current certificate/witness assembly, excluding outer reply encoding.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct WitnessMeasurement {
+    /// Actual query evidence, including the current certificate.
+    pub observation: Observation,
+    /// Query counter-zero delta around evidence assembly.
+    pub instructions: u64,
+    /// Linear-memory pages before and after assembly.
+    pub heap_pages: (u64, u64),
+    /// Encoded ordinary observation response size.
+    pub response_bytes: u64,
+}
+
+/// Installation-owned test authority and network trust; never accepted at admission.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Installation {
+    /// Enrollment authority principal bytes; empty selects this canister.
+    pub authority: Vec<u8>,
+    /// Optional test network BLS key for the independent certified-cost lane.
+    pub certified_network_key: Vec<u8>,
+    /// Optional installation-only receiver limits; ingress cannot change them.
+    pub receiver_capacity: Option<receiver::Capacity>,
 }

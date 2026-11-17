@@ -1,6 +1,6 @@
 # Architecture
 
-Status: proposed replacement architecture, 15 November 2026. This selects an implementation direction and acceptance obligations. It does not authorize consumer cutover, data deletion, a new issuer service or a storage-format change. The companion qualification plan below defines the implementation sequence.
+Status: current volatile architecture, reviewed 17 November 2026. The receiver, issuer and browser owners below are implemented; the qualification sequence retains acceptance obligations, not a list of unimplemented features. See [current status](../status/current.md) for evidence and remaining consumer boundaries. This design does not authorize consumer cutover, data deletion, a new issuer service or a storage-format change.
 
 Current compatibility decision (16 November 2026, Auth #2): the maintainer
 authorized a hard cut from the pre-recode implementation and confirmed no existing
@@ -24,7 +24,7 @@ The application flow remains:
 
 A receiver does not call an issuer or repeat signature verification on every application operation. It checks its retained session against current protected authority, time, revocation, device generation and required scopes. Application account linking and resource permissions remain outside Auth.
 
-The architectural change is to make a complete receiver operation the unit of ownership. Session, replay, login denial, device replacement and accounting become one bounded transition. A stable backend should not have to reconstruct a temporary memory ledger to reuse policy. Both backends supply bounded operation facts to the same decision functions, then apply a validated change using their own storage mechanics.
+The architectural change is to make a complete receiver operation the unit of ownership. Session, replay, login denial, device replacement and accounting become one bounded transition. A stable backend should not have to reconstruct a temporary memory ledger to reuse policy. The current memory owner assembles bounded facts for private decision functions and owns publication. A future durable implementation must demonstrate its needs before any shared backend interface is introduced.
 
 This is a fresh implementation of selected responsibilities, not a port of the old module tree. The existing engine already shares important checks; a proposed consolidation earns its place by removing a transformation or independent invariant without losing refusal, recovery or cost guarantees.
 
@@ -36,7 +36,7 @@ Reference: [dragginzgame/ic-auth-legacy at e52a40be75dd9809d0528189d84b43fe96952
 | - | - |
 | Workspace selects Engine 0.41.1, Protocol types/Wire 0.40.1 and Rust 1.100.0 | Select the current supplier graph and qualify its actual boundaries |
 | Complete Ed25519 and certified verifiers feed one session engine | Keep one admission policy; do not introduce mechanism-specific sessions |
-| Stable receiver reconstructs at most two selected login records into a memory ledger | Replace this translation with bounded receiver facts, subject to differential qualification |
+| Stable receiver reconstructs at most two selected login records into a memory ledger | Keep bounded receiver facts; qualify durable behavior independently at the future milestone |
 | Stable caller records already combine an active session or retained fence | Preserve this useful locality; do not create a duplicate session mirror |
 | Persistent issuer owns intents, renewal indexes and completed results | Replace its lifecycle deliberately, not with a stateless signing callback |
 | Browser package is private and includes durable admission/logout coordination | Browser uncertainty handling remains product scope |
@@ -60,7 +60,7 @@ These are inspected source contracts. Historical test and performance reports re
 | Host | Authenticated caller/time, enrollment, transaction isolation, lifecycle and certification root | Reimplementation of Auth transition rules |
 | Application | Account linking, eligibility, roles, resources and business effects | Treating a receipt as enduring authorization |
 
-Retain three existing public boundaries: ic-auth-protocol-types, ic-auth-wire and ic-auth. Introduce an issuer package only for the real dependency boundary between receiving credentials and signing/issuance custody; proposed name ic-auth-issuer. Its state code may use the signer-free canonical base of ic-auth with receiver/backend features disabled. The receiver must never depend on the issuer package. Qualify the resulting feature-unified graphs.
+Retain three public packages: `ic-auth-protocol-types`, `ic-auth-wire` and `ic-auth`. The `issuer-memory` and `receiver-memory` features own separate modules in `ic-auth`; the issuer builds without receiver/verifier features, and the receiver does not depend on issuer state. Signing custody remains host-owned. No fourth issuer package is justified by current consumers. Qualify standalone and feature-unified graphs.
 
 Keep receiver implementations as modules behind explicit capabilities, not one package per table or operation. Future persistence mechanics stay backend-local; do not expose them through protocol types, shared Auth decisions or mandatory receiver API bounds. Platform supplies cryptographic primitives and canonical Principal identity. Keep metadata generation, Host, Build, Testkit and release tooling out of deployed receiver dependencies.
 
@@ -149,9 +149,9 @@ Keep active-session login binding in one authoritative logical record. Derived i
 
 Admission loads only the caller, selected slot owner, relevant replay and account occupancy. No global scan or complete heap clone. Memory can borrow records; stable storage validates and decodes selected records. Never translate stable state through a temporary MemoryLoginRevocations object merely to invoke a policy rule.
 
-One internal ReceiverFacts value contains these bounded facts and their transaction revision. Pure functions check liveness, narrowing, exact retry, replacement and capacity. A non-public ReceiverChange contains only affected records and resulting accounting. It cannot be serialized as an authorization token or applied after its originating transaction.
+Private receiver policy consumes bounded session/login snapshots and admission footprints. `MemoryReceiver` owns indexed records, prepared session/replay values and publication. No universal `ReceiverFacts`/`ReceiverChange` protocol is required. Decisions and receipts cannot establish authority outside the host transaction; reads must recheck current host inputs before protected effects.
 
-A private operation-level backend interface is justified by the two implementations. It exposes selected reads and prepared writes, not a public universal key/value store, repository framework or arbitrary transaction language. Storage-specific corruption checks and indexes remain with that backend. Keep the interface closed until actual custom consumers demonstrate what extension is needed.
+There is one implemented backend, so no storage interface is justified today. At the durable milestone, compare concrete reads, prepared mutations, corruption admission and host rollback before sharing mechanics. Keep semantic rules reusable without a public key/value store, repository framework or arbitrary transaction language.
 
 ## 7 Admission, authorization and logout
 
@@ -191,22 +191,16 @@ Known login: remove the session and retain denial through its original authentic
 
 Logout preserves replay ownership and device fences. Expired leases never free a slot's generation history. Time pruning cannot retire known fences. Any account retirement needs a separately authenticated policy proving old authority cannot return.
 
-## 8 Proposed API and transaction semantics
+## 8 API ownership and transaction semantics
 
-The following signatures describe responsibilities; they are not a compiled or promised source-compatible API.
+`MemoryReceiver` owns admission, `read`/`authorize`, logout, bounded pruning and
+`inspect_sessions`. Enrollment uses `request_enrollment`/`install_enrollment`.
+The public definitions in `crates/ic-auth/src/receiver_memory` own exact signatures
+and typed errors; there is no generic `Receiver<B>` or common backend result API.
 
-```rust
-Receiver<B>::admit(host, credential, request) -> AuthResult<AdmissionOutcome>
-Receiver<B>::authorize(host, required_scopes, project) -> AuthResult<R>
-Receiver<B>::logout(host) -> AuthResult<LogoutResult>
-Receiver<B>::prune(host, budget) -> AuthResult<PruneReport>
-Receiver<B>::inspect(cursor, limit, scan_budget, observed_time) -> Result<SessionPage, ReadFault>
-Receiver<B>::install_authority(host, authenticated_snapshot) -> AuthResult<()>
-```
+Host inputs carry actual caller, trusted clock, current protected enrollment, role/eligibility and a serialized transaction context. These inputs are host assertions, not authentication created by a public constructor. Use separate host projections: admission/authorization require current protected authority; logout requires authenticated caller, trusted clock and intact safety state without fresh proof/enrollment; maintenance requires host administrative authority. The library performs no await and cannot choose its own system caller or clock.
 
-B selects the memory or stable implementation. Host inputs carry actual caller, trusted clock, current protected enrollment, role/eligibility and a serialized transaction context. These inputs are host assertions, not authentication created by a public constructor. Use separate host projections: admission/authorization require current protected authority; logout requires authenticated caller, trusted clock and intact safety state without fresh proof/enrollment; maintenance requires host administrative authority. The library performs no await and cannot choose its own system caller or clock.
-
-AuthResult separates a normal outcome, including typed refusal, from a fatal host-abort condition. A normal refusal can still contain required control-state changes. Endpoint adapters must not convert every refusal into a trap.
+Typed operation results describe normal success/refusal; host traps are a separate transaction boundary. A normal refusal can still contain required control-state changes. Endpoint adapters must not convert every refusal into a trap.
 
 | Event | Session/replay/login state | Control state |
 | - | - | - |
@@ -219,7 +213,7 @@ AuthResult separates a normal outcome, including typed refusal, from a fatal hos
 
 Malformed signatures and noncanonical scalars can refuse before a charge in the reference. Preserve an explicit failure-stage matrix; “all invalid signatures are charged” is too broad.
 
-Prepare validation, bounded encodings and capacities before publication. Memory applies validated changes without a fallible publication tail. Stable code uses Storage prepared operations within the host atomic boundary. Native failure injection restores the complete backing and discards/reopens poisoned runtime caches.
+Prepare validation, bounded encodings and capacities before publication. Memory publishes prepared changes with closure on interrupted publication; the host owns transaction rollback. Future stable code must qualify prepared storage operations within that boundary. Native failure injection alone cannot establish installed rollback or durable cache recovery.
 
 A projection cannot leak a borrowed guard across await. A copied result does not become later authority. Read-only session access does not imply that a required trusted clock observation is absent; passive inspection, by contrast, must not advance it.
 
@@ -517,7 +511,7 @@ entropy/refresh scheduling, trusted recovery or application endpoint wiring.
 | Separate policy for Ed25519/certified or volatile/stable | Prohibited |
 | Retired token/session flows and historical compatibility readers | Do not reintroduce |
 | Historical verifier/signature helpers | Retain only capabilities required by current consumers |
-| Custom commit/restore API | Decision pending actual downstream review |
+| Historical custom commit/restore API | Retired by the authorized hard cut; preserve current host atomicity obligations |
 | Release scripts, npm publication and deployment framework | Do not transplant into the implementation scaffold |
 | Tests for uniquely required guarantees | Retain/re-express independently; delete only redundant coverage with a recorded mapping |
 
@@ -531,7 +525,7 @@ The first deliverable is one complete volatile receiver slice with independent p
 
 # Implementation and qualification
 
-Status: implementation sequence, 15 November 2026. Companion to the architecture above. Passing a stage authorizes the next implementation slice, not consumer deployment. The [scope/request slice](../development/request-boundary.md) and [canonical claims codec](../development/claims-boundary.md) have focused evidence; no complete stage or replacement gate is claimed from these slices.
+Status: acceptance sequence, reviewed 17 November 2026. The [current handoff](../status/current.md) records implemented slices and their proof limits. These requirements are not a parallel backlog. Passing a stage does not authorize consumer deployment; durable requirements apply only at the future storage milestone.
 
 ## Simplification constraints before further expansion
 
@@ -767,9 +761,9 @@ Keep fake IndexedDB/Node, real browser, SDK-certified receiver and production is
 
 ## 9 Dependency and performance gates
 
-Qualify standalone passive types, Wire codec-only, memory receiver, stable receiver, each verifier, both verifiers together and issuer consumers. Inspect Cargo feature unification and actual native/Wasm graphs. Preserve one Platform Types identity and one host executor/guard. Receiver consumers must not pull issuer signing custody, native tooling or TypeScript metadata generation.
+Qualify standalone passive types, Wire codec-only, memory receiver, each verifier, both verifiers together and issuer consumers. Add stable receiver qualification only at the durable milestone. Inspect Cargo feature unification and actual native/Wasm graphs. Preserve one Platform Types identity and one host executor/guard. Receiver consumers must not pull issuer signing custody, native tooling or TypeScript metadata generation.
 
-Record exact source, locks, rustc, target, profiles, optimizer, final Wasm and simulator/server identities. Keep original and replacement measurements under matched conditions in isolated targets.
+Record exact source, locks, rustc, target, profiles, optimizer, final Wasm and simulator/server identities. Compare current implementations only under matched conditions in isolated targets; the historical implementation is not an executable acceptance dependency.
 
 Measure:
 
@@ -785,9 +779,9 @@ Measure:
 
 - Prune/inspection work and issuer recovery/renewal, including refusal costs.
 
-The reference handoff reports 1,224,808 instructions for authentication at 100,000 receiver records and 1,223,895 after upgrade. Retain the accepted 1,300,000-instruction regression ceiling for the matched installed scenario. These are published source reports, not measurements rerun for this review. [Pinned handoff](https://github.com/dragginzgame/ic-auth-legacy/blob/e52a40be75dd9809d0528189d84b43fe96952ad9/docs/status/current.md).
+The reference handoff reports 1,224,808 instructions for authentication at 100,000 receiver records and 1,223,895 after upgrade. Its 1,300,000-instruction ceiling belongs to that historical scenario, not the current volatile fixture. Adopt a current operational ceiling only with a matched workload and consumer decision. These are published source reports, not measurements rerun for this review. [Pinned handoff](https://github.com/dragginzgame/ic-auth-legacy/blob/e52a40be75dd9809d0528189d84b43fe96952ad9/docs/status/current.md).
 
-Extract and retain the other accepted verifier/fixture ceilings before comparison. Historical named-symbol attribution is not removable Wasm size. The handoff explicitly leaves populated persistent failure-cost and production fleet budget qualification incomplete; set and justify those missing operational limits rather than declaring historical success.
+Retain provenance for historical ceilings without treating unmatched observations as current gates. Historical named-symbol attribution is not removable Wasm size. The handoff explicitly leaves populated persistent failure-cost and production fleet budget qualification incomplete; set and justify those missing operational limits rather than declaring historical success.
 
 No line-count, size or speed target can waive replay, revocation, rollback or uncertainty guarantees.
 
