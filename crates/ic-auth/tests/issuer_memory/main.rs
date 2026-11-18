@@ -37,9 +37,11 @@ fn fixture(name: &str) -> Vec<u8> {
         .map(|b| u8::from_str_radix(std::str::from_utf8(b).unwrap(), 16).unwrap())
         .collect()
 }
+
 fn account() -> Principal {
     Principal::from_slice(&[2])
 }
+
 fn config() -> IssuerConfig {
     IssuerConfig {
         audience: AudienceId {
@@ -56,6 +58,7 @@ fn config() -> IssuerConfig {
         issuance_refill_interval_ns: 100,
     }
 }
+
 fn request() -> IssueRequest {
     IssueRequest {
         epoch: 1,
@@ -69,6 +72,7 @@ fn request() -> IssueRequest {
         }],
     }
 }
+
 fn policy() -> IssuerPolicy {
     IssuerPolicy {
         login_ttl_ns: 90,
@@ -77,6 +81,7 @@ fn policy() -> IssuerPolicy {
         reconciliation_retention_ns: 20,
     }
 }
+
 fn authority() -> IssuerAuthority {
     IssuerAuthority {
         signing: ic_auth::issuer_memory::IssuerSigning::Ed25519,
@@ -85,11 +90,13 @@ fn authority() -> IssuerAuthority {
         expires_at_ns: 200,
     }
 }
+
 fn prepare(issuer: &mut MemoryIssuer) -> IssuerTicket {
     issuer
         .prepare_issue(account(), &request(), policy(), authority(), 10)
         .unwrap()
 }
+
 fn approve(issuer: &mut MemoryIssuer, ticket: IssuerTicket) {
     issuer
         .record_nonce(ticket, authority(), [0x55; 16], 11)
@@ -98,6 +105,7 @@ fn approve(issuer: &mut MemoryIssuer, ticket: IssuerTicket) {
         .record_approval(ticket, authority(), [9; 32], 12)
         .unwrap();
 }
+
 fn lookup(issuer: &MemoryIssuer, ticket: IssuerTicket) -> IssuerStatus<'_> {
     issuer
         .reconcile(ticket.account(), ticket.epoch(), ticket.operation_id())

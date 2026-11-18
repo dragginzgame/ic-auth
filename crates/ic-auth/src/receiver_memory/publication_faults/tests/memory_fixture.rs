@@ -2,12 +2,15 @@
 use super::*;
 
 pub(super) fn bytes(name: &str) -> Vec<u8> {
-    let hex = include_str!("../fixtures/memory.tsv")
-        .lines()
-        .filter_map(|l| l.split_once('\t'))
-        .find(|(n, _)| *n == name)
-        .unwrap()
-        .1;
+    let hex = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/fixtures/memory.tsv"
+    ))
+    .lines()
+    .filter_map(|l| l.split_once('\t'))
+    .find(|(n, _)| *n == name)
+    .unwrap()
+    .1;
     hex.as_bytes()
         .as_chunks::<2>()
         .0
@@ -15,18 +18,22 @@ pub(super) fn bytes(name: &str) -> Vec<u8> {
         .map(|p| u8::from_str_radix(std::str::from_utf8(p).unwrap(), 16).unwrap())
         .collect()
 }
+
 pub(super) fn credential(name: &str) -> Credential {
     Credential {
         claims: bytes(&format!("{name}-claims")),
         proof: CredentialProof::Ed25519(bytes(&format!("{name}-signature"))),
     }
 }
+
 pub(super) fn request() -> SessionRequest {
     SessionRequest::new(vec!["read".into()], None).unwrap()
 }
+
 pub(super) fn account() -> (Principal, Principal) {
     (Principal::from_slice(&[1]), Principal::from_slice(&[2]))
 }
+
 pub(super) struct Host {
     pub(super) audience: AudienceId,
     pub(super) grants: AuthorityGrants,
@@ -49,6 +56,7 @@ impl Host {
             key: Ed25519Key::new(bytes("public-key").try_into().unwrap()).unwrap(),
         }
     }
+
     pub(super) fn context(&self, name: &str, now_ns: u64) -> VerificationContext<'_> {
         VerificationContext {
             audience: &self.audience,
@@ -67,6 +75,7 @@ impl Host {
             max_proof_ttl_ns: 60,
         }
     }
+
     pub(super) fn admission<'a>(
         &'a self,
         context: &'a VerificationContext<'a>,
@@ -83,6 +92,7 @@ impl Host {
             subject_admissible: true,
         }
     }
+
     pub(super) fn read(&self, name: &str, now_ns: u64) -> SessionAuthority<'_> {
         let c = self.context(name, now_ns);
         SessionAuthority {
@@ -104,6 +114,7 @@ impl Host {
             subject_admissible: true,
         }
     }
+
     pub(super) fn config(&self) -> MemoryConfig {
         MemoryConfig {
             enrollment: EnrollmentBinding {
@@ -135,11 +146,13 @@ impl Host {
             },
         }
     }
+
     pub(super) fn receiver(&self) -> MemoryReceiver {
         let mut r = MemoryReceiver::new_fresh(self.config(), 0).unwrap();
         self.enroll(&mut r, 7).unwrap();
         r
     }
+
     pub(super) fn snapshot(&self, generation: u64) -> EnrollmentMetadata {
         EnrollmentMetadata {
             receiver: self.config().enrollment.receiver,
@@ -153,6 +166,7 @@ impl Host {
             expires_at_ns: 150,
         }
     }
+
     pub(super) fn enroll(&self, r: &mut MemoryReceiver, generation: u64) -> Result<(), E> {
         let now = r.observed_at_ns();
         r.request_enrollment(now, [1; 32], now + 10)?;

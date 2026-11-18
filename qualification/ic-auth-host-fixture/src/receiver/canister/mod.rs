@@ -2,7 +2,7 @@
 use super::{CONTROL, Command, OBSERVE, Observation, Outcome, REQUEST, Refusal, TIME_ORIGIN_NS};
 use crate::{RESPONSE, enrollment::Snapshot};
 mod enrollment;
-use crate::hash_bytes;
+use crate::canister::hash_bytes;
 use ic_auth::{
     receiver_memory::{
         AdmissionHost, EnrollmentBinding, LoginLimits, LogoutError, LogoutReceipt, MemoryConfig,
@@ -31,15 +31,18 @@ struct State {
     application_writes: u32,
     wide_scopes: bool,
 }
+
 thread_local! {
     static STATE: RefCell<State> = RefCell::new(State::default());
 }
+
 fn audience() -> AudienceId {
     AudienceId {
         canonical_network_id: CanonicalId::from_bytes([0x11; 32]),
         fleet_id: CanonicalId::from_bytes([0x22; 32]),
     }
 }
+
 pub(crate) fn init(authority: Principal, capacity: super::Capacity) {
     let receiver = MemoryReceiver::new_fresh(
         MemoryConfig {
@@ -80,6 +83,7 @@ pub(crate) fn init(authority: Principal, capacity: super::Capacity) {
         s.wide_scopes = capacity.wide_scopes;
     });
 }
+
 fn refusal(e: MemoryError) -> Refusal {
     match e {
         MemoryError::Closed => Refusal::Closed,
@@ -89,6 +93,8 @@ fn refusal(e: MemoryError) -> Refusal {
         _ => Refusal::Other,
     }
 }
+
+/// Reject oversized ingress before copying or decoding the request.
 fn bounded_request() -> Result<(), String> {
     if api::argument_size() > REQUEST.bytes {
         Err("oversized receiver fixture frame".into())
@@ -96,6 +102,7 @@ fn bounded_request() -> Result<(), String> {
         Ok(())
     }
 }
+
 fn decode_command(bytes: &[u8]) -> Result<Command, ic_wire::Error> {
     ic_wire::decode(
         bytes,
@@ -106,6 +113,7 @@ fn decode_command(bytes: &[u8]) -> Result<Command, ic_wire::Error> {
         REQUEST,
     )
 }
+
 fn encode_result(result: Result<Outcome, Refusal>) -> Result<Vec<u8>, ic_wire::Error> {
     ic_wire::encode(
         &result,
@@ -116,7 +124,17 @@ fn encode_result(result: Result<Outcome, Refusal>) -> Result<Vec<u8>, ic_wire::E
         RESPONSE,
     )
 }
-#[runtime::update(runtime = ic_platform_runtime, name = "receiver_fixture_control", guard = bounded_request, decode = decode_command, encode = encode_result, max_bytes = 4096, on_error = crate::endpoint_error)]
+
+/// Exercise receiver operations with the authenticated IC caller.
+#[runtime::update(
+    runtime = ic_platform_runtime,
+    name = "receiver_fixture_control",
+    guard = bounded_request,
+    decode = decode_command,
+    encode = encode_result,
+    max_bytes = 4096,
+    on_error = crate::canister::endpoint_error,
+)]
 async fn control(command: Command) -> Result<Outcome, Refusal> {
     if let Command::Enroll(fault) = command {
         return enrollment::refresh(fault).await;
@@ -267,6 +285,7 @@ async fn control(command: Command) -> Result<Outcome, Refusal> {
         Ok(outcome)
     })
 }
+
 fn decode_unit(bytes: &[u8]) -> Result<(), ic_wire::Error> {
     ic_wire::decode::<()>(
         bytes,
@@ -291,7 +310,17 @@ fn encode_observation(value: Observation) -> Result<Vec<u8>, ic_wire::Error> {
         RESPONSE,
     )
 }
-#[runtime::query(runtime = ic_platform_runtime, name = "receiver_fixture_observe", guard = bounded_request, decode = decode_unit, encode = encode_observation, max_bytes = 4096, on_error = crate::endpoint_error)]
+
+/// Read receiver counters and enrollment without consuming verification credit.
+#[runtime::query(
+    runtime = ic_platform_runtime,
+    name = "receiver_fixture_observe",
+    guard = bounded_request,
+    decode = decode_unit,
+    encode = encode_observation,
+    max_bytes = 4096,
+    on_error = crate::canister::endpoint_error,
+)]
 fn observe((): ()) -> Observation {
     STATE.with_borrow(|s| {
         let mut result = Observation {
@@ -346,6 +375,7 @@ fn decode_measurement(bytes: &[u8]) -> Result<Command, ic_wire::Error> {
         REQUEST,
     )
 }
+
 fn encode_measurement(value: super::Measurement) -> Result<Vec<u8>, ic_wire::Error> {
     ic_wire::encode(
         &value,
@@ -356,17 +386,27 @@ fn encode_measurement(value: super::Measurement) -> Result<Vec<u8>, ic_wire::Err
         RESPONSE,
     )
 }
-#[runtime::update(runtime = ic_platform_runtime, name = "receiver_fixture_measure", guard = bounded_request, decode = decode_measurement, encode = encode_measurement, max_bytes = 4096, on_error = crate::endpoint_error)]
+
+/// Measure one receiver operation inside an update.
+#[runtime::update(
+    runtime = ic_platform_runtime,
+    name = "receiver_fixture_measure",
+    guard = bounded_request,
+    decode = decode_measurement,
+    encode = encode_measurement,
+    max_bytes = 4096,
+    on_error = crate::canister::endpoint_error,
+)]
 async fn measure(command: Command) -> super::Measurement {
     // Counter zero is message-local: never measure across an inter-canister await.
     if matches!(command, Command::Enroll(_)) {
         api::trap("enrollment is outside synchronous measurement");
     }
-    let before_heap = core::arch::wasm32::memory_size::<0>() as u64;
+    let before_heap = std::arch::wasm32::memory_size::<0>() as u64;
     let before = runtime::raw::instruction_counter();
     let result = control(command).await;
     let instructions = runtime::raw::instruction_counter() - before;
-    let after_heap = core::arch::wasm32::memory_size::<0>() as u64;
+    let after_heap = std::arch::wasm32::memory_size::<0>() as u64;
     let response_bytes = encode_result(result).unwrap().len() as u64;
     super::Measurement {
         result,

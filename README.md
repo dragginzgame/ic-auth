@@ -22,7 +22,7 @@ certified update path. Complete consumer integration and external signer recover
 remain open. See the
 [current handoff](docs/status/current.md) for present capability and evidence limits.
 
-Release versions are Auth 0.48.0, Auth Wire 0.44.0 and protocol-types 0.43.0 (`v0.48.0`).
+Release versions are Auth 0.48.1, Auth Wire 0.44.1 and protocol-types 0.43.0 (`v0.48.1`).
 The three product crates are authorized for crates.io publication. Qualification
 crates retain `publish = false`; the browser client 0.1.0 remains private.
 Production deployment and consumer cutover require separate approval.

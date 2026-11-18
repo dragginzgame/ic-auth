@@ -1,4 +1,7 @@
 //! Passive bounded traversal. Reference contract provenance is in reference.sha256.
+#[cfg(test)]
+mod tests;
+
 use super::{Lifecycle, MemoryError, MemoryReceiver};
 use crate::receiver_policy::{SessionFacts, SessionPolicyError};
 use ic_auth_protocol_types::Principal;
@@ -98,6 +101,3 @@ fn collect<'a>(
     }
     page
 }
-
-#[cfg(test)]
-mod tests;

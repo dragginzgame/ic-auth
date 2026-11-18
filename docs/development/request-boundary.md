@@ -37,8 +37,7 @@ code must not be reused to normalize signed grants into validity.
 
 Run `make test-request`, `make lint-protocol`, `make doc-protocol` and
 `make check-protocol-wasm` for this scope. Wasm compilation does not establish
-installed execution, persistence or rollback. No Storage dependency is introduced;
-the planned `ic-storage` to `ic-storage-new` transition remains backend-local.
+installed execution, persistence or rollback. Future storage integration belongs at the published `ic-storage` boundary.
 
 ## Shared narrowing and lease calculation
 

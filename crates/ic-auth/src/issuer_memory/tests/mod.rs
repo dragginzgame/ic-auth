@@ -16,6 +16,7 @@ thread_local! {
     static STOP_AFTER: Cell<Option<usize>> = const { Cell::new(None) };
     static WRITES: Cell<usize> = const { Cell::new(0) };
 }
+
 pub(super) fn after_write() {
     WRITES.with(|n| n.set(n.get() + 1));
     STOP_AFTER.with(|stop| match stop.get() {
@@ -27,6 +28,7 @@ pub(super) fn after_write() {
         None => {}
     });
 }
+
 fn issuer() -> MemoryIssuer {
     MemoryIssuer::new_fresh(
         IssuerConfig {
@@ -47,6 +49,7 @@ fn issuer() -> MemoryIssuer {
     )
     .unwrap()
 }
+
 fn request() -> IssueRequest {
     IssueRequest {
         epoch: 1,
@@ -60,6 +63,7 @@ fn request() -> IssueRequest {
         }],
     }
 }
+
 fn authority() -> IssuerAuthority {
     IssuerAuthority {
         signing: crate::issuer_memory::IssuerSigning::Ed25519,
@@ -68,6 +72,7 @@ fn authority() -> IssuerAuthority {
         expires_at_ns: 1_000,
     }
 }
+
 fn policy() -> IssuerPolicy {
     IssuerPolicy {
         login_ttl_ns: 100,
@@ -211,6 +216,7 @@ fn renewal_input(sequence: u64) -> RenewRequest {
         grants: request().grants,
     }
 }
+
 fn dispatch(issuer: &mut MemoryIssuer, ticket: IssuerTicket) {
     issuer
         .record_nonce(ticket, authority(), [1; 16], 2)
@@ -220,6 +226,7 @@ fn dispatch(issuer: &mut MemoryIssuer, ticket: IssuerTicket) {
         .unwrap();
     issuer.dispatch(ticket, authority(), 2).unwrap();
 }
+
 fn completed_login() -> MemoryIssuer {
     let mut issuer = issuer();
     let t = issuer

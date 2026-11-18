@@ -33,18 +33,22 @@ fn grant(role: &str, scopes: &[&str]) -> DelegatedRoleGrant {
         scopes: scopes.iter().map(|s| s.parse().unwrap()).collect(),
     }
 }
+
 fn grants() -> AuthorityGrants {
     AuthorityGrants::new(vec![grant("user", &["read"])]).unwrap()
 }
+
 fn audience() -> AudienceId {
     AudienceId {
         canonical_network_id: CanonicalId::from_bytes([0x11; 32]),
         fleet_id: CanonicalId::from_bytes([0x22; 32]),
     }
 }
+
 fn key() -> Ed25519Key {
     Ed25519Key::new(fixture("public-key").try_into().unwrap()).unwrap()
 }
+
 fn budget() -> VerificationBudget {
     VerificationBudget::new(
         10,
@@ -57,6 +61,7 @@ fn budget() -> VerificationBudget {
     )
     .unwrap()
 }
+
 fn host<'a>(audience: &'a AudienceId, grants: &'a AuthorityGrants) -> VerificationContext<'a> {
     VerificationContext {
         audience,
@@ -75,6 +80,7 @@ fn host<'a>(audience: &'a AudienceId, grants: &'a AuthorityGrants) -> Verificati
         max_proof_ttl_ns: 60,
     }
 }
+
 fn check_context(change: impl FnOnce(&mut VerificationContext<'_>), expected: C) {
     let audience = audience();
     let grants = grants();

@@ -1,4 +1,7 @@
 //! Test-build-only interruptions between actual receiver publication mutations.
+#[cfg(feature = "ed25519-verification")]
+mod tests;
+
 use std::cell::Cell;
 
 thread_local! {
@@ -12,6 +15,3 @@ pub(super) fn point() {
         None => {}
     });
 }
-
-#[cfg(feature = "ed25519-verification")]
-mod tests;

@@ -18,6 +18,7 @@ async fn admit(pic: &PocketIc, id: CanisterId, caller: CanisterId, command: &Com
     };
     until
 }
+
 async fn scenario(dimension: &str) {
     let vectors = receiver::vectors();
     let caller = CanisterId::from_slice(&vectors["initial-caller"]);
@@ -209,16 +210,19 @@ async fn scenario(dimension: &str) {
     );
     owned.drop().await;
 }
+
 #[tokio::test]
 #[ignore = "requires prepared build tools and PocketIC 16.x"]
 async fn session_capacity_cost_observations() {
     scenario("sessions").await;
 }
+
 #[tokio::test]
 #[ignore = "requires prepared build tools and PocketIC 16.x"]
 async fn byte_capacity_cost_observations() {
     scenario("bytes").await;
 }
+
 #[tokio::test]
 #[ignore = "requires prepared build tools and PocketIC 16.x"]
 async fn account_capacity_cost_observations() {

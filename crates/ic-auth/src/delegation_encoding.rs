@@ -131,26 +131,31 @@ fn write_certificate(cert: &DelegationCertificate, emit: &mut dyn FnMut(&[u8])) 
     emit(&d.max_token_ttl_ns.to_be_bytes());
     write_audience_grants(d, emit);
 }
+
 fn write_binding(d: &IssuerDelegation, emit: &mut dyn FnMut(&[u8])) {
     emit(&[1]);
     emit(&d.binding_hash);
     emit(&[1]);
     emit(&d.seed_hash);
 }
+
 fn write_audience_grants(d: &IssuerDelegation, emit: &mut dyn FnMut(&[u8])) {
     emit(&[1]); // Fleet audience.
     emit(d.audience.canonical_network_id.as_bytes());
     emit(d.audience.fleet_id.as_bytes());
     write_grants(&d.grants, emit);
 }
+
 fn write_principal(value: Principal, emit: &mut dyn FnMut(&[u8])) {
     write_bytes(value.as_slice(), emit);
 }
+
 fn write_bytes(value: &[u8], emit: &mut dyn FnMut(&[u8])) {
     // Every caller admits field bounds before this private traversal.
     emit(&(value.len() as u32).to_be_bytes());
     emit(value);
 }
+
 fn framed_hash(domain: &[u8], write: impl Fn(&mut dyn FnMut(&[u8]))) -> [u8; 32] {
     // At most 16 roles x 32 scopes x 64-byte labels, or a 128-byte key name;
     // both admitted layouts fit comfortably within u32 on every supported target.

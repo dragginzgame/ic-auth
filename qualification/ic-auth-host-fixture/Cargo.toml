@@ -16,7 +16,7 @@ ignored = ["toko-tooling"]
 [lib]
 crate-type = ["cdylib", "rlib"]
 
-[target.'cfg(target_family = "wasm")'.dependencies]
+[target.'cfg(target_arch = "wasm32")'.dependencies]
 ic-auth = { workspace = true, features = ["issuer-memory", "receiver-memory", "ed25519-verification", "certified-verification"] }
 ic-auth-wire.workspace = true
 ic-platform = { workspace = true, features = ["certificate-construction", "ed25519"] }

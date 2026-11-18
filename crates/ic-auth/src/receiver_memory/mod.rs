@@ -720,6 +720,7 @@ impl MemoryReceiver {
             Err(MemoryError::Closed)
         }
     }
+
     fn enrolled(&self, authority: &mut SessionAuthority<'_>) -> Result<(), MemoryError> {
         let snapshot = self.enrollment.current().ok_or(MemoryError::Closed)?;
         if snapshot.generation != self.generation
@@ -734,6 +735,7 @@ impl MemoryReceiver {
             .min(snapshot.expires_at_ns);
         Ok(())
     }
+
     fn observe(&mut self, now_ns: u64) -> Result<(), MemoryError> {
         if now_ns < self.observed_at_ns {
             return Err(SessionPolicyError::ClockRollback.into());
@@ -741,6 +743,7 @@ impl MemoryReceiver {
         self.observed_at_ns = now_ns;
         Ok(())
     }
+
     fn remove_session(&mut self, caller: Principal) {
         if let Some(row) = self.callers.get_mut(&caller)
             && let Some(session) = publish!(row.session.take())
@@ -750,6 +753,7 @@ impl MemoryReceiver {
             publish!(self.encoded_bytes -= session.bytes);
         }
     }
+
     fn remove_unknown(&mut self, caller: Principal) {
         if let Some(row) = self.callers.get(&caller)
             && row.login.binding.is_none()
@@ -759,6 +763,7 @@ impl MemoryReceiver {
             publish!(self.unknown -= 1);
         }
     }
+
     fn selected(&self, caller: Principal) -> records::Selected<'_> {
         let row = self.callers.get(&caller);
         let session = row.and_then(CallerRecord::session_facts);

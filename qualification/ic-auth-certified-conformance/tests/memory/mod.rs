@@ -75,6 +75,7 @@ impl Case {
                 .unwrap(),
         }
     }
+
     fn context<'a>(&'a self, grants: &'a AuthorityGrants, now: u64) -> CertifiedContext<'a> {
         let mut context = host(&self.fixture, grants);
         context.claims.caller = self.caller;
@@ -83,6 +84,7 @@ impl Case {
         context.claims.now_ns = now;
         context
     }
+
     fn read<'a>(
         &self,
         grants: &'a AuthorityGrants,
@@ -108,6 +110,7 @@ impl Case {
             subject_admissible: true,
         }
     }
+
     fn admit(
         &self,
         receiver: &mut MemoryReceiver,
@@ -122,9 +125,11 @@ impl Case {
         )
     }
 }
+
 fn request() -> SessionRequest {
     SessionRequest::new(vec!["read".into()], None).unwrap()
 }
+
 fn input<'a>(context: &'a CertifiedContext<'a>, role: &'a AuthRole) -> AdmissionHost<'a> {
     AdmissionHost {
         verifier: VerificationProfile::Certified(context),
@@ -135,6 +140,7 @@ fn input<'a>(context: &'a CertifiedContext<'a>, role: &'a AuthRole) -> Admission
         subject_admissible: true,
     }
 }
+
 fn receiver(case: &Case, id: u8) -> MemoryReceiver {
     let binding = EnrollmentBinding {
         receiver: Principal::from_slice(&[id]),

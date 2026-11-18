@@ -13,9 +13,11 @@ use ic_platform::{
 };
 use ic_testkit::pocket_ic::CanisterId;
 use sha2::{Digest, Sha256};
+
 fn sha(bytes: &[u8]) -> [u8; 32] {
     Sha256::digest(bytes).into()
 }
+
 fn signature(key: &PrivateKey, digest: [u8; 32]) -> Vec<u8> {
     let message = [b"\x1bic-auth-portable-credential".as_slice(), &digest].concat();
     let witness = labeled(
@@ -50,6 +52,7 @@ fn signature(key: &PrivateKey, digest: [u8; 32]) -> Vec<u8> {
     };
     encode_canister_signature(&encode_certificate(&cert, 16384).unwrap(), &witness, 16384).unwrap()
 }
+
 #[tokio::test]
 #[ignore = "requires prepared build tools and PocketIC 16.x"]
 async fn certified_receiver_cost_observations() {

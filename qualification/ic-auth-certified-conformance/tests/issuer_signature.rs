@@ -22,18 +22,22 @@ const NOW: u64 = 100;
 fn issuer() -> Principal {
     Principal::from_slice(&[1; 10])
 }
+
 fn hash(bytes: &[u8]) -> [u8; 32] {
     Sha256::digest(bytes).into()
 }
+
 fn key(number: u8) -> PrivateKey {
     let mut scalar = [0; 32];
     scalar[31] = number;
     PrivateKey::deserialize(&scalar).unwrap()
 }
+
 fn message() -> Vec<u8> {
     // Independent literal framing; never obtain fixture bytes from Auth.
     [b"\x1bic-auth-portable-credential".as_slice(), &DIGEST].concat()
 }
+
 fn certificate(tree: HashTree, signer: &PrivateKey, delegation: Option<Delegation>) -> Certificate {
     let signed = [b"\x0Dic-state-root".as_slice(), &tree.digest()].concat();
     Certificate {
@@ -57,6 +61,7 @@ impl Fixture {
     ) -> Self {
         Self::with_leaf(message, time, signer, delegation, vec![])
     }
+
     fn with_leaf(
         message: &[u8],
         time: Option<Vec<u8>>,
@@ -85,17 +90,21 @@ impl Fixture {
             der: ic_platform::certificate::construction::canister_key_der(issuer(), SEED).unwrap(),
         }
     }
+
     fn bytes(&self) -> Vec<u8> {
         let cert = encode_certificate(&self.certificate, 16_384).unwrap();
         encode_canister_signature(&cert, &self.witness, 16_384).unwrap()
     }
+
     fn verify(&self, policy: &IssuerSignaturePolicy<'_>) -> Result<u64, Error> {
         verify_issuer_signature(DIGEST, &self.bytes(), &self.der, policy)
     }
 }
+
 fn direct() -> Fixture {
     Fixture::new(&message(), Some(vec![100]), &key(1), None)
 }
+
 fn policy(root: &[u8]) -> IssuerSignaturePolicy<'_> {
     IssuerSignaturePolicy {
         signing_canister: issuer(),

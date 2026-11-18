@@ -144,12 +144,14 @@ impl IssuerTicket {
     pub const fn account(self) -> Principal {
         self.account
     }
+
     /// Original operation epoch. Pruning closes consumed IDs independently of
     /// the private restart fence, so unrelated live callbacks remain valid.
     #[must_use]
     pub const fn epoch(self) -> u64 {
         self.epoch
     }
+
     /// Original idempotency identity; never replace it after an uncertain response.
     #[must_use]
     pub const fn operation_id(self) -> [u8; 32] {
@@ -191,6 +193,7 @@ impl SigningInput {
     pub const fn ticket(&self) -> IssuerTicket {
         self.ticket
     }
+
     /// Original canonical schema-2 claims; Ed25519 signs their SHA-256 digest.
     #[must_use]
     pub fn claims(&self) -> &[u8] {

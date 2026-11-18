@@ -133,7 +133,13 @@ export async function readinessCases({ check, a, b }) {
       globalThis.waitingReady = Promise.all(Array.from({ length: 4 }, () => failure(rs.coordinator.ensureSession(rs.target))));
       await started;
     });
-    await b.evaluate(async () => { const journal = await open('ready-logout'); await journal.beginLogout('login', 1_000n); journal.close(); });
+    await b.evaluate(async () => {
+      // Both tabs use the same simulated instant for this logout race.
+      now = 100n;
+      const journal = await open('ready-logout');
+      await journal.beginLogout('login', 1_000n);
+      journal.close();
+    });
     assert.deepEqual(await a.evaluate(async () => {
       resumeReady(); const codes = await waitingReady; codes.push(await failure(rs.coordinator.ensureSession(rs.target)));
       rs.journal.close(); return codes;

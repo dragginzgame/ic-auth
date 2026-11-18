@@ -24,6 +24,7 @@ pub(super) async fn install(pic: &PocketIc, wasm: &[u8], limits: Capacity) -> Ca
     pic.install_canister(id, wasm.to_vec(), init, None).await;
     id
 }
+
 pub(super) async fn enroll(pic: &PocketIc, id: CanisterId, caller: CanisterId) {
     assert_eq!(
         receiver::control(pic, id, caller, &Command::Enroll(Fault::None))
@@ -32,6 +33,7 @@ pub(super) async fn enroll(pic: &PocketIc, id: CanisterId, caller: CanisterId) {
         Ok(Outcome::Enrolled)
     );
 }
+
 /// Decode and check the measurement envelope without deciding the expected outcome.
 pub(super) async fn measure(
     pic: &PocketIc,
@@ -67,6 +69,7 @@ pub(super) async fn measure(
     assert_eq!(sample.response_bytes, ordinary.len() as u64);
     (sample, request_bytes)
 }
+
 pub(super) async fn measured(
     pic: &PocketIc,
     id: CanisterId,

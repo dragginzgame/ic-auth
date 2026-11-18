@@ -13,9 +13,11 @@ use ic_platform::certificate::{PreparedRootKey, construction::canister_key_der};
 use ic_testkit::pocket_ic::{CanisterId, nonblocking::PocketIc};
 use sha2::{Digest, Sha256};
 use std::time::Duration;
+
 fn sha(bytes: &[u8]) -> [u8; 32] {
     Sha256::digest(bytes).into()
 }
+
 async fn witness(
     pic: &PocketIc,
     id: CanisterId,
@@ -76,6 +78,7 @@ async fn witness(
         view.signature.len()
     );
 }
+
 #[tokio::test]
 #[ignore = "requires prepared build tools and PocketIC 16.x"]
 async fn renewal_witness_cost_observations() {

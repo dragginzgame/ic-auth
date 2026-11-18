@@ -1,8 +1,7 @@
 //! Fixed test account/browser, local test signer and installation-owned enrollment.
 //! No wallet service, external signing/recovery or production Canic mounting is modeled.
 use super::{CREDENTIAL, OBSERVE, Observation, WRITE};
-use crate::hash_bytes;
-use crate::{REQUEST, RESPONSE};
+use crate::{REQUEST, RESPONSE, canister::hash_bytes};
 use ic_auth::{
     issuer_memory::{
         IssueRequest, IssuedProof, IssuerAuthority, IssuerConfig, IssuerError, IssuerPolicy,
@@ -38,32 +37,39 @@ struct State {
     signatures: u32,
     writes: u32,
 }
+
 thread_local! { static STATE: RefCell<Option<State>> = const { RefCell::new(None) }; }
+
 fn audience() -> AudienceId {
     AudienceId {
         canonical_network_id: CanonicalId::from_bytes([0x11; 32]),
         fleet_id: CanonicalId::from_bytes([0x22; 32]),
     }
 }
+
 // Public deterministic test seeds; production key custody is expressly outside this fixture.
 fn signer() -> SigningKey {
     SigningKey::from_bytes(&std::array::from_fn(|i| i as u8))
 }
+
 fn browser_key() -> [u8; 32] {
     SigningKey::from_bytes(&[9; 32]).verifying_key().to_bytes()
 }
+
 fn principal(seed: u8) -> Principal {
     let key = SigningKey::from_bytes(&[seed; 32])
         .verifying_key()
         .to_bytes();
     ic_auth::verification::browser_principal(&key)
 }
+
 fn grants() -> Vec<DelegatedRoleGrant> {
     vec![DelegatedRoleGrant {
         target: "user".parse().unwrap(),
         scopes: vec!["write".parse().unwrap()],
     }]
 }
+
 fn authority(expires: u64) -> IssuerAuthority {
     IssuerAuthority {
         signing: IssuerSigning::Ed25519,
@@ -72,6 +78,7 @@ fn authority(expires: u64) -> IssuerAuthority {
         expires_at_ns: expires,
     }
 }
+
 pub(crate) fn init() {
     let now = api::time();
     let expires = now + 300 * SECOND;
@@ -153,6 +160,8 @@ pub(crate) fn init() {
         })
     });
 }
+
+/// Reject oversized ingress before copying or decoding the request.
 fn bounded<const N: usize>() -> Result<(), String> {
     if api::argument_size() <= N {
         Ok(())
@@ -160,6 +169,7 @@ fn bounded<const N: usize>() -> Result<(), String> {
         Err("oversized browser fixture frame".into())
     }
 }
+
 fn decode_lookup(bytes: &[u8]) -> Result<bool, ic_wire::Error> {
     ic_wire::decode(
         bytes,
@@ -178,7 +188,17 @@ fn encode_credential(value: PortableCredential) -> Result<Vec<u8>, ic_wire::Erro
     // Return exact retained credential REQUEST bytes, the browser journal's artifact format.
     CredentialEnvelope::encode_request(&value)
 }
-#[runtime::update(runtime = ic_platform_runtime, name = "browser_fixture_credential", guard = bounded::<256>, decode = decode_lookup, encode = encode_credential, max_bytes = 256, on_error = crate::endpoint_error)]
+
+/// Issue or look up a browser-bound credential.
+#[runtime::update(
+    runtime = ic_platform_runtime,
+    name = "browser_fixture_credential",
+    guard = bounded::<256>,
+    decode = decode_lookup,
+    encode = encode_credential,
+    max_bytes = 256,
+    on_error = crate::canister::endpoint_error,
+)]
 fn credential(lookup: bool) -> PortableCredential {
     let caller = api::caller();
     assert_eq!(caller, principal(8), "fixed fixture account required");
@@ -232,6 +252,7 @@ fn credential(lookup: bool) -> PortableCredential {
         }
     })
 }
+
 fn context<'a>(
     audience: &'a AudienceId,
     grants: &'a AuthorityGrants,
@@ -254,6 +275,7 @@ fn context<'a>(
         max_proof_ttl_ns: 60 * SECOND,
     }
 }
+
 fn decode_admit(bytes: &[u8]) -> Result<SessionInput, ic_wire::Error> {
     EstablishSession::decode_request(bytes)
 }
@@ -264,7 +286,17 @@ fn decode_admit(bytes: &[u8]) -> Result<SessionInput, ic_wire::Error> {
 fn encode_admit(value: Result<SessionView, AdmissionRefusal>) -> Result<Vec<u8>, ic_wire::Error> {
     EstablishSession::encode_response(&value)
 }
-#[runtime::update(runtime = ic_platform_runtime, name = "establish_portable_session", guard = bounded::<524288>, decode = decode_admit, encode = encode_admit, max_bytes = 524288, on_error = crate::endpoint_error)]
+
+/// Admit the browser credential and return its session view.
+#[runtime::update(
+    runtime = ic_platform_runtime,
+    name = "establish_portable_session",
+    guard = bounded::<524288>,
+    decode = decode_admit,
+    encode = encode_admit,
+    max_bytes = 524288,
+    on_error = crate::canister::endpoint_error,
+)]
 fn admit(input: SessionInput) -> Result<SessionView, AdmissionRefusal> {
     let proof = input
         .credential
@@ -321,6 +353,7 @@ fn admit(input: SessionInput) -> Result<SessionView, AdmissionRefusal> {
         })
     })
 }
+
 fn decode_write(bytes: &[u8]) -> Result<(), ic_wire::Error> {
     ic_wire::decode::<()>(
         bytes,
@@ -331,6 +364,7 @@ fn decode_write(bytes: &[u8]) -> Result<(), ic_wire::Error> {
         REQUEST,
     )
 }
+
 fn encode_write(value: Result<u32, ()>) -> Result<Vec<u8>, ic_wire::Error> {
     ic_wire::encode(
         &value,
@@ -341,7 +375,17 @@ fn encode_write(value: Result<u32, ()>) -> Result<Vec<u8>, ic_wire::Error> {
         RESPONSE,
     )
 }
-#[runtime::update(runtime = ic_platform_runtime, name = "browser_fixture_write", guard = bounded::<256>, decode = decode_write, encode = encode_write, max_bytes = 256, on_error = crate::endpoint_error)]
+
+/// Apply a fixture write under the current caller’s session.
+#[runtime::update(
+    runtime = ic_platform_runtime,
+    name = "browser_fixture_write",
+    guard = bounded::<256>,
+    decode = decode_write,
+    encode = encode_write,
+    max_bytes = 256,
+    on_error = crate::canister::endpoint_error,
+)]
 fn write((): ()) -> Result<u32, ()> {
     STATE.with_borrow_mut(|state| {
         let s = state.as_mut().ok_or(())?;
@@ -375,6 +419,7 @@ fn write((): ()) -> Result<u32, ()> {
             .map_err(|_| ())
     })
 }
+
 fn decode_logout(bytes: &[u8]) -> Result<(), ic_wire::Error> {
     Logout::decode_request(bytes)
 }
@@ -385,7 +430,17 @@ fn decode_logout(bytes: &[u8]) -> Result<(), ic_wire::Error> {
 fn encode_logout(value: LogoutResult) -> Result<Vec<u8>, ic_wire::Error> {
     Logout::encode_response(&value)
 }
-#[runtime::update(runtime = ic_platform_runtime, name = "logout_portable_session", guard = bounded::<11>, decode = decode_logout, encode = encode_logout, max_bytes = 11, on_error = crate::endpoint_error)]
+
+/// Revoke the caller’s login and report the resulting logout receipt.
+#[runtime::update(
+    runtime = ic_platform_runtime,
+    name = "logout_portable_session",
+    guard = bounded::<11>,
+    decode = decode_logout,
+    encode = encode_logout,
+    max_bytes = 11,
+    on_error = crate::canister::endpoint_error,
+)]
 fn logout((): ()) -> LogoutResult {
     STATE.with_borrow_mut(|state| {
         let Some(s) = state.as_mut() else {
@@ -414,6 +469,7 @@ fn logout((): ()) -> LogoutResult {
         }
     })
 }
+
 fn decode_observe(bytes: &[u8]) -> Result<(), ic_wire::Error> {
     ic_wire::decode::<()>(
         bytes,
@@ -438,7 +494,17 @@ fn encode_observe(value: Observation) -> Result<Vec<u8>, ic_wire::Error> {
         RESPONSE,
     )
 }
-#[runtime::query(runtime = ic_platform_runtime, name = "browser_fixture_observe", guard = bounded::<256>, decode = decode_observe, encode = encode_observe, max_bytes = 256, on_error = crate::endpoint_error)]
+
+/// Read the browser fixture’s observable state.
+#[runtime::query(
+    runtime = ic_platform_runtime,
+    name = "browser_fixture_observe",
+    guard = bounded::<256>,
+    decode = decode_observe,
+    encode = encode_observe,
+    max_bytes = 256,
+    on_error = crate::canister::endpoint_error,
+)]
 fn observe((): ()) -> Observation {
     STATE.with_borrow(|state| {
         let s = state.as_ref().expect("lost browser fixture state");

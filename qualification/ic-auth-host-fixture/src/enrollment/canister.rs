@@ -5,6 +5,8 @@ use ic_platform_runtime::{self as runtime, system as api};
 use std::cell::Cell;
 
 thread_local! { static SCENARIO: Cell<Scenario> = const { Cell::new(Scenario::Initial) }; }
+
+/// Reject oversized ingress before copying or decoding the request.
 fn bounded() -> Result<(), String> {
     if api::argument_size() > LIMITS.bytes {
         Err("oversized enrollment frame".into())
@@ -12,6 +14,8 @@ fn bounded() -> Result<(), String> {
         Ok(())
     }
 }
+
+/// Require the controller caller before changing the fixture scenario.
 fn controller() -> Result<(), String> {
     bounded()?;
     if api::is_controller(&api::caller()) {
@@ -20,6 +24,7 @@ fn controller() -> Result<(), String> {
         Err("fixture controller required".into())
     }
 }
+
 fn decode_scenario(bytes: &[u8]) -> Result<Scenario, ic_wire::Error> {
     ic_wire::decode(
         bytes,
@@ -30,6 +35,7 @@ fn decode_scenario(bytes: &[u8]) -> Result<Scenario, ic_wire::Error> {
         LIMITS,
     )
 }
+
 fn encode_unit((): ()) -> Result<Vec<u8>, ic_wire::Error> {
     ic_wire::encode(
         &(),
@@ -40,7 +46,17 @@ fn encode_unit((): ()) -> Result<Vec<u8>, ic_wire::Error> {
         LIMITS,
     )
 }
-#[runtime::update(runtime = ic_platform_runtime, name = "authority_fixture_configure", guard = controller, decode = decode_scenario, encode = encode_unit, max_bytes = 2048, on_error = crate::endpoint_error)]
+
+/// Select the authority response scenario for subsequent enrollment calls.
+#[runtime::update(
+    runtime = ic_platform_runtime,
+    name = "authority_fixture_configure",
+    guard = controller,
+    decode = decode_scenario,
+    encode = encode_unit,
+    max_bytes = 2048,
+    on_error = crate::canister::endpoint_error,
+)]
 fn configure(scenario: Scenario) {
     SCENARIO.set(scenario);
 }
@@ -69,7 +85,17 @@ fn encode_snapshot(value: Snapshot) -> Result<Vec<u8>, ic_wire::Error> {
         LIMITS,
     )
 }
-#[runtime::update(runtime = ic_platform_runtime, name = "authority_fixture_snapshot", guard = bounded, decode = decode_request, encode = encode_snapshot, max_bytes = 2048, on_error = crate::endpoint_error)]
+
+/// Return the enrollment snapshot bound to the requesting receiver and challenge.
+#[runtime::update(
+    runtime = ic_platform_runtime,
+    name = "authority_fixture_snapshot",
+    guard = bounded,
+    decode = decode_request,
+    encode = encode_snapshot,
+    max_bytes = 2048,
+    on_error = crate::canister::endpoint_error,
+)]
 fn snapshot(challenge: [u8; 32]) -> Snapshot {
     let mut result = Snapshot {
         receiver: api::caller().as_slice().to_vec(),

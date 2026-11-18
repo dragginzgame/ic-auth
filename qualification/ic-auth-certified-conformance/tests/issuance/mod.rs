@@ -20,6 +20,7 @@ fn authority() -> IssuerAuthority {
         expires_at_ns: 200,
     }
 }
+
 fn approved(f: &Fixture) -> (MemoryIssuer, IssuerTicket) {
     let cfg = IssuerConfig {
         audience: f.root.cert.delegation.audience,

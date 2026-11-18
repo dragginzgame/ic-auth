@@ -1,6 +1,6 @@
 [package]
 name = "ic-auth"
-version = "0.48.0"
+version = "0.48.1"
 edition.workspace = true
 rust-version.workspace = true
 license-file.workspace = true
@@ -42,6 +42,11 @@ sha2.workspace = true
 
 [dev-dependencies]
 toko-tooling.workspace = true
+
+# Both the public integration target and private interruption tests use this fixture directory.
+[[test]]
+name = "receiver_memory"
+path = "src/receiver_memory/publication_faults/tests/receiver_memory.rs"
 
 [lints]
 workspace = true

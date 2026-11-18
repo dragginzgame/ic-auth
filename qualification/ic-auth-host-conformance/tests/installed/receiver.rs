@@ -45,6 +45,7 @@ pub(super) fn vectors() -> BTreeMap<String, Vec<u8>> {
         })
         .collect()
 }
+
 pub(super) fn credential(
     vectors: &BTreeMap<String, Vec<u8>>,
     name: &str,
@@ -56,6 +57,7 @@ pub(super) fn credential(
         trap_after,
     }
 }
+
 pub(super) async fn control(
     pic: &PocketIc,
     id: CanisterId,
@@ -78,6 +80,7 @@ pub(super) async fn control(
     )
     .unwrap())
 }
+
 pub(super) async fn observe(pic: &PocketIc, id: CanisterId) -> Observation {
     let bytes = ic_wire::encode(&(), frame(OBSERVE, ic_wire::Direction::Request), REQUEST).unwrap();
     let reply = pic
@@ -96,12 +99,14 @@ pub(super) async fn observe(pic: &PocketIc, id: CanisterId) -> Observation {
     )
     .unwrap()
 }
+
 pub(super) async fn time(pic: &PocketIc, seconds: u64) {
     pic.set_time(Time::from_nanos_since_unix_epoch(
         TIME_ORIGIN_NS + seconds * 1_000_000_000,
     ))
     .await;
 }
+
 async fn trapped(pic: &PocketIc, id: CanisterId, caller: CanisterId, command: &Command) {
     let before = observe(pic, id).await;
     let rejection = control(pic, id, caller, command).await.unwrap_err();

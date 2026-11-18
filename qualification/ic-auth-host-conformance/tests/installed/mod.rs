@@ -32,6 +32,7 @@ use std::time::Duration;
 fn frame(method: u64, direction: ic_wire::Direction) -> ic_wire::Encoding {
     ic_wire::Encoding::Frame { method, direction }
 }
+
 async fn control(
     pic: &PocketIc,
     id: CanisterId,
@@ -54,6 +55,7 @@ async fn control(
     )
     .unwrap())
 }
+
 async fn observe(pic: &PocketIc, id: CanisterId, account: CanisterId) -> Observation {
     let bytes = ic_wire::encode(&(), frame(OBSERVE, ic_wire::Direction::Request), REQUEST).unwrap();
     let reply = pic
@@ -83,6 +85,7 @@ async fn observe(pic: &PocketIc, id: CanisterId, account: CanisterId) -> Observa
     );
     view
 }
+
 fn unchanged(before: &Observation, after: &Observation) {
     assert_eq!(after.progress, before.progress);
     assert_eq!(after.usage, before.usage);
@@ -91,6 +94,7 @@ fn unchanged(before: &Observation, after: &Observation) {
     assert_eq!(after.root, before.root);
     assert!(after.signature.is_empty());
 }
+
 fn hash(bytes: &[u8]) -> [u8; 32] {
     Sha256::digest(bytes).into()
 }

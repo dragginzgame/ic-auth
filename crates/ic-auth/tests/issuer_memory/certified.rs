@@ -12,6 +12,7 @@ fn certified() -> IssuerAuthority {
         ..authority()
     }
 }
+
 fn approved() -> (MemoryIssuer, IssuerTicket) {
     let mut issuer = MemoryIssuer::new_fresh(config(), 0).unwrap();
     let t = issuer

@@ -33,6 +33,7 @@ async fn configure(
     .unwrap();
     Ok(())
 }
+
 async fn install_receiver(pic: &PocketIc, wasm: &[u8], authority: CanisterId) -> CanisterId {
     let id = pic.create_canister().await;
     pic.add_cycles(id, 5_000_000_000_000).await;
@@ -49,6 +50,7 @@ async fn install_receiver(pic: &PocketIc, wasm: &[u8], authority: CanisterId) ->
     pic.install_canister(id, wasm.to_vec(), init, None).await;
     id
 }
+
 fn retained(before: &Observation, after: &Observation) {
     assert_eq!(after.enrollment, before.enrollment);
     assert_eq!(after.revoked, before.revoked);

@@ -1,7 +1,7 @@
 //! Strict Ed25519 proof verification through Platform.
-use super::DecodedClaims;
 use super::{
-    BudgetError, ContextError, VerificationBudget, VerificationContext, VerifiedClaims, context,
+    BudgetError, ContextError, DecodedClaims, VerificationBudget, VerificationContext,
+    VerifiedClaims, context,
 };
 use crate::claims::ClaimsError;
 use ic_auth_protocol_types::PortableMechanism;

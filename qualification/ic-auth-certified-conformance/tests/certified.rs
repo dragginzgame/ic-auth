@@ -29,6 +29,7 @@ const RECORDS: &str = include_str!("fixtures/certified.tsv");
 fn bytes(name: &str) -> Vec<u8> {
     root_fixture::bytes(RECORDS, name)
 }
+
 fn hash(name: &str) -> [u8; 32] {
     bytes(name).try_into().unwrap()
 }
@@ -38,12 +39,15 @@ fn bls_key() -> PrivateKey {
     s[31] = 1;
     PrivateKey::deserialize(&s).unwrap()
 }
+
 fn sha(b: &[u8]) -> [u8; 32] {
     Sha256::digest(b).into()
 }
+
 fn issuer_cbor(digest: [u8; 32], time: Vec<u8>) -> Vec<u8> {
     issuer_cbor_for(issuer(), digest, time)
 }
+
 fn issuer_cbor_for(issuer: Principal, digest: [u8; 32], time: Vec<u8>) -> Vec<u8> {
     // Literal domain and frozen digest: no Auth message or claims builder.
     let message = [b"\x1bic-auth-portable-credential".as_slice(), &digest].concat();
@@ -87,6 +91,7 @@ impl Fixture {
             network: bls_key().public_key().serialize(),
         }
     }
+
     fn proof(&self) -> CertifiedProof<'_> {
         CertifiedProof {
             delegation: self.root.proof(),
@@ -95,9 +100,11 @@ impl Fixture {
         }
     }
 }
+
 fn grants(f: &Fixture) -> AuthorityGrants {
     AuthorityGrants::new(f.root.cert.delegation.grants.clone()).unwrap()
 }
+
 fn host<'a>(trusted: &'a Fixture, grants: &'a AuthorityGrants) -> CertifiedContext<'a> {
     CertifiedContext {
         claims: VerificationContext {
@@ -125,6 +132,7 @@ fn host<'a>(trusted: &'a Fixture, grants: &'a AuthorityGrants) -> CertifiedConte
         },
     }
 }
+
 fn budget(capacity: u32) -> VerificationBudget {
     VerificationBudget::new(
         capacity,
@@ -137,6 +145,7 @@ fn budget(capacity: u32) -> VerificationBudget {
     )
     .unwrap()
 }
+
 fn result(
     f: &Fixture,
     h: &CertifiedContext<'_>,
@@ -457,6 +466,7 @@ fn wire_credential(f: &Fixture) -> ic_auth_wire::model::PortableCredential {
             fleet_id: *d.audience.fleet_id.as_bytes(),
         })
     }
+
     fn grants(d: &ic_auth_protocol_types::IssuerDelegation) -> List<w::DelegatedRoleGrant, 16> {
         List::new(
             d.grants
@@ -579,8 +589,10 @@ fn wire_credential(f: &Fixture) -> ic_auth_wire::model::PortableCredential {
 
 #[test]
 fn wire_admission_projects_into_real_certified_verification_and_unsigned_request_policy() {
-    use ic_auth::session_request::SessionRequest;
-    use ic_auth::verification::{VerificationProfile, verify_credential};
+    use ic_auth::{
+        session_request::SessionRequest,
+        verification::{VerificationProfile, verify_credential},
+    };
     use ic_auth_protocol_types::{Credential, CredentialProof};
     use ic_auth_wire::{
         EstablishSession, SessionInput,
@@ -993,6 +1005,7 @@ fn memory_certified_admission_retains_failed_work_and_retries_after_proof_expiry
             Err(E::InvalidFacts) => W::Unavailable(U::Storage),
         }
     }
+
     fn check_wire(
         result: Result<
             ic_auth::receiver_memory::LogoutReceipt,

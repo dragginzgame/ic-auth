@@ -73,6 +73,7 @@ pub(crate) async fn start() -> PocketIc {
         .build_async()
         .await
 }
+
 pub(crate) async fn install(pic: &PocketIc, wasm: &[u8]) -> CanisterId {
     let id = pic.create_canister().await;
     pic.add_cycles(id, 5_000_000_000_000).await;

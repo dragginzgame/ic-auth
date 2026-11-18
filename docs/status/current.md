@@ -1,9 +1,9 @@
 # Current status
 
-Auth **0.48.0** adds a configurable starting profile for volatile receivers.
-Auth Wire **0.44.0** exports IC Wire 0.25.0. Protocol-types remains **0.43.0**
+Auth **0.48.1** includes a configurable starting profile for volatile receivers.
+Auth Wire **0.44.1** exports IC Wire 0.25.0. Protocol-types remains **0.43.0**
 and the private browser client remains **0.1.0**. The release uses authenticated
-Toko Tooling 0.45.7. Production consumer acceptance remains open. Future stable
+Toko Tooling 0.45.8. Production consumer acceptance remains open. Future stable
 storage belongs at the published `ic-storage` boundary. Historical cost records
 identify the exact cohorts and artifacts measured.
 

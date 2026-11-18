@@ -115,15 +115,18 @@ impl Ledger {
             logout_observation: 0,
         }
     }
+
     fn denied(&self, who: usize, now: u64) -> bool {
         self.unknown[who].is_some_and(|end| now < end)
             || self.known.is_some_and(|k| k.who == who && k.denied)
     }
+
     fn authorized(&self, who: usize, now: u64) -> bool {
         self.lease
             .is_some_and(|s| WHO[s.fixture] == who && s.epoch == self.epoch && now < 100)
             && !self.denied(who, now)
     }
+
     fn apply(&mut self, op: Op, now: u64) -> Answer {
         match op {
             Op::Admit {
@@ -251,6 +254,7 @@ impl Driver {
             answers: [0; 6],
         }
     }
+
     fn step(&mut self, target: usize, op: Op) {
         if let Op::Wait(delta) = op {
             self.now = (self.now + delta).min(125);
@@ -349,6 +353,7 @@ impl Driver {
             self.check(i);
         }
     }
+
     fn check(&mut self, target: usize) {
         let m = &self.ledgers[target];
         let r = &mut self.receivers[target];

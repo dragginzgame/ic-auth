@@ -100,6 +100,7 @@ impl CallerRecord {
             session: Some(session),
         }
     }
+
     pub(super) fn unknown(caller: Principal, audience: AudienceId, until_ns: u64) -> Self {
         Self {
             login: LoginFacts {
@@ -112,16 +113,19 @@ impl CallerRecord {
             session: None,
         }
     }
+
     fn binding(&self) -> LoginBinding {
         self.login
             .binding
             .expect("memory sessions always have a known binding")
     }
+
     pub(super) fn slot(&self) -> Option<Slot> {
         self.login
             .binding
             .map(|b| (b.issuer, b.subject, b.device_slot))
     }
+
     pub(super) fn device(&self) -> Option<DeviceFacts> {
         let b = self.login.binding?;
         Some(DeviceFacts {
@@ -132,6 +136,7 @@ impl CallerRecord {
             caller: self.login.caller,
         })
     }
+
     pub(super) fn session_facts(&self) -> Option<SessionFacts<'_>> {
         self.session.as_ref().map(|s| SessionFacts {
             caller: self.login.caller,
@@ -203,6 +208,7 @@ impl Selected<'_> {
             device: self.device.as_ref(),
         }
     }
+
     pub(super) fn receipt(&self) -> Option<SessionReceipt> {
         self.session.map(|s| SessionReceipt {
             caller: s.caller,
@@ -252,6 +258,7 @@ struct SessionSize<'a> {
     fingerprint: &'a [u8; 32],
     request_hash: &'a [u8; 32],
 }
+
 struct Audience(AudienceId);
 impl Serialize for Audience {
     fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
@@ -262,6 +269,7 @@ impl Serialize for Audience {
             .serialize(s)
     }
 }
+
 struct Mechanism(PortableMechanism);
 impl Serialize for Mechanism {
     fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
@@ -275,6 +283,7 @@ impl Serialize for Mechanism {
         }
     }
 }
+
 struct Scopes<'a>(&'a [ScopeLabel]);
 impl Serialize for Scopes<'_> {
     fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {

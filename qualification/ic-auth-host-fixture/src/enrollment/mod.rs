@@ -1,7 +1,7 @@
 //! Single-key enrollment exchange used only by installed qualification.
 use serde::{Deserialize, Serialize};
 
-#[cfg(target_family = "wasm")]
+#[cfg(target_arch = "wasm32")]
 mod canister;
 
 /// Test RPC identity for an authenticated IC call.

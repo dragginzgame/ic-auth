@@ -1,5 +1,8 @@
 //! Retained host-owned work allowance; no ambient clock or persistence.
 
+#[cfg(test)]
+mod tests;
+
 pub use crate::work_budget::BudgetError;
 use crate::work_budget::WorkBucket;
 use ic_auth_protocol_types::PortableMechanism;
@@ -12,9 +15,6 @@ pub struct VerificationCosts {
     /// Units consumed by one attempted certified verification.
     pub certified: u32,
 }
-
-#[cfg(test)]
-mod tests;
 
 /// One receiver-wide allowance shared across callers and proof mechanisms.
 ///

@@ -8,6 +8,7 @@ use ic_auth_protocol_types::Principal;
 fn browser() -> Principal {
     Principal::from_slice(&fixture("caller"))
 }
+
 fn input(sequence: u64) -> RenewRequest {
     RenewRequest {
         account: account(),
@@ -17,6 +18,7 @@ fn input(sequence: u64) -> RenewRequest {
         grants: request().grants,
     }
 }
+
 fn completed_login() -> (MemoryIssuer, IssuerTicket) {
     let mut issuer = MemoryIssuer::new_fresh(config(), 0).unwrap();
     let t = prepare(&mut issuer);
@@ -25,6 +27,7 @@ fn completed_login() -> (MemoryIssuer, IssuerTicket) {
     issuer.complete(t, authority(), [7; 64], 14).unwrap();
     (issuer, t)
 }
+
 fn finish(issuer: &mut MemoryIssuer, ticket: IssuerTicket, now: u64) {
     issuer
         .record_nonce(ticket, authority(), [0x55; 16], now)
@@ -35,6 +38,7 @@ fn finish(issuer: &mut MemoryIssuer, ticket: IssuerTicket, now: u64) {
     issuer.dispatch(ticket, authority(), now).unwrap();
     issuer.complete(ticket, authority(), [1; 64], now).unwrap();
 }
+
 fn id(name: &str) -> [u8; 32] {
     let (_, hex) = include_str!("../fixtures/issuer-renewal.tsv")
         .lines()

@@ -10,13 +10,13 @@ owns one current contract, independently qualified with its Rust/browser consume
 The current layout is retained by this cleanup without promising historical
 identities forever. No existing live data is migrated or deleted.
 
-Milestone scope: volatile authentication storage first, as approved during implementation. Stable storage is a future milestone while `ic-storage-new` is being developed. No interim `ic-storage` adapter is planned. Persistence-specific requirements below remain future acceptance obligations, not blockers for the volatile milestone or permission to invent the supplier API.
+Milestone scope: volatile authentication storage first, as approved during implementation. Stable storage is a future milestone at the published `ic-storage` boundary. No interim `ic-storage` adapter is planned. Persistence-specific requirements below remain future acceptance obligations, not blockers for the volatile milestone or permission to invent the supplier API.
 
 ## 1 Decision
 
 Build a receiver-centered authentication library with one admission and session policy, a bounded volatile backend, a separate issuer state owner and the private browser admission/logout coordinator. Add durable storage in its own future milestone.
 
-The storage work is staged alongside the Auth rewrite. The current milestone uses volatile memory only. The intended durable destination remains `ic-storage-new` with orthogonal persistence, once its required capabilities and Auth integration are qualified. Deferring persistence avoids an interim adapter and does not waive future retention, corruption-admission or rollback requirements.
+The storage work is staged alongside the Auth rewrite. The current milestone uses volatile memory only. The durable milestone requires qualification of the published storage contract and its Auth integration. Deferring persistence avoids an interim adapter and does not waive future retention, corruption-admission or rollback requirements.
 
 The application flow remains:
 
@@ -235,17 +235,20 @@ Pruning cannot erase consumed operation watermarks, live replay, unexpired denia
 
 Issuer transitions also need bounded memory and stable implementations under the same intent/recovery contract; volatile loss follows the closed recovery rules, not an automatic fresh start.
 
-### Intended orthogonal-persistence destination
+### Future stable storage
 
-`ic-storage-new` is the selected long-term storage direction, developed concurrently with this rewrite. Its current design selects retained native Rust records/collections, explicit schema conversion and a portable recovery path for incompatible runtime layouts. This is a direction, not an available production API or a dependency pin. The reviewed sibling design is `docs/DESIGN.md` at commit `c86832b405b25dc449af99571c8f25457e21fd80`; its existing M0 implementation and probes do not establish the selected native persistence contract.
+At the stable-storage milestone, review the published `ic-storage` allocation
+and collection contract. Storage owns allocation custody, representation
+admission and persistence lifecycle mechanics. Auth owns session, replay and
+revocation invariants, issuer uncertainty and application-state conversion.
+The host owns transaction rollback, readiness and certification-root publication.
 
-Keep logical caller/device/replay/issuer records, bounded decisions and independent conformance cases usable across this transition. Do not turn temporary stable codecs, lease counts or collection operations into permanent Auth abstractions. Build the private operation interface from demonstrated backend needs; do not invent a generic storage framework or speculative OP adapter while the supplier contract is unsettled.
-
-Storage owns retained allocation custody, representation admission and persistence lifecycle mechanics. Auth owns session/replay/revocation invariants, issuer uncertainty and application-state conversion requirements. The host owns transaction rollback, readiness and certification-root publication. An OP access scope is not a transaction: ordinary `Err` can retain earlier writes. Complete expected-refusal checks before identity mutation and qualify fatal partial mutation through the actual host rollback boundary; preserve the distinct clock and attempted-work behavior in section 8.
-
-Adopting OP requires the same semantic suite plus installed evidence for compatible retained-state upgrades, incompatible-layout refusal, explicit schema conversion, checkpoint recovery and failed publication/rollback. All boot/readiness, replay, device-fence and issuer recovery rules remain in force. Retained bytes never establish fresh enrollment or repair missing revocation evidence; execution handles, guards and pending futures are not durable Auth state.
-
-No interim stable backend is selected for the current milestone. Select exact supplier artifacts and the required state-transfer or legacy-refusal disposition at the future durable milestone and eventual consumer cut. This design authorizes neither a production migration nor reinterpreting old stable records as retained native objects.
+Reuse the volatile semantic cases and qualify retained-state upgrades, corruption
+and incompatible-layout refusal, conversion, checkpoint recovery and failed
+publication against the selected artifacts. Preserve the clock and attempted-work
+semantics in section 8. Retained bytes alone cannot establish fresh enrollment
+or repair missing revocation evidence. Select the consumer's state-transfer or
+legacy-refusal disposition at that milestone.
 
 ## 10 Issuer intent and recovery
 
@@ -646,7 +649,7 @@ Use a private operation-level storage interface only after implementing the real
 
 Volatile exit gate: one admission pipeline, no temporary reconstructed login ledger, no global read/clone, one current authorization rule and independent accepted/refused behavior evidence. The future durable milestone additionally requires equivalent cross-backend behavior. A consolidation that increases transformations or materially worsens ordinary lookup costs must be revised.
 
-This gate qualifies the volatile receiver, not durable storage. Reuse its independent behavioral cases against `ic-storage-new` when that supplier is ready, adding the lifecycle and transaction proofs specified in architecture section 9. Protocol, proof, receiver-policy and issuer/browser work proceed without an interim adapter or an invented persistence API.
+This gate qualifies the volatile receiver, not durable storage. Reuse its independent behavioral cases against `ic-storage` when that supplier is ready, adding the lifecycle and transaction proofs specified in architecture section 9. Protocol, proof, receiver-policy and issuer/browser work proceed without an interim adapter or an invented persistence API.
 
 Then repeat complete receiver scenarios using certified credentials. Neither mechanism is optional for replacement acceptance.
 
@@ -793,7 +796,7 @@ Select a consumer only after its relevant gates pass. Its review must decide:
 
 2. Exact supplier/package identities and coordinated receiver/browser artifacts.
 
-3. The selected persistence supplier and existing-state disposition: exact stable-format preservation, an explicitly authorized conversion to OP, or a separately authorized hard cut with legacy refusal.
+3. The selected persistence supplier and existing-state disposition: exact stable-format preservation, an explicitly authorized state conversion, or a separately authorized hard cut with legacy refusal.
 
 4. Browser journal/key custody, pending issuer work and recovery evidence.
 
@@ -807,6 +810,6 @@ A hard cut does not mean reinstall by default. No local document authorizes eras
 
 Completion of the volatile milestone requires a consumer contract inventory, independent vectors, both proof mechanisms, bounded memory state and loss refusal, issuer/browser interruption evidence, actual Wasm lifecycle results and accepted costs. Each claimed simplification lists the surviving owner, deleted path and invariant coverage. Stable storage, retained upgrades and cross-backend equivalence remain a separately qualified future milestone.
 
-Report volatile Auth qualification and future OP adoption separately. Completion of the durable milestone additionally requires qualified `ic-storage-new` integration and the selected consumer state/recovery disposition; successful volatile qualification does not establish that outcome.
+Report volatile Auth qualification and future stable-storage adoption separately. Completion of the durable milestone additionally requires qualified `ic-storage` integration and the selected consumer state/recovery disposition; successful volatile qualification does not establish that outcome.
 
 Only after a qualified replacement and consumer decision exist should release/delivery machinery be integrated through the shared owners. Do not reproduce the old release system as an initialization task.

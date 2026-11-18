@@ -16,6 +16,7 @@ fn finish(issuer: &mut MemoryIssuer, t: IssuerTicket, now: u64) {
     issuer.dispatch(t, authority(), now).unwrap();
     issuer.complete(t, authority(), [1; 64], now).unwrap();
 }
+
 fn renewal(sequence: u64) -> RenewRequest {
     RenewRequest {
         account: account(),
@@ -25,9 +26,11 @@ fn renewal(sequence: u64) -> RenewRequest {
         grants: request().grants,
     }
 }
+
 fn browser() -> Principal {
     Principal::from_slice(&fixture("caller"))
 }
+
 fn pruned(operations: u32, logins: u32) -> IssuerPruned {
     IssuerPruned { operations, logins }
 }

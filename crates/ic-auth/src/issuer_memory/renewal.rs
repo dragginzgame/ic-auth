@@ -145,6 +145,7 @@ struct Grant<'a> {
     target: &'a str,
     scopes: Vec<&'a str>,
 }
+
 pub(super) fn operation_id(input: &RenewRequest) -> Result<[u8; 32], IssuerError> {
     let identity = RenewalIdentity {
         account: input.account,

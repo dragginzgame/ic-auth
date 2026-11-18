@@ -1,3 +1,5 @@
+mod memory_fixture;
+
 use super::REMAINING;
 use crate::{
     receiver_memory::{
@@ -16,17 +18,8 @@ use ic_auth_protocol_types::{
     AudienceId, AuthRole, CanonicalId, Credential, CredentialProof, DelegatedRoleGrant,
     PortableMechanism, Principal,
 };
+use memory_fixture::*;
 use std::panic::{AssertUnwindSafe, catch_unwind};
-
-// Same independently signed public-API driver as the integration tests.
-// Included in this test module so injection controls remain entirely private.
-mod fixture {
-    include!(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/tests/receiver_memory/memory_fixture.rs"
-    ));
-}
-use fixture::*;
 
 struct Armed;
 impl Armed {
@@ -117,6 +110,7 @@ fn admit(host: &Host, receiver: &mut MemoryReceiver, name: &str, now: u64) {
         .admit(&credential(name), request(), host.admission(&context))
         .unwrap();
 }
+
 fn populated(host: &Host) -> MemoryReceiver {
     let mut receiver = host.receiver();
     admit(host, &mut receiver, "initial", 25);

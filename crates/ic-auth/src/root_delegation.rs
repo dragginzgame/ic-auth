@@ -189,11 +189,13 @@ impl<'a> VerifiedDelegation<'a> {
     pub const fn certificate(&self) -> &'a DelegationCertificate {
         self.certificate
     }
+
     /// Exact certificate identity, including its root-unsigned issuance metadata.
     #[must_use]
     pub const fn certificate_hash(&self) -> [u8; 32] {
         self.certificate_hash
     }
+
     /// Exclusive certificate deadline capped by current root-key enrollment.
     #[must_use]
     pub const fn expires_at_ns(&self) -> u64 {
@@ -366,12 +368,14 @@ fn window(target: ValidityTarget, start: u64, end: u64, now: u64) -> Result<(), 
     }
     Ok(())
 }
+
 fn take(remaining: &mut usize, count: usize) -> Result<(), DelegationError> {
     *remaining = remaining
         .checked_sub(count)
         .ok_or(DelegationError::InputTooLarge)?;
     Ok(())
 }
+
 fn grants_size(
     grants: &[DelegatedRoleGrant],
     remaining: &mut usize,
@@ -386,6 +390,7 @@ fn grants_size(
     }
     Ok(())
 }
+
 pub(crate) fn consume_proof_bytes(
     proof: &RootDelegationProof<'_>,
     max_witness_steps: usize,

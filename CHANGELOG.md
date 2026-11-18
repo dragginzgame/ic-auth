@@ -1,6 +1,18 @@
 # Changelog
 
-## Unreleased
+## [0.48.1] - 2026-11-18
+
+### 🧹 Cleanup
+
+- Adopt Toko Tooling 0.45.8, group Wasm fixture code by target and document
+  fixture endpoints. Share signed test inputs through ordinary Rust modules.
+
+### 🧪 Testing
+
+- Set both simulated tab clocks in the readiness logout race so it also runs
+  after tests that advance time in the second tab.
+
+### 🎯 Qualification
 
 - Document the closed receiver decision after complete volatile loss and qualify
   the lost logout acknowledgement across an installed upgrade. Addresses

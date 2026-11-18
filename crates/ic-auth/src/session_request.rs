@@ -103,6 +103,7 @@ impl SessionRequest {
     pub(crate) fn into_scopes(self) -> Vec<ScopeLabel> {
         self.scopes
     }
+
     /// Admit count, then grammar in input order, then duplicates and nonzero TTL.
     ///
     /// Scope order is normalized. Positive TTLs, including those above the

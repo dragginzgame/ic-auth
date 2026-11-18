@@ -4,9 +4,11 @@ use crate::receiver_policy::{
     AdmissionFootprint, SessionCapacity, SessionPolicyError as E, SessionUsage, assess_capacity,
 };
 use ic_auth_protocol_types::Principal;
+
 fn account() -> (Principal, Principal) {
     (Principal::from_slice(&[1]), Principal::from_slice(&[3]))
 }
+
 fn limits() -> SessionCapacity {
     SessionCapacity {
         max_sessions: 2,
@@ -15,6 +17,7 @@ fn limits() -> SessionCapacity {
         max_encoded_bytes: 1000,
     }
 }
+
 fn usage() -> SessionUsage {
     SessionUsage {
         account: account(),
@@ -24,6 +27,7 @@ fn usage() -> SessionUsage {
         encoded_bytes: 200,
     }
 }
+
 fn footprint() -> AdmissionFootprint {
     AdmissionFootprint {
         session_bytes: 100,

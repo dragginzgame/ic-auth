@@ -6,7 +6,7 @@ pub mod certified;
 pub mod enrollment;
 pub mod receiver;
 
-#[cfg(target_family = "wasm")]
+#[cfg(target_arch = "wasm32")]
 mod canister;
 
 /// Qualification control identity; unrelated to product endpoint identities.
@@ -99,17 +99,6 @@ pub struct Observation {
     pub signature: Vec<u8>,
     /// Actual host query time.
     pub now_ns: u64,
-}
-
-#[cfg(target_family = "wasm")]
-fn hash_bytes(bytes: impl AsRef<[u8]>) -> [u8; 32] {
-    use sha2::{Digest, Sha256};
-    Sha256::digest(bytes.as_ref()).into()
-}
-
-#[cfg(target_family = "wasm")]
-fn endpoint_error<E: std::fmt::Debug>(error: E) -> ! {
-    ic_platform_runtime::system::trap(&format!("fixture endpoint refused: {error:?}"))
 }
 
 /// Qualification-only synchronous issuer measurement identity.

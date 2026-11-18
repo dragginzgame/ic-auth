@@ -5,6 +5,7 @@ use ic_auth_protocol_types::Principal;
 fn browser() -> Principal {
     Principal::from_slice(&fixture("caller"))
 }
+
 fn renewal() -> RenewRequest {
     RenewRequest {
         account: account(),

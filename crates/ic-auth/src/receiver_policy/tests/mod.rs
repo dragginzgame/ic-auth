@@ -14,26 +14,32 @@ const SECOND: u64 = 1_000_000_000;
 fn principal(n: u8) -> Principal {
     Principal::from_slice(&[n])
 }
+
 fn caller(n: u8) -> Principal {
     let mut bytes = [n; 29];
     bytes[28] = 2;
     Principal::from_slice(&bytes)
 }
+
 fn request(scopes: &[&str], ttl: Option<u64>) -> SessionRequest {
     SessionRequest::new(scopes.iter().map(|s| (*s).into()).collect(), ttl).unwrap()
 }
+
 fn labels(scopes: &[&str]) -> Vec<ScopeLabel> {
     scopes.iter().map(|s| s.parse().unwrap()).collect()
 }
+
 fn grant(role: &str, scopes: &[&str]) -> DelegatedRoleGrant {
     DelegatedRoleGrant {
         target: role.parse().unwrap(),
         scopes: labels(scopes),
     }
 }
+
 fn hash(hex: &str) -> [u8; 32] {
     std::array::from_fn(|i| u8::from_str_radix(&hex[2 * i..2 * i + 2], 16).unwrap())
 }
+
 struct Scenario {
     role: AuthRole,
     scopes: Vec<ScopeLabel>,
@@ -47,12 +53,14 @@ impl Scenario {
             grants: vec![grant("app", &["read", "write"])],
         }
     }
+
     fn audience() -> AudienceId {
         AudienceId {
             canonical_network_id: CanonicalId::from_bytes([1; 32]),
             fleet_id: CanonicalId::from_bytes([2; 32]),
         }
     }
+
     fn binding() -> LoginBinding {
         LoginBinding {
             issuer: principal(1),
@@ -63,6 +71,7 @@ impl Scenario {
             deadline_ns: 300 * SECOND,
         }
     }
+
     fn session(&self) -> SessionFacts<'_> {
         SessionFacts {
             caller: caller(10),
@@ -80,6 +89,7 @@ impl Scenario {
             request_hash: hash("d99fc919563d8dba6db966bacbb256f2ba2437e64d12353106409934cc678551"),
         }
     }
+
     fn login() -> LoginFacts {
         LoginFacts {
             caller: caller(10),
@@ -89,6 +99,7 @@ impl Scenario {
             denied: false,
         }
     }
+
     fn device() -> DeviceFacts {
         DeviceFacts {
             issuer: principal(1),
@@ -98,6 +109,7 @@ impl Scenario {
             caller: caller(10),
         }
     }
+
     fn authority(&self) -> SessionAuthority<'_> {
         SessionAuthority {
             caller: caller(10),
@@ -119,6 +131,7 @@ impl Scenario {
         }
     }
 }
+
 fn snapshot<'a>(
     session: &'a SessionFacts<'a>,
     login: &'a LoginFacts,
@@ -401,6 +414,7 @@ fn login_limits() -> crate::receiver_policy::LoginLimits {
         max_admitted_logins: 2,
     }
 }
+
 fn login_snapshot<'a>(
     caller_login: Option<&'a LoginFacts>,
     device: Option<&'a DeviceFacts>,

@@ -233,6 +233,6 @@ the selected feature graphs; compilation is not installed-host qualification.
 Installed boot/loss handling, actual host rollback, browser lifecycle and deployment
 cost gates remain open for the current volatile milestone. Stable storage is a
 future milestone; no interim `ic-storage` adapter is planned. Future
-`ic-storage-new` integration must reuse semantic rules while qualifying its own
+`ic-storage` integration must reuse semantic rules while qualifying its own
 corruption, retained-state and host rollback boundaries. This increment makes no
 complete replacement or consumer-cutover claim.

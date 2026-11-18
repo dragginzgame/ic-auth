@@ -8,6 +8,9 @@
 //! fields into these facts. Only the receiver supplies them to these helpers;
 //! they are not a public backend extension or testing API.
 
+#[cfg(test)]
+mod tests;
+
 use crate::{
     claims::validate_grants,
     grant_policy::{for_role, scopes_subset},
@@ -311,6 +314,7 @@ pub(crate) fn check_authority(
     }
     Ok(())
 }
+
 fn check_live(
     s: &SessionFacts<'_>,
     facts: &ReceiverSnapshot<'_>,
@@ -384,6 +388,3 @@ fn valid_binding(binding: LoginBinding) -> bool {
             .checked_sub(binding.started_at_ns)
             .is_some_and(|ttl| ttl > 0 && ttl <= 90 * 86_400_000_000_000)
 }
-
-#[cfg(test)]
-mod tests;

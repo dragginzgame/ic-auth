@@ -43,9 +43,11 @@ impl WorkBucket {
             observed_at_ns: now_ns,
         })
     }
+
     pub(crate) const fn available(&self) -> u32 {
         self.available
     }
+
     #[cfg(feature = "issuer-memory")]
     pub(crate) fn new_full(
         capacity: u32,
@@ -56,9 +58,11 @@ impl WorkBucket {
         bucket.available = capacity;
         Ok(bucket)
     }
+
     pub(crate) const fn observed_at_ns(&self) -> u64 {
         self.observed_at_ns
     }
+
     pub(crate) fn charge(&mut self, now_ns: u64, cost: u32) -> Result<(), BudgetError> {
         if cost == 0 || cost > self.capacity {
             return Err(BudgetError::InvalidPolicy);

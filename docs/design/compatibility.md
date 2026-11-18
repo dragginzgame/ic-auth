@@ -35,8 +35,7 @@ reinterpret/reset storage or erase a host's data. This repo has no migration aut
 
 Volatile storage is the current milestone; stable storage is deferred until a
 future milestone with a ready supplier contract. No interim `ic-storage` adapter
-is planned. `ic-storage-new` with orthogonal persistence remains the intended
-durable destination. That future milestone must preserve logical Auth behavior
+is planned. The future durable boundary is the published `ic-storage` contract. That future milestone must preserve logical Auth behavior
 without assuming package/API or stored-format compatibility, reusing independent
 semantic cases and adding retained-state upgrade, schema conversion, incompatible
 layout refusal and recovery/rollback evidence. This direction authorizes no import,
@@ -269,7 +268,7 @@ The pinned Canic witness above supplies a concrete Ed25519 multi-receiver consum
 path. Still required are production cutover/key custody, external signer recovery,
 certified consumer integration and accepted operating budgets. No application operation may be
 replayed to obtain that evidence. Stable storage and cross-backend acceptance stay
-in the future OP milestone.
+in the future stable-storage milestone.
 
 ## Historical entrypoints
 

@@ -32,7 +32,7 @@ service is implied by these contracts.
 | Auth verification | Canonical bytes, protected verifier selection, proof checks and work budgets |
 | Session engine | One set of authorization, replacement, retry and revocation rules |
 | Volatile backend | Indexed bounded memory state and explicit loss/recovery semantics |
-| Future persistence backend | Qualified `ic-storage-new` orthogonal persistence, with backend-specific admission and host rollback |
+| Future persistence backend | Qualified published `ic-storage` integration, with backend-specific admission and host rollback |
 | Issuer state | Bounded login, issuance/renewal intent, completion and recovery semantics |
 | Host | Authenticated caller, trusted clock, enrollment, atomic transaction and certification root |
 | Application | Users, account linking, role policy and resource ownership |
@@ -48,13 +48,10 @@ boundaries without becoming a dependency of the Auth crates.
 
 ## Storage
 
-Volatile authentication is the current implementation milestone. Stable storage
-is explicitly deferred to a future milestone while Storage is being developed;
-no interim `ic-storage` adapter is planned. The intended durable backend remains
-`ic-storage-new` with orthogonal persistence. Its future integration depends on
-qualified supplier capabilities, not an assumed API. Keep semantic rules reusable
-and avoid a speculative universal storage abstraction. See the detailed
-[storage transition](DESIGN.md#intended-orthogonal-persistence-destination).
+Volatile authentication is the current implementation milestone. The future stable-storage milestone will review
+the published `ic-storage` allocation and collection contract. Keep semantic rules
+reusable and qualify lifecycle, corruption admission and host rollback at that
+milestone. See [future stable storage](DESIGN.md#future-stable-storage).
 
 Storage mechanism must not select different authentication policy. Share pure decisions where that
 reduces duplicate maintenance; do not force physical reads, indexing or mutation
@@ -63,8 +60,7 @@ invariants need not imitate serialized corruption handling.
 
 Session/replay/login mutations commit atomically. Interrupted memory publication
 must close the receiver; host transactions own rollback.
-An orthogonal-persistence access scope does not itself provide rollback;
-ordinary `Err` must not be treated as undoing earlier writes.
+An ordinary `Err` can retain earlier writes.
 Clock observations and attempted-work charges preserve the existing refusal
 semantics. State loss does not reset replay/revocation evidence into authority.
 Bounded pruning and indexed lookup remain requirements, not optional optimization.

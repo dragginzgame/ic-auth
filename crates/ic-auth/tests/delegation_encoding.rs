@@ -20,6 +20,7 @@ fn hex(value: &str) -> Vec<u8> {
         .map(|pair| u8::from_str_radix(std::str::from_utf8(pair).unwrap(), 16).unwrap())
         .collect()
 }
+
 fn expected(name: &str) -> Vec<u8> {
     let (_, value) = include_str!("fixtures/delegation.tsv")
         .lines()
@@ -28,6 +29,7 @@ fn expected(name: &str) -> Vec<u8> {
         .unwrap();
     hex(value)
 }
+
 fn delegation() -> IssuerDelegation {
     IssuerDelegation {
         root: Principal::from_slice(&[1; 29]),
@@ -51,12 +53,14 @@ fn delegation() -> IssuerDelegation {
         expires_at_ns: 200,
     }
 }
+
 fn certificate() -> DelegationCertificate {
     DelegationCertificate {
         delegation: delegation(),
         issued_at_ns: 100,
     }
 }
+
 fn leaf() -> DelegationLeaf {
     let mut delegation = delegation();
     delegation.binding_hash = [35; 32];
@@ -68,6 +72,7 @@ fn leaf() -> DelegationLeaf {
         registry_hash: [32; 32],
     }
 }
+
 fn header() -> RootBatchHeader {
     RootBatchHeader {
         schema_version: 1,

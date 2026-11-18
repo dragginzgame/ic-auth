@@ -11,6 +11,9 @@
 //! state requires disabling old bindings and fresh account authentication/browser
 //! keys; constructing another instance is not recovery of unresolved effects.
 
+#[cfg(test)]
+mod tests;
+
 mod certified;
 mod renewal;
 mod retention;
@@ -22,8 +25,6 @@ use crate::{
 use ic_auth_protocol_types::{DelegatedRoleGrant, PortableClaims, Principal};
 use std::collections::{BTreeMap, BTreeSet};
 
-#[cfg(test)]
-mod tests;
 pub use certified::{CertifiedCompletionError, CertifiedPublication};
 pub use types::{
     IssueRequest, IssuedCredential, IssuedProof, IssuerAuthority, IssuerConfig, IssuerError,
@@ -46,6 +47,7 @@ struct Account {
     // Lookup projection only: results live in operations for both entry paths.
     renewals: BTreeMap<(Identity, u64), Identity>,
 }
+
 struct Login {
     browser: [u8; 32],
     grants: Vec<DelegatedRoleGrant>,
@@ -70,6 +72,7 @@ impl RenewalProgress {
             Self::InFlight(n) | Self::Completed(n) => *n,
         }
     }
+
     fn check_next(&self, next: u64) -> Result<(), IssuerError> {
         if next <= self.sequence() {
             return Err(IssuerError::EpochClosed);
@@ -80,6 +83,7 @@ impl RenewalProgress {
         Ok(())
     }
 }
+
 struct Operation {
     ticket: IssuerTicket,
     login: Identity,
@@ -91,6 +95,7 @@ struct Operation {
     remove_at: u64,
     result_bytes: u64,
 }
+
 struct Approval {
     nonce: [u8; 16],
     commitment: [u8; 32],
@@ -197,21 +202,25 @@ impl MemoryIssuer {
     pub const fn epoch(&self) -> u64 {
         self.epoch
     }
+
     /// Physical counts; expired rows remain charged until explicit pruning.
     #[must_use]
     pub const fn usage(&self) -> IssuerUsage {
         self.usage
     }
+
     /// Retained credit, without lazy refill or a clock observation.
     #[must_use]
     pub const fn available_credit(&self) -> u32 {
         self.budget.available()
     }
+
     /// Most recently observed trusted operation time, including ordinary refusals.
     #[must_use]
     pub const fn observed_at_ns(&self) -> u64 {
         self.observed
     }
+
     /// Terminal containment after lost state or host failure. It cannot be reopened.
     pub fn close(&mut self) {
         self.open = false;
@@ -709,6 +718,7 @@ impl MemoryIssuer {
             Err(IssuerError::Closed)
         }
     }
+
     fn observe(&mut self, now: u64) -> Result<(), IssuerError> {
         self.check_open()?;
         if now < self.observed || now < self.budget.observed_at_ns() {
@@ -717,6 +727,7 @@ impl MemoryIssuer {
         self.observed = now;
         Ok(())
     }
+
     fn operation(&self, ticket: IssuerTicket) -> Result<&Operation, IssuerError> {
         self.check_open()?;
         self.accounts
@@ -725,6 +736,7 @@ impl MemoryIssuer {
             .filter(|op| op.ticket == ticket)
             .ok_or(IssuerError::Denied)
     }
+
     fn operation_mut(&mut self, ticket: IssuerTicket) -> Result<&mut Operation, IssuerError> {
         self.accounts
             .get_mut(&ticket.account)
@@ -732,6 +744,7 @@ impl MemoryIssuer {
             .filter(|op| op.ticket == ticket)
             .ok_or(IssuerError::Denied)
     }
+
     fn check_pending(
         &self,
         op: &Operation,
@@ -749,6 +762,7 @@ impl MemoryIssuer {
         }
         Ok(())
     }
+
     fn claims(
         &self,
         op: &Operation,
@@ -781,6 +795,7 @@ impl Login {
             && self.policy == policy
     }
 }
+
 fn validate_request(
     account: Principal,
     r: &IssueRequest,

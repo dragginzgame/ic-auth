@@ -1,8 +1,8 @@
 //! Complete fresh certified-proof verification at one protected host snapshot.
 
-use super::DecodedClaims;
 use super::{
-    BudgetError, ContextError, VerificationBudget, VerificationContext, VerifiedClaims, context,
+    BudgetError, ContextError, DecodedClaims, VerificationBudget, VerificationContext,
+    VerifiedClaims, context,
 };
 use crate::{
     claims::ClaimsError,

@@ -51,6 +51,7 @@ fn audience(value: wire::DelegationAudience) -> domain::AudienceId {
         fleet_id: domain::CanonicalId::from_bytes(value.fleet_id),
     }
 }
+
 fn grants(
     value: ic_wire::List<wire::DelegatedRoleGrant, 16>,
 ) -> Result<Vec<domain::DelegatedRoleGrant>, ProjectionError> {
@@ -74,6 +75,7 @@ fn grants(
         })
         .collect()
 }
+
 fn certified(
     value: wire::CertifiedProof,
 ) -> Result<domain::CertifiedProofMaterial, ProjectionError> {

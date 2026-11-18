@@ -1,7 +1,7 @@
 //! Test-only receiver controls; enrollment uses an installation-bound IC call.
 use serde::{Deserialize, Serialize};
 
-#[cfg(target_family = "wasm")]
+#[cfg(target_arch = "wasm32")]
 pub(crate) mod canister;
 
 /// Fixed simulator epoch; independent signed vectors use the same public time origin.

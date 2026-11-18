@@ -6,6 +6,7 @@ use ic_auth_protocol_types::{
     AudienceId, CanonicalId, DelegatedRoleGrant, DelegationCertificate, DelegationLeaf,
     IssuerDelegation, MerkleStep, Principal, RootBatchHeader,
 };
+
 pub(crate) fn bytes(records: &str, name: &str) -> Vec<u8> {
     let (_, hex) = records
         .lines()
@@ -19,15 +20,19 @@ pub(crate) fn bytes(records: &str, name: &str) -> Vec<u8> {
         .map(|p| u8::from_str_radix(std::str::from_utf8(p).unwrap(), 16).unwrap())
         .collect()
 }
+
 fn hash(records: &str, name: &str) -> [u8; 32] {
     bytes(records, name).try_into().unwrap()
 }
+
 pub(crate) fn root() -> Principal {
     Principal::from_slice(&[1; 10])
 }
+
 pub(crate) fn issuer() -> Principal {
     Principal::from_slice(&[2; 10])
 }
+
 pub(crate) struct Fixture {
     pub(crate) cert: DelegationCertificate,
     pub(crate) leaf: DelegationLeaf,
@@ -89,6 +94,7 @@ impl Fixture {
             name: "test_key_1".into(),
         }
     }
+
     pub(crate) fn proof(&self) -> RootDelegationProof<'_> {
         RootDelegationProof {
             certificate: &self.cert,
@@ -104,6 +110,7 @@ impl Fixture {
         }
     }
 }
+
 pub(crate) fn policy(key: &[u8]) -> RootKeyPolicy<'_> {
     RootKeyPolicy {
         root: root(),
@@ -119,6 +126,7 @@ pub(crate) fn policy(key: &[u8]) -> RootKeyPolicy<'_> {
         max_revocation_latency_ns: 100,
     }
 }
+
 pub(crate) fn limits() -> DelegationLimits {
     DelegationLimits {
         max_certificate_ttl_ns: 100,

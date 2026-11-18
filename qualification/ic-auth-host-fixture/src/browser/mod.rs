@@ -1,7 +1,7 @@
 //! Combined issuer/receiver for a real browser journey, never a deployable service.
 use serde::{Deserialize, Serialize};
 
-#[cfg(target_family = "wasm")]
+#[cfg(target_arch = "wasm32")]
 pub(crate) mod canister;
 
 /// Fixture credential operation: false issues once, true only reconciles.

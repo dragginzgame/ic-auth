@@ -5,6 +5,7 @@ use ic_auth_wire::{
     projection::ProjectionError,
     wire::{Bytes, List, Text},
 };
+
 fn fixture(name: &str) -> w::PortableCredential {
     let (_, hex) = include_str!("fixtures/admission-frames.tsv")
         .lines()
@@ -20,24 +21,29 @@ fn fixture(name: &str) -> w::PortableCredential {
         .collect();
     CredentialEnvelope::decode_request(&bytes).unwrap()
 }
+
 fn certified() -> w::PortableCredential {
     fixture("credential-certified-request")
 }
+
 fn proof(value: &mut w::PortableCredential) -> &mut w::CertifiedProof {
     let w::PortableProof::Certified(value) = &mut value.proof else {
         panic!("certified fixture")
     };
     value
 }
+
 fn principal(byte: u8) -> d::Principal {
     d::Principal::from_slice(&[byte])
 }
+
 fn audience() -> d::AudienceId {
     d::AudienceId {
         canonical_network_id: d::CanonicalId::from_bytes([1; 32]),
         fleet_id: d::CanonicalId::from_bytes([2; 32]),
     }
 }
+
 fn grants() -> Vec<d::DelegatedRoleGrant> {
     vec![d::DelegatedRoleGrant {
         target: "project_instance".parse().unwrap(),

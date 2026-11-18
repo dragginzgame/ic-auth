@@ -11,9 +11,11 @@ const RECORDS: &str = include_str!("fixtures/root-delegation.tsv");
 fn bytes(name: &str) -> Vec<u8> {
     root_fixture::bytes(RECORDS, name)
 }
+
 fn hash(name: &str) -> [u8; 32] {
     bytes(name).try_into().unwrap()
 }
+
 fn result(
     f: &Fixture,
     policy: &RootKeyPolicy<'_>,
