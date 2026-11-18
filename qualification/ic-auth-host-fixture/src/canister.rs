@@ -1,6 +1,7 @@
 //! Standalone fixture adapter, not Canic application endpoint integration.
 use super::{
     CONTROL, Command, Fault, OBSERVE, Observation, Progress, REQUEST, RESPONSE, Refusal, SEED,
+    hash_bytes,
 };
 use ic_auth::issuer_memory::{
     CertifiedCompletionError, IssueRequest, IssuerAuthority, IssuerConfig, IssuerError,
@@ -450,11 +451,6 @@ fn measure_witness((): ()) -> super::WitnessMeasurement {
         heap_pages: (before_heap, after_heap),
         response_bytes,
     }
-}
-
-pub(crate) fn hash_bytes(bytes: impl AsRef<[u8]>) -> [u8; 32] {
-    use sha2::{Digest, Sha256};
-    Sha256::digest(bytes.as_ref()).into()
 }
 
 pub(crate) fn endpoint_error<E: std::fmt::Debug>(error: E) -> ! {

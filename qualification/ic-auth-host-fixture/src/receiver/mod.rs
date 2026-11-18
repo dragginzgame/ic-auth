@@ -1,8 +1,18 @@
 //! Test-only receiver controls; enrollment uses an installation-bound IC call.
+use ic_auth_protocol_types::{AudienceId, CanonicalId};
 use serde::{Deserialize, Serialize};
 
 #[cfg(target_arch = "wasm32")]
 pub(crate) mod canister;
+
+/// Receiver audience used by the signed login and browser fixtures.
+#[must_use]
+pub fn audience() -> AudienceId {
+    AudienceId {
+        canonical_network_id: CanonicalId::from_bytes([0x11; 32]),
+        fleet_id: CanonicalId::from_bytes([0x22; 32]),
+    }
+}
 
 /// Fixed simulator epoch; independent signed vectors use the same public time origin.
 pub const TIME_ORIGIN_NS: u64 = 2_000_000_000_000_000_000;

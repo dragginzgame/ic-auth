@@ -1,8 +1,8 @@
 //! Installation-bound call and atomic callback publication for a single test key.
 use super::{Outcome, Refusal, SECOND, STATE, audience};
 use crate::{
-    canister::hash_bytes,
     enrollment::{Fault, KEY, LIMITS, METHOD, Snapshot},
+    hash_bytes,
 };
 use ic_auth::receiver_memory::EnrollmentMetadata;
 use ic_platform_runtime::{

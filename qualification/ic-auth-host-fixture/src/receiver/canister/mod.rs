@@ -1,8 +1,10 @@
 //! Real IC receiver transactions with fixed protected test authority.
-use super::{CONTROL, Command, OBSERVE, Observation, Outcome, REQUEST, Refusal, TIME_ORIGIN_NS};
-use crate::{RESPONSE, enrollment::Snapshot};
+use super::{
+    CONTROL, Command, OBSERVE, Observation, Outcome, REQUEST, Refusal, TIME_ORIGIN_NS, audience,
+};
 mod enrollment;
-use crate::canister::hash_bytes;
+
+use crate::{RESPONSE, enrollment::Snapshot, hash_bytes};
 use ic_auth::{
     receiver_memory::{
         AdmissionHost, EnrollmentBinding, LoginLimits, LogoutError, LogoutReceipt, MemoryConfig,
@@ -15,8 +17,7 @@ use ic_auth::{
     },
 };
 use ic_auth_protocol_types::{
-    AudienceId, CanonicalId, Credential, CredentialProof, DelegatedRoleGrant, PortableMechanism,
-    Principal,
+    Credential, CredentialProof, DelegatedRoleGrant, PortableMechanism, Principal,
 };
 use ic_platform_runtime::{self as runtime, system as api};
 use std::cell::RefCell;
@@ -34,13 +35,6 @@ struct State {
 
 thread_local! {
     static STATE: RefCell<State> = RefCell::new(State::default());
-}
-
-fn audience() -> AudienceId {
-    AudienceId {
-        canonical_network_id: CanonicalId::from_bytes([0x11; 32]),
-        fleet_id: CanonicalId::from_bytes([0x22; 32]),
-    }
 }
 
 pub(crate) fn init(authority: Principal, capacity: super::Capacity) {

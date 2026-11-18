@@ -30,7 +30,7 @@ jobs:
       - name: Prepare pinned CI tools
         run: |
           for tool in actionlint shellcheck gitleaks; do
-            bash vendor/toko-tooling/scripts/ci/install-ci-tool.sh "$tool" --install-dir "$RUNNER_TEMP/auth-ci-tools" \
+            perl scripts/ci/setup.pl bash vendor/toko-tooling/scripts/ci/install-ci-tool.sh "$tool" --install-dir "$RUNNER_TEMP/auth-ci-tools" \
               2>&1 | tee "$RUNNER_TEMP/tools-$tool.log"
           done
           echo "$RUNNER_TEMP/auth-ci-tools" >> "$GITHUB_PATH"
@@ -78,7 +78,7 @@ jobs:
       - name: Prepare repository Rust toolchain
         # Rustup installs the channel/components from rust-toolchain.toml before
         # the common-tools action computes its compiler-specific cache key.
-        run: rustup show active-toolchain 2>&1 | tee "$RUNNER_TEMP/tools-rustup.log"
+        run: perl scripts/ci/setup.pl rustup show active-toolchain 2>&1 | tee "$RUNNER_TEMP/tools-rustup.log"
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: 24.21.0
@@ -88,15 +88,15 @@ jobs:
           cache-save: 'true'
       - name: Prepare locked dependencies
         run: |
-          cargo fetch --locked 2>&1 | tee "$RUNNER_TEMP/tools-cargo-product-fetch.log"
-          cargo fetch --locked --manifest-path qualification/Cargo.toml 2>&1 | tee "$RUNNER_TEMP/tools-cargo-qualification-fetch.log"
+          perl scripts/ci/setup.pl cargo fetch --locked 2>&1 | tee "$RUNNER_TEMP/tools-cargo-product-fetch.log"
+          perl scripts/ci/setup.pl cargo fetch --locked --manifest-path qualification/Cargo.toml 2>&1 | tee "$RUNNER_TEMP/tools-cargo-qualification-fetch.log"
       - name: Admit tooling and run native contracts
         run: |
           bash vendor/toko-tooling/scripts/ci/run-validation-targets.sh --fail-fast \
             test-product test-qualification verify-fixtures
       - name: Prepare Wasm compiler target
         if: runner.os == 'Linux'
-        run: rustup target add wasm32-unknown-unknown 2>&1 | tee "$RUNNER_TEMP/tools-rustup-wasm.log"
+        run: perl scripts/ci/setup.pl rustup target add wasm32-unknown-unknown 2>&1 | tee "$RUNNER_TEMP/tools-rustup-wasm.log"
       - name: Check formatting, strict lint, Rustdoc and Wasm libraries
         if: runner.os == 'Linux'
         run: |
@@ -105,7 +105,7 @@ jobs:
             lint-host doc-protocol check-protocol-wasm
       - name: Prepare locked browser dependencies
         if: runner.os == 'Linux'
-        run: npm ci --prefix packages/client --ignore-scripts 2>&1 | tee "$RUNNER_TEMP/tools-npm-client.log"
+        run: perl scripts/ci/setup.pl npm ci --prefix packages/client --ignore-scripts 2>&1 | tee "$RUNNER_TEMP/tools-npm-client.log"
       - name: Check browser client and Wire interoperability
         if: runner.os == 'Linux'
         run: |

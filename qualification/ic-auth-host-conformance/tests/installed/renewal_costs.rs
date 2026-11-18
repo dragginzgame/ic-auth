@@ -6,17 +6,13 @@ use ic_auth::{
 };
 use ic_auth_host_fixture::{
     Command, Fault, MEASURE, Measurement, OBSERVE, Observation, REQUEST, RESPONSE, Refusal, SEED,
-    WITNESS_MEASURE, WitnessMeasurement,
+    WITNESS_MEASURE, WitnessMeasurement, hash_bytes,
 };
 use ic_auth_protocol_types::Principal;
 use ic_platform::certificate::{PreparedRootKey, construction::canister_key_der};
 use ic_testkit::pocket_ic::{CanisterId, nonblocking::PocketIc};
 use sha2::{Digest, Sha256};
 use std::time::Duration;
-
-fn sha(bytes: &[u8]) -> [u8; 32] {
-    Sha256::digest(bytes).into()
-}
 
 async fn witness(
     pic: &PocketIc,
@@ -49,12 +45,12 @@ async fn witness(
     let root = PreparedRootKey::from_der(&pic.root_key().await.unwrap()).unwrap();
     let key = canister_key_der(Principal::from_slice(id.as_slice()), SEED).unwrap();
     verify_issuer_signature(
-        sha(&view.claims),
+        hash_bytes(&view.claims),
         &view.signature,
         &key,
         &IssuerSignaturePolicy {
             signing_canister: Principal::from_slice(id.as_slice()),
-            seed_hash: sha(SEED),
+            seed_hash: hash_bytes(SEED),
             ic_root_public_key_raw: &root.as_der()[37..],
             now_ns: view.now_ns,
             max_certificate_age_ns: 1_000_000_000,

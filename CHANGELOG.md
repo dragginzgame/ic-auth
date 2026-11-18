@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.48.2] - 2026-11-19
+
+### 🧹 Cleanup
+
+- Adopt Toko Tooling 0.45.10. Share portable fixture hashing and receiver
+  audience construction across callers, and redact tool setup failures before
+  they reach CI logs and retained artifacts.
+
 ## [0.48.1] - 2026-11-18
 
 ### 🧹 Cleanup

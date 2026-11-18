@@ -365,7 +365,7 @@ dependencies = [
 
 [[package]]
 name = "ic-auth"
-version = "0.48.1"
+version = "0.48.2"
 dependencies = [
  "ic-auth-protocol-types",
  "ic-platform",
@@ -405,9 +405,9 @@ dependencies = [
 
 [[package]]
 name = "ic-platform"
-version = "0.34.16"
+version = "0.34.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "370a236d0cc0e5a7328b344d8493cf367dd83178257ee809a48716fdb7301c4c"
+checksum = "866eba5d2c1bf18457a3c2a5c1a306dab075626efbe9c83acf1eeb952d58a023"
 dependencies = [
  "crypto-bigint",
  "curve25519-dalek",
@@ -425,9 +425,9 @@ dependencies = [
 
 [[package]]
 name = "ic-platform-types"
-version = "0.21.2"
+version = "0.21.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3b08201b2ebbb9a9f0e1c8ee2854f48ff3f68a777c441147273c600bf6723d7d"
+checksum = "1ebaae959b3a485c68803aa242a967568ed15411208670de5a858da84324dba0"
 dependencies = [
  "crc32fast",
  "data-encoding",
@@ -806,9 +806,9 @@ dependencies = [
 
 [[package]]
 name = "toko-tooling"
-version = "0.45.8"
+version = "0.45.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "adbc76769b2231de6704851c363550ddc486bb6204a0f89c2ad365eb7cf740a3"
+checksum = "690c847446a5edbf5e13c03996feee5a64daa4c28a9a1098ceb7d5ea64f820fc"
 
 [[package]]
 name = "typenum"

@@ -1,7 +1,7 @@
 //! Fixed test account/browser, local test signer and installation-owned enrollment.
 //! No wallet service, external signing/recovery or production Canic mounting is modeled.
 use super::{CREDENTIAL, OBSERVE, Observation, WRITE};
-use crate::{REQUEST, RESPONSE, canister::hash_bytes};
+use crate::{REQUEST, RESPONSE, hash_bytes, receiver::audience};
 use ic_auth::{
     issuer_memory::{
         IssueRequest, IssuedProof, IssuerAuthority, IssuerConfig, IssuerError, IssuerPolicy,
@@ -17,9 +17,7 @@ use ic_auth::{
         AuthorityGrants, Ed25519Key, VerificationContext, VerificationCosts, VerificationProfile,
     },
 };
-use ic_auth_protocol_types::{
-    AudienceId, CanonicalId, DelegatedRoleGrant, PortableMechanism, Principal,
-};
+use ic_auth_protocol_types::{AudienceId, DelegatedRoleGrant, PortableMechanism, Principal};
 use ic_auth_wire::{
     CredentialEnvelope, EstablishSession, Logout, SessionInput, SessionView,
     model::{AdmissionRefusal, LogoutResult, LogoutUnavailable, PortableCredential, PortableProof},
@@ -39,13 +37,6 @@ struct State {
 }
 
 thread_local! { static STATE: RefCell<Option<State>> = const { RefCell::new(None) }; }
-
-fn audience() -> AudienceId {
-    AudienceId {
-        canonical_network_id: CanonicalId::from_bytes([0x11; 32]),
-        fleet_id: CanonicalId::from_bytes([0x22; 32]),
-    }
-}
 
 // Public deterministic test seeds; production key custody is expressly outside this fixture.
 fn signer() -> SigningKey {

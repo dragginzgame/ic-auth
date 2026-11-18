@@ -3,6 +3,7 @@ use super::{frame, receiver::time, start, wasm};
 use ic_auth_host_fixture::{
     Installation, RESPONSE,
     certified::{self as fixture, Command, Measurement, at},
+    hash_bytes,
     receiver::{Outcome, Refusal},
 };
 use ic_platform::{
@@ -14,15 +15,14 @@ use ic_platform::{
 use ic_testkit::pocket_ic::CanisterId;
 use sha2::{Digest, Sha256};
 
-fn sha(bytes: &[u8]) -> [u8; 32] {
-    Sha256::digest(bytes).into()
-}
-
 fn signature(key: &PrivateKey, digest: [u8; 32]) -> Vec<u8> {
     let message = [b"\x1bic-auth-portable-credential".as_slice(), &digest].concat();
     let witness = labeled(
         b"sig".to_vec(),
-        labeled(sha(fixture::SEED), labeled(sha(&message), leaf(Vec::new()))),
+        labeled(
+            hash_bytes(fixture::SEED),
+            labeled(hash_bytes(&message), leaf(Vec::new())),
+        ),
     );
     let mut n = at(150);
     let mut encoded_time = Vec::new();
@@ -86,7 +86,7 @@ async fn certified_receiver_cost_observations() {
     time(pic, 155).await;
     let caller = CanisterId::from_slice(&fixture::bytes("caller"));
     assert_eq!(
-        sha(&fixture::bytes("claims")),
+        hash_bytes(fixture::bytes("claims")),
         fixture::hash("claims_digest")
     );
     let good = signature(&key, fixture::hash("claims_digest"));

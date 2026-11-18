@@ -9,16 +9,16 @@ stay in the product crates.
 
 ## Installed selection
 
-Toko Tooling **0.45.8** is selected by Cargo and installed through its authenticated
+Toko Tooling **0.45.10** is selected by Cargo and installed through its authenticated
 exporter. Cargo.lock and `.toko-tooling.snapshot` identify archive SHA-256
-`adbc76769b2231de6704851c363550ddc486bb6204a0f89c2ad365eb7cf740a3`.
+`690c847446a5edbf5e13c03996feee5a64daa4c28a9a1098ceb7d5ea64f820fc`.
 The release source is
-[`12af9e64f4a0ba03c8c94d3eee00987080ade98a`](https://github.com/dragginzgame/toko-tooling/tree/12af9e64f4a0ba03c8c94d3eee00987080ade98a).
+[`88b7cd83f292d5165f4585a861cd8c89b74397b3`](https://github.com/dragginzgame/toko-tooling/tree/88b7cd83f292d5165f4585a861cd8c89b74397b3).
 Do not hand-edit the receipt or installed vendor files.
 
 The executable selections are `make/consumer.mk`, `make/cargo-dependencies.mk`,
 the formatting hook, the common-tools and failure-evidence composite actions,
-and the pinned CI-tool installer, with their required companions. No release or
+the pinned CI-tool installer and the setup diagnostic redactor, with their required companions. No release or
 publication interface is selected. Product checks are owned by the root Makefile.
 [Publication scope](publication.md) includes all three product crates and
 keeps qualification packages excluded. Product manifests now allow publication;
@@ -193,7 +193,9 @@ the workflow, and scans complete Git history once with secrets fully redacted.
 Actions are commit-pinned, repository permissions are read-only, and newer work
 cancels the same workflow/ref. Shared failure evidence retains native logs and
 security-tool setup/check logs for 14 days. Rustup, Cargo-fetch and npm setup logs
-also use collector-selected names; pipeline failure status is preserved. Gitleaks
+also use collector-selected names. For those commands and the security-tool
+installer, `scripts/ci/setup.pl` passes a bounded, redacted failure excerpt to
+`tee` and preserves the command’s exit status. Gitleaks
 output stays fully redacted. Installed host/SDK lifecycle qualification remains a
 separate gate; Wasm coverage here proves compilation only.
 
