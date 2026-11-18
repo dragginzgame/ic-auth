@@ -274,3 +274,38 @@ Wide frames retain the receiver fixture's 4,096-byte cap and depth eight, with
 524,288 allocation units and 32,768 traversal nodes. The prior allocation and node
 allowances each independently refuse the wide fixture. These are qualification
 transport allowances; product Wire contracts are unchanged.
+
+### Complete loss recovery witness
+
+With the prepared PocketIC 16.1.0 server selected by `POCKET_IC_SERVER_URL`, run
+`make qualify-host HOST_TEST_FILTER='missing_predecessor --nocapture'`. The
+harness builds the Wasm and generates signed fixture inputs through the usual
+installed qualification path. It prints the installed module hash from PocketIC.
+
+Both histories used receiver `xp3jw-ot777-77777-aaaaa-cai` and its actual
+simulator controller `2vxsx-fae`, issuer principal bytes `01`, network/fleet
+bytes `11`/`22` repeated 32 times, enrollment revision 1 and generation 7.
+The Ed25519 key binding was
+`56475aa75463474c0285df5dbf2bcab73da651358839e9b77481b2eab107708c`.
+The fixture started from Auth v0.48.0 with qualification lock SHA-256
+`fced508b977c08ab2d49ca4a02c85820e260ed4d8ea45fd7fc1736ec0a1dabe6`.
+The 1,531,424-byte installed Wasm had SHA-256
+`13472696f166bd12f04d17dcef3128ca9debcf82a9b3700bf96ac56f7a034e5d`
+and the generated host vector TSV had SHA-256
+`a3269426a7cf5c40fcded4e2bea0b34ea4b48f4aa37411becbbcfd36ab994835`.
+
+At fixture second 25, both receivers admitted the independently signed initial
+login and authorized a write. One retained a live session and a replay. In the
+other, the test submitted logout, let it commit, and verified revocation before
+collecting the ingress response. That receiver retained zero sessions and one
+replay. After upgrading each receiver with the same Wasm and an empty upgrade
+argument, the client collected the delayed logout receipt with the original
+second-100 deadline. At seconds 26, 99, 100 and 101, both histories refused
+controller refresh, original credential admission, an unrelated account's
+authorization and logout retry. Their receiver observations were identical.
+
+For [Canic #31](https://github.com/dragginzgame/canic/issues/31), the tested
+predecessor is missing. Keep both histories closed. This witness supports the
+[complete-loss decision](../../docs/design/authentication.md#receiver-recovery-after-complete-volatile-loss).
+Recovery of a private application record and any future independently authorized
+cutover need separate qualification.

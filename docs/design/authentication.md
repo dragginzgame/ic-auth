@@ -111,3 +111,52 @@ No Canic fleet policy, Toko records, Solana RPC, new wallet-login service or cus
 cryptography. No release automation, npm publication or deployment machinery until
 there is a qualified replacement to deliver. Exclude historical compatibility
 readers and old token flows; incompatible stored backing must refuse without reset.
+
+## Receiver recovery after complete volatile loss
+
+The supported decision for an upgraded receiver with a missing predecessor is
+**closed**. This includes installations where the application database, controller
+identity, Root enrollment service and issuer signing key all survived. At the
+upgrade boundary every former session becomes unusable. There is no authorized
+caller or retry that can turn this state into a fresh receiver for the same
+domain. Canic must retain the closed lifecycle on repeated initialization,
+refresh and interrupted upgrade recovery. Auth's fresh constructor is for an
+actual first installation.
+
+Consider two executions of the same receiver with the same network/fleet
+audience, issuer, signing key, grant generation, verified caller and signed
+credential. In both, the caller admitted the credential and completed a
+protected write. In one, the session remained live. In the other, logout
+committed before upgrade, but the caller received no acknowledgement. Losing
+the heap erases the only difference relevant to authorization. Replaying the
+credential or obtaining another grant from the same Root yields identical
+inputs in both histories. Choosing to admit on those inputs would undo the
+committed logout in the second history. A delayed receipt establishes the
+outcome of one operation at its original deadline, never the completeness
+of all operations through the upgrade.
+
+Waiting until that credential, proof, session, or grant expires cannot prove a
+global cutoff. Other devices and issuers may have later deadlines. Issuer
+renewals, outstanding issuance and delayed callbacks can cross the upgrade.
+A new challenge or grant generation authenticates enrollment but does not
+establish a new login or invalidate every predecessor credential. Even a newly
+signed credential can belong to an old login. Auth has no independent record
+of a cutover that covers them all.
+
+A future successful path requires evidence from outside the lost heap. It
+must bind the receiver and enrollment authority, audience, issuer and key
+binding to a non-rollbackable predecessor and generation. It must either
+preserve all still-effective replay entries, login/device generations and
+denial fences (including unknown logout), revocations, pending operations and
+their original deadlines, or establish an authoritative cutoff that invalidates
+all predecessor proofs, renewals, sessions and late responses. Repetition or
+interruption must never expose a partially installed decision or extend a
+deadline. Old, contradictory, unsupported or incomplete evidence has the same
+closed outcome as missing evidence. No such authority or evidence is supplied
+by the volatile profile. A future contract that supplies it must still require
+fresh authentication, caller binding and current authorization before creating a
+new session. The application owns the verified subject's private-record mapping.
+
+The [installed witness](../../qualification/ic-auth-host-conformance/README.md#complete-loss-recovery-witness)
+qualifies this decision for [Auth #4](https://github.com/dragginzgame/ic-auth/issues/4)
+and [Auth #5](https://github.com/dragginzgame/ic-auth/issues/5).

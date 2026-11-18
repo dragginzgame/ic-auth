@@ -307,3 +307,112 @@ async fn receiver_upgrade_loss_cannot_reenroll_or_confirm_unknown_logout() {
         owned.drop().await;
     }
 }
+
+/// The surviving module, identities, clock and enrollment inputs cannot distinguish
+/// a live session from one whose logout committed without a client acknowledgement.
+#[tokio::test]
+#[ignore = "requires built fixture, independent vectors and PocketIC 16.x"]
+async fn missing_predecessor_after_unacknowledged_logout_is_indistinguishable_from_live() {
+    let vectors = vectors();
+    let wasm = wasm();
+    let caller = CanisterId::from_slice(&vectors["initial-caller"]);
+    let other = CanisterId::from_slice(&vectors["other-account-caller"]);
+    let mut live_post_state = None;
+    for logout in [false, true] {
+        let pic = start().await;
+        time(&pic, 0).await;
+        let id = install(&pic, &wasm).await;
+        let status = pic.canister_status(id, None).await.unwrap();
+        let controller = status.settings.controllers[0];
+        let module = status.module_hash.unwrap();
+        eprintln!(
+            "receiver={id} controller={controller} wasm_bytes={} module_sha256={module:02x?}",
+            wasm.len()
+        );
+        let enroll = Command::Enroll(ic_auth_host_fixture::enrollment::Fault::None);
+        let admit = credential(&vectors, "initial", false);
+        time(&pic, 25).await;
+        assert_eq!(
+            control(&pic, id, controller, &enroll).await.unwrap(),
+            Ok(Outcome::Enrolled)
+        );
+        assert!(matches!(
+            control(&pic, id, caller, &admit).await.unwrap(),
+            Ok(Outcome::Admitted(false, _))
+        ));
+        assert_eq!(
+            control(&pic, id, caller, &Command::Authorize(false))
+                .await
+                .unwrap(),
+            Ok(Outcome::Authorized)
+        );
+        let pending = if logout {
+            let payload = ic_wire::encode(
+                &Command::Logout(false),
+                frame(CONTROL, ic_wire::Direction::Request),
+                REQUEST,
+            )
+            .unwrap();
+            let message = pic
+                .submit_call(id, caller, "receiver_fixture_control", payload)
+                .await
+                .unwrap();
+            pic.tick().await;
+            assert_eq!(
+                control(&pic, id, caller, &Command::Authorize(false))
+                    .await
+                    .unwrap(),
+                Err(Refusal::Revoked)
+            );
+            Some(message)
+        } else {
+            None
+        };
+        let before = observe(&pic, id).await;
+        assert_eq!((before.usage.0, before.usage.1), (u64::from(!logout), 1));
+        pic.stop_canister(id, None).await.unwrap();
+        pic.upgrade_canister(id, wasm.clone(), vec![], None)
+            .await
+            .unwrap();
+        pic.start_canister(id, None).await.unwrap();
+        let lost = observe(&pic, id).await;
+        assert!(!lost.present);
+        if let Some(message) = pending {
+            let bytes = pic.await_call(message).await.unwrap();
+            let receipt: Result<Outcome, Refusal> = ic_wire::decode(
+                &bytes,
+                frame(CONTROL, ic_wire::Direction::Response),
+                RESPONSE,
+            )
+            .unwrap();
+            assert_eq!(
+                receipt,
+                Ok(Outcome::Revoked(TIME_ORIGIN_NS + 100_000_000_000))
+            );
+        }
+        // Retry refresh while the old proof is valid, then cross the original
+        // login deadline. Neither elapsed time nor a delayed receipt creates state.
+        for seconds in [26, 99, 100, 101] {
+            time(&pic, seconds).await;
+            for (sender, command) in [
+                (controller, &enroll),
+                (caller, &admit),
+                (other, &Command::Authorize(false)),
+                (caller, &Command::Logout(false)),
+            ] {
+                assert_eq!(
+                    control(&pic, id, sender, command).await.unwrap(),
+                    Err(Refusal::Closed)
+                );
+            }
+            assert_eq!(observe(&pic, id).await, lost);
+        }
+        let surviving = (id, controller, module, lost);
+        if let Some(live) = &live_post_state {
+            assert_eq!(live, &surviving);
+        } else {
+            live_post_state = Some(surviving);
+        }
+        pic.drop().await;
+    }
+}

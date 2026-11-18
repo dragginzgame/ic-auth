@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Document the closed receiver decision after complete volatile loss and qualify
+  the lost logout acknowledgement across an installed upgrade. Addresses
+  [Auth #4](https://github.com/dragginzgame/ic-auth/issues/4) and
+  [Auth #5](https://github.com/dragginzgame/ic-auth/issues/5).
+
 ## [0.48.0] - 2026-11-18
 
 ### Added
