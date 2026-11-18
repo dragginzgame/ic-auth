@@ -10,7 +10,7 @@ const destination = fileURLToPath(new URL('../src/generated/', import.meta.url))
 const modules = ['credential', 'establish', 'logout', 'wire-runtime'];
 const check = process.argv[2] === '--check';
 if (process.argv.length > (check ? 3 : 2)) throw new Error('Usage: node scripts/generate.mjs [--check]');
-execFileSync('cargo', ['run', '--offline', '--locked', '-p', 'ic-auth-wire', '--features', 'typescript',
+execFileSync('cargo', ['run', '--locked', '-p', 'ic-auth-wire', '--features', 'typescript',
   '--example', 'generate', '--', source], { cwd: root, stdio: 'inherit' });
 execFileSync(process.execPath, [fileURLToPath(new URL('../node_modules/typescript/bin/tsc', import.meta.url)),
   '--target', 'ES2023', '--module', 'ESNext', '--strict', '--declaration', '--outDir', compiled,

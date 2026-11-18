@@ -9,13 +9,15 @@ rust-version = "1.100.0"
 license-file = "LICENSE.md"
 
 [workspace.dependencies]
+# Production
 ic-auth-protocol-types = { version = "0.43.0", path = "crates/ic-auth-protocol-types" }
-ic-platform = { version = "0.34.11", default-features = false }
+ic-platform = { version = "0.34.15", default-features = false }
 ic-platform-types = { version = "0.21.2", default-features = false }
-ic-wire = "0.24.3"
+ic-wire = "0.25.0"
 serde = { version = "1.0.229", features = ["derive"] }
 sha2 = "0.11.1"
-toko-tooling = "=0.44.11"
+# Tests and tooling
+toko-tooling = "=0.45.7"
 
 [workspace.lints.cargo]
 unused_dependencies = "deny"

@@ -83,6 +83,57 @@ pub struct MemoryConfig {
     pub unknown_logout: UnknownLogoutLimits,
 }
 
+impl MemoryConfig {
+    /// Starting limits for a fresh volatile receiver in the supplied audience and enrollment.
+    ///
+    /// Allows 8 device slots per account, a 300-second maximum original login
+    /// lifetime and 1,024 known logins. Up to 1,024 sessions and 4,096 replay
+    /// records (16 per account) share 4 MiB of logical encoded record capacity.
+    /// Capacity refusal preserves live records. The host supplies the separate
+    /// session TTL, verifier, eligibility and permission policy on admission.
+    ///
+    /// Proof verification starts with zero credit, earns one unit per second up
+    /// to 64, and charges 2 units for Ed25519 or 3 for certified proofs. Unknown
+    /// logout has a separate initially empty 64-unit bucket at the same rate.
+    /// Each new unknown denial costs one unit and occupies one of 64 rows for
+    /// up to the login lifetime. Exhausted proof credit refuses verification;
+    /// unknown logout returns a capacity refusal when credit or space runs out.
+    ///
+    /// Override individual public fields before passing this configuration to
+    /// [`MemoryReceiver::new_fresh`], which validates it. Enrollment is still
+    /// required before admission. Use the host recovery path after state loss.
+    #[must_use]
+    pub const fn starting_profile(audience: AudienceId, enrollment: EnrollmentBinding) -> Self {
+        const SECOND_NS: u64 = 1_000_000_000;
+        Self {
+            audience,
+            enrollment,
+            login: LoginLimits {
+                max_device_slots: 8,
+                max_login_ttl_ns: 300 * SECOND_NS,
+                max_admitted_logins: 1024,
+            },
+            capacity: SessionCapacity {
+                max_sessions: 1024,
+                max_replays: 4096,
+                max_replays_per_account: 16,
+                max_encoded_bytes: 4 * 1024 * 1024,
+            },
+            verification_capacity: 64,
+            refill_interval_ns: SECOND_NS,
+            verification_costs: VerificationCosts {
+                ed25519: 2,
+                certified: 3,
+            },
+            unknown_logout: UnknownLogoutLimits {
+                max_denials: 64,
+                capacity: 64,
+                refill_interval_ns: SECOND_NS,
+            },
+        }
+    }
+}
+
 /// Current protected admission inputs, supplied synchronously by the host.
 #[derive(Clone, Copy, Debug)]
 pub struct AdmissionHost<'a> {

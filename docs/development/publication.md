@@ -1,7 +1,7 @@
 # Crates.io publication scope
 
-The maintainer authorized publication of Auth 0.47.4. Protocol-types/Wire
-remain at their already published 0.43.0 versions. All three product crates use `publish = true`; the destination is crates.io.
+The maintainer authorized publication of Auth 0.48.0 and Auth Wire 0.44.0. Protocol-types
+remains at its published 0.43.0 version. All three product crates use `publish = true`; the destination is crates.io.
 Publication covers the implemented volatile libraries, not production deployment.
 
 | Product crate | Published responsibility | In-repository prerequisite |
@@ -43,3 +43,42 @@ entrypoints must be adopted through the authenticated Toko exporter. Production 
 remain separate from crates.io delivery. Stable storage remains a future milestone;
 this scope does not create a storage package or make one a prerequisite for the
 currently implemented volatile crates.
+
+## Validation and recovery sequence
+
+Prepare the final intended dependency/version selection and required tools before
+expensive validation. For a release affecting the current complete Auth surface,
+run the existing product checks once through the installed shared runner:
+
+```sh
+VALIDATION_REPOSITORY_ROOT="$PWD" \
+VALIDATION_LOG_DIR="$PWD/target/release-validation" \
+bash vendor/toko-tooling/scripts/ci/run-validation-targets.sh --fail-fast \
+  test-product test-qualification verify-fixtures fmt-check lint-protocol \
+  lint-certified-qualification lint-wire-qualification lint-host doc-protocol \
+  check-protocol-wasm check-client-generated test-client qualify-wire-browser
+```
+
+The same runner and leaf selections are exercised by local CI qualification.
+Installed behavior has a separate guarantee: with the documented PocketIC server
+and Chromium executable prepared, run `qualify-host` and `qualify-client-http`
+through that runner with the same retained log root. Those commands and environment
+inputs are documented in [installed qualification](tooling.md#installed-auth-qualification).
+Retain supported-host CI evidence separately; a local Linux pass does not qualify
+macOS. Select narrower release scope only when all affected consumers and required
+guarantees are accounted for.
+
+After validation, perform the final-source and archive checks described above for
+each changed publishable package, then upload in dependency order and verify the
+registry artifacts. Archive tests establish the shipped package's behavior; they
+do not require another full workspace/installed pass solely because an upload is
+next. CI success, timing logs and compiler-cache hits are not transferable release
+proofs. No automatic evidence reuse or resume is installed.
+
+On failure, retain the original logs and inspect the failed phase. A setup failure
+needs setup recovery; a validation failure needs the affected checks after repair.
+Changed source, locks, compiler or fixtures invalidate their affected validation.
+If an upload's outcome is uncertain, inspect the registry version and checksum
+before retrying; do not bump versions or repeat the whole release to discover
+whether the upload succeeded. Shared release orchestration remains a future
+qualified adoption, not a second repository-local release engine.

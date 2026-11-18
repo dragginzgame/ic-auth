@@ -22,6 +22,65 @@ mod memory_model;
 use memory_fixture::*;
 
 #[test]
+fn starting_profile_bounds_unknown_logout_and_preserves_known_admission_policy() {
+    let h = Host::new();
+    let config = MemoryConfig::starting_profile(h.audience, h.config().enrollment);
+    let mut r = MemoryReceiver::new_fresh(config, 0).unwrap();
+    assert_eq!(r.logout(unknown_caller(0), 0), Err(LogoutError::Closed));
+    r.request_enrollment(0, [1; 32], 10).unwrap();
+    let mut snapshot = h.snapshot(7);
+    snapshot.expires_at_ns = 100_000_000_000;
+    r.install_enrollment(0, config.enrollment.authority, snapshot)
+        .unwrap();
+    assert_eq!(
+        r.logout(unknown_caller(0), 999_999_999),
+        Err(LogoutError::Capacity)
+    );
+    let now = 64_000_000_000;
+    for index in 0..64 {
+        assert_eq!(
+            r.logout(unknown_caller(index), now),
+            Ok(LogoutReceipt::Unconfirmed {
+                deny_until_ns: now + 300_000_000_000
+            })
+        );
+    }
+    assert_eq!(
+        r.logout(unknown_caller(64), now + 1_000_000_000),
+        Err(LogoutError::Capacity)
+    );
+
+    // Use the signed fixtures' nanosecond timescale and one available session.
+    let mut small = config;
+    small.refill_interval_ns = 1;
+    small.capacity.max_sessions = 1;
+    let mut r = MemoryReceiver::new_fresh(small, 24).unwrap();
+    h.enroll(&mut r, 7).unwrap();
+    let admit = |r: &mut MemoryReceiver, name, now| {
+        r.admit(
+            &credential(name),
+            request(),
+            h.admission(&h.context(name, now)),
+        )
+    };
+    assert!(matches!(
+        admit(&mut r, "initial", 25),
+        Err(E::Proof(CredentialError::Ed25519(
+            VerificationError::Budget(ic_auth::verification::BudgetError::Exhausted)
+        )))
+    ));
+    admit(&mut r, "initial", 26).unwrap();
+    assert_eq!(
+        admit(&mut r, "other-device", 28),
+        Err(E::Policy(P::Capacity))
+    );
+    assert!(matches!(
+        r.logout(h.context("initial", 28).caller, 28),
+        Ok(LogoutReceipt::Revoked { .. })
+    ));
+}
+
+#[test]
 fn authorize_invokes_projection_once_only_after_current_policy_succeeds() {
     use std::cell::Cell;
     let h = Host::new();

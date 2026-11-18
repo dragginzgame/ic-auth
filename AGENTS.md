@@ -1,7 +1,7 @@
 # IC Auth
 
 Read the installed [Toko Tooling baseline](TOKO-TOOLING.md). Its common rules
-apply alongside the product constraints below. Tooling 0.44.11 is authenticated
+apply alongside the product constraints below. Tooling 0.45.7 is authenticated
 by `.toko-tooling.snapshot`; [developer tooling](docs/development/tooling.md)
 describes Cargo-based admission and focused checks.
 
@@ -20,9 +20,11 @@ Read README.md, docs/design/DESIGN.md, docs/design/authentication.md,
 - Volatile authentication storage is the current milestone. Stable storage is
   deferred to a future milestone; do not build an interim `ic-storage` adapter.
   Keep semantic rules reusable without a speculative storage abstraction.
-- The intended durable destination remains `ic-storage-new` with orthogonal
-  persistence, once its contract is ready. Qualify its lifecycle, corruption
-  admission and host rollback at that future milestone before adoption.
+- Future stable storage belongs at the published `ic-storage` boundary. The
+  supplier retired its OP experiment; do not prescribe the former `ic-storage-new`
+  runtime. At the separately selected stable-storage milestone, review the current
+  allocation/collection contract and qualify lifecycle, corruption admission and
+  rollback. This does not expand the current volatile milestone.
 - Host inputs own caller, time, authority, memory leases, transactions and
   certification-root publication. Untrusted fields never establish authority.
 - Auth must not depend on Canic or Toko. Use published Platform/Types, Storage,

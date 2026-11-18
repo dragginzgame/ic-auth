@@ -9,11 +9,11 @@ stay in the product crates.
 
 ## Installed selection
 
-Toko Tooling **0.44.11** is selected by Cargo and installed through its authenticated
+Toko Tooling **0.45.7** is selected by Cargo and installed through its authenticated
 exporter. Cargo.lock and `.toko-tooling.snapshot` identify archive SHA-256
-`7d16b815ae322ae3f88580ee6af1611bdafde08b77592cd886bfa0eece0f1be8`.
+`81d14bd09e3a2cc71dc12c17af6221eeae4377030bee77848496d00eb7f505b7`.
 The release source is
-[`08d63df7661910554ef72980037f55edd914aba0`](https://github.com/dragginzgame/toko-tooling/tree/08d63df7661910554ef72980037f55edd914aba0).
+[`5cbb7ef87517154adad473ad0ce3f884bd29f449`](https://github.com/dragginzgame/toko-tooling/tree/5cbb7ef87517154adad473ad0ce3f884bd29f449).
 Do not hand-edit the receipt or installed vendor files.
 
 The executable selections are `make/consumer.mk`, `make/cargo-dependencies.mk`,
@@ -26,6 +26,25 @@ the maintainer authorized the current crates.io release.
 
 ## Setup and focused checks
 
+Validation scope follows the changed inputs. The entrypoints below have distinct
+owners and guarantees; dependency adoption does not trigger publication.
+
+| Flow | Entrypoint and owner | Input scope and trigger |
+| --- | --- | --- |
+| Development | Auth's focused `make test-*`, lint and fixture targets below | Changed product behavior and its affected callers |
+| Tooling adoption | Shared `make toko-tooling-preview`, `toko-tooling-update`, `snapshot-check`, `tools-check`; Auth caller checks | Requested snapshot refresh; authenticate installed bytes and qualify changed local wiring |
+| Dependency adoption | Cargo locked graphs; Auth product/qualification, Wasm and installed targets below | Changed supplier capabilities; qualify each affected workspace and execution boundary |
+| Repository CI | `.github/workflows/ci.yml` | Push/PR inputs; required native hosts and redacted security checks |
+| Release validation | Auth's selected product, qualification and installed checks | Authorized release; one planned validation pass for the affected product and consumers |
+| Publication | Exact-package Cargo commands in [publication scope](publication.md) | Authorized upload; fresh final-source, archive and registry admission |
+| Recovery | Diagnose retained failing-phase logs and rerun its affected command | Failed phase; changed inputs invalidate affected prior results |
+
+No shared release adapter is installed yet. The documented direct Cargo release
+path remains the fallback; it has no cross-command proof admission or automatic
+resume. Repeated archive tests establish packaged-source behavior separately from
+workspace tests. A future adapter must qualify dispatch, invalidation and failure
+recovery before replacing that path.
+
 From the repository root on a fresh checkout:
 
 ```sh
@@ -37,7 +56,7 @@ make install-hooks
 ```
 
 Setup may download pinned tools/crates; hook installation changes only the local
-Git hook selection and refuses to replace other hooks. Routine checks are offline:
+Git hook selection and refuses to replace other hooks. Routine checks honor Cargo network settings and may fetch missing locked dependencies:
 
 ```sh
 make toko-tooling-check
@@ -73,7 +92,7 @@ the scope/request integration files and the immutable-scope compile-fail doctest
 both proof mechanisms using independent qualification signatures;
 `test-receiver-policy` runs nineteen private policy tests, including thirteen
 read/retry/login scenarios and six count/byte cases. For login-only changes select
-`cargo test --offline --locked -p ic-auth --lib receiver_policy::tests::login_`;
+`cargo test --locked -p ic-auth --lib receiver_policy::tests::login_`;
 real proof-to-receiver integration is owned by `test-memory`, without a public
 fact-assembly API;
 `test-admission-capacity` covers six count/byte accounting scenarios;
@@ -96,11 +115,11 @@ nine private fault/identity tests and one complete certified issuance fixture.
 Independent Node/OpenSSL claims, renewal identity frames and Platform BLS proofs
 check both proof mechanisms without a production signing service.
 For renewal-only runtime checks select
-`cargo test --offline --locked -p ic-auth --features issuer-memory,ed25519-verification --test issuer_memory renewal`.
+`cargo test --locked -p ic-auth --features issuer-memory,ed25519-verification --test issuer_memory renewal`.
 For pruning-only API checks select
-`cargo test --offline --locked -p ic-auth --features issuer-memory,ed25519-verification --test issuer_memory retention`.
+`cargo test --locked -p ic-auth --features issuer-memory,ed25519-verification --test issuer_memory retention`.
 For issuer-only feature compilation use
-`cargo check --offline --locked -p ic-auth --features issuer-memory`; it does not
+`cargo check --locked -p ic-auth --features issuer-memory`; it does not
 enable the receiver or either verifier. It selects Wire/Serde for the preserved
 renewal operation hash and Platform Types for browser principal derivation.
 Native pruning checks cover the 32-record bound, reference counts, consumed-ID
@@ -127,9 +146,9 @@ shared-budget case using the qualification package's optional comparison feature
 The lint/docs/Wasm targets aggregate the three implemented protocol
 packages with all implemented verification features and the memory receiver enabled; lint includes the optional native generator and Wasm proves its metadata
 remains excluded even with the feature forwarded. For a narrower check,
-use `cargo clippy --offline --locked -p ic-auth-wire --all-targets --features typescript -- -D warnings`,
-`RUSTDOCFLAGS='-D warnings' cargo doc --offline --locked -p ic-auth-wire --no-deps`,
-or `cargo check --offline --locked -p ic-auth-wire --lib --target wasm32-unknown-unknown`.
+use `cargo clippy --locked -p ic-auth-wire --all-targets --features typescript -- -D warnings`,
+`RUSTDOCFLAGS='-D warnings' cargo doc --locked -p ic-auth-wire --no-deps`,
+or `cargo check --locked -p ic-auth-wire --lib --target wasm32-unknown-unknown`.
 `check-protocol-wasm` requires the Rust toolchain's `wasm32-unknown-unknown` target
 and proves compilation only. No full replacement, installed lifecycle or release
 gate is implied. `make fmt` writes the same Rust/manifest selection checked by
@@ -153,18 +172,36 @@ The CI aggregates `make test-product test-qualification verify-fixtures` select
 each implemented product and qualification package once, enabling both complete
 verifiers, the memory receiver and memory issuer. They do not replace
 focused development checks.
-Linux additionally runs `make fmt-check lint-protocol doc-protocol check-protocol-wasm`.
-Both workspaces fetch their locked dependencies before offline checks. Snapshot and
+Linux additionally checks formatting, product and qualification Clippy (including
+the host harness and Wasm fixture), Rustdoc and Wasm library compilation. It
+prepares the locked browser graph with `npm ci --ignore-scripts`, then runs
+`check-client-generated`, `test-client` and `qualify-wire-browser`.
+Both workspaces fetch their locked dependencies before validation. Snapshot and
 Cargo pin admission precede the test aggregates; strict compiler warnings apply
 throughout the native matrix.
+
+The installed `run-validation-targets.sh --fail-fast` owns target dispatch,
+per-target logs, timings and GitHub job summaries. CI explicitly sets
+`VALIDATION_REPOSITORY_ROOT` to the checkout because the runner lives under
+`vendor/toko-tooling`. Each invocation retains its own log directory beneath
+`$RUNNER_TEMP/auth-validation`. The failure action selects that directory through
+the input introduced by
+[Toko Tooling #392](https://github.com/dragginzgame/toko-tooling/issues/392).
 
 A separate Linux job installs pinned Actionlint, ShellCheck and Gitleaks, validates
 the workflow, and scans complete Git history once with secrets fully redacted.
 Actions are commit-pinned, repository permissions are read-only, and newer work
 cancels the same workflow/ref. Shared failure evidence retains native logs and
-security-tool setup/check logs for 14 days. Security steps preserve pipeline failure
-status while recording collector-selected logs; Gitleaks output stays fully redacted. Generated browser codec checks and installed host/SDK lifecycle
-qualification remain separate gates; Wasm coverage here proves compilation only.
+security-tool setup/check logs for 14 days. Rustup, Cargo-fetch and npm setup logs
+also use collector-selected names; pipeline failure status is preserved. Gitleaks
+output stays fully redacted. Installed host/SDK lifecycle qualification remains a
+separate gate; Wasm coverage here proves compilation only.
+
+The CI wiring was exercised locally through the shared runner and a disposable
+failure probe: a failing first target withheld later targets, a failed Cargo
+fetch retained exit 42 through `tee`, and the action's collection shell archived
+the selected logs, timings and summary. This does not claim hosted upload or
+macOS execution of the changed workflow; those remain checks of the next CI run.
 
 ## Private browser client
 
@@ -279,7 +316,7 @@ make deps-update DEPENDENCY_PACKAGE=toko-tooling
 toko-cloc -d 1
 ```
 
-`deps-list` is an offline local package inventory. `deps-update` runs Cargo in the
+`deps-list` is a local package inventory. `deps-update` runs Cargo in the
 root and any maintained qualification workspace sequentially; it does not edit
 manifest requirements or roll back earlier lock changes. Review the locks.
 The exact Toko pin changes only by deliberate selection; after updating that pin

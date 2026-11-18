@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.48.0] - 2026-11-18
+
+### Added
+
+- Add `MemoryConfig::starting_profile(audience, enrollment)` for volatile receivers
+  with overridable resource limits. Fixes [Auth #3](https://github.com/dragginzgame/ic-auth/issues/3).
+
+### 🔧 Changed
+
+- Run CI checks through the shared validation runner with per-target timings and
+  failure logs; retain Rustup, Cargo and npm setup diagnostics. Add Linux browser
+  interoperability and qualification lint coverage, and clarify release validation
+  and failed-phase recovery without repeating full checks for each upload.
+- Move the public IC Wire re-export in `ic-auth-wire::wire` to 0.25.0. Rust
+  callers exchanging Wire types across crates should select the same generation.
+- Adopt Toko Tooling 0.45.7, Platform 0.34.15, Runtime 0.23.17,
+  Testkit 0.110.0, Build 0.87.4 and Host Process 0.81.0 across the product
+  and qualification workspaces. Consolidate qualification on one Host Process
+  version; Auth contracts and browser Platform 0.2.0 remain unchanged.
+
 ## [0.47.4] - 2026-11-17
 
 ### 🩹 Fixed

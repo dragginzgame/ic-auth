@@ -2,8 +2,7 @@
 
 A clean restart of IC Auth around its current application-authentication design.
 Volatile authentication storage is the current milestone. Stable storage is a
-future milestone, targeting `ic-storage-new` with orthogonal persistence once its
-contract is ready. No interim `ic-storage` adapter is planned.
+future milestone at the published `ic-storage` boundary.
 The pre-recode implementation imposes no Wire/API compatibility obligation.
 One current contract is qualified by independent fixtures and Rust/browser checks;
 historical sources remain provenance, not executable test dependencies.
@@ -23,7 +22,7 @@ certified update path. Complete consumer integration and external signer recover
 remain open. See the
 [current handoff](docs/status/current.md) for present capability and evidence limits.
 
-Release versions are Auth 0.47.4 and protocol-types/Wire 0.43.0 (`v0.47.4`).
+Release versions are Auth 0.48.0, Auth Wire 0.44.0 and protocol-types 0.43.0 (`v0.48.0`).
 The three product crates are authorized for crates.io publication. Qualification
 crates retain `publish = false`; the browser client 0.1.0 remains private.
 Production deployment and consumer cutover require separate approval.
@@ -72,6 +71,10 @@ accounting and protected proof dispatch. `make test-memory` exercises the
 [memory receiver](docs/development/memory-receiver-boundary.md) with real Ed25519
 and certified proofs. Select `receiver-memory` together with at least one complete
 verification feature. Host inputs and transaction/recovery custody remain explicit.
+For a fresh receiver, start with `MemoryConfig::starting_profile(audience, enrollment)`,
+adjust any resource limits, then pass the config and trusted time to
+`MemoryReceiver::new_fresh`. The host still establishes enrollment and selects
+role, eligibility and scope for each operation.
 Import receiver host inputs, limits, errors and inspection results from
 `ic_auth::receiver_memory`; policy fact assembly and decisions are private.
 The certified qualification now covers independent issuers/devices/receivers,

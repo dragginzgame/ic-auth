@@ -7,6 +7,8 @@ inputs:
     required: true
   temp-root:
     description: Absolute root containing validation logs and portable-fixtures.
+  validation-log-directory:
+    description: Optional literal child directory name under temp-root containing caller-selected validation logs.
   repository-root:
     description: Absolute checkout root containing retained tool candidates.
   prepared-archive:
@@ -41,6 +43,7 @@ runs:
       env:
         EVIDENCE_PREPARED_ARCHIVE: ${{ inputs.prepared-archive }}
         EVIDENCE_COLLECTION_LOG: ${{ inputs.collection-log }}
+        EVIDENCE_VALIDATION_DIRECTORY: ${{ inputs.validation-log-directory }}
         EVIDENCE_TEMP_ROOT: ${{ inputs.temp-root }}
         EVIDENCE_REPOSITORY_ROOT: ${{ inputs.repository-root }}
         EVIDENCE_ACTION_ROOT: ${{ github.action_path }}
@@ -51,6 +54,7 @@ runs:
       run: |
         if [[ -n "${EVIDENCE_PREPARED_ARCHIVE:-}" || -n "${EVIDENCE_COLLECTION_LOG:-}" ]]; then
           # Inputs are literal paths, never commands, globs or multiline output.
+          [[ -z "${EVIDENCE_VALIDATION_DIRECTORY:-}" ]] || exit 2
           paths=()
           complete=true
           for path in "$EVIDENCE_PREPARED_ARCHIVE" "$EVIDENCE_COLLECTION_LOG"; do
@@ -76,6 +80,14 @@ runs:
         [[ "$repository_root" == /* ]] || repository_root="$PWD/$repository_root"
         [[ -d "$temp_root" && -d "$repository_root" ]] || exit 1
         inputs=()
+        validation="${EVIDENCE_VALIDATION_DIRECTORY:-}"
+        if [[ -n "$validation" ]]; then
+          [[ "$validation" =~ ^[a-zA-Z0-9][a-zA-Z0-9._-]*$ && -d "$temp_root/$validation" && ! -L "$temp_root/$validation" ]] || {
+            echo "Expected a literal validation directory immediately under temp-root" >&2
+            exit 2
+          }
+          inputs+=("$temp_root" "$validation")
+        fi
         shopt -s nullglob
         for path in "$temp_root/portable-regression.log" "$temp_root/portable-fixtures" \
             "$temp_root"/tools-*.log "$temp_root"/host-tools-*.log "$temp_root"/ic-tools-*.log "$temp_root"/rust-tools-*.log; do
