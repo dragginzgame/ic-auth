@@ -1,3 +1,5 @@
+//! Stable issuer checkpoint format and upgrade lifecycle.
+
 use super::{
     Account, Approval, BTreeMap, BTreeSet, Completion, Expiry, IssuerAuthority, IssuerConfig,
     IssuerSigning, IssuerTicket, IssuerUsage, MemoryIssuer, Phase, Principal, WorkBucket, expiry,
@@ -5,6 +7,8 @@ use super::{
 use crate::stable_upgrade::{Checkpoint, UpgradeError};
 use ic_storage::{DefaultMemoryImpl, Memory, RuntimeMemory};
 use serde::{Deserialize, Serialize};
+
+const CHECKPOINT_DOMAIN: &[u8] = b"ic-auth.issuer.v1";
 
 #[derive(Serialize, Deserialize)]
 #[serde(remote = "IssuerTicket")]
@@ -37,8 +41,13 @@ struct SavedRef<'a>(#[serde(with = "Fields")] &'a MemoryIssuer);
 #[derive(Deserialize)]
 struct Saved(#[serde(with = "Fields")] MemoryIssuer);
 
-/// Issuer with an exclusive, single-use upgrade checkpoint.
-/// Ordinary operations use the same indexed state as [MemoryIssuer].
+///
+/// StableIssuer
+///
+/// Owns a single-use upgrade checkpoint and the indexed [MemoryIssuer] used
+/// for ordinary operations between upgrades.
+///
+
 pub struct StableIssuer<M: Memory = DefaultMemoryImpl> {
     inner: MemoryIssuer,
     checkpoint: Checkpoint<M>,
@@ -53,6 +62,7 @@ impl<M: Memory> StableIssuer<M> {
     ) -> Result<Self, UpgradeError> {
         let inner =
             MemoryIssuer::new_fresh(config, now_ns).map_err(|_| UpgradeError::Configuration)?;
+
         Ok(Self {
             inner,
             checkpoint: Checkpoint::create(memory)?,
@@ -61,37 +71,47 @@ impl<M: Memory> StableIssuer<M> {
 
     /// Consume a committed upgrade checkpoint from this module's named allocation.
     /// The host must abort the upgrade transaction on any refusal.
+    /// Success advances the issuer epoch and fences callbacks from the previous boot.
     pub fn reopen(
         memory: RuntimeMemory<M>,
         config: IssuerConfig,
         now_ns: u64,
     ) -> Result<Self, UpgradeError> {
         let mut checkpoint = Checkpoint::load(memory)?;
-        let Saved(mut inner) = checkpoint.read(b"ic-auth.issuer.v1")?;
+        let Saved(mut inner) = checkpoint.read(CHECKPOINT_DOMAIN)?;
         if inner.config != config {
             return Err(UpgradeError::Configuration);
         }
         inner.validate_checkpoint()?;
         inner.restart(now_ns).map_err(|_| UpgradeError::Lifecycle)?;
         checkpoint.consume();
+
         Ok(Self { inner, checkpoint })
     }
 
     /// Save in the host's pre-upgrade transaction. Success closes the running
-    /// instance. On error the host must abort the upgrade, retaining the heap.
+    /// instance. The encoded checkpoint is limited to 8 MiB. On error the host
+    /// must abort the upgrade, retaining the heap.
     pub fn seal(&mut self) -> Result<(), UpgradeError> {
         if !self.inner.open {
             return Err(UpgradeError::Lifecycle);
         }
         self.checkpoint
-            .save(b"ic-auth.issuer.v1", &SavedRef(&self.inner))?;
+            .save(CHECKPOINT_DOMAIN, &SavedRef(&self.inner))?;
         self.inner.close();
+
         Ok(())
     }
 
     /// Access the current Auth instance under the host transaction.
     pub fn state(&mut self) -> &mut MemoryIssuer {
         &mut self.inner
+    }
+}
+
+impl<M: Memory> AsRef<MemoryIssuer> for StableIssuer<M> {
+    fn as_ref(&self) -> &MemoryIssuer {
+        &self.inner
     }
 }
 
@@ -204,11 +224,5 @@ impl MemoryIssuer {
             return Err(bad);
         }
         Ok(())
-    }
-}
-
-impl<M: Memory> AsRef<MemoryIssuer> for StableIssuer<M> {
-    fn as_ref(&self) -> &MemoryIssuer {
-        &self.inner
     }
 }

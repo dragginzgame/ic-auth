@@ -38,8 +38,8 @@ mod canister {
         issuer::init(installation)
     }
 
-    // save_receiver
-    // Commit the selected receiver checkpoint in the IC upgrade transaction.
+    // seal_auth
+    // Seal stable receiver, issuer and host state in the upgrade transaction.
     // guard  : lifecycle hook, no ingress arguments
     // limits : empty input and reply
     #[runtime::pre_upgrade(
@@ -49,14 +49,14 @@ mod canister {
         max_bytes = 0,
         on_error = issuer::endpoint_error,
     )]
-    fn save_receiver((): ()) {
+    fn seal_auth((): ()) {
         receiver::seal()
     }
 
-    // lost_volatile_state
-    // Clear certification after volatile state loss.
+    // reopen_auth
+    // Reopen stable Auth or clear certification after volatile state loss.
     // guard  : reject oversized input before decoding
-    // limits : empty input, no reply
+    // limits : up to one fault-selection byte, no reply
     #[runtime::post_upgrade(
         runtime = ic_platform_runtime,
         guard = issuer::bounded_request,
@@ -64,7 +64,7 @@ mod canister {
         max_bytes = 1,
         on_error = issuer::endpoint_error,
     )]
-    fn lost_volatile_state(fault: bool) {
+    fn reopen_auth(fault: bool) {
         receiver::reopen(fault)
     }
 

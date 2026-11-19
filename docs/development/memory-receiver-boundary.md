@@ -160,8 +160,8 @@ changes invalidate old sessions without scanning/removing records or resetting
 proof/unknown-logout credit. Expired enrollment still permits safe self-revocation.
 `close` is terminal: neither a new challenge, local generation nor authenticated
 enrollment can reopen a lost/poisoned instance. A host must not construct empty
-replacement state after loss. Complete recovery, terminal-revocation installation
-and actual IC boot/callback authentication remain host qualification obligations.
+replacement state after loss. Terminal-revocation installation and actual IC boot/callback
+authentication remain host qualification obligations.
 
 Run `make test-memory`. Thirty-one focused public-API Ed25519 scenarios use nine independently
 packed and OpenSSL-signed credentials. They cover failed verification without

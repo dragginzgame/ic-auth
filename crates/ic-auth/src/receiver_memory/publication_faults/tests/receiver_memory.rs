@@ -1485,16 +1485,26 @@ fn logout_admission_orderings_deny_without_cross_receiver_effects() {
 }
 
 #[cfg(feature = "receiver-stable")]
-#[path = "../../../../tests/stable_support/mod.rs"]
-mod stable_support;
-
-#[cfg(feature = "receiver-stable")]
 #[test]
 fn stable_upgrade_retains_live_session_then_logout_across_two_boots() {
     use ic_auth::receiver_memory::StableReceiver;
     let h = Host::new();
     let backing = ic_storage::VectorMemory::default();
-    let lease = || stable_support::lease(&backing);
+    let key = "auth.receiver.v1";
+    let lease = || {
+        let runtime = ic_storage::testing::fixture_runtime(
+            backing.clone(),
+            "auth",
+            "auth.",
+            &[key],
+            Default::default(),
+        )
+        .unwrap();
+
+        runtime
+            .open_memory(&ic_storage::StableKey::parse(key).unwrap())
+            .unwrap()
+    };
     let mut owner = StableReceiver::new_fresh(lease(), h.config(), 0).unwrap();
     h.enroll(owner.state(), 7).unwrap();
     let context = h.context("initial", 25);

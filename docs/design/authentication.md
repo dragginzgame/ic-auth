@@ -138,19 +138,9 @@ establish a new login or invalidate every predecessor credential. Even a newly
 signed credential can belong to an old login. Auth has no independent record
 of a cutover that covers them all.
 
-A future successful path requires evidence from outside the lost heap. It
-must bind the receiver and enrollment authority, audience, issuer and key
-binding to a non-rollbackable predecessor and generation. It must either
-preserve all still-effective replay entries, login/device generations and
-denial fences (including unknown logout), revocations, pending operations and
-their original deadlines, or establish an authoritative cutoff that invalidates
-all predecessor proofs, renewals, sessions and late responses. Repetition or
-interruption must never expose a partially installed decision or extend a
-deadline. Old, contradictory, unsupported or incomplete evidence has the same
-closed outcome as missing evidence. No such authority or evidence is supplied
-by the volatile profile. A future contract that supplies it must still require
-fresh authentication, caller binding and current authorization before creating a
-new session. The application owns the verified subject's private-record mapping.
+Selecting volatile storage makes complete state loss terminal for that installation.
+Hosts that need continuity across upgrades must select stable storage before the
+loss and retain the checkpoint. [Auth #6](https://github.com/dragginzgame/ic-auth/issues/6)
 
 The [installed witness](../../qualification/ic-auth-host-conformance/README.md#complete-loss-recovery-witness)
 qualifies this decision for [Auth #4](https://github.com/dragginzgame/ic-auth/issues/4)

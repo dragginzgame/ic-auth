@@ -1,3 +1,5 @@
+//! Stable receiver checkpoint format and upgrade lifecycle.
+
 use super::{
     Account, BTreeMap, BTreeSet, CallerRecord, Lifecycle, MemoryConfig, MemoryReceiver, Principal,
     Replay, Slot, VerificationBudget, WorkBucket, enrollment, policy,
@@ -5,6 +7,8 @@ use super::{
 use crate::stable_upgrade::{Checkpoint, UpgradeError};
 use ic_storage::{DefaultMemoryImpl, Memory, RuntimeMemory};
 use serde::{Deserialize, Serialize};
+
+const CHECKPOINT_DOMAIN: &[u8] = b"ic-auth.receiver.v1";
 
 #[derive(Serialize, Deserialize)]
 #[serde(remote = "MemoryReceiver")]
@@ -34,8 +38,13 @@ struct SavedRef<'a>(#[serde(with = "Fields")] &'a MemoryReceiver);
 #[derive(Deserialize)]
 struct Saved(#[serde(with = "Fields")] MemoryReceiver);
 
-/// Receiver with an exclusive, single-use upgrade checkpoint.
-/// Ordinary operations use the same indexed state as [MemoryReceiver].
+///
+/// StableReceiver
+///
+/// Owns a single-use upgrade checkpoint and the indexed [MemoryReceiver] used
+/// for ordinary operations between upgrades.
+///
+
 pub struct StableReceiver<M: Memory = DefaultMemoryImpl> {
     inner: MemoryReceiver,
     checkpoint: Checkpoint<M>,
@@ -50,6 +59,7 @@ impl<M: Memory> StableReceiver<M> {
     ) -> Result<Self, UpgradeError> {
         let inner =
             MemoryReceiver::new_fresh(config, now_ns).map_err(|_| UpgradeError::Configuration)?;
+
         Ok(Self {
             inner,
             checkpoint: Checkpoint::create(memory)?,
@@ -58,13 +68,14 @@ impl<M: Memory> StableReceiver<M> {
 
     /// Consume a committed upgrade checkpoint from this module's named allocation.
     /// The host must abort the upgrade transaction on any refusal.
+    /// Obtain fresh authenticated enrollment before using retained sessions.
     pub fn reopen(
         memory: RuntimeMemory<M>,
         config: MemoryConfig,
         now_ns: u64,
     ) -> Result<Self, UpgradeError> {
         let mut checkpoint = Checkpoint::load(memory)?;
-        let Saved(mut inner) = checkpoint.read(b"ic-auth.receiver.v1")?;
+        let Saved(mut inner) = checkpoint.read(CHECKPOINT_DOMAIN)?;
         if inner.config != config {
             return Err(UpgradeError::Configuration);
         }
@@ -76,18 +87,21 @@ impl<M: Memory> StableReceiver<M> {
         inner.lifecycle = Lifecycle::Fresh;
         inner.enrollment.discard_pending();
         checkpoint.consume();
+
         Ok(Self { inner, checkpoint })
     }
 
     /// Save in the host's pre-upgrade transaction. Success closes the running
-    /// instance. On error the host must abort the upgrade, retaining the heap.
+    /// instance. The encoded checkpoint is limited to 8 MiB. On error the host
+    /// must abort the upgrade, retaining the heap.
     pub fn seal(&mut self) -> Result<(), UpgradeError> {
         if self.inner.lifecycle == Lifecycle::Closed {
             return Err(UpgradeError::Lifecycle);
         }
         self.checkpoint
-            .save(b"ic-auth.receiver.v1", &SavedRef(&self.inner))?;
+            .save(CHECKPOINT_DOMAIN, &SavedRef(&self.inner))?;
         self.inner.close();
+
         Ok(())
     }
 

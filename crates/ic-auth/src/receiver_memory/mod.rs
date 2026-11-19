@@ -2,8 +2,8 @@
 //!
 //! Host inputs must come from one isolated transaction. This module neither
 //! authenticates enrollment nor installs endpoints. Fresh activation is only for
-//! a genuinely new receiver; losing this state requires host-controlled recovery,
-//! never constructing an empty replacement and resuming the old authority.
+//! a genuinely new receiver. Complete loss of volatile state permanently closes
+//! that installation.
 //!
 //! Hosts use this module's inputs, limits, receipts and inspection projections.
 //! Policy snapshots and preflight decisions are internal implementation details:
@@ -110,7 +110,7 @@ impl MemoryConfig {
     ///
     /// Override individual public fields before passing this configuration to
     /// [`MemoryReceiver::new_fresh`], which validates it. Enrollment is still
-    /// required before admission. Use the host recovery path after state loss.
+    /// required before admission. Complete volatile state loss is terminal.
     #[must_use]
     pub const fn starting_profile(audience: AudienceId, enrollment: EnrollmentBinding) -> Self {
         const SECOND_NS: u64 = 1_000_000_000;

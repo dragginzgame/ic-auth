@@ -149,13 +149,16 @@ reconciliation, independent logins, owner isolation, renewal, interrupted cleanu
 Unconfirmed replies, cross-tab logout and late issuance. Enrollment cases separately
 exercise overlapping refresh, expiry across awaits and authority loss.
 
-This is pinned source inspection and consumer-reported qualification, **not a new
-execution of Canic's tests here**. Its profile witness uses local test keys and
-Ed25519 credentials. Production key custody, external signer uncertainty, certified
-issuer integration, managed Auth preservation and default production profile
-cutover are not established. Persistent profile data does not make Auth durable.
-Existing Canic issues retain their acceptance/closure ownership; these observations
-do not close them or authorize migration. No sibling source was changed.
+The 0.219.0 profile witness uses local test keys and Ed25519 credentials. Its
+application data survives an upgrade while its volatile Auth sessions close.
+
+Canic **0.238.0** added opt-in stable receiver and issuer storage for fresh
+installations. Its installed Ed25519 regression checks that a failed reopen
+rolls back, a live session resumes after fresh enrollment, and logout and replay
+refusal survive a second upgrade. It also checks reconciliation of completed
+and unresolved issuer operations and rejection of a stale callback. This
+handoff records inspection of the pinned consumer test. [Canic #50](https://github.com/dragginzgame/canic/issues/50)
+and [installed regression](https://github.com/dragginzgame/canic/blob/9f5b1f51fa81d8d4e18f9078568c097e6c1f8bf0/qualification/canic-qualification/tests/auth_stable_tests.rs).
 
 ## Browser evidence and remaining acceptance
 
@@ -259,7 +262,7 @@ and certificate authentication remain consumer/installed acceptance boundaries.
 The pinned Canic witness above supplies a concrete Ed25519 multi-receiver consumer
 path. Still required are production cutover/key custody, external signer recovery,
 certified consumer integration and accepted operating budgets. No application operation may be
-replayed to obtain that evidence. Consumer adoption of stable checkpoints requires installing and qualifying its own upgrade hooks.
+replayed to obtain that evidence.
 
 ## Historical entrypoints
 

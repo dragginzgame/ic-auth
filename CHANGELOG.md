@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.48.7] - 2026-11-19
+
+### 🧹 Cleanup
+
+- Adopt Toko Tooling 0.45.22 in both workspaces and use the published
+  IC Storage test fixture for stable upgrade tests.
+- Clarify that complete volatile state loss permanently closes the installation,
+  and document the stable-storage integration delivered in Canic 0.238.0.
+
 ## [0.48.6] - 2026-11-19
 
 ### Features

@@ -46,7 +46,7 @@ The operation owner retains clock observations and attempted-work charges on
 normal refusals, verifies the exact canonical claims and publishes affected state.
 Pure decisions are neither reservations nor portable write tokens. Closed-state
 handling, storage/host rollback and complete recovery remain distinct obligations.
-Stable storage is deferred; no interim `ic-storage` adapter is selected.
+Stable receivers reuse this policy and retain their state through [upgrade checkpoints](../design/DESIGN.md#stable-upgrade-checkpoints).
 
 ## Coverage after API narrowing
 

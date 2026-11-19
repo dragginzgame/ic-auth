@@ -5,13 +5,12 @@ use crate::{
     CONTROL, Command, Fault, OBSERVE, Observation, Progress, REQUEST, RESPONSE, Refusal, SEED,
     hash_bytes,
 };
-use ic_auth::issuer_memory::StableIssuer;
 use ic_auth::issuer_memory::{
     CertifiedCompletionError, IssueRequest, IssuerAuthority, IssuerConfig, IssuerError,
     IssuerPolicy, IssuerSigning, IssuerStatus, IssuerTicket, MemoryIssuer, RenewRequest,
+    StableIssuer,
 };
-use ic_auth_protocol_types::Principal;
-use ic_auth_protocol_types::{AudienceId, CanonicalId, DelegatedRoleGrant};
+use ic_auth_protocol_types::{AudienceId, CanonicalId, DelegatedRoleGrant, Principal};
 use ic_platform::certificate::construction::{
     HashTree, empty, encode_canister_signature, labeled, leaf,
 };

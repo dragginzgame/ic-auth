@@ -1,6 +1,6 @@
 [package]
 name = "ic-auth"
-version = "0.48.6"
+version = "0.48.7"
 edition.workspace = true
 rust-version.workspace = true
 license-file.workspace = true
@@ -44,6 +44,7 @@ serde = { workspace = true, optional = true }
 sha2.workspace = true
 
 [dev-dependencies]
+ic-storage = { workspace = true, features = ["test-support"] }
 toko-tooling.workspace = true
 
 # Both the public integration target and private interruption tests use this fixture directory.

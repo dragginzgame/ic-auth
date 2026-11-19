@@ -30,7 +30,7 @@ ic-wire = "0.26.0"
 serde = "1.0.229"
 sha2 = "0.11.1"
 tokio = "1.54.1"
-toko-tooling = "=0.45.21"
+toko-tooling = "=0.45.22"
 
 [workspace.lints.cargo]
 unused_dependencies = "deny"

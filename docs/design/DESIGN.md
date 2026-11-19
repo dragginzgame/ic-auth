@@ -500,7 +500,7 @@ Every install, upgrade and recovery starts authentication closed. Checked retain
 
 Snapshots retain monotonic revision/generation and terminal key revocation. Exact repeat revision/digest is idempotent; lower revision or same revision with changed content refuses. Authority generation changes invalidate prior sessions atomically. Freshness is at most the reference's 3,600 seconds and any tighter approval deadline; refreshing it cannot extend earlier leases.
 
-Complete persistent reopen is distinct from volatile loss or stale backup restoration. Missing replay, denial, device or authority evidence cannot be replaced with an empty store, local timestamp, bumped local generation or fresh enrollment. Stay closed pending trusted complete recovery or a separately authorized and qualified fence that excludes every old credential.
+Complete persistent reopen is distinct from volatile loss or stale backup restoration. Missing replay, denial, device or authority evidence cannot be replaced with an empty store, local timestamp, bumped local generation or fresh enrollment. Complete volatile loss permanently closes that installation. Stable installations reopen only from a valid retained checkpoint.
 
 No finite clock-skew assumption makes unknown logout conclusive. An issuer-ahead credential may remain capable of later admission. Preserve the reference's explicit Unconfirmed outcome and lost-state refusal.
 
