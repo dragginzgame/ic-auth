@@ -33,6 +33,15 @@ pub use types::{
     IssuerUsage, RenewRequest, RenewalSelection, RetainedRenewal, SigningInput,
 };
 
+// Each call marks a completed write where unit tests can interrupt publication.
+macro_rules! after_write {
+    () => {
+        #[cfg(test)]
+        $crate::issuer_memory::tests::after_write();
+    };
+}
+use after_write;
+
 type Identity = (u64, [u8; 32]);
 // Match reference expiry ties: time, principal length/bytes, epoch, identity.
 type Expiry = (u64, u8, Principal, Identity);
@@ -394,25 +403,21 @@ impl MemoryIssuer {
         // an IC host still owns rollback of the enclosing transaction.
         self.open = false;
         let owner = self.accounts.entry(account).or_default();
-        #[cfg(test)]
-        tests::after_write();
+        after_write!();
         if let Some(login) = new_login {
             self.generation = login.generation;
             owner.logins.insert(login_key, login);
             self.usage.logins += 1;
-            #[cfg(test)]
-            tests::after_write();
+            after_write!();
         }
         self.idle_logins.remove(&idle_key);
-        #[cfg(test)]
-        tests::after_write();
+        after_write!();
         owner
             .logins
             .get_mut(&login_key)
             .expect("selected operation login")
             .references = references;
-        #[cfg(test)]
-        tests::after_write();
+        after_write!();
         if let Some(sequence) = renewal {
             // Existing login was selected above; advance its watermark in the
             // same publication as the one shared operation and lookup index.
@@ -421,22 +426,17 @@ impl MemoryIssuer {
                 .get_mut(&login_key)
                 .expect("selected renewal login")
                 .renewal = RenewalProgress::InFlight(sequence);
-            #[cfg(test)]
-            tests::after_write();
+            after_write!();
             owner.renewals.insert((login_key, sequence), operation_key);
-            #[cfg(test)]
-            tests::after_write();
+            after_write!();
         }
         self.operation_expiry.insert(operation_expiry);
-        #[cfg(test)]
-        tests::after_write();
+        after_write!();
         owner.operations.insert(operation_key, op);
-        #[cfg(test)]
-        tests::after_write();
+        after_write!();
         self.usage.operations += 1;
         self.usage.result_bytes = result_bytes;
-        #[cfg(test)]
-        tests::after_write();
+        after_write!();
         self.open = true;
         Ok(ticket)
     }
@@ -611,8 +611,7 @@ impl MemoryIssuer {
             _ => unreachable!("preflighted completion phase"),
         };
         op.phase = Phase::Completed(approval, completion);
-        #[cfg(test)]
-        tests::after_write();
+        after_write!();
         match (op.renewal, &login.renewal) {
             (None, RenewalProgress::Initial) => login.renewal = RenewalProgress::Completed(0),
             (Some(n), RenewalProgress::InFlight(current)) if n == *current => {
@@ -620,8 +619,7 @@ impl MemoryIssuer {
             }
             _ => {}
         }
-        #[cfg(test)]
-        tests::after_write();
+        after_write!();
         self.open = true;
     }
 
@@ -703,11 +701,9 @@ impl MemoryIssuer {
         let boot = self.boot.checked_add(1).ok_or(IssuerError::Capacity)?;
         self.open = false;
         self.epoch = epoch;
-        #[cfg(test)]
-        tests::after_write();
+        after_write!();
         self.boot = boot;
-        #[cfg(test)]
-        tests::after_write();
+        after_write!();
         self.open = true;
         Ok(())
     }

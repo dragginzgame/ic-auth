@@ -101,8 +101,7 @@ impl MemoryIssuer {
                 admission_deadline_ns: op.admission,
             })
             .map_err(CertifiedCompletionError::Publication)?;
-            #[cfg(test)]
-            super::tests::after_write();
+            super::after_write!();
             self.finish(ticket, Completion::Certified);
         }
         self.completed(ticket).map_err(Into::into)

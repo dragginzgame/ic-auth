@@ -986,7 +986,7 @@ dependencies = [
 
 [[package]]
 name = "ic-auth"
-version = "0.48.3"
+version = "0.48.4"
 dependencies = [
  "ic-auth-protocol-types",
  "ic-platform",
@@ -1243,9 +1243,9 @@ dependencies = [
 
 [[package]]
 name = "ic-wire"
-version = "0.25.1"
+version = "0.25.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "90127bd0f1ed54cb466b3dcd08339d62a92d54edeb4759379794422fd09845d0"
+checksum = "695d18963ce56d74d2b619d90dbb560039d0bd2ecc0cc04a2ae2ce5ea2911f6f"
 dependencies = [
  "bytemuck",
  "postcard",

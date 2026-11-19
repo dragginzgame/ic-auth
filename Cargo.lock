@@ -365,7 +365,7 @@ dependencies = [
 
 [[package]]
 name = "ic-auth"
-version = "0.48.3"
+version = "0.48.4"
 dependencies = [
  "ic-auth-protocol-types",
  "ic-platform",
@@ -452,9 +452,9 @@ dependencies = [
 
 [[package]]
 name = "ic-wire"
-version = "0.25.1"
+version = "0.25.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "90127bd0f1ed54cb466b3dcd08339d62a92d54edeb4759379794422fd09845d0"
+checksum = "695d18963ce56d74d2b619d90dbb560039d0bd2ecc0cc04a2ae2ce5ea2911f6f"
 dependencies = [
  "bytemuck",
  "ic-platform-types",
@@ -467,9 +467,9 @@ dependencies = [
 
 [[package]]
 name = "ic-wire-derive"
-version = "0.25.1"
+version = "0.25.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "25085df6fa7f9fb818ff355a8ad668c969c5dcea4de81022b44f6a92ce56e6bb"
+checksum = "e8da94da6a93c1a0839f17145d28455a9e1477a28ef496ba91c30201146cf50c"
 dependencies = [
  "proc-macro2",
  "quote",

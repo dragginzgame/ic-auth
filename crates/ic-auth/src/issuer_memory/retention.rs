@@ -55,57 +55,46 @@ impl MemoryIssuer {
         // maintained by this memory owner, not admitted from a persisted format.
         self.open = false;
         self.epoch = next_epoch;
-        #[cfg(test)]
-        super::tests::after_write();
+        super::after_write!();
         for key in operations {
             self.operation_expiry.remove(&key);
-            #[cfg(test)]
-            super::tests::after_write();
+            super::after_write!();
             let owner = self
                 .accounts
                 .get_mut(&key.2)
                 .expect("indexed operation account");
             let op = owner.operations.remove(&key.3).expect("indexed operation");
-            #[cfg(test)]
-            super::tests::after_write();
+            super::after_write!();
             if let Some(sequence) = op.renewal {
                 owner.renewals.remove(&(op.login, sequence));
-                #[cfg(test)]
-                super::tests::after_write();
+                super::after_write!();
             }
             let login = owner.logins.get_mut(&op.login).expect("referenced login");
             login.references -= 1;
-            #[cfg(test)]
-            super::tests::after_write();
+            super::after_write!();
             if login.references == 0 {
                 self.idle_logins
                     .insert(expiry(login.deadline, key.2, op.login));
-                #[cfg(test)]
-                super::tests::after_write();
+                super::after_write!();
             }
             self.usage.operations -= 1;
             self.usage.result_bytes -= op.result_bytes;
-            #[cfg(test)]
-            super::tests::after_write();
+            super::after_write!();
         }
         for key in logins {
             self.idle_logins.remove(&key);
-            #[cfg(test)]
-            super::tests::after_write();
+            super::after_write!();
             let owner = self
                 .accounts
                 .get_mut(&key.2)
                 .expect("indexed login account");
             owner.logins.remove(&key.3).expect("indexed idle login");
-            #[cfg(test)]
-            super::tests::after_write();
+            super::after_write!();
             self.usage.logins -= 1;
-            #[cfg(test)]
-            super::tests::after_write();
+            super::after_write!();
             if owner.logins.is_empty() {
                 self.accounts.remove(&key.2);
-                #[cfg(test)]
-                super::tests::after_write();
+                super::after_write!();
             }
         }
         self.open = true;
