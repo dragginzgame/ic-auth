@@ -1,5 +1,6 @@
 //! Test-only Wire controls. Never install this canister as an application service.
 pub mod browser;
+// The native harness uses the Wire types below. IC system imports exist only on Wasm.
 #[cfg(target_arch = "wasm32")]
 mod canister;
 pub mod certified;

@@ -1,6 +1,8 @@
 //! Isolated installed certified receiver; no application endpoint mounting.
-use super::{Command, Measurement, SECOND, at, bytes, hash};
-use crate::receiver::{Outcome, Refusal};
+use crate::{
+    certified::{Command, MEASURE, Measurement, SECOND, SEED, at, bytes, hash},
+    receiver::{Outcome, Refusal},
+};
 use ic_auth::{
     receiver_memory::{
         AdmissionHost, EnrollmentBinding, EnrollmentMetadata, LoginLimits, LogoutReceipt,
@@ -29,7 +31,7 @@ struct State {
 
 thread_local! { static STATE: RefCell<Option<State>> = const { RefCell::new(None) }; }
 
-pub(crate) fn init(network: Vec<u8>) {
+pub(super) fn init(network: Vec<u8>) {
     if network.is_empty() {
         return;
     }
@@ -150,11 +152,9 @@ fn control(s: &mut State, command: Command) -> Result<Outcome, Refusal> {
                     max_certificate_age_ns: 20 * SECOND,
                 },
             };
-            let der = ic_platform::certificate::construction::canister_key_der(
-                context.issuer,
-                super::SEED,
-            )
-            .unwrap();
+            let der =
+                ic_platform::certificate::construction::canister_key_der(context.issuer, SEED)
+                    .unwrap();
             let proof = credential(signature, der);
             let result = s
                 .receiver
@@ -211,7 +211,7 @@ fn decode(bytes: &[u8]) -> Result<Command, ic_wire::Error> {
     ic_wire::decode(
         bytes,
         ic_wire::Encoding::Frame {
-            method: super::MEASURE,
+            method: MEASURE,
             direction: ic_wire::Direction::Request,
         },
         crate::RESPONSE,
@@ -225,7 +225,7 @@ fn encode(value: Measurement) -> Result<Vec<u8>, ic_wire::Error> {
     ic_wire::encode(
         &value,
         ic_wire::Encoding::Frame {
-            method: super::MEASURE,
+            method: MEASURE,
             direction: ic_wire::Direction::Response,
         },
         crate::RESPONSE,
@@ -268,7 +268,7 @@ fn measure(command: Command) -> Measurement {
         let response_bytes = ic_wire::encode(
             &result,
             ic_wire::Encoding::Frame {
-                method: super::MEASURE,
+                method: MEASURE,
                 direction: ic_wire::Direction::Response,
             },
             crate::RESPONSE,

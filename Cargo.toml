@@ -17,7 +17,7 @@ ic-wire = "0.25.0"
 serde = { version = "1.0.229", features = ["derive"] }
 sha2 = "0.11.1"
 # Tests and tooling
-toko-tooling = "=0.45.15"
+toko-tooling = "=0.45.16"
 
 [workspace.lints.cargo]
 unused_dependencies = "deny"

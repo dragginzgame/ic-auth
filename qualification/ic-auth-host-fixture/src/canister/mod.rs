@@ -1,4 +1,9 @@
 //! Standalone fixture adapter, not Canic application endpoint integration.
+mod browser;
+mod certified;
+mod enrollment;
+mod receiver;
+
 use super::{
     CONTROL, Command, Fault, OBSERVE, Observation, Progress, REQUEST, RESPONSE, Refusal, SEED,
     hash_bytes,
@@ -71,12 +76,12 @@ fn init(installation: crate::Installation) {
     } else {
         ic_auth_protocol_types::Principal::try_from_slice(&installation.authority).unwrap()
     };
-    super::certified::canister::init(installation.certified_network_key);
-    super::receiver::canister::init(
+    certified::init(installation.certified_network_key);
+    receiver::init(
         authority,
         installation.receiver_capacity.unwrap_or_default(),
     );
-    super::browser::canister::init();
+    browser::init();
     // Only a fresh install creates state. Post-upgrade never calls this function.
     let issuer = MemoryIssuer::new_fresh(
         IssuerConfig {

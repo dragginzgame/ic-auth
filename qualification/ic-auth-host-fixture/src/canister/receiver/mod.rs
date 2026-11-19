@@ -1,11 +1,15 @@
 //! Real IC receiver transactions with fixed protected test authority.
 mod enrollment;
 
-use super::{
-    CONTROL, Command, OBSERVE, Observation, Outcome, REQUEST, Refusal, TIME_ORIGIN_NS, audience,
+use crate::{
+    RESPONSE,
+    enrollment::Snapshot,
+    hash_bytes,
+    receiver::{
+        CONTROL, Capacity, Command, MEASURE, Measurement, OBSERVE, Observation, Outcome, REQUEST,
+        Refusal, TIME_ORIGIN_NS, audience,
+    },
 };
-
-use crate::{RESPONSE, enrollment::Snapshot, hash_bytes};
 use ic_auth::{
     receiver_memory::{
         AdmissionHost, EnrollmentBinding, LoginLimits, LogoutError, LogoutReceipt, MemoryConfig,
@@ -38,7 +42,7 @@ thread_local! {
     static STATE: RefCell<State> = RefCell::new(State::default());
 }
 
-pub(crate) fn init(authority: Principal, capacity: super::Capacity) {
+pub(super) fn init(authority: Principal, capacity: Capacity) {
     let receiver = MemoryReceiver::new_fresh(
         MemoryConfig {
             audience: audience(),
@@ -364,18 +368,18 @@ fn decode_measurement(bytes: &[u8]) -> Result<Command, ic_wire::Error> {
     ic_wire::decode(
         bytes,
         ic_wire::Encoding::Frame {
-            method: super::MEASURE,
+            method: MEASURE,
             direction: ic_wire::Direction::Request,
         },
         REQUEST,
     )
 }
 
-fn encode_measurement(value: super::Measurement) -> Result<Vec<u8>, ic_wire::Error> {
+fn encode_measurement(value: Measurement) -> Result<Vec<u8>, ic_wire::Error> {
     ic_wire::encode(
         &value,
         ic_wire::Encoding::Frame {
-            method: super::MEASURE,
+            method: MEASURE,
             direction: ic_wire::Direction::Response,
         },
         RESPONSE,
@@ -392,7 +396,7 @@ fn encode_measurement(value: super::Measurement) -> Result<Vec<u8>, ic_wire::Err
     max_bytes = 4096,
     on_error = crate::canister::endpoint_error,
 )]
-async fn measure(command: Command) -> super::Measurement {
+async fn measure(command: Command) -> Measurement {
     // Counter zero is message-local: never measure across an inter-canister await.
     if matches!(command, Command::Enroll(_)) {
         api::trap("enrollment is outside synchronous measurement");
@@ -403,7 +407,7 @@ async fn measure(command: Command) -> super::Measurement {
     let instructions = runtime::raw::instruction_counter() - before;
     let after_heap = std::arch::wasm32::memory_size::<0>() as u64;
     let response_bytes = encode_result(result).unwrap().len() as u64;
-    super::Measurement {
+    Measurement {
         result,
         instructions,
         heap_pages: (before_heap, after_heap),

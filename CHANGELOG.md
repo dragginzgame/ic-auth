@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.48.4] - Unreleased
+
+### 🧹 Cleanup
+
+- Adopt Toko Tooling 0.45.16 and group installed fixture endpoints under one
+  Wasm guard. The native harness continues to use the shared Wire contracts.
+
 ## [0.48.3] - 2026-11-19
 
 ### 🧹 Cleanup

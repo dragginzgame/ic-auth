@@ -1,6 +1,4 @@
 //! Installed-cost fixture using independently OpenSSL-signed root/claims records.
-#[cfg(target_arch = "wasm32")]
-pub(crate) mod canister;
 
 use serde::{Deserialize, Serialize};
 
@@ -21,9 +19,8 @@ pub fn at(seconds: u64) -> u64 {
 /// Panics if the selected frozen record is missing or malformed.
 #[must_use]
 pub fn bytes(name: &str) -> Vec<u8> {
-    let records = include_str!(
-        "../../../ic-auth-certified-conformance/tests/fixtures/certified-installed.tsv"
-    );
+    let records =
+        include_str!("../../ic-auth-certified-conformance/tests/fixtures/certified-installed.tsv");
     let (_, value) = records
         .lines()
         .filter_map(|l| l.split_once('\t'))

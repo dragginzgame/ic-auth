@@ -1,7 +1,11 @@
 //! Fixed test account/browser, local test signer and installation-owned enrollment.
 //! No wallet service, external signing/recovery or production Canic mounting is modeled.
-use super::{CREDENTIAL, OBSERVE, Observation, WRITE};
-use crate::{REQUEST, RESPONSE, hash_bytes, receiver::audience};
+use crate::{
+    REQUEST, RESPONSE,
+    browser::{CREDENTIAL, OBSERVE, Observation, WRITE},
+    hash_bytes,
+    receiver::audience,
+};
 use ic_auth::{
     issuer_memory::{
         IssueRequest, IssuedProof, IssuerAuthority, IssuerConfig, IssuerError, IssuerPolicy,
@@ -70,7 +74,7 @@ fn authority(expires: u64) -> IssuerAuthority {
     }
 }
 
-pub(crate) fn init() {
+pub(super) fn init() {
     let now = api::time();
     let expires = now + 300 * SECOND;
     let id = api::canister_self();

@@ -1,6 +1,4 @@
 //! Single-key enrollment exchange used only by installed qualification.
-#[cfg(target_arch = "wasm32")]
-mod canister;
 
 use serde::{Deserialize, Serialize};
 

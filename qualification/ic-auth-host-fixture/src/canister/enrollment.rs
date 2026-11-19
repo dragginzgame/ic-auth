@@ -1,6 +1,8 @@
 //! Actual inter-canister fixture responder; never a production enrollment service.
-use super::{CONFIGURE, KEY, LIMITS, METHOD, Scenario, Snapshot};
-use crate::receiver::TIME_ORIGIN_NS;
+use crate::{
+    enrollment::{CONFIGURE, KEY, LIMITS, METHOD, Scenario, Snapshot},
+    receiver::TIME_ORIGIN_NS,
+};
 use ic_platform_runtime::{self as runtime, system as api};
 use std::cell::Cell;
 

@@ -1,6 +1,4 @@
 //! Combined issuer/receiver for a real browser journey, never a deployable service.
-#[cfg(target_arch = "wasm32")]
-pub(crate) mod canister;
 
 use serde::{Deserialize, Serialize};
 
