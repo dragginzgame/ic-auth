@@ -95,6 +95,7 @@ pub(super) fn snapshot(challenge: [u8; 32]) -> Snapshot {
             result.revision = 2;
             result.expires_at_ns += 30_000_000_000;
         }
+        Scenario::SecondRefresh => result.revision = 3,
         Scenario::WrongReceiver => result.receiver = vec![8],
         Scenario::WrongChallenge => result.challenge[0] ^= 1,
         Scenario::Expired => result.expires_at_ns = result.issued_at_ns,

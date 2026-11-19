@@ -48,10 +48,9 @@ boundaries without becoming a dependency of the Auth crates.
 
 ## Storage
 
-Volatile authentication is the current implementation milestone. The future stable-storage milestone will review
-the published `ic-storage` allocation and collection contract. Keep semantic rules
-reusable and qualify lifecycle, corruption admission and host rollback at that
-milestone. See [future stable storage](DESIGN.md#future-stable-storage).
+Hosts select volatile Auth or stable upgrade checkpoints independently for each
+receiver and issuer. Both use the same bounded state transitions between upgrades.
+See [checkpoint lifecycle and host obligations](DESIGN.md#stable-upgrade-checkpoints).
 
 Storage mechanism must not select different authentication policy. Share pure decisions where that
 reduces duplicate maintenance; do not force physical reads, indexing or mutation

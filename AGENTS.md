@@ -17,14 +17,10 @@ Read README.md, docs/design/DESIGN.md, docs/design/authentication.md,
   Historical Wire/API identities and layouts are provenance, not preservation
   requirements. Do not execute the legacy implementation as a test oracle or
   enable the retired legacy-compatibility qualification graph.
-- Volatile authentication storage is the current milestone. Stable storage is
-  deferred to a future milestone; do not build an interim `ic-storage` adapter.
-  Keep semantic rules reusable without a speculative storage abstraction.
-- Future stable storage belongs at the published `ic-storage` boundary. The
-  supplier retired its OP experiment; do not prescribe the former `ic-storage-new`
-  runtime. At the separately selected stable-storage milestone, review the current
-  allocation/collection contract and qualify lifecycle, corruption admission and
-  rollback. This does not expand the current volatile milestone.
+- Support volatile Auth and opt-in stable upgrade checkpoints through published
+  `ic-storage`. Both modes use the same bounded issuer and receiver operations.
+  Qualify stable reopen, corruption refusal, fresh enrollment and IC rollback.
+  A lost volatile installation has no checkpoint to migrate.
 - Host inputs own caller, time, authority, memory leases, transactions and
   certification-root publication. Untrusted fields never establish authority.
 - Auth must not depend on Canic or Toko. Use published Platform/Types, Storage,

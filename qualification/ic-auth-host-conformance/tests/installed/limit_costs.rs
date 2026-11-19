@@ -22,7 +22,7 @@ async fn limit_cost_observations() {
         Sha256::digest(&wasm)
     );
     let id = install(pic, &wasm).await;
-    receiver::time(pic, 25).await;
+    receiver::start_credit_checks(pic, id).await;
     assert_eq!(
         receiver::control(
             pic,

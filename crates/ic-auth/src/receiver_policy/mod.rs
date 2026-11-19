@@ -28,6 +28,8 @@ use std::{error::Error, fmt};
 pub(crate) use capacity::{AdmissionFootprint, assess_capacity};
 pub use capacity::{SessionCapacity, SessionUsage};
 pub use login::LoginLimits;
+#[cfg(feature = "receiver-stable")]
+pub(crate) use login::check_record;
 pub(crate) use login::{LoginDecision, LoginSnapshot, assess_login};
 
 #[cfg(feature = "receiver-memory")]
@@ -37,6 +39,10 @@ pub use logout::{LogoutError, LogoutReceipt, UnknownLogoutLimits};
 
 /// Immutable login association retained independently of session lease expiry.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[cfg_attr(
+    feature = "receiver-stable",
+    derive(serde::Serialize, serde::Deserialize)
+)]
 pub struct LoginBinding {
     /// Issuer qualifying the account.
     pub issuer: Principal,
@@ -83,6 +89,10 @@ pub struct SessionFacts<'a> {
 
 /// Selected caller's retained login reservation or denial.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[cfg_attr(
+    feature = "receiver-stable",
+    derive(serde::Serialize, serde::Deserialize)
+)]
 pub(crate) struct LoginFacts {
     /// Lookup key; must match the authenticated caller.
     pub caller: Principal,
@@ -315,12 +325,7 @@ pub(crate) fn check_authority(
     Ok(())
 }
 
-fn check_live(
-    s: &SessionFacts<'_>,
-    facts: &ReceiverSnapshot<'_>,
-    a: &SessionAuthority<'_>,
-) -> Result<(), SessionPolicyError> {
-    use SessionPolicyError as E;
+pub(crate) fn check_session_shape(s: &SessionFacts<'_>) -> Result<(), SessionPolicyError> {
     let b = s.login;
     if !(1..=16).contains(&s.scopes.len())
         || s.scopes.windows(2).any(|pair| pair[0] >= pair[1])
@@ -330,8 +335,19 @@ fn check_live(
         || s.expires_at_ns > b.deadline_ns
         || s.expires_at_ns - s.established_at_ns > 1_800_000_000_000
     {
-        return Err(E::InvalidFacts);
+        return Err(SessionPolicyError::InvalidFacts);
     }
+    Ok(())
+}
+
+fn check_live(
+    s: &SessionFacts<'_>,
+    facts: &ReceiverSnapshot<'_>,
+    a: &SessionAuthority<'_>,
+) -> Result<(), SessionPolicyError> {
+    use SessionPolicyError as E;
+    let b = s.login;
+    check_session_shape(s)?;
     if a.now_ns < s.established_at_ns || a.now_ns >= s.expires_at_ns {
         return Err(E::MissingOrExpired);
     }

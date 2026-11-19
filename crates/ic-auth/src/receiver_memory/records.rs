@@ -16,6 +16,10 @@ use ic_auth_protocol_types::{
 };
 use serde::{Serialize, Serializer, ser::SerializeSeq};
 
+#[cfg_attr(
+    feature = "receiver-stable",
+    derive(serde::Serialize, serde::Deserialize)
+)]
 pub(super) struct Session {
     mechanism: PortableMechanism,
     key_binding_id: [u8; 32],
@@ -75,6 +79,10 @@ impl Session {
     }
 }
 
+#[cfg_attr(
+    feature = "receiver-stable",
+    derive(serde::Serialize, serde::Deserialize)
+)]
 pub(super) struct CallerRecord {
     pub(super) login: LoginFacts,
     pub(super) session: Option<Session>,
@@ -155,6 +163,10 @@ impl CallerRecord {
     }
 }
 
+#[cfg_attr(
+    feature = "receiver-stable",
+    derive(serde::Serialize, serde::Deserialize)
+)]
 pub(super) struct Replay {
     pub(super) account: Account,
     caller: Principal,

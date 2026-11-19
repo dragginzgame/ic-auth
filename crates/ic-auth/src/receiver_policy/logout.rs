@@ -7,6 +7,10 @@ use std::{error::Error, fmt};
 /// Protected unknown-login pool and operation budget, separate from known logins
 /// and proof work. Denial retention uses the receiver's maximum login lifetime.
 #[derive(Clone, Copy, Debug)]
+#[cfg_attr(
+    feature = "receiver-stable",
+    derive(serde::Serialize, serde::Deserialize, Eq, PartialEq)
+)]
 pub struct UnknownLogoutLimits {
     /// Physical unknown denial rows, including expired rows not yet pruned.
     pub max_denials: usize,

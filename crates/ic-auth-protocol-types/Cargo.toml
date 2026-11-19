@@ -1,6 +1,6 @@
 [package]
 name = "ic-auth-protocol-types"
-version = "0.43.1"
+version = "0.43.2"
 edition.workspace = true
 rust-version.workspace = true
 license-file.workspace = true
@@ -14,10 +14,12 @@ publish = true
 ignored = ["toko-tooling"]
 
 [features]
+stable-records = ["dep:serde"]
 principal-self-authenticating = ["ic-platform-types/principal-self-authenticating"]
 
 [dependencies]
 ic-platform-types.workspace = true
+serde = { workspace = true, optional = true }
 
 [dev-dependencies]
 toko-tooling.workspace = true

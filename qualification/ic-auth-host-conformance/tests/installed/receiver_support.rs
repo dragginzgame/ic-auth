@@ -14,6 +14,7 @@ pub(super) async fn install(pic: &PocketIc, wasm: &[u8], limits: Capacity) -> Ca
         &Installation {
             authority: Vec::new(),
             certified_network_key: Vec::new(),
+            stable_auth: false,
             receiver_capacity: Some(limits),
         },
         ic_wire::Encoding::Payload,

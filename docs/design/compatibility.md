@@ -28,24 +28,16 @@ method identities and layouts may evolve together with their current consumers.
 - Bounded abuse budgets, failed-attempt charging and no mutation on applicable
   rejection paths, as established by the current contracts and tests.
 
-Wire compatibility does not imply stable-record compatibility. No storage format
-change is selected by this initialization. Before a backend cut, explicitly
-choose preserved current records or a hard cut with legacy refusal; never silently
-reinterpret/reset storage or erase a host's data. This repo has no migration authority.
-
-Volatile storage is the current milestone; stable storage is deferred until a
-future milestone with a ready supplier contract. No interim `ic-storage` adapter
-is planned. The future durable boundary is the published `ic-storage` contract. That future milestone must preserve logical Auth behavior
-without assuming package/API or stored-format compatibility, reusing independent
-semantic cases and adding retained-state upgrade, schema conversion, incompatible
-layout refusal and recovery/rollback evidence. This direction authorizes no import,
-reset or migration of a consumer's live state.
+Checkpoint v1 requires a predecessor that sealed the current Auth state. Each
+owner verifies its format and protected configuration before reopening. Hosts
+must retain their own authority entries, terminal revocations and certification
+contributions. Volatile loss remains closed. See the
+[stable checkpoint contract](DESIGN.md#stable-upgrade-checkpoints).
 
 ## Evidence required before replacement claims
 
-The current milestone qualifies volatile Auth only. Stable reopen, cross-backend
-equivalence and persistence conversion below belong to the future stable milestone;
-their deferral does not waive volatile loss, host transaction or browser evidence.
+Use the same behavioral fixtures in both modes. Installed upgrades and failed
+upgrade rollback additionally exercise the stable allocation and lifecycle hooks.
 
 | Boundary | Required evidence |
 | --- | --- |
@@ -267,8 +259,7 @@ and certificate authentication remain consumer/installed acceptance boundaries.
 The pinned Canic witness above supplies a concrete Ed25519 multi-receiver consumer
 path. Still required are production cutover/key custody, external signer recovery,
 certified consumer integration and accepted operating budgets. No application operation may be
-replayed to obtain that evidence. Stable storage and cross-backend acceptance stay
-in the future stable-storage milestone.
+replayed to obtain that evidence. Consumer adoption of stable checkpoints requires installing and qualifying its own upgrade hooks.
 
 ## Historical entrypoints
 

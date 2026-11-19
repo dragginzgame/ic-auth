@@ -1,5 +1,8 @@
 //! Real IC receiver transactions with fixed protected test authority.
 mod enrollment;
+mod upgrade;
+use upgrade::Backend;
+pub(super) use upgrade::{decode_upgrade_fault, reopen, seal, upgrade_guard};
 
 use crate::{
     RESPONSE,
@@ -30,7 +33,8 @@ use std::cell::RefCell;
 const SECOND: u64 = 1_000_000_000;
 #[derive(Default)]
 struct State {
-    receiver: Option<MemoryReceiver>,
+    receiver: Option<Backend>,
+    capacity: Capacity,
     authority: Option<Principal>,
     sequence: u64,
     entry: Option<Snapshot>,
@@ -42,41 +46,46 @@ thread_local! {
     static STATE: RefCell<State> = RefCell::new(State::default());
 }
 
-pub(super) fn init(authority: Principal, capacity: Capacity) {
-    let receiver = MemoryReceiver::new_fresh(
-        MemoryConfig {
-            audience: audience(),
-            enrollment: EnrollmentBinding {
-                receiver: api::canister_self(),
-                authority,
-            },
-            login: LoginLimits {
-                max_device_slots: 8,
-                max_login_ttl_ns: 100 * SECOND,
-                max_admitted_logins: capacity.logins as usize,
-            },
-            capacity: SessionCapacity {
-                max_sessions: capacity.sessions as usize,
-                max_replays: capacity.replays as usize,
-                max_replays_per_account: capacity.account_replays as usize,
-                max_encoded_bytes: capacity.bytes as usize,
-            },
-            verification_capacity: capacity.verification,
-            refill_interval_ns: capacity.refill_ns,
-            verification_costs: VerificationCosts {
-                ed25519: 2,
-                certified: 3,
-            },
-            unknown_logout: UnknownLogoutLimits {
-                max_denials: 1,
-                capacity: 2,
-                refill_interval_ns: SECOND,
-            },
+fn config(authority: Principal, capacity: Capacity) -> MemoryConfig {
+    MemoryConfig {
+        audience: audience(),
+        enrollment: EnrollmentBinding {
+            receiver: api::canister_self(),
+            authority,
         },
-        api::time(),
-    )
-    .unwrap();
+        login: LoginLimits {
+            max_device_slots: 8,
+            max_login_ttl_ns: 100 * SECOND,
+            max_admitted_logins: capacity.logins as usize,
+        },
+        capacity: SessionCapacity {
+            max_sessions: capacity.sessions as usize,
+            max_replays: capacity.replays as usize,
+            max_replays_per_account: capacity.account_replays as usize,
+            max_encoded_bytes: capacity.bytes as usize,
+        },
+        verification_capacity: capacity.verification,
+        refill_interval_ns: capacity.refill_ns,
+        verification_costs: VerificationCosts {
+            ed25519: 2,
+            certified: 3,
+        },
+        unknown_logout: UnknownLogoutLimits {
+            max_denials: 1,
+            capacity: 2,
+            refill_interval_ns: SECOND,
+        },
+    }
+}
+pub(super) fn init(authority: Principal, capacity: Capacity, stable: bool) {
+    let config = config(authority, capacity);
+    let receiver = if stable {
+        upgrade::create(config)
+    } else {
+        Backend::Volatile(MemoryReceiver::new_fresh(config, api::time()).unwrap())
+    };
     STATE.with_borrow_mut(|s| {
+        s.capacity = capacity;
         s.receiver = Some(receiver);
         s.authority = Some(authority);
         s.wide_scopes = capacity.wide_scopes;
@@ -313,7 +322,7 @@ pub(super) fn observe() -> Observation {
             enrollment: s
                 .receiver
                 .as_ref()
-                .and_then(MemoryReceiver::enrollment)
+                .and_then(|r| r.enrollment())
                 .map(|m| (m.revision, m.generation, m.expires_at_ns)),
             revoked: s.entry.as_ref().map(|e| e.revoked),
         };

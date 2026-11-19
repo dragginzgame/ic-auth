@@ -18,6 +18,8 @@ pub(crate) use decoded::DecodedClaims;
 pub(crate) use {context::check as check_context, credential::verify_decoded};
 
 pub use crate::browser_identity::browser_principal;
+#[cfg(feature = "receiver-stable")]
+pub(crate) use budget::RetainedBudget;
 pub use budget::{BudgetError, VerificationBudget, VerificationCosts};
 pub use context::{AuthorityGrants, ContextError, VerificationContext};
 pub use credential::{CredentialError, VerificationProfile, verify_credential};

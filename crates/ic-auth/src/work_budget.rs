@@ -24,6 +24,10 @@ impl fmt::Display for BudgetError {
 impl Error for BudgetError {}
 
 #[derive(Debug, Eq, PartialEq)]
+#[cfg_attr(
+    any(feature = "receiver-stable", feature = "issuer-stable"),
+    derive(serde::Serialize, serde::Deserialize)
+)]
 pub(crate) struct WorkBucket {
     capacity: u32,
     available: u32,
@@ -32,6 +36,17 @@ pub(crate) struct WorkBucket {
     observed_at_ns: u64,
 }
 impl WorkBucket {
+    #[cfg(any(feature = "issuer-stable", feature = "receiver-stable"))]
+    pub(crate) fn matches(&self, capacity: u32, interval: u64, now: u64) -> bool {
+        capacity > 0
+            && interval > 0
+            && self.capacity == capacity
+            && self.interval_ns == interval
+            && self.available <= capacity
+            && self.refill_at_ns <= self.observed_at_ns
+            && self.observed_at_ns <= now
+    }
+
     pub(crate) fn new(capacity: u32, interval_ns: u64, now_ns: u64) -> Result<Self, BudgetError> {
         if capacity == 0 || interval_ns == 0 {
             return Err(BudgetError::InvalidPolicy);

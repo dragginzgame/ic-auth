@@ -1483,3 +1483,69 @@ fn logout_admission_orderings_deny_without_cross_receiver_effects() {
     assert_eq!(before.known_logins(), 0);
     assert_eq!(after.known_logins(), 1);
 }
+
+#[cfg(feature = "receiver-stable")]
+#[path = "../../../../tests/stable_support/mod.rs"]
+mod stable_support;
+
+#[cfg(feature = "receiver-stable")]
+#[test]
+fn stable_upgrade_retains_live_session_then_logout_across_two_boots() {
+    use ic_auth::receiver_memory::StableReceiver;
+    let h = Host::new();
+    let backing = ic_storage::VectorMemory::default();
+    let lease = || stable_support::lease(&backing);
+    let mut owner = StableReceiver::new_fresh(lease(), h.config(), 0).unwrap();
+    h.enroll(owner.state(), 7).unwrap();
+    let context = h.context("initial", 25);
+    let admitted = owner
+        .state()
+        .admit(&credential("initial"), request(), h.admission(&context))
+        .unwrap();
+    let credit = owner.state().verification_budget().available();
+    owner.seal().unwrap();
+    drop(owner);
+    for revision in [2, 3] {
+        let mut owner = StableReceiver::reopen(lease(), h.config(), 26).unwrap();
+        let r = owner.state();
+        assert_eq!(r.verification_budget().available(), credit);
+        assert_eq!(r.read(&h.read("initial", 26), &[]), Err(E::Closed));
+        assert!(
+            r.install_enrollment(26, h.config().enrollment.authority, h.snapshot(7))
+                .is_err()
+        );
+        let mut snapshot = h.snapshot(7);
+        snapshot.revision = revision;
+        snapshot.challenge = [revision as u8; 32];
+        r.request_enrollment(26, snapshot.challenge, 30).unwrap();
+        r.install_enrollment(26, h.config().enrollment.authority, snapshot)
+            .unwrap();
+        if revision == 2 {
+            assert_eq!(
+                r.read(&h.read("initial", 26), &[]).unwrap(),
+                admitted.receipt
+            );
+            assert!(
+                r.admit(
+                    &credential("initial"),
+                    request(),
+                    h.admission(&h.context("initial", 26))
+                )
+                .unwrap()
+                .exact_retry
+            );
+            r.logout(context.caller, 26).unwrap();
+        } else {
+            assert!(r.read(&h.read("initial", 26), &[]).is_err());
+            assert!(
+                r.admit(
+                    &credential("initial"),
+                    request(),
+                    h.admission(&h.context("initial", 26))
+                )
+                .is_err()
+            );
+        }
+        owner.seal().unwrap();
+    }
+}

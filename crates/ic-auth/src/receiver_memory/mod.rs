@@ -19,6 +19,11 @@ mod enrollment;
 mod inspection;
 mod records;
 
+#[cfg(feature = "receiver-stable")]
+mod checkpoint;
+#[cfg(feature = "receiver-stable")]
+pub use checkpoint::StableReceiver;
+
 #[cfg(test)]
 mod publication_faults;
 
@@ -64,6 +69,10 @@ type Slot = (Principal, Principal, u8);
 
 /// Protected bounds; construction allocates no backing proportional to limits.
 #[derive(Clone, Copy, Debug)]
+#[cfg_attr(
+    feature = "receiver-stable",
+    derive(serde::Serialize, serde::Deserialize, Eq, PartialEq)
+)]
 pub struct MemoryConfig {
     /// Receiver domain, fixed for the lifetime of the instance.
     pub audience: AudienceId,
@@ -229,6 +238,10 @@ impl From<SessionPolicyError> for MemoryError {
 }
 
 #[derive(Clone, Copy, Eq, PartialEq)]
+#[cfg_attr(
+    feature = "receiver-stable",
+    derive(serde::Serialize, serde::Deserialize)
+)]
 enum Lifecycle {
     Fresh,
     Ready,
@@ -345,6 +358,7 @@ impl MemoryReceiver {
                 self.config.audience,
                 self.generation,
                 now_ns,
+                self.lifecycle == Lifecycle::Ready,
                 authenticated_authority,
                 snapshot,
             )

@@ -74,6 +74,7 @@ async fn certified_receiver_cost_observations() {
         &Installation {
             authority: Vec::new(),
             certified_network_key: key.public_key().serialize().to_vec(),
+            stable_auth: false,
             receiver_capacity: None,
         },
         ic_wire::Encoding::Payload,

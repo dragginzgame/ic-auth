@@ -107,6 +107,14 @@ pub(super) async fn time(pic: &PocketIc, seconds: u64) {
     .await;
 }
 
+// Budget refill starts when init runs, several IC rounds after the fixture's
+// wall-clock origin. Place same-credit assertions halfway between refill ticks.
+pub(super) async fn start_credit_checks(pic: &PocketIc, id: CanisterId) {
+    let origin = observe(pic, id).await.observed_at_ns;
+    pic.set_time(Time::from_nanos_since_unix_epoch(origin + 25_500_000_000))
+        .await;
+}
+
 async fn trapped(pic: &PocketIc, id: CanisterId, caller: CanisterId, command: &Command) {
     let before = observe(pic, id).await;
     let rejection = control(pic, id, caller, command).await.unwrap_err();
@@ -126,7 +134,7 @@ async fn receiver_transactions_restore_auth_and_application_but_normal_refusals_
     let pic = &owned;
     time(pic, 0).await;
     let id = install(pic, &wasm()).await;
-    time(pic, 25).await;
+    start_credit_checks(pic, id).await;
     let admit = credential(&vectors, "initial", false);
     assert_eq!(
         control(pic, id, caller, &admit).await.unwrap(),

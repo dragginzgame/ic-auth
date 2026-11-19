@@ -1,8 +1,8 @@
 # Crates.io publication scope
 
-This release publishes Auth 0.48.5, Auth Wire 0.45.0 and protocol-types 0.43.1
+This release publishes Auth 0.48.6 and protocol-types 0.43.2
 to crates.io. All three product crates use `publish = true`.
-Publication covers the implemented volatile libraries, not production deployment.
+Auth Wire remains at 0.45.0. Publication covers the volatile and stable-checkpoint libraries.
 
 | Product crate | Published responsibility | In-repository prerequisite |
 | --- | --- | --- |
@@ -40,9 +40,7 @@ publishing its dependents.
 This release uses Cargo directly with exact package selectors, locked dependencies
 and all features. No local publication automation is installed. Future shared
 entrypoints must be adopted through the authenticated Toko exporter. Production deployment, consumer migration and live-storage changes
-remain separate from crates.io delivery. Stable storage remains a future milestone;
-this scope does not create a storage package or make one a prerequisite for the
-currently implemented volatile crates.
+remain separate from crates.io delivery. The stable features use published `ic-storage` as an optional dependency.
 
 ## Validation and recovery sequence
 

@@ -4,6 +4,10 @@ use std::{error::Error, fmt};
 
 /// Installed host identities; never selected from browser input.
 #[derive(Clone, Copy, Debug)]
+#[cfg_attr(
+    feature = "receiver-stable",
+    derive(serde::Serialize, serde::Deserialize, Eq, PartialEq)
+)]
 pub struct EnrollmentBinding {
     /// Actual receiver canister.
     pub receiver: Principal,
@@ -17,6 +21,10 @@ pub struct EnrollmentBinding {
 /// entry validation, terminal key revocation and atomic installation of entries
 /// alongside this receiver. This value alone authenticates none of those facts.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[cfg_attr(
+    feature = "receiver-stable",
+    derive(serde::Serialize, serde::Deserialize)
+)]
 pub struct EnrollmentMetadata {
     /// Receiver named by the authenticated response.
     pub receiver: Principal,
@@ -68,11 +76,19 @@ impl fmt::Display for EnrollmentError {
 impl Error for EnrollmentError {}
 
 #[derive(Clone, Copy)]
+#[cfg_attr(
+    feature = "receiver-stable",
+    derive(serde::Serialize, serde::Deserialize)
+)]
 struct Request {
     challenge: [u8; 32],
     receipt_deadline_ns: u64,
 }
 
+#[cfg_attr(
+    feature = "receiver-stable",
+    derive(serde::Serialize, serde::Deserialize)
+)]
 pub(super) struct Enrollment {
     binding: EnrollmentBinding,
     pending: Option<Request>,
@@ -120,6 +136,7 @@ impl Enrollment {
         audience: AudienceId,
         generation: u64,
         now_ns: u64,
+        allow_accepted_retry: bool,
         authenticated_authority: Principal,
         snapshot: EnrollmentMetadata,
     ) -> Result<(), EnrollmentError> {
@@ -134,7 +151,7 @@ impl Enrollment {
             .pending
             .or_else(|| {
                 self.accepted
-                    .filter(|(old, _)| *old == snapshot)
+                    .filter(|(old, _)| allow_accepted_retry && *old == snapshot)
                     .map(|(_, request)| request)
             })
             .ok_or(E::ChallengeMismatch)?;
@@ -171,6 +188,27 @@ impl Enrollment {
         self.accepted = Some((snapshot, request));
         self.pending = None;
         Ok(())
+    }
+
+    #[cfg(feature = "receiver-stable")]
+    pub(super) fn matches(
+        &self,
+        binding: EnrollmentBinding,
+        audience: AudienceId,
+        generation: u64,
+    ) -> bool {
+        self.binding == binding
+            && self.accepted.is_none_or(|(snapshot, request)| {
+                snapshot.receiver == binding.receiver
+                    && snapshot.audience == audience
+                    && snapshot.generation <= generation
+                    && snapshot.challenge == request.challenge
+            })
+    }
+
+    #[cfg(feature = "receiver-stable")]
+    pub(super) fn discard_pending(&mut self) {
+        self.pending = None;
     }
 
     pub(super) fn current(&self) -> Option<EnrollmentMetadata> {

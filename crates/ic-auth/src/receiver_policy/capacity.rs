@@ -5,6 +5,10 @@ use ic_auth_protocol_types::Principal;
 
 /// Protected physical count and encoded-byte ceilings, all strictly positive.
 #[derive(Clone, Copy, Debug)]
+#[cfg_attr(
+    feature = "receiver-stable",
+    derive(serde::Serialize, serde::Deserialize, Eq, PartialEq)
+)]
 pub struct SessionCapacity {
     /// Physical session rows, including expired rows not explicitly pruned.
     pub max_sessions: usize,

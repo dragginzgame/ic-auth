@@ -3,6 +3,10 @@ use std::{error::Error, fmt};
 
 /// Protected issuance/renewal bounds. Physical expired rows still count.
 #[derive(Clone, Copy, Debug)]
+#[cfg_attr(
+    feature = "issuer-stable",
+    derive(serde::Serialize, serde::Deserialize, Eq, PartialEq)
+)]
 pub struct IssuerConfig {
     /// Protected network/application and issuer identities.
     pub audience: AudienceId,
@@ -28,6 +32,10 @@ pub struct IssuerConfig {
 /// Current host-authorized signing identity. Not request data.
 /// The host owns enrollment, key custody and authentication of signing responses.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[cfg_attr(
+    feature = "issuer-stable",
+    derive(serde::Serialize, serde::Deserialize)
+)]
 pub struct IssuerAuthority {
     /// Protected mechanism and, for certification, root-authorized seed commitment.
     pub signing: IssuerSigning,
@@ -41,6 +49,10 @@ pub struct IssuerAuthority {
 
 /// Host-selected signing capability, captured before any effect.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[cfg_attr(
+    feature = "issuer-stable",
+    derive(serde::Serialize, serde::Deserialize)
+)]
 pub enum IssuerSigning {
     /// Host-authenticated external Ed25519 signing response.
     Ed25519,
@@ -61,6 +73,10 @@ impl IssuerSigning {
 
 /// Host-selected immutable lifetime bounds, in trusted nanoseconds.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[cfg_attr(
+    feature = "issuer-stable",
+    derive(serde::Serialize, serde::Deserialize)
+)]
 pub struct IssuerPolicy {
     /// Original absolute login lifetime, at most 90 days.
     pub login_ttl_ns: u64,
@@ -238,6 +254,10 @@ pub enum IssuerStatus<'a> {
 
 /// Constant-time physical counts and completed-result reservations.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[cfg_attr(
+    feature = "issuer-stable",
+    derive(serde::Serialize, serde::Deserialize)
+)]
 pub struct IssuerUsage {
     /// Retained logical logins, including revoked and expired rows.
     pub logins: u32,

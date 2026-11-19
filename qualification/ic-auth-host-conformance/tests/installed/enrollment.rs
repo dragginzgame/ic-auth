@@ -34,13 +34,19 @@ async fn configure(
     Ok(())
 }
 
-async fn install_receiver(pic: &PocketIc, wasm: &[u8], authority: CanisterId) -> CanisterId {
+async fn install_receiver(
+    pic: &PocketIc,
+    wasm: &[u8],
+    authority: CanisterId,
+    stable_auth: bool,
+) -> CanisterId {
     let id = pic.create_canister().await;
     pic.add_cycles(id, 5_000_000_000_000).await;
     let init = ic_wire::encode(
         &ic_auth_host_fixture::Installation {
             authority: authority.as_slice().to_vec(),
             certified_network_key: Vec::new(),
+            stable_auth,
             receiver_capacity: None,
         },
         ic_wire::Encoding::Payload,
@@ -74,7 +80,7 @@ async fn installed_authority_binds_replies_and_revocation_commits_with_receiver_
     let pic = &owned;
     time(pic, 0).await;
     let authority = install(pic, &wasm).await;
-    let id = install_receiver(pic, &wasm, authority).await;
+    let id = install_receiver(pic, &wasm, authority, false).await;
     assert_eq!(pic.get_subnet(authority).await, pic.get_subnet(id).await);
     assert_eq!(pic.topology().await.subnet_configs.len(), 1);
     time(pic, 25).await;
@@ -215,4 +221,118 @@ async fn installed_authority_binds_replies_and_revocation_commits_with_receiver_
     );
     assert!(!observe(pic, id).await.present);
     owned.drop().await;
+}
+
+#[tokio::test]
+#[ignore = "requires independent signed vectors and PocketIC 16.x"]
+async fn stable_auth_upgrade_and_failed_reopen_preserve_session_logout_and_certified_result() {
+    let wasm = wasm();
+    let vectors = vectors();
+    let caller = CanisterId::from_slice(&vectors["initial-caller"]);
+    let pic = start().await;
+    time(&pic, 0).await;
+    let authority = install(&pic, &wasm).await;
+    let id = install_receiver(&pic, &wasm, authority, true).await;
+    time(&pic, 25).await;
+    let enroll = Command::Enroll(Fault::None);
+    let admit = credential(&vectors, "initial", false);
+    assert_eq!(
+        control(&pic, id, caller, &enroll).await.unwrap(),
+        Ok(Outcome::Enrolled)
+    );
+    let Ok(Outcome::Admitted(false, deadline)) = control(&pic, id, caller, &admit).await.unwrap()
+    else {
+        panic!("initial admission")
+    };
+    use ic_auth_host_fixture::{Command as Issuance, Fault as IssuerFault, Progress};
+    for operation in [Issuance::Prepare, Issuance::Complete(IssuerFault::None)] {
+        assert_eq!(
+            super::control(&pic, id, caller, operation).await.unwrap(),
+            Ok(())
+        );
+    }
+    let issued = super::observe(&pic, id, caller).await;
+    assert_eq!(issued.progress, Progress::Completed);
+    let before = observe(&pic, id).await;
+    let err = pic
+        .upgrade_canister(id, wasm.clone(), vec![1], None)
+        .await
+        .unwrap_err();
+    assert!(
+        err.reject_message.contains("after stable receiver reopen"),
+        "{err:?}"
+    );
+    assert_eq!(observe(&pic, id).await, before);
+    assert_eq!(
+        control(&pic, id, caller, &Command::Authorize(false))
+            .await
+            .unwrap(),
+        Ok(Outcome::Authorized)
+    );
+
+    pic.upgrade_canister(id, wasm.clone(), vec![], None)
+        .await
+        .unwrap();
+    assert_eq!(
+        control(&pic, id, caller, &Command::Authorize(false))
+            .await
+            .unwrap(),
+        Err(Refusal::Closed)
+    );
+    configure(&pic, authority, CanisterId::anonymous(), Scenario::Refresh)
+        .await
+        .unwrap();
+    assert_eq!(
+        control(&pic, id, caller, &enroll).await.unwrap(),
+        Ok(Outcome::Enrolled)
+    );
+    assert_eq!(
+        control(&pic, id, caller, &admit).await.unwrap(),
+        Ok(Outcome::Admitted(true, deadline))
+    );
+    assert_eq!(
+        control(&pic, id, caller, &Command::Authorize(false))
+            .await
+            .unwrap(),
+        Ok(Outcome::Authorized)
+    );
+    assert_eq!(observe(&pic, id).await.credit, before.credit);
+    assert!(matches!(
+        control(&pic, id, caller, &Command::Logout(false))
+            .await
+            .unwrap(),
+        Ok(Outcome::Revoked(_))
+    ));
+    pic.upgrade_canister(id, wasm, vec![], None).await.unwrap();
+    let after = observe(&pic, id).await;
+    assert_eq!(after.usage.0, 0);
+    assert_eq!(after.usage.1, 1);
+    assert_eq!(after.logins, (1, 0));
+    configure(
+        &pic,
+        authority,
+        CanisterId::anonymous(),
+        Scenario::SecondRefresh,
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        control(&pic, id, caller, &enroll).await.unwrap(),
+        Ok(Outcome::Enrolled)
+    );
+    assert_eq!(
+        control(&pic, id, caller, &Command::Authorize(false))
+            .await
+            .unwrap(),
+        Err(Refusal::Revoked)
+    );
+    assert!(control(&pic, id, caller, &admit).await.unwrap().is_err());
+    let retained = super::observe(&pic, id, caller).await;
+    assert_eq!(retained.progress, Progress::Completed);
+    assert_eq!(retained.claims, issued.claims);
+    assert_eq!(retained.root, issued.root);
+    assert!(!retained.signature.is_empty());
+    assert_eq!(retained.usage, issued.usage);
+    assert_eq!(retained.credit, issued.credit);
+    pic.drop().await;
 }

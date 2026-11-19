@@ -1,13 +1,15 @@
 # IC Auth
 
 A clean restart of IC Auth around its current application-authentication design.
-Volatile authentication storage is the current milestone. Stable storage is a
-future milestone at the published `ic-storage` boundary.
+Hosts can select volatile storage or retain Auth across canister upgrades using
+the `receiver-stable` and `issuer-stable` Cargo features. Each stable owner uses
+a dedicated, host-supplied `ic-storage` allocation. See the
+[upgrade lifecycle and size limits](docs/design/DESIGN.md#stable-upgrade-checkpoints).
 The pre-recode implementation imposes no Wire/API compatibility obligation.
 One current contract is qualified by independent fixtures and Rust/browser checks;
 historical sources remain provenance, not executable test dependencies.
 
-**Status: volatile receiver/issuer libraries and partial browser lifecycle implemented.**
+**Status: receiver and issuer libraries with optional stable checkpoints, and partial browser lifecycle.**
 The three product crates own passive protocol types, exact Wire contracts and Auth
 verification/state transitions. Platform owns cryptographic primitives; Canic owns
 application endpoint wiring. Auth installs no endpoints or replacement executor.
@@ -22,7 +24,7 @@ certified update path. Complete consumer integration and external signer recover
 remain open. See the
 [current handoff](docs/status/current.md) for present capability and evidence limits.
 
-Release versions are Auth 0.48.5, Auth Wire 0.45.0 and protocol-types 0.43.1 (`v0.48.5`).
+Release versions are Auth 0.48.6, Auth Wire 0.45.0 and protocol-types 0.43.2 (`v0.48.6`).
 The three product crates are authorized for crates.io publication. Qualification
 crates retain `publish = false`; the browser client 0.1.0 remains private.
 Production deployment and consumer cutover require separate approval.

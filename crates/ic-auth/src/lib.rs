@@ -18,6 +18,8 @@ mod grant_policy;
 #[cfg(any(feature = "receiver-memory", test))]
 mod receiver_policy;
 pub mod session_request;
+#[cfg(any(feature = "receiver-stable", feature = "issuer-stable"))]
+pub mod stable_upgrade;
 
 #[cfg(feature = "issuer-memory")]
 pub mod issuer_memory;

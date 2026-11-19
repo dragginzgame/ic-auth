@@ -10,13 +10,12 @@ owns one current contract, independently qualified with its Rust/browser consume
 The current layout is retained by this cleanup without promising historical
 identities forever. No existing live data is migrated or deleted.
 
-Milestone scope: volatile authentication storage first, as approved during implementation. Stable storage is a future milestone at the published `ic-storage` boundary. No interim `ic-storage` adapter is planned. Persistence-specific requirements below remain future acceptance obligations, not blockers for the volatile milestone or permission to invent the supplier API.
-
 ## 1 Decision
 
-Build a receiver-centered authentication library with one admission and session policy, a bounded volatile backend, a separate issuer state owner and the private browser admission/logout coordinator. Add durable storage in its own future milestone.
-
-The storage work is staged alongside the Auth rewrite. The current milestone uses volatile memory only. The durable milestone requires qualification of the published storage contract and its Auth integration. Deferring persistence avoids an interim adapter and does not waive future retention, corruption-admission or rollback requirements.
+Auth supports volatile owners and opt-in stable upgrade checkpoints. Both use the
+same bounded issuer and receiver operations and one authorization policy. The
+private browser coordinator owns browser admission and logout. The host selects
+the storage lifecycle independently for each owner.
 
 The application flow remains:
 
@@ -151,7 +150,7 @@ Admission loads only the caller, selected slot owner, relevant replay and accoun
 
 Private receiver policy consumes bounded session/login snapshots and admission footprints. `MemoryReceiver` owns indexed records, prepared session/replay values and publication. No universal `ReceiverFacts`/`ReceiverChange` protocol is required. Decisions and receipts cannot establish authority outside the host transaction; reads must recheck current host inputs before protected effects.
 
-There is one implemented backend, so no storage interface is justified today. At the durable milestone, compare concrete reads, prepared mutations, corruption admission and host rollback before sharing mechanics. Keep semantic rules reusable without a public key/value store, repository framework or arbitrary transaction language.
+Both storage options use the same indexed heap between upgrades. The stable owners add admission of a complete checkpoint in the upgrade transaction. Keep semantic rules reusable without a public key/value store, repository framework or arbitrary transaction language.
 
 ## 7 Admission, authorization and logout
 
@@ -221,9 +220,9 @@ The pre-recode custom commit-callback API need not be retained. Current host tra
 
 ## 9 Backends, budgets and retention
 
-The first vertical slice requires a real bounded indexed memory backend, not a full-store clone around every operation. Stable storage is deferred to its own milestone; Auth owns neither a memory manager nor an executor. Stable-specific requirements below retain the reference's safety obligations without selecting the future supplier's physical representation.
+The first vertical slice requires a real bounded indexed memory backend, not a full-store clone around every operation. Stable checkpoint owners use host-governed leases from published `ic-storage`. Stable-specific requirements below retain the reference's safety obligations without selecting the future supplier's physical representation.
 
-Keep a separate caller lookup from maintenance/replay indexes where the measured workload justifies it. The reference uses three receiver leases and two issuer leases; this is reference evidence, not a required layout for the future backend. Select and qualify its physical representation at the durable milestone.
+Keep a separate caller lookup from maintenance/replay indexes where the measured workload justifies it. The reference uses three receiver leases and two issuer leases; this is reference evidence, not a required layout for the future backend. Checkpoint mode uses one allocation per Auth owner.
 
 Open validates schema, protected configuration, counts and required metadata; operations validate selected persisted records and index associations. Do not force memory records through encode/decode to imitate corruption checks. Do not trust stable bytes because a frame decoded structurally.
 
@@ -235,20 +234,43 @@ Pruning cannot erase consumed operation watermarks, live replay, unexpired denia
 
 Issuer transitions also need bounded memory and stable implementations under the same intent/recovery contract; volatile loss follows the closed recovery rules, not an automatic fresh start.
 
-### Future stable storage
+### Stable upgrade checkpoints
 
-At the stable-storage milestone, review the published `ic-storage` allocation
-and collection contract. Storage owns allocation custody, representation
-admission and persistence lifecycle mechanics. Auth owns session, replay and
-revocation invariants, issuer uncertainty and application-state conversion.
-The host owns transaction rollback, readiness and certification-root publication.
+Select `receiver-stable` with a verifier or `issuer-stable` independently.
+`StableReceiver` and `StableIssuer` store one v1 checkpoint each in an exclusive
+named `ic_storage::RuntimeMemory` lease. Ordinary operations on `state()` use
+the same indexed records, policy and IC message transaction as volatile mode.
 
-Reuse the volatile semantic cases and qualify retained-state upgrades, corruption
-and incompatible-layout refusal, conversion, checkpoint recovery and failed
-publication against the selected artifacts. Preserve the clock and attempted-work
-semantics in section 8. Retained bytes alone cannot establish fresh enrollment
-or repair missing revocation evidence. Select the consumer's state-transfer or
-legacy-refusal disposition at that milestone.
+1. On a genuinely fresh installation, call `new_fresh(lease, config, now_ns)`
+   and perform normal enrollment. Creation requires a zero-page allocation.
+2. In pre-upgrade, call `seal()` on each stable owner. Seal writes a bounded
+   image and closes that instance. Commit the host's challenge generator,
+   authority entries and terminal revocations, pending effect identities and
+   certification state in the same upgrade transaction. Trap on any failure.
+3. In post-upgrade, call `reopen(lease, config, now_ns)` with the original
+   protected configuration. Reopen checks the version-specific SHA-256 digest,
+   decodes the complete image with Wire resource limits, checks indexes and
+   accounting and consumes the checkpoint. A skipped pre-upgrade hook, malformed
+   image, foreign configuration or regressing clock cannot create fresh state.
+   Trap on refusal so the IC restores the old module, heap and stable memory.
+4. Restore host-owned state and republish the certification root. Obtain a
+   fresh authenticated enrollment with a new challenge and revision before
+   serving receiver calls. A still-valid session can then resume under the
+   current authority. Issuer restart advances the boot and epoch fences.
+   Completed results and unresolved effect identities remain available for
+   reconciliation.
+
+Encoding and admission traverse the whole retained owner once per upgrade.
+Each v1 payload is limited to 8 MiB, 8,388,608 Wire visits, depth 64 and a
+256 MiB Wire allocation allowance. These limits are independent of the ordinary
+Auth quotas. Size the canister's configured workload for the upgrade instruction
+and heap budgets as well as these limits. Overflow refuses the upgrade.
+The digest detects accidental corruption under exclusive host custody. Hosts
+must also protect against restoring an obsolete whole-canister backup.
+
+The first stable installation requires intact authority and safety state. An
+already-lost volatile receiver cannot recover its sessions or fences. Images
+from the pre-recode implementation have no reader in this contract.
 
 ## 10 Issuer intent and recovery
 
@@ -303,7 +325,7 @@ authorizes an additional effect. Closing lost state is containment, not recovery
 
 Initial issue and authenticated renewal enter the same operation owner after
 their distinct caller/binding checks. They do not create separate pending-result
-stores. Stable codecs, reopen/schema conversion and backing leases are deferred;
+stores. Checkpoint v1 has explicit reopen and incompatible-format refusal;
 current consumers and helper APIs are qualified at their actual boundaries.
 The first implementation must exercise exact retries, conflicting callbacks,
 capacity refusal before dispatch, authority/epoch changes and response loss using
@@ -643,11 +665,11 @@ Implement this narrow application scenario on memory first; reuse it for the fut
 
 7. Fresh renewal clamped to the original absolute login deadline.
 
-8. Volatile loss stays closed; fresh enrollment or a local generation cannot restore missing replay/device fences. In the future durable milestone, separately qualify stable reopen with fresh boot enrollment and complete retained state.
+8. Volatile loss stays closed; fresh enrollment or a local generation cannot restore missing replay/device fences. Separately qualify stable reopen with fresh boot enrollment and complete retained state.
 
 Use a private operation-level storage interface only after implementing the real needs of both backends. Compare facts and transitions directly; do not make the stable implementation emulate a complete memory store.
 
-Volatile exit gate: one admission pipeline, no temporary reconstructed login ledger, no global read/clone, one current authorization rule and independent accepted/refused behavior evidence. The future durable milestone additionally requires equivalent cross-backend behavior. A consolidation that increases transformations or materially worsens ordinary lookup costs must be revised.
+Volatile exit gate: one admission pipeline, no temporary reconstructed login ledger, no global read/clone, one current authorization rule and independent accepted/refused behavior evidence. Stable mode additionally requires equivalent cross-backend behavior. A consolidation that increases transformations or materially worsens ordinary lookup costs must be revised.
 
 This gate qualifies the volatile receiver, not durable storage. Reuse its independent behavioral cases against `ic-storage` when that supplier is ready, adding the lifecycle and transaction proofs specified in architecture section 9. Protocol, proof, receiver-policy and issuer/browser work proceed without an interim adapter or an invented persistence API.
 
@@ -764,7 +786,7 @@ Keep fake IndexedDB/Node, real browser, SDK-certified receiver and production is
 
 ## 9 Dependency and performance gates
 
-Qualify standalone passive types, Wire codec-only, memory receiver, each verifier, both verifiers together and issuer consumers. Add stable receiver qualification only at the durable milestone. Inspect Cargo feature unification and actual native/Wasm graphs. Preserve one Platform Types identity and one host executor/guard. Receiver consumers must not pull issuer signing custody, native tooling or TypeScript metadata generation.
+Qualify standalone passive types, Wire codec-only, memory receiver, each verifier, both verifiers together and issuer consumers. Qualify receiver-stable and issuer-stable independently. Inspect Cargo feature unification and actual native/Wasm graphs. Preserve one Platform Types identity and one host executor/guard. Receiver consumers must not pull issuer signing custody, native tooling or TypeScript metadata generation.
 
 Record exact source, locks, rustc, target, profiles, optimizer, final Wasm and simulator/server identities. Compare current implementations only under matched conditions in isolated targets; the historical implementation is not an executable acceptance dependency.
 
@@ -808,8 +830,8 @@ Keep shadow comparison observational: no double signing, double replay consumpti
 
 A hard cut does not mean reinstall by default. No local document authorizes erasing host data. An incompatible backing must refuse; any importer/reset/reinstall needs the consumer's explicit disposition and installed recovery proof. Restoring an old binary alone does not restore compatible data or undo external effects.
 
-Completion of the volatile milestone requires a consumer contract inventory, independent vectors, both proof mechanisms, bounded memory state and loss refusal, issuer/browser interruption evidence, actual Wasm lifecycle results and accepted costs. Each claimed simplification lists the surviving owner, deleted path and invariant coverage. Stable storage, retained upgrades and cross-backend equivalence remain a separately qualified future milestone.
+Completion of the volatile milestone requires a consumer contract inventory, independent vectors, both proof mechanisms, bounded memory state and loss refusal, issuer/browser interruption evidence, actual Wasm lifecycle results and accepted costs. Each claimed simplification lists the surviving owner, deleted path and invariant coverage. Stable storage, retained upgrades and cross-backend equivalence require separate qualification.
 
-Report volatile Auth qualification and future stable-storage adoption separately. Completion of the durable milestone additionally requires qualified `ic-storage` integration and the selected consumer state/recovery disposition; successful volatile qualification does not establish that outcome.
+Report volatile Auth qualification and stable-storage adoption separately. Completion of the durable milestone additionally requires qualified `ic-storage` integration and the selected consumer state/recovery disposition; successful volatile qualification does not establish that outcome.
 
 Only after a qualified replacement and consumer decision exist should release/delivery machinery be integrated through the shared owners. Do not reproduce the old release system as an initialization task.

@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.48.6] - 2026-11-19
+
+### Features
+
+- Add independent `receiver-stable` and `issuer-stable` features backed by
+  `ic-storage` 0.78.7. Each host seals and reopens a bounded 8 MiB checkpoint
+  per owner. Receivers require fresh enrollment after upgrade. Issuers retain
+  completed results and unresolved operations and fence old callbacks.
+- Publish `ic-auth-protocol-types` 0.43.2 with opt-in stable record codecs.
+  The Wire contracts remain at 0.45.0.
+
 ## [0.48.5] - 2026-11-19
 
 Package versions: `ic-auth` 0.48.5, `ic-auth-wire` 0.45.0 and `ic-auth-protocol-types` 0.43.1.

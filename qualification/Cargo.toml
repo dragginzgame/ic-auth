@@ -24,6 +24,7 @@ ic-host-fs = "0.80.3"
 ic-host-process = "0.81.0"
 ic-platform = { version = "0.34.18", default-features = false }
 ic-platform-runtime = { version = "0.23.22", default-features = false }
+ic-storage = "0.78.7"
 ic-testkit = "0.110.0"
 ic-wire = "0.26.0"
 serde = "1.0.229"

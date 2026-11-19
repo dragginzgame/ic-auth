@@ -1,16 +1,17 @@
 # Current status
 
-Auth **0.48.5** includes a configurable starting profile for volatile receivers.
-Auth Wire **0.45.0** exports IC Wire 0.26.0. Protocol-types is **0.43.1**
+Auth **0.48.6** includes a configurable starting profile for volatile receivers.
+Auth Wire **0.45.0** exports IC Wire 0.26.0. Protocol-types is **0.43.2**
 and the private browser client remains **0.1.0**. The checkout uses authenticated
-Toko Tooling 0.45.21. Production consumer acceptance remains open. Future stable
-storage belongs at the published `ic-storage` boundary. Historical cost records
+Toko Tooling 0.45.21. Production consumer acceptance remains open. This release adds
+`receiver-stable` and `issuer-stable` with published `ic-storage` 0.78.7. Historical cost records
 identify the exact cohorts and artifacts measured.
 
 | Capability | Current evidence | Remaining acceptance boundary |
 | --- | --- | --- |
 | Canonical claims, both proof mechanisms and four Wire contracts | Independent signed vectors, 37 independently assembled frames, 296 resource thresholds, generated browser interoperability; 27 focused crypto tests pass with Platform 0.34.11 | Complete current consumer delivery |
 | Bounded memory receiver and issuer | Lifecycle/model/fault checks; browser-bound issuer revocation; private policy and operation owners | Production host integration and agreed resource budgets |
+| Stable upgrade checkpoints | Native receiver and issuer reopen, consumed/corrupt image refusal, installed session continuity, logout and failed-upgrade rollback | Consumer hook integration and upgrade budgets at selected capacity |
 | Installed transactions, volatile loss and enrollment | Five lifecycle cases qualify rollback, real certificates, closed upgrade loss, bound authority replies and terminal key revocation | Production enrollment/refresh policy; pinned Canic witness recorded below |
 | Browser lifecycle | Readiness/guarded calls, seven scheduler cases, twelve renderer-loss cases, seven disposal cases, ten external-signer boundary cases and three mixed multi-receiver cleanup cases | Real wallet/device recovery, production key custody and deployed multi-canister coordination |
 | HTTP and installed browser journey | Certified response checks and issuance recovery → admission → protected write → logout → replay refusal | Production cutover, external signers and certified consumer integration |

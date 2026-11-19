@@ -11,6 +11,11 @@
 //! state requires disabling old bindings and fresh account authentication/browser
 //! keys; constructing another instance is not recovery of unresolved effects.
 
+#[cfg(feature = "issuer-stable")]
+mod checkpoint;
+#[cfg(feature = "issuer-stable")]
+pub use checkpoint::StableIssuer;
+
 #[cfg(test)]
 mod tests;
 
@@ -50,6 +55,10 @@ fn expiry(time: u64, account: Principal, identity: Identity) -> Expiry {
 }
 
 #[derive(Default)]
+#[cfg_attr(
+    feature = "issuer-stable",
+    derive(serde::Serialize, serde::Deserialize)
+)]
 struct Account {
     // At most eight logins: slot/browser selection scans only this bounded owner.
     logins: BTreeMap<Identity, Login>,
@@ -58,6 +67,10 @@ struct Account {
     renewals: BTreeMap<(Identity, u64), Identity>,
 }
 
+#[cfg_attr(
+    feature = "issuer-stable",
+    derive(serde::Serialize, serde::Deserialize)
+)]
 struct Login {
     browser: [u8; 32],
     grants: Vec<DelegatedRoleGrant>,
@@ -70,6 +83,10 @@ struct Login {
     renewal: RenewalProgress,
     references: u32,
 }
+#[cfg_attr(
+    feature = "issuer-stable",
+    derive(serde::Serialize, serde::Deserialize)
+)]
 enum RenewalProgress {
     Initial,
     InFlight(u64),
@@ -94,7 +111,12 @@ impl RenewalProgress {
     }
 }
 
+#[cfg_attr(
+    feature = "issuer-stable",
+    derive(serde::Serialize, serde::Deserialize)
+)]
 struct Operation {
+    #[cfg_attr(feature = "issuer-stable", serde(with = "checkpoint::TicketFields"))]
     ticket: IssuerTicket,
     login: Identity,
     issued: u64,
@@ -106,11 +128,19 @@ struct Operation {
     result_bytes: u64,
 }
 
+#[cfg_attr(
+    feature = "issuer-stable",
+    derive(serde::Serialize, serde::Deserialize)
+)]
 struct Approval {
     nonce: [u8; 16],
     commitment: [u8; 32],
     claims: Vec<u8>,
 }
+#[cfg_attr(
+    feature = "issuer-stable",
+    derive(serde::Serialize, serde::Deserialize)
+)]
 enum Phase {
     Reserved,
     Challenged([u8; 16]),
@@ -119,8 +149,12 @@ enum Phase {
     Completed(Approval, Completion),
 }
 #[derive(Clone, Copy, Eq, PartialEq)]
+#[cfg_attr(
+    feature = "issuer-stable",
+    derive(serde::Serialize, serde::Deserialize)
+)]
 enum Completion {
-    Ed25519([u8; 64]),
+    Ed25519(#[cfg_attr(feature = "issuer-stable", serde(with = "signature_bytes"))] [u8; 64]),
     Certified,
 }
 impl Phase {
@@ -814,4 +848,17 @@ fn validate_request(
         return Err(IssuerError::Invalid);
     }
     validate_grants(&r.grants).map_err(|_| IssuerError::Invalid)
+}
+
+#[cfg(feature = "issuer-stable")]
+mod signature_bytes {
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+    pub(super) fn serialize<S: Serializer>(bytes: &[u8; 64], ser: S) -> Result<S::Ok, S::Error> {
+        ic_wire::ByteArray::new(*bytes).serialize(ser)
+    }
+
+    pub(super) fn deserialize<'de, D: Deserializer<'de>>(de: D) -> Result<[u8; 64], D::Error> {
+        ic_wire::ByteArray::<64>::deserialize(de).map(|bytes| bytes.into_array())
+    }
 }

@@ -37,6 +37,8 @@ pub enum Scenario {
     Revoke,
     /// Attempt to revive the revoked key with still greater metadata.
     Reenable,
+    /// Second fresh receipt under the same authority generation.
+    SecondRefresh,
 }
 /// Interrupt callback publication after the specified successful mutation.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]

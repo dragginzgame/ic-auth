@@ -56,6 +56,11 @@ impl Error for ScopeLabelError {}
 /// let unchecked = ScopeLabel(String::from("Invalid"));
 /// ```
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[cfg_attr(
+    feature = "stable-records",
+    derive(serde::Serialize, serde::Deserialize)
+)]
+#[cfg_attr(feature = "stable-records", serde(try_from = "String"))]
 pub struct ScopeLabel(String);
 
 impl ScopeLabel {

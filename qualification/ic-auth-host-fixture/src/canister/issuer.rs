@@ -5,20 +5,56 @@ use crate::{
     CONTROL, Command, Fault, OBSERVE, Observation, Progress, REQUEST, RESPONSE, Refusal, SEED,
     hash_bytes,
 };
+use ic_auth::issuer_memory::StableIssuer;
 use ic_auth::issuer_memory::{
     CertifiedCompletionError, IssueRequest, IssuerAuthority, IssuerConfig, IssuerError,
     IssuerPolicy, IssuerSigning, IssuerStatus, IssuerTicket, MemoryIssuer, RenewRequest,
 };
+use ic_auth_protocol_types::Principal;
 use ic_auth_protocol_types::{AudienceId, CanonicalId, DelegatedRoleGrant};
 use ic_platform::certificate::construction::{
     HashTree, empty, encode_canister_signature, labeled, leaf,
 };
 use ic_platform_runtime::{self as runtime, system as api};
-use std::cell::RefCell;
+use ic_storage::{DefaultMemoryImpl, RuntimeMemory};
+use serde::{Deserialize, Serialize};
+use std::{
+    cell::RefCell,
+    ops::{Deref, DerefMut},
+};
+
+enum Backend {
+    Volatile(MemoryIssuer),
+    Stable(StableIssuer),
+}
+impl Deref for Backend {
+    type Target = MemoryIssuer;
+    fn deref(&self) -> &MemoryIssuer {
+        match self {
+            Self::Volatile(s) => s,
+            Self::Stable(s) => s.as_ref(),
+        }
+    }
+}
+impl DerefMut for Backend {
+    fn deref_mut(&mut self) -> &mut MemoryIssuer {
+        match self {
+            Self::Volatile(s) => s,
+            Self::Stable(s) => s.state(),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+pub(super) struct HostState {
+    selected: Option<(Principal, u64, [u8; 32])>,
+    leaf: Option<([u8; 32], [u8; 32])>,
+}
 
 #[derive(Default)]
 struct State {
-    issuer: Option<MemoryIssuer>,
+    issuer: Option<Backend>,
+    selected: Option<(Principal, u64, [u8; 32])>,
     ticket: Option<IssuerTicket>,
     leaf: Option<([u8; 32], [u8; 32])>,
 }
@@ -53,6 +89,7 @@ pub(super) fn decode_install(bytes: &[u8]) -> Result<crate::Installation, ic_wir
         return Ok(crate::Installation {
             authority: Vec::new(),
             certified_network_key: Vec::new(),
+            stable_auth: false,
             receiver_capacity: None,
         });
     }
@@ -69,33 +106,78 @@ pub(super) fn init(installation: crate::Installation) {
     receiver::init(
         authority,
         installation.receiver_capacity.unwrap_or_default(),
+        installation.stable_auth,
     );
     browser::init();
     // Only a fresh install creates state. Post-upgrade never calls this function.
-    let issuer = MemoryIssuer::new_fresh(
-        IssuerConfig {
-            audience: AudienceId {
-                canonical_network_id: CanonicalId::from_bytes([1; 32]),
-                fleet_id: CanonicalId::from_bytes([2; 32]),
-            },
-            issuer: api::canister_self(),
-            max_logins: 1,
-            max_operations: 2,
-            max_operations_per_account: 2,
-            max_devices_per_account: 1,
-            max_result_bytes: 4096,
-            issuance_burst: 4,
-            issuance_refill_interval_ns: 1_000_000_000,
-        },
-        api::time(),
-    )
-    .unwrap();
-    STATE.with_borrow_mut(|s| s.issuer = Some(issuer));
+    if !installation.stable_auth {
+        let issuer = MemoryIssuer::new_fresh(config(), api::time()).unwrap();
+        STATE.with_borrow_mut(|s| s.issuer = Some(Backend::Volatile(issuer)));
+    }
     api::set_certified_data(&witness(None).digest());
 }
 
+fn config() -> IssuerConfig {
+    IssuerConfig {
+        audience: AudienceId {
+            canonical_network_id: CanonicalId::from_bytes([1; 32]),
+            fleet_id: CanonicalId::from_bytes([2; 32]),
+        },
+        issuer: api::canister_self(),
+        max_logins: 1,
+        max_operations: 2,
+        max_operations_per_account: 2,
+        max_devices_per_account: 1,
+        max_result_bytes: 4096,
+        issuance_burst: 4,
+        issuance_refill_interval_ns: 1_000_000_000,
+    }
+}
+
+pub(super) fn create_stable(lease: RuntimeMemory<DefaultMemoryImpl>) {
+    let issuer = StableIssuer::new_fresh(lease, config(), api::time()).unwrap();
+    STATE.with_borrow_mut(|s| s.issuer = Some(Backend::Stable(issuer)));
+}
+
+pub(super) fn seal() -> HostState {
+    STATE.with_borrow_mut(|s| {
+        let Some(Backend::Stable(owner)) = &mut s.issuer else {
+            api::trap("missing stable issuer")
+        };
+        owner.seal().unwrap();
+        HostState {
+            selected: s.selected,
+            leaf: s.leaf,
+        }
+    })
+}
+
+pub(super) fn reopen(lease: RuntimeMemory<DefaultMemoryImpl>, host: &HostState) {
+    let issuer = StableIssuer::reopen(lease, config(), api::time()).unwrap();
+    let ticket = host.selected.and_then(|(account, epoch, id)| {
+        match issuer
+            .as_ref()
+            .reconcile(account, epoch, id)
+            .unwrap()
+            .unwrap()
+        {
+            IssuerStatus::Pending(t) | IssuerStatus::Unknown(t) => Some(t),
+            IssuerStatus::Completed(_) => None,
+        }
+    });
+    api::set_certified_data(&witness(host.leaf).digest());
+    STATE.with_borrow_mut(|s| {
+        *s = State {
+            issuer: Some(Backend::Stable(issuer)),
+            ticket,
+            selected: host.selected,
+            leaf: host.leaf,
+        }
+    });
+}
+
 pub(super) fn lost_volatile_state() {
-    // No stable adapter: heap loss is terminal. Clear the certified contribution,
+    // On a volatile installation, heap loss is terminal. Clear the certified contribution,
     // leave the issuer absent, and provide no timestamp/generation reset escape.
     api::set_certified_data(&witness(None).digest());
 }
@@ -147,11 +229,13 @@ pub(super) fn control(command: Command) -> Result<(), Refusal> {
         let State {
             issuer,
             ticket,
+            selected,
             leaf,
         } = state;
         let issuer = issuer.as_mut().ok_or(Refusal::Closed)?;
         if caller == ic_auth_protocol_types::Principal::anonymous()
-            || (!matches!(command, Command::Renew) && ticket.is_some_and(|t| t.account() != caller))
+            || (!matches!(command, Command::Renew)
+                && selected.is_some_and(|(account, _, _)| account != caller))
         {
             return Err(Refusal::Denied);
         }
@@ -189,6 +273,7 @@ pub(super) fn control(command: Command) -> Result<(), Refusal> {
                 issuer
                     .record_approval(t, authority(), [6; 32], now)
                     .map_err(refusal)?;
+                *selected = Some((t.account(), t.epoch(), t.operation_id()));
                 *ticket = Some(t);
             }
             Command::Complete(fault) => {
@@ -219,7 +304,7 @@ pub(super) fn control(command: Command) -> Result<(), Refusal> {
                 }
             }
             Command::Renew => {
-                let account = ticket.ok_or(Refusal::Auth)?.account();
+                let account = selected.ok_or(Refusal::Auth)?.0;
                 let t = issuer
                     .prepare_renewal(
                         caller,
@@ -243,6 +328,7 @@ pub(super) fn control(command: Command) -> Result<(), Refusal> {
                 issuer
                     .record_approval(t, authority(), [9; 32], now)
                     .map_err(refusal)?;
+                *selected = Some((t.account(), t.epoch(), t.operation_id()));
                 *ticket = Some(t);
             }
             Command::Revoke => issuer.revoke(caller, 1, [2; 32], now).map_err(refusal)?,
@@ -294,9 +380,9 @@ pub(super) fn observe() -> Observation {
             let u = issuer.usage();
             view.usage = (u.logins, u.operations, u.result_bytes);
             view.credit = issuer.available_credit();
-            view.progress = match s.ticket {
+            view.progress = match s.selected {
                 None => Progress::Empty,
-                Some(t) => match issuer.reconcile(t.account(), t.epoch(), t.operation_id()) {
+                Some((account, epoch, id)) => match issuer.reconcile(account, epoch, id) {
                     Ok(Some(IssuerStatus::Completed(result))) => {
                         view.claims = result.claims.to_vec();
                         Progress::Completed

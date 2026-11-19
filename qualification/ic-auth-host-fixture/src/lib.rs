@@ -38,6 +38,21 @@ mod canister {
         issuer::init(installation)
     }
 
+    // save_receiver
+    // Commit the selected receiver checkpoint in the IC upgrade transaction.
+    // guard  : lifecycle hook, no ingress arguments
+    // limits : empty input and reply
+    #[runtime::pre_upgrade(
+        runtime = ic_platform_runtime,
+        guard = receiver::upgrade_guard,
+        decode = issuer::decode_upgrade,
+        max_bytes = 0,
+        on_error = issuer::endpoint_error,
+    )]
+    fn save_receiver((): ()) {
+        receiver::seal()
+    }
+
     // lost_volatile_state
     // Clear certification after volatile state loss.
     // guard  : reject oversized input before decoding
@@ -45,12 +60,12 @@ mod canister {
     #[runtime::post_upgrade(
         runtime = ic_platform_runtime,
         guard = issuer::bounded_request,
-        decode = issuer::decode_upgrade,
-        max_bytes = 0,
+        decode = receiver::decode_upgrade_fault,
+        max_bytes = 1,
         on_error = issuer::endpoint_error,
     )]
-    fn lost_volatile_state((): ()) {
-        issuer::lost_volatile_state()
+    fn lost_volatile_state(fault: bool) {
+        receiver::reopen(fault)
     }
 
     // auth_fixture_control
@@ -452,4 +467,6 @@ pub struct Installation {
     pub certified_network_key: Vec<u8>,
     /// Optional installation-only receiver limits; ingress cannot change them.
     pub receiver_capacity: Option<receiver::Capacity>,
+    /// Enable governed Auth upgrade checkpoints for this installation.
+    pub stable_auth: bool,
 }

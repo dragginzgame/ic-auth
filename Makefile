@@ -147,7 +147,7 @@ lint-host: toko-tooling-check
 
 .PHONY: test-product test-qualification verify-fixtures
 test-product: toko-tooling-check
-	cargo test --locked -p ic-auth-protocol-types -p ic-auth -p ic-auth-wire --features ic-auth/issuer-memory,ic-auth/receiver-memory,ic-auth/ed25519-verification,ic-auth/certified-verification
+	cargo test --locked -p ic-auth-protocol-types -p ic-auth -p ic-auth-wire --features ic-auth/issuer-stable,ic-auth/receiver-stable,ic-auth/ed25519-verification,ic-auth/certified-verification
 
 test-qualification: toko-tooling-check
 	cargo test --locked --manifest-path qualification/Cargo.toml -p ic-auth-certified-conformance -p ic-auth-wire-conformance --features ic-auth-certified-conformance/receiver-memory,ic-auth-certified-conformance/issuer-memory,ic-auth-certified-conformance/ed25519-comparison
@@ -215,10 +215,10 @@ lint-wire-qualification: toko-tooling-check
 	cargo clippy --locked --manifest-path qualification/Cargo.toml -p ic-auth-wire-conformance --all-targets -- -D warnings
 
 lint-protocol: toko-tooling-check
-	cargo clippy --locked -p ic-auth-protocol-types -p ic-auth -p ic-auth-wire --all-targets --features ic-auth-wire/typescript,ic-auth/issuer-memory,ic-auth/receiver-memory,ic-auth/ed25519-verification,ic-auth/certified-verification -- -D warnings
+	cargo clippy --locked -p ic-auth-protocol-types -p ic-auth -p ic-auth-wire --all-targets --features ic-auth-wire/typescript,ic-auth/issuer-stable,ic-auth/receiver-stable,ic-auth/ed25519-verification,ic-auth/certified-verification -- -D warnings
 
 doc-protocol: toko-tooling-check
-	RUSTDOCFLAGS='-D warnings' cargo doc --locked -p ic-auth-protocol-types -p ic-auth -p ic-auth-wire --features ic-auth/issuer-memory,ic-auth/receiver-memory,ic-auth/ed25519-verification,ic-auth/certified-verification --no-deps
+	RUSTDOCFLAGS='-D warnings' cargo doc --locked -p ic-auth-protocol-types -p ic-auth -p ic-auth-wire --features ic-auth/issuer-stable,ic-auth/receiver-stable,ic-auth/ed25519-verification,ic-auth/certified-verification --no-deps
 
 check-protocol-wasm: toko-tooling-check
-	cargo check --locked -p ic-auth-protocol-types -p ic-auth -p ic-auth-wire --lib --features ic-auth-wire/typescript,ic-auth/issuer-memory,ic-auth/receiver-memory,ic-auth/ed25519-verification,ic-auth/certified-verification --target wasm32-unknown-unknown
+	cargo check --locked -p ic-auth-protocol-types -p ic-auth -p ic-auth-wire --lib --features ic-auth-wire/typescript,ic-auth/issuer-stable,ic-auth/receiver-stable,ic-auth/ed25519-verification,ic-auth/certified-verification --target wasm32-unknown-unknown

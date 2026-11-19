@@ -9,6 +9,10 @@ use ic_auth_protocol_types::PortableMechanism;
 
 /// Relative verification work costs, chosen from protected host measurements.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[cfg_attr(
+    feature = "receiver-stable",
+    derive(serde::Serialize, serde::Deserialize)
+)]
 pub struct VerificationCosts {
     /// Units consumed by one attempted Ed25519 verification.
     pub ed25519: u32,
@@ -28,7 +32,26 @@ pub struct VerificationBudget {
     costs: VerificationCosts,
 }
 
+#[cfg(feature = "receiver-stable")]
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(remote = "VerificationBudget")]
+pub(crate) struct RetainedBudget {
+    bucket: WorkBucket,
+    costs: VerificationCosts,
+}
+
 impl VerificationBudget {
+    #[cfg(feature = "receiver-stable")]
+    pub(crate) fn matches(
+        &self,
+        costs: VerificationCosts,
+        capacity: u32,
+        interval: u64,
+        now: u64,
+    ) -> bool {
+        self.costs == costs && self.bucket.matches(capacity, interval, now)
+    }
+
     /// Configure positive costs within capacity and an initially empty bucket.
     pub fn new(
         capacity: u32,

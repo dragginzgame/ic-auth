@@ -7,6 +7,10 @@ use ic_auth_protocol_types::{AudienceId, Principal};
 
 /// Protected login pool and lifetime bounds; retained fences are not time-pruned.
 #[derive(Clone, Copy, Debug)]
+#[cfg_attr(
+    feature = "receiver-stable",
+    derive(serde::Serialize, serde::Deserialize, Eq, PartialEq)
+)]
 pub struct LoginLimits {
     /// Allowed issuer-assigned slots per account, 1 through 8.
     pub max_device_slots: u8,
@@ -182,7 +186,7 @@ pub(crate) fn assess_login(
     Ok(LoginDecision::New)
 }
 
-pub(super) fn check_record(record: &LoginFacts, audience: AudienceId) -> Result<(), E> {
+pub(crate) fn check_record(record: &LoginFacts, audience: AudienceId) -> Result<(), E> {
     if record.audience != audience || !login_caller(record.caller) || record.until_ns == 0 {
         return Err(E::InvalidFacts);
     }

@@ -4,6 +4,10 @@ use crate::{AuthRole, Principal, ScopeLabel};
 
 /// Exactly 32 identity bytes; every byte pattern is permitted.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[cfg_attr(
+    feature = "stable-records",
+    derive(serde::Serialize, serde::Deserialize)
+)]
 pub struct CanonicalId([u8; 32]);
 
 impl CanonicalId {
@@ -22,6 +26,10 @@ impl CanonicalId {
 
 /// Claimed network/application context, compared later with protected enrollment.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[cfg_attr(
+    feature = "stable-records",
+    derive(serde::Serialize, serde::Deserialize)
+)]
 pub struct AudienceId {
     /// Claimed network identity.
     pub canonical_network_id: CanonicalId,
@@ -31,6 +39,10 @@ pub struct AudienceId {
 
 /// A claimed mechanism, never permission to select a verifier or enroll a key.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[cfg_attr(
+    feature = "stable-records",
+    derive(serde::Serialize, serde::Deserialize)
+)]
 pub enum PortableMechanism {
     /// Root-delegated certified issuer proof (signed tag 0).
     Certified,
@@ -40,6 +52,10 @@ pub enum PortableMechanism {
 
 /// Syntactically valid labels whose counts, order and authority remain unchecked.
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(
+    feature = "stable-records",
+    derive(serde::Serialize, serde::Deserialize)
+)]
 pub struct DelegatedRoleGrant {
     /// Role to which these scopes apply; roles must not be combined implicitly.
     pub target: AuthRole,

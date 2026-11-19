@@ -21,6 +21,11 @@ impl Error for RoleError {}
 /// Unlike scopes, roles have no segment-start rules; punctuation-only labels
 /// remain valid under the signed protocol. No normalization is performed.
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[cfg_attr(
+    feature = "stable-records",
+    derive(serde::Serialize, serde::Deserialize)
+)]
+#[cfg_attr(feature = "stable-records", serde(try_from = "String"))]
 pub struct AuthRole(String);
 
 impl AuthRole {

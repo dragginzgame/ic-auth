@@ -365,10 +365,11 @@ dependencies = [
 
 [[package]]
 name = "ic-auth"
-version = "0.48.5"
+version = "0.48.6"
 dependencies = [
  "ic-auth-protocol-types",
  "ic-platform",
+ "ic-storage",
  "ic-wire",
  "serde",
  "sha2 0.11.1",
@@ -377,9 +378,10 @@ dependencies = [
 
 [[package]]
 name = "ic-auth-protocol-types"
-version = "0.43.1"
+version = "0.43.2"
 dependencies = [
  "ic-platform-types",
+ "serde",
  "toko-tooling",
 ]
 
@@ -414,6 +416,7 @@ dependencies = [
  "ed25519-dalek",
  "ic-certification",
  "ic-platform-types",
+ "ic-stable-structures",
  "ic-verify-bls-signature",
  "k256",
  "serde",
@@ -424,16 +427,43 @@ dependencies = [
 ]
 
 [[package]]
-name = "ic-platform-types"
-version = "0.21.3"
+name = "ic-platform-runtime"
+version = "0.23.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1ebaae959b3a485c68803aa242a967568ed15411208670de5a858da84324dba0"
+checksum = "882feebba07b8aa72b36e16b097e7cf974237848c93716516c8927c85e601b7e"
+
+[[package]]
+name = "ic-platform-types"
+version = "0.21.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "986979a988616a18e4e4e85bebe838a3142192e54290fcdabbffa1e5c441953b"
 dependencies = [
  "crc32fast",
  "data-encoding",
  "serde",
  "serde_bytes",
  "sha2 0.11.1",
+ "thiserror",
+]
+
+[[package]]
+name = "ic-stable-structures"
+version = "0.7.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8ee3372ddc0cf2a747fc26ce2d075a240ed6bfab151e63bc70109e8967f7ce6f"
+dependencies = [
+ "ic_principal",
+]
+
+[[package]]
+name = "ic-storage"
+version = "0.78.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cfd78eb2becf9ae4a0a7d46ca4c742d0041eb19b364c50384e4cbc4e5aafdb11"
+dependencies = [
+ "ic-platform",
+ "ic-platform-runtime",
+ "serde",
  "thiserror",
 ]
 
@@ -452,9 +482,9 @@ dependencies = [
 
 [[package]]
 name = "ic-wire"
-version = "0.26.0"
+version = "0.26.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "82b11b86139e137ecc6a7c6675cf58b6b2e00ba89a55166d842cdd416c19fe2b"
+checksum = "0375907693869ca5de23befc66639d7e982d85a342b8fb06c1bc7ceafed13c4b"
 dependencies = [
  "bytemuck",
  "ic-platform-types",
@@ -467,9 +497,9 @@ dependencies = [
 
 [[package]]
 name = "ic-wire-derive"
-version = "0.26.0"
+version = "0.26.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "439e982a383e97964f2641c51be4930c1bc5c8001056764ab1042cdf774ce9d0"
+checksum = "dcb9d5202ef66d5badb42e1fdc3d82d056dd281d98885ea2a00ae81934180a9b"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -489,6 +519,12 @@ dependencies = [
  "rand_core 0.6.4",
  "subtle",
 ]
+
+[[package]]
+name = "ic_principal"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0c2732829022822ec69021c336d23b32a053e07abdd08553c71407d6e2d1675d"
 
 [[package]]
 name = "itoa"
