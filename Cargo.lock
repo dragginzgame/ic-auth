@@ -365,7 +365,7 @@ dependencies = [
 
 [[package]]
 name = "ic-auth"
-version = "0.48.2"
+version = "0.48.3"
 dependencies = [
  "ic-auth-protocol-types",
  "ic-platform",
@@ -385,7 +385,7 @@ dependencies = [
 
 [[package]]
 name = "ic-auth-wire"
-version = "0.44.1"
+version = "0.44.2"
 dependencies = [
  "ic-auth-protocol-types",
  "ic-wire",
@@ -452,9 +452,9 @@ dependencies = [
 
 [[package]]
 name = "ic-wire"
-version = "0.25.0"
+version = "0.25.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e6060f57a051fb12d02f6140a8751fc122c1c23925ee6412ee600743f5c664eb"
+checksum = "90127bd0f1ed54cb466b3dcd08339d62a92d54edeb4759379794422fd09845d0"
 dependencies = [
  "bytemuck",
  "ic-platform-types",
@@ -467,9 +467,9 @@ dependencies = [
 
 [[package]]
 name = "ic-wire-derive"
-version = "0.25.0"
+version = "0.25.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "16cee177dc8bfbac9c35e1ba860e512506561f43e9915561a5e794a8bb719d4c"
+checksum = "25085df6fa7f9fb818ff355a8ad668c969c5dcea4de81022b44f6a92ce56e6bb"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -806,9 +806,9 @@ dependencies = [
 
 [[package]]
 name = "toko-tooling"
-version = "0.45.10"
+version = "0.45.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "690c847446a5edbf5e13c03996feee5a64daa4c28a9a1098ceb7d5ea64f820fc"
+checksum = "047d160b116c300b7dfadae595c5c7b1f184257937b7d8541b1abc3aac6b6a52"
 
 [[package]]
 name = "typenum"

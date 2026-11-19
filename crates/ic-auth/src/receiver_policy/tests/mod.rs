@@ -1,5 +1,7 @@
 //! Independent receiver scenarios from the pinned session/revocation contract.
 //! These are trusted-state fact drivers, not proof admission or storage adapters.
+mod capacity;
+
 use crate::{
     receiver_policy::{
         DeviceFacts, LoginBinding, LoginFacts, ReceiverSnapshot, RetryDecision, SessionAuthority,
@@ -10,6 +12,7 @@ use crate::{
 use ic_auth_protocol_types::{
     AudienceId, AuthRole, CanonicalId, DelegatedRoleGrant, PortableMechanism, Principal, ScopeLabel,
 };
+
 const SECOND: u64 = 1_000_000_000;
 fn principal(n: u8) -> Principal {
     Principal::from_slice(&[n])
@@ -705,5 +708,3 @@ fn login_policy_bounds_and_maximum_generation_never_wrap() {
         Err(E::BindingConflict)
     );
 }
-
-mod capacity;

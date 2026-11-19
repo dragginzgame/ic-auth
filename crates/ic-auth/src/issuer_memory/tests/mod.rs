@@ -1,6 +1,7 @@
 //! Publication interruption and exhausted monotonic fences cannot be driven
 //! through the public API without infeasible allocations or u64 transitions.
 mod retention;
+
 use super::{
     IssueRequest, IssuerAuthority, IssuerConfig, IssuerError as E, IssuerPolicy, IssuerTicket,
     MemoryIssuer, RenewRequest, RenewalProgress,

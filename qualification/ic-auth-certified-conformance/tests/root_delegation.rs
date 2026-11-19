@@ -1,12 +1,14 @@
 //! Independent OpenSSL-signed root proof; no Auth encoder constructs the fixture.
+mod support;
+
 use ic_auth::root_delegation::{
     DelegationError as E, DelegationLimits, RootKeyPolicy, ValidityTarget as W,
     verify_root_delegation,
 };
 use ic_auth_protocol_types::{CanonicalId, MerkleStep, Principal};
-mod support;
 use root_fixture::{Fixture, issuer, limits, policy, root};
 use support::root as root_fixture;
+
 const RECORDS: &str = include_str!("fixtures/root-delegation.tsv");
 fn bytes(name: &str) -> Vec<u8> {
     root_fixture::bytes(RECORDS, name)
@@ -49,7 +51,10 @@ fn independent_root_signature_authenticates_certificate_and_caps_enrollment_expi
 fn protected_selection_and_revocation_floors_are_checked_each_time() {
     let f = Fixture::new(RECORDS, [8; 32]);
     let key = bytes("public_key");
-    assert!(verify_root_delegation(f.proof(), root(), &policy(&key), 150, limits()).is_err());
+    assert!(matches!(
+        verify_root_delegation(f.proof(), root(), &policy(&key), 150, limits()),
+        Err(E::IdentityMismatch)
+    ));
     type PolicyChange = for<'a> fn(&mut RootKeyPolicy<'a>);
     let changes: [(PolicyChange, E); 8] = [
         (|p| p.root = issuer(), E::IdentityMismatch),

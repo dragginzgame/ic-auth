@@ -9,11 +9,11 @@ stay in the product crates.
 
 ## Installed selection
 
-Toko Tooling **0.45.10** is selected by Cargo and installed through its authenticated
+Toko Tooling **0.45.15** is selected by Cargo and installed through its authenticated
 exporter. Cargo.lock and `.toko-tooling.snapshot` identify archive SHA-256
-`690c847446a5edbf5e13c03996feee5a64daa4c28a9a1098ceb7d5ea64f820fc`.
+`047d160b116c300b7dfadae595c5c7b1f184257937b7d8541b1abc3aac6b6a52`.
 The release source is
-[`88b7cd83f292d5165f4585a861cd8c89b74397b3`](https://github.com/dragginzgame/toko-tooling/tree/88b7cd83f292d5165f4585a861cd8c89b74397b3).
+[`26b16a10b90fdf41f65e5549b393fa8a95dfa0e8`](https://github.com/dragginzgame/toko-tooling/tree/26b16a10b90fdf41f65e5549b393fa8a95dfa0e8).
 Do not hand-edit the receipt or installed vendor files.
 
 The executable selections are `make/consumer.mk`, `make/cargo-dependencies.mk`,

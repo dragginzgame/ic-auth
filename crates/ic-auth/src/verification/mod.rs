@@ -4,9 +4,14 @@
 //! still own current enrollment, replay/revocation, transactions and persistence.
 
 mod budget;
+#[cfg(feature = "certified-verification")]
+mod certified;
 mod context;
 mod credential;
 mod decoded;
+#[cfg(feature = "ed25519-verification")]
+mod ed25519;
+
 pub(crate) use decoded::DecodedClaims;
 
 #[cfg(feature = "receiver-memory")]
@@ -17,16 +22,12 @@ pub use budget::{BudgetError, VerificationBudget, VerificationCosts};
 pub use context::{AuthorityGrants, ContextError, VerificationContext};
 pub use credential::{CredentialError, VerificationProfile, verify_credential};
 
-#[cfg(feature = "ed25519-verification")]
-mod ed25519;
-#[cfg(feature = "ed25519-verification")]
-pub use ed25519::{Ed25519Key, VerificationError, verify_ed25519};
-#[cfg(feature = "certified-verification")]
-mod certified;
 #[cfg(feature = "certified-verification")]
 pub use certified::{
     CertifiedContext, CertifiedError, CertifiedLimits, CertifiedProof, verify_certified,
 };
+#[cfg(feature = "ed25519-verification")]
+pub use ed25519::{Ed25519Key, VerificationError, verify_ed25519};
 
 use crate::session_request::{SessionRequest, SessionRequestError, SessionTtlPolicy};
 use ic_auth_protocol_types::{AuthRole, PortableClaims, Principal};

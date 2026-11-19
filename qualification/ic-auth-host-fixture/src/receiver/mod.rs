@@ -1,9 +1,9 @@
 //! Test-only receiver controls; enrollment uses an installation-bound IC call.
-use ic_auth_protocol_types::{AudienceId, CanonicalId};
-use serde::{Deserialize, Serialize};
-
 #[cfg(target_arch = "wasm32")]
 pub(crate) mod canister;
+
+use ic_auth_protocol_types::{AudienceId, CanonicalId};
+use serde::{Deserialize, Serialize};
 
 /// Receiver audience used by the signed login and browser fixtures.
 #[must_use]

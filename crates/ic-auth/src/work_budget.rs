@@ -1,5 +1,6 @@
 //! Shared retained refill arithmetic for separately owned operation budgets.
 use std::{error::Error, fmt};
+
 /// Failure before a charged operation begins.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum BudgetError {

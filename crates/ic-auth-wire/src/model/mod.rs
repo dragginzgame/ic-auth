@@ -1,9 +1,10 @@
 //! Transport records and discriminants, kept distinct from engine decisions.
 
+mod credential;
+
 use ic_auth_protocol_types::Principal;
 use serde::{Deserialize, Serialize};
 
-mod credential;
 pub use credential::{
     AudienceId, CertifiedProof, ChainKeyAlgorithm, ChainKeyBatchHeaderV1,
     ChainKeyBatchWitnessStepV1, ChainKeyBatchWitnessV1, ChainKeyDelegationCertV1, ChainKeyKeyId,

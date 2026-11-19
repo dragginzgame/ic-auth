@@ -1,5 +1,8 @@
 //! Public receiver operations driven by independent Node/OpenSSL signed bytes.
 #![cfg(all(feature = "receiver-memory", feature = "ed25519-verification"))]
+mod memory_fixture;
+mod memory_model;
+
 use ic_auth::{
     receiver_memory::{
         AdmissionHost, EnrollmentBinding, EnrollmentError as EE, EnrollmentMetadata, LoginLimits,
@@ -17,8 +20,6 @@ use ic_auth_protocol_types::{
     PortableMechanism, Principal,
 };
 
-mod memory_fixture;
-mod memory_model;
 use memory_fixture::*;
 
 #[test]
@@ -251,7 +252,12 @@ fn volatile_two_issuer_accounts_devices_and_receivers_remain_independent() {
     if let CredentialProof::Ed25519(signature) = &mut bad.proof {
         signature[0] ^= 1;
     }
-    assert!(first.admit(&bad, request(), h.admission(&context)).is_err());
+    assert_eq!(
+        first.admit(&bad, request(), h.admission(&context)),
+        Err(E::Proof(CredentialError::Ed25519(
+            VerificationError::InvalidSignature
+        )))
+    );
     assert_eq!(first.usage(account()).replays, 0);
     assert!(first.authorize(&h.read("initial", 30), &[], |_| ()).is_ok());
     assert!(
@@ -969,7 +975,12 @@ fn memory_full_pool_replacement_is_verified_before_displacement() {
         sig[0] ^= 1;
     }
     let before = r.usage(account());
-    assert!(r.admit(&bad, request(), h.admission(&replacement)).is_err());
+    assert_eq!(
+        r.admit(&bad, request(), h.admission(&replacement)),
+        Err(E::Proof(CredentialError::Ed25519(
+            VerificationError::InvalidSignature
+        )))
+    );
     assert_eq!(r.usage(account()), before);
     assert_eq!(r.read(&h.read("initial", 25), &[]), Ok(original.receipt));
     let next = r
@@ -1325,7 +1336,12 @@ fn logout_unconfirmed_cannot_exclude_unseen_future_credentials() {
         if let CredentialProof::Ed25519(sig) = &mut invalid.proof {
             sig[0] ^= 1;
         }
-        assert!(r.admit(&invalid, request(), h.admission(&future)).is_err());
+        assert_eq!(
+            r.admit(&invalid, request(), h.admission(&future)),
+            Err(E::Proof(CredentialError::Ed25519(
+                VerificationError::InvalidSignature
+            )))
+        );
         assert_eq!(r.known_logins(), 0);
         assert_eq!(r.unknown_logins(), usize::from(!prune_first));
         // Same independently signed future credential becomes admissible after

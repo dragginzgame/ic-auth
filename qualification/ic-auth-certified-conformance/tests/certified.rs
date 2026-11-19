@@ -1,4 +1,10 @@
 //! Complete certified proof from independent root/claims bytes and real BLS.
+#[cfg(feature = "issuer-memory")]
+mod issuance;
+#[cfg(feature = "receiver-memory")]
+mod memory;
+mod support;
+
 use ic_auth::{
     claims::{decode_claims, encode_claims},
     delegation_encoding::certificate_hash,
@@ -17,14 +23,10 @@ use ic_platform::{
     },
     fixture_signing::PrivateKey,
 };
-use sha2::{Digest, Sha256};
-#[cfg(feature = "issuer-memory")]
-mod issuance;
-#[cfg(feature = "receiver-memory")]
-mod memory;
-mod support;
 use root_fixture::{Fixture as RootFixture, issuer, limits, policy};
+use sha2::{Digest, Sha256};
 use support::root as root_fixture;
+
 const RECORDS: &str = include_str!("fixtures/certified.tsv");
 fn bytes(name: &str) -> Vec<u8> {
     root_fixture::bytes(RECORDS, name)
@@ -840,10 +842,12 @@ fn credential_profile_refuses_untrusted_mechanism_switches_before_decoding_or_ch
 #[test]
 fn memory_certified_admission_retains_failed_work_and_retries_after_proof_expiry() {
     use ic_auth::{
-        receiver_memory::{AdmissionHost, MemoryConfig, MemoryReceiver},
-        receiver_memory::{LoginLimits, SessionAuthority, SessionCapacity},
+        receiver_memory::{
+            AdmissionHost, LoginLimits, MemoryConfig, MemoryError, MemoryReceiver,
+            SessionAuthority, SessionCapacity, SessionPolicyError,
+        },
         session_request::{SessionRequest, SessionTtlPolicy},
-        verification::VerificationProfile,
+        verification::{CredentialError, VerificationProfile},
     };
     use ic_auth_protocol_types::{Credential, CredentialProof};
     let f = Fixture::new();
@@ -917,12 +921,17 @@ fn memory_certified_admission_retains_failed_work_and_retries_after_proof_expiry
         let CredentialProof::Certified(proof) = &mut bad.proof else {
             panic!("certified fixture")
         };
-        if break_root {
+        let expected = if break_root {
             proof.delegation.signature.signature[0] ^= 1;
+            E::Root(R::InvalidSignature)
         } else {
             proof.issuer_signature_cbor[0] ^= 1;
-        }
-        assert!(receiver.admit(&bad, request(), input(&h)).is_err());
+            E::Issuer(I::InvalidSignature)
+        };
+        assert_eq!(
+            receiver.admit(&bad, request(), input(&h)),
+            Err(MemoryError::Proof(CredentialError::Certified(expected)))
+        );
         assert_eq!(receiver.known_logins(), 0);
         assert_eq!(receiver.usage(account).encoded_bytes, 0);
     }
@@ -1049,9 +1058,7 @@ fn memory_certified_admission_retains_failed_work_and_retries_after_proof_expiry
     };
     assert_eq!(
         receiver.admit(&retry, request(), input(&revoked_host)),
-        Err(ic_auth::receiver_memory::MemoryError::Policy(
-            ic_auth::receiver_memory::SessionPolicyError::Revoked
-        ))
+        Err(MemoryError::Policy(SessionPolicyError::Revoked))
     );
     assert_eq!(
         receiver.authorize(
@@ -1062,9 +1069,7 @@ fn memory_certified_admission_retains_failed_work_and_retries_after_proof_expiry
             &[],
             |_| { panic!("certified revoked session reached application projection") }
         ),
-        Err(ic_auth::receiver_memory::MemoryError::Policy(
-            ic_auth::receiver_memory::SessionPolicyError::Revoked
-        ))
+        Err(MemoryError::Policy(SessionPolicyError::Revoked))
     );
     receiver.close();
     check_wire(receiver.logout(unknown, 186), &[3, 3]); // recovery pending

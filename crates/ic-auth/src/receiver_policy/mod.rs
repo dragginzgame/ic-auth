@@ -8,6 +8,10 @@
 //! fields into these facts. Only the receiver supplies them to these helpers;
 //! they are not a public backend extension or testing API.
 
+mod capacity;
+mod login;
+#[cfg(feature = "receiver-memory")]
+mod logout;
 #[cfg(test)]
 mod tests;
 
@@ -21,15 +25,11 @@ use ic_auth_protocol_types::{
 };
 use std::{error::Error, fmt};
 
-mod login;
-pub use login::LoginLimits;
-pub(crate) use login::{LoginDecision, LoginSnapshot, assess_login};
-mod capacity;
 pub(crate) use capacity::{AdmissionFootprint, assess_capacity};
 pub use capacity::{SessionCapacity, SessionUsage};
+pub use login::LoginLimits;
+pub(crate) use login::{LoginDecision, LoginSnapshot, assess_login};
 
-#[cfg(feature = "receiver-memory")]
-mod logout;
 #[cfg(feature = "receiver-memory")]
 pub(crate) use logout::plan_logout;
 #[cfg(feature = "receiver-memory")]

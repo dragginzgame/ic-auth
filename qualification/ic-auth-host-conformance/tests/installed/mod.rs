@@ -11,6 +11,7 @@ mod population_costs;
 mod receiver;
 mod receiver_support;
 mod renewal_costs;
+
 use super::support;
 use support::{install, start, wasm};
 

@@ -1,8 +1,8 @@
 //! Combined issuer/receiver for a real browser journey, never a deployable service.
-use serde::{Deserialize, Serialize};
-
 #[cfg(target_arch = "wasm32")]
 pub(crate) mod canister;
+
+use serde::{Deserialize, Serialize};
 
 /// Fixture credential operation: false issues once, true only reconciles.
 pub const CREDENTIAL: u64 = 0x4155_5448_5155_0007;

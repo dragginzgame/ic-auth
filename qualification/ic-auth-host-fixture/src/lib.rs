@@ -1,14 +1,13 @@
 //! Test-only Wire controls. Never install this canister as an application service.
-use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
-
 pub mod browser;
+#[cfg(target_arch = "wasm32")]
+mod canister;
 pub mod certified;
 pub mod enrollment;
 pub mod receiver;
 
-#[cfg(target_arch = "wasm32")]
-mod canister;
+use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 
 /// Compute the SHA-256 digest of fixture bytes on either host.
 pub fn hash_bytes(bytes: impl AsRef<[u8]>) -> [u8; 32] {

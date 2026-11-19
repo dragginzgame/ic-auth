@@ -1,8 +1,9 @@
 //! Installed-cost fixture using independently OpenSSL-signed root/claims records.
-use serde::{Deserialize, Serialize};
-
 #[cfg(target_arch = "wasm32")]
 pub(crate) mod canister;
+
+use serde::{Deserialize, Serialize};
+
 /// Isolated test measurement endpoint identity.
 pub const MEASURE: u64 = 0x4155_5448_5155_000d;
 /// Public fixture seed, not a signing secret.

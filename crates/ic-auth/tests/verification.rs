@@ -329,14 +329,26 @@ fn role_scopes_never_union_and_protected_grants_may_be_broader() {
         &mut budget(),
     )
     .unwrap();
-    for invalid in [
-        vec![],
-        vec![grant("user", &[])],
-        vec![grant("user", &["write", "read"])],
-        vec![grant("user", &["read", "read"])],
-        vec![grant("user", &["read"]), grant("user", &["write"])],
+    for (invalid, expected) in [
+        (vec![], ClaimsError::InvalidGrantCount { found: 0 }),
+        (
+            vec![grant("user", &[])],
+            ClaimsError::InvalidScopeCount { found: 0 },
+        ),
+        (
+            vec![grant("user", &["write", "read"])],
+            ClaimsError::NonCanonicalScopes,
+        ),
+        (
+            vec![grant("user", &["read", "read"])],
+            ClaimsError::NonCanonicalScopes,
+        ),
+        (
+            vec![grant("user", &["read"]), grant("user", &["write"])],
+            ClaimsError::NonCanonicalRoles,
+        ),
     ] {
-        assert!(AuthorityGrants::new(invalid).is_err());
+        assert_eq!(AuthorityGrants::new(invalid), Err(expected));
     }
     let mut credential = decode_claims(&fixture("claims")).unwrap();
     credential.grants = broad.as_slice().to_vec();

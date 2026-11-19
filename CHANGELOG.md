@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.48.3] - 2026-11-19
+
+### 🧹 Cleanup
+
+- Adopt Toko Tooling 0.45.15. CI setup diagnostics redact bare Bearer credentials
+  and labelled payloads. Align Rust module layout and check the specific refusals
+  for invalid signatures, mismatched issuer identity and malformed authority grants.
+- Publish Auth Wire 0.44.2 with the Rust layout cleanup.
+
 ## [0.48.2] - 2026-11-19
 
 ### 🧹 Cleanup

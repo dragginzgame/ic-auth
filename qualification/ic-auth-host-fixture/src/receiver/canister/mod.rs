@@ -1,8 +1,9 @@
 //! Real IC receiver transactions with fixed protected test authority.
+mod enrollment;
+
 use super::{
     CONTROL, Command, OBSERVE, Observation, Outcome, REQUEST, Refusal, TIME_ORIGIN_NS, audience,
 };
-mod enrollment;
 
 use crate::{RESPONSE, enrollment::Snapshot, hash_bytes};
 use ic_auth::{

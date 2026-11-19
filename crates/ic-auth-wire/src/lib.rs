@@ -126,6 +126,7 @@ macro_rules! contract {
 
 /// Read the authenticated caller's local session without a submitted credential.
 pub struct ReadSession;
+
 contract!(
     ReadSession,
     0x415554480013,
@@ -138,6 +139,7 @@ contract!(
 
 /// Request local logout for the authenticated caller only.
 pub struct Logout;
+
 contract!(
     Logout,
     0x415554480014,
@@ -150,6 +152,7 @@ contract!(
 
 /// Portable credential data envelope, not an issuer endpoint or signing format.
 pub struct CredentialEnvelope;
+
 contract!(
     CredentialEnvelope,
     0x415554480001,
@@ -162,6 +165,7 @@ contract!(
 
 /// Session admission transport; the host binds it to its authenticated update.
 pub struct EstablishSession;
+
 contract!(
     EstablishSession,
     0x415554480012,
