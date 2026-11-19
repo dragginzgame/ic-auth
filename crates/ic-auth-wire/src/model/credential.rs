@@ -6,10 +6,7 @@ use serde::{Deserialize, Serialize};
 
 /// Claimed network and application identities, in fixed transport order.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(
-    all(feature = "typescript", not(target_family = "wasm")),
-    derive(ic_wire::typescript::Wire)
-)]
+#[cfg_attr(feature = "typescript", derive(ic_wire::typescript::Wire))]
 pub struct AudienceId {
     /// Claimed canonical network identifier.
     pub canonical_network_id: [u8; 32],
@@ -19,10 +16,7 @@ pub struct AudienceId {
 
 /// Bounded grant text, before label grammar and authorization checks.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(
-    all(feature = "typescript", not(target_family = "wasm")),
-    derive(ic_wire::typescript::Wire)
-)]
+#[cfg_attr(feature = "typescript", derive(ic_wire::typescript::Wire))]
 pub struct DelegatedRoleGrant {
     /// Claimed role, not a protected role selection.
     pub target: Text<64>,
@@ -32,10 +26,7 @@ pub struct DelegatedRoleGrant {
 
 /// Delegation audience tag and payload.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(
-    all(feature = "typescript", not(target_family = "wasm")),
-    derive(ic_wire::typescript::Wire)
-)]
+#[cfg_attr(feature = "typescript", derive(ic_wire::typescript::Wire))]
 pub enum DelegationAudience {
     /// Network/application audience, retaining the existing tag name.
     Fleet(AudienceId),
@@ -43,10 +34,7 @@ pub enum DelegationAudience {
 
 /// Root chain-key algorithm tag; this does not select trusted enrollment.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(
-    all(feature = "typescript", not(target_family = "wasm")),
-    derive(ic_wire::typescript::Wire)
-)]
+#[cfg_attr(feature = "typescript", derive(ic_wire::typescript::Wire))]
 pub enum ChainKeyAlgorithm {
     /// ECDSA on secp256k1.
     EcdsaSecp256k1,
@@ -54,10 +42,7 @@ pub enum ChainKeyAlgorithm {
 
 /// Untrusted root key lookup hint.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(
-    all(feature = "typescript", not(target_family = "wasm")),
-    derive(ic_wire::typescript::Wire)
-)]
+#[cfg_attr(feature = "typescript", derive(ic_wire::typescript::Wire))]
 pub struct ChainKeyKeyId {
     /// Bounded key name.
     pub name: Text<128>,
@@ -65,10 +50,7 @@ pub struct ChainKeyKeyId {
 
 /// Issuer proof algorithm tag, checked against protected enrollment later.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(
-    all(feature = "typescript", not(target_family = "wasm")),
-    derive(ic_wire::typescript::Wire)
-)]
+#[cfg_attr(feature = "typescript", derive(ic_wire::typescript::Wire))]
 pub enum IssuerProofAlgorithm {
     /// Version-one IC canister signature.
     IcCanisterSignatureV1,
@@ -76,10 +58,7 @@ pub enum IssuerProofAlgorithm {
 
 /// Claimed issuer key binding; not an independent trust anchor.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(
-    all(feature = "typescript", not(target_family = "wasm")),
-    derive(ic_wire::typescript::Wire)
-)]
+#[cfg_attr(feature = "typescript", derive(ic_wire::typescript::Wire))]
 pub enum IssuerProofBinding {
     /// SHA-256 seed hash of the issuer canister-signature public key.
     IcCanisterSignatureV1([u8; 32]),
@@ -87,10 +66,7 @@ pub enum IssuerProofBinding {
 
 /// Bounded opaque canister-signature material.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(
-    all(feature = "typescript", not(target_family = "wasm")),
-    derive(ic_wire::typescript::Wire)
-)]
+#[cfg_attr(feature = "typescript", derive(ic_wire::typescript::Wire))]
 pub struct IcCanisterSignatureProofV1 {
     /// CBOR signature/certificate/witness bytes requiring complete verification.
     pub signature_cbor: Bytes<131072>,
@@ -100,10 +76,7 @@ pub struct IcCanisterSignatureProofV1 {
 
 /// Claimed signed batch-header fields, preserving their existing order.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(
-    all(feature = "typescript", not(target_family = "wasm")),
-    derive(ic_wire::typescript::Wire)
-)]
+#[cfg_attr(feature = "typescript", derive(ic_wire::typescript::Wire))]
 pub struct ChainKeyBatchHeaderV1 {
     /// Claimed header schema, not validated by transport.
     pub schema_version: u16,
@@ -135,10 +108,7 @@ pub struct ChainKeyBatchHeaderV1 {
 
 /// Delegation leaf carried with a chain-key batch proof.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(
-    all(feature = "typescript", not(target_family = "wasm")),
-    derive(ic_wire::typescript::Wire)
-)]
+#[cfg_attr(feature = "typescript", derive(ic_wire::typescript::Wire))]
 pub struct ChainKeyDelegationCertV1 {
     /// Claimed root canister.
     pub root_canister_id: Principal,
@@ -170,10 +140,7 @@ pub struct ChainKeyDelegationCertV1 {
 
 /// Bounded root-signature material; length bounds do not verify a signature.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(
-    all(feature = "typescript", not(target_family = "wasm")),
-    derive(ic_wire::typescript::Wire)
-)]
+#[cfg_attr(feature = "typescript", derive(ic_wire::typescript::Wire))]
 pub struct ChainKeyRootSignatureV1 {
     /// Claimed root-signature algorithm.
     pub algorithm: ChainKeyAlgorithm,
@@ -189,10 +156,7 @@ pub struct ChainKeyRootSignatureV1 {
 
 /// Ordered Merkle witness step with the existing discriminants.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(
-    all(feature = "typescript", not(target_family = "wasm")),
-    derive(ic_wire::typescript::Wire)
-)]
+#[cfg_attr(feature = "typescript", derive(ic_wire::typescript::Wire))]
 pub enum ChainKeyBatchWitnessStepV1 {
     /// Sibling preceding the current node.
     LeftSibling([u8; 32]),
@@ -202,10 +166,7 @@ pub enum ChainKeyBatchWitnessStepV1 {
 
 /// Bounded ordered batch witness.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(
-    all(feature = "typescript", not(target_family = "wasm")),
-    derive(ic_wire::typescript::Wire)
-)]
+#[cfg_attr(feature = "typescript", derive(ic_wire::typescript::Wire))]
 pub struct ChainKeyBatchWitnessV1 {
     /// At most 64 sibling steps.
     pub steps: List<ChainKeyBatchWitnessStepV1, 64>,
@@ -213,10 +174,7 @@ pub struct ChainKeyBatchWitnessV1 {
 
 /// Root batch proof with all authenticated fields still unverified.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(
-    all(feature = "typescript", not(target_family = "wasm")),
-    derive(ic_wire::typescript::Wire)
-)]
+#[cfg_attr(feature = "typescript", derive(ic_wire::typescript::Wire))]
 pub struct IcChainKeyBatchSignatureProofV1 {
     /// Signed batch header.
     pub header: ChainKeyBatchHeaderV1,
@@ -230,10 +188,7 @@ pub struct IcChainKeyBatchSignatureProofV1 {
 
 /// Root proof tag and its bounded payload.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(
-    all(feature = "typescript", not(target_family = "wasm")),
-    derive(ic_wire::typescript::Wire)
-)]
+#[cfg_attr(feature = "typescript", derive(ic_wire::typescript::Wire))]
 pub enum RootProof {
     /// Version-one chain-key batch signature proof.
     IcChainKeyBatchSignatureV1(IcChainKeyBatchSignatureProofV1),
@@ -241,10 +196,7 @@ pub enum RootProof {
 
 /// Claimed root delegation; duplicate commitments require verifier agreement.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(
-    all(feature = "typescript", not(target_family = "wasm")),
-    derive(ic_wire::typescript::Wire)
-)]
+#[cfg_attr(feature = "typescript", derive(ic_wire::typescript::Wire))]
 pub struct DelegationCert {
     /// Claimed root identity.
     pub root_pid: Principal,
@@ -272,10 +224,7 @@ pub struct DelegationCert {
 
 /// Claimed delegation and its root evidence.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(
-    all(feature = "typescript", not(target_family = "wasm")),
-    derive(ic_wire::typescript::Wire)
-)]
+#[cfg_attr(feature = "typescript", derive(ic_wire::typescript::Wire))]
 pub struct DelegationProof {
     /// Claimed delegation certificate.
     pub cert: DelegationCert,
@@ -285,10 +234,7 @@ pub struct DelegationProof {
 
 /// Bounded certified credential proof.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(
-    all(feature = "typescript", not(target_family = "wasm")),
-    derive(ic_wire::typescript::Wire)
-)]
+#[cfg_attr(feature = "typescript", derive(ic_wire::typescript::Wire))]
 pub struct CertifiedProof {
     /// Root delegation evidence for the issuer.
     pub delegation: DelegationProof,
@@ -298,10 +244,7 @@ pub struct CertifiedProof {
 
 /// Claimed proof mechanism; the host's enrollment selects the verifier.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(
-    all(feature = "typescript", not(target_family = "wasm")),
-    derive(ic_wire::typescript::Wire)
-)]
+#[cfg_attr(feature = "typescript", derive(ic_wire::typescript::Wire))]
 pub enum PortableProof {
     /// Root-delegated certified issuer proof, transport tag zero.
     Certified(Box<CertifiedProof>),
@@ -311,10 +254,7 @@ pub enum PortableProof {
 
 /// Opaque signed claims with an unverified proof envelope.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(
-    all(feature = "typescript", not(target_family = "wasm")),
-    derive(ic_wire::typescript::Wire)
-)]
+#[cfg_attr(feature = "typescript", derive(ic_wire::typescript::Wire))]
 pub struct PortableCredential {
     /// Exact received signed bytes; transport must not decode/re-encode them.
     pub claims: Bytes<65536>,

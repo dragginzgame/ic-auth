@@ -27,7 +27,7 @@ use ic_auth_wire::{
     model::{AdmissionRefusal, LogoutResult, LogoutUnavailable, PortableCredential, PortableProof},
 };
 use ic_platform::ed25519::{Signer, SigningKey};
-use ic_platform_runtime::{self as runtime, system as api};
+use ic_platform_runtime::system as api;
 use std::cell::RefCell;
 
 const SECOND: u64 = 1_000_000_000;
@@ -157,7 +157,7 @@ pub(super) fn init() {
 }
 
 /// Reject oversized ingress before copying or decoding the request.
-fn bounded<const N: usize>() -> Result<(), String> {
+pub(super) fn bounded<const N: usize>() -> Result<(), String> {
     if api::argument_size() <= N {
         Ok(())
     } else {
@@ -165,7 +165,7 @@ fn bounded<const N: usize>() -> Result<(), String> {
     }
 }
 
-fn decode_lookup(bytes: &[u8]) -> Result<bool, ic_wire::Error> {
+pub(super) fn decode_lookup(bytes: &[u8]) -> Result<bool, ic_wire::Error> {
     ic_wire::decode(
         bytes,
         ic_wire::Encoding::Frame {
@@ -179,22 +179,12 @@ fn decode_lookup(bytes: &[u8]) -> Result<bool, ic_wire::Error> {
     clippy::needless_pass_by_value,
     reason = "Platform owns the reply value"
 )]
-fn encode_credential(value: PortableCredential) -> Result<Vec<u8>, ic_wire::Error> {
+pub(super) fn encode_credential(value: PortableCredential) -> Result<Vec<u8>, ic_wire::Error> {
     // Return exact retained credential REQUEST bytes, the browser journal's artifact format.
     CredentialEnvelope::encode_request(&value)
 }
 
-/// Issue or look up a browser-bound credential.
-#[runtime::update(
-    runtime = ic_platform_runtime,
-    name = "browser_fixture_credential",
-    guard = bounded::<256>,
-    decode = decode_lookup,
-    encode = encode_credential,
-    max_bytes = 256,
-    on_error = crate::canister::endpoint_error,
-)]
-fn credential(lookup: bool) -> PortableCredential {
+pub(super) fn credential(lookup: bool) -> PortableCredential {
     let caller = api::caller();
     assert_eq!(caller, principal(8), "fixed fixture account required");
     let now = api::time();
@@ -271,28 +261,20 @@ fn context<'a>(
     }
 }
 
-fn decode_admit(bytes: &[u8]) -> Result<SessionInput, ic_wire::Error> {
+pub(super) fn decode_admit(bytes: &[u8]) -> Result<SessionInput, ic_wire::Error> {
     EstablishSession::decode_request(bytes)
 }
 #[expect(
     clippy::needless_pass_by_value,
     reason = "Platform owns the reply value"
 )]
-fn encode_admit(value: Result<SessionView, AdmissionRefusal>) -> Result<Vec<u8>, ic_wire::Error> {
+pub(super) fn encode_admit(
+    value: Result<SessionView, AdmissionRefusal>,
+) -> Result<Vec<u8>, ic_wire::Error> {
     EstablishSession::encode_response(&value)
 }
 
-/// Admit the browser credential and return its session view.
-#[runtime::update(
-    runtime = ic_platform_runtime,
-    name = "establish_portable_session",
-    guard = bounded::<524288>,
-    decode = decode_admit,
-    encode = encode_admit,
-    max_bytes = 524288,
-    on_error = crate::canister::endpoint_error,
-)]
-fn admit(input: SessionInput) -> Result<SessionView, AdmissionRefusal> {
+pub(super) fn admit(input: SessionInput) -> Result<SessionView, AdmissionRefusal> {
     let proof = input
         .credential
         .try_into()
@@ -349,7 +331,7 @@ fn admit(input: SessionInput) -> Result<SessionView, AdmissionRefusal> {
     })
 }
 
-fn decode_write(bytes: &[u8]) -> Result<(), ic_wire::Error> {
+pub(super) fn decode_write(bytes: &[u8]) -> Result<(), ic_wire::Error> {
     ic_wire::decode::<()>(
         bytes,
         ic_wire::Encoding::Frame {
@@ -360,7 +342,7 @@ fn decode_write(bytes: &[u8]) -> Result<(), ic_wire::Error> {
     )
 }
 
-fn encode_write(value: Result<u32, ()>) -> Result<Vec<u8>, ic_wire::Error> {
+pub(super) fn encode_write(value: Result<u32, ()>) -> Result<Vec<u8>, ic_wire::Error> {
     ic_wire::encode(
         &value,
         ic_wire::Encoding::Frame {
@@ -371,17 +353,7 @@ fn encode_write(value: Result<u32, ()>) -> Result<Vec<u8>, ic_wire::Error> {
     )
 }
 
-/// Apply a fixture write under the current caller’s session.
-#[runtime::update(
-    runtime = ic_platform_runtime,
-    name = "browser_fixture_write",
-    guard = bounded::<256>,
-    decode = decode_write,
-    encode = encode_write,
-    max_bytes = 256,
-    on_error = crate::canister::endpoint_error,
-)]
-fn write((): ()) -> Result<u32, ()> {
+pub(super) fn write() -> Result<u32, ()> {
     STATE.with_borrow_mut(|state| {
         let s = state.as_mut().ok_or(())?;
         let audience = audience();
@@ -415,28 +387,18 @@ fn write((): ()) -> Result<u32, ()> {
     })
 }
 
-fn decode_logout(bytes: &[u8]) -> Result<(), ic_wire::Error> {
+pub(super) fn decode_logout(bytes: &[u8]) -> Result<(), ic_wire::Error> {
     Logout::decode_request(bytes)
 }
 #[expect(
     clippy::needless_pass_by_value,
     reason = "Platform owns the reply value"
 )]
-fn encode_logout(value: LogoutResult) -> Result<Vec<u8>, ic_wire::Error> {
+pub(super) fn encode_logout(value: LogoutResult) -> Result<Vec<u8>, ic_wire::Error> {
     Logout::encode_response(&value)
 }
 
-/// Revoke the caller’s login and report the resulting logout receipt.
-#[runtime::update(
-    runtime = ic_platform_runtime,
-    name = "logout_portable_session",
-    guard = bounded::<11>,
-    decode = decode_logout,
-    encode = encode_logout,
-    max_bytes = 11,
-    on_error = crate::canister::endpoint_error,
-)]
-fn logout((): ()) -> LogoutResult {
+pub(super) fn logout() -> LogoutResult {
     STATE.with_borrow_mut(|state| {
         let Some(s) = state.as_mut() else {
             return LogoutResult::Unavailable(LogoutUnavailable::ResetPending);
@@ -465,7 +427,7 @@ fn logout((): ()) -> LogoutResult {
     })
 }
 
-fn decode_observe(bytes: &[u8]) -> Result<(), ic_wire::Error> {
+pub(super) fn decode_observe(bytes: &[u8]) -> Result<(), ic_wire::Error> {
     ic_wire::decode::<()>(
         bytes,
         ic_wire::Encoding::Frame {
@@ -479,7 +441,7 @@ fn decode_observe(bytes: &[u8]) -> Result<(), ic_wire::Error> {
     clippy::needless_pass_by_value,
     reason = "Platform owns the reply value"
 )]
-fn encode_observe(value: Observation) -> Result<Vec<u8>, ic_wire::Error> {
+pub(super) fn encode_observe(value: Observation) -> Result<Vec<u8>, ic_wire::Error> {
     ic_wire::encode(
         &value,
         ic_wire::Encoding::Frame {
@@ -490,17 +452,7 @@ fn encode_observe(value: Observation) -> Result<Vec<u8>, ic_wire::Error> {
     )
 }
 
-/// Read the browser fixture’s observable state.
-#[runtime::query(
-    runtime = ic_platform_runtime,
-    name = "browser_fixture_observe",
-    guard = bounded::<256>,
-    decode = decode_observe,
-    encode = encode_observe,
-    max_bytes = 256,
-    on_error = crate::canister::endpoint_error,
-)]
-fn observe((): ()) -> Observation {
+pub(super) fn observe() -> Observation {
     STATE.with_borrow(|state| {
         let s = state.as_ref().expect("lost browser fixture state");
         Observation {

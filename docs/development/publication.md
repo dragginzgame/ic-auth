@@ -1,7 +1,7 @@
 # Crates.io publication scope
 
-This release publishes Auth 0.48.4 to crates.io. Auth Wire is available at 0.44.2 and protocol-types
-at 0.43.0. All three product crates use `publish = true`.
+This release publishes Auth 0.48.5, Auth Wire 0.45.0 and protocol-types 0.43.1
+to crates.io. All three product crates use `publish = true`.
 Publication covers the implemented volatile libraries, not production deployment.
 
 | Product crate | Published responsibility | In-repository prerequisite |

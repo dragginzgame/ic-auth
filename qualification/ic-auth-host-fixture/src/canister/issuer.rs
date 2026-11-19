@@ -1,10 +1,7 @@
-//! Standalone fixture adapter, not Canic application endpoint integration.
-mod browser;
-mod certified;
-mod enrollment;
-mod receiver;
+//! Issuer operations and certification for the installed qualification fixture.
 
-use super::{
+use super::{browser, certified, receiver};
+use crate::{
     CONTROL, Command, Fault, OBSERVE, Observation, Progress, REQUEST, RESPONSE, Refusal, SEED,
     hash_bytes,
 };
@@ -51,7 +48,7 @@ fn authority() -> IssuerAuthority {
     }
 }
 
-fn decode_install(bytes: &[u8]) -> Result<crate::Installation, ic_wire::Error> {
+pub(super) fn decode_install(bytes: &[u8]) -> Result<crate::Installation, ic_wire::Error> {
     if bytes.is_empty() {
         return Ok(crate::Installation {
             authority: Vec::new(),
@@ -62,15 +59,7 @@ fn decode_install(bytes: &[u8]) -> Result<crate::Installation, ic_wire::Error> {
     ic_wire::decode(bytes, ic_wire::Encoding::Payload, crate::enrollment::LIMITS)
 }
 
-/// Initialize the issuer and receiver fixtures on a fresh installation.
-#[runtime::init(
-    runtime = ic_platform_runtime,
-    guard = bounded_request,
-    decode = decode_install,
-    max_bytes = 256,
-    on_error = crate::canister::endpoint_error,
-)]
-fn init(installation: crate::Installation) {
+pub(super) fn init(installation: crate::Installation) {
     let authority = if installation.authority.is_empty() {
         api::canister_self()
     } else {
@@ -105,22 +94,14 @@ fn init(installation: crate::Installation) {
     api::set_certified_data(&witness(None).digest());
 }
 
-/// Clear certification after volatile state loss.
-#[runtime::post_upgrade(
-    runtime = ic_platform_runtime,
-    guard = bounded_request,
-    decode = decode_upgrade,
-    max_bytes = 0,
-    on_error = crate::canister::endpoint_error,
-)]
-fn lost_volatile_state((): ()) {
+pub(super) fn lost_volatile_state() {
     // No stable adapter: heap loss is terminal. Clear the certified contribution,
     // leave the issuer absent, and provide no timestamp/generation reset escape.
     api::set_certified_data(&witness(None).digest());
 }
 
 /// Reject oversized ingress before copying or decoding the request.
-fn bounded_request() -> Result<(), String> {
+pub(super) fn bounded_request() -> Result<(), String> {
     if api::argument_size() > REQUEST.bytes {
         Err("oversized fixture frame".into())
     } else {
@@ -128,7 +109,7 @@ fn bounded_request() -> Result<(), String> {
     }
 }
 
-fn decode_command(bytes: &[u8]) -> Result<Command, ic_wire::Error> {
+pub(super) fn decode_command(bytes: &[u8]) -> Result<Command, ic_wire::Error> {
     ic_wire::decode(
         bytes,
         ic_wire::Encoding::Frame {
@@ -139,7 +120,7 @@ fn decode_command(bytes: &[u8]) -> Result<Command, ic_wire::Error> {
     )
 }
 
-fn encode_result(result: Result<(), Refusal>) -> Result<Vec<u8>, ic_wire::Error> {
+pub(super) fn encode_result(result: Result<(), Refusal>) -> Result<Vec<u8>, ic_wire::Error> {
     ic_wire::encode(
         &result,
         ic_wire::Encoding::Frame {
@@ -159,17 +140,7 @@ fn refusal(error: IssuerError) -> Refusal {
     }
 }
 
-/// Exercise an issuer operation with the actual ingress caller and time.
-#[runtime::update(
-    runtime = ic_platform_runtime,
-    name = "auth_fixture_control",
-    guard = bounded_request,
-    decode = decode_command,
-    encode = encode_result,
-    max_bytes = 256,
-    on_error = crate::canister::endpoint_error,
-)]
-fn control(command: Command) -> Result<(), Refusal> {
+pub(super) fn control(command: Command) -> Result<(), Refusal> {
     let caller = api::caller();
     let now = api::time();
     STATE.with_borrow_mut(|state| {
@@ -280,7 +251,7 @@ fn control(command: Command) -> Result<(), Refusal> {
     })
 }
 
-fn decode_unit(bytes: &[u8]) -> Result<(), ic_wire::Error> {
+pub(super) fn decode_unit(bytes: &[u8]) -> Result<(), ic_wire::Error> {
     ic_wire::decode::<()>(
         bytes,
         ic_wire::Encoding::Frame {
@@ -294,7 +265,7 @@ fn decode_unit(bytes: &[u8]) -> Result<(), ic_wire::Error> {
     clippy::needless_pass_by_value,
     reason = "Platform transfers the handler result to its encoding hook"
 )]
-fn encode_observation(value: Observation) -> Result<Vec<u8>, ic_wire::Error> {
+pub(super) fn encode_observation(value: Observation) -> Result<Vec<u8>, ic_wire::Error> {
     ic_wire::encode(
         &value,
         ic_wire::Encoding::Frame {
@@ -305,17 +276,7 @@ fn encode_observation(value: Observation) -> Result<Vec<u8>, ic_wire::Error> {
     )
 }
 
-/// Read retained issuer state and its certification witness.
-#[runtime::query(
-    runtime = ic_platform_runtime,
-    name = "auth_fixture_observe",
-    guard = bounded_request,
-    decode = decode_unit,
-    encode = encode_observation,
-    max_bytes = 256,
-    on_error = crate::canister::endpoint_error,
-)]
-fn observe((): ()) -> Observation {
+pub(super) fn observe() -> Observation {
     STATE.with_borrow(|s| {
         let certificate = api::data_certificate(RESPONSE.bytes).unwrap().unwrap();
         let tree = witness(s.leaf);
@@ -353,7 +314,7 @@ fn observe((): ()) -> Observation {
     })
 }
 
-fn decode_upgrade(bytes: &[u8]) -> Result<(), String> {
+pub(super) fn decode_upgrade(bytes: &[u8]) -> Result<(), String> {
     if bytes.is_empty() {
         Ok(())
     } else {
@@ -361,46 +322,36 @@ fn decode_upgrade(bytes: &[u8]) -> Result<(), String> {
     }
 }
 
-fn decode_measurement(bytes: &[u8]) -> Result<Command, ic_wire::Error> {
+pub(super) fn decode_measurement(bytes: &[u8]) -> Result<Command, ic_wire::Error> {
     ic_wire::decode(
         bytes,
         ic_wire::Encoding::Frame {
-            method: super::MEASURE,
+            method: crate::MEASURE,
             direction: ic_wire::Direction::Request,
         },
         REQUEST,
     )
 }
 
-fn encode_measurement(value: super::Measurement) -> Result<Vec<u8>, ic_wire::Error> {
+pub(super) fn encode_measurement(value: crate::Measurement) -> Result<Vec<u8>, ic_wire::Error> {
     ic_wire::encode(
         &value,
         ic_wire::Encoding::Frame {
-            method: super::MEASURE,
+            method: crate::MEASURE,
             direction: ic_wire::Direction::Response,
         },
         RESPONSE,
     )
 }
 
-/// Measure one issuer control operation inside an update.
-#[runtime::update(
-    runtime = ic_platform_runtime,
-    name = "auth_fixture_measure",
-    guard = bounded_request,
-    decode = decode_measurement,
-    encode = encode_measurement,
-    max_bytes = 256,
-    on_error = crate::canister::endpoint_error,
-)]
-fn measure(command: Command) -> super::Measurement {
+pub(super) fn measure(command: Command) -> crate::Measurement {
     let before_heap = std::arch::wasm32::memory_size::<0>() as u64;
     let before = runtime::raw::instruction_counter();
     let result = control(command);
     let instructions = runtime::raw::instruction_counter() - before;
     let after_heap = std::arch::wasm32::memory_size::<0>() as u64;
     let response_bytes = encode_result(result).unwrap().len() as u64;
-    super::Measurement {
+    crate::Measurement {
         result,
         instructions,
         heap_pages: (before_heap, after_heap),
@@ -408,11 +359,11 @@ fn measure(command: Command) -> super::Measurement {
     }
 }
 
-fn decode_witness_measurement(bytes: &[u8]) -> Result<(), ic_wire::Error> {
+pub(super) fn decode_witness_measurement(bytes: &[u8]) -> Result<(), ic_wire::Error> {
     ic_wire::decode(
         bytes,
         ic_wire::Encoding::Frame {
-            method: super::WITNESS_MEASURE,
+            method: crate::WITNESS_MEASURE,
             direction: ic_wire::Direction::Request,
         },
         REQUEST,
@@ -422,35 +373,27 @@ fn decode_witness_measurement(bytes: &[u8]) -> Result<(), ic_wire::Error> {
     clippy::needless_pass_by_value,
     reason = "Platform owns the handler result"
 )]
-fn encode_witness_measurement(value: super::WitnessMeasurement) -> Result<Vec<u8>, ic_wire::Error> {
+pub(super) fn encode_witness_measurement(
+    value: crate::WitnessMeasurement,
+) -> Result<Vec<u8>, ic_wire::Error> {
     ic_wire::encode(
         &value,
         ic_wire::Encoding::Frame {
-            method: super::WITNESS_MEASURE,
+            method: crate::WITNESS_MEASURE,
             direction: ic_wire::Direction::Response,
         },
         RESPONSE,
     )
 }
 
-/// Measure witness construction in a query.
-#[runtime::query(
-    runtime = ic_platform_runtime,
-    name = "auth_fixture_witness_measure",
-    guard = bounded_request,
-    decode = decode_witness_measurement,
-    encode = encode_witness_measurement,
-    max_bytes = 256,
-    on_error = crate::canister::endpoint_error,
-)]
-fn measure_witness((): ()) -> super::WitnessMeasurement {
+pub(super) fn measure_witness() -> crate::WitnessMeasurement {
     let before_heap = std::arch::wasm32::memory_size::<0>() as u64;
     let before = runtime::raw::instruction_counter();
-    let observation = observe(());
+    let observation = observe();
     let instructions = runtime::raw::instruction_counter() - before;
     let after_heap = std::arch::wasm32::memory_size::<0>() as u64;
     let response_bytes = encode_observation(observation.clone()).unwrap().len() as u64;
-    super::WitnessMeasurement {
+    crate::WitnessMeasurement {
         observation,
         instructions,
         heap_pages: (before_heap, after_heap),
@@ -458,6 +401,6 @@ fn measure_witness((): ()) -> super::WitnessMeasurement {
     }
 }
 
-pub(crate) fn endpoint_error<E: std::fmt::Debug>(error: E) -> ! {
+pub(super) fn endpoint_error<E: std::fmt::Debug>(error: E) -> ! {
     ic_platform_runtime::system::trap(&format!("fixture endpoint refused: {error:?}"))
 }

@@ -207,7 +207,7 @@ fn control(s: &mut State, command: Command) -> Result<Outcome, Refusal> {
     }
 }
 
-fn decode(bytes: &[u8]) -> Result<Command, ic_wire::Error> {
+pub(super) fn decode(bytes: &[u8]) -> Result<Command, ic_wire::Error> {
     ic_wire::decode(
         bytes,
         ic_wire::Encoding::Frame {
@@ -221,7 +221,7 @@ fn decode(bytes: &[u8]) -> Result<Command, ic_wire::Error> {
     clippy::needless_pass_by_value,
     reason = "Platform owns the handler result"
 )]
-fn encode(value: Measurement) -> Result<Vec<u8>, ic_wire::Error> {
+pub(super) fn encode(value: Measurement) -> Result<Vec<u8>, ic_wire::Error> {
     ic_wire::encode(
         &value,
         ic_wire::Encoding::Frame {
@@ -233,7 +233,7 @@ fn encode(value: Measurement) -> Result<Vec<u8>, ic_wire::Error> {
 }
 
 /// Bound the certified measurement request before decoding its proof bytes.
-fn guard() -> Result<(), String> {
+pub(super) fn guard() -> Result<(), String> {
     if api::argument_size() <= crate::RESPONSE.bytes {
         Ok(())
     } else {
@@ -241,17 +241,7 @@ fn guard() -> Result<(), String> {
     }
 }
 
-/// Measure verification of the installed certified credential fixture.
-#[runtime::update(
-    runtime = ic_platform_runtime,
-    name = "certified_fixture_measure",
-    guard = guard,
-    decode = decode,
-    encode = encode,
-    max_bytes = 32768,
-    on_error = crate::canister::endpoint_error,
-)]
-fn measure(command: Command) -> Measurement {
+pub(super) fn measure(command: Command) -> Measurement {
     STATE.with_borrow_mut(|state| {
         let s = state
             .as_mut()

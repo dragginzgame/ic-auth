@@ -20,10 +20,7 @@ pub const BROWSER_MAX_CONFIGURED_CREDENTIAL_BYTES: usize = 1_048_576;
 
 /// Unsigned session narrowing accompanying an opaque signed credential.
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
-#[cfg_attr(
-    all(feature = "typescript", not(target_family = "wasm")),
-    derive(ic_wire::typescript::Wire)
-)]
+#[cfg_attr(feature = "typescript", derive(ic_wire::typescript::Wire))]
 pub struct SessionInput {
     /// Claims and proof requiring complete verification against host authority.
     pub credential: model::PortableCredential,

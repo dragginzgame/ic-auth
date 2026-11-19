@@ -22,14 +22,14 @@ ic-build = "0.87.4"
 ic-host-artifacts = "0.80.3"
 ic-host-fs = "0.80.3"
 ic-host-process = "0.81.0"
-ic-platform = { version = "0.34.15", default-features = false }
-ic-platform-runtime = { version = "0.23.17", default-features = false }
+ic-platform = { version = "0.34.18", default-features = false }
+ic-platform-runtime = { version = "0.23.22", default-features = false }
 ic-testkit = "0.110.0"
-ic-wire = "0.25.0"
+ic-wire = "0.26.0"
 serde = "1.0.229"
 sha2 = "0.11.1"
 tokio = "1.54.1"
-toko-tooling = "=0.45.16"
+toko-tooling = "=0.45.21"
 
 [workspace.lints.cargo]
 unused_dependencies = "deny"
@@ -59,3 +59,4 @@ wildcard_imports = "warn"
 missing_panics_doc = "warn"
 must_use_candidate = "warn"
 too_many_lines = "allow"
+empty_line_after_doc_comments = "allow"

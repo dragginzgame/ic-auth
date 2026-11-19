@@ -365,7 +365,7 @@ dependencies = [
 
 [[package]]
 name = "ic-auth"
-version = "0.48.4"
+version = "0.48.5"
 dependencies = [
  "ic-auth-protocol-types",
  "ic-platform",
@@ -377,7 +377,7 @@ dependencies = [
 
 [[package]]
 name = "ic-auth-protocol-types"
-version = "0.43.0"
+version = "0.43.1"
 dependencies = [
  "ic-platform-types",
  "toko-tooling",
@@ -385,7 +385,7 @@ dependencies = [
 
 [[package]]
 name = "ic-auth-wire"
-version = "0.44.2"
+version = "0.45.0"
 dependencies = [
  "ic-auth-protocol-types",
  "ic-wire",
@@ -405,9 +405,9 @@ dependencies = [
 
 [[package]]
 name = "ic-platform"
-version = "0.34.17"
+version = "0.34.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "866eba5d2c1bf18457a3c2a5c1a306dab075626efbe9c83acf1eeb952d58a023"
+checksum = "b59c6bf641d9d87b4c7cac1012398998b1f4a6217b81bd580b3c84d421b43a2d"
 dependencies = [
  "crypto-bigint",
  "curve25519-dalek",
@@ -452,9 +452,9 @@ dependencies = [
 
 [[package]]
 name = "ic-wire"
-version = "0.25.2"
+version = "0.26.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "695d18963ce56d74d2b619d90dbb560039d0bd2ecc0cc04a2ae2ce5ea2911f6f"
+checksum = "82b11b86139e137ecc6a7c6675cf58b6b2e00ba89a55166d842cdd416c19fe2b"
 dependencies = [
  "bytemuck",
  "ic-platform-types",
@@ -467,9 +467,9 @@ dependencies = [
 
 [[package]]
 name = "ic-wire-derive"
-version = "0.25.2"
+version = "0.26.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e8da94da6a93c1a0839f17145d28455a9e1477a28ef496ba91c30201146cf50c"
+checksum = "439e982a383e97964f2641c51be4930c1bc5c8001056764ab1042cdf774ce9d0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -806,9 +806,9 @@ dependencies = [
 
 [[package]]
 name = "toko-tooling"
-version = "0.45.16"
+version = "0.45.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a2095850545e0fd3c5580fab610cab78561242fc09c74221e27f3e7f654d5776"
+checksum = "af1ba8e16aaf1dae0951f08a228a4f00b928d09ff68997bd94ccc397ace5e4be"
 
 [[package]]
 name = "typenum"

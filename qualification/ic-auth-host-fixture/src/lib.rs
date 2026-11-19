@@ -1,14 +1,320 @@
 //! Test-only Wire controls. Never install this canister as an application service.
 pub mod browser;
-// The native harness uses the Wire types below. IC system imports exist only on Wasm.
-#[cfg(target_arch = "wasm32")]
-mod canister;
 pub mod certified;
 pub mod enrollment;
 pub mod receiver;
 
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+
+// The native harness shares the contracts below. Certification, instruction counters
+// and Wasm linear-memory measurements require the installed canister.
+#[cfg(target_arch = "wasm32")]
+mod canister {
+    mod browser;
+    mod certified;
+    mod enrollment;
+    mod issuer;
+    mod receiver;
+
+    use ic_auth_wire::{
+        SessionInput, SessionView,
+        model::{AdmissionRefusal, LogoutResult, PortableCredential},
+    };
+    use ic_platform_runtime as runtime;
+
+    // init
+    // Initialize the issuer and receiver fixtures on a fresh installation.
+    // guard  : reject oversized input before decoding
+    // limits : 256-byte input cap, enrollment::LIMITS for nonempty input, no reply
+    #[runtime::init(
+        runtime = ic_platform_runtime,
+        guard = issuer::bounded_request,
+        decode = issuer::decode_install,
+        max_bytes = 256,
+        on_error = issuer::endpoint_error,
+    )]
+    fn init(installation: crate::Installation) {
+        issuer::init(installation)
+    }
+
+    // lost_volatile_state
+    // Clear certification after volatile state loss.
+    // guard  : reject oversized input before decoding
+    // limits : empty input, no reply
+    #[runtime::post_upgrade(
+        runtime = ic_platform_runtime,
+        guard = issuer::bounded_request,
+        decode = issuer::decode_upgrade,
+        max_bytes = 0,
+        on_error = issuer::endpoint_error,
+    )]
+    fn lost_volatile_state((): ()) {
+        issuer::lost_volatile_state()
+    }
+
+    // auth_fixture_control
+    // Exercise an issuer operation with the actual ingress caller and time.
+    // guard  : reject oversized input before decoding
+    // limits : request REQUEST, reply RESPONSE
+    #[runtime::update(
+        runtime = ic_platform_runtime,
+        name = "auth_fixture_control",
+        guard = issuer::bounded_request,
+        decode = issuer::decode_command,
+        encode = issuer::encode_result,
+        max_bytes = 256,
+        on_error = issuer::endpoint_error,
+    )]
+    fn auth_fixture_control(command: crate::Command) -> Result<(), crate::Refusal> {
+        issuer::control(command)
+    }
+
+    // auth_fixture_observe
+    // Read retained issuer state and its certification witness.
+    // guard  : reject oversized input before decoding
+    // limits : request REQUEST, reply RESPONSE
+    #[runtime::query(
+        runtime = ic_platform_runtime,
+        name = "auth_fixture_observe",
+        guard = issuer::bounded_request,
+        decode = issuer::decode_unit,
+        encode = issuer::encode_observation,
+        max_bytes = 256,
+        on_error = issuer::endpoint_error,
+    )]
+    fn auth_fixture_observe((): ()) -> crate::Observation {
+        issuer::observe()
+    }
+
+    // auth_fixture_measure
+    // Measure one issuer control operation inside an update.
+    // guard  : reject oversized input before decoding
+    // limits : request REQUEST, reply RESPONSE
+    #[runtime::update(
+        runtime = ic_platform_runtime,
+        name = "auth_fixture_measure",
+        guard = issuer::bounded_request,
+        decode = issuer::decode_measurement,
+        encode = issuer::encode_measurement,
+        max_bytes = 256,
+        on_error = issuer::endpoint_error,
+    )]
+    fn auth_fixture_measure(command: crate::Command) -> crate::Measurement {
+        issuer::measure(command)
+    }
+
+    // auth_fixture_witness_measure
+    // Measure witness construction in a query.
+    // guard  : reject oversized input before decoding
+    // limits : request REQUEST, reply RESPONSE
+    #[runtime::query(
+        runtime = ic_platform_runtime,
+        name = "auth_fixture_witness_measure",
+        guard = issuer::bounded_request,
+        decode = issuer::decode_witness_measurement,
+        encode = issuer::encode_witness_measurement,
+        max_bytes = 256,
+        on_error = issuer::endpoint_error,
+    )]
+    fn auth_fixture_witness_measure((): ()) -> crate::WitnessMeasurement {
+        issuer::measure_witness()
+    }
+
+    // authority_fixture_configure
+    // Select the authority response scenario for subsequent enrollment calls.
+    // guard  : controller and bounded enrollment frame
+    // limits : enrollment::LIMITS for request and reply
+    #[runtime::update(
+        runtime = ic_platform_runtime,
+        name = "authority_fixture_configure",
+        guard = enrollment::controller,
+        decode = enrollment::decode_scenario,
+        encode = enrollment::encode_unit,
+        max_bytes = 2048,
+        on_error = issuer::endpoint_error,
+    )]
+    fn authority_fixture_configure(scenario: crate::enrollment::Scenario) {
+        enrollment::configure(scenario)
+    }
+
+    // authority_fixture_snapshot
+    // Return the enrollment snapshot bound to the requesting receiver and challenge.
+    // guard  : reject oversized input before decoding
+    // limits : enrollment::LIMITS for request and reply
+    #[runtime::update(
+        runtime = ic_platform_runtime,
+        name = "authority_fixture_snapshot",
+        guard = enrollment::bounded,
+        decode = enrollment::decode_request,
+        encode = enrollment::encode_snapshot,
+        max_bytes = 2048,
+        on_error = issuer::endpoint_error,
+    )]
+    fn authority_fixture_snapshot(challenge: [u8; 32]) -> crate::enrollment::Snapshot {
+        enrollment::snapshot(challenge)
+    }
+
+    // receiver_fixture_control
+    // Exercise receiver operations with the authenticated IC caller.
+    // guard  : reject oversized input before decoding
+    // limits : request receiver::REQUEST, reply RESPONSE
+    #[runtime::update(
+        runtime = ic_platform_runtime,
+        name = "receiver_fixture_control",
+        guard = receiver::bounded_request,
+        decode = receiver::decode_command,
+        encode = receiver::encode_result,
+        max_bytes = 4096,
+        on_error = issuer::endpoint_error,
+    )]
+    async fn receiver_fixture_control(
+        command: crate::receiver::Command,
+    ) -> Result<crate::receiver::Outcome, crate::receiver::Refusal> {
+        receiver::control(command).await
+    }
+
+    // receiver_fixture_observe
+    // Read receiver counters and enrollment without consuming verification credit.
+    // guard  : reject oversized input before decoding
+    // limits : request receiver::REQUEST, reply RESPONSE
+    #[runtime::query(
+        runtime = ic_platform_runtime,
+        name = "receiver_fixture_observe",
+        guard = receiver::bounded_request,
+        decode = receiver::decode_unit,
+        encode = receiver::encode_observation,
+        max_bytes = 4096,
+        on_error = issuer::endpoint_error,
+    )]
+    fn receiver_fixture_observe((): ()) -> crate::receiver::Observation {
+        receiver::observe()
+    }
+
+    // receiver_fixture_measure
+    // Measure one receiver operation inside an update.
+    // guard  : reject oversized input before decoding
+    // limits : request receiver::REQUEST, reply RESPONSE
+    #[runtime::update(
+        runtime = ic_platform_runtime,
+        name = "receiver_fixture_measure",
+        guard = receiver::bounded_request,
+        decode = receiver::decode_measurement,
+        encode = receiver::encode_measurement,
+        max_bytes = 4096,
+        on_error = issuer::endpoint_error,
+    )]
+    async fn receiver_fixture_measure(
+        command: crate::receiver::Command,
+    ) -> crate::receiver::Measurement {
+        receiver::measure(command).await
+    }
+
+    // certified_fixture_measure
+    // Measure verification of the installed certified credential fixture.
+    // guard  : reject oversized input before decoding
+    // limits : RESPONSE for request and reply
+    #[runtime::update(
+        runtime = ic_platform_runtime,
+        name = "certified_fixture_measure",
+        guard = certified::guard,
+        decode = certified::decode,
+        encode = certified::encode,
+        max_bytes = 32768,
+        on_error = issuer::endpoint_error,
+    )]
+    fn certified_fixture_measure(
+        command: crate::certified::Command,
+    ) -> crate::certified::Measurement {
+        certified::measure(command)
+    }
+
+    // browser_fixture_credential
+    // Issue or look up a credential for the fixed fixture account.
+    // guard  : reject oversized input before decoding
+    // limits : request REQUEST, reply CredentialEnvelope::REQUEST_LIMITS
+    #[runtime::update(
+        runtime = ic_platform_runtime,
+        name = "browser_fixture_credential",
+        guard = browser::bounded::<256>,
+        decode = browser::decode_lookup,
+        encode = browser::encode_credential,
+        max_bytes = 256,
+        on_error = issuer::endpoint_error,
+    )]
+    fn browser_fixture_credential(lookup: bool) -> PortableCredential {
+        browser::credential(lookup)
+    }
+
+    // establish_portable_session
+    // Admit the browser credential and return its session view.
+    // guard  : reject oversized input before decoding
+    // limits : EstablishSession request and reply limits
+    #[runtime::update(
+        runtime = ic_platform_runtime,
+        name = "establish_portable_session",
+        guard = browser::bounded::<524288>,
+        decode = browser::decode_admit,
+        encode = browser::encode_admit,
+        max_bytes = 524288,
+        on_error = issuer::endpoint_error,
+    )]
+    fn establish_portable_session(input: SessionInput) -> Result<SessionView, AdmissionRefusal> {
+        browser::admit(input)
+    }
+
+    // browser_fixture_write
+    // Apply a fixture write under the current caller’s session.
+    // scope  : write
+    // guard  : reject oversized input before decoding
+    // limits : request REQUEST, reply RESPONSE
+    #[runtime::update(
+        runtime = ic_platform_runtime,
+        name = "browser_fixture_write",
+        guard = browser::bounded::<256>,
+        decode = browser::decode_write,
+        encode = browser::encode_write,
+        max_bytes = 256,
+        on_error = issuer::endpoint_error,
+    )]
+    fn browser_fixture_write((): ()) -> Result<u32, ()> {
+        browser::write()
+    }
+
+    // logout_portable_session
+    // Revoke the caller’s login and report the resulting logout receipt.
+    // guard  : reject oversized input before decoding
+    // limits : Logout request and reply limits
+    #[runtime::update(
+        runtime = ic_platform_runtime,
+        name = "logout_portable_session",
+        guard = browser::bounded::<11>,
+        decode = browser::decode_logout,
+        encode = browser::encode_logout,
+        max_bytes = 11,
+        on_error = issuer::endpoint_error,
+    )]
+    fn logout_portable_session((): ()) -> LogoutResult {
+        browser::logout()
+    }
+
+    // browser_fixture_observe
+    // Read the browser fixture’s observable state.
+    // guard  : reject oversized input before decoding
+    // limits : request REQUEST, reply RESPONSE
+    #[runtime::query(
+        runtime = ic_platform_runtime,
+        name = "browser_fixture_observe",
+        guard = browser::bounded::<256>,
+        decode = browser::decode_observe,
+        encode = browser::encode_observe,
+        max_bytes = 256,
+        on_error = issuer::endpoint_error,
+    )]
+    fn browser_fixture_observe((): ()) -> crate::browser::Observation {
+        browser::observe()
+    }
+}
 
 /// Compute the SHA-256 digest of fixture bytes on either host.
 pub fn hash_bytes(bytes: impl AsRef<[u8]>) -> [u8; 32] {

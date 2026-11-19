@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.48.5] - 2026-11-19
+
+Package versions: `ic-auth` 0.48.5, `ic-auth-wire` 0.45.0 and `ic-auth-protocol-types` 0.43.1.
+
+### 🧹 Cleanup
+
+- Raise the minimum IC Platform and Platform Types versions to 0.34.18 and
+  0.21.3. Use Runtime 0.23.22 in installed qualification and adopt Toko Tooling
+  0.45.21 in both workspaces.
+- Auth Wire now re-exports IC Wire 0.26. Consumers passing Wire types across
+  crate boundaries should use that re-export or align their direct dependency.
+  The optional TypeScript schema derives now compile on native and Wasm targets.
+- Group the 17 qualification canister entrypoints at the fixture library root
+  and document each guard, request and reply budget, and required session scope.
+
 ## [0.48.4] - 2026-11-19
 
 ### 🧹 Cleanup
