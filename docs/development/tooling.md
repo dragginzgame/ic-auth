@@ -9,11 +9,11 @@ stay in the product crates.
 
 ## Installed selection
 
-Toko Tooling **0.45.22** is selected by Cargo and installed through its authenticated
+Toko Tooling **0.45.25** is selected by Cargo and installed through its authenticated
 exporter. Cargo.lock and `.toko-tooling.snapshot` identify archive SHA-256
-`4c4177a70760ea774fc0e14938593658b7b87facb3ee3f8848f65a402f778c7b`.
+`8ee626aa8f6e773f28e9132fb5e9e63d66212ed4b0fe8de67f3468a46f5dc50e`.
 The release source is
-[`3012643f1345ea2e67f31822fda09d4724391b58`](https://github.com/dragginzgame/toko-tooling/tree/3012643f1345ea2e67f31822fda09d4724391b58).
+[`6b87b740ddcde23a939191abdab74c9f017f2e0e`](https://github.com/dragginzgame/toko-tooling/tree/6b87b740ddcde23a939191abdab74c9f017f2e0e).
 Do not hand-edit the receipt or installed vendor files.
 
 The executable selections are `make/consumer.mk`, `make/cargo-dependencies.mk`,
@@ -56,7 +56,8 @@ make install-hooks
 ```
 
 Setup may download pinned tools/crates; hook installation changes only the local
-Git hook selection and refuses to replace other hooks. Routine checks honor Cargo network settings and may fetch missing locked dependencies:
+Git hook selection and refuses to replace other hooks. Auth’s Cargo commands inherit the caller’s network mode. The installed Wasm fixture
+has an [IC Build limitation](../../qualification/ic-auth-host-conformance/README.md).
 
 ```sh
 make toko-tooling-check
@@ -235,9 +236,8 @@ Generated scratch stays under `target/client-wire/`. See
 ## Installed Auth qualification
 
 `POCKET_IC_SERVER_URL=http://127.0.0.1:PORT make qualify-host` supplies prepared
-tool paths and the fixture's Cargo identity to IC Build 0.87.3. The harness builds
-release Wasm once through its bounded offline/locked operation, then installs
-the owned bytes in five issuer/receiver/enrollment cases on one simulated subnet with the provided
+tool paths and the fixture's Cargo identity to IC Build. The harness builds release Wasm once per process and installs
+the owned bytes for issuer, receiver, enrollment, upgrade and cost tests on one simulated subnet with the provided
 PocketIC 16.x server through Testkit. `make lint-host` checks its native harness
 and Wasm fixture. These are explicit local gates; the hosted aggregate does not
 run them or provision a server. `HOST_TEST_FILTER=receiver::` selects only the
@@ -318,7 +318,9 @@ make deps-update DEPENDENCY_PACKAGE=toko-tooling
 toko-cloc -d 1
 ```
 
-`deps-list` is a local package inventory. `deps-update` runs Cargo in the
+`deps-list` shows the independent `auth`, `wire` and `protocol-types` release groups.
+Their package versions and changelogs are mapped in [the release group configuration](../../ci/cargo-release-groups.json).
+The four private qualification packages appear outside those groups. `deps-update` runs Cargo in the
 root and any maintained qualification workspace sequentially; it does not edit
 manifest requirements or roll back earlier lock changes. Review the locks.
 The exact Toko pin changes only by deliberate selection; after updating that pin

@@ -1,6 +1,6 @@
 [package]
 name = "ic-auth"
-version = "0.48.7"
+version = "0.48.8"
 edition.workspace = true
 rust-version.workspace = true
 license-file.workspace = true

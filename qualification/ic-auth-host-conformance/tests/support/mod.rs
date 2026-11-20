@@ -36,11 +36,18 @@ pub(crate) fn wasm() -> Vec<u8> {
             profile: "release".into(),
             features: Vec::new(),
             default_features: true,
-            // Prepared tool/cache locations only; Build owns RUSTC and target-dir.
-            environment: ["HOME", "PATH", "CARGO_HOME", "RUSTUP_HOME", "TMPDIR"]
-                .into_iter()
-                .filter_map(|name| std::env::var_os(name).map(|value| (name.into(), value)))
-                .collect(),
+            // Forward prepared tool paths and the caller’s Cargo network mode.
+            environment: [
+                "HOME",
+                "PATH",
+                "CARGO_HOME",
+                "CARGO_NET_OFFLINE",
+                "RUSTUP_HOME",
+                "TMPDIR",
+            ]
+            .into_iter()
+            .filter_map(|name| std::env::var_os(name).map(|value| (name.into(), value)))
+            .collect(),
             limits: Limits {
                 stdout_bytes: 16 * 1024 * 1024,
                 stderr_bytes: 4 * 1024 * 1024,

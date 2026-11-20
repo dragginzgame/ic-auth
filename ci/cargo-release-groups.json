@@ -1,0 +1,38 @@
+{
+  "schema": 1,
+  "qualification_workspace": "qualification",
+  "groups": [
+    {
+      "name": "auth",
+      "primary": "ic-auth",
+      "version": "package",
+      "members": [
+        "ic-auth"
+      ],
+      "changelog": "releases/auth/CHANGELOG.md",
+      "dependencies": []
+    },
+    {
+      "name": "wire",
+      "primary": "ic-auth-wire",
+      "version": "package",
+      "members": [
+        "ic-auth-wire"
+      ],
+      "changelog": "releases/wire/CHANGELOG.md",
+      "dependencies": []
+    },
+    {
+      "name": "protocol-types",
+      "primary": "ic-auth-protocol-types",
+      "version": "package",
+      "members": [
+        "ic-auth-protocol-types"
+      ],
+      "changelog": "releases/protocol-types/CHANGELOG.md",
+      "dependencies": [
+        "ic-auth-protocol-types"
+      ]
+    }
+  ]
+}

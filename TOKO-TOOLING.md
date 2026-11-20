@@ -15,6 +15,8 @@ Read those references online at their explicit reviewed revision, never moving
 full upstream crate retains them for producer use. If a required reference is
 unavailable, report that specific blocker before the affected action; do not
 silently substitute a different revision or skip the rule.
+Where this installed baseline explicitly supersedes older guidance on the same
+point, apply the baseline. The linked revision still governs the remaining details.
 
 ## Adoption and local authority
 
@@ -208,10 +210,14 @@ file or separate review framework.
 
 ## Validation and evidence
 
-- Cargo may retrieve missing locked dependencies during normal work and releases.
-  Offline mode requires explicit authorization for the invocation or job. Preserve
-  the caller’s Cargo settings and report Cargo’s error if a selected package is
-  unavailable. Complete dependency preparation before sealing reusable evidence.
+- The caller owns Cargo’s network mode. Use `--locked` to preserve dependency
+  selection. Repository commands, CI jobs, release stages and fixtures must
+  inherit the caller’s setting. Never add `--offline`, `--frozen` or an offline
+  environment or configuration override on their own, including after a fetch.
+  With default settings Cargo may retrieve missing locked sources. With an
+  explicit caller setting, preserve it through child commands and report Cargo’s
+  original error on failure. Checks of already installed tools and snapshot
+  bytes use local inputs. Complete preparation before sealing reusable evidence.
   See the [Cargo network policy](https://github.com/dragginzgame/toko-tooling/blob/a716b501274678a8ebf163ef576bbb549e974acd/rules/cargo-dependencies.md#cargo-network-policy).
 
 - Ordinary coding and cleanup end after the relevant focused checks pass. Do not
@@ -575,6 +581,15 @@ external-protocol APIs, including browser and test fixtures. Replace owned CBOR
 records and hash inputs with Wire through an explicit format/identity migration.
 Read the [encoding contract](https://github.com/dragginzgame/toko-tooling/blob/a716b501274678a8ebf163ef576bbb549e974acd/rules/engineering-details.md#ic-application-encoding)
 and [RPC budgets](https://github.com/dragginzgame/toko-tooling/blob/626da7cd9626cc2e152594862a2d82ea82ef51da/rules/rpc-budgets.md) for codecs, bindings or protocol changes.
+
+For canisters with a supported public Wire API, PR CI must regenerate the
+per-method manifests from the mounted contracts and compare them with the
+reviewed baseline. Match names and call modes against the callable exports of
+the selected release Wasm, accounting explicitly for non-Wire exports.
+An added, removed or changed contract requires explicit baseline review.
+For changes to the byte representation, check representative supported client
+bytes as well. Reuse the existing artifact build and the
+[shared comparison runner](https://github.com/dragginzgame/toko-tooling/blob/7a5236b0be7f037eb5cc44e806a21c9ada7cf2f6/docs/validation/source-helpers.md#api-baseline-comparison).
 
 ## Wasm optimization
 

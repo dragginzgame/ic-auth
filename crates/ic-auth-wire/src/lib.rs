@@ -56,7 +56,7 @@ macro_rules! contract {
         impl $contract {
             /// Fixed routing identity, not an authentication or signing domain.
             pub const ID: u64 = $id;
-            /// Existing host export name.
+            /// Contract name used by generated clients. The credential envelope has no endpoint.
             pub const NAME: &'static str = $name;
             /// Complete request encoding and decoding allowances.
             pub const REQUEST_LIMITS: Limits = $request_limits;

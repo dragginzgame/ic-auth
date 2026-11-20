@@ -1,8 +1,7 @@
 # Crates.io publication scope
 
-This release publishes Auth 0.48.7
-to crates.io. All three product crates use `publish = true`.
-Auth Wire remains at 0.45.0. Publication covers the volatile and stable-checkpoint libraries.
+This release publishes Auth 0.48.8 and Auth Wire 0.46.0 to crates.io. All three product crates use `publish = true`.
+Protocol-types remains at 0.43.2. Publication covers the volatile and stable-checkpoint libraries.
 
 | Product crate | Published responsibility | In-repository prerequisite |
 | --- | --- | --- |

@@ -1,6 +1,8 @@
 # Wire boundary
 
-The 0.2.0 development implementation supplies all four contracts in `ic-auth-wire`.
+`ic-auth-wire` supplies three session method contracts and one credential envelope.
+Canic owns the mounted session methods and the comparison of their names and call modes
+with its release Wasm. The credential envelope is a data format.
 The published Wire codec owns framing, Serde/Postcard and resource admission.
 Transport owns no endpoint, authenticated caller, authority enrollment, session
 state or storage. Canonical signed claims remain opaque bytes. Scope text remains

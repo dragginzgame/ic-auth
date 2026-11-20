@@ -1,10 +1,10 @@
-# Installed volatile Auth qualification
+# Installed Auth qualification
 
-`make qualify-host` runs five explicit installed tests through IC Testkit/PocketIC.
-The harness uses IC Build 0.87.3 to build the release Wasm fixture once per process
-and install its owned, hash-checked bytes in every case. Build owns the bounded
-offline/locked Cargo operation, private target directory and artifact capture;
-there is no prebuilt Wasm path or stale-artifact fallback.
+`make qualify-host` exercises volatile state, stable upgrades and resource costs through IC Testkit/PocketIC.
+The harness uses IC Build to build the release Wasm fixture once per process
+and install its owned, hash-checked bytes in every case. Build owns the private target directory and artifact capture. The locked IC Build
+0.87.6 invokes Cargo with `--locked --offline` internally, so the fixture requires
+locally available dependencies even when the caller permits network access.
 Start a prepared PocketIC 16.x server and supply its URL; the target never
 downloads or launches a server. For example, run `pocket-ic --port 4943` in a
 separate terminal and use `http://127.0.0.1:4943` in place of the URL below:

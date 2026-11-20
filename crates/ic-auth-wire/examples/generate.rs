@@ -1,5 +1,5 @@
 //! Generate all four browser codecs and their matching supplier runtime.
-//! Usage: cargo run -p ic-auth-wire --features typescript --example generate -- OUTPUT
+//! Usage: cargo run --locked -p ic-auth-wire --features typescript --example generate -- OUTPUT
 
 use ic_auth_wire::{
     BROWSER_DEFAULT_CREDENTIAL_BYTES, BROWSER_LOGOUT_RESPONSE_BYTES,

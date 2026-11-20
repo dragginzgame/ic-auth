@@ -1,9 +1,9 @@
 # Current status
 
-Auth **0.48.7** includes a configurable starting profile for volatile receivers.
-Auth Wire **0.45.0** exports IC Wire 0.26.0. Protocol-types is **0.43.2**
+Auth **0.48.8** includes a configurable starting profile for volatile receivers.
+Auth Wire **0.46.0** exports IC Wire 0.27.1. Protocol-types is **0.43.2**
 and the private browser client remains **0.1.0**. The checkout uses authenticated
-Toko Tooling 0.45.22. Production consumer acceptance remains open. Auth supports
+Toko Tooling 0.45.25. Production consumer acceptance remains open. Auth supports
 `receiver-stable` and `issuer-stable` with published `ic-storage` 0.78.7. Historical cost records
 identify the exact cohorts and artifacts measured.
 
@@ -15,7 +15,7 @@ identify the exact cohorts and artifacts measured.
 | Installed transactions, volatile loss and enrollment | Five lifecycle cases qualify rollback, real certificates, closed upgrade loss, bound authority replies and terminal key revocation | Production enrollment/refresh policy; pinned Canic witness recorded below |
 | Browser lifecycle | Readiness/guarded calls, seven scheduler cases, twelve renderer-loss cases, seven disposal cases, ten external-signer boundary cases and three mixed multi-receiver cleanup cases | Real wallet/device recovery, production key custody and deployed multi-canister coordination |
 | HTTP and installed browser journey | Certified response checks and issuance recovery → admission → protected write → logout → replay refusal | Production cutover, external signers and certified consumer integration |
-| Installed costs | Fourteen measurement scenarios covering sixty-three observations; all nineteen installed tests pass, covering independent capacities, 1/8/32 populations, mixed expiry and maximum scope dimensions | Consumer-selected workloads, production host overhead and accepted budgets |
+| Installed costs | Fourteen measurement scenarios covering sixty-three observations covering independent capacities, 1/8/32 populations, mixed expiry and maximum scope dimensions | Consumer-selected workloads, production host overhead and accepted budgets |
 
 Browser recovery uses native IndexedDB, real SDK signing and disposable Chromium
 renderers. External signers and multi-receiver transports use host test doubles;

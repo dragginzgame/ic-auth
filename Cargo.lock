@@ -365,7 +365,7 @@ dependencies = [
 
 [[package]]
 name = "ic-auth"
-version = "0.48.7"
+version = "0.48.8"
 dependencies = [
  "ic-auth-protocol-types",
  "ic-platform",
@@ -387,7 +387,7 @@ dependencies = [
 
 [[package]]
 name = "ic-auth-wire"
-version = "0.45.0"
+version = "0.46.0"
 dependencies = [
  "ic-auth-protocol-types",
  "ic-wire",
@@ -407,9 +407,9 @@ dependencies = [
 
 [[package]]
 name = "ic-platform"
-version = "0.34.18"
+version = "0.34.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b59c6bf641d9d87b4c7cac1012398998b1f4a6217b81bd580b3c84d421b43a2d"
+checksum = "6372d2e30ba4e84ff47824dd1a4542e88215a18890afd9804fed99525bc35962"
 dependencies = [
  "crypto-bigint",
  "curve25519-dalek",
@@ -457,9 +457,9 @@ dependencies = [
 
 [[package]]
 name = "ic-storage"
-version = "0.78.7"
+version = "0.78.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cfd78eb2becf9ae4a0a7d46ca4c742d0041eb19b364c50384e4cbc4e5aafdb11"
+checksum = "f1dc2f3cf6f4d861a7584c5e856e50251c1cc081df43123817b0704793905574"
 dependencies = [
  "ic-platform",
  "ic-platform-runtime",
@@ -482,9 +482,9 @@ dependencies = [
 
 [[package]]
 name = "ic-wire"
-version = "0.26.1"
+version = "0.27.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0375907693869ca5de23befc66639d7e982d85a342b8fb06c1bc7ceafed13c4b"
+checksum = "cda4acc0a5815dfb96de0e23509cece62f9fa24abf18f1ce900827fa975dad17"
 dependencies = [
  "bytemuck",
  "ic-platform-types",
@@ -497,9 +497,9 @@ dependencies = [
 
 [[package]]
 name = "ic-wire-derive"
-version = "0.26.1"
+version = "0.27.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dcb9d5202ef66d5badb42e1fdc3d82d056dd281d98885ea2a00ae81934180a9b"
+checksum = "548ea906fbae389875d7322ef906b73eaccb9f8ef37843a5ed1dba94c3b96b18"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -842,9 +842,9 @@ dependencies = [
 
 [[package]]
 name = "toko-tooling"
-version = "0.45.22"
+version = "0.45.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4c4177a70760ea774fc0e14938593658b7b87facb3ee3f8848f65a402f778c7b"
+checksum = "8ee626aa8f6e773f28e9132fb5e9e63d66212ed4b0fe8de67f3468a46f5dc50e"
 
 [[package]]
 name = "typenum"

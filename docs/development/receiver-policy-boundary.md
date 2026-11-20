@@ -56,7 +56,7 @@ moved to its `capacity.rs`. Only imports and module wiring changed. Expected has
 refusals, counts, deadlines and adversarial fact mutations remain independently
 specified. `make test-receiver-policy` runs all nineteen; the narrower
 `make test-admission-capacity` runs the six capacity cases. Login-only selection is
-`cargo test --offline --locked -p ic-auth --lib receiver_policy::tests::login_`.
+`cargo test --locked -p ic-auth --lib receiver_policy::tests::login_`.
 
 Two synthetic proof-to-facts qualification drivers were removed after mapping
 all their assertions to the established policy/verifier tests and real receivers:
