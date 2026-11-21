@@ -7,9 +7,14 @@ use crate::certified_message::certified_signature_message;
 use sha2::{Digest, Sha256};
 use std::{error::Error, fmt};
 
+///
+/// CertifiedPublication
+///
 /// Exact approved leaf input, borrowed only during synchronous host publication.
 /// Publish an empty leaf at `/sig/seed_hash/message_hash`, compose the host root
 /// and retain the completion in one transaction. This is not a query witness.
+///
+
 #[derive(Debug)]
 pub struct CertifiedPublication<'a> {
     /// Original intent identity for the host's transaction.
@@ -24,8 +29,13 @@ pub struct CertifiedPublication<'a> {
     pub admission_deadline_ns: u64,
 }
 
+///
+/// CertifiedCompletionError
+///
 /// Auth refusals precede publication. A host failure can follow writes and closes
 /// this issuer; the host must roll back the entire transaction, including its root.
+///
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CertifiedCompletionError<E> {
     /// Refused before invoking the host; ordinary Auth error semantics apply.
@@ -33,6 +43,7 @@ pub enum CertifiedCompletionError<E> {
     /// Host publication failed; the issuer is terminally closed, not rolled back.
     Publication(E),
 }
+
 impl<E: fmt::Display> fmt::Display for CertifiedCompletionError<E> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -41,6 +52,7 @@ impl<E: fmt::Display> fmt::Display for CertifiedCompletionError<E> {
         }
     }
 }
+
 impl<E: Error + 'static> Error for CertifiedCompletionError<E> {}
 impl<E> From<IssuerError> for CertifiedCompletionError<E> {
     fn from(value: IssuerError) -> Self {

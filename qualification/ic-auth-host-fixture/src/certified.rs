@@ -42,7 +42,13 @@ pub fn bytes(name: &str) -> Vec<u8> {
 pub fn hash(name: &str) -> [u8; 32] {
     bytes(name).try_into().unwrap()
 }
+
+///
+/// Command
+///
 /// Test operation: only proof bytes are ingress-controlled; trust is installed separately.
+///
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Command {
     /// Submit current certificate/witness bytes against fixed signed claims.
@@ -52,7 +58,13 @@ pub enum Command {
     /// Revoke the actual caller's login.
     Logout,
 }
+
+///
+/// Measurement
+///
 /// Operation cost and retained accounting at the same host boundary.
+///
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Measurement {
     /// Ordinary receiver outcome.

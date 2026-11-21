@@ -4,7 +4,12 @@ use std::{error::Error, fmt, str::FromStr};
 
 const MAX_BYTES: usize = 64;
 
+///
+/// ScopeLabelError
+///
 /// A scope syntax failure; lengths and offsets count UTF-8 bytes.
+///
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ScopeLabelError {
     /// The label contains no bytes.
@@ -46,15 +51,18 @@ impl fmt::Display for ScopeLabelError {
 
 impl Error for ScopeLabelError {}
 
-/// An immutable, unnormalized 1–64-byte scope label.
 ///
+/// ScopeLabel
+///
+/// An immutable, unnormalized 1–64-byte scope label.
 /// Colon-separated segments start with `[a-z0-9]` and continue with
 /// `[a-z0-9_-]`. A valid label says nothing about which caller may use it.
-///
 /// ```compile_fail
 /// use ic_auth_protocol_types::ScopeLabel;
 /// let unchecked = ScopeLabel(String::from("Invalid"));
 /// ```
+///
+
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[cfg_attr(
     feature = "stable-records",

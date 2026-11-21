@@ -10,6 +10,12 @@ use serde::{Deserialize, Serialize};
 
 const CHECKPOINT_DOMAIN: &[u8] = b"ic-auth.receiver.v1";
 
+///
+/// Fields
+///
+/// Defines the serialized checkpoint fields for the in-memory state.
+///
+
 #[derive(Serialize, Deserialize)]
 #[serde(remote = "MemoryReceiver")]
 struct Fields {
@@ -33,8 +39,21 @@ struct Fields {
     encoded_bytes: usize,
 }
 
+///
+/// SavedRef
+///
+/// Borrows the in-memory state for checkpoint encoding.
+///
+
 #[derive(Serialize)]
 struct SavedRef<'a>(#[serde(with = "Fields")] &'a MemoryReceiver);
+
+///
+/// Saved
+///
+/// Reconstructs owned state from the checkpoint fields.
+///
+
 #[derive(Deserialize)]
 struct Saved(#[serde(with = "Fields")] MemoryReceiver);
 

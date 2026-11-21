@@ -13,7 +13,13 @@ pub const LIMITS: ic_wire::Limits = ic_wire::Limits {
     nodes: 4096,
     depth: 8,
 };
+
+///
+/// Scenario
+///
 /// Qualification authority response behavior, selected by its actual controller.
+///
+
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize)]
 pub enum Scenario {
     /// Original key and generation.
@@ -40,7 +46,13 @@ pub enum Scenario {
     /// Second fresh receipt under the same authority generation.
     SecondRefresh,
 }
+
+///
+/// Fault
+///
 /// Interrupt callback publication after the specified successful mutation.
+///
+
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum Fault {
     /// Commit normally.
@@ -50,7 +62,13 @@ pub enum Fault {
     /// Trap after host entry installation.
     Entry,
 }
+
+///
+/// Snapshot
+///
 /// Bounded reply. Its source is the installed call destination, not a reply field.
+///
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Snapshot {
     /// Actual requesting canister, observed by the authority.

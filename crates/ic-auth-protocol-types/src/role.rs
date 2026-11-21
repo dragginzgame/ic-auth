@@ -2,7 +2,12 @@
 
 use std::{error::Error, fmt, str::FromStr};
 
+///
+/// RoleError
+///
 /// A role is empty, over 64 bytes or contains a byte outside `[a-z0-9_:-]`.
+///
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct RoleError;
 
@@ -16,10 +21,14 @@ impl fmt::Display for RoleError {
 
 impl Error for RoleError {}
 
-/// Exact ASCII role spelling. This names a role but grants no permissions.
 ///
+/// AuthRole
+///
+/// Exact ASCII role spelling. This names a role but grants no permissions.
 /// Unlike scopes, roles have no segment-start rules; punctuation-only labels
 /// remain valid under the signed protocol. No normalization is performed.
+///
+
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[cfg_attr(
     feature = "stable-records",

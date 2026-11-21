@@ -1,7 +1,12 @@
 //! Shared retained refill arithmetic for separately owned operation budgets.
 use std::{error::Error, fmt};
 
+///
+/// BudgetError
+///
 /// Failure before a charged operation begins.
+///
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum BudgetError {
     /// Capacity, refill interval or mechanism cost is zero or inconsistent.
@@ -21,7 +26,14 @@ impl fmt::Display for BudgetError {
         })
     }
 }
+
 impl Error for BudgetError {}
+
+///
+/// WorkBucket
+///
+/// Tracks available work credit and its refill interval.
+///
 
 #[derive(Debug, Eq, PartialEq)]
 #[cfg_attr(
@@ -35,6 +47,7 @@ pub(crate) struct WorkBucket {
     refill_at_ns: u64,
     observed_at_ns: u64,
 }
+
 impl WorkBucket {
     #[cfg(any(feature = "issuer-stable", feature = "receiver-stable"))]
     pub(crate) fn matches(&self, capacity: u32, interval: u64, now: u64) -> bool {

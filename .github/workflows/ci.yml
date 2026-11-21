@@ -80,6 +80,7 @@ jobs:
         # the common-tools action computes its compiler-specific cache key.
         run: perl scripts/ci/setup.pl rustup show active-toolchain 2>&1 | tee "$RUNNER_TEMP/tools-rustup.log"
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        if: runner.os == 'Linux'
         with:
           node-version: 24.21.0
       - uses: ./vendor/toko-tooling/.github/actions/prepare-common-tools
@@ -93,7 +94,7 @@ jobs:
       - name: Admit tooling and run native contracts
         run: |
           bash vendor/toko-tooling/scripts/ci/run-validation-targets.sh --fail-fast \
-            test-product test-qualification verify-fixtures
+            test-product test-qualification
       - name: Prepare Wasm compiler target
         if: runner.os == 'Linux'
         run: perl scripts/ci/setup.pl rustup target add wasm32-unknown-unknown 2>&1 | tee "$RUNNER_TEMP/tools-rustup-wasm.log"
@@ -106,11 +107,11 @@ jobs:
       - name: Prepare locked browser dependencies
         if: runner.os == 'Linux'
         run: perl scripts/ci/setup.pl npm ci --prefix packages/client --ignore-scripts 2>&1 | tee "$RUNNER_TEMP/tools-npm-client.log"
-      - name: Check browser client and Wire interoperability
+      - name: Verify fixtures, browser client and Wire interoperability
         if: runner.os == 'Linux'
         run: |
           bash vendor/toko-tooling/scripts/ci/run-validation-targets.sh --fail-fast \
-            check-client-generated test-client qualify-wire-browser
+            verify-fixtures check-client-generated test-client qualify-wire-browser
       - name: Retain failure evidence
         if: failure()
         uses: ./vendor/toko-tooling/.github/actions/retain-failure-evidence

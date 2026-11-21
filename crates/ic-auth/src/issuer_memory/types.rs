@@ -1,7 +1,12 @@
 use ic_auth_protocol_types::{AudienceId, DelegatedRoleGrant, PortableMechanism, Principal};
 use std::{error::Error, fmt};
 
+///
+/// IssuerConfig
+///
 /// Protected issuance/renewal bounds. Physical expired rows still count.
+///
+
 #[derive(Clone, Copy, Debug)]
 #[cfg_attr(
     feature = "issuer-stable",
@@ -29,8 +34,13 @@ pub struct IssuerConfig {
     pub issuance_refill_interval_ns: u64,
 }
 
+///
+/// IssuerAuthority
+///
 /// Current host-authorized signing identity. Not request data.
 /// The host owns enrollment, key custody and authentication of signing responses.
+///
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[cfg_attr(
     feature = "issuer-stable",
@@ -47,7 +57,12 @@ pub struct IssuerAuthority {
     pub expires_at_ns: u64,
 }
 
+///
+/// IssuerSigning
+///
 /// Host-selected signing capability, captured before any effect.
+///
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[cfg_attr(
     feature = "issuer-stable",
@@ -62,6 +77,7 @@ pub enum IssuerSigning {
         seed_hash: [u8; 32],
     },
 }
+
 impl IssuerSigning {
     pub(super) const fn mechanism(self) -> PortableMechanism {
         match self {
@@ -71,7 +87,12 @@ impl IssuerSigning {
     }
 }
 
+///
+/// IssuerPolicy
+///
 /// Host-selected immutable lifetime bounds, in trusted nanoseconds.
+///
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[cfg_attr(
     feature = "issuer-stable",
@@ -89,7 +110,12 @@ pub struct IssuerPolicy {
     pub reconciliation_retention_ns: u64,
 }
 
+///
+/// IssueRequest
+///
 /// Untrusted exact request. The authenticated account is a separate host input.
+///
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct IssueRequest {
     /// Current operation epoch.
@@ -106,8 +132,13 @@ pub struct IssueRequest {
     pub grants: Vec<DelegatedRoleGrant>,
 }
 
+///
+/// RenewRequest
+///
 /// Browser-bound renewal request. Naming an account/login does not authenticate it.
 /// Grants must match the retained login and be approved again by the application.
+///
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct RenewRequest {
     /// Account qualifying the retained login.
@@ -122,9 +153,14 @@ pub struct RenewRequest {
     pub grants: Vec<DelegatedRoleGrant>,
 }
 
+///
+/// RenewalSelection
+///
 /// Read-only browser-authenticated inputs for the host's application approval.
 /// This reserves nothing and grants no signing authority; preparation rechecks
 /// the live binding after any await. Do not use this account as account authentication.
+///
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct RenewalSelection {
     /// Account whose retained browser binding was checked.
@@ -135,7 +171,12 @@ pub struct RenewalSelection {
     pub policy: IssuerPolicy,
 }
 
+///
+/// RetainedRenewal
+///
 /// Original browser-authenticated reconciliation evidence, without fresh authority.
+///
+
 #[derive(Debug)]
 pub struct RetainedRenewal<'a> {
     /// Original intent including its callback ticket and captured deadlines.
@@ -144,8 +185,13 @@ pub struct RetainedRenewal<'a> {
     pub status: IssuerStatus<'a>,
 }
 
+///
+/// IssuerTicket
+///
 /// Callback/effect identity, checked against the retained intent on every mutation.
 /// Possession is not account authentication or permission to sign.
+///
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct IssuerTicket {
     pub(super) account: Principal,
@@ -154,6 +200,7 @@ pub struct IssuerTicket {
     pub(super) authority: IssuerAuthority,
     pub(super) boot: u64,
 }
+
 impl IssuerTicket {
     /// Account qualifying this operation and its external-effect lookup.
     #[must_use]
@@ -175,8 +222,13 @@ impl IssuerTicket {
     }
 }
 
+///
+/// IssuerIntent
+///
 /// Retained inputs for the host's exact challenge/application-approval check.
 /// This borrowed projection does not reserve or authorize an external effect.
+///
+
 #[derive(Debug)]
 pub struct IssuerIntent<'a> {
     /// Exact callback binding.
@@ -195,14 +247,20 @@ pub struct IssuerIntent<'a> {
     pub receipt_deadline_ns: u64,
 }
 
+///
+/// SigningInput
+///
 /// Exact bytes returned only by the first successful dispatch transition.
 /// The host must persist that transition before dispatching and must not redispatch
 /// a copied value. Lost responses require lookup by the original ticket.
+///
+
 #[derive(Debug)]
 pub struct SigningInput {
     pub(super) ticket: IssuerTicket,
     pub(super) claims: Vec<u8>,
 }
+
 impl SigningInput {
     /// Exact effect identity captured before external dispatch.
     #[must_use]
@@ -217,8 +275,13 @@ impl SigningInput {
     }
 }
 
+///
+/// IssuedProof
+///
 /// Retained proof evidence. Certified witnesses are assembled by the host at query
 /// time; an absent/pruned leaf never permits publishing a replacement on retry.
+///
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum IssuedProof<'a> {
     /// Exact original host-authenticated signature.
@@ -230,7 +293,12 @@ pub enum IssuedProof<'a> {
     },
 }
 
+///
+/// IssuedCredential
+///
 /// Exact retained result, not current authority or a renewed credential.
+///
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct IssuedCredential<'a> {
     /// Original canonical claims.
@@ -241,7 +309,12 @@ pub struct IssuedCredential<'a> {
     pub admission_deadline_ns: u64,
 }
 
+///
+/// IssuerStatus
+///
 /// Lookup-only progress. Neither pending variant authorizes signing.
+///
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum IssuerStatus<'a> {
     /// Intent retained before external signing dispatch.
@@ -252,7 +325,12 @@ pub enum IssuerStatus<'a> {
     Completed(IssuedCredential<'a>),
 }
 
+///
+/// IssuerUsage
+///
 /// Constant-time physical counts and completed-result reservations.
+///
+
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 #[cfg_attr(
     feature = "issuer-stable",
@@ -267,8 +345,13 @@ pub struct IssuerUsage {
     pub result_bytes: u64,
 }
 
+///
+/// IssuerPruned
+///
 /// Records removed by one bounded maintenance call. Operations have priority;
 /// logins newly made idle are eligible only on a later call.
+///
+
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct IssuerPruned {
     /// Pending or completed operations past their captured reconciliation deadline.
@@ -277,8 +360,13 @@ pub struct IssuerPruned {
     pub logins: u32,
 }
 
+///
+/// IssuerError
+///
 /// Typed refusal. Records remain unchanged on ordinary errors; trusted clock
 /// observations and charged fresh-intent attempts are retained.
+///
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum IssuerError {
     /// Malformed request, configuration, policy or canonical claims.
@@ -304,6 +392,7 @@ pub enum IssuerError {
     /// Explicit close or interrupted publication has disabled this instance.
     Closed,
 }
+
 impl fmt::Display for IssuerError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
@@ -321,4 +410,5 @@ impl fmt::Display for IssuerError {
         })
     }
 }
+
 impl Error for IssuerError {}

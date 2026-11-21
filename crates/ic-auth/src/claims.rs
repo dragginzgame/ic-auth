@@ -29,7 +29,12 @@ const _: () = assert!(
 // The schema-2 prefix is at most 282 bytes with two maximum-length principals.
 const _: () = assert!(282 + MAX_GRANT_BYTES <= MAX_CLAIMS_BYTES);
 
+///
+/// ClaimsError
+///
 /// Structural rejection, distinct from signature, time and enrollment failures.
+///
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ClaimsError {
     /// The entire blob or remaining grant payload exceeds its defensive byte cap.
@@ -290,6 +295,13 @@ pub fn decode_claims(bytes: &[u8]) -> Result<PortableClaims, ClaimsError> {
 
 // Claims-only cursor: borrowed slices and checked fixed-width lengths, no generic
 // serialization or storage framework. Failed reads never publish a partial value.
+
+///
+/// Input
+///
+/// Tracks the unconsumed suffix of the claims encoding.
+///
+
 struct Input<'a> {
     remaining: &'a [u8],
 }

@@ -21,7 +21,14 @@ use ic_auth_protocol_types::{
 use memory_fixture::*;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
+///
+/// Armed
+///
+/// Disarms the test interruption hook when the guard goes out of scope.
+///
+
 struct Armed;
+
 impl Armed {
     fn after(steps: usize) -> Self {
         REMAINING.with(|remaining| {
@@ -30,6 +37,7 @@ impl Armed {
         Self
     }
 }
+
 impl Drop for Armed {
     fn drop(&mut self) {
         REMAINING.with(|remaining| remaining.set(None));

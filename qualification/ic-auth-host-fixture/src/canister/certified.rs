@@ -24,6 +24,12 @@ use ic_auth_protocol_types::{
 use ic_platform_runtime::{self as runtime, system as api};
 use std::cell::RefCell;
 
+///
+/// State
+///
+/// Keeps the fixture receiver and its trusted network key together.
+///
+
 struct State {
     receiver: MemoryReceiver,
     network: Vec<u8>,

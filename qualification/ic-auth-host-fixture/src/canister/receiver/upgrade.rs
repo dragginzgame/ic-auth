@@ -14,10 +14,17 @@ use std::ops::{Deref, DerefMut};
 const RECEIVER: &str = "auth.receiver.v1";
 const HOST: &str = "auth.fixture.v1";
 
+///
+/// Backend
+///
+/// Selects the volatile or stable Auth state used by the installed fixture.
+///
+
 pub(super) enum Backend {
     Volatile(MemoryReceiver),
     Stable(StableReceiver, StableCell<Vec<u8>>),
 }
+
 impl Deref for Backend {
     type Target = MemoryReceiver;
     fn deref(&self) -> &Self::Target {
@@ -27,6 +34,7 @@ impl Deref for Backend {
         }
     }
 }
+
 impl DerefMut for Backend {
     fn deref_mut(&mut self) -> &mut Self::Target {
         match self {
@@ -35,6 +43,12 @@ impl DerefMut for Backend {
         }
     }
 }
+
+///
+/// HostState
+///
+/// Host enrollment and capacity fields saved alongside the receiver checkpoint.
+///
 
 #[derive(Serialize, Deserialize)]
 struct HostState {

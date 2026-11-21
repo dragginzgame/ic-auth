@@ -10,6 +10,12 @@ use serde::{Deserialize, Serialize};
 
 const CHECKPOINT_DOMAIN: &[u8] = b"ic-auth.issuer.v1";
 
+///
+/// TicketFields
+///
+/// Defines the serialized account, epoch and operation ID of an issuer ticket.
+///
+
 #[derive(Serialize, Deserialize)]
 #[serde(remote = "IssuerTicket")]
 pub(super) struct TicketFields {
@@ -19,6 +25,12 @@ pub(super) struct TicketFields {
     authority: IssuerAuthority,
     boot: u64,
 }
+
+///
+/// Fields
+///
+/// Defines the serialized checkpoint fields for the in-memory state.
+///
 
 #[derive(Serialize, Deserialize)]
 #[serde(remote = "MemoryIssuer")]
@@ -36,8 +48,21 @@ struct Fields {
     open: bool,
 }
 
+///
+/// SavedRef
+///
+/// Borrows the in-memory state for checkpoint encoding.
+///
+
 #[derive(Serialize)]
 struct SavedRef<'a>(#[serde(with = "Fields")] &'a MemoryIssuer);
+
+///
+/// Saved
+///
+/// Reconstructs owned state from the checkpoint fields.
+///
+
 #[derive(Deserialize)]
 struct Saved(#[serde(with = "Fields")] MemoryIssuer);
 

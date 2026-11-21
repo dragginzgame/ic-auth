@@ -20,6 +20,12 @@ use ic_platform::certificate::construction::canister_key_der;
 const MEMORY: &str = include_str!("../fixtures/certified-memory.tsv");
 const OTHER: &str = include_str!("../fixtures/certified-other-issuer.tsv");
 
+///
+/// Case
+///
+/// Pairs a signed credential and caller with its independent certified fixture.
+///
+
 struct Case {
     fixture: Fixture,
     credential: Credential,
@@ -27,6 +33,7 @@ struct Case {
     issuer: Principal,
     binding: [u8; 32],
 }
+
 impl Case {
     fn new(name: &str) -> Self {
         let records = if name == "other-issuer" {

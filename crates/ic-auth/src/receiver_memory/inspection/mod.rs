@@ -12,8 +12,13 @@ pub const MAX_INSPECTION_PAGE: u16 = 32;
 /// Largest permitted caller-row scan, excluding one continuation lookahead.
 pub const MAX_INSPECTION_SCAN: u16 = 128;
 
+///
+/// SessionPage
+///
 /// Borrowed retained facts for administrative inspection, never authorization.
 /// Expired leases and stale generations remain visible until explicit removal.
+///
+
 #[derive(Debug)]
 pub struct SessionPage<'a> {
     /// Host-supplied observation time; inspection does not retain this clock value.

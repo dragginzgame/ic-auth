@@ -32,6 +32,13 @@ use std::cell::RefCell;
 
 const SECOND: u64 = 1_000_000_000;
 const OP: [u8; 32] = [1; 32];
+
+///
+/// State
+///
+/// Holds the installed issuer and receiver for the browser journey.
+///
+
 struct State {
     issuer: MemoryIssuer,
     receiver: MemoryReceiver,

@@ -76,6 +76,13 @@ fn issuer_cbor_for(issuer: Principal, digest: [u8; 32], time: Vec<u8>) -> Vec<u8
     encode_canister_signature(&encode_certificate(&cert, 16384).unwrap(), &witness, 16384).unwrap()
 }
 type FixtureChange = fn(&mut Fixture);
+
+///
+/// Fixture
+///
+/// Root and issuer evidence for the certified credential tests.
+///
+
 struct Fixture {
     root: RootFixture,
     claims: Vec<u8>,
@@ -83,6 +90,7 @@ struct Fixture {
     der: Vec<u8>,
     network: [u8; 96],
 }
+
 impl Fixture {
     fn new() -> Self {
         Self {

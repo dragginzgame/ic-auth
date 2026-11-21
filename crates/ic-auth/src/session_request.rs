@@ -13,7 +13,12 @@ const MAX_SESSION_SECONDS: u64 = 1800;
 const NANOS_PER_SECOND: u64 = 1_000_000_000;
 const REQUEST_DOMAIN: &[u8] = b"canic-application-session-request-v1";
 
+///
+/// SessionRequestError
+///
 /// Shape or lifetime refusal. None of these results authenticate a request.
+///
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SessionRequestError {
     /// Scope count, uniqueness or nonzero TTL was violated.
@@ -54,9 +59,13 @@ impl Error for SessionRequestError {
     }
 }
 
-/// Host-supplied default and ceiling, with `1 <= default <= maximum <= 1800`.
 ///
+/// SessionTtlPolicy
+///
+/// Host-supplied default and ceiling, with `1 <= default <= maximum <= 1800`.
 /// Construction validates numeric bounds, not the provenance of host policy.
+///
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct SessionTtlPolicy {
     default_secs: u64,
@@ -88,10 +97,14 @@ impl SessionTtlPolicy {
     }
 }
 
-/// An unsigned request with 1–16 unique sorted scopes and an optional nonzero TTL.
 ///
+/// SessionRequest
+///
+/// An unsigned request with 1–16 unique sorted scopes and an optional nonzero TTL.
 /// The scope bound implies at most 1024 label bytes. Constructing or hashing this
 /// value does not grant scopes, authenticate a credential or admit its lifetime.
+///
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SessionRequest {
     scopes: Vec<ScopeLabel>,

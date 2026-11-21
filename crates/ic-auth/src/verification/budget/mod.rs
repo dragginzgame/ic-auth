@@ -7,7 +7,12 @@ pub use crate::work_budget::BudgetError;
 use crate::work_budget::WorkBucket;
 use ic_auth_protocol_types::PortableMechanism;
 
+///
+/// VerificationCosts
+///
 /// Relative verification work costs, chosen from protected host measurements.
+///
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[cfg_attr(
     feature = "receiver-stable",
@@ -20,17 +25,27 @@ pub struct VerificationCosts {
     pub certified: u32,
 }
 
-/// One receiver-wide allowance shared across callers and proof mechanisms.
 ///
+/// VerificationBudget
+///
+/// One receiver-wide allowance shared across callers and proof mechanisms.
 /// Starts empty and refills one unit per interval. Keep it across requests;
 /// failed cryptography consumes credit. Hosts retain charges on normal refusal
 /// and storage failure; an enclosing IC trap can roll back the whole message.
 /// This bounds charged work, not ingress traffic or total instructions.
+///
+
 #[derive(Debug, Eq, PartialEq)]
 pub struct VerificationBudget {
     bucket: WorkBucket,
     costs: VerificationCosts,
 }
+
+///
+/// RetainedBudget
+///
+/// Stores verification costs and the work bucket across receiver upgrades.
+///
 
 #[cfg(feature = "receiver-stable")]
 #[derive(serde::Serialize, serde::Deserialize)]

@@ -9,7 +9,12 @@ use crate::model as wire;
 use ic_auth_protocol_types as domain;
 use std::{error::Error, fmt};
 
+///
+/// ProjectionError
+///
 /// A transport label cannot be represented by the passive domain grammar.
+///
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ProjectionError {
     /// Invalid role spelling, without normalization.
@@ -17,6 +22,7 @@ pub enum ProjectionError {
     /// Invalid scope spelling, without normalization.
     Scope(domain::ScopeLabelError),
 }
+
 impl fmt::Display for ProjectionError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -25,6 +31,7 @@ impl fmt::Display for ProjectionError {
         }
     }
 }
+
 impl Error for ProjectionError {}
 
 impl TryFrom<wire::PortableCredential> for domain::Credential {

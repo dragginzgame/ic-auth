@@ -47,11 +47,18 @@ fn certificate(tree: HashTree, signer: &PrivateKey, delegation: Option<Delegatio
     }
 }
 
+///
+/// Fixture
+///
+/// Certificate, witness and issuer key for signature verification tests.
+///
+
 struct Fixture {
     certificate: Certificate,
     witness: HashTree,
     der: Vec<u8>,
 }
+
 impl Fixture {
     fn new(
         message: &[u8],

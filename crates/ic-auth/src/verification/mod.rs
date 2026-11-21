@@ -34,8 +34,10 @@ pub use ed25519::{Ed25519Key, VerificationError, verify_ed25519};
 use crate::session_request::{SessionRequest, SessionRequestError, SessionTtlPolicy};
 use ic_auth_protocol_types::{AuthRole, PortableClaims, Principal};
 
-/// Immutable proof result at one host snapshot, not a session or authorization.
 ///
+/// VerifiedClaims
+///
+/// Immutable proof result at one host snapshot, not a session or authorization.
 /// Reuse requires the receiver's enrollment-generation, revocation/replay and
 /// transaction rules; matching clock values alone do not establish freshness.
 /// ```compile_fail
@@ -47,6 +49,8 @@ use ic_auth_protocol_types::{AuthRole, PortableClaims, Principal};
 /// use ic_auth::verification::VerifiedClaims;
 /// fn change(value: &mut VerifiedClaims) { value.claims().device_generation = 9; }
 /// ```
+///
+
 #[derive(Debug, Eq, PartialEq)]
 pub struct VerifiedClaims {
     claims: PortableClaims,

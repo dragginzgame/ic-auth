@@ -33,6 +33,12 @@ pub(crate) fn issuer() -> Principal {
     Principal::from_slice(&[2; 10])
 }
 
+///
+/// Fixture
+///
+/// Root delegation certificate, leaf and batch material for verification tests.
+///
+
 pub(crate) struct Fixture {
     pub(crate) cert: DelegationCertificate,
     pub(crate) leaf: DelegationLeaf,
@@ -43,6 +49,7 @@ pub(crate) struct Fixture {
     pub(crate) signature: Vec<u8>,
     pub(crate) name: String,
 }
+
 impl Fixture {
     pub(crate) fn new(records: &str, seed_hash: [u8; 32]) -> Self {
         let delegation = IssuerDelegation {

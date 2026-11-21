@@ -13,7 +13,12 @@ pub use credential::{
     IssuerProofAlgorithm, IssuerProofBinding, PortableCredential, PortableProof, RootProof,
 };
 
+///
+/// AdmissionRefusal
+///
 /// Session-admission refusals in their fixed transport order.
+///
+
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "typescript", derive(ic_wire::typescript::Wire))]
 pub enum AdmissionRefusal {
@@ -41,7 +46,12 @@ pub enum AdmissionRefusal {
     Unavailable,
 }
 
+///
+/// SessionView
+///
 /// A local session receipt; receiving or constructing it grants no authority.
+///
+
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "typescript", derive(ic_wire::typescript::Wire))]
 pub struct SessionView {
@@ -55,7 +65,12 @@ pub struct SessionView {
     pub expires_at_ns: u64,
 }
 
+///
+/// SessionReadRefusal
+///
 /// Existing read-refusal discriminants, in their fixed Wire order.
+///
+
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "typescript", derive(ic_wire::typescript::Wire))]
 pub enum SessionReadRefusal {
@@ -71,7 +86,12 @@ pub enum SessionReadRefusal {
     Unavailable,
 }
 
+///
+/// LogoutUnavailable
+///
 /// Existing unavailable-logout discriminants, in their fixed Wire order.
+///
+
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "typescript", derive(ic_wire::typescript::Wire))]
 pub enum LogoutUnavailable {
@@ -85,7 +105,12 @@ pub enum LogoutUnavailable {
     ResetPending,
 }
 
+///
+/// LogoutResult
+///
 /// Local logout result; no variant acknowledges logout at another receiver.
+///
+
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "typescript", derive(ic_wire::typescript::Wire))]
 pub enum LogoutResult {

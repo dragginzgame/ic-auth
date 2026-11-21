@@ -9,12 +9,16 @@ use ic_auth_protocol_types::{
 };
 use std::{error::Error, fmt};
 
-/// Immutable structurally checked authority grants; this does not enroll them.
 ///
+/// AuthorityGrants
+///
+/// Immutable structurally checked authority grants; this does not enroll them.
 /// ```compile_fail
 /// use ic_auth::verification::AuthorityGrants;
 /// fn change(value: &mut AuthorityGrants) { value.as_slice()[0].scopes.clear(); }
 /// ```
+///
+
 #[derive(Debug, Eq, PartialEq)]
 pub struct AuthorityGrants(Vec<DelegatedRoleGrant>);
 
@@ -34,10 +38,14 @@ impl AuthorityGrants {
     }
 }
 
-/// Explicit current host inputs; none may be derived solely from the request.
 ///
+/// VerificationContext
+///
+/// Explicit current host inputs; none may be derived solely from the request.
 /// The host must select current, unrevoked enrollment under its transaction.
 /// These plain values cannot attest their provenance or fence lost storage.
+///
+
 #[derive(Clone, Copy, Debug)]
 pub struct VerificationContext<'a> {
     /// Protected receiver audience.
@@ -70,7 +78,12 @@ pub struct VerificationContext<'a> {
     pub max_proof_ttl_ns: u64,
 }
 
+///
+/// ContextError
+///
 /// Contextual refusal before signature verification or work charging.
+///
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ContextError {
     /// Invalid host policy or authority window.
@@ -117,6 +130,7 @@ impl fmt::Display for ContextError {
         })
     }
 }
+
 impl Error for ContextError {}
 
 // Claims have already passed the canonical decoder. No mutable prepared value

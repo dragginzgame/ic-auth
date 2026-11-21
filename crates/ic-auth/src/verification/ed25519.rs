@@ -9,7 +9,12 @@ use ic_platform::ed25519::{Scalar, Signature, VerifyingKey};
 use sha2::{Digest, Sha256};
 use std::{error::Error, fmt};
 
+///
+/// VerificationError
+///
 /// Failure of fresh proof verification; not a session-admission projection.
+///
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum VerificationError {
     /// Bounded canonical claims decoding failed before charging.
@@ -38,6 +43,7 @@ impl fmt::Display for VerificationError {
         }
     }
 }
+
 impl Error for VerificationError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
@@ -49,14 +55,18 @@ impl Error for VerificationError {
     }
 }
 
-/// Parsed, nonweak issuer key and SHA-256 binding; this does not enroll the key.
 ///
+/// Ed25519Key
+///
+/// Parsed, nonweak issuer key and SHA-256 binding; this does not enroll the key.
 /// Keep it with protected enrollment and reconstruct it after configuration
 /// decoding. No unchecked deserializer or mutable key access is provided.
 /// ```compile_fail
 /// use ic_auth::verification::Ed25519Key;
 /// fn change(key: &mut Ed25519Key) { key.as_bytes()[0] = 0; }
 /// ```
+///
+
 #[derive(Debug, Eq, PartialEq)]
 pub struct Ed25519Key {
     key: VerifyingKey,

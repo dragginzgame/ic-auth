@@ -2,7 +2,12 @@
 use ic_auth_protocol_types::{AudienceId, Principal};
 use std::{error::Error, fmt};
 
+///
+/// EnrollmentBinding
+///
 /// Installed host identities; never selected from browser input.
+///
+
 #[derive(Clone, Copy, Debug)]
 #[cfg_attr(
     feature = "receiver-stable",
@@ -15,11 +20,15 @@ pub struct EnrollmentBinding {
     pub authority: Principal,
 }
 
-/// Metadata projected by the host from a complete authenticated snapshot.
 ///
+/// EnrollmentMetadata
+///
+/// Metadata projected by the host from a complete authenticated snapshot.
 /// The host owns response authentication, canonical snapshot/content digests,
 /// entry validation, terminal key revocation and atomic installation of entries
 /// alongside this receiver. This value alone authenticates none of those facts.
+///
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[cfg_attr(
     feature = "receiver-stable",
@@ -48,7 +57,12 @@ pub struct EnrollmentMetadata {
     pub expires_at_ns: u64,
 }
 
+///
+/// EnrollmentError
+///
 /// Enrollment refusals never erase retained safety state or accepted metadata.
+///
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum EnrollmentError {
     /// Invalid installed identities, challenge or receipt window.
@@ -68,12 +82,20 @@ pub enum EnrollmentError {
     /// Same revision has different content, or authority changed without a new generation.
     ConflictingSnapshot,
 }
+
 impl fmt::Display for EnrollmentError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "enrollment refused: {self:?}")
     }
 }
+
 impl Error for EnrollmentError {}
+
+///
+/// Request
+///
+/// Binds an enrollment challenge to its receipt deadline.
+///
 
 #[derive(Clone, Copy)]
 #[cfg_attr(
@@ -85,6 +107,12 @@ struct Request {
     receipt_deadline_ns: u64,
 }
 
+///
+/// Enrollment
+///
+/// Tracks pending challenges and accepted authority for this receiver.
+///
+
 #[cfg_attr(
     feature = "receiver-stable",
     derive(serde::Serialize, serde::Deserialize)
@@ -94,6 +122,7 @@ pub(super) struct Enrollment {
     pending: Option<Request>,
     accepted: Option<(EnrollmentMetadata, Request)>,
 }
+
 impl Enrollment {
     pub(super) fn new(binding: EnrollmentBinding) -> Result<Self, EnrollmentError> {
         if [binding.receiver, binding.authority]

@@ -31,6 +31,13 @@ use ic_platform_runtime::{self as runtime, system as api};
 use std::cell::RefCell;
 
 const SECOND: u64 = 1_000_000_000;
+
+///
+/// State
+///
+/// Owns the installed receiver and host-side enrollment configuration.
+///
+
 #[derive(Default)]
 struct State {
     receiver: Option<Backend>,

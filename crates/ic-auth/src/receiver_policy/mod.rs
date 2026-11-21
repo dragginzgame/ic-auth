@@ -37,7 +37,12 @@ pub(crate) use logout::plan_logout;
 #[cfg(feature = "receiver-memory")]
 pub use logout::{LogoutError, LogoutReceipt, UnknownLogoutLimits};
 
+///
+/// LoginBinding
+///
 /// Immutable login association retained independently of session lease expiry.
+///
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[cfg_attr(
     feature = "receiver-stable",
@@ -58,7 +63,12 @@ pub struct LoginBinding {
     pub deadline_ns: u64,
 }
 
+///
+/// SessionFacts
+///
 /// Borrowed facts from an already admitted session; construction authenticates nothing.
+///
+
 #[derive(Clone, Copy, Debug)]
 pub struct SessionFacts<'a> {
     /// Stored browser caller.
@@ -87,7 +97,12 @@ pub struct SessionFacts<'a> {
     pub request_hash: [u8; 32],
 }
 
+///
+/// LoginFacts
+///
 /// Selected caller's retained login reservation or denial.
+///
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[cfg_attr(
     feature = "receiver-stable",
@@ -106,7 +121,12 @@ pub(crate) struct LoginFacts {
     pub denied: bool,
 }
 
+///
+/// DeviceFacts
+///
 /// Retained slot index/fence selected for the session's issuer-qualified account.
+///
+
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct DeviceFacts {
     /// Issuer qualifying the slot key.
@@ -121,7 +141,12 @@ pub(crate) struct DeviceFacts {
     pub caller: Principal,
 }
 
+///
+/// ReceiverSnapshot
+///
 /// Bounded facts from one host transaction; not a backend trait or stored format.
+///
+
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct ReceiverSnapshot<'a> {
     /// Receiver's protected audience.
@@ -138,7 +163,12 @@ pub(crate) struct ReceiverSnapshot<'a> {
     pub device: Option<&'a DeviceFacts>,
 }
 
+///
+/// SessionAuthority
+///
 /// Current protected authority and application policy, independent of proof freshness.
+///
+
 #[derive(Clone, Copy, Debug)]
 pub struct SessionAuthority<'a> {
     /// Actual authenticated runtime caller.
@@ -175,7 +205,12 @@ pub struct SessionAuthority<'a> {
     pub subject_admissible: bool,
 }
 
+///
+/// SessionPolicyError
+///
 /// Policy refusal; no variant implies a state mutation or completed host observation.
+///
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SessionPolicyError {
     /// Receiver disabled or account ineligible.
@@ -203,14 +238,21 @@ pub enum SessionPolicyError {
     /// Encoded session/replay bytes exceed the protected ceiling or arithmetic range.
     ByteCapacity,
 }
+
 impl fmt::Display for SessionPolicyError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "receiver policy refused: {self:?}")
     }
 }
+
 impl Error for SessionPolicyError {}
 
+///
+/// RetryDecision
+///
 /// Retry classification only; neither variant is a transferable permission.
+///
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum RetryDecision {
     /// No exact live retry exists. Every fresh admission check still remains.

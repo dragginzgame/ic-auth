@@ -5,6 +5,12 @@ use ic_auth_protocol_types::PortableClaims;
 use sha2::{Digest, Sha256};
 use std::cell::OnceCell;
 
+///
+/// DecodedClaims
+///
+/// Keeps parsed claims with their original encoding and lazily computed fingerprint.
+///
+
 pub(crate) struct DecodedClaims<'a> {
     pub(crate) claims: PortableClaims,
     encoded: &'a [u8],

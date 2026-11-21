@@ -334,6 +334,17 @@ fn outer_length_normalization_never_changes_signed_claims() {
     }
 }
 
+///
+/// RawProof
+///
+/// Serializes an unbounded signature for testing the decoder’s byte limit.
+///
+
+#[derive(serde::Serialize)]
+enum RawProof {
+    Ed25519(Vec<u8>),
+}
+
 #[test]
 fn decoder_enforces_claim_signature_scope_and_text_bounds() {
     let limits = CredentialEnvelope::REQUEST_LIMITS;
@@ -353,10 +364,7 @@ fn decoder_enforces_claim_signature_scope_and_text_bounds() {
             size <= 65536
         );
     }
-    #[derive(serde::Serialize)]
-    enum RawProof {
-        Ed25519(Vec<u8>),
-    }
+
     // A single-variant fixture serializes tag zero; set the fixed Ed25519 tag one.
     for size in [63, 64, 65] {
         let mut frame = wire::encode(

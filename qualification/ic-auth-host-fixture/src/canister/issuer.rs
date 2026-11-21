@@ -22,10 +22,17 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
+///
+/// Backend
+///
+/// Selects the volatile or stable Auth state used by the installed fixture.
+///
+
 enum Backend {
     Volatile(MemoryIssuer),
     Stable(StableIssuer),
 }
+
 impl Deref for Backend {
     type Target = MemoryIssuer;
     fn deref(&self) -> &MemoryIssuer {
@@ -35,6 +42,7 @@ impl Deref for Backend {
         }
     }
 }
+
 impl DerefMut for Backend {
     fn deref_mut(&mut self) -> &mut MemoryIssuer {
         match self {
@@ -44,11 +52,23 @@ impl DerefMut for Backend {
     }
 }
 
+///
+/// HostState
+///
+/// Host selection and certified leaf saved alongside the issuer checkpoint.
+///
+
 #[derive(Serialize, Deserialize)]
 pub(super) struct HostState {
     selected: Option<(Principal, u64, [u8; 32])>,
     leaf: Option<([u8; 32], [u8; 32])>,
 }
+
+///
+/// State
+///
+/// Holds the installed issuer, selected operation, ticket and certified leaf.
+///
 
 #[derive(Default)]
 struct State {

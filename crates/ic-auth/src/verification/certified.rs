@@ -16,7 +16,12 @@ use crate::{
 use ic_auth_protocol_types::PortableMechanism;
 use std::{error::Error, fmt};
 
+///
+/// CertifiedProof
+///
 /// Borrowed complete certified proof; all fields remain untrusted on input.
+///
+
 #[derive(Clone, Copy, Debug)]
 pub struct CertifiedProof<'a> {
     /// Root-signed issuer authorization and certificate.
@@ -37,7 +42,12 @@ impl<'a> From<&'a ic_auth_protocol_types::CertifiedProofMaterial> for CertifiedP
     }
 }
 
+///
+/// CertifiedLimits
+///
 /// Protected proof bounds, additional to the transport's resource allowances.
+///
+
 #[derive(Clone, Copy, Debug)]
 pub struct CertifiedLimits {
     /// Certificate, delegated-token and witness bounds. Its variable allowance
@@ -49,7 +59,12 @@ pub struct CertifiedLimits {
     pub max_certificate_age_ns: u64,
 }
 
+///
+/// CertifiedContext
+///
 /// Protected claims, root enrollment and network trust for one atomic host view.
+///
+
 #[derive(Clone, Copy, Debug)]
 pub struct CertifiedContext<'a> {
     /// Current protected caller, clock, audience, enrollment, grants and floors.
@@ -62,7 +77,12 @@ pub struct CertifiedContext<'a> {
     pub limits: CertifiedLimits,
 }
 
+///
+/// CertifiedError
+///
 /// Fresh certified-proof refusal; session and replay policy remain separate.
+///
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CertifiedError {
     /// Aggregate material, field or witness bounds refused before decode/charging.
@@ -82,11 +102,13 @@ pub enum CertifiedError {
     /// Issuer signature/certificate failed after the same single retained charge.
     Issuer(IssuerSignatureError),
 }
+
 impl fmt::Display for CertifiedError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "certified proof refused: {self:?}")
     }
 }
+
 impl Error for CertifiedError {}
 
 /// Verify the complete root/issuer proof and return immutable claims evidence.

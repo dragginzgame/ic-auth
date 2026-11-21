@@ -4,10 +4,14 @@ use super::{VerificationBudget, VerifiedClaims};
 use ic_auth_protocol_types::{Credential, CredentialProof};
 use std::{error::Error, fmt};
 
-/// Verifier selected from protected enrollment, never from the submitted proof tag.
 ///
+/// VerificationProfile
+///
+/// Verifier selected from protected enrollment, never from the submitted proof tag.
 /// Construct this from the host's current isolated authority snapshot. A public
 /// constructor/variant cannot establish provenance, readiness or authority itself.
+///
+
 #[derive(Clone, Copy, Debug)]
 pub enum VerificationProfile<'a> {
     /// Independently enrolled Ed25519 authority and parsed issuer key.
@@ -62,7 +66,12 @@ pub(crate) fn verify_decoded(
     }
 }
 
+///
+/// CredentialError
+///
 /// Unified proof refusal, preserving mechanism-specific failure stages and charges.
+///
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CredentialError {
     /// Submitted proof tag does not match the independently selected verifier.
@@ -74,6 +83,7 @@ pub enum CredentialError {
     #[cfg(feature = "certified-verification")]
     Certified(super::CertifiedError),
 }
+
 impl fmt::Display for CredentialError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -85,6 +95,7 @@ impl fmt::Display for CredentialError {
         }
     }
 }
+
 impl Error for CredentialError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {

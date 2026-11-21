@@ -5,7 +5,12 @@ use super::{
 };
 use ic_auth_protocol_types::{AudienceId, Principal};
 
+///
+/// LoginLimits
+///
 /// Protected login pool and lifetime bounds; retained fences are not time-pruned.
+///
+
 #[derive(Clone, Copy, Debug)]
 #[cfg_attr(
     feature = "receiver-stable",
@@ -33,12 +38,16 @@ impl LoginLimits {
     }
 }
 
-/// Two selected login rows and their slot association from one isolated snapshot.
 ///
+/// LoginSnapshot
+///
+/// Two selected login rows and their slot association from one isolated snapshot.
 /// The caller row is selected by authenticated ingress. The slot index and its
 /// owner row are selected by the proposed issuer-qualified account and slot after
 /// bounded canonical decoding and browser/caller binding checks. Absence must be
 /// established by the backend; do not substitute missing/corrupt reads with None.
+///
+
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct LoginSnapshot<'a> {
     /// Protected receiver audience, already matched to claims by the operation owner.
@@ -57,7 +66,12 @@ pub(crate) struct LoginSnapshot<'a> {
     pub admitted_logins: usize,
 }
 
+///
+/// LoginDecision
+///
 /// Pure preflight classification, never a reservation, verified proof or write token.
+///
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum LoginDecision {
     /// No retained slot owner; a new known-login row needs physical capacity.

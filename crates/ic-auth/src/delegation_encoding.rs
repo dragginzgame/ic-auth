@@ -11,7 +11,12 @@ use ic_auth_protocol_types::{
 use sha2::{Digest, Sha256};
 use std::{error::Error, fmt};
 
+///
+/// DelegationEncodingError
+///
 /// Bounded structural refusal; never an authentication or authorization result.
+///
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum DelegationEncodingError {
     /// Delegated grants violate shared role/scope shape or ordering.
@@ -21,6 +26,7 @@ pub enum DelegationEncodingError {
     /// More than 32 derivation components, or a component exceeds 256 bytes.
     DerivationPathTooLarge,
 }
+
 impl fmt::Display for DelegationEncodingError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -30,6 +36,7 @@ impl fmt::Display for DelegationEncodingError {
         }
     }
 }
+
 impl Error for DelegationEncodingError {}
 
 /// Encode the current certificate without normalization or implicit binding repair.

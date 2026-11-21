@@ -19,7 +19,12 @@ const LIMITS: ic_wire::Limits = ic_wire::Limits {
     depth: 64,
 };
 
+///
+/// UpgradeError
+///
 /// Failure to create, commit or reopen a bounded Auth upgrade checkpoint.
+///
+
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum UpgradeError {
     /// Allocation is already occupied, missing, or has an incompatible cell header.
@@ -33,14 +38,23 @@ pub enum UpgradeError {
     /// State is closed, time regressed, or restart fencing cannot advance.
     Lifecycle,
 }
+
 impl fmt::Display for UpgradeError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Auth upgrade checkpoint refused: {self:?}")
     }
 }
+
 impl Error for UpgradeError {}
 
+///
+/// Image
+///
+/// Bounded bytes held in the stable checkpoint cell.
+///
+
 struct Image(Vec<u8>);
+
 impl Storable for Image {
     const BOUND: Bound = Bound::Bounded {
         max_size: (32 + MAX_PAYLOAD) as u32,
@@ -57,12 +71,20 @@ impl Storable for Image {
     }
 }
 
+///
+/// Checkpoint
+///
+/// Creates, seals and consumes the stable image for one Auth owner.
+///
+
 pub(crate) struct Checkpoint<M: Memory>(StableCell<Image, M>);
+
 impl<M: Memory> Checkpoint<M> {
     pub(crate) fn create(memory: RuntimeMemory<M>) -> Result<Self, UpgradeError> {
         if memory.size() != 0 {
             return Err(UpgradeError::Allocation);
         }
+
         Ok(Self(StableCell::create(memory, Image(Vec::new()))))
     }
 
@@ -83,10 +105,12 @@ impl<M: Memory> Checkpoint<M> {
             .chain_update(domain)
             .chain_update(&payload)
             .finalize();
+
         let mut image = Vec::with_capacity(32 + payload.len());
         image.extend_from_slice(&digest);
         image.extend_from_slice(&payload);
         self.0.set(Image(image));
+
         Ok(())
     }
 
@@ -97,6 +121,7 @@ impl<M: Memory> Checkpoint<M> {
             .0
             .split_first_chunk::<32>()
             .ok_or(UpgradeError::InvalidCheckpoint)?;
+
         let digest: [u8; 32] = Sha256::new()
             .chain_update(domain)
             .chain_update(payload)
@@ -105,6 +130,7 @@ impl<M: Memory> Checkpoint<M> {
         if digest != *expected {
             return Err(UpgradeError::InvalidCheckpoint);
         }
+
         ic_wire::decode(payload, ic_wire::Encoding::Payload, LIMITS)
             .map_err(|_| UpgradeError::InvalidCheckpoint)
     }

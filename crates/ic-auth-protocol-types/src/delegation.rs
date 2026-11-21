@@ -2,10 +2,14 @@
 
 use crate::{AudienceId, DelegatedRoleGrant, Principal};
 
-/// Common issuer authorization fields carried by a certificate and its root leaf.
 ///
+/// IssuerDelegation
+///
+/// Common issuer authorization fields carried by a certificate and its root leaf.
 /// This profile supports IC canister signatures and a fleet audience only.
 /// Construction checks no authority, binding, ordering or time relationships.
+///
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct IssuerDelegation {
     /// Claimed root canister.
@@ -28,7 +32,12 @@ pub struct IssuerDelegation {
     pub expires_at_ns: u64,
 }
 
+///
+/// DelegationCertificate
+///
 /// Certificate commitment used as the portable credential's key-binding identity.
+///
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DelegationCertificate {
     /// Claimed authorization, requiring agreement with the signed issuer leaf.
@@ -37,7 +46,12 @@ pub struct DelegationCertificate {
     pub issued_at_ns: u64,
 }
 
+///
+/// DelegationLeaf
+///
 /// Issuer leaf committed by a root-signed chain-key batch.
+///
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DelegationLeaf {
     /// Claimed authorization. The verifier must compare it with the certificate.
@@ -50,9 +64,13 @@ pub struct DelegationLeaf {
     pub registry_hash: [u8; 32],
 }
 
-/// Root batch header for the current ECDSA/secp256k1 signing profile.
 ///
+/// RootBatchHeader
+///
+/// Root batch header for the current ECDSA/secp256k1 signing profile.
 /// Schema, key identity, epochs, tree root and time still require verification.
+///
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct RootBatchHeader {
     /// Submitted schema, checked separately from canonical field encoding.
@@ -81,7 +99,12 @@ pub struct RootBatchHeader {
     pub key_version: u64,
 }
 
+///
+/// MerkleStep
+///
 /// One ordered sibling in the current root batch Merkle proof.
+///
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum MerkleStep {
     /// Sibling preceding the current node.

@@ -2,7 +2,12 @@
 
 use crate::{AuthRole, Principal, ScopeLabel};
 
+///
+/// CanonicalId
+///
 /// Exactly 32 identity bytes; every byte pattern is permitted.
+///
+
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[cfg_attr(
     feature = "stable-records",
@@ -24,7 +29,12 @@ impl CanonicalId {
     }
 }
 
+///
+/// AudienceId
+///
 /// Claimed network/application context, compared later with protected enrollment.
+///
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[cfg_attr(
     feature = "stable-records",
@@ -37,7 +47,12 @@ pub struct AudienceId {
     pub fleet_id: CanonicalId,
 }
 
+///
+/// PortableMechanism
+///
 /// A claimed mechanism, never permission to select a verifier or enroll a key.
+///
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[cfg_attr(
     feature = "stable-records",
@@ -50,7 +65,12 @@ pub enum PortableMechanism {
     Ed25519,
 }
 
+///
+/// DelegatedRoleGrant
+///
 /// Syntactically valid labels whose counts, order and authority remain unchecked.
+///
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(
     feature = "stable-records",
@@ -63,11 +83,15 @@ pub struct DelegatedRoleGrant {
     pub scopes: Vec<ScopeLabel>,
 }
 
-/// Unauthenticated schema-2 credential fields.
 ///
+/// PortableClaims
+///
+/// Unauthenticated schema-2 credential fields.
 /// The codec checks structure, not signature validity, time relationships,
 /// enrollment, caller binding, revocation or permission. Even a successfully
 /// decoded value cannot authorize a session.
+///
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PortableClaims {
     /// Mechanism committed by the signed bytes.

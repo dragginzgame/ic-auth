@@ -5,7 +5,12 @@
 
 use crate::{DelegationCertificate, DelegationLeaf, MerkleStep, RootBatchHeader};
 
+///
+/// RootSignatureMaterial
+///
 /// Submitted ECDSA/secp256k1 signature metadata, never a trusted key selection.
+///
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct RootSignatureMaterial {
     /// Submitted key lookup hint.
@@ -18,7 +23,12 @@ pub struct RootSignatureMaterial {
     pub signature: Vec<u8>,
 }
 
+///
+/// RootDelegation
+///
 /// Owned root authorization material; duplicated certificate/leaf fields remain distinct.
+///
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct RootDelegation {
     /// Certificate committed by the claims' key-binding identity.
@@ -33,7 +43,12 @@ pub struct RootDelegation {
     pub signature: RootSignatureMaterial,
 }
 
+///
+/// CertifiedProofMaterial
+///
 /// Owned certified proof; successful construction authenticates nothing.
+///
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CertifiedProofMaterial {
     /// Submitted root authorization.
@@ -44,7 +59,12 @@ pub struct CertifiedProofMaterial {
     pub issuer_public_key_der: Vec<u8>,
 }
 
+///
+/// CredentialProof
+///
 /// Claimed proof variant, checked against independently protected enrollment.
+///
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum CredentialProof {
     /// Root-delegated IC canister signature.
@@ -53,7 +73,12 @@ pub enum CredentialProof {
     Ed25519(Vec<u8>),
 }
 
+///
+/// Credential
+///
 /// Untrusted credential retaining the exact received signed claims bytes.
+///
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Credential {
     /// Canonical claims candidate; never decode/re-encode during projection.

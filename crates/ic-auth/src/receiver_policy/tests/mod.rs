@@ -43,11 +43,18 @@ fn hash(hex: &str) -> [u8; 32] {
     std::array::from_fn(|i| u8::from_str_radix(&hex[2 * i..2 * i + 2], 16).unwrap())
 }
 
+///
+/// Scenario
+///
+/// Supplies the receiver policy inputs shared by these tests.
+///
+
 struct Scenario {
     role: AuthRole,
     scopes: Vec<ScopeLabel>,
     grants: Vec<DelegatedRoleGrant>,
 }
+
 impl Scenario {
     fn new() -> Self {
         Self {

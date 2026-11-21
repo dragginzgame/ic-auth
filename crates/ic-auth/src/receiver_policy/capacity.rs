@@ -3,7 +3,12 @@
 use super::SessionPolicyError as E;
 use ic_auth_protocol_types::Principal;
 
+///
+/// SessionCapacity
+///
 /// Protected physical count and encoded-byte ceilings, all strictly positive.
+///
+
 #[derive(Clone, Copy, Debug)]
 #[cfg_attr(
     feature = "receiver-stable",
@@ -33,10 +38,14 @@ impl SessionCapacity {
     }
 }
 
-/// Physical usage from one isolated snapshot, or projected totals after admission.
 ///
+/// SessionUsage
+///
+/// Physical usage from one isolated snapshot, or projected totals after admission.
 /// These numbers attest no provenance or commit. Backends must validate their
 /// accounting and index associations; missing rows cannot be inferred from expiry.
+///
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct SessionUsage {
     /// Issuer and subject owning the selected replay count, never a browser key.
@@ -51,11 +60,15 @@ pub struct SessionUsage {
     pub encoded_bytes: usize,
 }
 
-/// Exact bounded record sizes computed by the backend before publication.
 ///
+/// AdmissionFootprint
+///
+/// Exact bounded record sizes computed by the backend before publication.
 /// This is not a caller-selected replacement hint. `replaced_session_bytes` must
 /// come from the affected retained caller/slot-owner session in the same snapshot.
 /// A known login fence without a session does not free a session row or bytes.
+///
+
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct AdmissionFootprint {
     /// Encoded size of the proposed session, 1 through 2048 bytes.

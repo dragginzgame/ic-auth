@@ -27,7 +27,12 @@ pub const REQUEST: ic_wire::Limits = ic_wire::Limits {
     depth: 8,
 };
 
+///
+/// Command
+///
 /// Operations use actual IC caller/time, never caller/time fields from ingress.
+///
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Command {
     /// Fetch from the installed authority; never creates missing receiver state.
@@ -51,7 +56,12 @@ pub enum Command {
     AuthorizeUnrequested,
 }
 
+///
+/// Outcome
+///
 /// Fixed observations separate from the product Wire result contract.
+///
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum Outcome {
     /// Fixture enrollment installed.
@@ -68,7 +78,12 @@ pub enum Outcome {
     Pruned(u32, u32, u32),
 }
 
+///
+/// Refusal
+///
 /// Test categories retain the distinction between closure and normal refusal.
+///
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum Refusal {
     /// Fresh or lost state is closed.
@@ -87,7 +102,12 @@ pub enum Refusal {
     Other,
 }
 
+///
+/// Observation
+///
 /// Passive state and application evidence; observing does not refill work credit.
+///
+
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Observation {
     /// False after an upgrade loses the heap; no empty receiver is manufactured.
@@ -113,7 +133,12 @@ pub struct Observation {
 /// Qualification-only synchronous cost observation, outside product Wire contracts.
 pub const MEASURE: u64 = 0x4155_5448_5155_000a;
 
+///
+/// Measurement
+///
 /// Fixture control execution costs; excludes outer request decoding/reply encoding.
+///
+
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct Measurement {
     /// Actual control result, checked independently by the host test.
@@ -126,7 +151,12 @@ pub struct Measurement {
     pub response_bytes: u64,
 }
 
+///
+/// Capacity
+///
 /// Installation-owned capacity overrides for independent saturation tests.
+///
+
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct Capacity {
     /// Physical session ceiling.
@@ -146,6 +176,7 @@ pub struct Capacity {
     /// Select fixed maximum-width role/grants and a sixteen-scope session.
     pub wide_scopes: bool,
 }
+
 impl Default for Capacity {
     fn default() -> Self {
         Self {

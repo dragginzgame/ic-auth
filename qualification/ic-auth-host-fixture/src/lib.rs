@@ -357,7 +357,12 @@ pub const RESPONSE: ic_wire::Limits = ic_wire::Limits {
 /// Public fixture seed; this is not a signing secret.
 pub const SEED: &[u8] = b"auth-host-qualification";
 
+///
+/// Fault
+///
 /// Deliberate interruptions inside one synchronous update transaction.
+///
+
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum Fault {
     /// Commit normally.
@@ -371,7 +376,13 @@ pub enum Fault {
     /// Trap after Auth has retained completion.
     Completion,
 }
+
+///
+/// Command
+///
 /// Controller-independent fixture account operations use the actual IC caller.
+///
+
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum Command {
     /// Reserve and approve a fixed fixture intent for the authenticated caller.
@@ -383,7 +394,13 @@ pub enum Command {
     /// Prepare and approve sequence one using the actual retained browser caller.
     Renew,
 }
+
+///
+/// Refusal
+///
 /// Fixed fixture refusal categories, separate from product Wire error projection.
+///
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum Refusal {
     /// No surviving issuer state or terminal closure.
@@ -395,7 +412,13 @@ pub enum Refusal {
     /// Another ordinary Auth refusal.
     Auth,
 }
+
+///
+/// Progress
+///
 /// Observable retained operation phase.
+///
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum Progress {
     /// Genuinely new installation with no operation.
@@ -407,7 +430,13 @@ pub enum Progress {
     /// Lost/closed state cannot be reconstructed through these endpoints.
     Closed,
 }
+
+///
+/// Observation
+///
 /// Query evidence from actual host certificate acquisition and retained state.
+///
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Observation {
     /// Retained progress, without creating work.
@@ -430,7 +459,13 @@ pub struct Observation {
 
 /// Qualification-only synchronous issuer measurement identity.
 pub const MEASURE: u64 = 0x4155_5448_5155_000b;
+
+///
+/// Measurement
+///
 /// Issuer fixture execution interval, excluding outer codecs and executor overhead.
+///
+
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct Measurement {
     /// Actual control outcome.
@@ -445,7 +480,13 @@ pub struct Measurement {
 
 /// Qualification-only query measurement identity.
 pub const WITNESS_MEASURE: u64 = 0x4155_5448_5155_000c;
+
+///
+/// WitnessMeasurement
+///
 /// Current certificate/witness assembly, excluding outer reply encoding.
+///
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct WitnessMeasurement {
     /// Actual query evidence, including the current certificate.
@@ -458,7 +499,12 @@ pub struct WitnessMeasurement {
     pub response_bytes: u64,
 }
 
+///
+/// Installation
+///
 /// Installation-owned test authority and network trust; never accepted at admission.
+///
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Installation {
     /// Enrollment authority principal bytes; empty selects this canister.

@@ -54,6 +54,12 @@ fn expiry(time: u64, account: Principal, identity: Identity) -> Expiry {
     (time, account.as_slice().len() as u8, account, identity)
 }
 
+///
+/// Account
+///
+/// Indexes one account’s retained logins and issuer operations.
+///
+
 #[derive(Default)]
 #[cfg_attr(
     feature = "issuer-stable",
@@ -66,6 +72,12 @@ struct Account {
     // Lookup projection only: results live in operations for both entry paths.
     renewals: BTreeMap<(Identity, u64), Identity>,
 }
+
+///
+/// Login
+///
+/// Keeps the browser binding, grants and renewal state for one login.
+///
 
 #[cfg_attr(
     feature = "issuer-stable",
@@ -83,6 +95,13 @@ struct Login {
     renewal: RenewalProgress,
     references: u32,
 }
+
+///
+/// RenewalProgress
+///
+/// Tracks the sequence of an in-flight or completed renewal.
+///
+
 #[cfg_attr(
     feature = "issuer-stable",
     derive(serde::Serialize, serde::Deserialize)
@@ -92,6 +111,7 @@ enum RenewalProgress {
     InFlight(u64),
     Completed(u64),
 }
+
 impl RenewalProgress {
     fn sequence(&self) -> u64 {
         match self {
@@ -111,6 +131,12 @@ impl RenewalProgress {
     }
 }
 
+///
+/// Operation
+///
+/// Retains the ticket, login binding and completion phase of an issuer request.
+///
+
 #[cfg_attr(
     feature = "issuer-stable",
     derive(serde::Serialize, serde::Deserialize)
@@ -128,6 +154,12 @@ struct Operation {
     result_bytes: u64,
 }
 
+///
+/// Approval
+///
+/// Keeps the nonce, commitment and claims selected for signing.
+///
+
 #[cfg_attr(
     feature = "issuer-stable",
     derive(serde::Serialize, serde::Deserialize)
@@ -137,6 +169,13 @@ struct Approval {
     commitment: [u8; 32],
     claims: Vec<u8>,
 }
+
+///
+/// Phase
+///
+/// Tracks an issuer operation from reservation through completion.
+///
+
 #[cfg_attr(
     feature = "issuer-stable",
     derive(serde::Serialize, serde::Deserialize)
@@ -148,6 +187,13 @@ enum Phase {
     Dispatched(Approval),
     Completed(Approval, Completion),
 }
+
+///
+/// Completion
+///
+/// Records which proof material is available for a completed operation.
+///
+
 #[derive(Clone, Copy, Eq, PartialEq)]
 #[cfg_attr(
     feature = "issuer-stable",
@@ -157,6 +203,7 @@ enum Completion {
     Ed25519(#[cfg_attr(feature = "issuer-stable", serde(with = "signature_bytes"))] [u8; 64]),
     Certified,
 }
+
 impl Phase {
     fn evidence(&self) -> (Option<[u8; 16]>, Option<[u8; 32]>) {
         match self {
@@ -168,6 +215,7 @@ impl Phase {
         }
     }
 }
+
 impl Operation {
     fn status(&self) -> IssuerStatus<'_> {
         match &self.phase {
@@ -191,8 +239,13 @@ impl Operation {
     }
 }
 
+///
+/// MemoryIssuer
+///
 /// One bounded owner of account bindings, issuer operations and fresh-intent credit.
 /// Do not clone a live instance or reconstruct it to recover lost state.
+///
+
 pub struct MemoryIssuer {
     config: IssuerConfig,
     accounts: BTreeMap<Principal, Account>,
@@ -206,6 +259,7 @@ pub struct MemoryIssuer {
     generation: u64,
     open: bool,
 }
+
 impl MemoryIssuer {
     /// Create genuinely new state with full initial fresh-intent credit.
     /// This cannot restore old login, nonce, result or external-effect evidence.
@@ -819,6 +873,7 @@ impl MemoryIssuer {
         .map_err(|_| IssuerError::Invalid)
     }
 }
+
 impl Login {
     fn matches(&self, request: &IssueRequest, policy: IssuerPolicy) -> bool {
         self.browser == request.browser_public_key

@@ -67,7 +67,12 @@ use std::{
 type Account = (Principal, Principal);
 type Slot = (Principal, Principal, u8);
 
+///
+/// MemoryConfig
+///
 /// Protected bounds; construction allocates no backing proportional to limits.
+///
+
 #[derive(Clone, Copy, Debug)]
 #[cfg_attr(
     feature = "receiver-stable",
@@ -143,7 +148,12 @@ impl MemoryConfig {
     }
 }
 
+///
+/// AdmissionHost
+///
 /// Current protected admission inputs, supplied synchronously by the host.
+///
+
 #[derive(Clone, Copy, Debug)]
 pub struct AdmissionHost<'a> {
     /// Independently selected enrolled verifier, caller and time.
@@ -159,6 +169,7 @@ pub struct AdmissionHost<'a> {
     /// Application eligibility for the proposed issuer-qualified subject.
     pub subject_admissible: bool,
 }
+
 impl AdmissionHost<'_> {
     fn authority(&self) -> SessionAuthority<'_> {
         let c = self.verifier.context();
@@ -183,7 +194,12 @@ impl AdmissionHost<'_> {
     }
 }
 
+///
+/// SessionReceipt
+///
 /// Account facts at a successful operation, never authority after an await.
+///
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct SessionReceipt {
     /// Authenticated browser caller.
@@ -196,7 +212,12 @@ pub struct SessionReceipt {
     pub expires_at_ns: u64,
 }
 
+///
+/// AdmissionOutcome
+///
 /// Successful admission; exact retries retain the original receipt and work credit.
+///
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct AdmissionOutcome {
     /// Current session facts.
@@ -205,7 +226,12 @@ pub struct AdmissionOutcome {
     pub exact_retry: bool,
 }
 
+///
+/// MemoryError
+///
 /// Refusal leaves authorization records unchanged; clocks/charges may advance.
+///
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum MemoryError {
     /// Fresh receiver has not been activated, or was permanently closed.
@@ -225,17 +251,25 @@ pub enum MemoryError {
     /// Invalid work configuration.
     Budget(BudgetError),
 }
+
 impl fmt::Display for MemoryError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "memory receiver refused: {self:?}")
     }
 }
+
 impl Error for MemoryError {}
 impl From<SessionPolicyError> for MemoryError {
     fn from(e: SessionPolicyError) -> Self {
         Self::Policy(e)
     }
 }
+
+///
+/// Lifecycle
+///
+/// Tracks whether this receiver is fresh, ready or closed.
+///
 
 #[derive(Clone, Copy, Eq, PartialEq)]
 #[cfg_attr(
@@ -248,12 +282,16 @@ enum Lifecycle {
     Closed,
 }
 
-/// Owned bounded state. No clone, reset, unchecked restore or mutable budget API.
 ///
+/// MemoryReceiver
+///
+/// Owned bounded state. No clone, reset, unchecked restore or mutable budget API.
 /// All ordinary errors occur before authorization-record publication. Allocation
 /// panic during publication permanently closes this instance; a host must abort
 /// its transaction or discard it and recover safely, never resume partial state.
 /// IC traps remain the host's whole-message rollback boundary.
+///
+
 pub struct MemoryReceiver {
     config: MemoryConfig,
     lifecycle: Lifecycle,
@@ -794,7 +832,12 @@ impl MemoryReceiver {
     }
 }
 
+///
+/// PruneReport
+///
 /// Number of physical rows removed; known fences remain unchanged.
+///
+
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct PruneReport {
     /// Expired session rows removed.

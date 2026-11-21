@@ -132,6 +132,13 @@ impl MemoryIssuer {
 // Preserve the reference RenewRequest field order, ordinary fixed u8 array and
 // transparent string labels. This private encoding exists only for the existing
 // operation identity, not as a stored-record codec or a new public Wire endpoint.
+
+///
+/// RenewalIdentity
+///
+/// Fields encoded to bind an exact renewal request.
+///
+
 #[derive(Serialize)]
 struct RenewalIdentity<'a> {
     account: Principal,
@@ -140,6 +147,13 @@ struct RenewalIdentity<'a> {
     sequence: u64,
     grants: Vec<Grant<'a>>,
 }
+
+///
+/// Grant
+///
+/// Borrowed role and scopes in the renewal identity encoding.
+///
+
 #[derive(Serialize)]
 struct Grant<'a> {
     target: &'a str,

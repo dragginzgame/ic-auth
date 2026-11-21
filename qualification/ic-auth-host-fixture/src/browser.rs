@@ -8,7 +8,13 @@ pub const CREDENTIAL: u64 = 0x4155_5448_5155_0007;
 pub const WRITE: u64 = 0x4155_5448_5155_0008;
 /// Passive native-harness observation.
 pub const OBSERVE: u64 = 0x4155_5448_5155_0009;
+
+///
+/// Observation
+///
 /// Counts independently checked by the native harness after browser completion.
+///
+
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Observation {
     /// Actual host signing invocations.

@@ -9,11 +9,11 @@ stay in the product crates.
 
 ## Installed selection
 
-Toko Tooling **0.45.25** is selected by Cargo and installed through its authenticated
+Toko Tooling **0.46.0** is selected by Cargo and installed through its authenticated
 exporter. Cargo.lock and `.toko-tooling.snapshot` identify archive SHA-256
-`8ee626aa8f6e773f28e9132fb5e9e63d66212ed4b0fe8de67f3468a46f5dc50e`.
+`4601d2785aaa14e01fd8656d6b3a57653337b214e027810c953595f1d91d6a8d`.
 The release source is
-[`6b87b740ddcde23a939191abdab74c9f017f2e0e`](https://github.com/dragginzgame/toko-tooling/tree/6b87b740ddcde23a939191abdab74c9f017f2e0e).
+[`b95958a0710fd9aea5952d2654f67710dc5b1c6d`](https://github.com/dragginzgame/toko-tooling/tree/b95958a0710fd9aea5952d2654f67710dc5b1c6d).
 Do not hand-edit the receipt or installed vendor files.
 
 The executable selections are `make/consumer.mk`, `make/cargo-dependencies.mk`,
@@ -166,8 +166,7 @@ from bootstrap, without Cargo selection admission.
 manual dispatch. Native contract tests run on Ubuntu 24.04 and macOS 15, including
 both Apple Silicon and Intel. Rustup prepares the tracked toolchain and components;
 the authenticated common-tools action restores caches, installs and admits the
-pinned tools, then saves prepared caches before product checks. Node 24.21.0
-independently verifies the retained signing fixtures.
+pinned tools, then saves prepared caches before product checks. The Linux job runs the independent signing-fixture checks once with Node 24.21.0.
 
 The CI aggregates `make test-product test-qualification verify-fixtures` select
 each implemented product and qualification package once, enabling both complete

@@ -20,7 +20,12 @@ use ic_platform::ecdsa::{PrehashVerifier, Signature, VerifyingKey};
 use sha2::{Digest, Sha256};
 use std::{error::Error, fmt};
 
+///
+/// RootSignature
+///
 /// Untrusted root-signature fields in the current ECDSA/secp256k1 profile.
+///
+
 #[derive(Clone, Copy, Debug)]
 pub struct RootSignature<'a> {
     /// Submitted key name; it must match both the header and protected policy.
@@ -33,7 +38,12 @@ pub struct RootSignature<'a> {
     pub signature: &'a [u8],
 }
 
+///
+/// RootDelegationProof
+///
 /// Borrowed root proof; outer transport decoding must already be bounded.
+///
+
 #[derive(Clone, Copy, Debug)]
 pub struct RootDelegationProof<'a> {
     /// Certificate whose identity is committed by a portable credential.
@@ -65,7 +75,12 @@ impl<'a> From<&'a ic_auth_protocol_types::RootDelegation> for RootDelegationProo
     }
 }
 
+///
+/// RootKeyPolicy
+///
 /// Current independently enrolled root authority; never populate from a proof.
+///
+
 #[derive(Clone, Copy, Debug)]
 pub struct RootKeyPolicy<'a> {
     /// Approved root canister.
@@ -92,7 +107,12 @@ pub struct RootKeyPolicy<'a> {
     pub max_revocation_latency_ns: u64,
 }
 
+///
+/// DelegationLimits
+///
 /// Protected limits for the current zero-future-grace delegation profile.
+///
+
 #[derive(Clone, Copy, Debug)]
 pub struct DelegationLimits {
     /// Maximum certificate validity duration.
@@ -105,7 +125,12 @@ pub struct DelegationLimits {
     pub max_witness_steps: usize,
 }
 
+///
+/// ValidityTarget
+///
 /// A validity window whose boundary failed admission.
+///
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ValidityTarget {
     /// Issuer authorization certificate.
@@ -118,7 +143,12 @@ pub enum ValidityTarget {
     Leaf,
 }
 
+///
+/// DelegationError
+///
 /// Root proof refusal, without any installed authority or session mutation.
+///
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum DelegationError {
     /// Variable material, field bounds or witness work exceeds admission limits.
@@ -156,15 +186,19 @@ pub enum DelegationError {
     /// Signature has high-S form; the verifier does not repair it.
     HighSignatureScalar,
 }
+
 impl fmt::Display for DelegationError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "root delegation refused: {self:?}")
     }
 }
+
 impl Error for DelegationError {}
 
-/// Root-verified issuer authorization at one protected snapshot.
 ///
+/// VerifiedDelegation
+///
+/// Root-verified issuer authorization at one protected snapshot.
 /// The certificate's issue-time metadata is checked for consistency but not
 /// independently signed by the root. Later use still needs current enrollment,
 /// claim binding, issuer signature, work charging and receiver/session policy.
@@ -177,12 +211,15 @@ impl Error for DelegationError {}
 /// use ic_auth::root_delegation::VerifiedDelegation;
 /// fn change(proof: &mut VerifiedDelegation<'_>) { proof.certificate().issued_at_ns = 0; }
 /// ```
+///
+
 #[derive(Clone, Debug)]
 pub struct VerifiedDelegation<'a> {
     certificate: &'a DelegationCertificate,
     certificate_hash: [u8; 32],
     expires_at_ns: u64,
 }
+
 impl<'a> VerifiedDelegation<'a> {
     /// Borrow the checked certificate, not a continuing authorization grant.
     #[must_use]

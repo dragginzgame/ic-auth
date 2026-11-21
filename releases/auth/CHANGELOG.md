@@ -2,6 +2,18 @@
 
 The `auth` group covers `ic-auth`. Its separate ledger follows [0.48.7](../history.md#0487---2026-11-19).
 
+## [0.48.9] - 2026-11-21
+
+### 📦 Dependencies
+
+- Use IC Wire 0.28.0 for stable checkpoints, renewal request identities and
+  receiver session-size accounting.
+
+### 🔧 Tooling
+
+- Adopt Toko Tooling 0.46.0 in both workspaces. CI verifies the shared signing
+  fixtures once on Linux and runs native Rust contracts on all three hosts.
+
 ## [0.48.8] - 2026-11-20
 
 ### 🔧 Tooling

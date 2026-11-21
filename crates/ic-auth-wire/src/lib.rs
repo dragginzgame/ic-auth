@@ -18,7 +18,12 @@ pub const BROWSER_DEFAULT_CREDENTIAL_BYTES: usize = 131_072;
 /// Maximum configurable browser retention cap; codec limits still apply.
 pub const BROWSER_MAX_CONFIGURED_CREDENTIAL_BYTES: usize = 1_048_576;
 
+///
+/// SessionInput
+///
 /// Unsigned session narrowing accompanying an opaque signed credential.
+///
+
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 #[cfg_attr(feature = "typescript", derive(ic_wire::typescript::Wire))]
 pub struct SessionInput {
@@ -121,7 +126,12 @@ macro_rules! contract {
     };
 }
 
+///
+/// ReadSession
+///
 /// Read the authenticated caller's local session without a submitted credential.
+///
+
 pub struct ReadSession;
 
 contract!(
@@ -134,7 +144,12 @@ contract!(
     REPLY_LIMITS
 );
 
+///
+/// Logout
+///
 /// Request local logout for the authenticated caller only.
+///
+
 pub struct Logout;
 
 contract!(
@@ -147,7 +162,12 @@ contract!(
     REPLY_LIMITS
 );
 
+///
+/// CredentialEnvelope
+///
 /// Portable credential data envelope, not an issuer endpoint or signing format.
+///
+
 pub struct CredentialEnvelope;
 
 contract!(
@@ -160,7 +180,12 @@ contract!(
     CREDENTIAL_LIMITS
 );
 
+///
+/// EstablishSession
+///
 /// Session admission transport; the host binds it to its authenticated update.
+///
+
 pub struct EstablishSession;
 
 contract!(

@@ -4,8 +4,13 @@ use super::{LoginFacts, login, login_caller};
 use ic_auth_protocol_types::{AudienceId, Principal};
 use std::{error::Error, fmt};
 
+///
+/// UnknownLogoutLimits
+///
 /// Protected unknown-login pool and operation budget, separate from known logins
 /// and proof work. Denial retention uses the receiver's maximum login lifetime.
+///
+
 #[derive(Clone, Copy, Debug)]
 #[cfg_attr(
     feature = "receiver-stable",
@@ -20,7 +25,12 @@ pub struct UnknownLogoutLimits {
     pub refill_interval_ns: u64,
 }
 
+///
+/// LogoutReceipt
+///
 /// Committed local logout facts; neither variant acknowledges other receivers.
+///
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum LogoutReceipt {
     /// Known login denied through its authenticated deadline, retaining any
@@ -36,6 +46,7 @@ pub enum LogoutReceipt {
         deny_until_ns: u64,
     },
 }
+
 impl LogoutReceipt {
     /// Exact local denial deadline; inspect the variant before acknowledging logout.
     #[must_use]
@@ -46,7 +57,12 @@ impl LogoutReceipt {
     }
 }
 
+///
+/// LogoutError
+///
 /// No logout acknowledgement may be inferred from a refusal.
+///
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum LogoutError {
     /// Runtime caller is not a nonanonymous self-authenticating browser principal.
@@ -60,12 +76,20 @@ pub enum LogoutError {
     /// Selected retained facts are inconsistent; never replace them with absence.
     InvalidFacts,
 }
+
 impl fmt::Display for LogoutError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "logout refused: {self:?}")
     }
 }
+
 impl Error for LogoutError {}
+
+///
+/// LogoutPlan
+///
+/// Pairs the caller’s logout receipt with the decision to charge unknown-caller capacity.
+///
 
 pub(crate) struct LogoutPlan {
     pub(crate) receipt: LogoutReceipt,

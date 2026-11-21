@@ -16,10 +16,14 @@ use std::{error::Error, fmt};
 
 pub use crate::certified_message::{CERTIFIED_SIGNATURE_DOMAIN, certified_signature_message};
 
-/// Protected policy for the issuer-signature component of one certified proof.
 ///
+/// IssuerSignaturePolicy
+///
+/// Protected policy for the issuer-signature component of one certified proof.
 /// Issuer and seed must be independently enrolled or established by authenticated
 /// root delegation. The submitted DER key cannot supply either authority.
+///
+
 #[derive(Clone, Copy, Debug)]
 pub struct IssuerSignaturePolicy<'a> {
     /// Approved issuer canister.
@@ -36,7 +40,12 @@ pub struct IssuerSignaturePolicy<'a> {
     pub max_signature_bytes: usize,
 }
 
+///
+/// IssuerSignatureError
+///
 /// Component refusal; no result here establishes complete credential authority.
+///
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum IssuerSignatureError {
     /// Signature bytes exceed the host or portable-profile limit before parsing.
@@ -74,6 +83,7 @@ impl fmt::Display for IssuerSignatureError {
         })
     }
 }
+
 impl Error for IssuerSignatureError {}
 
 /// Authenticate the issuer signature and return its authenticated signing time.

@@ -34,12 +34,19 @@ pub(super) fn account() -> (Principal, Principal) {
     (Principal::from_slice(&[1]), Principal::from_slice(&[2]))
 }
 
+///
+/// Host
+///
+/// Supplies the audience, authority and signed fixtures for receiver tests.
+///
+
 pub(super) struct Host {
     pub(super) audience: AudienceId,
     pub(super) grants: AuthorityGrants,
     pub(super) role: AuthRole,
     pub(super) key: Ed25519Key,
 }
+
 impl Host {
     pub(super) fn new() -> Self {
         Self {

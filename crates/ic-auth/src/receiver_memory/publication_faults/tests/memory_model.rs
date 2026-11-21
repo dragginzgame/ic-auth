@@ -9,6 +9,12 @@ const WHO: [usize; 4] = [0, 0, 1, 2];
 const DEVICE: [u64; 4] = [1, 1, 2, 3];
 const PROOF_END: [u64; 4] = [30, 31, 32, 33];
 
+///
+/// Op
+///
+/// One receiver operation applied to the implementation and reference model.
+///
+
 #[derive(Clone, Copy, Debug)]
 enum Op {
     Admit {
@@ -66,6 +72,12 @@ const OPS: [Op; 12] = [
     Op::Wait(1),
 ];
 
+///
+/// Answer
+///
+/// Observable result compared between the receiver and reference model.
+///
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum Answer {
     New,
@@ -75,6 +87,13 @@ enum Answer {
     Unconfirmed(u64),
     Done,
 }
+
+///
+/// Lease
+///
+/// Session metadata retained by the reference model.
+///
+
 #[derive(Clone, Copy, Debug)]
 struct Lease {
     fixture: usize,
@@ -82,12 +101,25 @@ struct Lease {
     epoch: u64,
     established: u64,
 }
+
+///
+/// Known
+///
+/// Known device and denial state in the reference model.
+///
+
 #[derive(Clone, Copy, Debug)]
 struct Known {
     who: usize,
     device: u64,
     denied: bool,
 }
+
+///
+/// Ledger
+///
+/// Independent model of leases, replay, denial and budget accounting.
+///
 
 #[derive(Debug)]
 struct Ledger {
@@ -101,6 +133,7 @@ struct Ledger {
     logout_charges: u64,
     logout_observation: u64,
 }
+
 impl Ledger {
     fn new() -> Self {
         Self {
@@ -224,6 +257,12 @@ impl Ledger {
     }
 }
 
+///
+/// Driver
+///
+/// Applies the same operations to both receivers and their reference ledgers.
+///
+
 struct Driver {
     host: Host,
     receivers: [MemoryReceiver; 2],
@@ -231,6 +270,7 @@ struct Driver {
     now: u64,
     answers: [usize; 6],
 }
+
 impl Driver {
     fn new() -> Self {
         let host = Host::new();

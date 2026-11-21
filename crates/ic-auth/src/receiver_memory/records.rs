@@ -16,6 +16,12 @@ use ic_auth_protocol_types::{
 };
 use serde::{Serialize, Serializer, ser::SerializeSeq};
 
+///
+/// Session
+///
+/// Retains the admitted mechanism, authority binding and lease for one session.
+///
+
 #[cfg_attr(
     feature = "receiver-stable",
     derive(serde::Serialize, serde::Deserialize)
@@ -79,6 +85,12 @@ impl Session {
     }
 }
 
+///
+/// CallerRecord
+///
+/// Groups the caller’s login binding and optional live session.
+///
+
 #[cfg_attr(
     feature = "receiver-stable",
     derive(serde::Serialize, serde::Deserialize)
@@ -87,6 +99,7 @@ pub(super) struct CallerRecord {
     pub(super) login: LoginFacts,
     pub(super) session: Option<Session>,
 }
+
 impl CallerRecord {
     pub(super) fn new(
         caller: Principal,
@@ -163,6 +176,12 @@ impl CallerRecord {
     }
 }
 
+///
+/// Replay
+///
+/// Retains the credential binding needed to decide an exact admission retry.
+///
+
 #[cfg_attr(
     feature = "receiver-stable",
     derive(serde::Serialize, serde::Deserialize)
@@ -174,6 +193,7 @@ pub(super) struct Replay {
     pub(super) remove_at_ns: u64,
     pub(super) bytes: usize,
 }
+
 impl Replay {
     pub(super) fn prepare(
         fingerprint: [u8; 32],
@@ -204,11 +224,18 @@ impl Replay {
     }
 }
 
+///
+/// Selected
+///
+/// Borrows the indexed facts used for a receiver policy decision.
+///
+
 pub(super) struct Selected<'a> {
     pub(super) session: Option<SessionFacts<'a>>,
     pub(super) login: Option<LoginFacts>,
     pub(super) device: Option<DeviceFacts>,
 }
+
 impl Selected<'_> {
     pub(super) fn snapshot<'a>(&'a self, receiver: &MemoryReceiver) -> ReceiverSnapshot<'a> {
         ReceiverSnapshot {
@@ -250,6 +277,12 @@ fn measured(value: &impl Serialize, maximum: usize) -> Result<usize, MemoryError
     .map_err(|_| SessionPolicyError::ByteCapacity.into())
 }
 
+///
+/// SessionSize
+///
+/// Projects the retained session fields into their accounting encoding.
+///
+
 #[derive(Serialize)]
 struct SessionSize<'a> {
     caller: Principal,
@@ -271,7 +304,14 @@ struct SessionSize<'a> {
     request_hash: &'a [u8; 32],
 }
 
+///
+/// Audience
+///
+/// Serializes the network and fleet identifiers for session-size accounting.
+///
+
 struct Audience(AudienceId);
+
 impl Serialize for Audience {
     fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
         (
@@ -282,7 +322,14 @@ impl Serialize for Audience {
     }
 }
 
+///
+/// Mechanism
+///
+/// Serializes the mechanism tag used for session-size accounting.
+///
+
 struct Mechanism(PortableMechanism);
+
 impl Serialize for Mechanism {
     fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
         match self.0 {
@@ -296,7 +343,14 @@ impl Serialize for Mechanism {
     }
 }
 
+///
+/// Scopes
+///
+/// Serializes the borrowed scope labels for session-size accounting.
+///
+
 struct Scopes<'a>(&'a [ScopeLabel]);
+
 impl Serialize for Scopes<'_> {
     fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
         let mut seq = s.serialize_seq(Some(self.0.len()))?;
