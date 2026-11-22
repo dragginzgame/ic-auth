@@ -846,9 +846,9 @@ checksum = "1b43ede17f21864e81be2fa654110bf1e793774238d86ef8555c37e6519c0403"
 
 [[package]]
 name = "hashbrown"
-version = "0.17.1"
+version = "0.17.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ed5909b6e89a2db4456e54cd5f673791d7eca6732202bbf2a9cc504fe2f9b84a"
+checksum = "735eaa21a6a5ffb2e84362faaeb90c05ba8e19797ca30428478cb6ea3a4921bc"
 
 [[package]]
 name = "heck"
@@ -986,7 +986,7 @@ dependencies = [
 
 [[package]]
 name = "ic-auth"
-version = "0.48.9"
+version = "0.49.0"
 dependencies = [
  "ic-auth-protocol-types",
  "ic-platform",
@@ -1046,7 +1046,7 @@ dependencies = [
 
 [[package]]
 name = "ic-auth-protocol-types"
-version = "0.43.3"
+version = "0.44.0"
 dependencies = [
  "ic-platform-types",
  "serde",
@@ -1054,7 +1054,7 @@ dependencies = [
 
 [[package]]
 name = "ic-auth-wire"
-version = "0.47.0"
+version = "0.48.0"
 dependencies = [
  "ic-auth-protocol-types",
  "ic-wire",
@@ -1165,9 +1165,9 @@ dependencies = [
 
 [[package]]
 name = "ic-platform-macros"
-version = "0.23.24"
+version = "0.23.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6d56705faf76bf52f293449e2d31306f55b5be8f88fad3468e388fef52c64a80"
+checksum = "44735718678dc109c06671ac4036a62053f6190c6010dd608d5c1e7a197014fa"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1176,9 +1176,9 @@ dependencies = [
 
 [[package]]
 name = "ic-platform-runtime"
-version = "0.23.24"
+version = "0.23.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b8538fe1bdaff5b5ae6196118a29bb42859aa16858485a7cf4b66b7c958561e6"
+checksum = "186742997b9845806c447b095aa4358231ad2daf6963736a5767b005c17ccf5e"
 dependencies = [
  "ic-platform-macros",
  "ic-platform-runtime-guard",
@@ -1187,9 +1187,9 @@ dependencies = [
 
 [[package]]
 name = "ic-platform-runtime-guard"
-version = "0.23.24"
+version = "0.23.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e3c30cb68abdd77889c2273094f3c5e9b1c343fd3fbfed97fad2e2d9aa8568f0"
+checksum = "bb6f6ef72ea4f7db0eb9dd5484d385ec21654103e852cecaaffd8acaad24f872"
 
 [[package]]
 name = "ic-platform-types"
@@ -2767,9 +2767,9 @@ dependencies = [
 
 [[package]]
 name = "toko-tooling"
-version = "0.46.0"
+version = "0.46.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4601d2785aaa14e01fd8656d6b3a57653337b214e027810c953595f1d91d6a8d"
+checksum = "4ba519e61553775ef678a64e140be06b9dc303fb259fa51cc3abc326254368a0"
 
 [[package]]
 name = "tower"

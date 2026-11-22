@@ -26,7 +26,11 @@ use ic_auth_protocol_types::PortableMechanism;
 use ic_auth_protocol_types::{AudienceId, CanonicalId, DelegatedRoleGrant, Principal};
 
 fn fixture(name: &str) -> Vec<u8> {
-    let line = include_str!("../fixtures/ed25519.tsv")
+    fixture_bytes(include_str!("../fixtures/ed25519.tsv"), name)
+}
+
+fn fixture_bytes(vectors: &str, name: &str) -> Vec<u8> {
+    let line = vectors
         .lines()
         .find(|line| line.split_once('\t').unwrap().0 == name)
         .unwrap();
@@ -77,6 +81,7 @@ fn request() -> IssueRequest {
 
 fn policy() -> IssuerPolicy {
     IssuerPolicy {
+        ext: None,
         login_ttl_ns: 90,
         proof_ttl_ns: 10,
         receipt_timeout_ns: 10,
@@ -386,7 +391,7 @@ fn exclusive_deadlines_are_captured_and_cannot_be_extended_on_retry() {
             ..authority()
         };
         let t = issuer
-            .prepare_issue(account(), &request(), p, a, 10)
+            .prepare_issue(account(), &request(), p.clone(), a, 10)
             .unwrap();
         issuer.record_nonce(t, a, [1; 16], 10).unwrap();
         issuer.record_approval(t, a, [1; 32], 10).unwrap();

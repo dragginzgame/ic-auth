@@ -49,6 +49,7 @@ function admissionReply(caller: Principal, issuer: Principal, expires = 1n): Uin
     const raw = principal.toUint8Array(); bytes.push(raw.length, ...raw);
   }
   do { const next = Number(expires & 127n); expires >>= 7n; bytes.push(next | (expires ? 128 : 0)); } while (expires);
+  bytes.push(0); // No registered application user.
   return Uint8Array.from(bytes);
 }
 Object.assign(globalThis, { authTest: { LoginJournal, PublicJournal, Principal, Ed25519KeyIdentity, pauseSigning, retrieveCredential, establishSession,

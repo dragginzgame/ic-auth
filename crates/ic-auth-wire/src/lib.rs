@@ -54,6 +54,12 @@ const REPLY_LIMITS: Limits = Limits {
     depth: 8,
 };
 
+const SESSION_REPLY_LIMITS: Limits = Limits {
+    bytes: 8192,
+    allocation: 65536,
+    ..REPLY_LIMITS
+};
+
 // Forward framing and admission to Wire; each contract declares its concrete
 // types, identity and both budgets below. No local serializer or runtime policy.
 macro_rules! contract {
@@ -141,7 +147,7 @@ contract!(
     (),
     Result<SessionView, model::SessionReadRefusal>,
     EMPTY_LIMITS,
-    REPLY_LIMITS
+    SESSION_REPLY_LIMITS
 );
 
 ///
@@ -195,5 +201,5 @@ contract!(
     SessionInput,
     Result<SessionView, model::AdmissionRefusal>,
     CREDENTIAL_LIMITS,
-    REPLY_LIMITS
+    SESSION_REPLY_LIMITS
 );

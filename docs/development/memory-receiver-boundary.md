@@ -163,7 +163,7 @@ enrollment can reopen a lost/poisoned instance. A host must not construct empty
 replacement state after loss. Terminal-revocation installation and actual IC boot/callback
 authentication remain host qualification obligations.
 
-Run `make test-memory`. Thirty-one focused public-API Ed25519 scenarios use nine independently
+Run `make test-memory`. The public-API Ed25519 scenarios use twelve independently
 packed and OpenSSL-signed credentials. They cover failed verification without
 reservation, renewal/replacement at capacity, replay quota and generation retention,
 proof-expired retry, exclusive leases, scope checks, clock rollback, generation

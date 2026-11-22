@@ -10,15 +10,15 @@ license-file = "LICENSE.md"
 
 [workspace.dependencies]
 # Production
-ic-auth-protocol-types = { version = "0.43.3", path = "crates/ic-auth-protocol-types" }
-ic-platform = { version = "0.34.18", default-features = false }
-ic-platform-types = { version = "0.21.3", default-features = false }
+ic-auth-protocol-types = { version = "0.44.0", path = "crates/ic-auth-protocol-types" }
+ic-platform = { version = "0.34.19", default-features = false }
+ic-platform-types = { version = "0.21.4", default-features = false }
 ic-storage = "0.78.7"
 ic-wire = "0.28.0"
 serde = { version = "1.0.229", features = ["derive"] }
 sha2 = "0.11.1"
 # Tests and tooling
-toko-tooling = "=0.46.0"
+toko-tooling = "=0.46.2"
 
 [workspace.lints.cargo]
 unused_dependencies = "deny"

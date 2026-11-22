@@ -276,6 +276,7 @@ pub(super) fn control(command: Command) -> Result<(), Refusal> {
                         caller,
                         &request,
                         IssuerPolicy {
+                            ext: None,
                             login_ttl_ns: 90_000_000_000,
                             proof_ttl_ns: 10_000_000_000,
                             receipt_timeout_ns: 20_000_000_000,

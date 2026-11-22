@@ -47,6 +47,14 @@ impl fmt::Display for UpgradeError {
 
 impl Error for UpgradeError {}
 
+pub(crate) type ExtensionBytes = ic_wire::Bytes<{ ic_auth_protocol_types::MAX_TOKEN_EXT_BYTES }>;
+
+pub(crate) fn extension_bytes(
+    bytes: &[u8],
+) -> Result<ic_wire::BytesRef<'_, { ic_auth_protocol_types::MAX_TOKEN_EXT_BYTES }>, UpgradeError> {
+    ic_wire::BytesRef::new(bytes).map_err(|_| UpgradeError::InvalidCheckpoint)
+}
+
 ///
 /// Image
 ///
@@ -114,7 +122,7 @@ impl<M: Memory> Checkpoint<M> {
         Ok(())
     }
 
-    pub(crate) fn read<T: DeserializeOwned>(&self, domain: &[u8]) -> Result<T, UpgradeError> {
+    pub(crate) fn payload(&self, domain: &[u8]) -> Result<&[u8], UpgradeError> {
         let (expected, payload) = self
             .0
             .get()
@@ -131,6 +139,10 @@ impl<M: Memory> Checkpoint<M> {
             return Err(UpgradeError::InvalidCheckpoint);
         }
 
+        Ok(payload)
+    }
+
+    pub(crate) fn decode<T: DeserializeOwned>(payload: &[u8]) -> Result<T, UpgradeError> {
         ic_wire::decode(payload, ic_wire::Encoding::Payload, LIMITS)
             .map_err(|_| UpgradeError::InvalidCheckpoint)
     }

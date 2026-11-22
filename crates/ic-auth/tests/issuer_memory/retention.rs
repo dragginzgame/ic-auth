@@ -44,7 +44,7 @@ fn prune_captures_later_deadline_and_keeps_exact_results_until_explicit_removal(
             ..policy()
         };
         let t = issuer
-            .prepare_issue(account(), &request(), p, authority(), 10)
+            .prepare_issue(account(), &request(), p.clone(), authority(), 10)
             .unwrap();
         approve(&mut issuer, t);
         issuer.dispatch(t, authority(), 13).unwrap();

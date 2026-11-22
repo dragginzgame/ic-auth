@@ -116,7 +116,10 @@ impl MemoryIssuer {
         };
         Ok(RenewalSelection {
             account: input.account,
-            policy: login.policy,
+            policy: super::IssuerPolicy {
+                ext: retained.map_or(&login.policy.ext, |op| &op.ext).clone(),
+                ..login.policy
+            },
             request: IssueRequest {
                 epoch,
                 operation_id,

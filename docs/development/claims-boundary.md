@@ -1,6 +1,6 @@
 # Canonical claims boundary
 
-`ic-auth::claims` implements the current schema-2 portable-credential bytes:
+`ic-auth::claims` implements the schema-2 and schema-3 portable-credential bytes:
 bounded decode, structural encode and streaming SHA-256. Passive claim fields,
 audience bytes and role labels live in `ic-auth-protocol-types`. Principal identity
 comes from published `ic-platform-types` 0.21.2 with default features disabled;

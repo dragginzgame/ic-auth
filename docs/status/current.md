@@ -1,9 +1,9 @@
 # Current status
 
-Auth **0.48.9** includes a configurable starting profile for volatile receivers.
-Auth Wire **0.47.0** exports IC Wire 0.28.0. Protocol-types is **0.43.3**
+Auth **0.49.0** carries an optional issuer-signed application extension into verified sessions.
+Auth Wire **0.48.0** includes the extension in session admission and read replies. Protocol-types is **0.44.0**
 and the private browser client remains **0.1.0**. The checkout uses authenticated
-Toko Tooling 0.46.0. Production consumer acceptance remains open. Auth supports
+Toko Tooling 0.46.2. Production consumer acceptance remains open. Auth supports
 `receiver-stable` and `issuer-stable` with published `ic-storage` 0.78.7. Historical cost records
 identify the exact cohorts and artifacts measured.
 

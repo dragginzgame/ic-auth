@@ -20,6 +20,7 @@ export interface SessionCoordinatorOptions extends Omit<EstablishSessionOptions,
 type Hint = { receipt: AdmissionReceipt; sequence: bigint; refreshAt: bigint };
 type Flight<T> = { refreshThrough: bigint | undefined; promise: Promise<T> };
 const detached = (receipt: AdmissionReceipt): AdmissionReceipt => ({ ...receipt,
+  ext: receipt.ext && { some: new Uint8Array(receipt.ext.some) },
   caller: new Uint8Array(receipt.caller), issuer: new Uint8Array(receipt.issuer), subject: new Uint8Array(receipt.subject) });
 const covers = (flight: bigint | undefined, requested: bigint | undefined) => requested === undefined
   || (flight !== undefined && flight >= requested);

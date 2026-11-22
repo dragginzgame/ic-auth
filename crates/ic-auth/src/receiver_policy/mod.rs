@@ -71,6 +71,8 @@ pub struct LoginBinding {
 
 #[derive(Clone, Copy, Debug)]
 pub struct SessionFacts<'a> {
+    /// Opaque issuer-attested application bytes, up to 4096 bytes.
+    pub ext: Option<&'a [u8]>,
     /// Stored browser caller.
     pub caller: Principal,
     /// Stored audience.

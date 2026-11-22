@@ -200,8 +200,10 @@ impl AdmissionHost<'_> {
 /// Account facts at a successful operation, never authority after an await.
 ///
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SessionReceipt {
+    /// Opaque issuer-attested application bytes, up to 4096 bytes.
+    pub ext: Option<Vec<u8>>,
     /// Authenticated browser caller.
     pub caller: Principal,
     /// Account issuer.
@@ -218,7 +220,7 @@ pub struct SessionReceipt {
 /// Successful admission; exact retries retain the original receipt and work credit.
 ///
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AdmissionOutcome {
     /// Current session facts.
     pub receipt: SessionReceipt,
@@ -575,6 +577,7 @@ impl MemoryReceiver {
         verification::verify_decoded(decoded, &credential.proof, host.verifier, &mut self.budget)
             .map_err(MemoryError::Proof)?;
         let receipt = SessionReceipt {
+            ext: session.ext.clone(),
             caller: authority.caller,
             issuer: binding.issuer,
             subject: binding.subject,

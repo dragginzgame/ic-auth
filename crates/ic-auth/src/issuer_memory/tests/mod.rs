@@ -76,6 +76,7 @@ fn authority() -> IssuerAuthority {
 
 fn policy() -> IssuerPolicy {
     IssuerPolicy {
+        ext: None,
         login_ttl_ns: 100,
         proof_ttl_ns: 10,
         receipt_timeout_ns: 10,

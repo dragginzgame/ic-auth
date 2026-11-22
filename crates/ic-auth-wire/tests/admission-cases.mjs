@@ -61,7 +61,7 @@ export function admissionCases(credential, establish) {
   cases.push({ name: 'establish-some', codec: establish, request: true,
     value: { credential: certifiedCredential(), scopes: ['', 'Read', 'read::write'], ttl_secs: { some: 2n ** 64n - 1n } } });
   cases.push({ name: 'establish-success', codec: establish, request: false,
-    value: { ok: { caller: bytes(30), issuer: bytes(31), subject: bytes(32), expires_at_ns: 2n ** 64n - 1n } } });
+    value: { ok: { caller: bytes(30), issuer: bytes(31), subject: bytes(32), ext: null, expires_at_ns: 2n ** 64n - 1n } } });
   for (const reason of ['NotYetValid', 'Expired', 'InvalidCredential', 'AuthorityUnavailable', 'BeforeReset',
     'ScopeRejected', 'ReplayConflict', 'Revoked', 'Capacity', 'Throttled', 'Unavailable']) {
     cases.push({ name: `establish-${reason}`, codec: establish, request: false, value: { err: tag(reason) } });

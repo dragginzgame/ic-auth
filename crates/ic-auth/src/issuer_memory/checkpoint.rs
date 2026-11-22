@@ -2,13 +2,47 @@
 
 use super::{
     Account, Approval, BTreeMap, BTreeSet, Completion, Expiry, IssuerAuthority, IssuerConfig,
-    IssuerSigning, IssuerTicket, IssuerUsage, MemoryIssuer, Phase, Principal, WorkBucket, expiry,
+    IssuerPolicy, IssuerSigning, IssuerTicket, IssuerUsage, MemoryIssuer, Phase, Principal,
+    WorkBucket, expiry,
 };
-use crate::stable_upgrade::{Checkpoint, UpgradeError};
+use crate::stable_upgrade::{Checkpoint, ExtensionBytes, UpgradeError, extension_bytes};
 use ic_storage::{DefaultMemoryImpl, Memory, RuntimeMemory};
 use serde::{Deserialize, Serialize};
 
+const EXTENDED_DOMAIN: &[u8] = b"ic-auth.issuer.v2";
 const CHECKPOINT_DOMAIN: &[u8] = b"ic-auth.issuer.v1";
+
+///
+/// PolicyLimits
+///
+/// Preserves the original checkpoint limits layout. The versioned bindings
+/// section carries the extension bytes for both logins and retained operations.
+///
+
+#[derive(Serialize, Deserialize)]
+#[serde(remote = "IssuerPolicy")]
+pub(super) struct PolicyLimits {
+    #[serde(skip)]
+    ext: Option<Vec<u8>>,
+    login_ttl_ns: u64,
+    proof_ttl_ns: u64,
+    receipt_timeout_ns: u64,
+    reconciliation_retention_ns: u64,
+}
+
+///
+/// BindingOwner
+///
+/// Identifies the retained login or issuance operation carrying a signed extension.
+///
+
+#[derive(Serialize, Deserialize)]
+enum BindingOwner {
+    Login(super::Identity),
+    Operation(super::Identity),
+}
+
+type ExtensionBindings = Vec<(Principal, BindingOwner, ExtensionBytes)>;
 
 ///
 /// TicketFields
@@ -103,7 +137,32 @@ impl<M: Memory> StableIssuer<M> {
         now_ns: u64,
     ) -> Result<Self, UpgradeError> {
         let mut checkpoint = Checkpoint::load(memory)?;
-        let Saved(mut inner) = checkpoint.read(CHECKPOINT_DOMAIN)?;
+        let mut inner = if let Ok(payload) = checkpoint.payload(CHECKPOINT_DOMAIN) {
+            Checkpoint::<M>::decode::<Saved>(payload)?.0
+        } else {
+            let (Saved(mut state), bindings): (Saved, ExtensionBindings) =
+                Checkpoint::<M>::decode(checkpoint.payload(EXTENDED_DOMAIN)?)?;
+            for (account, binding, ext) in bindings {
+                let owner = state
+                    .accounts
+                    .get_mut(&account)
+                    .ok_or(UpgradeError::InvalidCheckpoint)?;
+                let slot = match binding {
+                    BindingOwner::Operation(key) => {
+                        owner.operations.get_mut(&key).map(|op| &mut op.ext)
+                    }
+                    BindingOwner::Login(key) => owner
+                        .logins
+                        .get_mut(&key)
+                        .map(|login| &mut login.policy.ext),
+                }
+                .ok_or(UpgradeError::InvalidCheckpoint)?;
+                if slot.replace(ext.into_vec()).is_some() {
+                    return Err(UpgradeError::InvalidCheckpoint);
+                }
+            }
+            state
+        };
         if inner.config != config {
             return Err(UpgradeError::Configuration);
         }
@@ -121,8 +180,26 @@ impl<M: Memory> StableIssuer<M> {
         if !self.inner.open {
             return Err(UpgradeError::Lifecycle);
         }
-        self.checkpoint
-            .save(CHECKPOINT_DOMAIN, &SavedRef(&self.inner))?;
+        let mut bindings = Vec::new();
+        for (&account, owner) in &self.inner.accounts {
+            for (&key, login) in &owner.logins {
+                if let Some(ext) = &login.policy.ext {
+                    bindings.push((account, BindingOwner::Login(key), extension_bytes(ext)?));
+                }
+            }
+            for (&key, op) in &owner.operations {
+                if let Some(ext) = &op.ext {
+                    bindings.push((account, BindingOwner::Operation(key), extension_bytes(ext)?));
+                }
+            }
+        }
+        if bindings.is_empty() {
+            self.checkpoint
+                .save(CHECKPOINT_DOMAIN, &SavedRef(&self.inner))?;
+        } else {
+            self.checkpoint
+                .save(EXTENDED_DOMAIN, &(SavedRef(&self.inner), bindings))?;
+        }
         self.inner.close();
 
         Ok(())
@@ -171,7 +248,11 @@ impl MemoryIssuer {
             let mut renewals = 0;
             for (&id, op) in &owner.operations {
                 let login = owner.logins.get(&op.login).ok_or(bad)?;
-                if account != op.ticket.account
+                if op
+                    .ext
+                    .as_ref()
+                    .is_some_and(|ext| Some(ext) != login.policy.ext.as_ref())
+                    || account != op.ticket.account
                     || id != (op.ticket.epoch, op.ticket.operation_id)
                     || op.ticket.boot == 0
                     || op.ticket.boot > self.boot

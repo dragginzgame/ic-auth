@@ -1,4 +1,4 @@
-// Independent schema-2 packing and OpenSSL signatures for retained-state cases.
+// Independent schema-2 and schema-3 packing and OpenSSL signatures for retained-state cases.
 // Public test seed and protocol framing follow the pinned reference described in
 // fixtures/README.md. No replacement Rust codec or cryptography is used.
 import { createHash, createPrivateKey, createPublicKey, sign, verify } from 'node:crypto';
@@ -19,6 +19,8 @@ const key = publicKey.export({ format: 'der', type: 'spki' }).subarray(12);
 const expected = new Map([['public-key', key], ['key-binding', hash(key)]]);
 for (const [name, browser, generation, issued, nonce, subject, start = 10, deadline = 100, slot = 0, issuer = 1, expires = issued + 10, wide = false] of [
   ['initial', 0x44, 1, 20, 0x55, 2], ['renewal', 0x44, 1, 21, 0x56, 2],
+  ['registered', 0x44, 1, 20, 0x55, 2], ['registered-renewal', 0x44, 1, 21, 0x56, 2],
+  ['max-ext', 0x44, 1, 20, 0x55, 2],
   ['replacement', 0x45, 2, 22, 0x57, 2], ['third', 0x46, 3, 23, 0x58, 2],
   ['rebound', 0x44, 1, 20, 0x59, 3], ['late-old', 0x44, 1, 35, 0x60, 2],
   ['future', 0x47, 1, 120, 0x61, 3, 110, 200],
@@ -35,10 +37,11 @@ for (const [name, browser, generation, issued, nonce, subject, start = 10, deadl
   const scopes = wide ? Array.from({ length: 32 }, (_, i) => `s${String(i).padStart(2, '0')}${'x'.repeat(61)}`) : ['read'];
   const role = wide ? 'r'.repeat(64) : 'user';
   assert(scopes.every(s => s.length <= 64));
+  const ext = name === 'max-ext' ? Buffer.alloc(4096, 0xfc) : name.startsWith('registered') ? Buffer.alloc(16, 0xab) : null;
   const claims = Buffer.concat([
-    Buffer.from('IC-AUTH-PORTABLE-CREDENTIAL\0'), uint(2, 2), Buffer.of(1),
+    Buffer.from('IC-AUTH-PORTABLE-CREDENTIAL\0'), uint(ext ? 3 : 2, 2), Buffer.of(1),
     Buffer.alloc(32, 0x11), Buffer.alloc(32, 0x22), sized(Buffer.of(issuer)), hash(key), browserKey,
-    sized(Buffer.of(subject)), Buffer.of(slot), uint(generation, 8), uint(time(start), 8), uint(time(deadline), 8),
+    sized(Buffer.of(subject)), ext ? sized(ext) : Buffer.alloc(0), Buffer.of(slot), uint(generation, 8), uint(time(start), 8), uint(time(deadline), 8),
     uint(time(issued), 8), uint(time(expires), 8), Buffer.alloc(16, nonce), uint(1, 4), text(role), uint(scopes.length, 4), ...scopes.map(text),
   ]);
   const digest = hash(claims), signature = sign(null, digest, privateKey);
@@ -62,5 +65,5 @@ if (host || process.argv[2] === '--print') {
   const saved = new Map(readFileSync(new URL('fixtures/memory.tsv', import.meta.url), 'utf8').trim().split('\n').map(l => l.split('\t')));
   assert.equal(saved.size, expected.size);
   for (const [name, bytes] of expected) assert.equal(saved.get(name), bytes.toString('hex'), name);
-  console.log('Verified nine independent memory admission credentials with Node/OpenSSL');
+  console.log('Verified twelve independent memory admission credentials with Node/OpenSSL');
 }

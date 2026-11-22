@@ -18,7 +18,7 @@ method identities and layouts may evolve together with their current consumers.
 
 - Explicit current Wire identities/layouts, byte/allocation/node/depth admission,
   error projections and Rust/TypeScript interoperability; no historical parity gate.
-- Canonical signing domains and bytes, claims schema 2, strict ordering and
+- Canonical signing domains and bytes, claims schemas 2 and 3, strict ordering and
   rejection behavior. Never sort untrusted signed inputs into validity.
 - Credential grant bounds, browser-key/caller binding, scope narrowing, device
   fencing, protected authority generations and exclusive validity deadlines.

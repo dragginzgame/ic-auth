@@ -27,6 +27,8 @@ use serde::{Serialize, Serializer, ser::SerializeSeq};
     derive(serde::Serialize, serde::Deserialize)
 )]
 pub(super) struct Session {
+    #[cfg_attr(feature = "receiver-stable", serde(skip))]
+    pub(super) ext: Option<Vec<u8>>,
     mechanism: PortableMechanism,
     key_binding_id: [u8; 32],
     role: AuthRole,
@@ -48,6 +50,7 @@ impl Session {
         fingerprint: [u8; 32],
     ) -> Result<Self, MemoryError> {
         let request_hash = request.hash();
+        let ext_bytes = claims.ext.as_ref().map_or(0, |ext| 4 + ext.len());
         let bytes = measured(
             &SessionSize {
                 caller: authority.caller,
@@ -69,8 +72,9 @@ impl Session {
                 request_hash: &request_hash,
             },
             2048,
-        )?;
+        )? + ext_bytes;
         Ok(Self {
+            ext: claims.ext.clone(),
             mechanism: claims.mechanism,
             key_binding_id: claims.key_binding_id,
             role: authority.role.clone(),
@@ -160,6 +164,7 @@ impl CallerRecord {
 
     pub(super) fn session_facts(&self) -> Option<SessionFacts<'_>> {
         self.session.as_ref().map(|s| SessionFacts {
+            ext: s.ext.as_deref(),
             caller: self.login.caller,
             audience: self.login.audience,
             login: self.binding(),
@@ -250,6 +255,7 @@ impl Selected<'_> {
 
     pub(super) fn receipt(&self) -> Option<SessionReceipt> {
         self.session.map(|s| SessionReceipt {
+            ext: s.ext.map(<[u8]>::to_vec),
             caller: s.caller,
             issuer: s.login.issuer,
             subject: s.login.subject,

@@ -12,8 +12,8 @@ admission is separate.
 | Contract | Fixed ID | Request allowances | Response allowances |
 | --- | --- | --- | --- |
 | `credential` | `0x415554480001` | 524288 / 2097152 / 65536 / 32 | 524288 / 2097152 / 65536 / 32 |
-| `establish_portable_session` | `0x415554480012` | 524288 / 2097152 / 65536 / 32 | 4096 / 16384 / 128 / 8 |
-| `portable_session_read` | `0x415554480013` | 11 / 128 / 8 / 4 | 4096 / 16384 / 128 / 8 |
+| `establish_portable_session` | `0x415554480012` | 524288 / 2097152 / 65536 / 32 | 8192 / 65536 / 128 / 8 |
+| `portable_session_read` | `0x415554480013` | 11 / 128 / 8 / 4 | 8192 / 65536 / 128 / 8 |
 | `logout_portable_session` | `0x415554480014` | 11 / 128 / 8 / 4 | 4096 / 16384 / 128 / 8 |
 
 Allowances are bytes / allocation / nodes / depth. The browser credential cap

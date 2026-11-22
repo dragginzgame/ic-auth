@@ -100,7 +100,9 @@ prove no root signature, grant authority, enrollment or session admission.
 ## Volatile receiver sequences
 
 `memory.tsv` extends the public Ed25519 test seed with nine independently packed
-schema-2 credentials. `../verify-memory-fixtures.mjs` uses Node/OpenSSL to verify
+schema-2 credentials and three extended schema-3 credentials, including a maximum-length extension. The registered
+issuance and renewal carry the opaque ID `ab` repeated 16 times after the subject and a four-byte extension length.
+`../verify-memory-fixtures.mjs` uses Node/OpenSSL to verify
 all bytes and signatures; its initial case must equal the retained `ed25519.tsv`
 reference. Renewal preserves the browser/account/slot/generation and 10–100 ns
 login window. Replacement uses a different browser and higher slot generation;

@@ -63,6 +63,8 @@ pub struct SessionView {
     pub subject: Principal,
     /// Exclusive local lease deadline in nanoseconds.
     pub expires_at_ns: u64,
+    /// Opaque issuer-attested application bytes, up to 4096 bytes.
+    pub ext: Option<ic_wire::Bytes<{ ic_auth_protocol_types::MAX_TOKEN_EXT_BYTES }>>,
 }
 
 ///

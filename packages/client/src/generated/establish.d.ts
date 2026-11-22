@@ -45,6 +45,7 @@ export type Wire_Bytes_ceafa818703233a0 = globalThis.Uint8Array;
 export type Wire_Bytes_e915c1e9b65fd36a = globalThis.Uint8Array;
 export type Wire_Bytes_f12ccc1883af8860 = globalThis.Uint8Array;
 export type Wire_Bytes_f1304e1883b29b1d = globalThis.Uint8Array;
+export type Wire_Bytes_f48f109af4454406 = globalThis.Uint8Array;
 export type Wire_CertifiedProof_cb152bc3b4d909a5 = {
     readonly "delegation": Wire_DelegationProof_d277fb44d3d3cee4;
     readonly "issuer_signature": Wire_IcCanisterSignatureProofV1_fb2c8c3cba723804;
@@ -154,6 +155,9 @@ export type Wire_List_e1113faecdb92277 = globalThis.ReadonlyArray<Wire_Delegated
 export type Wire_Option_8177596c9bc78c33 = null | {
     readonly some: Wire_u64_4d35d3193e8d66f2;
 };
+export type Wire_Option_a6592b9dcb478bd1 = null | {
+    readonly some: Wire_Bytes_f48f109af4454406;
+};
 export type Wire_PortableCredential_67340e188f64605a = {
     readonly "claims": Wire_Bytes_e915c1e9b65fd36a;
     readonly "proof": Wire_PortableProof_2968b956605d919b;
@@ -185,6 +189,7 @@ export type Wire_SessionView_d83548b41b1a7e2a = {
     readonly "issuer": Wire_Principal_f14095eb1cc0831f;
     readonly "subject": Wire_Principal_f14095eb1cc0831f;
     readonly "expires_at_ns": Wire_u64_4d35d3193e8d66f2;
+    readonly "ext": Wire_Option_a6592b9dcb478bd1;
 };
 export type Wire_Text_4419a861e8a2bb65 = string;
 export type Wire_Text_61e787441a2cf39e = string;

@@ -31,6 +31,7 @@ fn inspection_consumes_only_the_bounded_rows_and_one_lookahead() {
         (
             caller,
             Some(SessionFacts {
+                ext: None,
                 caller,
                 audience,
                 login: LoginBinding {

@@ -34,6 +34,7 @@ fn sample() -> PortableClaims {
         key_binding_id: [0x33; 32],
         browser_public_key: [0x44; 32],
         account_subject: Principal::from_slice(&[2]),
+        ext: None,
         device_slot: 0,
         device_generation: 1,
         login_started_at_ns: 0x0102030405060708,
@@ -291,4 +292,28 @@ fn accepted_mutations_have_no_alternate_encoding() {
             }
         }
     }
+}
+
+#[test]
+fn application_extension_presence_length_and_bytes_are_signed() {
+    let mut claims = sample();
+    let original = claims_hash(&claims).unwrap();
+    claims.ext = Some(Vec::new());
+    let empty = claims_hash(&claims).unwrap();
+    assert_ne!(original, empty);
+    assert_eq!(
+        decode_claims(&encode_claims(&claims).unwrap()).unwrap().ext,
+        Some(Vec::new())
+    );
+
+    claims.ext = Some(vec![0x80; 4096]);
+    let mut bytes = encode_claims(&claims).unwrap();
+    assert_eq!(decode_claims(&bytes).unwrap(), claims);
+    let start = bytes.windows(32).position(|w| w == [0x80; 32]).unwrap();
+    assert_eq!(&bytes[start - 4..start], &4096u32.to_be_bytes());
+    bytes[start - 4..start].copy_from_slice(&4097u32.to_be_bytes());
+    assert!(decode_claims(&bytes).is_err());
+    claims.ext.as_mut().unwrap().push(0);
+    assert_eq!(encode_claims(&claims), Err(E::TooLarge));
+    assert_eq!(claims_hash(&claims), Err(E::TooLarge));
 }

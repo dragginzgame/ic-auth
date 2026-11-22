@@ -49,12 +49,20 @@ try {
   check('read-request', read, null, true);
   check('logout-request', logout, null, true);
   check('read-empty', read, { ok: {
-    caller: new Uint8Array(), issuer: new Uint8Array(), subject: new Uint8Array(), expires_at_ns: 0n,
+    caller: new Uint8Array(), issuer: new Uint8Array(), subject: new Uint8Array(), expires_at_ns: 0n, ext: null,
   } });
   check('read-max', read, { ok: {
     caller: new Uint8Array(29).fill(1), issuer: Uint8Array.of(2), subject: Uint8Array.of(3),
-    expires_at_ns: 2n ** 64n - 1n,
+    expires_at_ns: 2n ** 64n - 1n, ext: { some: new Uint8Array(16).fill(0xab) },
   } });
+  for (const codec of [read, establish]) {
+    const ok = { caller: new Uint8Array(), issuer: new Uint8Array(), subject: new Uint8Array(), expires_at_ns: 1n };
+    for (const length of [0, 4096]) {
+      const value = { ok: { ...ok, ext: { some: new Uint8Array(length).fill(0xff) } } };
+      assert.deepEqual(codec.decodeResponse(codec.encodeResponse(value)), value);
+    }
+    assert.throws(() => codec.encodeResponse({ ok: { ...ok, ext: { some: new Uint8Array(4097) } } }));
+  }
   for (const tag of ['MissingOrExpired', 'AuthorityUnavailable', 'ScopeRejected', 'Revoked', 'Unavailable']) {
     check(`read-${tag}`, read, { err: { tag, value: null } });
   }

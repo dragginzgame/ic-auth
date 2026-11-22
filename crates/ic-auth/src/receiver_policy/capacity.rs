@@ -3,6 +3,8 @@
 use super::SessionPolicyError as E;
 use ic_auth_protocol_types::Principal;
 
+pub(crate) const MAX_SESSION_BYTES: usize = 2048 + 4 + ic_auth_protocol_types::MAX_TOKEN_EXT_BYTES;
+
 ///
 /// SessionCapacity
 ///
@@ -71,7 +73,7 @@ pub struct SessionUsage {
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct AdmissionFootprint {
-    /// Encoded size of the proposed session, 1 through 2048 bytes.
+    /// Encoded size of the proposed session, 1 through 6148 bytes.
     pub session_bytes: usize,
     /// Encoded size of the new consumed replay, 1 through 512 bytes.
     pub replay_bytes: usize,
@@ -103,11 +105,11 @@ pub(crate) fn assess_capacity(
         || account.1 == Principal::anonymous()
         || account != usage.account
         || usage.replays_for_account > usage.replays
-        || !(1..=2048).contains(&footprint.session_bytes)
+        || !(1..=MAX_SESSION_BYTES).contains(&footprint.session_bytes)
         || !(1..=512).contains(&footprint.replay_bytes)
         || footprint
             .replaced_session_bytes
-            .is_some_and(|bytes| !(1..=2048).contains(&bytes) || usage.sessions == 0)
+            .is_some_and(|bytes| !(1..=MAX_SESSION_BYTES).contains(&bytes) || usage.sessions == 0)
     {
         return Err(E::InvalidFacts);
     }

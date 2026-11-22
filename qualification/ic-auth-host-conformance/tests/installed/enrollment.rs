@@ -228,14 +228,14 @@ async fn installed_authority_binds_replies_and_revocation_commits_with_receiver_
 async fn stable_auth_upgrade_and_failed_reopen_preserve_session_logout_and_certified_result() {
     let wasm = wasm();
     let vectors = vectors();
-    let caller = CanisterId::from_slice(&vectors["initial-caller"]);
+    let caller = CanisterId::from_slice(&vectors["registered-caller"]);
     let pic = start().await;
     time(&pic, 0).await;
     let authority = install(&pic, &wasm).await;
     let id = install_receiver(&pic, &wasm, authority, true).await;
     time(&pic, 25).await;
     let enroll = Command::Enroll(Fault::None);
-    let admit = credential(&vectors, "initial", false);
+    let admit = credential(&vectors, "registered", false);
     assert_eq!(
         control(&pic, id, caller, &enroll).await.unwrap(),
         Ok(Outcome::Enrolled)
@@ -267,7 +267,7 @@ async fn stable_auth_upgrade_and_failed_reopen_preserve_session_logout_and_certi
         control(&pic, id, caller, &Command::Authorize(false))
             .await
             .unwrap(),
-        Ok(Outcome::Authorized)
+        Ok(Outcome::AuthorizedUser([0xab; 16]))
     );
 
     pic.upgrade_canister(id, wasm.clone(), vec![], None)
@@ -294,7 +294,7 @@ async fn stable_auth_upgrade_and_failed_reopen_preserve_session_logout_and_certi
         control(&pic, id, caller, &Command::Authorize(false))
             .await
             .unwrap(),
-        Ok(Outcome::Authorized)
+        Ok(Outcome::AuthorizedUser([0xab; 16]))
     );
     assert_eq!(observe(&pic, id).await.credit, before.credit);
     assert!(matches!(

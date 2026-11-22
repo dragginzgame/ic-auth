@@ -77,7 +77,7 @@ A request may name an issuer/key as a lookup hint; it cannot install authority, 
 
 ### Canonical bytes and request identity
 
-Preserve claims schema 2 and the exact domain IC-AUTH-PORTABLE-CREDENTIAL followed by a zero byte. Preserve field order: schema, mechanism, network, application, issuer, key binding, browser key, account subject, slot, device generation, login start, login deadline, issuance, admission expiry, nonce, grants. Fixed-width integers use big-endian encoding; existing length/count prefixes and principal/label encodings remain unchanged.
+Preserve claims schema 2 and the exact domain IC-AUTH-PORTABLE-CREDENTIAL followed by a zero byte. Preserve field order: schema, mechanism, network, application, issuer, key binding, browser key, account subject, slot, device generation, login start, login deadline, issuance, admission expiry, nonce, grants. Fixed-width integers use big-endian encoding; existing length/count prefixes and principal/label encodings remain unchanged. Schema 3 adds a four-byte big-endian length and up to 4096 opaque extension bytes immediately after the account subject. Issuers use schema 2 for an absent extension and schema 3 for a present extension, including an empty one. Both proof mechanisms cover the complete record.
 
 Roles and signed scopes must arrive strictly ordered and unique. Reject noncanonical signed inputs; do not sort them into validity. Preserve all other current signed domains used by delegation/certificate helpers.
 

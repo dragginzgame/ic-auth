@@ -2,6 +2,16 @@
 
 The `auth` group covers `ic-auth`. Its separate ledger follows [0.48.7](../history.md#0487---2026-11-19).
 
+## [0.49.0] - 2026-11-22
+
+### ⚠️ Breaking
+
+- Bind up to 4096 optional bytes of issuer-supplied application data to each issuance operation. Verified session reads, renewal and stable reopen retain the binding. [#8 Carry an issuer-attested application user ID into verified sessions](https://github.com/dragginzgame/ic-auth/issues/8)
+
+### 📦 Dependencies
+
+- Adopt IC Platform 0.34.19, Platform Types 0.21.4 and qualification Runtime 0.23.25. Both workspaces use Toko Tooling 0.46.2.
+
 ## [0.48.9] - 2026-11-21
 
 ### 📦 Dependencies

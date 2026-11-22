@@ -201,6 +201,7 @@ fn admission_preserves_unsigned_scope_text_and_optional_ttl() {
 #[test]
 fn every_admission_reply_matches_current_fixtures() {
     let success = Ok(SessionView {
+        ext: None,
         caller: Principal::from_slice(&[30]),
         issuer: Principal::from_slice(&[31]),
         subject: Principal::from_slice(&[32]),
@@ -266,7 +267,7 @@ fn identities_allowances_and_browser_caps_remain_separate() {
     let reply = EstablishSession::RESPONSE_LIMITS;
     assert_eq!(
         (reply.bytes, reply.allocation, reply.nodes, reply.depth),
-        (4096, 16384, 128, 8)
+        (8192, 65536, 128, 8)
     );
     assert_eq!(BROWSER_DEFAULT_CREDENTIAL_BYTES, 131072);
     assert_eq!(BROWSER_MAX_CONFIGURED_CREDENTIAL_BYTES, 1048576);

@@ -145,3 +145,25 @@ loss and retain the checkpoint. [Auth #6](https://github.com/dragginzgame/ic-aut
 The [installed witness](../../qualification/ic-auth-host-conformance/README.md#complete-loss-recovery-witness)
 qualifies this decision for [Auth #4](https://github.com/dragginzgame/ic-auth/issues/4)
 and [Auth #5](https://github.com/dragginzgame/ic-auth/issues/5).
+
+## Issuer-attested application extension
+
+A host can supply up to 4096 opaque bytes in `IssuerPolicy::ext`. The issuer
+signs their exact length and contents. The application owns their format and
+meaning. Auth preserves the distinction between `None` and `Some(vec![])`.
+
+For Toko registration, the issuer looks up the authenticated subject in trusted
+registration records. On the first sign-in it supplies `None`. After registration
+it prepares a new operation on the same login with `Some(user_id.to_vec())`.
+A present extension is fixed for that login. Renewal retains the bytes, and an
+exact retry returns the binding captured by the original operation.
+
+For a registered-user action, the receiver reads `SessionReceipt::ext` inside
+its `authorize` projection and requires the application's 16-byte ID format.
+Missing or malformed data confers no registered-user authority. Each endpoint
+uses the verified local session. The browser also receives a copy for display.
+
+Upgrade receivers before issuing extended credentials. Deploy the updated Wire
+session-read and admission reply codecs together with their clients. Success
+replies append optional length-prefixed bytes. Existing stable checkpoints
+reopen with absent extensions. Extended checkpoints use the same memory leases.

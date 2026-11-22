@@ -141,7 +141,7 @@ fn authorize_rechecks_changes_between_host_turns_despite_an_earlier_receipt() {
         r.admit(&credential("initial"), request(), h.admission(&context))
             .unwrap();
         let earlier = r
-            .authorize(&h.read("initial", 25), &[], |receipt| *receipt)
+            .authorize(&h.read("initial", 25), &[], Clone::clone)
             .unwrap();
         let mut current = h.read("initial", 26);
         match change {
@@ -1487,8 +1487,17 @@ fn logout_admission_orderings_deny_without_cross_receiver_effects() {
 #[cfg(feature = "receiver-stable")]
 #[test]
 fn stable_upgrade_retains_live_session_then_logout_across_two_boots() {
+    for name in ["initial", "registered", "max-ext"] {
+        check_stable_session(name);
+    }
+}
+
+#[cfg(feature = "receiver-stable")]
+fn check_stable_session(name: &str) {
     use ic_auth::receiver_memory::StableReceiver;
     let h = Host::new();
+    let mut config = h.config();
+    config.capacity.max_encoded_bytes = 8192;
     let backing = ic_storage::VectorMemory::default();
     let key = "auth.receiver.v1";
     let lease = || {
@@ -1505,21 +1514,24 @@ fn stable_upgrade_retains_live_session_then_logout_across_two_boots() {
             .open_memory(&ic_storage::StableKey::parse(key).unwrap())
             .unwrap()
     };
-    let mut owner = StableReceiver::new_fresh(lease(), h.config(), 0).unwrap();
+    let mut owner = StableReceiver::new_fresh(lease(), config, 0).unwrap();
     h.enroll(owner.state(), 7).unwrap();
-    let context = h.context("initial", 25);
+    let context = h.context(name, 25);
     let admitted = owner
         .state()
-        .admit(&credential("initial"), request(), h.admission(&context))
+        .admit(&credential(name), request(), h.admission(&context))
         .unwrap();
+    if name == "max-ext" {
+        assert_eq!(admitted.receipt.ext, Some(vec![0xfc; 4096]));
+    }
     let credit = owner.state().verification_budget().available();
     owner.seal().unwrap();
     drop(owner);
     for revision in [2, 3] {
-        let mut owner = StableReceiver::reopen(lease(), h.config(), 26).unwrap();
+        let mut owner = StableReceiver::reopen(lease(), config, 26).unwrap();
         let r = owner.state();
         assert_eq!(r.verification_budget().available(), credit);
-        assert_eq!(r.read(&h.read("initial", 26), &[]), Err(E::Closed));
+        assert_eq!(r.read(&h.read(name, 26), &[]), Err(E::Closed));
         assert!(
             r.install_enrollment(26, h.config().enrollment.authority, h.snapshot(7))
                 .is_err()
@@ -1531,31 +1543,83 @@ fn stable_upgrade_retains_live_session_then_logout_across_two_boots() {
         r.install_enrollment(26, h.config().enrollment.authority, snapshot)
             .unwrap();
         if revision == 2 {
-            assert_eq!(
-                r.read(&h.read("initial", 26), &[]).unwrap(),
-                admitted.receipt
-            );
+            assert_eq!(r.read(&h.read(name, 26), &[]).unwrap(), admitted.receipt);
             assert!(
                 r.admit(
-                    &credential("initial"),
+                    &credential(name),
                     request(),
-                    h.admission(&h.context("initial", 26))
+                    h.admission(&h.context(name, 26))
                 )
                 .unwrap()
                 .exact_retry
             );
             r.logout(context.caller, 26).unwrap();
         } else {
-            assert!(r.read(&h.read("initial", 26), &[]).is_err());
+            assert!(r.read(&h.read(name, 26), &[]).is_err());
             assert!(
                 r.admit(
-                    &credential("initial"),
+                    &credential(name),
                     request(),
-                    h.admission(&h.context("initial", 26))
+                    h.admission(&h.context(name, 26))
                 )
                 .is_err()
             );
         }
         owner.seal().unwrap();
+    }
+}
+
+#[test]
+fn two_receivers_authenticate_only_the_issuer_attested_application_user() {
+    let host = Host::new();
+    for receiver in [10, 12] {
+        let mut config = host.config();
+        config.enrollment.receiver = Principal::from_slice(&[receiver]);
+        config.capacity.max_replays = 3;
+        config.capacity.max_replays_per_account = 3;
+        let mut state = MemoryReceiver::new_fresh(config, 0).unwrap();
+        let mut enrollment = host.snapshot(7);
+        enrollment.receiver = config.enrollment.receiver;
+        state
+            .request_enrollment(0, enrollment.challenge, 10)
+            .unwrap();
+        state
+            .install_enrollment(0, config.enrollment.authority, enrollment)
+            .unwrap();
+        let context = host.context("initial", 25);
+        let admit = |state: &mut MemoryReceiver, credential: &Credential| {
+            state.admit(credential, request(), host.admission(&context))
+        };
+        let read = |state: &mut MemoryReceiver| {
+            state
+                .authorize(&host.read("initial", 25), &[], |s| s.ext.clone())
+                .unwrap()
+        };
+        assert_eq!(
+            admit(&mut state, &credential("initial"))
+                .unwrap()
+                .receipt
+                .ext,
+            None
+        );
+        let mut altered = credential("registered");
+        let offset = altered
+            .claims
+            .windows(16)
+            .position(|bytes| bytes == [0xab; 16])
+            .unwrap();
+        altered.claims[offset] ^= 1;
+        assert!(admit(&mut state, &altered).is_err());
+        assert_eq!(read(&mut state), None);
+
+        for name in ["registered", "registered-renewal"] {
+            let proof = credential(name);
+            let result = admit(&mut state, &proof).unwrap();
+            assert_eq!(result.receipt.ext, Some(vec![0xab; 16]));
+            assert_eq!(admit(&mut state, &proof).unwrap().receipt, result.receipt);
+            assert_eq!(read(&mut state), Some(vec![0xab; 16]));
+        }
+        assert!(admit(&mut state, &credential("initial")).is_err());
+        assert_eq!(read(&mut state), Some(vec![0xab; 16]));
     }
 }

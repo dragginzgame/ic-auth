@@ -34,6 +34,7 @@ fn approved(f: &Fixture) -> (MemoryIssuer, IssuerTicket) {
         issuance_refill_interval_ns: 1,
     };
     let policy = IssuerPolicy {
+        ext: None,
         login_ttl_ns: 90,
         proof_ttl_ns: 40,
         receipt_timeout_ns: 40,
@@ -57,7 +58,7 @@ fn approved(f: &Fixture) -> (MemoryIssuer, IssuerTicket) {
         } else {
             Principal::from_slice(&[20 + n])
         };
-        auth.prepare_issue(owner, &request, policy, authority(), 100)
+        auth.prepare_issue(owner, &request, policy.clone(), authority(), 100)
             .unwrap();
     }
     request.browser_public_key = [
@@ -67,7 +68,7 @@ fn approved(f: &Fixture) -> (MemoryIssuer, IssuerTicket) {
     ];
     request.operation_id = [2; 32];
     request.login_id = [2; 32];
-    auth.prepare_issue(account, &request, policy, authority(), 100)
+    auth.prepare_issue(account, &request, policy.clone(), authority(), 100)
         .unwrap();
     request.operation_id = [3; 32];
     let t = auth

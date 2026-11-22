@@ -28,7 +28,8 @@ The historical capture above is provenance, not a compatibility requirement.
 `../verify-fixtures.mjs` independently assembles all 37 current frames from
 explicit field order, numeric tags, method IDs and Postcard primitives. It imports
 no Auth/Wire codec, generated schema or old implementation and asserts agreement
-with these TSVs. Expectations may evolve with a reviewed current contract; no
+with these TSVs. For Auth #8 the three success frames append the optional application extension.
+The maximum read carries the independently specified 16-byte value. Expectations may evolve with a reviewed current contract; no
 historical method identity or format must be preserved solely for parity.
 
 `make qualify-wire-browser` regenerates all four current codecs, runs that

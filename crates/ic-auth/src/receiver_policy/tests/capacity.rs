@@ -273,11 +273,11 @@ fn arithmetic_subtracts_before_adding_and_never_wraps_counts_or_bytes() {
 fn bounded_record_sizes_and_inconsistent_selected_facts_refuse() {
     for change in [
         (|f: &mut AdmissionFootprint| f.session_bytes = 0) as fn(&mut AdmissionFootprint),
-        |f| f.session_bytes = 2049,
+        |f| f.session_bytes = 6149,
         |f| f.replay_bytes = 0,
         |f| f.replay_bytes = 513,
         |f| f.replaced_session_bytes = Some(0),
-        |f| f.replaced_session_bytes = Some(2049),
+        |f| f.replaced_session_bytes = Some(6149),
     ] {
         let mut size = footprint();
         change(&mut size);

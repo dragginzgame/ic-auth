@@ -41,8 +41,8 @@ const read = 0x415554480013n, logout = 0x415554480014n;
 const credential = 0x415554480001n, establish = 0x415554480012n;
 add('read-request', read, false);
 add('logout-request', logout, false);
-add('read-empty', read, true, [0, blob([]), blob([]), blob([]), 0]);
-add('read-max', read, true, [0, blob(Array(29).fill(1)), blob([2]), blob([3]), max]);
+add('read-empty', read, true, [0, blob([]), blob([]), blob([]), 0, 0]);
+add('read-max', read, true, [0, blob(Array(29).fill(1)), blob([2]), blob([3]), max, 1, blob(Array(16).fill(0xab))]);
 for (const [tag, name] of ['MissingOrExpired', 'AuthorityUnavailable', 'ScopeRejected', 'Revoked', 'Unavailable'].entries()) {
   add('read-' + name, read, true, [1, tag]);
 }
@@ -61,7 +61,7 @@ for (const [kind, payload] of [['ed25519', ed], ['certified', certified]]) {
 add('credential-empty', credential, false, [0, 1, 0]);
 add('establish-none', establish, false, [ed, 3, str('write'), str('read'), str('write'), 0]);
 add('establish-some', establish, false, [certified, 3, str(''), str('Read'), str('read::write'), 1, max]);
-add('establish-success', establish, true, [0, blob([30]), blob([31]), blob([32]), max]);
+add('establish-success', establish, true, [0, blob([30]), blob([31]), blob([32]), max, 0]);
 for (const [tag, name] of ['NotYetValid', 'Expired', 'InvalidCredential', 'AuthorityUnavailable', 'BeforeReset',
   'ScopeRejected', 'ReplayConflict', 'Revoked', 'Capacity', 'Throttled', 'Unavailable'].entries()) {
   add('establish-' + name, establish, true, [1, tag]);

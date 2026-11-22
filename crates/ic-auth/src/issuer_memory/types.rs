@@ -93,12 +93,14 @@ impl IssuerSigning {
 /// Host-selected immutable lifetime bounds, in trusted nanoseconds.
 ///
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(
     feature = "issuer-stable",
     derive(serde::Serialize, serde::Deserialize)
 )]
 pub struct IssuerPolicy {
+    /// Optional host-supplied application bytes, bounded to 4096 bytes and retained on renewal.
+    pub ext: Option<Vec<u8>>,
     /// Original absolute login lifetime, at most 90 days.
     pub login_ttl_ns: u64,
     /// Admission lifetime, at most 60 seconds and capped by login/authority expiry.
@@ -231,6 +233,8 @@ impl IssuerTicket {
 
 #[derive(Debug)]
 pub struct IssuerIntent<'a> {
+    /// Opaque issuer-attested application bytes, up to 4096 bytes.
+    pub ext: Option<&'a [u8]>,
     /// Exact callback binding.
     pub ticket: IssuerTicket,
     /// Original browser key.
@@ -268,7 +272,7 @@ impl SigningInput {
         self.ticket
     }
 
-    /// Original canonical schema-2 claims; Ed25519 signs their SHA-256 digest.
+    /// Original canonical claims; Ed25519 signs their SHA-256 digest.
     #[must_use]
     pub fn claims(&self) -> &[u8] {
         &self.claims

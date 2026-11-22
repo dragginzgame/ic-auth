@@ -4,10 +4,11 @@ use super::{
     Account, BTreeMap, BTreeSet, CallerRecord, Lifecycle, MemoryConfig, MemoryReceiver, Principal,
     Replay, Slot, VerificationBudget, WorkBucket, enrollment, policy,
 };
-use crate::stable_upgrade::{Checkpoint, UpgradeError};
+use crate::stable_upgrade::{Checkpoint, ExtensionBytes, UpgradeError, extension_bytes};
 use ic_storage::{DefaultMemoryImpl, Memory, RuntimeMemory};
 use serde::{Deserialize, Serialize};
 
+const EXTENDED_DOMAIN: &[u8] = b"ic-auth.receiver.v2";
 const CHECKPOINT_DOMAIN: &[u8] = b"ic-auth.receiver.v1";
 
 ///
@@ -94,7 +95,23 @@ impl<M: Memory> StableReceiver<M> {
         now_ns: u64,
     ) -> Result<Self, UpgradeError> {
         let mut checkpoint = Checkpoint::load(memory)?;
-        let Saved(mut inner) = checkpoint.read(CHECKPOINT_DOMAIN)?;
+        let mut inner = if let Ok(payload) = checkpoint.payload(CHECKPOINT_DOMAIN) {
+            Checkpoint::<M>::decode::<Saved>(payload)?.0
+        } else {
+            let (Saved(mut state), bindings): (Saved, Vec<(Principal, ExtensionBytes)>) =
+                Checkpoint::<M>::decode(checkpoint.payload(EXTENDED_DOMAIN)?)?;
+            for (caller, ext) in bindings {
+                let session = state
+                    .callers
+                    .get_mut(&caller)
+                    .and_then(|row| row.session.as_mut())
+                    .ok_or(UpgradeError::InvalidCheckpoint)?;
+                if session.ext.replace(ext.into_vec()).is_some() {
+                    return Err(UpgradeError::InvalidCheckpoint);
+                }
+            }
+            state
+        };
         if inner.config != config {
             return Err(UpgradeError::Configuration);
         }
@@ -117,8 +134,23 @@ impl<M: Memory> StableReceiver<M> {
         if self.inner.lifecycle == Lifecycle::Closed {
             return Err(UpgradeError::Lifecycle);
         }
-        self.checkpoint
-            .save(CHECKPOINT_DOMAIN, &SavedRef(&self.inner))?;
+        let mut bindings = Vec::new();
+        for (&caller, row) in &self.inner.callers {
+            if let Some(ext) = row
+                .session
+                .as_ref()
+                .and_then(|session| session.ext.as_deref())
+            {
+                bindings.push((caller, extension_bytes(ext)?));
+            }
+        }
+        if bindings.is_empty() {
+            self.checkpoint
+                .save(CHECKPOINT_DOMAIN, &SavedRef(&self.inner))?;
+        } else {
+            self.checkpoint
+                .save(EXTENDED_DOMAIN, &(SavedRef(&self.inner), bindings))?;
+        }
         self.inner.close();
 
         Ok(())
@@ -187,7 +219,10 @@ impl MemoryReceiver {
             }
             if let Some(s) = &row.session {
                 if row.login.denied
-                    || !(1..=2048).contains(&s.bytes)
+                    || !s
+                        .bytes
+                        .checked_sub(s.ext.as_ref().map_or(0, |ext| 4 + ext.len()))
+                        .is_some_and(|base| (1..=2048).contains(&base))
                     || !self.session_expiry.contains(&(s.expires_at_ns, *caller))
                 {
                     return Err(bad);

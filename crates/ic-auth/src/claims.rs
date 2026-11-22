@@ -1,4 +1,4 @@
-//! Bounded schema-2 signed bytes. Decode, encode and hashing grant no authority.
+//! Bounded schema-2 and schema-3 signed bytes. Decode, encode and hashing grant no authority.
 //!
 //! Only the current fresh-credential format is supported. Signed labels remain
 //! in supplied order; unlike unsigned session requests, they are never sorted.
@@ -11,6 +11,7 @@ use std::{error::Error, fmt};
 
 const DOMAIN: &[u8] = b"IC-AUTH-PORTABLE-CREDENTIAL\0";
 const SCHEMA: u16 = 2;
+const EXTENDED_SCHEMA: u16 = 3;
 const MAX_ROLES: usize = 16;
 const MAX_SCOPES_PER_ROLE: usize = 32;
 const MAX_SCOPE_ENTRIES: usize = 32;
@@ -27,7 +28,9 @@ const _: () = assert!(
         <= MAX_GRANT_BYTES
 );
 // The schema-2 prefix is at most 282 bytes with two maximum-length principals.
-const _: () = assert!(282 + MAX_GRANT_BYTES <= MAX_CLAIMS_BYTES);
+const _: () = assert!(
+    282 + 4 + ic_auth_protocol_types::MAX_TOKEN_EXT_BYTES + MAX_GRANT_BYTES <= MAX_CLAIMS_BYTES
+);
 
 ///
 /// ClaimsError
@@ -110,6 +113,13 @@ fn check_entries(found: usize) -> Result<(), ClaimsError> {
 }
 
 fn validate(claims: &PortableClaims) -> Result<(), ClaimsError> {
+    if claims
+        .ext
+        .as_ref()
+        .is_some_and(|ext| ext.len() > ic_auth_protocol_types::MAX_TOKEN_EXT_BYTES)
+    {
+        return Err(ClaimsError::TooLarge);
+    }
     if claims.device_slot > 7 || claims.device_generation == 0 {
         return Err(ClaimsError::InvalidShape);
     }
@@ -170,7 +180,12 @@ pub fn claims_hash(claims: &PortableClaims) -> Result<[u8; 32], ClaimsError> {
 // Callers validate first; all casts are bounded by that admission or Principal.
 fn write_fields(claims: &PortableClaims, mut emit: impl FnMut(&[u8])) {
     emit(DOMAIN);
-    emit(&SCHEMA.to_be_bytes());
+    let schema = if claims.ext.is_some() {
+        EXTENDED_SCHEMA
+    } else {
+        SCHEMA
+    };
+    emit(&schema.to_be_bytes());
     emit(&[match claims.mechanism {
         PortableMechanism::Certified => 0,
         PortableMechanism::Ed25519 => 1,
@@ -183,6 +198,10 @@ fn write_fields(claims: &PortableClaims, mut emit: impl FnMut(&[u8])) {
     emit(&claims.browser_public_key);
     emit(&(u32::from(claims.account_subject.len())).to_be_bytes());
     emit(claims.account_subject.as_slice());
+    if let Some(ext) = &claims.ext {
+        emit(&(ext.len() as u32).to_be_bytes());
+        emit(ext);
+    }
     emit(&[claims.device_slot]);
     for value in [
         claims.device_generation,
@@ -212,7 +231,7 @@ pub(crate) fn write_grants(grants: &[DelegatedRoleGrant], emit: &mut dyn FnMut(&
     }
 }
 
-/// Decode one bounded canonical schema-2 record, without granting authority.
+/// Decode one bounded canonical signed record, without granting authority.
 ///
 /// Count and byte limits are admitted before allocating their values. Extra
 /// bytes, unknown formats and noncanonical signed order refuse without repair.
@@ -221,7 +240,11 @@ pub fn decode_claims(bytes: &[u8]) -> Result<PortableClaims, ClaimsError> {
         return Err(ClaimsError::TooLarge);
     }
     let mut input = Input { remaining: bytes };
-    if input.take(DOMAIN.len())? != DOMAIN || u16::from_be_bytes(input.fixed()?) != SCHEMA {
+    if input.take(DOMAIN.len())? != DOMAIN {
+        return Err(ClaimsError::WrongDomain);
+    }
+    let schema = u16::from_be_bytes(input.fixed()?);
+    if !matches!(schema, SCHEMA | EXTENDED_SCHEMA) {
         return Err(ClaimsError::WrongDomain);
     }
     let mechanism = match input.fixed()? {
@@ -237,6 +260,12 @@ pub fn decode_claims(bytes: &[u8]) -> Result<PortableClaims, ClaimsError> {
     let key_binding_id = input.fixed()?;
     let browser_public_key = input.fixed()?;
     let account_subject = input.principal()?;
+    let ext = if schema == EXTENDED_SCHEMA {
+        let len = input.size(0, ic_auth_protocol_types::MAX_TOKEN_EXT_BYTES)?;
+        Some(input.take(len)?.to_vec())
+    } else {
+        None
+    };
     let [device_slot] = input.fixed()?;
     let device_generation = u64::from_be_bytes(input.fixed()?);
     let login_started_at_ns = u64::from_be_bytes(input.fixed()?);
@@ -280,6 +309,7 @@ pub fn decode_claims(bytes: &[u8]) -> Result<PortableClaims, ClaimsError> {
         key_binding_id,
         browser_public_key,
         account_subject,
+        ext,
         device_slot,
         device_generation,
         login_started_at_ns,

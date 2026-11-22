@@ -9,7 +9,10 @@ mod delegation;
 mod role;
 mod scope;
 
-pub use claims::{AudienceId, CanonicalId, DelegatedRoleGrant, PortableClaims, PortableMechanism};
+pub use claims::{
+    AudienceId, CanonicalId, DelegatedRoleGrant, MAX_TOKEN_EXT_BYTES, PortableClaims,
+    PortableMechanism,
+};
 pub use credential::{
     CertifiedProofMaterial, Credential, CredentialProof, RootDelegation, RootSignatureMaterial,
 };

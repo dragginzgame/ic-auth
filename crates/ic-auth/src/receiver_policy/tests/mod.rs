@@ -84,6 +84,7 @@ impl Scenario {
 
     fn session(&self) -> SessionFacts<'_> {
         SessionFacts {
+            ext: None,
             caller: caller(10),
             audience: Self::audience(),
             login: Self::binding(),

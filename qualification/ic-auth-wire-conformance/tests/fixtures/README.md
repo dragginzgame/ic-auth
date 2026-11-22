@@ -27,3 +27,10 @@ with measurements of the codec under test: intentional accounting changes need
 explicit review of the current resource contract and independent boundary evidence.
 These retained expectations do not require historical accounting parity forever.
 This corpus is not an exhaustive current-contract proof or a host cost benchmark.
+
+For Auth #8 the session reply changed size. The updated rows were captured
+with the same 0.22.2 independent binary-search oracle and the new Rust DTO,
+then compared against published 0.28.0 at each boundary. The two absent-extension
+success frames and the present-extension maximum read use independently assembled
+Postcard bytes. Error replies share the enclosing Rust result type and its
+encode allocation charge. The historical digest above identifies the original capture.

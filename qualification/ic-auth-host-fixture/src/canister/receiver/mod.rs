@@ -275,12 +275,17 @@ pub(super) async fn control(command: Command) -> Result<Outcome, Refusal> {
                     enabled: !entry.revoked,
                     subject_admissible: true,
                 };
-                receiver
-                    .authorize(&authority, required, |_| {
+                let result = receiver
+                    .authorize(&authority, required, |receipt| {
                         *application_writes += 1;
+                        receipt
+                            .ext
+                            .as_deref()
+                            .and_then(|bytes| bytes.try_into().ok())
+                            .map_or(Outcome::Authorized, Outcome::AuthorizedUser)
                     })
                     .map_err(refusal)?;
-                (Outcome::Authorized, trap_after)
+                (result, trap_after)
             }
             Command::Logout(_) | Command::Enroll(_) | Command::Prune(_) => unreachable!(),
         };

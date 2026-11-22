@@ -212,6 +212,7 @@ pub(super) fn credential(lookup: bool) -> PortableCredential {
                         grants: grants(),
                     },
                     IssuerPolicy {
+                        ext: None,
                         login_ttl_ns: 120 * SECOND,
                         proof_ttl_ns: 60 * SECOND,
                         receipt_timeout_ns: 60 * SECOND,
@@ -330,6 +331,11 @@ pub(super) fn admit(input: SessionInput) -> Result<SessionView, AdmissionRefusal
             })?
             .receipt;
         Ok(SessionView {
+            ext: value
+                .ext
+                .map(ic_wire::Bytes::new)
+                .transpose()
+                .map_err(|_| AdmissionRefusal::Unavailable)?,
             caller: value.caller,
             issuer: value.issuer,
             subject: value.subject,

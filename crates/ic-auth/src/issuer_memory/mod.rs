@@ -86,6 +86,7 @@ struct Account {
 struct Login {
     browser: [u8; 32],
     grants: Vec<DelegatedRoleGrant>,
+    #[cfg_attr(feature = "issuer-stable", serde(with = "checkpoint::PolicyLimits"))]
     policy: IssuerPolicy,
     slot: u8,
     generation: u64,
@@ -142,6 +143,8 @@ impl RenewalProgress {
     derive(serde::Serialize, serde::Deserialize)
 )]
 struct Operation {
+    #[cfg_attr(feature = "issuer-stable", serde(skip))]
+    ext: Option<Vec<u8>>,
     #[cfg_attr(feature = "issuer-stable", serde(with = "checkpoint::TicketFields"))]
     ticket: IssuerTicket,
     login: Identity,
@@ -349,13 +352,17 @@ impl MemoryIssuer {
         now_ns: u64,
     ) -> Result<IssuerTicket, IssuerError> {
         self.observe(now_ns)?;
-        validate_request(account, request, policy)?;
+        validate_request(account, request, &policy)?;
         let operation_key = (request.epoch, request.operation_id);
         let login_key = (request.login_epoch, request.login_id);
         let owner = self.accounts.get(&account);
         if let Some(op) = owner.and_then(|a| a.operations.get(&operation_key)) {
             let login = &self.accounts[&account].logins[&op.login];
-            if op.login != login_key || op.renewal != renewal || !login.matches(request, policy) {
+            if op.login != login_key
+                || op.renewal != renewal
+                || op.ext != policy.ext
+                || !login.matches_request_and_limits(request, &policy)
+            {
                 return Err(IssuerError::Conflict);
             }
             if !matches!(op.phase, Phase::Completed(..)) {
@@ -387,7 +394,9 @@ impl MemoryIssuer {
         let previous = owner.and_then(|a| a.logins.get(&login_key));
         let new_login;
         let login = if let Some(login) = previous {
-            if !login.matches(request, policy) {
+            if !login.matches_request_and_limits(request, &policy)
+                || (login.policy.ext.is_some() && login.policy.ext != policy.ext)
+            {
                 return Err(IssuerError::Conflict);
             }
             if login.revoked {
@@ -418,7 +427,7 @@ impl MemoryIssuer {
             new_login = Some(Login {
                 browser: request.browser_public_key,
                 grants: request.grants.clone(),
-                policy,
+                policy: policy.clone(),
                 slot,
                 generation: self
                     .generation
@@ -445,6 +454,7 @@ impl MemoryIssuer {
             boot: self.boot,
         };
         let mut op = Operation {
+            ext: policy.ext.clone(),
             ticket,
             login: login_key,
             issued: now_ns,
@@ -500,11 +510,12 @@ impl MemoryIssuer {
         }
         self.idle_logins.remove(&idle_key);
         after_write!();
-        owner
+        let login = owner
             .logins
             .get_mut(&login_key)
-            .expect("selected operation login")
-            .references = references;
+            .expect("selected operation login");
+        login.references = references;
+        login.policy.ext = policy.ext;
         after_write!();
         if let Some(sequence) = renewal {
             // Existing login was selected above; advance its watermark in the
@@ -552,6 +563,7 @@ impl MemoryIssuer {
         let login = &self.accounts[&ticket.account].logins[&op.login];
         let (nonce, approval) = op.phase.evidence();
         Ok(IssuerIntent {
+            ext: op.ext.as_deref(),
             ticket,
             browser_public_key: login.browser,
             grants: &login.grants,
@@ -861,6 +873,7 @@ impl MemoryIssuer {
             key_binding_id: op.ticket.authority.key_binding_id,
             browser_public_key: login.browser,
             account_subject: op.ticket.account,
+            ext: op.ext.clone(),
             device_slot: login.slot,
             device_generation: login.generation,
             login_started_at_ns: login.started,
@@ -875,17 +888,22 @@ impl MemoryIssuer {
 }
 
 impl Login {
-    fn matches(&self, request: &IssueRequest, policy: IssuerPolicy) -> bool {
+    fn matches_request_and_limits(&self, request: &IssueRequest, policy: &IssuerPolicy) -> bool {
+        // Each operation checks its own extension binding separately.
+
         self.browser == request.browser_public_key
             && self.grants == request.grants
-            && self.policy == policy
+            && self.policy.login_ttl_ns == policy.login_ttl_ns
+            && self.policy.proof_ttl_ns == policy.proof_ttl_ns
+            && self.policy.receipt_timeout_ns == policy.receipt_timeout_ns
+            && self.policy.reconciliation_retention_ns == policy.reconciliation_retention_ns
     }
 }
 
 fn validate_request(
     account: Principal,
     r: &IssueRequest,
-    p: IssuerPolicy,
+    p: &IssuerPolicy,
 ) -> Result<(), IssuerError> {
     if account == Principal::anonymous()
         || r.operation_id == [0; 32]
@@ -893,6 +911,9 @@ fn validate_request(
         || r.browser_public_key == [0; 32]
         || r.epoch == 0
         || r.login_epoch == 0
+        || p.ext
+            .as_ref()
+            .is_some_and(|ext| ext.len() > ic_auth_protocol_types::MAX_TOKEN_EXT_BYTES)
         || p.login_ttl_ns == 0
         || p.login_ttl_ns > 90 * 86_400_000_000_000
         || p.proof_ttl_ns == 0

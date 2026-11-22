@@ -23,6 +23,7 @@ fn fixture(name: &str) -> Vec<u8> {
 
 fn maximum_view() -> SessionView {
     SessionView {
+        ext: Some(ic_auth_wire::wire::Bytes::new(vec![0xab; 16]).unwrap()),
         caller: Principal::from_slice(&[1; 29]),
         issuer: Principal::from_slice(&[2]),
         subject: Principal::from_slice(&[3]),
@@ -35,6 +36,7 @@ fn read_cases() -> Vec<(&'static str, Result<SessionView, SessionReadRefusal>)> 
         (
             "read-empty",
             Ok(SessionView {
+                ext: None,
                 caller: Principal::management_canister(),
                 issuer: Principal::management_canister(),
                 subject: Principal::management_canister(),
@@ -130,10 +132,13 @@ fn identities_and_all_four_allowances_are_frozen() {
             (11, 128, 8, 4)
         );
     }
-    for limits in [ReadSession::RESPONSE_LIMITS, Logout::RESPONSE_LIMITS] {
+    for (limits, expected) in [
+        (ReadSession::RESPONSE_LIMITS, (8192, 65536, 128, 8)),
+        (Logout::RESPONSE_LIMITS, (4096, 16384, 128, 8)),
+    ] {
         assert_eq!(
             (limits.bytes, limits.allocation, limits.nodes, limits.depth),
-            (4096, 16384, 128, 8)
+            expected
         );
     }
     assert_eq!(BROWSER_LOGOUT_RESPONSE_BYTES, 1024);
@@ -208,7 +213,7 @@ fn malformed_or_misrouted_replies_refuse() {
     *bad_integer.last_mut().unwrap() = 2;
     assert!(Logout::decode_response(&bad_integer).is_err());
     let mut oversized = fixture("read-empty");
-    oversized.resize(4097, 0);
+    oversized.resize(ReadSession::RESPONSE_LIMITS.bytes + 1, 0);
     assert_eq!(ReadSession::decode_response(&oversized), Err(Error::Limit));
 }
 
@@ -263,4 +268,21 @@ fn every_resource_allowance_is_enforced_independently() {
             value
         );
     }
+}
+
+#[test]
+fn both_session_replies_transport_a_full_application_extension() {
+    use ic_auth_wire::{EstablishSession, wire::Bytes};
+    let mut view = maximum_view();
+    view.ext = Some(Bytes::new(vec![0xff; 4096]).unwrap());
+    let read = ReadSession::encode_response(&Ok(view.clone())).unwrap();
+    let admitted = EstablishSession::encode_response(&Ok(view.clone())).unwrap();
+    assert_eq!(
+        ReadSession::decode_response(&read).unwrap(),
+        Ok(view.clone())
+    );
+    assert_eq!(
+        EstablishSession::decode_response(&admitted).unwrap(),
+        Ok(view)
+    );
 }

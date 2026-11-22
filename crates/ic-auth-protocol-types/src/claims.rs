@@ -1,4 +1,4 @@
-//! Passive schema-2 fields. Construction does not establish canonicality or trust.
+//! Passive portable claims fields. Construction does not establish canonicality or trust.
 
 use crate::{AuthRole, Principal, ScopeLabel};
 
@@ -83,10 +83,13 @@ pub struct DelegatedRoleGrant {
     pub scopes: Vec<ScopeLabel>,
 }
 
+/// Maximum signed application extension length in bytes.
+pub const MAX_TOKEN_EXT_BYTES: usize = 4096;
+
 ///
 /// PortableClaims
 ///
-/// Unauthenticated schema-2 credential fields.
+/// Unauthenticated portable credential fields.
 /// The codec checks structure, not signature validity, time relationships,
 /// enrollment, caller binding, revocation or permission. Even a successfully
 /// decoded value cannot authorize a session.
@@ -106,6 +109,8 @@ pub struct PortableClaims {
     pub browser_public_key: [u8; 32],
     /// Issuer-qualified subject; canonical claims exclude the anonymous principal.
     pub account_subject: Principal,
+    /// Opaque issuer-attested application bytes, up to 4096 bytes.
+    pub ext: Option<Vec<u8>>,
     /// Issuer-assigned slot, canonically bounded to 0–7.
     pub device_slot: u8,
     /// Nonzero slot generation, unchanged by renewal.
