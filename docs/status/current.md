@@ -1,6 +1,6 @@
 # Current status
 
-Auth **0.49.0** carries an optional issuer-signed application extension into verified sessions.
+Auth **0.49.1** lets guarded receiver operations check optional scopes in the admitted session.
 Auth Wire **0.48.0** includes the extension in session admission and read replies. Protocol-types is **0.44.0**
 and the private browser client remains **0.1.0**. The checkout uses authenticated
 Toko Tooling 0.46.2. Production consumer acceptance remains open. Auth supports

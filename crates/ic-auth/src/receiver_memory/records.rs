@@ -252,15 +252,17 @@ impl Selected<'_> {
             device: self.device.as_ref(),
         }
     }
+}
 
-    pub(super) fn receipt(&self) -> Option<SessionReceipt> {
-        self.session.map(|s| SessionReceipt {
-            ext: s.ext.map(<[u8]>::to_vec),
-            caller: s.caller,
-            issuer: s.login.issuer,
-            subject: s.login.subject,
-            expires_at_ns: s.expires_at_ns,
-        })
+impl SessionFacts<'_> {
+    pub(super) fn receipt(&self) -> SessionReceipt {
+        SessionReceipt {
+            ext: self.ext.map(<[u8]>::to_vec),
+            caller: self.caller,
+            issuer: self.login.issuer,
+            subject: self.login.subject,
+            expires_at_ns: self.expires_at_ns,
+        }
     }
 }
 

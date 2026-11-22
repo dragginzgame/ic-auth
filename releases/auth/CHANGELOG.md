@@ -2,6 +2,12 @@
 
 The `auth` group covers `ic-auth`. Its separate ledger follows [0.48.7](../history.md#0487---2026-11-19).
 
+## [0.49.1] - 2026-11-22
+
+### ✨ Added
+
+- Receiver endpoints can use `authorize_with_scopes` to check optional permissions with `session.has_scope(&scope)` inside a guarded operation. It checks the scopes retained at session admission.
+
 ## [0.49.0] - 2026-11-22
 
 ### ⚠️ Breaking

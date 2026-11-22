@@ -215,6 +215,26 @@ pub struct SessionReceipt {
 }
 
 ///
+/// AuthorizedSession
+///
+/// Current receipt and narrowed scopes available during a guarded operation.
+///
+
+pub struct AuthorizedSession<'a> {
+    /// Account facts for the same checked session.
+    pub receipt: SessionReceipt,
+    scopes: &'a [ScopeLabel],
+}
+
+impl AuthorizedSession<'_> {
+    /// Whether this session holds the exact scope after admission narrowing.
+    #[must_use]
+    pub fn has_scope(&self, scope: &ScopeLabel) -> bool {
+        self.scopes.binary_search(scope).is_ok()
+    }
+}
+
+///
 /// AdmissionOutcome
 ///
 /// Successful admission; exact retries retain the original receipt and work credit.
@@ -503,7 +523,10 @@ impl MemoryReceiver {
             self.replays.contains_key(&fingerprint),
         )? {
             return Ok(AdmissionOutcome {
-                receipt: selected.receipt().ok_or(SessionPolicyError::InvalidFacts)?,
+                receipt: selected
+                    .session
+                    .ok_or(SessionPolicyError::InvalidFacts)?
+                    .receipt(),
                 exact_retry: true,
             });
         }
@@ -630,17 +653,7 @@ impl MemoryReceiver {
         authority: &SessionAuthority<'_>,
         required_scopes: &[ScopeLabel],
     ) -> Result<SessionReceipt, MemoryError> {
-        self.ready()?;
-        let mut current = *authority;
-        self.enrolled(&mut current)?;
-        let authority = &current;
-        policy::check_authority(authority, self.config.audience)?;
-        self.observe(authority.now_ns)?;
-        let selected = self.selected(authority.caller);
-        policy::assess_session(&selected.snapshot(self), authority, required_scopes)?;
-        selected
-            .receipt()
-            .ok_or_else(|| SessionPolicyError::InvalidFacts.into())
+        self.authorize_with_scopes(authority, required_scopes, |session| session.receipt)
     }
 
     /// Run a synchronous application projection only after current session checks.
@@ -674,8 +687,41 @@ impl MemoryReceiver {
         required_scopes: &[ScopeLabel],
         project: impl FnOnce(&SessionReceipt) -> R,
     ) -> Result<R, MemoryError> {
-        let receipt = self.read(authority, required_scopes)?;
-        Ok(project(&receipt))
+        self.authorize_with_scopes(authority, required_scopes, |session| {
+            project(&session.receipt)
+        })
+    }
+
+    /// Run one synchronous projection after checking the session and all required
+    /// scopes. Use `has_scope` for optional permissions within that operation.
+    /// Reauthorize after an await before performing another privileged effect.
+    ///
+    /// ```compile_fail
+    /// use ic_auth::receiver_memory::{AuthorizedSession, MemoryError, MemoryReceiver, SessionAuthority};
+    /// fn escape<'a>(receiver: &'a mut MemoryReceiver, host: &SessionAuthority<'_>)
+    ///     -> Result<AuthorizedSession<'a>, MemoryError> {
+    ///     receiver.authorize_with_scopes(host, &[], |session| session)
+    /// }
+    /// ```
+    pub fn authorize_with_scopes<R>(
+        &mut self,
+        authority: &SessionAuthority<'_>,
+        required_scopes: &[ScopeLabel],
+        project: impl FnOnce(AuthorizedSession<'_>) -> R,
+    ) -> Result<R, MemoryError> {
+        self.ready()?;
+        let mut current = *authority;
+        self.enrolled(&mut current)?;
+        let authority = &current;
+        policy::check_authority(authority, self.config.audience)?;
+        self.observe(authority.now_ns)?;
+        let selected = self.selected(authority.caller);
+        policy::assess_session(&selected.snapshot(self), authority, required_scopes)?;
+        let facts = selected.session.ok_or(SessionPolicyError::InvalidFacts)?;
+        Ok(project(AuthorizedSession {
+            receipt: facts.receipt(),
+            scopes: facts.scopes,
+        }))
     }
 
     /// Commit local denial for the authenticated caller without requiring current

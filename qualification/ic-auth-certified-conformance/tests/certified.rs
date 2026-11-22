@@ -1002,6 +1002,23 @@ fn memory_certified_admission_retains_failed_work_and_retries_after_proof_expiry
         }),
         Ok(account)
     );
+    // The signed grant offers read and write. Only read was requested at admission.
+    let read = "read".parse().unwrap();
+    let write = "write".parse().unwrap();
+    assert_eq!(
+        receiver.authorize_with_scopes(&authority, &[], |session| (
+            (session.receipt.issuer, session.receipt.subject),
+            session.has_scope(&read),
+            session.has_scope(&write),
+        )),
+        Ok((account, true, false))
+    );
+    assert_eq!(
+        receiver.authorize_with_scopes(&authority, &[write], |_| panic!(
+            "missing required scope reached projection"
+        )),
+        Err(MemoryError::Policy(SessionPolicyError::ScopeRejected))
+    );
     // Qualification-only Canic-style result projection; Auth installs no endpoint
     // and the Wire crate acquires no dependency on the receiver implementation.
     fn wire_reply(
@@ -1069,7 +1086,7 @@ fn memory_certified_admission_retains_failed_work_and_retries_after_proof_expiry
         Err(MemoryError::Policy(SessionPolicyError::Revoked))
     );
     assert_eq!(
-        receiver.authorize(
+        receiver.authorize_with_scopes(
             &SessionAuthority {
                 now_ns: 186,
                 ..authority

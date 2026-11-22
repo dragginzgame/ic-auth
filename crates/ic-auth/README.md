@@ -9,7 +9,7 @@ with both owners and an Ed25519 receiver can use this dependency:
 
 ```toml
 [dependencies]
-ic-auth = { version = "0.48.9", features = ["receiver-stable", "issuer-stable", "ed25519-verification"] }
+ic-auth = { version = "0.49.1", features = ["receiver-stable", "issuer-stable", "ed25519-verification"] }
 ```
 
 | Owner | Volatile feature and constructor | Stable feature and constructor |
@@ -30,6 +30,20 @@ and current trusted time. Trap on failure so the IC rolls back the upgrade.
 Each checkpoint holds at most 8 MiB of encoded state. Refresh the receiver's
 authenticated enrollment before serving sessions. A volatile installation
 that loses its state stays closed.
+
+## Optional permissions within an endpoint
+
+Use `authorize_with_scopes` when a response depends on an additional permission.
+Pass the mandatory scopes to the receiver and check optional scopes inside the
+callback. For example, a profile endpoint can include private fields only when
+the admitted session holds the additional scope.
+
+```rust
+receiver.authorize_with_scopes(&authority, &[profile_read], |session| {
+    let include_private = session.has_scope(&profile_private_read);
+    load_profile(session.receipt.issuer, session.receipt.subject, include_private)
+})
+```
 
 See the
 [repository](https://github.com/dragginzgame/ic-auth) for design, features and
