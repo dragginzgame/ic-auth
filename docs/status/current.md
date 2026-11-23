@@ -1,6 +1,7 @@
 # Current status
 
-Auth **0.49.1** lets guarded receiver operations check optional scopes in the admitted session.
+Auth **0.49.2** qualifies fresh issuance using the current issuer epoch after stable reopen.
+Host integration is tracked in [Canic #89](https://github.com/dragginzgame/canic/issues/89) for receiver row budgets and [Toko #23](https://github.com/dragginzgame/toko-new/issues/23) for browser epoch discovery.
 Auth Wire **0.48.0** includes the extension in session admission and read replies. Protocol-types is **0.44.0**
 and the private browser client remains **0.1.0**. The checkout uses authenticated
 Toko Tooling 0.46.2. Production consumer acceptance remains open. Auth supports

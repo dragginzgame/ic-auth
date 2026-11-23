@@ -167,3 +167,14 @@ Upgrade receivers before issuing extended credentials. Deploy the updated Wire
 session-read and admission reply codecs together with their clients. Success
 replies append optional length-prefixed bytes. Existing stable checkpoints
 reopen with absent extensions. Extended checkpoints use the same memory leases.
+
+### Selecting the issuer epoch
+
+For a fresh login, use `MemoryIssuer::epoch()` for both `IssueRequest::epoch`
+and `login_epoch`. A stable host reads the same value through
+`StableIssuer::as_ref()`. Reopen advances the epoch, and pruning consumed
+operation IDs can advance it between upgrades. A host whose clients construct
+issue requests must expose the current value through its issuer adapter.
+Persist the selected epoch with the operation ID for retries and reconciliation.
+Renewal and revocation continue to identify the original login by its login
+epoch and ID.

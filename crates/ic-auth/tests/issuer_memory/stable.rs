@@ -18,6 +18,36 @@ fn issuer_lease(backing: &VectorMemory) -> RuntimeMemory<VectorMemory> {
 }
 
 #[test]
+fn fresh_login_uses_the_reported_epoch_after_stable_upgrade() {
+    use super::{account, policy, request};
+    use ic_auth::issuer_memory::IssuerError;
+
+    let backing = VectorMemory::default();
+    let mut owner = StableIssuer::new_fresh(issuer_lease(&backing), config(), 0).unwrap();
+    let mut request = request();
+    request.epoch = owner.as_ref().epoch();
+    request.login_epoch = request.epoch;
+    owner.seal().unwrap();
+    drop(owner);
+
+    let mut owner = StableIssuer::reopen(issuer_lease(&backing), config(), 10).unwrap();
+    let issuer = owner.state();
+    assert_eq!(
+        issuer.prepare_issue(account(), &request, policy(), authority(), 10),
+        Err(IssuerError::EpochClosed)
+    );
+    request.epoch = issuer.epoch();
+    request.login_epoch = request.epoch;
+    let ticket = issuer
+        .prepare_issue(account(), &request, policy(), authority(), 10)
+        .unwrap();
+    approve(issuer, ticket);
+    issuer.dispatch(ticket, authority(), 13).unwrap();
+    issuer.complete(ticket, authority(), [17; 64], 14).unwrap();
+    assert!(matches!(lookup(issuer, ticket), IssuerStatus::Completed(_)));
+}
+
+#[test]
 fn stable_upgrade_preserves_uncertain_effect_and_fences_old_callback() {
     let backing = VectorMemory::default();
     let lease = || issuer_lease(&backing);

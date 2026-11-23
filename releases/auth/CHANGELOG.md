@@ -2,6 +2,12 @@
 
 The `auth` group covers `ic-auth`. Its separate ledger follows [0.48.7](../history.md#0487---2026-11-19).
 
+## [0.49.2] - 2026-11-23
+
+### 📚 Documentation
+
+- Document sizing for retained receiver device slots and epoch selection for fresh sign-ins. A stable-reopen regression test covers stale epoch refusal and successful fresh issuance.
+
 ## [0.49.1] - 2026-11-22
 
 ### ✨ Added

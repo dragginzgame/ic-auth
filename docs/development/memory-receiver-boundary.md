@@ -91,6 +91,13 @@ expired session/replay/unknown-denial entries per call, within the caller's smal
 limit. It never time-prunes known device fences. Actual allocator/index overhead is
 separate from logical byte accounting and still needs deployment-cost qualification.
 
+Size `MemoryConfig::login.max_admitted_logins` before installation for distinct
+(issuer, account, device slot) combinations over the receiver's lifetime. For a
+single issuer and 10,000 accounts, one used slot each needs 10,000 rows. All
+eight starting-profile slots per account would need 80,000. Raising
+`capacity.max_sessions` alone does not change this limit. Qualify checkpoint
+size and upgrade cost at the chosen population before selecting a stable profile.
+
 `inspect_sessions` borrows passive session facts in Principal order. Each call
 returns at most 32 sessions, visits at most 128 caller rows (or the smaller selected
 scan budget), and reads at most one further row to determine continuation. Denials

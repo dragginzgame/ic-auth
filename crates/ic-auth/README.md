@@ -9,7 +9,7 @@ with both owners and an Ed25519 receiver can use this dependency:
 
 ```toml
 [dependencies]
-ic-auth = { version = "0.49.1", features = ["receiver-stable", "issuer-stable", "ed25519-verification"] }
+ic-auth = { version = "0.49.2", features = ["receiver-stable", "issuer-stable", "ed25519-verification"] }
 ```
 
 | Owner | Volatile feature and constructor | Stable feature and constructor |
@@ -30,6 +30,15 @@ and current trusted time. Trap on failure so the IC rolls back the upgrade.
 Each checkpoint holds at most 8 MiB of encoded state. Refresh the receiver's
 authenticated enrollment before serving sessions. A volatile installation
 that loses its state stays closed.
+
+Set `config.login.max_admitted_logins` before receiver installation to cover the
+distinct issuer, account and device-slot combinations the shard will serve.
+The starting limit is 1,024. Session expiry retains each slot’s generation fence.
+
+For a fresh login, use the current issuer epoch for both request epoch fields.
+A stable host can read it with `issuer.as_ref().epoch()` after reopen. Retain the
+original operation epoch for reconciliation and the login epoch for renewal and
+revocation.
 
 ## Optional permissions within an endpoint
 
