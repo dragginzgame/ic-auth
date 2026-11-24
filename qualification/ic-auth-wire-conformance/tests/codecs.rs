@@ -193,7 +193,7 @@ fn aggregate_allocation_refusal_matches_without_changing_field_caps() {
     assert!(encode(&value, CredentialEnvelope::ID, false, limits).is_err());
     assert_eq!(
         CredentialEnvelope::encode_request(&value),
-        Err(current::Error::Limit)
+        Err(current::Error::Limit(current::LimitKind::Allocation))
     );
     // Produce only test input with a larger allowance, then compare refusals at
     // the unchanged production allowance. No product cap is changed.
@@ -205,6 +205,6 @@ fn aggregate_allocation_refusal_matches_without_changing_field_caps() {
     assert!(decode::<PortableCredential>(&frame, CredentialEnvelope::ID, false, limits).is_err());
     assert_eq!(
         CredentialEnvelope::decode_request(&frame),
-        Err(current::Error::Limit)
+        Err(current::Error::Limit(current::LimitKind::Allocation))
     );
 }

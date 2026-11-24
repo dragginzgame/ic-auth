@@ -2,6 +2,12 @@
 
 The `wire` group covers `ic-auth-wire`. Its separate ledger follows [0.45.0](../history.md#0485---2026-11-19).
 
+## [0.49.0] - 2026-11-24
+
+### ⚠️ Breaking
+
+- Auth Wire re-exports IC Wire 0.30.0. Callers exchanging Rust Wire types must use the re-export or update their direct IC Wire dependency to 0.30. Match limit failures as `Error::Limit(kind)` to identify the exhausted allowance.
+
 ## [0.48.0] - 2026-11-22
 
 ### ⚠️ Breaking

@@ -4,7 +4,7 @@ use ic_auth_protocol_types::Principal;
 use ic_auth_wire::{
     BROWSER_LOGOUT_RESPONSE_BYTES, Logout, ReadSession, SessionView,
     model::{LogoutResult, LogoutUnavailable, SessionReadRefusal},
-    wire::{self, Direction, Encoding, Error, Limits},
+    wire::{self, Direction, Encoding, Error, LimitKind, Limits},
 };
 
 fn fixture(name: &str) -> Vec<u8> {
@@ -214,7 +214,10 @@ fn malformed_or_misrouted_replies_refuse() {
     assert!(Logout::decode_response(&bad_integer).is_err());
     let mut oversized = fixture("read-empty");
     oversized.resize(ReadSession::RESPONSE_LIMITS.bytes + 1, 0);
-    assert_eq!(ReadSession::decode_response(&oversized), Err(Error::Limit));
+    assert_eq!(
+        ReadSession::decode_response(&oversized),
+        Err(Error::Limit(LimitKind::Bytes))
+    );
 }
 
 #[test]
@@ -238,22 +241,31 @@ fn every_resource_allowance_is_enforced_independently() {
     };
     let full = ReadSession::RESPONSE_LIMITS;
     // All other allowances remain sufficient while one is exhausted.
-    for limits in [
-        Limits {
-            bytes: bytes.len() - 1,
-            ..full
-        },
-        Limits {
-            allocation: 0,
-            ..full
-        },
-        Limits { nodes: 0, ..full },
-        Limits { depth: 0, ..full },
+    for (limits, kind) in [
+        (
+            Limits {
+                bytes: bytes.len() - 1,
+                ..full
+            },
+            LimitKind::Bytes,
+        ),
+        (
+            Limits {
+                allocation: 0,
+                ..full
+            },
+            LimitKind::Allocation,
+        ),
+        (Limits { nodes: 0, ..full }, LimitKind::Nodes),
+        (Limits { depth: 0, ..full }, LimitKind::Depth),
     ] {
-        assert_eq!(wire::encode(&value, encoding, limits), Err(Error::Limit));
+        assert_eq!(
+            wire::encode(&value, encoding, limits),
+            Err(Error::Limit(kind))
+        );
         assert_eq!(
             wire::decode::<Result<SessionView, SessionReadRefusal>>(&bytes, encoding, limits),
-            Err(Error::Limit)
+            Err(Error::Limit(kind))
         );
     }
     for size in [bytes.len(), bytes.len() + 1] {

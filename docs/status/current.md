@@ -1,10 +1,10 @@
 # Current status
 
-Auth **0.49.2** qualifies fresh issuance using the current issuer epoch after stable reopen.
+Auth **0.49.3** qualifies fresh issuance using the current issuer epoch after stable reopen.
 Host integration is tracked in [Canic #89](https://github.com/dragginzgame/canic/issues/89) for receiver row budgets and [Toko #23](https://github.com/dragginzgame/toko-new/issues/23) for browser epoch discovery.
-Auth Wire **0.48.0** includes the extension in session admission and read replies. Protocol-types is **0.44.0**
+Auth Wire **0.49.0** includes the extension in session admission and read replies. Protocol-types is **0.44.0**
 and the private browser client remains **0.1.0**. The checkout uses authenticated
-Toko Tooling 0.46.2. Production consumer acceptance remains open. Auth supports
+Toko Tooling 0.46.3 and IC Wire 0.30.0. Production consumer acceptance remains open. Auth supports
 `receiver-stable` and `issuer-stable` with published `ic-storage` 0.78.7. Historical cost records
 identify the exact cohorts and artifacts measured.
 

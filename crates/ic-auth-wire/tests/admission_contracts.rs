@@ -12,7 +12,7 @@ use ic_auth_wire::{
         IcChainKeyBatchSignatureProofV1, IssuerProofAlgorithm, IssuerProofBinding,
         PortableCredential, PortableProof, RootProof,
     },
-    wire::{self, Bytes, Direction, Encoding, Error, List, Text},
+    wire::{self, Bytes, Direction, Encoding, Error, LimitKind, List, Text},
 };
 
 fn fixture(name: &str) -> Vec<u8> {
@@ -313,7 +313,7 @@ fn malformed_frames_refuse_without_fallback() {
     oversized.resize(524289, 0);
     assert_eq!(
         CredentialEnvelope::decode_request(&oversized),
-        Err(Error::Limit)
+        Err(Error::Limit(LimitKind::Bytes))
     );
 }
 
@@ -429,6 +429,6 @@ fn aggregate_allowance_and_browser_retention_are_independent() {
     credential.claims = Bytes::new(vec![255; 65536]).unwrap();
     assert_eq!(
         CredentialEnvelope::encode_request(&credential),
-        Err(Error::Limit)
+        Err(Error::Limit(LimitKind::Allocation))
     );
 }

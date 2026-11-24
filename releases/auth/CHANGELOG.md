@@ -2,6 +2,12 @@
 
 The `auth` group covers `ic-auth`. Its separate ledger follows [0.48.7](../history.md#0487---2026-11-19).
 
+## [0.49.3] - 2026-11-24
+
+### 📦 Dependencies
+
+- Use IC Wire 0.30.0 for stable checkpoints, renewal operation identifiers and receiver size accounting. Both workspaces use Toko Tooling 0.46.3.
+
 ## [0.49.2] - 2026-11-23
 
 ### 📚 Documentation

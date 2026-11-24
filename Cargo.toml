@@ -14,11 +14,11 @@ ic-auth-protocol-types = { version = "0.44.0", path = "crates/ic-auth-protocol-t
 ic-platform = { version = "0.34.19", default-features = false }
 ic-platform-types = { version = "0.21.4", default-features = false }
 ic-storage = "0.78.7"
-ic-wire = "0.28.0"
+ic-wire = "0.30.0"
 serde = { version = "1.0.229", features = ["derive"] }
 sha2 = "0.11.1"
 # Tests and tooling
-toko-tooling = "=0.46.2"
+toko-tooling = "=0.46.3"
 
 [workspace.lints.cargo]
 unused_dependencies = "deny"
