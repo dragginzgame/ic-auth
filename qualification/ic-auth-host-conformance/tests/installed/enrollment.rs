@@ -336,3 +336,101 @@ async fn stable_auth_upgrade_and_failed_reopen_preserve_session_logout_and_certi
     assert_eq!(retained.credit, issued.credit);
     pic.drop().await;
 }
+
+#[tokio::test]
+#[ignore = "requires PocketIC 16.x"]
+async fn stable_auth_upgrade_skipping_reopen_fences_both_owners() {
+    let wasm = wasm();
+    let pic = start().await;
+    time(&pic, 0).await;
+    let authority = install(&pic, &wasm).await;
+    let id = install_receiver(&pic, &wasm, authority, true).await;
+    // A valid empty module has no upgrade hooks. Old pre-upgrade seals both
+    // owners, then the intervening install leaves both allocations untouched.
+    let empty_module = b"\0asm\x01\0\0\0".to_vec();
+    pic.upgrade_canister(id, empty_module, vec![], None)
+        .await
+        .unwrap();
+    let error = pic
+        .upgrade_canister(id, wasm, vec![], None)
+        .await
+        .unwrap_err();
+    assert!(
+        error
+            .reject_message
+            .contains("receiver Some(InvalidCheckpoint), issuer Some(InvalidCheckpoint)"),
+        "{error:?}"
+    );
+    pic.drop().await;
+}
+
+#[tokio::test]
+#[ignore = "requires PocketIC 16.x and signed browser identity vectors"]
+async fn fenced_renewal_recovers_after_upgrade_and_retention() {
+    use ic_auth_host_fixture::{
+        Command as Issuance, Fault as IssuerFault, Progress, Refusal as IssuerRefusal,
+    };
+    let pic = start().await;
+    let wasm = wasm();
+    time(&pic, 0).await;
+    let authority = install(&pic, &wasm).await;
+    let id = install_receiver(&pic, &wasm, authority, true).await;
+    let account = CanisterId::from_slice(&[9]);
+    let browser = CanisterId::from_slice(&vectors()["initial-caller"]);
+    for (caller, command) in [
+        (account, Issuance::Prepare),
+        (account, Issuance::Complete(IssuerFault::None)),
+        (browser, Issuance::Renew(1)),
+    ] {
+        assert_eq!(
+            super::control(&pic, id, caller, command).await.unwrap(),
+            Ok(())
+        );
+    }
+    pic.upgrade_canister(id, wasm.clone(), vec![], None)
+        .await
+        .unwrap();
+    assert_eq!(
+        super::control(&pic, id, account, Issuance::Complete(IssuerFault::None))
+            .await
+            .unwrap(),
+        Err(IssuerRefusal::Denied)
+    );
+    assert!(
+        super::control(&pic, id, browser, Issuance::Renew(2))
+            .await
+            .unwrap()
+            .is_err()
+    );
+    time(&pic, 41).await;
+    assert_eq!(
+        super::control(&pic, id, account, Issuance::Prune)
+            .await
+            .unwrap(),
+        Ok(())
+    );
+    pic.upgrade_canister(id, wasm, vec![], None).await.unwrap();
+    assert!(
+        super::control(&pic, id, browser, Issuance::Renew(1))
+            .await
+            .unwrap()
+            .is_err()
+    );
+    assert_eq!(
+        super::control(&pic, id, browser, Issuance::Renew(2))
+            .await
+            .unwrap(),
+        Ok(())
+    );
+    assert_eq!(
+        super::control(&pic, id, account, Issuance::Complete(IssuerFault::None))
+            .await
+            .unwrap(),
+        Ok(())
+    );
+    assert_eq!(
+        super::observe(&pic, id, account).await.progress,
+        Progress::Completed
+    );
+    pic.drop().await;
+}

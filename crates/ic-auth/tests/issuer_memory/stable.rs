@@ -27,10 +27,10 @@ fn fresh_login_uses_the_reported_epoch_after_stable_upgrade() {
     let mut request = request();
     request.epoch = owner.as_ref().epoch();
     request.login_epoch = request.epoch;
-    owner.seal().unwrap();
+    owner.seal(40).unwrap();
     drop(owner);
 
-    let mut owner = StableIssuer::reopen(issuer_lease(&backing), config(), 10).unwrap();
+    let mut owner = StableIssuer::reopen(issuer_lease(&backing), config(), 10, 41).unwrap();
     let issuer = owner.state();
     assert_eq!(
         issuer.prepare_issue(account(), &request, policy(), authority(), 10),
@@ -56,15 +56,22 @@ fn stable_upgrade_preserves_uncertain_effect_and_fences_old_callback() {
     approve(owner.state(), ticket);
     owner.state().dispatch(ticket, authority(), 13).unwrap();
     let credit = owner.state().available_credit();
-    owner.seal().unwrap();
+    assert_eq!(owner.seal(u64::MAX), Err(UpgradeError::Lifecycle));
+    owner.seal(40).unwrap();
     drop(owner);
+    for version in [0, 40, 42, u64::MAX] {
+        assert!(matches!(
+            StableIssuer::reopen(lease(), config(), 14, version),
+            Err(UpgradeError::InvalidCheckpoint)
+        ));
+    }
     let mut changed = config();
     changed.max_logins += 1;
     assert!(matches!(
-        StableIssuer::reopen(lease(), changed, 14),
+        StableIssuer::reopen(lease(), changed, 14, 41),
         Err(UpgradeError::Configuration)
     ));
-    let mut owner = StableIssuer::reopen(lease(), config(), 14).unwrap();
+    let mut owner = StableIssuer::reopen(lease(), config(), 14, 41).unwrap();
     assert!(matches!(lookup(owner.state(), ticket), IssuerStatus::Unknown(t) if t == ticket));
     assert_eq!(owner.state().available_credit(), credit);
     assert!(
@@ -75,7 +82,7 @@ fn stable_upgrade_preserves_uncertain_effect_and_fences_old_callback() {
     );
     drop(owner);
     assert!(matches!(
-        StableIssuer::reopen(lease(), config(), 16),
+        StableIssuer::reopen(lease(), config(), 16, 42),
         Err(UpgradeError::InvalidCheckpoint)
     ));
     assert!(matches!(
@@ -101,15 +108,15 @@ fn stable_completed_result_survives_and_corrupt_checkpoint_refuses_without_reset
         .state()
         .complete(ticket, authority(), [17; 64], 14)
         .unwrap();
-    owner.seal().unwrap();
+    owner.seal(40).unwrap();
     drop(owner);
-    let mut owner = StableIssuer::reopen(lease(), config(), 15).unwrap();
+    let mut owner = StableIssuer::reopen(lease(), config(), 15, 41).unwrap();
     let IssuerStatus::Completed(result) = lookup(owner.state(), ticket) else {
         panic!("lost completion")
     };
     assert_eq!(result.claims, claims);
     assert_eq!(result.proof, IssuedProof::Ed25519(&[17; 64]));
-    owner.seal().unwrap();
+    owner.seal(41).unwrap();
     drop(owner);
     // Damage the Auth digest while leaving the supplier's cell header intact.
     let memory = lease();
@@ -120,7 +127,7 @@ fn stable_completed_result_survives_and_corrupt_checkpoint_refuses_without_reset
     memory.write(offset, &byte);
     drop(memory);
     assert!(matches!(
-        StableIssuer::reopen(lease(), config(), 16),
+        StableIssuer::reopen(lease(), config(), 16, 42),
         Err(UpgradeError::InvalidCheckpoint)
     ));
     let memory = lease();
@@ -216,9 +223,9 @@ fn registering_an_existing_login_preserves_each_signed_operation_across_upgrade(
         );
     }
 
-    owner.seal().unwrap();
+    owner.seal(40).unwrap();
     drop(owner);
-    let mut owner = StableIssuer::reopen(issuer_lease(&backing), config(), 21).unwrap();
+    let mut owner = StableIssuer::reopen(issuer_lease(&backing), config(), 21, 41).unwrap();
     let issuer = owner.state();
     let browser = Principal::from_slice(&vector("registered-caller"));
     let renew = RenewRequest {

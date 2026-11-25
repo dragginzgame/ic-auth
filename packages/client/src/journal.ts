@@ -332,7 +332,16 @@ export class Journal {
       if (current.phase === 'finished')
         return { record: current, value: { kind: 'finished', status: status(current) } };
       const eligible = current.targets.filter(t => t.confirmedUntilNs === undefined && t.attempts < 8);
-      const target = current.busyUntilNs <= now && eligible.find(t => t.nextNs <= now);
+      // Prefer the least-attempted due destination even after a tab loses its lease.
+      let target: Target | undefined;
+      if (current.busyUntilNs <= now) {
+        for (const candidate of eligible) {
+          if (candidate.nextNs <= now && (!target || candidate.attempts < target.attempts)) {
+            target = candidate;
+            if (target.attempts === 0) break;
+          }
+        }
+      }
       if (target) {
         target.attempts++;
         const untilNs = now + ATTEMPT_NS < current.deadlineNs ? now + ATTEMPT_NS : current.deadlineNs;

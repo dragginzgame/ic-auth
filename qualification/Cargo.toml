@@ -22,15 +22,15 @@ ic-build = "0.87.4"
 ic-host-artifacts = "0.80.3"
 ic-host-fs = "0.80.3"
 ic-host-process = "0.81.0"
-ic-platform = { version = "0.34.19", default-features = false }
-ic-platform-runtime = { version = "0.23.25", default-features = false }
-ic-storage = "0.78.7"
+ic-platform = { version = "0.35.1", default-features = false }
+ic-platform-runtime = { version = "0.23.27", default-features = false }
+ic-storage = "0.80.0"
 ic-testkit = "0.110.0"
-ic-wire = "0.30.0"
+ic-wire = "0.30.2"
 serde = "1.0.229"
 sha2 = "0.11.1"
 tokio = "1.54.1"
-toko-tooling = "=0.46.3"
+toko-tooling = "=0.46.4"
 
 [workspace.lints.cargo]
 unused_dependencies = "deny"

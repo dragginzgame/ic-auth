@@ -28,7 +28,10 @@ method identities and layouts may evolve together with their current consumers.
 - Bounded abuse budgets, failed-attempt charging and no mutation on applicable
   rejection paths, as established by the current contracts and tests.
 
-Checkpoint v1 requires a predecessor that sealed the current Auth state. Each
+Storage 0.80 introduces a new allocation directory and Cell format. Stable Auth requires fresh 0.80 backing. Upgrading in place from 0.79 is unsupported, including for a v3 Auth checkpoint.
+
+Checkpoint v3 requires the immediately preceding canister version to have sealed
+the current Auth state. The v1 and v2 checkpoint formats are incompatible. Each
 owner verifies its format and protected configuration before reopening. Hosts
 must retain their own authority entries, terminal revocations and certification
 contributions. Volatile loss remains closed. See the

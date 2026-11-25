@@ -41,7 +41,11 @@ The injected clock supplies a stable `id` and checked u64 nanoseconds through
 identifiers are nonempty strings of at most 128 characters. One dedicated database
 uses version 1 and the frozen private `ic-auth-login-cleanup-journal-v1` profile.
 An existing login or orphan credential prevents replacement; no reset or migration
-is provided.
+is provided. After logout finishes and the host disposes of the old login’s keys,
+close that journal. For the next login allocate a fresh database name (for
+example, `ic-auth-login-${crypto.randomUUID()}`), persist that name with the new
+login’s key reference, and share it across its tabs and reloads. Keep the old
+name available for cleanup evidence.
 
 The journal privately owns synchronous transitions within native `readwrite`
 transactions with `strict` durability. Operations resolve after transaction
@@ -141,8 +145,9 @@ propagate. A freshly mapped deadline already reached returns `lease_expired`
 without looping. Explicit `establish` still forces one admission without that retry.
 
 The coordinator admits at most 64 outstanding public operations, including duplicate
-waiters. Overflow returns `operation_limit` before journal access; completion,
-refusal and network timeout release the slot. This is a per-coordinator bound, not
+waiters. Overflow returns `operation_limit` before journal access. Once an
+application callback starts, it holds its slot until its promise settles, even
+if timeout or cancellation has already returned to the caller. This is a per-coordinator bound, not
 cross-tab scheduling. The existing five-second network attempts remain the effect
 owner. Use `journal.beginLogout` directly: local invalidation never waits for an
 admission flight, and late signatures/results cannot install usable readiness.
@@ -151,8 +156,9 @@ before and after each SDK signature, including read-state polling, and before
 returning a result. It closes on completion, cancellation or its five-second
 timeout. Expiry after callback invocation refuses without renewal or replay. A
 refusal after submission leaves the remote outcome uncertain; it does not undo
-an application effect. Returned signatures cannot be recalled. Calls occupy the
-same 64-operation budget through callback completion. Key disposal remains separate.
+an application effect. Returned signatures cannot be recalled. Updates and
+queries must address the selected canister. Read-state
+polling accepts only the request-status path for the latest update signed in that window.
 
 ## Logout and cleanup
 
@@ -164,8 +170,9 @@ pending sequences and historical issuance uncertainty.
 `cleanupOnce({ journal, generation, browser, revoke, signal?, retryAfterMs? })`
 returns `wait`, `finished` or `settled`. Internally it commits a cross-tab lease and
 attempt count before dispatch. Each destination has eight attempts; a lease lasts
-at most five seconds and cannot exceed the cleanup deadline. Lost responses,
-timeouts and failed settlement retain the count/lease for explicit resumption.
+at most five seconds and cannot exceed the cleanup deadline. A transport or decoding failure backs off that destination and releases its lease.
+A timeout, lost tab or failed journal write leaves the reservation in force until
+its deadline. Every dispatched attempt counts.
 Consumed tickets cannot authorize another signature even after an aborted write.
 
 Only an authenticated, matching positive `Revoked` response confirms a destination.
@@ -180,9 +187,9 @@ Use `cleanupUntilFinished(options)` to schedule these steps and receive the fina
 browser identity and options, and sleeps for journal-calculated delays of at most
 five seconds. Every
 wake-up claims again, respecting other tabs, the original deadline and attempt
-limits. Cancellation interrupts waits and active signing attempts. Transport,
-certificate, storage and clock errors stop the run; call it again to resume the
-retained progress. It never clears uncertainty or disposes of keys. Three native
+limits. Cancellation interrupts waits and active signing attempts. The scheduler continues past destination failures and picks the due
+destination with the fewest attempts, preserving inventory order for ties.
+Cancellation, identity, configuration, storage and clock errors stop the run. It never clears uncertainty or disposes of keys. Three native
 cases now qualify abrupt renderer loss after committed local logout, signed cleanup
 dispatch and committed confirmation. They reopen the same browser storage with a
 host-supplied identity. Four further cases cover pending issuance/renewal, saved
@@ -215,9 +222,9 @@ invocation, but once invoked the operation awaits the actual callback outcome
 without a timeout or rollback claim. Host custody owns all key copies and handles;
 this API cannot guarantee erasure of JavaScript or SDK memory.
 
-Seven native cases cover terminal/binding refusal, detached evidence, deadline
+Native cases cover terminal/binding refusal, detached evidence, deadline
 uncertainty, failed-reply retry, replacement protection, cancellation and storage/
-clock failure. An eighth renderer-loss case deletes through a host test double,
+clock failure. A separate renderer-loss case deletes through a host test double,
 loses the callback reply, then retries with only the public binding. This qualifies
 coordination, not a production key store or whole-browser recovery.
 
@@ -234,9 +241,11 @@ remote deduplication remain the separate installed qualification boundary.
 
 `httpUpdateTransport` captures an explicit gateway origin, root bytes and endpoint.
 It uses Platform's certified update path, one submission and fresh read-state
-signatures. Automatic root fetching, clock synchronization and update retries are
-disabled; redirected requests and requests outside the selected origin/destination
-refuse. Platform owns certificate parsing, verification, freshness and request-ID
+signatures scoped to the latest update signed by the attempt. HTTPS is required
+except on loopback. The agent skips automatic root fetching and proactive clock
+synchronization. After an ingress-expiry rejection the SDK can attempt clock
+synchronization and re-signing. The transport permits only one outbound update
+and refuses redirects and requests outside the selected origin and destination. Platform owns certificate parsing, verification, freshness and request-ID
 binding. Use this transport through admission/cleanup, which own codecs and signing
 lifetime; do not treat HTTP acceptance as an authenticated reply.
 

@@ -226,7 +226,7 @@ Keep a separate caller lookup from maintenance/replay indexes where the measured
 
 Open validates schema, protected configuration, counts and required metadata; operations validate selected persisted records and index associations. Do not force memory records through encode/decode to imitate corruption checks. Do not trust stable bytes because a frame decoded structurally.
 
-Receiver proof verification uses one persistent weighted bucket across mechanisms, callers and endpoints. Unknown logout has a separate operation bucket. Both begin empty in the reference. Issuer fresh-intent credit begins at the configured burst. Reopen/restart does not refill any bucket. No partial weighted charge occurs when credit is insufficient.
+Receiver proof verification uses one persistent weighted bucket across mechanisms, callers and endpoints. Unknown logout has a separate operation bucket. Both begin empty in the reference. Issuer fresh-intent credit begins at the configured burst and is charged once when a new intent is retained. Reopen/restart does not refill any bucket. No partial weighted charge occurs when credit is insufficient.
 
 Physical expired rows count until explicit pruning. Replay quota belongs to the issuer-qualified account, not the changing browser key. Preserve deterministic tie ordering and bounded removal. Qualify current public maintenance bounds: memory session/replay batches up to 128, persistent issuer pruning up to 32, and inspection up to 32 sessions over 128 visited caller rows plus one lookahead. Select future backend-specific ceilings from its measured requirements; historical equivalence is not required.
 
@@ -237,17 +237,17 @@ Issuer transitions also need bounded memory and stable implementations under the
 ### Stable upgrade checkpoints
 
 Select `receiver-stable` with a verifier or `issuer-stable` independently.
-`StableReceiver` and `StableIssuer` store one v1 checkpoint each in an exclusive
+`StableReceiver` and `StableIssuer` store one v3 checkpoint each in an exclusive
 named `ic_storage::RuntimeMemory` lease. Ordinary operations on `state()` use
 the same indexed records, policy and IC message transaction as volatile mode.
 
 1. On a genuinely fresh installation, call `new_fresh(lease, config, now_ns)`
    and perform normal enrollment. Creation requires a zero-page allocation.
-2. In pre-upgrade, call `seal()` on each stable owner. Seal writes a bounded
+2. In pre-upgrade, call `seal(canister_version)` on each stable owner. Seal writes a bounded
    image and closes that instance. Commit the host's challenge generator,
    authority entries and terminal revocations, pending effect identities and
    certification state in the same upgrade transaction. Trap on any failure.
-3. In post-upgrade, call `reopen(lease, config, now_ns)` with the original
+3. In post-upgrade, call `reopen(lease, config, now_ns, canister_version)` with the original
    protected configuration. Reopen checks the version-specific SHA-256 digest,
    decodes the complete image with Wire resource limits, checks indexes and
    accounting and consumes the checkpoint. A skipped pre-upgrade hook, malformed
@@ -260,8 +260,20 @@ the same indexed records, policy and IC message transaction as volatile mode.
    Completed results and unresolved effect identities remain available for
    reconciliation.
 
-Encoding and admission traverse the whole retained owner once per upgrade.
-Each v1 payload is limited to 8 MiB, 8,388,608 Wire visits, depth 64 and a
+Read `ic0.canister_version` separately inside each upgrade hook. Seal binds the
+checkpoint digest to the next version using checked addition. Reopen uses the
+actual post-upgrade version. An intervening install fences both owners even if
+its module never calls Auth. Any version gap refuses the upgrade. Old v1/v2
+images cannot establish adjacency and are refused. Use `new_fresh` only during
+a genuinely fresh install. A missing image in post-upgrade must leave Auth closed.
+
+Sealing also commits the issuer's per-login renewal states and the receiver's
+caller/fingerprint/application-extension associations before encoding. Each owner
+adds one 32-byte commitment to its payload. Reopen verifies those commitments
+during record validation, checks issuer operation deadlines, renewal indexes and
+unique login generations, and remeasures each receiver session. These checks
+detect disagreement between independently stored fields under exclusive host custody.
+Each v3 payload is limited to 8 MiB, 8,388,608 Wire visits, depth 64 and a
 256 MiB Wire allocation allowance. These limits are independent of the ordinary
 Auth quotas. Size the canister's configured workload for the upgrade instruction
 and heap budgets as well as these limits. Overflow refuses the upgrade.
@@ -325,7 +337,7 @@ authorizes an additional effect. Closing lost state is containment, not recovery
 
 Initial issue and authenticated renewal enter the same operation owner after
 their distinct caller/binding checks. They do not create separate pending-result
-stores. Checkpoint v1 has explicit reopen and incompatible-format refusal;
+stores. Checkpoint v3 has explicit reopen and incompatible-format refusal;
 current consumers and helper APIs are qualified at their actual boundaries.
 The first implementation must exercise exact retries, conflicting callbacks,
 capacity refusal before dispatch, authority/epoch changes and response loss using
@@ -348,12 +360,15 @@ Its account/login fields are lookup hints; grants must match the original bindin
 Read-only preflight returns inputs for current application permission without
 observing time, consuming credit or reserving a sequence. Preparation repeats the
 checks after any await. The first renewal requires completed issuance; each later
-sequence requires completed previous renewal. Original start, deadline, browser,
+sequence requires completion of the previous renewal or pruning of that exact
+renewal after both effect deadlines and the reconciliation interval. Only its
+immediate successor is eligible. The original sequence stays consumed and an
+unknown signing outcome stays unknown. Original start, deadline, browser,
 slot, generation and policy remain unchanged.
 
 One per-account lookup index maps `(login identity, sequence)` to the shared
 operation, including its original epoch. It owns no nonce, approval or result.
-The login retains a private initial/in-flight/completed sequence watermark; an
+The login retains its renewal sequence and disposition; an
 old issuance completion cannot complete a newer renewal. Missing result evidence
 does not reset this watermark or authorize recreating consumed work. Retained
 browser-authenticated reconciliation remains readable after expiry, restart or
@@ -386,7 +401,12 @@ pending/unknown/completed outcomes have the same retention obligation. The host'
 positive retention interval is part of the immutable login policy. A stored exact
 result-byte reservation avoids re-encoding records during maintenance. References
 keep logins alive until every retained operation is gone; adding work to an idle
-login removes its expiry entry before publication completes.
+login removes its expiry entry before publication completes. Once the final
+operation is pruned, a login that never reached signing is eligible for the next
+prune call. A dispatched initial operation with unknown outcome keeps its login
+until the login deadline unless explicitly revoked. Revocation releases the slot
+on bounded pruning after the last operation’s retention ends. Hosts sizing for
+rapid device replacement must allow for this retention interval and run pruning.
 
 One call selects at most 32 records: operations first, then already-idle expired
 logins with the remaining budget. Newly idle logins wait for the next call. Ties
@@ -439,10 +459,11 @@ or generic backend interface.
 `retrieveCredential` commits an issuance claim before its single bounded issuer
 call and exact evidence before returning. `establishSession` commits target inventory
 before one browser-signed admission call. `cleanupOnce` commits a lease/count before
-one generated Wire update and settles only a matching authenticated reply.
+one generated Wire update and confirms only a matching authenticated revocation.
 `cleanupUntilFinished` schedules that operation using journal-derived wait delays;
-it neither changes the fixed deadline nor resets attempts. Cancellation and errors
-stop a run with durable progress retained for explicit resumption.
+it preserves the fixed deadline and attempt counts. A failed destination backs off.
+Other due destinations proceed in order of fewest attempts. Cancellation and local
+identity, configuration, storage or clock errors stop the run with progress retained.
 The internal signing owner captures principal/destination and rechecks the journal
 around asynchronous signing and reply acceptance; every exit closes that attempt.
 These are retained safety obligations, not a claimed equivalent-feature LOC saving.

@@ -2,6 +2,33 @@
 
 The `auth` group covers `ic-auth`. Its separate ledger follows [0.48.7](../history.md#0487---2026-11-19).
 
+## [0.50.0] - 2026-11-25
+
+### ⚠️ Breaking
+
+- Stable issuer and receiver checkpoints require the trusted canister version in both `seal` and `reopen`. A skipped reopen permanently fences that image. V1 and v2 images cannot upgrade in place to this format. Hosts must trap on refusal and reserve fresh initialization for a genuinely new installation. [#10](https://github.com/dragginzgame/ic-auth/issues/10)
+
+### 🐛 Fixed
+
+- Keep a displaced browser logged out through its promised deadline, including after stable reopen. Replacement can return capacity when the unbound denial pool is full. [#9](https://github.com/dragginzgame/ic-auth/issues/9)
+- Reserve issuer credit for newly retained intents so one account’s capacity refusals leave credit available for other accounts. [#11](https://github.com/dragginzgame/ic-auth/issues/11)
+- Issuer pruning releases device slots from abandoned preparations and revoked logins once their last operation leaves retention. [#12](https://github.com/dragginzgame/ic-auth/issues/12)
+- A browser can prepare the next renewal after the issuer prunes its fenced predecessor. The original sequence stays consumed across upgrades. [#17](https://github.com/dragginzgame/ic-auth/issues/17)
+- Stable reopen validates issuer renewal sequences, deadlines and generations, recomputes receiver session sizes and checks each application binding against its caller and credential fingerprint. [#16](https://github.com/dragginzgame/ic-auth/issues/16)
+- Browser logout cleanup continues to other due destinations after a failed transport or malformed reply, while retaining each destination’s uncertainty and attempt limit. [#13](https://github.com/dragginzgame/ic-auth/issues/13)
+- Restore issuer-only library test compilation and check the issuer and individual receiver verifier builds in Linux CI. [#14](https://github.com/dragginzgame/ic-auth/issues/14)
+- Browser calls hold capacity until their callbacks settle and restrict each poll to the latest signed update. Plaintext gateway URLs require loopback. [#19](https://github.com/dragginzgame/ic-auth/issues/19)
+- Qualify full certified admission against fresh and frozen PocketIC application-subnet delegations. [#15](https://github.com/dragginzgame/ic-auth/issues/15)
+
+### 📚 Documentation
+
+- Document receiver host throttling, pruning and sizing for retained device slots. [#18](https://github.com/dragginzgame/ic-auth/issues/18)
+
+### 📦 Dependencies
+
+- Stable issuer and receiver checkpoints now require fresh IC Storage 0.80 backing. Both memory and stable modes use IC Wire 0.30.2 or later in the 0.30 line.
+- Adopt IC Platform 0.35.1 for Auth verification and Platform Runtime 0.23.27 for qualification. Both workspaces use Toko Tooling 0.46.4. Storage now owns its Cell engine, removing the transitive Platform 0.34 dependency.
+
 ## [0.49.3] - 2026-11-24
 
 ### 📦 Dependencies

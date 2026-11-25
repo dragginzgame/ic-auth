@@ -69,14 +69,18 @@ export class SessionCoordinator {
    * Expiry or uncertainty after invocation refuses; it never renews or replays the operation.
    */
   call<T>(target: Principal, operation: (identity: Identity, signal: AbortSignal) => Promise<T>): Promise<T> {
-    return this.#operation(target, async destination => {
+    return this.#operation(target, async (destination, retain) => {
       const hint = await this.#ready(destination);
       return runSigningAttempt({ identity: this.#options.browser, target: Principal.fromText(destination),
         ...(this.#options.signal ? { signal: this.#options.signal } : {}),
         assertCurrent: async () => {
           if (await this.#now() >= hint.refreshAt) throw new ReadinessError('lease_expired');
         },
-      }, operation);
+      }, (identity, signal) => {
+        const callback = operation(identity, signal);
+        retain(callback);
+        return callback;
+      });
     });
   }
 
@@ -94,16 +98,21 @@ export class SessionCoordinator {
     return detached(result.receipt);
   }
 
-  async #operation<T>(target: Principal, run: (destination: string) => Promise<T>): Promise<T> {
+  async #operation<T>(target: Principal, run: (destination: string, retain: (work: Promise<unknown>) => void) => Promise<T>): Promise<T> {
     if (this.#outstanding === 64) throw new ReadinessError('operation_limit');
     if (target.isAnonymous()) throw new JournalError('configuration');
     const destination = target.toText();
     this.#outstanding++;
+    let callback: Promise<unknown> | undefined;
+    const release = () => { this.#outstanding--; };
     try {
       await this.#now();
-      return await run(destination);
+      return await run(destination, work => { callback = work; });
     } catch (error) { throw error instanceof ExpiredEvidence ? error.cause : error;
-    } finally { this.#outstanding--; }
+    } finally {
+      if (callback) void callback.then(release, release);
+      else release();
+    }
   }
 
   #identity() {

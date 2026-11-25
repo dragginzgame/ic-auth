@@ -4,12 +4,12 @@ use super::{
     Account, BTreeMap, BTreeSet, CallerRecord, Lifecycle, MemoryConfig, MemoryReceiver, Principal,
     Replay, Slot, VerificationBudget, WorkBucket, enrollment, policy,
 };
-use crate::stable_upgrade::{Checkpoint, ExtensionBytes, UpgradeError, extension_bytes};
+use crate::stable_upgrade::{Checkpoint, UpgradeError};
 use ic_storage::{DefaultMemoryImpl, Memory, RuntimeMemory};
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 
-const EXTENDED_DOMAIN: &[u8] = b"ic-auth.receiver.v2";
-const CHECKPOINT_DOMAIN: &[u8] = b"ic-auth.receiver.v1";
+const CHECKPOINT_DOMAIN: &[u8] = b"ic-auth.receiver.v3";
 
 ///
 /// Fields
@@ -87,38 +87,27 @@ impl<M: Memory> StableReceiver<M> {
     }
 
     /// Consume a committed upgrade checkpoint from this module's named allocation.
-    /// The host must abort the upgrade transaction on any refusal.
+    /// Supply the trusted post-upgrade canister version. Only the immediate successor
+    /// of the sealing version can reopen. Abort the upgrade transaction on refusal.
     /// Obtain fresh authenticated enrollment before using retained sessions.
     pub fn reopen(
         memory: RuntimeMemory<M>,
         config: MemoryConfig,
         now_ns: u64,
+        canister_version: u64,
     ) -> Result<Self, UpgradeError> {
         let mut checkpoint = Checkpoint::load(memory)?;
-        let mut inner = if let Ok(payload) = checkpoint.payload(CHECKPOINT_DOMAIN) {
-            Checkpoint::<M>::decode::<Saved>(payload)?.0
-        } else {
-            let (Saved(mut state), bindings): (Saved, Vec<(Principal, ExtensionBytes)>) =
-                Checkpoint::<M>::decode(checkpoint.payload(EXTENDED_DOMAIN)?)?;
-            for (caller, ext) in bindings {
-                let session = state
-                    .callers
-                    .get_mut(&caller)
-                    .and_then(|row| row.session.as_mut())
-                    .ok_or(UpgradeError::InvalidCheckpoint)?;
-                if session.ext.replace(ext.into_vec()).is_some() {
-                    return Err(UpgradeError::InvalidCheckpoint);
-                }
-            }
-            state
-        };
+        let (Saved(mut inner), commitment): (Saved, [u8; 32]) =
+            Checkpoint::<M>::decode(checkpoint.payload(CHECKPOINT_DOMAIN, canister_version)?)?;
         if inner.config != config {
             return Err(UpgradeError::Configuration);
         }
         if inner.lifecycle == Lifecycle::Closed {
             return Err(UpgradeError::Lifecycle);
         }
-        inner.validate_checkpoint()?;
+        if inner.validate_checkpoint()? != commitment {
+            return Err(UpgradeError::InvalidCheckpoint);
+        }
         inner.observe(now_ns).map_err(|_| UpgradeError::Lifecycle)?;
         inner.lifecycle = Lifecycle::Fresh;
         inner.enrollment.discard_pending();
@@ -128,29 +117,18 @@ impl<M: Memory> StableReceiver<M> {
     }
 
     /// Save in the host's pre-upgrade transaction. Success closes the running
-    /// instance. The encoded checkpoint is limited to 8 MiB. On error the host
+    /// instance. Supply the trusted canister version from the pre-upgrade hook.
+    /// The encoded checkpoint is limited to 8 MiB. On error the host
     /// must abort the upgrade, retaining the heap.
-    pub fn seal(&mut self) -> Result<(), UpgradeError> {
+    pub fn seal(&mut self, canister_version: u64) -> Result<(), UpgradeError> {
         if self.inner.lifecycle == Lifecycle::Closed {
             return Err(UpgradeError::Lifecycle);
         }
-        let mut bindings = Vec::new();
-        for (&caller, row) in &self.inner.callers {
-            if let Some(ext) = row
-                .session
-                .as_ref()
-                .and_then(|session| session.ext.as_deref())
-            {
-                bindings.push((caller, extension_bytes(ext)?));
-            }
-        }
-        if bindings.is_empty() {
-            self.checkpoint
-                .save(CHECKPOINT_DOMAIN, &SavedRef(&self.inner))?;
-        } else {
-            self.checkpoint
-                .save(EXTENDED_DOMAIN, &(SavedRef(&self.inner), bindings))?;
-        }
+        self.checkpoint.save(
+            CHECKPOINT_DOMAIN,
+            canister_version,
+            &(SavedRef(&self.inner), self.inner.extension_digest()),
+        )?;
         self.inner.close();
 
         Ok(())
@@ -168,8 +146,31 @@ impl<M: Memory> AsRef<MemoryReceiver> for StableReceiver<M> {
     }
 }
 
+fn hash_extension(digest: &mut Sha256, facts: &super::SessionFacts<'_>) {
+    if let Some(ext) = facts.ext {
+        digest.update([facts.caller.as_slice().len() as u8]);
+        digest.update(facts.caller.as_slice());
+        digest.update(facts.fingerprint);
+        digest.update((ext.len() as u32).to_le_bytes());
+        digest.update(ext);
+    }
+}
+
 impl MemoryReceiver {
-    fn validate_checkpoint(&self) -> Result<(), UpgradeError> {
+    // Byte accounting cannot distinguish equal-length extensions exchanged by an encoder.
+    fn extension_digest(&self) -> [u8; 32] {
+        let mut digest = Sha256::new();
+        for facts in self
+            .callers
+            .values()
+            .filter_map(CallerRecord::session_facts)
+        {
+            hash_extension(&mut digest, &facts);
+        }
+        digest.finalize().into()
+    }
+
+    fn validate_checkpoint(&self) -> Result<[u8; 32], UpgradeError> {
         let bad = UpgradeError::InvalidCheckpoint;
         let cfg = self.config;
         if !self
@@ -198,6 +199,7 @@ impl MemoryReceiver {
         {
             return Err(bad);
         }
+        let mut digest = Sha256::new();
         let mut bytes = 0usize;
         let mut sessions = 0;
         let mut unknown = 0;
@@ -218,23 +220,21 @@ impl MemoryReceiver {
                 _ => return Err(bad),
             }
             if let Some(s) = &row.session {
-                if row.login.denied
-                    || !s
-                        .bytes
-                        .checked_sub(s.ext.as_ref().map_or(0, |ext| 4 + ext.len()))
-                        .is_some_and(|base| (1..=2048).contains(&base))
-                    || !self.session_expiry.contains(&(s.expires_at_ns, *caller))
-                {
+                if row.login.denied || !self.session_expiry.contains(&(s.expires_at_ns, *caller)) {
                     return Err(bad);
                 }
                 let facts = row.session_facts().ok_or(bad)?;
                 policy::check_session_shape(&facts).map_err(|_| bad)?;
-                if facts.established_at_ns > self.observed_at_ns
+                if s.logical_bytes(*caller, facts.audience, facts.login, facts.scopes)
+                    .map_err(|_| bad)?
+                    != s.bytes
+                    || facts.established_at_ns > self.observed_at_ns
                     || facts.authority_generation > self.generation
                 {
                     return Err(bad);
                 }
                 bytes = bytes.checked_add(s.bytes).ok_or(bad)?;
+                hash_extension(&mut digest, &facts);
                 sessions += 1;
             }
         }
@@ -261,6 +261,6 @@ impl MemoryReceiver {
         {
             return Err(bad);
         }
-        Ok(())
+        Ok(digest.finalize().into())
     }
 }

@@ -15,7 +15,7 @@ const otherIssuer = process.argv.includes('--other-issuer');
 assert(!otherIssuer || certified, '--other-issuer requires --certified');
 const seedHash = certified ? sha(text('auth-qualification-issuer')) : rep(8);
 const path = cat(text('CANIC_ROOT_DELEGATION_CHAIN_KEY_DERIVATION_PATH_V1'),u32(2),bytes(text('canic')),bytes(text('delegation')));
-const pathHash = sha(path), root = bytes(rep(1,10)), issuer = bytes(rep(otherIssuer ? 3 : 2,10));
+const pathHash = sha(path), root = bytes(rep(1,10)), issuer = bytes(installed ? Buffer.from('7fffffffffd000000101','hex') : rep(otherIssuer ? 3 : 2,10));
 const binding = sha(cat(text('canic-issuer-proof-binding-v1'),issuer,Buffer.from([1,1]),seedHash));
 const authorization = cat(Buffer.from([1]),binding,Buffer.from([1]),seedHash);
 const grants = cat(u32(1),bytes(text('app')),u32(2),bytes(text('read')),bytes(text('write')));

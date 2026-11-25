@@ -132,8 +132,11 @@ test('attempt timeout fences a late HTTP acceptance even when fetch ignores canc
 
 test('invalid protected configuration and anonymous callers refuse before HTTP', async () => {
   for (const bad of ['https://user:pass@gateway.invalid', 'https://gateway.invalid/path',
-    'https://gateway.invalid/?key=x', 'https://gateway.invalid/#part', 'file:///']) {
+    'https://gateway.invalid/?key=x', 'https://gateway.invalid/#part', 'file:///', 'http://gateway.invalid', 'http://127.0.0.1.invalid', 'http://[::2]']) {
     assert.throws(() => httpUpdateTransport({ host: new URL(bad), rootKey, methodName: 'contract' }), { code: 'configuration' });
+  }
+  for (const local of ['localhost', '127.25.0.1', '[::1]']) {
+    httpUpdateTransport({ host: new URL(`http://${local}:8080`), rootKey, methodName: 'contract' });
   }
   for (const methodName of ['', 'auth/logout', 'a'.repeat(129)]) {
     assert.throws(() => httpUpdateTransport({ host: host(), rootKey, methodName }), { code: 'configuration' });

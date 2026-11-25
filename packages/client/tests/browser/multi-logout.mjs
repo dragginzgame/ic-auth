@@ -32,7 +32,7 @@ export async function multiLogoutCases({ check, a, b }) {
     };
   });
 
-  await check('mixed receiver replies retain confirmed progress and a lost lease across tab handoff', async () => {
+  await check('mixed receiver replies retain progress and allow another tab to reach the next receiver', async () => {
     const before = await a.evaluate(async () => {
       globalThis.multi = await startMulti('multi-mixed'); const calls = [];
       const revoked = await authTest.cleanupOnce({ ...multi.options, revoke: async (...args) => { calls.push(args[0].toText()); return multiRevoke(...args); } });
@@ -40,7 +40,7 @@ export async function multiLogoutCases({ check, a, b }) {
         calls.push(target.toText()); await authTest.signCall(identity, target, bytes); return frames['logout-Unconfirmed-zero'];
       } });
       const lost = new Error('reply lost after signing');
-      const stopped = await authTest.cleanupUntilFinished({ ...multi.options, revoke: async (target, identity, bytes) => {
+      const stopped = await authTest.cleanupOnce({ ...multi.options, revoke: async (target, identity, bytes) => {
         calls.push(target.toText()); await authTest.signCall(identity, target, bytes); throw lost;
       } }).then(() => false, e => e === lost);
       return { status: await multi.options.journal.inspect(), targets: multi.targets, calls, stopped, phase: revoked.status.phase };
@@ -58,10 +58,8 @@ export async function multiLogoutCases({ check, a, b }) {
       const again = await authTest.cleanupUntilFinished({ ...options, revoke });
       options.journal.close(); return { waiting, waitingCalls, finished, repeat, again, calls };
     });
-    assert.equal(after.waiting.kind, 'wait'); assert.equal(after.waitingCalls, 0);
-    assert.equal(after.waiting.untilNs, 5_000_000_100n);
-    assert.deepEqual(after.waiting.status, before.status);
-    assert.deepEqual(after.calls, before.targets.slice(1));
+    assert.equal(after.waiting.kind, 'settled'); assert.equal(after.waitingCalls, 1);
+    assert.deepEqual(after.calls, [before.targets[3], before.targets[1], before.targets[2]]);
     assert.deepEqual(after.finished.destinations.map(d => d.attempts), [1, 2, 2, 1]);
     assert.equal(after.finished.phase, 'finished'); assert.equal(after.finished.issuanceUnknown, true);
     assert.equal(after.finished.deadlineNs, 100_000_000_000n);

@@ -570,11 +570,31 @@ impl MemoryReceiver {
             LoginDecision::Replacement { displaced_caller } => displaced_caller,
             _ => authority.caller,
         };
+        let displaced_denial = owner
+            .filter(|row| {
+                row.login.caller != authority.caller
+                    && row.login.denied
+                    && authority.now_ns < row.login.until_ns
+            })
+            .map(|row| row.login.until_ns);
+        if displaced_denial.is_some()
+            && self.unknown >= self.config.unknown_logout.max_denials
+            && !selected.login.is_some_and(|row| row.binding.is_none())
+        {
+            return Err(SessionPolicyError::Capacity.into());
+        }
         let old = self
             .callers
             .get(&displaced)
             .and_then(|r| r.session.as_ref());
-        let session = Session::prepare(claims, &request, &authority, expires_at_ns, fingerprint)?;
+        let session = Session::prepare(
+            claims,
+            &request,
+            &authority,
+            binding,
+            expires_at_ns,
+            fingerprint,
+        )?;
         let replay = Replay::prepare(
             fingerprint,
             authority.caller,
@@ -618,10 +638,12 @@ impl MemoryReceiver {
         // so even a caught panic cannot expose a partially published receiver.
         publish!(self.lifecycle = Lifecycle::Closed);
         self.remove_session(displaced);
-        if displaced != authority.caller {
+        self.remove_unknown(authority.caller);
+        if let Some(deadline) = displaced_denial {
+            self.store_unbound_denial(displaced, deadline);
+        } else if displaced != authority.caller {
             publish!(self.callers.remove(&displaced));
         }
-        self.remove_unknown(authority.caller);
         publish!(self.callers.insert(authority.caller, record));
         publish!(self.slots.insert(slot, authority.caller));
         publish!(
@@ -758,12 +780,9 @@ impl MemoryReceiver {
                 }
             }
             LogoutReceipt::Unconfirmed { deny_until_ns } if plan.charge_unknown => {
-                let row = CallerRecord::unknown(caller, self.config.audience, deny_until_ns);
                 publish!(self.lifecycle = Lifecycle::Closed);
                 self.remove_unknown(caller);
-                publish!(self.callers.insert(caller, row));
-                publish!(self.unknown_expiry.insert((deny_until_ns, caller)));
-                publish!(self.unknown += 1);
+                self.store_unbound_denial(caller, deny_until_ns);
             }
             LogoutReceipt::Unconfirmed { .. } => {} // already committed; deadline and credit unchanged
         }
@@ -853,6 +872,13 @@ impl MemoryReceiver {
             publish!(self.sessions -= 1);
             publish!(self.encoded_bytes -= session.bytes);
         }
+    }
+
+    fn store_unbound_denial(&mut self, caller: Principal, deadline: u64) {
+        let row = CallerRecord::unknown(caller, self.config.audience, deadline);
+        publish!(self.callers.insert(caller, row));
+        publish!(self.unknown_expiry.insert((deadline, caller)));
+        publish!(self.unknown += 1);
     }
 
     fn remove_unknown(&mut self, caller: Principal) {

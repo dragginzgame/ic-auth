@@ -4,6 +4,7 @@
 export const schemaFormat = 'ic-wire-json';
 export class WireError extends Error {
     code;
+    name = 'WireError';
     constructor(code) {
         super(`wire ${code}`);
         this.code = code;

@@ -136,6 +136,15 @@ fn publication_faults_close_every_admission_and_logout_path() {
         admit(h, r, "replacement", 25)
     });
     stages += exercise(
+        "replacement after logout",
+        |h| {
+            let mut r = populated(h);
+            r.logout(h.context("initial", 25).caller, 25).unwrap();
+            r
+        },
+        |h, r| admit(h, r, "replacement", 25),
+    );
+    stages += exercise(
         "unknown-to-known transfer",
         |h| {
             let mut r = h.receiver();
@@ -184,4 +193,72 @@ fn publication_faults_close_pruning_of_all_retained_record_kinds() {
             assert_eq!(r.usage(account()).encoded_bytes, 0);
         },
     );
+}
+
+#[cfg(feature = "receiver-stable")]
+#[test]
+fn reopen_rejects_resealed_session_size_and_application_binding_changes() {
+    use crate::{receiver_memory::StableReceiver, stable_upgrade::UpgradeError};
+    use ic_storage::{StableKey, VectorMemory, adapter::StableCell, testing::fixture_runtime};
+    use sha2::{Digest, Sha256};
+    let h = Host::new();
+    for change in ["size", "drop", "same-length"] {
+        let key = "auth.receiver.v1";
+        let store = fixture_runtime(
+            VectorMemory::default(),
+            "auth",
+            "auth.",
+            &[key],
+            Default::default(),
+        )
+        .unwrap();
+        let key = StableKey::parse(key).unwrap();
+        let lease = || store.open_memory(&key).unwrap();
+        let mut stable = StableReceiver::new_fresh(lease(), h.config(), 0).unwrap();
+        h.enroll(stable.state(), 7).unwrap();
+        admit(&h, stable.state(), "registered", 25);
+        let caller = h.context("registered", 25).caller;
+        let r = stable.state();
+        let s = r
+            .callers
+            .get_mut(&caller)
+            .unwrap()
+            .session
+            .as_mut()
+            .unwrap();
+        match change {
+            "size" => {
+                s.bytes += 1;
+                r.encoded_bytes += 1;
+            }
+            "drop" => s.ext = None,
+            _ => {}
+        }
+        stable.seal(5).unwrap();
+        drop(stable);
+        if change == "same-length" {
+            // Model an encoder attaching different bytes while keeping the length
+            // and the outer version-bound digest internally consistent.
+            let mut cell = StableCell::<Vec<u8>, _>::load(lease()).unwrap();
+            let mut image = cell.get().clone();
+            let (digest, payload) = image.split_at_mut(32);
+            let offset = payload.windows(16).position(|w| w == [0xab; 16]).unwrap();
+            payload[offset] ^= 1;
+            digest.copy_from_slice(
+                &Sha256::new()
+                    .chain_update(b"ic-auth.receiver.v3")
+                    .chain_update(6u64.to_le_bytes())
+                    .chain_update(payload)
+                    .finalize(),
+            );
+            cell.set(image);
+        }
+        assert!(
+            matches!(
+                StableReceiver::reopen(lease(), h.config(), 26, 6),
+                Err(UpgradeError::InvalidCheckpoint)
+            ),
+            "{change}"
+        );
+    }
 }

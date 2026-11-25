@@ -82,6 +82,24 @@ login binding. The qualification host projects results/refusals into the unchang
 Wire variants and checks exact frames; product crates install no endpoint. Host
 clock, unavailable-time and response authentication remain the adapter's responsibility.
 
+Replacing a logged-out device before its denial expires transfers the displaced caller
+to the unbound denial pool through the original deadline. This costs one pool entry
+and one expiry-index entry. It spends no unknown-logout credit. If the pool has
+no room after accounting for the incoming caller, replacement returns capacity
+before signature verification and the original denial stays in force.
+
+## Host scheduling and sizing
+
+The receiver shares verification credit across callers. A failed signature consumes
+credit, so hosts should throttle fresh admissions by authenticated caller before
+verification and bound aggregate ingress across callers. Budget exhaustion can
+delay new admissions even while established sessions and exact retries still work.
+Schedule bounded `prune` calls regularly and continue draining expired entries
+when a call reaches its work limit. Known device-slot rows survive session expiry
+and pruning. Size `max_admitted_logins` for distinct retained issuer/account/slot
+combinations over the installation lifetime. The starting profile's 1,024 rows
+hold 128 accounts if each uses eight slots, or 1,024 if each uses one.
+
 ## Bounds and accounting
 
 Admission selects only the caller, slot owner, matching replay and account counter.

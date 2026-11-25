@@ -439,7 +439,7 @@ fn renewal_uses_shared_capacity_and_budget_without_consuming_refused_sequences()
             })
         );
         assert_eq!(issuer.usage(), usage);
-        assert_eq!(issuer.available_credit(), if limit == 3 { 0 } else { 18 });
+        assert_eq!(issuer.available_credit(), if limit == 3 { 0 } else { 19 });
         assert!(
             issuer
                 .reconcile_renewal(browser(), &input(1))

@@ -104,7 +104,7 @@ pub(in crate::canister) fn seal() {
         let Some(Backend::Stable(receiver, host)) = &mut s.receiver else {
             return;
         };
-        receiver.seal().unwrap();
+        receiver.seal(api::canister_version()).unwrap();
         let bytes = ic_wire::encode(
             &HostState {
                 authority: s.authority.unwrap(),
@@ -139,9 +139,17 @@ pub(in crate::canister) fn reopen(fault: bool) {
         receiver,
         config(saved.authority, saved.capacity),
         api::time(),
-    )
-    .unwrap();
-    issuer::reopen(issuer, &saved.issuer);
+        api::canister_version(),
+    );
+    let issuer = issuer::reopen(issuer, &saved.issuer);
+    let receiver = match (receiver, issuer) {
+        (Ok(receiver), Ok(())) => receiver,
+        (receiver, issuer) => api::trap(&format!(
+            "Auth reopen failed: receiver {:?}, issuer {:?}",
+            receiver.err(),
+            issuer.err()
+        )),
+    };
     STATE.with_borrow_mut(|s| {
         *s = State {
             receiver: Some(Backend::Stable(receiver, cell)),

@@ -5,44 +5,29 @@ use super::{
     IssuerPolicy, IssuerSigning, IssuerTicket, IssuerUsage, MemoryIssuer, Phase, Principal,
     WorkBucket, expiry,
 };
-use crate::stable_upgrade::{Checkpoint, ExtensionBytes, UpgradeError, extension_bytes};
+use crate::stable_upgrade::{Checkpoint, UpgradeError};
 use ic_storage::{DefaultMemoryImpl, Memory, RuntimeMemory};
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 
-const EXTENDED_DOMAIN: &[u8] = b"ic-auth.issuer.v2";
-const CHECKPOINT_DOMAIN: &[u8] = b"ic-auth.issuer.v1";
+const CHECKPOINT_DOMAIN: &[u8] = b"ic-auth.issuer.v3";
 
 ///
 /// PolicyLimits
 ///
-/// Preserves the original checkpoint limits layout. The versioned bindings
-/// section carries the extension bytes for both logins and retained operations.
+/// Encodes retained policy with a bounded application extension.
 ///
 
 #[derive(Serialize, Deserialize)]
 #[serde(remote = "IssuerPolicy")]
 pub(super) struct PolicyLimits {
-    #[serde(skip)]
+    #[serde(with = "crate::stable_upgrade::extension")]
     ext: Option<Vec<u8>>,
     login_ttl_ns: u64,
     proof_ttl_ns: u64,
     receipt_timeout_ns: u64,
     reconciliation_retention_ns: u64,
 }
-
-///
-/// BindingOwner
-///
-/// Identifies the retained login or issuance operation carrying a signed extension.
-///
-
-#[derive(Serialize, Deserialize)]
-enum BindingOwner {
-    Login(super::Identity),
-    Operation(super::Identity),
-}
-
-type ExtensionBindings = Vec<(Principal, BindingOwner, ExtensionBytes)>;
 
 ///
 /// TicketFields
@@ -129,44 +114,24 @@ impl<M: Memory> StableIssuer<M> {
     }
 
     /// Consume a committed upgrade checkpoint from this module's named allocation.
-    /// The host must abort the upgrade transaction on any refusal.
+    /// Supply the trusted post-upgrade canister version. Only the immediate successor
+    /// of the sealing version can reopen. Abort the upgrade transaction on refusal.
     /// Success advances the issuer epoch and fences callbacks from the previous boot.
     pub fn reopen(
         memory: RuntimeMemory<M>,
         config: IssuerConfig,
         now_ns: u64,
+        canister_version: u64,
     ) -> Result<Self, UpgradeError> {
         let mut checkpoint = Checkpoint::load(memory)?;
-        let mut inner = if let Ok(payload) = checkpoint.payload(CHECKPOINT_DOMAIN) {
-            Checkpoint::<M>::decode::<Saved>(payload)?.0
-        } else {
-            let (Saved(mut state), bindings): (Saved, ExtensionBindings) =
-                Checkpoint::<M>::decode(checkpoint.payload(EXTENDED_DOMAIN)?)?;
-            for (account, binding, ext) in bindings {
-                let owner = state
-                    .accounts
-                    .get_mut(&account)
-                    .ok_or(UpgradeError::InvalidCheckpoint)?;
-                let slot = match binding {
-                    BindingOwner::Operation(key) => {
-                        owner.operations.get_mut(&key).map(|op| &mut op.ext)
-                    }
-                    BindingOwner::Login(key) => owner
-                        .logins
-                        .get_mut(&key)
-                        .map(|login| &mut login.policy.ext),
-                }
-                .ok_or(UpgradeError::InvalidCheckpoint)?;
-                if slot.replace(ext.into_vec()).is_some() {
-                    return Err(UpgradeError::InvalidCheckpoint);
-                }
-            }
-            state
-        };
+        let (Saved(mut inner), commitment): (Saved, [u8; 32]) =
+            Checkpoint::<M>::decode(checkpoint.payload(CHECKPOINT_DOMAIN, canister_version)?)?;
         if inner.config != config {
             return Err(UpgradeError::Configuration);
         }
-        inner.validate_checkpoint()?;
+        if inner.validate_checkpoint()? != commitment {
+            return Err(UpgradeError::InvalidCheckpoint);
+        }
         inner.restart(now_ns).map_err(|_| UpgradeError::Lifecycle)?;
         checkpoint.consume();
 
@@ -174,32 +139,18 @@ impl<M: Memory> StableIssuer<M> {
     }
 
     /// Save in the host's pre-upgrade transaction. Success closes the running
-    /// instance. The encoded checkpoint is limited to 8 MiB. On error the host
+    /// instance. Supply the trusted canister version from the pre-upgrade hook.
+    /// The encoded checkpoint is limited to 8 MiB. On error the host
     /// must abort the upgrade, retaining the heap.
-    pub fn seal(&mut self) -> Result<(), UpgradeError> {
+    pub fn seal(&mut self, canister_version: u64) -> Result<(), UpgradeError> {
         if !self.inner.open {
             return Err(UpgradeError::Lifecycle);
         }
-        let mut bindings = Vec::new();
-        for (&account, owner) in &self.inner.accounts {
-            for (&key, login) in &owner.logins {
-                if let Some(ext) = &login.policy.ext {
-                    bindings.push((account, BindingOwner::Login(key), extension_bytes(ext)?));
-                }
-            }
-            for (&key, op) in &owner.operations {
-                if let Some(ext) = &op.ext {
-                    bindings.push((account, BindingOwner::Operation(key), extension_bytes(ext)?));
-                }
-            }
-        }
-        if bindings.is_empty() {
-            self.checkpoint
-                .save(CHECKPOINT_DOMAIN, &SavedRef(&self.inner))?;
-        } else {
-            self.checkpoint
-                .save(EXTENDED_DOMAIN, &(SavedRef(&self.inner), bindings))?;
-        }
+        self.checkpoint.save(
+            CHECKPOINT_DOMAIN,
+            canister_version,
+            &(SavedRef(&self.inner), self.inner.renewal_digest()),
+        )?;
         self.inner.close();
 
         Ok(())
@@ -217,8 +168,41 @@ impl<M: Memory> AsRef<MemoryIssuer> for StableIssuer<M> {
     }
 }
 
+fn hash_renewal(
+    digest: &mut Sha256,
+    account: Principal,
+    (epoch, id): &super::Identity,
+    login: &super::Login,
+) {
+    use super::RenewalProgress;
+    let tag = match login.renewal {
+        RenewalProgress::Initial => 0,
+        RenewalProgress::InFlight(_) => 1,
+        RenewalProgress::Completed(_) => 2,
+        RenewalProgress::InitialOutcomeUnknown => 3,
+        RenewalProgress::PrunedRenewal(_) => 4,
+    };
+    digest.update([account.as_slice().len() as u8]);
+    digest.update(account.as_slice());
+    digest.update(epoch.to_le_bytes());
+    digest.update(id);
+    digest.update([tag]);
+    digest.update(login.renewal.sequence().to_le_bytes());
+}
+
 impl MemoryIssuer {
-    fn validate_checkpoint(&self) -> Result<(), UpgradeError> {
+    // Bind consumed sequences independently of operation rows that pruning can remove.
+    fn renewal_digest(&self) -> [u8; 32] {
+        let mut digest = Sha256::new();
+        for (&account, owner) in &self.accounts {
+            for (id, login) in &owner.logins {
+                hash_renewal(&mut digest, account, id, login);
+            }
+        }
+        digest.finalize().into()
+    }
+
+    fn validate_checkpoint(&self) -> Result<[u8; 32], UpgradeError> {
         let bad = UpgradeError::InvalidCheckpoint;
         let cfg = self.config;
         if self.epoch == 0
@@ -237,6 +221,8 @@ impl MemoryIssuer {
         }
         let mut totals = IssuerUsage::default();
         let mut idle = 0;
+        let mut digest = Sha256::new();
+        let mut generations = BTreeSet::new();
         for (&account, owner) in &self.accounts {
             if owner.logins.is_empty()
                 || owner.logins.len() > usize::from(cfg.max_devices_per_account)
@@ -248,6 +234,20 @@ impl MemoryIssuer {
             let mut renewals = 0;
             for (&id, op) in &owner.operations {
                 let login = owner.logins.get(&op.login).ok_or(bad)?;
+                let authority = op.ticket.authority;
+                if authority.generation == 0
+                    || authority.key_binding_id == [0; 32]
+                    || op.issued < login.started
+                    || op.issued >= login.deadline
+                    || op.issued >= authority.expires_at_ns
+                    || op.issued > self.observed
+                    || login
+                        .policy
+                        .deadlines(op.issued, login.deadline, authority.expires_at_ns)
+                        != Some((op.admission, op.receipt, op.remove_at))
+                {
+                    return Err(bad);
+                }
                 if op
                     .ext
                     .as_ref()
@@ -264,10 +264,29 @@ impl MemoryIssuer {
                     return Err(bad);
                 }
                 if let Some(sequence) = op.renewal {
-                    if owner.renewals.get(&(op.login, sequence)) != Some(&id) {
+                    let completed = matches!(op.phase, Phase::Completed(..));
+                    if sequence == 0
+                        || sequence > login.renewal.sequence()
+                        || (!completed
+                            && !matches!(login.renewal, super::RenewalProgress::InFlight(n) if n == sequence))
+                        || (completed
+                            && sequence == login.renewal.sequence()
+                            && !matches!(login.renewal, super::RenewalProgress::Completed(_)))
+                        || owner.renewals.get(&(op.login, sequence)) != Some(&id)
+                    {
                         return Err(bad);
                     }
                     renewals += 1;
+                }
+                if op.renewal.is_none()
+                    && matches!(op.phase, Phase::Completed(..))
+                    && matches!(
+                        login.renewal,
+                        super::RenewalProgress::Initial
+                            | super::RenewalProgress::InitialOutcomeUnknown
+                    )
+                {
+                    return Err(bad);
                 }
                 let retained = match &op.phase {
                     Phase::Approved(a) | Phase::Dispatched(a) | Phase::Completed(a, _) => Some(a),
@@ -305,7 +324,11 @@ impl MemoryIssuer {
             }
             let mut slots = BTreeSet::new();
             for (&id, login) in &owner.logins {
-                if login.slot >= cfg.max_devices_per_account
+                if matches!(login.renewal, super::RenewalProgress::InFlight(n) if n == 0 || !owner.renewals.contains_key(&(id, n)))
+                    || matches!(login.renewal, super::RenewalProgress::PrunedRenewal(0))
+                    || !login.policy.valid_limits()
+                    || !generations.insert(login.generation)
+                    || login.slot >= cfg.max_devices_per_account
                     || !slots.insert(login.slot)
                     || login.started.checked_add(login.policy.login_ttl_ns) != Some(login.deadline)
                     || login.generation == 0
@@ -317,18 +340,70 @@ impl MemoryIssuer {
                 if login.references == 0 {
                     if !self
                         .idle_logins
-                        .contains(&expiry(login.deadline, account, id))
+                        .contains(&expiry(login.idle_prune_at(), account, id))
                     {
                         return Err(bad);
                     }
                     idle += 1;
                 }
+                hash_renewal(&mut digest, account, &id, login);
                 totals.logins = totals.logins.checked_add(1).ok_or(bad)?;
             }
         }
         if totals != self.usage || idle != self.idle_logins.len() {
             return Err(bad);
         }
-        Ok(())
+        Ok(digest.finalize().into())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ic_storage::{StableKey, VectorMemory, testing::fixture_runtime};
+
+    #[test]
+    fn lowered_sequence_refuses_even_after_its_operation_has_been_pruned() {
+        let mut issuer = super::super::tests::completed_login();
+        issuer.prune(50, 32).unwrap();
+        assert_eq!(issuer.usage().operations, 0);
+        let account = Principal::from_slice(&[2]);
+        let id = (1, [2; 32]);
+        let login = issuer
+            .accounts
+            .get_mut(&account)
+            .unwrap()
+            .logins
+            .get_mut(&id)
+            .unwrap();
+        login.renewal = super::super::RenewalProgress::Completed(1);
+        let commitment = issuer.renewal_digest();
+        issuer
+            .accounts
+            .get_mut(&account)
+            .unwrap()
+            .logins
+            .get_mut(&id)
+            .unwrap()
+            .renewal = super::super::RenewalProgress::Completed(0);
+        let key = "auth.issuer.v1";
+        let runtime = fixture_runtime(
+            VectorMemory::default(),
+            "auth",
+            "auth.",
+            &[key],
+            Default::default(),
+        )
+        .unwrap();
+        let key = StableKey::parse(key).unwrap();
+        let lease = || runtime.open_memory(&key).unwrap();
+        let mut cell = Checkpoint::create(lease()).unwrap();
+        cell.save(CHECKPOINT_DOMAIN, 10, &(SavedRef(&issuer), commitment))
+            .unwrap();
+        drop(cell);
+        assert!(matches!(
+            StableIssuer::reopen(lease(), issuer.config, 51, 11),
+            Err(UpgradeError::InvalidCheckpoint)
+        ));
     }
 }

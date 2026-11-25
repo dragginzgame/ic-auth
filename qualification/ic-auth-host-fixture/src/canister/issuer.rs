@@ -163,7 +163,7 @@ pub(super) fn seal() -> HostState {
         let Some(Backend::Stable(owner)) = &mut s.issuer else {
             api::trap("missing stable issuer")
         };
-        owner.seal().unwrap();
+        owner.seal(api::canister_version()).unwrap();
         HostState {
             selected: s.selected,
             leaf: s.leaf,
@@ -171,15 +171,13 @@ pub(super) fn seal() -> HostState {
     })
 }
 
-pub(super) fn reopen(lease: RuntimeMemory<DefaultMemoryImpl>, host: &HostState) {
-    let issuer = StableIssuer::reopen(lease, config(), api::time()).unwrap();
+pub(super) fn reopen(
+    lease: RuntimeMemory<DefaultMemoryImpl>,
+    host: &HostState,
+) -> Result<(), ic_auth::stable_upgrade::UpgradeError> {
+    let issuer = StableIssuer::reopen(lease, config(), api::time(), api::canister_version())?;
     let ticket = host.selected.and_then(|(account, epoch, id)| {
-        match issuer
-            .as_ref()
-            .reconcile(account, epoch, id)
-            .unwrap()
-            .unwrap()
-        {
+        match issuer.as_ref().reconcile(account, epoch, id).unwrap()? {
             IssuerStatus::Pending(t) | IssuerStatus::Unknown(t) => Some(t),
             IssuerStatus::Completed(_) => None,
         }
@@ -193,6 +191,7 @@ pub(super) fn reopen(lease: RuntimeMemory<DefaultMemoryImpl>, host: &HostState) 
             leaf: host.leaf,
         }
     });
+    Ok(())
 }
 
 pub(super) fn lost_volatile_state() {
@@ -253,7 +252,7 @@ pub(super) fn control(command: Command) -> Result<(), Refusal> {
         } = state;
         let issuer = issuer.as_mut().ok_or(Refusal::Closed)?;
         if caller == ic_auth_protocol_types::Principal::anonymous()
-            || (!matches!(command, Command::Renew)
+            || (!matches!(command, Command::Renew(_))
                 && selected.is_some_and(|(account, _, _)| account != caller))
         {
             return Err(Refusal::Denied);
@@ -323,7 +322,10 @@ pub(super) fn control(command: Command) -> Result<(), Refusal> {
                     api::trap("after retained completion");
                 }
             }
-            Command::Renew => {
+            Command::Prune => {
+                issuer.prune(now, 32).map_err(refusal)?;
+            }
+            Command::Renew(sequence) => {
                 let account = selected.ok_or(Refusal::Auth)?.0;
                 let t = issuer
                     .prepare_renewal(
@@ -332,7 +334,7 @@ pub(super) fn control(command: Command) -> Result<(), Refusal> {
                             account,
                             login_epoch: 1,
                             login_id: [2; 32],
-                            sequence: 1,
+                            sequence,
                             grants: vec![DelegatedRoleGrant {
                                 target: "app".parse().unwrap(),
                                 scopes: vec!["read".parse().unwrap()],

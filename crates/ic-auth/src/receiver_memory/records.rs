@@ -27,7 +27,10 @@ use serde::{Serialize, Serializer, ser::SerializeSeq};
     derive(serde::Serialize, serde::Deserialize)
 )]
 pub(super) struct Session {
-    #[cfg_attr(feature = "receiver-stable", serde(skip))]
+    #[cfg_attr(
+        feature = "receiver-stable",
+        serde(with = "crate::stable_upgrade::extension")
+    )]
     pub(super) ext: Option<Vec<u8>>,
     mechanism: PortableMechanism,
     key_binding_id: [u8; 32],
@@ -46,34 +49,12 @@ impl Session {
         claims: &PortableClaims,
         request: &SessionRequest,
         authority: &SessionAuthority<'_>,
+        binding: LoginBinding,
         expires_at_ns: u64,
         fingerprint: [u8; 32],
     ) -> Result<Self, MemoryError> {
         let request_hash = request.hash();
-        let ext_bytes = claims.ext.as_ref().map_or(0, |ext| 4 + ext.len());
-        let bytes = measured(
-            &SessionSize {
-                caller: authority.caller,
-                subject: claims.account_subject,
-                issuer: claims.issuer,
-                audience: Audience(claims.audience),
-                mechanism: Mechanism(claims.mechanism),
-                key_binding_id: &claims.key_binding_id,
-                role: authority.role.as_str(),
-                scopes: Scopes(request.scopes()),
-                generation: authority.generation,
-                device_slot: claims.device_slot,
-                device_generation: claims.device_generation,
-                login_started_at_ns: claims.login_started_at_ns,
-                login_deadline_ns: claims.login_deadline_ns,
-                established_at_ns: authority.now_ns,
-                expires_at_ns,
-                fingerprint: &fingerprint,
-                request_hash: &request_hash,
-            },
-            2048,
-        )? + ext_bytes;
-        Ok(Self {
+        let mut session = Self {
             ext: claims.ext.clone(),
             mechanism: claims.mechanism,
             key_binding_id: claims.key_binding_id,
@@ -84,8 +65,43 @@ impl Session {
             expires_at_ns,
             fingerprint,
             request_hash,
-            bytes,
-        })
+            bytes: 0,
+        };
+        session.bytes =
+            session.logical_bytes(authority.caller, claims.audience, binding, request.scopes())?;
+        Ok(session)
+    }
+
+    pub(super) fn logical_bytes(
+        &self,
+        caller: Principal,
+        audience: AudienceId,
+        binding: LoginBinding,
+        scopes: &[ScopeLabel],
+    ) -> Result<usize, MemoryError> {
+        let ext_bytes = self.ext.as_ref().map_or(0, |ext| 4 + ext.len());
+        Ok(measured(
+            &SessionSize {
+                caller,
+                subject: binding.subject,
+                issuer: binding.issuer,
+                audience: Audience(audience),
+                mechanism: Mechanism(self.mechanism),
+                key_binding_id: &self.key_binding_id,
+                role: self.role.as_str(),
+                scopes: Scopes(scopes),
+                generation: self.generation,
+                device_slot: binding.device_slot,
+                device_generation: binding.device_generation,
+                login_started_at_ns: binding.started_at_ns,
+                login_deadline_ns: binding.deadline_ns,
+                established_at_ns: self.established_at_ns,
+                expires_at_ns: self.expires_at_ns,
+                fingerprint: &self.fingerprint,
+                request_hash: &self.request_hash,
+            },
+            2048,
+        )? + ext_bytes)
     }
 }
 

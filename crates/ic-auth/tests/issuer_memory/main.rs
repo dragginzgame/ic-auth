@@ -406,7 +406,7 @@ fn exclusive_deadlines_are_captured_and_cannot_be_extended_on_retry() {
 }
 
 #[test]
-fn count_and_result_reservations_refuse_before_effects_and_keep_attempt_charges() {
+fn capacity_refusals_preserve_existing_reservations_and_fresh_intent_credit() {
     let result_bytes = fixture("claims").len() as u64 + 64;
     for limit in 0..4 {
         let mut cfg = config();
@@ -432,7 +432,7 @@ fn count_and_result_reservations_refuse_before_effects_and_keep_attempt_charges(
             Err(E::Capacity)
         );
         assert_eq!(issuer.usage(), usage);
-        assert_eq!(issuer.available_credit(), 18);
+        assert_eq!(issuer.available_credit(), 19);
         assert!(
             issuer
                 .reconcile(account(), 1, other.operation_id)
@@ -444,6 +444,26 @@ fn count_and_result_reservations_refuse_before_effects_and_keep_attempt_charges(
             issuer.prepare_issue(account(), &request(), policy(), authority(), 11),
             Ok(t)
         );
+        if limit == 1 {
+            for id in 3..25 {
+                other.operation_id = [id; 32];
+                assert_eq!(
+                    issuer.prepare_issue(account(), &other, policy(), authority(), 11),
+                    Err(E::Capacity)
+                );
+            }
+            issuer
+                .prepare_issue(
+                    Principal::from_slice(&[3]),
+                    &other,
+                    policy(),
+                    authority(),
+                    11,
+                )
+                .unwrap();
+            assert_eq!(issuer.available_credit(), 18);
+        }
+        let usage = issuer.usage();
         // Physical expiry does not free reservations implicitly.
         assert_eq!(
             issuer.prepare_issue(account(), &other, policy(), authority(), 100),

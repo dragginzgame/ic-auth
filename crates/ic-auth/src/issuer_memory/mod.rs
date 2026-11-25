@@ -97,6 +97,16 @@ struct Login {
     references: u32,
 }
 
+impl Login {
+    fn idle_prune_at(&self) -> u64 {
+        if self.revoked || matches!(self.renewal, RenewalProgress::Initial) {
+            self.started
+        } else {
+            self.deadline
+        }
+    }
+}
+
 ///
 /// RenewalProgress
 ///
@@ -111,13 +121,17 @@ enum RenewalProgress {
     Initial,
     InFlight(u64),
     Completed(u64),
+    // An initial signing dispatch was pruned without observing completion.
+    InitialOutcomeUnknown,
+    // The in-flight operation passed both deadlines and its reconciliation retention.
+    PrunedRenewal(u64),
 }
 
 impl RenewalProgress {
     fn sequence(&self) -> u64 {
         match self {
-            Self::Initial => 0,
-            Self::InFlight(n) | Self::Completed(n) => *n,
+            Self::Initial | Self::InitialOutcomeUnknown => 0,
+            Self::InFlight(n) | Self::Completed(n) | Self::PrunedRenewal(n) => *n,
         }
     }
 
@@ -125,7 +139,8 @@ impl RenewalProgress {
         if next <= self.sequence() {
             return Err(IssuerError::EpochClosed);
         }
-        if !matches!(self, Self::Completed(n) if n.checked_add(1) == Some(next)) {
+        if !matches!(self, Self::Completed(n) | Self::PrunedRenewal(n) if n.checked_add(1) == Some(next))
+        {
             return Err(IssuerError::Conflict);
         }
         Ok(())
@@ -143,7 +158,10 @@ impl RenewalProgress {
     derive(serde::Serialize, serde::Deserialize)
 )]
 struct Operation {
-    #[cfg_attr(feature = "issuer-stable", serde(skip))]
+    #[cfg_attr(
+        feature = "issuer-stable",
+        serde(with = "crate::stable_upgrade::extension")
+    )]
     ext: Option<Vec<u8>>,
     #[cfg_attr(feature = "issuer-stable", serde(with = "checkpoint::TicketFields"))]
     ticket: IssuerTicket,
@@ -329,8 +347,7 @@ impl MemoryIssuer {
 
     /// Reserve an exact account-authenticated intent and its completed-result bytes
     /// before entropy, approval or signing. `account` must come from host authentication.
-    /// Exact retries are free and retain original deadlines. Later ordinary refusals
-    /// after a fresh-attempt charge do not refund credit.
+    /// Only a newly retained intent spends credit. Exact retries keep their original deadlines.
     pub fn prepare_issue(
         &mut self,
         account: Principal,
@@ -379,11 +396,6 @@ impl MemoryIssuer {
         {
             return Err(IssuerError::Denied);
         }
-        self.budget.charge(now_ns, 1).map_err(|e| match e {
-            BudgetError::Exhausted => IssuerError::Throttled,
-            BudgetError::ClockRollback => IssuerError::Clock,
-            BudgetError::InvalidPolicy => IssuerError::Invalid,
-        })?;
         if self.usage.operations >= self.config.max_operations
             || owner.is_some_and(|a| {
                 a.operations.len() >= self.config.max_operations_per_account as usize
@@ -453,29 +465,21 @@ impl MemoryIssuer {
             authority,
             boot: self.boot,
         };
+        let (admission, receipt, remove_at) = policy
+            .deadlines(now_ns, login.deadline, authority.expires_at_ns)
+            .ok_or(IssuerError::Invalid)?;
         let mut op = Operation {
             ext: policy.ext.clone(),
             ticket,
             login: login_key,
             issued: now_ns,
-            admission: now_ns
-                .checked_add(policy.proof_ttl_ns)
-                .ok_or(IssuerError::Invalid)?
-                .min(login.deadline)
-                .min(authority.expires_at_ns),
-            receipt: now_ns
-                .checked_add(policy.receipt_timeout_ns)
-                .ok_or(IssuerError::Invalid)?,
+            admission,
+            receipt,
             phase: Phase::Reserved,
             renewal,
-            remove_at: 0,
+            remove_at,
             result_bytes: 0,
         };
-        op.remove_at = op
-            .admission
-            .max(op.receipt)
-            .checked_add(policy.reconciliation_retention_ns)
-            .ok_or(IssuerError::Invalid)?;
         // Nonce contents do not change encoded length. Reserve the exact largest
         // result before publishing; no retained record is encoded for accounting.
         let bytes = self.claims(&op, login, [0; 16])?.len() as u64
@@ -489,7 +493,7 @@ impl MemoryIssuer {
             .references
             .checked_add(1)
             .ok_or(IssuerError::Capacity)?;
-        let idle_key = expiry(login.deadline, account, login_key);
+        let idle_key = expiry(login.idle_prune_at(), account, login_key);
         let operation_expiry = expiry(op.remove_at, account, operation_key);
         let result_bytes = self
             .usage
@@ -497,6 +501,11 @@ impl MemoryIssuer {
             .checked_add(bytes)
             .filter(|n| *n <= self.config.max_result_bytes)
             .ok_or(IssuerError::Capacity)?;
+        self.budget.charge(now_ns, 1).map_err(|e| match e {
+            BudgetError::Exhausted => IssuerError::Throttled,
+            BudgetError::ClockRollback => IssuerError::Clock,
+            BudgetError::InvalidPolicy => IssuerError::Invalid,
+        })?;
         // No fallible tail. A native unwind between these writes leaves us closed;
         // an IC host still owns rollback of the enclosing transaction.
         self.open = false;
@@ -713,7 +722,9 @@ impl MemoryIssuer {
         op.phase = Phase::Completed(approval, completion);
         after_write!();
         match (op.renewal, &login.renewal) {
-            (None, RenewalProgress::Initial) => login.renewal = RenewalProgress::Completed(0),
+            (None, RenewalProgress::Initial | RenewalProgress::InitialOutcomeUnknown) => {
+                login.renewal = RenewalProgress::Completed(0)
+            }
             (Some(n), RenewalProgress::InFlight(current)) if n == *current => {
                 login.renewal = RenewalProgress::Completed(n)
             }
@@ -770,7 +781,21 @@ impl MemoryIssuer {
             .get_mut(&account)
             .and_then(|a| a.logins.get_mut(&identity))
             .ok_or(IssuerError::Denied)?;
-        login.revoked = true;
+        if !login.revoked {
+            let old_prune_at = login.idle_prune_at();
+            self.open = false;
+            login.revoked = true;
+            after_write!();
+            if login.references == 0 && old_prune_at != login.idle_prune_at() {
+                self.idle_logins
+                    .remove(&expiry(old_prune_at, account, identity));
+                after_write!();
+                self.idle_logins
+                    .insert(expiry(login.idle_prune_at(), account, identity));
+                after_write!();
+            }
+            self.open = true;
+        }
         Ok(login.deadline)
     }
 
@@ -900,6 +925,35 @@ impl Login {
     }
 }
 
+impl IssuerPolicy {
+    fn deadlines(
+        &self,
+        issued: u64,
+        login_deadline: u64,
+        authority_expiry: u64,
+    ) -> Option<(u64, u64, u64)> {
+        let admission = issued
+            .checked_add(self.proof_ttl_ns)?
+            .min(login_deadline)
+            .min(authority_expiry);
+        let receipt = issued.checked_add(self.receipt_timeout_ns)?;
+        let remove_at = admission
+            .max(receipt)
+            .checked_add(self.reconciliation_retention_ns)?;
+        Some((admission, receipt, remove_at))
+    }
+
+    fn valid_limits(&self) -> bool {
+        self.ext
+            .as_ref()
+            .is_none_or(|ext| ext.len() <= ic_auth_protocol_types::MAX_TOKEN_EXT_BYTES)
+            && (1..=90 * 86_400_000_000_000).contains(&self.login_ttl_ns)
+            && (1..=60_000_000_000).contains(&self.proof_ttl_ns)
+            && self.receipt_timeout_ns > 0
+            && self.reconciliation_retention_ns > 0
+    }
+}
+
 fn validate_request(
     account: Principal,
     r: &IssueRequest,
@@ -911,15 +965,7 @@ fn validate_request(
         || r.browser_public_key == [0; 32]
         || r.epoch == 0
         || r.login_epoch == 0
-        || p.ext
-            .as_ref()
-            .is_some_and(|ext| ext.len() > ic_auth_protocol_types::MAX_TOKEN_EXT_BYTES)
-        || p.login_ttl_ns == 0
-        || p.login_ttl_ns > 90 * 86_400_000_000_000
-        || p.proof_ttl_ns == 0
-        || p.proof_ttl_ns > 60_000_000_000
-        || p.receipt_timeout_ns == 0
-        || p.reconciliation_retention_ns == 0
+        || !p.valid_limits()
     {
         return Err(IssuerError::Invalid);
     }

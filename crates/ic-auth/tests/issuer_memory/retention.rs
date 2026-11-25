@@ -157,19 +157,12 @@ fn retained_renewal_watermarks_survive_real_result_pruning() {
         assert_eq!(issuer.usage().operations, 0);
         assert_eq!(issuer.usage().logins, 1);
         assert_eq!(issuer.available_credit(), 18);
-        if complete {
-            let next = issuer
-                .prepare_renewal(browser(), &renewal(2), authority(), 51)
-                .unwrap();
-            assert_eq!(next.epoch(), 2);
-            finish(&mut issuer, next, 52);
-        } else {
-            assert_eq!(
-                issuer.prepare_renewal(browser(), &renewal(2), authority(), 51),
-                Err(E::Conflict)
-            );
-            assert_eq!(issuer.complete(t, authority(), [1; 64], 51), Err(E::Denied));
-        }
+        let next = issuer
+            .prepare_renewal(browser(), &renewal(2), authority(), 51)
+            .unwrap();
+        assert_eq!(next.epoch(), 2);
+        assert_eq!(issuer.complete(t, authority(), [1; 64], 51), Err(E::Denied));
+        finish(&mut issuer, next, 52);
     }
 }
 
@@ -390,8 +383,52 @@ fn invalid_or_overflowing_retention_refuses_before_publishing_records() {
         issuer.prepare_issue(account(), &request(), overflow, authority(), 10),
         Err(E::Invalid)
     );
-    assert_eq!(issuer.available_credit(), 19);
+    assert_eq!(issuer.available_credit(), 20);
     assert_eq!(issuer.usage().operations, 0);
     assert_eq!(issuer.usage().logins, 0);
     assert_eq!(issuer.prune(100, 32), Ok(pruned(0, 0)));
+}
+
+#[test]
+fn abandoned_and_revoked_logins_release_the_only_slot_before_login_expiry() {
+    for disposition in ["abandoned", "revoked", "revoked-after-prune"] {
+        let mut cfg = config();
+        cfg.max_logins = 1;
+        cfg.max_devices_per_account = 1;
+        let mut issuer = MemoryIssuer::new_fresh(cfg, 0).unwrap();
+        let old = prepare(&mut issuer);
+        if disposition != "abandoned" {
+            finish(&mut issuer, old, 11);
+        }
+        if disposition == "revoked" {
+            issuer.revoke(account(), 1, request().login_id, 12).unwrap();
+        }
+        assert_eq!(issuer.prune(39, 32), Ok(pruned(0, 0)));
+        assert_eq!(issuer.prune(40, 1), Ok(pruned(1, 0)));
+        if disposition == "revoked-after-prune" {
+            assert_eq!(issuer.prune(40, 1), Ok(pruned(0, 0)));
+            issuer.revoke(account(), 1, request().login_id, 41).unwrap();
+        }
+        assert_eq!(issuer.prune(41, 1), Ok(pruned(0, 1)));
+        let mut fresh = request();
+        fresh.epoch = issuer.epoch();
+        fresh.login_epoch = fresh.epoch;
+        fresh.browser_public_key = [9; 32];
+        let replacement = issuer
+            .prepare_issue(account(), &fresh, policy(), authority(), 42)
+            .unwrap();
+        issuer
+            .record_nonce(replacement, authority(), [1; 16], 42)
+            .unwrap();
+        issuer
+            .record_approval(replacement, authority(), [1; 32], 42)
+            .unwrap();
+        let signed = issuer.dispatch(replacement, authority(), 42).unwrap();
+        let claims = decode_claims(signed.claims()).unwrap();
+        assert_eq!((claims.device_slot, claims.device_generation), (0, 2));
+        assert_eq!(
+            issuer.complete(old, authority(), [1; 64], 42),
+            Err(E::Denied)
+        );
+    }
 }

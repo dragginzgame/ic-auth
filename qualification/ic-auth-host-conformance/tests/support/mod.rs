@@ -68,6 +68,10 @@ pub(crate) fn wasm() -> Vec<u8> {
 }
 
 pub(crate) async fn start() -> PocketIc {
+    builder().build_async().await
+}
+
+pub(crate) fn builder() -> PocketIcBuilder {
     PocketIcBuilder::new()
         .with_server_url(
             std::env::var("POCKET_IC_SERVER_URL")
@@ -77,8 +81,6 @@ pub(crate) async fn start() -> PocketIc {
         )
         .with_max_request_time_ms(Some(30_000))
         .with_nns_subnet()
-        .build_async()
-        .await
 }
 
 pub(crate) async fn install(pic: &PocketIc, wasm: &[u8]) -> CanisterId {

@@ -17,6 +17,7 @@ export interface HttpUpdateOptions {
 export function httpUpdateTransport(options: HttpUpdateOptions): AdmissionTransport & LogoutTransport {
   const { methodName } = options;
   if (!(options.host instanceof URL) || !['http:', 'https:'].includes(options.host.protocol)
+    || (options.host.protocol === 'http:' && !/^(?:localhost|127(?:\.\d{1,3}){3}|\[::1\])$/.test(options.host.hostname))
     || options.host.username || options.host.password || options.host.pathname !== '/'
     || options.host.search || options.host.hash || !/^[A-Za-z_][A-Za-z0-9_]{0,127}$/.test(methodName)
     || !(options.rootKey instanceof Uint8Array) || options.rootKey.length === 0)

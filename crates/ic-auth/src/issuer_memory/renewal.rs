@@ -47,7 +47,9 @@ impl MemoryIssuer {
     /// Reserve the next browser-authenticated sequence using the original login
     /// window and policy, or return its exact retained ticket. The caller must
     /// recheck current application permission; later approval still binds the
-    /// exact intent and nonce. Pending previous work cannot authorize a new sequence.
+    /// exact intent and nonce. An in-flight renewal blocks its successor until
+    /// bounded pruning removes the expired operation after reconciliation retention.
+    /// Its sequence stays consumed even when its signing outcome is unknown.
     pub fn prepare_renewal(
         &mut self,
         browser: Principal,

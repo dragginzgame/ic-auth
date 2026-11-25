@@ -31,18 +31,20 @@ export async function schedulerCases({ check, a, b }) {
     }), [3, 2, 'finished', [1, 2], true, true, 'closed']);
   });
 
-  await check('lost response stops the run; reopening resumes retained attempt count and lease', async () => {
+  await check('an unavailable issuer leaves the next receiver eligible before its retry', async () => {
     assert.deepEqual(await a.evaluate(async () => {
-      const s = await scheduleSetup('schedule-lost'); let calls = 0;
-      const lost = new Error('lost response');
-      const stopped = await authTest.cleanupUntilFinished({ ...s.options, revoke: async () => { calls++; throw lost; } })
-        .then(() => false, error => error === lost);
-      const before = await s.options.journal.inspect(); s.options.journal.close(); s.advance(5_000_000_000n);
-      const journal = await authTest.PublicJournal.open(indexedDB, 'schedule-lost', s.clock);
-      const result = await authTest.cleanupUntilFinished({ ...s.options, journal,
-        revoke: async () => { calls++; return frames['logout-Revoked-max']; } });
-      journal.close(); return [stopped, before.destinations[0].attempts, result.destinations[0].attempts, calls, result.phase];
-    }), [true, 1, 2, 2, 'finished']);
+      const other = authTest.Principal.fromUint8Array(Uint8Array.of(2)).toText();
+      const s = await scheduleSetup('schedule-lost', 20_000, { targets: [
+        { canister: issuer.toText(), attempts: 0, nextNs: 100n }, { canister: other, attempts: 0, nextNs: 100n }] });
+      const calls = [];
+      const result = await authTest.cleanupUntilFinished({ ...s.options, revoke: async target => {
+        calls.push(target.toText());
+        if (calls.length === 1) throw Error('lost response');
+        return frames['logout-Revoked-max'];
+      } });
+      s.options.journal.close();
+      return [calls.join() === [issuer.toText(), other, issuer.toText()].join(), result.destinations.map(t => t.attempts), result.phase];
+    }), [true, [2, 1], 'finished']);
   });
 
   await check('cancellation interrupts a scheduled wait without another attempt and permits resumption', async () => {

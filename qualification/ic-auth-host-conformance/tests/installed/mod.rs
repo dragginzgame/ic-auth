@@ -2,6 +2,7 @@
 mod capacity_costs;
 mod certified_costs;
 mod costs;
+mod delegated;
 mod enrollment;
 mod independent_capacity;
 mod issuer_costs;

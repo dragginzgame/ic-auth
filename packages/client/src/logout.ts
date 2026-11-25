@@ -59,8 +59,7 @@ export async function disposeLoginKey(options: DisposeLoginKeyOptions): Promise<
 }
 
 /** Schedule already committed logout until confirmation or the original deadline.
- * Errors stop this run without erasing uncertainty; invoke again to resume retained
- * leases/counts. Completion is not proof that every destination acknowledged logout.
+ * Destination failures retain uncertainty and allow other due destinations to proceed.
  */
 export async function cleanupUntilFinished(options: CleanupOptions): Promise<JournalStatus> {
   const captured = { ...options };
@@ -71,7 +70,7 @@ export async function cleanupUntilFinished(options: CleanupOptions): Promise<Jou
   };
   for (;;) {
     check();
-    const step = await cleanupOnce(captured);
+    const step = await cleanupStep(captured);
     check();
     if (step.kind === 'finished') return step.status;
     if (step.kind === 'wait') await waitForCleanup(step.delayMs, captured.signal);
@@ -96,6 +95,12 @@ function waitForCleanup(delayMs: number, signal?: AbortSignal): Promise<void> {
 
 /** Resume already committed logout with at most one effect. No loop or implicit local logout. */
 export async function cleanupOnce(options: CleanupOptions): Promise<CleanupStep> {
+  const step = await cleanupStep(options);
+  if (step.kind === 'failed') throw step.cause;
+  return step;
+}
+
+async function cleanupStep(options: CleanupOptions): Promise<CleanupStep | { kind: 'failed'; cause: unknown }> {
   const { generation, browser, revoke, signal, retryAfterMs = 1_000 } = options;
   const journal = journalOwner(options.journal);
   const caller = browser.getPrincipal().toText();
@@ -115,24 +120,40 @@ export async function cleanupOnce(options: CleanupOptions): Promise<CleanupStep>
     await journal.assertCleanup(generation, Principal.fromText(caller), ticket);
     check();
   };
-  // Any interruption leaves the committed count/lease in place. Only a complete,
-  // authenticated typed response reaches settlement; a later caller resumes explicitly.
-  const response = await runSigningAttempt({ identity: browser, target: Principal.fromText(ticket.canister),
-    assertCurrent: current, timeoutMs: ticket.timeoutMs, ...(signal ? { signal } : {}),
-  }, async (identity, abort) => {
-    const reply = await revoke(Principal.fromText(ticket.canister), identity, encodeRequest(null), abort);
-    try {
-      if (!(reply instanceof Uint8Array) || reply.length > maximumResponseBytes) throw new Error('logout reply cap');
-      const decoded = decodeResponse(reply);
-      if (decoded.tag === 'Revoked' && decoded.value === 0n) throw new Error('invalid acknowledgement');
-      // Decoded tags/u64 values are detached before the asynchronous postflight guard.
-      return decoded;
-    } catch (cause) { throw new JournalError('invalid_material', { cause }); }
-  });
-  check();
-  const status = await journal.completeCleanup(generation, Principal.fromText(caller), ticket,
-    response.tag === 'Revoked' ? { kind: 'revoked', untilNs: response.value }
-      : { kind: 'unconfirmed', retryAfterMs });
-  check();
-  return { kind: 'settled', canister: ticket.canister, response, status };
+  // Only transport and reply failures are destination-specific. Journal, clock,
+  // cancellation and identity failures stop scheduling.
+  try {
+    const outcome = await runSigningAttempt({ identity: browser, target: Principal.fromText(ticket.canister),
+      assertCurrent: current, timeoutMs: ticket.timeoutMs, ...(signal ? { signal } : {}),
+    }, async (identity, abort) => {
+      let reply: Uint8Array;
+      try {
+        reply = await revoke(Principal.fromText(ticket.canister), identity, encodeRequest(null), abort);
+      } catch (cause) {
+        if (cause instanceof JournalError || cause instanceof AttemptError) throw cause;
+        return { failed: true, cause } as const;
+      }
+      try {
+        if (!(reply instanceof Uint8Array) || reply.length > maximumResponseBytes) throw new Error('logout reply cap');
+        const decoded = decodeResponse(reply);
+        if (decoded.tag === 'Revoked' && decoded.value === 0n) throw new Error('invalid acknowledgement');
+        return { failed: false, decoded } as const;
+      } catch (cause) { return { failed: true, cause: new JournalError('invalid_material', { cause }) } as const; }
+    });
+    check();
+    const response = outcome.failed ? undefined : outcome.decoded;
+    const status = await journal.completeCleanup(generation, Principal.fromText(caller), ticket,
+      response?.tag === 'Revoked' ? { kind: 'revoked', untilNs: response.value }
+        : { kind: 'unconfirmed', retryAfterMs });
+    check();
+    if (outcome.failed) return { kind: 'failed', cause: outcome.cause };
+    return { kind: 'settled', canister: ticket.canister, response: outcome.decoded, status };
+  } catch (cause) {
+    check();
+    // Expired or superseded tickets cannot settle. Reclaim from durable state
+    // on the next iteration, where generation, caller and phase are checked again.
+    if ((cause instanceof AttemptError && cause.code === 'timeout')
+      || (cause instanceof JournalError && cause.code === 'not_current')) return { kind: 'failed', cause };
+    throw cause;
+  }
 }

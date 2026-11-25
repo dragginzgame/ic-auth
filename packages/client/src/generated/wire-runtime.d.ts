@@ -1,6 +1,7 @@
 export declare const schemaFormat = "ic-wire-json";
 export declare class WireError extends Error {
     readonly code: 'limit' | 'malformed' | 'identity' | 'value';
+    name: string;
     constructor(code: 'limit' | 'malformed' | 'identity' | 'value');
 }
 type Field = {

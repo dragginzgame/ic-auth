@@ -1044,6 +1044,15 @@ fn memory_logout_pruning_and_device_fences_survive_expiry() {
         h.admission(&replacement),
     )
     .unwrap();
+    assert_eq!(r.unknown_logins(), 1);
+    assert_eq!(
+        r.admit(
+            &credential("rebound"),
+            request(),
+            h.admission(&h.context("rebound", 26))
+        ),
+        Err(E::Policy(P::Revoked))
+    );
     assert_eq!(r.prune(100, 1).unwrap().sessions, 1);
     assert_eq!(r.usage(account()).replays, 2);
     assert_eq!(r.known_logins(), 1);
@@ -1059,6 +1068,34 @@ fn memory_logout_pruning_and_device_fences_survive_expiry() {
     assert_eq!(
         r.logout(c.caller, 100),
         Ok(LogoutReceipt::Unconfirmed { deny_until_ns: 200 })
+    );
+}
+
+#[test]
+fn full_denial_pool_refuses_displacement_before_proof_work() {
+    let h = Host::new();
+    let mut r = h.receiver();
+    let c = h.context("initial", 25);
+    r.admit(&credential("initial"), request(), h.admission(&c))
+        .unwrap();
+    r.logout(c.caller, 25).unwrap();
+    for i in 0..2 {
+        r.logout(unknown_caller(i), 25).unwrap();
+    }
+    let credit = r.verification_budget().available();
+    let replacement = h.context("replacement", 26);
+    assert_eq!(
+        r.admit(
+            &credential("replacement"),
+            request(),
+            h.admission(&replacement)
+        ),
+        Err(E::Policy(P::Capacity))
+    );
+    assert_eq!(r.verification_budget().available(), credit);
+    assert_eq!(
+        r.logout(c.caller, 26),
+        Ok(LogoutReceipt::Revoked { deny_until_ns: 100 })
     );
 }
 
@@ -1524,11 +1561,11 @@ fn check_stable_session(name: &str) {
     if name == "max-ext" {
         assert_eq!(admitted.receipt.ext, Some(vec![0xfc; 4096]));
     }
-    let credit = owner.state().verification_budget().available();
-    owner.seal().unwrap();
+    let mut credit = owner.state().verification_budget().available();
+    owner.seal(1).unwrap();
     drop(owner);
     for revision in [2, 3] {
-        let mut owner = StableReceiver::reopen(lease(), config, 26).unwrap();
+        let mut owner = StableReceiver::reopen(lease(), config, 26, revision).unwrap();
         let r = owner.state();
         assert_eq!(r.verification_budget().available(), credit);
         assert_eq!(r.read(&h.read(name, 26), &[]), Err(E::Closed));
@@ -1554,7 +1591,22 @@ fn check_stable_session(name: &str) {
                 .exact_retry
             );
             r.logout(context.caller, 26).unwrap();
+            r.admit(
+                &credential("replacement"),
+                request(),
+                h.admission(&h.context("replacement", 26)),
+            )
+            .unwrap();
         } else {
+            assert_eq!(r.unknown_logins(), 1);
+            assert_eq!(
+                r.admit(
+                    &credential("rebound"),
+                    request(),
+                    h.admission(&h.context("rebound", 26))
+                ),
+                Err(E::Policy(P::Revoked))
+            );
             assert!(r.read(&h.read(name, 26), &[]).is_err());
             assert!(
                 r.admit(
@@ -1565,7 +1617,8 @@ fn check_stable_session(name: &str) {
                 .is_err()
             );
         }
-        owner.seal().unwrap();
+        credit = r.verification_budget().available();
+        owner.seal(revision).unwrap();
     }
 }
 

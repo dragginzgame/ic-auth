@@ -6,6 +6,8 @@ use serde::{Deserialize, Serialize};
 pub const MEASURE: u64 = 0x4155_5448_5155_000d;
 /// Public fixture seed, not a signing secret.
 pub const SEED: &[u8] = b"auth-qualification-issuer";
+/// First canister allocated on the qualification application subnet.
+pub const ISSUER: [u8; 10] = [0x7f, 0xff, 0xff, 0xff, 0xff, 0xd0, 0, 0, 1, 1];
 /// One second in the installed fixture clock.
 pub const SECOND: u64 = 1_000_000_000;
 /// Fixed simulator time with independently signed windows.

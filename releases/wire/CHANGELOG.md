@@ -2,6 +2,12 @@
 
 The `wire` group covers `ic-auth-wire`. Its separate ledger follows [0.45.0](../history.md#0485---2026-11-19).
 
+## [0.49.1] - 2026-11-25
+
+### 📦 Dependencies
+
+- The IC Wire re-export and browser codec generator now require IC Wire 0.30.2 or later in the 0.30 line. Generated browser errors now report `WireError` as their name.
+
 ## [0.49.0] - 2026-11-24
 
 ### ⚠️ Breaking

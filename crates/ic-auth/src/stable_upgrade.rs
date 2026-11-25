@@ -47,12 +47,29 @@ impl fmt::Display for UpgradeError {
 
 impl Error for UpgradeError {}
 
-pub(crate) type ExtensionBytes = ic_wire::Bytes<{ ic_auth_protocol_types::MAX_TOKEN_EXT_BYTES }>;
+/// Per-record extension with the same Wire byte bound on encode and decode.
+pub(crate) mod extension {
+    use ic_auth_protocol_types::MAX_TOKEN_EXT_BYTES;
+    use ic_wire::{Bytes, BytesRef};
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-pub(crate) fn extension_bytes(
-    bytes: &[u8],
-) -> Result<ic_wire::BytesRef<'_, { ic_auth_protocol_types::MAX_TOKEN_EXT_BYTES }>, UpgradeError> {
-    ic_wire::BytesRef::new(bytes).map_err(|_| UpgradeError::InvalidCheckpoint)
+    pub(crate) fn serialize<S: Serializer>(
+        value: &Option<Vec<u8>>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
+        value
+            .as_deref()
+            .map(BytesRef::<MAX_TOKEN_EXT_BYTES>::new)
+            .transpose()
+            .map_err(serde::ser::Error::custom)?
+            .serialize(serializer)
+    }
+
+    pub(crate) fn deserialize<'de, D: Deserializer<'de>>(
+        deserializer: D,
+    ) -> Result<Option<Vec<u8>>, D::Error> {
+        Ok(Option::<Bytes<MAX_TOKEN_EXT_BYTES>>::deserialize(deserializer)?.map(Bytes::into_vec))
+    }
 }
 
 ///
@@ -105,12 +122,17 @@ impl<M: Memory> Checkpoint<M> {
     pub(crate) fn save<T: Serialize>(
         &mut self,
         domain: &[u8],
+        canister_version: u64,
         value: &T,
     ) -> Result<(), UpgradeError> {
+        let successor = canister_version
+            .checked_add(1)
+            .ok_or(UpgradeError::Lifecycle)?;
         let payload = ic_wire::encode(value, ic_wire::Encoding::Payload, LIMITS)
             .map_err(|_| UpgradeError::Capacity)?;
         let digest = Sha256::new()
             .chain_update(domain)
+            .chain_update(successor.to_le_bytes())
             .chain_update(&payload)
             .finalize();
 
@@ -122,7 +144,11 @@ impl<M: Memory> Checkpoint<M> {
         Ok(())
     }
 
-    pub(crate) fn payload(&self, domain: &[u8]) -> Result<&[u8], UpgradeError> {
+    pub(crate) fn payload(
+        &self,
+        domain: &[u8],
+        canister_version: u64,
+    ) -> Result<&[u8], UpgradeError> {
         let (expected, payload) = self
             .0
             .get()
@@ -132,6 +158,7 @@ impl<M: Memory> Checkpoint<M> {
 
         let digest: [u8; 32] = Sha256::new()
             .chain_update(domain)
+            .chain_update(canister_version.to_le_bytes())
             .chain_update(payload)
             .finalize()
             .into();
@@ -149,5 +176,72 @@ impl<M: Memory> Checkpoint<M> {
 
     pub(crate) fn consume(&mut self) {
         self.0.set(Image(Vec::new()));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Checkpoint, Image, UpgradeError};
+    use ic_storage::{StableKey, VectorMemory, adapter::StableCell, testing::fixture_runtime};
+    use sha2::{Digest, Sha256};
+
+    #[test]
+    fn storage_079_cell_refuses_reopen_and_fresh_initialization() {
+        let name = "auth.checkpoint.v1";
+        let runtime = fixture_runtime(
+            VectorMemory::default(),
+            "auth",
+            "auth.",
+            &[name],
+            Default::default(),
+        )
+        .unwrap();
+        let key = StableKey::parse(name).unwrap();
+        let lease = || runtime.open_memory(&key).unwrap();
+        // Storage 0.79 Cell framing for an empty (consumed) checkpoint.
+        let previous = *b"SCL\x01\0\0\0\0";
+        let memory = lease();
+        assert_eq!(memory.grow(1).unwrap(), 0);
+        memory.write(0, &previous);
+        drop(memory);
+        assert!(matches!(
+            Checkpoint::load(lease()),
+            Err(UpgradeError::Allocation)
+        ));
+        assert!(matches!(
+            Checkpoint::create(lease()),
+            Err(UpgradeError::Allocation)
+        ));
+        let mut retained = [0; 8];
+        lease().read(0, &mut retained);
+        assert_eq!(retained, previous);
+    }
+
+    #[test]
+    fn prior_format_digests_are_refused_before_payload_decoding() {
+        let key = "auth.checkpoint.v1";
+        for role in ["issuer", "receiver"] {
+            for legacy in ["v1", "v2"] {
+                let backing = VectorMemory::default();
+                let runtime =
+                    fixture_runtime(backing, "auth", "auth.", &[key], Default::default()).unwrap();
+                let key = StableKey::parse(key).unwrap();
+                let lease = || runtime.open_memory(&key).unwrap();
+                // Independent old envelope: SHA-256(domain || payload), then payload.
+                let payload = [0x5a; 64];
+                let mut image = Sha256::new()
+                    .chain_update(format!("ic-auth.{role}.{legacy}"))
+                    .chain_update(payload)
+                    .finalize()
+                    .to_vec();
+                image.extend_from_slice(&payload);
+                drop(StableCell::create(lease(), Image(image)));
+                let checkpoint = Checkpoint::load(lease()).unwrap();
+                assert_eq!(
+                    checkpoint.payload(format!("ic-auth.{role}.v3").as_bytes(), 1),
+                    Err(UpgradeError::InvalidCheckpoint)
+                );
+            }
+        }
     }
 }

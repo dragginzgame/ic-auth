@@ -4,7 +4,7 @@ use super::{
 };
 use crate::{
     browser_identity::browser_principal,
-    issuer_memory::{IssuerError as E, IssuerPruned, MemoryIssuer},
+    issuer_memory::{IssuerError as E, IssuerPruned, MemoryIssuer, RenewalProgress},
 };
 use ic_auth_protocol_types::Principal;
 use std::{
@@ -53,7 +53,11 @@ fn assert_consistent(issuer: &MemoryIssuer) {
             assert!(login.generation <= issuer.generation);
             if references == 0 {
                 expected_idle.insert((
-                    login.deadline,
+                    if login.revoked || matches!(login.renewal, RenewalProgress::Initial) {
+                        login.started
+                    } else {
+                        login.deadline
+                    },
                     account.as_slice().len() as u8,
                     *account,
                     *id,

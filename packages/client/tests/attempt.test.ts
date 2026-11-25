@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { Endpoint, SubmitRequestType, ReadRequestType, Expiry, type Identity } from '@tokostudios/ic-platform/agent';
+import { requestIdOf, Endpoint, SubmitRequestType, ReadRequestType, Expiry, type Identity } from '@tokostudios/ic-platform/agent';
 import { Ed25519KeyIdentity } from '@tokostudios/ic-platform/identity';
 import { Principal } from '@tokostudios/ic-platform/principal';
 import { AttemptError, runSigningAttempt, type AttemptFailure } from '../src/attempt.ts';
@@ -161,7 +161,7 @@ test('invalid bounds and pre-cancellation refuse without dispatch', async () => 
 });
 
 
-test('read-state polling keeps generation checks without requiring a call destination', async () => {
+test('read-state polling requires an update signed by this attempt and a current generation', async () => {
   const base = identity();
   let active = true;
   const invalidation = new Error('logout during polling');
@@ -173,7 +173,24 @@ test('read-state polling keeps generation checks without requiring a call destin
       body: { request_type: ReadRequestType.ReadState, sender: base.getPrincipal(),
         ingress_expiry: Expiry.fromJSON('{"__expiry__":"100000000000"}'), paths: [] },
     };
+    await assert.rejects(signer.transformRequest(poll), refuses('wrong_destination'));
+    const update = request(base);
+    const path = [new TextEncoder().encode('request_status'), requestIdOf({ ...update.body })];
+    poll.body.paths = [path];
+    await assert.rejects(signer.transformRequest(poll), refuses('wrong_destination'));
+    await signer.transformRequest(update);
+    poll.body.paths = [path, path];
+    await assert.rejects(signer.transformRequest(poll), refuses('wrong_destination'));
+    poll.body.paths = [[path[0]!, new Uint8Array(32)]];
+    await assert.rejects(signer.transformRequest(poll), refuses('wrong_destination'));
+    poll.body.paths = [path];
     await signer.transformRequest(poll);
+    const next = request(base);
+    assert(next.body.request_type === 'call');
+    next.body.method_name = 'next';
+    await signer.transformRequest(next);
+    await assert.rejects(signer.transformRequest(poll), refuses('wrong_destination'));
+    poll.body.paths = [[path[0]!, requestIdOf(next.body)]];
     active = false;
     await assert.rejects(signer.transformRequest(poll), error => error === invalidation);
     // Completion must still fail: a previously signed poll is not live authority.

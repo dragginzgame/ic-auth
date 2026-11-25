@@ -229,7 +229,7 @@ fn dispatch(issuer: &mut MemoryIssuer, ticket: IssuerTicket) {
     issuer.dispatch(ticket, authority(), 2).unwrap();
 }
 
-fn completed_login() -> MemoryIssuer {
+pub(super) fn completed_login() -> MemoryIssuer {
     let mut issuer = issuer();
     let t = issuer
         .prepare_issue(
@@ -384,4 +384,84 @@ fn renewal_operation_identity_matches_independent_wide_integer_and_grant_frame()
         super::renewal::operation_id(&input).unwrap().as_slice(),
         expected
     );
+}
+
+#[cfg(feature = "issuer-stable")]
+#[test]
+fn reopen_rejects_resealed_issuer_state_with_inconsistent_retained_facts() {
+    use crate::stable_upgrade::UpgradeError;
+    use ic_storage::{StableKey, VectorMemory, testing::fixture_runtime};
+    let account = Principal::from_slice(&[2]);
+    let login_id = (1, request().login_id);
+    for defect in [
+        "inflight-zero",
+        "too-low",
+        "missing-renewal",
+        "receipt",
+        "admission",
+        "retention",
+        "policy",
+        "generation",
+        "ticket-authority",
+    ] {
+        let mut state = completed_login();
+        let ticket = state
+            .prepare_renewal(
+                browser_principal(&request().browser_public_key),
+                &renewal_input(1),
+                authority(),
+                2,
+            )
+            .unwrap();
+        let mut other = request();
+        other.browser_public_key = [0xcd; 32];
+        other.login_id = [0xef; 32];
+        other.operation_id = [0xed; 32];
+        state
+            .prepare_issue(account, &other, policy(), authority(), 2)
+            .unwrap();
+        let owner = state.accounts.get_mut(&account).unwrap();
+        let login = owner.logins.get_mut(&login_id).unwrap();
+        let op = owner
+            .operations
+            .get_mut(&(ticket.epoch(), ticket.operation_id()))
+            .unwrap();
+        match defect {
+            "inflight-zero" => login.renewal = RenewalProgress::InFlight(0),
+            "too-low" => login.renewal = RenewalProgress::Completed(0),
+            "missing-renewal" => login.renewal = RenewalProgress::InFlight(2),
+            "receipt" => op.receipt += 1,
+            "admission" => op.admission -= 1,
+            "retention" => {
+                login.policy.reconciliation_retention_ns += 1;
+            }
+            "policy" => login.policy.proof_ttl_ns = 0,
+            "generation" => login.generation = 2,
+            "ticket-authority" => op.ticket.authority.generation = 0,
+            _ => unreachable!(),
+        }
+        let key = "auth.issuer.v1";
+        let store = fixture_runtime(
+            VectorMemory::default(),
+            "auth",
+            "auth.",
+            &[key],
+            Default::default(),
+        )
+        .unwrap();
+        let key = StableKey::parse(key).unwrap();
+        let lease = || store.open_memory(&key).unwrap();
+        let config = state.config;
+        let mut stable = super::StableIssuer::new_fresh(lease(), config, 0).unwrap();
+        *stable.state() = state;
+        stable.seal(5).unwrap();
+        drop(stable);
+        assert!(
+            matches!(
+                super::StableIssuer::reopen(lease(), config, 3, 6),
+                Err(UpgradeError::InvalidCheckpoint)
+            ),
+            "{defect}"
+        );
+    }
 }

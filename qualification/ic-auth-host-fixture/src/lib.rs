@@ -391,8 +391,10 @@ pub enum Command {
     Complete(Fault),
     /// Account-authenticated revocation of the retained login.
     Revoke,
-    /// Prepare and approve sequence one using the actual retained browser caller.
-    Renew,
+    /// Prepare and approve a specific renewal using the actual retained browser caller.
+    Renew(u64),
+    /// Run one bounded issuer maintenance batch.
+    Prune,
 }
 
 ///

@@ -79,6 +79,20 @@ export async function disposalCases({ check, a }) {
     }), [true, 3, 1, 'replacement']);
   });
 
+  await check('a fresh journal starts the next login while the finished journal retains its evidence', async () => {
+    assert.deepEqual(await a.evaluate(async () => {
+      const old = await disposalSetup('previous-login');
+      await authTest.disposeLoginKey({ ...old, dispose: async () => {} });
+      old.journal.close();
+      const fresh = await open(`ic-auth-login-${crypto.randomUUID()}`);
+      await fresh.start({ generation: 'next', caller, issuer });
+      const previous = await open('previous-login');
+      const retained = await previous.inspect(), active = await fresh.inspect();
+      fresh.close(); previous.close();
+      return [active.generation, active.phase, retained.generation, retained.phase, retained.issuanceUnknown];
+    }), ['next', 'active', 'login', 'finished', true]);
+  });
+
   await check('cancellation before or during terminal journal checking prevents disposal', async () => {
     assert.deepEqual(await a.evaluate(async () => {
       const s = await disposalSetup('dispose-cancel'); let calls = 0;

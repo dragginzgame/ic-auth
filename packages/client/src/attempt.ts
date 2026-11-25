@@ -1,6 +1,8 @@
 /** A temporary SDK signing capability for one journal-guarded operation. */
-import type { Identity } from '@tokostudios/ic-platform/agent';
+import { Endpoint, requestIdOf, type Identity } from '@tokostudios/ic-platform/agent';
 import { Principal } from '@tokostudios/ic-platform/principal';
+
+const requestStatusLabel = new TextEncoder().encode('request_status');
 
 type SigningRequest = Parameters<Identity['transformRequest']>[0];
 export type AttemptFailure = 'invalid_timeout' | 'closed' | 'cancelled' | 'timeout'
@@ -61,10 +63,19 @@ export async function runSigningAttempt<T>(
     if (closed) throw failure ?? new AttemptError('closed');
     if (identity.getPrincipal().toText() !== caller) throw new AttemptError('identity_changed');
   };
+  let lastUpdate: Uint8Array | undefined;
+  const matches = (label: Uint8Array | undefined, expected: Uint8Array) =>
+    label instanceof Uint8Array && label.length === expected.length && expected.every((byte, i) => label[i] === byte);
   const checkDestination = (request: SigningRequest) => {
-    // Polling an already submitted request has no canister_id. It still requires
-    // the same live generation, principal and individual attempt capability.
-    if (request.body.request_type === 'read_state') return;
+    if (request.body.request_type === 'read_state') {
+      const paths = request.body.paths;
+      const path = paths[0];
+      if (request.endpoint !== Endpoint.ReadState || !lastUpdate || paths.length !== 1 || path?.length !== 2 ||
+        !matches(path[0], requestStatusLabel) || !matches(path[1], lastUpdate)) throw new AttemptError('wrong_destination');
+      return;
+    }
+    if (!(request.endpoint === Endpoint.Call && request.body.request_type === 'call') &&
+      !(request.endpoint === Endpoint.Query && request.body.request_type === 'query')) throw new AttemptError('wrong_destination');
     const requested = request.body.canister_id;
     if (!(requested instanceof Principal) || requested.toText() !== destination) {
       throw new AttemptError('wrong_destination');
@@ -82,8 +93,29 @@ export async function runSigningAttempt<T>(
     getPrincipal: () => { checkIdentity(); return Principal.fromText(caller); },
     transformRequest: async request => {
       await check(request);
-      const signed = await identity.transformRequest(request);
+      // Bind destination and path labels in the actual request passed to an async signer.
+      let input: SigningRequest;
+      let update: Uint8Array | undefined;
+      switch (request.endpoint) {
+        case Endpoint.Call:
+          if (request.body.request_type !== 'call') throw new AttemptError('wrong_destination');
+          input = { ...request, body: { ...request.body, canister_id: Principal.fromText(destination) } };
+          update = requestIdOf(input.body);
+          break;
+        case Endpoint.Query:
+          if (request.body.request_type !== 'query') throw new AttemptError('wrong_destination');
+          input = { ...request, body: { ...request.body, canister_id: Principal.fromText(destination) } };
+          break;
+        case Endpoint.ReadState:
+          if (!lastUpdate || request.body.request_type !== 'read_state') throw new AttemptError('wrong_destination');
+          input = { ...request, body: { ...request.body, paths: [[new Uint8Array(requestStatusLabel), new Uint8Array(lastUpdate)]] } };
+          break;
+        default:
+          throw new AttemptError('wrong_destination');
+      }
+      const signed = await identity.transformRequest(input);
       await check(request);
+      if (update) lastUpdate = update;
       return signed;
     },
   };

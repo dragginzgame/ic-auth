@@ -115,7 +115,7 @@ fn control(s: &mut State, command: Command) -> Result<Outcome, Refusal> {
     let context = VerificationContext {
         audience: &audience,
         grants: &grants,
-        issuer: Principal::from_slice(&[2; 10]),
+        issuer: Principal::from_slice(&crate::certified::ISSUER),
         mechanism: PortableMechanism::Certified,
         key_binding_id: hash("certificate_hash"),
         caller,
@@ -258,7 +258,7 @@ pub(super) fn measure(command: Command) -> Measurement {
         let instructions = runtime::raw::instruction_counter() - before;
         let after_heap = std::arch::wasm32::memory_size::<0>() as u64;
         let usage = s.receiver.usage((
-            Principal::from_slice(&[2; 10]),
+            Principal::from_slice(&crate::certified::ISSUER),
             Principal::from_slice(&[5; 10]),
         ));
         let response_bytes = ic_wire::encode(
@@ -302,7 +302,7 @@ fn grants() -> Vec<DelegatedRoleGrant> {
 fn credential(signature: Vec<u8>, der: Vec<u8>) -> Credential {
     let d = IssuerDelegation {
         root: Principal::from_slice(&[1; 10]),
-        issuer: Principal::from_slice(&[2; 10]),
+        issuer: Principal::from_slice(&crate::certified::ISSUER),
         binding_hash: hash("binding"),
         seed_hash: hash("seed_hash"),
         max_token_ttl_ns: 60 * SECOND,

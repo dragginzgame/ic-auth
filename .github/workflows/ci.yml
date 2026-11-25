@@ -95,6 +95,12 @@ jobs:
         run: |
           bash vendor/toko-tooling/scripts/ci/run-validation-targets.sh --fail-fast \
             test-product test-qualification
+      - name: Check focused Auth library test builds
+        if: runner.os == 'Linux'
+        run: |
+          for features in issuer-memory,ed25519-verification receiver-memory,ed25519-verification receiver-memory,certified-verification; do
+            cargo check --locked -p ic-auth --lib --tests --features "$features"
+          done
       - name: Prepare Wasm compiler target
         if: runner.os == 'Linux'
         run: perl scripts/ci/setup.pl rustup target add wasm32-unknown-unknown 2>&1 | tee "$RUNNER_TEMP/tools-rustup-wasm.log"

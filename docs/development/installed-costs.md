@@ -230,6 +230,14 @@ claims and root signature, using the established fixture generator's `--certifie
 to construct the network certificate. Signing is outside the Wasm interval; the
 Wasm fixture contains no BLS fixture signer.
 
+The multi-subnet `delegated_application_subnet_issuer` check uses the same
+receiver and independently signed claims. First admission took 457,662,024
+instructions with a PocketIC application-subnet delegation and 239,684,297 with
+the single-subnet fixture certificate in the same build. The additional
+217,977,727 instructions include verification of the subnet delegation. This
+measures fresh certified admission on these inputs. Browser calls and Ed25519
+admission follow separate paths.
+
 The measurement includes fixed proof-material reconstruction, complete root ECDSA
 and issuer BLS verification on valid fresh admission, and receiver bookkeeping.
 Requests carry only candidate certificate/witness bytes; fixed claims/delegation

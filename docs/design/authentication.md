@@ -44,7 +44,9 @@ invariant requires it. Do not reproduce the old module tree automatically.
 Canic owns application endpoint installation and dispatch using IC Wire. Auth's
 Wire package supplies contract schemas, fixed identities and resource allowances;
 it installs no endpoints. Canic supplies authenticated host inputs and transaction
-boundaries without becoming a dependency of the Auth crates.
+boundaries without becoming a dependency of the Auth crates. Canic receiver hosts
+own ingress throttling before fresh proof verification, periodic bounded pruning,
+and capacity for retained device slots. See the [receiver scheduling and sizing guidance](../development/memory-receiver-boundary.md#host-scheduling-and-sizing).
 
 ## Storage
 

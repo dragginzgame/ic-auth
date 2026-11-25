@@ -38,7 +38,7 @@ fn signature(key: &PrivateKey, digest: [u8; 32]) -> Vec<u8> {
         labeled(
             b"canister".to_vec(),
             labeled(
-                vec![2; 10],
+                fixture::ISSUER.to_vec(),
                 labeled(b"certified_data".to_vec(), leaf(witness.digest())),
             ),
         ),
@@ -51,6 +51,29 @@ fn signature(key: &PrivateKey, digest: [u8; 32]) -> Vec<u8> {
         delegation: None,
     };
     encode_canister_signature(&encode_certificate(&cert, 16384).unwrap(), &witness, 16384).unwrap()
+}
+
+pub(super) async fn install_receiver(
+    pic: &ic_testkit::pocket_ic::nonblocking::PocketIc,
+    wasm: Vec<u8>,
+    network: &[u8],
+) -> CanisterId {
+    let id = pic.create_canister().await;
+    pic.add_cycles(id, 5_000_000_000_000).await;
+    let init = ic_wire::encode(
+        &Installation {
+            authority: Vec::new(),
+            certified_network_key: network.to_vec(),
+            stable_auth: false,
+            receiver_capacity: None,
+        },
+        ic_wire::Encoding::Payload,
+        ic_auth_host_fixture::enrollment::LIMITS,
+    )
+    .unwrap();
+    assert!(init.len() <= 256);
+    pic.install_canister(id, wasm, init, None).await;
+    id
 }
 
 #[tokio::test]
@@ -68,21 +91,7 @@ async fn certified_receiver_cost_observations() {
     let mut scalar = [0; 32];
     scalar[31] = 1;
     let key = PrivateKey::deserialize(&scalar).unwrap();
-    let id = pic.create_canister().await;
-    pic.add_cycles(id, 5_000_000_000_000).await;
-    let init = ic_wire::encode(
-        &Installation {
-            authority: Vec::new(),
-            certified_network_key: key.public_key().serialize().to_vec(),
-            stable_auth: false,
-            receiver_capacity: None,
-        },
-        ic_wire::Encoding::Payload,
-        ic_auth_host_fixture::enrollment::LIMITS,
-    )
-    .unwrap();
-    assert!(init.len() <= 256);
-    pic.install_canister(id, wasm, init, None).await;
+    let id = install_receiver(pic, wasm, &key.public_key().serialize()).await;
     // Fill the initially empty work bucket and stay away from its next refill boundary.
     time(pic, 155).await;
     let caller = CanisterId::from_slice(&fixture::bytes("caller"));

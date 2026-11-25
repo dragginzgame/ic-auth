@@ -106,10 +106,15 @@ async fn renewal_witness_cost_observations() {
         (
             "wrong-browser-renewal",
             account,
-            Command::Renew,
+            Command::Renew(1),
             Err(Refusal::Denied),
         ),
-        ("prepare-approved-renewal", browser, Command::Renew, Ok(())),
+        (
+            "prepare-approved-renewal",
+            browser,
+            Command::Renew(1),
+            Ok(()),
+        ),
         (
             "complete-certified-renewal",
             account,

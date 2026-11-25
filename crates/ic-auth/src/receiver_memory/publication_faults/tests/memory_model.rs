@@ -185,7 +185,12 @@ impl Ledger {
                     && !self.denied(who, now)
                     && !self.consumed[fixture]
                     && self.consumed.iter().filter(|b| **b).count() < 2
-                    && device_allowed;
+                    && device_allowed
+                    && !(self
+                        .known
+                        .is_some_and(|k| k.who != who && k.denied && now < 100)
+                        && self.unknown[who].is_none()
+                        && self.unknown.iter().flatten().count() == 2);
                 if !eligible {
                     return Answer::Refused;
                 }
@@ -196,6 +201,9 @@ impl Ledger {
                 self.proof_charges += 1;
                 if !valid {
                     return Answer::Refused;
+                }
+                if let Some(k) = self.known.filter(|k| k.who != who && k.denied && now < 100) {
+                    self.unknown[k.who] = Some(100);
                 }
                 self.unknown[who] = None;
                 self.known = Some(Known {

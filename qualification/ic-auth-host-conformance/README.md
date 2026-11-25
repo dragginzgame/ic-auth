@@ -27,6 +27,25 @@ POCKET_IC_SERVER_URL=http://127.0.0.1:PORT \
 IC_AUTH_BROWSER_EXECUTABLE=/absolute/path/to/chromium make qualify-client-http
 ```
 
+The `enrollment::stable_auth_upgrade` filter exercises successful upgrades,
+rollback after a post-upgrade trap, and rejection by both Auth owners after
+an intervening Wasm module without upgrade hooks.
+
+The `delegated_application_subnet_issuer` case uses PocketIC server 16.0.0
+with an NNS and an application subnet. The first application canister certifies
+the witness root for the independent OpenSSL-signed `certified-installed.tsv`
+claims. Its query returns the replica certificate. The test checks the subnet ID
+and its witnessed `application` type, then admits a fresh signature and the
+frozen `tests/fixtures/delegated/issuer-signature.cbor` through separate installed
+receivers. The replay receiver trusts the captured `root.der`. Both use the
+fixture clock and independent application root delegation.
+
+The 288-byte qualification issuer was assembled from the adjacent `issuer.wat`
+with Binaryen 132 using `wasm-opt issuer.wat -o issuer.wasm`. To capture a new
+certificate and DER root, set `AUTH_DELEGATED_CAPTURE_DIR` to an existing scratch
+directory and run `make qualify-host HOST_TEST_FILTER=delegated_application_subnet_issuer`
+against the prepared server.
+
 The harness owns each Testkit instance and deletes it at completion; the caller
 owns the prepared server. PocketIC exposes a loopback gateway
 and advances real time. Host Process 0.80.2 owns the direct Node child, with a

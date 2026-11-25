@@ -300,18 +300,25 @@ export async function readinessCases({ check, a, b }) {
       const closed = await failure(authTest.signCall(saved, s.target));
       const next = await failure(s.coordinator.call(s.target, async () => {}));
       s.journal.close(); return [overflow, results.every(c => c === 'cancelled'), closed, next, attemptSignal.aborted, calls];
-    }), ['operation_limit', true, 'cancelled', 'cancelled', true, 64]);
+    }), ['operation_limit', true, 'cancelled', 'operation_limit', true, 64]);
   });
 
-  await check('stalled ordinary calls time out and cannot use their signer after capacity is released', async () => {
+  await check('timeouts fence signers while unfinished callbacks retain all 64 slots', async () => {
     assert.deepEqual(await a.evaluate(async () => {
-      const s = await readySetup('call-timeout'); let saved, attemptSignal, calls = 0;
-      const code = await failure(s.coordinator.call(s.target, async (identity, signal) => {
-        calls++; saved = identity; attemptSignal = signal; await new Promise(() => {});
-      }));
+      const s = await readySetup('call-timeout');
+      await s.coordinator.ensureSession(s.target);
+      let saved, resume, calls = 0;
+      const gate = new Promise(resolve => { resume = resolve; });
+      const work = Array.from({ length: 64 }, () => failure(s.coordinator.call(s.target, async identity => {
+        saved = identity; calls++; await gate;
+      })));
+      const codes = await Promise.all(work);
       const late = await failure(authTest.signCall(saved, s.target));
+      const overflow = await failure(s.coordinator.ensureSession(s.target));
+      resume();
+      await new Promise(resolve => setTimeout(resolve, 0));
       const next = await s.coordinator.call(s.target, async () => 7);
-      s.journal.close(); return [code, late, attemptSignal.aborted, calls, next, s.count.admit];
-    }), ['timeout', 'timeout', true, 1, 7, 1]);
+      s.journal.close(); return [codes.every(code => code === 'timeout'), late, overflow, calls, next];
+    }), [true, 'timeout', 'operation_limit', 64, 7]);
   });
 }

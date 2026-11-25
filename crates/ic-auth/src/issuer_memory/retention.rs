@@ -1,5 +1,5 @@
 //! Indexed, operation-first maintenance. No account/history scan or state clone.
-use super::{IssuerError, IssuerPruned, MemoryIssuer, expiry};
+use super::{IssuerError, IssuerPruned, MemoryIssuer, Phase, RenewalProgress, expiry};
 
 impl MemoryIssuer {
     /// Remove at most `min(budget, 32)` expired records. Operation expiry is the
@@ -70,11 +70,20 @@ impl MemoryIssuer {
                 super::after_write!();
             }
             let login = owner.logins.get_mut(&op.login).expect("referenced login");
+            match (&login.renewal, op.renewal, op.phase) {
+                (RenewalProgress::Initial, None, Phase::Dispatched(_)) => {
+                    login.renewal = RenewalProgress::InitialOutcomeUnknown;
+                }
+                (RenewalProgress::InFlight(current), Some(seq), _) if *current == seq => {
+                    login.renewal = RenewalProgress::PrunedRenewal(seq);
+                }
+                _ => {}
+            }
             login.references -= 1;
             super::after_write!();
             if login.references == 0 {
                 self.idle_logins
-                    .insert(expiry(login.deadline, key.2, op.login));
+                    .insert(expiry(login.idle_prune_at(), key.2, op.login));
                 super::after_write!();
             }
             self.usage.operations -= 1;

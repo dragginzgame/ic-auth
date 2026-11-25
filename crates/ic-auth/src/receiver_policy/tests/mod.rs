@@ -84,6 +84,7 @@ impl Scenario {
 
     fn session(&self) -> SessionFacts<'_> {
         SessionFacts {
+            #[cfg(feature = "receiver-memory")]
             ext: None,
             caller: caller(10),
             audience: Self::audience(),
