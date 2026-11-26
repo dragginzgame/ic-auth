@@ -2,7 +2,7 @@
 use super::{account, authority, config, lookup, policy, request};
 use ic_auth::issuer_memory::{
     CertifiedCompletionError as C, IssuedProof, IssuerAuthority, IssuerError as E, IssuerSigning,
-    IssuerStatus, IssuerTicket, MemoryIssuer, RenewRequest,
+    IssuerStatus, IssuerTicket, RenewRequest,
 };
 use std::panic::{AssertUnwindSafe, catch_unwind};
 
@@ -13,8 +13,8 @@ fn certified() -> IssuerAuthority {
     }
 }
 
-fn approved() -> (MemoryIssuer, IssuerTicket) {
-    let mut issuer = MemoryIssuer::new_fresh(config(), 0).unwrap();
+fn approved() -> (ic_auth::issuer_memory::StableIssuer, IssuerTicket) {
+    let mut issuer = super::fresh_issuer(config(), 0).unwrap();
     let t = issuer
         .prepare_issue(account(), &request(), policy(), certified(), 10)
         .unwrap();
@@ -31,7 +31,7 @@ fn certified_result_capacity_is_reserved_before_publication_and_retry_is_free() 
     for limit in [bytes - 1, bytes] {
         let mut cfg = config();
         cfg.max_result_bytes = limit;
-        let mut issuer = MemoryIssuer::new_fresh(cfg, 0).unwrap();
+        let mut issuer = super::fresh_issuer(cfg, 0).unwrap();
         let prepared = issuer.prepare_issue(account(), &request(), policy(), certified(), 10);
         if limit < bytes {
             assert_eq!(prepared, Err(E::Capacity));
@@ -117,7 +117,7 @@ fn protected_mechanism_cannot_cross_effect_paths() {
         Err(E::Invalid)
     );
     assert!(matches!(lookup(&issuer, t), IssuerStatus::Pending(_)));
-    let mut ed = MemoryIssuer::new_fresh(config(), 0).unwrap();
+    let mut ed = super::fresh_issuer(config(), 0).unwrap();
     let et = super::prepare(&mut ed);
     super::approve(&mut ed, et);
     assert_eq!(
@@ -188,7 +188,7 @@ fn every_prepublication_refusal_skips_the_host_effect() {
         assert_eq!(issuer.usage(), before);
     }
     // Neither retained intent nor a nonce is approval.
-    let mut issuer = MemoryIssuer::new_fresh(config(), 0).unwrap();
+    let mut issuer = super::fresh_issuer(config(), 0).unwrap();
     let t = issuer
         .prepare_issue(account(), &request(), policy(), certified(), 10)
         .unwrap();

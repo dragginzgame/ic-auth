@@ -238,7 +238,7 @@ checksum = "6ebaa1a2bf1290ab3bfe5a7b771d050ebffab2711c19a81691c683a5144a25de"
 dependencies = [
  "curve25519-dalek",
  "ed25519",
- "sha2 0.11.1",
+ "sha2 0.11.2",
  "subtle",
 ]
 
@@ -365,14 +365,14 @@ dependencies = [
 
 [[package]]
 name = "ic-auth"
-version = "0.50.0"
+version = "0.51.0"
 dependencies = [
  "ic-auth-protocol-types",
  "ic-platform",
  "ic-storage",
  "ic-wire",
  "serde",
- "sha2 0.11.1",
+ "sha2 0.11.2",
  "toko-tooling",
 ]
 
@@ -420,7 +420,7 @@ dependencies = [
  "k256",
  "serde",
  "serde_cbor",
- "sha2 0.11.1",
+ "sha2 0.11.2",
  "spki",
  "thiserror",
 ]
@@ -441,15 +441,15 @@ dependencies = [
  "data-encoding",
  "serde",
  "serde_bytes",
- "sha2 0.11.1",
+ "sha2 0.11.2",
  "thiserror",
 ]
 
 [[package]]
 name = "ic-storage"
-version = "0.80.0"
+version = "0.80.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3d4455ad252a635bf08c1a753d28bf98299751926b91c61bdec7a2bbded72a3a"
+checksum = "598e7b4093383b82777ed0a592841f8788bd737eae4c149a2dc3d7188deaccae"
 dependencies = [
  "ic-platform-runtime",
  "serde",
@@ -525,7 +525,7 @@ dependencies = [
  "ecdsa",
  "elliptic-curve",
  "primeorder",
- "sha2 0.11.1",
+ "sha2 0.11.2",
  "wnaf",
 ]
 
@@ -747,9 +747,9 @@ dependencies = [
 
 [[package]]
 name = "sha2"
-version = "0.11.1"
+version = "0.11.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "47d7069beb7d6ac7b9acd1039986e73443f24234f41074da099d6f994ac9ad19"
+checksum = "5b0e5c7d67bc53f435386b2130fdc900488c5703770f6d8a4633060e34288a27"
 dependencies = [
  "cfg-if",
  "cpufeatures 0.3.1",
@@ -825,9 +825,9 @@ dependencies = [
 
 [[package]]
 name = "toko-tooling"
-version = "0.46.4"
+version = "0.46.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d3889bff0f8ff6dc8c80b161c908f4b598125b55bf55f18146471f9ac3294cff"
+checksum = "038380e2f80a7301dee19c19e2afd38a0bfbbfc41b447a1c81178afc1de94bc7"
 
 [[package]]
 name = "typenum"

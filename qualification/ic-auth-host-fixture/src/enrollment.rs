@@ -45,6 +45,8 @@ pub enum Scenario {
     Reenable,
     /// Second fresh receipt under the same authority generation.
     SecondRefresh,
+    /// Original authority with an earlier snapshot expiry.
+    ShortFreshness,
 }
 
 ///

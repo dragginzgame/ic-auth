@@ -11,9 +11,12 @@ publish = false
 ignored = ["toko-tooling"]
 
 [features]
-issuer-memory = ["ic-auth/issuer-memory"]
-receiver-memory = ["ic-auth/receiver-memory"]
+issuer-stable = ["ic-auth/issuer-stable", "dep:ic-storage"]
+receiver-stable = ["ic-auth/receiver-stable", "dep:ic-storage"]
 ed25519-comparison = ["ic-auth/ed25519-verification"]
+
+[dependencies]
+ic-storage = { workspace = true, optional = true, features = ["test-support"] }
 
 [dev-dependencies]
 ic-auth = { workspace = true, features = ["certified-verification"] }

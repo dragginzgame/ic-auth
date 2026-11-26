@@ -9,11 +9,11 @@ stay in the product crates.
 
 ## Installed selection
 
-Toko Tooling **0.46.4** is selected by Cargo and installed through its authenticated
+Toko Tooling **0.46.5** is selected by Cargo and installed through its authenticated
 exporter. Cargo.lock and `.toko-tooling.snapshot` identify archive SHA-256
-`d3889bff0f8ff6dc8c80b161c908f4b598125b55bf55f18146471f9ac3294cff`.
+`038380e2f80a7301dee19c19e2afd38a0bfbbfc41b447a1c81178afc1de94bc7`.
 The release source is
-[`43258b7051cb6b1439e72aa63f35d12cc0d386e2`](https://github.com/dragginzgame/toko-tooling/tree/43258b7051cb6b1439e72aa63f35d12cc0d386e2).
+[`db352d6e5ac7f9822a82e820621de16838874093`](https://github.com/dragginzgame/toko-tooling/tree/db352d6e5ac7f9822a82e820621de16838874093).
 Do not hand-edit the receipt or installed vendor files.
 
 The executable selections are `make/consumer.mk`, `make/cargo-dependencies.mk`,
@@ -116,11 +116,11 @@ nine private fault/identity tests and one complete certified issuance fixture.
 Independent Node/OpenSSL claims, renewal identity frames and Platform BLS proofs
 check both proof mechanisms without a production signing service.
 For renewal-only runtime checks select
-`cargo test --locked -p ic-auth --features issuer-memory,ed25519-verification --test issuer_memory renewal`.
+`cargo test --locked -p ic-auth --features issuer-stable,ed25519-verification --test issuer_memory renewal`.
 For pruning-only API checks select
-`cargo test --locked -p ic-auth --features issuer-memory,ed25519-verification --test issuer_memory retention`.
+`cargo test --locked -p ic-auth --features issuer-stable,ed25519-verification --test issuer_memory retention`.
 For issuer-only feature compilation use
-`cargo check --locked -p ic-auth --features issuer-memory`; it does not
+`cargo check --locked -p ic-auth --features issuer-stable`; it does not
 enable the receiver or either verifier. It selects Wire/Serde for the preserved
 renewal operation hash and Platform Types for browser principal derivation.
 Native pruning checks cover the 32-record bound, reference counts, consumed-ID

@@ -72,6 +72,16 @@ pub struct SessionTtlPolicy {
     maximum_secs: u64,
 }
 
+impl Default for SessionTtlPolicy {
+    /// Fifteen-minute leases with a 30-minute request ceiling.
+    fn default() -> Self {
+        Self {
+            default_secs: 900,
+            maximum_secs: MAX_SESSION_SECONDS,
+        }
+    }
+}
+
 impl SessionTtlPolicy {
     /// Validate the host's default and maximum in seconds.
     pub fn new(default_secs: u64, maximum_secs: u64) -> Result<Self, SessionRequestError> {
@@ -112,7 +122,7 @@ pub struct SessionRequest {
 }
 
 impl SessionRequest {
-    #[cfg(feature = "receiver-memory")]
+    #[cfg(feature = "receiver-stable")]
     pub(crate) fn into_scopes(self) -> Vec<ScopeLabel> {
         self.scopes
     }
@@ -174,8 +184,8 @@ impl SessionRequest {
     /// Compute the requested deadline from a trusted host time and policy.
     ///
     /// Reject over-limit TTLs and overflow. The receiver must additionally cap
-    /// this deadline by login, key and enrollment deadlines; this method alone
-    /// cannot establish a usable session lease.
+    /// this deadline by login and authority expiry. Current enrollment is
+    /// independently required for using the session.
     pub fn expires_at_ns(
         &self,
         now_ns: u64,
@@ -197,7 +207,7 @@ impl SessionRequest {
     /// Grants must be bounded, strictly ordered and unique; they are never sorted.
     /// Other roles cannot supply missing scopes. The host owns `role`, time and
     /// TTL policy. Signature, fresh-claims aggregate bounds, current authority,
-    /// replay/revocation and login/key/enrollment lease caps remain separate.
+    /// replay, revocation, enrollment freshness and the login and authority lease caps remain separate.
     pub fn evaluate_grants(
         &self,
         grants: &[DelegatedRoleGrant],

@@ -5,27 +5,27 @@
 //! neither protocol operations nor verification authorize application operations.
 
 #[cfg(any(
-    feature = "issuer-memory",
+    feature = "issuer-stable",
     feature = "ed25519-verification",
     feature = "certified-verification"
 ))]
 mod browser_identity;
-#[cfg(any(feature = "issuer-memory", feature = "certified-issuer-verification"))]
+#[cfg(any(feature = "issuer-stable", feature = "certified-issuer-verification"))]
 mod certified_message;
 pub mod claims;
 pub mod delegation_encoding;
 mod grant_policy;
-#[cfg(any(feature = "receiver-memory", test))]
+#[cfg(any(feature = "receiver-stable", test))]
 mod receiver_policy;
 pub mod session_request;
 #[cfg(any(feature = "receiver-stable", feature = "issuer-stable"))]
 pub mod stable_upgrade;
 
-#[cfg(feature = "issuer-memory")]
+#[cfg(feature = "issuer-stable")]
 pub mod issuer_memory;
 
 #[cfg(all(
-    feature = "receiver-memory",
+    feature = "receiver-stable",
     any(feature = "ed25519-verification", feature = "certified-verification")
 ))]
 pub mod receiver_memory;
@@ -40,14 +40,14 @@ pub mod root_delegation;
 pub mod verification;
 
 #[cfg(any(
-    feature = "issuer-memory",
+    feature = "issuer-stable",
     feature = "ed25519-verification",
     feature = "certified-verification"
 ))]
 mod work_budget;
 
 #[cfg(all(
-    feature = "receiver-memory",
+    feature = "receiver-stable",
     not(any(feature = "ed25519-verification", feature = "certified-verification"))
 ))]
-compile_error!("receiver-memory requires ed25519-verification or certified-verification");
+compile_error!("receiver-stable requires ed25519-verification or certified-verification");

@@ -32,7 +32,7 @@ impl<'a> DecodedClaims<'a> {
             .get_or_init(|| Sha256::digest(self.encoded).into())
     }
 
-    #[cfg(all(feature = "receiver-memory", feature = "certified-verification"))]
+    #[cfg(all(feature = "receiver-stable", feature = "certified-verification"))]
     pub(super) fn encoded_len(&self) -> usize {
         self.encoded.len()
     }

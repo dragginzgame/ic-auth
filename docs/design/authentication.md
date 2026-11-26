@@ -50,8 +50,8 @@ and capacity for retained device slots. See the [receiver scheduling and sizing 
 
 ## Storage
 
-Hosts select volatile Auth or stable upgrade checkpoints independently for each
-receiver and issuer. Both use the same bounded state transitions between upgrades.
+Every receiver and issuer uses a dedicated stable upgrade checkpoint. Ordinary
+state transitions run on bounded heap indexes.
 See [checkpoint lifecycle and host obligations](DESIGN.md#stable-upgrade-checkpoints).
 
 Storage mechanism must not select different authentication policy. Share pure decisions where that
@@ -65,11 +65,6 @@ An ordinary `Err` can retain earlier writes.
 Clock observations and attempted-work charges preserve the existing refusal
 semantics. State loss does not reset replay/revocation evidence into authority.
 Bounded pruning and indexed lookup remain requirements, not optional optimization.
-
-Supporting volatile and stable storage does not require retaining the pre-recode
-custom commit-callback API. The authorized hard cut assumes no existing consumers
-need that API. New host boundaries must independently prove atomicity and recovery;
-no legacy implementation or compatibility graph is required for qualification.
 
 ## Browser-bound issuer logout
 
@@ -140,9 +135,8 @@ establish a new login or invalidate every predecessor credential. Even a newly
 signed credential can belong to an old login. Auth has no independent record
 of a cutover that covers them all.
 
-Selecting volatile storage makes complete state loss terminal for that installation.
-Hosts that need continuity across upgrades must select stable storage before the
-loss and retain the checkpoint. [Auth #6](https://github.com/dragginzgame/ic-auth/issues/6)
+Complete state loss is terminal for the existing installation. Hosts preserve
+continuity by sealing and reopening the stable checkpoint on each upgrade. [Auth #6](https://github.com/dragginzgame/ic-auth/issues/6)
 
 The [installed witness](../../qualification/ic-auth-host-conformance/README.md#complete-loss-recovery-witness)
 qualifies this decision for [Auth #4](https://github.com/dragginzgame/ic-auth/issues/4)

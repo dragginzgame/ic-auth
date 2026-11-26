@@ -1,6 +1,6 @@
 # Architecture
 
-Status: current volatile architecture, reviewed 17 November 2026. The receiver, issuer and browser owners below are implemented; the qualification sequence retains acceptance obligations, not a list of unimplemented features. See [current status](../status/current.md) for evidence and remaining consumer boundaries. This design does not authorize consumer cutover, data deletion, a new issuer service or a storage-format change.
+Status: stable checkpoint architecture. The receiver, issuer and browser owners below are implemented; the qualification sequence retains acceptance obligations, not a list of unimplemented features. See [current status](../status/current.md) for evidence and remaining consumer boundaries. This design does not authorize consumer cutover, data deletion, a new issuer service or a storage-format change.
 
 Current compatibility decision (16 November 2026, Auth #2): the maintainer
 authorized a hard cut from the pre-recode implementation and confirmed no existing
@@ -12,10 +12,10 @@ identities forever. No existing live data is migrated or deleted.
 
 ## 1 Decision
 
-Auth supports volatile owners and opt-in stable upgrade checkpoints. Both use the
-same bounded issuer and receiver operations and one authorization policy. The
-private browser coordinator owns browser admission and logout. The host selects
-the storage lifecycle independently for each owner.
+Every stateful Auth owner uses a stable upgrade checkpoint. The host selects the
+issuer and receiver roles independently and provides a dedicated lease for each.
+Ordinary operations use bounded heap indexes. The private browser coordinator
+owns browser admission and logout.
 
 The application flow remains:
 
@@ -59,7 +59,7 @@ These are inspected source contracts. Historical test and performance reports re
 | Host | Authenticated caller/time, enrollment, transaction isolation, lifecycle and certification root | Reimplementation of Auth transition rules |
 | Application | Account linking, eligibility, roles, resources and business effects | Treating a receipt as enduring authorization |
 
-Retain three public packages: `ic-auth-protocol-types`, `ic-auth-wire` and `ic-auth`. The `issuer-memory` and `receiver-memory` features own separate modules in `ic-auth`; the issuer builds without receiver/verifier features, and the receiver does not depend on issuer state. Signing custody remains host-owned. No fourth issuer package is justified by current consumers. Qualify standalone and feature-unified graphs.
+Retain three public packages: `ic-auth-protocol-types`, `ic-auth-wire` and `ic-auth`. The `issuer-stable` and `receiver-stable` features own separate modules in `ic-auth`; the issuer builds without receiver/verifier features, and the receiver does not depend on issuer state. Signing custody remains host-owned. No fourth issuer package is justified by current consumers. Qualify standalone and feature-unified graphs.
 
 Keep receiver implementations as modules behind explicit capabilities, not one package per table or operation. Future persistence mechanics stay backend-local; do not expose them through protocol types, shared Auth decisions or mandatory receiver API bounds. Platform supplies cryptographic primitives and canonical Principal identity. Keep metadata generation, Host, Build, Testkit and release tooling out of deployed receiver dependencies.
 
@@ -100,9 +100,9 @@ Sources: [signed protocol](https://github.com/dragginzgame/ic-auth-legacy/blob/e
 | Login / proof / session ceilings | 90 days / 60 seconds / 1,800 seconds; host may tighten |
 | Time | Checked u64 nanoseconds; exclusive deadlines; no positive grace |
 
-Fresh claims require login_start ≤ issued_at ≤ now < admission_expiry ≤ login_deadline, with all original duration and enrollment checks. A session lease is capped by requested/protected TTL, login deadline, key validity and the captured enrollment freshness deadline.
+Fresh claims require login_start ≤ issued_at ≤ now < admission_expiry ≤ login_deadline, with all original duration and enrollment checks. A session lease is capped by requested/protected TTL, the login deadline and issuer authority expiry. Current enrollment freshness and generation are checked independently at admission and authorization.
 
-Proof expiry stops fresh admission, not an already live session. Fresh enrollment cannot extend a stored lease. NotYetValid is a refusal/retry hint, never evidence of validity. No safety-critical finite clock-skew bound is assumed.
+Proof expiry stops fresh admission. Enrollment expiry suspends authorization. A same-generation refresh restores access for an otherwise live session through its original deadline. NotYetValid is a refusal/retry hint, never evidence of validity. No safety-critical finite clock-skew bound is assumed.
 
 Completed issuer evidence retains its original accepted structural recovery rules. Do not turn the newer fresh-grant ceiling into permission to discard already completed results.
 
@@ -232,14 +232,14 @@ Physical expired rows count until explicit pruning. Replay quota belongs to the 
 
 Pruning cannot erase consumed operation watermarks, live replay, unexpired denial or known device generations. Empty inspection pages may still advance their exclusive cursor; callers must not loop internally until a full page appears.
 
-Issuer transitions also need bounded memory and stable implementations under the same intent/recovery contract; volatile loss follows the closed recovery rules, not an automatic fresh start.
+Issuer transitions retain bounded heap state between upgrades. A missing checkpoint follows the closed recovery rules.
 
 ### Stable upgrade checkpoints
 
 Select `receiver-stable` with a verifier or `issuer-stable` independently.
-`StableReceiver` and `StableIssuer` store one v3 checkpoint each in an exclusive
+`StableReceiver` and `StableIssuer` store separate v1 checkpoints in an exclusive
 named `ic_storage::RuntimeMemory` lease. Ordinary operations on `state()` use
-the same indexed records, policy and IC message transaction as volatile mode.
+the indexed heap records and the host’s IC message transaction.
 
 1. On a genuinely fresh installation, call `new_fresh(lease, config, now_ns)`
    and perform normal enrollment. Creation requires a zero-page allocation.
@@ -263,9 +263,8 @@ the same indexed records, policy and IC message transaction as volatile mode.
 Read `ic0.canister_version` separately inside each upgrade hook. Seal binds the
 checkpoint digest to the next version using checked addition. Reopen uses the
 actual post-upgrade version. An intervening install fences both owners even if
-its module never calls Auth. Any version gap refuses the upgrade. Old v1/v2
-images cannot establish adjacency and are refused. Use `new_fresh` only during
-a genuinely fresh install. A missing image in post-upgrade must leave Auth closed.
+its module never calls Auth. Any version gap refuses the upgrade. Pre-cut
+checkpoint images are refused. Use `new_fresh` only during a genuinely fresh install. A missing image in post-upgrade must leave Auth closed.
 
 Sealing also commits the issuer's per-login renewal states and the receiver's
 caller/fingerprint/application-extension associations before encoding. Each owner
@@ -273,10 +272,13 @@ adds one 32-byte commitment to its payload. Reopen verifies those commitments
 during record validation, checks issuer operation deadlines, renewal indexes and
 unique login generations, and remeasures each receiver session. These checks
 detect disagreement between independently stored fields under exclusive host custody.
-Each v3 payload is limited to 8 MiB, 8,388,608 Wire visits, depth 64 and a
-256 MiB Wire allocation allowance. These limits are independent of the ordinary
-Auth quotas. Size the canister's configured workload for the upgrade instruction
-and heap budgets as well as these limits. Overflow refuses the upgrade.
+The issuer uses an 8 MiB image. The receiver uses a 64 MiB image with up to 256
+caller or replay rows per Wire frame. It stores the authoritative rows and
+rebuilds the slot, expiry and account indexes during reopen. The receiver checks
+configuration against the image ceiling, reserving for caller rows and framing
+on top of the session and replay budget. It recomputes row charges on reopen. Independent chunk
+limits bound Wire traversal and allocation admission. Qualify the expected
+workload against the whole upgrade's instructions, heap use and encoded size.
 The digest detects accidental corruption under exclusive host custody. Hosts
 must also protect against restoring an obsolete whole-canister backup.
 
@@ -337,7 +339,7 @@ authorizes an additional effect. Closing lost state is containment, not recovery
 
 Initial issue and authenticated renewal enter the same operation owner after
 their distinct caller/binding checks. They do not create separate pending-result
-stores. Checkpoint v3 has explicit reopen and incompatible-format refusal;
+stores. The issuer checkpoint has explicit reopen and incompatible-format refusal;
 current consumers and helper APIs are qualified at their actual boundaries.
 The first implementation must exercise exact retries, conflicting callbacks,
 capacity refusal before dispatch, authority/epoch changes and response loss using

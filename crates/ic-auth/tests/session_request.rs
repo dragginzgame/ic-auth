@@ -87,6 +87,10 @@ fn protected_policy_admits_bounds_before_deadline_arithmetic() {
             Err(InvalidLifetime)
         );
     }
+    assert_eq!(
+        SessionTtlPolicy::default(),
+        SessionTtlPolicy::new(900, 1800).unwrap()
+    );
     let policy = SessionTtlPolicy::new(30, 1800).unwrap();
     assert_eq!(policy.default_secs(), 30);
     assert_eq!(policy.maximum_secs(), 1800);

@@ -1,15 +1,14 @@
-//! Bounded volatile issuance, browser renewal and exact-result reconciliation.
+//! Heap-backed issuance, browser renewal and exact-result reconciliation.
 //!
 //! Account authentication, trusted time/authority, entropy, approval and signing
-//! are host inputs. No endpoint, signing key, executor or persistence is installed.
+//! are host inputs. Upgrades use a checkpoint on a host-provided lease.
 //! The host owns certified leaf/root publication and witness assembly. Expired records remain
 //! charged until explicit bounded pruning; capacity refusal never deletes them.
 //!
 //! A host must commit dispatch before an external effect, authenticate its response
 //! against the exact ticket/input, and own transaction rollback. A native unwind
-//! during multi-record publication closes the instance. Loss of this volatile
-//! state requires disabling old bindings and fresh account authentication/browser
-//! keys; constructing another instance is not recovery of unresolved effects.
+//! during multi-record publication closes the instance. A missing checkpoint
+//! leaves the prior installation closed.
 
 #[cfg(feature = "issuer-stable")]
 mod checkpoint;
@@ -284,7 +283,7 @@ pub struct MemoryIssuer {
 impl MemoryIssuer {
     /// Create genuinely new state with full initial fresh-intent credit.
     /// This cannot restore old login, nonce, result or external-effect evidence.
-    pub fn new_fresh(config: IssuerConfig, now_ns: u64) -> Result<Self, IssuerError> {
+    pub(crate) fn new_fresh(config: IssuerConfig, now_ns: u64) -> Result<Self, IssuerError> {
         if config.issuer == Principal::anonymous()
             || config.max_logins == 0
             || config.max_operations == 0

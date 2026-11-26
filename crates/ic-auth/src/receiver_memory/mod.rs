@@ -1,4 +1,4 @@
-//! Bounded volatile receiver with synchronous admission and retained safety state.
+//! Heap-backed receiver with synchronous admission and stable upgrade checkpoints.
 //!
 //! Host inputs must come from one isolated transaction. This module neither
 //! authenticates enrollment nor installs endpoints. Fresh activation is only for
@@ -98,23 +98,23 @@ pub struct MemoryConfig {
 }
 
 impl MemoryConfig {
-    /// Starting limits for a fresh volatile receiver in the supplied audience and enrollment.
+    /// Starting limits for a fresh receiver in the supplied audience and enrollment.
     ///
-    /// Allows 8 device slots per account, a 300-second maximum original login
-    /// lifetime and 1,024 known logins. Up to 1,024 sessions and 4,096 replay
-    /// records (16 per account) share 4 MiB of logical encoded record capacity.
+    /// Allows 8 device slots per account, a one-hour maximum original login
+    /// lifetime and 65,536 known device slots. Up to 20,000 sessions and 80,000 replay
+    /// records (16 per account) share 32 MiB of logical encoded record capacity.
     /// Capacity refusal preserves live records. The host supplies the separate
     /// session TTL, verifier, eligibility and permission policy on admission.
     ///
-    /// Proof verification starts with zero credit, earns one unit per second up
-    /// to 64, and charges 2 units for Ed25519 or 3 for certified proofs. Unknown
-    /// logout has a separate initially empty 64-unit bucket at the same rate.
+    /// Proof verification starts empty and earns one unit every two milliseconds
+    /// up to 720. Ed25519 costs two units and certified proofs cost 360. Unknown
+    /// logout has a separate initially empty 64-unit bucket, refilling once per second.
     /// Each new unknown denial costs one unit and occupies one of 64 rows for
     /// up to the login lifetime. Exhausted proof credit refuses verification;
     /// unknown logout returns a capacity refusal when credit or space runs out.
     ///
     /// Override individual public fields before passing this configuration to
-    /// [`MemoryReceiver::new_fresh`], which validates it. Enrollment is still
+    /// [`StableReceiver::new_fresh`], which validates it. Enrollment is still
     /// required before admission. Complete volatile state loss is terminal.
     #[must_use]
     pub const fn starting_profile(audience: AudienceId, enrollment: EnrollmentBinding) -> Self {
@@ -124,20 +124,20 @@ impl MemoryConfig {
             enrollment,
             login: LoginLimits {
                 max_device_slots: 8,
-                max_login_ttl_ns: 300 * SECOND_NS,
-                max_admitted_logins: 1024,
+                max_login_ttl_ns: 3_600 * SECOND_NS,
+                max_admitted_logins: 65_536,
             },
             capacity: SessionCapacity {
-                max_sessions: 1024,
-                max_replays: 4096,
+                max_sessions: 20_000,
+                max_replays: 80_000,
                 max_replays_per_account: 16,
-                max_encoded_bytes: 4 * 1024 * 1024,
+                max_encoded_bytes: 32 * 1024 * 1024,
             },
-            verification_capacity: 64,
-            refill_interval_ns: SECOND_NS,
+            verification_capacity: 720,
+            refill_interval_ns: 2_000_000,
             verification_costs: VerificationCosts {
                 ed25519: 2,
-                certified: 3,
+                certified: 360,
             },
             unknown_logout: UnknownLogoutLimits {
                 max_denials: 64,
@@ -337,7 +337,7 @@ pub struct MemoryReceiver {
 impl MemoryReceiver {
     /// Create closed, empty state for a genuinely new receiver; work starts empty.
     /// This is not a recovery API for a receiver whose replay/fence state was lost.
-    pub fn new_fresh(config: MemoryConfig, now_ns: u64) -> Result<Self, MemoryError> {
+    pub(crate) fn new_fresh(config: MemoryConfig, now_ns: u64) -> Result<Self, MemoryError> {
         config.login.validate()?;
         config.capacity.validate()?;
         if config.unknown_logout.max_denials == 0 {
@@ -536,8 +536,7 @@ impl MemoryReceiver {
             .evaluate_grants(&claims.grants, host.role, authority.now_ns, host.ttl)
             .map_err(MemoryError::Request)?
             .min(claims.login_deadline_ns)
-            .min(authority.expires_at_ns)
-            .min(authority.enrollment_expires_at_ns);
+            .min(authority.expires_at_ns);
         let binding = LoginBinding {
             issuer: claims.issuer,
             subject: claims.account_subject,
@@ -587,19 +586,10 @@ impl MemoryReceiver {
             .callers
             .get(&displaced)
             .and_then(|r| r.session.as_ref());
-        let session = Session::prepare(
-            claims,
-            &request,
-            &authority,
-            binding,
-            expires_at_ns,
-            fingerprint,
-        )?;
+        let session = Session::prepare(claims, request, &authority, expires_at_ns, fingerprint)?;
         let replay = Replay::prepare(
-            fingerprint,
-            authority.caller,
-            binding,
-            self.generation,
+            &fingerprint,
+            (binding.issuer, binding.subject),
             claims.admission_expires_at_ns,
         )?;
         let usage = policy::assess_capacity(
@@ -632,7 +622,6 @@ impl MemoryReceiver {
             binding,
             until_ns,
             session,
-            request.into_scopes(),
         );
         // No fallible return after this point. Poison before any map allocation,
         // so even a caught panic cannot expose a partially published receiver.

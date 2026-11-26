@@ -64,7 +64,7 @@ pub(super) async fn install_receiver(
         &Installation {
             authority: Vec::new(),
             certified_network_key: network.to_vec(),
-            stable_auth: false,
+            skip_auth_checkpoint: false,
             receiver_capacity: None,
         },
         ic_wire::Encoding::Payload,

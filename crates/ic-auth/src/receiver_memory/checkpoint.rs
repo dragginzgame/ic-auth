@@ -4,12 +4,45 @@ use super::{
     Account, BTreeMap, BTreeSet, CallerRecord, Lifecycle, MemoryConfig, MemoryReceiver, Principal,
     Replay, Slot, VerificationBudget, WorkBucket, enrollment, policy,
 };
-use crate::stable_upgrade::{Checkpoint, UpgradeError};
+use crate::stable_upgrade::{Checkpoint, DIGEST_BYTES, UpgradeError};
 use ic_storage::{DefaultMemoryImpl, Memory, RuntimeMemory};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-const CHECKPOINT_DOMAIN: &[u8] = b"ic-auth.receiver.v3";
+const MAX_PAYLOAD: usize = 64 * 1024 * 1024;
+const CHUNK_ROWS: usize = 256;
+const CHUNK_LIMITS: ic_wire::Limits = ic_wire::Limits {
+    bytes: 2 * 1024 * 1024,
+    allocation: 64 * 1024 * 1024,
+    nodes: 2 * 1024 * 1024,
+    depth: 64,
+};
+const CHECKPOINT_DOMAIN: &[u8] = b"ic-auth.checkpoint.receiver.v1";
+
+// Bound the caller key, retained login fields and session option tag, including
+// worst-case principal lengths and varints. Session and replay bodies are
+// accounted using their exact checkpoint encoding.
+const CALLER_OVERHEAD: usize = 256;
+const CHUNK_OVERHEAD: usize = 8;
+const HEADER_ALLOWANCE: usize = 4096;
+
+fn validate_checkpoint_budget(config: MemoryConfig) -> Result<(), UpgradeError> {
+    let callers = config
+        .login
+        .max_admitted_logins
+        .saturating_add(config.unknown_logout.max_denials);
+    let chunks = callers
+        .div_ceil(CHUNK_ROWS)
+        .saturating_add(config.capacity.max_replays.div_ceil(CHUNK_ROWS));
+    let maximum = HEADER_ALLOWANCE
+        .saturating_add(callers.saturating_mul(CALLER_OVERHEAD))
+        .saturating_add(chunks.saturating_mul(CHUNK_OVERHEAD))
+        .saturating_add(config.capacity.max_encoded_bytes);
+    if maximum > MAX_PAYLOAD {
+        return Err(UpgradeError::Configuration);
+    }
+    Ok(())
+}
 
 ///
 /// Fields
@@ -29,12 +62,19 @@ struct Fields {
     budget: VerificationBudget,
     unknown_budget: WorkBucket,
     unknown: usize,
+    #[serde(skip)]
     unknown_expiry: BTreeSet<(u64, Principal)>,
+    #[serde(skip)]
     callers: BTreeMap<Principal, CallerRecord>,
+    #[serde(skip)]
     slots: BTreeMap<Slot, Principal>,
+    #[serde(skip)]
     replays: BTreeMap<[u8; 32], Replay>,
+    #[serde(skip)]
     accounts: BTreeMap<Account, usize>,
+    #[serde(skip)]
     session_expiry: BTreeSet<(u64, Principal)>,
+    #[serde(skip)]
     replay_expiry: BTreeSet<(u64, [u8; 32])>,
     sessions: usize,
     encoded_bytes: usize,
@@ -58,6 +98,87 @@ struct SavedRef<'a>(#[serde(with = "Fields")] &'a MemoryReceiver);
 #[derive(Deserialize)]
 struct Saved(#[serde(with = "Fields")] MemoryReceiver);
 
+// Persist authoritative rows in bounded, ordered chunks. Derived indexes are
+// restored from the same rows, and a single outer digest commits all chunks.
+fn write_chunk<T: Serialize + ?Sized>(out: &mut Vec<u8>, value: &T) -> Result<(), UpgradeError> {
+    let bytes = ic_wire::encode(value, ic_wire::Encoding::Payload, CHUNK_LIMITS)
+        .map_err(|_| UpgradeError::Capacity)?;
+    if out.len() + 4 + bytes.len() > DIGEST_BYTES + MAX_PAYLOAD {
+        return Err(UpgradeError::Capacity);
+    }
+    out.extend_from_slice(&(bytes.len() as u32).to_le_bytes());
+    out.extend_from_slice(&bytes);
+    Ok(())
+}
+
+fn read_u32(bytes: &mut &[u8]) -> Result<usize, UpgradeError> {
+    let (value, rest) = bytes
+        .split_first_chunk::<4>()
+        .ok_or(UpgradeError::InvalidCheckpoint)?;
+    *bytes = rest;
+    Ok(u32::from_le_bytes(*value) as usize)
+}
+
+fn read_chunk<T: serde::de::DeserializeOwned>(bytes: &mut &[u8]) -> Result<T, UpgradeError> {
+    let len = read_u32(bytes)?;
+    let (chunk, rest) = bytes
+        .split_at_checked(len)
+        .ok_or(UpgradeError::InvalidCheckpoint)?;
+    *bytes = rest;
+    ic_wire::decode(chunk, ic_wire::Encoding::Payload, CHUNK_LIMITS)
+        .map_err(|_| UpgradeError::InvalidCheckpoint)
+}
+
+fn write_rows<K: Serialize, V: Serialize>(
+    out: &mut Vec<u8>,
+    rows: &BTreeMap<K, V>,
+) -> Result<(), UpgradeError> {
+    let count = u32::try_from(rows.len()).map_err(|_| UpgradeError::Capacity)?;
+    if out.len() + 4 > DIGEST_BYTES + MAX_PAYLOAD {
+        return Err(UpgradeError::Capacity);
+    }
+    out.extend_from_slice(&count.to_le_bytes());
+    let mut chunk = Vec::with_capacity(CHUNK_ROWS);
+    for row in rows {
+        chunk.push(row);
+        if chunk.len() == CHUNK_ROWS {
+            write_chunk(out, chunk.as_slice())?;
+            chunk.clear();
+        }
+    }
+    if !chunk.is_empty() {
+        write_chunk(out, chunk.as_slice())?;
+    }
+    Ok(())
+}
+
+fn read_rows<K: Ord + serde::de::DeserializeOwned, V: serde::de::DeserializeOwned>(
+    bytes: &mut &[u8],
+    maximum: usize,
+) -> Result<BTreeMap<K, V>, UpgradeError> {
+    let count = read_u32(bytes)?;
+    if count > maximum {
+        return Err(UpgradeError::InvalidCheckpoint);
+    }
+    let mut rows = BTreeMap::new();
+    while rows.len() < count {
+        let chunk: ic_wire::List<(K, V), CHUNK_ROWS> = read_chunk(bytes)?;
+        if chunk.as_slice().len() != (count - rows.len()).min(CHUNK_ROWS) {
+            return Err(UpgradeError::InvalidCheckpoint);
+        }
+        for (key, value) in chunk.into_vec() {
+            if rows
+                .last_key_value()
+                .is_some_and(|(previous, _)| previous >= &key)
+            {
+                return Err(UpgradeError::InvalidCheckpoint);
+            }
+            rows.insert(key, value);
+        }
+    }
+    Ok(rows)
+}
+
 ///
 /// StableReceiver
 ///
@@ -67,7 +188,7 @@ struct Saved(#[serde(with = "Fields")] MemoryReceiver);
 
 pub struct StableReceiver<M: Memory = DefaultMemoryImpl> {
     inner: MemoryReceiver,
-    checkpoint: Checkpoint<M>,
+    checkpoint: Checkpoint<M, MAX_PAYLOAD>,
 }
 
 impl<M: Memory> StableReceiver<M> {
@@ -77,6 +198,7 @@ impl<M: Memory> StableReceiver<M> {
         config: MemoryConfig,
         now_ns: u64,
     ) -> Result<Self, UpgradeError> {
+        validate_checkpoint_budget(config)?;
         let inner =
             MemoryReceiver::new_fresh(config, now_ns).map_err(|_| UpgradeError::Configuration)?;
 
@@ -96,16 +218,28 @@ impl<M: Memory> StableReceiver<M> {
         now_ns: u64,
         canister_version: u64,
     ) -> Result<Self, UpgradeError> {
+        validate_checkpoint_budget(config)?;
         let mut checkpoint = Checkpoint::load(memory)?;
-        let (Saved(mut inner), commitment): (Saved, [u8; 32]) =
-            Checkpoint::<M>::decode(checkpoint.payload(CHECKPOINT_DOMAIN, canister_version)?)?;
+        let mut payload = checkpoint.payload(CHECKPOINT_DOMAIN, canister_version)?;
+        let (Saved(mut inner), commitment): (Saved, [u8; 32]) = read_chunk(&mut payload)?;
         if inner.config != config {
             return Err(UpgradeError::Configuration);
+        }
+        inner.callers = read_rows(
+            &mut payload,
+            config
+                .login
+                .max_admitted_logins
+                .saturating_add(config.unknown_logout.max_denials),
+        )?;
+        inner.replays = read_rows(&mut payload, config.capacity.max_replays)?;
+        if !payload.is_empty() {
+            return Err(UpgradeError::InvalidCheckpoint);
         }
         if inner.lifecycle == Lifecycle::Closed {
             return Err(UpgradeError::Lifecycle);
         }
-        if inner.validate_checkpoint()? != commitment {
+        if inner.rebuild_checkpoint_indexes()? != commitment {
             return Err(UpgradeError::InvalidCheckpoint);
         }
         inner.observe(now_ns).map_err(|_| UpgradeError::Lifecycle)?;
@@ -118,17 +252,21 @@ impl<M: Memory> StableReceiver<M> {
 
     /// Save in the host's pre-upgrade transaction. Success closes the running
     /// instance. Supply the trusted canister version from the pre-upgrade hook.
-    /// The encoded checkpoint is limited to 8 MiB. On error the host
+    /// The encoded checkpoint is limited to 64 MiB. On error the host
     /// must abort the upgrade, retaining the heap.
     pub fn seal(&mut self, canister_version: u64) -> Result<(), UpgradeError> {
         if self.inner.lifecycle == Lifecycle::Closed {
             return Err(UpgradeError::Lifecycle);
         }
-        self.checkpoint.save(
-            CHECKPOINT_DOMAIN,
-            canister_version,
+        let mut image = vec![0; DIGEST_BYTES];
+        write_chunk(
+            &mut image,
             &(SavedRef(&self.inner), self.inner.extension_digest()),
         )?;
+        write_rows(&mut image, &self.inner.callers)?;
+        write_rows(&mut image, &self.inner.replays)?;
+        self.checkpoint
+            .save_image(CHECKPOINT_DOMAIN, canister_version, image)?;
         self.inner.close();
 
         Ok(())
@@ -136,6 +274,20 @@ impl<M: Memory> StableReceiver<M> {
 
     /// Access the current Auth instance under the host transaction.
     pub fn state(&mut self) -> &mut MemoryReceiver {
+        &mut self.inner
+    }
+}
+
+impl<M: Memory> std::ops::Deref for StableReceiver<M> {
+    type Target = MemoryReceiver;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+impl<M: Memory> std::ops::DerefMut for StableReceiver<M> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.inner
     }
 }
@@ -170,18 +322,18 @@ impl MemoryReceiver {
         digest.finalize().into()
     }
 
-    fn validate_checkpoint(&self) -> Result<[u8; 32], UpgradeError> {
+    fn rebuild_checkpoint_indexes(&mut self) -> Result<[u8; 32], UpgradeError> {
         let bad = UpgradeError::InvalidCheckpoint;
         let cfg = self.config;
         if !self
             .enrollment
             .matches(cfg.enrollment, cfg.audience, self.generation)
-            || self.sessions != self.session_expiry.len()
-            || self.replays.len() != self.replay_expiry.len()
-            || self.unknown != self.unknown_expiry.len()
             || self.unknown > cfg.unknown_logout.max_denials
-            || self.callers.len().checked_sub(self.unknown) != Some(self.slots.len())
-            || self.slots.len() > cfg.login.max_admitted_logins
+            || self
+                .callers
+                .len()
+                .checked_sub(self.unknown)
+                .is_none_or(|known| known > cfg.login.max_admitted_logins)
             || self.sessions > cfg.capacity.max_sessions
             || self.replays.len() > cfg.capacity.max_replays
             || self.encoded_bytes > cfg.capacity.max_encoded_bytes
@@ -203,64 +355,99 @@ impl MemoryReceiver {
         let mut bytes = 0usize;
         let mut sessions = 0;
         let mut unknown = 0;
-        for (caller, row) in &self.callers {
+        for (caller, row) in &mut self.callers {
             policy::check_record(&row.login, cfg.audience).map_err(|_| bad)?;
             if caller != &row.login.caller {
                 return Err(bad);
             }
             match row.slot() {
-                Some(slot)
-                    if self.slots.get(&slot) == Some(caller)
-                        && slot.2 < cfg.login.max_device_slots => {}
-                None if row.session.is_none()
-                    && self.unknown_expiry.contains(&(row.login.until_ns, *caller)) =>
-                {
-                    unknown += 1
+                Some(slot) if slot.2 < cfg.login.max_device_slots => {
+                    if self.slots.insert(slot, *caller).is_some() {
+                        return Err(bad);
+                    }
+                }
+                None if row.session.is_none() => {
+                    self.unknown_expiry.insert((row.login.until_ns, *caller));
+                    unknown += 1;
                 }
                 _ => return Err(bad),
             }
-            if let Some(s) = &row.session {
-                if row.login.denied || !self.session_expiry.contains(&(s.expires_at_ns, *caller)) {
+            if row.session.is_some() {
+                if row.login.denied {
                     return Err(bad);
                 }
                 let facts = row.session_facts().ok_or(bad)?;
                 policy::check_session_shape(&facts).map_err(|_| bad)?;
-                if s.logical_bytes(*caller, facts.audience, facts.login, facts.scopes)
-                    .map_err(|_| bad)?
-                    != s.bytes
-                    || facts.established_at_ns > self.observed_at_ns
+                if facts.established_at_ns > self.observed_at_ns
                     || facts.authority_generation > self.generation
                 {
                     return Err(bad);
                 }
-                bytes = bytes.checked_add(s.bytes).ok_or(bad)?;
                 hash_extension(&mut digest, &facts);
+                let session = row.session.as_mut().ok_or(bad)?;
+                session.bytes = session.encoded_size().map_err(|_| bad)?;
+                bytes = bytes.checked_add(session.bytes).ok_or(bad)?;
+                self.session_expiry.insert((session.expires_at_ns, *caller));
                 sessions += 1;
             }
         }
-        let mut accounts = BTreeMap::new();
-        for (fingerprint, replay) in &self.replays {
-            if !self
-                .replay_expiry
-                .contains(&(replay.remove_at_ns, *fingerprint))
-                || !(1..=512).contains(&replay.bytes)
-            {
-                return Err(bad);
-            }
+        for (fingerprint, replay) in &mut self.replays {
+            replay.bytes = replay.encoded_size(fingerprint).map_err(|_| bad)?;
             bytes = bytes.checked_add(replay.bytes).ok_or(bad)?;
-            let count = accounts.entry(replay.account).or_insert(0usize);
+            self.replay_expiry
+                .insert((replay.remove_at_ns, *fingerprint));
+            let count = self.accounts.entry(replay.account).or_insert(0usize);
             *count += 1;
             if *count > cfg.capacity.max_replays_per_account {
                 return Err(bad);
             }
         }
-        if accounts != self.accounts
-            || bytes != self.encoded_bytes
-            || sessions != self.sessions
-            || unknown != self.unknown
-        {
+        if bytes != self.encoded_bytes || sessions != self.sessions || unknown != self.unknown {
             return Err(bad);
         }
         Ok(digest.finalize().into())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ic_auth_protocol_types::CanonicalId;
+
+    #[test]
+    fn checkpoint_budget_accounts_for_dormant_slots_and_chunk_framing() {
+        let mut config = MemoryConfig::starting_profile(
+            ic_auth_protocol_types::AudienceId {
+                canonical_network_id: CanonicalId::from_bytes([1; 32]),
+                fleet_id: CanonicalId::from_bytes([2; 32]),
+            },
+            super::super::EnrollmentBinding {
+                receiver: Principal::from_slice(&[10]),
+                authority: Principal::from_slice(&[11]),
+            },
+        );
+        assert_eq!(validate_checkpoint_budget(config), Ok(()));
+
+        // 65,600 caller entries require 257 chunks. 80,000 replays need 313.
+        let overhead = 4096 + 65_600 * 256 + (257 + 313) * 8;
+        config.capacity.max_encoded_bytes = 64 * 1024 * 1024 - overhead;
+        assert_eq!(validate_checkpoint_budget(config), Ok(()));
+        config.capacity.max_encoded_bytes += 1;
+        assert_eq!(
+            validate_checkpoint_budget(config),
+            Err(UpgradeError::Configuration)
+        );
+        config.capacity.max_encoded_bytes -= 1;
+        config.login.max_admitted_logins += 1;
+        assert_eq!(
+            validate_checkpoint_budget(config),
+            Err(UpgradeError::Configuration)
+        );
+        config.capacity.max_encoded_bytes = 1;
+        config.login.max_admitted_logins = usize::MAX;
+        assert_eq!(
+            validate_checkpoint_budget(config),
+            Err(UpgradeError::Configuration)
+        );
     }
 }

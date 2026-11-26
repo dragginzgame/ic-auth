@@ -7,8 +7,7 @@ use crate::{
 };
 use ic_auth::issuer_memory::{
     CertifiedCompletionError, IssueRequest, IssuerAuthority, IssuerConfig, IssuerError,
-    IssuerPolicy, IssuerSigning, IssuerStatus, IssuerTicket, MemoryIssuer, RenewRequest,
-    StableIssuer,
+    IssuerPolicy, IssuerSigning, IssuerStatus, IssuerTicket, RenewRequest, StableIssuer,
 };
 use ic_auth_protocol_types::{AudienceId, CanonicalId, DelegatedRoleGrant, Principal};
 use ic_platform::certificate::construction::{
@@ -17,40 +16,7 @@ use ic_platform::certificate::construction::{
 use ic_platform_runtime::{self as runtime, system as api};
 use ic_storage::{DefaultMemoryImpl, RuntimeMemory};
 use serde::{Deserialize, Serialize};
-use std::{
-    cell::RefCell,
-    ops::{Deref, DerefMut},
-};
-
-///
-/// Backend
-///
-/// Selects the volatile or stable Auth state used by the installed fixture.
-///
-
-enum Backend {
-    Volatile(MemoryIssuer),
-    Stable(StableIssuer),
-}
-
-impl Deref for Backend {
-    type Target = MemoryIssuer;
-    fn deref(&self) -> &MemoryIssuer {
-        match self {
-            Self::Volatile(s) => s,
-            Self::Stable(s) => s.as_ref(),
-        }
-    }
-}
-
-impl DerefMut for Backend {
-    fn deref_mut(&mut self) -> &mut MemoryIssuer {
-        match self {
-            Self::Volatile(s) => s,
-            Self::Stable(s) => s.state(),
-        }
-    }
-}
+use std::cell::RefCell;
 
 ///
 /// HostState
@@ -72,7 +38,7 @@ pub(super) struct HostState {
 
 #[derive(Default)]
 struct State {
-    issuer: Option<Backend>,
+    issuer: Option<StableIssuer>,
     selected: Option<(Principal, u64, [u8; 32])>,
     ticket: Option<IssuerTicket>,
     leaf: Option<([u8; 32], [u8; 32])>,
@@ -108,7 +74,7 @@ pub(super) fn decode_install(bytes: &[u8]) -> Result<crate::Installation, ic_wir
         return Ok(crate::Installation {
             authority: Vec::new(),
             certified_network_key: Vec::new(),
-            stable_auth: false,
+            skip_auth_checkpoint: false,
             receiver_capacity: None,
         });
     }
@@ -121,18 +87,15 @@ pub(super) fn init(installation: crate::Installation) {
     } else {
         ic_auth_protocol_types::Principal::try_from_slice(&installation.authority).unwrap()
     };
-    certified::init(installation.certified_network_key);
+    let runtime = receiver::storage_runtime();
+    certified::init(&runtime, installation.certified_network_key);
     receiver::init(
+        &runtime,
         authority,
         installation.receiver_capacity.unwrap_or_default(),
-        installation.stable_auth,
+        installation.skip_auth_checkpoint,
     );
-    browser::init();
-    // Only a fresh install creates state. Post-upgrade never calls this function.
-    if !installation.stable_auth {
-        let issuer = MemoryIssuer::new_fresh(config(), api::time()).unwrap();
-        STATE.with_borrow_mut(|s| s.issuer = Some(Backend::Volatile(issuer)));
-    }
+    browser::init(&runtime);
     api::set_certified_data(&witness(None).digest());
 }
 
@@ -155,12 +118,12 @@ fn config() -> IssuerConfig {
 
 pub(super) fn create_stable(lease: RuntimeMemory<DefaultMemoryImpl>) {
     let issuer = StableIssuer::new_fresh(lease, config(), api::time()).unwrap();
-    STATE.with_borrow_mut(|s| s.issuer = Some(Backend::Stable(issuer)));
+    STATE.with_borrow_mut(|s| s.issuer = Some(issuer));
 }
 
 pub(super) fn seal() -> HostState {
     STATE.with_borrow_mut(|s| {
-        let Some(Backend::Stable(owner)) = &mut s.issuer else {
+        let Some(owner) = &mut s.issuer else {
             api::trap("missing stable issuer")
         };
         owner.seal(api::canister_version()).unwrap();
@@ -185,7 +148,7 @@ pub(super) fn reopen(
     api::set_certified_data(&witness(host.leaf).digest());
     STATE.with_borrow_mut(|s| {
         *s = State {
-            issuer: Some(Backend::Stable(issuer)),
+            issuer: Some(issuer),
             ticket,
             selected: host.selected,
             leaf: host.leaf,

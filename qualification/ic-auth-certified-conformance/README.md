@@ -128,7 +128,7 @@ signatures described above. The Wire crate gains no Auth/crypto dependency and
 Auth gains no Wire dependency; both share protocol-types. No endpoint installation
 or receiver state is part of these drivers.
 
-With `--features receiver-memory`, five `memory_certified` cases drive actual
+With `--features receiver-stable`, five `memory_certified` cases drive actual
 volatile admission, root/issuer failure charging, proof-expired exact retry and
 known-login logout. It also checks exact unchanged logout reply frames for known
 and unknown results, retries, capacity, invalid caller, clock and closed state.
@@ -160,7 +160,7 @@ response-authentication, host transaction, durable-storage or browser SDK result
 
 ## Volatile certified issuance
 
-With `issuer-memory`, `tests/issuance/mod.rs` drives the public issuer API to
+With `issuer-stable`, `tests/issuance/mod.rs` drives the public issuer API to
 the existing frozen `certified.tsv` claims, including slot 1/generation 7. Its
 expected claims and hash come from the independent Node/OpenSSL fixture above.
 The host callback constructs the standard empty signature leaf from the actual

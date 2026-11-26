@@ -2,6 +2,23 @@
 
 The `auth` group covers `ic-auth`. Its separate ledger follows [0.48.7](../history.md#0487---2026-11-19).
 
+## [0.51.0] - 2026-11-26
+
+### ⚠️ Breaking
+
+- Stateful Auth requires a stable lease. Hosts select `issuer-stable` or `receiver-stable` and initialize through `StableIssuer` or `StableReceiver`. Ordinary operations use heap indexes.
+- Use one current v1 checkpoint format per owner and refuse pre-cut images. The receiver stores rows in bounded chunks and rebuilds derived indexes. Fresh receivers default to 20,000 sessions, 80,000 replay rows and 65,536 device slots.
+- Provide a 15-minute default session policy with a 30-minute request ceiling. The starting receiver profile accepts original logins up to one hour. The receiver starting profile gives Ed25519 more admission headroom and weights certified verification by its higher measured cost.
+
+### 🐛 Fixed
+
+- Reject receiver profiles that cannot fit the checkpoint byte budget. Count session and replay bytes from their compact checkpoint encoding, recompute charges on reopen, and seal directly into one image buffer.
+- Treat enrollment freshness as a current authorization check. Same-generation refresh restores access through the original session deadline, and changed authority generations still invalidate old sessions.
+
+### 📦 Dependencies
+
+- Adopt authenticated Toko Tooling 0.46.5 in both workspaces.
+
 ## [0.50.0] - 2026-11-25
 
 ### ⚠️ Breaking

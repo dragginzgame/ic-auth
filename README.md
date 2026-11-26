@@ -1,15 +1,15 @@
 # IC Auth
 
 A clean restart of IC Auth around its current application-authentication design.
-Hosts can select volatile storage or retain Auth across canister upgrades using
-the `receiver-stable` and `issuer-stable` Cargo features. Each stable owner uses
+Stateful Auth uses stable upgrade checkpoints. The `receiver-stable` and
+`issuer-stable` Cargo features select the owner roles. Each owner uses
 a dedicated, host-supplied `ic-storage` allocation. See the
 [upgrade lifecycle and size limits](docs/design/DESIGN.md#stable-upgrade-checkpoints).
 The pre-recode implementation imposes no Wire/API compatibility obligation.
 One current contract is qualified by independent fixtures and Rust/browser checks;
 historical sources remain provenance, not executable test dependencies.
 
-**Status: receiver and issuer libraries with optional stable checkpoints, and partial browser lifecycle.**
+**Status: receiver and issuer libraries with stable checkpoints, and partial browser lifecycle.**
 The three product crates own passive protocol types, exact Wire contracts and Auth
 verification/state transitions. Platform owns cryptographic primitives; Canic owns
 application endpoint wiring. Auth installs no endpoints or replacement executor.
@@ -24,7 +24,7 @@ certified update path. Complete consumer integration and external signer recover
 remain open. See the
 [current handoff](docs/status/current.md) for present capability and evidence limits.
 
-Release versions are Auth 0.50.0, Auth Wire 0.49.1 and protocol-types 0.44.1.
+Release versions are Auth 0.51.0, Auth Wire 0.49.1 and protocol-types 0.44.1.
 The three product crates are authorized for crates.io publication. Qualification
 crates retain `publish = false`; the browser client 0.1.0 remains private.
 Production deployment and consumer cutover require separate approval.
@@ -82,7 +82,7 @@ Import receiver host inputs, limits, errors and inspection results from
 The certified qualification now covers independent issuers/devices/receivers,
 replacement, renewal, logout and enrollment changes using independent signed fixtures.
 
-`make test-issuer` checks the volatile issuer's capacity reservation,
+`make test-issuer` checks the issuer's capacity reservation,
 single dispatch, lost-response reconciliation, stale-callback refusal, browser
 renewal, sequence watermarks, retained results, bounded pruning and certified
 publication failure containment. `issuer-memory` builds
@@ -95,7 +95,7 @@ retained binding. Auth checks the browser key and revokes that login synchronous
 fencing pending completion and renewal while retaining exact result evidence.
 The returned original login deadline is metadata, not acknowledgement from another
 receiver. Account-authorized revocation remains `revoke`. Missing/pruned bindings
-refuse; constructing fresh volatile state cannot establish logout.
+refuse; missing state cannot establish logout.
 Canic owns the issuer endpoint, codec and browser adapter in
 [Canic #16](https://github.com/dragginzgame/canic/issues/16); this adds no Canic
 dependency or issuer endpoint to Auth Wire.

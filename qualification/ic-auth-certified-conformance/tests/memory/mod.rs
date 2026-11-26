@@ -6,8 +6,8 @@ use super::{
 use ic_auth::{
     receiver_memory::{
         AdmissionHost, AdmissionOutcome, EnrollmentBinding, EnrollmentMetadata, LoginLimits,
-        LogoutReceipt, MemoryConfig, MemoryError, MemoryReceiver, SessionAuthority,
-        SessionCapacity, SessionPolicyError, UnknownLogoutLimits,
+        LogoutReceipt, MemoryConfig, MemoryError, SessionAuthority, SessionCapacity,
+        SessionPolicyError, StableReceiver, UnknownLogoutLimits,
     },
     session_request::{SessionRequest, SessionTtlPolicy},
     verification::{
@@ -120,7 +120,7 @@ impl Case {
 
     fn admit(
         &self,
-        receiver: &mut MemoryReceiver,
+        receiver: &mut StableReceiver,
         grants: &AuthorityGrants,
         role: &AuthRole,
         now: u64,
@@ -148,13 +148,14 @@ fn input<'a>(context: &'a CertifiedContext<'a>, role: &'a AuthRole) -> Admission
     }
 }
 
-fn receiver(case: &Case, id: u8) -> MemoryReceiver {
+fn receiver(case: &Case, id: u8) -> StableReceiver {
     let binding = EnrollmentBinding {
         receiver: Principal::from_slice(&[id]),
         authority: Principal::from_slice(&[11]),
     };
     let audience = case.fixture.root.cert.delegation.audience;
-    let mut receiver = MemoryReceiver::new_fresh(
+    let mut receiver = StableReceiver::new_fresh(
+        super::lease("auth.certified.receiver.v1"),
         MemoryConfig {
             audience,
             enrollment: binding,
@@ -407,7 +408,7 @@ fn memory_certified_enrollment_refresh_and_generation_preserve_captured_leases_a
     )
     .unwrap();
     let admitted = initial.admit(&mut r, &grants, &role, 150).unwrap();
-    assert_eq!(admitted.receipt.expires_at_ns, 175);
+    assert_eq!(admitted.receipt.expires_at_ns, 190);
     let account = (initial.issuer, Principal::from_slice(&[5; 10]));
     let original_usage = r.usage(account);
     let credit = r.verification_budget().available();
@@ -430,10 +431,8 @@ fn memory_certified_enrollment_refresh_and_generation_preserve_captured_leases_a
     assert_eq!(r.usage(account), original_usage);
     assert_eq!(r.verification_budget().available(), credit);
     assert_eq!(
-        r.authorize(&initial.read(&grants, &role, 175), &[], |_| panic!(
-            "refresh extended stored lease"
-        )),
-        Err(MemoryError::Policy(SessionPolicyError::MissingOrExpired))
+        r.read(&initial.read(&grants, &role, 175), &[]),
+        Ok(admitted.receipt),
     );
     // A distinct device still has independently valid proof and captured authority.
     // Replace the expired certificate witness with a current one for the same claims.

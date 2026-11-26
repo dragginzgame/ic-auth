@@ -1,6 +1,6 @@
 //! Issuance/renewal contracts use literal effect traces and the independent
 //! Node/OpenSSL reference vector. No issuer implementation computes expectations.
-#![cfg(feature = "issuer-memory")]
+#![cfg(feature = "issuer-stable")]
 
 mod certified;
 mod logout;
@@ -24,6 +24,29 @@ use ic_auth::{
 #[cfg(feature = "ed25519-verification")]
 use ic_auth_protocol_types::PortableMechanism;
 use ic_auth_protocol_types::{AudienceId, CanonicalId, DelegatedRoleGrant, Principal};
+
+fn fresh_issuer(
+    config: IssuerConfig,
+    now: u64,
+) -> Result<ic_auth::issuer_memory::StableIssuer, ic_auth::stable_upgrade::UpgradeError> {
+    use ic_storage::{StableKey, VectorMemory, testing::fixture_runtime};
+    let name = "auth.test.issuer.v1";
+    let runtime = fixture_runtime(
+        VectorMemory::default(),
+        "auth",
+        "auth.",
+        &[name],
+        Default::default(),
+    )
+    .unwrap();
+    ic_auth::issuer_memory::StableIssuer::new_fresh(
+        runtime
+            .open_memory(&StableKey::parse(name).unwrap())
+            .unwrap(),
+        config,
+        now,
+    )
+}
 
 fn fixture(name: &str) -> Vec<u8> {
     fixture_bytes(include_str!("../fixtures/ed25519.tsv"), name)
@@ -122,7 +145,7 @@ fn lookup(issuer: &MemoryIssuer, ticket: IssuerTicket) -> IssuerStatus<'_> {
 
 #[test]
 fn canonical_output_matches_independent_signed_reference() {
-    let mut issuer = MemoryIssuer::new_fresh(config(), 0).unwrap();
+    let mut issuer = fresh_issuer(config(), 0).unwrap();
     prepare(&mut issuer); // Establish original login at 10; no effect needed.
     let mut next = request();
     next.operation_id = [2; 32];
@@ -200,7 +223,7 @@ fn every_interruption_retains_one_dispatch_and_exact_result() {
     // Pause after each external boundary. Reconciliation is lookup-only; replay
     // the same callbacks, then simulate loss of the first signing response.
     for pause_after in 0..=4 {
-        let mut issuer = MemoryIssuer::new_fresh(config(), 0).unwrap();
+        let mut issuer = fresh_issuer(config(), 0).unwrap();
         let ticket = prepare(&mut issuer);
         let mut effects = Vec::new();
         if pause_after >= 1 {
@@ -268,7 +291,7 @@ fn every_interruption_retains_one_dispatch_and_exact_result() {
 
 #[test]
 fn stage_refusals_and_conflicting_callbacks_preserve_original_evidence() {
-    let mut issuer = MemoryIssuer::new_fresh(config(), 0).unwrap();
+    let mut issuer = fresh_issuer(config(), 0).unwrap();
     let t = prepare(&mut issuer);
     let usage = issuer.usage();
     assert_eq!(
@@ -308,7 +331,7 @@ fn stage_refusals_and_conflicting_callbacks_preserve_original_evidence() {
 #[test]
 fn stale_authority_restart_and_revocation_fence_pending_callbacks() {
     for fence in 0..5 {
-        let mut issuer = MemoryIssuer::new_fresh(config(), 0).unwrap();
+        let mut issuer = fresh_issuer(config(), 0).unwrap();
         let t = prepare(&mut issuer);
         approve(&mut issuer, t);
         issuer.dispatch(t, authority(), 13).unwrap();
@@ -338,7 +361,7 @@ fn stale_authority_restart_and_revocation_fence_pending_callbacks() {
 
 #[test]
 fn completed_recovery_survives_expiry_revocation_and_restart_without_new_authority() {
-    let mut issuer = MemoryIssuer::new_fresh(config(), 0).unwrap();
+    let mut issuer = fresh_issuer(config(), 0).unwrap();
     let t = prepare(&mut issuer);
     approve(&mut issuer, t);
     issuer.dispatch(t, authority(), 13).unwrap();
@@ -380,7 +403,7 @@ fn exclusive_deadlines_are_captured_and_cannot_be_extended_on_retry() {
     for (proof, receipt, authority_expiry, expected) in
         [(10, 5, 200, 15), (5, 10, 200, 15), (10, 10, 14, 14)]
     {
-        let mut issuer = MemoryIssuer::new_fresh(config(), 0).unwrap();
+        let mut issuer = fresh_issuer(config(), 0).unwrap();
         let p = IssuerPolicy {
             proof_ttl_ns: proof,
             receipt_timeout_ns: receipt,
@@ -420,7 +443,7 @@ fn capacity_refusals_preserve_existing_reservations_and_fresh_intent_credit() {
             3 => cfg.max_result_bytes = result_bytes,
             _ => unreachable!(),
         }
-        let mut issuer = MemoryIssuer::new_fresh(cfg, 0).unwrap();
+        let mut issuer = fresh_issuer(cfg, 0).unwrap();
         let t = prepare(&mut issuer);
         let usage = issuer.usage();
         let mut other = request();
@@ -473,7 +496,7 @@ fn capacity_refusals_preserve_existing_reservations_and_fresh_intent_credit() {
     }
     let mut cfg = config();
     cfg.max_result_bytes = result_bytes - 1;
-    let mut issuer = MemoryIssuer::new_fresh(cfg, 0).unwrap();
+    let mut issuer = fresh_issuer(cfg, 0).unwrap();
     assert_eq!(
         issuer.prepare_issue(account(), &request(), policy(), authority(), 10),
         Err(E::Capacity)
@@ -485,7 +508,7 @@ fn capacity_refusals_preserve_existing_reservations_and_fresh_intent_credit() {
 
 #[test]
 fn account_and_device_selection_is_bounded_and_isolated() {
-    let mut issuer = MemoryIssuer::new_fresh(config(), 0).unwrap();
+    let mut issuer = fresh_issuer(config(), 0).unwrap();
     let t = prepare(&mut issuer);
     let mut duplicate_browser = request();
     duplicate_browser.operation_id = [2; 32];
@@ -522,7 +545,7 @@ fn account_and_device_selection_is_bounded_and_isolated() {
 
 #[test]
 fn exact_identity_includes_binding_grants_and_policy() {
-    let mut issuer = MemoryIssuer::new_fresh(config(), 0).unwrap();
+    let mut issuer = fresh_issuer(config(), 0).unwrap();
     let t = prepare(&mut issuer);
     for field in 0..4 {
         let mut r = request();
@@ -559,7 +582,7 @@ fn exact_identity_includes_binding_grants_and_policy() {
 fn invalid_requests_clocks_throttling_and_epoch_fences_never_create_authority() {
     let mut cfg = config();
     cfg.issuance_burst = 1;
-    let mut issuer = MemoryIssuer::new_fresh(cfg, 0).unwrap();
+    let mut issuer = fresh_issuer(cfg, 0).unwrap();
     assert_eq!(
         issuer.prepare_issue(Principal::anonymous(), &request(), policy(), authority(), 5),
         Err(E::Invalid)
@@ -621,9 +644,12 @@ fn bad_configuration_and_overflow_refuse_without_partial_records() {
             6 => cfg.issuance_refill_interval_ns = 0,
             _ => unreachable!(),
         }
-        assert!(matches!(MemoryIssuer::new_fresh(cfg, 0), Err(E::Invalid)));
+        assert!(matches!(
+            fresh_issuer(cfg, 0),
+            Err(ic_auth::stable_upgrade::UpgradeError::Configuration)
+        ));
     }
-    let mut issuer = MemoryIssuer::new_fresh(config(), u64::MAX - 2).unwrap();
+    let mut issuer = fresh_issuer(config(), u64::MAX - 2).unwrap();
     let a = IssuerAuthority {
         expires_at_ns: u64::MAX,
         ..authority()
@@ -638,7 +664,7 @@ fn bad_configuration_and_overflow_refuse_without_partial_records() {
 
 #[test]
 fn malformed_requests_and_unavailable_authority_refuse_before_charging() {
-    let mut issuer = MemoryIssuer::new_fresh(config(), 0).unwrap();
+    let mut issuer = fresh_issuer(config(), 0).unwrap();
     for field in 0..9 {
         let mut r = request();
         let mut p = policy();

@@ -515,6 +515,6 @@ pub struct Installation {
     pub certified_network_key: Vec<u8>,
     /// Optional installation-only receiver limits; ingress cannot change them.
     pub receiver_capacity: Option<receiver::Capacity>,
-    /// Enable governed Auth upgrade checkpoints for this installation.
-    pub stable_auth: bool,
+    /// Inject missing upgrade hooks for installed loss qualification.
+    pub skip_auth_checkpoint: bool,
 }

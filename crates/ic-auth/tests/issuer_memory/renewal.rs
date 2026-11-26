@@ -19,8 +19,8 @@ fn input(sequence: u64) -> RenewRequest {
     }
 }
 
-fn completed_login() -> (MemoryIssuer, IssuerTicket) {
-    let mut issuer = MemoryIssuer::new_fresh(config(), 0).unwrap();
+fn completed_login() -> (ic_auth::issuer_memory::StableIssuer, IssuerTicket) {
+    let mut issuer = super::fresh_issuer(config(), 0).unwrap();
     let t = prepare(&mut issuer);
     approve(&mut issuer, t);
     issuer.dispatch(t, authority(), 13).unwrap();
@@ -152,7 +152,7 @@ fn actual_browser_and_exact_login_grants_are_required_without_mutating_preflight
 
 #[test]
 fn next_sequence_requires_completed_prior_work_and_unknown_is_lookup_only() {
-    let mut issuer = MemoryIssuer::new_fresh(config(), 0).unwrap();
+    let mut issuer = super::fresh_issuer(config(), 0).unwrap();
     let initial = prepare(&mut issuer);
     assert_eq!(
         issuer.prepare_renewal(browser(), &input(0), authority(), 10),
@@ -399,7 +399,7 @@ fn fresh_epoch_cannot_replace_an_unknown_renewal_or_recover_a_lost_binding() {
             .ticket,
         t
     );
-    let mut lost = MemoryIssuer::new_fresh(config(), 22).unwrap();
+    let mut lost = super::fresh_issuer(config(), 22).unwrap();
     assert_eq!(
         lost.prepare_renewal(browser(), &input(1), authority(), 23),
         Err(E::Denied)
@@ -426,7 +426,7 @@ fn renewal_uses_shared_capacity_and_budget_without_consuming_refused_sequences()
             3 => cfg.issuance_burst = 1,
             _ => unreachable!(),
         }
-        let mut issuer = MemoryIssuer::new_fresh(cfg, 0).unwrap();
+        let mut issuer = super::fresh_issuer(cfg, 0).unwrap();
         let t = prepare(&mut issuer);
         finish(&mut issuer, t, 11);
         let usage = issuer.usage();

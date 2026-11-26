@@ -28,13 +28,13 @@ method identities and layouts may evolve together with their current consumers.
 - Bounded abuse budgets, failed-attempt charging and no mutation on applicable
   rejection paths, as established by the current contracts and tests.
 
-Storage 0.80 introduces a new allocation directory and Cell format. Stable Auth requires fresh 0.80 backing. Upgrading in place from 0.79 is unsupported, including for a v3 Auth checkpoint.
+Storage 0.80 introduces a new allocation directory and Cell format. Stable Auth requires fresh 0.80 backing. Upgrading in place from 0.79 is unsupported, including for an Auth checkpoint sealed before the Storage cut.
 
-Checkpoint v3 requires the immediately preceding canister version to have sealed
-the current Auth state. The v1 and v2 checkpoint formats are incompatible. Each
-owner verifies its format and protected configuration before reopening. Hosts
-must retain their own authority entries, terminal revocations and certification
-contributions. Volatile loss remains closed. See the
+Stateful Auth requires a stable lease. Each owner has one current v1 checkpoint
+format. The receiver stores authoritative rows in bounded chunks and rebuilds
+derived indexes. Both owners refuse pre-cut images and require the immediate
+successor of the sealing canister version. On failure, the host traps so the IC
+can roll back the upgrade. See the
 [stable checkpoint contract](DESIGN.md#stable-upgrade-checkpoints).
 
 ## Evidence required before replacement claims
@@ -46,7 +46,7 @@ upgrade rollback additionally exercise the stable allocation and lifecycle hooks
 | --- | --- |
 | Encoding | Independently assembled current bytes; Rust/browser decoding and generator output comparison |
 | Verification | Valid and adversarial vectors for each selected mechanism, including wrong authority/caller/time |
-| Backend semantics | Same behavioral contract on volatile and stable implementations; failed commits and exact retries |
+| Backend semantics | Same heap-backed request policy before and after stable reopen; failed commits and exact retries |
 | Lifecycle | Stable reopen/upgrade, corruption refusal, generation changes, replay/logout retention |
 | Runtime | Native and actual Wasm host qualification; one coordinated executor/guard |
 | Browser | Real SDK identity transport, Rust/TypeScript interoperability and interrupted logout recovery |
@@ -110,7 +110,7 @@ is neither durable recovery nor conclusive logout.
 A real IC call to an installation-bound authority checks caller/challenge binding,
 expiry, substituted keys, revision regression and terminal single-key revocation.
 Callback traps restore receiver metadata and host entries together while preserving
-the earlier request submission. Refresh cannot extend captured session leases.
+the earlier request submission. A same-generation enrollment refresh can restore access to a live session through its original deadline.
 This fixed-domain test exchange does not qualify complete Canic registry wiring,
 production challenge/refresh scheduling or late/overlapping replies. Consumer
 coverage is recorded separately below; it is not a result of Auth's fixture.

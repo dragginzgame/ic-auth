@@ -1,5 +1,5 @@
 //! Public receiver operations driven by independent Node/OpenSSL signed bytes.
-#![cfg(all(feature = "receiver-memory", feature = "ed25519-verification"))]
+#![cfg(all(feature = "receiver-stable", feature = "ed25519-verification"))]
 mod memory_fixture;
 mod memory_model;
 
@@ -22,11 +22,35 @@ use ic_auth_protocol_types::{
 
 use memory_fixture::*;
 
+type FixtureReceiver = ic_auth::receiver_memory::StableReceiver;
+fn fresh_receiver(
+    config: MemoryConfig,
+    now: u64,
+) -> Result<FixtureReceiver, ic_auth::stable_upgrade::UpgradeError> {
+    use ic_storage::{StableKey, VectorMemory, testing::fixture_runtime};
+    let name = "auth.test.receiver.v1";
+    let runtime = fixture_runtime(
+        VectorMemory::default(),
+        "auth",
+        "auth.",
+        &[name],
+        Default::default(),
+    )
+    .unwrap();
+    FixtureReceiver::new_fresh(
+        runtime
+            .open_memory(&StableKey::parse(name).unwrap())
+            .unwrap(),
+        config,
+        now,
+    )
+}
+
 #[test]
 fn starting_profile_bounds_unknown_logout_and_preserves_known_admission_policy() {
     let h = Host::new();
     let config = MemoryConfig::starting_profile(h.audience, h.config().enrollment);
-    let mut r = MemoryReceiver::new_fresh(config, 0).unwrap();
+    let mut r = fresh_receiver(config, 0).unwrap();
     assert_eq!(r.logout(unknown_caller(0), 0), Err(LogoutError::Closed));
     r.request_enrollment(0, [1; 32], 10).unwrap();
     let mut snapshot = h.snapshot(7);
@@ -42,7 +66,7 @@ fn starting_profile_bounds_unknown_logout_and_preserves_known_admission_policy()
         assert_eq!(
             r.logout(unknown_caller(index), now),
             Ok(LogoutReceipt::Unconfirmed {
-                deny_until_ns: now + 300_000_000_000
+                deny_until_ns: now + 3_600_000_000_000
             })
         );
     }
@@ -55,7 +79,7 @@ fn starting_profile_bounds_unknown_logout_and_preserves_known_admission_policy()
     let mut small = config;
     small.refill_interval_ns = 1;
     small.capacity.max_sessions = 1;
-    let mut r = MemoryReceiver::new_fresh(small, 24).unwrap();
+    let mut r = fresh_receiver(small, 24).unwrap();
     h.enroll(&mut r, 7).unwrap();
     let admit = |r: &mut MemoryReceiver, name, now| {
         r.admit(
@@ -177,7 +201,7 @@ fn volatile_two_issuer_accounts_devices_and_receivers_remain_independent() {
     config.capacity.max_sessions = 3;
     config.capacity.max_replays = 3;
     let new_receiver = || {
-        let mut r = MemoryReceiver::new_fresh(config, 0).unwrap();
+        let mut r = fresh_receiver(config, 0).unwrap();
         h.enroll(&mut r, 7).unwrap();
         r
     };
@@ -415,7 +439,7 @@ fn boot_requires_bound_current_authenticated_enrollment() {
         ),
     ];
     for (mutate, expected) in cases {
-        let mut r = MemoryReceiver::new_fresh(h.config(), 0).unwrap();
+        let mut r = fresh_receiver(h.config(), 0).unwrap();
         r.request_enrollment(0, [1; 32], 10).unwrap();
         let mut snapshot = h.snapshot(7);
         let mut source = h.config().enrollment.authority;
@@ -444,7 +468,7 @@ fn boot_requires_bound_current_authenticated_enrollment() {
 fn enrollment_request_replacement_fences_late_responses_and_receipt_deadlines() {
     let h = Host::new();
     let source = h.config().enrollment.authority;
-    let mut r = MemoryReceiver::new_fresh(h.config(), 0).unwrap();
+    let mut r = fresh_receiver(h.config(), 0).unwrap();
     assert_eq!(
         r.install_enrollment(0, source, h.snapshot(7)),
         Err(E::Enrollment(EE::ChallengeMismatch))
@@ -542,10 +566,10 @@ fn enrollment_rejects_rollback_and_conflicting_content_without_discarding_sessio
 }
 
 #[test]
-fn enrollment_refresh_never_extends_a_captured_session_lease() {
+fn same_generation_refresh_restores_access_without_extending_the_lease() {
     let h = Host::new();
     let source = h.config().enrollment.authority;
-    let mut r = MemoryReceiver::new_fresh(h.config(), 0).unwrap();
+    let mut r = fresh_receiver(h.config(), 0).unwrap();
     r.request_enrollment(0, [1; 32], 10).unwrap();
     r.install_enrollment(
         0,
@@ -556,35 +580,40 @@ fn enrollment_refresh_never_extends_a_captured_session_lease() {
         },
     )
     .unwrap();
-    // Per-call context claims 150, but accepted metadata independently caps it at 60.
-    let context = h.context("initial", 25);
+    let context = h.context("registered", 25);
     let original = r
-        .admit(&credential("initial"), request(), h.admission(&context))
+        .admit(&credential("registered"), request(), h.admission(&context))
         .unwrap();
-    assert_eq!(original.receipt.expires_at_ns, 60);
+    assert_eq!(original.receipt.expires_at_ns, 100);
+    assert_eq!(original.receipt.ext.as_deref(), Some([0xab; 16].as_slice()));
+    assert_eq!(
+        r.read(&h.read("registered", 60), &[]),
+        Err(E::Policy(P::StaleAuthority))
+    );
     let credit = r.verification_budget().available();
-    r.request_enrollment(26, [2; 32], 40).unwrap();
+    r.request_enrollment(61, [2; 32], 70).unwrap();
     r.install_enrollment(
-        26,
+        61,
         source,
         EnrollmentMetadata {
             challenge: [2; 32],
             revision: 2,
             snapshot_digest: [4; 32],
-            issued_at_ns: 26,
+            issued_at_ns: 61,
             ..h.snapshot(7)
         },
     )
     .unwrap();
-    let later = h.context("initial", 50);
+    let later = h.context("registered", 62);
     let retry = r
-        .admit(&credential("initial"), request(), h.admission(&later))
+        .admit(&credential("registered"), request(), h.admission(&later))
         .unwrap();
     assert!(retry.exact_retry);
     assert_eq!(retry.receipt, original.receipt);
     assert_eq!(r.verification_budget().available(), credit);
+    assert_eq!(r.read(&h.read("registered", 99), &[]), Ok(original.receipt));
     assert_eq!(
-        r.read(&h.read("initial", 60), &[]),
+        r.read(&h.read("registered", 100), &[]),
         Err(E::Policy(P::MissingOrExpired))
     );
 }
@@ -593,7 +622,7 @@ fn enrollment_refresh_never_extends_a_captured_session_lease() {
 fn expired_enrollment_blocks_auth_but_preserves_safe_logout_and_denials() {
     let h = Host::new();
     let source = h.config().enrollment.authority;
-    let mut r = MemoryReceiver::new_fresh(h.config(), 0).unwrap();
+    let mut r = fresh_receiver(h.config(), 0).unwrap();
     r.request_enrollment(0, [1; 32], 10).unwrap();
     r.install_enrollment(
         0,
@@ -701,7 +730,7 @@ fn enrollment_freshness_and_clock_arithmetic_are_bounded_without_wrapping() {
         (u64::MAX - 98, u64::MAX - 99, u64::MAX),
     ] {
         let start = now.saturating_sub(2);
-        let mut r = MemoryReceiver::new_fresh(h.config(), start).unwrap();
+        let mut r = fresh_receiver(h.config(), start).unwrap();
         r.request_enrollment(now, [1; 32], expires).unwrap();
         let snapshot = EnrollmentMetadata {
             issued_at_ns: issued,
@@ -721,14 +750,14 @@ fn enrollment_freshness_and_clock_arithmetic_are_bounded_without_wrapping() {
         let mut config = h.config();
         config.enrollment.authority = principal;
         assert!(matches!(
-            MemoryReceiver::new_fresh(config, 0),
-            Err(E::Enrollment(EE::InvalidRequest))
+            fresh_receiver(config, 0),
+            Err(ic_auth::stable_upgrade::UpgradeError::Configuration)
         ));
         config = h.config();
         config.enrollment.receiver = principal;
         assert!(matches!(
-            MemoryReceiver::new_fresh(config, 0),
-            Err(E::Enrollment(EE::InvalidRequest))
+            fresh_receiver(config, 0),
+            Err(ic_auth::stable_upgrade::UpgradeError::Configuration)
         ));
     }
 }
@@ -739,7 +768,7 @@ fn inspection_advances_empty_pages_over_a_large_denial_pool_without_mutation() {
     let mut config = h.config();
     config.unknown_logout.max_denials = 512;
     config.unknown_logout.capacity = 512;
-    let mut r = MemoryReceiver::new_fresh(config, 0).unwrap();
+    let mut r = fresh_receiver(config, 0).unwrap();
     h.enroll(&mut r, 7).unwrap();
     let mut callers: Vec<_> = (0u16..512)
         .map(|i| Principal::self_authenticating(i.to_be_bytes()))
@@ -799,7 +828,7 @@ fn inspection_reports_expired_stale_sessions_among_fences_without_authorizing() 
     let mut config = h.config();
     config.unknown_logout.max_denials = 4;
     config.unknown_logout.capacity = 4;
-    let mut r = MemoryReceiver::new_fresh(config, 0).unwrap();
+    let mut r = fresh_receiver(config, 0).unwrap();
     h.enroll(&mut r, 7).unwrap();
     for i in 0..4 {
         r.logout(unknown_caller(i), 25).unwrap();
@@ -875,7 +904,7 @@ fn inspection_cursor_remains_exclusive_after_pruning_and_interleaved_insertion()
     let mut config = h.config();
     config.unknown_logout.max_denials = 5;
     config.unknown_logout.capacity = 5;
-    let mut r = MemoryReceiver::new_fresh(config, 0).unwrap();
+    let mut r = fresh_receiver(config, 0).unwrap();
     h.enroll(&mut r, 7).unwrap();
     let mut callers: Vec<_> = (0..5).map(unknown_caller).collect();
     for caller in &callers {
@@ -899,7 +928,7 @@ fn inspection_cursor_remains_exclusive_after_pruning_and_interleaved_insertion()
 #[test]
 fn inspection_refuses_bad_bounds_rollback_and_poison_but_can_observe_pending_boot() {
     let h = Host::new();
-    let mut r = MemoryReceiver::new_fresh(h.config(), 25).unwrap();
+    let mut r = fresh_receiver(h.config(), 25).unwrap();
     r.request_enrollment(25, [1; 32], 30).unwrap();
     let empty = r.inspect_sessions(None, 32, 128, 26).unwrap();
     assert_eq!(
@@ -1125,7 +1154,7 @@ fn memory_renewal_reuses_session_but_retains_account_replay_quota() {
 fn memory_readiness_generation_and_byte_capacity_are_enforced() {
     let h = Host::new();
     let c = h.context("initial", 25);
-    let mut fresh = MemoryReceiver::new_fresh(h.config(), 0).unwrap();
+    let mut fresh = fresh_receiver(h.config(), 0).unwrap();
     assert_eq!(
         fresh.admit(&credential("initial"), request(), h.admission(&c)),
         Err(E::Closed)
@@ -1147,7 +1176,7 @@ fn memory_readiness_generation_and_byte_capacity_are_enforced() {
     assert_eq!(fresh.prune(100, 1), Err(E::Closed));
     let mut config = h.config();
     config.capacity.max_encoded_bytes = 1;
-    let mut tiny = MemoryReceiver::new_fresh(config, 0).unwrap();
+    let mut tiny = fresh_receiver(config, 0).unwrap();
     h.enroll(&mut tiny, 7).unwrap();
     assert_eq!(
         tiny.admit(&credential("initial"), request(), h.admission(&c)),
@@ -1159,21 +1188,20 @@ fn memory_readiness_generation_and_byte_capacity_are_enforced() {
 }
 
 #[test]
-fn memory_logical_record_bytes_match_reference_field_sizes() {
-    // Independently summed Postcard representations of the reference SessionData:
-    // header 11; principals 30+2+2; audience byte strings 33+33; mechanism 1;
-    // fixed key 32; role 5; scope vector 6; seven single-byte numeric fields;
-    // fingerprint/request hash 32+32. Replay: 11+32+30+2+2+1+1.
-    const SESSION: usize = 226;
-    const REPLAY: usize = 79;
+fn memory_logical_record_bytes_match_checkpoint_field_sizes() {
+    // Checkpoint payload, summed independently: absent ext and mechanism 1+1;
+    // signing key 32; role 5; scopes 6; three single-byte varints; hashes 32+32.
+    // Replay: fingerprint 32, two one-byte principals with their lengths, expiry 1.
+    const SESSION: usize = 112;
+    const REPLAY: usize = 37;
     let h = Host::new();
     let c = h.context("initial", 25);
-    for (generation, expected) in [(7, SESSION + REPLAY), (u64::MAX, SESSION + REPLAY + 18)] {
-        // u64::MAX takes ten bytes in each record instead of one.
+    for (generation, expected) in [(7, SESSION + REPLAY), (u64::MAX, SESSION + REPLAY + 9)] {
+        // u64::MAX takes ten bytes in the session instead of one.
         for ceiling in [expected - 1, expected] {
             let mut config = h.config();
             config.capacity.max_encoded_bytes = ceiling;
-            let mut r = MemoryReceiver::new_fresh(config, 0).unwrap();
+            let mut r = fresh_receiver(config, 0).unwrap();
             h.enroll(&mut r, generation).unwrap();
             let mut host = h.admission(&c);
             host.generation = generation;
@@ -1202,7 +1230,7 @@ fn memory_replay_pruning_does_not_extend_or_destroy_live_exact_retry() {
         .admit(&credential("initial"), request(), h.admission(&c))
         .unwrap();
     assert_eq!(r.prune(30, 1).unwrap().replays, 1);
-    assert_eq!(r.usage(account()).encoded_bytes, 226);
+    assert_eq!(r.usage(account()).encoded_bytes, 112);
     let later = h.context("initial", 30);
     assert_eq!(
         r.admit(&credential("initial"), request(), h.admission(&later))
@@ -1244,7 +1272,7 @@ fn memory_uncharged_refusals_and_empty_budget_cannot_publish() {
         Err(E::Policy(P::Disabled))
     );
     // A receiver created at this same trusted time starts with no work credit.
-    let mut fresh = MemoryReceiver::new_fresh(h.config(), 25).unwrap();
+    let mut fresh = fresh_receiver(h.config(), 25).unwrap();
     h.enroll(&mut fresh, 7).unwrap();
     assert!(matches!(
         fresh.admit(&credential("initial"), request(), h.admission(&c)),
@@ -1332,7 +1360,7 @@ fn logout_expired_unknown_reuses_its_slot_and_replaces_only_its_expiry() {
     let h = Host::new();
     let mut config = h.config();
     config.unknown_logout.max_denials = 1;
-    let mut r = MemoryReceiver::new_fresh(config, 0).unwrap();
+    let mut r = fresh_receiver(config, 0).unwrap();
     h.enroll(&mut r, 7).unwrap();
     let caller = unknown_caller(4);
     assert_eq!(
@@ -1452,7 +1480,7 @@ fn logout_invalid_clock_overflow_and_closed_state_never_acknowledge() {
     );
     r.close();
     assert_eq!(r.logout(c.caller, u64::MAX), Err(LogoutError::Closed));
-    let mut fresh = MemoryReceiver::new_fresh(h.config(), 0).unwrap();
+    let mut fresh = fresh_receiver(h.config(), 0).unwrap();
     assert_eq!(fresh.logout(c.caller, 1), Err(LogoutError::Closed));
 }
 
@@ -1465,7 +1493,7 @@ fn logout_operation_budget_is_separate_and_retains_refill_remainder() {
         capacity: 2,
         refill_interval_ns: 3,
     };
-    let mut r = MemoryReceiver::new_fresh(config, 0).unwrap();
+    let mut r = fresh_receiver(config, 0).unwrap();
     h.enroll(&mut r, 7).unwrap();
     assert_eq!(r.logout(unknown_caller(1), 2), Err(LogoutError::Capacity));
     assert_eq!(
@@ -1630,7 +1658,7 @@ fn two_receivers_authenticate_only_the_issuer_attested_application_user() {
         config.enrollment.receiver = Principal::from_slice(&[receiver]);
         config.capacity.max_replays = 3;
         config.capacity.max_replays_per_account = 3;
-        let mut state = MemoryReceiver::new_fresh(config, 0).unwrap();
+        let mut state = fresh_receiver(config, 0).unwrap();
         let mut enrollment = host.snapshot(7);
         enrollment.receiver = config.enrollment.receiver;
         state

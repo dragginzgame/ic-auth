@@ -3,7 +3,7 @@
 use super::{Fixture, SEED, bls_key, budget, bytes, grants, hash, host, issuer, result, sha};
 use ic_auth::issuer_memory::{
     IssueRequest, IssuedProof, IssuerAuthority, IssuerConfig, IssuerPolicy, IssuerSigning,
-    IssuerTicket, MemoryIssuer,
+    IssuerTicket, StableIssuer,
 };
 use ic_auth_protocol_types::Principal;
 use ic_platform::certificate::construction::{
@@ -21,7 +21,7 @@ fn authority() -> IssuerAuthority {
     }
 }
 
-fn approved(f: &Fixture) -> (MemoryIssuer, IssuerTicket) {
+fn approved(f: &Fixture) -> (StableIssuer, IssuerTicket) {
     let cfg = IssuerConfig {
         audience: f.root.cert.delegation.audience,
         issuer: issuer(),
@@ -40,7 +40,8 @@ fn approved(f: &Fixture) -> (MemoryIssuer, IssuerTicket) {
         receipt_timeout_ns: 40,
         reconciliation_retention_ns: 20,
     };
-    let mut auth = MemoryIssuer::new_fresh(cfg, 0).unwrap();
+    let mut auth =
+        StableIssuer::new_fresh(super::lease("auth.certified.issuer.v1"), cfg, 0).unwrap();
     let account = Principal::from_slice(&[5; 10]);
     let mut request = IssueRequest {
         epoch: 1,

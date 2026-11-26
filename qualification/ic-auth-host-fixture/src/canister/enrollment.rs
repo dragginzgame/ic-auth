@@ -91,6 +91,7 @@ pub(super) fn snapshot(challenge: [u8; 32]) -> Snapshot {
     };
     match SCENARIO.get() {
         Scenario::Initial => {}
+        Scenario::ShortFreshness => result.expires_at_ns = TIME_ORIGIN_NS + 40_000_000_000,
         Scenario::Refresh => {
             result.revision = 2;
             result.expires_at_ns += 30_000_000_000;

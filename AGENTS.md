@@ -1,7 +1,7 @@
 # IC Auth
 
 Read the installed [Toko Tooling baseline](TOKO-TOOLING.md). Its common rules
-apply alongside the product constraints below. Tooling 0.46.4 is authenticated
+apply alongside the product constraints below. Tooling 0.46.5 is authenticated
 by `.toko-tooling.snapshot`; [developer tooling](docs/development/tooling.md)
 describes Cargo-based admission and focused checks.
 
@@ -17,10 +17,11 @@ Read README.md, docs/design/DESIGN.md, docs/design/authentication.md,
   Historical Wire/API identities and layouts are provenance, not preservation
   requirements. Do not execute the legacy implementation as a test oracle or
   enable the retired legacy-compatibility qualification graph.
-- Support volatile Auth and opt-in stable upgrade checkpoints through published
-  `ic-storage`. Both modes use the same bounded issuer and receiver operations.
-  Qualify stable reopen, corruption refusal, fresh enrollment and IC rollback.
-  A lost volatile installation has no checkpoint to migrate.
+- Require stable upgrade checkpoints for stateful Auth through published
+  `ic-storage`. Keep bounded issuer and receiver operations on heap indexes
+  between upgrades. Qualify stable reopen, missing and corrupt checkpoint refusal,
+  fresh enrollment and IC rollback. Each owner has one current v1 checkpoint
+  format. Pre-cut checkpoint images are refused.
 - Host inputs own caller, time, authority, memory leases, transactions and
   certification-root publication. Untrusted fields never establish authority.
 - Auth must not depend on Canic or Toko. Use published Platform/Types, Storage,

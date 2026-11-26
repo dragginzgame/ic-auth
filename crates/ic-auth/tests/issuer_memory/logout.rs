@@ -1,5 +1,5 @@
 use super::{account, approve, authority, config, fixture, lookup, policy, prepare, request};
-use ic_auth::issuer_memory::{IssuerError as E, IssuerStatus, MemoryIssuer, RenewRequest};
+use ic_auth::issuer_memory::{IssuerError as E, IssuerStatus, RenewRequest};
 use ic_auth_protocol_types::Principal;
 
 fn browser() -> Principal {
@@ -18,7 +18,7 @@ fn renewal() -> RenewRequest {
 
 #[test]
 fn browser_logout_authenticates_every_selector_without_charging_or_revoking_another_login() {
-    let mut issuer = MemoryIssuer::new_fresh(config(), 0).unwrap();
+    let mut issuer = super::fresh_issuer(config(), 0).unwrap();
     let original = prepare(&mut issuer);
     let mut other = request();
     other.login_id = [4; 32];
@@ -74,7 +74,7 @@ fn browser_logout_authenticates_every_selector_without_charging_or_revoking_anot
 #[test]
 fn browser_logout_fences_initial_work_at_each_stage_and_preserves_uncertainty() {
     for stage in 0..4 {
-        let mut issuer = MemoryIssuer::new_fresh(config(), 0).unwrap();
+        let mut issuer = super::fresh_issuer(config(), 0).unwrap();
         let ticket = prepare(&mut issuer);
         if stage >= 1 {
             issuer
@@ -120,7 +120,7 @@ fn browser_logout_fences_initial_work_at_each_stage_and_preserves_uncertainty() 
 
 #[test]
 fn browser_logout_fences_renewal_completion_but_retains_original_results_and_deadline() {
-    let mut issuer = MemoryIssuer::new_fresh(config(), 0).unwrap();
+    let mut issuer = super::fresh_issuer(config(), 0).unwrap();
     let initial = prepare(&mut issuer);
     approve(&mut issuer, initial);
     issuer.dispatch(initial, authority(), 13).unwrap();
@@ -181,7 +181,7 @@ fn browser_logout_fences_renewal_completion_but_retains_original_results_and_dea
 
 #[test]
 fn browser_logout_refuses_clock_regression_closed_state_and_pruned_or_lost_bindings() {
-    let mut issuer = MemoryIssuer::new_fresh(config(), 0).unwrap();
+    let mut issuer = super::fresh_issuer(config(), 0).unwrap();
     prepare(&mut issuer);
     assert_eq!(
         issuer.revoke_browser(browser(), account(), 1, request().login_id, 9),
@@ -192,7 +192,7 @@ fn browser_logout_refuses_clock_regression_closed_state_and_pruned_or_lost_bindi
         issuer.revoke_browser(browser(), account(), 1, request().login_id, 10),
         Err(E::Closed)
     );
-    let mut issuer = MemoryIssuer::new_fresh(config(), 0).unwrap();
+    let mut issuer = super::fresh_issuer(config(), 0).unwrap();
     assert_eq!(
         issuer.revoke_browser(browser(), account(), 1, request().login_id, 10),
         Err(E::Denied)

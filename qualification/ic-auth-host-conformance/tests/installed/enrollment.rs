@@ -38,7 +38,7 @@ async fn install_receiver(
     pic: &PocketIc,
     wasm: &[u8],
     authority: CanisterId,
-    stable_auth: bool,
+    skip_auth_checkpoint: bool,
 ) -> CanisterId {
     let id = pic.create_canister().await;
     pic.add_cycles(id, 5_000_000_000_000).await;
@@ -46,7 +46,7 @@ async fn install_receiver(
         &ic_auth_host_fixture::Installation {
             authority: authority.as_slice().to_vec(),
             certified_network_key: Vec::new(),
-            stable_auth,
+            skip_auth_checkpoint,
             receiver_capacity: None,
         },
         ic_wire::Encoding::Payload,
@@ -80,7 +80,7 @@ async fn installed_authority_binds_replies_and_revocation_commits_with_receiver_
     let pic = &owned;
     time(pic, 0).await;
     let authority = install(pic, &wasm).await;
-    let id = install_receiver(pic, &wasm, authority, false).await;
+    let id = install_receiver(pic, &wasm, authority, true).await;
     assert_eq!(pic.get_subnet(authority).await, pic.get_subnet(id).await);
     assert_eq!(pic.topology().await.subnet_configs.len(), 1);
     time(pic, 25).await;
@@ -120,7 +120,7 @@ async fn installed_authority_binds_replies_and_revocation_commits_with_receiver_
             Err(Refusal::Closed)
         );
     }
-    configure(pic, authority, admin, Scenario::Initial)
+    configure(pic, authority, admin, Scenario::ShortFreshness)
         .await
         .unwrap();
     assert_eq!(
@@ -131,6 +131,14 @@ async fn installed_authority_binds_replies_and_revocation_commits_with_receiver_
     let Outcome::Admitted(false, deadline) = outcome else {
         panic!("{outcome:?}")
     };
+    assert!(deadline > TIME_ORIGIN_NS + 40_000_000_000);
+    time(pic, 40).await;
+    assert_eq!(
+        control(pic, id, caller, &Command::Authorize(false))
+            .await
+            .unwrap(),
+        Err(Refusal::Other)
+    );
     configure(pic, authority, admin, Scenario::Refresh)
         .await
         .unwrap();
@@ -145,6 +153,12 @@ async fn installed_authority_binds_replies_and_revocation_commits_with_receiver_
     assert_eq!(
         control(pic, id, caller, &admit).await.unwrap(),
         Ok(Outcome::Admitted(true, deadline))
+    );
+    assert_eq!(
+        control(pic, id, caller, &Command::Authorize(false))
+            .await
+            .unwrap(),
+        Ok(Outcome::Authorized)
     );
     configure(pic, authority, admin, Scenario::Regression)
         .await
@@ -232,7 +246,7 @@ async fn stable_auth_upgrade_and_failed_reopen_preserve_session_logout_and_certi
     let pic = start().await;
     time(&pic, 0).await;
     let authority = install(&pic, &wasm).await;
-    let id = install_receiver(&pic, &wasm, authority, true).await;
+    let id = install_receiver(&pic, &wasm, authority, false).await;
     time(&pic, 25).await;
     let enroll = Command::Enroll(Fault::None);
     let admit = credential(&vectors, "registered", false);
@@ -344,7 +358,7 @@ async fn stable_auth_upgrade_skipping_reopen_fences_both_owners() {
     let pic = start().await;
     time(&pic, 0).await;
     let authority = install(&pic, &wasm).await;
-    let id = install_receiver(&pic, &wasm, authority, true).await;
+    let id = install_receiver(&pic, &wasm, authority, false).await;
     // A valid empty module has no upgrade hooks. Old pre-upgrade seals both
     // owners, then the intervening install leaves both allocations untouched.
     let empty_module = b"\0asm\x01\0\0\0".to_vec();
@@ -374,7 +388,7 @@ async fn fenced_renewal_recovers_after_upgrade_and_retention() {
     let wasm = wasm();
     time(&pic, 0).await;
     let authority = install(&pic, &wasm).await;
-    let id = install_receiver(&pic, &wasm, authority, true).await;
+    let id = install_receiver(&pic, &wasm, authority, false).await;
     let account = CanisterId::from_slice(&[9]);
     let browser = CanisterId::from_slice(&vectors()["initial-caller"]);
     for (caller, command) in [

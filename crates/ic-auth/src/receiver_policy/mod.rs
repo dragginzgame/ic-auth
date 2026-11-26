@@ -9,8 +9,10 @@
 //! they are not a public backend extension or testing API.
 
 mod capacity;
+#[cfg(feature = "receiver-stable")]
+pub(crate) use capacity::MAX_SESSION_BYTES;
 mod login;
-#[cfg(feature = "receiver-memory")]
+#[cfg(feature = "receiver-stable")]
 mod logout;
 #[cfg(test)]
 mod tests;
@@ -32,9 +34,9 @@ pub use login::LoginLimits;
 pub(crate) use login::check_record;
 pub(crate) use login::{LoginDecision, LoginSnapshot, assess_login};
 
-#[cfg(feature = "receiver-memory")]
+#[cfg(feature = "receiver-stable")]
 pub(crate) use logout::plan_logout;
-#[cfg(feature = "receiver-memory")]
+#[cfg(feature = "receiver-stable")]
 pub use logout::{LogoutError, LogoutReceipt, UnknownLogoutLimits};
 
 ///
@@ -72,7 +74,7 @@ pub struct LoginBinding {
 #[derive(Clone, Copy, Debug)]
 pub struct SessionFacts<'a> {
     /// Opaque issuer-attested application bytes, up to 4096 bytes.
-    #[cfg(feature = "receiver-memory")]
+    #[cfg(feature = "receiver-stable")]
     pub ext: Option<&'a [u8]>,
     /// Stored browser caller.
     pub caller: Principal,
@@ -408,7 +410,6 @@ fn check_live(
         || a.now_ns >= a.expires_at_ns
         || a.now_ns >= a.enrollment_expires_at_ns
         || s.expires_at_ns > a.expires_at_ns
-        || s.expires_at_ns > a.enrollment_expires_at_ns
         || s.expires_at_ns - s.established_at_ns > a.max_session_ttl_secs * 1_000_000_000
     {
         return Err(E::StaleAuthority);

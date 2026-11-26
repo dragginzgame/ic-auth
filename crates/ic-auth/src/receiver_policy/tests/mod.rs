@@ -84,7 +84,7 @@ impl Scenario {
 
     fn session(&self) -> SessionFacts<'_> {
         SessionFacts {
-            #[cfg(feature = "receiver-memory")]
+            #[cfg(feature = "receiver-stable")]
             ext: None,
             caller: caller(10),
             audience: Self::audience(),
@@ -278,7 +278,7 @@ fn current_authority_changes_cannot_reuse_or_shorten_a_retained_lease_into_valid
         |h| h.min_login_started_at_ns += 1,
         |h| h.not_before_ns = 141 * SECOND,
         |h| h.expires_at_ns = 149 * SECOND,
-        |h| h.enrollment_expires_at_ns = 149 * SECOND,
+        |h| h.enrollment_expires_at_ns = h.now_ns,
         |h| h.max_session_ttl_secs = 29,
     ] {
         let mut h = baseline;

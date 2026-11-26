@@ -27,7 +27,7 @@ pub enum VerificationProfile<'a> {
     Certified(&'a super::CertifiedContext<'a>),
 }
 
-#[cfg(feature = "receiver-memory")]
+#[cfg(feature = "receiver-stable")]
 impl<'a> VerificationProfile<'a> {
     pub(crate) fn context(self) -> &'a super::VerificationContext<'a> {
         match self {
@@ -41,7 +41,7 @@ impl<'a> VerificationProfile<'a> {
 
 // Admission already owns the canonical decode and lazy exact-byte fingerprint.
 // No public prepared input or caller-supplied verification callback is exposed.
-#[cfg(feature = "receiver-memory")]
+#[cfg(feature = "receiver-stable")]
 pub(crate) fn verify_decoded(
     decoded: super::DecodedClaims<'_>,
     proof: &CredentialProof,

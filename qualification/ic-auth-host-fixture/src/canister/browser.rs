@@ -9,12 +9,12 @@ use crate::{
 use ic_auth::{
     issuer_memory::{
         IssueRequest, IssuedProof, IssuerAuthority, IssuerConfig, IssuerError, IssuerPolicy,
-        IssuerSigning, IssuerStatus, MemoryIssuer,
+        IssuerSigning, IssuerStatus, StableIssuer,
     },
     receiver_memory::{
         AdmissionHost, EnrollmentBinding, EnrollmentMetadata, LoginLimits, LogoutReceipt,
-        MemoryConfig, MemoryError, MemoryReceiver, SessionAuthority, SessionCapacity,
-        SessionPolicyError, UnknownLogoutLimits,
+        MemoryConfig, MemoryError, SessionAuthority, SessionCapacity, SessionPolicyError,
+        StableReceiver, UnknownLogoutLimits,
     },
     session_request::{SessionRequest, SessionTtlPolicy},
     verification::{
@@ -40,8 +40,8 @@ const OP: [u8; 32] = [1; 32];
 ///
 
 struct State {
-    issuer: MemoryIssuer,
-    receiver: MemoryReceiver,
+    issuer: StableIssuer,
+    receiver: StableReceiver,
     expires: u64,
     signatures: u32,
     writes: u32,
@@ -81,11 +81,12 @@ fn authority(expires: u64) -> IssuerAuthority {
     }
 }
 
-pub(super) fn init() {
+pub(super) fn init(runtime: &ic_storage::MemoryRuntime<ic_storage::DefaultMemoryImpl>) {
     let now = api::time();
     let expires = now + 300 * SECOND;
     let id = api::canister_self();
-    let mut receiver = MemoryReceiver::new_fresh(
+    let mut receiver = StableReceiver::new_fresh(
+        super::receiver::open_lease(runtime, "auth.browser.receiver.v1"),
         MemoryConfig {
             audience: audience(),
             enrollment: EnrollmentBinding {
@@ -137,7 +138,8 @@ pub(super) fn init() {
             },
         )
         .unwrap();
-    let issuer = MemoryIssuer::new_fresh(
+    let issuer = StableIssuer::new_fresh(
+        super::receiver::open_lease(runtime, "auth.browser.issuer.v1"),
         IssuerConfig {
             audience: audience(),
             issuer: id,

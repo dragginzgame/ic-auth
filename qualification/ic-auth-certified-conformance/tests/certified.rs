@@ -1,9 +1,25 @@
 //! Complete certified proof from independent root/claims bytes and real BLS.
-#[cfg(feature = "issuer-memory")]
+#[cfg(feature = "issuer-stable")]
 mod issuance;
-#[cfg(feature = "receiver-memory")]
+#[cfg(feature = "receiver-stable")]
 mod memory;
 mod support;
+
+#[cfg(any(feature = "receiver-stable", feature = "issuer-stable"))]
+fn lease(name: &str) -> ic_storage::RuntimeMemory<ic_storage::VectorMemory> {
+    use ic_storage::{StableKey, VectorMemory, testing::fixture_runtime};
+    let runtime = fixture_runtime(
+        VectorMemory::default(),
+        "auth",
+        "auth.",
+        &[name],
+        Default::default(),
+    )
+    .unwrap();
+    runtime
+        .open_memory(&StableKey::parse(name).unwrap())
+        .unwrap()
+}
 
 use ic_auth::{
     claims::{decode_claims, encode_claims},
@@ -755,7 +771,7 @@ fn wire_ed25519_projection_preserves_independent_signature_and_preflight_refusal
 }
 
 #[test]
-fn session_deadline_is_shared_by_complete_proofs_and_captures_enrollment() {
+fn session_deadline_is_shared_by_complete_proofs_and_uses_authority_expiry() {
     use ic_auth::session_request::{SessionRequest, SessionRequestError, SessionTtlPolicy};
     let f = Fixture::new();
     let g = grants(&f);
@@ -763,7 +779,7 @@ fn session_deadline_is_shared_by_complete_proofs_and_captures_enrollment() {
     let request = SessionRequest::new(vec!["write".into(), "read".into()], None).unwrap();
     let ttl = SessionTtlPolicy::new(30, 60).unwrap();
     // Independent fixture: original login ends at 190; proof ends at 180.
-    for (key_end, enrollment_end, expected) in [(200, 210, 190), (185, 210, 185), (200, 175, 175)] {
+    for (key_end, enrollment_end, expected) in [(200, 210, 190), (185, 210, 185), (200, 175, 190)] {
         let mut h = host(&f, &g);
         h.claims.authority_expires_at_ns = key_end;
         h.claims.enrollment_expires_at_ns = enrollment_end;
@@ -846,13 +862,13 @@ fn credential_profile_refuses_untrusted_mechanism_switches_before_decoding_or_ch
     }
 }
 
-#[cfg(feature = "receiver-memory")]
+#[cfg(feature = "receiver-stable")]
 #[test]
 fn memory_certified_admission_retains_failed_work_and_retries_after_proof_expiry() {
     use ic_auth::{
         receiver_memory::{
-            AdmissionHost, LoginLimits, MemoryConfig, MemoryError, MemoryReceiver,
-            SessionAuthority, SessionCapacity, SessionPolicyError,
+            AdmissionHost, LoginLimits, MemoryConfig, MemoryError, SessionAuthority,
+            SessionCapacity, SessionPolicyError, StableReceiver,
         },
         session_request::{SessionRequest, SessionTtlPolicy},
         verification::{CredentialError, VerificationProfile},
@@ -862,7 +878,8 @@ fn memory_certified_admission_retains_failed_work_and_retries_after_proof_expiry
     let g = grants(&f);
     let h = host(&f, &g);
     let role = "app".parse().unwrap();
-    let mut receiver = MemoryReceiver::new_fresh(
+    let mut receiver = StableReceiver::new_fresh(
+        lease("auth.certified.receiver.v1"),
         MemoryConfig {
             enrollment: ic_auth::receiver_memory::EnrollmentBinding {
                 receiver: Principal::from_slice(&[10]),

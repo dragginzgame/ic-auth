@@ -6,8 +6,8 @@ use crate::{
 use ic_auth::{
     receiver_memory::{
         AdmissionHost, EnrollmentBinding, EnrollmentMetadata, LoginLimits, LogoutReceipt,
-        MemoryConfig, MemoryError, MemoryReceiver, SessionAuthority, SessionCapacity,
-        SessionPolicyError, UnknownLogoutLimits,
+        MemoryConfig, MemoryError, SessionAuthority, SessionCapacity, SessionPolicyError,
+        StableReceiver, UnknownLogoutLimits,
     },
     root_delegation::{DelegationLimits, RootKeyPolicy},
     session_request::{SessionRequest, SessionTtlPolicy},
@@ -31,20 +31,24 @@ use std::cell::RefCell;
 ///
 
 struct State {
-    receiver: MemoryReceiver,
+    receiver: StableReceiver,
     network: Vec<u8>,
 }
 
 thread_local! { static STATE: RefCell<Option<State>> = const { RefCell::new(None) }; }
 
-pub(super) fn init(network: Vec<u8>) {
+pub(super) fn init(
+    runtime: &ic_storage::MemoryRuntime<ic_storage::DefaultMemoryImpl>,
+    network: Vec<u8>,
+) {
     if network.is_empty() {
         return;
     }
     assert_eq!(network.len(), 96);
     let now = api::time();
     let id = api::canister_self();
-    let mut receiver = MemoryReceiver::new_fresh(
+    let mut receiver = StableReceiver::new_fresh(
+        super::receiver::open_lease(runtime, "auth.certified.receiver.v1"),
         MemoryConfig {
             audience: audience(),
             enrollment: EnrollmentBinding {

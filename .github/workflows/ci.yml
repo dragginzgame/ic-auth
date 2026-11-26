@@ -98,7 +98,7 @@ jobs:
       - name: Check focused Auth library test builds
         if: runner.os == 'Linux'
         run: |
-          for features in issuer-memory,ed25519-verification receiver-memory,ed25519-verification receiver-memory,certified-verification; do
+          for features in issuer-stable,ed25519-verification receiver-stable,ed25519-verification receiver-stable,certified-verification; do
             cargo check --locked -p ic-auth --lib --tests --features "$features"
           done
       - name: Prepare Wasm compiler target

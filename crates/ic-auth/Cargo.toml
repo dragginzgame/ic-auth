@@ -1,6 +1,6 @@
 [package]
 name = "ic-auth"
-version = "0.50.0"
+version = "0.51.0"
 edition.workspace = true
 rust-version.workspace = true
 license-file.workspace = true
@@ -14,14 +14,19 @@ publish = true
 ignored = ["toko-tooling"]
 
 [features]
-issuer-stable = ["issuer-memory", "dep:ic-storage", "ic-auth-protocol-types/stable-records"]
-receiver-stable = ["receiver-memory", "dep:ic-storage", "ic-auth-protocol-types/stable-records"]
-issuer-memory = [
+issuer-stable = [
+    "dep:ic-storage",
     "dep:ic-wire",
     "dep:serde",
     "ic-auth-protocol-types/principal-self-authenticating",
+    "ic-auth-protocol-types/stable-records",
 ]
-receiver-memory = ["dep:ic-wire", "dep:serde"]
+receiver-stable = [
+    "dep:ic-storage",
+    "dep:ic-wire",
+    "dep:serde",
+    "ic-auth-protocol-types/stable-records",
+]
 ed25519-verification = [
     "dep:ic-platform",
     "ic-platform/ed25519",

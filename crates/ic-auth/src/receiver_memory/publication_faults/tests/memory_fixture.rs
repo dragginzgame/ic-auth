@@ -154,8 +154,8 @@ impl Host {
         }
     }
 
-    pub(super) fn receiver(&self) -> MemoryReceiver {
-        let mut r = MemoryReceiver::new_fresh(self.config(), 0).unwrap();
+    pub(super) fn receiver(&self) -> FixtureReceiver {
+        let mut r = fresh_receiver(self.config(), 0).unwrap();
         self.enroll(&mut r, 7).unwrap();
         r
     }

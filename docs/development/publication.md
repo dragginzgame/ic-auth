@@ -1,12 +1,12 @@
 # Crates.io publication scope
 
-This release publishes Auth 0.50.0 and Auth Wire 0.49.1 to crates.io. Both depend on the published protocol-types 0.44.1. All three product crates use `publish = true`.
-Publication covers the volatile and stable-checkpoint libraries.
+This release publishes Auth 0.51.0 to crates.io. It uses the published protocol-types 0.44.1. All three product crates use `publish = true`.
+Publication covers the stable-checkpoint Auth library.
 
 | Product crate | Published responsibility | In-repository prerequisite |
 | --- | --- | --- |
 | `ic-auth-protocol-types` | Passive validated authentication protocol values | None |
-| `ic-auth` | Authentication verification and bounded volatile receiver/issuer decisions | `ic-auth-protocol-types` |
+| `ic-auth` | Authentication verification and bounded receiver and issuer decisions | `ic-auth-protocol-types` |
 | `ic-auth-wire` | Credential, admission, read and logout Wire contracts; optional TypeScript generation | `ic-auth-protocol-types` |
 
 Publish the selected protocol-types version first. Once that exact required

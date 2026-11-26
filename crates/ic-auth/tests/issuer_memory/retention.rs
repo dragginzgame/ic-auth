@@ -38,7 +38,7 @@ fn pruned(operations: u32, logins: u32) -> IssuerPruned {
 #[test]
 fn prune_captures_later_deadline_and_keeps_exact_results_until_explicit_removal() {
     for complete in [false, true] {
-        let mut issuer = MemoryIssuer::new_fresh(config(), 0).unwrap();
+        let mut issuer = super::fresh_issuer(config(), 0).unwrap();
         let p = IssuerPolicy {
             receipt_timeout_ns: 30,
             ..policy()
@@ -93,7 +93,7 @@ fn prune_captures_later_deadline_and_keeps_exact_results_until_explicit_removal(
 
 #[test]
 fn pruning_old_ids_does_not_invalidate_unrelated_live_callbacks() {
-    let mut issuer = MemoryIssuer::new_fresh(config(), 0).unwrap();
+    let mut issuer = super::fresh_issuer(config(), 0).unwrap();
     let old = prepare(&mut issuer);
     let mut later = request();
     later.operation_id = [2; 32];
@@ -130,7 +130,7 @@ fn pruning_old_ids_does_not_invalidate_unrelated_live_callbacks() {
 #[test]
 fn retained_renewal_watermarks_survive_real_result_pruning() {
     for complete in [false, true] {
-        let mut issuer = MemoryIssuer::new_fresh(config(), 0).unwrap();
+        let mut issuer = super::fresh_issuer(config(), 0).unwrap();
         let initial = prepare(&mut issuer);
         finish(&mut issuer, initial, 11);
         let t = issuer
@@ -168,7 +168,7 @@ fn retained_renewal_watermarks_survive_real_result_pruning() {
 
 #[test]
 fn reusing_idle_login_removes_it_from_pruning_until_last_reference_expires() {
-    let mut issuer = MemoryIssuer::new_fresh(config(), 0).unwrap();
+    let mut issuer = super::fresh_issuer(config(), 0).unwrap();
     prepare(&mut issuer);
     assert_eq!(issuer.prune(40, 32), Ok(pruned(1, 0)));
     let mut later = request();
@@ -203,7 +203,7 @@ fn pruning_restores_capacity_but_never_old_login_identity_or_generation() {
     cfg.max_operations = 1;
     cfg.max_operations_per_account = 1;
     cfg.max_result_bytes = fixture("claims").len() as u64 + 64;
-    let mut issuer = MemoryIssuer::new_fresh(cfg, 0).unwrap();
+    let mut issuer = super::fresh_issuer(cfg, 0).unwrap();
     let old = prepare(&mut issuer);
     issuer.revoke(account(), 1, request().login_id, 11).unwrap();
     assert_eq!(issuer.prune(100, 32), Ok(pruned(1, 0)));
@@ -258,7 +258,7 @@ fn maintenance_is_capped_at_32_and_prioritizes_operations_over_idle_logins() {
     cfg.max_logins = 64;
     cfg.max_operations = 64;
     cfg.issuance_burst = 100;
-    let mut issuer = MemoryIssuer::new_fresh(cfg, 0).unwrap();
+    let mut issuer = super::fresh_issuer(cfg, 0).unwrap();
     for n in 1..=40 {
         issuer
             .prepare_issue(
@@ -312,7 +312,7 @@ fn maintenance_is_capped_at_32_and_prioritizes_operations_over_idle_logins() {
 
 #[test]
 fn expiry_ties_use_reference_principal_length_then_bytes_and_operation_identity() {
-    let mut issuer = MemoryIssuer::new_fresh(config(), 0).unwrap();
+    let mut issuer = super::fresh_issuer(config(), 0).unwrap();
     let short = Principal::from_slice(&[255]);
     let long = Principal::from_slice(&[0, 0]);
     // Deliberately reverse insertion order. Length-first must choose short first.
@@ -365,7 +365,7 @@ fn expiry_ties_use_reference_principal_length_then_bytes_and_operation_identity(
 
 #[test]
 fn invalid_or_overflowing_retention_refuses_before_publishing_records() {
-    let mut issuer = MemoryIssuer::new_fresh(config(), 0).unwrap();
+    let mut issuer = super::fresh_issuer(config(), 0).unwrap();
     let invalid = IssuerPolicy {
         reconciliation_retention_ns: 0,
         ..policy()
@@ -395,7 +395,7 @@ fn abandoned_and_revoked_logins_release_the_only_slot_before_login_expiry() {
         let mut cfg = config();
         cfg.max_logins = 1;
         cfg.max_devices_per_account = 1;
-        let mut issuer = MemoryIssuer::new_fresh(cfg, 0).unwrap();
+        let mut issuer = super::fresh_issuer(cfg, 0).unwrap();
         let old = prepare(&mut issuer);
         if disposition != "abandoned" {
             finish(&mut issuer, old, 11);

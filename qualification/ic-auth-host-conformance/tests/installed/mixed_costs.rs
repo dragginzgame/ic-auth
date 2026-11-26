@@ -235,10 +235,10 @@ async fn wide_scope_cost_observations() {
     let owned = start().await;
     let pic = &owned;
     receiver::time(pic, 0).await;
-    // Baseline narrow record is 345 bytes at these exact principal/time widths.
+    // Baseline narrow session and replay cost 173 bytes at these exact principal/time widths.
     // A 64-byte role adds 60; sixteen 64-byte scopes replace one four-byte scope:
     // 16 * (1 + 64) - (1 + 4) = 1035. Both length/count prefixes fit one byte.
-    const LOGICAL_BYTES: u64 = 345 + 60 + 1035;
+    const LOGICAL_BYTES: u64 = 173 + 60 + 1035;
     let id = install(
         pic,
         &wasm,

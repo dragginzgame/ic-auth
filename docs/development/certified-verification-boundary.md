@@ -72,7 +72,7 @@ fixtures sign the retained claims digest and literal domain without calling Auth
 encoder or message builder. Cases cover exact aggregate boundaries, separate caps,
 preflight no-mutation, certificate narrowing, root-before-issuer order, charged
 refusals, digest mutation, freshness and budget exhaustion/rollback.
-It also checks captured session lease policy. With `receiver-memory`, qualification
+It also checks captured session lease policy. With `receiver-stable`, qualification
 uses actual admission/retry/replacement instead of assembling public policy facts;
 see the [receiver coverage mapping](receiver-policy-boundary.md#coverage-after-api-narrowing).
 

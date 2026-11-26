@@ -99,11 +99,11 @@ test-memory: toko-tooling-check
 	node crates/ic-auth/tests/verify-memory-fixtures.mjs
 	node qualification/ic-auth-certified-conformance/tests/verify-root-fixture.mjs --certified --other-issuer
 	node qualification/ic-auth-certified-conformance/tests/verify-memory-fixture.mjs
-	cargo test --locked -p ic-auth --features receiver-memory,ed25519-verification --lib inspection_
-	cargo test --locked -p ic-auth --features receiver-memory,ed25519-verification --lib publication_faults
-	cargo test --locked -p ic-auth --features receiver-memory,ed25519-verification --test receiver_memory
-	cargo test --locked -p ic-auth --features receiver-memory,ed25519-verification --doc receiver_memory
-	cargo test --locked --manifest-path qualification/Cargo.toml -p ic-auth-certified-conformance --features receiver-memory --test certified memory_certified
+	cargo test --locked -p ic-auth --features receiver-stable,ed25519-verification --lib inspection_
+	cargo test --locked -p ic-auth --features receiver-stable,ed25519-verification --lib publication_faults
+	cargo test --locked -p ic-auth --features receiver-stable,ed25519-verification --test receiver_memory
+	cargo test --locked -p ic-auth --features receiver-stable,ed25519-verification --doc receiver_memory
+	cargo test --locked --manifest-path qualification/Cargo.toml -p ic-auth-certified-conformance --features receiver-stable --test certified memory_certified
 
 # Hosted aggregates run each selected test binary once. The focused targets
 # above remain the development interface; do not nest them and repeat cases.
@@ -112,9 +112,9 @@ test-issuer: toko-tooling-check
 	node qualification/ic-auth-certified-conformance/tests/verify-root-fixture.mjs --certified
 	node crates/ic-auth/tests/verify-ed25519-fixture.mjs
 	node crates/ic-auth/tests/verify-renewal-fixtures.mjs
-	cargo test --locked -p ic-auth --features issuer-memory,ed25519-verification --lib issuer_memory::tests
-	cargo test --locked -p ic-auth --features issuer-memory,ed25519-verification --test issuer_memory
-	cargo test --locked --manifest-path qualification/Cargo.toml -p ic-auth-certified-conformance --features issuer-memory --test certified issuance::
+	cargo test --locked -p ic-auth --features issuer-stable,ed25519-verification --lib issuer_memory::tests
+	cargo test --locked -p ic-auth --features issuer-stable,ed25519-verification --test issuer_memory
+	cargo test --locked --manifest-path qualification/Cargo.toml -p ic-auth-certified-conformance --features issuer-stable --test certified issuance::
 
 .PHONY: test-client test-client-journal generate-client check-client-generated
 test-client: toko-tooling-check
@@ -150,7 +150,7 @@ test-product: toko-tooling-check
 	cargo test --locked -p ic-auth-protocol-types -p ic-auth -p ic-auth-wire --features ic-auth/issuer-stable,ic-auth/receiver-stable,ic-auth/ed25519-verification,ic-auth/certified-verification
 
 test-qualification: toko-tooling-check
-	cargo test --locked --manifest-path qualification/Cargo.toml -p ic-auth-certified-conformance -p ic-auth-wire-conformance --features ic-auth-certified-conformance/receiver-memory,ic-auth-certified-conformance/issuer-memory,ic-auth-certified-conformance/ed25519-comparison
+	cargo test --locked --manifest-path qualification/Cargo.toml -p ic-auth-certified-conformance -p ic-auth-wire-conformance --features ic-auth-certified-conformance/receiver-stable,ic-auth-certified-conformance/issuer-stable,ic-auth-certified-conformance/ed25519-comparison
 
 verify-fixtures:
 	node crates/ic-auth-wire/tests/verify-fixtures.mjs
@@ -190,7 +190,7 @@ qualify-shared-verification: toko-tooling-check
 	cargo test --locked --manifest-path qualification/Cargo.toml -p ic-auth-certified-conformance --features ed25519-comparison --test certified real_ed25519_and_certified_proofs_consume_one_shared_weighted_bucket
 
 lint-certified-qualification: toko-tooling-check
-	cargo clippy --locked --manifest-path qualification/Cargo.toml -p ic-auth-certified-conformance --all-targets --features ed25519-comparison,issuer-memory -- -D warnings
+	cargo clippy --locked --manifest-path qualification/Cargo.toml -p ic-auth-certified-conformance --all-targets --features ed25519-comparison,issuer-stable -- -D warnings
 
 test-wire: toko-tooling-check
 	cargo test --locked -p ic-auth-wire --test caller_contracts --test admission_contracts

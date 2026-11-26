@@ -510,7 +510,7 @@ fn empty_budget_refill_exhaustion_and_rollback_are_retained_across_calls() {
 }
 
 #[test]
-fn session_deadline_captures_login_key_and_enrollment_without_proof_expiry() {
+fn session_deadline_captures_login_and_authority_expiry() {
     use ic_auth::session_request::{SessionRequest, SessionRequestError, SessionTtlPolicy};
     let a = audience();
     let g = grants();
@@ -519,13 +519,13 @@ fn session_deadline_captures_login_key_and_enrollment_without_proof_expiry() {
     let request = SessionRequest::new(vec!["read".into()], None).unwrap();
     let ttl = SessionTtlPolicy::new(30, 60).unwrap();
     // Literal reference claims: proof expires at 30, original login at 100.
-    // Each independently chosen protected deadline becomes the limiting bound.
+    // Enrollment must be current at verification and may expire before the lease.
     for (key_end, enrollment_end, expected) in [
         (200, 150, 100),
         (60, 150, 60),
-        (200, 55, 55),
-        (60, 55, 55),
-        (200, 26, 26),
+        (200, 55, 100),
+        (60, 55, 60),
+        (200, 26, 100),
     ] {
         let mut h = host(&a, &g);
         h.authority_expires_at_ns = key_end;

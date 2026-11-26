@@ -273,7 +273,7 @@ impl Ledger {
 
 struct Driver {
     host: Host,
-    receivers: [MemoryReceiver; 2],
+    receivers: [FixtureReceiver; 2],
     ledgers: [Ledger; 2],
     now: u64,
     answers: [usize; 6],
@@ -290,7 +290,7 @@ impl Driver {
         };
         config.unknown_logout.capacity = 1_000;
         let receivers = std::array::from_fn(|_| {
-            let mut r = MemoryReceiver::new_fresh(config, 0).unwrap();
+            let mut r = fresh_receiver(config, 0).unwrap();
             host.enroll(&mut r, 7).unwrap();
             r
         });
@@ -412,11 +412,11 @@ impl Driver {
             (usize::from(m.lease.is_some()), used, used),
             "model receiver occupancy mismatch"
         );
-        // Independent Postcard field-size sum from the retained reference;
-        // all fixture generations/times here remain single-byte varints.
+        // Independent Postcard field-size sum for the checkpoint rows.
+        // All fixture generations/times here remain single-byte varints.
         assert_eq!(
             usage.encoded_bytes,
-            226 * usize::from(m.lease.is_some()) + 79 * used
+            112 * usize::from(m.lease.is_some()) + 37 * used
         );
         assert_eq!(r.known_logins(), usize::from(m.known.is_some()));
         assert_eq!(r.unknown_logins(), m.unknown.iter().flatten().count());

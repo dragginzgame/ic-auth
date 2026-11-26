@@ -14,7 +14,7 @@ mod ed25519;
 
 pub(crate) use decoded::DecodedClaims;
 
-#[cfg(feature = "receiver-memory")]
+#[cfg(feature = "receiver-stable")]
 pub(crate) use {context::check as check_context, credential::verify_decoded};
 
 pub use crate::browser_identity::browser_principal;
@@ -69,10 +69,7 @@ impl VerifiedClaims {
         caller: Principal,
         host: &VerificationContext<'_>,
     ) -> Self {
-        let lease_ceiling_ns = claims
-            .login_deadline_ns
-            .min(host.authority_expires_at_ns)
-            .min(host.enrollment_expires_at_ns);
+        let lease_ceiling_ns = claims.login_deadline_ns.min(host.authority_expires_at_ns);
         Self {
             claims,
             fingerprint,
@@ -85,8 +82,9 @@ impl VerifiedClaims {
     /// Calculate a candidate session deadline at the original verification snapshot.
     ///
     /// Select scopes from exactly the host's protected role, enforce the requested
-    /// TTL, then cap by the signed login deadline and captured key/enrollment
-    /// expiry. Proof expiry limits fresh verification, not the resulting lease.
+    /// TTL, then cap by the signed login deadline and captured authority expiry.
+    /// Proof expiry limits fresh verification. Enrollment freshness is checked
+    /// again when the receiver authorizes use of the lease.
     /// No current time or refreshed enrollment can extend this captured result.
     ///
     /// This creates no session or permission. The receiver must consume proof and

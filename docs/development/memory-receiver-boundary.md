@@ -1,6 +1,6 @@
 # Volatile receiver admission
 
-`ic-auth` now supplies an opt-in `receiver-memory` module, selected with
+`ic-auth` now supplies an opt-in `receiver-stable` module, selected with
 `ed25519-verification`, `certified-verification`, or both. It owns caller records,
 device indexes, consumed replays, issuer-qualified replay counters, expiry indexes,
 physical totals, a trusted-clock high-water mark and one weighted verification
@@ -97,8 +97,8 @@ delay new admissions even while established sessions and exact retries still wor
 Schedule bounded `prune` calls regularly and continue draining expired entries
 when a call reaches its work limit. Known device-slot rows survive session expiry
 and pruning. Size `max_admitted_logins` for distinct retained issuer/account/slot
-combinations over the installation lifetime. The starting profile's 1,024 rows
-hold 128 accounts if each uses eight slots, or 1,024 if each uses one.
+combinations over the installation lifetime. The starting profile's 65,536 slots
+hold 8,192 accounts if each uses eight slots, or 65,536 if each uses one.
 
 ## Bounds and accounting
 
@@ -114,7 +114,21 @@ Size `MemoryConfig::login.max_admitted_logins` before installation for distinct
 single issuer and 10,000 accounts, one used slot each needs 10,000 rows. All
 eight starting-profile slots per account would need 80,000. Raising
 `capacity.max_sessions` alone does not change this limit. Qualify checkpoint
-size and upgrade cost at the chosen population before selecting a stable profile.
+size and upgrade cost at the chosen population before raising the starting limits.
+
+The starting profile budgets 20,000 retained session rows and 80,000 replay rows
+with a shared 32 MiB encoded byte limit. Admission and reopen measure the same
+session body and replay row encoding. A replay retains the fingerprint, account
+and expiry. The receiver reserves checkpoint space for caller keys, dormant
+device fences, unknown denials, and chunk framing before it accepts a profile.
+
+A receiver v1 checkpoint stores caller and replay rows in bounded chunks.
+Reopen validates the records and rebuilds secondary indexes. The native
+full-profile test reopened a 22,926,743-byte Cell payload with 20,000 sessions
+carrying 32-byte extensions, 80,000 replays, and 65,536 device slots. The
+standalone PocketIC probe measured 5.14 billion instructions to seal and 13.51
+billion to reopen. Measure the whole consuming canister at its expected payload
+and replay retention before setting production upgrade budgets.
 
 `inspect_sessions` borrows passive session facts in Principal order. Each call
 returns at most 32 sessions, visits at most 128 caller rows (or the smaller selected
@@ -255,9 +269,6 @@ for independent construction and scope. Existing standalone verifier and combine
 remain regression coverage. Native lint, docs and Wasm library compilation cover
 the selected feature graphs; compilation is not installed-host qualification.
 
-Installed boot/loss handling, actual host rollback, browser lifecycle and deployment
-cost gates remain open for the current volatile milestone. Stable storage is a
-future milestone; no interim `ic-storage` adapter is planned. Future
-`ic-storage` integration must reuse semantic rules while qualifying its own
-corruption, retained-state and host rollback boundaries. This increment makes no
-complete replacement or consumer-cutover claim.
+The installed host suite exercises upgrade and loss handling, rollback, and
+browser admission and logout. Qualify the consuming canister at its chosen
+session, replay and retained-device population before cutover.

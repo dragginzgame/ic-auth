@@ -5,12 +5,12 @@ use super::{
     IssuerPolicy, IssuerSigning, IssuerTicket, IssuerUsage, MemoryIssuer, Phase, Principal,
     WorkBucket, expiry,
 };
-use crate::stable_upgrade::{Checkpoint, UpgradeError};
+use crate::stable_upgrade::{Checkpoint, ISSUER_LIMITS, UpgradeError};
 use ic_storage::{DefaultMemoryImpl, Memory, RuntimeMemory};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-const CHECKPOINT_DOMAIN: &[u8] = b"ic-auth.issuer.v3";
+const CHECKPOINT_DOMAIN: &[u8] = b"ic-auth.issuer.checkpoint.v1";
 
 ///
 /// PolicyLimits
@@ -124,8 +124,10 @@ impl<M: Memory> StableIssuer<M> {
         canister_version: u64,
     ) -> Result<Self, UpgradeError> {
         let mut checkpoint = Checkpoint::load(memory)?;
-        let (Saved(mut inner), commitment): (Saved, [u8; 32]) =
-            Checkpoint::<M>::decode(checkpoint.payload(CHECKPOINT_DOMAIN, canister_version)?)?;
+        let (Saved(mut inner), commitment): (Saved, [u8; 32]) = Checkpoint::<M>::decode(
+            checkpoint.payload(CHECKPOINT_DOMAIN, canister_version)?,
+            ISSUER_LIMITS,
+        )?;
         if inner.config != config {
             return Err(UpgradeError::Configuration);
         }
@@ -150,6 +152,7 @@ impl<M: Memory> StableIssuer<M> {
             CHECKPOINT_DOMAIN,
             canister_version,
             &(SavedRef(&self.inner), self.inner.renewal_digest()),
+            ISSUER_LIMITS,
         )?;
         self.inner.close();
 
@@ -158,6 +161,20 @@ impl<M: Memory> StableIssuer<M> {
 
     /// Access the current Auth instance under the host transaction.
     pub fn state(&mut self) -> &mut MemoryIssuer {
+        &mut self.inner
+    }
+}
+
+impl<M: Memory> std::ops::Deref for StableIssuer<M> {
+    type Target = MemoryIssuer;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+impl<M: Memory> std::ops::DerefMut for StableIssuer<M> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.inner
     }
 }
@@ -397,9 +414,14 @@ mod tests {
         .unwrap();
         let key = StableKey::parse(key).unwrap();
         let lease = || runtime.open_memory(&key).unwrap();
-        let mut cell = Checkpoint::create(lease()).unwrap();
-        cell.save(CHECKPOINT_DOMAIN, 10, &(SavedRef(&issuer), commitment))
-            .unwrap();
+        let mut cell = Checkpoint::<_>::create(lease()).unwrap();
+        cell.save(
+            CHECKPOINT_DOMAIN,
+            10,
+            &(SavedRef(&issuer), commitment),
+            ISSUER_LIMITS,
+        )
+        .unwrap();
         drop(cell);
         assert!(matches!(
             StableIssuer::reopen(lease(), issuer.config, 51, 11),

@@ -2,7 +2,9 @@
 mod enrollment;
 mod upgrade;
 use upgrade::Backend;
-pub(super) use upgrade::{decode_upgrade_fault, reopen, seal, upgrade_guard};
+pub(super) use upgrade::{
+    decode_upgrade_fault, open_lease, reopen, seal, storage_runtime, upgrade_guard,
+};
 
 use crate::{
     RESPONSE,
@@ -84,13 +86,14 @@ fn config(authority: Principal, capacity: Capacity) -> MemoryConfig {
         },
     }
 }
-pub(super) fn init(authority: Principal, capacity: Capacity, stable: bool) {
+pub(super) fn init(
+    runtime: &ic_storage::MemoryRuntime<ic_storage::DefaultMemoryImpl>,
+    authority: Principal,
+    capacity: Capacity,
+    skip_auth_checkpoint: bool,
+) {
     let config = config(authority, capacity);
-    let receiver = if stable {
-        upgrade::create(config)
-    } else {
-        Backend::Volatile(MemoryReceiver::new_fresh(config, api::time()).unwrap())
-    };
+    let receiver = upgrade::create(runtime, config, skip_auth_checkpoint);
     STATE.with_borrow_mut(|s| {
         s.capacity = capacity;
         s.receiver = Some(receiver);

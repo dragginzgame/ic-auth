@@ -77,7 +77,7 @@ impl WorkBucket {
         self.available
     }
 
-    #[cfg(feature = "issuer-memory")]
+    #[cfg(feature = "issuer-stable")]
     pub(crate) fn new_full(
         capacity: u32,
         interval_ns: u64,

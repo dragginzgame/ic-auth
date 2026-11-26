@@ -1,7 +1,4 @@
-//! Backend-local records and compatibility byte accounting. No persisted codec.
-//!
-//! Field order/representations follow the pinned reference session/model.rs and
-//! storage_codec/mod.rs. Wire measures the logical frame; no bytes are emitted.
+//! Receiver rows and byte accounting for the current checkpoint format.
 
 use super::{Account, MemoryError, MemoryReceiver, SessionReceipt, Slot};
 use crate::{
@@ -14,7 +11,7 @@ use crate::{
 use ic_auth_protocol_types::{
     AudienceId, AuthRole, PortableClaims, PortableMechanism, Principal, ScopeLabel,
 };
-use serde::{Serialize, Serializer, ser::SerializeSeq};
+use serde::Serialize;
 
 ///
 /// Session
@@ -41,15 +38,15 @@ pub(super) struct Session {
     pub(super) expires_at_ns: u64,
     fingerprint: [u8; 32],
     request_hash: [u8; 32],
+    #[serde(skip)]
     pub(super) bytes: usize,
 }
 
 impl Session {
     pub(super) fn prepare(
         claims: &PortableClaims,
-        request: &SessionRequest,
+        request: SessionRequest,
         authority: &SessionAuthority<'_>,
-        binding: LoginBinding,
         expires_at_ns: u64,
         fingerprint: [u8; 32],
     ) -> Result<Self, MemoryError> {
@@ -59,7 +56,7 @@ impl Session {
             mechanism: claims.mechanism,
             key_binding_id: claims.key_binding_id,
             role: authority.role.clone(),
-            scopes: Vec::new(),
+            scopes: request.into_scopes(),
             generation: authority.generation,
             established_at_ns: authority.now_ns,
             expires_at_ns,
@@ -67,41 +64,12 @@ impl Session {
             request_hash,
             bytes: 0,
         };
-        session.bytes =
-            session.logical_bytes(authority.caller, claims.audience, binding, request.scopes())?;
+        session.bytes = session.encoded_size()?;
         Ok(session)
     }
 
-    pub(super) fn logical_bytes(
-        &self,
-        caller: Principal,
-        audience: AudienceId,
-        binding: LoginBinding,
-        scopes: &[ScopeLabel],
-    ) -> Result<usize, MemoryError> {
-        let ext_bytes = self.ext.as_ref().map_or(0, |ext| 4 + ext.len());
-        Ok(measured(
-            &SessionSize {
-                caller,
-                subject: binding.subject,
-                issuer: binding.issuer,
-                audience: Audience(audience),
-                mechanism: Mechanism(self.mechanism),
-                key_binding_id: &self.key_binding_id,
-                role: self.role.as_str(),
-                scopes: Scopes(scopes),
-                generation: self.generation,
-                device_slot: binding.device_slot,
-                device_generation: binding.device_generation,
-                login_started_at_ns: binding.started_at_ns,
-                login_deadline_ns: binding.deadline_ns,
-                established_at_ns: self.established_at_ns,
-                expires_at_ns: self.expires_at_ns,
-                fingerprint: &self.fingerprint,
-                request_hash: &self.request_hash,
-            },
-            2048,
-        )? + ext_bytes)
+    pub(super) fn encoded_size(&self) -> Result<usize, MemoryError> {
+        measured(self, crate::receiver_policy::MAX_SESSION_BYTES)
     }
 }
 
@@ -126,10 +94,8 @@ impl CallerRecord {
         audience: AudienceId,
         binding: LoginBinding,
         until_ns: u64,
-        mut session: Session,
-        scopes: Vec<ScopeLabel>,
+        session: Session,
     ) -> Self {
-        session.scopes = scopes;
         Self {
             login: LoginFacts {
                 caller,
@@ -200,48 +166,34 @@ impl CallerRecord {
 ///
 /// Replay
 ///
-/// Retains the credential binding needed to decide an exact admission retry.
+/// Retains the account and expiry of a consumed credential fingerprint.
 ///
 
-#[cfg_attr(
-    feature = "receiver-stable",
-    derive(serde::Serialize, serde::Deserialize)
-)]
+#[derive(serde::Serialize, serde::Deserialize)]
 pub(super) struct Replay {
     pub(super) account: Account,
-    caller: Principal,
-    generation: u64,
     pub(super) remove_at_ns: u64,
+    #[serde(skip)]
     pub(super) bytes: usize,
 }
 
 impl Replay {
     pub(super) fn prepare(
-        fingerprint: [u8; 32],
-        caller: Principal,
-        binding: LoginBinding,
-        generation: u64,
+        fingerprint: &[u8; 32],
+        account: Account,
         remove_at_ns: u64,
     ) -> Result<Self, MemoryError> {
         let mut replay = Self {
-            account: (binding.issuer, binding.subject),
-            caller,
-            generation,
+            account,
             remove_at_ns,
             bytes: 0,
         };
-        replay.bytes = measured(
-            &(
-                fingerprint,
-                replay.caller,
-                replay.account.0,
-                replay.account.1,
-                replay.generation,
-                replay.remove_at_ns,
-            ),
-            512,
-        )?;
+        replay.bytes = replay.encoded_size(fingerprint)?;
         Ok(replay)
+    }
+
+    pub(super) fn encoded_size(&self, fingerprint: &[u8; 32]) -> Result<usize, MemoryError> {
+        measured(&(fingerprint, self), 512)
     }
 }
 
@@ -283,14 +235,9 @@ impl SessionFacts<'_> {
 }
 
 fn measured(value: &impl Serialize, maximum: usize) -> Result<usize, MemoryError> {
-    // Only length is used. The fixed 11-byte frame overhead is retained without
-    // declaring a storage identity, writing a format or importing an old reader.
     ic_wire::encoded_len(
         value,
-        ic_wire::Encoding::Frame {
-            method: 0,
-            direction: ic_wire::Direction::Request,
-        },
+        ic_wire::Encoding::Payload,
         ic_wire::Limits {
             bytes: maximum,
             allocation: 65_536,
@@ -299,88 +246,4 @@ fn measured(value: &impl Serialize, maximum: usize) -> Result<usize, MemoryError
         },
     )
     .map_err(|_| SessionPolicyError::ByteCapacity.into())
-}
-
-///
-/// SessionSize
-///
-/// Projects the retained session fields into their accounting encoding.
-///
-
-#[derive(Serialize)]
-struct SessionSize<'a> {
-    caller: Principal,
-    subject: Principal,
-    issuer: Principal,
-    audience: Audience,
-    mechanism: Mechanism,
-    key_binding_id: &'a [u8; 32],
-    role: &'a str,
-    scopes: Scopes<'a>,
-    generation: u64,
-    device_slot: u8,
-    device_generation: u64,
-    login_started_at_ns: u64,
-    login_deadline_ns: u64,
-    established_at_ns: u64,
-    expires_at_ns: u64,
-    fingerprint: &'a [u8; 32],
-    request_hash: &'a [u8; 32],
-}
-
-///
-/// Audience
-///
-/// Serializes the network and fleet identifiers for session-size accounting.
-///
-
-struct Audience(AudienceId);
-
-impl Serialize for Audience {
-    fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
-        (
-            ic_wire::ByteArray::new(*self.0.canonical_network_id.as_bytes()),
-            ic_wire::ByteArray::new(*self.0.fleet_id.as_bytes()),
-        )
-            .serialize(s)
-    }
-}
-
-///
-/// Mechanism
-///
-/// Serializes the mechanism tag used for session-size accounting.
-///
-
-struct Mechanism(PortableMechanism);
-
-impl Serialize for Mechanism {
-    fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
-        match self.0 {
-            PortableMechanism::Certified => {
-                s.serialize_unit_variant("PortableMechanism", 0, "Certified")
-            }
-            PortableMechanism::Ed25519 => {
-                s.serialize_unit_variant("PortableMechanism", 1, "Ed25519")
-            }
-        }
-    }
-}
-
-///
-/// Scopes
-///
-/// Serializes the borrowed scope labels for session-size accounting.
-///
-
-struct Scopes<'a>(&'a [ScopeLabel]);
-
-impl Serialize for Scopes<'_> {
-    fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
-        let mut seq = s.serialize_seq(Some(self.0.len()))?;
-        for scope in self.0 {
-            seq.serialize_element(scope.as_str())?;
-        }
-        seq.end()
-    }
 }

@@ -31,6 +31,24 @@ use ic_testkit::pocket_ic::{CanisterId, nonblocking::PocketIc};
 use sha2::{Digest, Sha256};
 use std::time::Duration;
 
+async fn install_with_checkpoint_loss(pic: &PocketIc, wasm: &[u8]) -> CanisterId {
+    let id = pic.create_canister().await;
+    pic.add_cycles(id, 5_000_000_000_000).await;
+    let init = ic_wire::encode(
+        &ic_auth_host_fixture::Installation {
+            authority: Vec::new(),
+            certified_network_key: Vec::new(),
+            skip_auth_checkpoint: true,
+            receiver_capacity: None,
+        },
+        ic_wire::Encoding::Payload,
+        ic_auth_host_fixture::enrollment::LIMITS,
+    )
+    .unwrap();
+    pic.install_canister(id, wasm.to_vec(), init, None).await;
+    id
+}
+
 fn frame(method: u64, direction: ic_wire::Direction) -> ic_wire::Encoding {
     ic_wire::Encoding::Frame { method, direction }
 }
@@ -223,7 +241,7 @@ async fn actual_time_revocation_and_upgrade_loss_never_publish_or_recreate_autho
         );
         unchanged(&before, &observe(pic, id, account).await);
     }
-    let id = install(pic, &wasm).await;
+    let id = install_with_checkpoint_loss(pic, &wasm).await;
     assert_eq!(
         control(pic, id, account, Command::Prepare).await.unwrap(),
         Ok(())

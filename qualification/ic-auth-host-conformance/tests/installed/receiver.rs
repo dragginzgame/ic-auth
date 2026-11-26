@@ -228,7 +228,7 @@ async fn receiver_upgrade_loss_cannot_reenroll_or_confirm_unknown_logout() {
         let owned = start().await;
         let pic = &owned;
         time(pic, 0).await;
-        let id = install(pic, &wasm).await;
+        let id = super::install_with_checkpoint_loss(pic, &wasm).await;
         let intact = install(pic, &wasm).await;
         time(pic, 25).await;
         let name = if known { "initial" } else { "future" };
@@ -334,7 +334,7 @@ async fn missing_predecessor_after_unacknowledged_logout_is_indistinguishable_fr
     for logout in [false, true] {
         let pic = start().await;
         time(&pic, 0).await;
-        let id = install(&pic, &wasm).await;
+        let id = super::install_with_checkpoint_loss(&pic, &wasm).await;
         let status = pic.canister_status(id, None).await.unwrap();
         let controller = status.settings.controllers[0];
         let module = status.module_hash.unwrap();
