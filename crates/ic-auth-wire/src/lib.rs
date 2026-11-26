@@ -26,6 +26,7 @@ pub const BROWSER_MAX_CONFIGURED_CREDENTIAL_BYTES: usize = 1_048_576;
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 #[cfg_attr(feature = "typescript", derive(ic_wire::typescript::Wire))]
+#[cfg_attr(feature = "typescript", wire(fixed))]
 pub struct SessionInput {
     /// Claims and proof requiring complete verification against host authority.
     pub credential: model::PortableCredential,

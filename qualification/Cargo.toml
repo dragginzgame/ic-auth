@@ -26,11 +26,11 @@ ic-platform = { version = "0.35.1", default-features = false }
 ic-platform-runtime = { version = "0.23.27", default-features = false }
 ic-storage = "0.80.0"
 ic-testkit = "0.110.0"
-ic-wire = "0.30.2"
+ic-wire = "0.31.1"
 serde = "1.0.229"
 sha2 = "0.11.1"
 tokio = "1.54.1"
-toko-tooling = "=0.46.5"
+toko-tooling = "=0.46.8"
 
 [workspace.lints.cargo]
 unused_dependencies = "deny"

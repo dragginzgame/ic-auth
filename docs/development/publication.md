@@ -1,7 +1,6 @@
 # Crates.io publication scope
 
-This release publishes Auth 0.51.0 to crates.io. It uses the published protocol-types 0.44.1. All three product crates use `publish = true`.
-Publication covers the stable-checkpoint Auth library.
+This release publishes Auth 0.51.1, Auth Wire 0.50.0 and protocol-types 0.44.2 to crates.io. All three product crates use `publish = true`.
 
 | Product crate | Published responsibility | In-repository prerequisite |
 | --- | --- | --- |

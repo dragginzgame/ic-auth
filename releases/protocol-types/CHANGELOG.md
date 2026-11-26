@@ -2,6 +2,12 @@
 
 The `protocol-types` group covers `ic-auth-protocol-types`. Its separate ledger follows [0.43.2](../history.md#0486---2026-11-19).
 
+## [0.44.2] - 2026-11-26
+
+### 🔧 Changed
+
+- Adopt IC Platform Types 0.21.6, which uses a bounded Base32 implementation for principal text.
+
 ## [0.44.1] - 2026-11-25
 
 ### 📦 Dependencies

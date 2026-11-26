@@ -1,12 +1,18 @@
 export declare const schemaFormat = "ic-wire-json";
 export declare class WireError extends Error {
-    readonly code: 'limit' | 'malformed' | 'identity' | 'value';
+    readonly code: 'limit' | 'malformed' | 'identity' | 'value' | 'incompatible';
     name: string;
-    constructor(code: 'limit' | 'malformed' | 'identity' | 'value');
+    constructor(code: 'limit' | 'malformed' | 'identity' | 'value' | 'incompatible');
 }
 type Field = {
     name: string;
     value: Schema;
+};
+type Variant = Field & {
+    id: number;
+};
+type Extension = Variant & {
+    required: boolean;
 };
 export type Schema = ({
     k: 'unit' | 'bool';
@@ -53,6 +59,7 @@ export type Schema = ({
 } | {
     k: 'tuple';
     items: readonly Schema[];
+    fixed?: true;
 } | {
     k: 'result';
     ok: Schema;
@@ -61,13 +68,29 @@ export type Schema = ({
     k: 'option' | 'newtype';
     item: Schema;
 } | {
+    k: 'recover';
+    item: Schema;
+} | {
     k: 'record';
     fields: readonly Field[];
+    fixed?: true;
+} | {
+    k: 'extension-record';
+    fields: readonly Field[];
+    extensions: readonly Extension[];
+    projected?: true;
+} | {
+    k: 'extension-tuple';
+    items: readonly Schema[];
+    extensions: readonly Extension[];
+    projected?: true;
 } | {
     k: 'enum';
-    variants: readonly (Field & {
-        id: number;
-    })[];
+    variants: readonly Variant[];
+} | {
+    k: 'open-variant';
+    variants: readonly Variant[];
+    required?: boolean;
 } | {
     k: 'ref';
     name: string;

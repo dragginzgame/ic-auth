@@ -54,6 +54,7 @@ pub enum AdmissionRefusal {
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "typescript", derive(ic_wire::typescript::Wire))]
+#[cfg_attr(feature = "typescript", wire(fixed))]
 pub struct SessionView {
     /// Host-authenticated browser principal bound to the session.
     pub caller: Principal,

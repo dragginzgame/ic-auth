@@ -2,6 +2,13 @@
 
 The `wire` group covers `ic-auth-wire`. Its separate ledger follows [0.45.0](../history.md#0485---2026-11-19).
 
+## [0.50.0] - 2026-11-26
+
+### 🔧 Changed
+
+- Update the public IC Wire re-export to 0.31.1. Consumers deriving fixed Serde records through the re-export must use `#[wire(fixed)]`.
+- Declare fixed Auth records explicitly and regenerate the browser codec runtime.
+
 ## [0.49.1] - 2026-11-25
 
 ### 📦 Dependencies

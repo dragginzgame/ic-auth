@@ -2,6 +2,13 @@
 
 The `auth` group covers `ic-auth`. Its separate ledger follows [0.48.7](../history.md#0487---2026-11-19).
 
+## [0.51.1] - 2026-11-26
+
+### 🔧 Changed
+
+- Use IC Wire 0.31.1 for stable checkpoint encoding and Auth protocol-types 0.44.2 for principals.
+- Adopt authenticated Toko Tooling 0.46.8 in both workspaces.
+
 ## [0.51.0] - 2026-11-26
 
 ### ⚠️ Breaking
