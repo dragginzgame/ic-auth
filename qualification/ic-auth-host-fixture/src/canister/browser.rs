@@ -175,7 +175,7 @@ pub(super) fn bounded<const N: usize>() -> Result<(), String> {
 }
 
 pub(super) fn decode_lookup(bytes: &[u8]) -> Result<bool, ic_wire::Error> {
-    ic_wire::decode(
+    crate::codec::decode(
         bytes,
         ic_wire::Encoding::Frame {
             method: CREDENTIAL,
@@ -347,7 +347,7 @@ pub(super) fn admit(input: SessionInput) -> Result<SessionView, AdmissionRefusal
 }
 
 pub(super) fn decode_write(bytes: &[u8]) -> Result<(), ic_wire::Error> {
-    ic_wire::decode::<()>(
+    crate::codec::decode::<()>(
         bytes,
         ic_wire::Encoding::Frame {
             method: WRITE,
@@ -358,7 +358,7 @@ pub(super) fn decode_write(bytes: &[u8]) -> Result<(), ic_wire::Error> {
 }
 
 pub(super) fn encode_write(value: Result<u32, ()>) -> Result<Vec<u8>, ic_wire::Error> {
-    ic_wire::encode(
+    crate::codec::encode(
         &value,
         ic_wire::Encoding::Frame {
             method: WRITE,
@@ -443,7 +443,7 @@ pub(super) fn logout() -> LogoutResult {
 }
 
 pub(super) fn decode_observe(bytes: &[u8]) -> Result<(), ic_wire::Error> {
-    ic_wire::decode::<()>(
+    crate::codec::decode::<()>(
         bytes,
         ic_wire::Encoding::Frame {
             method: OBSERVE,
@@ -457,7 +457,7 @@ pub(super) fn decode_observe(bytes: &[u8]) -> Result<(), ic_wire::Error> {
     reason = "Platform owns the reply value"
 )]
 pub(super) fn encode_observe(value: Observation) -> Result<Vec<u8>, ic_wire::Error> {
-    ic_wire::encode(
+    crate::codec::encode(
         &value,
         ic_wire::Encoding::Frame {
             method: OBSERVE,

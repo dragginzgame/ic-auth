@@ -24,7 +24,7 @@ pub const REQUEST: ic_wire::Limits = ic_wire::Limits {
     // The fixture transports the signed 4 KiB extension inside a byte vector.
     bytes: 16_384,
     allocation: 2_097_152,
-    nodes: 32768,
+    nodes: 65536,
     depth: 8,
 };
 

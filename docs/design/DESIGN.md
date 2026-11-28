@@ -112,10 +112,10 @@ These are the current method identities, DTO order, tags and error projections, 
 
 | Contract | Identity | Request | Response |
 | - | - | - | - |
-| CredentialEnvelope | 0x415554480001 | PortableCredential | PortableCredential |
-| EstablishSession | 0x415554480012 | credential, scopes, optional ttl_secs | Result of SessionView or AdmissionRefusal |
-| ReadSession | 0x415554480013 | unit | Result of SessionView or SessionReadRefusal |
-| Logout | 0x415554480014 | unit | LogoutResult |
+| CredentialEnvelope | 0x415554480101 | PortableCredential | PortableCredential |
+| EstablishSession | 0x415554480112 | credential, scopes, optional ttl_secs | Result of SessionView or AdmissionRefusal |
+| ReadSession | 0x415554480113 | unit | Result of SessionView or SessionReadRefusal |
+| Logout | 0x415554480114 | unit | LogoutResult |
 
 SessionView fields remain caller, issuer, subject, expires_at_ns. Credential proof variants remain Certified then Ed25519. Admission refusal order remains NotYetValid, Expired, InvalidCredential, AuthorityUnavailable, BeforeReset, ScopeRejected, ReplayConflict, Revoked, Capacity, Throttled, Unavailable. Preserve the complete nested model rather than regenerating an “equivalent” enum order.
 
@@ -123,9 +123,10 @@ SessionView fields remain caller, issuer, subject, expires_at_ns. Credential pro
 | - | -: | -: | -: | -: |
 | Credential and admission requests | 524,288 | 2,097,152 | 65,536 | 32 |
 | Ordinary replies | 4,096 | 16,384 | 128 | 8 |
-| Unit requests | 11 | 128 | 8 | 4 |
+| Session replies | 8,192 | 131,072 | 128 | 8 |
+| Unit requests | 12 | 8,192 | 32 | 8 |
 
-Credential-envelope replies use the credential limit set. Browser credential retention defaults to 131,072 bytes, with configurable maximum 1,048,576 that never overrides Wire's lower bound. Browser logout replies retain their additional 1,024-byte cap.
+Credential and admission writers have a 3 MiB allocation allowance. Credential-envelope replies use the credential limit set. Browser credential retention defaults to 131,072 bytes, with configurable maximum 1,048,576 that never overrides Wire's lower bound. Browser logout replies retain their additional 1,024-byte cap.
 
 Wire bounds, proof-domain bounds and browser retention limits are separate. For example, a bounded 64-byte signature transport field still requires exact signature length at verification. Host raw-argument admission precedes copying/decoding. Every boundary rejects truncation and trailing input according to its own contract.
 
@@ -501,7 +502,7 @@ Retain distinct account and browser signer roles. Initial issuance/reconciliatio
 
 Persist issuance intent before dispatch. Pending sequences reconcile; completed sequences reuse retained evidence. Store completion before receiver admission. Record each receiver in the logout inventory before contacting it.
 
-Preserve the current private journal profile ic-auth-login-cleanup-journal-v1 unless a separately authorized browser migration changes it. Metadata and exact credential evidence commit atomically, while ordinary guards load bounded metadata only. Unknown issuance remains authoritative even when its recoverable sequence is absent.
+Preserve the current private journal profile ic-auth-login-cleanup-journal-sparse-v1 unless a separately authorized browser migration changes it. Metadata and exact credential evidence commit atomically, while ordinary guards load bounded metadata only. Unknown issuance remains authoritative even when its recoverable sequence is absent.
 
 Logout commits durable local invalidation before waiting for any admission flight or sending cleanup. Fence late signatures, completions and replies; already returned signatures or accepted requests cannot be recalled. A storage failure means durable local logout was not established.
 

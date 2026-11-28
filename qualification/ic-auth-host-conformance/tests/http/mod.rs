@@ -20,7 +20,7 @@ async fn certified_http_acceptance_and_tamper_refusal() {
     let root = pic.root_key().await.unwrap();
     let gateway = owned.make_live(None).await;
     let request = |command: Command| {
-        ic_wire::encode(
+        ic_auth_host_fixture::codec::encode(
             &command,
             ic_wire::Encoding::Frame {
                 method: CONTROL,
@@ -30,7 +30,7 @@ async fn certified_http_acceptance_and_tamper_refusal() {
         )
         .unwrap()
     };
-    let expected = ic_wire::encode(
+    let expected = ic_auth_host_fixture::codec::encode(
         &Ok::<(), Refusal>(()),
         ic_wire::Encoding::Frame {
             method: CONTROL,
@@ -120,7 +120,7 @@ async fn browser_journey_reconciles_admits_authorizes_and_revokes() {
         .env("AUTH_HTTP_CANISTER", canister.to_text())
         .env(
             "AUTH_FLOW_ISSUE",
-            hex(&ic_wire::encode(
+            hex(&ic_auth_host_fixture::codec::encode(
                 &false,
                 frame(browser::CREDENTIAL, ic_wire::Direction::Request),
                 REQUEST,
@@ -129,7 +129,7 @@ async fn browser_journey_reconciles_admits_authorizes_and_revokes() {
         )
         .env(
             "AUTH_FLOW_LOOKUP",
-            hex(&ic_wire::encode(
+            hex(&ic_auth_host_fixture::codec::encode(
                 &true,
                 frame(browser::CREDENTIAL, ic_wire::Direction::Request),
                 REQUEST,
@@ -138,7 +138,7 @@ async fn browser_journey_reconciles_admits_authorizes_and_revokes() {
         )
         .env(
             "AUTH_FLOW_WRITE",
-            hex(&ic_wire::encode(
+            hex(&ic_auth_host_fixture::codec::encode(
                 &(),
                 frame(browser::WRITE, ic_wire::Direction::Request),
                 REQUEST,
@@ -147,7 +147,7 @@ async fn browser_journey_reconciles_admits_authorizes_and_revokes() {
         )
         .env(
             "AUTH_FLOW_WRITE_OK",
-            hex(&ic_wire::encode(
+            hex(&ic_auth_host_fixture::codec::encode(
                 &Ok::<u32, ()>(1),
                 frame(browser::WRITE, ic_wire::Direction::Response),
                 RESPONSE,
@@ -156,7 +156,7 @@ async fn browser_journey_reconciles_admits_authorizes_and_revokes() {
         )
         .env(
             "AUTH_FLOW_WRITE_DENIED",
-            hex(&ic_wire::encode(
+            hex(&ic_auth_host_fixture::codec::encode(
                 &Err::<u32, ()>(()),
                 frame(browser::WRITE, ic_wire::Direction::Response),
                 RESPONSE,
@@ -176,7 +176,7 @@ async fn browser_journey_reconciles_admits_authorizes_and_revokes() {
             canister,
             ic_testkit::pocket_ic::CanisterId::anonymous(),
             "browser_fixture_observe",
-            ic_wire::encode(
+            ic_auth_host_fixture::codec::encode(
                 &(),
                 frame(browser::OBSERVE, ic_wire::Direction::Request),
                 REQUEST,
@@ -187,7 +187,7 @@ async fn browser_journey_reconciles_admits_authorizes_and_revokes() {
     // Close the instance before checking either browser or host assertions.
     owned.drop().await;
     println!("{}", result.unwrap());
-    let observed: browser::Observation = ic_wire::decode(
+    let observed: browser::Observation = ic_auth_host_fixture::codec::decode(
         &observation.unwrap(),
         frame(browser::OBSERVE, ic_wire::Direction::Response),
         RESPONSE,

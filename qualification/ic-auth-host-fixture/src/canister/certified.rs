@@ -218,7 +218,7 @@ fn control(s: &mut State, command: Command) -> Result<Outcome, Refusal> {
 }
 
 pub(super) fn decode(bytes: &[u8]) -> Result<Command, ic_wire::Error> {
-    ic_wire::decode(
+    crate::codec::decode(
         bytes,
         ic_wire::Encoding::Frame {
             method: MEASURE,
@@ -232,7 +232,7 @@ pub(super) fn decode(bytes: &[u8]) -> Result<Command, ic_wire::Error> {
     reason = "Platform owns the handler result"
 )]
 pub(super) fn encode(value: Measurement) -> Result<Vec<u8>, ic_wire::Error> {
-    ic_wire::encode(
+    crate::codec::encode(
         &value,
         ic_wire::Encoding::Frame {
             method: MEASURE,
@@ -265,7 +265,7 @@ pub(super) fn measure(command: Command) -> Measurement {
             Principal::from_slice(&crate::certified::ISSUER),
             Principal::from_slice(&[5; 10]),
         ));
-        let response_bytes = ic_wire::encode(
+        let response_bytes = crate::codec::encode(
             &result,
             ic_wire::Encoding::Frame {
                 method: MEASURE,

@@ -1,6 +1,6 @@
 [package]
 name = "ic-auth-wire"
-version = "0.51.0"
+version = "0.52.0"
 edition.workspace = true
 rust-version.workspace = true
 license-file.workspace = true
@@ -14,11 +14,11 @@ publish = true
 ignored = ["toko-tooling"]
 
 [features]
-typescript = ["ic-wire/derive", "ic-wire/platform-types"]
+typescript = ["ic-wire/platform-types"]
 
 [dependencies]
 ic-auth-protocol-types.workspace = true
-ic-wire.workspace = true
+ic-wire = { workspace = true, features = ["platform-types"] }
 serde.workspace = true
 
 [dev-dependencies]

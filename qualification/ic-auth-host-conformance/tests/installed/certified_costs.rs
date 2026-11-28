@@ -60,7 +60,7 @@ pub(super) async fn install_receiver(
 ) -> CanisterId {
     let id = pic.create_canister().await;
     pic.add_cycles(id, 5_000_000_000_000).await;
-    let init = ic_wire::encode(
+    let init = ic_auth_host_fixture::codec::encode(
         &Installation {
             authority: Vec::new(),
             certified_network_key: network.to_vec(),
@@ -145,7 +145,7 @@ async fn certified_receiver_cost_observations() {
             4,
         ),
     ] {
-        let bytes = ic_wire::encode(
+        let bytes = ic_auth_host_fixture::codec::encode(
             &command,
             frame(fixture::MEASURE, ic_wire::Direction::Request),
             RESPONSE,
@@ -156,7 +156,7 @@ async fn certified_receiver_cost_observations() {
             .update_call(id, caller, "certified_fixture_measure", bytes)
             .await
             .unwrap();
-        let sample: Measurement = ic_wire::decode(
+        let sample: Measurement = ic_auth_host_fixture::codec::decode(
             &reply,
             frame(fixture::MEASURE, ic_wire::Direction::Response),
             RESPONSE,
@@ -167,7 +167,7 @@ async fn certified_receiver_cost_observations() {
         assert_eq!(sample.credit, credit, "{name}");
         assert!(sample.instructions > 0);
         assert!(sample.heap_pages.1 >= sample.heap_pages.0);
-        let ordinary = ic_wire::encode(
+        let ordinary = ic_auth_host_fixture::codec::encode(
             &expected,
             frame(fixture::MEASURE, ic_wire::Direction::Response),
             RESPONSE,

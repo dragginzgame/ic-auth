@@ -14,7 +14,7 @@ ic-auth-protocol-types = { version = "0.44.2", path = "crates/ic-auth-protocol-t
 ic-platform = { version = "0.35.1", default-features = false }
 ic-platform-types = { version = "0.21.6", default-features = false }
 ic-storage = "0.80.0"
-ic-wire = "0.32.0"
+ic-wire = "0.33.0"
 serde = { version = "1.0.229", features = ["derive"] }
 sha2 = "0.11.1"
 # Tests and tooling

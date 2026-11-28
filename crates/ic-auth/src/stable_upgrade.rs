@@ -78,6 +78,51 @@ pub(crate) mod extension {
     }
 }
 
+// Owner-specific checkpoint chunks and renewal identities have a closed sparse root.
+pub(crate) mod record {
+    use ic_wire::{
+        Encoding, Error, Limits,
+        evolution::{self, Projected},
+    };
+    use serde::{Serialize, de::DeserializeOwned};
+
+    /// Encode a record with its Serde core and an empty extension block.
+    pub(crate) fn encode<T: Serialize + ?Sized>(
+        value: &T,
+        encoding: Encoding,
+        limits: Limits,
+    ) -> Result<Vec<u8>, Error> {
+        let mut out = Vec::new();
+        evolution::encode_projected_into(&mut out, encoding, limits, |_| {
+            Ok(Projected::empty(value))
+        })?;
+        Ok(out)
+    }
+
+    /// Decode a closed record and refuse unexpected extension fields.
+    pub(crate) fn decode<T: DeserializeOwned>(
+        bytes: &[u8],
+        encoding: Encoding,
+        limits: Limits,
+    ) -> Result<T, Error> {
+        evolution::decode_projected(bytes, encoding, limits, |record, context| {
+            record
+                .extensions
+                .visit(context, |_, _| Err(Error::Incompatible))?;
+            Ok(record.core)
+        })
+    }
+
+    /// Measure a record including its sparse root.
+    pub(crate) fn encoded_len<T: Serialize + ?Sized>(
+        value: &T,
+        encoding: Encoding,
+        limits: Limits,
+    ) -> Result<usize, Error> {
+        evolution::projected_len(&Projected::empty(value), encoding, limits)
+    }
+}
+
 ///
 /// Image
 ///
@@ -135,17 +180,17 @@ impl<M: Memory, const MAX_PAYLOAD: usize> Checkpoint<M, MAX_PAYLOAD> {
         value: &T,
         limits: ic_wire::Limits,
     ) -> Result<(), UpgradeError> {
-        let payload_len = ic_wire::encoded_len(value, ic_wire::Encoding::Payload, limits)
+        let payload_len = record::encoded_len(value, ic_wire::Encoding::Payload, limits)
             .map_err(|_| UpgradeError::Capacity)?;
         if payload_len > MAX_PAYLOAD {
             return Err(UpgradeError::Capacity);
         }
         let mut image = vec![0; DIGEST_BYTES + payload_len];
-        let encoded = ic_wire::encode_to_slice(
-            value,
+        let encoded = ic_wire::evolution::encode_projected_to_slice(
+            &mut image[DIGEST_BYTES..],
             ic_wire::Encoding::Payload,
             limits,
-            &mut image[DIGEST_BYTES..],
+            |_| Ok(ic_wire::evolution::Projected::empty(value)),
         )
         .map_err(|_| UpgradeError::Capacity)?;
         if encoded.len() != payload_len {
@@ -207,7 +252,7 @@ impl<M: Memory, const MAX_PAYLOAD: usize> Checkpoint<M, MAX_PAYLOAD> {
         payload: &[u8],
         limits: ic_wire::Limits,
     ) -> Result<T, UpgradeError> {
-        ic_wire::decode(payload, ic_wire::Encoding::Payload, limits)
+        record::decode(payload, ic_wire::Encoding::Payload, limits)
             .map_err(|_| UpgradeError::InvalidCheckpoint)
     }
 
@@ -257,9 +302,11 @@ mod tests {
     #[test]
     fn prior_format_digests_are_refused_before_payload_decoding() {
         let key = "auth.checkpoint.v1";
-        const ISSUER: &str = "ic-auth.issuer.checkpoint.v1";
-        const RECEIVER: &str = "ic-auth.checkpoint.receiver.v1";
+        const ISSUER: &str = "ic-auth.issuer.checkpoint.sparse.v1";
+        const RECEIVER: &str = "ic-auth.checkpoint.receiver.sparse.v1";
         for (legacy, current, version_bound) in [
+            ("ic-auth.issuer.checkpoint.v1", ISSUER, true),
+            ("ic-auth.checkpoint.receiver.v1", RECEIVER, true),
             ("ic-auth.issuer.v1", ISSUER, false),
             ("ic-auth.issuer.v2", ISSUER, false),
             ("ic-auth.issuer.v3", ISSUER, true),

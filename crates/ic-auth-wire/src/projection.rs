@@ -44,7 +44,7 @@ impl TryFrom<wire::PortableCredential> for domain::Credential {
                     domain::CredentialProof::Ed25519(signature.into_vec())
                 }
                 wire::PortableProof::Certified(proof) => {
-                    domain::CredentialProof::Certified(Box::new(certified(*proof)?))
+                    domain::CredentialProof::Certified(Box::new(certified(proof)?))
                 }
             },
         })

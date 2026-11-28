@@ -122,7 +122,7 @@ pub(super) fn bounded_request() -> Result<(), String> {
 }
 
 pub(super) fn decode_command(bytes: &[u8]) -> Result<Command, ic_wire::Error> {
-    ic_wire::decode(
+    crate::codec::decode(
         bytes,
         ic_wire::Encoding::Frame {
             method: CONTROL,
@@ -133,7 +133,7 @@ pub(super) fn decode_command(bytes: &[u8]) -> Result<Command, ic_wire::Error> {
 }
 
 pub(super) fn encode_result(result: Result<Outcome, Refusal>) -> Result<Vec<u8>, ic_wire::Error> {
-    ic_wire::encode(
+    crate::codec::encode(
         &result,
         ic_wire::Encoding::Frame {
             method: CONTROL,
@@ -300,7 +300,7 @@ pub(super) async fn control(command: Command) -> Result<Outcome, Refusal> {
 }
 
 pub(super) fn decode_unit(bytes: &[u8]) -> Result<(), ic_wire::Error> {
-    ic_wire::decode::<()>(
+    crate::codec::decode::<()>(
         bytes,
         ic_wire::Encoding::Frame {
             method: OBSERVE,
@@ -314,7 +314,7 @@ pub(super) fn decode_unit(bytes: &[u8]) -> Result<(), ic_wire::Error> {
     reason = "Platform owns the handler result"
 )]
 pub(super) fn encode_observation(value: Observation) -> Result<Vec<u8>, ic_wire::Error> {
-    ic_wire::encode(
+    crate::codec::encode(
         &value,
         ic_wire::Encoding::Frame {
             method: OBSERVE,
@@ -369,7 +369,7 @@ pub(super) fn observe() -> Observation {
 }
 
 pub(super) fn decode_measurement(bytes: &[u8]) -> Result<Command, ic_wire::Error> {
-    ic_wire::decode(
+    crate::codec::decode(
         bytes,
         ic_wire::Encoding::Frame {
             method: MEASURE,
@@ -380,7 +380,7 @@ pub(super) fn decode_measurement(bytes: &[u8]) -> Result<Command, ic_wire::Error
 }
 
 pub(super) fn encode_measurement(value: Measurement) -> Result<Vec<u8>, ic_wire::Error> {
-    ic_wire::encode(
+    crate::codec::encode(
         &value,
         ic_wire::Encoding::Frame {
             method: MEASURE,

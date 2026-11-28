@@ -79,7 +79,7 @@ try {
     check(name, codec, value, request);
   }
   assert.equal(checked.size, frames.size);
-  const redundant = Buffer.from(frames.get('logout-InvalidCaller').slice(0, -2) + '8200', 'hex');
+  const redundant = Buffer.from(frames.get('logout-InvalidCaller').slice(0, 22) + '820000', 'hex');
   assert.deepEqual(logout.decodeResponse(redundant), { tag: 'InvalidCaller', value: null });
   console.log('Verified ' + checked.size + ' current frames, metadata, detached buffers and malformed framing');
 } finally {

@@ -207,7 +207,7 @@ async fn wide_scope_cost_observations() {
         ..ic_auth_host_fixture::receiver::REQUEST
     };
     assert!(
-        ic_wire::encode(
+        ic_auth_host_fixture::codec::encode(
             &command,
             super::frame(
                 ic_auth_host_fixture::receiver::CONTROL,
@@ -225,10 +225,15 @@ async fn wide_scope_cost_observations() {
         nodes: 8192,
         ..ic_auth_host_fixture::receiver::REQUEST
     };
-    assert!(ic_wire::encoded_len(&command, encoding, original_nodes).is_err());
+    assert!(ic_auth_host_fixture::codec::encoded_len(&command, encoding, original_nodes).is_err());
     assert_eq!(
-        ic_wire::encoded_len(&command, encoding, ic_auth_host_fixture::receiver::REQUEST).unwrap(),
-        2558
+        ic_auth_host_fixture::codec::encoded_len(
+            &command,
+            encoding,
+            ic_auth_host_fixture::receiver::REQUEST
+        )
+        .unwrap(),
+        2559
     );
     let wasm = wasm();
     println!(

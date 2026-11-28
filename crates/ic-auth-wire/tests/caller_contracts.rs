@@ -122,18 +122,18 @@ fn current_fixture_frames_cross_encode_and_decode() {
 
 #[test]
 fn identities_and_all_four_allowances_are_frozen() {
-    assert_eq!(ReadSession::ID, 0x415554480013);
-    assert_eq!(Logout::ID, 0x415554480014);
+    assert_eq!(ReadSession::ID, 0x415554480113);
+    assert_eq!(Logout::ID, 0x415554480114);
     assert_eq!(ReadSession::NAME, "portable_session_read");
     assert_eq!(Logout::NAME, "logout_portable_session");
     for limits in [ReadSession::REQUEST_LIMITS, Logout::REQUEST_LIMITS] {
         assert_eq!(
             (limits.bytes, limits.allocation, limits.nodes, limits.depth),
-            (11, 128, 8, 4)
+            (12, 8192, 32, 8)
         );
     }
     for (limits, expected) in [
-        (ReadSession::RESPONSE_LIMITS, (8192, 65536, 128, 8)),
+        (ReadSession::RESPONSE_LIMITS, (8192, 131072, 128, 8)),
         (Logout::RESPONSE_LIMITS, (4096, 16384, 128, 8)),
     ] {
         assert_eq!(
@@ -260,11 +260,13 @@ fn every_resource_allowance_is_enforced_independently() {
         (Limits { depth: 0, ..full }, LimitKind::Depth),
     ] {
         assert_eq!(
-            wire::encode(&value, encoding, limits),
+            wire::encode(&wire::Message(value.clone()), encoding, limits),
             Err(Error::Limit(kind))
         );
         assert_eq!(
-            wire::decode::<Result<SessionView, SessionReadRefusal>>(&bytes, encoding, limits),
+            wire::decode::<wire::Message<Result<SessionView, SessionReadRefusal>>>(
+                &bytes, encoding, limits
+            ),
             Err(Error::Limit(kind))
         );
     }
@@ -273,10 +275,16 @@ fn every_resource_allowance_is_enforced_independently() {
             bytes: size,
             ..full
         };
-        assert_eq!(wire::encode(&value, encoding, limits).unwrap(), bytes);
         assert_eq!(
-            wire::decode::<Result<SessionView, SessionReadRefusal>>(&bytes, encoding, limits)
-                .unwrap(),
+            wire::encode(&wire::Message(value.clone()), encoding, limits).unwrap(),
+            bytes
+        );
+        assert_eq!(
+            wire::decode::<wire::Message<Result<SessionView, SessionReadRefusal>>>(
+                &bytes, encoding, limits
+            )
+            .unwrap()
+            .0,
             value
         );
     }
@@ -297,4 +305,13 @@ fn both_session_replies_transport_a_full_application_extension() {
         EstablishSession::decode_response(&admitted).unwrap(),
         Ok(view)
     );
+}
+
+#[test]
+fn positional_session_requests_are_refused() {
+    // Fixed request frames emitted by Auth Wire 0.51.0.
+    let read = [73, 87, 19, 0, 72, 84, 85, 65, 0, 0, 0];
+    let logout = [73, 87, 20, 0, 72, 84, 85, 65, 0, 0, 0];
+    assert!(ReadSession::decode_request(&read).is_err());
+    assert!(Logout::decode_request(&logout).is_err());
 }

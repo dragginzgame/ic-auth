@@ -1,10 +1,9 @@
-export type Request = Wire_PortableCredential_67340e188f64605a;
-export type Response = Wire_PortableCredential_67340e188f64605a;
+export type FrameRequest = Wire_PortableCredential_67340e188f64605a;
+export type FrameResponse = Wire_PortableCredential_67340e188f64605a;
 export type Wire_AudienceId_8bc0869c74aa09df = {
     readonly "canonical_network_id": Wire__u8__32__a6c3ffa4fc6f7348;
     readonly "fleet_id": Wire__u8__32__a6c3ffa4fc6f7348;
 };
-export type Wire_Box_a1fbf0d4f9e63efd = Wire_CertifiedProof_cb152bc3b4d909a5;
 export type Wire_Bytes_2710d3471b0c3eff = globalThis.Uint8Array;
 export type Wire_Bytes_443e9b8691dbc496 = globalThis.Uint8Array;
 export type Wire_Bytes_ceafa818703233a0 = globalThis.Uint8Array;
@@ -122,7 +121,7 @@ export type Wire_PortableCredential_67340e188f64605a = {
 };
 export type Wire_PortableProof_2968b956605d919b = /* id 0 */ {
     readonly tag: "Certified";
-    readonly value: Wire_Box_a1fbf0d4f9e63efd;
+    readonly value: Wire_CertifiedProof_cb152bc3b4d909a5;
 } | /* id 1 */ {
     readonly tag: "Ed25519";
     readonly value: Wire_Bytes_f1304e1883b29b1d;
@@ -139,20 +138,22 @@ export type Wire_u16_4d24d3193e7ef3bf = number;
 export type Wire_u64_4d35d3193e8d66f2 = bigint;
 export type Wire_u8_08c48207b56753d8 = number;
 export declare const codec: Readonly<{
-    encodeRequest: (value: Request) => globalThis.Uint8Array;
-    decodeRequest: (bytes: globalThis.Uint8Array) => Request;
-    encodeResponse: (value: Response) => globalThis.Uint8Array;
-    decodeResponse: (bytes: globalThis.Uint8Array) => Response;
+    encodeRequest: (value: FrameRequest) => globalThis.Uint8Array;
+    decodeRequest: (bytes: globalThis.Uint8Array) => FrameRequest;
+    encodeResponse: (value: FrameResponse) => globalThis.Uint8Array;
+    decodeResponse: (bytes: globalThis.Uint8Array) => FrameResponse;
 }>;
+export type Request = FrameRequest;
+export type Response = FrameResponse;
+export declare const methodName = "credential";
 export declare const contract: Readonly<{
-    encodeRequest: (value: Request) => globalThis.Uint8Array;
-    decodeRequest: (bytes: globalThis.Uint8Array) => Request;
-    encodeResponse: (value: Response) => globalThis.Uint8Array;
-    decodeResponse: (bytes: globalThis.Uint8Array) => Response;
     methodName: "contract";
     mode: 'update';
+    encodeRequest: (value: Request) => Uint8Array<ArrayBufferLike>;
+    decodeRequest: (bytes: Uint8Array) => Request;
+    encodeResponse: (value: Response) => Uint8Array<ArrayBufferLike>;
+    decodeResponse: (bytes: Uint8Array) => Response;
 }>;
-export declare const methodName = "credential";
-export declare const encodeRequest: (value: Request) => globalThis.Uint8Array, decodeRequest: (bytes: globalThis.Uint8Array) => Request, encodeResponse: (value: Response) => globalThis.Uint8Array, decodeResponse: (bytes: globalThis.Uint8Array) => Response;
+export declare const encodeRequest: (value: Request) => Uint8Array<ArrayBufferLike>, decodeRequest: (bytes: Uint8Array) => Request, encodeResponse: (value: Response) => Uint8Array<ArrayBufferLike>, decodeResponse: (bytes: Uint8Array) => Response;
 export declare const defaultMaximumBytes = 131072;
 export declare const maximumConfiguredBytes = 1048576;

@@ -44,12 +44,12 @@ async function signCall(identity: Identity, target = Principal.fromUint8Array(Ui
 }
 // Independent fixture packing follows the retained establish-success frame, not the encoder.
 function admissionReply(caller: Principal, issuer: Principal, expires = 1n): Uint8Array {
-  const bytes = [0x49, 0x57, 0x12, 0, 0x48, 0x54, 0x55, 0x41, 0, 0, 1, 0];
+  const bytes = [0x49, 0x57, 0x12, 1, 0x48, 0x54, 0x55, 0x41, 0, 0, 1, 0];
   for (const principal of [caller, issuer, Principal.fromUint8Array(Uint8Array.of(4))]) {
     const raw = principal.toUint8Array(); bytes.push(raw.length, ...raw);
   }
   do { const next = Number(expires & 127n); expires >>= 7n; bytes.push(next | (expires ? 128 : 0)); } while (expires);
-  bytes.push(0); // No registered application user.
+  bytes.push(0, 0, 0); // Absent extension, then session and message sparse blocks.
   return Uint8Array.from(bytes);
 }
 Object.assign(globalThis, { authTest: { LoginJournal, PublicJournal, Principal, Ed25519KeyIdentity, pauseSigning, retrieveCredential, establishSession,

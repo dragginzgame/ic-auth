@@ -1,5 +1,7 @@
 # Compatibility and acceptance
 
+Auth 0.54.0 and Auth Wire 0.52.0 require the IC Wire 0.33 sparse format. Upgrade the browser and host together. Previously issued transport frames, stored browser credential journals, and earlier issuer and receiver checkpoints are refused. A populated 0.53 installation cannot upgrade in place. Provision fresh Auth state and have users authenticate again. The sparse renewal request also produces a new operation ID.
+
 ## Current contract and historical provenance
 
 Reference repository: https://github.com/dragginzgame/ic-auth-legacy

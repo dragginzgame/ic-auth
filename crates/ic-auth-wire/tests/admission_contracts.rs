@@ -62,7 +62,7 @@ fn ed25519() -> PortableCredential {
 fn certified() -> PortableCredential {
     PortableCredential {
         claims: bytes(&[128, 0, 255, 1]),
-        proof: PortableProof::Certified(Box::new(CertifiedProof {
+        proof: PortableProof::Certified(CertifiedProof {
             delegation: DelegationProof {
                 cert: DelegationCert {
                     root_pid: Principal::from_slice(&[3]),
@@ -137,7 +137,7 @@ fn certified() -> PortableCredential {
                 signature_cbor: bytes(&[24, 25, 26, 27]),
                 public_key_der: bytes(&[28, 29]),
             },
-        })),
+        }),
     }
 }
 
@@ -250,9 +250,9 @@ fn every_admission_reply_matches_current_fixtures() {
 
 #[test]
 fn identities_allowances_and_browser_caps_remain_separate() {
-    assert_eq!(CredentialEnvelope::ID, 0x415554480001);
+    assert_eq!(CredentialEnvelope::ID, 0x415554480101);
     assert_eq!(CredentialEnvelope::NAME, "credential");
-    assert_eq!(EstablishSession::ID, 0x415554480012);
+    assert_eq!(EstablishSession::ID, 0x415554480112);
     assert_eq!(EstablishSession::NAME, "establish_portable_session");
     for limits in [
         CredentialEnvelope::REQUEST_LIMITS,
@@ -267,7 +267,7 @@ fn identities_allowances_and_browser_caps_remain_separate() {
     let reply = EstablishSession::RESPONSE_LIMITS;
     assert_eq!(
         (reply.bytes, reply.allocation, reply.nodes, reply.depth),
-        (8192, 65536, 128, 8)
+        (8192, 131072, 128, 8)
     );
     assert_eq!(BROWSER_DEFAULT_CREDENTIAL_BYTES, 131072);
     assert_eq!(BROWSER_MAX_CONFIGURED_CREDENTIAL_BYTES, 1048576);
@@ -335,15 +335,15 @@ fn outer_length_normalization_never_changes_signed_claims() {
     }
 }
 
-///
-/// RawProof
-///
-/// Serializes an unbounded signature for testing the decoder’s byte limit.
-///
-
-#[derive(serde::Serialize)]
-enum RawProof {
-    Ed25519(Vec<u8>),
+// Use an unbounded test core under the supplier's sparse root to submit fields
+// larger than the typed constructors accept.
+fn raw_frame(value: &impl serde::Serialize, encoding: Encoding, limits: wire::Limits) -> Vec<u8> {
+    let mut frame = Vec::new();
+    wire::evolution::encode_projected_into(&mut frame, encoding, limits, |_| {
+        Ok(wire::evolution::Projected::empty(value))
+    })
+    .unwrap();
+    frame
 }
 
 #[test]
@@ -353,13 +353,12 @@ fn decoder_enforces_claim_signature_scope_and_text_bounds() {
         method: CredentialEnvelope::ID,
         direction: Direction::Request,
     };
-    // Raw tuples have the same ordered Serde fields but intentionally lack bounds.
     for size in [65535, 65536, 65537] {
         let raw = (
             wire::ByteBuf::from(vec![255_u8; size]),
             PortableProof::Ed25519(bytes(&[])),
         );
-        let frame = wire::encode(&raw, credential_encoding, limits).unwrap();
+        let frame = raw_frame(&raw, credential_encoding, limits);
         assert_eq!(
             CredentialEnvelope::decode_request(&frame).is_ok(),
             size <= 65536
@@ -368,13 +367,14 @@ fn decoder_enforces_claim_signature_scope_and_text_bounds() {
 
     // A single-variant fixture serializes tag zero; set the fixed Ed25519 tag one.
     for size in [63, 64, 65] {
-        let mut frame = wire::encode(
-            &(Vec::<u8>::new(), RawProof::Ed25519(vec![0; size])),
+        let frame = raw_frame(
+            &(
+                Vec::<u8>::new(),
+                (1u8, wire::ByteBuf::from(vec![0u8; size])),
+            ),
             credential_encoding,
             limits,
-        )
-        .unwrap();
-        frame[12] = 1;
+        );
         assert_eq!(
             CredentialEnvelope::decode_request(&frame).is_ok(),
             size <= 64
@@ -385,24 +385,22 @@ fn decoder_enforces_claim_signature_scope_and_text_bounds() {
         direction: Direction::Request,
     };
     for count in [15, 16, 17] {
-        let frame = wire::encode(
-            &(ed25519(), vec!["read"; count], None::<u64>),
+        let frame = raw_frame(
+            &((ed25519(), 0u8), vec!["read"; count], None::<u64>),
             establish_encoding,
             limits,
-        )
-        .unwrap();
+        );
         assert_eq!(
             EstablishSession::decode_request(&frame).is_ok(),
             count <= 16
         );
     }
     for length in [63, 64, 65] {
-        let frame = wire::encode(
-            &(ed25519(), vec!["a".repeat(length)], None::<u64>),
+        let frame = raw_frame(
+            &((ed25519(), 0u8), vec!["a".repeat(length)], None::<u64>),
             establish_encoding,
             limits,
-        )
-        .unwrap();
+        );
         assert_eq!(
             EstablishSession::decode_request(&frame).is_ok(),
             length <= 64

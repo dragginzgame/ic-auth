@@ -31,7 +31,7 @@ fn check_delegation(certificate: &[u8], subnet: CanisterId) {
 }
 
 async fn admit(pic: &PocketIc, receiver: CanisterId, signature: Vec<u8>) {
-    let request = ic_wire::encode(
+    let request = ic_auth_host_fixture::codec::encode(
         &Command::Admit(signature),
         frame(fixture::MEASURE, ic_wire::Direction::Request),
         RESPONSE,
@@ -42,7 +42,7 @@ async fn admit(pic: &PocketIc, receiver: CanisterId, signature: Vec<u8>) {
         .update_call(receiver, caller, "certified_fixture_measure", request)
         .await
         .unwrap();
-    let measurement: Measurement = ic_wire::decode(
+    let measurement: Measurement = ic_auth_host_fixture::codec::decode(
         &reply,
         frame(fixture::MEASURE, ic_wire::Direction::Response),
         RESPONSE,

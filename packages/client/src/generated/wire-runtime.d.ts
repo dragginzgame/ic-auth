@@ -1,4 +1,4 @@
-export declare const schemaFormat = "ic-wire-json";
+export declare const schemaFormat = "ic-wire-sparse-v1";
 export declare class WireError extends Error {
     readonly code: 'limit' | 'malformed' | 'identity' | 'value' | 'incompatible';
     name: string;
@@ -91,6 +91,7 @@ export type Schema = ({
 } | {
     k: 'enum';
     variants: readonly Variant[];
+    projected?: true;
 } | {
     k: 'open-variant';
     variants: readonly Variant[];

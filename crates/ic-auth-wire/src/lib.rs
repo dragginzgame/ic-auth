@@ -24,8 +24,7 @@ pub const BROWSER_MAX_CONFIGURED_CREDENTIAL_BYTES: usize = 1_048_576;
 /// Unsigned session narrowing accompanying an opaque signed credential.
 ///
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
-#[cfg_attr(feature = "typescript", derive(ic_wire::typescript::Wire))]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ic_wire::Wire)]
 pub struct SessionInput {
     /// Claims and proof requiring complete verification against host authority.
     pub credential: model::PortableCredential,
@@ -42,10 +41,10 @@ const CREDENTIAL_LIMITS: Limits = Limits {
     depth: 32,
 };
 const EMPTY_LIMITS: Limits = Limits {
-    bytes: 11,
-    allocation: 128,
-    nodes: 8,
-    depth: 4,
+    bytes: 12,
+    allocation: 8192,
+    nodes: 32,
+    depth: 8,
 };
 const REPLY_LIMITS: Limits = Limits {
     bytes: 4096,
@@ -56,33 +55,51 @@ const REPLY_LIMITS: Limits = Limits {
 
 const SESSION_REPLY_LIMITS: Limits = Limits {
     bytes: 8192,
-    allocation: 65536,
+    allocation: 131072,
     ..REPLY_LIMITS
+};
+
+// Sparse writers charge staging in addition to traversal. Preserve the tighter
+// reader allowance when receiving credentials from an untrusted peer.
+const CREDENTIAL_WRITE_LIMITS: Limits = Limits {
+    allocation: 3 * 1024 * 1024,
+    ..CREDENTIAL_LIMITS
 };
 
 // Forward framing and admission to Wire; each contract declares its concrete
 // types, identity and both budgets below. No local serializer or runtime policy.
 macro_rules! contract {
-    ($contract:ident, $id:expr, $name:literal, $request:ty, $reply:ty, $request_limits:ident, $reply_limits:ident) => {
+    (@writer CREDENTIAL_LIMITS) => { CREDENTIAL_WRITE_LIMITS };
+    (@writer $limits:ident) => { $limits };
+    (@encode direct, $value:expr, $encoding:expr, $limits:expr,) => { ic_wire::encode($value, $encoding, $limits) };
+    (@decode direct, $bytes:expr, $encoding:expr, $limits:expr,) => { ic_wire::decode($bytes, $encoding, $limits) };
+    (@encode wrapped, $value:expr, $encoding:expr, $limits:expr,) => { ic_wire::encode(&ic_wire::Message($value.clone()), $encoding, $limits) };
+    (@decode wrapped, $bytes:expr, $encoding:expr, $limits:expr,) => { ic_wire::decode::<ic_wire::Message<_>>($bytes, $encoding, $limits).map(|m| m.0) };
+
+    ($contract:ident, $id:expr, $name:literal, $request:ty, $reqroot:ident, $reply:ty, $reproot:ident, $request_limits:ident, $reply_limits:ident) => {
         impl $contract {
             /// Fixed routing identity, not an authentication or signing domain.
             pub const ID: u64 = $id;
             /// Contract name used by generated clients. The credential envelope has no endpoint.
             pub const NAME: &'static str = $name;
-            /// Complete request encoding and decoding allowances.
+            /// Request reader allowance.
             pub const REQUEST_LIMITS: Limits = $request_limits;
-            /// Complete response encoding and decoding allowances.
+            /// Response reader allowance.
             pub const RESPONSE_LIMITS: Limits = $reply_limits;
+
+            /// Request writer allowance, including sparse preparation.
+            pub const REQUEST_WRITE_LIMITS: Limits = contract!(@writer $request_limits);
+            /// Response writer allowance, including sparse preparation.
+            pub const RESPONSE_WRITE_LIMITS: Limits = contract!(@writer $reply_limits);
 
             /// Encode this request within all four resource allowances.
             ///
             /// # Errors
             /// Returns the supplier's codec error if admission fails.
             pub fn encode_request(value: &$request) -> Result<Vec<u8>, ic_wire::Error> {
-                ic_wire::encode(
-                    value,
+                contract!(@encode $reqroot, value,
                     Self::encoding(Direction::Request),
-                    Self::REQUEST_LIMITS,
+                    Self::REQUEST_WRITE_LIMITS,
                 )
             }
 
@@ -91,8 +108,7 @@ macro_rules! contract {
             /// # Errors
             /// Rejects malformed, misrouted, over-budget or trailing input.
             pub fn decode_request(bytes: &[u8]) -> Result<$request, ic_wire::Error> {
-                ic_wire::decode(
-                    bytes,
+                contract!(@decode $reqroot, bytes,
                     Self::encoding(Direction::Request),
                     Self::REQUEST_LIMITS,
                 )
@@ -103,10 +119,9 @@ macro_rules! contract {
             /// # Errors
             /// Returns the supplier's codec error if admission fails.
             pub fn encode_response(value: &$reply) -> Result<Vec<u8>, ic_wire::Error> {
-                ic_wire::encode(
-                    value,
+                contract!(@encode $reproot, value,
                     Self::encoding(Direction::Response),
-                    Self::RESPONSE_LIMITS,
+                    Self::RESPONSE_WRITE_LIMITS,
                 )
             }
 
@@ -115,8 +130,7 @@ macro_rules! contract {
             /// # Errors
             /// Rejects malformed, misrouted, over-budget or trailing input.
             pub fn decode_response(bytes: &[u8]) -> Result<$reply, ic_wire::Error> {
-                ic_wire::decode(
-                    bytes,
+                contract!(@decode $reproot, bytes,
                     Self::encoding(Direction::Response),
                     Self::RESPONSE_LIMITS,
                 )
@@ -142,10 +156,10 @@ pub struct ReadSession;
 
 contract!(
     ReadSession,
-    0x415554480013,
+    0x415554480113,
     "portable_session_read",
-    (),
-    Result<SessionView, model::SessionReadRefusal>,
+    (), wrapped,
+    Result<SessionView, model::SessionReadRefusal>, wrapped,
     EMPTY_LIMITS,
     SESSION_REPLY_LIMITS
 );
@@ -160,10 +174,12 @@ pub struct Logout;
 
 contract!(
     Logout,
-    0x415554480014,
+    0x415554480114,
     "logout_portable_session",
     (),
+    wrapped,
     model::LogoutResult,
+    wrapped,
     EMPTY_LIMITS,
     REPLY_LIMITS
 );
@@ -178,10 +194,12 @@ pub struct CredentialEnvelope;
 
 contract!(
     CredentialEnvelope,
-    0x415554480001,
+    0x415554480101,
     "credential",
     model::PortableCredential,
+    direct,
     model::PortableCredential,
+    direct,
     CREDENTIAL_LIMITS,
     CREDENTIAL_LIMITS
 );
@@ -196,10 +214,10 @@ pub struct EstablishSession;
 
 contract!(
     EstablishSession,
-    0x415554480012,
+    0x415554480112,
     "establish_portable_session",
-    SessionInput,
-    Result<SessionView, model::AdmissionRefusal>,
+    SessionInput, direct,
+    Result<SessionView, model::AdmissionRefusal>, wrapped,
     CREDENTIAL_LIMITS,
     SESSION_REPLY_LIMITS
 );

@@ -1,5 +1,5 @@
 //! Check current Wire against independent current bytes and resource expectations.
-//! Expectations were retained before removing the historical Wire dependency.
+//! Resource thresholds are frozen observations of the published sparse codec.
 
 use ic_auth_wire::{
     CredentialEnvelope, EstablishSession, Logout, ReadSession, SessionInput, SessionView,
@@ -8,7 +8,7 @@ use ic_auth_wire::{
     },
 };
 use ic_wire::{self as current, Direction, Encoding, Limits};
-use serde::{Serialize, de::DeserializeOwned};
+use ic_wire::{Evolving, Message};
 use std::fmt::Debug;
 
 fn fixtures() -> Vec<(&'static str, Vec<u8>)> {
@@ -44,7 +44,7 @@ fn framing(id: u64, response: bool) -> Encoding {
     }
 }
 
-fn encode<T: Serialize>(
+fn encode<T: for<'de> Evolving<'de>>(
     value: &T,
     id: u64,
     response: bool,
@@ -53,7 +53,7 @@ fn encode<T: Serialize>(
     current::encode(value, framing(id, response), limits)
 }
 
-fn decode<T: DeserializeOwned>(
+fn decode<T: for<'de> Evolving<'de>>(
     bytes: &[u8],
     id: u64,
     response: bool,
@@ -62,17 +62,25 @@ fn decode<T: DeserializeOwned>(
     current::decode(bytes, framing(id, response), limits)
 }
 
-fn check<T: Serialize + DeserializeOwned + PartialEq + Debug>(
+fn check<T: for<'de> Evolving<'de> + PartialEq + Debug>(
     name: &str,
     bytes: &[u8],
     id: u64,
     limits: Limits,
 ) {
+    let write_limits = if limits.bytes == CredentialEnvelope::REQUEST_LIMITS.bytes {
+        CredentialEnvelope::REQUEST_WRITE_LIMITS
+    } else {
+        limits
+    };
     let response = bytes[10] == 1;
     let original: T = decode(bytes, id, response, limits).unwrap();
-    assert_eq!(encode(&original, id, response, limits).unwrap(), bytes);
+    assert_eq!(
+        encode(&original, id, response, write_limits).unwrap(),
+        bytes
+    );
 
-    // Fixed values measured from published 0.22.2 before its removal. Never
+    // Fixed values measured from published 0.33.0. Never
     // derive expected admission from the current codec under test.
     let thresholds: Vec<_> = include_str!("fixtures/resource-thresholds.tsv")
         .lines()
@@ -96,7 +104,7 @@ fn check<T: Serialize + DeserializeOwned + PartialEq + Debug>(
     for field in 0..4 {
         for decode in [false, true] {
             let set = |value| {
-                let mut selected = limits;
+                let mut selected = if decode { limits } else { write_limits };
                 match field {
                     0 => selected.bytes = value,
                     1 => selected.allocation = value,
@@ -150,25 +158,25 @@ fn current_frames_and_each_resource_boundary_match_fixed_expectations() {
                 EstablishSession::REQUEST_LIMITS,
             );
         } else if name.starts_with("establish-") {
-            check::<Result<SessionView, AdmissionRefusal>>(
+            check::<Message<Result<SessionView, AdmissionRefusal>>>(
                 name,
                 &bytes,
                 EstablishSession::ID,
                 EstablishSession::RESPONSE_LIMITS,
             );
         } else if name == "read-request" {
-            check::<()>(name, &bytes, ReadSession::ID, ReadSession::REQUEST_LIMITS);
+            check::<Message<()>>(name, &bytes, ReadSession::ID, ReadSession::REQUEST_LIMITS);
         } else if name == "logout-request" {
-            check::<()>(name, &bytes, Logout::ID, Logout::REQUEST_LIMITS);
+            check::<Message<()>>(name, &bytes, Logout::ID, Logout::REQUEST_LIMITS);
         } else if name.starts_with("read-") {
-            check::<Result<SessionView, SessionReadRefusal>>(
+            check::<Message<Result<SessionView, SessionReadRefusal>>>(
                 name,
                 &bytes,
                 ReadSession::ID,
                 ReadSession::RESPONSE_LIMITS,
             );
         } else {
-            check::<LogoutResult>(name, &bytes, Logout::ID, Logout::RESPONSE_LIMITS);
+            check::<Message<LogoutResult>>(name, &bytes, Logout::ID, Logout::RESPONSE_LIMITS);
         }
     }
 }
@@ -186,11 +194,25 @@ fn aggregate_allocation_refusal_matches_without_changing_field_caps() {
         unreachable!()
     };
     proof.issuer_signature.signature_cbor = current::Bytes::new(vec![0; 131072]).unwrap();
-    let frame = encode(&value, CredentialEnvelope::ID, false, limits).unwrap();
+    let frame = encode(
+        &value,
+        CredentialEnvelope::ID,
+        false,
+        CredentialEnvelope::REQUEST_WRITE_LIMITS,
+    )
+    .unwrap();
     assert_eq!(CredentialEnvelope::encode_request(&value).unwrap(), frame);
     assert_eq!(CredentialEnvelope::decode_request(&frame).unwrap(), value);
     value.claims = current::Bytes::new(vec![0; 65536]).unwrap();
-    assert!(encode(&value, CredentialEnvelope::ID, false, limits).is_err());
+    assert!(
+        encode(
+            &value,
+            CredentialEnvelope::ID,
+            false,
+            CredentialEnvelope::REQUEST_WRITE_LIMITS
+        )
+        .is_err()
+    );
     assert_eq!(
         CredentialEnvelope::encode_request(&value),
         Err(current::Error::Limit(current::LimitKind::Allocation))

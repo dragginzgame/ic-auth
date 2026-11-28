@@ -2,6 +2,12 @@
 
 The `auth` group covers `ic-auth`. Its separate ledger follows [0.48.7](../history.md#0487---2026-11-19).
 
+## [0.54.0] - 2026-11-28
+
+### ⚠️ Breaking
+
+- Use IC Wire 0.33 for checkpoint rows and renewal identities. Both state owners refuse previous checkpoints. A populated 0.53 installation requires fresh provisioning.
+
 ## [0.53.0] - 2026-11-28
 
 ### ⚠️ Breaking

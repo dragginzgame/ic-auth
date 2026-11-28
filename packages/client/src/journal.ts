@@ -55,7 +55,7 @@ interface RecordState {
   targets: Target[]; issuanceUnknown: boolean; issuance?: { sequence: bigint; untilNs?: bigint };
   phase: 'active' | 'cleanup' | 'finished'; deadlineNs: bigint; busyUntilNs: bigint;
 }
-const FORMAT = 'ic-auth-login-cleanup-journal-v1';
+const FORMAT = 'ic-auth-login-cleanup-journal-sparse-v1';
 const CLEANUP_NS = 300_000_000_000n;
 const ATTEMPT_NS = 5_000_000_000n;
 const text = (v: unknown): v is string => typeof v === 'string' && v.length > 0 && v.length <= 128;

@@ -87,7 +87,7 @@ try {
         } finally { db.close(); }
       };
       globalThis.seed = (name, value, bytes) => raw(name, bucket => {
-        bucket.put('ic-auth-login-cleanup-journal-v1', 'format');
+        bucket.put('ic-auth-login-cleanup-journal-sparse-v1', 'format');
         if (value !== undefined) bucket.put(value, 'login');
         if (bytes !== undefined) bucket.put(bytes, 'credential');
       });
@@ -234,7 +234,7 @@ try {
       await raw('foreign', b => b.put('other-profile', 'format'));
       results.push(await failure(open('foreign')));
       results.push(await raw('foreign', b => { const req = b.get('format'); return () => req.result; }));
-      await raw('future', b => b.put('ic-auth-login-cleanup-journal-v1', 'format'), 2);
+      await raw('future', b => b.put('ic-auth-login-cleanup-journal-sparse-v1', 'format'), 2);
       results.push(await failure(open('future')));
       await seed('orphan', undefined, Uint8Array.of(1));
       const j = await open('orphan');
@@ -253,7 +253,7 @@ try {
               ? { keyPath: 'id' } : { autoIncrement: shape === 'auto-increment' });
             if (shape === 'extra-store') req.result.createObjectStore('extra');
             if (shape === 'index') b.createIndex('extra', 'id');
-            if (shape !== 'key-path') b.put('ic-auth-login-cleanup-journal-v1', 'format');
+            if (shape !== 'key-path') b.put('ic-auth-login-cleanup-journal-sparse-v1', 'format');
           };
           req.onerror = () => reject(req.error);
           req.onsuccess = () => { req.result.close(); resolve(); };

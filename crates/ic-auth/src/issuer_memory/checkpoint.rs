@@ -10,7 +10,7 @@ use ic_storage::{DefaultMemoryImpl, Memory, RuntimeMemory};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-const CHECKPOINT_DOMAIN: &[u8] = b"ic-auth.issuer.checkpoint.v1";
+const CHECKPOINT_DOMAIN: &[u8] = b"ic-auth.issuer.checkpoint.sparse.v1";
 
 ///
 /// PolicyLimits

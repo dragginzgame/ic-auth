@@ -21,7 +21,7 @@ async fn witness(
     expected: &Observation,
     name: &str,
 ) {
-    let request = ic_wire::encode(
+    let request = ic_auth_host_fixture::codec::encode(
         &(),
         frame(WITNESS_MEASURE, ic_wire::Direction::Request),
         REQUEST,
@@ -31,7 +31,7 @@ async fn witness(
         .query_call(id, account, "auth_fixture_witness_measure", request.clone())
         .await
         .unwrap();
-    let measured: WitnessMeasurement = ic_wire::decode(
+    let measured: WitnessMeasurement = ic_auth_host_fixture::codec::decode(
         &reply,
         frame(WITNESS_MEASURE, ic_wire::Direction::Response),
         RESPONSE,
@@ -58,8 +58,12 @@ async fn witness(
         },
     )
     .unwrap();
-    let ordinary =
-        ic_wire::encode(view, frame(OBSERVE, ic_wire::Direction::Response), RESPONSE).unwrap();
+    let ordinary = ic_auth_host_fixture::codec::encode(
+        view,
+        frame(OBSERVE, ic_wire::Direction::Response),
+        RESPONSE,
+    )
+    .unwrap();
     assert_eq!(measured.response_bytes, ordinary.len() as u64);
     assert!(measured.instructions > 0);
     assert!(measured.heap_pages.1 >= measured.heap_pages.0);
@@ -129,7 +133,7 @@ async fn renewal_witness_cost_observations() {
         ),
     ] {
         let before = observe(pic, id, account).await;
-        let request = ic_wire::encode(
+        let request = ic_auth_host_fixture::codec::encode(
             &command,
             frame(MEASURE, ic_wire::Direction::Request),
             REQUEST,
@@ -139,7 +143,7 @@ async fn renewal_witness_cost_observations() {
             .update_call(id, caller, "auth_fixture_measure", request.clone())
             .await
             .unwrap();
-        let sample: Measurement = ic_wire::decode(
+        let sample: Measurement = ic_auth_host_fixture::codec::decode(
             &reply,
             frame(MEASURE, ic_wire::Direction::Response),
             RESPONSE,
@@ -176,7 +180,7 @@ async fn renewal_witness_cost_observations() {
         }
         assert!(sample.instructions > 0);
         assert!(sample.heap_pages.1 >= sample.heap_pages.0);
-        let ordinary = ic_wire::encode(
+        let ordinary = ic_auth_host_fixture::codec::encode(
             &expected,
             frame(ic_auth_host_fixture::CONTROL, ic_wire::Direction::Response),
             RESPONSE,

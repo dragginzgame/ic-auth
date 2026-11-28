@@ -25,7 +25,7 @@ pub(super) async fn refresh(fault: Fault) -> Result<Outcome, Refusal> {
             .map_err(|_| Refusal::Enrollment)?;
         Ok((authority, challenge))
     })?;
-    let bytes = ic_wire::encode(
+    let bytes = crate::codec::encode(
         &challenge,
         ic_wire::Encoding::Frame {
             method: METHOD,
@@ -49,7 +49,7 @@ pub(super) async fn refresh(fault: Fault) -> Result<Outcome, Refusal> {
     let CallOutcome::Reply(response) = outcome else {
         return Err(Refusal::Unavailable);
     };
-    let snapshot: Snapshot = ic_wire::decode(
+    let snapshot: Snapshot = crate::codec::decode(
         response.as_ref(),
         ic_wire::Encoding::Frame {
             method: METHOD,
@@ -59,9 +59,9 @@ pub(super) async fn refresh(fault: Fault) -> Result<Outcome, Refusal> {
     )
     .map_err(|_| Refusal::Enrollment)?;
     let snapshot_digest =
-        hash_bytes(ic_wire::encode(&snapshot, ic_wire::Encoding::Payload, LIMITS).unwrap());
+        hash_bytes(crate::codec::encode(&snapshot, ic_wire::Encoding::Payload, LIMITS).unwrap());
     let authority_digest = hash_bytes(
-        ic_wire::encode(
+        crate::codec::encode(
             &(snapshot.key, snapshot.revoked),
             ic_wire::Encoding::Payload,
             LIMITS,

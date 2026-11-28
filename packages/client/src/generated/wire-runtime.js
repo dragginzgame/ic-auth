@@ -1,7 +1,7 @@
 // Candidate interpreter for the admitted schema subset. See
 // docs/design/browser-runtime.md for source provenance and the reuse contract.
 // Generated metadata is trusted; allowances do not bound the JS engine heap.
-export const schemaFormat = 'ic-wire-json';
+export const schemaFormat = 'ic-wire-sparse-v1';
 export class WireError extends Error {
     code;
     name = 'WireError';
@@ -89,7 +89,7 @@ function minimumRootBytes(schema, types) {
         if (schema.k === 'extension-record' || schema.k === 'extension-tuple')
             return 1;
         visited.add(schema);
-        if (schema.k === 'newtype') {
+        if (schema.k === 'newtype' && !schema.fixed) {
             schema = schema.item;
         }
         else if (schema.k === 'ref') {
@@ -101,7 +101,7 @@ function minimumRootBytes(schema, types) {
             schema = next;
         }
         else {
-            return 0;
+            return fail('value');
         }
     }
 }

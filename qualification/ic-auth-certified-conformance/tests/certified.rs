@@ -518,7 +518,7 @@ fn wire_credential(f: &Fixture) -> ic_auth_wire::model::PortableCredential {
     let ld = &l.delegation;
     w::PortableCredential {
         claims: Bytes::new(f.claims.clone()).unwrap(),
-        proof: w::PortableProof::Certified(Box::new(w::CertifiedProof {
+        proof: w::PortableProof::Certified(w::CertifiedProof {
             delegation: w::DelegationProof {
                 cert: w::DelegationCert {
                     root_pid: d.root,
@@ -609,7 +609,7 @@ fn wire_credential(f: &Fixture) -> ic_auth_wire::model::PortableCredential {
                 signature_cbor: Bytes::new(f.cbor.clone()).unwrap(),
                 public_key_der: Bytes::new(f.der.clone()).unwrap(),
             },
-        })),
+        }),
     }
 }
 
@@ -1067,8 +1067,9 @@ fn memory_certified_admission_retains_failed_work_and_retries_after_proof_expiry
         let reply = wire_reply(result);
         let frame = ic_auth_wire::Logout::encode_response(&reply).unwrap();
         // Independent fixed ID/direction and Postcard variant/deadline bytes.
-        let mut expected = vec![b'I', b'W', 0x14, 0, 0x48, 0x54, 0x55, 0x41, 0, 0, 1];
+        let mut expected = vec![b'I', b'W', 0x14, 1, 0x48, 0x54, 0x55, 0x41, 0, 0, 1];
         expected.extend_from_slice(payload);
+        expected.push(0);
         assert_eq!(frame, expected);
         assert_eq!(
             ic_auth_wire::Logout::decode_response(&frame).unwrap(),

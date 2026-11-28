@@ -161,7 +161,7 @@ pub(super) fn operation_id(input: &RenewRequest) -> Result<[u8; 32], IssuerError
         sequence: input.sequence,
         grants: &input.grants,
     };
-    let bytes = ic_wire::encode(
+    let bytes = crate::stable_upgrade::record::encode(
         &identity,
         ic_wire::Encoding::Frame {
             method: 0x41555448495201,

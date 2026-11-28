@@ -28,7 +28,7 @@ pub(super) fn controller() -> Result<(), String> {
 }
 
 pub(super) fn decode_scenario(bytes: &[u8]) -> Result<Scenario, ic_wire::Error> {
-    ic_wire::decode(
+    crate::codec::decode(
         bytes,
         ic_wire::Encoding::Frame {
             method: CONFIGURE,
@@ -39,7 +39,7 @@ pub(super) fn decode_scenario(bytes: &[u8]) -> Result<Scenario, ic_wire::Error> 
 }
 
 pub(super) fn encode_unit((): ()) -> Result<Vec<u8>, ic_wire::Error> {
-    ic_wire::encode(
+    crate::codec::encode(
         &(),
         ic_wire::Encoding::Frame {
             method: CONFIGURE,
@@ -54,7 +54,7 @@ pub(super) fn configure(scenario: Scenario) {
 }
 
 pub(super) fn decode_request(bytes: &[u8]) -> Result<[u8; 32], ic_wire::Error> {
-    ic_wire::decode(
+    crate::codec::decode(
         bytes,
         ic_wire::Encoding::Frame {
             method: METHOD,
@@ -68,7 +68,7 @@ pub(super) fn decode_request(bytes: &[u8]) -> Result<[u8; 32], ic_wire::Error> {
     reason = "Platform owns the handler result"
 )]
 pub(super) fn encode_snapshot(value: Snapshot) -> Result<Vec<u8>, ic_wire::Error> {
-    ic_wire::encode(
+    crate::codec::encode(
         &value,
         ic_wire::Encoding::Frame {
             method: METHOD,

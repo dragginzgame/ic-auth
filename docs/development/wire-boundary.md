@@ -11,12 +11,12 @@ admission is separate.
 
 | Contract | Fixed ID | Request allowances | Response allowances |
 | --- | --- | --- | --- |
-| `credential` | `0x415554480001` | 524288 / 2097152 / 65536 / 32 | 524288 / 2097152 / 65536 / 32 |
-| `establish_portable_session` | `0x415554480012` | 524288 / 2097152 / 65536 / 32 | 8192 / 65536 / 128 / 8 |
-| `portable_session_read` | `0x415554480013` | 11 / 128 / 8 / 4 | 8192 / 65536 / 128 / 8 |
-| `logout_portable_session` | `0x415554480014` | 11 / 128 / 8 / 4 | 4096 / 16384 / 128 / 8 |
+| `credential` | `0x415554480101` | 524288 / 2097152 / 65536 / 32 | 524288 / 2097152 / 65536 / 32 |
+| `establish_portable_session` | `0x415554480112` | 524288 / 2097152 / 65536 / 32 | 8192 / 131072 / 128 / 8 |
+| `portable_session_read` | `0x415554480113` | 12 / 8192 / 32 / 8 | 8192 / 131072 / 128 / 8 |
+| `logout_portable_session` | `0x415554480114` | 12 / 8192 / 32 / 8 | 4096 / 16384 / 128 / 8 |
 
-Allowances are bytes / allocation / nodes / depth. The browser credential cap
+Credential and establish writers use 3145728 allocation units for credential-bearing frames. The table gives reader allowances in bytes / allocation / nodes / depth. The browser credential cap
 still defaults to 131072 bytes, configurable up to 1048576; the codec's lower
 allowances continue to apply. Browser logout replies retain their separate 1024
 byte cap. Individually legal field sizes can exceed aggregate allocation when

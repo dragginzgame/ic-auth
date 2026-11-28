@@ -39,7 +39,7 @@ against arbitrary JavaScript in the same application.
 The injected clock supplies a stable `id` and checked u64 nanoseconds through
 `nowNs()`. Clock rebinding or regression refuses. Database, generation and clock
 identifiers are nonempty strings of at most 128 characters. One dedicated database
-uses version 1 and the frozen private `ic-auth-login-cleanup-journal-v1` profile.
+uses version 1 and the frozen private `ic-auth-login-cleanup-journal-sparse-v1` profile.
 An existing login or orphan credential prevents replacement; no reset or migration
 is provided. After logout finishes and the host disposes of the old login’s keys,
 close that journal. For the next login allocate a fresh database name (for

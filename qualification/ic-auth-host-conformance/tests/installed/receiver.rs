@@ -64,7 +64,7 @@ pub(super) async fn control(
     caller: CanisterId,
     command: &Command,
 ) -> Result<Result<Outcome, Refusal>, RejectResponse> {
-    let bytes = ic_wire::encode(
+    let bytes = ic_auth_host_fixture::codec::encode(
         command,
         frame(CONTROL, ic_wire::Direction::Request),
         REQUEST,
@@ -73,7 +73,7 @@ pub(super) async fn control(
     let reply = pic
         .update_call(id, caller, "receiver_fixture_control", bytes)
         .await?;
-    Ok(ic_wire::decode(
+    Ok(ic_auth_host_fixture::codec::decode(
         &reply,
         frame(CONTROL, ic_wire::Direction::Response),
         RESPONSE,
@@ -82,7 +82,12 @@ pub(super) async fn control(
 }
 
 pub(super) async fn observe(pic: &PocketIc, id: CanisterId) -> Observation {
-    let bytes = ic_wire::encode(&(), frame(OBSERVE, ic_wire::Direction::Request), REQUEST).unwrap();
+    let bytes = ic_auth_host_fixture::codec::encode(
+        &(),
+        frame(OBSERVE, ic_wire::Direction::Request),
+        REQUEST,
+    )
+    .unwrap();
     let reply = pic
         .query_call(
             id,
@@ -92,7 +97,7 @@ pub(super) async fn observe(pic: &PocketIc, id: CanisterId) -> Observation {
         )
         .await
         .unwrap();
-    ic_wire::decode(
+    ic_auth_host_fixture::codec::decode(
         &reply,
         frame(OBSERVE, ic_wire::Direction::Response),
         RESPONSE,
@@ -360,7 +365,7 @@ async fn missing_predecessor_after_unacknowledged_logout_is_indistinguishable_fr
             Ok(Outcome::Authorized)
         );
         let pending = if logout {
-            let payload = ic_wire::encode(
+            let payload = ic_auth_host_fixture::codec::encode(
                 &Command::Logout(false),
                 frame(CONTROL, ic_wire::Direction::Request),
                 REQUEST,
@@ -392,7 +397,7 @@ async fn missing_predecessor_after_unacknowledged_logout_is_indistinguishable_fr
         assert!(!lost.present);
         if let Some(message) = pending {
             let bytes = pic.await_call(message).await.unwrap();
-            let receipt: Result<Outcome, Refusal> = ic_wire::decode(
+            let receipt: Result<Outcome, Refusal> = ic_auth_host_fixture::codec::decode(
                 &bytes,
                 frame(CONTROL, ic_wire::Direction::Response),
                 RESPONSE,

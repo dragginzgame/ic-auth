@@ -2,6 +2,12 @@
 
 The `wire` group covers `ic-auth-wire`. Its separate ledger follows [0.45.0](../history.md#0485---2026-11-19).
 
+## [0.52.0] - 2026-11-28
+
+### ⚠️ Breaking
+
+- Switch all public contracts and generated browser codecs to IC Wire 0.33 sparse frames with new method IDs. Older positional frames are refused.
+
 ## [0.51.0] - 2026-11-28
 
 - Re-export IC Wire 0.32.0. Auth records use the default positional layout. Generated browser codecs accept byte arrays from other browser realms.

@@ -50,7 +50,7 @@ async fn issuer_cost_observations() {
         ),
     ] {
         let before = observe(pic, id, account).await;
-        let bytes = ic_wire::encode(
+        let bytes = ic_auth_host_fixture::codec::encode(
             &command,
             frame(MEASURE, ic_wire::Direction::Request),
             REQUEST,
@@ -61,7 +61,7 @@ async fn issuer_cost_observations() {
             .update_call(id, caller, "auth_fixture_measure", bytes)
             .await
             .unwrap();
-        let sample: Measurement = ic_wire::decode(
+        let sample: Measurement = ic_auth_host_fixture::codec::decode(
             &reply,
             frame(MEASURE, ic_wire::Direction::Response),
             RESPONSE,
@@ -70,7 +70,7 @@ async fn issuer_cost_observations() {
         assert_eq!(sample.result, expected, "{name}");
         assert!(sample.instructions > 0);
         assert!(sample.heap_pages.1 >= sample.heap_pages.0);
-        let ordinary = ic_wire::encode(
+        let ordinary = ic_auth_host_fixture::codec::encode(
             &expected,
             frame(ic_auth_host_fixture::CONTROL, ic_wire::Direction::Response),
             RESPONSE,

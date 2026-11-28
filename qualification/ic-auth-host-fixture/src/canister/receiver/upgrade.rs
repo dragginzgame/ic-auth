@@ -50,6 +50,13 @@ struct HostState {
     issuer: issuer::HostState,
 }
 
+const HOST_CHECKPOINT_LIMITS: ic_wire::Limits = ic_wire::Limits {
+    bytes: 8192,
+    allocation: 524_288,
+    nodes: 65_536,
+    depth: 32,
+};
+
 type Lease = RuntimeMemory<DefaultMemoryImpl>;
 pub(in crate::canister) fn storage_runtime() -> MemoryRuntime<DefaultMemoryImpl> {
     let requests = [
@@ -122,8 +129,10 @@ pub(in crate::canister) fn seal() {
         if *skip_checkpoint {
             return;
         }
-        receiver.seal(api::canister_version()).unwrap();
-        let bytes = ic_wire::encode(
+        receiver
+            .seal(api::canister_version())
+            .unwrap_or_else(|e| api::trap(&format!("receiver seal: {e:?}")));
+        let bytes = crate::codec::encode(
             &HostState {
                 authority: s.authority.unwrap(),
                 capacity: s.capacity,
@@ -133,9 +142,9 @@ pub(in crate::canister) fn seal() {
                 application_writes: s.application_writes,
             },
             ic_wire::Encoding::Payload,
-            crate::enrollment::LIMITS,
+            HOST_CHECKPOINT_LIMITS,
         )
-        .unwrap();
+        .unwrap_or_else(|e| api::trap(&format!("host seal: {e:?}")));
         host.set(bytes);
     });
 }
@@ -147,10 +156,10 @@ pub(in crate::canister) fn reopen((grow, fault): (bool, bool)) {
         issuer::lost_volatile_state();
         return;
     }
-    let mut saved: HostState = ic_wire::decode(
+    let mut saved: HostState = crate::codec::decode(
         cell.get(),
         ic_wire::Encoding::Payload,
-        crate::enrollment::LIMITS,
+        HOST_CHECKPOINT_LIMITS,
     )
     .unwrap();
     if grow {

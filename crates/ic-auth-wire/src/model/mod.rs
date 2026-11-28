@@ -19,8 +19,7 @@ pub use credential::{
 /// Session-admission refusals in their fixed transport order.
 ///
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(feature = "typescript", derive(ic_wire::typescript::Wire))]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, ic_wire::Wire)]
 pub enum AdmissionRefusal {
     /// Credential is not yet valid at trusted time.
     NotYetValid,
@@ -52,8 +51,7 @@ pub enum AdmissionRefusal {
 /// A local session receipt; receiving or constructing it grants no authority.
 ///
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(feature = "typescript", derive(ic_wire::typescript::Wire))]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, ic_wire::Wire)]
 pub struct SessionView {
     /// Host-authenticated browser principal bound to the session.
     pub caller: Principal,
@@ -73,8 +71,7 @@ pub struct SessionView {
 /// Existing read-refusal discriminants, in their fixed Wire order.
 ///
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(feature = "typescript", derive(ic_wire::typescript::Wire))]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, ic_wire::Wire)]
 pub enum SessionReadRefusal {
     /// No live local session.
     MissingOrExpired,
@@ -94,8 +91,7 @@ pub enum SessionReadRefusal {
 /// Existing unavailable-logout discriminants, in their fixed Wire order.
 ///
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(feature = "typescript", derive(ic_wire::typescript::Wire))]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, ic_wire::Wire)]
 pub enum LogoutUnavailable {
     /// No capacity to retain the required denial.
     Capacity,
@@ -113,8 +109,7 @@ pub enum LogoutUnavailable {
 /// Local logout result; no variant acknowledges logout at another receiver.
 ///
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(feature = "typescript", derive(ic_wire::typescript::Wire))]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, ic_wire::Wire)]
 pub enum LogoutResult {
     /// Committed denial through this nanosecond deadline.
     Revoked(u64),

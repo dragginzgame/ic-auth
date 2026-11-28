@@ -28,7 +28,7 @@ const cases = [
 let output = '';
 for (const [name, account, epoch, login, sequence, grants] of cases) {
   const frame = cat(header, sized(account), uint(epoch), login, uint(sequence), uint(grants.length),
-    ...grants.flatMap(([role, scopes]) => [text(role), uint(scopes.length), ...scopes.map(text)]));
+    ...grants.flatMap(([role, scopes]) => [text(role), uint(scopes.length), ...scopes.map(text)]), uint(0));
   output += `${name}-frame\t${frame.toString('hex')}\n`;
   output += `${name}-id\t${createHash('sha256').update(frame).digest('hex')}\n`;
 }

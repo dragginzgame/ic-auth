@@ -16,7 +16,7 @@ async fn configure(
     caller: CanisterId,
     scenario: Scenario,
 ) -> Result<(), RejectResponse> {
-    let bytes = ic_wire::encode(
+    let bytes = ic_auth_host_fixture::codec::encode(
         &scenario,
         frame(CONFIGURE, ic_wire::Direction::Request),
         LIMITS,
@@ -25,7 +25,7 @@ async fn configure(
     let reply = pic
         .update_call(authority, caller, "authority_fixture_configure", bytes)
         .await?;
-    ic_wire::decode::<()>(
+    ic_auth_host_fixture::codec::decode::<()>(
         &reply,
         frame(CONFIGURE, ic_wire::Direction::Response),
         LIMITS,
@@ -42,7 +42,7 @@ async fn install_receiver(
 ) -> CanisterId {
     let id = pic.create_canister().await;
     pic.add_cycles(id, 5_000_000_000_000).await;
-    let init = ic_wire::encode(
+    let init = ic_auth_host_fixture::codec::encode(
         &ic_auth_host_fixture::Installation {
             authority: authority.as_slice().to_vec(),
             certified_network_key: Vec::new(),

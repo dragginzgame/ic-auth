@@ -94,7 +94,7 @@ async fn limit_cost_observations() {
     assert_eq!(before.progress, Progress::Pending);
     assert!(before.claims.is_empty());
     // A root-publication fault must not execute for a revoked pending operation.
-    let bytes = ic_wire::encode(
+    let bytes = ic_auth_host_fixture::codec::encode(
         &Command::Complete(Fault::Root),
         frame(MEASURE, ic_wire::Direction::Request),
         REQUEST,
@@ -105,7 +105,7 @@ async fn limit_cost_observations() {
         .update_call(issuer, account, "auth_fixture_measure", bytes)
         .await
         .unwrap();
-    let sample: Measurement = ic_wire::decode(
+    let sample: Measurement = ic_auth_host_fixture::codec::decode(
         &reply,
         frame(MEASURE, ic_wire::Direction::Response),
         RESPONSE,
@@ -116,7 +116,7 @@ async fn limit_cost_observations() {
     assert!(sample.heap_pages.1 >= sample.heap_pages.0);
     assert_eq!(
         sample.response_bytes,
-        ic_wire::encode(
+        ic_auth_host_fixture::codec::encode(
             &Err::<(), _>(Refusal::Denied),
             frame(ic_auth_host_fixture::CONTROL, ic_wire::Direction::Response),
             RESPONSE

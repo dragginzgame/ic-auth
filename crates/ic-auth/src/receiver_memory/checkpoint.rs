@@ -17,7 +17,7 @@ const CHUNK_LIMITS: ic_wire::Limits = ic_wire::Limits {
     nodes: 2 * 1024 * 1024,
     depth: 64,
 };
-const CHECKPOINT_DOMAIN: &[u8] = b"ic-auth.checkpoint.receiver.v1";
+const CHECKPOINT_DOMAIN: &[u8] = b"ic-auth.checkpoint.receiver.sparse.v1";
 
 // Bound the caller key, retained login fields and session option tag, including
 // worst-case principal lengths and varints. Session and replay bodies are
@@ -101,8 +101,9 @@ struct Saved(#[serde(with = "Fields")] MemoryReceiver);
 // Persist authoritative rows in bounded, ordered chunks. Derived indexes are
 // restored from the same rows, and a single outer digest commits all chunks.
 fn write_chunk<T: Serialize + ?Sized>(out: &mut Vec<u8>, value: &T) -> Result<(), UpgradeError> {
-    let bytes = ic_wire::encode(value, ic_wire::Encoding::Payload, CHUNK_LIMITS)
-        .map_err(|_| UpgradeError::Capacity)?;
+    let bytes =
+        crate::stable_upgrade::record::encode(value, ic_wire::Encoding::Payload, CHUNK_LIMITS)
+            .map_err(|_| UpgradeError::Capacity)?;
     if out.len() + 4 + bytes.len() > DIGEST_BYTES + MAX_PAYLOAD {
         return Err(UpgradeError::Capacity);
     }
@@ -125,7 +126,7 @@ fn read_chunk<T: serde::de::DeserializeOwned>(bytes: &mut &[u8]) -> Result<T, Up
         .split_at_checked(len)
         .ok_or(UpgradeError::InvalidCheckpoint)?;
     *bytes = rest;
-    ic_wire::decode(chunk, ic_wire::Encoding::Payload, CHUNK_LIMITS)
+    crate::stable_upgrade::record::decode(chunk, ic_wire::Encoding::Payload, CHUNK_LIMITS)
         .map_err(|_| UpgradeError::InvalidCheckpoint)
 }
 

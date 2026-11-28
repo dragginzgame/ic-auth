@@ -10,7 +10,7 @@ use ic_testkit::pocket_ic::{CanisterId, nonblocking::PocketIc};
 pub(super) async fn install(pic: &PocketIc, wasm: &[u8], limits: Capacity) -> CanisterId {
     let id = pic.create_canister().await;
     pic.add_cycles(id, 5_000_000_000_000).await;
-    let init = ic_wire::encode(
+    let init = ic_auth_host_fixture::codec::encode(
         &Installation {
             authority: Vec::new(),
             certified_network_key: Vec::new(),
@@ -42,7 +42,7 @@ pub(super) async fn measure(
     caller: CanisterId,
     command: &Command,
 ) -> (Measurement, usize) {
-    let request = ic_wire::encode(
+    let request = ic_auth_host_fixture::codec::encode(
         command,
         frame(MEASURE, ic_wire::Direction::Request),
         REQUEST,
@@ -53,7 +53,7 @@ pub(super) async fn measure(
         .update_call(id, caller, "receiver_fixture_measure", request)
         .await
         .unwrap();
-    let sample: Measurement = ic_wire::decode(
+    let sample: Measurement = ic_auth_host_fixture::codec::decode(
         &reply,
         frame(MEASURE, ic_wire::Direction::Response),
         RESPONSE,
@@ -61,7 +61,7 @@ pub(super) async fn measure(
     .unwrap();
     assert!(sample.instructions > 0);
     assert!(sample.heap_pages.1 >= sample.heap_pages.0);
-    let ordinary = ic_wire::encode(
+    let ordinary = ic_auth_host_fixture::codec::encode(
         &sample.result,
         frame(CONTROL, ic_wire::Direction::Response),
         RESPONSE,

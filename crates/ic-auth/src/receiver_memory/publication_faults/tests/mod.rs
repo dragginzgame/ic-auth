@@ -252,7 +252,7 @@ fn reopen_rejects_resealed_session_size_and_application_binding_changes() {
             payload[offset] ^= 1;
             digest.copy_from_slice(
                 &Sha256::new()
-                    .chain_update(b"ic-auth.checkpoint.receiver.v1")
+                    .chain_update(b"ic-auth.checkpoint.receiver.sparse.v1")
                     .chain_update(6u64.to_le_bytes())
                     .chain_update(payload)
                     .finalize(),

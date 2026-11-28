@@ -1,6 +1,6 @@
 {
   "name": "@dragginzgame/ic-auth-client",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "Private IC Auth browser lifecycle implementation",

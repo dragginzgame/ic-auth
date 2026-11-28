@@ -116,9 +116,17 @@ mod tests {
             .next()
             .unwrap();
         let decode = |keys: &[Identity]| {
-            let bytes =
-                ic_wire::encode(&LoginMap(keys, login), Encoding::Payload, ISSUER_LIMITS).unwrap();
-            ic_wire::decode::<LoginRows>(&bytes, Encoding::Payload, ISSUER_LIMITS)
+            let bytes = crate::stable_upgrade::record::encode(
+                &LoginMap(keys, login),
+                Encoding::Payload,
+                ISSUER_LIMITS,
+            )
+            .unwrap();
+            crate::stable_upgrade::record::decode::<LoginRows>(
+                &bytes,
+                Encoding::Payload,
+                ISSUER_LIMITS,
+            )
         };
         let keys: Vec<_> = (0..9).rev().map(|epoch| (epoch, [0; 32])).collect();
         let rows = decode(&keys[..8]).unwrap();

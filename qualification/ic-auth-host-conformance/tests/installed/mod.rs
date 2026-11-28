@@ -34,7 +34,7 @@ use std::time::Duration;
 async fn install_with_checkpoint_loss(pic: &PocketIc, wasm: &[u8]) -> CanisterId {
     let id = pic.create_canister().await;
     pic.add_cycles(id, 5_000_000_000_000).await;
-    let init = ic_wire::encode(
+    let init = ic_auth_host_fixture::codec::encode(
         &ic_auth_host_fixture::Installation {
             authority: Vec::new(),
             certified_network_key: Vec::new(),
@@ -59,7 +59,7 @@ async fn control(
     account: CanisterId,
     command: Command,
 ) -> Result<Result<(), Refusal>, ic_testkit::pocket_ic::RejectResponse> {
-    let bytes = ic_wire::encode(
+    let bytes = ic_auth_host_fixture::codec::encode(
         &command,
         frame(CONTROL, ic_wire::Direction::Request),
         REQUEST,
@@ -68,7 +68,7 @@ async fn control(
     let reply = pic
         .update_call(id, account, "auth_fixture_control", bytes)
         .await?;
-    Ok(ic_wire::decode(
+    Ok(ic_auth_host_fixture::codec::decode(
         &reply,
         frame(CONTROL, ic_wire::Direction::Response),
         RESPONSE,
@@ -77,12 +77,17 @@ async fn control(
 }
 
 async fn observe(pic: &PocketIc, id: CanisterId, account: CanisterId) -> Observation {
-    let bytes = ic_wire::encode(&(), frame(OBSERVE, ic_wire::Direction::Request), REQUEST).unwrap();
+    let bytes = ic_auth_host_fixture::codec::encode(
+        &(),
+        frame(OBSERVE, ic_wire::Direction::Request),
+        REQUEST,
+    )
+    .unwrap();
     let reply = pic
         .query_call(id, account, "auth_fixture_observe", bytes)
         .await
         .unwrap();
-    let view: Observation = ic_wire::decode(
+    let view: Observation = ic_auth_host_fixture::codec::decode(
         &reply,
         frame(OBSERVE, ic_wire::Direction::Response),
         RESPONSE,

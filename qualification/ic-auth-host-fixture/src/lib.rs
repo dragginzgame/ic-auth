@@ -1,6 +1,7 @@
 //! Test-only Wire controls. Never install this canister as an application service.
 pub mod browser;
 pub mod certified;
+pub mod codec;
 pub mod enrollment;
 pub mod receiver;
 
@@ -303,10 +304,10 @@ mod canister {
     #[runtime::update(
         runtime = ic_platform_runtime,
         name = "logout_portable_session",
-        guard = browser::bounded::<11>,
+        guard = browser::bounded::<12>,
         decode = browser::decode_logout,
         encode = browser::encode_logout,
-        max_bytes = 11,
+        max_bytes = 12,
         on_error = issuer::endpoint_error,
     )]
     fn logout_portable_session((): ()) -> LogoutResult {
@@ -343,9 +344,9 @@ pub const OBSERVE: u64 = 0x4155_5448_5155_0002;
 /// Request limits are checked before copying and during Wire decoding.
 pub const REQUEST: ic_wire::Limits = ic_wire::Limits {
     bytes: 256,
-    allocation: 1024,
-    nodes: 32,
-    depth: 4,
+    allocation: 16384,
+    nodes: 256,
+    depth: 12,
 };
 /// Bounded certificate/claims observation, not a product credential envelope.
 pub const RESPONSE: ic_wire::Limits = ic_wire::Limits {

@@ -244,15 +244,17 @@ impl<'a> SessionFacts<'a> {
 }
 
 fn measured(value: &impl Serialize, maximum: usize) -> Result<usize, MemoryError> {
-    ic_wire::encoded_len(
+    crate::stable_upgrade::record::encoded_len(
         value,
         ic_wire::Encoding::Payload,
         ic_wire::Limits {
-            bytes: maximum,
+            bytes: maximum + 1,
             allocation: 65_536,
             nodes: 1024,
             depth: 16,
         },
     )
+    // Rows are nested in chunk cores; the standalone empty root costs one byte.
+    .map(|length| length - 1)
     .map_err(|_| SessionPolicyError::ByteCapacity.into())
 }
