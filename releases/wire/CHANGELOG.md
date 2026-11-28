@@ -2,6 +2,10 @@
 
 The `wire` group covers `ic-auth-wire`. Its separate ledger follows [0.45.0](../history.md#0485---2026-11-19).
 
+## [0.51.0] - 2026-11-28
+
+- Re-export IC Wire 0.32.0. Auth records use the default positional layout. Generated browser codecs accept byte arrays from other browser realms.
+
 ## [0.50.1] - 2026-11-28
 
 - Adopt IC Wire 0.31.2 for its smaller decoder and shared encoder preflight.

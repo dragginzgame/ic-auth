@@ -4,6 +4,8 @@ The `auth` group covers `ic-auth`. Its separate ledger follows [0.48.7](../histo
 
 ## [0.52.0] - 2026-11-28
 
+- Use IC Wire 0.32.0 for checkpoint encoding.
+
 - Rename `LoginLimits::max_admitted_logins` to `max_retained_device_slots`. The host may increase this ceiling when reopening a v1 receiver checkpoint during upgrade.
 - Bounded pruning now reclaims abandoned device slots after their protection deadlines. Include `PruneReport::device_slots` when counting work.
 - Group receiver slots and replay counts by account and store up to eight issuer logins per account in identity order.

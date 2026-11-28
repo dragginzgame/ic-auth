@@ -10,11 +10,17 @@ export class WireError extends Error {
         this.code = code;
     }
 }
+const headerBytes = 11;
 const fail = (code) => { throw new WireError(code); };
 const utf8 = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true });
 const utf16 = new TextEncoder();
 const littleEndian = new Uint8Array(new Uint16Array([1]).buffer)[0] === 1;
 const packedArrays = { i8: Int8Array, i16: Int16Array, u16: Uint16Array, i32: Int32Array, u32: Uint32Array, i64: BigInt64Array, u64: BigUint64Array, hash16: Uint8Array, hash32: Uint8Array, 'finite-f32': Float32Array, 'finite-f64': Float64Array };
+// The intrinsic getter reads the typed-array brand across realms and ignores user-defined tags.
+const typedArrayTag = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(Uint8Array.prototype), Symbol.toStringTag).get;
+function isTypedArray(value, ctor) {
+    return typedArrayTag.call(value) === ctor.name;
+}
 function finiteWords(bytes, width, little) {
     const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
     for (let offset = 0; offset < bytes.length; offset += width) {
@@ -72,6 +78,32 @@ function resolve(schema, types, visit) {
     }
     visit?.(schema);
     return schema;
+}
+function minimumRootBytes(schema, types) {
+    // Inspect the shape without dropping wrapper visits or custom checks
+    // during the actual encode/decode.
+    const visited = new Set();
+    for (;;) {
+        if (!schema || typeof schema !== 'object' || visited.has(schema))
+            return fail('value');
+        if (schema.k === 'extension-record' || schema.k === 'extension-tuple')
+            return 1;
+        visited.add(schema);
+        if (schema.k === 'newtype') {
+            schema = schema.item;
+        }
+        else if (schema.k === 'ref') {
+            if (!Object.hasOwn(types, schema.name))
+                return fail('value');
+            const next = types[schema.name];
+            if (next === undefined)
+                return fail('value');
+            schema = next;
+        }
+        else {
+            return 0;
+        }
+    }
 }
 function validate(schema, value, checks) {
     if (schema.check !== undefined) {
@@ -237,7 +269,7 @@ function write(schema, value, out, budget, depth, types, checks) {
             return;
         }
         case 'bytes': {
-            if (!(value instanceof Uint8Array))
+            if (!isTypedArray(value, Uint8Array))
                 return fail('value');
             if (s.min !== undefined && value.length < s.min)
                 fail('value');
@@ -264,7 +296,7 @@ function write(schema, value, out, budget, depth, types, checks) {
                 return;
             }
             const kind = s.word, ctor = packedArrays[kind];
-            if (!(value instanceof ctor))
+            if (!isTypedArray(value, ctor))
                 return fail('value');
             const opaque = kind === 'hash16' || kind === 'hash32', width = kind === 'hash16' ? 16 : kind === 'hash32' ? 32 : ctor.BYTES_PER_ELEMENT;
             if (value.byteLength % width)
@@ -633,8 +665,8 @@ function decodeError(error) { if (error instanceof WireError)
 // Factories consume generated private metadata. They do not validate arbitrary
 // external schemas or clone/protect objects supplied by a custom trusted caller.
 export function createPayloadCodec(metadata, registry = {}, checks = {}) {
-    const meta = metadata, types = registry;
-    if (!Number.isSafeInteger(meta.bytes) || meta.bytes < 0)
+    const meta = metadata, { schema } = meta, types = registry;
+    if (!Number.isSafeInteger(meta.bytes) || meta.bytes < minimumRootBytes(schema, types))
         fail('value');
     for (const value of [meta.nodes, meta.depth])
         if (!Number.isSafeInteger(value) || value < 1)
@@ -642,18 +674,18 @@ export function createPayloadCodec(metadata, registry = {}, checks = {}) {
     return {
         encode(value) {
             const out = new Writer(meta.bytes);
-            write(meta.schema, value, out, new Budget(meta.nodes, meta.depth), 1, types, checks);
+            write(schema, value, out, new Budget(meta.nodes, meta.depth), 1, types, checks);
             return out.finish();
         },
         decode(bytes) {
-            if (!(bytes instanceof Uint8Array))
+            if (!isTypedArray(bytes, Uint8Array))
                 return fail('value');
             if (bytes.length > meta.bytes)
                 return fail('limit');
             try {
                 const input = new Reader(bytes);
                 const budget = new Budget(meta.nodes, meta.depth);
-                const value = read(meta.schema, input, budget, 1, types, checks);
+                const value = read(schema, input, budget, 1, types, checks);
                 if (input.offset !== bytes.length)
                     return fail('malformed');
                 if (budget.incompatible !== 0)
@@ -667,36 +699,37 @@ export function createPayloadCodec(metadata, registry = {}, checks = {}) {
     };
 }
 export function createCodec(metadata, registry = {}, checks = {}) {
-    const meta = metadata, types = registry, id = BigInt(meta.id);
+    const meta = metadata, { request, response } = meta, types = registry, id = BigInt(meta.id);
     if (id < 0n || id >= (1n << 64n))
         fail('value');
     for (const value of [meta.requestBytes, meta.responseBytes, meta.requestNodes, meta.responseNodes, meta.requestDepth, meta.responseDepth]) {
         if (!Number.isSafeInteger(value) || value < 1)
             fail('value');
     }
-    if (meta.requestBytes < 11 || meta.responseBytes < 11)
+    if (meta.requestBytes < headerBytes + minimumRootBytes(request, types) ||
+        meta.responseBytes < headerBytes + minimumRootBytes(response, types))
         fail('value');
     function encode(value, direction) {
-        const out = new Writer(direction ? meta.responseBytes : meta.requestBytes, 11);
+        const out = new Writer(direction ? meta.responseBytes : meta.requestBytes, headerBytes);
         out.header(id, direction);
-        write(direction ? meta.response : meta.request, value, out, new Budget(direction ? meta.responseNodes : meta.requestNodes, direction ? meta.responseDepth : meta.requestDepth), 1, types, checks);
+        write(direction ? response : request, value, out, new Budget(direction ? meta.responseNodes : meta.requestNodes, direction ? meta.responseDepth : meta.requestDepth), 1, types, checks);
         return out.finish();
     }
     function decode(bytes, direction) {
-        if (!(bytes instanceof Uint8Array))
+        if (!isTypedArray(bytes, Uint8Array))
             return fail('value');
         if (bytes.length > (direction ? meta.responseBytes : meta.requestBytes))
             return fail('limit');
-        if (bytes.length < 11)
+        if (bytes.length < headerBytes)
             return fail('malformed');
         if (bytes[0] !== 73 || bytes[1] !== 87 || bytes[10] !== direction)
             return fail('identity');
         try {
-            const input = new Reader(bytes, 11);
+            const input = new Reader(bytes, headerBytes);
             if (input.view.getBigUint64(2, true) !== id)
                 return fail('identity');
             const budget = new Budget(direction ? meta.responseNodes : meta.requestNodes, direction ? meta.responseDepth : meta.requestDepth);
-            const value = read(direction ? meta.response : meta.request, input, budget, 1, types, checks);
+            const value = read(direction ? response : request, input, budget, 1, types, checks);
             if (input.offset !== bytes.length)
                 return fail('malformed');
             if (budget.incompatible !== 0)

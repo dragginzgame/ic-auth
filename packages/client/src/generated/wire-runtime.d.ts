@@ -65,8 +65,12 @@ export type Schema = ({
     ok: Schema;
     err: Schema;
 } | {
-    k: 'option' | 'newtype';
+    k: 'option';
     item: Schema;
+} | {
+    k: 'newtype';
+    item: Schema;
+    fixed?: true;
 } | {
     k: 'recover';
     item: Schema;
