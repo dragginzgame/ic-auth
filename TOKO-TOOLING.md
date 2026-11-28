@@ -617,10 +617,11 @@ bytes as well. Reuse the existing artifact build and the
 Toko Tooling owns optimization selection and evidence rules; IC Tooling's
 `ic-build` owns reusable build/optimizer mechanics, recommended recipes and their
 qualification evidence. Consumers select qualified recipes against their product
-budgets. Wasm size comparisons report both the complete uncompressed module and
-its code-section size. Gzip/compressed size is not a Wasm size metric and must not
-appear in those summaries unless transport/compression measurement is explicitly
-requested. Read the [Wasm optimization contract](https://github.com/dragginzgame/toko-tooling/blob/a716b501274678a8ebf163ef576bbb549e974acd/rules/engineering-details.md#wasm-optimization)
+budgets. **Measure and report Wasm size on the final uncompressed module.**
+Report total bytes and code-section bytes. Calculate headroom using the bytes
+covered by the limit. Gzip is for upload only. Omit gzip sizes and deltas from
+Wasm audits, benchmarks, release notes, progress updates and final reports,
+even when the build prints them. Read the [Wasm optimization contract](https://github.com/dragginzgame/toko-tooling/blob/a716b501274678a8ebf163ef576bbb549e974acd/rules/engineering-details.md#wasm-optimization)
 before comparing Wasm sizes or changing deployment profiles, optimizer settings
 or performance matrices.
 

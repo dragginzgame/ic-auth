@@ -2,6 +2,10 @@
 
 The `auth` group covers `ic-auth`. Its separate ledger follows [0.48.7](../history.md#0487---2026-11-19).
 
+## [0.51.2] - 2026-11-28
+
+- Adopt IC Wire 0.31.2 for its smaller decoder and shared encoder preflight.
+
 ## [0.51.1] - 2026-11-26
 
 ### 🔧 Changed

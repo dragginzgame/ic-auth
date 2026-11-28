@@ -2,6 +2,10 @@
 
 The `wire` group covers `ic-auth-wire`. Its separate ledger follows [0.45.0](../history.md#0485---2026-11-19).
 
+## [0.50.1] - 2026-11-28
+
+- Adopt IC Wire 0.31.2 for its smaller decoder and shared encoder preflight.
+
 ## [0.50.0] - 2026-11-26
 
 ### 🔧 Changed

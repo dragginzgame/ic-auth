@@ -231,9 +231,9 @@ dependencies = [
 
 [[package]]
 name = "cc"
-version = "1.11.3"
+version = "1.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "02f0e023adb368345ce0ca6cdfc0f24a06554468d0e8503e14a0841de79bfa69"
+checksum = "95e45cf2980b2d467be49a9ed942c9179b701063a7ca3d037de7ee9bd67f8d66"
 dependencies = [
  "find-msvc-tools",
  "jobserver",
@@ -657,9 +657,9 @@ checksum = "64cd1e32ddd350061ae6edb1b082d7c54915b5c672c389143b9a63403a109f24"
 
 [[package]]
 name = "find-msvc-tools"
-version = "0.1.15"
+version = "0.1.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1c66915cc5391097de7a2b0b972e8505aa33c0df401fd3a6811dbdb32881ba48"
+checksum = "3e44f110d1777dc6559a51e7d45083945ded4f1bf3305494350f693b6d20b9c8"
 
 [[package]]
 name = "flate2"
@@ -986,7 +986,7 @@ dependencies = [
 
 [[package]]
 name = "ic-auth"
-version = "0.51.1"
+version = "0.51.2"
 dependencies = [
  "ic-auth-protocol-types",
  "ic-platform",
@@ -1055,7 +1055,7 @@ dependencies = [
 
 [[package]]
 name = "ic-auth-wire"
-version = "0.50.0"
+version = "0.50.1"
 dependencies = [
  "ic-auth-protocol-types",
  "ic-wire",
@@ -1217,9 +1217,9 @@ dependencies = [
 
 [[package]]
 name = "ic-testkit"
-version = "0.110.5"
+version = "0.110.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f72c4ef2bc7cb1244d20e10d64416b8d8da4c5afda5018c476ae8253a75aadc6"
+checksum = "28d177dc996b7c6291506e41e3a648e1e517e445e8d9ec693a4968a97a3786c8"
 dependencies = [
  "pocket-ic",
 ]
@@ -1257,9 +1257,9 @@ dependencies = [
 
 [[package]]
 name = "ic-wire"
-version = "0.31.1"
+version = "0.31.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "668657755a54c068fb0d26155be33de30ad7fc46f32cfdfba3c3b0b24ccb8700"
+checksum = "d7ffaf8c0381323b92fb2f444d29faad0031914f2b91b756c586d5fb3b08a405"
 dependencies = [
  "bytemuck",
  "postcard",
@@ -2756,9 +2756,9 @@ dependencies = [
 
 [[package]]
 name = "toko-tooling"
-version = "0.46.8"
+version = "0.46.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ca949d2e86d8c3c6e208e744ae2a807e038afcac0145d148adb8b44bf42cf885"
+checksum = "42cc531ac13934abd2fff578d828bc36166edda0612dc9c6e5fdcbf8af1e6257"
 
 [[package]]
 name = "tower"
