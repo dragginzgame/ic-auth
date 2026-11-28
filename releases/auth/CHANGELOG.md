@@ -2,6 +2,17 @@
 
 The `auth` group covers `ic-auth`. Its separate ledger follows [0.48.7](../history.md#0487---2026-11-19).
 
+## [0.53.0] - 2026-11-28
+
+### ⚠️ Breaking
+
+- Synchronous authorization callbacks borrow the signed application extension. Admission and read return owned receipts.
+
+### 🔧 Changed
+
+- Support 100,000 sessions, 400,000 replay rows and 125,000 retained device slots in the starting profile. Permit trusted increases to global row and byte ceilings at upgrade and validate retained state against its original limits.
+- Reuse caller and authority checks during authorization, borrow grants for renewal identity, and use bounded slot counters during issuer reopen.
+
 ## [0.52.0] - 2026-11-28
 
 - Use IC Wire 0.32.0 for checkpoint encoding.

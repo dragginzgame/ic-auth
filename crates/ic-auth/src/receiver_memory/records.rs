@@ -231,10 +231,10 @@ impl Selected<'_> {
     }
 }
 
-impl SessionFacts<'_> {
-    pub(super) fn receipt(&self) -> SessionReceipt {
+impl<'a> SessionFacts<'a> {
+    pub(super) fn receipt(&self) -> SessionReceipt<&'a [u8]> {
         SessionReceipt {
-            ext: self.ext.map(<[u8]>::to_vec),
+            ext: self.ext,
             caller: self.caller,
             issuer: self.login.issuer,
             subject: self.login.subject,

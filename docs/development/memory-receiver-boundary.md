@@ -102,8 +102,8 @@ replays, unknown denials and device slots in the prune report.
 
 Size `login.max_retained_device_slots` for the number of distinct
 (issuer, account, device slot) combinations that need simultaneous protection.
-The default 65,536 rows cover 8,192 accounts using eight devices each, or
-65,536 using one each. The independent `capacity.max_sessions` limits live leases.
+The default 125,000 rows cover 15,625 accounts using eight devices each, or
+125,000 using one each. The independent `capacity.max_sessions` limits live leases.
 
 The receiver retains a known slot through the login start plus the receiver's
 maximum login lifetime, any longer retained denial, and any later protection
@@ -112,26 +112,46 @@ in trusted start-time order and renewals preserve the original login window.
 At or after the deadline, bounded pruning can remove the slot and caller row.
 The account replay counter survives if replay records still exist.
 
-To raise the slot ceiling, supply the larger limit in the trusted host configuration
+To raise a global session, replay, encoded-byte or retained-device-slot ceiling, supply the larger limit in the trusted host configuration
 to `StableReceiver::reopen` during upgrade. Reopen validates the saved rows against
-their original limit and checks the proposed configuration against the 64 MiB
+their original limit and checks the proposed configuration against the 128 MiB
 checkpoint budget. A decrease or a change to any other field refuses the upgrade.
-The host must trap on refusal for IC rollback. Prune visits at most 128 entries
+The per-account replay limit and all authorization policies remain fixed. The host must trap on refusal for IC rollback. Prune visits at most 128 entries
 per call across all four categories.
 
-The starting profile budgets 20,000 retained session rows and 80,000 replay rows
-with a shared 32 MiB encoded byte limit. Admission and reopen measure the same
+The starting profile budgets 100,000 retained session rows and 400,000 replay rows
+with a shared 64 MiB encoded byte limit. Admission and reopen measure the same
 session body and replay row encoding. A replay retains the fingerprint, account
 and expiry. The receiver reserves checkpoint space for caller keys, dormant
 device fences, unknown denials, and chunk framing before it accepts a profile.
 
 A receiver v1 checkpoint stores caller and replay rows in bounded chunks.
-Reopen validates the records and rebuilds secondary indexes. The native
-full-profile test reopened a 22,926,743-byte Cell payload with 20,000 sessions
-carrying 32-byte extensions, 80,000 replays, and 65,536 device slots. The
-standalone PocketIC probe measured 5.14 billion instructions to seal and 13.51
-billion to reopen. Measure the whole consuming canister at its expected payload
-and replay retention before setting production upgrade budgets.
+Reopen validates the records and rebuilds secondary indexes. The full-profile test exercises 100,000 active sessions
+with 32-byte extensions, four replays per session and 25,000 additional dormant
+slots. These fit in 51,700,000 logical bytes. Larger claims and extensions can
+exhaust the shared byte ceiling sooner. For example, filling every session with
+a 4 KiB extension would require more than 390 MiB for extensions alone.
+
+On a PocketIC 16.0.0 application subnet, a standalone receiver probe imported
+the native test's 75,712,728-byte Cell payload in its Storage backing. The real
+post-upgrade hook reopened it. After install-code credit refilled, a second
+upgrade sealed the live owner and reopened it again. Both boots reported
+100,000 sessions, 400,000 replays and 125,000 slots. Seal took 16.18 billion
+instructions and reopen took 35.38 billion. Linear memory reached 6,395 Wasm
+pages (399.7 MiB) at seal and 5,040 (315 MiB) at reopen. These figures cover
+the isolated owner with the workload above. Hosts need headroom for their
+other state and upgrade work. The probe seeded authoritative rows directly;
+signature throughput and concurrent-user traffic require separate workloads.
+
+The combined issuer/receiver fixture measured 1,904,494 uncompressed Wasm
+bytes (1,475,989 in the code section), versus 1,921,645 (1,491,389 code)
+in Auth 0.52.0 under the same release recipe. In the dedicated installed
+authorization benchmark the absent, 16-byte, and 4,096-byte extensions took
+19,004, 18,843, and 18,921 instructions. The same cases on 0.52.0, with the
+same expanded qualification transport limits, took 20,229, 20,467, and 25,066.
+The callback projects a 16-byte application ID when present. These figures
+cover the whole fixture operation. Applications that process a larger payload
+also incur the cost of their own work.
 
 `inspect_sessions` borrows passive session facts in Principal order. Each call
 returns at most 32 sessions, visits at most 128 caller rows (or the smaller selected

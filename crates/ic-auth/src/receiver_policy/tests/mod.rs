@@ -5,13 +5,37 @@ mod capacity;
 use crate::{
     receiver_policy::{
         DeviceFacts, LoginBinding, LoginFacts, ReceiverSnapshot, RetryDecision, SessionAuthority,
-        SessionFacts, SessionPolicyError as E, assess_retry, assess_session,
+        SessionFacts, SessionPolicyError as E,
     },
     session_request::SessionRequest,
 };
 use ic_auth_protocol_types::{
     AudienceId, AuthRole, CanonicalId, DelegatedRoleGrant, PortableMechanism, Principal, ScopeLabel,
 };
+
+fn assess_session(
+    s: &ReceiverSnapshot<'_>,
+    a: &SessionAuthority<'_>,
+    scopes: &[ScopeLabel],
+) -> Result<(), E> {
+    super::assess_session_checked(s, super::CheckedAuthority::new(a, s.audience)?, scopes)
+}
+
+fn assess_retry(
+    s: &ReceiverSnapshot<'_>,
+    a: &SessionAuthority<'_>,
+    fingerprint: [u8; 32],
+    request: &SessionRequest,
+    consumed: bool,
+) -> Result<RetryDecision, E> {
+    super::assess_retry_checked(
+        s,
+        super::CheckedAuthority::new(a, s.audience)?,
+        fingerprint,
+        request,
+        consumed,
+    )
+}
 
 const SECOND: u64 = 1_000_000_000;
 fn principal(n: u8) -> Principal {

@@ -270,17 +270,32 @@ pub(crate) enum RetryDecision {
     },
 }
 
+/// Protected authority validated for the duration of one synchronous receiver operation.
+#[derive(Clone, Copy)]
+pub(crate) struct CheckedAuthority<'a, 'host>(&'a SessionAuthority<'host>);
+
+impl<'a, 'host> CheckedAuthority<'a, 'host> {
+    pub(crate) fn new(
+        authority: &'a SessionAuthority<'host>,
+        audience: AudienceId,
+    ) -> Result<Self, SessionPolicyError> {
+        check_authority(authority, audience)?;
+        Ok(Self(authority))
+    }
+}
+
 /// Assess a proof-free read against current state and protected operation scopes.
 ///
 /// Requirements may be empty, duplicated or unordered, but contain at most 16
 /// validated labels. Snapshot provenance, backend corruption admission, trusted
 /// clock observation and application effects remain the host's responsibility.
 /// Recheck after any await; this result cannot authorize a later transaction.
-pub(crate) fn assess_session(
+pub(crate) fn assess_session_checked(
     snapshot: &ReceiverSnapshot<'_>,
-    authority: &SessionAuthority<'_>,
+    checked: CheckedAuthority<'_, '_>,
     required_scopes: &[ScopeLabel],
 ) -> Result<(), SessionPolicyError> {
+    let authority = checked.0;
     if required_scopes.len() > 16 {
         return Err(SessionPolicyError::InvalidContext);
     }
@@ -303,13 +318,14 @@ pub(crate) fn assess_session(
 /// stored fingerprint/request still needs all live checks. Proof bytes and expiry
 /// are intentionally absent; an exact retry may outlive its admission proof.
 /// A fresh result allows further checking only, never a write or authorization.
-pub(crate) fn assess_retry(
+pub(crate) fn assess_retry_checked(
     snapshot: &ReceiverSnapshot<'_>,
-    authority: &SessionAuthority<'_>,
+    checked: CheckedAuthority<'_, '_>,
     fingerprint: [u8; 32],
     request: &SessionRequest,
     replay_consumed: bool,
 ) -> Result<RetryDecision, SessionPolicyError> {
+    let authority = checked.0;
     check_snapshot(snapshot, authority)?;
     if let Some(session) = snapshot.session
         && session.fingerprint == fingerprint
@@ -332,7 +348,9 @@ fn check_snapshot(
     s: &ReceiverSnapshot<'_>,
     a: &SessionAuthority<'_>,
 ) -> Result<(), SessionPolicyError> {
-    check_authority(a, s.audience)?;
+    if a.audience != s.audience {
+        return Err(SessionPolicyError::InvalidContext);
+    }
     use SessionPolicyError as E;
     if a.now_ns < s.observed_at_ns {
         return Err(E::ClockRollback);

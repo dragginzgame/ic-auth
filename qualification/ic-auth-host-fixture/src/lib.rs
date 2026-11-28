@@ -180,7 +180,7 @@ mod canister {
         guard = receiver::bounded_request,
         decode = receiver::decode_command,
         encode = receiver::encode_result,
-        max_bytes = 4096,
+        max_bytes = 16_384,
         on_error = issuer::endpoint_error,
     )]
     async fn receiver_fixture_control(
@@ -199,7 +199,7 @@ mod canister {
         guard = receiver::bounded_request,
         decode = receiver::decode_unit,
         encode = receiver::encode_observation,
-        max_bytes = 4096,
+        max_bytes = 16_384,
         on_error = issuer::endpoint_error,
     )]
     fn receiver_fixture_observe((): ()) -> crate::receiver::Observation {
@@ -216,7 +216,7 @@ mod canister {
         guard = receiver::bounded_request,
         decode = receiver::decode_measurement,
         encode = receiver::encode_measurement,
-        max_bytes = 4096,
+        max_bytes = 16_384,
         on_error = issuer::endpoint_error,
     )]
     async fn receiver_fixture_measure(

@@ -352,7 +352,7 @@ fn starting_profile_round_trips_full_session_replay_and_device_populations() {
     assert!(receiver.encoded_bytes <= config.capacity.max_encoded_bytes);
     receiver.seal(1).unwrap();
     drop(receiver);
-    let encoded = stable_cell_payload_length(&lease(), 64 * 1024 * 1024).unwrap();
+    let encoded = stable_cell_payload_length(&lease(), 128 * 1024 * 1024).unwrap();
     let mut reopened = StableReceiver::reopen(lease(), config, 26, 2).unwrap();
     assert_eq!(
         reopened.known_logins(),

@@ -165,7 +165,7 @@ fn authorize_rechecks_changes_between_host_turns_despite_an_earlier_receipt() {
         r.admit(&credential("initial"), request(), h.admission(&context))
             .unwrap();
         let earlier = r
-            .authorize(&h.read("initial", 25), &[], Clone::clone)
+            .authorize(&h.read("initial", 25), &[], |r| r.clone().into_owned())
             .unwrap();
         let mut current = h.read("initial", 26);
         match change {
@@ -1620,13 +1620,24 @@ fn check_stable_session(name: &str) {
                 Err(ic_auth::stable_upgrade::UpgradeError::Configuration)
             ));
             config.login.max_retained_device_slots += 1;
+            config.capacity.max_sessions += 1;
+            config.capacity.max_replays += 1;
+            config.capacity.max_encoded_bytes += 1;
         } else {
-            let mut decrease = config;
-            decrease.login.max_retained_device_slots -= 1;
-            assert!(matches!(
-                StableReceiver::reopen(lease(), decrease, 26, revision),
-                Err(ic_auth::stable_upgrade::UpgradeError::Configuration)
-            ));
+            for field in 0..5 {
+                let mut refused = config;
+                match field {
+                    0 => refused.login.max_retained_device_slots -= 1,
+                    1 => refused.capacity.max_sessions -= 1,
+                    2 => refused.capacity.max_replays -= 1,
+                    3 => refused.capacity.max_encoded_bytes -= 1,
+                    _ => refused.capacity.max_replays_per_account += 1,
+                }
+                assert!(matches!(
+                    StableReceiver::reopen(lease(), refused, 26, revision),
+                    Err(ic_auth::stable_upgrade::UpgradeError::Configuration)
+                ));
+            }
         }
         let mut owner = StableReceiver::reopen(lease(), config, 26, revision).unwrap();
         let r = owner.state();
@@ -1643,6 +1654,16 @@ fn check_stable_session(name: &str) {
         r.install_enrollment(26, h.config().enrollment.authority, snapshot)
             .unwrap();
         if revision == 2 {
+            let page = r.inspect_sessions(None, 1, 1, 26).unwrap();
+            let stored_ext = page.sessions[0].ext.map(<[u8]>::as_ptr);
+            assert_eq!(
+                r.authorize(&h.read(name, 26), &[], |receipt| {
+                    assert_eq!(receipt.ext, admitted.receipt.ext.as_deref());
+                    receipt.ext.map(<[u8]>::as_ptr)
+                })
+                .unwrap(),
+                stored_ext
+            );
             assert_eq!(r.read(&h.read(name, 26), &[]).unwrap(), admitted.receipt);
             assert!(
                 r.admit(
@@ -1708,7 +1729,9 @@ fn two_receivers_authenticate_only_the_issuer_attested_application_user() {
         };
         let read = |state: &mut MemoryReceiver| {
             state
-                .authorize(&host.read("initial", 25), &[], |s| s.ext.clone())
+                .authorize(&host.read("initial", 25), &[], |s| {
+                    s.ext.map(<[u8]>::to_vec)
+                })
                 .unwrap()
         };
         assert_eq!(

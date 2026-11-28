@@ -27,16 +27,17 @@ Give each stable owner a dedicated host-owned `ic-storage` lease. Call `seal(can
 in pre-upgrade. In post-upgrade, reacquire the same lease and call
 `StableReceiver::reopen(lease, config, now_ns, canister_version)` or
 `StableIssuer::reopen(lease, config, now_ns, canister_version)` with the original configuration
-and current trusted time. During upgrade the host may increase only the receiver’s `login.max_retained_device_slots` within the checkpoint budget. Read the canister version inside each hook. Only the
+and current trusted time. During upgrade the host may raise the receiver’s global session, replay, encoded-byte and retained-device-slot ceilings within the checkpoint budget. Read the canister version inside each hook. Only the
 immediate successor can open the current v1 checkpoint for each owner. Pre-cut
 receiver and issuer images are refused. Trap on failure so the IC rolls back the upgrade.
-Receiver checkpoints hold up to 64 MiB of encoded state. Issuer checkpoints hold up to 8 MiB. Refresh the receiver's
+Receiver checkpoints hold up to 128 MiB of encoded state. Issuer checkpoints hold up to 8 MiB. Refresh the receiver's
 authenticated enrollment before serving sessions. An installation with missing Auth state stays closed.
 
-The receiver starting profile allows 20,000 session rows, 80,000 replay rows,
-and 65,536 retained device slots, subject to the 32 MiB session/replay byte budget.
+The receiver starting profile allows 100,000 session rows, 400,000 replay rows,
+and 125,000 retained device slots, subject to the 64 MiB session/replay byte budget.
+The 100,000-session upgrade test used 32-byte extensions. Larger payloads can reach the byte limit sooner.
 The starting receiver accepts logins up to one hour. The issuer still chooses
-the signed login lifetime. A receiver configuration that can exceed the 64 MiB
+the signed login lifetime. A receiver configuration that can exceed the 128 MiB
 checkpoint budget is refused before it opens a store.
 Schedule bounded pruning to reclaim slots after their protection deadlines. Use `SessionTtlPolicy::default()`
 for a 15-minute default and a 30-minute request ceiling, or set a host policy
@@ -74,6 +75,8 @@ receiver.authorize_with_scopes(&authority, &[profile_read], |session| {
     load_profile(session.receipt.issuer, session.receipt.subject, include_private)
 })
 ```
+
+Synchronous authorization callbacks borrow the session extension as `Option<&[u8]>`. Call `read` when the application needs an owned receipt.
 
 See the
 [repository](https://github.com/dragginzgame/ic-auth) for design, features and

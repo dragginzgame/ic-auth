@@ -117,8 +117,8 @@ impl MemoryConfig {
     /// Starting limits for a fresh receiver in the supplied audience and enrollment.
     ///
     /// Allows 8 device slots per account, a one-hour maximum original login
-    /// lifetime and 65,536 known device slots. Up to 20,000 sessions and 80,000 replay
-    /// records (16 per account) share 32 MiB of logical encoded record capacity.
+    /// lifetime and 125,000 known device slots. Up to 100,000 sessions and 400,000 replay
+    /// records (16 per account) share 64 MiB of logical encoded record capacity.
     /// Capacity refusal preserves live records. The host supplies the separate
     /// session TTL, verifier, eligibility and permission policy on admission.
     ///
@@ -141,13 +141,13 @@ impl MemoryConfig {
             login: LoginLimits {
                 max_device_slots: 8,
                 max_login_ttl_ns: 3_600 * SECOND_NS,
-                max_retained_device_slots: 65_536,
+                max_retained_device_slots: 125_000,
             },
             capacity: SessionCapacity {
-                max_sessions: 20_000,
-                max_replays: 80_000,
+                max_sessions: 100_000,
+                max_replays: 400_000,
                 max_replays_per_account: 16,
-                max_encoded_bytes: 32 * 1024 * 1024,
+                max_encoded_bytes: 64 * 1024 * 1024,
             },
             verification_capacity: 720,
             refill_interval_ns: 2_000_000,
@@ -217,9 +217,9 @@ impl AdmissionHost<'_> {
 ///
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct SessionReceipt {
+pub struct SessionReceipt<E = Vec<u8>> {
     /// Opaque issuer-attested application bytes, up to 4096 bytes.
-    pub ext: Option<Vec<u8>>,
+    pub ext: Option<E>,
     /// Authenticated browser caller.
     pub caller: Principal,
     /// Account issuer.
@@ -230,6 +230,20 @@ pub struct SessionReceipt {
     pub expires_at_ns: u64,
 }
 
+impl SessionReceipt<&[u8]> {
+    /// Copy the application extension when the caller needs an owned result.
+    #[must_use]
+    pub fn into_owned(self) -> SessionReceipt {
+        SessionReceipt {
+            ext: self.ext.map(<[u8]>::to_vec),
+            caller: self.caller,
+            issuer: self.issuer,
+            subject: self.subject,
+            expires_at_ns: self.expires_at_ns,
+        }
+    }
+}
+
 ///
 /// AuthorizedSession
 ///
@@ -238,7 +252,7 @@ pub struct SessionReceipt {
 
 pub struct AuthorizedSession<'a> {
     /// Account facts for the same checked session.
-    pub receipt: SessionReceipt,
+    pub receipt: SessionReceipt<&'a [u8]>,
     scopes: &'a [ScopeLabel],
 }
 
@@ -526,7 +540,7 @@ impl MemoryReceiver {
         self.ready()?;
         let mut authority = host.authority();
         self.enrolled(&mut authority)?;
-        policy::check_authority(&authority, self.config.audience)?;
+        let checked = policy::CheckedAuthority::new(&authority, self.config.audience)?;
         let decoded = DecodedClaims::new(&credential.claims).map_err(MemoryError::Claims)?;
         let claims = &decoded.claims;
         if verification::browser_principal(&claims.browser_public_key) != authority.caller {
@@ -535,9 +549,9 @@ impl MemoryReceiver {
         self.observe(authority.now_ns)?;
         let fingerprint = decoded.fingerprint();
         let selected = self.selected(authority.caller);
-        if let RetryDecision::ExactRetry { .. } = policy::assess_retry(
+        if let RetryDecision::ExactRetry { .. } = policy::assess_retry_checked(
             &selected.snapshot(self),
-            &authority,
+            checked,
             fingerprint,
             &request,
             self.replays.contains_key(&fingerprint),
@@ -546,7 +560,8 @@ impl MemoryReceiver {
                 receipt: selected
                     .session
                     .ok_or(SessionPolicyError::InvalidFacts)?
-                    .receipt(),
+                    .receipt()
+                    .into_owned(),
                 exact_retry: true,
             });
         }
@@ -696,7 +711,9 @@ impl MemoryReceiver {
         authority: &SessionAuthority<'_>,
         required_scopes: &[ScopeLabel],
     ) -> Result<SessionReceipt, MemoryError> {
-        self.authorize_with_scopes(authority, required_scopes, |session| session.receipt)
+        self.authorize_with_scopes(authority, required_scopes, |session| {
+            session.receipt.into_owned()
+        })
     }
 
     /// Run a synchronous application projection only after current session checks.
@@ -714,8 +731,8 @@ impl MemoryReceiver {
     /// use ic_auth::{receiver_memory::{MemoryReceiver, MemoryError, SessionReceipt},
     ///     receiver_memory::SessionAuthority};
     /// fn escape<'a>(r: &'a mut MemoryReceiver, host: &SessionAuthority<'_>)
-    ///     -> Result<&'a SessionReceipt, MemoryError> {
-    ///     r.authorize(host, &[], |receipt| receipt)
+    ///     -> Result<&'a [u8], MemoryError> {
+    ///     r.authorize(host, &[], |receipt| receipt.ext.unwrap())
     /// }
     /// ```
     /// ```compile_fail
@@ -728,7 +745,7 @@ impl MemoryReceiver {
         &mut self,
         authority: &SessionAuthority<'_>,
         required_scopes: &[ScopeLabel],
-        project: impl FnOnce(&SessionReceipt) -> R,
+        project: impl FnOnce(&SessionReceipt<&[u8]>) -> R,
     ) -> Result<R, MemoryError> {
         self.authorize_with_scopes(authority, required_scopes, |session| {
             project(&session.receipt)
@@ -756,10 +773,10 @@ impl MemoryReceiver {
         let mut current = *authority;
         self.enrolled(&mut current)?;
         let authority = &current;
-        policy::check_authority(authority, self.config.audience)?;
+        let checked = policy::CheckedAuthority::new(authority, self.config.audience)?;
         self.observe(authority.now_ns)?;
         let selected = self.selected(authority.caller);
-        policy::assess_session(&selected.snapshot(self), authority, required_scopes)?;
+        policy::assess_session_checked(&selected.snapshot(self), checked, required_scopes)?;
         let facts = selected.session.ok_or(SessionPolicyError::InvalidFacts)?;
         Ok(project(AuthorizedSession {
             receipt: facts.receipt(),
@@ -946,7 +963,8 @@ impl MemoryReceiver {
         let device = row
             .and_then(CallerRecord::slot)
             .and_then(|slot| self.slot_owner(slot))
-            .and_then(|owner| self.callers.get(owner))
+            .filter(|owner| **owner == caller)
+            .and(row)
             .and_then(CallerRecord::device);
         records::Selected {
             session,

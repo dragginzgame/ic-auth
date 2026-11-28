@@ -85,3 +85,54 @@ async fn receiver_cost_observations() {
     assert_eq!((observed.usage.0, observed.usage.1), (0, 1));
     owned.drop().await;
 }
+
+#[tokio::test]
+#[ignore = "requires prepared build tools, independent vectors and PocketIC"]
+async fn authorization_cost_by_extension_size() {
+    use ic_auth_host_fixture::receiver::Capacity;
+
+    let pic = start().await;
+    let vectors = receiver::vectors();
+    let wasm = wasm();
+    // Install separately so these independent identities can exercise the same slot.
+    receiver::time(&pic, 0).await;
+    let mut cases = Vec::new();
+    for (name, expected) in [
+        ("initial", Outcome::Authorized),
+        ("registered", Outcome::AuthorizedUser([0xab; 16])),
+        ("max-ext", Outcome::Authorized),
+    ] {
+        let id = receiver_support::install(
+            &pic,
+            &wasm,
+            Capacity {
+                bytes: 8192,
+                ..Capacity::default()
+            },
+        )
+        .await;
+        cases.push((id, name, expected));
+    }
+    receiver::time(&pic, 25).await;
+    for (id, name, expected) in cases {
+        let caller = CanisterId::from_slice(&vectors[&format!("{name}-caller")]);
+        receiver_support::enroll(&pic, id, caller).await;
+        let admission = receiver::control(
+            &pic,
+            id,
+            caller,
+            &receiver::credential(&vectors, name, false),
+        )
+        .await
+        .unwrap();
+        assert!(
+            matches!(admission, Ok(Outcome::Admitted(false, _))),
+            "{name}: {admission:?}"
+        );
+        let (sample, _) =
+            receiver_support::measure(&pic, id, caller, &Command::Authorize(false)).await;
+        assert_eq!(sample.result, Ok(expected));
+        println!("extension-cost {name} instructions={}", sample.instructions);
+    }
+    pic.drop().await;
+}

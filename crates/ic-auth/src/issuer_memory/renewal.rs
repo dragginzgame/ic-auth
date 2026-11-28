@@ -150,19 +150,7 @@ struct RenewalIdentity<'a> {
     login_epoch: u64,
     login_id: &'a [u8; 32],
     sequence: u64,
-    grants: Vec<Grant<'a>>,
-}
-
-///
-/// Grant
-///
-/// Borrowed role and scopes in the renewal identity encoding.
-///
-
-#[derive(Serialize)]
-struct Grant<'a> {
-    target: &'a str,
-    scopes: Vec<&'a str>,
+    grants: &'a [ic_auth_protocol_types::DelegatedRoleGrant],
 }
 
 pub(super) fn operation_id(input: &RenewRequest) -> Result<[u8; 32], IssuerError> {
@@ -171,14 +159,7 @@ pub(super) fn operation_id(input: &RenewRequest) -> Result<[u8; 32], IssuerError
         login_epoch: input.login_epoch,
         login_id: &input.login_id,
         sequence: input.sequence,
-        grants: input
-            .grants
-            .iter()
-            .map(|g| Grant {
-                target: g.target.as_str(),
-                scopes: g.scopes.iter().map(|s| s.as_str()).collect(),
-            })
-            .collect(),
+        grants: &input.grants,
     };
     let bytes = ic_wire::encode(
         &identity,

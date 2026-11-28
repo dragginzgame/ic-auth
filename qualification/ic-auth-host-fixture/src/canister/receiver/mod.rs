@@ -284,7 +284,6 @@ pub(super) async fn control(command: Command) -> Result<Outcome, Refusal> {
                         *application_writes += 1;
                         receipt
                             .ext
-                            .as_deref()
                             .and_then(|bytes| bytes.try_into().ok())
                             .map_or(Outcome::Authorized, Outcome::AuthorizedUser)
                     })

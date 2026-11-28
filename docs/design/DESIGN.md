@@ -250,7 +250,7 @@ the indexed heap records and the host’s IC message transaction.
    authority entries and terminal revocations, pending effect identities and
    certification state in the same upgrade transaction. Trap on any failure.
 3. In post-upgrade, call `reopen(lease, config, now_ns, canister_version)` with the original
-   protected configuration, optionally increasing only the receiver’s retained-device-slot ceiling within its checkpoint budget. Reopen checks the version-specific SHA-256 digest,
+   protected configuration, optionally raising the receiver’s global session, replay, encoded-byte or retained-device-slot ceilings within its checkpoint budget. Reopen checks the version-specific SHA-256 digest,
    decodes the complete image with Wire resource limits, checks indexes and
    accounting and consumes the checkpoint. A skipped pre-upgrade hook, malformed
    image, foreign configuration or regressing clock cannot create fresh state.
@@ -274,7 +274,7 @@ adds one 32-byte commitment to its payload. Reopen verifies those commitments
 during record validation, checks issuer operation deadlines, renewal indexes and
 unique login generations, and remeasures each receiver session. These checks
 detect disagreement between independently stored fields under exclusive host custody.
-The issuer uses an 8 MiB image. The receiver uses a 64 MiB image with up to 256
+The issuer uses an 8 MiB image. The receiver uses a 128 MiB image with up to 256
 caller or replay rows per Wire frame. It stores the authoritative rows and
 rebuilds the slot, expiry and account indexes during reopen. The receiver checks
 configuration against the image ceiling, reserving for caller rows and framing

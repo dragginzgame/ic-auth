@@ -223,6 +223,7 @@ impl MemoryIssuer {
         let bad = UpgradeError::InvalidCheckpoint;
         let cfg = self.config;
         if self.epoch == 0
+            || !(1..=super::login_rows::MAX_LOGINS).contains(&cfg.max_devices_per_account)
             || self.boot == 0
             || self.usage.operations as usize != self.operation_expiry.len()
             || self.usage.operations > cfg.max_operations
@@ -247,7 +248,7 @@ impl MemoryIssuer {
             {
                 return Err(bad);
             }
-            let mut references = BTreeMap::new();
+            let mut references = [0u32; super::login_rows::MAX_LOGINS as usize];
             let mut renewals = 0;
             for (&id, op) in &owner.operations {
                 let login = owner.logins.get(&op.login).ok_or(bad)?;
@@ -332,28 +333,29 @@ impl MemoryIssuer {
                 {
                     return Err(bad);
                 }
-                *references.entry(op.login).or_insert(0u32) += 1;
+                *references.get_mut(usize::from(login.slot)).ok_or(bad)? += 1;
                 totals.operations = totals.operations.checked_add(1).ok_or(bad)?;
                 totals.result_bytes = totals.result_bytes.checked_add(size).ok_or(bad)?;
             }
             if renewals != owner.renewals.len() {
                 return Err(bad);
             }
-            let mut slots = BTreeSet::new();
+            let mut slots = 0u8;
             for (&id, login) in owner.logins.iter() {
                 if matches!(login.renewal, super::RenewalProgress::InFlight(n) if n == 0 || !owner.renewals.contains_key(&(id, n)))
                     || matches!(login.renewal, super::RenewalProgress::PrunedRenewal(0))
                     || !login.policy.valid_limits()
                     || !generations.insert(login.generation)
                     || login.slot >= cfg.max_devices_per_account
-                    || !slots.insert(login.slot)
+                    || slots & (1 << login.slot) != 0
                     || login.started.checked_add(login.policy.login_ttl_ns) != Some(login.deadline)
                     || login.generation == 0
                     || login.generation > self.generation
-                    || login.references != references.get(&id).copied().unwrap_or(0)
+                    || login.references != references[usize::from(login.slot)]
                 {
                     return Err(bad);
                 }
+                slots |= 1 << login.slot;
                 if login.references == 0 {
                     if !self
                         .idle_logins

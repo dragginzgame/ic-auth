@@ -9,7 +9,7 @@ use ic_storage::{DefaultMemoryImpl, Memory, RuntimeMemory};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-const MAX_PAYLOAD: usize = 64 * 1024 * 1024;
+const MAX_PAYLOAD: usize = 128 * 1024 * 1024;
 const CHUNK_ROWS: usize = 256;
 const CHUNK_LIMITS: ic_wire::Limits = ic_wire::Limits {
     bytes: 2 * 1024 * 1024,
@@ -227,11 +227,28 @@ impl<M: Memory> StableReceiver<M> {
             .login
             .validate()
             .map_err(|_| UpgradeError::InvalidCheckpoint)?;
+        saved_config
+            .capacity
+            .validate()
+            .map_err(|_| UpgradeError::InvalidCheckpoint)?;
         let mut permitted = saved_config;
-        permitted.login.max_retained_device_slots = config.login.max_retained_device_slots;
-        if permitted != config
-            || config.login.max_retained_device_slots < saved_config.login.max_retained_device_slots
-        {
+        permitted.login.max_retained_device_slots = permitted
+            .login
+            .max_retained_device_slots
+            .max(config.login.max_retained_device_slots);
+        permitted.capacity.max_sessions = permitted
+            .capacity
+            .max_sessions
+            .max(config.capacity.max_sessions);
+        permitted.capacity.max_replays = permitted
+            .capacity
+            .max_replays
+            .max(config.capacity.max_replays);
+        permitted.capacity.max_encoded_bytes = permitted
+            .capacity
+            .max_encoded_bytes
+            .max(config.capacity.max_encoded_bytes);
+        if permitted != config {
             return Err(UpgradeError::Configuration);
         }
         inner.callers = read_rows(
@@ -241,7 +258,7 @@ impl<M: Memory> StableReceiver<M> {
                 .max_retained_device_slots
                 .saturating_add(config.unknown_logout.max_denials),
         )?;
-        inner.replays = read_rows(&mut payload, config.capacity.max_replays)?;
+        inner.replays = read_rows(&mut payload, saved_config.capacity.max_replays)?;
         if !payload.is_empty() {
             return Err(UpgradeError::InvalidCheckpoint);
         }
@@ -262,7 +279,7 @@ impl<M: Memory> StableReceiver<M> {
 
     /// Save in the host's pre-upgrade transaction. Success closes the running
     /// instance. Supply the trusted canister version from the pre-upgrade hook.
-    /// The encoded checkpoint is limited to 64 MiB. On error the host
+    /// The encoded checkpoint is limited to 128 MiB. On error the host
     /// must abort the upgrade, retaining the heap.
     pub fn seal(&mut self, canister_version: u64) -> Result<(), UpgradeError> {
         if self.inner.lifecycle == Lifecycle::Closed {
@@ -450,9 +467,9 @@ mod tests {
         );
         assert_eq!(validate_checkpoint_budget(config), Ok(()));
 
-        // 65,600 caller entries require 257 chunks. 80,000 replays need 313.
-        let overhead = 4096 + 65_600 * 256 + (257 + 313) * 8;
-        config.capacity.max_encoded_bytes = 64 * 1024 * 1024 - overhead;
+        // 125,064 caller entries require 489 chunks. 400,000 replays need 1,563.
+        let overhead = 4096 + 125_064 * 256 + (489 + 1563) * 8;
+        config.capacity.max_encoded_bytes = MAX_PAYLOAD - overhead;
         assert_eq!(validate_checkpoint_budget(config), Ok(()));
         config.capacity.max_encoded_bytes += 1;
         assert_eq!(

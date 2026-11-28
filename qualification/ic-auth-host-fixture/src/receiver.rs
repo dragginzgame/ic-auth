@@ -21,8 +21,9 @@ pub const CONTROL: u64 = 0x4155_5448_5155_0003;
 pub const OBSERVE: u64 = 0x4155_5448_5155_0004;
 /// Bounded test credential input, with all four Wire allowances.
 pub const REQUEST: ic_wire::Limits = ic_wire::Limits {
-    bytes: 4096,
-    allocation: 524_288,
+    // The fixture transports the signed 4 KiB extension inside a byte vector.
+    bytes: 16_384,
+    allocation: 2_097_152,
     nodes: 32768,
     depth: 8,
 };
