@@ -32,7 +32,7 @@ claim. No legacy generic projection framework or old runtime is imported.
 
 ## Evidence and commands
 
-`make test-wire` runs 14 product integration cases, including 37 fixed frames,
+`make test-wire` runs product integration cases, including 37 fixed frames,
 all reply variants, nested proof order, wrong identities/directions, truncation,
 trailing material, invalid tags/principals/u64 and oversize inputs. Claims,
 signatures, requested-scope counts and scope text lengths have below/at/above
@@ -41,8 +41,7 @@ the separate browser retention policy. Redundant outer Postcard varints retain
 the current contract's acceptance; signed claims have their own strict codec.
 
 `make qualify-wire` runs the independent qualification package using the selected
-published Wire. Its 296 fixed thresholds were measured from reference Wire 0.22.2
-before removing that dependency, separately for encoding/decoding and all four
+published Wire. Its 296 fixed thresholds were measured on published Wire 0.33.0, separately for encoding/decoding and all four
 allowances on the 37 frames. It asserts below/at/above acceptance against these
 retained expectations, not a second invocation of the current codec. Large
 certified material also exercises successful admission and aggregate-allocation
