@@ -63,12 +63,13 @@ async fn mixed_expiry_cost_observations() {
     };
     assert!(deny_until > ic_auth_host_fixture::certified::at(125));
     let mut previous_time = 25;
+    let mut known = 3;
     for (time, limit, name, expected, usage, unknowns) in [
         (
             26,
             2,
             "mixed-not-yet-expired",
-            Outcome::Pruned(0, 0, 0),
+            Outcome::Pruned(0, 0, 0, 0),
             (3, 3),
             1,
         ),
@@ -76,7 +77,7 @@ async fn mixed_expiry_cost_observations() {
             31,
             1,
             "mixed-expired-session",
-            Outcome::Pruned(1, 0, 0),
+            Outcome::Pruned(1, 0, 0, 0),
             (2, 3),
             1,
         ),
@@ -84,7 +85,7 @@ async fn mixed_expiry_cost_observations() {
             31,
             2,
             "mixed-expired-replays",
-            Outcome::Pruned(0, 2, 0),
+            Outcome::Pruned(0, 2, 0, 0),
             (2, 1),
             1,
         ),
@@ -92,7 +93,7 @@ async fn mixed_expiry_cost_observations() {
             41,
             2,
             "mixed-later-replay",
-            Outcome::Pruned(0, 1, 0),
+            Outcome::Pruned(0, 1, 0, 0),
             (2, 0),
             1,
         ),
@@ -100,7 +101,7 @@ async fn mixed_expiry_cost_observations() {
             46,
             2,
             "mixed-middle-session",
-            Outcome::Pruned(1, 0, 0),
+            Outcome::Pruned(1, 0, 0, 0),
             (1, 0),
             1,
         ),
@@ -108,7 +109,7 @@ async fn mixed_expiry_cost_observations() {
             110,
             2,
             "mixed-late-session",
-            Outcome::Pruned(1, 0, 0),
+            Outcome::Pruned(1, 0, 0, 1),
             (0, 0),
             1,
         ),
@@ -116,15 +117,15 @@ async fn mixed_expiry_cost_observations() {
             130,
             2,
             "mixed-unknown-denial",
-            Outcome::Pruned(0, 0, 1),
+            Outcome::Pruned(0, 0, 1, 1),
             (0, 0),
             0,
         ),
         (
             130,
             2,
-            "mixed-empty-prune",
-            Outcome::Pruned(0, 0, 0),
+            "mixed-last-slot",
+            Outcome::Pruned(0, 0, 0, 1),
             (0, 0),
             0,
         ),
@@ -140,11 +141,14 @@ async fn mixed_expiry_cost_observations() {
         );
         let after = receiver::observe(pic, id).await;
         assert_eq!((after.usage.0, after.usage.1), usage);
-        assert_eq!(after.logins, (3, unknowns));
+        if let Outcome::Pruned(_, _, _, slots) = expected {
+            known -= u64::from(slots);
+        }
+        assert_eq!(after.logins, (known, unknowns));
         assert_eq!(after.credit, before.credit);
         assert_eq!(after.application_writes, before.application_writes);
         if name == "mixed-not-yet-expired"
-            || name == "mixed-empty-prune"
+            || name == "mixed-last-slot"
             || name == "mixed-unknown-denial"
         {
             assert_eq!(after.usage.2, before.usage.2);
@@ -178,7 +182,7 @@ async fn mixed_expiry_cost_observations() {
     }
     let final_state = receiver::observe(pic, id).await;
     assert_eq!(final_state.usage, (0, 0, 0));
-    assert_eq!(final_state.logins, (3, 0));
+    assert_eq!(final_state.logins, (0, 0));
     owned.drop().await;
 }
 
@@ -318,7 +322,7 @@ async fn wide_scope_cost_observations() {
             "wide-prune-session-and-replay"
         )
         .await,
-        Outcome::Pruned(1, 1, 0)
+        Outcome::Pruned(1, 1, 0, 0)
     );
     let pruned = receiver::observe(pic, id).await;
     assert_eq!(pruned.usage, (0, 0, 0));

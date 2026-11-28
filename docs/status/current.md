@@ -1,6 +1,6 @@
 # Current status
 
-Auth **0.51.2** qualifies fresh issuance using the current issuer epoch after stable reopen.
+Auth **0.52.0** reclaims expired device slots and permits a host-configured increase in the receiver slot ceiling during upgrade.
 Host integration is tracked in [Canic #89](https://github.com/dragginzgame/canic/issues/89) for receiver row budgets and [Toko #23](https://github.com/dragginzgame/toko-new/issues/23) for browser epoch discovery.
 Auth Wire **0.50.1** includes the extension in session admission and read replies. Protocol-types is **0.44.2**
 and the private browser client remains **0.1.0**. The checkout uses authenticated

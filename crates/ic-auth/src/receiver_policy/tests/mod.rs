@@ -423,7 +423,7 @@ fn login_limits() -> crate::receiver_policy::LoginLimits {
     crate::receiver_policy::LoginLimits {
         max_device_slots: 8,
         max_login_ttl_ns: 300 * SECOND,
-        max_admitted_logins: 2,
+        max_retained_device_slots: 2,
     }
 }
 
@@ -650,7 +650,7 @@ fn login_policy_bounds_and_maximum_generation_never_wrap() {
         |l| l.max_device_slots = 9,
         |l| l.max_login_ttl_ns = 0,
         |l| l.max_login_ttl_ns = u64::MAX,
-        |l| l.max_admitted_logins = 0,
+        |l| l.max_retained_device_slots = 0,
     ] {
         let mut limits = login_limits();
         change(&mut limits);

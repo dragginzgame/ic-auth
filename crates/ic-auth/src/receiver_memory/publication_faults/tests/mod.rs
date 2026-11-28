@@ -194,7 +194,8 @@ fn publication_faults_close_pruning_of_all_retained_record_kinds() {
                 (report.sessions, report.replays, report.unknown_denials),
                 (1, 2, 1)
             );
-            assert_eq!(r.known_logins(), 1);
+            assert_eq!(report.device_slots, 1);
+            assert_eq!(r.known_logins(), 0);
             assert_eq!(r.usage(account()).encoded_bytes, 0);
         },
     );
@@ -300,14 +301,17 @@ fn starting_profile_round_trips_full_session_replay_and_device_populations() {
         bytes[..4].copy_from_slice(&u32::try_from(index).unwrap().to_be_bytes());
         Principal::from_slice(&bytes)
     };
-    for index in 0..config.login.max_admitted_logins {
+    for index in 0..config.login.max_retained_device_slots {
         let caller = numbered(index, 0x02);
         authority.caller = caller;
-        let subject = numbered(index, 0x03);
+        // Exercise one full eight-device account among the sparse dormant accounts.
+        let dense_start = config.login.max_retained_device_slots - 8;
+        let subject = numbered(index.min(dense_start), 0x03);
+        let device_slot = u8::try_from(index.saturating_sub(dense_start)).unwrap();
         let binding = LoginBinding {
             issuer: authority.issuer,
             subject,
-            device_slot: 0,
+            device_slot,
             device_generation: 1,
             started_at_ns: 10,
             deadline_ns: 100,
@@ -329,13 +333,19 @@ fn starting_profile_round_trips_full_session_replay_and_device_populations() {
                 receiver.replays.insert(fingerprint, replay);
                 receiver.replay_expiry.insert((30, fingerprint));
             }
-            receiver.accounts.insert((authority.issuer, subject), 4);
+            receiver
+                .accounts
+                .entry((authority.issuer, subject))
+                .or_default()
+                .replay_count = 4;
         } else {
             row.session = None;
         }
         receiver
-            .slots
-            .insert((authority.issuer, subject, 0), caller);
+            .accounts
+            .entry((authority.issuer, subject))
+            .or_default()
+            .set_slot(device_slot, caller);
         receiver.callers.insert(caller, row);
     }
     assert_eq!(receiver.replays.len(), config.capacity.max_replays);
@@ -344,7 +354,10 @@ fn starting_profile_round_trips_full_session_replay_and_device_populations() {
     drop(receiver);
     let encoded = stable_cell_payload_length(&lease(), 64 * 1024 * 1024).unwrap();
     let mut reopened = StableReceiver::reopen(lease(), config, 26, 2).unwrap();
-    assert_eq!(reopened.known_logins(), config.login.max_admitted_logins);
+    assert_eq!(
+        reopened.known_logins(),
+        config.login.max_retained_device_slots
+    );
     assert_eq!(reopened.sessions, config.capacity.max_sessions);
     assert_eq!(reopened.replays.len(), config.capacity.max_replays);
     assert_eq!(reopened.session_expiry.len(), config.capacity.max_sessions);
@@ -358,6 +371,13 @@ fn starting_profile_round_trips_full_session_replay_and_device_populations() {
             .as_deref(),
         Some([0xab; 32].as_slice()),
     );
+    let dense_start = config.login.max_retained_device_slots - 8;
+    for slot in 0..8 {
+        assert_eq!(
+            reopened.slot_owner((authority.issuer, numbered(dense_start, 0x03), slot)),
+            Some(&numbered(dense_start + usize::from(slot), 0x02))
+        );
+    }
     reopened.request_enrollment(26, [2; 32], 50).unwrap();
     let mut snapshot = host.snapshot(7);
     snapshot.revision = 2;

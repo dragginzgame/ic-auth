@@ -33,7 +33,7 @@ Login preflight checks the immutable issuer-qualified account/device/login bindi
 and at most two selected rows. Same-browser renewal preserves that binding and its
 absolute deadline. A different browser needs a strictly higher slot generation;
 replacing a known denied slot still requires complete proof verification. Live
-unknown denial blocks the new browser. Expired known fences remain retained, and
+unknown denial blocks the new browser. Known fences survive session expiry until bounded pruning reaches their safe reclamation deadline, and
 replacement/renewal reuse a full known-login pool without erasing replay history.
 
 Capacity policy validates physical session/replay/account counts and checked byte

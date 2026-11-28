@@ -27,7 +27,7 @@ fn assert_consistent(issuer: &MemoryIssuer) {
         for (id, op) in &owner.operations {
             operations += 1;
             bytes += op.result_bytes;
-            assert!(owner.logins.contains_key(&op.login));
+            assert!(owner.logins.get(&op.login).is_some());
             assert_eq!(*id, (op.ticket.epoch(), op.ticket.operation_id()));
             assert_eq!(*account, op.ticket.account());
             assert!(expected_expiry.insert((
@@ -42,7 +42,7 @@ fn assert_consistent(issuer: &MemoryIssuer) {
             }
         }
         assert_eq!(owner.renewals.len(), renewals);
-        for (id, login) in &owner.logins {
+        for (id, login) in owner.logins.iter() {
             logins += 1;
             let references = owner
                 .operations

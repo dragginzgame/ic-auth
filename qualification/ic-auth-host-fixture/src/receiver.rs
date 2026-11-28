@@ -75,7 +75,7 @@ pub enum Outcome {
     /// Unknown caller remains unconfirmed through a temporary denial.
     Unconfirmed(u64),
     /// Removed sessions, replays and unknown denials, respectively.
-    Pruned(u32, u32, u32),
+    Pruned(u32, u32, u32, u32),
     /// A guarded application write for the registered user identified by the session.
     AuthorizedUser([u8; 16]),
 }

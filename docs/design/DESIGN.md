@@ -188,7 +188,7 @@ Only the authenticated nonanonymous self-authenticating caller selects the targe
 
 Known login: remove the session and retain denial through its original authenticated login deadline, preserving any longer live denial. Return Revoked only after commit. Unknown login: use the separately bounded denial pool and unknown-login budget; return Unconfirmed even on a retry. Its temporary deadline is not proof that all outstanding credentials are excluded.
 
-Logout preserves replay ownership and device fences. Expired leases never free a slot's generation history. Time pruning cannot retire known fences. Any account retirement needs a separately authenticated policy proving old authority cannot return.
+Logout preserves replay ownership and device fences. A known slot remains protected through the maximum login lifetime from its generation’s start and any longer retained denial or predecessor deadline. Bounded pruning then releases it.
 
 ## 8 API ownership and transaction semantics
 
@@ -230,6 +230,8 @@ Receiver proof verification uses one persistent weighted bucket across mechanism
 
 Physical expired rows count until explicit pruning. Replay quota belongs to the issuer-qualified account, not the changing browser key. Preserve deterministic tie ordering and bounded removal. Qualify current public maintenance bounds: memory session/replay batches up to 128, persistent issuer pruning up to 32, and inspection up to 32 sessions over 128 visited caller rows plus one lookahead. Select future backend-specific ceilings from its measured requirements; historical equivalence is not required.
 
+The receiver groups replay counts and device-slot owners in one row per issuer-qualified account. Each row holds up to eight slot–caller pairs and survives replay pruning while any device slot is retained. Reopen reconstructs these indexes from the caller and replay records. The issuer keeps each account’s logins in an identity-sorted vector of up to eight entries and encodes them as the v1 identity-to-login map.
+
 Pruning cannot erase consumed operation watermarks, live replay, unexpired denial or known device generations. Empty inspection pages may still advance their exclusive cursor; callers must not loop internally until a full page appears.
 
 Issuer transitions retain bounded heap state between upgrades. A missing checkpoint follows the closed recovery rules.
@@ -248,7 +250,7 @@ the indexed heap records and the host’s IC message transaction.
    authority entries and terminal revocations, pending effect identities and
    certification state in the same upgrade transaction. Trap on any failure.
 3. In post-upgrade, call `reopen(lease, config, now_ns, canister_version)` with the original
-   protected configuration. Reopen checks the version-specific SHA-256 digest,
+   protected configuration, optionally increasing only the receiver’s retained-device-slot ceiling within its checkpoint budget. Reopen checks the version-specific SHA-256 digest,
    decodes the complete image with Wire resource limits, checks indexes and
    accounting and consumes the checkpoint. A skipped pre-upgrade hook, malformed
    image, foreign configuration or regressing clock cannot create fresh state.

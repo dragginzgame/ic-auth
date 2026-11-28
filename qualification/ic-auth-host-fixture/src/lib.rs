@@ -56,16 +56,16 @@ mod canister {
     // reopen_auth
     // Reopen stable Auth or clear certification after volatile state loss.
     // guard  : reject oversized input before decoding
-    // limits : up to one fault-selection byte, no reply
+    // limits : up to one fixture upgrade-settings byte, no reply
     #[runtime::post_upgrade(
         runtime = ic_platform_runtime,
         guard = issuer::bounded_request,
-        decode = receiver::decode_upgrade_fault,
+        decode = receiver::decode_upgrade_settings,
         max_bytes = 1,
         on_error = issuer::endpoint_error,
     )]
-    fn reopen_auth(fault: bool) {
-        receiver::reopen(fault)
+    fn reopen_auth(settings: (bool, bool)) {
+        receiver::reopen(settings)
     }
 
     // auth_fixture_control

@@ -3,7 +3,7 @@ mod enrollment;
 mod upgrade;
 use upgrade::Backend;
 pub(super) use upgrade::{
-    decode_upgrade_fault, open_lease, reopen, seal, storage_runtime, upgrade_guard,
+    decode_upgrade_settings, open_lease, reopen, seal, storage_runtime, upgrade_guard,
 };
 
 use crate::{
@@ -65,7 +65,7 @@ fn config(authority: Principal, capacity: Capacity) -> MemoryConfig {
         login: LoginLimits {
             max_device_slots: 8,
             max_login_ttl_ns: 100 * SECOND,
-            max_admitted_logins: capacity.logins as usize,
+            max_retained_device_slots: capacity.logins as usize,
         },
         capacity: SessionCapacity {
             max_sessions: capacity.sessions as usize,
@@ -164,6 +164,7 @@ pub(super) async fn control(command: Command) -> Result<Outcome, Refusal> {
                 report.sessions as u32,
                 report.replays as u32,
                 report.unknown_denials as u32,
+                report.device_slots as u32,
             ));
         }
         // Logout depends on intact safety state, not current authority freshness.

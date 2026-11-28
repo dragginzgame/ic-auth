@@ -105,10 +105,11 @@ pub(super) fn create(
 pub(in crate::canister) fn upgrade_guard() -> Result<(), String> {
     Ok(())
 }
-pub(in crate::canister) fn decode_upgrade_fault(bytes: &[u8]) -> Result<bool, String> {
+pub(in crate::canister) fn decode_upgrade_settings(bytes: &[u8]) -> Result<(bool, bool), String> {
     match bytes {
-        [] => Ok(false),
-        [1] => Ok(true),
+        [] => Ok((false, false)),
+        [1] => Ok((true, true)),
+        [2] => Ok((true, false)),
         _ => Err("unknown upgrade fault".into()),
     }
 }
@@ -139,19 +140,22 @@ pub(in crate::canister) fn seal() {
     });
 }
 
-pub(in crate::canister) fn reopen(fault: bool) {
+pub(in crate::canister) fn reopen((grow, fault): (bool, bool)) {
     let (receiver, host, issuer) = leases(&storage_runtime());
     let cell = StableCell::<Vec<u8>>::load(host).unwrap();
     if cell.get().is_empty() {
         issuer::lost_volatile_state();
         return;
     }
-    let saved: HostState = ic_wire::decode(
+    let mut saved: HostState = ic_wire::decode(
         cell.get(),
         ic_wire::Encoding::Payload,
         crate::enrollment::LIMITS,
     )
     .unwrap();
+    if grow {
+        saved.capacity.logins = saved.capacity.logins.checked_add(1).unwrap();
+    }
     let receiver = StableReceiver::reopen(
         receiver,
         config(saved.authority, saved.capacity),

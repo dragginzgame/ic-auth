@@ -249,6 +249,10 @@ impl Ledger {
                         *used = false;
                     }
                 }
+                // All four model credentials start at 10 under a lifetime limit of 100.
+                if now >= 110 {
+                    self.known = None;
+                }
                 for end in &mut self.unknown {
                     if end.is_some_and(|end| now >= end) {
                         *end = None;

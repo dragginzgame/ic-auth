@@ -64,6 +64,22 @@ use std::{
     fmt,
 };
 
+#[derive(Default)]
+struct AccountIndex {
+    replay_count: usize,
+    slots: Vec<(u8, Principal)>,
+}
+impl AccountIndex {
+    fn set_slot(&mut self, slot: u8, caller: Principal) -> Option<Principal> {
+        if let Some((_, previous)) = self.slots.iter_mut().find(|(device, _)| *device == slot) {
+            return Some(std::mem::replace(previous, caller));
+        }
+        // Most accounts use a single slot. Avoid reserving several principals per account.
+        self.slots.reserve_exact(1);
+        self.slots.push((slot, caller));
+        None
+    }
+}
 type Account = (Principal, Principal);
 type Slot = (Principal, Principal, u8);
 
@@ -125,7 +141,7 @@ impl MemoryConfig {
             login: LoginLimits {
                 max_device_slots: 8,
                 max_login_ttl_ns: 3_600 * SECOND_NS,
-                max_admitted_logins: 65_536,
+                max_retained_device_slots: 65_536,
             },
             capacity: SessionCapacity {
                 max_sessions: 20_000,
@@ -323,11 +339,11 @@ pub struct MemoryReceiver {
     budget: VerificationBudget,
     unknown_budget: WorkBucket,
     unknown: usize,
+    slot_expiry: BTreeSet<(u64, Principal)>,
     unknown_expiry: BTreeSet<(u64, Principal)>,
     callers: BTreeMap<Principal, CallerRecord>,
-    slots: BTreeMap<Slot, Principal>,
     replays: BTreeMap<[u8; 32], Replay>,
-    accounts: BTreeMap<Account, usize>,
+    accounts: BTreeMap<Account, AccountIndex>,
     session_expiry: BTreeSet<(u64, Principal)>,
     replay_expiry: BTreeSet<(u64, [u8; 32])>,
     sessions: usize,
@@ -367,9 +383,9 @@ impl MemoryReceiver {
             )
             .map_err(MemoryError::Budget)?,
             unknown: 0,
+            slot_expiry: BTreeSet::new(),
             unknown_expiry: BTreeSet::new(),
             callers: BTreeMap::new(),
-            slots: BTreeMap::new(),
             replays: BTreeMap::new(),
             accounts: BTreeMap::new(),
             session_expiry: BTreeSet::new(),
@@ -459,7 +475,11 @@ impl MemoryReceiver {
             account,
             sessions: self.sessions,
             replays: self.replays.len(),
-            replays_for_account: self.accounts.get(&account).copied().unwrap_or(0),
+            replays_for_account: self
+                .accounts
+                .get(&account)
+                .map(|account| account.replay_count)
+                .unwrap_or(0),
             encoded_bytes: self.encoded_bytes,
         }
     }
@@ -547,8 +567,7 @@ impl MemoryReceiver {
         };
         let slot = (binding.issuer, binding.subject, binding.device_slot);
         let owner = self
-            .slots
-            .get(&slot)
+            .slot_owner(slot)
             .and_then(|caller| self.callers.get(caller));
         let device = owner.and_then(CallerRecord::device);
         let login = policy::assess_login(
@@ -569,6 +588,7 @@ impl MemoryReceiver {
             LoginDecision::Replacement { displaced_caller } => displaced_caller,
             _ => authority.caller,
         };
+        let previous_expiry = owner.map(|row| row.reclaim_at(self.config.login.max_login_ttl_ns));
         let displaced_denial = owner
             .filter(|row| {
                 row.login.caller != authority.caller
@@ -605,6 +625,14 @@ impl MemoryReceiver {
         let until_ns = selected.login.map_or(binding.deadline_ns, |row| {
             row.until_ns.max(binding.deadline_ns)
         });
+        let horizon = binding
+            .started_at_ns
+            .saturating_add(self.config.login.max_login_ttl_ns);
+        let until_ns = previous_expiry
+            .filter(|old| *old > horizon)
+            .unwrap_or(0)
+            .max(until_ns);
+        let reclaim_at = horizon.max(until_ns);
         // The private verifier consumes this exact canonical decode. All ordinary
         // failures precede publication; attempted crypto charges remain in budget.
         verification::verify_decoded(decoded, &credential.proof, host.verifier, &mut self.budget)
@@ -626,6 +654,12 @@ impl MemoryReceiver {
         // No fallible return after this point. Poison before any map allocation,
         // so even a caught panic cannot expose a partially published receiver.
         publish!(self.lifecycle = Lifecycle::Closed);
+        if previous_expiry != Some(reclaim_at) || displaced != authority.caller {
+            if let Some(previous) = previous_expiry {
+                publish!(self.slot_expiry.remove(&(previous, displaced)));
+            }
+            publish!(self.slot_expiry.insert((reclaim_at, authority.caller)));
+        }
         self.remove_session(displaced);
         self.remove_unknown(authority.caller);
         if let Some(deadline) = displaced_denial {
@@ -634,7 +668,9 @@ impl MemoryReceiver {
             publish!(self.callers.remove(&displaced));
         }
         publish!(self.callers.insert(authority.caller, record));
-        publish!(self.slots.insert(slot, authority.caller));
+        let account = self.accounts.entry(usage.account).or_default();
+        publish!(account.set_slot(binding.device_slot, authority.caller));
+        publish!(account.replay_count = usage.replays_for_account);
         publish!(
             self.session_expiry
                 .insert((expires_at_ns, authority.caller))
@@ -644,10 +680,6 @@ impl MemoryReceiver {
                 .insert((replay.remove_at_ns, fingerprint))
         );
         publish!(self.replays.insert(fingerprint, replay));
-        publish!(
-            self.accounts
-                .insert(usage.account, usage.replays_for_account)
-        );
         publish!(self.sessions = usage.sessions);
         publish!(self.encoded_bytes = usage.encoded_bytes);
         self.lifecycle = Lifecycle::Ready;
@@ -779,8 +811,8 @@ impl MemoryReceiver {
         Ok(plan.receipt)
     }
 
-    /// Remove at most `limit` expired session/replay/unknown-denial rows in total (1–128).
-    /// Visits indexed deadlines only; known login/device fences are never pruned.
+    /// Remove at most `limit` expired session, replay, denial and device-slot rows in total (1–128).
+    /// Visits indexed deadlines only.
     pub fn prune(&mut self, now_ns: u64, limit: usize) -> Result<PruneReport, MemoryError> {
         self.ready()?;
         if !(1..=128).contains(&limit) {
@@ -789,7 +821,9 @@ impl MemoryReceiver {
         self.observe(now_ns)?;
         let mut report = PruneReport::default();
         publish!(self.lifecycle = Lifecycle::Closed);
-        while report.sessions + report.replays + report.unknown_denials < limit {
+        while report.sessions + report.replays + report.unknown_denials + report.device_slots
+            < limit
+        {
             if let Some(&(deadline, caller)) = self.session_expiry.first()
                 && deadline <= now_ns
             {
@@ -801,9 +835,9 @@ impl MemoryReceiver {
                 publish!(self.replay_expiry.remove(&(deadline, fingerprint)));
                 if let Some(replay) = publish!(self.replays.remove(&fingerprint)) {
                     publish!(self.encoded_bytes -= replay.bytes);
-                    if let Some(count) = self.accounts.get_mut(&replay.account) {
-                        publish!(*count -= 1);
-                        if *count == 0 {
+                    if let Some(account) = self.accounts.get_mut(&replay.account) {
+                        publish!(account.replay_count -= 1);
+                        if account.replay_count == 0 && account.slots.is_empty() {
                             publish!(self.accounts.remove(&replay.account));
                         }
                     }
@@ -814,6 +848,11 @@ impl MemoryReceiver {
             {
                 self.remove_unknown(caller);
                 report.unknown_denials += 1;
+            } else if let Some(&(deadline, caller)) = self.slot_expiry.first()
+                && deadline <= now_ns
+            {
+                self.reclaim_slot(deadline, caller);
+                report.device_slots += 1;
             } else {
                 break;
             }
@@ -853,6 +892,18 @@ impl MemoryReceiver {
         Ok(())
     }
 
+    fn reclaim_slot(&mut self, deadline: u64, caller: Principal) {
+        publish!(self.slot_expiry.remove(&(deadline, caller)));
+        let row = publish!(self.callers.remove(&caller)).expect("indexed slot owner");
+        let (issuer, subject, device) = row.slot().expect("known login");
+        let key = (issuer, subject);
+        let account = self.accounts.get_mut(&key).expect("indexed account");
+        publish!(account.slots.retain(|(slot, _)| *slot != device));
+        if account.slots.is_empty() && account.replay_count == 0 {
+            publish!(self.accounts.remove(&key));
+        }
+    }
+
     fn remove_session(&mut self, caller: Principal) {
         if let Some(row) = self.callers.get_mut(&caller)
             && let Some(session) = publish!(row.session.take())
@@ -880,12 +931,21 @@ impl MemoryReceiver {
         }
     }
 
+    fn slot_owner(&self, slot: Slot) -> Option<&Principal> {
+        self.accounts
+            .get(&(slot.0, slot.1))?
+            .slots
+            .iter()
+            .find(|(device, _)| *device == slot.2)
+            .map(|(_, caller)| caller)
+    }
+
     fn selected(&self, caller: Principal) -> records::Selected<'_> {
         let row = self.callers.get(&caller);
         let session = row.and_then(CallerRecord::session_facts);
         let device = row
             .and_then(CallerRecord::slot)
-            .and_then(|slot| self.slots.get(&slot))
+            .and_then(|slot| self.slot_owner(slot))
             .and_then(|owner| self.callers.get(owner))
             .and_then(CallerRecord::device);
         records::Selected {
@@ -899,7 +959,7 @@ impl MemoryReceiver {
 ///
 /// PruneReport
 ///
-/// Number of physical rows removed; known fences remain unchanged.
+/// Physical rows removed by one bounded maintenance call.
 ///
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -908,6 +968,8 @@ pub struct PruneReport {
     pub sessions: usize,
     /// Expired replay rows removed.
     pub replays: usize,
-    /// Expired unknown denials removed; known login fences remain retained.
+    /// Expired unknown denials removed.
     pub unknown_denials: usize,
+    /// Known device slots safely reclaimed.
+    pub device_slots: usize,
 }

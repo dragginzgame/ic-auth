@@ -127,6 +127,15 @@ impl CallerRecord {
             .expect("memory sessions always have a known binding")
     }
 
+    // Older issuer generations started no later than this one. Their signed login
+    // windows are bounded by the same immutable receiver lifetime limit.
+    pub(super) fn reclaim_at(&self, max_login_ttl_ns: u64) -> u64 {
+        self.binding()
+            .started_at_ns
+            .saturating_add(max_login_ttl_ns)
+            .max(self.login.until_ns)
+    }
+
     pub(super) fn slot(&self) -> Option<Slot> {
         self.login
             .binding

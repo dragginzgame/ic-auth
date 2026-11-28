@@ -77,7 +77,7 @@ async fn population_pruning_cost_observations() {
         receiver::time(pic, 35).await;
         for phase in ["prune-replays", "prune-sessions"] {
             if phase == "prune-sessions" {
-                receiver::time(pic, 110).await;
+                receiver::time(pic, 105).await;
             }
             let mut remaining = size;
             let mut batches = 0;
@@ -94,9 +94,9 @@ async fn population_pruning_cost_observations() {
                 };
                 let removed = remaining.min(4);
                 let expected = if phase == "prune-replays" {
-                    Outcome::Pruned(0, removed, 0)
+                    Outcome::Pruned(0, removed, 0, 0)
                 } else {
-                    Outcome::Pruned(removed, 0, 0)
+                    Outcome::Pruned(removed, 0, 0, 0)
                 };
                 assert_eq!(result, expected);
                 remaining -= removed;
@@ -133,7 +133,7 @@ async fn population_pruning_cost_observations() {
         assert_eq!(empty.logins, (u64::from(size), 0));
         assert_eq!(
             measured(pic, id, first, &Command::Prune(4), size, "empty-prune").await,
-            Outcome::Pruned(0, 0, 0)
+            Outcome::Pruned(0, 0, 0, 0)
         );
         let after = receiver::observe(pic, id).await;
         assert_eq!(after.usage, empty.usage);

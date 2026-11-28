@@ -197,7 +197,7 @@ fn volatile_two_issuer_accounts_devices_and_receivers_remain_independent() {
     use std::collections::BTreeMap;
     let h = Host::new();
     let mut config = h.config();
-    config.login.max_admitted_logins = 3;
+    config.login.max_retained_device_slots = 3;
     config.capacity.max_sessions = 3;
     config.capacity.max_replays = 3;
     let new_receiver = || {
@@ -1047,6 +1047,24 @@ fn memory_full_pool_replacement_is_verified_before_displacement() {
         Err(E::Policy(P::Revoked))
     );
     assert_eq!(r.verification_budget().available(), credit);
+    assert_eq!(r.prune(109, 128).unwrap().device_slots, 0);
+    assert_eq!(r.prune(110, 1).unwrap().device_slots, 1);
+    assert_eq!(r.known_logins(), 0);
+    assert!(
+        r.admit(
+            &credential("late-old"),
+            request(),
+            h.admission(&h.context("late-old", 125))
+        )
+        .is_err()
+    );
+    r.admit(
+        &credential("future"),
+        request(),
+        h.admission(&h.context("future", 125)),
+    )
+    .unwrap();
+    assert_eq!(r.known_logins(), 1);
 }
 
 #[test]
@@ -1442,11 +1460,12 @@ fn logout_expired_unknown_transfer_refuses_without_freeing_either_pool() {
     assert_eq!(r.verification_budget().available(), 8);
     let pruned = r.prune(125, 128).unwrap();
     assert_eq!(pruned.unknown_denials, 1);
-    assert_eq!(r.known_logins(), 1);
+    assert_eq!(pruned.device_slots, 1);
+    assert_eq!(r.known_logins(), 0);
     assert_eq!(r.unknown_logins(), 0);
     assert_eq!(
         r.logout(initial.caller, 125),
-        Ok(LogoutReceipt::Revoked { deny_until_ns: 100 })
+        Ok(LogoutReceipt::Unconfirmed { deny_until_ns: 225 })
     );
 }
 
@@ -1593,6 +1612,22 @@ fn check_stable_session(name: &str) {
     owner.seal(1).unwrap();
     drop(owner);
     for revision in [2, 3] {
+        if revision == 2 {
+            let mut forbidden = config;
+            forbidden.login.max_login_ttl_ns += 1;
+            assert!(matches!(
+                StableReceiver::reopen(lease(), forbidden, 26, revision),
+                Err(ic_auth::stable_upgrade::UpgradeError::Configuration)
+            ));
+            config.login.max_retained_device_slots += 1;
+        } else {
+            let mut decrease = config;
+            decrease.login.max_retained_device_slots -= 1;
+            assert!(matches!(
+                StableReceiver::reopen(lease(), decrease, 26, revision),
+                Err(ic_auth::stable_upgrade::UpgradeError::Configuration)
+            ));
+        }
         let mut owner = StableReceiver::reopen(lease(), config, 26, revision).unwrap();
         let r = owner.state();
         assert_eq!(r.verification_budget().available(), credit);

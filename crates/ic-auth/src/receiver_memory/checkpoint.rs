@@ -1,8 +1,8 @@
 //! Stable receiver checkpoint format and upgrade lifecycle.
 
 use super::{
-    Account, BTreeMap, BTreeSet, CallerRecord, Lifecycle, MemoryConfig, MemoryReceiver, Principal,
-    Replay, Slot, VerificationBudget, WorkBucket, enrollment, policy,
+    Account, AccountIndex, BTreeMap, BTreeSet, CallerRecord, Lifecycle, MemoryConfig,
+    MemoryReceiver, Principal, Replay, VerificationBudget, WorkBucket, enrollment, policy,
 };
 use crate::stable_upgrade::{Checkpoint, DIGEST_BYTES, UpgradeError};
 use ic_storage::{DefaultMemoryImpl, Memory, RuntimeMemory};
@@ -29,7 +29,7 @@ const HEADER_ALLOWANCE: usize = 4096;
 fn validate_checkpoint_budget(config: MemoryConfig) -> Result<(), UpgradeError> {
     let callers = config
         .login
-        .max_admitted_logins
+        .max_retained_device_slots
         .saturating_add(config.unknown_logout.max_denials);
     let chunks = callers
         .div_ceil(CHUNK_ROWS)
@@ -63,15 +63,15 @@ struct Fields {
     unknown_budget: WorkBucket,
     unknown: usize,
     #[serde(skip)]
+    slot_expiry: BTreeSet<(u64, Principal)>,
+    #[serde(skip)]
     unknown_expiry: BTreeSet<(u64, Principal)>,
     #[serde(skip)]
     callers: BTreeMap<Principal, CallerRecord>,
     #[serde(skip)]
-    slots: BTreeMap<Slot, Principal>,
-    #[serde(skip)]
     replays: BTreeMap<[u8; 32], Replay>,
     #[serde(skip)]
-    accounts: BTreeMap<Account, usize>,
+    accounts: BTreeMap<Account, AccountIndex>,
     #[serde(skip)]
     session_expiry: BTreeSet<(u64, Principal)>,
     #[serde(skip)]
@@ -222,14 +222,23 @@ impl<M: Memory> StableReceiver<M> {
         let mut checkpoint = Checkpoint::load(memory)?;
         let mut payload = checkpoint.payload(CHECKPOINT_DOMAIN, canister_version)?;
         let (Saved(mut inner), commitment): (Saved, [u8; 32]) = read_chunk(&mut payload)?;
-        if inner.config != config {
+        let saved_config = inner.config;
+        saved_config
+            .login
+            .validate()
+            .map_err(|_| UpgradeError::InvalidCheckpoint)?;
+        let mut permitted = saved_config;
+        permitted.login.max_retained_device_slots = config.login.max_retained_device_slots;
+        if permitted != config
+            || config.login.max_retained_device_slots < saved_config.login.max_retained_device_slots
+        {
             return Err(UpgradeError::Configuration);
         }
         inner.callers = read_rows(
             &mut payload,
-            config
+            saved_config
                 .login
-                .max_admitted_logins
+                .max_retained_device_slots
                 .saturating_add(config.unknown_logout.max_denials),
         )?;
         inner.replays = read_rows(&mut payload, config.capacity.max_replays)?;
@@ -242,6 +251,7 @@ impl<M: Memory> StableReceiver<M> {
         if inner.rebuild_checkpoint_indexes()? != commitment {
             return Err(UpgradeError::InvalidCheckpoint);
         }
+        inner.config = config;
         inner.observe(now_ns).map_err(|_| UpgradeError::Lifecycle)?;
         inner.lifecycle = Lifecycle::Fresh;
         inner.enrollment.discard_pending();
@@ -333,7 +343,7 @@ impl MemoryReceiver {
                 .callers
                 .len()
                 .checked_sub(self.unknown)
-                .is_none_or(|known| known > cfg.login.max_admitted_logins)
+                .is_none_or(|known| known > cfg.login.max_retained_device_slots)
             || self.sessions > cfg.capacity.max_sessions
             || self.replays.len() > cfg.capacity.max_replays
             || self.encoded_bytes > cfg.capacity.max_encoded_bytes
@@ -362,7 +372,15 @@ impl MemoryReceiver {
             }
             match row.slot() {
                 Some(slot) if slot.2 < cfg.login.max_device_slots => {
-                    if self.slots.insert(slot, *caller).is_some() {
+                    self.slot_expiry
+                        .insert((row.reclaim_at(cfg.login.max_login_ttl_ns), *caller));
+                    if self
+                        .accounts
+                        .entry((slot.0, slot.1))
+                        .or_default()
+                        .set_slot(slot.2, *caller)
+                        .is_some()
+                    {
                         return Err(bad);
                     }
                 }
@@ -396,7 +414,11 @@ impl MemoryReceiver {
             bytes = bytes.checked_add(replay.bytes).ok_or(bad)?;
             self.replay_expiry
                 .insert((replay.remove_at_ns, *fingerprint));
-            let count = self.accounts.entry(replay.account).or_insert(0usize);
+            let count = &mut self
+                .accounts
+                .entry(replay.account)
+                .or_default()
+                .replay_count;
             *count += 1;
             if *count > cfg.capacity.max_replays_per_account {
                 return Err(bad);
@@ -438,13 +460,13 @@ mod tests {
             Err(UpgradeError::Configuration)
         );
         config.capacity.max_encoded_bytes -= 1;
-        config.login.max_admitted_logins += 1;
+        config.login.max_retained_device_slots += 1;
         assert_eq!(
             validate_checkpoint_budget(config),
             Err(UpgradeError::Configuration)
         );
         config.capacity.max_encoded_bytes = 1;
-        config.login.max_admitted_logins = usize::MAX;
+        config.login.max_retained_device_slots = usize::MAX;
         assert_eq!(
             validate_checkpoint_budget(config),
             Err(UpgradeError::Configuration)

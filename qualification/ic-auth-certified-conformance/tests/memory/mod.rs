@@ -162,7 +162,7 @@ fn receiver(case: &Case, id: u8) -> StableReceiver {
             login: LoginLimits {
                 max_device_slots: 8,
                 max_login_ttl_ns: 100,
-                max_admitted_logins: 3,
+                max_retained_device_slots: 3,
             },
             capacity: SessionCapacity {
                 max_sessions: 3,

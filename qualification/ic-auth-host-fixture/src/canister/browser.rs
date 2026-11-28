@@ -96,7 +96,7 @@ pub(super) fn init(runtime: &ic_storage::MemoryRuntime<ic_storage::DefaultMemory
             login: LoginLimits {
                 max_device_slots: 1,
                 max_login_ttl_ns: 120 * SECOND,
-                max_admitted_logins: 1,
+                max_retained_device_slots: 1,
             },
             capacity: SessionCapacity {
                 max_sessions: 1,

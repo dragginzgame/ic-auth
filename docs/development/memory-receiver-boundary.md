@@ -95,26 +95,29 @@ credit, so hosts should throttle fresh admissions by authenticated caller before
 verification and bound aggregate ingress across callers. Budget exhaustion can
 delay new admissions even while established sessions and exact retries still work.
 Schedule bounded `prune` calls regularly and continue draining expired entries
-when a call reaches its work limit. Known device-slot rows survive session expiry
-and pruning. Size `max_admitted_logins` for distinct retained issuer/account/slot
-combinations over the installation lifetime. The starting profile's 65,536 slots
-hold 8,192 accounts if each uses eight slots, or 65,536 if each uses one.
+when a call reaches its work limit. The work count is the sum of sessions,
+replays, unknown denials and device slots in the prune report.
 
 ## Bounds and accounting
 
-Admission selects only the caller, slot owner, matching replay and account counter.
-Maps and indexes are bounded by protected known-login, session, replay and unknown-denial counts;
-record labels and scopes have their existing bounds. `prune` visits at most 128
-expired session/replay/unknown-denial entries per call, within the caller's smaller combined work
-limit. It never time-prunes known device fences. Actual allocator/index overhead is
-separate from logical byte accounting and still needs deployment-cost qualification.
+Size `login.max_retained_device_slots` for the number of distinct
+(issuer, account, device slot) combinations that need simultaneous protection.
+The default 65,536 rows cover 8,192 accounts using eight devices each, or
+65,536 using one each. The independent `capacity.max_sessions` limits live leases.
 
-Size `MemoryConfig::login.max_admitted_logins` before installation for distinct
-(issuer, account, device slot) combinations over the receiver's lifetime. For a
-single issuer and 10,000 accounts, one used slot each needs 10,000 rows. All
-eight starting-profile slots per account would need 80,000. Raising
-`capacity.max_sessions` alone does not change this limit. Qualify checkpoint
-size and upgrade cost at the chosen population before raising the starting limits.
+The receiver retains a known slot through the login start plus the receiver's
+maximum login lifetime, any longer retained denial, and any later protection
+deadline inherited from the previous owner. Issuers assign increasing generations
+in trusted start-time order and renewals preserve the original login window.
+At or after the deadline, bounded pruning can remove the slot and caller row.
+The account replay counter survives if replay records still exist.
+
+To raise the slot ceiling, supply the larger limit in the trusted host configuration
+to `StableReceiver::reopen` during upgrade. Reopen validates the saved rows against
+their original limit and checks the proposed configuration against the 64 MiB
+checkpoint budget. A decrease or a change to any other field refuses the upgrade.
+The host must trap on refusal for IC rollback. Prune visits at most 128 entries
+per call across all four categories.
 
 The starting profile budgets 20,000 retained session rows and 80,000 replay rows
 with a shared 32 MiB encoded byte limit. Admission and reopen measure the same

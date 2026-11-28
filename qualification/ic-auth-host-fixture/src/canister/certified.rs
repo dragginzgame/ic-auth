@@ -58,7 +58,7 @@ pub(super) fn init(
             login: LoginLimits {
                 max_device_slots: 8,
                 max_login_ttl_ns: 100 * SECOND,
-                max_admitted_logins: 1,
+                max_retained_device_slots: 1,
             },
             capacity: SessionCapacity {
                 max_sessions: 1,

@@ -267,6 +267,14 @@ async fn stable_auth_upgrade_and_failed_reopen_preserve_session_logout_and_certi
     }
     let issued = super::observe(&pic, id, caller).await;
     assert_eq!(issued.progress, Progress::Completed);
+    let second_caller = CanisterId::from_slice(&vectors["other-account-caller"]);
+    let second_login = credential(&vectors, "other-account", false);
+    assert_eq!(
+        control(&pic, id, second_caller, &second_login)
+            .await
+            .unwrap(),
+        Err(Refusal::Other)
+    );
     let before = observe(&pic, id).await;
     let err = pic
         .upgrade_canister(id, wasm.clone(), vec![1], None)
@@ -284,7 +292,7 @@ async fn stable_auth_upgrade_and_failed_reopen_preserve_session_logout_and_certi
         Ok(Outcome::AuthorizedUser([0xab; 16]))
     );
 
-    pic.upgrade_canister(id, wasm.clone(), vec![], None)
+    pic.upgrade_canister(id, wasm.clone(), vec![2], None)
         .await
         .unwrap();
     assert_eq!(
@@ -348,6 +356,13 @@ async fn stable_auth_upgrade_and_failed_reopen_preserve_session_logout_and_certi
     assert!(!retained.signature.is_empty());
     assert_eq!(retained.usage, issued.usage);
     assert_eq!(retained.credit, issued.credit);
+    assert!(matches!(
+        control(&pic, id, second_caller, &second_login)
+            .await
+            .unwrap(),
+        Ok(Outcome::Admitted(false, _))
+    ));
+    assert_eq!(observe(&pic, id).await.logins, (2, 0));
     pic.drop().await;
 }
 

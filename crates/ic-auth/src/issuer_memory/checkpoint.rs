@@ -212,7 +212,7 @@ impl MemoryIssuer {
     fn renewal_digest(&self) -> [u8; 32] {
         let mut digest = Sha256::new();
         for (&account, owner) in &self.accounts {
-            for (id, login) in &owner.logins {
+            for (id, login) in owner.logins.iter() {
                 hash_renewal(&mut digest, account, id, login);
             }
         }
@@ -340,7 +340,7 @@ impl MemoryIssuer {
                 return Err(bad);
             }
             let mut slots = BTreeSet::new();
-            for (&id, login) in &owner.logins {
+            for (&id, login) in owner.logins.iter() {
                 if matches!(login.renewal, super::RenewalProgress::InFlight(n) if n == 0 || !owner.renewals.contains_key(&(id, n)))
                     || matches!(login.renewal, super::RenewalProgress::PrunedRenewal(0))
                     || !login.policy.valid_limits()

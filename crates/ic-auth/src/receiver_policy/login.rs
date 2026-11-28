@@ -8,7 +8,7 @@ use ic_auth_protocol_types::{AudienceId, Principal};
 ///
 /// LoginLimits
 ///
-/// Protected login pool and lifetime bounds; retained fences are not time-pruned.
+/// Protected device-slot capacity and login lifetime bounds.
 ///
 
 #[derive(Clone, Copy, Debug)]
@@ -21,8 +21,8 @@ pub struct LoginLimits {
     pub max_device_slots: u8,
     /// Maximum fresh login duration in nanoseconds, positive and at most 90 days.
     pub max_login_ttl_ns: u64,
-    /// Maximum physical known-login rows across all accounts; must be positive.
-    pub max_admitted_logins: usize,
+    /// Maximum retained (issuer, account, device slot) rows across the receiver.
+    pub max_retained_device_slots: usize,
 }
 
 impl LoginLimits {
@@ -30,7 +30,7 @@ impl LoginLimits {
         if !(1..=8).contains(&self.max_device_slots)
             || self.max_login_ttl_ns == 0
             || self.max_login_ttl_ns > 90 * 86_400_000_000_000
-            || self.max_admitted_logins == 0
+            || self.max_retained_device_slots == 0
         {
             return Err(E::InvalidContext);
         }
@@ -96,7 +96,7 @@ pub(crate) enum LoginDecision {
 /// commit session/replay/login/index/accounting changes atomically. No decision
 /// can survive an await, changed authority or changed storage snapshot.
 ///
-/// Known caller denials and device generations survive their time deadlines.
+/// Known caller denials and device generations survive session expiry until safely pruned.
 /// Unknown caller denial expires exclusively. A same-browser renewal cannot change
 /// account, slot, generation or either end of its original login window. Replacing
 /// a retained slot requires a different browser and a strictly greater generation;
@@ -126,7 +126,7 @@ pub(crate) fn assess_login(
         if old.caller != snapshot.caller {
             return Err(E::InvalidFacts);
         }
-        // Known fences are retained even after their original login expires.
+        // Pruning owns removal of known fences after their protection deadline.
         if old.binding.is_some() || now_ns < old.until_ns {
             if old.denied {
                 return Err(E::Revoked);
@@ -194,7 +194,7 @@ pub(crate) fn assess_login(
     {
         return Err(E::InvalidFacts); // A known caller cannot lose its slot index.
     }
-    if snapshot.admitted_logins >= limits.max_admitted_logins {
+    if snapshot.admitted_logins >= limits.max_retained_device_slots {
         return Err(E::Capacity);
     }
     Ok(LoginDecision::New)

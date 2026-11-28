@@ -19,6 +19,8 @@ pub use checkpoint::StableIssuer;
 mod tests;
 
 mod certified;
+mod login_rows;
+use login_rows::LoginRows;
 mod renewal;
 mod retention;
 mod types;
@@ -66,7 +68,7 @@ fn expiry(time: u64, account: Principal, identity: Identity) -> Expiry {
 )]
 struct Account {
     // At most eight logins: slot/browser selection scans only this bounded owner.
-    logins: BTreeMap<Identity, Login>,
+    logins: LoginRows,
     operations: BTreeMap<Identity, Operation>,
     // Lookup projection only: results live in operations for both entry paths.
     renewals: BTreeMap<(Identity, u64), Identity>,
@@ -289,7 +291,7 @@ impl MemoryIssuer {
             || config.max_operations == 0
             || config.max_operations_per_account == 0
             || config.max_operations_per_account > config.max_operations
-            || !(1..=8).contains(&config.max_devices_per_account)
+            || !(1..=login_rows::MAX_LOGINS).contains(&config.max_devices_per_account)
             || config.max_result_bytes == 0
         {
             return Err(IssuerError::Invalid);

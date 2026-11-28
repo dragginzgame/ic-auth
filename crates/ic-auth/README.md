@@ -9,7 +9,7 @@ stable-memory lease. For a canister with both roles and an Ed25519 receiver:
 
 ```toml
 [dependencies]
-ic-auth = { version = "0.51", features = ["receiver-stable", "issuer-stable", "ed25519-verification"] }
+ic-auth = { version = "0.52", features = ["receiver-stable", "issuer-stable", "ed25519-verification"] }
 ```
 
 | Owner | Cargo feature | Fresh installation |
@@ -21,13 +21,13 @@ Import the receiver types from `ic_auth::receiver_memory` and the issuer types
 from `ic_auth::issuer_memory`. Ordinary operations use the owner's heap-backed
 state. The upgrade hooks write and read the checkpoint.
 
-Auth 0.51 requires fresh IC Storage 0.80 backing for stable Auth. Storage 0.79 directories and checkpoint cells cannot reopen in place.
+Auth 0.52 requires fresh IC Storage 0.80 backing for stable Auth. Storage 0.79 directories and checkpoint cells cannot reopen in place.
 
 Give each stable owner a dedicated host-owned `ic-storage` lease. Call `seal(canister_version)`
 in pre-upgrade. In post-upgrade, reacquire the same lease and call
 `StableReceiver::reopen(lease, config, now_ns, canister_version)` or
 `StableIssuer::reopen(lease, config, now_ns, canister_version)` with the original configuration
-and current trusted time. Read the canister version inside each hook. Only the
+and current trusted time. During upgrade the host may increase only the receiver’s `login.max_retained_device_slots` within the checkpoint budget. Read the canister version inside each hook. Only the
 immediate successor can open the current v1 checkpoint for each owner. Pre-cut
 receiver and issuer images are refused. Trap on failure so the IC rolls back the upgrade.
 Receiver checkpoints hold up to 64 MiB of encoded state. Issuer checkpoints hold up to 8 MiB. Refresh the receiver's
@@ -38,7 +38,7 @@ and 65,536 retained device slots, subject to the 32 MiB session/replay byte budg
 The starting receiver accepts logins up to one hour. The issuer still chooses
 the signed login lifetime. A receiver configuration that can exceed the 64 MiB
 checkpoint budget is refused before it opens a store.
-Session expiry retains each slot’s generation fence. Use `SessionTtlPolicy::default()`
+Schedule bounded pruning to reclaim slots after their protection deadlines. Use `SessionTtlPolicy::default()`
 for a 15-minute default and a 30-minute request ceiling, or set a host policy
 explicitly. Login and issuer authority deadlines cap each lease. A current
 enrollment snapshot is required at admission and on every protected call.
